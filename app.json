@@ -9,17 +9,26 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.petyoplpetrov.Closure"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#101A3D",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "splash": {
+        "backgroundColor": "#101A3D",
+        "resizeMode": "contain",
+        "dark": {
+          "backgroundColor": "#101A3D"
+        }
+      },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.petyoplpetrov.Closure"
     },
     "web": {
       "output": "static",
@@ -30,15 +39,14 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#101A3D",
           "dark": {
-            "backgroundColor": "#000000"
-          }
+            "backgroundColor": "#101A3D"
+          },
+          "resizeMode": "contain"
         }
-      ]
+      ],
+      "./plugins/with-transparent-splash-logo.js"
     ],
     "experiments": {
       "typedRoutes": true,

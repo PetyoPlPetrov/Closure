@@ -1,0 +1,42 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background gradient -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#101A3D;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a2a5c;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Glow filter for circles -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Gradient for left circle -->
+    <radialGradient id="circle1Grad" cx="40%" cy="50%">
+      <stop offset="0%" style="stop-color:#F0F4F8;stop-opacity:0.6" />
+      <stop offset="70%" style="stop-color:#D0E0F0;stop-opacity:0.4" />
+      <stop offset="100%" style="stop-color:#A8C5E2;stop-opacity:0.2" />
+    </radialGradient>
+    
+    <!-- Gradient for right circle -->
+    <radialGradient id="circle2Grad" cx="60%" cy="50%">
+      <stop offset="0%" style="stop-color:#F0F4F8;stop-opacity:0.6" />
+      <stop offset="70%" style="stop-color:#D0E0F0;stop-opacity:0.4" />
+      <stop offset="100%" style="stop-color:#A8C5E2;stop-opacity:0.2" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="url(#bgGradient)" rx="200"/>
+  
+  <!-- Left circle (slightly in front) -->
+  <circle cx="420" cy="512" r="280" fill="url(#circle1Grad)" filter="url(#glow)" opacity="0.85"/>
+  
+  <!-- Right circle (slightly behind) -->
+  <circle cx="604" cy="512" r="280" fill="url(#circle2Grad)" filter="url(#glow)" opacity="0.75"/>
+</svg>
+
