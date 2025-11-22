@@ -6,21 +6,61 @@ import { Input } from '@/library/components/input';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
+import { useJourney } from '@/utils/JourneyProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function AddExProfileScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
+  const { addProfile, updateProfile, getProfile } = useJourney();
+  const params = useLocalSearchParams();
   
+  const isEditMode = params.edit === 'true' && params.profileId;
+  const profileId = params.profileId as string | undefined;
+  const existingProfile = profileId ? getProfile(profileId) : null;
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [originalName, setOriginalName] = useState('');
+  const [originalDescription, setOriginalDescription] = useState('');
 
-  // Button is enabled only when name is filled (required field)
+  // Load existing profile data when in edit mode
+  useEffect(() => {
+    if (existingProfile && isEditMode) {
+      const profileName = existingProfile.name || '';
+      const profileDescription = ''; // Description field can be added to ExProfile type later
+      setName(profileName);
+      setDescription(profileDescription);
+      setOriginalName(profileName);
+      setOriginalDescription(profileDescription);
+    } else {
+      // Reset original values when not in edit mode
+      setOriginalName('');
+      setOriginalDescription('');
+    }
+  }, [existingProfile, isEditMode]);
+
+  // Check if form is valid (name is filled)
   const isFormValid = name.trim().length > 0;
+
+  // Check if there are changes from original values (only in edit mode)
+  const hasChanges = useMemo(() => {
+    if (!isEditMode) {
+      // In create mode, any valid form is considered "changed"
+      return isFormValid;
+    }
+    // In edit mode, check if current values differ from original
+    const nameChanged = name.trim() !== originalName.trim();
+    const descriptionChanged = description.trim() !== originalDescription.trim();
+    return nameChanged || descriptionChanged;
+  }, [isEditMode, name, description, originalName, originalDescription, isFormValid]);
+
+  // Button is enabled when form is valid AND there are changes
+  const isSaveEnabled = isFormValid && hasChanges;
 
   const styles = useMemo(
     () =>
@@ -80,10 +120,34 @@ export default function AddExProfileScreen() {
     console.log('Upload picture pressed');
   };
 
-  const handleSubmit = () => {
-    if (!isFormValid) return;
-    // Navigate to welcome screen after form submission
-    router.push('/begin-new-path');
+  const handleSubmit = async () => {
+    if (!isSaveEnabled) return;
+
+    try {
+      if (isEditMode && profileId) {
+        // Update existing profile
+        await updateProfile(profileId, {
+          name: name.trim(),
+          // Preserve other fields
+        });
+        // Navigate back to ex-profiles screen after edit
+        router.replace('/(tabs)/ex-profiles');
+      } else {
+        // Save new profile to local storage
+        await addProfile({
+          name: name.trim(),
+          relationshipDuration: undefined, // Can be added later
+          setupProgress: 0, // Start with 0% progress
+          isCompleted: false,
+        });
+
+        // Navigate to begin-new-path screen after successful save
+        router.push('/begin-new-path');
+      }
+    } catch (error) {
+      console.error(`Error ${isEditMode ? 'updating' : 'adding'} profile:`, error);
+      // TODO: Show error message to user
+    }
   };
 
   return (
@@ -118,10 +182,12 @@ export default function AddExProfileScreen() {
         {/* Title and Description */}
         <View>
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.title}>
-            Begin a New Path
+            {isEditMode ? 'Edit New Path' : 'Begin a New Path'}
           </ThemedText>
           <ThemedText size="sm" weight="normal" style={styles.description}>
-            Let&apos;s start by focusing on one relationship at a time.
+            {isEditMode
+              ? 'Update your profile information and continue your healing journey.'
+              : "Let's start by focusing on one relationship at a time."}
           </ThemedText>
         </View>
 
@@ -150,14 +216,14 @@ export default function AddExProfileScreen() {
           style={[
             styles.button,
             { backgroundColor: colors.primary },
-            !isFormValid && styles.buttonDisabled,
+            !isSaveEnabled && styles.buttonDisabled,
           ]}
           onPress={handleSubmit}
           activeOpacity={0.8}
-          disabled={!isFormValid}
+          disabled={!isSaveEnabled}
         >
           <ThemedText weight="bold" letterSpacing="l" style={{ color: '#ffffff' }}>
-            Start Healing Path
+            {isEditMode ? 'Save' : 'Start Healing Path'}
           </ThemedText>
         </TouchableOpacity>
       </ScrollView>

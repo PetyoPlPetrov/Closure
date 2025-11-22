@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { JourneyProvider } from '@/utils/JourneyProvider';
 import { SplashAnimationProvider, useSplash } from '@/utils/SplashAnimationProvider';
 
 // Hide native splash immediately when this module loads
@@ -44,6 +45,8 @@ function AppContent() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="add-ex-profile" options={{ headerShown: false }} />
         <Stack.Screen name="begin-new-path" options={{ headerShown: false }} />
+        <Stack.Screen name="reality-check" options={{ headerShown: false }} />
+        <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />
@@ -66,7 +69,9 @@ export default function RootLayout() {
 
   return (
     <SplashAnimationProvider>
-      <AppContent />
+      <JourneyProvider>
+        <AppContent />
+      </JourneyProvider>
     </SplashAnimationProvider>
   );
 }

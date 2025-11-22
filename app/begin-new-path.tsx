@@ -4,9 +4,10 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { Step } from '@/library/components/step';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
+import { useJourney } from '@/utils/JourneyProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 type StepStatus = 'completed' | 'current' | 'ready';
@@ -15,12 +16,40 @@ export default function BeginNewPathScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
+  const { profiles, getProfile } = useJourney();
+
+  // Get current profile to check step 1 completion
+  const currentProfileId = profiles[0]?.id;
+  const currentProfile = currentProfileId ? getProfile(currentProfileId) : null;
+  
+  // Check if step 1 (Reality Check) is completed
+  // Step 1 is completed when both sections have records
+  const isStep1Completed = 
+    currentProfile?.sections?.realityCheck?.idealizedMemories === true &&
+    currentProfile?.sections?.realityCheck?.emotionalDebtLedger === true;
 
   // Track step completion status
-  const [stepStatuses, setStepStatuses] = useState<StepStatus[]>(['completed', 'current', 'ready']);
+  const [stepStatuses, setStepStatuses] = useState<StepStatus[]>(() => {
+    // Initialize based on step 1 completion
+    if (isStep1Completed) {
+      return ['completed', 'current', 'ready'];
+    }
+    return ['current', 'ready', 'ready']; // Step 1 is current if not completed, steps 2 and 3 are locked
+  });
+
+  // Update step statuses when step 1 completion changes
+  useEffect(() => {
+    if (isStep1Completed && stepStatuses[0] !== 'completed') {
+      setStepStatuses(['completed', 'current', 'ready']);
+    }
+  }, [isStep1Completed, stepStatuses]);
 
   // Check if all steps are completed
   const allStepsCompleted = stepStatuses.every((status) => status === 'completed');
+  
+  // Step 2 and 3 are disabled until step 1 is completed
+  const isStep2Disabled = !isStep1Completed;
+  const isStep3Disabled = !isStep1Completed || stepStatuses[1] !== 'completed';
 
   const styles = useMemo(
     () =>
@@ -128,8 +157,7 @@ export default function BeginNewPathScreen() {
             description="Confront idealization with objective facts. Commit to seeing the past clearly."
             status={stepStatuses[0]}
             onPress={() => {
-              // TODO: Navigate to step 1 screen
-              console.log('Step 1 pressed');
+              router.push('/reality-check');
             }}
           />
           <Step
@@ -137,18 +165,23 @@ export default function BeginNewPathScreen() {
             title="Processing & Accountability"
             description="Turn painful memories into lessons for growth through guided exercises."
             status={stepStatuses[1]}
-            onPress={() => {
-              // TODO: Navigate to step 2 screen
-              // When step 2 is completed, update its status
-              setStepStatuses((prev) => {
-                const newStatuses = [...prev];
-                if (newStatuses[1] === 'current') {
-                  newStatuses[1] = 'completed';
-                  newStatuses[2] = 'current'; // Make step 3 current
-                }
-                return newStatuses;
-              });
-            }}
+            disabled={isStep2Disabled}
+            onPress={
+              isStep2Disabled
+                ? undefined
+                : () => {
+                    // TODO: Navigate to step 2 screen
+                    // When step 2 is completed, update its status
+                    setStepStatuses((prev) => {
+                      const newStatuses = [...prev];
+                      if (newStatuses[1] === 'current') {
+                        newStatuses[1] = 'completed';
+                        newStatuses[2] = 'current'; // Make step 3 current
+                      }
+                      return newStatuses;
+                    });
+                  }
+            }
           />
           <Step
             number={3}
@@ -156,17 +189,22 @@ export default function BeginNewPathScreen() {
             description="Rediscover your individuality and build a future that is entirely your own."
             status={stepStatuses[2]}
             isLast
-            onPress={() => {
-              // TODO: Navigate to step 3 screen
-              // When step 3 is completed, update its status
-              setStepStatuses((prev) => {
-                const newStatuses = [...prev];
-                if (newStatuses[2] === 'current') {
-                  newStatuses[2] = 'completed';
-                }
-                return newStatuses;
-              });
-            }}
+            disabled={isStep3Disabled}
+            onPress={
+              isStep3Disabled
+                ? undefined
+                : () => {
+                    // TODO: Navigate to step 3 screen
+                    // When step 3 is completed, update its status
+                    setStepStatuses((prev) => {
+                      const newStatuses = [...prev];
+                      if (newStatuses[2] === 'current') {
+                        newStatuses[2] = 'completed';
+                      }
+                      return newStatuses;
+                    });
+                  }
+            }
           />
         </View>
 

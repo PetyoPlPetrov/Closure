@@ -16,6 +16,7 @@ type StepProps = {
   isLast?: boolean;
   containerStyle?: ViewStyle;
   onPress?: () => void;
+  disabled?: boolean;
 };
 
 export function Step({
@@ -26,6 +27,7 @@ export function Step({
   isLast = false,
   containerStyle,
   onPress,
+  disabled = false,
 }: StepProps) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
@@ -34,12 +36,17 @@ export function Step({
   const isCompleted = status === 'completed';
   const isCurrent = status === 'current';
   const isReady = status === 'ready';
+  const isDisabled = disabled && !isCompleted;
 
   // Badge color based on status
   const badgeColor = isCompleted
     ? colorScheme === 'dark'
       ? 'rgba(56, 189, 248, 0.3)' // Muted blue for completed in dark mode
       : 'rgba(56, 189, 248, 0.2)' // Muted blue for completed in light mode
+    : isDisabled
+    ? colorScheme === 'dark'
+      ? 'rgba(255, 255, 255, 0.1)' // Muted grey for disabled
+      : 'rgba(0, 0, 0, 0.1)'
     : colors.primary; // Vibrant blue for current/ready
 
   const styles = useMemo(
@@ -49,6 +56,7 @@ export function Step({
           flexDirection: 'row',
           gap: 16 * fontScale,
           position: 'relative',
+          opacity: isDisabled ? 0.5 : 1,
         },
         touchableContainer: {
           flex: 1,
@@ -153,7 +161,7 @@ export function Step({
         </View>
         {!isLast && <View style={styles.line} />}
       </View>
-      {onPress ? (
+      {onPress && !isDisabled ? (
         <TouchableOpacity
           style={styles.touchableContainer}
           onPress={onPress}
