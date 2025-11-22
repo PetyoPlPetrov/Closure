@@ -81,8 +81,9 @@ export default function AddExProfileScreen() {
   };
 
   const handleSubmit = () => {
-    // TODO: Implement form submission
-    console.log('Form submitted', { name, description });
+    if (!isFormValid) return;
+    // Navigate to welcome screen after form submission
+    router.push('/begin-new-path');
   };
 
   return (
