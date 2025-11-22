@@ -4,6 +4,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale, useIconScale } from '@/hooks/use-device-size';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
@@ -123,6 +124,7 @@ export default function ExProfilesScreen() {
         <TouchableOpacity 
           style={[styles.button, { backgroundColor: colors.primary }]}
           activeOpacity={0.8}
+          onPress={() => router.push('/add-ex-profile')}
         >
           <ThemedText weight="bold" letterSpacing="l" style={styles.buttonText}>
             Add Your First Ex Profile
