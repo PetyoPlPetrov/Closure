@@ -1,33 +1,127 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useFontScale } from '@/hooks/use-device-size';
+import { TAB_BACKGROUND_COLOR_DARK } from '@/library/components/tab-screen-container';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'dark'];
+  const fontScale = useFontScale();
+  
+  // Scale icon size: 28 base size, 30% larger on tablets (28 * 1.3 = 36.4, round to 36)
+  const iconSize = Math.round(28 * fontScale);
 
   return (
     <Tabs
+      initialRouteName="ex-profiles"
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: colors.primaryLight,
+        tabBarInactiveTintColor: colorScheme === 'dark' ? '#ffffff' : Colors.light.text,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarLabelPosition: 'below-icon', // Ensures icons and labels are vertically stacked
+        tabBarStyle: {
+          backgroundColor: colorScheme === 'dark' ? TAB_BACKGROUND_COLOR_DARK : '#ffffff',
+          borderTopColor: colorScheme === 'dark' 
+            ? 'rgba(14, 165, 233, 0.3)' 
+            : 'rgba(226, 232, 240, 1)',
+          borderTopWidth: 1,
+          paddingBottom: 20 * fontScale,
+          paddingTop: 8 * fontScale,
+          height: Math.round(78 * fontScale),
+          flexDirection: 'row', // Ensure tabs are laid out horizontally
+        },
+        tabBarItemStyle: {
+          flexDirection: 'column', // Keep icon and label stacked vertically
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        tabBarLabelStyle: {
+          fontSize: Math.round(12 * fontScale), // Scale tab bar label font size
+          fontWeight: '500',
+          letterSpacing: 0.015,
+          marginTop: 4 * fontScale, // Gap between icon and text, scaled for device size
+        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <MaterialIcons name="home" size={iconSize} color={color} />,
+          tabBarLabel: ({ focused, color }) => {
+            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : Colors.light.text;
+            return (
+              <ThemedText
+                size="xs"
+                weight={focused ? 'bold' : 'medium'}
+                letterSpacing="l"
+                style={{ 
+                  color: focused ? color : inactiveColor,
+                  marginTop: 6 * fontScale
+                }}
+              >
+                Home
+              </ThemedText>
+            );
+          },
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="ex-profiles"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Ex Profiles',
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons 
+              name="group" 
+              size={iconSize} 
+              color={color}
+            />
+          ),
+          tabBarLabel: ({ focused, color }) => {
+            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : Colors.light.text;
+            return (
+              <ThemedText
+                size="xs"
+                weight={focused ? 'bold' : 'medium'}
+                letterSpacing="l"
+                style={{ 
+                  color: focused ? color : inactiveColor,
+                  marginTop: 6 * fontScale
+                }}
+              >
+                Ex Profiles
+              </ThemedText>
+            );
+          },
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color }) => <MaterialIcons name="settings" size={iconSize} color={color} />,
+          tabBarLabel: ({ focused, color }) => {
+            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : Colors.light.text;
+            return (
+              <ThemedText
+                size="xs"
+                weight={focused ? 'bold' : 'medium'}
+                letterSpacing="l"
+                style={{ 
+                  color: focused ? color : inactiveColor,
+                  marginTop: 6 * fontScale
+                }}
+              >
+                Settings
+              </ThemedText>
+            );
+          },
         }}
       />
     </Tabs>
