@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import { useLargeDevice } from '@/hooks/use-large-device';
 import { SectionCard } from '@/library/components/section-card';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
@@ -14,6 +15,7 @@ export default function RealityCheckScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
+  const { maxContentWidth } = useLargeDevice();
   const { profiles, getProfile } = useJourney();
 
   // Check if sections have records (completed)
@@ -52,6 +54,9 @@ export default function RealityCheckScreen() {
           padding: 16 * fontScale,
           paddingBottom: 32 * fontScale,
           gap: 24 * fontScale,
+          maxWidth: maxContentWidth,
+          alignSelf: 'center',
+          width: '100%',
         },
         title: {
           marginBottom: 12 * fontScale,
@@ -63,7 +68,7 @@ export default function RealityCheckScreen() {
           gap: 16 * fontScale,
         },
       }),
-    [fontScale]
+    [fontScale, maxContentWidth]
   );
 
   const handleIdealizedMemories = () => {

@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale, useIconScale } from '@/hooks/use-device-size';
+import { useLargeDevice } from '@/hooks/use-large-device';
 import { ActionSheet } from '@/library/components/action-sheet';
 import { ConfirmationModal } from '@/library/components/confirmation-modal';
 import { FloatingActionButton } from '@/library/components/floating-action-button';
@@ -19,6 +20,7 @@ export default function ExProfilesScreen() {
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const iconScale = useIconScale();
+  const { maxContentWidth } = useLargeDevice();
   const { profiles, isLoading, deleteProfile } = useJourney();
 
   const [selectedProfile, setSelectedProfile] = useState<ExProfile | null>(null);
@@ -141,6 +143,12 @@ export default function ExProfilesScreen() {
       padding: 16 * fontScale,
       paddingBottom: 100 * fontScale, // Space for FAB
       gap: 16 * fontScale,
+      alignItems: 'center',
+    },
+    listContentWrapper: {
+      maxWidth: maxContentWidth,
+      width: '100%',
+      alignSelf: 'center',
     },
     fabContainer: {
       position: 'absolute',
@@ -160,6 +168,9 @@ export default function ExProfilesScreen() {
     scrollContent: {
       flexGrow: 1,
       justifyContent: 'center',
+      maxWidth: maxContentWidth,
+      alignSelf: 'center',
+      width: '100%',
     },
     content: {
       flex: 1,
@@ -168,6 +179,8 @@ export default function ExProfilesScreen() {
       paddingHorizontal: 16 * fontScale,
       paddingVertical: 24 * fontScale,
       gap: 24 * fontScale,
+      maxWidth: maxContentWidth,
+      width: '100%',
     },
     iconContainer: {
       width: 200 * fontScale * iconScale,
@@ -239,17 +252,19 @@ export default function ExProfilesScreen() {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           >
-            {profiles.map((profile) => (
-              <ProfileCard
-                key={profile.id}
-                profile={profile}
-                onPress={() => {
-                  // TODO: Navigate to profile detail screen
-                  console.log('Profile pressed:', profile.id);
-                }}
-                onMorePress={() => handleMorePress(profile)}
-              />
-            ))}
+            <View style={styles.listContentWrapper}>
+              {profiles.map((profile) => (
+                <ProfileCard
+                  key={profile.id}
+                  profile={profile}
+                  onPress={() => {
+                    // TODO: Navigate to profile detail screen
+                    console.log('Profile pressed:', profile.id);
+                  }}
+                  onMorePress={() => handleMorePress(profile)}
+                />
+              ))}
+            </View>
           </ScrollView>
           {/* Floating Action Button */}
           <View style={styles.fabContainer}>

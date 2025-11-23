@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import { useLargeDevice } from '@/hooks/use-large-device';
 import { FloatingActionButton } from '@/library/components/floating-action-button';
 import { useJourney } from '@/utils/JourneyProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -26,7 +27,7 @@ import Animated, {
     withSpring,
     withTiming,
 } from 'react-native-reanimated';
-import { Path, Svg } from 'react-native-svg';
+import { Defs, Path, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
 // Animated Cloud Component
 function AnimatedCloud({
@@ -37,6 +38,9 @@ function AnimatedCloud({
   onAnimationComplete,
   onDelete,
   onRegisterAnimatedValues,
+  colors,
+  cloudWidth,
+  cloudHeight,
 }: {
   cloud: { id: string; text: string; x: number; y: number; startX?: number; startY?: number };
   panHandlers: any;
@@ -45,8 +49,10 @@ function AnimatedCloud({
   onAnimationComplete: (id: string) => void;
   onDelete: (id: string) => void;
   onRegisterAnimatedValues: (id: string, translateX: any, translateY: any) => void;
+  colors: typeof Colors.dark;
+  cloudWidth: number;
+  cloudHeight: number;
 }) {
-  const colorScheme = useColorScheme();
   // Animation values
   const translateX = useSharedValue(cloud.startX !== undefined ? cloud.startX : cloud.x);
   const translateY = useSharedValue(cloud.startY !== undefined ? cloud.startY : cloud.y);
@@ -124,7 +130,20 @@ function AnimatedCloud({
         animatedStyle,
       ]}
     >
-      <Svg width={320} height={100} style={{ position: 'absolute' }}>
+      <Svg 
+        width={cloudWidth} 
+        height={cloudHeight} 
+        viewBox="0 0 320 100"
+        preserveAspectRatio="xMidYMid meet"
+        style={{ position: 'absolute' }}
+      >
+        <Defs>
+          <SvgLinearGradient id={`cloudGradient-${cloud.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+            <Stop offset="0%" stopColor="#2C3E50" stopOpacity="0.95" />
+            <Stop offset="50%" stopColor="#1A1A1A" stopOpacity="0.98" />
+            <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
+          </SvgLinearGradient>
+        </Defs>
         <Path
           d="M50,50 
              Q40,35 50,25 
@@ -147,9 +166,9 @@ function AnimatedCloud({
              Q85,90 75,80 
              Q60,85 50,75 
              Q40,65 50,50 Z"
-          fill={colorScheme === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}
-          stroke={colorScheme === 'dark' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)'}
-          strokeWidth={1}
+          fill={`url(#cloudGradient-${cloud.id})`}
+          stroke="rgba(0,0,0,0.7)"
+          strokeWidth={1.5}
         />
       </Svg>
       {/* Delete button - top right corner */}
@@ -176,11 +195,17 @@ function AnimatedCloud({
       >
         <TextInput
           value={cloud.text}
-          onChangeText={(text) => onTextChange(cloud.id, text)}
+          onChangeText={(text) => {
+            if (text.length <= 50) {
+              onTextChange(cloud.id, text);
+            }
+          }}
           style={styles.cloudTextInput}
           placeholder="Enter hard truth..."
           placeholderTextColor="rgba(255,255,255,0.4)"
           multiline
+          maxLength={50}
+          editable={true}
         />
       </View>
     </Animated.View>
@@ -191,6 +216,11 @@ export default function AddIdealizedMemoryScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
+  const { maxContentWidth, isLargeDevice } = useLargeDevice();
+  
+  // Cloud dimensions - larger on large devices
+  const cloudWidth = isLargeDevice ? 480 : 320; // 1.5x on large devices
+  const cloudHeight = isLargeDevice ? 150 : 100; // 1.5x on large devices
   const params = useLocalSearchParams();
   const { addIdealizedMemory, updateIdealizedMemory, getIdealizedMemoriesByProfileId } = useJourney();
   
@@ -234,16 +264,14 @@ export default function AddIdealizedMemoryScreen() {
       
       // Initialize clouds from existing memory
       if (existingMemory.hardTruths && existingMemory.hardTruths.length > 0) {
-        const cloudWidth = 320;
-        const cloudHeight = 100;
         const cloudSpacing = 20;
         const screenW = Dimensions.get('window').width;
         const screenH = Dimensions.get('window').height;
         const totalCloudsWidth = existingMemory.hardTruths.length * cloudWidth + (existingMemory.hardTruths.length - 1) * cloudSpacing;
         const startX = (screenW - totalCloudsWidth) / 2;
         const containerTop = screenH * 0.4;
-        const gapAbove = 30;
-        const cloudY = containerTop - cloudHeight - gapAbove;
+        const containerHeight = 220; // Default container height
+        const cloudY = containerTop + (containerHeight / 2) - (cloudHeight / 2);
         
         const initialClouds = existingMemory.hardTruths.map((truth, index) => {
           const horizontalOffset = index * (cloudWidth + cloudSpacing);
@@ -260,7 +288,7 @@ export default function AddIdealizedMemoryScreen() {
         setClouds(initialClouds);
       }
     }
-  }, [existingMemory]);
+  }, [existingMemory, cloudWidth, cloudHeight]);
   
   // Track button positions for animation
   const plusButtonRef = useRef<View>(null);
@@ -270,59 +298,28 @@ export default function AddIdealizedMemoryScreen() {
   // Track drag start positions for each cloud
   const dragStart = useRef<Record<string, { x: number; y: number }>>({});
   
-  // Track upload container position for accurate cloud placement
+  // Track upload container ref (kept for potential future use)
   const containerRef = useRef<View>(null);
-  const [containerPosition, setContainerPosition] = useState<{
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null>(null);
 
-  // Calculate initial cloud positions above the upload container (in screen coordinates)
-  const getInitialCloudPosition = (index: number, total: number) => {
-    // Cloud dimensions
-    const cloudWidth = 320;
-    const cloudHeight = 100;
-    
-    // Spacing between multiple clouds
-    const cloudSpacing = 20;
-    const horizontalOffset = index * (cloudWidth + cloudSpacing);
-    
-    // Use actual container position if available, otherwise use estimate
-    if (containerPosition) {
-      const containerTop = containerPosition.y;
-      
-      // Position cloud above container with small gap
-      const gapAbove = 30; // Gap between container top and cloud bottom
-      const cloudY = containerTop - cloudHeight - gapAbove;
-      
-      // Center cloud horizontally, with offset for multiple clouds
-      const screenW = Dimensions.get('window').width;
-      const totalCloudsWidth = total * cloudWidth + (total - 1) * cloudSpacing;
-      const startX = (screenW - totalCloudsWidth) / 2;
-      const cloudX = startX + horizontalOffset;
-      
-      return {
-        x: cloudX,
-        y: cloudY,
-      };
-    }
-    
-    // Fallback: estimate position
+  // Calculate initial cloud positions - center on screen with slight random offset
+  const getInitialCloudPosition = () => {
+    // Get screen dimensions
     const screenW = Dimensions.get('window').width;
     const screenH = Dimensions.get('window').height;
-    const containerTop = screenH * 0.4; // Estimated container top
-    const gapAbove = 30;
-    const cloudY = containerTop - cloudHeight - gapAbove;
     
-    const totalCloudsWidth = total * cloudWidth + (total - 1) * cloudSpacing;
-    const startX = (screenW - totalCloudsWidth) / 2;
-    const cloudX = startX + horizontalOffset;
+    // Center vertically on screen
+    const centerY = (screenH / 2) - (cloudHeight / 2);
+    
+    // Center horizontally on screen
+    const centerX = (screenW / 2) - (cloudWidth / 2);
+    
+    // Add small random offset (5-10 pixels) to right or top
+    const offsetX = Math.random() * 10 - 5; // -5 to +5 pixels
+    const offsetY = Math.random() * 10 - 5; // -5 to +5 pixels
     
     return {
-      x: cloudX,
-      y: cloudY,
+      x: centerX + offsetX,
+      y: centerY + offsetY,
     };
   };
 
@@ -420,16 +417,22 @@ export default function AddIdealizedMemoryScreen() {
 
   // Function to add a new cloud
   const addNewCloud = () => {
-    const newCloudIndex = clouds.length;
-    const initialPos = getInitialCloudPosition(
-      newCloudIndex,
-      clouds.length + 1
-    );
+    // Check if all existing clouds have text
+    const allCloudsHaveText = clouds.length === 0 || clouds.every((cloud) => cloud.text.trim().length > 0);
+    
+    if (!allCloudsHaveText) {
+      alert('Please fill all existing clouds with text before adding a new one.');
+      return;
+    }
+    
+    // All clouds appear at the same center position
+    const initialPos = getInitialCloudPosition();
     
     // Determine start position for animation - use "Add Hard Truth" plus button position
     let startPos: { x: number; y: number };
     
     if (plusButtonPos) {
+      // Use measured plus button position (already in screen coordinates)
       startPos = plusButtonPos;
     } else {
       // Estimate "Add Hard Truth" button position if not measured yet
@@ -449,8 +452,9 @@ export default function AddIdealizedMemoryScreen() {
       text: '', // Empty text - placeholder will be shown
       x: initialPos.x,
       y: initialPos.y,
-      startX: startPos.x - 160, // Center cloud (320/2 = 160)
-      startY: startPos.y - 50, // Center cloud vertically (100/2 = 50)
+      // Start position: center cloud on the plus button
+      startX: startPos.x - (cloudWidth / 2), // Center cloud horizontally
+      startY: startPos.y - (cloudHeight / 2), // Center cloud vertically
     };
     setClouds((prev) => [...prev, newCloud]);
   };
@@ -463,8 +467,15 @@ export default function AddIdealizedMemoryScreen() {
     if (panResponders.current[cloudId]) return panResponders.current[cloudId];
 
     panResponders.current[cloudId] = PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: (evt, gestureState) => {
+        // Allow dragging from anywhere on the cloud, including text area
+        return true;
+      },
+      onStartShouldSetPanResponderCapture: () => false, // Don't capture immediately, let TextInput handle if needed
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // If there's significant movement, it's a drag, not text selection
+        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+      },
       onPanResponderGrant: () => {
         // Use current animated position instead of state position
         const animatedVals = cloudAnimatedValues.current[cloudId];
@@ -513,6 +524,9 @@ export default function AddIdealizedMemoryScreen() {
           flexGrow: 1,
           justifyContent: 'center',
           paddingHorizontal: 22 * fontScale,
+          ...(typeof maxContentWidth === 'number' ? { maxWidth: maxContentWidth } : {}),
+          alignSelf: 'center',
+          width: '100%',
         },
 
         header: {
@@ -545,7 +559,7 @@ export default function AddIdealizedMemoryScreen() {
         uploadShadowWrap: {
           width: '100%',
           alignItems: 'center',
-          zIndex: 1,
+          zIndex: 1, // Lower than clouds
 
           shadowColor: colorScheme === 'dark' ? '#3BAFFB' : '#34C759',
           shadowOpacity: colorScheme === 'dark' ? 0.75 : 0.4,
@@ -598,7 +612,7 @@ export default function AddIdealizedMemoryScreen() {
         },
 
         memoryLabelInput: {
-          fontSize: 17,
+          fontSize: isLargeDevice ? 22 : 17, // Bigger on large devices
           fontWeight: '600',
           color: colors.text,
           textAlign: 'center',
@@ -617,18 +631,21 @@ export default function AddIdealizedMemoryScreen() {
         },
 
         addHardTruthButton: {
-          width: 44,
-          height: 44,
-          borderRadius: 22,
+          width: isLargeDevice ? 56 : 44, // Bigger on large devices
+          height: isLargeDevice ? 56 : 44, // Bigger on large devices
+          borderRadius: isLargeDevice ? 28 : 22,
           justifyContent: 'center',
           alignItems: 'center',
           borderWidth: 1,
           borderColor: 'rgba(255,255,255,0.25)',
         },
+        addHardTruthButtonDisabled: {
+          opacity: 0.4,
+        },
 
         hardTruthText: {
           marginLeft: 10,
-          fontSize: 16,
+          fontSize: isLargeDevice ? 20 : 16, // Bigger on large devices
           fontWeight: '500',
           color: colors.text,
           opacity: 0.9,
@@ -648,10 +665,11 @@ export default function AddIdealizedMemoryScreen() {
         cloudContainer: {
           position: 'absolute',
           zIndex: 9999,
-          width: 320,
-          height: 100,
+          width: cloudWidth,
+          height: cloudHeight,
           justifyContent: 'center',
           alignItems: 'center',
+          overflow: 'visible', // Allow delete button to be positioned outside if needed
         },
 
         cloudWrapper: {
@@ -673,8 +691,8 @@ export default function AddIdealizedMemoryScreen() {
         },
 
         cloudTextInput: {
-          fontSize: 15,
-          color: colors.text,
+          fontSize: isLargeDevice ? 20 : 17, // Bigger font, even bigger on large devices
+          color: '#FFFFFF', // Always white since clouds are dark in both themes
           textAlign: 'center',
           width: '100%',
           backgroundColor: 'transparent',
@@ -683,15 +701,22 @@ export default function AddIdealizedMemoryScreen() {
 
         deleteButton: {
           position: 'absolute',
-          top: 12,
-          right: 12,
+          top: 10,
+          right: cloudWidth * 0.15, // Position inside the top-right bulge of the cloud (around 15% from right)
+          zIndex: 1001,
+        },
+
+        imageDeleteButton: {
+          position: 'absolute',
+          top: 8,
+          right: 8,
           zIndex: 1001,
         },
 
         deleteBadge: {
-          width: 24,
-          height: 24,
-          borderRadius: 12,
+          width: isLargeDevice ? 32 : 24, // Bigger on large devices
+          height: isLargeDevice ? 32 : 24, // Bigger on large devices
+          borderRadius: isLargeDevice ? 16 : 12,
           backgroundColor: '#FF3B30',
           justifyContent: 'center',
           alignItems: 'center',
@@ -703,13 +728,13 @@ export default function AddIdealizedMemoryScreen() {
         },
 
         deleteLine: {
-          width: 12,
-          height: 2,
+          width: isLargeDevice ? 16 : 12, // Bigger line on large devices
+          height: isLargeDevice ? 3 : 2, // Slightly thicker on large devices
           backgroundColor: '#FFFFFF',
           borderRadius: 1,
         },
       }),
-    [colors, fontScale, colorScheme]
+    [colors, fontScale, colorScheme, maxContentWidth, cloudWidth, cloudHeight, isLargeDevice]
   );
 
   return (
@@ -732,7 +757,109 @@ export default function AddIdealizedMemoryScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Cloud Bubbles - render all clouds positioned on screen */}
+      {/* Scroll content */}
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
+      >
+        <View style={styles.centerContent}>
+          <View style={styles.uploadShadowWrap}>
+            <TouchableOpacity
+              ref={containerRef}
+              style={styles.uploadContainer}
+              onPress={pickImage}
+              onLayout={() => {
+                // Container ref is available for potential future use
+              }}
+              activeOpacity={0.8}
+              delayPressIn={0}
+              disabled={isLoadingImage}
+            >
+              {isLoadingImage ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.primaryLight} />
+                  <ThemedText style={{ marginTop: 12, opacity: 0.75 }}>
+                    Opening gallery...
+                  </ThemedText>
+                </View>
+              ) : selectedImage ? (
+                <View style={{ width: '100%', height: '100%', position: 'relative' }}>
+                  <Image
+                    source={{ uri: selectedImage }}
+                    style={styles.uploadedImage}
+                    contentFit="cover"
+                  />
+                  <TouchableOpacity
+                    style={styles.imageDeleteButton}
+                    onPress={() => setSelectedImage(null)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <View style={styles.deleteBadge}>
+                      <View style={styles.deleteLine} />
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+              <MaterialIcons
+                name="add-a-photo"
+                size={50}
+                color={colors.primaryLight}
+              />
+              <ThemedText style={{ marginTop: 6, opacity: 0.75 }}>
+                Tap to Add Photo
+              </ThemedText>
+                </>
+              )}
+            </TouchableOpacity>
+            </View>
+
+          {/* Editable memory label */}
+          <View style={styles.memoryLabelContainer}>
+            <TextInput
+              value={memoryLabel}
+              onChangeText={setMemoryLabel}
+              style={styles.memoryLabelInput}
+              placeholder="Our first vacation"
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              textAlign="center"
+            />
+          </View>
+
+          {/* Add Hard Truth */}
+          <View style={styles.hardTruthRow}>
+            <TouchableOpacity
+              ref={plusButtonRef}
+              style={[
+                styles.addHardTruthButton,
+                clouds.length > 0 && !clouds.every((cloud) => cloud.text.trim().length > 0)
+                  ? styles.addHardTruthButtonDisabled
+                  : undefined,
+              ]}
+              onLayout={() => {
+                plusButtonRef.current?.measure((fx, fy, width, height, px, py) => {
+                  // px, py are relative to window, which matches root View coordinate system
+                  const buttonCenterX = px + width / 2;
+                  const buttonCenterY = py + height / 2;
+                  setPlusButtonPos({ x: buttonCenterX, y: buttonCenterY });
+                });
+              }}
+              onPress={addNewCloud}
+              disabled={clouds.length > 0 && !clouds.every((cloud) => cloud.text.trim().length > 0)}
+            >
+              <MaterialIcons name="add" size={isLargeDevice ? 32 : 24} color={colors.text} />
+            </TouchableOpacity>
+
+            <ThemedText style={styles.hardTruthText}>
+              Add Hard Truth
+            </ThemedText>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Cloud Bubbles - render all clouds positioned on screen (after ScrollView to ensure they appear on top) */}
       {clouds.map((cloud) => {
         const pan = createPanResponder(cloud.id);
         return (
@@ -741,6 +868,9 @@ export default function AddIdealizedMemoryScreen() {
             cloud={cloud}
             panHandlers={pan.panHandlers}
             styles={styles}
+            colors={colors}
+            cloudWidth={cloudWidth}
+            cloudHeight={cloudHeight}
             onTextChange={(id, text) => {
               setClouds((prev) =>
                 prev.map((c) => (c.id === id ? { ...c, text } : c))
@@ -763,107 +893,6 @@ export default function AddIdealizedMemoryScreen() {
           />
         );
       })}
-
-      {/* Scroll content */}
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={true}
-        nestedScrollEnabled={true}
-      >
-        <View style={styles.centerContent}>
-          <View style={styles.uploadShadowWrap}>
-            <TouchableOpacity
-              ref={containerRef}
-              style={styles.uploadContainer}
-              onPress={pickImage}
-              onLayout={() => {
-                // Get absolute position on screen
-                containerRef.current?.measure((fx, fy, fwidth, fheight, px, py) => {
-                  setContainerPosition({
-                    x: px,
-                    y: py,
-                    width: fwidth,
-                    height: fheight,
-                  });
-                });
-              }}
-              activeOpacity={0.8}
-              delayPressIn={0}
-              disabled={isLoadingImage}
-            >
-              {isLoadingImage ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={colors.primaryLight} />
-                  <ThemedText style={{ marginTop: 12, opacity: 0.75 }}>
-                    Opening gallery...
-                  </ThemedText>
-                </View>
-              ) : selectedImage ? (
-                <View style={{ width: '100%', height: '100%', position: 'relative' }}>
-                  <Image
-                    source={{ uri: selectedImage }}
-                    style={styles.uploadedImage}
-                    contentFit="cover"
-                  />
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => setSelectedImage(null)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <View style={styles.deleteBadge}>
-                      <View style={styles.deleteLine} />
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <>
-                  <MaterialIcons
-                    name="add-a-photo"
-                    size={50}
-                    color={colors.primaryLight}
-                  />
-                  <ThemedText style={{ marginTop: 6, opacity: 0.75 }}>
-                    Tap to Add Photo
-                  </ThemedText>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Editable memory label */}
-          <View style={styles.memoryLabelContainer}>
-            <TextInput
-              value={memoryLabel}
-              onChangeText={setMemoryLabel}
-              style={styles.memoryLabelInput}
-              placeholder="Our first vacation"
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              textAlign="center"
-            />
-          </View>
-
-          {/* Add Hard Truth */}
-          <View style={styles.hardTruthRow}>
-            <TouchableOpacity
-              ref={plusButtonRef}
-              style={styles.addHardTruthButton}
-              onLayout={() => {
-                plusButtonRef.current?.measure((fx, fy, width, height, px, py) => {
-                  setPlusButtonPos({ x: px + width / 2, y: py + height / 2 });
-                });
-              }}
-              onPress={addNewCloud}
-            >
-              <MaterialIcons name="add" size={24} color={colors.text} />
-            </TouchableOpacity>
-
-            <ThemedText style={styles.hardTruthText}>
-              Add Hard Truth
-            </ThemedText>
-          </View>
-        </View>
-      </ScrollView>
 
       {/* Floating Action Button - always visible, enabled when all clouds have text */}
       <View

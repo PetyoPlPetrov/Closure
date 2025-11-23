@@ -1,6 +1,7 @@
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useLargeDevice } from "@/hooks/use-large-device";
 import { ActionSheet } from "@/library/components/action-sheet";
 import { ConfirmationModal } from "@/library/components/confirmation-modal";
 import { MemoryCard } from "@/library/components/memory-card";
@@ -13,6 +14,7 @@ import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 export default function IdealizedMemoriesScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
+  const { maxContentWidth } = useLargeDevice();
   const params = useLocalSearchParams();
   const { getIdealizedMemoriesByProfileId, deleteIdealizedMemory } = useJourney();
   
@@ -53,6 +55,12 @@ export default function IdealizedMemoriesScreen() {
           justifyContent: "center",
           alignItems: "center",
           paddingHorizontal: 24,
+          width: "100%",
+        },
+        centerContentWrapper: {
+          ...(typeof maxContentWidth === 'number' ? { maxWidth: maxContentWidth } : {}),
+          width: "100%",
+          alignItems: "center",
         },
         iconCircle: {
           width: 80,
@@ -98,9 +106,15 @@ export default function IdealizedMemoriesScreen() {
           padding: 16,
           paddingBottom: 100,
           gap: 16,
+          alignItems: "center",
+        },
+        listContentWrapper: {
+          ...(typeof maxContentWidth === 'number' ? { maxWidth: maxContentWidth } : {}),
+          width: "100%",
+          alignSelf: "center",
         },
       }),
-    [colorScheme, colors.background]
+    [colorScheme, colors.background, maxContentWidth]
   );
 
   const handleAddMemory = () => {
@@ -186,14 +200,16 @@ export default function IdealizedMemoriesScreen() {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           >
-            {memories.map((memory) => (
-              <MemoryCard
-                key={memory.id}
-                memory={memory}
-                onPress={() => handleMemoryPress(memory.id)}
-                onMorePress={() => handleMorePress(memory)}
-              />
-            ))}
+            <View style={styles.listContentWrapper}>
+              {memories.map((memory) => (
+                <MemoryCard
+                  key={memory.id}
+                  memory={memory}
+                  onPress={() => handleMemoryPress(memory.id)}
+                  onMorePress={() => handleMorePress(memory)}
+                />
+              ))}
+            </View>
           </ScrollView>
 
           {/* Floating + button */}
@@ -208,19 +224,21 @@ export default function IdealizedMemoriesScreen() {
         <>
           {/* Empty State */}
           <View style={styles.centerContent}>
-            <View style={styles.iconCircle}>
-              <MaterialIcons name="psychology" size={42} color={colors.primary} />
+            <View style={styles.centerContentWrapper}>
+              <View style={styles.iconCircle}>
+                <MaterialIcons name="psychology" size={42} color={colors.primary} />
+              </View>
+
+              <ThemedText size="sm" weight="bold" style={styles.title}>
+                No Idealized Memories Yet
+              </ThemedText>
+
+              <ThemedText style={styles.description}>
+                This is the first step to gaining clarity. Listing your idealized
+                memories helps you counter them with reality, turning rumination
+                into action.
+              </ThemedText>
             </View>
-
-            <ThemedText size="sm" weight="bold" style={styles.title}>
-              No Idealized Memories Yet
-            </ThemedText>
-
-            <ThemedText style={styles.description}>
-              This is the first step to gaining clarity. Listing your idealized
-              memories helps you counter them with reality, turning rumination
-              into action.
-            </ThemedText>
           </View>
 
           {/* Floating + button */}

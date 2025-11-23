@@ -13,6 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useLargeDevice } from '@/hooks/use-large-device';
 
 export default function AddExProfileScreen() {
   const colorScheme = useColorScheme();
@@ -20,6 +21,7 @@ export default function AddExProfileScreen() {
   const fontScale = useFontScale();
   const { addProfile, updateProfile, getProfile } = useJourney();
   const params = useLocalSearchParams();
+  const { isLargeDevice, maxContentWidth } = useLargeDevice();
   
   const isEditMode = params.edit === 'true' && params.profileId;
   const profileId = params.profileId as string | undefined;
@@ -110,21 +112,26 @@ export default function AddExProfileScreen() {
         },
         form: {
           gap: 20 * fontScale,
+          maxWidth: maxContentWidth,
+          alignSelf: 'center',
+          width: '100%',
         },
         button: {
           width: '100%',
+          maxWidth: maxContentWidth,
           height: 48 * fontScale,
           borderRadius: 8 * fontScale,
           alignItems: 'center',
           justifyContent: 'center',
           paddingHorizontal: 16 * fontScale,
           marginTop: 8 * fontScale,
+          alignSelf: 'center',
         },
         buttonDisabled: {
           opacity: 0.5,
         },
       }),
-    [fontScale]
+    [fontScale, maxContentWidth]
   );
 
   const handleUploadPicture = async () => {

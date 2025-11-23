@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import { useLargeDevice } from '@/hooks/use-large-device';
 import { Step } from '@/library/components/step';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
@@ -16,6 +17,7 @@ export default function BeginNewPathScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
+  const { maxContentWidth } = useLargeDevice();
   const { profiles, getProfile } = useJourney();
 
   // Get current profile to check step 1 completion
@@ -80,6 +82,9 @@ export default function BeginNewPathScreen() {
           padding: 16 * fontScale,
           paddingBottom: 32 * fontScale,
           gap: 24 * fontScale,
+          maxWidth: maxContentWidth,
+          alignSelf: 'center',
+          width: '100%',
         },
         title: {
           marginBottom: 12 * fontScale,
@@ -92,18 +97,20 @@ export default function BeginNewPathScreen() {
         },
         button: {
           width: '100%',
+          maxWidth: maxContentWidth,
           height: 48 * fontScale,
           borderRadius: 8 * fontScale,
           alignItems: 'center',
           justifyContent: 'center',
           paddingHorizontal: 16 * fontScale,
           marginTop: 24 * fontScale,
+          alignSelf: 'center',
         },
         buttonDisabled: {
           opacity: 0.5,
         },
       }),
-    [fontScale]
+    [fontScale, maxContentWidth]
   );
 
   const handleBeginJourney = () => {

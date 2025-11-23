@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import { useLargeDevice } from '@/hooks/use-large-device';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -13,6 +14,7 @@ export default function EditProfileScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
+  const { maxContentWidth } = useLargeDevice();
   const params = useLocalSearchParams();
   const { getProfile } = useJourney();
   
@@ -45,6 +47,9 @@ export default function EditProfileScreen() {
           padding: 16 * fontScale,
           paddingBottom: 32 * fontScale,
           gap: 24 * fontScale,
+          maxWidth: maxContentWidth,
+          alignSelf: 'center',
+          width: '100%',
         },
         title: {
           marginBottom: 12 * fontScale,
@@ -66,7 +71,7 @@ export default function EditProfileScreen() {
           gap: 12 * fontScale,
         },
       }),
-    [fontScale]
+    [fontScale, maxContentWidth]
   );
 
   const handleEditExInfo = () => {
