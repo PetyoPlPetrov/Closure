@@ -125,6 +125,7 @@ export default function ExProfilesScreen() {
       paddingHorizontal: 16 * fontScale,
       paddingTop: 8 * fontScale,
       paddingBottom: 8 * fontScale,
+      marginTop: 50,
     },
     headerButton: {
       width: 48 * fontScale,
@@ -143,7 +144,7 @@ export default function ExProfilesScreen() {
     },
     fabContainer: {
       position: 'absolute',
-      bottom: 80 * fontScale, // Above bottom tab bar
+      bottom: 26 * fontScale, // Lower position
       right: 16 * fontScale,
     },
     emptyStateContainer: {
@@ -228,13 +229,7 @@ export default function ExProfilesScreen() {
         <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
           Ex Profiles
         </ThemedText>
-        <TouchableOpacity style={styles.headerButton}>
-          <MaterialIcons
-            name="more-vert"
-            size={24 * fontScale}
-            color={colorScheme === 'dark' ? colors.text : colors.tabIconDefault}
-          />
-        </TouchableOpacity>
+        <View style={styles.headerButton} />
       </View>
 
       {hasProfiles ? (

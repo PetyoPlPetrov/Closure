@@ -4,6 +4,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { ProgressBar } from '@/library/components/progress-bar';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Image } from 'expo-image';
 import { useMemo } from 'react';
 import { StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 import type { ExProfile } from '@/utils/JourneyProvider';
@@ -88,6 +89,10 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
         name: {
           marginBottom: 2 * fontScale,
         },
+        description: {
+          marginBottom: 4 * fontScale,
+          opacity: 0.7,
+        },
         relationship: {
           marginBottom: 8 * fontScale,
         },
@@ -103,6 +108,7 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
         },
         progressContainer: {
           gap: 4 * fontScale,
+          marginTop: 12 * fontScale,
         },
         statusText: {
           marginTop: 4 * fontScale,
@@ -138,9 +144,21 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
       >
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            <ThemedText weight="semibold" style={styles.avatarText}>
-              {initials}
-            </ThemedText>
+            {profile.imageUri ? (
+              <Image
+                source={{ uri: profile.imageUri }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: 28 * fontScale,
+                }}
+                contentFit="cover"
+              />
+            ) : (
+              <ThemedText weight="semibold" style={styles.avatarText}>
+                {initials}
+              </ThemedText>
+            )}
             <View style={styles.statusOverlay}>
               <MaterialIcons
                 name={isComplete ? 'check-circle' : 'error-outline'}
@@ -153,6 +171,11 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
             <ThemedText size="l" weight="bold" style={styles.name}>
               {profile.name}
             </ThemedText>
+            {profile.description && (
+              <ThemedText size="sm" weight="normal" style={styles.description}>
+                {profile.description.length > 30 ? profile.description.substring(0, 30) + '...' : profile.description}
+              </ThemedText>
+            )}
             {profile.relationshipDuration && (
               <ThemedText size="sm" weight="normal" style={styles.relationship}>
                 Relationship: {profile.relationshipDuration}

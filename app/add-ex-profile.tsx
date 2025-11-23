@@ -8,9 +8,11 @@ import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
 import { useJourney } from '@/utils/JourneyProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function AddExProfileScreen() {
   const colorScheme = useColorScheme();
@@ -27,20 +29,28 @@ export default function AddExProfileScreen() {
   const [description, setDescription] = useState('');
   const [originalName, setOriginalName] = useState('');
   const [originalDescription, setOriginalDescription] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [originalImage, setOriginalImage] = useState<string | null>(null);
+  const [isLoadingImage, setIsLoadingImage] = useState(false);
 
   // Load existing profile data when in edit mode
   useEffect(() => {
     if (existingProfile && isEditMode) {
       const profileName = existingProfile.name || '';
-      const profileDescription = ''; // Description field can be added to ExProfile type later
+      const profileDescription = existingProfile.description || '';
+      const profileImage = existingProfile.imageUri || null;
       setName(profileName);
       setDescription(profileDescription);
+      setSelectedImage(profileImage);
       setOriginalName(profileName);
       setOriginalDescription(profileDescription);
+      setOriginalImage(profileImage);
     } else {
       // Reset original values when not in edit mode
       setOriginalName('');
       setOriginalDescription('');
+      setSelectedImage(null);
+      setOriginalImage(null);
     }
   }, [existingProfile, isEditMode]);
 
@@ -56,8 +66,9 @@ export default function AddExProfileScreen() {
     // In edit mode, check if current values differ from original
     const nameChanged = name.trim() !== originalName.trim();
     const descriptionChanged = description.trim() !== originalDescription.trim();
-    return nameChanged || descriptionChanged;
-  }, [isEditMode, name, description, originalName, originalDescription, isFormValid]);
+    const imageChanged = selectedImage !== originalImage;
+    return nameChanged || descriptionChanged || imageChanged;
+  }, [isEditMode, name, description, originalName, originalDescription, selectedImage, originalImage, isFormValid]);
 
   // Button is enabled when form is valid AND there are changes
   const isSaveEnabled = isFormValid && hasChanges;
@@ -72,6 +83,7 @@ export default function AddExProfileScreen() {
           paddingHorizontal: 16 * fontScale,
           paddingTop: 8 * fontScale,
           paddingBottom: 8 * fontScale,
+          marginTop: 20,
         },
         headerButton: {
           width: 48 * fontScale,
@@ -115,9 +127,38 @@ export default function AddExProfileScreen() {
     [fontScale]
   );
 
-  const handleUploadPicture = () => {
-    // TODO: Implement image picker
-    console.log('Upload picture pressed');
+  const handleUploadPicture = async () => {
+    setIsLoadingImage(true);
+    try {
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        setIsLoadingImage(false);
+        alert('Sorry, we need camera roll permissions to upload photos!');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1], // Square aspect for avatar
+        quality: 1,
+      });
+
+      setIsLoadingImage(false);
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      setIsLoadingImage(false);
+      alert('Failed to pick image. Please try again.');
+    }
+  };
+
+  const handleDeleteImage = () => {
+    setSelectedImage(null);
   };
 
   const handleSubmit = async () => {
@@ -128,6 +169,8 @@ export default function AddExProfileScreen() {
         // Update existing profile
         await updateProfile(profileId, {
           name: name.trim(),
+          description: description.trim() || undefined,
+          ...(selectedImage && { imageUri: selectedImage }),
           // Preserve other fields
         });
         // Navigate back to ex-profiles screen after edit
@@ -136,9 +179,11 @@ export default function AddExProfileScreen() {
         // Save new profile to local storage
         await addProfile({
           name: name.trim(),
+          description: description.trim() || undefined,
           relationshipDuration: undefined, // Can be added later
           setupProgress: 0, // Start with 0% progress
           isCompleted: false,
+          ...(selectedImage && { imageUri: selectedImage }),
         });
 
         // Navigate to begin-new-path screen after successful save
@@ -204,11 +249,24 @@ export default function AddExProfileScreen() {
             label="Relationship Description (Optional)"
             placeholder="e.g., College sweetheart, first love..."
             value={description}
-            onChangeText={setDescription}
-            rows={4}
+            onChangeText={(text) => {
+              if (text.length <= 30) {
+                setDescription(text);
+              }
+            }}
+            maxLength={30}
+            showCharCount={true}
+            rows={2}
           />
 
-          <UploadPicture onPress={handleUploadPicture} />
+          <UploadPicture 
+            onPress={handleUploadPicture}
+            onDelete={handleDeleteImage}
+            imageUri={selectedImage}
+            isLoading={isLoadingImage}
+            hasImage={!!selectedImage}
+            avatarMode={true}
+          />
         </View>
 
         {/* Submit Button */}

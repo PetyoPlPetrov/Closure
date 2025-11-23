@@ -36,6 +36,7 @@ export default function RealityCheckScreen() {
           paddingHorizontal: 16 * fontScale,
           paddingTop: 8 * fontScale,
           paddingBottom: 8 * fontScale,
+          marginTop: 20,
         },
         headerButton: {
           width: 48 * fontScale,
@@ -66,8 +67,12 @@ export default function RealityCheckScreen() {
   );
 
   const handleIdealizedMemories = () => {
-    // TODO: Navigate to Idealized Memories screen
-    console.log('Idealized Memories pressed');
+    if (currentProfileId) {
+      router.push({
+        pathname: '/idealized-memories',
+        params: { profileId: currentProfileId },
+      });
+    }
   };
 
   const handleEmotionalDebtLedger = () => {

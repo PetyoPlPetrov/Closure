@@ -61,6 +61,7 @@ export default function BeginNewPathScreen() {
           paddingHorizontal: 16 * fontScale,
           paddingTop: 8 * fontScale,
           paddingBottom: 16 * fontScale,
+          marginTop: 20,
         },
         headerButton: {
           width: 48 * fontScale,

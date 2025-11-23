@@ -8,12 +8,12 @@ import { Platform } from 'react-native';
 export const Colors = {
   light: {
     text: '#11181C',
-    background: '#f8f6f6',
-    tint: '#38bdf8',
+    background: '#FFFFFF',
+    tint: '#34C759',
     icon: '#687076',
     tabIconDefault: '#687076',
-    tabIconSelected: '#38bdf8',
-    primary: '#38bdf8',
+    tabIconSelected: '#34C759',
+    primary: '#34C759',
     primaryLight: '#7dd3fc',
     primaryDark: '#0c4a6e',
   },

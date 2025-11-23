@@ -16,6 +16,8 @@ type TextAreaProps = TextInputProps & {
   containerStyle?: ViewStyle;
   error?: string;
   rows?: number;
+  showCharCount?: boolean;
+  maxLength?: number;
 };
 
 export function TextArea({
@@ -27,6 +29,9 @@ export function TextArea({
   placeholderTextColor,
   multiline = true,
   textAlignVertical = 'top',
+  showCharCount = false,
+  maxLength,
+  value,
   ...rest
 }: TextAreaProps) {
   const colorScheme = useColorScheme();
@@ -56,9 +61,16 @@ export function TextArea({
         errorText: {
           marginTop: 4 * fontScale,
         },
+        charCount: {
+          marginTop: 4 * fontScale,
+          alignSelf: 'flex-end',
+        },
       }),
     [fontScale, colorScheme, rows]
   );
+
+  const currentLength = value ? value.toString().length : 0;
+  const showCounter = showCharCount && maxLength !== undefined;
 
   const defaultPlaceholderColor =
     colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.4)';
@@ -75,8 +87,27 @@ export function TextArea({
         placeholderTextColor={placeholderTextColor ?? defaultPlaceholderColor}
         multiline={multiline}
         textAlignVertical={textAlignVertical}
+        value={value}
+        maxLength={maxLength}
         {...rest}
       />
+      {showCounter && (
+        <ThemedText 
+          size="xs" 
+          style={[
+            styles.charCount, 
+            { 
+              color: currentLength >= maxLength! 
+                ? '#ef4444' 
+                : colorScheme === 'dark' 
+                  ? 'rgba(255, 255, 255, 0.5)' 
+                  : 'rgba(0, 0, 0, 0.5)' 
+            }
+          ]}
+        >
+          {currentLength}/{maxLength}
+        </ThemedText>
+      )}
       {error && (
         <ThemedText size="xs" style={[styles.errorText, { color: '#ef4444' }]}>
           {error}

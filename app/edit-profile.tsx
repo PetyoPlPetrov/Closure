@@ -29,6 +29,7 @@ export default function EditProfileScreen() {
           paddingHorizontal: 16 * fontScale,
           paddingTop: 8 * fontScale,
           paddingBottom: 8 * fontScale,
+          marginTop: 20,
         },
         headerButton: {
           width: 48 * fontScale,
@@ -131,15 +132,30 @@ export default function EditProfileScreen() {
         {/* Buttons */}
         <View style={styles.buttons}>
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: colors.primary }]}
+            style={[
+              styles.button,
+              {
+                backgroundColor: colorScheme === 'dark' 
+                  ? 'rgba(255, 255, 255, 0.05)' 
+                  : 'rgba(0, 0, 0, 0.05)',
+                borderWidth: 1,
+                borderColor: colorScheme === 'dark' 
+                  ? 'rgba(255, 255, 255, 0.1)' 
+                  : 'rgba(0, 0, 0, 0.1)',
+              },
+            ]}
             onPress={handleEditExInfo}
             activeOpacity={0.8}
           >
-            <MaterialIcons name="person" size={24 * fontScale} color="#ffffff" />
-            <ThemedText weight="bold" letterSpacing="l" style={{ color: '#ffffff', flex: 1 }}>
+            <MaterialIcons name="person" size={24 * fontScale} color={colors.primary} />
+            <ThemedText weight="bold" letterSpacing="l" style={{ color: colors.text, flex: 1 }}>
               Edit Ex Info
             </ThemedText>
-            <MaterialIcons name="chevron-right" size={24 * fontScale} color="#ffffff" />
+            <MaterialIcons 
+              name="chevron-right" 
+              size={24 * fontScale} 
+              color={colorScheme === 'dark' ? colors.icon : colors.tabIconDefault}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity

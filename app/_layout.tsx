@@ -47,6 +47,8 @@ function AppContent() {
         <Stack.Screen name="begin-new-path" options={{ headerShown: false }} />
         <Stack.Screen name="reality-check" options={{ headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
+        <Stack.Screen name="idealized-memories" options={{ headerShown: false }} />
+        <Stack.Screen name="add-idealized-memory" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />
