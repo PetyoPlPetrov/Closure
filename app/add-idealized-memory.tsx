@@ -1187,8 +1187,25 @@ export default function AddIdealizedMemoryScreen() {
       >
         <View style={styles.centerContent}>
           <View style={styles.uploadShadowWrap}>
-            {selectedImage ? (
-              <View style={styles.uploadContainer}>
+            <TouchableOpacity
+              ref={containerRef}
+              style={styles.uploadContainer}
+              onPress={pickImage}
+              onLayout={() => {
+                // Container ref is available for potential future use
+              }}
+              activeOpacity={0.8}
+              delayPressIn={0}
+              disabled={isLoadingImage}
+            >
+              {isLoadingImage ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.primaryLight} />
+                  <ThemedText style={{ marginTop: 12, opacity: 0.75 }}>
+                    {t('profile.openingGallery')}
+                  </ThemedText>
+                </View>
+              ) : selectedImage ? (
                 <View style={{ width: '100%', height: '100%', position: 'relative' }}>
                   <Image
                     source={{ uri: selectedImage }}
@@ -1205,47 +1222,19 @@ export default function AddIdealizedMemoryScreen() {
                     </View>
                   </TouchableOpacity>
                 </View>
-              </View>
-            ) : (
-              <TouchableOpacity
-                ref={containerRef}
-                style={styles.uploadContainer}
-                onPress={pickImage}
-                onLayout={() => {
-                  // Container ref is available for potential future use
-                }}
-                activeOpacity={0.8}
-                delayPressIn={0}
-                disabled={isLoadingImage}
-              >
-                {isLoadingImage ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primaryLight} />
-                    <ThemedText style={{ marginTop: 12, opacity: 0.75 }}>
-                      {t('profile.openingGallery')}
-                    </ThemedText>
-                  </View>
-                ) : (
-                  <View style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-                    <MaterialIcons
-                      name="add-a-photo"
-                      size={isLargeDevice ? 60 : 50}
-                      color={colors.primaryLight}
-                    />
-                    <ThemedText 
-                      size={isLargeDevice ? 'l' : 'sm'} 
-                      style={{ 
-                        marginTop: 8 * fontScale, 
-                        opacity: 0.75,
-                        textAlign: 'center',
-                      }}
-                    >
-                      {t('profile.tapToAddPhoto')}
-                    </ThemedText>
-                  </View>
-                )}
-              </TouchableOpacity>
-            )}
+              ) : (
+                <>
+              <MaterialIcons
+                name="add-a-photo"
+                size={50}
+                color={colors.primaryLight}
+              />
+              <ThemedText style={{ marginTop: 6, opacity: 0.75 }}>
+                {t('profile.tapToAddPhoto')}
+              </ThemedText>
+                </>
+              )}
+            </TouchableOpacity>
             </View>
 
           {/* Editable memory label */}
