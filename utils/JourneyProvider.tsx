@@ -43,6 +43,14 @@ export type IdealizedMemory = {
   hardTruths: {
     id: string;
     text: string;
+    x?: number; // Cloud position X
+    y?: number; // Cloud position Y
+  }[];
+  goodFacts?: {
+    id: string;
+    text: string;
+    x?: number; // Sun position X
+    y?: number; // Sun position Y
   }[];
   createdAt: string;
   updatedAt: string;
