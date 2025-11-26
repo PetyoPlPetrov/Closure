@@ -3,12 +3,13 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useSplash } from '@/utils/SplashAnimationProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useMemo } from 'react';
-import { Dimensions, PanResponder, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { Dimensions, PanResponder, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
@@ -31,6 +32,8 @@ function FloatingAvatar({
   colors,
   colorScheme,
   onPositionChange,
+  isFocused,
+  onDoubleTap,
 }: {
   profile: any;
   position: { x: number; y: number };
@@ -39,10 +42,18 @@ function FloatingAvatar({
   colors: any;
   colorScheme: 'light' | 'dark';
   onPositionChange: (newPosition: { x: number; y: number }) => void;
+  isFocused: boolean;
+  onDoubleTap: () => void;
 }) {
-  const avatarSize = 80;
-  const memoryRadius = 85; // Very close to avatar for tight grouping
-  const exZoneRadius = 142; // Total radius from avatar center to furthest floating element edge
+  const baseAvatarSize = 80;
+  const focusedAvatarSize = 100; // Smaller focused size so memories fit
+  const avatarSize = isFocused ? focusedAvatarSize : baseAvatarSize;
+  // Increase memory radius when focused to push them further away
+  const memoryRadius = isFocused ? 140 : 85; // Further away when focused for better visibility
+  const exZoneRadius = isFocused ? 200 : 142; // Larger zone when focused
+  
+  // Double tap detection
+  const lastTapRef = useRef<number | null>(null);
   const initials = profile.name
     .split(' ')
     .map((n: string) => n[0])
@@ -115,15 +126,21 @@ function FloatingAvatar({
   }, [position.x, position.y, panX, panY, memoryAnimatedValues]);
   
   React.useEffect(() => {
-    floatAnimation.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 2000 }),
-        withTiming(0, { duration: 2000 })
-      ),
-      -1,
-      true
-    );
-  }, [floatAnimation]);
+    if (!isFocused) {
+      // Only float when not focused
+      floatAnimation.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 2000 }),
+          withTiming(0, { duration: 2000 })
+        ),
+        -1,
+        true
+      );
+    } else {
+      // Stop floating when focused
+      floatAnimation.value = 0;
+    }
+  }, [floatAnimation, isFocused]);
 
   // Animate each memory to follow avatar with different speeds
   // Use a single reaction that handles all memories
@@ -230,15 +247,64 @@ function FloatingAvatar({
         },
       }),
     // SharedValues are stable references, but included to satisfy linter
-    [position, onPositionChange, floatAnimation, isDragging, panX, panY]
+    [position, onPositionChange, floatAnimation, isDragging, panX, panY, exZoneRadius]
   );
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: panX.value - position.x },
-      { translateY: panY.value - position.y + floatAnimation.value * 6 },
-    ],
-  }));
+  // Scale animation for focused state - avatar scales to 1.5x (smaller to fit memories)
+  const scale = useSharedValue(isFocused ? 1.5 : 1);
+  React.useEffect(() => {
+    scale.value = withSpring(isFocused ? 1.5 : 1, {
+      damping: 15,
+      stiffness: 100,
+    });
+  }, [isFocused, scale]);
+  
+  // Center the avatar when focused
+  const focusedX = useSharedValue(SCREEN_WIDTH / 2);
+  const focusedY = useSharedValue(SCREEN_HEIGHT / 2);
+  React.useEffect(() => {
+    if (isFocused) {
+      // Center the avatar on screen when focused
+      focusedX.value = withSpring(SCREEN_WIDTH / 2, {
+        damping: 15,
+        stiffness: 100,
+      });
+      focusedY.value = withSpring(SCREEN_HEIGHT / 2, {
+        damping: 15,
+        stiffness: 100,
+      });
+    } else {
+      focusedX.value = withSpring(position.x, {
+        damping: 15,
+        stiffness: 100,
+      });
+      focusedY.value = withSpring(position.y, {
+        damping: 15,
+        stiffness: 100,
+      });
+    }
+  }, [isFocused, position.x, position.y, focusedX, focusedY]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    if (isFocused) {
+      // When focused, use centered position - no floating animation
+      return {
+        transform: [
+          { translateX: focusedX.value - position.x },
+          { translateY: focusedY.value - position.y },
+          { scale: scale.value },
+        ],
+      };
+    }
+    // When not focused, use pan position with floating animation
+    return {
+      transform: [
+        { translateX: panX.value - position.x },
+        { translateY: panY.value - position.y + floatAnimation.value * 6 },
+        { scale: scale.value },
+      ],
+    };
+  });
 
   // Calculate memory positions based on current animated position
   const memoryPositions = useMemo(() => {
@@ -251,7 +317,7 @@ function FloatingAvatar({
         offsetY: memoryRadius * Math.sin(angle),
       };
     });
-  }, [memories, memoryRadius]);
+  }, [memories, memoryRadius]); // memoryRadius already depends on isFocused
 
   return (
     <>
@@ -265,9 +331,26 @@ function FloatingAvatar({
           },
           animatedStyle,
         ]}
-        {...panResponder.panHandlers}
+        {...(!isFocused ? panResponder.panHandlers : {})}
       >
-        <TouchableOpacity onPress={onPress} activeOpacity={0.7} delayPressIn={200}>
+        <Pressable
+          onPress={() => {
+            // Double tap detection
+            const now = Date.now();
+            if (lastTapRef.current && now - lastTapRef.current < 300) {
+              onDoubleTap();
+              lastTapRef.current = null;
+            } else {
+              lastTapRef.current = now;
+              // Single tap - navigate after a delay
+              setTimeout(() => {
+                if (lastTapRef.current === now) {
+                  onPress();
+                }
+              }, 300);
+            }
+          }}
+        >
           <View
             style={{
               width: avatarSize,
@@ -301,7 +384,7 @@ function FloatingAvatar({
               </ThemedText>
             )}
           </View>
-        </TouchableOpacity>
+        </Pressable>
       </Animated.View>
 
       {/* Floating Memories around Avatar - rendered separately for proper z-index */}
@@ -322,8 +405,11 @@ function FloatingAvatar({
             position={initialMemPos}
             avatarPanX={memAnimatedValues.panX}
             avatarPanY={memAnimatedValues.panY}
+            focusedX={isFocused ? focusedX : undefined}
+            focusedY={isFocused ? focusedY : undefined}
             offsetX={memPosData.offsetX}
             offsetY={memPosData.offsetY}
+            isFocused={isFocused}
             colorScheme={colorScheme}
           />
         );
@@ -338,23 +424,40 @@ function FloatingMemory({
   position,
   avatarPanX,
   avatarPanY,
+  focusedX,
+  focusedY,
   offsetX,
   offsetY,
+  isFocused,
   colorScheme,
 }: {
   memory: any;
   position: { x: number; y: number };
   avatarPanX?: any;
   avatarPanY?: any;
+  focusedX?: any;
+  focusedY?: any;
   offsetX: number;
   offsetY: number;
+  isFocused: boolean;
   colorScheme: 'light' | 'dark';
 }) {
-  const memorySize = 50;
-  const cloudRadius = 25; // More overlap with memory for darker effect
-  const sunRadius = 22; // More overlap with memory for brighter effect
+  // Make memories bigger when focused
+  const memorySize = isFocused ? 65 : 50;
+  // Increase cloud and sun radius when focused to push them further from memory
+  const cloudRadius = isFocused ? 40 : 25; // Further away when focused
+  const sunRadius = isFocused ? 38 : 22; // Further away when focused
 
   const floatAnimation = useSharedValue(0);
+  
+  // Scale animation for focused state - memories scale to 2x (bigger than avatar for visibility)
+  const scale = useSharedValue(isFocused ? 2 : 1);
+  React.useEffect(() => {
+    scale.value = withSpring(isFocused ? 2 : 1, {
+      damping: 15,
+      stiffness: 100,
+    });
+  }, [isFocused, scale]);
   
   React.useEffect(() => {
     floatAnimation.value = withRepeat(
@@ -367,10 +470,18 @@ function FloatingMemory({
     );
   }, [floatAnimation]);
 
-  // Calculate memory position relative to avatar if dragging
-  // Always call the hook, but use it conditionally
+  // Calculate memory position relative to avatar
+  // When focused, use focusedX/focusedY; when dragging, use avatarPanX/avatarPanY
   const memoryAnimatedPosition = useAnimatedStyle(() => {
+    if (isFocused && focusedX && focusedY) {
+      // When focused, follow the avatar to center
+      return {
+        left: focusedX.value + offsetX - memorySize / 2,
+        top: focusedY.value + offsetY - memorySize / 2,
+      };
+    }
     if (avatarPanX && avatarPanY) {
+      // When dragging, follow the avatar's pan position
       return {
         left: avatarPanX.value + offsetX - memorySize / 2,
         top: avatarPanY.value + offsetY - memorySize / 2,
@@ -382,6 +493,7 @@ function FloatingMemory({
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: floatAnimation.value * 4 },
+      { scale: scale.value },
     ],
   }));
 
@@ -499,11 +611,14 @@ function FloatingMemory({
                   memoryAnimatedPosition={memoryAnimatedPosition}
                   avatarPanX={avatarPanX}
                   avatarPanY={avatarPanY}
+                  focusedX={focusedX}
+                  focusedY={focusedY}
                   memoryOffsetX={offsetX}
                   memoryOffsetY={offsetY}
                   offsetX={cloudPosData.offsetX}
                   offsetY={cloudPosData.offsetY}
                   zIndex={cloudZIndex}
+                  isFocused={isFocused}
                   colorScheme={colorScheme}
                 />
               );
@@ -525,11 +640,14 @@ function FloatingMemory({
                   memoryAnimatedPosition={memoryAnimatedPosition}
                   avatarPanX={avatarPanX}
                   avatarPanY={avatarPanY}
+                  focusedX={focusedX}
+                  focusedY={focusedY}
                   memoryOffsetX={offsetX}
                   memoryOffsetY={offsetY}
                   offsetX={sunPosData.offsetX}
                   offsetY={sunPosData.offsetY}
                   zIndex={sunZIndex}
+                  isFocused={isFocused}
                   colorScheme={colorScheme}
                 />
               );
@@ -548,11 +666,14 @@ function FloatingCloud({
   memoryAnimatedPosition,
   avatarPanX,
   avatarPanY,
+  focusedX,
+  focusedY,
   memoryOffsetX,
   memoryOffsetY,
   offsetX,
   offsetY,
   zIndex,
+  isFocused,
   colorScheme,
 }: {
   cloud: any;
@@ -560,16 +681,29 @@ function FloatingCloud({
   memoryAnimatedPosition?: any;
   avatarPanX?: any;
   avatarPanY?: any;
+  focusedX?: any;
+  focusedY?: any;
   memoryOffsetX: number;
   memoryOffsetY: number;
   offsetX: number;
   offsetY: number;
   zIndex: number;
+  isFocused: boolean;
   colorScheme: 'light' | 'dark';
 }) {
-  const cloudSize = 34; // Slightly smaller
+  // Make clouds smaller when focused
+  const cloudSize = isFocused ? 28 : 34; // Smaller when focused
 
   const floatAnimation = useSharedValue(0);
+  
+  // Scale animation for focused state - clouds scale to 2x (bigger than avatar for visibility)
+  const scale = useSharedValue(isFocused ? 2 : 1);
+  React.useEffect(() => {
+    scale.value = withSpring(isFocused ? 2 : 1, {
+      damping: 15,
+      stiffness: 100,
+    });
+  }, [isFocused, scale]);
   
   React.useEffect(() => {
     floatAnimation.value = withRepeat(
@@ -585,10 +719,21 @@ function FloatingCloud({
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: floatAnimation.value * 2 },
+      { scale: scale.value },
     ],
   }));
 
   const cloudAnimatedPosition = useAnimatedStyle(() => {
+    // When focused, use focusedX/focusedY; when dragging, use avatarPanX/avatarPanY
+    if (isFocused && focusedX && focusedY) {
+      // Calculate from focused avatar position: focused + memory offset + cloud offset
+      const cloudX = focusedX.value + memoryOffsetX + offsetX;
+      const cloudY = focusedY.value + memoryOffsetY + offsetY;
+      return {
+        left: cloudX - cloudSize / 2,
+        top: cloudY - cloudSize / 2,
+      };
+    }
     if (avatarPanX && avatarPanY) {
       // Calculate from avatar position: avatar + memory offset + cloud offset
       const cloudX = avatarPanX.value + memoryOffsetX + offsetX;
@@ -646,11 +791,14 @@ function FloatingSun({
   memoryAnimatedPosition,
   avatarPanX,
   avatarPanY,
+  focusedX,
+  focusedY,
   memoryOffsetX,
   memoryOffsetY,
   offsetX,
   offsetY,
   zIndex,
+  isFocused,
   colorScheme,
 }: {
   sun: any;
@@ -658,16 +806,29 @@ function FloatingSun({
   memoryAnimatedPosition?: any;
   avatarPanX?: any;
   avatarPanY?: any;
+  focusedX?: any;
+  focusedY?: any;
   memoryOffsetX: number;
   memoryOffsetY: number;
   offsetX: number;
   offsetY: number;
   zIndex: number;
+  isFocused: boolean;
   colorScheme: 'light' | 'dark';
 }) {
-  const sunSize = 32; // Slightly smaller
+  // Make suns smaller when focused
+  const sunSize = isFocused ? 26 : 32; // Smaller when focused
 
   const floatAnimation = useSharedValue(0);
+  
+  // Scale animation for focused state - suns scale to 2x (bigger than avatar for visibility)
+  const scale = useSharedValue(isFocused ? 2 : 1);
+  React.useEffect(() => {
+    scale.value = withSpring(isFocused ? 2 : 1, {
+      damping: 15,
+      stiffness: 100,
+    });
+  }, [isFocused, scale]);
   
   React.useEffect(() => {
     floatAnimation.value = withRepeat(
@@ -683,10 +844,21 @@ function FloatingSun({
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: floatAnimation.value * 2 },
+      { scale: scale.value },
     ],
   }));
 
   const sunAnimatedPosition = useAnimatedStyle(() => {
+    // When focused, use focusedX/focusedY; when dragging, use avatarPanX/avatarPanY
+    if (isFocused && focusedX && focusedY) {
+      // Calculate from focused avatar position: focused + memory offset + sun offset
+      const sunX = focusedX.value + memoryOffsetX + offsetX;
+      const sunY = focusedY.value + memoryOffsetY + offsetY;
+      return {
+        left: sunX - sunSize / 2,
+        top: sunY - sunSize / 2,
+      };
+    }
     if (avatarPanX && avatarPanY) {
       // Calculate from avatar position: avatar + memory offset + sun offset
       const sunX = avatarPanX.value + memoryOffsetX + offsetX;
@@ -739,6 +911,21 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const { profiles, getIdealizedMemoriesByProfileId } = useJourney();
+  
+  // Check if splash is still visible - delay heavy animations until splash is done
+  const { isVisible: isSplashVisible } = useSplash();
+  const [animationsReady, setAnimationsReady] = useState(false);
+  
+  React.useEffect(() => {
+    // Only initialize heavy animations after splash is hidden
+    if (!isSplashVisible) {
+      // Small delay to ensure splash is fully hidden
+      const timer = setTimeout(() => {
+        setAnimationsReady(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isSplashVisible]);
   
   // Track positions for each avatar (for dragging)
   const [avatarPositionsState, setAvatarPositionsState] = React.useState<Map<string, { x: number; y: number }>>(new Map());
@@ -940,6 +1127,43 @@ export default function HomeScreen() {
     [colors.background, minHeight]
   );
 
+  // Focused state management - must be at top level
+  const [focusedProfileId, setFocusedProfileId] = useState<string | null>(null);
+  // Track previous focused profile to handle shrink animation
+  const previousFocusedIdRef = useRef<string | null>(null);
+  
+  // Update previous focused ID when focus changes
+  React.useEffect(() => {
+    if (focusedProfileId) {
+      // When a profile is focused, remember it
+      previousFocusedIdRef.current = focusedProfileId;
+    } else {
+      // When focus is cleared, keep the previous ID for a moment to handle shrink animation
+      // The ref will be cleared when a new profile is focused
+    }
+  }, [focusedProfileId]);
+
+  // Animated value for sliding other EX zones off-screen - only create when animations are ready
+  const slideOffset = useSharedValue(0);
+  React.useEffect(() => {
+    if (animationsReady) {
+      // Animate smoothly when focusing or unfocusing
+      if (focusedProfileId) {
+        // Slide other zones out
+        slideOffset.value = withSpring(SCREEN_WIDTH * 2, {
+          damping: 20,
+          stiffness: 100,
+        });
+      } else {
+        // Slide other zones back in - use same spring animation for consistency
+        slideOffset.value = withSpring(0, {
+          damping: 20,
+          stiffness: 100,
+        });
+      }
+    }
+  }, [focusedProfileId, animationsReady, slideOffset]);
+
   if (profiles.length === 0) {
     return (
       <TabScreenContainer>
@@ -955,30 +1179,154 @@ export default function HomeScreen() {
   return (
     <TabScreenContainer>
       <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
+        {/* Back button - only visible when focused */}
+        {focusedProfileId && (
+          <Pressable
+            onPress={() => setFocusedProfileId(null)}
+            style={{
+              position: 'absolute',
+              top: 50,
+              left: 20,
+              zIndex: 1000,
+              width: 50,
+              height: 50,
+              borderRadius: 25,
+              backgroundColor: colors.background,
+              justifyContent: 'center',
+              alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 5,
+            }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+          </Pressable>
+        )}
+
         <View style={[styles.content, { height: SCREEN_HEIGHT }]}>
-          {profiles.map((profile, index) => {
+          {animationsReady && profiles.map((profile, index) => {
             const memories = getIdealizedMemoriesByProfileId(profile.id);
             const currentPosition = getAvatarPosition(profile.id, index);
+            const isFocused = focusedProfileId === profile.id;
+            
+            // Determine slide direction for non-focused zones - push in different directions
+            // Use profile position to determine direction for more natural movement
+            const centerX = SCREEN_WIDTH / 2;
+            const centerY = SCREEN_HEIGHT / 2;
+            const dx = currentPosition.x - centerX;
+            const dy = currentPosition.y - centerY;
+            // Determine direction based on position relative to center
+            const slideDirectionX = dx > 0 ? 1 : -1; // Right side slides right, left side slides left
+            const slideDirectionY = dy > 0 ? 1 : -1; // Bottom slides down, top slides up
+            
             return (
-              <FloatingAvatar
+              <NonFocusedZone
                 key={profile.id}
-                profile={profile}
-                position={currentPosition}
-                memories={memories}
-                onPress={() => {
-                  router.push({
-                    pathname: '/edit-profile',
-                    params: { profileId: profile.id },
-                  });
-                }}
-                onPositionChange={(newPosition) => updateAvatarPosition(profile.id, newPosition)}
-                colors={colors}
-                colorScheme={colorScheme ?? 'dark'}
-              />
+                isFocused={isFocused}
+                wasJustFocused={previousFocusedIdRef.current === profile.id && !focusedProfileId}
+                focusedProfileId={focusedProfileId}
+                slideOffset={slideOffset}
+                slideDirectionX={slideDirectionX}
+                slideDirectionY={slideDirectionY}
+              >
+                <FloatingAvatar
+                  profile={profile}
+                  position={currentPosition}
+                  memories={memories}
+                  onPress={() => {
+                    if (!isFocused) {
+                      router.push({
+                        pathname: '/edit-profile',
+                        params: { profileId: profile.id },
+                      });
+                    }
+                  }}
+                  onDoubleTap={() => {
+                    setFocusedProfileId(isFocused ? null : profile.id);
+                  }}
+                  onPositionChange={(newPosition) => updateAvatarPosition(profile.id, newPosition)}
+                  isFocused={isFocused}
+                  colors={colors}
+                  colorScheme={colorScheme ?? 'dark'}
+                />
+              </NonFocusedZone>
             );
           })}
         </View>
       </View>
     </TabScreenContainer>
+  );
+}
+
+// Component to handle non-focused zone animation
+function NonFocusedZone({
+  children,
+  isFocused,
+  wasJustFocused,
+  focusedProfileId,
+  slideOffset,
+  slideDirectionX,
+  slideDirectionY,
+}: {
+  children: React.ReactNode;
+  isFocused: boolean;
+  wasJustFocused: boolean;
+  focusedProfileId: string | null;
+  slideOffset: ReturnType<typeof useSharedValue<number>>;
+  slideDirectionX: number;
+  slideDirectionY: number;
+}) {
+  // Create animated style for this specific profile
+  const nonFocusedStyle = useAnimatedStyle(() => {
+    // If this profile is currently focused, it always stays in place
+    if (isFocused) {
+      return { 
+        transform: [{ translateX: 0 }, { translateY: 0 }], 
+        opacity: 1 
+      };
+    }
+    
+    // If this profile was just focused (now unfocused), keep it visible and in place
+    // It will shrink back to normal size via the FloatingAvatar's own scale animation
+    if (wasJustFocused) {
+      return { 
+        transform: [{ translateX: 0 }, { translateY: 0 }], 
+        opacity: 1 
+      };
+    }
+    
+    // For other non-focused profiles, animate based on slideOffset
+    // When slideOffset is 0, they're in normal position
+    // When slideOffset is large, they slide off-screen
+    const offset = slideOffset.value;
+    // Use a smoother threshold for visibility - fade in/out as they slide
+    const normalizedOffset = offset / (SCREEN_WIDTH * 2); // 0 to 1
+    const isVisible = normalizedOffset < 0.5; // Fade out when more than halfway
+    
+    return {
+      transform: [
+        { translateX: offset * slideDirectionX },
+        { translateY: offset * slideDirectionY * 0.5 }, // Less vertical movement
+      ],
+      // Animate opacity smoothly based on offset - same duration as slide animation
+      opacity: withTiming(isVisible ? 1 : 0, { duration: 500 }),
+    };
+  });
+  
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          width: SCREEN_WIDTH,
+          height: SCREEN_HEIGHT,
+        },
+        nonFocusedStyle,
+      ]}
+    >
+      {children}
+    </Animated.View>
   );
 }

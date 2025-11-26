@@ -57,17 +57,8 @@ function AppContent() {
 }
 
 export default function RootLayout() {
-  // Hide native splash IMMEDIATELY - this runs synchronously before render
-  useLayoutEffect(() => {
-    // Hide synchronously on mount - no async delay
-    (async () => {
-      try {
-        await SplashScreen.hideAsync();
-      } catch {
-        // Ignore errors
-      }
-    })();
-  }, []);
+  // Don't hide native splash here - let SplashAnimationProvider handle it
+  // This prevents race conditions with the animation provider
 
   return (
     <SplashAnimationProvider>

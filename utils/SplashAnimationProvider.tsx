@@ -74,6 +74,9 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   }, []);
 
   useEffect(() => {
+    // Use a small delay to ensure the component is fully mounted and ready
+    // This helps when the app first loads
+    const initTimeout = setTimeout(() => {
     // Animate sphere 1 (12s, alternate, ease-in-out)
     sphere1X.value = withRepeat(
       withTiming(1, {
@@ -146,16 +149,21 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     );
 
     // Step 2: After pulse, split the circles (2.5s, slower)
-    setTimeout(() => {
-      circleSplitProgress.value = withTiming(1, {
-        duration: 2500,
-        easing: Easing.out(Easing.cubic),
-      }, (finished) => {
-        // Mark animation as complete when split finishes
-        if (finished) {
-          runOnJS(setIsAnimationComplete)(true);
-        }
-      });
+    const splitTimeout = setTimeout(() => {
+      // Explicitly ensure we start from 0
+      circleSplitProgress.value = 0;
+      // Small delay to ensure the reset is applied before animation starts
+      setTimeout(() => {
+        circleSplitProgress.value = withTiming(1, {
+          duration: 2500,
+          easing: Easing.out(Easing.cubic),
+        }, (finished) => {
+          // Mark animation as complete when split finishes
+          if (finished) {
+            runOnJS(setIsAnimationComplete)(true);
+          }
+        });
+      }, 16); // One frame delay to ensure reset is applied
     }, 1600); // Start after pulse completes (1.6s total: 0.8s grow + 0.8s shrink)
 
     // Step 3: Logo pulse animation (6s, infinite) - start after split
@@ -177,11 +185,18 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
       );
     }, 4100); // Start after pulse (1.6s) + split (2.5s) = 4.1s
 
+      return () => {
+        if (timeout2) clearTimeout(timeout2);
+        if (timeout3) clearTimeout(timeout3);
+        if (splitTimeout) clearTimeout(splitTimeout);
+      };
+    }, 100); // Small delay to ensure component is ready
+
     return () => {
-      if (timeout2) clearTimeout(timeout2);
-      if (timeout3) clearTimeout(timeout3);
+      clearTimeout(initTimeout);
     };
-  }, [sphere1X, sphere1Y, sphere2X, sphere2Y, sphere3X, sphere3Y, logoOpacity, circleSplitProgress, circlePulseScale]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount - shared values are stable
 
   const finishHiding = () => {
     setIsVisible(false);
@@ -244,13 +259,15 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   // Circle 1 animated path (moves left as it splits)
   // Start at center x=96, move to left position x=76
   const circle1AnimatedProps = useAnimatedProps(() => {
+    'worklet';
     const centerX = interpolate(
       circleSplitProgress.value,
       [0, 1],
       [96, 76] // Start at center, move to left
     );
-    // Apply pulse scale to the path
-    const scale = circlePulseScale.value;
+    // Apply pulse scale to the path (only when merged, i.e., splitProgress < 0.1)
+    const isMerged = circleSplitProgress.value < 0.1;
+    const scale = isMerged ? circlePulseScale.value : 1;
     // Scale the circle path around its center
     const scaledX = centerX;
     const scaledSize = 48 * scale; // Scale the radius
@@ -263,6 +280,7 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   // Circle 2 animated path (moves right as it splits)
   // Start at center x=96, move to right position x=116
   const circle2AnimatedProps = useAnimatedProps(() => {
+    'worklet';
     const centerX = interpolate(
       circleSplitProgress.value,
       [0, 1],
