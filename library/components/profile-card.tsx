@@ -3,6 +3,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { ProgressBar } from '@/library/components/progress-bar';
+import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { useMemo } from 'react';
@@ -20,6 +21,7 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
   const colors = Colors[colorScheme ?? 'dark'];
+  const t = useTranslate();
 
   const isComplete = profile.isCompleted || profile.setupProgress === 100;
   const initials = profile.name
@@ -118,8 +120,8 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
   );
 
   const statusText = isComplete 
-    ? 'Setup Complete' 
-    : `Incomplete Setup (${profile.setupProgress}%)`;
+    ? t('profile.setup.complete')
+    : t('profile.setup.incomplete').replace('{percentage}', profile.setupProgress.toString());
   const statusColor = isComplete ? '#10b981' : '#f97316'; // Green for complete, orange for incomplete
 
   const handleCardPress = () => {
@@ -178,7 +180,7 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
             )}
             {profile.relationshipDuration && (
               <ThemedText size="sm" weight="normal" style={styles.relationship}>
-                Relationship: {profile.relationshipDuration}
+                {t('profile.relationship')}: {profile.relationshipDuration}
               </ThemedText>
             )}
           </View>

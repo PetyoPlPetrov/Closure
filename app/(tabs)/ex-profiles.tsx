@@ -8,6 +8,7 @@ import { ConfirmationModal } from '@/library/components/confirmation-modal';
 import { FloatingActionButton } from '@/library/components/floating-action-button';
 import { ProfileCard } from '@/library/components/profile-card';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
+import { useTranslate } from '@/utils/languages/use-translate';
 import type { ExProfile } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -22,6 +23,7 @@ export default function ExProfilesScreen() {
   const iconScale = useIconScale();
   const { maxContentWidth } = useLargeDevice();
   const { profiles, isLoading, deleteProfile } = useJourney();
+  const t = useTranslate();
 
   const [selectedProfile, setSelectedProfile] = useState<ExProfile | null>(null);
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
@@ -47,7 +49,11 @@ export default function ExProfilesScreen() {
 
   const handleViewHealingPath = () => {
     if (selectedProfile) {
-      router.push('/begin-new-path');
+      // Navigate to reality check screen directly
+      router.push({
+        pathname: '/reality-check',
+        params: { profileId: selectedProfile.id },
+      });
       setActionSheetVisible(false);
       setSelectedProfile(null);
     }
@@ -99,17 +105,17 @@ export default function ExProfilesScreen() {
   const actionSheetOptions = selectedProfile
     ? [
         {
-          label: 'Edit Profile',
+          label: t('profile.actionSheet.edit'),
           icon: 'edit' as const,
           onPress: handleEditProfile,
         },
         {
-          label: 'View Healing Path',
+          label: t('profile.actionSheet.viewHealingPath'),
           icon: 'timeline' as const,
           onPress: handleViewHealingPath,
         },
         {
-          label: 'Delete Profile',
+          label: t('profile.actionSheet.delete'),
           icon: 'delete' as const,
           onPress: handleDeletePress,
           destructive: true,
@@ -223,7 +229,7 @@ export default function ExProfilesScreen() {
         <View style={styles.header}>
           <View style={styles.headerButton} />
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-            Ex Profiles
+            {t('tab.exProfiles')}
           </ThemedText>
           <View style={styles.headerButton} />
         </View>
@@ -303,11 +309,10 @@ export default function ExProfilesScreen() {
           {/* Heading and Description */}
           <View style={styles.textContainer}>
             <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.heading}>
-              Begin Your Journey to Closure
+              {t('profile.emptyState.title')}
             </ThemedText>
             <ThemedText size="sm" weight="normal" style={styles.description}>
-              This is a safe space to document past relationships objectively. Creating a profile
-              is the first constructive step towards understanding and moving on.
+              {t('profile.emptyState.description')}
             </ThemedText>
           </View>
 
@@ -318,7 +323,7 @@ export default function ExProfilesScreen() {
             onPress={() => router.push('/add-ex-profile')}
           >
             <ThemedText weight="bold" letterSpacing="l" style={styles.buttonText}>
-              Add Your First Ex Profile
+              {t('profile.emptyState.button')}
             </ThemedText>
           </TouchableOpacity>
         </ScrollView>
@@ -338,10 +343,10 @@ export default function ExProfilesScreen() {
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         visible={deleteConfirmVisible && !!selectedProfile}
-        title="Delete Profile"
-        message={selectedProfile ? `Are you sure you want to delete ${selectedProfile.name}'s profile? This will permanently delete all associated memories, hard truths, and data. This action cannot be undone.` : ''}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
+        title={t('profile.delete.confirm')}
+        message={selectedProfile ? t('profile.delete.confirm.message.withName').replace('{name}', selectedProfile.name) : ''}
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
         onConfirm={handleDeleteConfirm}
         onCancel={() => {
           setDeleteConfirmVisible(false);

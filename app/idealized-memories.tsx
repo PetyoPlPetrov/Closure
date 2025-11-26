@@ -5,6 +5,7 @@ import { useLargeDevice } from "@/hooks/use-large-device";
 import { ActionSheet } from "@/library/components/action-sheet";
 import { ConfirmationModal } from "@/library/components/confirmation-modal";
 import { MemoryCard } from "@/library/components/memory-card";
+import { useTranslate } from "@/utils/languages/use-translate";
 import { useJourney } from "@/utils/JourneyProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -17,6 +18,7 @@ export default function IdealizedMemoriesScreen() {
   const { maxContentWidth } = useLargeDevice();
   const params = useLocalSearchParams();
   const { getIdealizedMemoriesByProfileId, deleteIdealizedMemory } = useJourney();
+  const t = useTranslate();
   
   const profileId = params.profileId as string | undefined;
   const memories = profileId ? getIdealizedMemoriesByProfileId(profileId) : [];
@@ -166,7 +168,7 @@ export default function IdealizedMemoriesScreen() {
         setSelectedMemory(null);
       } catch (error) {
         console.error("Error deleting memory:", error);
-        alert("Failed to delete memory. Please try again.");
+        alert(t('memory.error.deleteFailed'));
         setDeleteConfirmVisible(false);
         setSelectedMemory(null);
       }
@@ -187,7 +189,7 @@ export default function IdealizedMemoriesScreen() {
         </TouchableOpacity>
 
         <ThemedText size="l" weight="bold" style={styles.headerTitle}>
-          Memory
+          {t('memory.title')}
         </ThemedText>
 
         <View style={styles.headerButton} />
@@ -230,13 +232,11 @@ export default function IdealizedMemoriesScreen() {
               </View>
 
               <ThemedText size="sm" weight="bold" style={styles.title}>
-                No Idealized Memories Yet
+                {t('memory.emptyState.title')}
               </ThemedText>
 
               <ThemedText style={styles.description}>
-                This is the first step to gaining clarity. Listing your idealized
-                memories helps you counter them with reality, turning rumination
-                into action.
+                {t('memory.emptyState.description')}
               </ThemedText>
             </View>
           </View>
@@ -257,12 +257,12 @@ export default function IdealizedMemoriesScreen() {
         title={selectedMemory ? selectedMemory.title : ""}
         options={[
           {
-            label: "Edit",
+            label: t('memory.actionSheet.edit'),
             icon: "edit",
             onPress: handleEditMemory,
           },
           {
-            label: "Delete",
+            label: t('memory.actionSheet.delete'),
             icon: "delete",
             onPress: handleDeletePress,
             destructive: true,
@@ -277,14 +277,14 @@ export default function IdealizedMemoriesScreen() {
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         visible={deleteConfirmVisible && !!selectedMemory}
-        title="Delete Memory"
+        title={t('memory.delete.confirm')}
         message={
           selectedMemory
-            ? `Are you sure you want to delete "${selectedMemory.title}"? This action cannot be undone.`
+            ? t('memory.delete.confirm.message.withTitle').replace('{title}', selectedMemory.title)
             : ""
         }
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
         onConfirm={handleDeleteConfirm}
         onCancel={handleCancelDelete}
         destructive

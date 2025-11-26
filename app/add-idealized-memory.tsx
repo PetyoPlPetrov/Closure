@@ -5,9 +5,11 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { FloatingActionButton } from '@/library/components/floating-action-button';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -41,6 +43,7 @@ function AnimatedCloud({
   colors,
   cloudWidth,
   cloudHeight,
+  placeholder,
 }: {
   cloud: { id: string; text: string; x: number; y: number; startX?: number; startY?: number };
   panHandlers: any;
@@ -52,6 +55,7 @@ function AnimatedCloud({
   colors: typeof Colors.dark;
   cloudWidth: number;
   cloudHeight: number;
+  placeholder: string;
 }) {
   // Animation values
   const translateX = useSharedValue(cloud.startX !== undefined ? cloud.startX : cloud.x);
@@ -201,7 +205,7 @@ function AnimatedCloud({
             }
           }}
           style={styles.cloudTextInput}
-          placeholder="Enter hard truth..."
+          placeholder={placeholder}
           placeholderTextColor="rgba(255,255,255,0.4)"
           multiline
           maxLength={50}
@@ -224,6 +228,7 @@ function AnimatedSun({
   colors,
   sunWidth,
   sunHeight,
+  placeholder,
 }: {
   sun: { id: string; text: string; x: number; y: number; startX?: number; startY?: number };
   panHandlers: any;
@@ -235,6 +240,7 @@ function AnimatedSun({
   colors: typeof Colors.dark;
   sunWidth: number;
   sunHeight: number;
+  placeholder: string;
 }) {
   // Animation values
   const translateX = useSharedValue(sun.startX !== undefined ? sun.startX : sun.x);
@@ -298,32 +304,6 @@ function AnimatedSun({
     };
   });
 
-  // Sun SVG path - circular with rays (using fixed viewBox size 100x100)
-  const viewBoxSize = 100;
-  const centerX = viewBoxSize / 2;
-  const centerY = viewBoxSize / 2;
-  const radius = viewBoxSize * 0.35;
-  const rayLength = viewBoxSize * 0.15;
-  const numRays = 12;
-
-  // Generate sun path with rays
-  let sunPath = `M ${centerX + radius} ${centerY} `;
-  for (let i = 0; i < numRays; i++) {
-    const angle1 = (i * 2 * Math.PI) / numRays;
-    const angle2 = ((i + 0.5) * 2 * Math.PI) / numRays;
-    const angle3 = ((i + 1) * 2 * Math.PI) / numRays;
-    
-    const x1 = centerX + (radius + rayLength) * Math.cos(angle1);
-    const y1 = centerY + (radius + rayLength) * Math.sin(angle1);
-    const x2 = centerX + radius * Math.cos(angle2);
-    const y2 = centerY + radius * Math.sin(angle2);
-    const x3 = centerX + (radius + rayLength) * Math.cos(angle3);
-    const y3 = centerY + (radius + rayLength) * Math.sin(angle3);
-    
-    sunPath += `L ${x1} ${y1} L ${x2} ${y2} L ${x3} ${y3} `;
-  }
-  sunPath += 'Z';
-
   return (
     <Animated.View
       {...panHandlers}
@@ -336,27 +316,32 @@ function AnimatedSun({
         animatedStyle,
       ]}
     >
-      <Svg 
-        width={sunWidth} 
-        height={sunHeight} 
-        viewBox="0 0 100 100"
-        preserveAspectRatio="xMidYMid meet"
-        style={{ position: 'absolute' }}
+      <LinearGradient
+        colors={['#FFD700', '#FFA500', '#FF8C00']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{
+          position: 'absolute',
+          width: sunWidth,
+          height: sunHeight,
+          borderRadius: sunWidth / 2,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
       >
-        <Defs>
-          <SvgLinearGradient id={`sunGradient-${sun.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#FFD700" stopOpacity="1" />
-            <Stop offset="50%" stopColor="#FFA500" stopOpacity="1" />
-            <Stop offset="100%" stopColor="#FF8C00" stopOpacity="1" />
-          </SvgLinearGradient>
-        </Defs>
-        <Path
-          d={sunPath}
-          fill={`url(#sunGradient-${sun.id})`}
-          stroke="rgba(255,200,0,0.8)"
-          strokeWidth={2}
-        />
-      </Svg>
+        <View style={{
+          position: 'absolute',
+          top: sunHeight * 0.2,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          <MaterialIcons 
+            name="wb-sunny" 
+            size={sunWidth * 0.5} 
+            color="#FFFFFF" 
+          />
+        </View>
+      </LinearGradient>
       {/* Delete button - top right corner */}
       <TouchableOpacity
         style={styles.sunDeleteButton}
@@ -377,6 +362,7 @@ function AnimatedSun({
           justifyContent: 'center',
           alignItems: 'center',
           paddingHorizontal: 12,
+          paddingTop: sunHeight * 0.45,
         }}
       >
         <TextInput
@@ -387,7 +373,7 @@ function AnimatedSun({
             }
           }}
           style={styles.sunTextInput}
-          placeholder="Enter good fact..."
+          placeholder={placeholder}
           placeholderTextColor="rgba(0,0,0,0.5)"
           multiline
           maxLength={50}
@@ -413,6 +399,7 @@ export default function AddIdealizedMemoryScreen() {
   const sunHeight = isLargeDevice ? 150 : 100;
   const params = useLocalSearchParams();
   const { addIdealizedMemory, updateIdealizedMemory, getIdealizedMemoriesByProfileId } = useJourney();
+  const t = useTranslate();
   
   const profileId = params.profileId as string | undefined;
   const memoryId = params.memoryId as string | undefined;
@@ -431,7 +418,7 @@ export default function AddIdealizedMemoryScreen() {
   }, [profileId]);
 
   // 🔥 Two-way binding
-  const [memoryLabel, setMemoryLabel] = useState(existingMemory?.title || 'Our first vacation');
+  const [memoryLabel, setMemoryLabel] = useState(existingMemory?.title || '');
   const [selectedImage, setSelectedImage] = useState<string | null>(existingMemory?.imageUri || null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -503,7 +490,7 @@ export default function AddIdealizedMemoryScreen() {
   // Load existing memory data when editing
   useEffect(() => {
     if (existingMemory) {
-      setMemoryLabel(existingMemory.title || 'Our first vacation');
+      setMemoryLabel(existingMemory.title || '');
       setSelectedImage(existingMemory.imageUri || null);
       
       // Initialize clouds from existing memory
@@ -622,18 +609,18 @@ export default function AddIdealizedMemoryScreen() {
     
     if (!allCloudsHaveText) {
       // Show alert to fill all clouds
-      alert('Please fill all available clouds with text before continuing.');
+      alert(t('memory.fillAllClouds'));
       return;
     }
 
     if (!allSunsHaveText) {
       // Show alert to fill all suns
-      alert('Please fill all available suns with text before continuing.');
+      alert(t('memory.fillAllSuns'));
       return;
     }
 
     if (memoryLabel.trim().length === 0) {
-      alert('Please enter a memory title.');
+      alert(t('memory.error.titleRequired'));
       return;
     }
 
@@ -679,7 +666,7 @@ export default function AddIdealizedMemoryScreen() {
       router.back();
     } catch (error) {
       console.error('Error saving memory:', error);
-      alert('Failed to save memory. Please try again.');
+      alert(t('memory.error.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -984,33 +971,39 @@ export default function AddIdealizedMemoryScreen() {
           minHeight: 24,
         },
 
-        hardTruthRow: {
-          alignSelf: 'flex-start',
-          marginTop: 40,
-          marginLeft: 4,
+        buttonsRow: {
           flexDirection: 'row',
+          justifyContent: 'center',
           alignItems: 'center',
+          marginTop: 40,
+          paddingHorizontal: 16 * fontScale,
+          width: '100%',
+          gap: 16 * fontScale,
         },
 
         addHardTruthButton: {
-          width: isLargeDevice ? 56 : 44, // Bigger on large devices
-          height: isLargeDevice ? 56 : 44, // Bigger on large devices
-          borderRadius: isLargeDevice ? 28 : 22,
-          justifyContent: 'center',
+          width: isLargeDevice ? 64 : 56,
+          height: isLargeDevice ? 64 : 56,
+          borderRadius: isLargeDevice ? 32 : 28,
           alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colorScheme === 'dark' 
+            ? 'rgba(255, 255, 255, 0.08)' 
+            : 'rgba(255, 255, 255, 0.9)',
+          // Neumorphic shadow effect
+          shadowColor: colorScheme === 'dark' ? '#000' : '#000',
+          shadowOffset: { width: 4, height: 4 },
+          shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.15,
+          shadowRadius: 8,
+          elevation: 4,
+          // Inner highlight for 3D effect
           borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.25)',
+          borderColor: colorScheme === 'dark' 
+            ? 'rgba(255, 255, 255, 0.1)' 
+            : 'rgba(255, 255, 255, 0.8)',
         },
         addHardTruthButtonDisabled: {
           opacity: 0.4,
-        },
-
-        hardTruthText: {
-          marginLeft: 10,
-          fontSize: isLargeDevice ? 20 : 16, // Bigger on large devices
-          fontWeight: '500',
-          color: colors.text,
-          opacity: 0.9,
         },
 
         floatingButton: {
@@ -1068,33 +1061,44 @@ export default function AddIdealizedMemoryScreen() {
           zIndex: 1001,
         },
 
-        goodFactRow: {
-          alignSelf: 'flex-end',
-          marginTop: 40,
-          marginRight: 4,
-          flexDirection: 'row',
-          alignItems: 'center',
-        },
-
         addGoodFactButton: {
-          width: isLargeDevice ? 56 : 44,
-          height: isLargeDevice ? 56 : 44,
-          borderRadius: isLargeDevice ? 28 : 22,
-          justifyContent: 'center',
+          width: isLargeDevice ? 64 : 56,
+          height: isLargeDevice ? 64 : 56,
+          borderRadius: isLargeDevice ? 32 : 28,
           alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colorScheme === 'dark' 
+            ? 'rgba(255, 255, 255, 0.08)' 
+            : 'rgba(255, 255, 255, 0.9)',
+          // Neumorphic shadow effect
+          shadowColor: colorScheme === 'dark' ? '#000' : '#000',
+          shadowOffset: { width: 4, height: 4 },
+          shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.15,
+          shadowRadius: 8,
+          elevation: 4,
+          // Inner highlight for 3D effect
           borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.25)',
+          borderColor: colorScheme === 'dark' 
+            ? 'rgba(255, 255, 255, 0.1)' 
+            : 'rgba(255, 255, 255, 0.8)',
         },
         addGoodFactButtonDisabled: {
           opacity: 0.4,
         },
 
-        goodFactText: {
-          marginRight: 10,
-          fontSize: isLargeDevice ? 20 : 16,
-          fontWeight: '500',
-          color: colors.text,
-          opacity: 0.9,
+        plusButtonBetween: {
+          width: isLargeDevice ? 56 : 48,
+          height: isLargeDevice ? 56 : 48,
+          borderRadius: isLargeDevice ? 28 : 24,
+          backgroundColor: colors.primary,
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: colors.primary,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.4,
+          shadowRadius: 8,
+          elevation: 6,
+          zIndex: 10,
         },
 
         sunContainer: {
@@ -1166,7 +1170,7 @@ export default function AddIdealizedMemoryScreen() {
         </TouchableOpacity>
 
         <ThemedText size="l" weight="bold" style={styles.headerTitle}>
-          Memory
+          {t('memory.title')}
         </ThemedText>
 
         <TouchableOpacity style={styles.headerButton}>
@@ -1183,25 +1187,8 @@ export default function AddIdealizedMemoryScreen() {
       >
         <View style={styles.centerContent}>
           <View style={styles.uploadShadowWrap}>
-            <TouchableOpacity
-              ref={containerRef}
-              style={styles.uploadContainer}
-              onPress={pickImage}
-              onLayout={() => {
-                // Container ref is available for potential future use
-              }}
-              activeOpacity={0.8}
-              delayPressIn={0}
-              disabled={isLoadingImage}
-            >
-              {isLoadingImage ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={colors.primaryLight} />
-                  <ThemedText style={{ marginTop: 12, opacity: 0.75 }}>
-                    Opening gallery...
-                  </ThemedText>
-                </View>
-              ) : selectedImage ? (
+            {selectedImage ? (
+              <View style={styles.uploadContainer}>
                 <View style={{ width: '100%', height: '100%', position: 'relative' }}>
                   <Image
                     source={{ uri: selectedImage }}
@@ -1218,19 +1205,47 @@ export default function AddIdealizedMemoryScreen() {
                     </View>
                   </TouchableOpacity>
                 </View>
-              ) : (
-                <>
-              <MaterialIcons
-                name="add-a-photo"
-                size={50}
-                color={colors.primaryLight}
-              />
-              <ThemedText style={{ marginTop: 6, opacity: 0.75 }}>
-                Tap to Add Photo
-              </ThemedText>
-                </>
-              )}
-            </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                ref={containerRef}
+                style={styles.uploadContainer}
+                onPress={pickImage}
+                onLayout={() => {
+                  // Container ref is available for potential future use
+                }}
+                activeOpacity={0.8}
+                delayPressIn={0}
+                disabled={isLoadingImage}
+              >
+                {isLoadingImage ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={colors.primaryLight} />
+                    <ThemedText style={{ marginTop: 12, opacity: 0.75 }}>
+                      {t('profile.openingGallery')}
+                    </ThemedText>
+                  </View>
+                ) : (
+                  <View style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}>
+                    <MaterialIcons
+                      name="add-a-photo"
+                      size={isLargeDevice ? 60 : 50}
+                      color={colors.primaryLight}
+                    />
+                    <ThemedText 
+                      size={isLargeDevice ? 'l' : 'sm'} 
+                      style={{ 
+                        marginTop: 8 * fontScale, 
+                        opacity: 0.75,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {t('profile.tapToAddPhoto')}
+                    </ThemedText>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
             </View>
 
           {/* Editable memory label */}
@@ -1239,14 +1254,14 @@ export default function AddIdealizedMemoryScreen() {
               value={memoryLabel}
               onChangeText={setMemoryLabel}
               style={styles.memoryLabelInput}
-              placeholder="Our first vacation"
-              placeholderTextColor="rgba(255,255,255,0.4)"
+              placeholder={t('memory.title.placeholder')}
+              placeholderTextColor={colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'}
               textAlign="center"
             />
           </View>
 
-          {/* Add Hard Truth */}
-          <View style={styles.hardTruthRow}>
+          {/* Add Hard Truth and Good Fact - Same Row */}
+          <View style={styles.buttonsRow}>
             <TouchableOpacity
               ref={plusButtonRef}
               style={[
@@ -1266,19 +1281,58 @@ export default function AddIdealizedMemoryScreen() {
               onPress={addNewCloud}
               disabled={clouds.length > 0 && !clouds.every((cloud) => cloud.text.trim().length > 0)}
             >
-              <MaterialIcons name="add" size={isLargeDevice ? 32 : 24} color={colors.text} />
+              <View style={{
+                width: isLargeDevice ? 64 : 56,
+                height: isLargeDevice ? 64 : 56,
+                borderRadius: isLargeDevice ? 32 : 28,
+                justifyContent: 'center',
+                alignItems: 'center',
+                // Enhanced 3D shadow effect - stronger for dark theme
+                shadowColor: colorScheme === 'dark' ? '#000' : '#000',
+                shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
+                shadowOpacity: colorScheme === 'dark' ? 0.8 : 0.6,
+                shadowRadius: colorScheme === 'dark' ? 24 : 20,
+                elevation: colorScheme === 'dark' ? 18 : 15,
+                overflow: 'hidden',
+              }}>
+                <LinearGradient
+                  colors={
+                    colorScheme === 'dark'
+                      ? ['rgba(180, 180, 180, 0.8)', 'rgba(100, 100, 100, 0.6)', 'rgba(40, 40, 40, 0.8)']
+                      : ['rgba(255, 255, 255, 1)', 'rgba(230, 230, 230, 0.95)', 'rgba(200, 200, 200, 1)']
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: isLargeDevice ? 32 : 28,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    borderWidth: colorScheme === 'dark' ? 2 : 1,
+                    borderTopColor: colorScheme === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.3)' 
+                      : 'rgba(255, 255, 255, 0.8)',
+                    borderLeftColor: colorScheme === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.25)' 
+                      : 'rgba(255, 255, 255, 0.8)',
+                    borderBottomColor: colorScheme === 'dark' 
+                      ? 'rgba(0, 0, 0, 0.5)' 
+                      : 'rgba(200, 200, 200, 0.8)',
+                    borderRightColor: colorScheme === 'dark' 
+                      ? 'rgba(0, 0, 0, 0.4)' 
+                      : 'rgba(200, 200, 200, 0.8)',
+                  }}
+                >
+                  <MaterialIcons 
+                    name="cloud" 
+                    size={isLargeDevice ? 32 : 28} 
+                    color={colorScheme === 'dark' ? '#FFFFFF' : '#555'} 
+                  />
+                </LinearGradient>
+              </View>
             </TouchableOpacity>
 
-            <ThemedText style={styles.hardTruthText}>
-              Add Hard Truth
-            </ThemedText>
-          </View>
-
-          {/* Add Good Fact */}
-          <View style={styles.goodFactRow}>
-            <ThemedText style={styles.goodFactText}>
-              Add Good Fact
-            </ThemedText>
             <TouchableOpacity
               ref={sunButtonRef}
               style={[
@@ -1297,7 +1351,56 @@ export default function AddIdealizedMemoryScreen() {
               onPress={addNewSun}
               disabled={suns.length > 0 && !suns.every((sun) => sun.text.trim().length > 0)}
             >
-              <MaterialIcons name="add" size={isLargeDevice ? 32 : 24} color={colors.text} />
+              <View style={{
+                width: isLargeDevice ? 64 : 56,
+                height: isLargeDevice ? 64 : 56,
+                borderRadius: isLargeDevice ? 32 : 28,
+                justifyContent: 'center',
+                alignItems: 'center',
+                // Enhanced 3D shadow effect - stronger for dark theme
+                shadowColor: colorScheme === 'dark' ? '#FFA500' : '#FFA500',
+                shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
+                shadowOpacity: colorScheme === 'dark' ? 0.9 : 0.7,
+                shadowRadius: colorScheme === 'dark' ? 24 : 20,
+                elevation: colorScheme === 'dark' ? 18 : 15,
+                overflow: 'hidden',
+              }}>
+                <LinearGradient
+                  colors={
+                    colorScheme === 'dark'
+                      ? ['rgba(255, 230, 140, 0.85)', 'rgba(255, 180, 70, 0.7)', 'rgba(255, 140, 40, 0.85)']
+                      : ['rgba(255, 250, 200, 1)', 'rgba(255, 230, 120, 0.95)', 'rgba(255, 210, 60, 1)']
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: isLargeDevice ? 32 : 28,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    borderWidth: colorScheme === 'dark' ? 2 : 1,
+                    borderTopColor: colorScheme === 'dark' 
+                      ? 'rgba(255, 255, 220, 0.4)' 
+                      : 'rgba(255, 255, 255, 0.9)',
+                    borderLeftColor: colorScheme === 'dark' 
+                      ? 'rgba(255, 255, 200, 0.35)' 
+                      : 'rgba(255, 255, 255, 0.9)',
+                    borderBottomColor: colorScheme === 'dark' 
+                      ? 'rgba(200, 120, 0, 0.5)' 
+                      : 'rgba(255, 210, 60, 0.9)',
+                    borderRightColor: colorScheme === 'dark' 
+                      ? 'rgba(200, 100, 0, 0.4)' 
+                      : 'rgba(255, 210, 60, 0.9)',
+                  }}
+                >
+                  <MaterialIcons 
+                    name="wb-sunny" 
+                    size={isLargeDevice ? 32 : 28} 
+                    color={colorScheme === 'dark' ? '#FFD700' : '#FFA500'} 
+                  />
+                </LinearGradient>
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -1315,6 +1418,7 @@ export default function AddIdealizedMemoryScreen() {
             colors={colors}
             cloudWidth={cloudWidth}
             cloudHeight={cloudHeight}
+            placeholder={t('memory.hardTruth.placeholder')}
             onTextChange={(id, text) => {
               setClouds((prev) =>
                 prev.map((c) => (c.id === id ? { ...c, text } : c))
@@ -1350,6 +1454,7 @@ export default function AddIdealizedMemoryScreen() {
             colors={colors}
             sunWidth={sunWidth}
             sunHeight={sunHeight}
+            placeholder={t('memory.goodFact.placeholder')}
             onTextChange={(id, text) => {
               setSuns((prev) =>
                 prev.map((s) => (s.id === id ? { ...s, text } : s))

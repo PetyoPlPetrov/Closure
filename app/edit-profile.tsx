@@ -5,6 +5,7 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo } from 'react';
@@ -17,6 +18,7 @@ export default function EditProfileScreen() {
   const { maxContentWidth } = useLargeDevice();
   const params = useLocalSearchParams();
   const { getProfile } = useJourney();
+  const t = useTranslate();
   
   const profileId = params.profileId as string | undefined;
   const profile = profileId ? getProfile(profileId) : null;
@@ -131,12 +133,12 @@ export default function EditProfileScreen() {
       >
         {/* Title and Description */}
         <View>
-          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.title}>
-            Edit Profile
-          </ThemedText>
-          <ThemedText size="sm" weight="normal" style={styles.description}>
-            Choose what you&apos;d like to edit for this profile.
-          </ThemedText>
+        <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.title}>
+          {t('profile.editProfile')}
+        </ThemedText>
+        <ThemedText size="sm" weight="normal" style={styles.description}>
+          {t('profile.editProfile.description')}
+        </ThemedText>
         </View>
 
         {/* Buttons */}
@@ -159,7 +161,7 @@ export default function EditProfileScreen() {
           >
             <MaterialIcons name="person" size={24 * fontScale} color={colors.primary} />
             <ThemedText weight="bold" letterSpacing="l" style={{ color: colors.text, flex: 1 }}>
-              Edit Ex Info
+              {t('profile.editExInfo')}
             </ThemedText>
             <MaterialIcons 
               name="chevron-right" 
@@ -190,7 +192,7 @@ export default function EditProfileScreen() {
               color={colors.primary} 
             />
             <ThemedText weight="bold" letterSpacing="l" style={{ color: colors.text, flex: 1 }}>
-              Edit Memories
+              {t('profile.editMemories')}
             </ThemedText>
             <MaterialIcons 
               name="chevron-right" 

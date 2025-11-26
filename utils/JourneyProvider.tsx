@@ -57,38 +57,49 @@ export type IdealizedMemory = {
 };
 
 /**
- * Calculate setup progress based on completed steps
- * Step 1 (Reality Check): 33% total
- *   - Idealized Memories only: 16.5%
- *   - Emotional Debt Ledger only: 16.5%
- *   - Both completed: 33%
- * Step 2 (Processing & Accountability): 33% - processingAccountability.isCompleted must be true
- * Step 3 (Identity & Future Focus): 34% - identityFutureFocus.isCompleted must be true
+ * Calculate setup progress based on personal info completion and memories
+ * Personal Info: 50% total
+ *   - Name (required): 33.33%
+ *   - Description (optional): 33.33%
+ *   - Image (optional): 33.34%
+ * Memories: 50% total
+ *   - At least 7 memories: 50%
  * Total: 100%
  */
-export function calculateSetupProgress(profile: ExProfile): number {
+export function calculateSetupProgress(
+  profile: ExProfile,
+  memoryCount: number
+): number {
   let progress = 0;
   
-  // Step 1: Reality Check (33% total, split between two sections)
-  const hasIdealizedMemories = profile.sections?.realityCheck?.idealizedMemories === true;
-  const hasEmotionalDebtLedger = profile.sections?.realityCheck?.emotionalDebtLedger === true;
+  // Personal Info: 50% total
+  const personalInfoProgress = 50;
+  let personalInfoCompleted = 0;
   
-  if (hasIdealizedMemories && hasEmotionalDebtLedger) {
-    // Both sections completed: full 33%
-    progress += 33;
-  } else if (hasIdealizedMemories || hasEmotionalDebtLedger) {
-    // Only one section completed: half of 33% = 16.5%
-    progress += 16.5;
+  // Name is required (33.33% of personal info = 16.67% of total)
+  if (profile.name && profile.name.trim().length > 0) {
+    personalInfoCompleted += 33.33;
   }
   
-  // Step 2: Processing & Accountability (33%)
-  if (profile.sections?.processingAccountability?.isCompleted === true) {
-    progress += 33;
+  // Description is optional (33.33% of personal info = 16.67% of total)
+  if (profile.description && profile.description.trim().length > 0) {
+    personalInfoCompleted += 33.33;
   }
   
-  // Step 3: Identity & Future Focus (34% to make it 100%)
-  if (profile.sections?.identityFutureFocus?.isCompleted === true) {
-    progress += 34;
+  // Image is optional (33.34% of personal info = 16.67% of total)
+  if (profile.imageUri) {
+    personalInfoCompleted += 33.34;
+  }
+  
+  // Calculate personal info percentage (out of 50%)
+  progress += (personalInfoProgress * personalInfoCompleted) / 100;
+  
+  // Memories: 50% total if at least 7 memories exist
+  if (memoryCount >= 7) {
+    progress += 50;
+  } else {
+    // Partial progress for memories (linear scale up to 7)
+    progress += (50 * memoryCount) / 7;
   }
   
   return Math.round(Math.min(progress, 100));
@@ -111,12 +122,20 @@ function useProfiles(): [ExProfile[], boolean, Error | null, (profiles: ExProfil
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         if (stored) {
           const parsedProfiles = JSON.parse(stored) as ExProfile[];
+          // Load memories first to calculate progress
+          const storedMemories = await AsyncStorage.getItem(IDEALIZED_MEMORIES_KEY);
+          const parsedMemories = storedMemories ? JSON.parse(storedMemories) as IdealizedMemory[] : [];
+          
           // Recalculate setupProgress for all profiles on load
-          const profilesWithUpdatedProgress = parsedProfiles.map((profile) => ({
-            ...profile,
-            setupProgress: calculateSetupProgress(profile),
-            isCompleted: calculateSetupProgress(profile) === 100,
-          }));
+          const profilesWithUpdatedProgress = parsedProfiles.map((profile) => {
+            const memoryCount = parsedMemories.filter(m => m.profileId === profile.id).length;
+            const progress = calculateSetupProgress(profile, memoryCount);
+            return {
+              ...profile,
+              setupProgress: progress,
+              isCompleted: progress === 100,
+            };
+          });
           setProfiles(profilesWithUpdatedProgress);
         } else {
           setProfiles([]);
@@ -220,6 +239,9 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         createdAt: now,
         updatedAt: now,
       };
+      // Calculate initial setup progress (0 memories for new profile)
+      newProfile.setupProgress = calculateSetupProgress(newProfile, 0);
+      newProfile.isCompleted = newProfile.setupProgress === 100;
       await saveProfile(newProfile);
     },
     [saveProfile]
@@ -234,9 +256,10 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
             ...updates,
             updatedAt: new Date().toISOString(),
           };
-          // Recalculate setupProgress based on completed steps
-          updatedProfile.setupProgress = calculateSetupProgress(updatedProfile);
-          // Update isCompleted if all steps are done
+          // Recalculate setupProgress based on personal info and memories
+          const memoryCount = idealizedMemories.filter(m => m.profileId === id).length;
+          updatedProfile.setupProgress = calculateSetupProgress(updatedProfile, memoryCount);
+          // Update isCompleted if profile is 100% complete
           updatedProfile.isCompleted = updatedProfile.setupProgress === 100;
           return updatedProfile;
         }
@@ -244,7 +267,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       });
       await updateProfilesInStorage(updatedProfiles);
     },
-    [profiles, updateProfilesInStorage]
+    [profiles, updateProfilesInStorage, idealizedMemories]
   );
 
   const saveIdealizedMemoriesToStorage = useCallback(
@@ -310,20 +333,13 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       };
       const updatedMemories = [...idealizedMemories, newMemory];
       await saveIdealizedMemoriesToStorage(updatedMemories);
+      setIdealizedMemories(updatedMemories);
 
-      // Update profile section completion
+      // Update profile setup progress based on new memory count
       const profile = profiles.find((p) => p.id === profileId);
-      if (profile && (!profile.sections?.realityCheck?.idealizedMemories || updatedMemories.length === 1)) {
-        await updateProfile(profileId, {
-          sections: {
-            ...profile.sections,
-            realityCheck: {
-              idealizedMemories: true,
-              emotionalDebtLedger: profile.sections?.realityCheck?.emotionalDebtLedger || false,
-            },
-          },
-        });
-        // setupProgress will be recalculated in updateProfile
+      if (profile) {
+        // setupProgress will be recalculated in updateProfile with new memory count
+        await updateProfile(profileId, {});
       }
     },
     [idealizedMemories, profiles, saveIdealizedMemoriesToStorage, updateProfile]
@@ -348,10 +364,22 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
 
   const deleteIdealizedMemory = useCallback(
     async (id: string) => {
+      const memoryToDelete = idealizedMemories.find(m => m.id === id);
       const updatedMemories = idealizedMemories.filter((memory) => memory.id !== id);
       await saveIdealizedMemoriesToStorage(updatedMemories);
+      
+      // Update profile setup progress if memory was deleted
+      if (memoryToDelete) {
+        const profile = profiles.find((p) => p.id === memoryToDelete.profileId);
+        if (profile) {
+          const memoryCount = updatedMemories.filter(m => m.profileId === memoryToDelete.profileId).length;
+          await updateProfile(memoryToDelete.profileId, {
+            // setupProgress will be recalculated in updateProfile with new memory count
+          });
+        }
+      }
     },
-    [idealizedMemories, saveIdealizedMemoriesToStorage]
+    [idealizedMemories, profiles, saveIdealizedMemoriesToStorage, updateProfile]
   );
 
   const getIdealizedMemoriesByProfileId = useCallback(

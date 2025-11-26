@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import * as Localization from 'expo-localization';
-import { Language } from '@/services/translations';
-import { languageManager } from '@/services/language-manager';
+import { Language } from './translations';
+import { languageManager } from './language-manager';
 
 interface LanguageContextType {
   language: Language;

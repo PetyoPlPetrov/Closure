@@ -2,10 +2,12 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import { useLargeDevice } from '@/hooks/use-large-device';
 import { Input } from '@/library/components/input';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
+import { useTranslate } from '@/utils/languages/use-translate';
 import { useJourney } from '@/utils/JourneyProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
@@ -13,7 +15,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { useLargeDevice } from '@/hooks/use-large-device';
 
 export default function AddExProfileScreen() {
   const colorScheme = useColorScheme();
@@ -22,6 +23,7 @@ export default function AddExProfileScreen() {
   const { addProfile, updateProfile, getProfile } = useJourney();
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
+  const t = useTranslate();
   
   const isEditMode = params.edit === 'true' && params.profileId;
   const profileId = params.profileId as string | undefined;
@@ -193,8 +195,8 @@ export default function AddExProfileScreen() {
           ...(selectedImage && { imageUri: selectedImage }),
         });
 
-        // Navigate to begin-new-path screen after successful save
-        router.push('/begin-new-path');
+        // Navigate back to ex-profiles screen after successful save
+        router.replace('/(tabs)/ex-profiles');
       }
     } catch (error) {
       console.error(`Error ${isEditMode ? 'updating' : 'adding'} profile:`, error);
@@ -234,27 +236,27 @@ export default function AddExProfileScreen() {
         {/* Title and Description */}
         <View>
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.title}>
-            {isEditMode ? 'Edit New Path' : 'Begin a New Path'}
+            {isEditMode ? t('profile.editNewPath') : t('profile.beginNewPath')}
           </ThemedText>
           <ThemedText size="sm" weight="normal" style={styles.description}>
             {isEditMode
-              ? 'Update your profile information and continue your healing journey.'
-              : "Let's start by focusing on one relationship at a time."}
+              ? t('profile.editNewPath.description')
+              : t('profile.beginNewPath.description')}
           </ThemedText>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
           <Input
-            label={'Ex-partner\'s Name'}
-            placeholder="Enter their name"
+            label={t('profile.exPartnerName')}
+            placeholder={t('profile.exPartnerName.placeholder')}
             value={name}
             onChangeText={setName}
           />
 
           <TextArea
-            label="Relationship Description (Optional)"
-            placeholder="e.g., College sweetheart, first love..."
+            label={t('profile.description') + ' (Optional)'}
+            placeholder={t('profile.description.example')}
             value={description}
             onChangeText={(text) => {
               if (text.length <= 30) {
@@ -267,6 +269,7 @@ export default function AddExProfileScreen() {
           />
 
           <UploadPicture 
+            label={t('profile.uploadPicture')}
             onPress={handleUploadPicture}
             onDelete={handleDeleteImage}
             imageUri={selectedImage}
@@ -288,7 +291,7 @@ export default function AddExProfileScreen() {
           disabled={!isSaveEnabled}
         >
           <ThemedText weight="bold" letterSpacing="l" style={{ color: '#ffffff' }}>
-            {isEditMode ? 'Save' : 'Start Healing Path'}
+            {isEditMode ? t('common.save') : t('profile.startHealingPath')}
           </ThemedText>
         </TouchableOpacity>
       </ScrollView>

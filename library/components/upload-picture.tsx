@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import { useTranslate } from '@/utils/languages/use-translate';
 import { Image } from 'expo-image';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMemo } from 'react';
@@ -28,13 +29,15 @@ export function UploadPicture({
   hasImage = false,
   imageUri,
   isLoading = false,
-  supportedFormats = 'PNG, JPG or GIF',
+  supportedFormats,
   showShadow = true,
   avatarMode = false,
 }: UploadPictureProps) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
   const colors = Colors[colorScheme ?? 'dark'];
+  const t = useTranslate();
+  const defaultSupportedFormats = supportedFormats || t('profile.supportedFormats');
 
   const styles = useMemo(
     () =>
@@ -143,7 +146,7 @@ export function UploadPicture({
             <View style={{ alignItems: 'center', justifyContent: 'center', gap: 12 * fontScale }}>
               <ActivityIndicator size="large" color={colors.primary} />
               <ThemedText size="sm" weight="medium" style={styles.uploadText}>
-                Opening gallery...
+                {t('profile.openingGallery')}
               </ThemedText>
             </View>
           ) : imageUri ? (
@@ -193,7 +196,7 @@ export function UploadPicture({
                   marginHorizontal: 8 * fontScale,
                 }}>
                   <ThemedText size="xs" style={styles.supportedFormats}>
-                    Tap to change
+                    {t('profile.changePicture')}
                   </ThemedText>
                 </View>
               )}
@@ -227,10 +230,10 @@ export function UploadPicture({
                 )}
               </View>
               <ThemedText size="sm" weight="medium" style={styles.uploadText}>
-                {hasImage ? 'Change Picture' : 'Tap to Add Photo'}
+                {hasImage ? t('profile.changePicture') : t('profile.tapToAddPhoto')}
               </ThemedText>
               <ThemedText size="xs" style={styles.supportedFormats}>
-                {supportedFormats}
+                {defaultSupportedFormats}
               </ThemedText>
             </>
           )}

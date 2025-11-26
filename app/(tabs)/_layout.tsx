@@ -8,11 +8,13 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { TAB_BACKGROUND_COLOR_DARK } from '@/library/components/tab-screen-container';
+import { useTranslate } from '@/utils/languages/use-translate';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
+  const t = useTranslate();
   
   // Scale icon size: 28 base size, 30% larger on tablets (28 * 1.3 = 36.4, round to 36)
   const iconSize = Math.round(28 * fontScale);
@@ -66,7 +68,7 @@ export default function TabLayout() {
                   marginTop: 6 * fontScale
                 }}
               >
-                Home
+                {t('tab.home')}
               </ThemedText>
             );
           },
@@ -95,7 +97,7 @@ export default function TabLayout() {
                   marginTop: 6 * fontScale
                 }}
               >
-                Ex Profiles
+                {t('tab.exProfiles')}
               </ThemedText>
             );
           },
@@ -118,7 +120,7 @@ export default function TabLayout() {
                   marginTop: 6 * fontScale
                 }}
               >
-                Settings
+                {t('tab.settings')}
               </ThemedText>
             );
           },
