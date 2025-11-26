@@ -10,6 +10,7 @@ import { router } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Dimensions, PanResponder, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, {
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -52,12 +53,66 @@ function FloatingAvatar({
   const floatAnimation = useSharedValue(0);
   const panX = useSharedValue(position.x);
   const panY = useSharedValue(position.y);
+  const isDragging = useSharedValue(false);
+  
+  // Create individual animated values for each memory with different speeds
+  // Create a fixed number upfront (10 max) to ensure hooks are always called in same order
+  const memoryPanX0 = useSharedValue(position.x);
+  const memoryPanY0 = useSharedValue(position.x);
+  const memoryPanX1 = useSharedValue(position.x);
+  const memoryPanY1 = useSharedValue(position.x);
+  const memoryPanX2 = useSharedValue(position.x);
+  const memoryPanY2 = useSharedValue(position.x);
+  const memoryPanX3 = useSharedValue(position.x);
+  const memoryPanY3 = useSharedValue(position.x);
+  const memoryPanX4 = useSharedValue(position.x);
+  const memoryPanY4 = useSharedValue(position.x);
+  const memoryPanX5 = useSharedValue(position.x);
+  const memoryPanY5 = useSharedValue(position.x);
+  const memoryPanX6 = useSharedValue(position.x);
+  const memoryPanY6 = useSharedValue(position.x);
+  const memoryPanX7 = useSharedValue(position.x);
+  const memoryPanY7 = useSharedValue(position.x);
+  const memoryPanX8 = useSharedValue(position.x);
+  const memoryPanY8 = useSharedValue(position.x);
+  const memoryPanX9 = useSharedValue(position.x);
+  const memoryPanY9 = useSharedValue(position.x);
+  
+  // Store all animated values and their spring parameters
+  const memoryAnimatedValues = React.useMemo(() => {
+    const panXValues = [memoryPanX0, memoryPanX1, memoryPanX2, memoryPanX3, memoryPanX4, memoryPanX5, memoryPanX6, memoryPanX7, memoryPanX8, memoryPanX9];
+    const panYValues = [memoryPanY0, memoryPanY1, memoryPanY2, memoryPanY3, memoryPanY4, memoryPanY5, memoryPanY6, memoryPanY7, memoryPanY8, memoryPanY9];
+    
+    return panXValues.map((panX, index) => {
+      // Vary spring parameters for different speeds - very dramatic variation
+      // Faster memories: lower damping, higher stiffness
+      // Slower memories: higher damping, lower stiffness
+      // Use index directly for more variation instead of modulo
+      const speedVariation = index / 9; // 0 to 1 across all memories
+      // Very dramatic range for noticeable speed differences
+      // Fastest: damping 6, stiffness 180 (very responsive)
+      // Slowest: damping 30, stiffness 30 (very sluggish)
+      const damping = 6 + speedVariation * 24; // Range: 6-30
+      const stiffness = 30 + (1 - speedVariation) * 150; // Range: 30-180
+      
+      return {
+        panX,
+        panY: panYValues[index],
+        damping,
+        stiffness,
+      };
+    });
+  }, [memoryPanX0, memoryPanX1, memoryPanX2, memoryPanX3, memoryPanX4, memoryPanX5, memoryPanX6, memoryPanX7, memoryPanX8, memoryPanX9, memoryPanY0, memoryPanY1, memoryPanY2, memoryPanY3, memoryPanY4, memoryPanY5, memoryPanY6, memoryPanY7, memoryPanY8, memoryPanY9]);
   
   // Update pan values when position prop changes
   React.useEffect(() => {
     panX.value = position.x;
     panY.value = position.y;
-  }, [position.x, position.y, panX, panY]);
+    memoryAnimatedValues.forEach((mem) => {
+      mem.panX.value = position.x;
+      mem.panY.value = position.y;
+    });
+  }, [position.x, position.y, panX, panY, memoryAnimatedValues]);
   
   React.useEffect(() => {
     floatAnimation.value = withRepeat(
@@ -70,6 +125,44 @@ function FloatingAvatar({
     );
   }, [floatAnimation]);
 
+  // Animate each memory to follow avatar with different speeds
+  // Use a single reaction that handles all memories
+  // Store memoryAnimatedValues in a ref so it can be accessed in worklet
+  const memoryAnimatedValuesRef = React.useRef(memoryAnimatedValues);
+  React.useEffect(() => {
+    memoryAnimatedValuesRef.current = memoryAnimatedValues;
+  }, [memoryAnimatedValues]);
+  
+  useAnimatedReaction(
+    () => ({
+      avatarX: panX.value,
+      avatarY: panY.value,
+      dragging: isDragging.value,
+    }),
+    (current: { avatarX: number; avatarY: number; dragging: boolean }) => {
+      'worklet';
+      // Update each memory's position with its own spring parameters
+      // The dramatic variation in damping/stiffness will create visible speed differences
+      const values = memoryAnimatedValuesRef.current;
+      for (let i = 0; i < values.length; i++) {
+        const mem = values[i];
+        if (mem) {
+          // Each memory uses its own spring parameters for different speeds
+          // Fast memories (low damping, high stiffness) will catch up quickly
+          // Slow memories (high damping, low stiffness) will lag behind noticeably
+          mem.panX.value = withSpring(current.avatarX, {
+            damping: mem.damping,
+            stiffness: mem.stiffness,
+          });
+          mem.panY.value = withSpring(current.avatarY, {
+            damping: mem.damping,
+            stiffness: mem.stiffness,
+          });
+        }
+      }
+    }
+  );
+
   const panResponder = React.useMemo(
     () =>
       PanResponder.create({
@@ -78,6 +171,7 @@ function FloatingAvatar({
         onPanResponderGrant: () => {
           // Stop floating animation while dragging
           floatAnimation.value = 0;
+          isDragging.value = true;
         },
         onPanResponderMove: (_, gestureState) => {
           const newX = position.x + gestureState.dx;
@@ -93,8 +187,10 @@ function FloatingAvatar({
           const constrainedX = Math.max(minX, Math.min(maxX, newX));
           const constrainedY = Math.max(minY, Math.min(maxY, newY));
           
+          // Avatar moves immediately
           panX.value = constrainedX;
           panY.value = constrainedY;
+          // Memories will follow via the useAnimatedReaction above
         },
         onPanResponderRelease: (_, gestureState) => {
           const newX = position.x + gestureState.dx;
@@ -110,25 +206,31 @@ function FloatingAvatar({
           const constrainedX = Math.max(minX, Math.min(maxX, newX));
           const constrainedY = Math.max(minY, Math.min(maxY, newY));
           
-          // Update position with spring animation
+          // Update avatar position with spring animation
           panX.value = withSpring(constrainedX);
           panY.value = withSpring(constrainedY);
+          
+          // Memories will catch up via the useAnimatedReaction
+          isDragging.value = false;
           
           // Notify parent of position change
           onPositionChange({ x: constrainedX, y: constrainedY });
           
-          // Resume floating animation
-          floatAnimation.value = withRepeat(
-            withSequence(
-              withTiming(1, { duration: 2000 }),
-              withTiming(0, { duration: 2000 })
-            ),
-            -1,
-            true
-          );
+          // Resume floating animation after a delay
+          setTimeout(() => {
+            floatAnimation.value = withRepeat(
+              withSequence(
+                withTiming(1, { duration: 2000 }),
+                withTiming(0, { duration: 2000 })
+              ),
+              -1,
+              true
+            );
+          }, 300);
         },
       }),
-    [position, onPositionChange]
+    // SharedValues are stable references, but included to satisfy linter
+    [position, onPositionChange, floatAnimation, isDragging, panX, panY]
   );
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -205,6 +307,7 @@ function FloatingAvatar({
       {/* Floating Memories around Avatar - rendered separately for proper z-index */}
       {memories.map((memory, memIndex) => {
         const memPosData = memoryPositions[memIndex];
+        const memAnimatedValues = memoryAnimatedValues[memIndex];
         
         // Initial position for first render
         const initialMemPos = {
@@ -217,8 +320,8 @@ function FloatingAvatar({
             key={`memory-${memory.id}-${memIndex}`}
             memory={memory}
             position={initialMemPos}
-            avatarPanX={panX}
-            avatarPanY={panY}
+            avatarPanX={memAnimatedValues.panX}
+            avatarPanY={memAnimatedValues.panY}
             offsetX={memPosData.offsetX}
             offsetY={memPosData.offsetY}
             colorScheme={colorScheme}
