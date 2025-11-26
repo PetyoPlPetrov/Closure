@@ -15,6 +15,10 @@ export type IdealizedMemory = {
     id: string;
     text: string;
   }>;
+  goodFacts?: Array<{
+    id: string;
+    text: string;
+  }>;
   createdAt: string;
 };
 
@@ -118,12 +122,28 @@ export function MemoryCard({
               ? 'rgba(226, 232, 240, 0.5)'
               : 'rgba(148, 163, 184, 0.8)',
         },
+        goodFactText: {
+          color: '#FFA500', // Orange color for suns
+        },
+        goodFactTextEmpty: {
+          color:
+            colorScheme === 'dark'
+              ? 'rgba(226, 232, 240, 0.5)'
+              : 'rgba(148, 163, 184, 0.8)',
+        },
+        footerItem: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4 * fontScale,
+        },
       }),
     [fontScale, colorScheme, colors.primary]
   );
 
   const hardTruthCount = memory.hardTruths.length;
   const hasHardTruths = hardTruthCount > 0;
+  const goodFactCount = memory.goodFacts?.length || 0;
+  const hasGoodFacts = goodFactCount > 0;
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -190,24 +210,46 @@ export function MemoryCard({
               </ThemedText>
             )}
             <View style={styles.footer}>
-              <MaterialIcons
-                name="cloud"
-                size={16 * fontScale}
-                color={hasHardTruths ? colors.primary : 'rgba(148, 163, 184, 0.5)'}
-              />
-              <ThemedText
-                size="xs"
-                weight="medium"
-                style={
-                  hasHardTruths
-                    ? styles.hardTruthText
-                    : styles.hardTruthTextEmpty
-                }
-              >
-                {hasHardTruths
-                  ? `${hardTruthCount} Hard Truth${hardTruthCount !== 1 ? 's' : ''}`
-                  : 'No Hard Truths yet'}
-              </ThemedText>
+              <View style={styles.footerItem}>
+                <MaterialIcons
+                  name="cloud"
+                  size={16 * fontScale}
+                  color={hasHardTruths ? colors.primary : 'rgba(148, 163, 184, 0.5)'}
+                />
+                <ThemedText
+                  size="xs"
+                  weight="medium"
+                  style={
+                    hasHardTruths
+                      ? styles.hardTruthText
+                      : styles.hardTruthTextEmpty
+                  }
+                >
+                  {hasHardTruths
+                    ? `${hardTruthCount} Hard Truth${hardTruthCount !== 1 ? 's' : ''}`
+                    : 'No Hard Truths yet'}
+                </ThemedText>
+              </View>
+              <View style={styles.footerItem}>
+                <MaterialIcons
+                  name="wb-sunny"
+                  size={16 * fontScale}
+                  color={hasGoodFacts ? '#FFA500' : 'rgba(148, 163, 184, 0.5)'}
+                />
+                <ThemedText
+                  size="xs"
+                  weight="medium"
+                  style={
+                    hasGoodFacts
+                      ? styles.goodFactText
+                      : styles.goodFactTextEmpty
+                  }
+                >
+                  {hasGoodFacts
+                    ? `${goodFactCount} Good Fact${goodFactCount !== 1 ? 's' : ''}`
+                    : 'No Good Facts yet'}
+                </ThemedText>
+              </View>
             </View>
           </View>
         </View>

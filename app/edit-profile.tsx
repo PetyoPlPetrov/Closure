@@ -83,8 +83,13 @@ export default function EditProfileScreen() {
     }
   };
 
-  const handleEditHealingPath = () => {
-    router.push('/begin-new-path');
+  const handleEditMemories = () => {
+    if (profileId) {
+      router.push({
+        pathname: '/idealized-memories',
+        params: { profileId },
+      });
+    }
   };
 
   // Redirect if profile not found
@@ -176,7 +181,7 @@ export default function EditProfileScreen() {
                   : 'rgba(0, 0, 0, 0.1)',
               },
             ]}
-            onPress={handleEditHealingPath}
+            onPress={handleEditMemories}
             activeOpacity={0.8}
           >
             <MaterialIcons 
@@ -185,7 +190,7 @@ export default function EditProfileScreen() {
               color={colors.primary} 
             />
             <ThemedText weight="bold" letterSpacing="l" style={{ color: colors.text, flex: 1 }}>
-              Edit Healing Path
+              Edit Memories
             </ThemedText>
             <MaterialIcons 
               name="chevron-right" 
