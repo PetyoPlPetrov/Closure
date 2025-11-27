@@ -10,6 +10,7 @@ export interface Translations {
   'tab.home': string;
   'tab.exProfiles': string;
   'tab.settings': string;
+  'home.emptyState': string;
   
   // Settings
   'settings.title': string;
@@ -17,6 +18,11 @@ export interface Translations {
   'settings.language.description': string;
   'settings.language.english': string;
   'settings.language.bulgarian': string;
+  'settings.theme': string;
+  'settings.theme.description': string;
+  'settings.theme.light': string;
+  'settings.theme.dark': string;
+  'settings.theme.system': string;
   
   // Common
   'common.back': string;
@@ -67,6 +73,9 @@ export interface Translations {
   'profile.setup.complete': string;
   'profile.setup.incomplete': string;
   'profile.relationship': string;
+  'profile.ongoing.error.title': string;
+  'profile.ongoing.error.message': string;
+  'profile.ongoing.warning': string;
   
   // Memory screens
   'memory.add': string;
@@ -130,6 +139,7 @@ const translations: Record<Language, Translations> = {
     'tab.home': 'Home',
     'tab.exProfiles': 'Ex Profiles',
     'tab.settings': 'Settings',
+    'home.emptyState': 'No profiles yet. Add your first ex-profile to get started.',
     
     // Settings
     'settings.title': 'Settings',
@@ -137,6 +147,11 @@ const translations: Record<Language, Translations> = {
     'settings.language.description': 'Choose your preferred language',
     'settings.language.english': 'English',
     'settings.language.bulgarian': 'Bulgarian',
+    'settings.theme': 'Theme',
+    'settings.theme.description': 'Choose your preferred theme',
+    'settings.theme.light': 'Light',
+    'settings.theme.dark': 'Dark',
+    'settings.theme.system': 'System',
     
     // Common
     'common.back': 'Back',
@@ -151,14 +166,14 @@ const translations: Record<Language, Translations> = {
     'common.no': 'No',
     
     // Profile screens
-    'profile.add': 'Add Ex Profile',
+    'profile.add': 'Add Profile',
     'profile.edit': 'Edit Profile',
-    'profile.editExInfo': 'Edit Ex Info',
+    'profile.editExInfo': 'Edit Info',
     'profile.editMemories': 'Edit Memories',
     'profile.editProfile': 'Edit Profile',
     'profile.editProfile.description': 'Choose what you\'d like to edit for this profile.',
     'profile.name': 'Name',
-    'profile.exPartnerName': 'Ex-partner\'s Name',
+    'profile.exPartnerName': 'Partner\'s Name',
     'profile.exPartnerName.placeholder': 'Enter their name',
     'profile.description': 'Description',
     'profile.description.placeholder': 'Enter a short description (max 30 characters)',
@@ -180,13 +195,16 @@ const translations: Record<Language, Translations> = {
     'profile.startHealingPath': 'Start Healing Path',
     'profile.emptyState.title': 'Begin Your Journey to Closure',
     'profile.emptyState.description': 'This is a safe space to document past relationships objectively. Creating a profile is the first constructive step towards understanding and moving on.',
-    'profile.emptyState.button': 'Add Your First Ex Profile',
+    'profile.emptyState.button': 'Add Your First Partner Profile',
     'profile.actionSheet.edit': 'Edit Profile',
     'profile.actionSheet.viewHealingPath': 'View Healing Path',
     'profile.actionSheet.delete': 'Delete Profile',
     'profile.setup.complete': 'Setup Complete',
     'profile.setup.incomplete': 'Incomplete Setup ({percentage}%)',
     'profile.relationship': 'Relationship',
+    'profile.ongoing.error.title': 'Cannot Set as Ongoing',
+    'profile.ongoing.error.message': 'There is already an ongoing relationship. Please end the current relationship before starting a new one.',
+    'profile.ongoing.warning': 'There is already an ongoing relationship',
     
     // Memory screens
     'memory.add': 'Add Memory',
@@ -246,8 +264,9 @@ const translations: Record<Language, Translations> = {
   bg: {
     // Tab labels
     'tab.home': 'Начало',
-    'tab.exProfiles': 'Бивши Партньори',
+    'tab.exProfiles': 'Партньори',
     'tab.settings': 'Настройки',
+    'home.emptyState': 'Няма профили все още. Добавете първи партньор, за да започнете.',
     
     // Settings
     'settings.title': 'Настройки',
@@ -255,6 +274,11 @@ const translations: Record<Language, Translations> = {
     'settings.language.description': 'Изберете предпочитания език',
     'settings.language.english': 'Английски',
     'settings.language.bulgarian': 'Български',
+    'settings.theme': 'Тема',
+    'settings.theme.description': 'Изберете предпочитана тема',
+    'settings.theme.light': 'Светла',
+    'settings.theme.dark': 'Тъмна',
+    'settings.theme.system': 'Системна',
     
     // Common
     'common.back': 'Назад',
@@ -269,14 +293,14 @@ const translations: Record<Language, Translations> = {
     'common.no': 'Не',
     
     // Profile screens
-    'profile.add': 'Добави Бивш Партньор',
+    'profile.add': 'Добави Партньор',
     'profile.edit': 'Редактирай Профил',
     'profile.editExInfo': 'Редактирай Информация',
     'profile.editMemories': 'Редактирай Спомени',
     'profile.editProfile': 'Редактирай Профил',
     'profile.editProfile.description': 'Изберете какво искате да редактирате за този профил.',
     'profile.name': 'Име',
-    'profile.exPartnerName': 'Име на Бившия Партньор',
+    'profile.exPartnerName': 'Име на Партньор',
     'profile.exPartnerName.placeholder': 'Въведете името им',
     'profile.description': 'Описание',
     'profile.description.placeholder': 'Въведете кратко описание (макс. 30 символа)',
@@ -298,13 +322,16 @@ const translations: Record<Language, Translations> = {
     'profile.startHealingPath': 'Започни Пътя на Изцеление',
     'profile.emptyState.title': 'Започнете Вашето Пътешествие към Изцеление',
     'profile.emptyState.description': 'Това е безопасно пространство за обективно документиране на минали връзки. Създаването на профил е първата конструктивна стъпка към разбиране и придвижване напред.',
-    'profile.emptyState.button': 'Добави Първия Бивш Партньор',
+    'profile.emptyState.button': 'Добави Първия Партньор',
     'profile.actionSheet.edit': 'Редактирай Профил',
     'profile.actionSheet.viewHealingPath': 'Виж Пътя на Изцеление',
     'profile.actionSheet.delete': 'Изтрий Профил',
     'profile.setup.complete': 'Настройка Завършена',
     'profile.setup.incomplete': 'Незавършена Настройка ({percentage}%)',
     'profile.relationship': 'Връзка',
+    'profile.ongoing.error.title': 'Не може да се зададе като текуща',
+    'profile.ongoing.error.message': 'Вече има текуща връзка. Моля, приключете текущата връзка, преди да започнете нова.',
+    'profile.ongoing.warning': 'Вече има текуща връзка',
     
     // Memory screens
     'memory.add': 'Добави Спомен',

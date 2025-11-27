@@ -1,6 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { ThemedText } from '@/components/themed-text';
@@ -15,6 +16,7 @@ export default function TabLayout() {
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const t = useTranslate();
+  const insets = useSafeAreaInsets();
   
   // Scale icon size: 28 base size, 30% larger on tablets (28 * 1.3 = 36.4, round to 36)
   const iconSize = Math.round(28 * fontScale);
@@ -34,9 +36,9 @@ export default function TabLayout() {
             ? 'rgba(14, 165, 233, 0.3)' 
             : 'rgba(226, 232, 240, 1)',
           borderTopWidth: 1,
-          paddingBottom: 20 * fontScale,
+          paddingBottom: Math.max(32 * fontScale, insets.bottom + 12),
           paddingTop: 8 * fontScale,
-          height: Math.round(78 * fontScale),
+          height: Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale),
           flexDirection: 'row', // Ensure tabs are laid out horizontally
         },
         tabBarItemStyle: {
@@ -77,7 +79,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="ex-profiles"
         options={{
-          title: 'Ex Profiles',
+          title: t('tab.exProfiles'),
           tabBarIcon: ({ color }) => (
             <MaterialIcons 
               name="group" 

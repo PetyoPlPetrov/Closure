@@ -2,8 +2,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
-import { ProgressBar } from '@/library/components/progress-bar';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { useJourney } from '@/utils/JourneyProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { useMemo } from 'react';
@@ -22,8 +22,28 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
   const fontScale = useFontScale();
   const colors = Colors[colorScheme ?? 'dark'];
   const t = useTranslate();
+  const { getIdealizedMemoriesByProfileId } = useJourney();
 
   const isComplete = profile.isCompleted || profile.setupProgress === 100;
+  const memories = getIdealizedMemoriesByProfileId(profile.id);
+  const memoryCount = memories.length;
+  
+  // Calculate relationship quality (sunny percentage) - same as EX avatar border
+  const sunnyPercentage = useMemo(() => {
+    let totalClouds = 0;
+    let totalSuns = 0;
+    
+    memories.forEach((memory) => {
+      totalClouds += (memory.hardTruths || []).length;
+      totalSuns += (memory.goodFacts || []).length;
+    });
+    
+    const total = totalClouds + totalSuns;
+    if (total === 0) return 0; // No moments if no data
+    
+    // Percentage of sunny moments (0-100)
+    return Math.round((totalSuns / total) * 100);
+  }, [memories]);
   const initials = profile.name
     .split(' ')
     .map((n) => n[0])
@@ -108,21 +128,16 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
           justifyContent: 'center',
           zIndex: 10,
         },
-        progressContainer: {
-          gap: 4 * fontScale,
-          marginTop: 12 * fontScale,
+        memoryInfo: {
+          marginTop: 8 * fontScale,
         },
-        statusText: {
-          marginTop: 4 * fontScale,
+        memoryText: {
+          opacity: 0.7,
         },
       }),
     [fontScale, colorScheme, avatarBgColor, colors.background]
   );
 
-  const statusText = isComplete 
-    ? t('profile.setup.complete')
-    : t('profile.setup.incomplete').replace('{percentage}', profile.setupProgress.toString());
-  const statusColor = isComplete ? '#10b981' : '#f97316'; // Green for complete, orange for incomplete
 
   const handleCardPress = () => {
     if (onPress) {
@@ -161,13 +176,6 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
                 {initials}
               </ThemedText>
             )}
-            <View style={styles.statusOverlay}>
-              <MaterialIcons
-                name={isComplete ? 'check-circle' : 'error-outline'}
-                size={20 * fontScale}
-                color={isComplete ? '#10b981' : '#fbbf24'} // Green checkmark or yellow exclamation
-              />
-            </View>
           </View>
           <View style={styles.content}>
             <ThemedText size="l" weight="bold" style={styles.name}>
@@ -178,18 +186,39 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
                 {profile.description.length > 30 ? profile.description.substring(0, 30) + '...' : profile.description}
               </ThemedText>
             )}
-            {profile.relationshipDuration && (
+            {(profile.relationshipStartDate || profile.relationshipDuration) && (
               <ThemedText size="sm" weight="normal" style={styles.relationship}>
-                {t('profile.relationship')}: {profile.relationshipDuration}
+                {profile.relationshipStartDate ? (
+                  (() => {
+                    const startDate = new Date(profile.relationshipStartDate);
+                    const endDate = profile.relationshipEndDate ? new Date(profile.relationshipEndDate) : null;
+                    const startStr = startDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+                    const endStr = endDate 
+                      ? endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+                      : 'Ongoing';
+                    return `${startStr} - ${endStr}`;
+                  })()
+                ) : (
+                  profile.relationshipDuration
+                )}
               </ThemedText>
             )}
           </View>
         </View>
-        <View style={styles.progressContainer}>
-          <ProgressBar progress={profile.setupProgress} />
-          <ThemedText size="xs" weight="medium" style={[styles.statusText, { color: statusColor }]}>
-            {statusText}
+        <View style={styles.memoryInfo}>
+          <ThemedText size="sm" weight="normal" style={styles.memoryText}>
+            {memoryCount === 0 
+              ? 'No memories'
+              : memoryCount === 1
+              ? '1 memory'
+              : `${memoryCount} memories`
+            }
           </ThemedText>
+          {memoryCount > 0 && (
+            <ThemedText size="sm" weight="normal" style={styles.memoryText}>
+              Relationship quality: {sunnyPercentage}% positive
+            </ThemedText>
+          )}
         </View>
       </TouchableOpacity>
       {onMorePress && (

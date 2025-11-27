@@ -16,11 +16,11 @@ import {
   ActivityIndicator,
   Dimensions,
   PanResponder,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import Animated, {
   useAnimatedReaction,
@@ -44,6 +44,7 @@ function AnimatedCloud({
   cloudWidth,
   cloudHeight,
   placeholder,
+  viewOnly = false,
 }: {
   cloud: { id: string; text: string; x: number; y: number; startX?: number; startY?: number };
   panHandlers: any;
@@ -56,6 +57,7 @@ function AnimatedCloud({
   cloudWidth: number;
   cloudHeight: number;
   placeholder: string;
+  viewOnly?: boolean;
 }) {
   // Animation values
   const translateX = useSharedValue(cloud.startX !== undefined ? cloud.startX : cloud.x);
@@ -175,18 +177,20 @@ function AnimatedCloud({
           strokeWidth={1.5}
         />
       </Svg>
-      {/* Delete button - top right corner */}
-      <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={() => onDelete(cloud.id)}
-        onPressIn={(e) => e.stopPropagation()}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        activeOpacity={0.7}
-      >
-        <View style={styles.deleteBadge}>
-          <View style={styles.deleteLine} />
-        </View>
-      </TouchableOpacity>
+      {/* Delete button - top right corner - hidden in view-only mode */}
+      {!viewOnly && (
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => onDelete(cloud.id)}
+          onPressIn={(e) => e.stopPropagation()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          activeOpacity={0.7}
+        >
+          <View style={styles.deleteBadge}>
+            <View style={styles.deleteLine} />
+          </View>
+        </TouchableOpacity>
+      )}
 
       <View
         style={{
@@ -200,7 +204,7 @@ function AnimatedCloud({
         <TextInput
           value={cloud.text}
           onChangeText={(text) => {
-            if (text.length <= 50) {
+            if (!viewOnly && text.length <= 50) {
               onTextChange(cloud.id, text);
             }
           }}
@@ -209,7 +213,7 @@ function AnimatedCloud({
           placeholderTextColor="rgba(255,255,255,0.4)"
           multiline
           maxLength={50}
-          editable={true}
+          editable={!viewOnly}
         />
       </View>
     </Animated.View>
@@ -229,6 +233,7 @@ function AnimatedSun({
   sunWidth,
   sunHeight,
   placeholder,
+  viewOnly = false,
 }: {
   sun: { id: string; text: string; x: number; y: number; startX?: number; startY?: number };
   panHandlers: any;
@@ -241,6 +246,7 @@ function AnimatedSun({
   sunWidth: number;
   sunHeight: number;
   placeholder: string;
+  viewOnly?: boolean;
 }) {
   // Animation values
   const translateX = useSharedValue(sun.startX !== undefined ? sun.startX : sun.x);
@@ -342,18 +348,20 @@ function AnimatedSun({
           />
         </View>
       </LinearGradient>
-      {/* Delete button - top right corner */}
-      <TouchableOpacity
-        style={styles.sunDeleteButton}
-        onPress={() => onDelete(sun.id)}
-        onPressIn={(e) => e.stopPropagation()}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        activeOpacity={0.7}
-      >
-        <View style={styles.deleteBadge}>
-          <View style={styles.deleteLine} />
-        </View>
-      </TouchableOpacity>
+      {/* Delete button - top right corner - hidden in view-only mode */}
+      {!viewOnly && (
+        <TouchableOpacity
+          style={styles.sunDeleteButton}
+          onPress={() => onDelete(sun.id)}
+          onPressIn={(e) => e.stopPropagation()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          activeOpacity={0.7}
+        >
+          <View style={styles.deleteBadge}>
+            <View style={styles.deleteLine} />
+          </View>
+        </TouchableOpacity>
+      )}
 
       <View
         style={{
@@ -368,7 +376,7 @@ function AnimatedSun({
         <TextInput
           value={sun.text}
           onChangeText={(text) => {
-            if (text.length <= 50) {
+            if (!viewOnly && text.length <= 50) {
               onTextChange(sun.id, text);
             }
           }}
@@ -377,7 +385,7 @@ function AnimatedSun({
           placeholderTextColor="rgba(0,0,0,0.5)"
           multiline
           maxLength={50}
-          editable={true}
+          editable={!viewOnly}
         />
       </View>
     </Animated.View>
@@ -403,6 +411,7 @@ export default function AddIdealizedMemoryScreen() {
   
   const profileId = params.profileId as string | undefined;
   const memoryId = params.memoryId as string | undefined;
+  const viewOnly = params.viewOnly === 'true';
   const isEditMode = memoryId !== undefined;
   
   // Get existing memory if editing
@@ -470,6 +479,7 @@ export default function AddIdealizedMemoryScreen() {
     // Get screen dimensions
     const screenW = Dimensions.get('window').width;
     const screenH = Dimensions.get('window').height;
+    const padding = 20;
     
     // Center vertically on screen
     const centerY = (screenH / 2) - (sunHeight / 2);
@@ -481,9 +491,22 @@ export default function AddIdealizedMemoryScreen() {
     const offsetX = (Math.random() - 0.5) * 10; // -5 to +5 pixels
     const offsetY = (Math.random() - 0.5) * 10; // -5 to +5 pixels
     
+    // Calculate position with offset
+    let x = centerX + offsetX;
+    let y = centerY + offsetY;
+    
+    // Clamp to ensure sun is within viewport
+    const minX = padding;
+    const maxX = screenW - sunWidth - padding;
+    const minY = padding;
+    const maxY = screenH - sunHeight - padding;
+    
+    x = Math.max(minX, Math.min(maxX, x));
+    y = Math.max(minY, Math.min(maxY, y));
+    
     return {
-      x: centerX + offsetX,
-      y: centerY + offsetY,
+      x,
+      y,
     };
   }, [sunWidth, sunHeight]);
 
@@ -495,14 +518,25 @@ export default function AddIdealizedMemoryScreen() {
       
       // Initialize clouds from existing memory
       if (existingMemory.hardTruths && existingMemory.hardTruths.length > 0) {
+        const screenW = Dimensions.get('window').width;
+        const screenH = Dimensions.get('window').height;
+        const padding = 20;
+        const minX = padding;
+        const maxX = screenW - cloudWidth - padding;
+        const minY = padding;
+        const maxY = screenH - cloudHeight - padding;
+        
         const initialClouds = existingMemory.hardTruths.map((truth) => {
           // Use saved positions if available, otherwise calculate default position
           if (truth.x !== undefined && truth.y !== undefined) {
+            // Clamp saved positions to ensure they're within viewport
+            const clampedX = Math.max(minX, Math.min(maxX, truth.x));
+            const clampedY = Math.max(minY, Math.min(maxY, truth.y));
             return {
               id: truth.id,
               text: truth.text,
-              x: truth.x,
-              y: truth.y,
+              x: clampedX,
+              y: clampedY,
             };
           } else {
             // Fallback to center position if no saved positions
@@ -521,14 +555,25 @@ export default function AddIdealizedMemoryScreen() {
 
       // Initialize suns from existing memory
       if (existingMemory.goodFacts && existingMemory.goodFacts.length > 0) {
+        const screenW = Dimensions.get('window').width;
+        const screenH = Dimensions.get('window').height;
+        const padding = 20;
+        const minX = padding;
+        const maxX = screenW - sunWidth - padding;
+        const minY = padding;
+        const maxY = screenH - sunHeight - padding;
+        
         const initialSuns = existingMemory.goodFacts.map((fact) => {
           // Use saved positions if available, otherwise calculate default position
           if (fact.x !== undefined && fact.y !== undefined) {
+            // Clamp saved positions to ensure they're within viewport
+            const clampedX = Math.max(minX, Math.min(maxX, fact.x));
+            const clampedY = Math.max(minY, Math.min(maxY, fact.y));
             return {
               id: fact.id,
               text: fact.text,
-              x: fact.x,
-              y: fact.y,
+              x: clampedX,
+              y: clampedY,
             };
           } else {
             // Fallback to center position if no saved positions
@@ -798,10 +843,27 @@ export default function AddIdealizedMemoryScreen() {
         const start = dragStart.current[cloudId];
         if (!start) return;
 
+        const screenW = Dimensions.get('window').width;
+        const screenH = Dimensions.get('window').height;
+        const padding = 20;
+        
+        // Calculate new position
+        let newX = start.x + gesture.dx;
+        let newY = start.y + gesture.dy;
+        
+        // Clamp to viewport bounds
+        const minX = padding;
+        const maxX = screenW - cloudWidth - padding;
+        const minY = padding;
+        const maxY = screenH - cloudHeight - padding;
+        
+        newX = Math.max(minX, Math.min(maxX, newX));
+        newY = Math.max(minY, Math.min(maxY, newY));
+
         setClouds((prev) =>
           prev.map((c) =>
             c.id === cloudId
-              ? { ...c, x: start.x + gesture.dx, y: start.y + gesture.dy }
+              ? { ...c, x: newX, y: newY }
               : c
           )
         );
@@ -845,10 +907,27 @@ export default function AddIdealizedMemoryScreen() {
         const start = dragStart.current[sunKey];
         if (!start) return;
 
+        const screenW = Dimensions.get('window').width;
+        const screenH = Dimensions.get('window').height;
+        const padding = 20;
+        
+        // Calculate new position
+        let newX = start.x + gesture.dx;
+        let newY = start.y + gesture.dy;
+        
+        // Clamp to viewport bounds
+        const minX = padding;
+        const maxX = screenW - sunWidth - padding;
+        const minY = padding;
+        const maxY = screenH - sunHeight - padding;
+        
+        newX = Math.max(minX, Math.min(maxX, newX));
+        newY = Math.max(minY, Math.min(maxY, newY));
+
         setSuns((prev) =>
           prev.map((s) =>
             s.id === sunId
-              ? { ...s, x: start.x + gesture.dx, y: start.y + gesture.dy }
+              ? { ...s, x: newX, y: newY }
               : s
           )
         );
@@ -1008,8 +1087,8 @@ export default function AddIdealizedMemoryScreen() {
 
         floatingButton: {
           position: 'absolute',
-          bottom: 26,
-          right: 22,
+          bottom: 200 * fontScale,
+          right: 22 * fontScale,
           zIndex: 1000,
         },
 
@@ -1169,9 +1248,7 @@ export default function AddIdealizedMemoryScreen() {
           <MaterialIcons name="arrow-back" size={26} color={colors.text} />
         </TouchableOpacity>
 
-        <ThemedText size="l" weight="bold" style={styles.headerTitle}>
-          {t('memory.title')}
-        </ThemedText>
+        <View style={{ flex: 1 }} />
 
         <TouchableOpacity style={styles.headerButton}>
           <MaterialIcons name="help-outline" size={26} color={colors.text} />
@@ -1190,13 +1267,13 @@ export default function AddIdealizedMemoryScreen() {
             <TouchableOpacity
               ref={containerRef}
               style={styles.uploadContainer}
-              onPress={pickImage}
+              onPress={viewOnly ? undefined : pickImage}
               onLayout={() => {
                 // Container ref is available for potential future use
               }}
               activeOpacity={0.8}
               delayPressIn={0}
-              disabled={isLoadingImage}
+              disabled={isLoadingImage || viewOnly}
             >
               {isLoadingImage ? (
                 <View style={styles.loadingContainer}>
@@ -1212,15 +1289,17 @@ export default function AddIdealizedMemoryScreen() {
                     style={styles.uploadedImage}
                     contentFit="cover"
                   />
-                  <TouchableOpacity
-                    style={styles.imageDeleteButton}
-                    onPress={() => setSelectedImage(null)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <View style={styles.deleteBadge}>
-                      <View style={styles.deleteLine} />
-                    </View>
-                  </TouchableOpacity>
+                  {!viewOnly && (
+                    <TouchableOpacity
+                      style={styles.imageDeleteButton}
+                      onPress={() => setSelectedImage(null)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <View style={styles.deleteBadge}>
+                        <View style={styles.deleteLine} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
                 </View>
               ) : (
                 <>
@@ -1246,10 +1325,12 @@ export default function AddIdealizedMemoryScreen() {
               placeholder={t('memory.title.placeholder')}
               placeholderTextColor={colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'}
               textAlign="center"
+              editable={!viewOnly}
             />
           </View>
 
-          {/* Add Hard Truth and Good Fact - Same Row */}
+          {/* Add Hard Truth and Good Fact - Same Row - hidden in view-only mode */}
+          {!viewOnly && (
           <View style={styles.buttonsRow}>
             <TouchableOpacity
               ref={plusButtonRef}
@@ -1389,9 +1470,10 @@ export default function AddIdealizedMemoryScreen() {
                     color={colorScheme === 'dark' ? '#FFD700' : '#FFA500'} 
                   />
                 </LinearGradient>
-              </View>
+          </View>
             </TouchableOpacity>
           </View>
+          )}
         </View>
       </ScrollView>
 
@@ -1427,6 +1509,7 @@ export default function AddIdealizedMemoryScreen() {
             onRegisterAnimatedValues={(id, translateX, translateY) => {
               cloudAnimatedValues.current[id] = { translateX, translateY };
             }}
+            viewOnly={viewOnly}
           />
         );
       })}
@@ -1460,26 +1543,29 @@ export default function AddIdealizedMemoryScreen() {
             onRegisterAnimatedValues={(id, translateX, translateY) => {
               sunAnimatedValues.current[id] = { translateX, translateY };
             }}
+            viewOnly={viewOnly}
           />
         );
       })}
 
-      {/* Floating Action Button - always visible, enabled when all clouds and suns have text */}
-      <View
-        ref={floatingButtonRef}
-        style={styles.floatingButton}
-      >
-        <FloatingActionButton
-          onPress={handleCheckButtonPress}
-          icon="check"
-          containerStyle={
-            !(clouds.length > 0 && clouds.every((cloud) => cloud.text.trim().length > 0) &&
-              (suns.length === 0 || suns.every((sun) => sun.text.trim().length > 0))) || isSaving
-              ? styles.floatingButtonDisabled
-              : undefined
-          }
-        />
+      {/* Floating Action Button - hidden in view-only mode */}
+      {!viewOnly && (
+        <View
+          ref={floatingButtonRef}
+          style={styles.floatingButton}
+        >
+          <FloatingActionButton
+            onPress={handleCheckButtonPress}
+            icon="check"
+            containerStyle={
+              !(clouds.length > 0 && clouds.every((cloud) => cloud.text.trim().length > 0) &&
+                (suns.length === 0 || suns.every((sun) => sun.text.trim().length > 0))) || isSaving
+                ? styles.floatingButtonDisabled
+                : undefined
+            }
+          />
       </View>
+      )}
     </View>
   );
 }

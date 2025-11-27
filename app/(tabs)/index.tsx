@@ -4,14 +4,14 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useTranslate } from '@/utils/languages/use-translate';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
 import React, { useMemo, useRef, useState } from 'react';
-import { Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
@@ -25,6 +25,151 @@ import Svg, { Circle, Defs, Path, Stop, LinearGradient as SvgLinearGradient } fr
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+// Draggable Moment Component (for focused memory view)
+function DraggableMoment({
+  initialX,
+  initialY,
+  width,
+  height,
+  zIndex,
+  onPositionChange,
+  onPress,
+  children,
+  entranceDelay = 0,
+}: {
+  initialX: number;
+  initialY: number;
+  width: number;
+  height: number;
+  zIndex: number;
+  onPositionChange?: (x: number, y: number) => void;
+  onPress?: () => void;
+  children: React.ReactNode;
+  entranceDelay?: number;
+}) {
+  const panX = useSharedValue(initialX);
+  const panY = useSharedValue(initialY);
+  const startX = useSharedValue(initialX);
+  const startY = useSharedValue(initialY);
+  const isDragging = useSharedValue(false);
+  const entranceProgress = useSharedValue(0);
+  
+  // Use the actual content size as the draggable area (no extra padding)
+  const hitAreaWidth = width;
+  const hitAreaHeight = height;
+  
+  // Entrance animation with delay
+  React.useEffect(() => {
+    entranceProgress.value = 0;
+    const timer = setTimeout(() => {
+      entranceProgress.value = withSpring(1, {
+        damping: 12,
+        stiffness: 150,
+        mass: 0.8,
+      });
+    }, entranceDelay);
+    return () => clearTimeout(timer);
+  }, [entranceProgress, entranceDelay]);
+  
+  // Update position when initial values change (but not while dragging)
+  React.useEffect(() => {
+    if (!isDragging.value) {
+      panX.value = initialX;
+      panY.value = initialY;
+      startX.value = initialX;
+      startY.value = initialY;
+    }
+  }, [initialX, initialY, panX, panY, startX, startY, isDragging]);
+  
+  const panResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (evt, gestureState) => {
+          // If there's significant movement, it's a drag, not text selection
+          return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+        },
+        onPanResponderGrant: (evt) => {
+          isDragging.value = true;
+          startX.value = panX.value;
+          startY.value = panY.value;
+        },
+        onPanResponderMove: (evt, gestureState) => {
+          const newX = startX.value + gestureState.dx;
+          const newY = startY.value + gestureState.dy;
+          
+          // Clamp to viewport bounds
+          const padding = 20;
+          const minX = padding + hitAreaWidth / 2;
+          const maxX = SCREEN_WIDTH - padding - hitAreaWidth / 2;
+          const minY = padding + hitAreaHeight / 2;
+          const maxY = SCREEN_HEIGHT - padding - hitAreaHeight / 2;
+          
+          panX.value = Math.max(minX, Math.min(maxX, newX));
+          panY.value = Math.max(minY, Math.min(maxY, newY));
+        },
+        onPanResponderRelease: (evt, gestureState) => {
+          isDragging.value = false;
+          const newX = startX.value + gestureState.dx;
+          const newY = startY.value + gestureState.dy;
+          
+          // Clamp to viewport bounds
+          const padding = 20;
+          const minX = padding + hitAreaWidth / 2;
+          const maxX = SCREEN_WIDTH - padding - hitAreaWidth / 2;
+          const minY = padding + hitAreaHeight / 2;
+          const maxY = SCREEN_HEIGHT - padding - hitAreaHeight / 2;
+          
+          const finalX = Math.max(minX, Math.min(maxX, newX));
+          const finalY = Math.max(minY, Math.min(maxY, newY));
+          
+          // Update position
+          panX.value = finalX;
+          panY.value = finalY;
+          startX.value = finalX;
+          startY.value = finalY;
+          
+          // Notify parent of position change
+          onPositionChange?.(finalX, finalY);
+        },
+        onPanResponderTerminationRequest: () => false, // Don't allow other responders to take over
+      }),
+    [hitAreaWidth, hitAreaHeight, panX, panY, startX, startY, isDragging, onPositionChange]
+  );
+  
+  const baseStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: panX.value - hitAreaWidth / 2 },
+      { translateY: panY.value - hitAreaHeight / 2 },
+      {
+        scale: 0.3 + entranceProgress.value * 0.7, // Scale from 0.3 to 1
+      },
+    ],
+    opacity: entranceProgress.value,
+  }));
+  
+  return (
+    <Animated.View
+      {...panResponder.panHandlers}
+      style={[
+        {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: hitAreaWidth,
+          height: hitAreaHeight,
+          zIndex,
+          overflow: 'hidden', // Clip to exact size - no overflow
+          padding: 0, // No padding
+          margin: 0, // No margin
+        },
+        baseStyle,
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
 
 // Floating Avatar Component
 function FloatingAvatar({
@@ -36,10 +181,9 @@ function FloatingAvatar({
   colorScheme,
   onPositionChange,
   isFocused,
-  onDoubleTap,
   focusedMemory,
   memorySlideOffset,
-  onMemoryDoubleTap,
+  onMemoryFocus,
 }: {
   profile: any;
   position: { x: number; y: number };
@@ -49,17 +193,16 @@ function FloatingAvatar({
   colorScheme: 'light' | 'dark';
   onPositionChange: (newPosition: { x: number; y: number }) => void;
   isFocused: boolean;
-  onDoubleTap: () => void;
   focusedMemory?: { profileId: string; memoryId: string } | null;
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
-  onMemoryDoubleTap?: (profileId: string, memoryId: string) => void;
+  onMemoryFocus?: (profileId: string, memoryId: string) => void;
 }) {
   const baseAvatarSize = 80;
   const focusedAvatarSize = 100; // Smaller focused size so memories fit
   const avatarSize = isFocused ? focusedAvatarSize : baseAvatarSize;
   // Memory radius - closer to avatar for more compact layout
-  const memoryRadius = isFocused ? 120 : 60; // Closer to avatar
-  const exZoneRadius = isFocused ? 200 : 120; // Smaller zone when memories are closer
+  const memoryRadius = isFocused ? 135 : 60; // Slightly further when focused
+  const exZoneRadius = isFocused ? 215 : 120; // Adjusted zone when memories are further
   
   // Calculate sunny moments percentage for progress bar
   const sunnyPercentage = useMemo(() => {
@@ -85,7 +228,6 @@ function FloatingAvatar({
   const strokeDashoffset = circumference - (sunnyPercentage / 100) * circumference;
   
   // Double tap detection
-  const lastTapRef = useRef<number | null>(null);
   const initials = profile.name
     .split(' ')
     .map((n: string) => n[0])
@@ -99,39 +241,70 @@ function FloatingAvatar({
   const isDragging = useSharedValue(false);
   
   // Create individual animated values for each memory with different speeds
-  // Create a fixed number upfront (10 max) to ensure hooks are always called in same order
+  // Create enough for up to 25 memories to support profiles with many memories
+  // We create a fixed number upfront to ensure hooks are always called in same order
   const memoryPanX0 = useSharedValue(position.x);
-  const memoryPanY0 = useSharedValue(position.x);
+  const memoryPanY0 = useSharedValue(position.y);
   const memoryPanX1 = useSharedValue(position.x);
-  const memoryPanY1 = useSharedValue(position.x);
+  const memoryPanY1 = useSharedValue(position.y);
   const memoryPanX2 = useSharedValue(position.x);
-  const memoryPanY2 = useSharedValue(position.x);
+  const memoryPanY2 = useSharedValue(position.y);
   const memoryPanX3 = useSharedValue(position.x);
-  const memoryPanY3 = useSharedValue(position.x);
+  const memoryPanY3 = useSharedValue(position.y);
   const memoryPanX4 = useSharedValue(position.x);
-  const memoryPanY4 = useSharedValue(position.x);
+  const memoryPanY4 = useSharedValue(position.y);
   const memoryPanX5 = useSharedValue(position.x);
-  const memoryPanY5 = useSharedValue(position.x);
+  const memoryPanY5 = useSharedValue(position.y);
   const memoryPanX6 = useSharedValue(position.x);
-  const memoryPanY6 = useSharedValue(position.x);
+  const memoryPanY6 = useSharedValue(position.y);
   const memoryPanX7 = useSharedValue(position.x);
-  const memoryPanY7 = useSharedValue(position.x);
+  const memoryPanY7 = useSharedValue(position.y);
   const memoryPanX8 = useSharedValue(position.x);
-  const memoryPanY8 = useSharedValue(position.x);
+  const memoryPanY8 = useSharedValue(position.y);
   const memoryPanX9 = useSharedValue(position.x);
-  const memoryPanY9 = useSharedValue(position.x);
+  const memoryPanY9 = useSharedValue(position.y);
+  const memoryPanX10 = useSharedValue(position.x);
+  const memoryPanY10 = useSharedValue(position.y);
+  const memoryPanX11 = useSharedValue(position.x);
+  const memoryPanY11 = useSharedValue(position.y);
+  const memoryPanX12 = useSharedValue(position.x);
+  const memoryPanY12 = useSharedValue(position.y);
+  const memoryPanX13 = useSharedValue(position.x);
+  const memoryPanY13 = useSharedValue(position.y);
+  const memoryPanX14 = useSharedValue(position.x);
+  const memoryPanY14 = useSharedValue(position.y);
+  const memoryPanX15 = useSharedValue(position.x);
+  const memoryPanY15 = useSharedValue(position.y);
+  const memoryPanX16 = useSharedValue(position.x);
+  const memoryPanY16 = useSharedValue(position.y);
+  const memoryPanX17 = useSharedValue(position.x);
+  const memoryPanY17 = useSharedValue(position.y);
+  const memoryPanX18 = useSharedValue(position.x);
+  const memoryPanY18 = useSharedValue(position.y);
+  const memoryPanX19 = useSharedValue(position.x);
+  const memoryPanY19 = useSharedValue(position.y);
+  const memoryPanX20 = useSharedValue(position.x);
+  const memoryPanY20 = useSharedValue(position.y);
+  const memoryPanX21 = useSharedValue(position.x);
+  const memoryPanY21 = useSharedValue(position.y);
+  const memoryPanX22 = useSharedValue(position.x);
+  const memoryPanY22 = useSharedValue(position.y);
+  const memoryPanX23 = useSharedValue(position.x);
+  const memoryPanY23 = useSharedValue(position.y);
+  const memoryPanX24 = useSharedValue(position.x);
+  const memoryPanY24 = useSharedValue(position.y);
   
   // Store all animated values and their spring parameters
   const memoryAnimatedValues = React.useMemo(() => {
-    const panXValues = [memoryPanX0, memoryPanX1, memoryPanX2, memoryPanX3, memoryPanX4, memoryPanX5, memoryPanX6, memoryPanX7, memoryPanX8, memoryPanX9];
-    const panYValues = [memoryPanY0, memoryPanY1, memoryPanY2, memoryPanY3, memoryPanY4, memoryPanY5, memoryPanY6, memoryPanY7, memoryPanY8, memoryPanY9];
+    const panXValues = [memoryPanX0, memoryPanX1, memoryPanX2, memoryPanX3, memoryPanX4, memoryPanX5, memoryPanX6, memoryPanX7, memoryPanX8, memoryPanX9, memoryPanX10, memoryPanX11, memoryPanX12, memoryPanX13, memoryPanX14, memoryPanX15, memoryPanX16, memoryPanX17, memoryPanX18, memoryPanX19, memoryPanX20, memoryPanX21, memoryPanX22, memoryPanX23, memoryPanX24];
+    const panYValues = [memoryPanY0, memoryPanY1, memoryPanY2, memoryPanY3, memoryPanY4, memoryPanY5, memoryPanY6, memoryPanY7, memoryPanY8, memoryPanY9, memoryPanY10, memoryPanY11, memoryPanY12, memoryPanY13, memoryPanY14, memoryPanY15, memoryPanY16, memoryPanY17, memoryPanY18, memoryPanY19, memoryPanY20, memoryPanY21, memoryPanY22, memoryPanY23, memoryPanY24];
     
     return panXValues.map((panX, index) => {
       // Vary spring parameters for different speeds - very dramatic variation
       // Faster memories: lower damping, higher stiffness
       // Slower memories: higher damping, lower stiffness
       // Use index directly for more variation instead of modulo
-      const speedVariation = index / 9; // 0 to 1 across all memories
+      const speedVariation = index / 24; // 0 to 1 across all memories
       // Very dramatic range for noticeable speed differences
       // Fastest: damping 6, stiffness 180 (very responsive)
       // Slowest: damping 30, stiffness 30 (very sluggish)
@@ -145,7 +318,7 @@ function FloatingAvatar({
         stiffness,
       };
     });
-  }, [memoryPanX0, memoryPanX1, memoryPanX2, memoryPanX3, memoryPanX4, memoryPanX5, memoryPanX6, memoryPanX7, memoryPanX8, memoryPanX9, memoryPanY0, memoryPanY1, memoryPanY2, memoryPanY3, memoryPanY4, memoryPanY5, memoryPanY6, memoryPanY7, memoryPanY8, memoryPanY9]);
+  }, [memoryPanX0, memoryPanX1, memoryPanX2, memoryPanX3, memoryPanX4, memoryPanX5, memoryPanX6, memoryPanX7, memoryPanX8, memoryPanX9, memoryPanX10, memoryPanX11, memoryPanX12, memoryPanX13, memoryPanX14, memoryPanX15, memoryPanX16, memoryPanX17, memoryPanX18, memoryPanX19, memoryPanX20, memoryPanX21, memoryPanX22, memoryPanX23, memoryPanX24, memoryPanY0, memoryPanY1, memoryPanY2, memoryPanY3, memoryPanY4, memoryPanY5, memoryPanY6, memoryPanY7, memoryPanY8, memoryPanY9, memoryPanY10, memoryPanY11, memoryPanY12, memoryPanY13, memoryPanY14, memoryPanY15, memoryPanY16, memoryPanY17, memoryPanY18, memoryPanY19, memoryPanY20, memoryPanY21, memoryPanY22, memoryPanY23, memoryPanY24]);
   
   // Update pan values when position prop changes
   React.useEffect(() => {
@@ -381,25 +554,7 @@ function FloatingAvatar({
           style={{ pointerEvents: 'auto' }} // Ensure Pressable can receive touches
           onPress={() => {
             console.log(`[FloatingAvatar] Press detected for profile: ${profile.id}, isFocused: ${isFocused}`);
-            // Double tap detection
-            const now = Date.now();
-            if (lastTapRef.current && now - lastTapRef.current < 300) {
-              console.log(`[FloatingAvatar] Double tap detected for profile: ${profile.id}`);
-              onDoubleTap();
-              lastTapRef.current = null;
-            } else {
-              console.log(`[FloatingAvatar] First tap for profile: ${profile.id}, waiting for potential second tap...`);
-              lastTapRef.current = now;
-              // Single tap - navigate after a delay
-              setTimeout(() => {
-                if (lastTapRef.current === now) {
-                  console.log(`[FloatingAvatar] Single tap confirmed for profile: ${profile.id}, navigating...`);
-                  onPress();
-                } else {
-                  console.log(`[FloatingAvatar] Single tap cancelled (double tap happened) for profile: ${profile.id}`);
-                }
-              }, 300);
-            }
+            onPress();
           }}
         >
           {/* Circular progress bar border */}
@@ -481,7 +636,8 @@ function FloatingAvatar({
       {/* Floating Memories around Avatar - rendered separately for proper z-index */}
       {memories.map((memory, memIndex) => {
         const memPosData = memoryPositions[memIndex];
-        const memAnimatedValues = memoryAnimatedValues[memIndex];
+        // Safety check: if we have more memories than animated values, use the last available one
+        const memAnimatedValues = memoryAnimatedValues[memIndex] || memoryAnimatedValues[memoryAnimatedValues.length - 1];
         
         // Initial position for first render
         const initialMemPos = {
@@ -533,12 +689,10 @@ function FloatingAvatar({
             isFocused={isFocused}
             colorScheme={colorScheme}
             calculatedMemorySize={memorySize}
-            onDoubleTap={() => {
-              console.log('[FloatingAvatar] Memory double tap, calling onMemoryDoubleTap for profile:', profile.id, 'memory:', memory.id);
-              onMemoryDoubleTap?.(profile.id, memory.id);
-            }}
             isMemoryFocused={focusedMemory?.profileId === profile.id && focusedMemory?.memoryId === memory.id}
             memorySlideOffset={memorySlideOffset}
+            onPress={onPress}
+            onMemoryFocus={onMemoryFocus}
           />
         );
       })}
@@ -562,6 +716,9 @@ function FloatingMemory({
   onDoubleTap,
   isMemoryFocused,
   memorySlideOffset,
+  onUpdateMemory,
+  onPress,
+  onMemoryFocus,
 }: {
   memory: any;
   position: { x: number; y: number };
@@ -577,6 +734,9 @@ function FloatingMemory({
   onDoubleTap?: () => void;
   isMemoryFocused?: boolean;
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
+  onUpdateMemory?: (updates: Partial<any>) => Promise<void>;
+  onPress?: () => void;
+  onMemoryFocus?: (profileId: string, memoryId: string) => void;
 }) {
   const { isLargeDevice } = useLargeDevice();
   
@@ -705,6 +865,40 @@ function FloatingMemory({
       opacity: 1 - (memorySlideOffset.value / (SCREEN_WIDTH * 2)),
     };
   });
+  
+  // Entrance animation for focused memory
+  const focusedMemoryEntrance = useSharedValue(0);
+  
+  React.useEffect(() => {
+    if (isMemoryFocused) {
+      // Start from 0 and animate to 1
+      focusedMemoryEntrance.value = 0;
+      focusedMemoryEntrance.value = withSpring(1, {
+        damping: 15,
+        stiffness: 120,
+        mass: 0.8,
+      });
+    } else {
+      focusedMemoryEntrance.value = 0;
+    }
+  }, [isMemoryFocused, focusedMemoryEntrance]);
+  
+  const focusedMemoryStyle = useAnimatedStyle(() => {
+    if (!isMemoryFocused) {
+      return {};
+    }
+    
+    // Entrance animation
+    const progress = focusedMemoryEntrance.value;
+    return {
+      opacity: progress,
+      transform: [
+        {
+          scale: 0.5 + progress * 0.5, // Scale from 0.5 to 1
+        },
+      ],
+    };
+  });
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -754,22 +948,24 @@ function FloatingMemory({
     });
   }, [suns, clouds, sunRadius]);
 
-  // Double-tap detection
-  const lastTapRef = useRef<number | null>(null);
-  const DOUBLE_TAP_DELAY = 300;
-
+  // Click on memory: if profile is focused, open focused memory view; otherwise focus the profile
   const handlePress = () => {
-    console.log('[FloatingMemory] Press detected on memory:', memory.id);
-    const now = Date.now();
-    if (lastTapRef.current && (now - lastTapRef.current) < DOUBLE_TAP_DELAY) {
-      // Double tap detected
-      console.log('[FloatingMemory] Double tap detected! Calling onDoubleTap');
-      onDoubleTap?.();
-      lastTapRef.current = null;
+    console.log('[FloatingMemory] Press detected on memory:', memory.id, 'isFocused:', isFocused, 'isMemoryFocused:', isMemoryFocused);
+    if (isMemoryFocused) {
+      // Already focused, do nothing
+      return;
+    }
+    
+    if (isFocused) {
+      // Profile is focused, open the focused memory view
+      if (onMemoryFocus) {
+        onMemoryFocus(memory.profileId, memory.id);
+      }
     } else {
-      // First tap
-      console.log('[FloatingMemory] First tap, waiting for second tap');
-      lastTapRef.current = now;
+      // Profile is not focused, focus it
+      if (onPress) {
+        onPress();
+      }
     }
   };
 
@@ -787,6 +983,7 @@ function FloatingMemory({
           memoryAnimatedPosition,
           animatedStyle,
           slideOutStyle,
+          focusedMemoryStyle,
         ]}
       >
         <Pressable
@@ -878,86 +1075,93 @@ function FloatingMemory({
                 const cloudX = clampedPos.x;
                 const cloudY = clampedPos.y;
                 
+                const handlePositionChange = async (x: number, y: number) => {
+                  if (onUpdateMemory) {
+                    // Update the cloud's position in memory
+                    const updatedHardTruths = (memory.hardTruths || []).map((truth: any) =>
+                      truth.id === cloud.id ? { ...truth, x, y } : truth
+                    );
+                    await onUpdateMemory({ hardTruths: updatedHardTruths });
+                  }
+                };
+                
                 return (
-                  <Animated.View
+                  <DraggableMoment
                     key={`cloud-focused-${cloud?.id || cloudIndex}`}
-                    style={[
-                      {
-                        position: 'absolute',
-                        left: cloudX - cloudWidth / 2,
-                        top: cloudY - cloudHeight / 2,
-                        zIndex: cloudZIndex,
-                        pointerEvents: 'box-none',
-                      },
-                    ]}
+                    initialX={cloudX}
+                    initialY={cloudY}
+                    width={cloudWidth}
+                    height={cloudHeight}
+                    zIndex={cloudZIndex}
+                    onPositionChange={handlePositionChange}
+                    onPress={onDoubleTap}
+                    entranceDelay={cloudIndex * 100} // Stagger entrance by 100ms per cloud
                   >
-                    <Pressable
-                      style={{ pointerEvents: 'auto' }}
-                      onPress={onDoubleTap}
+                    <Svg 
+                      width={cloudWidth} 
+                      height={cloudHeight} 
+                      viewBox="0 0 320 100"
+                      preserveAspectRatio="xMidYMid meet"
+                      style={{ position: 'absolute', top: 0, left: 0 }}
                     >
-                      <Svg 
-                        width={cloudWidth} 
-                        height={cloudHeight} 
-                        viewBox="0 0 320 100"
-                        preserveAspectRatio="xMidYMid meet"
-                        style={{ position: 'absolute' }}
-                      >
-                        <Defs>
-                          <SvgLinearGradient id={`cloudGradient-${cloud.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                            <Stop offset="0%" stopColor="#2C3E50" stopOpacity="0.95" />
-                            <Stop offset="50%" stopColor="#1A1A1A" stopOpacity="0.98" />
-                            <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
-                          </SvgLinearGradient>
-                        </Defs>
-                        <Path
-                          d="M50,50 
-                             Q40,35 50,25 
-                             Q60,15 75,20 
-                             Q85,10 100,20 
-                             Q115,10 130,20 
-                             Q145,10 160,20 
-                             Q175,10 190,20 
-                             Q205,10 220,20 
-                             Q235,10 250,20 
-                             Q265,15 270,25 
-                             Q280,35 270,50 
-                             Q280,65 270,75 
-                             Q260,85 245,80 
-                             Q230,90 220,85 
-                             Q205,95 190,85 
-                             Q175,95 160,85 
-                             Q145,95 130,85 
-                             Q115,95 100,85 
-                             Q85,90 75,80 
-                             Q60,85 50,75 
-                             Q40,65 50,50 Z"
-                          fill={`url(#cloudGradient-${cloud.id})`}
-                          stroke="rgba(0,0,0,0.7)"
-                          strokeWidth={1.5}
-                        />
-                      </Svg>
-                      <View
+                      <Defs>
+                        <SvgLinearGradient id={`cloudGradient-${cloud.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                          <Stop offset="0%" stopColor="#2C3E50" stopOpacity="0.95" />
+                          <Stop offset="50%" stopColor="#1A1A1A" stopOpacity="0.98" />
+                          <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
+                        </SvgLinearGradient>
+                      </Defs>
+                      <Path
+                        d="M50,50 
+                           Q40,35 50,25 
+                           Q60,15 75,20 
+                           Q85,10 100,20 
+                           Q115,10 130,20 
+                           Q145,10 160,20 
+                           Q175,10 190,20 
+                           Q205,10 220,20 
+                           Q235,10 250,20 
+                           Q265,15 270,25 
+                           Q280,35 270,50 
+                           Q280,65 270,75 
+                           Q260,85 245,80 
+                           Q230,90 220,85 
+                           Q205,95 190,85 
+                           Q175,95 160,85 
+                           Q145,95 130,85 
+                           Q115,95 100,85 
+                           Q85,90 75,80 
+                           Q60,85 50,75 
+                           Q40,65 50,50 Z"
+                        fill={`url(#cloudGradient-${cloud.id})`}
+                        stroke="rgba(0,0,0,0.7)"
+                        strokeWidth={1.5}
+                      />
+                    </Svg>
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: cloudWidth,
+                        height: cloudHeight,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        paddingHorizontal: 20,
+                      }}
+                    >
+                      <ThemedText
                         style={{
-                          width: cloudWidth,
-                          height: cloudHeight,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          paddingHorizontal: 20,
+                          color: 'rgba(255,255,255,0.9)',
+                          fontSize: 14,
+                          textAlign: 'center',
+                          fontWeight: '500',
                         }}
                       >
-                        <ThemedText
-                          style={{
-                            color: 'rgba(255,255,255,0.9)',
-                            fontSize: 14,
-                            textAlign: 'center',
-                            fontWeight: '500',
-                          }}
-                        >
-                          {cloud.text}
-                        </ThemedText>
-                      </View>
-                    </Pressable>
-                  </Animated.View>
+                        {cloud.text}
+                      </ThemedText>
+                    </View>
+                  </DraggableMoment>
                 );
               }
               
@@ -1014,72 +1218,76 @@ function FloatingMemory({
                 const sunX = clampedPos.x;
                 const sunY = clampedPos.y;
                 
+                const handlePositionChange = async (x: number, y: number) => {
+                  if (onUpdateMemory) {
+                    // Update the sun's position in memory
+                    const updatedGoodFacts = (memory.goodFacts || []).map((fact: any) =>
+                      fact.id === sun.id ? { ...fact, x, y } : fact
+                    );
+                    await onUpdateMemory({ goodFacts: updatedGoodFacts });
+                  }
+                };
+                
                 return (
-                  <Animated.View
+                  <DraggableMoment
                     key={`sun-focused-${sun.id}`}
-                    style={[
-                      {
-                        position: 'absolute',
-                        left: sunX - sunWidth / 2,
-                        top: sunY - sunHeight / 2,
-                        zIndex: sunZIndex,
-                        pointerEvents: 'box-none',
-                      },
-                    ]}
+                    initialX={sunX}
+                    initialY={sunY}
+                    width={sunWidth}
+                    height={sunHeight}
+                    zIndex={sunZIndex}
+                    onPositionChange={handlePositionChange}
+                    onPress={onDoubleTap}
+                    entranceDelay={sunIndex * 100} // Stagger entrance by 100ms per sun
                   >
-                    <Pressable
-                      style={{ pointerEvents: 'auto' }}
-                      onPress={onDoubleTap}
+                    <LinearGradient
+                      colors={['#FFD700', '#FFA500', '#FF8C00']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={{
+                        position: 'absolute',
+                        width: sunWidth,
+                        height: sunHeight,
+                        borderRadius: sunWidth / 2,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
                     >
-                      <LinearGradient
-                        colors={['#FFD700', '#FFA500', '#FF8C00']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={{
-                          position: 'absolute',
-                          width: sunWidth,
-                          height: sunHeight,
-                          borderRadius: sunWidth / 2,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <View style={{
-                          position: 'absolute',
-                          top: sunHeight * 0.2,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}>
-                          <MaterialIcons 
-                            name="wb-sunny" 
-                            size={sunWidth * 0.5} 
-                            color="#FFFFFF" 
-                          />
-                        </View>
-                      </LinearGradient>
-                      <View
-                        style={{
-                          width: sunWidth,
-                          height: sunHeight,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          paddingHorizontal: 12,
-                          paddingTop: sunHeight * 0.45,
-                        }}
-                      >
-                        <ThemedText
-                          style={{
-                            color: 'rgba(255,255,255,0.9)',
-                            fontSize: 12,
-                            textAlign: 'center',
-                            fontWeight: '500',
-                          }}
-                        >
-                          {sun.text}
-                        </ThemedText>
+                      <View style={{
+                        position: 'absolute',
+                        top: sunHeight * 0.2,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}>
+                        <MaterialIcons 
+                          name="wb-sunny" 
+                          size={sunWidth * 0.5} 
+                          color="#FFFFFF" 
+                        />
                       </View>
-                    </Pressable>
-                  </Animated.View>
+                    </LinearGradient>
+                    <View
+                      style={{
+                        width: sunWidth,
+                        height: sunHeight,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        paddingHorizontal: 12,
+                        paddingTop: sunHeight * 0.45,
+                      }}
+                    >
+                      <ThemedText
+                        style={{
+                          color: 'rgba(255,255,255,0.9)',
+                          fontSize: 12,
+                          textAlign: 'center',
+                          fontWeight: '500',
+                        }}
+                      >
+                        {sun.text}
+                      </ThemedText>
+                    </View>
+                  </DraggableMoment>
                 );
               }
               
@@ -1409,7 +1617,33 @@ function FloatingSun({
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
-  const { profiles, getIdealizedMemoriesByProfileId } = useJourney();
+  const { profiles, getIdealizedMemoriesByProfileId, updateIdealizedMemory } = useJourney();
+  const t = useTranslate();
+  
+  // Sort profiles: current partners (ongoing) first, then by relationship start year (earliest first)
+  const sortedProfiles = React.useMemo(() => {
+    return [...profiles].sort((a, b) => {
+      // First, separate ongoing (current) vs ended relationships
+      const aIsOngoing = a.relationshipEndDate === null;
+      const bIsOngoing = b.relationshipEndDate === null;
+      
+      if (aIsOngoing && !bIsOngoing) return -1; // a is ongoing, b is not - a comes first
+      if (!aIsOngoing && bIsOngoing) return 1;  // b is ongoing, a is not - b comes first
+      
+      // Both are ongoing or both are ended - sort by start date (earliest first)
+      const aStartYear = a.relationshipStartDate ? new Date(a.relationshipStartDate).getFullYear() : 0;
+      const bStartYear = b.relationshipStartDate ? new Date(b.relationshipStartDate).getFullYear() : 0;
+      
+      if (aStartYear !== bStartYear) {
+        return aStartYear - bStartYear; // Earlier year comes first
+      }
+      
+      // If same year, sort by full date (earliest first)
+      const aStartDate = a.relationshipStartDate ? new Date(a.relationshipStartDate).getTime() : 0;
+      const bStartDate = b.relationshipStartDate ? new Date(b.relationshipStartDate).getTime() : 0;
+      return aStartDate - bStartDate;
+    });
+  }, [profiles]);
   
   // Check if splash is still visible - delay heavy animations until splash is done
   const { isVisible: isSplashVisible } = useSplash();
@@ -1473,19 +1707,14 @@ export default function HomeScreen() {
     const topPadding = exZoneRadius + 20;
     const bottomPadding = exZoneRadius + 20;
     
-    const availableWidth = SCREEN_WIDTH - padding * 2;
     const availableHeight = SCREEN_HEIGHT - topPadding - bottomPadding;
     
-    // Always use grid layout for even distribution
-    // Calculate optimal grid dimensions (square-ish grid)
-    const cols = Math.ceil(Math.sqrt(profiles.length));
-    const rows = Math.ceil(profiles.length / cols);
+    // Use vertical list layout - profiles centered horizontally, evenly spaced vertically
+    const centerX = SCREEN_WIDTH / 2;
+    const numProfiles = sortedProfiles.length;
+    const spacingY = numProfiles > 1 ? availableHeight / (numProfiles - 1) : 0;
     
-    // Calculate spacing to evenly distribute across available space
-    const spacingX = cols > 1 ? availableWidth / (cols - 1) : 0;
-    const spacingY = rows > 1 ? availableHeight / (rows - 1) : 0;
-    
-    profiles.forEach((profile, index) => {
+    sortedProfiles.forEach((profile, index) => {
       // Check if we have a saved position for this profile
       if (savedPositions?.has(profile.id)) {
         const saved = savedPositions.get(profile.id)!;
@@ -1506,13 +1735,11 @@ export default function HomeScreen() {
         }
       }
       
-      // Use grid layout for new or invalid positions
-      const row = Math.floor(index / cols);
-      const col = index % cols;
-      
+      // Use vertical list layout for new or invalid positions
+      // Center horizontally, distribute evenly vertically
       let position = {
-        x: padding + (col * spacingX),
-        y: topPadding + (row * spacingY),
+        x: centerX,
+        y: topPadding + (index * spacingY),
       };
       
       // Ensure position keeps EX zone in viewport - clamp if needed
@@ -1523,7 +1750,7 @@ export default function HomeScreen() {
     });
     
     return positions;
-  }, [profiles, savedPositions, positionsLoaded]);
+  }, [sortedProfiles, savedPositions, positionsLoaded]);
   
   // Initialize positions state from calculated positions (wait for saved positions to load)
   React.useEffect(() => {
@@ -1635,17 +1862,17 @@ export default function HomeScreen() {
     }
   }, [focusedMemory, memorySlideOffset]);
 
-  if (profiles.length === 0) {
-    return (
-      <TabScreenContainer>
+  if (sortedProfiles.length === 0) {
+  return (
+    <TabScreenContainer>
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
           <ThemedText size="l" style={{ opacity: 0.6, textAlign: 'center', paddingHorizontal: 40 }}>
-            No profiles yet. Add your first ex-profile to get started.
+            {t('home.emptyState')}
           </ThemedText>
         </View>
-      </TabScreenContainer>
-    );
-  }
+    </TabScreenContainer>
+  );
+}
 
   return (
     <TabScreenContainer>
@@ -1655,8 +1882,13 @@ export default function HomeScreen() {
           <Pressable
             onPress={() => {
               if (focusedMemory) {
-                // If memory is focused, just unfocus the memory, keep profile focused
+                // If memory is focused, unfocus the memory and ensure profile is focused
+                // This returns to the focused EX view with memories floating around
                 setFocusedMemory(null);
+                // Ensure the profile is focused so we return to focused EX view
+                if (!focusedProfileId || focusedProfileId !== focusedMemory.profileId) {
+                  setFocusedProfileId(focusedMemory.profileId);
+                }
               } else {
                 // If only profile is focused, unfocus it (this will bring back other ex-es)
                 setFocusedProfileId(null);
@@ -1684,8 +1916,25 @@ export default function HomeScreen() {
           </Pressable>
         )}
 
-        <View style={[styles.content, { height: SCREEN_HEIGHT }]}>
-          {animationsReady && profiles.map((profile, index) => {
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[
+            styles.content,
+            {
+              minHeight: SCREEN_HEIGHT,
+              // Calculate content height to fit all profiles in list layout
+              height: Math.max(
+                SCREEN_HEIGHT,
+                sortedProfiles.length > 0
+                  ? (sortedProfiles.length - 1) * ((SCREEN_HEIGHT - (120 + 20) * 2) / Math.max(1, sortedProfiles.length - 1)) + (120 + 20) * 2
+                  : SCREEN_HEIGHT
+              ),
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={!focusedProfileId && !focusedMemory}
+        >
+          {animationsReady && sortedProfiles.map((profile, index) => {
             const memories = getIdealizedMemoriesByProfileId(profile.id);
             const currentPosition = getAvatarPosition(profile.id, index);
             const isFocused = focusedProfileId === profile.id;
@@ -1717,15 +1966,7 @@ export default function HomeScreen() {
                     position={currentPosition}
                     memories={memories}
                     onPress={() => {
-                      if (!isFocused && !focusedMemory) {
-                        router.push({
-                          pathname: '/edit-profile',
-                          params: { profileId: profile.id },
-                        });
-                      }
-                    }}
-                    onDoubleTap={() => {
-                      console.log(`[HomeScreen] onDoubleTap called for profile: ${profile.id}, current focused: ${focusedProfileId}, isFocused: ${isFocused}`);
+                      console.log(`[HomeScreen] onPress called for profile: ${profile.id}, current focused: ${focusedProfileId}, isFocused: ${isFocused}`);
                       const newFocusedId = isFocused ? null : profile.id;
                       console.log(`[HomeScreen] Setting focusedProfileId to: ${newFocusedId}`);
                       setFocusedProfileId(newFocusedId);
@@ -1737,11 +1978,8 @@ export default function HomeScreen() {
                     colorScheme={colorScheme ?? 'dark'}
                     focusedMemory={focusedMemory}
                     memorySlideOffset={memorySlideOffset}
-                    onMemoryDoubleTap={(profileId, memoryId) => {
-                      console.log('[HomeScreen] Memory double tap - profile:', profileId, 'memory:', memoryId);
+                    onMemoryFocus={(profileId, memoryId) => {
                       setFocusedMemory({ profileId, memoryId });
-                      // Keep the profile focused when focusing a memory
-                      // Don't clear focusedProfileId - we want to stay in the focused ex view
                     }}
                   />
                 )}
@@ -1751,7 +1989,7 @@ export default function HomeScreen() {
           
           {/* Render focused memory separately when memory is focused */}
           {focusedMemory && animationsReady && (() => {
-            const focusedProfile = profiles.find(p => p.id === focusedMemory.profileId);
+            const focusedProfile = sortedProfiles.find(p => p.id === focusedMemory.profileId);
             if (!focusedProfile) return null;
             
             const focusedMemoryData = getIdealizedMemoriesByProfileId(focusedMemory.profileId)
@@ -1777,10 +2015,15 @@ export default function HomeScreen() {
                 }}
                 isMemoryFocused={true}
                 memorySlideOffset={memorySlideOffset}
+                onUpdateMemory={async (updates) => {
+                  if (focusedMemory) {
+                    await updateIdealizedMemory(focusedMemory.memoryId, updates);
+                  }
+                }}
               />
             );
           })()}
-        </View>
+        </ScrollView>
       </View>
     </TabScreenContainer>
   );

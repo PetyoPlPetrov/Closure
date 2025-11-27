@@ -21,7 +21,9 @@ export type ExProfile = {
   id: string;
   name: string;
   description?: string; // Short description (max 30 characters)
-  relationshipDuration?: string; // e.g., "2 years", "6 months"
+  relationshipDuration?: string; // e.g., "2 years", "6 months" (deprecated, use dates instead)
+  relationshipStartDate?: string; // ISO date string
+  relationshipEndDate?: string | null; // ISO date string or null for ongoing
   imageUri?: string; // Profile picture URI
   setupProgress: number; // 0-100
   isCompleted: boolean;
@@ -159,7 +161,7 @@ type JourneyContextType = {
   profiles: ExProfile[];
   isLoading: boolean;
   error: Error | null;
-  addProfile: (profile: Omit<ExProfile, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  addProfile: (profile: Omit<ExProfile, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
   updateProfile: (id: string, updates: Partial<ExProfile>) => Promise<void>;
   deleteProfile: (id: string) => Promise<void>;
   getProfile: (id: string) => ExProfile | undefined;
@@ -203,15 +205,21 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
   const saveProfile = useCallback(
     async (newProfile: ExProfile) => {
       try {
-        const updatedProfiles = [...profiles, newProfile];
+        // Use functional update to avoid stale state issues when creating multiple profiles quickly
+        let updatedProfiles: ExProfile[] = [];
+        setProfiles((prevProfiles) => {
+          updatedProfiles = [...prevProfiles, newProfile];
+          return updatedProfiles;
+        });
+        
+        // Save to storage after state update
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProfiles));
-        setProfiles(updatedProfiles);
       } catch (error) {
         console.error('Error saving profile:', error);
         throw error;
       }
     },
-    [profiles, setProfiles]
+    [setProfiles]
   );
 
   const updateProfilesInStorage = useCallback(
@@ -231,7 +239,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
   );
 
   const addProfile = useCallback(
-    async (profileData: Omit<ExProfile, 'id' | 'createdAt' | 'updatedAt'>) => {
+    async (profileData: Omit<ExProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
       const now = new Date().toISOString();
       const newProfile: ExProfile = {
         ...profileData,
@@ -243,6 +251,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       newProfile.setupProgress = calculateSetupProgress(newProfile, 0);
       newProfile.isCompleted = newProfile.setupProgress === 100;
       await saveProfile(newProfile);
+      return newProfile.id;
     },
     [saveProfile]
   );
@@ -274,7 +283,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     async (memories: IdealizedMemory[]) => {
       try {
         await AsyncStorage.setItem(IDEALIZED_MEMORIES_KEY, JSON.stringify(memories));
-        setIdealizedMemories(memories);
+        // Don't call setIdealizedMemories here - it's already set by the caller
       } catch (error) {
         console.error('Error saving idealized memories:', error);
         throw error;
@@ -331,9 +340,16 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         createdAt: now,
         updatedAt: now,
       };
-      const updatedMemories = [...idealizedMemories, newMemory];
+      
+      // Use functional update to avoid stale state issues when creating multiple memories quickly
+      let updatedMemories: IdealizedMemory[] = [];
+      setIdealizedMemories((prevMemories) => {
+        updatedMemories = [...prevMemories, newMemory];
+        return updatedMemories;
+      });
+      
+      // Save to storage after state update
       await saveIdealizedMemoriesToStorage(updatedMemories);
-      setIdealizedMemories(updatedMemories);
 
       // Update profile setup progress based on new memory count
       const profile = profiles.find((p) => p.id === profileId);
@@ -342,7 +358,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         await updateProfile(profileId, {});
       }
     },
-    [idealizedMemories, profiles, saveIdealizedMemoriesToStorage, updateProfile]
+    [profiles, saveIdealizedMemoriesToStorage, updateProfile]
   );
 
   const updateIdealizedMemory = useCallback(

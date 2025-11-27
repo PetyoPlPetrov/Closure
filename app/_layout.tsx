@@ -9,6 +9,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { JourneyProvider } from '@/utils/JourneyProvider';
 import { LanguageProvider } from '@/utils/languages/language-context';
 import { SplashAnimationProvider, useSplash } from '@/utils/SplashAnimationProvider';
+import { ThemeProvider as AppThemeProvider, useTheme } from '@/utils/ThemeContext';
 
 // Hide native splash immediately when this module loads
 SplashScreen.preventAutoHideAsync();
@@ -19,7 +20,7 @@ export const unstable_settings = {
 
 function AppContent() {
   const { hideSplash, isAnimationComplete } = useSplash();
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useTheme();
 
   useEffect(() => {
     // Wait for animation to complete, then hide splash
@@ -61,12 +62,14 @@ export default function RootLayout() {
   // This prevents race conditions with the animation provider
 
   return (
-    <SplashAnimationProvider>
-      <LanguageProvider>
-        <JourneyProvider>
-          <AppContent />
-        </JourneyProvider>
-      </LanguageProvider>
-    </SplashAnimationProvider>
+    <AppThemeProvider>
+      <SplashAnimationProvider>
+        <LanguageProvider>
+          <JourneyProvider>
+            <AppContent />
+          </JourneyProvider>
+        </LanguageProvider>
+      </SplashAnimationProvider>
+    </AppThemeProvider>
   );
 }

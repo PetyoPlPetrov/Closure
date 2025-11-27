@@ -47,18 +47,6 @@ export default function ExProfilesScreen() {
     }
   };
 
-  const handleViewHealingPath = () => {
-    if (selectedProfile) {
-      // Navigate to reality check screen directly
-      router.push({
-        pathname: '/reality-check',
-        params: { profileId: selectedProfile.id },
-      });
-      setActionSheetVisible(false);
-      setSelectedProfile(null);
-    }
-  };
-
   const handleDeletePress = () => {
     // Close action sheet but keep selectedProfile
     // Don't clear selectedProfile here - we need it for the confirmation modal
@@ -108,11 +96,6 @@ export default function ExProfilesScreen() {
           label: t('profile.actionSheet.edit'),
           icon: 'edit' as const,
           onPress: handleEditProfile,
-        },
-        {
-          label: t('profile.actionSheet.viewHealingPath'),
-          icon: 'timeline' as const,
-          onPress: handleViewHealingPath,
         },
         {
           label: t('profile.actionSheet.delete'),
@@ -246,7 +229,7 @@ export default function ExProfilesScreen() {
       <View style={styles.header}>
         <View style={styles.headerButton} />
         <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-          Ex Profiles
+          {t('tab.exProfiles')}
         </ThemedText>
         <View style={styles.headerButton} />
       </View>

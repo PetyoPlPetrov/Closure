@@ -82,6 +82,7 @@ export function UploadPicture({
         },
         supportedFormats: {
           marginTop: 2 * fontScale,
+          textAlign: 'center',
         },
         deleteButton: {
           position: 'absolute',
@@ -229,10 +230,27 @@ export function UploadPicture({
                   </View>
                 )}
               </View>
-              <ThemedText size="sm" weight="medium" style={styles.uploadText}>
+              <ThemedText 
+                size="sm" 
+                weight="medium" 
+                style={[
+                  styles.uploadText,
+                  {
+                    color: colorScheme === 'dark' ? '#ffffff' : '#000000',
+                  }
+                ]}
+              >
                 {hasImage ? t('profile.changePicture') : t('profile.tapToAddPhoto')}
               </ThemedText>
-              <ThemedText size="xs" style={styles.supportedFormats}>
+              <ThemedText 
+                size="xs" 
+                style={[
+                  styles.supportedFormats,
+                  {
+                    color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
+                  }
+                ]}
+              >
                 {defaultSupportedFormats}
               </ThemedText>
             </>

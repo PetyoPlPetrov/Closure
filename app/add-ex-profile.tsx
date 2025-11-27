@@ -14,13 +14,14 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function AddExProfileScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
-  const { addProfile, updateProfile, getProfile } = useJourney();
+  const { addProfile, updateProfile, getProfile, profiles } = useJourney();
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
   const t = useTranslate();
@@ -31,8 +32,16 @@ export default function AddExProfileScreen() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [relationshipStartDate, setRelationshipStartDate] = useState<Date | null>(null);
+  const [relationshipEndDate, setRelationshipEndDate] = useState<Date | null>(null);
+  const [isOngoing, setIsOngoing] = useState(false);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [originalName, setOriginalName] = useState('');
   const [originalDescription, setOriginalDescription] = useState('');
+  const [originalStartDate, setOriginalStartDate] = useState('');
+  const [originalEndDate, setOriginalEndDate] = useState('');
+  const [originalIsOngoing, setOriginalIsOngoing] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
@@ -43,23 +52,53 @@ export default function AddExProfileScreen() {
       const profileName = existingProfile.name || '';
       const profileDescription = existingProfile.description || '';
       const profileImage = existingProfile.imageUri || null;
+      const startDate = existingProfile.relationshipStartDate 
+        ? new Date(existingProfile.relationshipStartDate) 
+        : null;
+      const endDate = existingProfile.relationshipEndDate 
+        ? new Date(existingProfile.relationshipEndDate) 
+        : null;
+      const ongoing = existingProfile.relationshipEndDate === null;
       setName(profileName);
       setDescription(profileDescription);
       setSelectedImage(profileImage);
+      setRelationshipStartDate(startDate);
+      setRelationshipEndDate(endDate);
+      setIsOngoing(ongoing);
       setOriginalName(profileName);
       setOriginalDescription(profileDescription);
       setOriginalImage(profileImage);
+      setOriginalStartDate(existingProfile.relationshipStartDate || '');
+      setOriginalEndDate(existingProfile.relationshipEndDate || '');
+      setOriginalIsOngoing(ongoing);
     } else {
       // Reset original values when not in edit mode
       setOriginalName('');
       setOriginalDescription('');
       setSelectedImage(null);
       setOriginalImage(null);
+      setRelationshipStartDate(null);
+      setRelationshipEndDate(null);
+      setIsOngoing(false);
+      setOriginalStartDate('');
+      setOriginalEndDate('');
+      setOriginalIsOngoing(false);
     }
   }, [existingProfile, isEditMode]);
 
   // Check if form is valid (name is filled)
   const isFormValid = name.trim().length > 0;
+
+  // Check if there's already an ongoing partner (excluding current profile if editing)
+  const hasExistingOngoingPartner = useMemo(() => {
+    return profiles.some(profile => 
+      profile.relationshipEndDate === null && 
+      (!isEditMode || profile.id !== profileId)
+    );
+  }, [profiles, isEditMode, profileId]);
+
+  // Check if we can set this profile as ongoing
+  const canSetAsOngoing = !hasExistingOngoingPartner || (isEditMode && existingProfile?.relationshipEndDate === null);
 
   // Check if there are changes from original values (only in edit mode)
   const hasChanges = useMemo(() => {
@@ -71,8 +110,13 @@ export default function AddExProfileScreen() {
     const nameChanged = name.trim() !== originalName.trim();
     const descriptionChanged = description.trim() !== originalDescription.trim();
     const imageChanged = selectedImage !== originalImage;
-    return nameChanged || descriptionChanged || imageChanged;
-  }, [isEditMode, name, description, originalName, originalDescription, selectedImage, originalImage, isFormValid]);
+    const startDateStr = relationshipStartDate ? relationshipStartDate.toISOString().split('T')[0] : '';
+    const endDateStr = isOngoing ? null : (relationshipEndDate ? relationshipEndDate.toISOString().split('T')[0] : '');
+    const startDateChanged = startDateStr !== originalStartDate;
+    const endDateChanged = (isOngoing ? null : endDateStr) !== originalEndDate;
+    const ongoingChanged = isOngoing !== originalIsOngoing;
+    return nameChanged || descriptionChanged || imageChanged || startDateChanged || endDateChanged || ongoingChanged;
+  }, [isEditMode, name, description, originalName, originalDescription, selectedImage, originalImage, isFormValid, relationshipStartDate, relationshipEndDate, isOngoing, originalStartDate, originalEndDate, originalIsOngoing]);
 
   // Button is enabled when form is valid AND there are changes
   const isSaveEnabled = isFormValid && hasChanges;
@@ -173,6 +217,16 @@ export default function AddExProfileScreen() {
   const handleSubmit = async () => {
     if (!isSaveEnabled) return;
 
+    // Validate: prevent setting as ongoing if there's already an ongoing partner
+    if (isOngoing && hasExistingOngoingPartner && (!isEditMode || existingProfile?.relationshipEndDate !== null)) {
+      Alert.alert(
+        t('profile.ongoing.error.title'),
+        t('profile.ongoing.error.message'),
+        [{ text: t('common.ok') || 'OK' }]
+      );
+      return;
+    }
+
     try {
       if (isEditMode && profileId) {
         // Update existing profile
@@ -180,6 +234,8 @@ export default function AddExProfileScreen() {
           name: name.trim(),
           description: description.trim() || undefined,
           ...(selectedImage && { imageUri: selectedImage }),
+          relationshipStartDate: relationshipStartDate ? relationshipStartDate.toISOString().split('T')[0] : undefined,
+          relationshipEndDate: isOngoing ? null : (relationshipEndDate ? relationshipEndDate.toISOString().split('T')[0] : undefined),
           // Preserve other fields
         });
         // Navigate back to ex-profiles screen after edit
@@ -190,6 +246,8 @@ export default function AddExProfileScreen() {
           name: name.trim(),
           description: description.trim() || undefined,
           relationshipDuration: undefined, // Can be added later
+          relationshipStartDate: relationshipStartDate ? relationshipStartDate.toISOString().split('T')[0] : undefined,
+          relationshipEndDate: isOngoing ? null : (relationshipEndDate ? relationshipEndDate.toISOString().split('T')[0] : undefined),
           setupProgress: 0, // Start with 0% progress
           isCompleted: false,
           ...(selectedImage && { imageUri: selectedImage }),
@@ -267,6 +325,165 @@ export default function AddExProfileScreen() {
             showCharCount={true}
             rows={2}
           />
+
+          {/* Date Pickers - moved above image upload */}
+          <View style={{ gap: 16 * fontScale }}>
+            <View>
+              <ThemedText size="sm" weight="medium" style={{ marginBottom: 8 * fontScale }}>
+                Relationship Start Date
+              </ThemedText>
+              <TouchableOpacity
+                onPress={() => setShowStartDatePicker(true)}
+                style={{
+                  padding: 16 * fontScale,
+                  borderRadius: 12 * fontScale,
+                  backgroundColor: colorScheme === 'dark'
+                    ? 'rgba(255, 255, 255, 0.05)'
+                    : 'rgba(0, 0, 0, 0.05)',
+                  borderWidth: 1,
+                  borderColor: colorScheme === 'dark'
+                    ? 'rgba(255, 255, 255, 0.1)'
+                    : 'rgba(0, 0, 0, 0.1)',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+                activeOpacity={0.7}
+              >
+                <ThemedText size="m">
+                  {relationshipStartDate
+                    ? relationshipStartDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                    : 'Select start date'}
+                </ThemedText>
+                <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
+              </TouchableOpacity>
+              {showStartDatePicker && (
+                <DateTimePicker
+                  value={relationshipStartDate || new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, selectedDate) => {
+                    if (Platform.OS === 'android') {
+                      setShowStartDatePicker(false);
+                    }
+                    if (event.type === 'set' && selectedDate) {
+                      setRelationshipStartDate(selectedDate);
+                    } else if (event.type === 'dismissed') {
+                      setShowStartDatePicker(false);
+                    }
+                  }}
+                />
+              )}
+            </View>
+
+            <View style={{ marginTop: 8 * fontScale }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                <TouchableOpacity
+                  style={{
+                    width: 24 * fontScale,
+                    height: 24 * fontScale,
+                    borderWidth: 2,
+                    borderColor: colors.primary,
+                    borderRadius: 4,
+                    marginRight: 8 * fontScale,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: isOngoing ? colors.primary : 'transparent',
+                    opacity: canSetAsOngoing ? 1 : 0.5,
+                  }}
+                  onPress={() => {
+                    if (!canSetAsOngoing && !isOngoing) {
+                      Alert.alert(
+                        t('profile.ongoing.error.title'),
+                        t('profile.ongoing.error.message'),
+                        [{ text: 'OK' }]
+                      );
+                      return;
+                    }
+                    setIsOngoing(!isOngoing);
+                  }}
+                  activeOpacity={canSetAsOngoing ? 0.7 : 1}
+                  disabled={!canSetAsOngoing && !isOngoing}
+                >
+                  {isOngoing && (
+                    <MaterialIcons name="check" size={16 * fontScale} color={colors.background} />
+                  )}
+                </TouchableOpacity>
+                <ThemedText 
+                  size="m" 
+                  onPress={() => {
+                    if (!canSetAsOngoing && !isOngoing) {
+                      Alert.alert(
+                        t('profile.ongoing.error.title'),
+                        t('profile.ongoing.error.message'),
+                        [{ text: 'OK' }]
+                      );
+                      return;
+                    }
+                    setIsOngoing(!isOngoing);
+                  }}
+                  style={{ opacity: canSetAsOngoing ? 1 : 0.5 }}
+                >
+                  Relationship is ongoing
+                </ThemedText>
+              </View>
+              {hasExistingOngoingPartner && !isOngoing && (
+                <ThemedText size="sm" style={{ color: colors.error || '#ff4444', marginTop: 4 * fontScale }}>
+                  {t('profile.ongoing.warning')}
+                </ThemedText>
+              )}
+            </View>
+
+            {!isOngoing && (
+              <View>
+                <ThemedText size="sm" weight="medium" style={{ marginBottom: 8 * fontScale }}>
+                  Relationship End Date
+                </ThemedText>
+                <TouchableOpacity
+                  onPress={() => setShowEndDatePicker(true)}
+                  style={{
+                    padding: 16 * fontScale,
+                    borderRadius: 12 * fontScale,
+                    backgroundColor: colorScheme === 'dark'
+                      ? 'rgba(255, 255, 255, 0.05)'
+                      : 'rgba(0, 0, 0, 0.05)',
+                    borderWidth: 1,
+                    borderColor: colorScheme === 'dark'
+                      ? 'rgba(255, 255, 255, 0.1)'
+                      : 'rgba(0, 0, 0, 0.1)',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <ThemedText size="m">
+                    {relationshipEndDate
+                      ? relationshipEndDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                      : 'Select end date'}
+                  </ThemedText>
+                  <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
+                </TouchableOpacity>
+                {showEndDatePicker && (
+                  <DateTimePicker
+                    value={relationshipEndDate || new Date()}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, selectedDate) => {
+                      if (Platform.OS === 'android') {
+                        setShowEndDatePicker(false);
+                      }
+                      if (event.type === 'set' && selectedDate) {
+                        setRelationshipEndDate(selectedDate);
+                      } else if (event.type === 'dismissed') {
+                        setShowEndDatePicker(false);
+                      }
+                    }}
+                  />
+                )}
+              </View>
+            )}
+          </View>
 
           <UploadPicture 
             label={t('profile.uploadPicture')}
