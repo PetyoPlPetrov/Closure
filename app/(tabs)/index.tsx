@@ -1,15 +1,17 @@
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLargeDevice } from '@/hooks/use-large-device';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useMemo, useRef, useState } from 'react';
-import { Dimensions, PanResponder, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
@@ -19,6 +21,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import Svg, { Circle, Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -34,6 +37,9 @@ function FloatingAvatar({
   onPositionChange,
   isFocused,
   onDoubleTap,
+  focusedMemory,
+  memorySlideOffset,
+  onMemoryDoubleTap,
 }: {
   profile: any;
   position: { x: number; y: number };
@@ -44,13 +50,39 @@ function FloatingAvatar({
   onPositionChange: (newPosition: { x: number; y: number }) => void;
   isFocused: boolean;
   onDoubleTap: () => void;
+  focusedMemory?: { profileId: string; memoryId: string } | null;
+  memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
+  onMemoryDoubleTap?: (profileId: string, memoryId: string) => void;
 }) {
   const baseAvatarSize = 80;
   const focusedAvatarSize = 100; // Smaller focused size so memories fit
   const avatarSize = isFocused ? focusedAvatarSize : baseAvatarSize;
-  // Increase memory radius when focused to push them further away
-  const memoryRadius = isFocused ? 140 : 85; // Further away when focused for better visibility
-  const exZoneRadius = isFocused ? 200 : 142; // Larger zone when focused
+  // Memory radius - closer to avatar for more compact layout
+  const memoryRadius = isFocused ? 120 : 60; // Closer to avatar
+  const exZoneRadius = isFocused ? 200 : 120; // Smaller zone when memories are closer
+  
+  // Calculate sunny moments percentage for progress bar
+  const sunnyPercentage = useMemo(() => {
+    let totalClouds = 0;
+    let totalSuns = 0;
+    
+    memories.forEach((memory) => {
+      totalClouds += (memory.hardTruths || []).length;
+      totalSuns += (memory.goodFacts || []).length;
+    });
+    
+    const total = totalClouds + totalSuns;
+    if (total === 0) return 0; // No progress if no moments
+    
+    // Percentage of sunny moments (0-100)
+    return (totalSuns / total) * 100;
+  }, [memories]);
+  
+  // Calculate SVG circle parameters for progress bar
+  const borderWidth = 6; // Increased from 4 to 6 for thicker border
+  const radius = (avatarSize + borderWidth) / 2 - borderWidth / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (sunnyPercentage / 100) * circumference;
   
   // Double tap detection
   const lastTapRef = useRef<number | null>(null);
@@ -183,8 +215,19 @@ function FloatingAvatar({
   const panResponder = React.useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponder: () => {
+          console.log(`[FloatingAvatar] onStartShouldSetPanResponder called for profile: ${profile.id}, returning false`);
+          return false; // Don't capture immediately, let Pressable handle taps
+        },
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          // Only capture if there's significant movement (dragging)
+          const { dx, dy } = gestureState;
+          const shouldCapture = Math.abs(dx) > 5 || Math.abs(dy) > 5;
+          if (shouldCapture) {
+            console.log(`[FloatingAvatar] onMoveShouldSetPanResponder: significant movement detected (dx: ${dx}, dy: ${dy}) for profile: ${profile.id}`);
+          }
+          return shouldCapture;
+        },
         onPanResponderGrant: () => {
           // Stop floating animation while dragging
           floatAnimation.value = 0;
@@ -247,7 +290,7 @@ function FloatingAvatar({
         },
       }),
     // SharedValues are stable references, but included to satisfy linter
-    [position, onPositionChange, floatAnimation, isDragging, panX, panY, exZoneRadius]
+    [position, onPositionChange, floatAnimation, isDragging, panX, panY, exZoneRadius, profile.id]
   );
 
   // Scale animation for focused state - avatar scales to 1.5x (smaller to fit memories)
@@ -327,62 +370,110 @@ function FloatingAvatar({
             position: 'absolute',
             left: position.x - avatarSize / 2,
             top: position.y - avatarSize / 2,
-            zIndex: 10,
+            zIndex: 100, // Much higher z-index to ensure avatars are always on top and interactive
+            pointerEvents: 'box-none', // Allow touches to pass through to children
           },
           animatedStyle,
         ]}
         {...(!isFocused ? panResponder.panHandlers : {})}
       >
         <Pressable
+          style={{ pointerEvents: 'auto' }} // Ensure Pressable can receive touches
           onPress={() => {
+            console.log(`[FloatingAvatar] Press detected for profile: ${profile.id}, isFocused: ${isFocused}`);
             // Double tap detection
             const now = Date.now();
             if (lastTapRef.current && now - lastTapRef.current < 300) {
+              console.log(`[FloatingAvatar] Double tap detected for profile: ${profile.id}`);
               onDoubleTap();
               lastTapRef.current = null;
             } else {
+              console.log(`[FloatingAvatar] First tap for profile: ${profile.id}, waiting for potential second tap...`);
               lastTapRef.current = now;
               // Single tap - navigate after a delay
               setTimeout(() => {
                 if (lastTapRef.current === now) {
+                  console.log(`[FloatingAvatar] Single tap confirmed for profile: ${profile.id}, navigating...`);
                   onPress();
+                } else {
+                  console.log(`[FloatingAvatar] Single tap cancelled (double tap happened) for profile: ${profile.id}`);
                 }
               }, 300);
             }
           }}
         >
+          {/* Circular progress bar border */}
           <View
             style={{
-              width: avatarSize,
-              height: avatarSize,
-              borderRadius: avatarSize / 2,
-              backgroundColor: colors.primary,
+              width: avatarSize + borderWidth * 2,
+              height: avatarSize + borderWidth * 2,
               justifyContent: 'center',
               alignItems: 'center',
-              borderWidth: 3,
-              borderColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.8)',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 8,
+              position: 'relative',
             }}
           >
-            {profile.imageUri ? (
-              <Image
-                source={{ uri: profile.imageUri }}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: avatarSize / 2,
-                }}
-                contentFit="cover"
+            {/* SVG Progress Bar */}
+            <Svg
+              width={avatarSize + borderWidth * 2}
+              height={avatarSize + borderWidth * 2}
+              style={{ position: 'absolute' }}
+            >
+              {/* Background circle (cloudy/dark) - thicker */}
+              <Circle
+                cx={(avatarSize + borderWidth * 2) / 2}
+                cy={(avatarSize + borderWidth * 2) / 2}
+                r={radius}
+                stroke="#000000" // Black for cloudy moments
+                strokeWidth={borderWidth + 2} // Thicker black border
+                fill="none"
               />
-            ) : (
-              <ThemedText weight="bold" style={{ color: '#fff', fontSize: 24 }}>
-                {initials}
-              </ThemedText>
-            )}
+              {/* Progress circle (sunny/yellow) */}
+              <Circle
+                cx={(avatarSize + borderWidth * 2) / 2}
+                cy={(avatarSize + borderWidth * 2) / 2}
+                r={radius}
+                stroke="#FFD700" // Yellow for sunny moments
+                strokeWidth={borderWidth}
+                fill="none"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                transform={`rotate(-90 ${(avatarSize + borderWidth * 2) / 2} ${(avatarSize + borderWidth * 2) / 2})`}
+              />
+            </Svg>
+            {/* Avatar content */}
+            <View
+              style={{
+                width: avatarSize,
+                height: avatarSize,
+                borderRadius: avatarSize / 2,
+                backgroundColor: colors.primary,
+                justifyContent: 'center',
+                alignItems: 'center',
+                overflow: 'hidden',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 8,
+              }}
+            >
+              {profile.imageUri ? (
+                <Image
+                  source={{ uri: profile.imageUri }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: avatarSize / 2,
+                  }}
+                  contentFit="cover"
+                />
+              ) : (
+                <ThemedText weight="bold" style={{ color: '#fff', fontSize: 24 }}>
+                  {initials}
+                </ThemedText>
+              )}
+            </View>
           </View>
         </Pressable>
       </Animated.View>
@@ -398,6 +489,36 @@ function FloatingAvatar({
           y: position.y + memPosData.offsetY,
         };
         
+        // Calculate maximum memory size based on viewport constraints
+        // Worst case: memory at memoryRadius from avatar, with moments orbiting at maxMomentRadius from memory
+        // We need to ensure the entire EX zone fits: avatar + memoryRadius + memorySize/2 + maxMomentRadius + maxMomentSize/2 <= viewport edge
+        const cloudSize = isFocused ? 20 : 24;
+        const sunSize = isFocused ? 18 : 22;
+        const maxMomentSize = Math.max(cloudSize, sunSize);
+        const cloudRadius = isFocused ? 40 : 25;
+        const sunRadius = isFocused ? 38 : 22;
+        const maxMomentRadius = Math.max(cloudRadius, sunRadius);
+        
+        // Calculate distances from avatar center to nearest viewport edges
+        // This ensures memories fit even when avatar is near edges
+        const distanceToLeft = position.x;
+        const distanceToRight = SCREEN_WIDTH - position.x;
+        const distanceToTop = position.y;
+        const distanceToBottom = SCREEN_HEIGHT - position.y;
+        const minDistanceToEdge = Math.min(distanceToLeft, distanceToRight, distanceToTop, distanceToBottom);
+        
+        // Calculate maximum memory size that fits
+        // Total distance from avatar to furthest moment edge = memoryRadius + memorySize/2 + maxMomentRadius + maxMomentSize/2
+        // We need: memoryRadius + memorySize/2 + maxMomentRadius + maxMomentSize/2 <= minDistanceToEdge
+        // Solving for memorySize: memorySize <= 2 * (minDistanceToEdge - memoryRadius - maxMomentRadius - maxMomentSize/2 - padding)
+        const padding = 20; // Extra safety padding to ensure nothing goes outside viewport
+        const availableSpace = minDistanceToEdge - memoryRadius - maxMomentRadius - maxMomentSize / 2 - padding;
+        const calculatedMaxMemorySize = Math.max(30, Math.min(100, availableSpace * 2)); // Clamp between 30 and 100
+        
+        // Use the calculated size, but prefer focused/unfocused sizes if they're smaller
+        const baseMemorySize = isFocused ? 65 : 50;
+        const memorySize = Math.min(baseMemorySize, calculatedMaxMemorySize);
+        
         return (
           <FloatingMemory
             key={`memory-${memory.id}-${memIndex}`}
@@ -411,6 +532,13 @@ function FloatingAvatar({
             offsetY={memPosData.offsetY}
             isFocused={isFocused}
             colorScheme={colorScheme}
+            calculatedMemorySize={memorySize}
+            onDoubleTap={() => {
+              console.log('[FloatingAvatar] Memory double tap, calling onMemoryDoubleTap for profile:', profile.id, 'memory:', memory.id);
+              onMemoryDoubleTap?.(profile.id, memory.id);
+            }}
+            isMemoryFocused={focusedMemory?.profileId === profile.id && focusedMemory?.memoryId === memory.id}
+            memorySlideOffset={memorySlideOffset}
           />
         );
       })}
@@ -430,6 +558,10 @@ function FloatingMemory({
   offsetY,
   isFocused,
   colorScheme,
+  calculatedMemorySize,
+  onDoubleTap,
+  isMemoryFocused,
+  memorySlideOffset,
 }: {
   memory: any;
   position: { x: number; y: number };
@@ -441,38 +573,104 @@ function FloatingMemory({
   offsetY: number;
   isFocused: boolean;
   colorScheme: 'light' | 'dark';
+  calculatedMemorySize?: number;
+  onDoubleTap?: () => void;
+  isMemoryFocused?: boolean;
+  memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
 }) {
-  // Make memories bigger when focused
-  const memorySize = isFocused ? 65 : 50;
+  const { isLargeDevice } = useLargeDevice();
+  
+  // When memory is focused, use smaller size like in creation screen (250px)
+  // Otherwise use calculated size or default
+  const memorySize = isMemoryFocused 
+    ? (isLargeDevice ? 300 : 250) 
+    : (calculatedMemorySize ?? (isFocused ? 65 : 50));
+  
+  // Cloud and sun dimensions from creation screen (used when memory is focused)
+  const cloudWidth = isLargeDevice ? 480 : 320;
+  const cloudHeight = isLargeDevice ? 150 : 100;
+  const sunWidth = isLargeDevice ? 150 : 100;
+  const sunHeight = isLargeDevice ? 150 : 100;
+  
   // Increase cloud and sun radius when focused to push them further from memory
   const cloudRadius = isFocused ? 40 : 25; // Further away when focused
   const sunRadius = isFocused ? 38 : 22; // Further away when focused
+  
+  // Helper function to calculate and clamp moment position within viewport
+  // Also ensures moments are well distributed around the memory
+  const calculateClampedPosition = useMemo(() => {
+    return (savedX: number | undefined, savedY: number | undefined, momentWidth: number, momentHeight: number, index: number, totalCount: number, memorySize: number) => {
+      const memoryCenterX = SCREEN_WIDTH / 2;
+      const memoryCenterY = SCREEN_HEIGHT / 2;
+      
+      let momentX: number;
+      let momentY: number;
+      
+      // If we have saved positions, use them (adjusted for current screen center)
+      if (savedX !== undefined && savedY !== undefined) {
+        // Calculate offset from memory center
+        // Saved positions are from creation screen where memory is also centered
+        const offsetX = savedX - memoryCenterX;
+        const offsetY = savedY - memoryCenterY;
+        
+        // Apply offset to current centered memory position
+        momentX = memoryCenterX + offsetX;
+        momentY = memoryCenterY + offsetY;
+      } else {
+        // If no saved positions, distribute in a circular pattern around memory
+        const angle = (2 * Math.PI * index) / totalCount;
+        const radius = memorySize / 2 + Math.max(momentWidth, momentHeight) / 2 + 40; // Distance from memory edge
+        momentX = memoryCenterX + radius * Math.cos(angle);
+        momentY = memoryCenterY + radius * Math.sin(angle);
+      }
+      
+      // Clamp to ensure moment stays within viewport with padding
+      const padding = 20; // Padding from edges
+      const minX = padding + momentWidth / 2;
+      const maxX = SCREEN_WIDTH - padding - momentWidth / 2;
+      const minY = padding + momentHeight / 2;
+      const maxY = SCREEN_HEIGHT - padding - momentHeight / 2;
+      
+      momentX = Math.max(minX, Math.min(maxX, momentX));
+      momentY = Math.max(minY, Math.min(maxY, momentY));
+      
+      return { x: momentX, y: momentY };
+    };
+  }, []);
 
   const floatAnimation = useSharedValue(0);
   
   // Scale animation for focused state - memories scale to 2x (bigger than avatar for visibility)
-  const scale = useSharedValue(isFocused ? 2 : 1);
+  const scale = useSharedValue(isMemoryFocused ? 2.5 : (isFocused ? 2 : 1));
   React.useEffect(() => {
-    scale.value = withSpring(isFocused ? 2 : 1, {
+    scale.value = withSpring(isMemoryFocused ? 2.5 : (isFocused ? 2 : 1), {
       damping: 15,
       stiffness: 100,
     });
-  }, [isFocused, scale]);
-  
-  React.useEffect(() => {
-    floatAnimation.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 1500 }),
-        withTiming(0, { duration: 1500 })
-      ),
-      -1,
-      true
-    );
-  }, [floatAnimation]);
+  }, [isFocused, isMemoryFocused, scale]);
 
-  // Calculate memory position relative to avatar
-  // When focused, use focusedX/focusedY; when dragging, use avatarPanX/avatarPanY
+  React.useEffect(() => {
+    if (!isMemoryFocused) {
+      floatAnimation.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 1500 }),
+          withTiming(0, { duration: 1500 })
+        ),
+        -1,
+        true
+      );
+    }
+  }, [floatAnimation, isMemoryFocused]);
+
+  // Calculate memory position relative to avatar or center when memory is focused
   const memoryAnimatedPosition = useAnimatedStyle(() => {
+    if (isMemoryFocused) {
+      // When memory is focused, center it on screen
+      return {
+        left: SCREEN_WIDTH / 2 - memorySize / 2,
+        top: SCREEN_HEIGHT / 2 - memorySize / 2,
+      };
+    }
     if (isFocused && focusedX && focusedY) {
       // When focused, follow the avatar to center
       return {
@@ -489,6 +687,24 @@ function FloatingMemory({
     }
     return {};
   });
+  
+  // Slide out animation for non-focused memories
+  const slideOutStyle = useAnimatedStyle(() => {
+    if (!memorySlideOffset || isMemoryFocused) {
+      return {};
+    }
+    return {
+      transform: [
+        {
+          translateX: memorySlideOffset.value * (offsetX > 0 ? 1 : -1),
+        },
+        {
+          translateY: memorySlideOffset.value * (offsetY > 0 ? 1 : -1),
+        },
+      ],
+      opacity: 1 - (memorySlideOffset.value / (SCREEN_WIDTH * 2)),
+    };
+  });
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -497,8 +713,23 @@ function FloatingMemory({
     ],
   }));
 
-  const clouds = useMemo(() => memory.hardTruths || [], [memory.hardTruths]);
-  const suns = useMemo(() => memory.goodFacts || [], [memory.goodFacts]);
+  const clouds = useMemo(() => {
+    const truths = memory.hardTruths || [];
+    // Filter out any invalid entries (must be objects, not arrays, not strings)
+    const validClouds = truths.filter((truth: any) => {
+      const isValid = truth && typeof truth === 'object' && !Array.isArray(truth);
+      if (!isValid) {
+        console.warn('[FloatingMemory] Invalid hardTruth entry:', truth, 'Type:', typeof truth);
+      }
+      return isValid;
+    });
+    return validClouds;
+  }, [memory.hardTruths]);
+  const suns = useMemo(() => {
+    const facts = memory.goodFacts || [];
+    // Filter out any invalid entries (must be objects)
+    return facts.filter((fact: any) => fact && typeof fact === 'object');
+  }, [memory.goodFacts]);
 
   // Calculate cloud and sun positions relative to memory
   const cloudPositions = useMemo(() => {
@@ -523,6 +754,25 @@ function FloatingMemory({
     });
   }, [suns, clouds, sunRadius]);
 
+  // Double-tap detection
+  const lastTapRef = useRef<number | null>(null);
+  const DOUBLE_TAP_DELAY = 300;
+
+  const handlePress = () => {
+    console.log('[FloatingMemory] Press detected on memory:', memory.id);
+    const now = Date.now();
+    if (lastTapRef.current && (now - lastTapRef.current) < DOUBLE_TAP_DELAY) {
+      // Double tap detected
+      console.log('[FloatingMemory] Double tap detected! Calling onDoubleTap');
+      onDoubleTap?.();
+      lastTapRef.current = null;
+    } else {
+      // First tap
+      console.log('[FloatingMemory] First tap, waiting for second tap');
+      lastTapRef.current = now;
+    }
+  };
+
   return (
     <>
       <Animated.View
@@ -531,20 +781,21 @@ function FloatingMemory({
             position: 'absolute',
             left: position.x - memorySize / 2,
             top: position.y - memorySize / 2,
-            zIndex: 5, // Memory base layer
+            zIndex: isMemoryFocused ? 1000 : 20, // Memory base layer - lower than moments
+            pointerEvents: 'box-none', // Allow touches to pass through to Pressable
           },
           memoryAnimatedPosition,
           animatedStyle,
+          slideOutStyle,
         ]}
       >
-        <TouchableOpacity
-          onPress={() => {
-            router.push({
-              pathname: '/add-idealized-memory',
-              params: { profileId: memory.profileId, memoryId: memory.id },
-            });
+        <Pressable
+          style={{ 
+            pointerEvents: 'auto', // Ensure Pressable can receive touches
+            width: memorySize,
+            height: memorySize,
           }}
-          activeOpacity={0.7}
+          onPress={handlePress}
         >
           <View
             style={{
@@ -582,7 +833,7 @@ function FloatingMemory({
               <MaterialIcons name="auto-stories" size={24} color="#fff" />
             )}
           </View>
-        </TouchableOpacity>
+        </Pressable>
       </Animated.View>
 
       {/* Calculate z-index based on which type has more moments */}
@@ -590,22 +841,143 @@ function FloatingMemory({
         const cloudCount = clouds.length;
         const sunCount = suns.length;
         const cloudsOnTop = cloudCount > sunCount;
-        const cloudZIndex = cloudsOnTop ? 6 : 5.5;
-        const sunZIndex = cloudsOnTop ? 5.5 : 6;
+        // Moments should be on top of memories
+        // When memory is focused, use much higher z-index to be above the memory (which has zIndex 1000)
+        const baseZIndex = isMemoryFocused ? 1001 : 20;
+        const cloudZIndex = cloudsOnTop ? baseZIndex + 5 : baseZIndex + 4; // Higher than memories so moments are visible on top
+        const sunZIndex = cloudsOnTop ? baseZIndex + 4 : baseZIndex + 5; // Higher than memories so moments are visible on top
+        
+        // Debug: Log when memory is focused
+        if (isMemoryFocused) {
+          console.log('[FloatingMemory] Memory focused - clouds:', cloudCount, 'suns:', sunCount, 'cloudZIndex:', cloudZIndex, 'sunZIndex:', sunZIndex);
+        }
         
         return (
           <>
             {/* Floating Clouds around Memory */}
             {clouds.map((cloud: any, cloudIndex: number) => {
+              // Additional safety check
+              if (!cloud || typeof cloud !== 'object') {
+                console.warn(`[FloatingMemory] Invalid cloud at index ${cloudIndex}:`, cloud);
+                return null;
+              }
+              
+              // When memory is focused, use saved positions from memory data
+              // Otherwise use calculated positions
+              if (isMemoryFocused) {
+                // Calculate and clamp position to ensure it's within viewport and well distributed
+                const clampedPos = calculateClampedPosition(
+                  cloud.x,
+                  cloud.y,
+                  cloudWidth,
+                  cloudHeight,
+                  cloudIndex,
+                  clouds.length,
+                  memorySize
+                );
+                const cloudX = clampedPos.x;
+                const cloudY = clampedPos.y;
+                
+                return (
+                  <Animated.View
+                    key={`cloud-focused-${cloud?.id || cloudIndex}`}
+                    style={[
+                      {
+                        position: 'absolute',
+                        left: cloudX - cloudWidth / 2,
+                        top: cloudY - cloudHeight / 2,
+                        zIndex: cloudZIndex,
+                        pointerEvents: 'box-none',
+                      },
+                    ]}
+                  >
+                    <Pressable
+                      style={{ pointerEvents: 'auto' }}
+                      onPress={onDoubleTap}
+                    >
+                      <Svg 
+                        width={cloudWidth} 
+                        height={cloudHeight} 
+                        viewBox="0 0 320 100"
+                        preserveAspectRatio="xMidYMid meet"
+                        style={{ position: 'absolute' }}
+                      >
+                        <Defs>
+                          <SvgLinearGradient id={`cloudGradient-${cloud.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                            <Stop offset="0%" stopColor="#2C3E50" stopOpacity="0.95" />
+                            <Stop offset="50%" stopColor="#1A1A1A" stopOpacity="0.98" />
+                            <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
+                          </SvgLinearGradient>
+                        </Defs>
+                        <Path
+                          d="M50,50 
+                             Q40,35 50,25 
+                             Q60,15 75,20 
+                             Q85,10 100,20 
+                             Q115,10 130,20 
+                             Q145,10 160,20 
+                             Q175,10 190,20 
+                             Q205,10 220,20 
+                             Q235,10 250,20 
+                             Q265,15 270,25 
+                             Q280,35 270,50 
+                             Q280,65 270,75 
+                             Q260,85 245,80 
+                             Q230,90 220,85 
+                             Q205,95 190,85 
+                             Q175,95 160,85 
+                             Q145,95 130,85 
+                             Q115,95 100,85 
+                             Q85,90 75,80 
+                             Q60,85 50,75 
+                             Q40,65 50,50 Z"
+                          fill={`url(#cloudGradient-${cloud.id})`}
+                          stroke="rgba(0,0,0,0.7)"
+                          strokeWidth={1.5}
+                        />
+                      </Svg>
+                      <View
+                        style={{
+                          width: cloudWidth,
+                          height: cloudHeight,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          paddingHorizontal: 20,
+                        }}
+                      >
+                        <ThemedText
+                          style={{
+                            color: 'rgba(255,255,255,0.9)',
+                            fontSize: 14,
+                            textAlign: 'center',
+                            fontWeight: '500',
+                          }}
+                        >
+                          {cloud.text}
+                        </ThemedText>
+                      </View>
+                    </Pressable>
+                  </Animated.View>
+                );
+              }
+              
+              // Not focused - use small circular cloud
               const cloudPosData = cloudPositions[cloudIndex];
+              if (!cloudPosData) {
+                console.warn(`[FloatingMemory] Missing cloud position data at index ${cloudIndex}`);
+                return null;
+              }
+              
+              const memoryCenterX = position.x;
+              const memoryCenterY = position.y;
               const initialCloudPos = {
-                x: position.x + cloudPosData.offsetX,
-                y: position.y + cloudPosData.offsetY,
+                x: memoryCenterX + cloudPosData.offsetX,
+                y: memoryCenterY + cloudPosData.offsetY,
               };
               
               return (
                 <FloatingCloud
-                  key={`cloud-${cloud.id}-${cloudIndex}`}
+                  key={`cloud-${cloud?.id || cloudIndex}-${cloudIndex}`}
                   cloud={cloud}
                   position={initialCloudPos}
                   memoryAnimatedPosition={memoryAnimatedPosition}
@@ -618,18 +990,106 @@ function FloatingMemory({
                   offsetX={cloudPosData.offsetX}
                   offsetY={cloudPosData.offsetY}
                   zIndex={cloudZIndex}
-                  isFocused={isFocused}
+                  isFocused={!!isFocused}
                   colorScheme={colorScheme}
+                  onPress={onDoubleTap}
                 />
               );
             })}
 
             {/* Floating Suns around Memory */}
             {suns.map((sun: any, sunIndex: number) => {
+              // When memory is focused, use saved positions from memory data
+              if (isMemoryFocused) {
+                // Calculate and clamp position to ensure it's within viewport and well distributed
+                const clampedPos = calculateClampedPosition(
+                  sun.x,
+                  sun.y,
+                  sunWidth,
+                  sunHeight,
+                  sunIndex,
+                  suns.length,
+                  memorySize
+                );
+                const sunX = clampedPos.x;
+                const sunY = clampedPos.y;
+                
+                return (
+                  <Animated.View
+                    key={`sun-focused-${sun.id}`}
+                    style={[
+                      {
+                        position: 'absolute',
+                        left: sunX - sunWidth / 2,
+                        top: sunY - sunHeight / 2,
+                        zIndex: sunZIndex,
+                        pointerEvents: 'box-none',
+                      },
+                    ]}
+                  >
+                    <Pressable
+                      style={{ pointerEvents: 'auto' }}
+                      onPress={onDoubleTap}
+                    >
+                      <LinearGradient
+                        colors={['#FFD700', '#FFA500', '#FF8C00']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={{
+                          position: 'absolute',
+                          width: sunWidth,
+                          height: sunHeight,
+                          borderRadius: sunWidth / 2,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <View style={{
+                          position: 'absolute',
+                          top: sunHeight * 0.2,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}>
+                          <MaterialIcons 
+                            name="wb-sunny" 
+                            size={sunWidth * 0.5} 
+                            color="#FFFFFF" 
+                          />
+                        </View>
+                      </LinearGradient>
+                      <View
+                        style={{
+                          width: sunWidth,
+                          height: sunHeight,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          paddingHorizontal: 12,
+                          paddingTop: sunHeight * 0.45,
+                        }}
+                      >
+                        <ThemedText
+                          style={{
+                            color: 'rgba(255,255,255,0.9)',
+                            fontSize: 12,
+                            textAlign: 'center',
+                            fontWeight: '500',
+                          }}
+                        >
+                          {sun.text}
+                        </ThemedText>
+                      </View>
+                    </Pressable>
+                  </Animated.View>
+                );
+              }
+              
+              // Not focused - use small circular sun
               const sunPosData = sunPositions[sunIndex];
+              const memoryCenterX = position.x;
+              const memoryCenterY = position.y;
               const initialSunPos = {
-                x: position.x + sunPosData.offsetX,
-                y: position.y + sunPosData.offsetY,
+                x: memoryCenterX + sunPosData.offsetX,
+                y: memoryCenterY + sunPosData.offsetY,
               };
               
               return (
@@ -647,8 +1107,9 @@ function FloatingMemory({
                   offsetX={sunPosData.offsetX}
                   offsetY={sunPosData.offsetY}
                   zIndex={sunZIndex}
-                  isFocused={isFocused}
+                  isFocused={!!isFocused}
                   colorScheme={colorScheme}
+                  onPress={onDoubleTap}
                 />
               );
             })}
@@ -675,6 +1136,7 @@ function FloatingCloud({
   zIndex,
   isFocused,
   colorScheme,
+  onPress,
 }: {
   cloud: any;
   position: { x: number; y: number };
@@ -690,9 +1152,10 @@ function FloatingCloud({
   zIndex: number;
   isFocused: boolean;
   colorScheme: 'light' | 'dark';
+  onPress?: () => void;
 }) {
   // Make clouds smaller when focused
-  const cloudSize = isFocused ? 28 : 34; // Smaller when focused
+  const cloudSize = isFocused ? 20 : 24; // Smaller when focused
 
   const floatAnimation = useSharedValue(0);
   
@@ -743,43 +1206,68 @@ function FloatingCloud({
         top: cloudY - cloudSize / 2,
       };
     }
-    return {};
+    // When memory is focused but no avatar position, use the position prop directly
+    // This handles the case when memory is focused independently
+    // Position is already relative to screen center, so use it directly
+    // For focused memory, position is already at screen center, so we use it as-is
+    const finalX = position.x - cloudSize / 2;
+    const finalY = position.y - cloudSize / 2;
+    return {
+      left: finalX,
+      top: finalY,
+    };
   });
+
+  // Safety check - if cloud is invalid, don't render (after all hooks)
+  // Ensure cloud is a valid object and not a string or primitive
+  if (!cloud || typeof cloud !== 'object' || Array.isArray(cloud)) {
+    console.warn('[FloatingCloud] Invalid cloud object:', cloud);
+    return null;
+  }
+
+  // Ensure cloudSize is a number
+  const safeCloudSize = typeof cloudSize === 'number' ? cloudSize : 24;
 
   return (
     <Animated.View
       style={[
         {
           position: 'absolute',
-          left: position.x - cloudSize / 2,
-          top: position.y - cloudSize / 2,
-          zIndex, // Dynamic z-index based on count
+          zIndex: typeof zIndex === 'number' ? zIndex : 24, // Higher than memories (20) so moments are on top
+          pointerEvents: 'box-none', // Allow touches to pass through to Pressable
         },
         cloudAnimatedPosition,
         animatedStyle,
       ]}
     >
-      <View
-        style={{
-          width: cloudSize,
-          height: cloudSize,
-          borderRadius: cloudSize / 2,
-          backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(20, 20, 20, 0.95)' 
-            : 'rgba(40, 40, 40, 0.95)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          borderWidth: 1.5,
-          borderColor: 'rgba(0,0,0,0.5)',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.4,
-          shadowRadius: 4,
-          elevation: 4,
+      <Pressable
+        style={{ 
+          pointerEvents: 'auto', // Ensure Pressable can receive touches
+          width: safeCloudSize,
+          height: safeCloudSize,
         }}
+        onPress={onPress}
       >
-        <MaterialIcons name="cloud" size={20} color="#fff" />
-      </View>
+        <View
+          style={{
+            width: safeCloudSize,
+            height: safeCloudSize,
+            borderRadius: safeCloudSize / 2,
+            backgroundColor: '#FFFFFF', // White background
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderWidth: 1.5,
+            borderColor: 'rgba(0,0,0,0.3)', // Dark border
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.4,
+            shadowRadius: 4,
+            elevation: 4,
+          }}
+        >
+          <MaterialIcons name="cloud" size={16} color="#000000" />
+        </View>
+      </Pressable>
     </Animated.View>
   );
 }
@@ -800,6 +1288,7 @@ function FloatingSun({
   zIndex,
   isFocused,
   colorScheme,
+  onPress,
 }: {
   sun: any;
   position: { x: number; y: number };
@@ -815,9 +1304,10 @@ function FloatingSun({
   zIndex: number;
   isFocused: boolean;
   colorScheme: 'light' | 'dark';
+  onPress?: () => void;
 }) {
   // Make suns smaller when focused
-  const sunSize = isFocused ? 26 : 32; // Smaller when focused
+  const sunSize = isFocused ? 18 : 22; // Smaller when focused
 
   const floatAnimation = useSharedValue(0);
   
@@ -868,7 +1358,12 @@ function FloatingSun({
         top: sunY - sunSize / 2,
       };
     }
-    return {};
+    // When memory is focused but no avatar position, use the position prop directly
+    // This handles the case when memory is focused independently
+    return {
+      left: position.x - sunSize / 2,
+      top: position.y - sunSize / 2,
+    };
   });
 
   return (
@@ -876,33 +1371,37 @@ function FloatingSun({
       style={[
         {
           position: 'absolute',
-          left: position.x - sunSize / 2,
-          top: position.y - sunSize / 2,
-          zIndex, // Dynamic z-index based on count
+          zIndex: typeof zIndex === 'number' ? zIndex : 24, // Higher than memories (20) so moments are on top
+          pointerEvents: 'box-none', // Allow touches to pass through to Pressable
         },
         sunAnimatedPosition,
         animatedStyle,
       ]}
     >
-      <LinearGradient
-        colors={['#FFD700', '#FFA500', '#FF8C00']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          width: sunSize,
-          height: sunSize,
-          borderRadius: sunSize / 2,
-          justifyContent: 'center',
-          alignItems: 'center',
-          shadowColor: '#FFD700',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.5,
-          shadowRadius: 4,
-          elevation: 4,
-        }}
+      <Pressable
+        style={{ pointerEvents: 'auto' }} // Ensure Pressable can receive touches
+        onPress={onPress}
       >
-        <MaterialIcons name="wb-sunny" size={18} color="#FFFFFF" />
-      </LinearGradient>
+        <LinearGradient
+          colors={['#FFD700', '#FFA500', '#FF8C00']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{
+            width: sunSize,
+            height: sunSize,
+            borderRadius: sunSize / 2,
+            justifyContent: 'center',
+            alignItems: 'center',
+            shadowColor: '#FFD700',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.5,
+            shadowRadius: 4,
+            elevation: 4,
+          }}
+        >
+          <MaterialIcons name="wb-sunny" size={14} color="#FFFFFF" />
+        </LinearGradient>
+      </Pressable>
     </Animated.View>
   );
 }
@@ -930,183 +1429,136 @@ export default function HomeScreen() {
   // Track positions for each avatar (for dragging)
   const [avatarPositionsState, setAvatarPositionsState] = React.useState<Map<string, { x: number; y: number }>>(new Map());
 
-  // Calculate initial random positions for avatars within viewport
+  // Storage key for avatar positions
+  const AVATAR_POSITIONS_KEY = '@closure:avatar_positions';
+
+  // Load saved avatar positions from storage
+  const [savedPositions, setSavedPositions] = React.useState<Map<string, { x: number; y: number }> | null>(null);
+  const [positionsLoaded, setPositionsLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    const loadSavedPositions = async () => {
+      try {
+        const saved = await AsyncStorage.getItem(AVATAR_POSITIONS_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved) as Record<string, { x: number; y: number }>;
+          const positionsMap = new Map<string, { x: number; y: number }>();
+          Object.entries(parsed).forEach(([profileId, position]) => {
+            positionsMap.set(profileId, position);
+          });
+          setSavedPositions(positionsMap);
+        }
+      } catch (error) {
+        console.error('Error loading avatar positions:', error);
+      } finally {
+        setPositionsLoaded(true);
+      }
+    };
+    loadSavedPositions();
+  }, []);
+
+  // Calculate initial evenly distributed positions for avatars within viewport
   // EX Zone calculation from avatar center to furthest floating element edge:
-  // - Memory center from avatar: 85px (memoryRadius)
+  // - Memory center from avatar: 60px (memoryRadius, unfocused)
   // - Cloud center from memory center: 25px (cloudRadius)
-  // - Cloud edge from cloud center: 17px (cloudSize / 2 = 34 / 2)
-  // Maximum distance: 85 + 25 + 17 = 127px
-  // Add safety margin: 127 + 15 = 142px
+  // - Cloud edge from cloud center: 12px (cloudSize / 2 = 24 / 2)
+  // Maximum distance: 60 + 25 + 12 = 97px
+  // Add safety margin: 97 + 23 = 120px
   const initialAvatarPositions = useMemo(() => {
+    if (!positionsLoaded) return []; // Wait for saved positions to load
+    
     const positions: { x: number; y: number }[] = [];
-    const avatarRadius = 40; // Avatar size is 80px, so radius is 40px
-    const exZoneRadius = 142; // Total radius from avatar center to furthest floating element edge
-    const minSpacing = exZoneRadius * 2 + 30; // Minimum distance = 314px (ensures no overlap with buffer)
-    const padding = exZoneRadius + 30; // Keep all floating memories within viewport
-    const topPadding = exZoneRadius + 30;
-    const bottomPadding = exZoneRadius + 30;
+    const exZoneRadius = 120; // Total radius from avatar center to furthest floating element edge (unfocused)
+    const padding = exZoneRadius + 20; // Keep all floating memories within viewport
+    const topPadding = exZoneRadius + 20;
+    const bottomPadding = exZoneRadius + 20;
     
     const availableWidth = SCREEN_WIDTH - padding * 2;
     const availableHeight = SCREEN_HEIGHT - topPadding - bottomPadding;
     
-    // Try to place each avatar randomly, ensuring no overlap
+    // Always use grid layout for even distribution
+    // Calculate optimal grid dimensions (square-ish grid)
+    const cols = Math.ceil(Math.sqrt(profiles.length));
+    const rows = Math.ceil(profiles.length / cols);
+    
+    // Calculate spacing to evenly distribute across available space
+    const spacingX = cols > 1 ? availableWidth / (cols - 1) : 0;
+    const spacingY = rows > 1 ? availableHeight / (rows - 1) : 0;
+    
     profiles.forEach((profile, index) => {
-      let attempts = 0;
-      let position: { x: number; y: number };
-      let validPosition = false;
-      
-      while (!validPosition && attempts < 50) {
-        position = {
-          x: padding + Math.random() * availableWidth,
-          y: topPadding + Math.random() * availableHeight,
-        };
+      // Check if we have a saved position for this profile
+      if (savedPositions?.has(profile.id)) {
+        const saved = savedPositions.get(profile.id)!;
+        // Validate saved position is still within viewport
+        const topEdge = saved.y - exZoneRadius;
+        const rightEdge = saved.x + exZoneRadius;
+        const bottomEdge = saved.y + exZoneRadius;
+        const leftEdge = saved.x - exZoneRadius;
         
-        // Check if this position is far enough from existing positions (EX zone to EX zone)
-        // Distance must be at least minSpacing to ensure zones don't overlap
-        // Also check avatar-to-avatar distance as a minimum
-        validPosition = positions.length === 0 || positions.every((existingPos) => {
-          const dx = position.x - existingPos.x;
-          const dy = position.y - existingPos.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          // Ensure both EX zones and avatars don't overlap
-          const avatarMinDistance = avatarRadius * 2 + 10; // At least 90px between avatar centers
-          return distance >= minSpacing && distance >= avatarMinDistance;
-        });
-        
-        // Also ensure the entire EX zone (including all floating memories and moments) is within viewport bounds
-        if (validPosition) {
-          // Check all 4 directions (top, right, bottom, left) for the entire EX zone
-          // This ensures no floating memories or moments go outside the viewport
-          const topEdge = position.y - exZoneRadius;
-          const rightEdge = position.x + exZoneRadius;
-          const bottomEdge = position.y + exZoneRadius;
-          const leftEdge = position.x - exZoneRadius;
-          
-          validPosition = 
-            topEdge >= 0 &&
-            rightEdge <= SCREEN_WIDTH &&
-            bottomEdge <= SCREEN_HEIGHT &&
-            leftEdge >= 0;
-          
-          // Double-check with a slightly larger margin to be absolutely sure
-          if (validPosition) {
-            const margin = 5; // Extra safety margin
-            validPosition = 
-              (position.y - exZoneRadius - margin) >= 0 &&
-              (position.x + exZoneRadius + margin) <= SCREEN_WIDTH &&
-              (position.y + exZoneRadius + margin) <= SCREEN_HEIGHT &&
-              (position.x - exZoneRadius - margin) >= 0;
-          }
-        }
-        
-        attempts++;
-      }
-      
-      // If we couldn't find a valid position, use a fallback grid position
-      // Grid spacing should respect minSpacing to avoid EX zone overlap
-      if (!validPosition) {
-        const cols = Math.max(1, Math.floor(availableWidth / minSpacing));
-        const rows = Math.ceil(profiles.length / cols);
-        const row = Math.floor(index / cols);
-        const col = index % cols;
-        
-        // Use minSpacing for grid, ensuring we don't go below it
-        const spacingX = cols > 1 ? Math.max(minSpacing, availableWidth / (cols - 1)) : SCREEN_WIDTH / 2;
-        const spacingY = rows > 1 ? Math.max(minSpacing, availableHeight / (rows - 1)) : SCREEN_HEIGHT / 2;
-        
-        position = {
-          x: padding + (col * spacingX),
-          y: topPadding + (row * spacingY),
-        };
-        
-        // Ensure fallback position keeps EX zone in viewport
-        const topEdge = position.y - exZoneRadius;
-        const rightEdge = position.x + exZoneRadius;
-        const bottomEdge = position.y + exZoneRadius;
-        const leftEdge = position.x - exZoneRadius;
-        
-        if (topEdge < 0 || rightEdge > SCREEN_WIDTH || bottomEdge > SCREEN_HEIGHT || leftEdge < 0) {
-          // Clamp to viewport if needed
-          position.x = Math.max(padding + exZoneRadius, Math.min(SCREEN_WIDTH - padding - exZoneRadius, position.x));
-          position.y = Math.max(topPadding + exZoneRadius, Math.min(SCREEN_HEIGHT - bottomPadding - exZoneRadius, position.y));
-        }
-        
-        // Verify the fallback position doesn't overlap with existing positions
-        const hasOverlap = positions.some((existingPos) => {
-          const dx = position.x - existingPos.x;
-          const dy = position.y - existingPos.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          const avatarMinDistance = avatarRadius * 2 + 10;
-          return distance < minSpacing || distance < avatarMinDistance;
-        });
-        
-        if (hasOverlap) {
-          // If overlap detected, try to adjust position
-          let adjusted = false;
-          for (let offset = minSpacing; offset <= minSpacing * 1.5 && !adjusted; offset += 10) {
-            const testPositions = [
-              { x: position.x + offset, y: position.y },
-              { x: position.x - offset, y: position.y },
-              { x: position.x, y: position.y + offset },
-              { x: position.x, y: position.y - offset },
-            ];
-            
-            for (const testPos of testPositions) {
-              const topEdge = testPos.y - exZoneRadius;
-              const rightEdge = testPos.x + exZoneRadius;
-              const bottomEdge = testPos.y + exZoneRadius;
-              const leftEdge = testPos.x - exZoneRadius;
-              
-              if (topEdge >= 0 && rightEdge <= SCREEN_WIDTH && bottomEdge <= SCREEN_HEIGHT && leftEdge >= 0) {
-                const noOverlap = positions.every((existingPos) => {
-                  const dx = testPos.x - existingPos.x;
-                  const dy = testPos.y - existingPos.y;
-                  const distance = Math.sqrt(dx * dx + dy * dy);
-                  const avatarMinDistance = avatarRadius * 2 + 10;
-                  return distance >= minSpacing && distance >= avatarMinDistance;
-                });
-                
-                if (noOverlap) {
-                  position = testPos;
-                  adjusted = true;
-                  break;
-                }
-              }
-            }
-          }
+        if (
+          topEdge >= 0 &&
+          rightEdge <= SCREEN_WIDTH &&
+          bottomEdge <= SCREEN_HEIGHT &&
+          leftEdge >= 0
+        ) {
+          positions.push(saved);
+          return;
         }
       }
       
-      positions.push(position!);
+      // Use grid layout for new or invalid positions
+      const row = Math.floor(index / cols);
+      const col = index % cols;
+      
+      let position = {
+        x: padding + (col * spacingX),
+        y: topPadding + (row * spacingY),
+      };
+      
+      // Ensure position keeps EX zone in viewport - clamp if needed
+      position.x = Math.max(padding + exZoneRadius, Math.min(SCREEN_WIDTH - padding - exZoneRadius, position.x));
+      position.y = Math.max(topPadding + exZoneRadius, Math.min(SCREEN_HEIGHT - bottomPadding - exZoneRadius, position.y));
+      
+      positions.push(position);
     });
     
     return positions;
-  }, [profiles]);
+  }, [profiles, savedPositions, positionsLoaded]);
   
-  // Initialize positions state from calculated positions
+  // Initialize positions state from calculated positions (wait for saved positions to load)
   React.useEffect(() => {
-    if (initialAvatarPositions.length > 0 && avatarPositionsState.size === 0) {
+    if (positionsLoaded && initialAvatarPositions.length > 0 && avatarPositionsState.size === 0) {
       const newPositions = new Map<string, { x: number; y: number }>();
       profiles.forEach((profile, index) => {
         newPositions.set(profile.id, initialAvatarPositions[index]);
       });
       setAvatarPositionsState(newPositions);
     }
-  }, [initialAvatarPositions, profiles, avatarPositionsState.size]);
+  }, [initialAvatarPositions, profiles, avatarPositionsState.size, positionsLoaded]);
   
   // Get current position for a profile (either from state or initial)
   const getAvatarPosition = (profileId: string, index: number) => {
     return avatarPositionsState.get(profileId) || initialAvatarPositions[index] || { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
   };
   
-  // Update position for a profile
-  const updateAvatarPosition = (profileId: string, newPosition: { x: number; y: number }) => {
+  // Update position for a profile and save to storage
+  const updateAvatarPosition = React.useCallback(async (profileId: string, newPosition: { x: number; y: number }) => {
     setAvatarPositionsState((prev) => {
       const next = new Map(prev);
       next.set(profileId, newPosition);
+      
+      // Save to AsyncStorage asynchronously
+      const positionsObj: Record<string, { x: number; y: number }> = {};
+      next.forEach((pos, id) => {
+        positionsObj[id] = pos;
+      });
+      AsyncStorage.setItem(AVATAR_POSITIONS_KEY, JSON.stringify(positionsObj)).catch((error) => {
+        console.error('Error saving avatar positions:', error);
+      });
+      
       return next;
     });
-  };
+  }, []);
 
   // No need for minHeight calculation since we're fitting within viewport
   const minHeight = SCREEN_HEIGHT;
@@ -1129,6 +1581,7 @@ export default function HomeScreen() {
 
   // Focused state management - must be at top level
   const [focusedProfileId, setFocusedProfileId] = useState<string | null>(null);
+  const [focusedMemory, setFocusedMemory] = useState<{ profileId: string; memoryId: string } | null>(null);
   // Track previous focused profile to handle shrink animation
   const previousFocusedIdRef = useRef<string | null>(null);
   
@@ -1148,21 +1601,39 @@ export default function HomeScreen() {
   React.useEffect(() => {
     if (animationsReady) {
       // Animate smoothly when focusing or unfocusing
-      if (focusedProfileId) {
+      // Keep other ex-es hidden if either profile OR memory is focused
+      if (focusedProfileId || focusedMemory) {
         // Slide other zones out
         slideOffset.value = withSpring(SCREEN_WIDTH * 2, {
           damping: 20,
           stiffness: 100,
         });
       } else {
-        // Slide other zones back in - use same spring animation for consistency
+        // Slide other zones back in - only when both profile and memory are unfocused
         slideOffset.value = withSpring(0, {
           damping: 20,
           stiffness: 100,
         });
       }
     }
-  }, [focusedProfileId, animationsReady, slideOffset]);
+  }, [focusedProfileId, focusedMemory, animationsReady, slideOffset]);
+  
+  // Slide offset for non-focused memories when a memory is focused
+  const memorySlideOffset = useSharedValue(0);
+  
+  React.useEffect(() => {
+    if (focusedMemory) {
+      memorySlideOffset.value = withSpring(SCREEN_WIDTH * 2, {
+        damping: 20,
+        stiffness: 100,
+      });
+    } else {
+      memorySlideOffset.value = withSpring(0, {
+        damping: 20,
+        stiffness: 100,
+      });
+    }
+  }, [focusedMemory, memorySlideOffset]);
 
   if (profiles.length === 0) {
     return (
@@ -1180,9 +1651,17 @@ export default function HomeScreen() {
     <TabScreenContainer>
       <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
         {/* Back button - only visible when focused */}
-        {focusedProfileId && (
+        {(focusedProfileId || focusedMemory) && (
           <Pressable
-            onPress={() => setFocusedProfileId(null)}
+            onPress={() => {
+              if (focusedMemory) {
+                // If memory is focused, just unfocus the memory, keep profile focused
+                setFocusedMemory(null);
+              } else {
+                // If only profile is focused, unfocus it (this will bring back other ex-es)
+                setFocusedProfileId(null);
+              }
+            }}
             style={{
               position: 'absolute',
               top: 50,
@@ -1210,6 +1689,7 @@ export default function HomeScreen() {
             const memories = getIdealizedMemoriesByProfileId(profile.id);
             const currentPosition = getAvatarPosition(profile.id, index);
             const isFocused = focusedProfileId === profile.id;
+            const isProfileFocusedForMemory = focusedMemory?.profileId === profile.id;
             
             // Determine slide direction for non-focused zones - push in different directions
             // Use profile position to determine direction for more natural movement
@@ -1224,36 +1704,82 @@ export default function HomeScreen() {
             return (
               <NonFocusedZone
                 key={profile.id}
-                isFocused={isFocused}
-                wasJustFocused={previousFocusedIdRef.current === profile.id && !focusedProfileId}
+                isFocused={isFocused || isProfileFocusedForMemory}
+                wasJustFocused={previousFocusedIdRef.current === profile.id && !focusedProfileId && !focusedMemory}
                 focusedProfileId={focusedProfileId}
                 slideOffset={slideOffset}
                 slideDirectionX={slideDirectionX}
                 slideDirectionY={slideDirectionY}
               >
-                <FloatingAvatar
-                  profile={profile}
-                  position={currentPosition}
-                  memories={memories}
-                  onPress={() => {
-                    if (!isFocused) {
-                      router.push({
-                        pathname: '/edit-profile',
-                        params: { profileId: profile.id },
-                      });
-                    }
-                  }}
-                  onDoubleTap={() => {
-                    setFocusedProfileId(isFocused ? null : profile.id);
-                  }}
-                  onPositionChange={(newPosition) => updateAvatarPosition(profile.id, newPosition)}
-                  isFocused={isFocused}
-                  colors={colors}
-                  colorScheme={colorScheme ?? 'dark'}
-                />
+                {!isProfileFocusedForMemory && (
+                  <FloatingAvatar
+                    profile={profile}
+                    position={currentPosition}
+                    memories={memories}
+                    onPress={() => {
+                      if (!isFocused && !focusedMemory) {
+                        router.push({
+                          pathname: '/edit-profile',
+                          params: { profileId: profile.id },
+                        });
+                      }
+                    }}
+                    onDoubleTap={() => {
+                      console.log(`[HomeScreen] onDoubleTap called for profile: ${profile.id}, current focused: ${focusedProfileId}, isFocused: ${isFocused}`);
+                      const newFocusedId = isFocused ? null : profile.id;
+                      console.log(`[HomeScreen] Setting focusedProfileId to: ${newFocusedId}`);
+                      setFocusedProfileId(newFocusedId);
+                      setFocusedMemory(null); // Clear memory focus if profile is focused
+                    }}
+                    onPositionChange={(newPosition) => updateAvatarPosition(profile.id, newPosition)}
+                    isFocused={isFocused}
+                    colors={colors}
+                    colorScheme={colorScheme ?? 'dark'}
+                    focusedMemory={focusedMemory}
+                    memorySlideOffset={memorySlideOffset}
+                    onMemoryDoubleTap={(profileId, memoryId) => {
+                      console.log('[HomeScreen] Memory double tap - profile:', profileId, 'memory:', memoryId);
+                      setFocusedMemory({ profileId, memoryId });
+                      // Keep the profile focused when focusing a memory
+                      // Don't clear focusedProfileId - we want to stay in the focused ex view
+                    }}
+                  />
+                )}
               </NonFocusedZone>
             );
           })}
+          
+          {/* Render focused memory separately when memory is focused */}
+          {focusedMemory && animationsReady && (() => {
+            const focusedProfile = profiles.find(p => p.id === focusedMemory.profileId);
+            if (!focusedProfile) return null;
+            
+            const focusedMemoryData = getIdealizedMemoriesByProfileId(focusedMemory.profileId)
+              .find(m => m.id === focusedMemory.memoryId);
+            if (!focusedMemoryData) return null;
+            
+            return (
+              <FloatingMemory
+                key={`focused-memory-${focusedMemory.memoryId}`}
+                memory={focusedMemoryData}
+                position={{ x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 }}
+                avatarPanX={undefined}
+                avatarPanY={undefined}
+                focusedX={undefined}
+                focusedY={undefined}
+                offsetX={0}
+                offsetY={0}
+                isFocused={true}
+                colorScheme={colorScheme ?? 'dark'}
+                calculatedMemorySize={100}
+                onDoubleTap={() => {
+                  setFocusedMemory(null);
+                }}
+                isMemoryFocused={true}
+                memorySlideOffset={memorySlideOffset}
+              />
+            );
+          })()}
         </View>
       </View>
     </TabScreenContainer>
@@ -1322,6 +1848,7 @@ function NonFocusedZone({
           position: 'absolute',
           width: SCREEN_WIDTH,
           height: SCREEN_HEIGHT,
+          pointerEvents: 'box-none', // Allow touches to pass through to children
         },
         nonFocusedStyle,
       ]}
