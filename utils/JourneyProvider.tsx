@@ -214,6 +214,10 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         
         // Save to storage after state update
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProfiles));
+        console.log('[JourneyProvider] Saved profile to storage:', newProfile.id, 'Total profiles:', updatedProfiles.length);
+        
+        // Also explicitly set state to ensure it's in sync
+        setProfiles(updatedProfiles);
       } catch (error) {
         console.error('Error saving profile:', error);
         throw error;
@@ -350,15 +354,35 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       
       // Save to storage after state update
       await saveIdealizedMemoriesToStorage(updatedMemories);
+      console.log('[JourneyProvider] Saved memory to storage:', newMemory.id, 'for profile:', profileId, 'Total memories:', updatedMemories.length);
+      
+      // Also update the state immediately to ensure it's in sync
+      setIdealizedMemories(updatedMemories);
 
       // Update profile setup progress based on new memory count
+      // Use updatedMemories instead of idealizedMemories state to avoid stale data
       const profile = profiles.find((p) => p.id === profileId);
       if (profile) {
-        // setupProgress will be recalculated in updateProfile with new memory count
-        await updateProfile(profileId, {});
+        const memoryCount = updatedMemories.filter(m => m.profileId === profileId).length;
+        const updatedProfile = {
+          ...profile,
+          updatedAt: new Date().toISOString(),
+        };
+        updatedProfile.setupProgress = calculateSetupProgress(updatedProfile, memoryCount);
+        updatedProfile.isCompleted = updatedProfile.setupProgress === 100;
+        
+        // Update profile in storage
+        const updatedProfiles = profiles.map((p) => {
+          if (p.id === profileId) {
+            return updatedProfile;
+          }
+          return p;
+        });
+        await updateProfilesInStorage(updatedProfiles);
+        console.log('[JourneyProvider] Updated profile progress:', profileId, 'Progress:', updatedProfile.setupProgress, 'Memories:', memoryCount);
       }
     },
-    [profiles, saveIdealizedMemoriesToStorage, updateProfile]
+    [profiles, saveIdealizedMemoriesToStorage, updateProfilesInStorage]
   );
 
   const updateIdealizedMemory = useCallback(

@@ -211,7 +211,8 @@ export default function SettingsScreen() {
 
       // Define multiple fake profiles with different names and characteristics
       // Two ex partners with consecutive years, one current partner with 5 memories (more suns than clouds)
-      // Max 10 memories per profile
+      // At least 5 memories, max 10 memories per profile
+      // Each memory should have between 5-10 total moments (clouds + suns)
       const fakeProfiles = [
         { name: 'Mark Johnson', description: 'College sweetheart, first love', startDate: '2020-01-15', endDate: '2021-12-31', memoryCount: 10 },
         { name: 'Emma Williams', description: 'High school romance', startDate: '2021-01-01', endDate: '2022-12-31', memoryCount: 10 },
@@ -304,35 +305,25 @@ export default function SettingsScreen() {
               let numClouds: number;
               let numSuns: number;
               
-              // For current partner (ongoing), ensure more suns than clouds overall
+              // Each memory should have between 5-10 total moments (clouds + suns)
+              const totalMoments = Math.floor(Math.random() * 6) + 5; // 5-10 total moments
+              
+              // For current partner (ongoing), ensure more suns than clouds
               if (profileData.ongoing) {
-                // Current partner: create positive memories with more suns than clouds
-                // Each memory should have more suns than clouds
-                numClouds = Math.floor(Math.random() * 4) + 2;   // 2-5 clouds
-                numSuns = Math.floor(Math.random() * 6) + 6;     // 6-11 suns (always more than clouds)
+                // Current partner: more suns than clouds
+                // Use 2 clouds max, rest are suns (ensures suns > clouds when totalMoments >= 5)
+                numClouds = 2; // Fixed at 2 clouds
+                numSuns = totalMoments - numClouds; // Rest are suns (will be 3-8, always more than clouds)
               } else {
-                // Ex partners: bias towards more negative moments (more clouds than suns)
-                // Use weighted distribution: 60% very negative, 20% negative, 15% balanced, 5% positive
-                const random = Math.random();
-                
-                if (random < 0.6) {
-                  // Very negative memories (60%): many clouds, few suns
-                  numClouds = Math.floor(Math.random() * 10) + 10; // 10-19 clouds
-                  numSuns = Math.floor(Math.random() * 3) + 1;     // 1-3 suns
-                } else if (random < 0.8) {
-                  // Negative memories (20%): more clouds than suns
-                  numClouds = Math.floor(Math.random() * 8) + 8;    // 8-15 clouds
-                  numSuns = Math.floor(Math.random() * 5) + 2;     // 2-6 suns
-                } else if (random < 0.95) {
-                  // Balanced memories (15%): roughly equal
-                  numClouds = Math.floor(Math.random() * 6) + 5;    // 5-10 clouds
-                  numSuns = Math.floor(Math.random() * 6) + 4;     // 4-9 suns
-                } else {
-                  // Positive memories (5%): more suns, but still some clouds
-                  numClouds = Math.floor(Math.random() * 4) + 2;   // 2-5 clouds
-                  numSuns = Math.floor(Math.random() * 8) + 6;     // 6-13 suns
-                }
+                // Ex partners: more clouds than suns
+                // Use 2 suns max, rest are clouds (ensures clouds > suns when totalMoments >= 5)
+                numSuns = 2; // Fixed at 2 suns
+                numClouds = totalMoments - numSuns; // Rest are clouds (will be 3-8, always more than suns)
               }
+              
+              // Verify we have at least 1 of each
+              if (numClouds < 1) numClouds = 1;
+              if (numSuns < 1) numSuns = 1;
               
               const hardTruths = [];
               for (let j = 0; j < numClouds; j++) {

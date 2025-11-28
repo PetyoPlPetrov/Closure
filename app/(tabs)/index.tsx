@@ -217,14 +217,13 @@ function DraggableMoment({
 }
 
 // Floating Avatar Component
-function FloatingAvatar({
+const FloatingAvatar = React.memo(function FloatingAvatar({
   profile,
   position,
   memories,
   onPress,
   colors,
   colorScheme,
-  onPositionChange,
   isFocused,
   focusedMemory,
   memorySlideOffset,
@@ -237,7 +236,6 @@ function FloatingAvatar({
   onPress: () => void;
   colors: any;
   colorScheme: 'light' | 'dark';
-  onPositionChange: (newPosition: { x: number; y: number }) => void;
   isFocused: boolean;
   focusedMemory?: { profileId: string; memoryId: string } | null;
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
@@ -247,8 +245,18 @@ function FloatingAvatar({
   const baseAvatarSize = 80;
   const focusedAvatarSize = 100; // Smaller focused size so memories fit
   const avatarSize = isFocused ? focusedAvatarSize : baseAvatarSize;
-  // Memory radius - closer to avatar for more compact layout
-  const memoryRadius = isFocused ? 135 : 60; // Slightly further when focused
+  // Memory radius - when focused, push memories further from partner
+  // Maximum distance from center to edge is min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
+  // We need: memoryRadius + maxMemorySize/2 + maxMomentRadius + maxMomentSize/2 <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
+  // Estimate: maxMemorySize ~45 (half of previous), maxMomentRadius ~40, maxMomentSize ~12, padding ~30
+  // So: memoryRadius <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2) - 22.5 - 40 - 6 - 30 = min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2) - 98.5
+  const maxDistanceFromCenter = Math.min(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+  const estimatedMaxMemorySize = 45; // Updated for half-size memories
+  const estimatedMaxMomentRadius = 40;
+  const estimatedMaxMomentSize = 12;
+  const safetyPadding = 30;
+  const maxAllowedRadius = maxDistanceFromCenter - estimatedMaxMemorySize / 2 - estimatedMaxMomentRadius - estimatedMaxMomentSize / 2 - safetyPadding;
+  const memoryRadius = isFocused ? Math.min(170, maxAllowedRadius) : 60; // Push memories further when focused (increased from 135 to 170)
   const exZoneRadius = isFocused ? 215 : 120; // Adjusted zone when memories are further
   
   // Calculate sunny moments percentage for progress bar
@@ -285,7 +293,6 @@ function FloatingAvatar({
   const floatAnimation = useSharedValue(0);
   const panX = useSharedValue(position.x);
   const panY = useSharedValue(position.y);
-  const isDragging = useSharedValue(false);
   
   // Create individual animated values for each memory with different speeds
   // Create enough for up to 25 memories to support profiles with many memories
@@ -406,9 +413,8 @@ function FloatingAvatar({
     () => ({
       avatarX: panX.value,
       avatarY: panY.value,
-      dragging: isDragging.value,
     }),
-    (current: { avatarX: number; avatarY: number; dragging: boolean }) => {
+    (current: { avatarX: number; avatarY: number }) => {
       'worklet';
       // Update each memory's position with its own spring parameters
       // The dramatic variation in damping/stiffness will create visible speed differences
@@ -432,118 +438,6 @@ function FloatingAvatar({
     }
   );
 
-  const panResponder = React.useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => {
-          console.log(`[FloatingAvatar] onStartShouldSetPanResponder called for profile: ${profile.id}, returning false`);
-          return false; // Don't capture immediately, let Pressable handle taps
-        },
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          // Only capture if there's significant movement (dragging)
-          const { dx, dy } = gestureState;
-          const shouldCapture = Math.abs(dx) > 5 || Math.abs(dy) > 5;
-          if (shouldCapture) {
-            console.log(`[FloatingAvatar] onMoveShouldSetPanResponder: significant movement detected (dx: ${dx}, dy: ${dy}) for profile: ${profile.id}`);
-          }
-          return shouldCapture;
-        },
-        onPanResponderGrant: () => {
-          // Stop floating animation while dragging
-          floatAnimation.value = 0;
-          isDragging.value = true;
-        },
-        onPanResponderMove: (_, gestureState) => {
-          const newX = position.x + gestureState.dx;
-          const newY = position.y + gestureState.dy;
-          
-          // Constrain to year section if available, otherwise use viewport bounds
-          let minY, maxY, minX, maxX;
-          if (yearSection) {
-            // Strictly constrain to year section - avatar center must stay within bounds
-            const avatarHalfSize = avatarSize / 2;
-            minY = yearSection.top + exZoneRadius;
-            maxY = yearSection.bottom - exZoneRadius;
-            // Ensure avatar itself doesn't go outside section
-            minY = Math.max(minY, yearSection.top + avatarHalfSize);
-            maxY = Math.min(maxY, yearSection.bottom - avatarHalfSize);
-            
-            // X bounds: keep within viewport but also ensure memories don't go outside
-            minX = exZoneRadius;
-            maxX = SCREEN_WIDTH - exZoneRadius;
-          } else {
-            // Fallback to viewport bounds
-            const avatarHalfSize = avatarSize / 2;
-            minY = avatarHalfSize;
-            maxY = SCREEN_HEIGHT - avatarHalfSize;
-            minX = exZoneRadius;
-            maxX = SCREEN_WIDTH - exZoneRadius;
-          }
-          
-          const constrainedX = Math.max(minX, Math.min(maxX, newX));
-          const constrainedY = Math.max(minY, Math.min(maxY, newY));
-          
-          // Avatar moves immediately
-          panX.value = constrainedX;
-          panY.value = constrainedY;
-          // Memories will follow via the useAnimatedReaction above
-        },
-        onPanResponderRelease: (_, gestureState) => {
-          const newX = position.x + gestureState.dx;
-          const newY = position.y + gestureState.dy;
-          
-          // Constrain to year section if available, otherwise use viewport bounds
-          let minY, maxY, minX, maxX;
-          if (yearSection) {
-            // Strictly constrain to year section - avatar center must stay within bounds
-            const avatarHalfSize = avatarSize / 2;
-            minY = yearSection.top + exZoneRadius;
-            maxY = yearSection.bottom - exZoneRadius;
-            // Ensure avatar itself doesn't go outside section
-            minY = Math.max(minY, yearSection.top + avatarHalfSize);
-            maxY = Math.min(maxY, yearSection.bottom - avatarHalfSize);
-            
-            // X bounds: keep within viewport but also ensure memories don't go outside
-            minX = exZoneRadius;
-            maxX = SCREEN_WIDTH - exZoneRadius;
-          } else {
-            // Fallback to viewport bounds
-            const avatarHalfSize = avatarSize / 2;
-            minY = avatarHalfSize;
-            maxY = SCREEN_HEIGHT - avatarHalfSize;
-            minX = exZoneRadius;
-            maxX = SCREEN_WIDTH - exZoneRadius;
-          }
-          
-          const constrainedX = Math.max(minX, Math.min(maxX, newX));
-          const constrainedY = Math.max(minY, Math.min(maxY, newY));
-          
-          // Update avatar position with spring animation
-          panX.value = withSpring(constrainedX);
-          panY.value = withSpring(constrainedY);
-          
-          // Memories will catch up via the useAnimatedReaction
-          isDragging.value = false;
-          
-          // Notify parent of position change
-          onPositionChange({ x: constrainedX, y: constrainedY });
-          
-          // Resume floating animation after a delay
-          setTimeout(() => {
-            floatAnimation.value = withRepeat(
-              withSequence(
-                withTiming(1, { duration: 2000 }),
-                withTiming(0, { duration: 2000 })
-              ),
-              -1,
-              true
-            );
-          }, 300);
-        },
-      }),
-      // SharedValues are stable references, but included to satisfy linter
-     [position, onPositionChange, floatAnimation, isDragging, panX, panY, exZoneRadius, profile.id, yearSection, avatarSize]
-   );
 
   // Scale animation for focused state - avatar scales to 1.5x (smaller to fit memories)
   const scale = useSharedValue(isFocused ? 1.5 : 1);
@@ -661,7 +555,6 @@ function FloatingAvatar({
           },
           animatedStyle,
         ]}
-        {...(!isFocused ? panResponder.panHandlers : {})}
       >
         <Pressable
           style={{ pointerEvents: 'auto' }} // Ensure Pressable can receive touches
@@ -767,40 +660,79 @@ function FloatingAvatar({
         // Safety check: if we have more memories than animated values, use the last available one
         const memAnimatedValues = memoryAnimatedValues[originalIndex] || memoryAnimatedValues[memoryAnimatedValues.length - 1];
         
-        // Initial position for first render
+        // When focused, avatar is centered on screen, so use centered position for memory calculations
+        const avatarCenterX = isFocused ? SCREEN_WIDTH / 2 : position.x;
+        const avatarCenterY = isFocused ? SCREEN_HEIGHT / 2 : position.y;
+        
+        // Initial position for first render - use centered position when focused
         const initialMemPos = {
-          x: position.x + memPosData.offsetX,
-          y: position.y + memPosData.offsetY,
+          x: avatarCenterX + memPosData.offsetX,
+          y: avatarCenterY + memPosData.offsetY,
         };
         
         // Calculate maximum memory size based on viewport constraints
         // Worst case: memory at memoryRadius from avatar, with moments orbiting at maxMomentRadius from memory
         // We need to ensure the entire EX zone fits: avatar + memoryRadius + memorySize/2 + maxMomentRadius + maxMomentSize/2 <= viewport edge
-        const cloudSize = isFocused ? 20 : 24;
-        const sunSize = isFocused ? 18 : 22;
+        const cloudSize = isFocused ? 12 : 24;
+        const sunSize = isFocused ? 10 : 22;
         const maxMomentSize = Math.max(cloudSize, sunSize);
         const cloudRadius = isFocused ? 40 : 25;
         const sunRadius = isFocused ? 38 : 22;
         const maxMomentRadius = Math.max(cloudRadius, sunRadius);
         
-        // Calculate distances from avatar center to nearest viewport edges
-        // This ensures memories fit even when avatar is near edges
-        const distanceToLeft = position.x;
-        const distanceToRight = SCREEN_WIDTH - position.x;
-        const distanceToTop = position.y;
-        const distanceToBottom = SCREEN_HEIGHT - position.y;
+        // Calculate distances from memory center (avatar + offset) to nearest viewport edges
+        // This ensures each memory fits within the viewport
+        // When focused, use centered avatar position
+        const memoryCenterX = avatarCenterX + memPosData.offsetX;
+        const memoryCenterY = avatarCenterY + memPosData.offsetY;
+        const distanceToLeft = memoryCenterX;
+        const distanceToRight = SCREEN_WIDTH - memoryCenterX;
+        const distanceToTop = memoryCenterY;
+        const distanceToBottom = SCREEN_HEIGHT - memoryCenterY;
         const minDistanceToEdge = Math.min(distanceToLeft, distanceToRight, distanceToTop, distanceToBottom);
         
-        // Calculate maximum memory size that fits
-        // Total distance from avatar to furthest moment edge = memoryRadius + memorySize/2 + maxMomentRadius + maxMomentSize/2
-        // We need: memoryRadius + memorySize/2 + maxMomentRadius + maxMomentSize/2 <= minDistanceToEdge
-        // Solving for memorySize: memorySize <= 2 * (minDistanceToEdge - memoryRadius - maxMomentRadius - maxMomentSize/2 - padding)
-        const padding = 20; // Extra safety padding to ensure nothing goes outside viewport
-        const availableSpace = minDistanceToEdge - memoryRadius - maxMomentRadius - maxMomentSize / 2 - padding;
-        const calculatedMaxMemorySize = Math.max(30, Math.min(100, availableSpace * 2)); // Clamp between 30 and 100
+        // Calculate maximum memory size that fits for this specific memory position
+        // Total distance from memory center to furthest moment edge = memorySize/2 + maxMomentRadius + maxMomentSize/2
+        // We need: memorySize/2 + maxMomentRadius + maxMomentSize/2 <= minDistanceToEdge
+        // Solving for memorySize: memorySize <= 2 * (minDistanceToEdge - maxMomentRadius - maxMomentSize/2 - padding)
+        const padding = 30; // Extra safety padding to ensure nothing goes outside viewport
+        const availableSpace = minDistanceToEdge - maxMomentRadius - maxMomentSize / 2 - padding;
+        // Cap the maximum memory size - when focused, max should be around 50px (half of previous)
+        const maxAllowedSize = isFocused ? focusedAvatarSize * 0.5 : 100; // 50px when focused, 100px otherwise
+        const calculatedMaxMemorySize = Math.max(20, Math.min(availableSpace * 2, maxAllowedSize));
         
-        // Use the calculated size, but prefer focused/unfocused sizes if they're smaller
-        const baseMemorySize = isFocused ? 65 : 50;
+        // Calculate moment count for this memory to scale size
+        const momentCount = (memory.hardTruths || []).length + (memory.goodFacts || []).length;
+        
+        // Calculate min and max moment counts across all memories for scaling
+        const allMomentCounts = memories.map(m => 
+          ((m.hardTruths || []).length + (m.goodFacts || []).length)
+        );
+        const minMomentsCount = Math.min(...allMomentCounts, 0);
+        const maxMomentsCount = Math.max(...allMomentCounts, 1);
+        
+        // Scale memory size based on moment count when focused
+        let baseMemorySize: number;
+        if (isFocused) {
+          // Base size is 35% of focused avatar size (35px - half of previous 70px)
+          const baseSize = focusedAvatarSize * 0.35; // 35px
+          
+          if (maxMomentsCount > minMomentsCount) {
+            // Scale from base size (35px) to up to 45% of avatar size (45px) based on moment count
+            // More moments = bigger memory, but keep it smaller than avatar
+            const momentsFactor = (momentCount - minMomentsCount) / (maxMomentsCount - minMomentsCount);
+            // Scale from 35px (fewest moments) to 45px (most moments, 45% of avatar)
+            const maxSize = focusedAvatarSize * 0.45; // 45px (45% of 100px avatar)
+            baseMemorySize = baseSize + (momentsFactor * (maxSize - baseSize)); // Range: 35 to 45
+          } else {
+            // All memories have same moment count, use base size (35% of avatar)
+            baseMemorySize = baseSize; // 35px
+          }
+        } else {
+          // Not focused, use smaller size
+          baseMemorySize = 50;
+        }
+        
         const memorySize = Math.min(baseMemorySize, calculatedMaxMemorySize);
         
         return (
@@ -826,10 +758,714 @@ function FloatingAvatar({
       })}
     </>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function to prevent unnecessary re-renders
+  return (
+    prevProps.profile.id === nextProps.profile.id &&
+    prevProps.position.x === nextProps.position.x &&
+    prevProps.position.y === nextProps.position.y &&
+    prevProps.memories.length === nextProps.memories.length &&
+    prevProps.isFocused === nextProps.isFocused &&
+    prevProps.focusedMemory?.profileId === nextProps.focusedMemory?.profileId &&
+    prevProps.focusedMemory?.memoryId === nextProps.focusedMemory?.memoryId &&
+    prevProps.yearSection?.year === nextProps.yearSection?.year &&
+    prevProps.yearSection?.top === nextProps.yearSection?.top &&
+    prevProps.yearSection?.bottom === nextProps.yearSection?.bottom
+  );
+});
+
+// Memory Moments Renderer Component (extracted from IIFE)
+const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
+  clouds,
+  suns,
+  isFocused,
+  isMemoryFocused,
+  visibleMomentIds,
+  calculateClampedPosition,
+  cloudWidth,
+  cloudHeight,
+  sunWidth,
+  sunHeight,
+  memorySize,
+  cloudPositions,
+  sunPositions,
+  position,
+  memoryAnimatedPosition,
+  avatarPanX,
+  avatarPanY,
+  focusedX,
+  focusedY,
+  offsetX,
+  offsetY,
+  cloudZIndex,
+  sunZIndex,
+  colorScheme,
+  onDoubleTap,
+  onUpdateMemory,
+  newlyCreatedMoments,
+  memory,
+}: {
+  clouds: any[];
+  suns: any[];
+  isFocused: boolean;
+  isMemoryFocused: boolean;
+  visibleMomentIds: Set<string>;
+  calculateClampedPosition: (savedX: number | undefined, savedY: number | undefined, momentWidth: number, momentHeight: number, index: number, totalCount: number, memorySize: number, momentType: 'cloud' | 'sun') => { x: number; y: number };
+  cloudWidth: number;
+  cloudHeight: number;
+  sunWidth: number;
+  sunHeight: number;
+  memorySize: number;
+  cloudPositions: { angle: number; offsetX: number; offsetY: number }[];
+  sunPositions: { angle: number; offsetX: number; offsetY: number }[];
+  position: { x: number; y: number };
+  memoryAnimatedPosition: any;
+  avatarPanX?: any;
+  avatarPanY?: any;
+  focusedX?: any;
+  focusedY?: any;
+  offsetX: number;
+  offsetY: number;
+  cloudZIndex: number;
+  sunZIndex: number;
+  colorScheme: 'light' | 'dark';
+  onDoubleTap?: () => void;
+  onUpdateMemory?: (updates: Partial<any>) => Promise<void>;
+  newlyCreatedMoments: Map<string, { startX: number; startY: number }>;
+  memory: any;
+}) {
+  return (
+    <>
+      {/* Floating Clouds around Memory - only show when profile is focused */}
+      {isFocused && clouds
+        .filter((cloud: any) => {
+          // When memory is focused, only show visible moments
+          if (isMemoryFocused) {
+            return cloud?.id && visibleMomentIds.has(cloud.id);
+          }
+          return true;
+        })
+        .map((cloud: any, cloudIndex: number) => {
+        // Additional safety check
+        if (!cloud || typeof cloud !== 'object') {
+          console.warn(`[FloatingMemory] Invalid cloud at index ${cloudIndex}:`, cloud);
+          return null;
+        }
+        
+        // When memory is focused, use saved positions from memory data
+        // Otherwise use calculated positions
+        if (isMemoryFocused) {
+          // Calculate and clamp position to ensure it's within viewport and well distributed
+          const clampedPos = calculateClampedPosition(
+            cloud.x,
+            cloud.y,
+            cloudWidth,
+            cloudHeight,
+            cloudIndex,
+            clouds.length,
+            memorySize,
+            'cloud'
+          );
+          const cloudX = clampedPos.x;
+          const cloudY = clampedPos.y;
+          
+          const handlePositionChange = async (x: number, y: number) => {
+            if (onUpdateMemory) {
+              // Update the cloud's position in memory
+              const updatedHardTruths = (memory.hardTruths || []).map((truth: any) =>
+                truth.id === cloud.id ? { ...truth, x, y } : truth
+              );
+              await onUpdateMemory({ hardTruths: updatedHardTruths });
+            }
+          };
+          
+          const startPos = newlyCreatedMoments.get(cloud.id);
+          return (
+            <DraggableMoment
+              key={`cloud-focused-${cloud?.id || cloudIndex}`}
+              initialX={cloudX}
+              initialY={cloudY}
+              width={cloudWidth}
+              height={cloudHeight}
+              zIndex={cloudZIndex}
+              onPositionChange={handlePositionChange}
+              onPress={onDoubleTap}
+              entranceDelay={startPos ? 0 : cloudIndex * 100} // No delay for newly created moments
+              startX={startPos?.startX}
+              startY={startPos?.startY}
+            >
+              <Svg 
+                width={cloudWidth} 
+                height={cloudHeight} 
+                viewBox="0 0 320 100"
+                preserveAspectRatio="xMidYMid meet"
+                style={{ position: 'absolute', top: 0, left: 0 }}
+              >
+                <Defs>
+                  <SvgLinearGradient id={`cloudGradient-${cloud.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                    <Stop offset="0%" stopColor="#2C3E50" stopOpacity="0.95" />
+                    <Stop offset="50%" stopColor="#1A1A1A" stopOpacity="0.98" />
+                    <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
+                  </SvgLinearGradient>
+                </Defs>
+                <Path
+                  d="M50,50 
+                     Q40,35 50,25 
+                     Q60,15 75,20 
+                     Q85,10 100,20 
+                     Q115,10 130,20 
+                     Q145,10 160,20 
+                     Q175,10 190,20 
+                     Q205,10 220,20 
+                     Q235,10 250,20 
+                     Q265,15 270,25 
+                     Q280,35 270,50 
+                     Q280,65 270,75 
+                     Q260,85 245,80 
+                     Q230,90 220,85 
+                     Q205,95 190,85 
+                     Q175,95 160,85 
+                     Q145,95 130,85 
+                     Q115,95 100,85 
+                     Q85,90 75,80 
+                     Q60,85 50,75 
+                     Q40,65 50,50 Z"
+                  fill={`url(#cloudGradient-${cloud.id})`}
+                  stroke="rgba(0,0,0,0.7)"
+                  strokeWidth={1.5}
+                />
+              </Svg>
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: cloudWidth,
+                  height: cloudHeight,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  paddingHorizontal: 20,
+                }}
+              >
+                <ThemedText
+                  style={{
+                    color: 'rgba(255,255,255,0.9)',
+                    fontSize: 14,
+                    textAlign: 'center',
+                    fontWeight: '500',
+                  }}
+                >
+                  {cloud.text}
+                </ThemedText>
+              </View>
+            </DraggableMoment>
+          );
+        }
+        
+        // Not focused - use small circular cloud
+        const cloudPosData = cloudPositions[cloudIndex];
+        if (!cloudPosData) {
+          console.warn(`[FloatingMemory] Missing cloud position data at index ${cloudIndex}`);
+          return null;
+        }
+        
+        const memoryCenterX = position.x;
+        const memoryCenterY = position.y;
+        const initialCloudPos = {
+          x: memoryCenterX + cloudPosData.offsetX,
+          y: memoryCenterY + cloudPosData.offsetY,
+        };
+        
+        return (
+          <FloatingCloud
+            key={`cloud-${cloud?.id || cloudIndex}-${cloudIndex}`}
+            cloud={cloud}
+            position={initialCloudPos}
+            memoryAnimatedPosition={memoryAnimatedPosition}
+            avatarPanX={avatarPanX}
+            avatarPanY={avatarPanY}
+            focusedX={focusedX}
+            focusedY={focusedY}
+            memoryOffsetX={offsetX}
+            memoryOffsetY={offsetY}
+            offsetX={cloudPosData.offsetX}
+            offsetY={cloudPosData.offsetY}
+            zIndex={cloudZIndex}
+            isFocused={!!isFocused}
+            colorScheme={colorScheme}
+            onPress={onDoubleTap}
+          />
+        );
+      })}
+
+      {/* Floating Suns around Memory - only show when profile is focused */}
+      {isFocused && suns
+        .filter((sun: any) => {
+          // When memory is focused, only show visible moments
+          if (isMemoryFocused) {
+            return sun?.id && visibleMomentIds.has(sun.id);
+          }
+          return true;
+        })
+        .map((sun: any, sunIndex: number) => {
+        // When memory is focused, use saved positions from memory data
+        if (isMemoryFocused) {
+          // Calculate and clamp position to ensure it's within viewport and well distributed
+          const clampedPos = calculateClampedPosition(
+            sun.x,
+            sun.y,
+            sunWidth,
+            sunHeight,
+            sunIndex,
+            suns.length,
+            memorySize,
+            'sun'
+          );
+          const sunX = clampedPos.x;
+          const sunY = clampedPos.y;
+          
+          const handlePositionChange = async (x: number, y: number) => {
+            if (onUpdateMemory) {
+              // Update the sun's position in memory
+              const updatedGoodFacts = (memory.goodFacts || []).map((fact: any) =>
+                fact.id === sun.id ? { ...fact, x, y } : fact
+              );
+              await onUpdateMemory({ goodFacts: updatedGoodFacts });
+            }
+          };
+          
+          const startPos = newlyCreatedMoments.get(sun.id);
+          return (
+            <DraggableMoment
+              key={`sun-focused-${sun.id}`}
+              initialX={sunX}
+              initialY={sunY}
+              width={sunWidth}
+              height={sunHeight}
+              zIndex={sunZIndex}
+              onPositionChange={handlePositionChange}
+              onPress={onDoubleTap}
+              entranceDelay={startPos ? 0 : sunIndex * 100} // No delay for newly created moments
+              startX={startPos?.startX}
+              startY={startPos?.startY}
+            >
+              <LinearGradient
+                colors={['#FFD700', '#FFA500', '#FF8C00']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  position: 'absolute',
+                  width: sunWidth,
+                  height: sunHeight,
+                  borderRadius: sunWidth / 2,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <View style={{
+                  position: 'absolute',
+                  top: sunHeight * 0.2,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <MaterialIcons 
+                    name="wb-sunny" 
+                    size={sunWidth * 0.5} 
+                    color="#FFFFFF" 
+                  />
+                </View>
+              </LinearGradient>
+              <View
+                style={{
+                  width: sunWidth,
+                  height: sunHeight,
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  paddingHorizontal: 12,
+                  paddingTop: sunHeight * 0.25,
+                }}
+              >
+                <ThemedText
+                  style={{
+                    color: '#000000',
+                    fontSize: 12,
+                    textAlign: 'center',
+                    fontWeight: '500',
+                  }}
+                >
+                  {sun.text}
+                </ThemedText>
+              </View>
+            </DraggableMoment>
+          );
+        }
+        
+        // Not focused - use small circular sun
+        const sunPosData = sunPositions[sunIndex];
+        const memoryCenterX = position.x;
+        const memoryCenterY = position.y;
+        const initialSunPos = {
+          x: memoryCenterX + sunPosData.offsetX,
+          y: memoryCenterY + sunPosData.offsetY,
+        };
+        
+        return (
+          <FloatingSun
+            key={`sun-${sun.id}-${sunIndex}`}
+            sun={sun}
+            position={initialSunPos}
+            memoryAnimatedPosition={memoryAnimatedPosition}
+            avatarPanX={avatarPanX}
+            avatarPanY={avatarPanY}
+            focusedX={focusedX}
+            focusedY={focusedY}
+            memoryOffsetX={offsetX}
+            memoryOffsetY={offsetY}
+            offsetX={sunPosData.offsetX}
+            offsetY={sunPosData.offsetY}
+            zIndex={sunZIndex}
+            isFocused={!!isFocused}
+            colorScheme={colorScheme}
+            onPress={onDoubleTap}
+          />
+        );
+      })}
+    </>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.clouds.length === nextProps.clouds.length &&
+    prevProps.suns.length === nextProps.suns.length &&
+    prevProps.isFocused === nextProps.isFocused &&
+    prevProps.isMemoryFocused === nextProps.isMemoryFocused &&
+    prevProps.visibleMomentIds.size === nextProps.visibleMomentIds.size &&
+    prevProps.memorySize === nextProps.memorySize &&
+    prevProps.position.x === nextProps.position.x &&
+    prevProps.position.y === nextProps.position.y &&
+    prevProps.offsetX === nextProps.offsetX &&
+    prevProps.offsetY === nextProps.offsetY &&
+    prevProps.cloudZIndex === nextProps.cloudZIndex &&
+    prevProps.sunZIndex === nextProps.sunZIndex &&
+    prevProps.colorScheme === nextProps.colorScheme &&
+    prevProps.memory.id === nextProps.memory.id
+  );
+});
+
+// Memory Action Buttons Component (extracted from IIFE)
+const MemoryActionButtons = React.memo(function MemoryActionButtons({
+  isMemoryFocused,
+  memory,
+  visibleMomentIds,
+  memorySize,
+  isLargeDevice,
+  colorScheme,
+  cloudButtonRef,
+  sunButtonRef,
+  setCloudButtonPos,
+  setSunButtonPos,
+  handleAddCloud,
+  handleAddSun,
+}: {
+  isMemoryFocused: boolean;
+  memory: any;
+  visibleMomentIds: Set<string>;
+  memorySize: number;
+  isLargeDevice: boolean;
+  colorScheme: 'light' | 'dark';
+  cloudButtonRef: React.RefObject<View | null>;
+  sunButtonRef: React.RefObject<View | null>;
+  setCloudButtonPos: (pos: { x: number; y: number } | null) => void;
+  setSunButtonPos: (pos: { x: number; y: number } | null) => void;
+  handleAddCloud: () => void;
+  handleAddSun: () => void;
+}) {
+  if (!isMemoryFocused) return null;
+
+  const allClouds = (memory.hardTruths || []).filter((truth: any) => truth && typeof truth === 'object' && !Array.isArray(truth));
+  const allSuns = (memory.goodFacts || []).filter((fact: any) => fact && typeof fact === 'object');
+  const visibleCloudsCount = allClouds.filter((c: any) => c?.id && visibleMomentIds.has(c.id)).length;
+  const visibleSunsCount = allSuns.filter((s: any) => s?.id && visibleMomentIds.has(s.id)).length;
+  const totalCloudsCount = allClouds.length;
+  const totalSunsCount = allSuns.length;
+  const allCloudsVisible = totalCloudsCount > 0 && visibleCloudsCount >= totalCloudsCount;
+  const allSunsVisible = totalSunsCount > 0 && visibleSunsCount >= totalSunsCount;
+  
+  // Calculate position below memory image (moved up by 100px to match memory)
+  const offsetY = -80;
+  const memoryCenterY = SCREEN_HEIGHT / 2 - offsetY;
+  const memoryBottom = memoryCenterY + memorySize / 2;
+  const buttonSpacing = isLargeDevice ? 12 : 10;
+  const buttonSize = isLargeDevice ? 96 : 88;
+  const labelWidth = 100;
+  const totalWidth = buttonSize + buttonSpacing + labelWidth + buttonSpacing + buttonSize;
+  const containerTop = memoryBottom + 40; // 40px spacing below memory
+  const colors = Colors[colorScheme ?? 'dark'];
+  
+  return (
+    <>
+      {/* Container for buttons and label */}
+      <View
+        style={{
+          position: 'absolute',
+          top: containerTop,
+          left: SCREEN_WIDTH / 2 - totalWidth / 2,
+          flexDirection: 'row',
+          alignItems: 'center',
+          zIndex: 2000,
+        }}
+      >
+        {/* Cloud Button */}
+        <View
+          ref={cloudButtonRef}
+          onLayout={() => {
+            cloudButtonRef.current?.measure((fx: number, fy: number, width: number, height: number, px: number, py: number) => {
+              const buttonCenterX = px + width / 2;
+              const buttonCenterY = py + height / 2;
+              setCloudButtonPos({ x: buttonCenterX, y: buttonCenterY });
+            });
+          }}
+        >
+        <Pressable
+          onPress={handleAddCloud}
+          disabled={allCloudsVisible}
+        >
+        <View
+          style={{
+            width: isLargeDevice ? 96 : 88,
+            height: isLargeDevice ? 96 : 88,
+            borderRadius: isLargeDevice ? 48 : 44,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: colorScheme === 'dark' 
+              ? 'rgba(255, 255, 255, 0.08)' 
+              : 'rgba(255, 255, 255, 0.9)',
+            shadowColor: colorScheme === 'dark' ? '#000' : '#000',
+            shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
+            shadowOpacity: colorScheme === 'dark' ? 0.8 : 0.6,
+            shadowRadius: colorScheme === 'dark' ? 24 : 20,
+            elevation: colorScheme === 'dark' ? 18 : 15,
+            overflow: 'visible', // Allow count text to be visible
+            borderWidth: colorScheme === 'dark' ? 2 : 1.5,
+            borderColor: colorScheme === 'dark' 
+              ? 'rgba(255, 255, 255, 0.3)' 
+              : 'rgba(255, 255, 255, 0.6)',
+            opacity: allCloudsVisible ? 0.4 : 1,
+          }}
+        >
+          <LinearGradient
+            colors={
+              colorScheme === 'dark'
+                ? ['rgba(180, 180, 180, 0.8)', 'rgba(100, 100, 100, 0.6)', 'rgba(40, 40, 40, 0.8)']
+                : ['rgba(255, 255, 255, 1)', 'rgba(230, 230, 230, 0.95)', 'rgba(200, 200, 200, 1)']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              width: '100%',
+              height: '100%',
+              borderRadius: isLargeDevice ? 48 : 44,
+              justifyContent: 'center',
+              alignItems: 'center',
+              position: 'relative',
+            }}
+          >
+            <View
+              style={{
+                position: 'absolute',
+                top: isLargeDevice ? 14 : 12,
+                left: 0,
+                right: 0,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <MaterialIcons 
+                name="cloud" 
+                size={isLargeDevice ? 44 : 40} 
+                color={colorScheme === 'dark' ? '#FFFFFF' : '#555'} 
+              />
+            </View>
+            {/* Count badge - horizontal bar at bottom of circle */}
+            {totalCloudsCount > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 2,
+                  right: 2,
+                  height: 28,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#000000',
+                  borderBottomLeftRadius: isLargeDevice ? 48 : 44,
+                  borderBottomRightRadius: isLargeDevice ? 48 : 44,
+                  borderTopLeftRadius: 6,
+                  borderTopRightRadius: 6,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                }}
+              >
+                <ThemedText
+                  style={{
+                    fontSize: isLargeDevice ? 12 : 11,
+                    fontWeight: '600',
+                    color: '#FFFFFF',
+                    textAlign: 'center',
+                  }}
+                >
+                  {visibleCloudsCount}/{totalCloudsCount}
+                </ThemedText>
+              </View>
+            )}
+          </LinearGradient>
+        </View>
+      </Pressable>
+    </View>
+    
+    {/* RemindWhy Label */}
+    <View
+      style={{
+        width: labelWidth,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginHorizontal: buttonSpacing,
+      }}
+    >
+      <ThemedText
+        style={{
+          fontSize: isLargeDevice ? 16 : 14,
+          fontWeight: '600',
+          color: colors.text,
+          textAlign: 'center',
+        }}
+      >
+        RemindWhy
+      </ThemedText>
+    </View>
+    
+    {/* Sun Button */}
+    <View
+      ref={sunButtonRef}
+      onLayout={() => {
+        sunButtonRef.current?.measure((fx: number, fy: number, width: number, height: number, px: number, py: number) => {
+          const buttonCenterX = px + width / 2;
+          const buttonCenterY = py + height / 2;
+          setSunButtonPos({ x: buttonCenterX, y: buttonCenterY });
+        });
+      }}
+    >
+        <Pressable
+          onPress={handleAddSun}
+          disabled={allSunsVisible}
+        >
+        <View
+          style={{
+            width: isLargeDevice ? 96 : 88,
+            height: isLargeDevice ? 96 : 88,
+            borderRadius: isLargeDevice ? 48 : 44,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: colorScheme === 'dark' 
+              ? 'rgba(255, 255, 255, 0.08)' 
+              : 'rgba(255, 255, 255, 0.9)',
+            shadowColor: colorScheme === 'dark' ? '#FFA500' : '#FFA500',
+            shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
+            shadowOpacity: colorScheme === 'dark' ? 0.9 : 0.7,
+            shadowRadius: colorScheme === 'dark' ? 24 : 20,
+            elevation: colorScheme === 'dark' ? 18 : 15,
+            overflow: 'visible', // Allow count text to be visible
+            borderWidth: colorScheme === 'dark' ? 2 : 1.5,
+            borderColor: colorScheme === 'dark' 
+              ? 'rgba(255, 220, 100, 0.5)' 
+              : 'rgba(255, 200, 0, 0.7)',
+            opacity: allSunsVisible ? 0.4 : 1,
+          }}
+        >
+          <LinearGradient
+            colors={
+              colorScheme === 'dark'
+                ? ['rgba(255, 230, 140, 0.85)', 'rgba(255, 180, 70, 0.7)', 'rgba(255, 140, 40, 0.85)']
+                : ['rgba(255, 250, 200, 1)', 'rgba(255, 230, 120, 0.95)', 'rgba(255, 210, 60, 1)']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              width: '100%',
+              height: '100%',
+              borderRadius: isLargeDevice ? 48 : 44,
+              justifyContent: 'center',
+              alignItems: 'center',
+              position: 'relative',
+            }}
+          >
+            <View
+              style={{
+                position: 'absolute',
+                top: isLargeDevice ? 14 : 12,
+                left: 0,
+                right: 0,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <MaterialIcons 
+                name="wb-sunny" 
+                size={isLargeDevice ? 44 : 40} 
+                color={colorScheme === 'dark' ? '#FFFFFF' : '#555'} 
+              />
+            </View>
+            {/* Count badge - horizontal bar at bottom of circle */}
+            {totalSunsCount > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 2,
+                  right: 2,
+                  height: 28,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#000000',
+                  borderBottomLeftRadius: isLargeDevice ? 48 : 44,
+                  borderBottomRightRadius: isLargeDevice ? 48 : 44,
+                  borderTopLeftRadius: 6,
+                  borderTopRightRadius: 6,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                }}
+              >
+                <ThemedText
+                  style={{
+                    fontSize: isLargeDevice ? 12 : 11,
+                    fontWeight: '600',
+                    color: '#FFFFFF',
+                    textAlign: 'center',
+                  }}
+                >
+                  {visibleSunsCount}/{totalSunsCount}
+                </ThemedText>
+              </View>
+            )}
+          </LinearGradient>
+        </View>
+      </Pressable>
+    </View>
+    </View>
+    </>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.isMemoryFocused === nextProps.isMemoryFocused &&
+    prevProps.memory.id === nextProps.memory.id &&
+    prevProps.visibleMomentIds.size === nextProps.visibleMomentIds.size &&
+    prevProps.memorySize === nextProps.memorySize &&
+    prevProps.isLargeDevice === nextProps.isLargeDevice &&
+    prevProps.colorScheme === nextProps.colorScheme
+  );
+});
 
 // Floating Memory Component
-function FloatingMemory({
+const FloatingMemory = React.memo(function FloatingMemory({
   memory,
   position,
   avatarPanX,
@@ -895,104 +1531,6 @@ function FloatingMemory({
     }
   }, [isMemoryFocused, memory.hardTruths, memory.goodFacts]);
   
-  // Handler to create a new cloud moment
-  const handleAddCloud = React.useCallback(async () => {
-    if (!onUpdateMemory) return;
-    
-    const allClouds = (memory.hardTruths || []).filter((truth: any) => truth && typeof truth === 'object' && !Array.isArray(truth));
-    // Find first cloud that's not visible yet
-    const nextCloud = allClouds.find((cloud: any) => cloud?.id && !visibleMomentIds.has(cloud.id));
-    if (!nextCloud) return;
-    
-    // Calculate final position
-    const visibleClouds = allClouds.filter((c: any) => visibleMomentIds.has(c.id));
-    const clampedPos = calculateClampedPosition(
-      nextCloud.x,
-      nextCloud.y,
-      cloudWidth,
-      cloudHeight,
-      visibleClouds.length,
-      allClouds.length,
-      memorySize,
-      'cloud'
-    );
-    
-    // Store start position for animation (button center, since panX/panY represent center)
-    // Set this FIRST before marking as visible to ensure it's available when component renders
-    if (cloudButtonPos) {
-      setNewlyCreatedMoments(prev => {
-        const next = new Map(prev);
-        next.set(nextCloud.id, {
-          startX: cloudButtonPos.x,
-          startY: cloudButtonPos.y,
-        });
-        return next;
-      });
-    }
-    
-    // Update memory with new position
-    const updatedHardTruths = (memory.hardTruths || []).map((truth: any) =>
-      truth.id === nextCloud.id ? { ...truth, x: clampedPos.x, y: clampedPos.y } : truth
-    );
-    await onUpdateMemory({ hardTruths: updatedHardTruths });
-    
-    // Mark as visible AFTER start position is set
-    // Use a small delay to ensure state update completes
-    setTimeout(() => {
-      setVisibleMomentIds(prev => new Set([...prev, nextCloud.id]));
-      // Don't clear start position - it's harmless to keep it and prevents re-render issues
-    }, 50); // Small delay to ensure start position state is set
-  }, [memory.hardTruths, visibleMomentIds, onUpdateMemory, calculateClampedPosition, cloudWidth, cloudHeight, memorySize]);
-  
-  // Handler to create a new sun moment
-  const handleAddSun = React.useCallback(async () => {
-    if (!onUpdateMemory) return;
-    
-    const allSuns = (memory.goodFacts || []).filter((fact: any) => fact && typeof fact === 'object');
-    // Find first sun that's not visible yet
-    const nextSun = allSuns.find((sun: any) => sun?.id && !visibleMomentIds.has(sun.id));
-    if (!nextSun) return;
-    
-    // Calculate final position
-    const visibleSuns = allSuns.filter((s: any) => visibleMomentIds.has(s.id));
-    const clampedPos = calculateClampedPosition(
-      nextSun.x,
-      nextSun.y,
-      sunWidth,
-      sunHeight,
-      visibleSuns.length,
-      allSuns.length,
-      memorySize,
-      'sun'
-    );
-    
-    // Store start position for animation (button center, since panX/panY represent center)
-    // Set this FIRST before marking as visible to ensure it's available when component renders
-    if (sunButtonPos) {
-      setNewlyCreatedMoments(prev => {
-        const next = new Map(prev);
-        next.set(nextSun.id, {
-          startX: sunButtonPos.x,
-          startY: sunButtonPos.y,
-        });
-        return next;
-      });
-    }
-    
-    // Update memory with new position
-    const updatedGoodFacts = (memory.goodFacts || []).map((fact: any) =>
-      fact.id === nextSun.id ? { ...fact, x: clampedPos.x, y: clampedPos.y } : fact
-    );
-    await onUpdateMemory({ goodFacts: updatedGoodFacts });
-    
-    // Mark as visible AFTER start position is set
-    // Use a small delay to ensure state update completes
-    setTimeout(() => {
-      setVisibleMomentIds(prev => new Set([...prev, nextSun.id]));
-      // Don't clear start position - it's harmless to keep it and prevents re-render issues
-    }, 50); // Small delay to ensure start position state is set
-  }, [memory.goodFacts, visibleMomentIds, onUpdateMemory, calculateClampedPosition, sunWidth, sunHeight, memorySize]);
-  
   // When memory is focused, use smaller size like in creation screen (250px)
   // Otherwise use calculated size or default
   const memorySize = isMemoryFocused 
@@ -1054,149 +1592,146 @@ function FloatingMemory({
           targetY = cloudYBelow;
         }
         
-        // Add slight random offset for more organic feel (but keep it deterministic)
-        const seed = index * 0.618; // Golden ratio for better distribution
-        const offsetX = (Math.sin(seed) * availableWidth * 0.1); // ±10% of available width
-        const offsetY = (Math.cos(seed * 2) * 20); // ±20px vertical offset
-        
-        momentX = targetX + offsetX;
-        momentY = targetY + offsetY;
-        
-        // Final clamp to ensure moment stays within viewport
-        momentX = Math.max(minX, Math.min(maxX, momentX));
-        momentY = Math.max(minY, Math.min(maxY, momentY));
-        
-        return { x: momentX, y: momentY };
-      }
-      
-      // For suns, use the original distribution logic
-      // If we have saved positions, validate and use them if they're well distributed
-      // Otherwise, redistribute for better coverage
-      if (savedX !== undefined && savedY !== undefined) {
-        // Check if saved position is within reasonable bounds
-        const savedXClamped = Math.max(minX, Math.min(maxX, savedX));
-        const savedYClamped = Math.max(minY, Math.min(maxY, savedY));
-        
-        // Use saved position if it's not too close to memory center (avoid clustering)
-        const distanceFromCenter = Math.sqrt(
-          Math.pow(savedXClamped - memoryCenterX, 2) + 
-          Math.pow(savedYClamped - memoryCenterY, 2)
-        );
-        const minDistanceFromMemory = memorySize / 2 + Math.max(momentWidth, momentHeight) / 2 + 30;
-        
-        if (distanceFromCenter >= minDistanceFromMemory) {
-          momentX = savedXClamped;
-          momentY = savedYClamped;
-        }
-        // If saved position is too close to memory, momentX/Y remain undefined and we'll redistribute
-      }
-      
-      // If no saved positions or saved position is invalid, distribute evenly across screen
-      // Bias distribution: 70% BELOW memory center, 30% above
-      if (momentX === undefined || momentY === undefined) {
-        // Memory is centered at memoryCenterY (SCREEN_HEIGHT / 2)
-        // Determine if this moment should be below memory (70% chance)
-        const isBelowMemory = (index / totalCount) < 0.7;
-        
-        // Define regions relative to memory center
+        momentX = savedX !== undefined ? Math.max(minX, Math.min(maxX, savedX)) : targetX;
+        momentY = savedY !== undefined ? Math.max(cloudYAbove, Math.min(cloudYBelow, savedY)) : targetY;
+      } else {
+        // Sun positioning: 70% below memory, 30% above
         const memoryBottom = memoryCenterY + (memorySize / 2);
         const memoryTop = memoryCenterY - (memorySize / 2);
-        
-        // Below memory region: from memory bottom to screen bottom
-        const belowMemoryStart = memoryBottom + 40; // Start below memory with padding
+        const belowMemoryStart = memoryBottom + 40;
         const belowMemoryEnd = maxY;
-        const belowMemoryHeight = belowMemoryEnd - belowMemoryStart;
-        
-        // Above memory region: from screen top to memory top
         const aboveMemoryStart = minY;
-        const aboveMemoryEnd = memoryTop - 40; // End above memory with padding
-        const aboveMemoryHeight = aboveMemoryEnd - aboveMemoryStart;
+        const aboveMemoryEnd = memoryTop - 40;
         
-        let targetY: number;
+        const sunsBelow = Math.floor(totalCount * 0.7);
+        const sunsAbove = totalCount - sunsBelow;
+        
         let targetX: number;
+        let targetY: number;
         
-        if (isBelowMemory) {
-          // Place BELOW memory (70% of moments)
-          const momentsBelow = Math.ceil(totalCount * 0.7);
-          const belowIndex = index; // Index within the below-memory group
-          
-          // Distribute in grid below memory
-          const cols = Math.ceil(Math.sqrt(momentsBelow * (availableWidth / belowMemoryHeight)));
-          const rows = Math.ceil(momentsBelow / cols);
-          
-          const col = belowIndex % cols;
-          const row = Math.floor(belowIndex / cols);
-          
-          const cellWidth = availableWidth / Math.max(1, cols - 1);
-          const cellHeight = belowMemoryHeight / Math.max(1, rows - 1);
-          
-          // Base position below memory
-          targetX = minX + (col * cellWidth);
-          targetY = belowMemoryStart + (row * cellHeight);
+        if (index < sunsBelow) {
+          // Place below memory (70%)
+          const belowIndex = index;
+          const spacing = availableWidth / Math.max(1, sunsBelow - 1);
+          targetX = minX + (belowIndex * spacing);
+          // Distribute evenly in the below region
+          const belowSpacing = (belowMemoryEnd - belowMemoryStart) / Math.max(1, sunsBelow - 1);
+          targetY = belowMemoryStart + (belowIndex * belowSpacing);
         } else {
-          // Place ABOVE memory (30% of moments)
-          const momentsAbove = totalCount - Math.ceil(totalCount * 0.7);
-          const aboveIndex = index - Math.ceil(totalCount * 0.7);
-          
-          const cols = Math.ceil(Math.sqrt(momentsAbove * (availableWidth / aboveMemoryHeight)));
-          const rows = Math.ceil(momentsAbove / cols);
-          
-          const col = aboveIndex % cols;
-          const row = Math.floor(aboveIndex / cols);
-          
-          const cellWidth = availableWidth / Math.max(1, cols - 1);
-          const cellHeight = aboveMemoryHeight / Math.max(1, rows - 1);
-          
-          // Base position above memory
-          targetX = minX + (col * cellWidth);
-          targetY = aboveMemoryStart + (row * cellHeight);
+          // Place above memory (30%)
+          const aboveIndex = index - sunsBelow;
+          const spacing = availableWidth / Math.max(1, sunsAbove - 1);
+          targetX = minX + (aboveIndex * spacing);
+          // Distribute evenly in the above region
+          const aboveSpacing = (aboveMemoryEnd - aboveMemoryStart) / Math.max(1, sunsAbove - 1);
+          targetY = aboveMemoryStart + (aboveIndex * aboveSpacing);
         }
         
-        // Add slight random offset for more organic feel (but keep it deterministic)
-        const seed = index * 0.618; // Golden ratio for better distribution
-        const offsetX = (Math.sin(seed) * availableWidth * 0.15); // ±15% of available width
-        const offsetY = (Math.cos(seed * 2) * (isBelowMemory ? belowMemoryHeight : aboveMemoryHeight) * 0.15); // ±15% of region height
-        
-        momentX = targetX + offsetX;
-        momentY = targetY + offsetY;
-        
-        // Ensure we don't place moments too close to memory center
-        const distanceFromCenter = Math.sqrt(
-          Math.pow(momentX - memoryCenterX, 2) + 
-          Math.pow(momentY - memoryCenterY, 2)
-        );
-        const minDistanceFromMemory = memorySize / 2 + Math.max(momentWidth, momentHeight) / 2 + 40;
-        
-        if (distanceFromCenter < minDistanceFromMemory) {
-          // Push moment away from memory center, prioritizing downward direction for below-memory moments
-          let angle = Math.atan2(momentY - memoryCenterY, momentX - memoryCenterX);
-          
-          // If moment should be below memory but angle points up, adjust to point down
-          if (isBelowMemory && momentY < memoryCenterY) {
-            angle = Math.PI / 2 + (Math.random() - 0.5) * Math.PI; // Point downward (90° ± 90°)
-          } else if (!isBelowMemory && momentY > memoryCenterY) {
-            angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI; // Point upward (-90° ± 90°)
-          }
-          
-          momentX = memoryCenterX + minDistanceFromMemory * Math.cos(angle);
-          momentY = memoryCenterY + minDistanceFromMemory * Math.sin(angle);
-          
-          // Ensure moment stays in its assigned region
-          if (isBelowMemory && momentY < belowMemoryStart) {
-            momentY = belowMemoryStart + (momentHeight / 2) + 10;
-          } else if (!isBelowMemory && momentY > aboveMemoryEnd) {
-            momentY = aboveMemoryEnd - (momentHeight / 2) - 10;
-          }
-        }
+        momentX = savedX !== undefined ? Math.max(minX, Math.min(maxX, savedX)) : targetX;
+        momentY = savedY !== undefined ? Math.max(minY, Math.min(maxY, savedY)) : targetY;
       }
-      
-      // Final clamp to ensure moment stays within viewport
-      momentX = Math.max(minX, Math.min(maxX, momentX));
-      momentY = Math.max(minY, Math.min(maxY, momentY));
       
       return { x: momentX, y: momentY };
     };
   }, []);
+  
+  // Handler to create a new cloud moment
+  const handleAddCloud = React.useCallback(async () => {
+    if (!onUpdateMemory) return;
+    
+    const allClouds = (memory.hardTruths || []).filter((truth: any) => truth && typeof truth === 'object' && !Array.isArray(truth));
+    // Find first cloud that's not visible yet
+    const nextCloud = allClouds.find((cloud: any) => cloud?.id && !visibleMomentIds.has(cloud.id));
+    if (!nextCloud) return;
+    
+    // Calculate final position
+    const visibleClouds = allClouds.filter((c: any) => visibleMomentIds.has(c.id));
+    const clampedPos = calculateClampedPosition(
+      nextCloud.x,
+      nextCloud.y,
+      cloudWidth,
+      cloudHeight,
+      visibleClouds.length,
+      allClouds.length,
+      memorySize,
+      'cloud'
+    );
+    
+    // Store start position for animation (button center, since panX/panY represent center)
+    // Set this FIRST before marking as visible to ensure it's available when component renders
+    if (cloudButtonPos) {
+      setNewlyCreatedMoments(prev => {
+        const next = new Map(prev);
+        next.set(nextCloud.id, {
+          startX: cloudButtonPos.x,
+          startY: cloudButtonPos.y,
+        });
+        return next;
+      });
+    }
+    
+    // Update memory with new position
+    const updatedHardTruths = (memory.hardTruths || []).map((truth: any) =>
+      truth.id === nextCloud.id ? { ...truth, x: clampedPos.x, y: clampedPos.y } : truth
+    );
+    await onUpdateMemory({ hardTruths: updatedHardTruths });
+    
+    // Mark as visible AFTER start position is set
+    // Use a small delay to ensure state update completes
+    setTimeout(() => {
+      setVisibleMomentIds(prev => new Set([...prev, nextCloud.id]));
+      // Don't clear start position - it's harmless to keep it and prevents re-render issues
+    }, 50); // Small delay to ensure start position state is set
+  }, [memory.hardTruths, visibleMomentIds, onUpdateMemory, calculateClampedPosition, cloudWidth, cloudHeight, memorySize, cloudButtonPos]);
+  
+  // Handler to create a new sun moment
+  const handleAddSun = React.useCallback(async () => {
+    if (!onUpdateMemory) return;
+    
+    const allSuns = (memory.goodFacts || []).filter((fact: any) => fact && typeof fact === 'object');
+    // Find first sun that's not visible yet
+    const nextSun = allSuns.find((sun: any) => sun?.id && !visibleMomentIds.has(sun.id));
+    if (!nextSun) return;
+    
+    // Calculate final position
+    const visibleSuns = allSuns.filter((s: any) => visibleMomentIds.has(s.id));
+    const clampedPos = calculateClampedPosition(
+      nextSun.x,
+      nextSun.y,
+      sunWidth,
+      sunHeight,
+      visibleSuns.length,
+      allSuns.length,
+      memorySize,
+      'sun'
+    );
+    
+    // Store start position for animation (button center, since panX/panY represent center)
+    // Set this FIRST before marking as visible to ensure it's available when component renders
+    if (sunButtonPos) {
+      setNewlyCreatedMoments(prev => {
+        const next = new Map(prev);
+        next.set(nextSun.id, {
+          startX: sunButtonPos.x,
+          startY: sunButtonPos.y,
+        });
+        return next;
+      });
+    }
+    
+    // Update memory with new position
+    const updatedGoodFacts = (memory.goodFacts || []).map((fact: any) =>
+      fact.id === nextSun.id ? { ...fact, x: clampedPos.x, y: clampedPos.y } : fact
+    );
+    await onUpdateMemory({ goodFacts: updatedGoodFacts });
+    
+    // Mark as visible AFTER start position is set
+    // Use a small delay to ensure state update completes
+    setTimeout(() => {
+      setVisibleMomentIds(prev => new Set([...prev, nextSun.id]));
+      // Don't clear start position - it's harmless to keep it and prevents re-render issues
+    }, 50); // Small delay to ensure start position state is set
+  }, [memory.goodFacts, visibleMomentIds, onUpdateMemory, calculateClampedPosition, sunWidth, sunHeight, memorySize, sunButtonPos]);
 
   const floatAnimation = useSharedValue(0);
   
@@ -1226,7 +1761,7 @@ function FloatingMemory({
   const memoryAnimatedPosition = useAnimatedStyle(() => {
     if (isMemoryFocused) {
       // When memory is focused, center it on screen (moved up by 100px)
-      const offsetY = 100;
+      const offsetY = -80;
       return {
         left: SCREEN_WIDTH / 2 - memorySize / 2,
         top: SCREEN_HEIGHT / 2 - memorySize / 2 - offsetY,
@@ -1358,7 +1893,7 @@ function FloatingMemory({
     });
   }, [suns, clouds, sunRadius]);
 
-  // Click on memory: if profile is focused, open focused memory view; otherwise focus the profile
+  // Click on memory: focus the memory (and profile if not already focused)
   const handlePress = () => {
     console.log('[FloatingMemory] Press detected on memory:', memory.id, 'isFocused:', isFocused, 'isMemoryFocused:', isMemoryFocused);
     if (isMemoryFocused) {
@@ -1366,16 +1901,14 @@ function FloatingMemory({
       return;
     }
     
-    if (isFocused) {
-      // Profile is focused, open the focused memory view
-      if (onMemoryFocus) {
-        onMemoryFocus(memory.profileId, memory.id);
-      }
-    } else {
-      // Profile is not focused, focus it
-      if (onPress) {
-        onPress();
-      }
+    // Always try to focus the memory
+    if (onMemoryFocus) {
+      onMemoryFocus(memory.profileId, memory.id);
+    }
+    
+    // If profile is not focused, also focus it
+    if (!isFocused && onPress) {
+      onPress();
     }
   };
 
@@ -1478,8 +2011,8 @@ function FloatingMemory({
                   }}
                   contentFit="cover"
                 />
-                {/* Gradient overlay based on sunny/cloudy ratio - only show when profile is not focused */}
-                {!isFocused && (
+                {/* Gradient overlay based on sunny/cloudy ratio - show always except when memory itself is focused */}
+                {!isMemoryFocused && (
                   <LinearGradient
                     colors={
                       sunnyPercentage >= 50
@@ -1523,588 +2056,72 @@ function FloatingMemory({
         }
         
         return (
-          <>
-            {/* Floating Clouds around Memory - only show when profile is focused */}
-            {isFocused && clouds
-              .filter((cloud: any) => {
-                // When memory is focused, only show visible moments
-                if (isMemoryFocused) {
-                  return cloud?.id && visibleMomentIds.has(cloud.id);
-                }
-                return true;
-              })
-              .map((cloud: any, cloudIndex: number) => {
-              // Additional safety check
-              if (!cloud || typeof cloud !== 'object') {
-                console.warn(`[FloatingMemory] Invalid cloud at index ${cloudIndex}:`, cloud);
-                return null;
-              }
-              
-              // When memory is focused, use saved positions from memory data
-              // Otherwise use calculated positions
-              if (isMemoryFocused) {
-                // Calculate and clamp position to ensure it's within viewport and well distributed
-                const clampedPos = calculateClampedPosition(
-                  cloud.x,
-                  cloud.y,
-                  cloudWidth,
-                  cloudHeight,
-                  cloudIndex,
-                  clouds.length,
-                  memorySize,
-                  'cloud'
-                );
-                const cloudX = clampedPos.x;
-                const cloudY = clampedPos.y;
-                
-                const handlePositionChange = async (x: number, y: number) => {
-                  if (onUpdateMemory) {
-                    // Update the cloud's position in memory
-                    const updatedHardTruths = (memory.hardTruths || []).map((truth: any) =>
-                      truth.id === cloud.id ? { ...truth, x, y } : truth
-                    );
-                    await onUpdateMemory({ hardTruths: updatedHardTruths });
-                  }
-                };
-                
-                const startPos = newlyCreatedMoments.get(cloud.id);
-                return (
-                  <DraggableMoment
-                    key={`cloud-focused-${cloud?.id || cloudIndex}`}
-                    initialX={cloudX}
-                    initialY={cloudY}
-                    width={cloudWidth}
-                    height={cloudHeight}
-                    zIndex={cloudZIndex}
-                    onPositionChange={handlePositionChange}
-                    onPress={onDoubleTap}
-                    entranceDelay={startPos ? 0 : cloudIndex * 100} // No delay for newly created moments
-                    startX={startPos?.startX}
-                    startY={startPos?.startY}
-                  >
-                    <Svg 
-                      width={cloudWidth} 
-                      height={cloudHeight} 
-                      viewBox="0 0 320 100"
-                      preserveAspectRatio="xMidYMid meet"
-                      style={{ position: 'absolute', top: 0, left: 0 }}
-                    >
-                      <Defs>
-                        <SvgLinearGradient id={`cloudGradient-${cloud.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                          <Stop offset="0%" stopColor="#2C3E50" stopOpacity="0.95" />
-                          <Stop offset="50%" stopColor="#1A1A1A" stopOpacity="0.98" />
-                          <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
-                        </SvgLinearGradient>
-                      </Defs>
-                      <Path
-                        d="M50,50 
-                           Q40,35 50,25 
-                           Q60,15 75,20 
-                           Q85,10 100,20 
-                           Q115,10 130,20 
-                           Q145,10 160,20 
-                           Q175,10 190,20 
-                           Q205,10 220,20 
-                           Q235,10 250,20 
-                           Q265,15 270,25 
-                           Q280,35 270,50 
-                           Q280,65 270,75 
-                           Q260,85 245,80 
-                           Q230,90 220,85 
-                           Q205,95 190,85 
-                           Q175,95 160,85 
-                           Q145,95 130,85 
-                           Q115,95 100,85 
-                           Q85,90 75,80 
-                           Q60,85 50,75 
-                           Q40,65 50,50 Z"
-                        fill={`url(#cloudGradient-${cloud.id})`}
-                        stroke="rgba(0,0,0,0.7)"
-                        strokeWidth={1.5}
-                      />
-                    </Svg>
-                    <View
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: cloudWidth,
-                        height: cloudHeight,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        paddingHorizontal: 20,
-                      }}
-                    >
-                      <ThemedText
-                        style={{
-                          color: 'rgba(255,255,255,0.9)',
-                          fontSize: 14,
-                          textAlign: 'center',
-                          fontWeight: '500',
-                        }}
-                      >
-                        {cloud.text}
-                      </ThemedText>
-                    </View>
-                  </DraggableMoment>
-                );
-              }
-              
-              // Not focused - use small circular cloud
-              const cloudPosData = cloudPositions[cloudIndex];
-              if (!cloudPosData) {
-                console.warn(`[FloatingMemory] Missing cloud position data at index ${cloudIndex}`);
-                return null;
-              }
-              
-              const memoryCenterX = position.x;
-              const memoryCenterY = position.y;
-              const initialCloudPos = {
-                x: memoryCenterX + cloudPosData.offsetX,
-                y: memoryCenterY + cloudPosData.offsetY,
-              };
-              
-              return (
-                <FloatingCloud
-                  key={`cloud-${cloud?.id || cloudIndex}-${cloudIndex}`}
-                  cloud={cloud}
-                  position={initialCloudPos}
-                  memoryAnimatedPosition={memoryAnimatedPosition}
-                  avatarPanX={avatarPanX}
-                  avatarPanY={avatarPanY}
-                  focusedX={focusedX}
-                  focusedY={focusedY}
-                  memoryOffsetX={offsetX}
-                  memoryOffsetY={offsetY}
-                  offsetX={cloudPosData.offsetX}
-                  offsetY={cloudPosData.offsetY}
-                  zIndex={cloudZIndex}
-                  isFocused={!!isFocused}
-                  colorScheme={colorScheme}
-                  onPress={onDoubleTap}
-                />
-              );
-            })}
-
-            {/* Floating Suns around Memory - only show when profile is focused */}
-            {isFocused && suns
-              .filter((sun: any) => {
-                // When memory is focused, only show visible moments
-                if (isMemoryFocused) {
-                  return sun?.id && visibleMomentIds.has(sun.id);
-                }
-                return true;
-              })
-              .map((sun: any, sunIndex: number) => {
-              // When memory is focused, use saved positions from memory data
-              if (isMemoryFocused) {
-                // Calculate and clamp position to ensure it's within viewport and well distributed
-                const clampedPos = calculateClampedPosition(
-                  sun.x,
-                  sun.y,
-                  sunWidth,
-                  sunHeight,
-                  sunIndex,
-                  suns.length,
-                  memorySize,
-                  'sun'
-                );
-                const sunX = clampedPos.x;
-                const sunY = clampedPos.y;
-                
-                const handlePositionChange = async (x: number, y: number) => {
-                  if (onUpdateMemory) {
-                    // Update the sun's position in memory
-                    const updatedGoodFacts = (memory.goodFacts || []).map((fact: any) =>
-                      fact.id === sun.id ? { ...fact, x, y } : fact
-                    );
-                    await onUpdateMemory({ goodFacts: updatedGoodFacts });
-                  }
-                };
-                
-                const startPos = newlyCreatedMoments.get(sun.id);
-                return (
-                  <DraggableMoment
-                    key={`sun-focused-${sun.id}`}
-                    initialX={sunX}
-                    initialY={sunY}
-                    width={sunWidth}
-                    height={sunHeight}
-                    zIndex={sunZIndex}
-                    onPositionChange={handlePositionChange}
-                    onPress={onDoubleTap}
-                    entranceDelay={startPos ? 0 : sunIndex * 100} // No delay for newly created moments
-                    startX={startPos?.startX}
-                    startY={startPos?.startY}
-                  >
-                    <LinearGradient
-                      colors={['#FFD700', '#FFA500', '#FF8C00']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={{
-                        position: 'absolute',
-                        width: sunWidth,
-                        height: sunHeight,
-                        borderRadius: sunWidth / 2,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <View style={{
-                        position: 'absolute',
-                        top: sunHeight * 0.2,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}>
-                        <MaterialIcons 
-                          name="wb-sunny" 
-                          size={sunWidth * 0.5} 
-                          color="#FFFFFF" 
-                        />
-                      </View>
-                    </LinearGradient>
-                    <View
-                      style={{
-                        width: sunWidth,
-                        height: sunHeight,
-                        justifyContent: 'flex-start',
-                        alignItems: 'center',
-                        paddingHorizontal: 12,
-                        paddingTop: sunHeight * 0.25,
-                      }}
-                    >
-                      <ThemedText
-                        style={{
-                          color: '#000000',
-                          fontSize: 12,
-                          textAlign: 'center',
-                          fontWeight: '500',
-                        }}
-                      >
-                        {sun.text}
-                      </ThemedText>
-                    </View>
-                  </DraggableMoment>
-                );
-              }
-              
-              // Not focused - use small circular sun
-              const sunPosData = sunPositions[sunIndex];
-              const memoryCenterX = position.x;
-              const memoryCenterY = position.y;
-              const initialSunPos = {
-                x: memoryCenterX + sunPosData.offsetX,
-                y: memoryCenterY + sunPosData.offsetY,
-              };
-              
-              return (
-                <FloatingSun
-                  key={`sun-${sun.id}-${sunIndex}`}
-                  sun={sun}
-                  position={initialSunPos}
-                  memoryAnimatedPosition={memoryAnimatedPosition}
-                  avatarPanX={avatarPanX}
-                  avatarPanY={avatarPanY}
-                  focusedX={focusedX}
-                  focusedY={focusedY}
-                  memoryOffsetX={offsetX}
-                  memoryOffsetY={offsetY}
-                  offsetX={sunPosData.offsetX}
-                  offsetY={sunPosData.offsetY}
-                  zIndex={sunZIndex}
-                  isFocused={!!isFocused}
-                  colorScheme={colorScheme}
-                  onPress={onDoubleTap}
-                />
-              );
-            })}
-          </>
+          <MemoryMomentsRenderer
+            clouds={clouds}
+            suns={suns}
+            isFocused={isFocused}
+            isMemoryFocused={isMemoryFocused ?? false}
+            visibleMomentIds={visibleMomentIds}
+            calculateClampedPosition={calculateClampedPosition}
+            cloudWidth={cloudWidth}
+            cloudHeight={cloudHeight}
+            sunWidth={sunWidth}
+            sunHeight={sunHeight}
+            memorySize={memorySize}
+            cloudPositions={cloudPositions}
+            sunPositions={sunPositions}
+            position={position}
+            memoryAnimatedPosition={memoryAnimatedPosition}
+            avatarPanX={avatarPanX}
+            avatarPanY={avatarPanY}
+            focusedX={focusedX}
+            focusedY={focusedY}
+            offsetX={offsetX}
+            offsetY={offsetY}
+            cloudZIndex={cloudZIndex}
+            sunZIndex={sunZIndex}
+            colorScheme={colorScheme}
+            onDoubleTap={onDoubleTap}
+            onUpdateMemory={onUpdateMemory}
+            newlyCreatedMoments={newlyCreatedMoments}
+            memory={memory}
+          />
         );
       })()}
       
       {/* Cloud and Sun Buttons - only show when memory is focused */}
-      {isMemoryFocused && (() => {
-        const allClouds = (memory.hardTruths || []).filter((truth: any) => truth && typeof truth === 'object' && !Array.isArray(truth));
-        const allSuns = (memory.goodFacts || []).filter((fact: any) => fact && typeof fact === 'object');
-        const visibleCloudsCount = allClouds.filter((c: any) => c?.id && visibleMomentIds.has(c.id)).length;
-        const visibleSunsCount = allSuns.filter((s: any) => s?.id && visibleMomentIds.has(s.id)).length;
-        const totalCloudsCount = allClouds.length;
-        const totalSunsCount = allSuns.length;
-        const allCloudsVisible = totalCloudsCount > 0 && visibleCloudsCount >= totalCloudsCount;
-        const allSunsVisible = totalSunsCount > 0 && visibleSunsCount >= totalSunsCount;
-        
-        // Calculate position below memory image (moved up by 100px to match memory)
-        const offsetY = 100;
-        const memoryCenterY = SCREEN_HEIGHT / 2 - offsetY;
-        const memoryBottom = memoryCenterY + memorySize / 2;
-        const buttonSpacing = isLargeDevice ? 12 : 10;
-        const buttonSize = isLargeDevice ? 96 : 88;
-        const labelWidth = 100;
-        const totalWidth = buttonSize + buttonSpacing + labelWidth + buttonSpacing + buttonSize;
-        const containerTop = memoryBottom + 40; // 40px spacing below memory
-        
-        return (
-          <>
-            {/* Container for buttons and label */}
-            <View
-              style={{
-                position: 'absolute',
-                top: containerTop,
-                left: SCREEN_WIDTH / 2 - totalWidth / 2,
-                flexDirection: 'row',
-                alignItems: 'center',
-                zIndex: 2000,
-                borderWidth: 2,
-                borderColor: 'blue',
-              }}
-            >
-              {/* Cloud Button */}
-              <View
-                ref={cloudButtonRef}
-                style={{ borderWidth: 2, borderColor: 'magenta' }}
-                onLayout={() => {
-                  cloudButtonRef.current?.measure((fx, fy, width, height, px, py) => {
-                    const buttonCenterX = px + width / 2;
-                    const buttonCenterY = py + height / 2;
-                    setCloudButtonPos({ x: buttonCenterX, y: buttonCenterY });
-                  });
-                }}
-              >
-              <Pressable
-                onPress={handleAddCloud}
-                disabled={allCloudsVisible}
-              >
-              <View
-                style={{
-                  width: isLargeDevice ? 96 : 88,
-                  height: isLargeDevice ? 96 : 88,
-                  borderRadius: isLargeDevice ? 48 : 44,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  backgroundColor: colorScheme === 'dark' 
-                    ? 'rgba(255, 255, 255, 0.08)' 
-                    : 'rgba(255, 255, 255, 0.9)',
-                  shadowColor: colorScheme === 'dark' ? '#000' : '#000',
-                  shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
-                  shadowOpacity: colorScheme === 'dark' ? 0.8 : 0.6,
-                  shadowRadius: colorScheme === 'dark' ? 24 : 20,
-                  elevation: colorScheme === 'dark' ? 18 : 15,
-                  overflow: 'visible', // Allow count text to be visible
-                  borderWidth: colorScheme === 'dark' ? 2 : 1.5,
-                  borderColor: colorScheme === 'dark' 
-                    ? 'rgba(255, 255, 255, 0.3)' 
-                    : 'rgba(255, 255, 255, 0.6)',
-                  opacity: allCloudsVisible ? 0.4 : 1,
-                }}
-              >
-                <LinearGradient
-                  colors={
-                    colorScheme === 'dark'
-                      ? ['rgba(180, 180, 180, 0.8)', 'rgba(100, 100, 100, 0.6)', 'rgba(40, 40, 40, 0.8)']
-                      : ['rgba(255, 255, 255, 1)', 'rgba(230, 230, 230, 0.95)', 'rgba(200, 200, 200, 1)']
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: isLargeDevice ? 48 : 44,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    position: 'relative',
-                  }}
-                >
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: isLargeDevice ? 14 : 12,
-                      left: 0,
-                      right: 0,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <MaterialIcons 
-                      name="cloud" 
-                      size={isLargeDevice ? 44 : 40} 
-                      color={colorScheme === 'dark' ? '#FFFFFF' : '#555'} 
-                    />
-                  </View>
-                  {/* Count badge - horizontal bar at bottom of circle */}
-                  {totalCloudsCount > 0 && (
-                    <View
-                      style={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 2,
-                        right: 2,
-                        height: 28,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: '#000000',
-                        borderBottomLeftRadius: isLargeDevice ? 48 : 44,
-                        borderBottomRightRadius: isLargeDevice ? 48 : 44,
-                        borderTopLeftRadius: 6,
-                        borderTopRightRadius: 6,
-                        paddingHorizontal: 8,
-                        paddingVertical: 4,
-                      }}
-                    >
-                      <ThemedText
-                        style={{
-                          fontSize: isLargeDevice ? 12 : 11,
-                          fontWeight: '600',
-                          color: '#FFFFFF',
-                          textAlign: 'center',
-                        }}
-                      >
-                        {visibleCloudsCount}/{totalCloudsCount}
-                      </ThemedText>
-                    </View>
-                  )}
-                </LinearGradient>
-              </View>
-            </Pressable>
-          </View>
-          
-          {/* RemindWhy Label */}
-          <View
-            style={{
-              width: labelWidth,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginHorizontal: buttonSpacing,
-              borderWidth: 2,
-              borderColor: 'orange',
-            }}
-          >
-            <ThemedText
-              style={{
-                fontSize: isLargeDevice ? 16 : 14,
-                fontWeight: '600',
-                color: colors.text,
-                textAlign: 'center',
-              }}
-            >
-              RemindWhy
-            </ThemedText>
-          </View>
-          
-          {/* Sun Button */}
-          <View
-            ref={sunButtonRef}
-            style={{ borderWidth: 2, borderColor: 'yellow' }}
-            onLayout={() => {
-              sunButtonRef.current?.measure((fx, fy, width, height, px, py) => {
-                const buttonCenterX = px + width / 2;
-                const buttonCenterY = py + height / 2;
-                setSunButtonPos({ x: buttonCenterX, y: buttonCenterY });
-              });
-            }}
-          >
-              <Pressable
-                onPress={handleAddSun}
-                disabled={allSunsVisible}
-              >
-              <View
-                style={{
-                  width: isLargeDevice ? 96 : 88,
-                  height: isLargeDevice ? 96 : 88,
-                  borderRadius: isLargeDevice ? 48 : 44,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  backgroundColor: colorScheme === 'dark' 
-                    ? 'rgba(255, 255, 255, 0.08)' 
-                    : 'rgba(255, 255, 255, 0.9)',
-                  shadowColor: colorScheme === 'dark' ? '#FFA500' : '#FFA500',
-                  shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
-                  shadowOpacity: colorScheme === 'dark' ? 0.9 : 0.7,
-                  shadowRadius: colorScheme === 'dark' ? 24 : 20,
-                  elevation: colorScheme === 'dark' ? 18 : 15,
-                  overflow: 'visible', // Allow count text to be visible
-                  borderWidth: colorScheme === 'dark' ? 2 : 1.5,
-                  borderColor: colorScheme === 'dark' 
-                    ? 'rgba(255, 220, 100, 0.5)' 
-                    : 'rgba(255, 200, 0, 0.7)',
-                  opacity: allSunsVisible ? 0.4 : 1,
-                }}
-              >
-                <LinearGradient
-                  colors={
-                    colorScheme === 'dark'
-                      ? ['rgba(255, 230, 140, 0.85)', 'rgba(255, 180, 70, 0.7)', 'rgba(255, 140, 40, 0.85)']
-                      : ['rgba(255, 250, 200, 1)', 'rgba(255, 230, 120, 0.95)', 'rgba(255, 210, 60, 1)']
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: isLargeDevice ? 48 : 44,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    position: 'relative',
-                  }}
-                >
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: isLargeDevice ? 14 : 12,
-                      left: 0,
-                      right: 0,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <MaterialIcons 
-                      name="wb-sunny" 
-                      size={isLargeDevice ? 44 : 40} 
-                      color={colorScheme === 'dark' ? '#FFD700' : '#FFA500'} 
-                    />
-                  </View>
-                  {/* Count badge - horizontal bar at bottom of circle */}
-                  {totalSunsCount > 0 && (
-                    <View
-                      style={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 2,
-                        right: 2,
-                        height: 28,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: '#000000',
-                        borderBottomLeftRadius: isLargeDevice ? 48 : 44,
-                        borderBottomRightRadius: isLargeDevice ? 48 : 44,
-                        borderTopLeftRadius: 6,
-                        borderTopRightRadius: 6,
-                        paddingHorizontal: 8,
-                        paddingVertical: 4,
-                      }}
-                    >
-                      <ThemedText
-                        style={{
-                          fontSize: isLargeDevice ? 12 : 11,
-                          fontWeight: '600',
-                          color: '#FFFFFF',
-                          textAlign: 'center',
-                        }}
-                      >
-                        {visibleSunsCount}/{totalSunsCount}
-                      </ThemedText>
-                    </View>
-                  )}
-                </LinearGradient>
-              </View>
-              </Pressable>
-            </View>
-          </View>
-          </>
-        );
-      })()}
+      <MemoryActionButtons
+        isMemoryFocused={isMemoryFocused ?? false}
+        memory={memory}
+        visibleMomentIds={visibleMomentIds}
+        memorySize={memorySize}
+        isLargeDevice={isLargeDevice}
+        colorScheme={colorScheme}
+        cloudButtonRef={cloudButtonRef}
+        sunButtonRef={sunButtonRef}
+        setCloudButtonPos={setCloudButtonPos}
+        setSunButtonPos={setSunButtonPos}
+        handleAddCloud={handleAddCloud}
+        handleAddSun={handleAddSun}
+      />
     </>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function to prevent unnecessary re-renders
+  return (
+    prevProps.memory.id === nextProps.memory.id &&
+    prevProps.position.x === nextProps.position.x &&
+    prevProps.position.y === nextProps.position.y &&
+    prevProps.offsetX === nextProps.offsetX &&
+    prevProps.offsetY === nextProps.offsetY &&
+    prevProps.isFocused === nextProps.isFocused &&
+    prevProps.isMemoryFocused === nextProps.isMemoryFocused &&
+    prevProps.calculatedMemorySize === nextProps.calculatedMemorySize &&
+    prevProps.colorScheme === nextProps.colorScheme &&
+    (prevProps.memory.hardTruths?.length ?? 0) === (nextProps.memory.hardTruths?.length ?? 0) &&
+    (prevProps.memory.goodFacts?.length ?? 0) === (nextProps.memory.goodFacts?.length ?? 0)
+  );
+});
 
 // Floating Cloud Component
 function FloatingCloud({
@@ -2140,18 +2157,16 @@ function FloatingCloud({
   colorScheme: 'light' | 'dark';
   onPress?: () => void;
 }) {
-  // Make clouds smaller when focused
-  const cloudSize = isFocused ? 20 : 24; // Smaller when focused
+  // Make clouds smaller when focused, but maintain proper proportions
+  // Use larger base size to avoid clipping and maintain aspect ratio
+  const cloudSize = isFocused ? 18 : 24; // Smaller when focused, but not too small
 
   const floatAnimation = useSharedValue(0);
   
-  // Scale animation for focused state - clouds scale to 2x (bigger than avatar for visibility)
-  const scale = useSharedValue(isFocused ? 2 : 1);
+  // No scale animation when focused - use proper base size instead
+  const scale = useSharedValue(1);
   React.useEffect(() => {
-    scale.value = withSpring(isFocused ? 2 : 1, {
-      damping: 15,
-      stiffness: 100,
-    });
+    scale.value = 1; // Keep at 1 to maintain proportions
   }, [isFocused, scale]);
   
   React.useEffect(() => {
@@ -2251,7 +2266,7 @@ function FloatingCloud({
             elevation: 4,
           }}
         >
-          <MaterialIcons name="cloud" size={16} color="#000000" />
+          <MaterialIcons name="cloud" size={safeCloudSize * 0.7} color="#000000" />
         </View>
       </Pressable>
     </Animated.View>
@@ -2292,18 +2307,16 @@ function FloatingSun({
   colorScheme: 'light' | 'dark';
   onPress?: () => void;
 }) {
-  // Make suns smaller when focused
-  const sunSize = isFocused ? 18 : 22; // Smaller when focused
+  // Make suns smaller when focused, but maintain proper proportions
+  // Use larger base size to avoid clipping and maintain aspect ratio
+  const sunSize = isFocused ? 16 : 22; // Smaller when focused, but not too small
 
   const floatAnimation = useSharedValue(0);
   
-  // Scale animation for focused state - suns scale to 2x (bigger than avatar for visibility)
-  const scale = useSharedValue(isFocused ? 2 : 1);
+  // No scale animation when focused - use proper base size instead
+  const scale = useSharedValue(1);
   React.useEffect(() => {
-    scale.value = withSpring(isFocused ? 2 : 1, {
-      damping: 15,
-      stiffness: 100,
-    });
+    scale.value = 1; // Keep at 1 to maintain proportions
   }, [isFocused, scale]);
   
   React.useEffect(() => {
@@ -2385,7 +2398,7 @@ function FloatingSun({
             elevation: 4,
           }}
         >
-          <MaterialIcons name="wb-sunny" size={14} color="#FFFFFF" />
+          <MaterialIcons name="wb-sunny" size={sunSize * 0.65} color="#FFFFFF" />
         </LinearGradient>
       </Pressable>
     </Animated.View>
@@ -2437,7 +2450,7 @@ export default function HomeScreen() {
   // Ongoing partners get their own section at the top, then sorted by end year
   const yearSections = React.useMemo(() => {
     const sections = new Map<string, { year: number | string; top: number; bottom: number; height: number }>();
-    const exZoneRadius = 120;
+    const exZoneRadius = 0;
     const topPadding = exZoneRadius + 20;
     const bottomPadding = exZoneRadius + 20;
     const availableHeight = SCREEN_HEIGHT - topPadding - bottomPadding;
@@ -2489,17 +2502,22 @@ export default function HomeScreen() {
     return sections;
   }, [sortedProfiles]);
   
+  // Get the section key for a profile
+  const getProfileSectionKey = React.useCallback((profile: any): string | null => {
+    if (profile.relationshipEndDate === null || profile.relationshipEndDate === undefined) {
+      return 'ongoing';
+    } else {
+      const year = new Date(profile.relationshipEndDate).getFullYear();
+      return year.toString();
+    }
+  }, []);
+
   // Get the year section for a profile
   const getProfileYearSection = React.useCallback((profile: any) => {
-    if (profile.relationshipEndDate === null) {
-      // Ongoing - use "ongoing" section
-      return yearSections.get('ongoing');
-    } else {
-      // Ended - use end year
-      const year = new Date(profile.relationshipEndDate).getFullYear();
-      return yearSections.get(year.toString());
-    }
-  }, [yearSections]);
+    const sectionKey = getProfileSectionKey(profile);
+    if (!sectionKey) return undefined;
+    return yearSections.get(sectionKey);
+  }, [yearSections, getProfileSectionKey]);
   
   // Check if splash is still visible - delay heavy animations until splash is done
   const { isVisible: isSplashVisible } = useSplash();
@@ -2638,7 +2656,48 @@ export default function HomeScreen() {
   
   // Get current position for a profile (either from state or initial)
   const getAvatarPosition = (profileId: string, index: number) => {
-    return avatarPositionsState.get(profileId) || initialAvatarPositions[index] || { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+    const profile = sortedProfiles.find(p => p.id === profileId);
+    const yearSection = profile ? getProfileYearSection(profile) : null;
+    
+    // Try to get position from state first
+    const statePosition = avatarPositionsState.get(profileId);
+    if (statePosition) {
+      if (yearSection) {
+        // Validate state position is within section bounds
+        const avatarHalfSize = 40; // baseAvatarSize / 2
+        const margin = 20;
+        const minY = yearSection.top + avatarHalfSize + margin;
+        const maxY = yearSection.bottom - avatarHalfSize - margin;
+        
+        if (statePosition.y >= minY && statePosition.y <= maxY) {
+          return statePosition;
+        } else {
+          console.log(`[getAvatarPosition] State position ${JSON.stringify(statePosition)} is outside section bounds (minY: ${minY}, maxY: ${maxY}) for profile ${profileId}, using initial position`);
+        }
+      } else {
+        // No section, use state position as-is
+        return statePosition;
+      }
+    }
+    
+    // Fall back to initial position
+    const initialPosition = initialAvatarPositions[index];
+    if (initialPosition) {
+      console.log(`[getAvatarPosition] Using initial position ${JSON.stringify(initialPosition)} for profile ${profileId}, yearSection:`, yearSection ? { top: yearSection.top, bottom: yearSection.bottom } : null);
+      return initialPosition;
+    }
+    
+    // Final fallback: center of screen or section
+    if (yearSection) {
+      const fallbackPosition = {
+        x: SCREEN_WIDTH / 2,
+        y: yearSection.top + yearSection.height / 2,
+      };
+      console.log(`[getAvatarPosition] Using fallback position ${JSON.stringify(fallbackPosition)} for profile ${profileId}`);
+      return fallbackPosition;
+    }
+    
+    return { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
   };
   
   // Update position for a profile and save to storage
@@ -2736,6 +2795,42 @@ export default function HomeScreen() {
     }
   }, [focusedMemory, memorySlideOffset]);
 
+  // Memoize filtered profiles to avoid recalculating on every render
+  const visibleProfiles = React.useMemo(() => {
+    return sortedProfiles.filter(profile => {
+      // Only show focused profile, or all profiles if nothing is focused
+      if (focusedProfileId) {
+        return profile.id === focusedProfileId;
+      }
+      if (focusedMemory) {
+        return profile.id === focusedMemory.profileId;
+      }
+      return true; // Show all when nothing is focused
+    });
+  }, [sortedProfiles, focusedProfileId, focusedMemory]);
+
+  // Group visible profiles by their year sections, preserving their index in sortedProfiles
+  const profilesBySection = React.useMemo(() => {
+    const grouped = new Map<string, { profile: any; index: number }[]>();
+    
+    visibleProfiles.forEach(profile => {
+      const sectionKey = getProfileSectionKey(profile);
+      if (sectionKey && yearSections.has(sectionKey)) {
+        // Find the index in sortedProfiles
+        const indexInSorted = sortedProfiles.findIndex(p => p.id === profile.id);
+        
+        if (indexInSorted >= 0) {
+          if (!grouped.has(sectionKey)) {
+            grouped.set(sectionKey, []);
+          }
+          grouped.get(sectionKey)!.push({ profile, index: indexInSorted });
+        }
+      }
+    });
+    
+    return grouped;
+  }, [visibleProfiles, sortedProfiles, getProfileSectionKey, yearSections]);
+
   if (sortedProfiles.length === 0) {
   return (
     <TabScreenContainer>
@@ -2791,7 +2886,7 @@ export default function HomeScreen() {
         )}
 
         <ScrollView
-          style={{ flex: 1, borderWidth: 3, borderColor: 'red' }}
+          style={{ flex: 1 }}
           contentContainerStyle={[
             styles.content,
             {
@@ -2803,162 +2898,407 @@ export default function HomeScreen() {
                   ? (sortedProfiles.length - 1) * ((SCREEN_HEIGHT - (120 + 20) * 2) / Math.max(1, sortedProfiles.length - 1)) + (120 + 20) * 2
                   : SCREEN_HEIGHT
               ),
-              borderWidth: 3,
-              borderColor: 'green',
               justifyContent: 'flex-start',
+              alignItems: 'flex-start',
             },
           ]}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={true}
           scrollEnabled={!focusedProfileId && !focusedMemory}
         >
-          {animationsReady && sortedProfiles
-            .filter(profile => {
-              // Only show focused profile, or all profiles if nothing is focused
-              if (focusedProfileId) {
-                return profile.id === focusedProfileId;
-              }
-              if (focusedMemory) {
-                return profile.id === focusedMemory.profileId;
-              }
-              return true; // Show all when nothing is focused
-            })
-            .map((profile, index) => {
+          {/* Render year sections with profiles inside - hidden when focused */}
+          {animationsReady && !focusedProfileId && !focusedMemory && (
+            <YearSectionsRenderer
+              yearSections={yearSections}
+              profilesBySection={profilesBySection}
+              colorScheme={colorScheme ?? 'dark'}
+              getIdealizedMemoriesByProfileId={getIdealizedMemoriesByProfileId}
+              getAvatarPosition={getAvatarPosition}
+              focusedProfileId={focusedProfileId}
+              focusedMemory={focusedMemory}
+              previousFocusedId={previousFocusedIdRef.current}
+              slideOffset={slideOffset}
+              getProfileYearSection={getProfileYearSection}
+              updateAvatarPosition={updateAvatarPosition}
+              setFocusedProfileId={setFocusedProfileId}
+              setFocusedMemory={setFocusedMemory}
+              colors={colors}
+              memorySlideOffset={memorySlideOffset}
+            />
+          )}
+          
+          {/* Render focused profiles separately when focused (but hide profile when memory is focused) */}
+          {animationsReady && focusedProfileId && !focusedMemory && visibleProfiles.map((profile, index) => {
             const memories = getIdealizedMemoriesByProfileId(profile.id);
             const currentPosition = getAvatarPosition(profile.id, index);
             const isFocused = focusedProfileId === profile.id;
-            const isProfileFocusedForMemory = focusedMemory?.profileId === profile.id;
-            
-            // Determine slide direction for non-focused zones - push in different directions
-            // Use profile position to determine direction for more natural movement
-            const centerX = SCREEN_WIDTH / 2;
-            const centerY = SCREEN_HEIGHT / 2;
-            const dx = currentPosition.x - centerX;
-            const dy = currentPosition.y - centerY;
-            // Determine direction based on position relative to center
-            const slideDirectionX = dx > 0 ? 1 : -1; // Right side slides right, left side slides left
-            const slideDirectionY = dy > 0 ? 1 : -1; // Bottom slides down, top slides up
             
             return (
-              <NonFocusedZone
+              <ProfileRenderer
                 key={profile.id}
-                isFocused={isFocused || isProfileFocusedForMemory}
-                wasJustFocused={previousFocusedIdRef.current === profile.id && !focusedProfileId && !focusedMemory}
+                profile={profile}
+                index={index}
+                memories={memories}
+                currentPosition={currentPosition}
+                isFocused={isFocused}
+                isProfileFocusedForMemory={false}
                 focusedProfileId={focusedProfileId}
+                previousFocusedId={previousFocusedIdRef.current}
+                focusedMemory={focusedMemory}
                 slideOffset={slideOffset}
-                slideDirectionX={slideDirectionX}
-                slideDirectionY={slideDirectionY}
-              >
-                {!isProfileFocusedForMemory && (
-                  <FloatingAvatar
-                    profile={profile}
-                    position={currentPosition}
-                    memories={memories}
-                    onPress={() => {
-                      console.log(`[HomeScreen] onPress called for profile: ${profile.id}, current focused: ${focusedProfileId}, isFocused: ${isFocused}`);
-                      const newFocusedId = isFocused ? null : profile.id;
-                      console.log(`[HomeScreen] Setting focusedProfileId to: ${newFocusedId}`);
-                      setFocusedProfileId(newFocusedId);
-                      setFocusedMemory(null); // Clear memory focus if profile is focused
-                    }}
-                    onPositionChange={(newPosition) => updateAvatarPosition(profile.id, newPosition)}
-                    isFocused={isFocused}
-                    colors={colors}
-                    colorScheme={colorScheme ?? 'dark'}
-                    focusedMemory={focusedMemory}
-                    memorySlideOffset={memorySlideOffset}
-                    onMemoryFocus={(profileId, memoryId) => {
-                      setFocusedMemory({ profileId, memoryId });
-                    }}
-                    yearSection={getProfileYearSection(profile)}
-                  />
-                )}
-              </NonFocusedZone>
-            );
-            })}
-          
-          {/* Render year section labels - hidden when focused */}
-          {animationsReady && !focusedProfileId && !focusedMemory && Array.from(yearSections.entries()).map(([key, section]) => {
-            return (
-              <View
-                key={`year-section-${key}`}
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: section.top,
-                  width: SCREEN_WIDTH,
-                  height: section.height,
-                  borderTopWidth: 2,
-                  borderBottomWidth: 2,
-                  borderLeftWidth: 2,
-                  borderRightWidth: 2,
-                  borderColor: 'cyan',
-                  backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
-                  zIndex: 0, // Behind avatars
-                  pointerEvents: 'none', // Allow touches to pass through
-                }}
-              >
-                {/* Year label */}
-                <ThemedText
-                  size="xl"
-                  weight="bold"
-                  style={{
-                    position: 'absolute',
-                    left: 16,
-                    top: 8,
-                    opacity: 0.6,
-                    color: colorScheme === 'dark' ? '#ffffff' : '#000000',
-                  }}
-                >
-                  {section.year}
-                </ThemedText>
-              </View>
+                getProfileYearSection={getProfileYearSection}
+                updateAvatarPosition={updateAvatarPosition}
+                setFocusedProfileId={setFocusedProfileId}
+                setFocusedMemory={setFocusedMemory}
+                colors={colors}
+                colorScheme={colorScheme ?? 'dark'}
+                memorySlideOffset={memorySlideOffset}
+              />
             );
           })}
           
           {/* Render focused memory separately when memory is focused */}
-          {focusedMemory && animationsReady && (() => {
-            const focusedProfile = sortedProfiles.find(p => p.id === focusedMemory.profileId);
-            if (!focusedProfile) return null;
-            
-            const focusedMemoryData = getIdealizedMemoriesByProfileId(focusedMemory.profileId)
-              .find(m => m.id === focusedMemory.memoryId);
-            if (!focusedMemoryData) return null;
-            
-            return (
-              <FloatingMemory
-                key={`focused-memory-${focusedMemory.memoryId}`}
-                memory={focusedMemoryData}
-                position={{ x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 }}
-                avatarPanX={undefined}
-                avatarPanY={undefined}
-                focusedX={undefined}
-                focusedY={undefined}
-                offsetX={0}
-                offsetY={0}
-                isFocused={true}
-                colorScheme={colorScheme ?? 'dark'}
-                calculatedMemorySize={100}
-                onDoubleTap={() => {
-                  setFocusedMemory(null);
-                }}
-                isMemoryFocused={true}
-                memorySlideOffset={memorySlideOffset}
-                onUpdateMemory={async (updates) => {
-                  if (focusedMemory) {
-                    await updateIdealizedMemory(focusedMemory.memoryId, updates);
-                  }
-                }}
-              />
-            );
-          })()}
+          {focusedMemory && animationsReady && (
+            <FocusedMemoryRenderer
+              focusedMemory={focusedMemory}
+              sortedProfiles={sortedProfiles}
+              getIdealizedMemoriesByProfileId={getIdealizedMemoriesByProfileId}
+              updateIdealizedMemory={updateIdealizedMemory}
+              colorScheme={colorScheme ?? 'dark'}
+              memorySlideOffset={memorySlideOffset}
+              setFocusedMemory={setFocusedMemory}
+            />
+          )}
         </ScrollView>
       </View>
     </TabScreenContainer>
   );
 }
 
+// Year Sections Renderer Component
+const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
+  yearSections,
+  profilesBySection,
+  colorScheme,
+  getIdealizedMemoriesByProfileId,
+  getAvatarPosition,
+  focusedProfileId,
+  focusedMemory,
+  previousFocusedId,
+  slideOffset,
+  getProfileYearSection,
+  updateAvatarPosition,
+  setFocusedProfileId,
+  setFocusedMemory,
+  colors,
+  memorySlideOffset,
+}: {
+  yearSections: Map<string, { year: number | string; top: number; bottom: number; height: number }>;
+  profilesBySection: Map<string, any[]>;
+  colorScheme: 'light' | 'dark';
+  getIdealizedMemoriesByProfileId: (profileId: string) => any[];
+  getAvatarPosition: (profileId: string, index: number) => { x: number; y: number };
+  focusedProfileId: string | null;
+  focusedMemory: { profileId: string; memoryId: string } | null;
+  previousFocusedId: string | null;
+  slideOffset: ReturnType<typeof useSharedValue<number>>;
+  getProfileYearSection: (profile: any) => { year: number | string; top: number; bottom: number; height: number } | undefined;
+  updateAvatarPosition: (profileId: string, newPosition: { x: number; y: number }) => void;
+  setFocusedProfileId: (id: string | null) => void;
+  setFocusedMemory: (memory: { profileId: string; memoryId: string } | null) => void;
+  colors: any;
+  memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
+}) {
+  return (
+    <>
+      {/* Render section backgrounds */}
+      {Array.from(yearSections.entries()).map(([key, section]) => (
+        <YearSectionBackground
+          key={`year-section-bg-${key}`}
+          section={section}
+          colorScheme={colorScheme}
+        />
+      ))}
+      
+      {/* Render profiles at the same level (not nested in sections) */}
+      {Array.from(profilesBySection.entries()).flatMap(([key, sectionProfilesData]) => {
+        return sectionProfilesData.map(({ profile, index: profileIndex }) => {
+          const memories = getIdealizedMemoriesByProfileId(profile.id);
+          const currentPosition = getAvatarPosition(profile.id, profileIndex);
+          const isFocused = focusedProfileId === profile.id;
+          const isProfileFocusedForMemory = focusedMemory?.profileId === profile.id;
+          
+          return (
+            <ProfileRenderer
+              key={profile.id}
+              profile={profile}
+              index={profileIndex}
+              memories={memories}
+              currentPosition={currentPosition}
+              isFocused={isFocused}
+              isProfileFocusedForMemory={isProfileFocusedForMemory}
+              focusedProfileId={focusedProfileId}
+              previousFocusedId={previousFocusedId}
+              focusedMemory={focusedMemory}
+              slideOffset={slideOffset}
+              getProfileYearSection={getProfileYearSection}
+              updateAvatarPosition={updateAvatarPosition}
+              setFocusedProfileId={setFocusedProfileId}
+              setFocusedMemory={setFocusedMemory}
+              colors={colors}
+              colorScheme={colorScheme}
+              memorySlideOffset={memorySlideOffset}
+            />
+          );
+        });
+      })}
+    </>
+  );
+}, (prevProps, nextProps) => {
+  // Compare yearSections by checking if all entries are the same
+  if (prevProps.yearSections.size !== nextProps.yearSections.size) {
+    return false;
+  }
+  
+  for (const [key, section] of prevProps.yearSections.entries()) {
+    const nextSection = nextProps.yearSections.get(key);
+    if (!nextSection) return false;
+    if (
+      section.year !== nextSection.year ||
+      section.top !== nextSection.top ||
+      section.bottom !== nextSection.bottom ||
+      section.height !== nextSection.height
+    ) {
+      return false;
+    }
+  }
+  
+  // Compare profilesBySection
+  if (prevProps.profilesBySection.size !== nextProps.profilesBySection.size) {
+    return false;
+  }
+  
+  for (const [key, profilesData] of prevProps.profilesBySection.entries()) {
+    const nextProfilesData = nextProps.profilesBySection.get(key);
+    if (!nextProfilesData || profilesData.length !== nextProfilesData.length) return false;
+    if (profilesData.some((item, i) => 
+      item.profile.id !== nextProfilesData[i]?.profile.id ||
+      item.index !== nextProfilesData[i]?.index
+    )) return false;
+  }
+  
+  return (
+    prevProps.colorScheme === nextProps.colorScheme &&
+    prevProps.focusedProfileId === nextProps.focusedProfileId &&
+    prevProps.focusedMemory?.profileId === nextProps.focusedMemory?.profileId &&
+    prevProps.focusedMemory?.memoryId === nextProps.focusedMemory?.memoryId &&
+    prevProps.previousFocusedId === nextProps.previousFocusedId
+  );
+});
+
+// Year Section Background Component (just the visual container)
+const YearSectionBackground = React.memo(function YearSectionBackground({
+  section,
+  colorScheme,
+}: {
+  section: { year: number | string; top: number; bottom: number; height: number };
+  colorScheme: 'light' | 'dark';
+}) {
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: section.top,
+        width: SCREEN_WIDTH,
+        height: section.height,
+        backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+        zIndex: 0, // Behind avatars
+        pointerEvents: 'none', // Allow touches to pass through
+      }}
+    >
+      {/* Year label */}
+      <ThemedText
+        size="xl"
+        weight="bold"
+        style={{
+          position: 'absolute',
+          left: 16,
+          top: 8,
+          opacity: 0.6,
+          color: colorScheme === 'dark' ? '#ffffff' : '#000000',
+        }}
+      >
+        {section.year}
+      </ThemedText>
+    </View>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.section.year === nextProps.section.year &&
+    prevProps.section.top === nextProps.section.top &&
+    prevProps.section.bottom === nextProps.section.bottom &&
+    prevProps.section.height === nextProps.section.height &&
+    prevProps.colorScheme === nextProps.colorScheme
+  );
+});
+
+// Focused Memory Renderer Component
+const FocusedMemoryRenderer = React.memo(function FocusedMemoryRenderer({
+  focusedMemory,
+  sortedProfiles,
+  getIdealizedMemoriesByProfileId,
+  updateIdealizedMemory,
+  colorScheme,
+  memorySlideOffset,
+  setFocusedMemory,
+}: {
+  focusedMemory: { profileId: string; memoryId: string };
+  sortedProfiles: any[];
+  getIdealizedMemoriesByProfileId: (profileId: string) => any[];
+  updateIdealizedMemory: (memoryId: string, updates: Partial<any>) => Promise<void>;
+  colorScheme: 'light' | 'dark';
+  memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
+  setFocusedMemory: (memory: { profileId: string; memoryId: string } | null) => void;
+}) {
+  const focusedProfile = sortedProfiles.find(p => p.id === focusedMemory.profileId);
+  if (!focusedProfile) return null;
+  
+  const focusedMemoryData = getIdealizedMemoriesByProfileId(focusedMemory.profileId)
+    .find(m => m.id === focusedMemory.memoryId);
+  if (!focusedMemoryData) return null;
+  
+  return (
+    <FloatingMemory
+      key={`focused-memory-${focusedMemory.memoryId}`}
+      memory={focusedMemoryData}
+      position={{ x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 }}
+      avatarPanX={undefined}
+      avatarPanY={undefined}
+      focusedX={undefined}
+      focusedY={undefined}
+      offsetX={0}
+      offsetY={0}
+      isFocused={true}
+      colorScheme={colorScheme ?? 'dark'}
+      calculatedMemorySize={100}
+      onDoubleTap={() => {
+        setFocusedMemory(null);
+      }}
+      isMemoryFocused={true}
+      memorySlideOffset={memorySlideOffset}
+      onUpdateMemory={async (updates) => {
+        if (focusedMemory) {
+          await updateIdealizedMemory(focusedMemory.memoryId, updates);
+        }
+      }}
+    />
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.focusedMemory.profileId === nextProps.focusedMemory.profileId &&
+    prevProps.focusedMemory.memoryId === nextProps.focusedMemory.memoryId &&
+    prevProps.colorScheme === nextProps.colorScheme
+  );
+});
+
+// Profile Renderer Component
+const ProfileRenderer = React.memo(function ProfileRenderer({
+  profile,
+  index,
+  memories,
+  currentPosition,
+  isFocused,
+  isProfileFocusedForMemory,
+  focusedProfileId,
+  previousFocusedId,
+  focusedMemory,
+  slideOffset,
+  getProfileYearSection,
+  updateAvatarPosition,
+  setFocusedProfileId,
+  setFocusedMemory,
+  colors,
+  colorScheme,
+  memorySlideOffset,
+}: {
+  profile: any;
+  index: number;
+  memories: any[];
+  currentPosition: { x: number; y: number };
+  isFocused: boolean;
+  isProfileFocusedForMemory: boolean;
+  focusedProfileId: string | null;
+  previousFocusedId: string | null;
+  focusedMemory: { profileId: string; memoryId: string } | null;
+  slideOffset: ReturnType<typeof useSharedValue<number>>;
+  getProfileYearSection: (profile: any) => { year: number | string; top: number; bottom: number; height: number } | undefined;
+  updateAvatarPosition: (profileId: string, newPosition: { x: number; y: number }) => void;
+  setFocusedProfileId: (id: string | null) => void;
+  setFocusedMemory: (memory: { profileId: string; memoryId: string } | null) => void;
+  colors: any;
+  colorScheme: 'light' | 'dark';
+  memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
+}) {
+  // Determine slide direction for non-focused zones
+  const centerX = SCREEN_WIDTH / 2;
+  const centerY = SCREEN_HEIGHT / 2;
+  const dx = currentPosition.x - centerX;
+  const dy = currentPosition.y - centerY;
+  const slideDirectionX = dx > 0 ? 1 : -1;
+  const slideDirectionY = dy > 0 ? 1 : -1;
+  
+  // Don't render the profile at all when a memory is focused (it's rendered separately)
+  if (isProfileFocusedForMemory) {
+    return null;
+  }
+  
+  return (
+    <NonFocusedZone
+      key={profile.id}
+      isFocused={isFocused}
+      wasJustFocused={previousFocusedId === profile.id && !focusedProfileId && !focusedMemory}
+      focusedProfileId={focusedProfileId}
+      slideOffset={slideOffset}
+      slideDirectionX={slideDirectionX}
+      slideDirectionY={slideDirectionY}
+    >
+      <FloatingAvatar
+        profile={profile}
+        position={currentPosition}
+        memories={memories}
+        onPress={() => {
+          const newFocusedId = isFocused ? null : profile.id;
+          setFocusedProfileId(newFocusedId);
+          setFocusedMemory(null);
+        }}
+        isFocused={isFocused}
+        colors={colors}
+        colorScheme={colorScheme ?? 'dark'}
+        focusedMemory={focusedMemory}
+        memorySlideOffset={memorySlideOffset}
+        onMemoryFocus={(profileId, memoryId) => {
+          setFocusedMemory({ profileId, memoryId });
+        }}
+        yearSection={getProfileYearSection(profile)}
+      />
+    </NonFocusedZone>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.profile.id === nextProps.profile.id &&
+    prevProps.currentPosition.x === nextProps.currentPosition.x &&
+    prevProps.currentPosition.y === nextProps.currentPosition.y &&
+    prevProps.isFocused === nextProps.isFocused &&
+    prevProps.isProfileFocusedForMemory === nextProps.isProfileFocusedForMemory &&
+    prevProps.focusedProfileId === nextProps.focusedProfileId &&
+    prevProps.focusedMemory?.profileId === nextProps.focusedMemory?.profileId &&
+    prevProps.focusedMemory?.memoryId === nextProps.focusedMemory?.memoryId &&
+    prevProps.memories.length === nextProps.memories.length
+  );
+});
+
 // Component to handle non-focused zone animation
-function NonFocusedZone({
+const NonFocusedZone = React.memo(function NonFocusedZone({
   children,
   isFocused,
   wasJustFocused,
@@ -3027,4 +3367,12 @@ function NonFocusedZone({
       {children}
     </Animated.View>
   );
-}
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.isFocused === nextProps.isFocused &&
+    prevProps.wasJustFocused === nextProps.wasJustFocused &&
+    prevProps.focusedProfileId === nextProps.focusedProfileId &&
+    prevProps.slideDirectionX === nextProps.slideDirectionX &&
+    prevProps.slideDirectionY === nextProps.slideDirectionY
+  );
+});
