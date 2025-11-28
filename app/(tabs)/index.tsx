@@ -10,23 +10,24 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { startTransition, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming,
+    Easing,
+    useAnimatedReaction,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withSequence,
+    withSpring,
+    withTiming,
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Draggable Moment Component (for focused memory view)
-function DraggableMoment({
+const DraggableMoment = React.memo(function DraggableMoment({
   initialX,
   initialY,
   width,
@@ -214,7 +215,7 @@ function DraggableMoment({
       {children}
     </Animated.View>
   );
-}
+});
 
 // Floating Avatar Component
 const FloatingAvatar = React.memo(function FloatingAvatar({
@@ -439,58 +440,241 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   );
 
 
-  // Scale animation for focused state - avatar scales to 1.5x (smaller to fit memories)
-  const scale = useSharedValue(isFocused ? 1.5 : 1);
-  React.useEffect(() => {
-    scale.value = withSpring(isFocused ? 1.5 : 1, {
-      damping: 15,
-      stiffness: 100,
-    });
-  }, [isFocused, scale]);
+  // Zoom animation for focused state - smooth zoom-in/zoom-out effect
+  // Calculate the scale factor: focused size (100px) / base size (80px) = 1.25
+  const baseScale = 1;
+  const focusedScale = focusedAvatarSize / baseAvatarSize; // 100/80 = 1.25
   
-  // Center the avatar when focused
-  const focusedX = useSharedValue(SCREEN_WIDTH / 2);
-  const focusedY = useSharedValue(SCREEN_HEIGHT / 2);
+  // Always start from unfocused state to ensure smooth animation
+  const zoomScale = useSharedValue(baseScale);
+  const zoomProgress = useSharedValue(0);
+  
+  // Store the starting position when focusing begins (State A position)
+  const startX = useSharedValue(position.x);
+  const startY = useSharedValue(position.y);
+  
+  // Target position for focused state (State B - centered)
+  const targetX = SCREEN_WIDTH / 2;
+  const targetY = SCREEN_HEIGHT / 2;
+  
+  // Shared values for focused position (used by memories)
+  const focusedX = useSharedValue(position.x);
+  const focusedY = useSharedValue(position.y);
+  
+  // Use a ref to track previous isFocused state to detect transitions
+  // CRITICAL: Don't initialize with current value - track the actual previous value from last effect run
+  const prevIsFocusedRef = useRef<boolean | undefined>(undefined);
+  // Track if animation has been started for current focus state to prevent duplicate starts
+  const animationStartedForFocusRef = useRef<boolean>(false);
+  // Track press time to calculate total delay
+  const pressTimeRef = useRef<number | null>(null);
+  
+  // CRITICAL: Reset to State A synchronously BEFORE render when isFocused becomes true
+  // useLayoutEffect runs synchronously after all DOM mutations but before paint
+  useLayoutEffect(() => {
+    const layoutEffectTime = performance.now();
+    const prevIsFocused = prevIsFocusedRef.current;
+    
+    // Initialize on first run if undefined
+    if (prevIsFocused === undefined) {
+      // If we're already focused on first run, we should animate to focused state
+      // Set prevIsFocused to false so we detect the transition
+      prevIsFocusedRef.current = false;
+      // Don't return - let the transition check below handle it
+    }
+    
+    // Check for transition BEFORE updating the ref
+    // Also check if we haven't already started animation for this focus state
+    // Handle first run where prevIsFocused is undefined but isFocused is true
+    const isTransitioningToFocused = isFocused && (prevIsFocused === false || (prevIsFocused === undefined && isFocused));
+    
+    if (isTransitioningToFocused && !animationStartedForFocusRef.current) {
+      // Transitioning from unfocused to focused - reset to State A immediately
+      // This MUST happen before the component renders with isFocused=true
+      animationStartedForFocusRef.current = true; // Mark animation as started
+      
+      // Calculate delays
+      const pressTime = pressTimeRef.current;
+      const delayToLayoutEffect = pressTime ? (layoutEffectTime - pressTime) : 0;
+      
+      console.log(`[FloatingAvatar] [TIMING] useLayoutEffect: Setting to State A (zoom-in start) at: ${layoutEffectTime.toFixed(2)}ms, profile: ${profile.id}`);
+      if (pressTime) {
+        console.log(`[FloatingAvatar] [TIMING] Total delay from press to useLayoutEffect: ${delayToLayoutEffect.toFixed(2)}ms`);
+      }
+      
+      startX.value = position.x;
+      startY.value = position.y;
+      zoomProgress.value = 0; // Start at 0 (State A) - CRITICAL for animation to start from State A
+      zoomScale.value = baseScale; // Start at base scale (State A)
+      focusedX.value = position.x; // Start at original position (State A)
+      focusedY.value = position.y; // Start at original position (State A)
+      
+      // Start animation immediately in useLayoutEffect for faster response
+      // Start animation values immediately without waiting for RAF - useLayoutEffect runs synchronously
+      const animationStartTime = performance.now();
+      const easingConfig = Easing.bezier(0.4, 0.0, 0.2, 1);
+      const zoomInDuration = 1200;
+      
+      const delayToAnimationStart = pressTime ? (animationStartTime - pressTime) : 0;
+      console.log(`[FloatingAvatar] [TIMING] Starting animation in useLayoutEffect at: ${animationStartTime.toFixed(2)}ms (${(animationStartTime - layoutEffectTime).toFixed(2)}ms after useLayoutEffect start)`);
+      if (pressTime) {
+        console.log(`[FloatingAvatar] [TIMING] Total delay from press to animation start: ${delayToAnimationStart.toFixed(2)}ms`);
+      }
+      
+      // Start animations immediately - no RAF delay
+      zoomProgress.value = withTiming(1, {
+        duration: zoomInDuration,
+        easing: easingConfig,
+      });
+      zoomScale.value = withTiming(focusedScale, {
+        duration: zoomInDuration,
+        easing: easingConfig,
+      });
+      focusedX.value = withTiming(targetX, {
+        duration: zoomInDuration,
+        easing: easingConfig,
+      });
+      focusedY.value = withTiming(targetY, {
+        duration: zoomInDuration,
+        easing: easingConfig,
+      });
+      
+      const animationSetTime = performance.now();
+      const delayToAnimationSet = pressTime ? (animationSetTime - pressTime) : 0;
+      console.log(`[FloatingAvatar] [TIMING] Animation values set at: ${animationSetTime.toFixed(2)}ms (${(animationSetTime - animationStartTime).toFixed(2)}ms after animation start)`);
+      if (pressTime) {
+        console.log(`[FloatingAvatar] [TIMING] Total delay from press to animation values set: ${delayToAnimationSet.toFixed(2)}ms`);
+      }
+      
+      // Reset press time ref
+      pressTimeRef.current = null;
+    } else if (!isFocused && prevIsFocused) {
+      // Transitioning from focused to unfocused - ensure we start from State B (focused state)
+      // This prevents flashing by ensuring values are correct before zoom-out animation
+      animationStartedForFocusRef.current = false; // Reset flag for next focus
+      zoomProgress.value = 1; // Start at 1 (State B - focused)
+      // CRITICAL: Ensure scale is at focusedScale - this is the starting point for the shrink animation
+      // If we don't set this, the scale might be at baseScale already, causing immediate shrink
+      zoomScale.value = focusedScale; // Start at focused scale (State B) - will animate to baseScale
+      focusedX.value = targetX; // Start at center (State B)
+      focusedY.value = targetY; // Start at center (State B)
+    }
+    // Update ref AFTER checking for transitions
+    prevIsFocusedRef.current = isFocused;
+  }, [isFocused, position.x, position.y, startX, startY, zoomProgress, zoomScale, focusedX, focusedY, baseScale, focusedScale, targetX, targetY]);
+  
   React.useEffect(() => {
     if (isFocused) {
-      // Center the avatar on screen when focused
-      focusedX.value = withSpring(SCREEN_WIDTH / 2, {
-        damping: 15,
-        stiffness: 100,
-      });
-      focusedY.value = withSpring(SCREEN_HEIGHT / 2, {
-        damping: 15,
-        stiffness: 100,
-      });
+      const currentProgress = zoomProgress.value;
+      const currentScale = zoomScale.value;
+      
+      // Check if animation is already running (zoomProgress should be > 0 if useLayoutEffect started it)
+      // Also check if animation was already started by useLayoutEffect
+      // If zoomProgress is still 0 and animation wasn't started, useLayoutEffect didn't start it, so start it here
+      if (currentProgress === 0 && currentScale === baseScale && !animationStartedForFocusRef.current) {
+        animationStartedForFocusRef.current = true; // Mark as started to prevent duplicates
+        // Reset values to be sure
+        zoomProgress.value = 0;
+        zoomScale.value = baseScale;
+        startX.value = position.x;
+        startY.value = position.y;
+        focusedX.value = position.x;
+        focusedY.value = position.y;
+        
+        // Start animation immediately
+        requestAnimationFrame(() => {
+          const easingConfig = Easing.bezier(0.4, 0.0, 0.2, 1);
+          const zoomInDuration = 1200;
+          
+          zoomProgress.value = withTiming(1, {
+            duration: zoomInDuration,
+            easing: easingConfig,
+          });
+          zoomScale.value = withTiming(focusedScale, {
+            duration: zoomInDuration,
+            easing: easingConfig,
+          });
+          focusedX.value = withTiming(targetX, {
+            duration: zoomInDuration,
+            easing: easingConfig,
+          });
+          focusedY.value = withTiming(targetY, {
+            duration: zoomInDuration,
+            easing: easingConfig,
+          });
+        });
+      }
     } else {
-      focusedX.value = withSpring(position.x, {
-        damping: 15,
-        stiffness: 100,
+      // Animate zoom-out: smooth transition from State B back to State A
+      // Values should already be set to State B in useLayoutEffect
+      // Start animation immediately - all values animate together
+      const easingConfig = Easing.bezier(0.4, 0.0, 0.2, 1);
+      const zoomOutDuration = 4500; // Much slower, more gradual zoom-out
+      
+      // Animate from focused state (progress = 1) back to unfocused (progress = 0)
+      // Position, scale, and progress all animate together for smooth zoom-out
+      zoomProgress.value = withTiming(0, {
+        duration: zoomOutDuration,
+        easing: easingConfig,
       });
-      focusedY.value = withSpring(position.y, {
-        damping: 15,
-        stiffness: 100,
+      // CRITICAL: Animate scale from focusedScale to baseScale
+      // This creates smooth shrinking animation - the scale was set to focusedScale in useLayoutEffect
+      zoomScale.value = withTiming(baseScale, {
+        duration: zoomOutDuration, // Same duration as position for synchronized movement
+        easing: easingConfig,
+      });
+      focusedX.value = withTiming(position.x, {
+        duration: zoomOutDuration,
+        easing: easingConfig,
+      });
+      focusedY.value = withTiming(position.y, {
+        duration: zoomOutDuration,
+        easing: easingConfig,
       });
     }
-  }, [isFocused, position.x, position.y, focusedX, focusedY]);
+  }, [isFocused, position.x, position.y, zoomProgress, zoomScale, startX, startY, focusedX, focusedY, focusedScale, baseScale, targetX, targetY]);
 
   const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    // Interpolate position and scale based on zoom progress
+    // When zoomProgress = 0: at start position (State A), scale = 1
+    // When zoomProgress = 1: at center position (State B), scale = focusedScale
+    
+    let currentX: number;
+    let currentY: number;
+    
     if (isFocused) {
-      // When focused, use centered position - no floating animation
+      // Zoom-in: interpolate from start position to center
+      currentX = startX.value + (targetX - startX.value) * zoomProgress.value;
+      currentY = startY.value + (targetY - startY.value) * zoomProgress.value;
+    } else {
+      // Zoom-out: interpolate from center back to original position
+      // When zoomProgress = 1: at center (targetX, targetY)
+      // When zoomProgress = 0: at original position (position.x, position.y)
+      currentX = targetX + (position.x - targetX) * (1 - zoomProgress.value);
+      currentY = targetY + (position.y - targetY) * (1 - zoomProgress.value);
+    }
+    
+    if (isFocused) {
+      // When focused, use interpolated position and scale (zoom-in effect)
+      const currentScale = zoomScale.value;
       return {
         transform: [
-          { translateX: focusedX.value - position.x },
-          { translateY: focusedY.value - position.y },
-          { scale: scale.value },
+          { translateX: currentX - position.x },
+          { translateY: currentY - position.y },
+          { scale: currentScale },
         ],
       };
     }
-    // When not focused, use pan position with floating animation
+    // When not focused, continue using interpolated values for smooth zoom-out
+    // Add floating animation only when fully unfocused (zoomProgress = 0)
+    const floatOffset = zoomProgress.value === 0 ? floatAnimation.value * 6 : 0;
+    
     return {
       transform: [
-        { translateX: panX.value - position.x },
-        { translateY: panY.value - position.y + floatAnimation.value * 6 },
-        { scale: scale.value },
+        { translateX: currentX - position.x },
+        { translateY: currentY - position.y + floatOffset },
+        { scale: zoomScale.value },
       ],
     };
   });
@@ -559,7 +743,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         <Pressable
           style={{ pointerEvents: 'auto' }} // Ensure Pressable can receive touches
           onPress={() => {
-            console.log(`[FloatingAvatar] Press detected for profile: ${profile.id}, isFocused: ${isFocused}`);
+            const pressTime = performance.now();
+            pressTimeRef.current = pressTime;
+            console.log(`[FloatingAvatar] [TIMING] Press detected for profile: ${profile.id}, isFocused: ${isFocused}, time: ${pressTime.toFixed(2)}ms`);
             onPress();
           }}
         >
@@ -640,8 +826,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       </Animated.View>
 
       {/* Floating Memories around Avatar - rendered separately for proper z-index */}
-      {memories
-        .filter((memory) => {
+      {useMemo(() => {
+        const filteredMemories = memories.filter((memory) => {
           // If a memory is focused, only show that memory
           if (focusedMemory) {
             return focusedMemory.profileId === profile.id && focusedMemory.memoryId === memory.id;
@@ -652,8 +838,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           }
           // If nothing is focused, show all memories
           return true;
-        })
-        .map((memory, memIndex) => {
+        });
+        
+        return filteredMemories.map((memory, memIndex) => {
         // Find the original index in the full memories array for position calculation
         const originalIndex = memories.findIndex(m => m.id === memory.id);
         const memPosData = memoryPositions[originalIndex];
@@ -742,8 +929,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             position={initialMemPos}
             avatarPanX={memAnimatedValues.panX}
             avatarPanY={memAnimatedValues.panY}
-            focusedX={isFocused ? focusedX : undefined}
-            focusedY={isFocused ? focusedY : undefined}
+            focusedX={focusedX}
+            focusedY={focusedY}
             offsetX={memPosData.offsetX}
             offsetY={memPosData.offsetY}
             isFocused={isFocused}
@@ -753,9 +940,16 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             memorySlideOffset={memorySlideOffset}
             onPress={onPress}
             onMemoryFocus={onMemoryFocus}
+            zoomProgress={zoomProgress}
+            avatarStartX={startX}
+            avatarStartY={startY}
+            avatarTargetX={targetX}
+            avatarTargetY={targetY}
+            avatarPosition={position}
           />
         );
-      })}
+        });
+      }, [memories, focusedMemory, profile.id, isFocused, memoryPositions, memoryAnimatedValues, position, focusedX, focusedY, startX, startY, targetX, targetY, zoomProgress, colorScheme, memorySlideOffset, onPress, onMemoryFocus])}
     </>
   );
 }, (prevProps, nextProps) => {
@@ -834,18 +1028,23 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   newlyCreatedMoments: Map<string, { startX: number; startY: number }>;
   memory: any;
 }) {
-  return (
-    <>
-      {/* Floating Clouds around Memory - only show when profile is focused */}
-      {isFocused && clouds
-        .filter((cloud: any) => {
-          // When memory is focused, only show visible moments
-          if (isMemoryFocused) {
-            return cloud?.id && visibleMomentIds.has(cloud.id);
-          }
-          return true;
-        })
-        .map((cloud: any, cloudIndex: number) => {
+  // Memoize filtered clouds - must be called unconditionally
+  const filteredClouds = useMemo(() => {
+    if (!isFocused) return [];
+    return clouds.filter((cloud: any) => {
+      // When memory is focused, only show visible moments
+      if (isMemoryFocused) {
+        return cloud?.id && visibleMomentIds.has(cloud.id);
+      }
+      return true;
+    });
+  }, [isFocused, clouds, isMemoryFocused, visibleMomentIds]);
+  
+  // Memoize cloud elements
+  const cloudElements = useMemo(() => {
+    if (!isFocused) return null;
+    
+    return filteredClouds.map((cloud: any, cloudIndex: number) => {
         // Additional safety check
         if (!cloud || typeof cloud !== 'object') {
           console.warn(`[FloatingMemory] Invalid cloud at index ${cloudIndex}:`, cloud);
@@ -996,18 +1195,26 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             onPress={onDoubleTap}
           />
         );
-      })}
-
-      {/* Floating Suns around Memory - only show when profile is focused */}
-      {isFocused && suns
-        .filter((sun: any) => {
-          // When memory is focused, only show visible moments
-          if (isMemoryFocused) {
-            return sun?.id && visibleMomentIds.has(sun.id);
-          }
-          return true;
-        })
-        .map((sun: any, sunIndex: number) => {
+    });
+  }, [isFocused, filteredClouds, calculateClampedPosition, cloudWidth, cloudHeight, memorySize, cloudPositions, position, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, cloudZIndex, colorScheme, onDoubleTap, onUpdateMemory, newlyCreatedMoments, memory, clouds.length, isMemoryFocused]);
+  
+  // Memoize filtered suns - must be called unconditionally
+  const filteredSuns = useMemo(() => {
+    if (!isFocused) return [];
+    return suns.filter((sun: any) => {
+      // When memory is focused, only show visible moments
+      if (isMemoryFocused) {
+        return sun?.id && visibleMomentIds.has(sun.id);
+      }
+      return true;
+    });
+  }, [isFocused, suns, isMemoryFocused, visibleMomentIds]);
+  
+  // Memoize sun elements
+  const sunElements = useMemo(() => {
+    if (!isFocused) return null;
+    
+    return filteredSuns.map((sun: any, sunIndex: number) => {
         // When memory is focused, use saved positions from memory data
         if (isMemoryFocused) {
           // Calculate and clamp position to ensure it's within viewport and well distributed
@@ -1129,7 +1336,16 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             onPress={onDoubleTap}
           />
         );
-      })}
+    });
+  }, [isFocused, filteredSuns, isMemoryFocused, suns.length, calculateClampedPosition, sunWidth, sunHeight, memorySize, sunPositions, position, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, sunZIndex, colorScheme, onDoubleTap, onUpdateMemory, newlyCreatedMoments, memory, clouds.length]);
+  
+  return (
+    <>
+      {/* Floating Clouds around Memory - only show when profile is focused */}
+      {cloudElements}
+      
+      {/* Floating Suns around Memory - only show when profile is focused */}
+      {sunElements}
     </>
   );
 }, (prevProps, nextProps) => {
@@ -1179,12 +1395,13 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
   handleAddCloud: () => void;
   handleAddSun: () => void;
 }) {
+  // Memoize these calculations - must be called unconditionally
+  const allClouds = useMemo(() => (memory.hardTruths || []).filter((truth: any) => truth && typeof truth === 'object' && !Array.isArray(truth)), [memory.hardTruths]);
+  const allSuns = useMemo(() => (memory.goodFacts || []).filter((fact: any) => fact && typeof fact === 'object'), [memory.goodFacts]);
+  const visibleCloudsCount = useMemo(() => allClouds.filter((c: any) => c?.id && visibleMomentIds.has(c.id)).length, [allClouds, visibleMomentIds]);
+  const visibleSunsCount = useMemo(() => allSuns.filter((s: any) => s?.id && visibleMomentIds.has(s.id)).length, [allSuns, visibleMomentIds]);
+  
   if (!isMemoryFocused) return null;
-
-  const allClouds = (memory.hardTruths || []).filter((truth: any) => truth && typeof truth === 'object' && !Array.isArray(truth));
-  const allSuns = (memory.goodFacts || []).filter((fact: any) => fact && typeof fact === 'object');
-  const visibleCloudsCount = allClouds.filter((c: any) => c?.id && visibleMomentIds.has(c.id)).length;
-  const visibleSunsCount = allSuns.filter((s: any) => s?.id && visibleMomentIds.has(s.id)).length;
   const totalCloudsCount = allClouds.length;
   const totalSunsCount = allSuns.length;
   const allCloudsVisible = totalCloudsCount > 0 && visibleCloudsCount >= totalCloudsCount;
@@ -1483,6 +1700,12 @@ const FloatingMemory = React.memo(function FloatingMemory({
   onUpdateMemory,
   onPress,
   onMemoryFocus,
+  zoomProgress,
+  avatarStartX,
+  avatarStartY,
+  avatarTargetX,
+  avatarTargetY,
+  avatarPosition,
 }: {
   memory: any;
   position: { x: number; y: number };
@@ -1501,6 +1724,12 @@ const FloatingMemory = React.memo(function FloatingMemory({
   onUpdateMemory?: (updates: Partial<any>) => Promise<void>;
   onPress?: () => void;
   onMemoryFocus?: (profileId: string, memoryId: string) => void;
+  zoomProgress?: ReturnType<typeof useSharedValue<number>>;
+  avatarStartX?: ReturnType<typeof useSharedValue<number>>;
+  avatarStartY?: ReturnType<typeof useSharedValue<number>>;
+  avatarTargetX?: number;
+  avatarTargetY?: number;
+  avatarPosition?: { x: number; y: number };
 }) {
   const { isLargeDevice } = useLargeDevice();
   const colors = Colors[colorScheme ?? 'dark'];
@@ -1758,6 +1987,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
   }, [floatAnimation, isMemoryFocused]);
 
   // Calculate memory position relative to avatar or center when memory is focused
+  // Use the same interpolation logic as the avatar for smooth zoom transitions
   const memoryAnimatedPosition = useAnimatedStyle(() => {
     if (isMemoryFocused) {
       // When memory is focused, center it on screen (moved higher)
@@ -1768,15 +1998,40 @@ const FloatingMemory = React.memo(function FloatingMemory({
         top: SCREEN_HEIGHT / 2 - memorySize / 2 - offsetY,
       };
     }
-    if (isFocused && focusedX && focusedY) {
-      // When focused, follow the avatar to center
+    
+    // Use zoom interpolation if available (for smooth zoom-in/out transitions)
+    if (zoomProgress && avatarStartX && avatarStartY && avatarTargetX !== undefined && avatarTargetY !== undefined && avatarPosition) {
+      'worklet';
+      let avatarCurrentX: number;
+      let avatarCurrentY: number;
+      
+      if (isFocused) {
+        // Zoom-in: interpolate from start position to center
+        avatarCurrentX = avatarStartX.value + (avatarTargetX - avatarStartX.value) * zoomProgress.value;
+        avatarCurrentY = avatarStartY.value + (avatarTargetY - avatarStartY.value) * zoomProgress.value;
+      } else {
+        // Zoom-out: interpolate from center back to original position
+        avatarCurrentX = avatarTargetX + (avatarPosition.x - avatarTargetX) * (1 - zoomProgress.value);
+        avatarCurrentY = avatarTargetY + (avatarPosition.y - avatarTargetY) * (1 - zoomProgress.value);
+      }
+      
+      // Position memory relative to interpolated avatar position
+      return {
+        left: avatarCurrentX + offsetX - memorySize / 2,
+        top: avatarCurrentY + offsetY - memorySize / 2,
+      };
+    }
+    
+    // Fallback: use focusedX/focusedY when available (they animate during zoom-in/out)
+    if (focusedX && focusedY) {
       return {
         left: focusedX.value + offsetX - memorySize / 2,
         top: focusedY.value + offsetY - memorySize / 2,
       };
     }
+    
+    // Fallback to pan position only if focusedX/focusedY are not available
     if (avatarPanX && avatarPanY) {
-      // When dragging, follow the avatar's pan position
       return {
         left: avatarPanX.value + offsetX - memorySize / 2,
         top: avatarPanY.value + offsetY - memorySize / 2,
@@ -2125,7 +2380,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
 });
 
 // Floating Cloud Component
-function FloatingCloud({
+const FloatingCloud = React.memo(function FloatingCloud({
   cloud,
   position,
   memoryAnimatedPosition,
@@ -2272,10 +2527,10 @@ function FloatingCloud({
       </Pressable>
     </Animated.View>
   );
-}
+});
 
 // Floating Sun Component
-function FloatingSun({
+const FloatingSun = React.memo(function FloatingSun({
   sun,
   position,
   memoryAnimatedPosition,
@@ -2404,7 +2659,7 @@ function FloatingSun({
       </Pressable>
     </Animated.View>
   );
-}
+});
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -2655,51 +2910,59 @@ export default function HomeScreen() {
     }
   }, [initialAvatarPositions, profiles, avatarPositionsState.size, positionsLoaded]);
   
-  // Get current position for a profile (either from state or initial)
-  const getAvatarPosition = (profileId: string, index: number) => {
-    const profile = sortedProfiles.find(p => p.id === profileId);
-    const yearSection = profile ? getProfileYearSection(profile) : null;
-    
-    // Try to get position from state first
-    const statePosition = avatarPositionsState.get(profileId);
-    if (statePosition) {
-      if (yearSection) {
-        // Validate state position is within section bounds
-        const avatarHalfSize = 40; // baseAvatarSize / 2
-        const margin = 20;
-        const minY = yearSection.top + avatarHalfSize + margin;
-        const maxY = yearSection.bottom - avatarHalfSize - margin;
-        
-        if (statePosition.y >= minY && statePosition.y <= maxY) {
-          return statePosition;
+  // Memoize all avatar positions to avoid recalculating on every render
+  const avatarPositions = useMemo(() => {
+    const positions = new Map<string, { x: number; y: number }>();
+    sortedProfiles.forEach((profile, index) => {
+      const yearSection = getProfileYearSection(profile);
+      
+      // Try to get position from state first
+      const statePosition = avatarPositionsState.get(profile.id);
+      if (statePosition) {
+        if (yearSection) {
+          // Validate state position is within section bounds
+          const avatarHalfSize = 40; // baseAvatarSize / 2
+          const margin = 20;
+          const minY = yearSection.top + avatarHalfSize + margin;
+          const maxY = yearSection.bottom - avatarHalfSize - margin;
+          
+          if (statePosition.y >= minY && statePosition.y <= maxY) {
+            positions.set(profile.id, statePosition);
+            return;
+          }
+          // Position is outside bounds, fall through to use initial position
         } else {
-          console.log(`[getAvatarPosition] State position ${JSON.stringify(statePosition)} is outside section bounds (minY: ${minY}, maxY: ${maxY}) for profile ${profileId}, using initial position`);
+          // No section, use state position as-is
+          positions.set(profile.id, statePosition);
+          return;
         }
-      } else {
-        // No section, use state position as-is
-        return statePosition;
       }
-    }
-    
-    // Fall back to initial position
-    const initialPosition = initialAvatarPositions[index];
-    if (initialPosition) {
-      console.log(`[getAvatarPosition] Using initial position ${JSON.stringify(initialPosition)} for profile ${profileId}, yearSection:`, yearSection ? { top: yearSection.top, bottom: yearSection.bottom } : null);
-      return initialPosition;
-    }
-    
-    // Final fallback: center of screen or section
-    if (yearSection) {
-      const fallbackPosition = {
-        x: SCREEN_WIDTH / 2,
-        y: yearSection.top + yearSection.height / 2,
-      };
-      console.log(`[getAvatarPosition] Using fallback position ${JSON.stringify(fallbackPosition)} for profile ${profileId}`);
-      return fallbackPosition;
-    }
-    
-    return { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
-  };
+      
+      // Fall back to initial position
+      const initialPosition = initialAvatarPositions[index];
+      if (initialPosition) {
+        positions.set(profile.id, initialPosition);
+        return;
+      }
+      
+      // Final fallback: center of screen or section
+      if (yearSection) {
+        positions.set(profile.id, {
+          x: SCREEN_WIDTH / 2,
+          y: yearSection.top + yearSection.height / 2,
+        });
+        return;
+      }
+      
+      positions.set(profile.id, { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 });
+    });
+    return positions;
+  }, [sortedProfiles, avatarPositionsState, initialAvatarPositions, getProfileYearSection]);
+  
+  // Get current position for a profile (from memoized map)
+  const getAvatarPosition = React.useCallback((profileId: string, index: number) => {
+    return avatarPositions.get(profileId) || { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+  }, [avatarPositions]);
   
   // Update position for a profile and save to storage
   const updateAvatarPosition = React.useCallback(async (profileId: string, newPosition: { x: number; y: number }) => {
@@ -2763,17 +3026,19 @@ export default function HomeScreen() {
     if (animationsReady) {
       // Animate smoothly when focusing or unfocusing
       // Keep other ex-es hidden if either profile OR memory is focused
+      const easingConfig = Easing.bezier(0.4, 0.0, 0.2, 1); // Smooth ease-in-out curve
       if (focusedProfileId || focusedMemory) {
-        // Slide other zones out
-        slideOffset.value = withSpring(SCREEN_WIDTH * 2, {
-          damping: 20,
-          stiffness: 100,
+        // Slide other zones out with smooth fade
+        slideOffset.value = withTiming(SCREEN_WIDTH * 2, {
+          duration: 1200, // Match the zoom-in duration for synchronized animation
+          easing: easingConfig,
         });
       } else {
         // Slide other zones back in - only when both profile and memory are unfocused
-        slideOffset.value = withSpring(0, {
-          damping: 20,
-          stiffness: 100,
+        // Start almost immediately when zoom-out begins for synchronized animation
+        slideOffset.value = withTiming(0, {
+          duration: 600, // Faster appearance - 600ms instead of 1200ms
+          easing: easingConfig,
         });
       }
     }
@@ -2797,18 +3062,13 @@ export default function HomeScreen() {
   }, [focusedMemory, memorySlideOffset]);
 
   // Memoize filtered profiles to avoid recalculating on every render
+  // Keep all profiles in render tree for smooth animations
+  // Don't filter them out - let the animation handle visibility
   const visibleProfiles = React.useMemo(() => {
-    return sortedProfiles.filter(profile => {
-      // Only show focused profile, or all profiles if nothing is focused
-      if (focusedProfileId) {
-        return profile.id === focusedProfileId;
-      }
-      if (focusedMemory) {
-        return profile.id === focusedMemory.profileId;
-      }
-      return true; // Show all when nothing is focused
-    });
-  }, [sortedProfiles, focusedProfileId, focusedMemory]);
+    // Always return all profiles so they can animate out smoothly
+    // The NonFocusedZone component will handle the animation
+    return sortedProfiles;
+  }, [sortedProfiles]);
 
   // Group visible profiles by their year sections, preserving their index in sortedProfiles
   const profilesBySection = React.useMemo(() => {
@@ -2831,6 +3091,40 @@ export default function HomeScreen() {
     
     return grouped;
   }, [visibleProfiles, sortedProfiles, getProfileSectionKey, yearSections]);
+
+  // Memoize focused profiles render - must be called unconditionally
+  const focusedProfilesRender = useMemo(() => {
+    if (!animationsReady || !focusedProfileId || focusedMemory) return null;
+    
+    return visibleProfiles.map((profile, index) => {
+      const memories = getIdealizedMemoriesByProfileId(profile.id);
+      const currentPosition = getAvatarPosition(profile.id, index);
+      const isFocused = focusedProfileId === profile.id;
+      
+      return (
+        <ProfileRenderer
+          key={profile.id}
+          profile={profile}
+          index={index}
+          memories={memories}
+          currentPosition={currentPosition}
+          isFocused={isFocused}
+          isProfileFocusedForMemory={false}
+          focusedProfileId={focusedProfileId}
+          previousFocusedId={previousFocusedIdRef.current}
+          focusedMemory={focusedMemory}
+          slideOffset={slideOffset}
+          getProfileYearSection={getProfileYearSection}
+          updateAvatarPosition={updateAvatarPosition}
+          setFocusedProfileId={setFocusedProfileId}
+          setFocusedMemory={setFocusedMemory}
+          colors={colors}
+          colorScheme={colorScheme ?? 'dark'}
+          memorySlideOffset={memorySlideOffset}
+        />
+      );
+    });
+  }, [animationsReady, focusedProfileId, focusedMemory, visibleProfiles, getIdealizedMemoriesByProfileId, getAvatarPosition, previousFocusedIdRef, slideOffset, getProfileYearSection, updateAvatarPosition, setFocusedProfileId, setFocusedMemory, colors, colorScheme, memorySlideOffset]);
 
   if (sortedProfiles.length === 0) {
   return (
@@ -2928,34 +3222,7 @@ export default function HomeScreen() {
           )}
           
           {/* Render focused profiles separately when focused (but hide profile when memory is focused) */}
-          {animationsReady && focusedProfileId && !focusedMemory && visibleProfiles.map((profile, index) => {
-            const memories = getIdealizedMemoriesByProfileId(profile.id);
-            const currentPosition = getAvatarPosition(profile.id, index);
-            const isFocused = focusedProfileId === profile.id;
-            
-            return (
-              <ProfileRenderer
-                key={profile.id}
-                profile={profile}
-                index={index}
-                memories={memories}
-                currentPosition={currentPosition}
-                isFocused={isFocused}
-                isProfileFocusedForMemory={false}
-                focusedProfileId={focusedProfileId}
-                previousFocusedId={previousFocusedIdRef.current}
-                focusedMemory={focusedMemory}
-                slideOffset={slideOffset}
-                getProfileYearSection={getProfileYearSection}
-                updateAvatarPosition={updateAvatarPosition}
-                setFocusedProfileId={setFocusedProfileId}
-                setFocusedMemory={setFocusedMemory}
-                colors={colors}
-                colorScheme={colorScheme ?? 'dark'}
-                memorySlideOffset={memorySlideOffset}
-              />
-            );
-          })}
+          {focusedProfilesRender}
           
           {/* Render focused memory separately when memory is focused */}
           {focusedMemory && animationsReady && (
@@ -3248,6 +3515,22 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
   const slideDirectionX = dx > 0 ? 1 : -1;
   const slideDirectionY = dy > 0 ? 1 : -1;
   
+  // Memoize callbacks to prevent unnecessary re-renders
+  const handlePress = useCallback(() => {
+    const pressTime = performance.now();
+    console.log(`[ProfileRenderer] [TIMING] onPress called, updating state at: ${pressTime.toFixed(2)}ms, profile: ${profile.id}`);
+    const newFocusedId = isFocused ? null : profile.id;
+    // Use startTransition to mark this as a transition, allowing React to prioritize the animation
+    startTransition(() => {
+      setFocusedProfileId(newFocusedId);
+      setFocusedMemory(null);
+    });
+  }, [profile.id, isFocused, setFocusedProfileId, setFocusedMemory]);
+  
+  const handleMemoryFocus = useCallback((profileId: string, memoryId: string) => {
+    setFocusedMemory({ profileId, memoryId });
+  }, [setFocusedMemory]);
+  
   // Don't render the profile at all when a memory is focused (it's rendered separately)
   if (isProfileFocusedForMemory) {
     return null;
@@ -3267,19 +3550,13 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
         profile={profile}
         position={currentPosition}
         memories={memories}
-        onPress={() => {
-          const newFocusedId = isFocused ? null : profile.id;
-          setFocusedProfileId(newFocusedId);
-          setFocusedMemory(null);
-        }}
+        onPress={handlePress}
         isFocused={isFocused}
         colors={colors}
         colorScheme={colorScheme ?? 'dark'}
         focusedMemory={focusedMemory}
         memorySlideOffset={memorySlideOffset}
-        onMemoryFocus={(profileId, memoryId) => {
-          setFocusedMemory({ profileId, memoryId });
-        }}
+        onMemoryFocus={handleMemoryFocus}
         yearSection={getProfileYearSection(profile)}
       />
     </NonFocusedZone>
@@ -3321,7 +3598,7 @@ const NonFocusedZone = React.memo(function NonFocusedZone({
     // If this profile is currently focused, it always stays in place
     if (isFocused) {
       return { 
-        transform: [{ translateX: 0 }, { translateY: 0 }], 
+        transform: [{ translateX: 0 }, { translateY: 0 }, { scale: 1 }], 
         opacity: 1 
       };
     }
@@ -3330,26 +3607,28 @@ const NonFocusedZone = React.memo(function NonFocusedZone({
     // It will shrink back to normal size via the FloatingAvatar's own scale animation
     if (wasJustFocused) {
       return { 
-        transform: [{ translateX: 0 }, { translateY: 0 }], 
+        transform: [{ translateX: 0 }, { translateY: 0 }, { scale: 1 }], 
         opacity: 1 
       };
     }
     
     // For other non-focused profiles, animate based on slideOffset
     // When slideOffset is 0, they're in normal position
-    // When slideOffset is large, they slide off-screen
+    // When slideOffset is large, they slide off-screen with fade and scale
     const offset = slideOffset.value;
-    // Use a smoother threshold for visibility - fade in/out as they slide
-    const normalizedOffset = offset / (SCREEN_WIDTH * 2); // 0 to 1
-    const isVisible = normalizedOffset < 0.5; // Fade out when more than halfway
+    // Normalize offset to 0-1 range for smooth fade and scale
+    const normalizedOffset = Math.min(offset / (SCREEN_WIDTH * 2), 1); // 0 to 1
+    // Fade out and scale down as they slide away
+    const opacity = 1 - normalizedOffset; // Fade from 1 to 0
+    const scale = 1 - normalizedOffset * 0.3; // Scale down from 1 to 0.7
     
     return {
       transform: [
         { translateX: offset * slideDirectionX },
         { translateY: offset * slideDirectionY * 0.5 }, // Less vertical movement
+        { scale: scale }, // Scale down as they disappear
       ],
-      // Animate opacity smoothly based on offset - same duration as slide animation
-      opacity: withTiming(isVisible ? 1 : 0, { duration: 500 }),
+      opacity: opacity, // Smooth fade out
     };
   });
   
