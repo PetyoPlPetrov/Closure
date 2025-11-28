@@ -1190,15 +1190,15 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
   const allCloudsVisible = totalCloudsCount > 0 && visibleCloudsCount >= totalCloudsCount;
   const allSunsVisible = totalSunsCount > 0 && visibleSunsCount >= totalSunsCount;
   
-  // Calculate position below memory image (moved up by 100px to match memory)
-  const offsetY = -80;
+  // Calculate position below memory image (moved higher to match memory)
+  const offsetY = 120;
   const memoryCenterY = SCREEN_HEIGHT / 2 - offsetY;
   const memoryBottom = memoryCenterY + memorySize / 2;
   const buttonSpacing = isLargeDevice ? 12 : 10;
   const buttonSize = isLargeDevice ? 96 : 88;
   const labelWidth = 100;
   const totalWidth = buttonSize + buttonSpacing + labelWidth + buttonSpacing + buttonSize;
-  const containerTop = memoryBottom + 40; // 40px spacing below memory
+  const containerTop = memoryBottom + 80; // 80px spacing below memory (increased from 40px)
   const colors = Colors[colorScheme ?? 'dark'];
   
   return (
@@ -1552,7 +1552,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
   const calculateClampedPosition = useMemo(() => {
     return (savedX: number | undefined, savedY: number | undefined, momentWidth: number, momentHeight: number, index: number, totalCount: number, memorySize: number, momentType: 'cloud' | 'sun' = 'sun') => {
       const memoryCenterX = SCREEN_WIDTH / 2;
-      const memoryCenterY = SCREEN_HEIGHT / 2 - 100; // Moved up by 100px to match memory position
+      const memoryCenterY = SCREEN_HEIGHT / 2 - 120; // Moved higher to match memory position
       const padding = 20; // Padding from edges
       const minX = padding + momentWidth / 2;
       const maxX = SCREEN_WIDTH - padding - momentWidth / 2;
@@ -1760,8 +1760,9 @@ const FloatingMemory = React.memo(function FloatingMemory({
   // Calculate memory position relative to avatar or center when memory is focused
   const memoryAnimatedPosition = useAnimatedStyle(() => {
     if (isMemoryFocused) {
-      // When memory is focused, center it on screen (moved up by 100px)
-      const offsetY = -80;
+      // When memory is focused, center it on screen (moved higher)
+      // Positive offsetY moves UP (subtracted from center)
+      const offsetY = 120;
       return {
         left: SCREEN_WIDTH / 2 - memorySize / 2,
         top: SCREEN_HEIGHT / 2 - memorySize / 2 - offsetY,
