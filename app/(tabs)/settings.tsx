@@ -197,17 +197,17 @@ export default function SettingsScreen() {
     if (isGeneratingFakeData) return;
     
     setIsGeneratingFakeData(true);
-    try {
-      // Get image URIs using expo-asset
-      const fakeAsset = Asset.fromModule(require('@/assets/images/fake.jpg'));
-      const maldivesAsset = Asset.fromModule(require('@/assets/images/maldives.jpg'));
-      
-      // Download assets if needed
-      await fakeAsset.downloadAsync();
-      await maldivesAsset.downloadAsync();
-      
-      const fakeImageUri = fakeAsset.localUri || fakeAsset.uri;
-      const maldivesImageUri = maldivesAsset.localUri || maldivesAsset.uri;
+        try {
+          // Get image URIs using expo-asset
+          const exAsset = Asset.fromModule(require('@/assets/images/ex.jpg'));
+          const maldivesAsset = Asset.fromModule(require('@/assets/images/maldives.jpg'));
+          
+          // Download assets if needed
+          await exAsset.downloadAsync();
+          await maldivesAsset.downloadAsync();
+          
+          const exImageUri = exAsset.localUri || exAsset.uri;
+          const maldivesImageUri = maldivesAsset.localUri || maldivesAsset.uri;
 
       // Define multiple fake profiles with different names and characteristics
       // Two ex partners with consecutive years, one current partner with 5 memories (more suns than clouds)
@@ -277,7 +277,7 @@ export default function SettingsScreen() {
             description: profileData.description,
             relationshipStartDate: profileData.startDate,
             relationshipEndDate: profileData.endDate,
-            imageUri: fakeImageUri,
+              imageUri: exImageUri,
             setupProgress: 100,
             isCompleted: true,
             sections: {
@@ -311,25 +311,26 @@ export default function SettingsScreen() {
                 numClouds = Math.floor(Math.random() * 4) + 2;   // 2-5 clouds
                 numSuns = Math.floor(Math.random() * 6) + 6;     // 6-11 suns (always more than clouds)
               } else {
-                // Ex partners: vary memory types
-                const memoryType = i % 4;
+                // Ex partners: bias towards more negative moments (more clouds than suns)
+                // Use weighted distribution: 60% very negative, 20% negative, 15% balanced, 5% positive
+                const random = Math.random();
                 
-                if (memoryType === 0) {
-                  // Very negative memories: many clouds, few suns
+                if (random < 0.6) {
+                  // Very negative memories (60%): many clouds, few suns
                   numClouds = Math.floor(Math.random() * 10) + 10; // 10-19 clouds
                   numSuns = Math.floor(Math.random() * 3) + 1;     // 1-3 suns
-                } else if (memoryType === 1) {
-                  // Very positive memories: many suns, few clouds
-                  numClouds = Math.floor(Math.random() * 4) + 1;   // 1-4 clouds
-                  numSuns = Math.floor(Math.random() * 10) + 10;   // 10-19 suns
-                } else if (memoryType === 2) {
-                  // Balanced memories
-                  numClouds = Math.floor(Math.random() * 8) + 5;    // 5-12 clouds
-                  numSuns = Math.floor(Math.random() * 8) + 5;     // 5-12 suns
-                } else {
-                  // Mixed memories: moderate amounts
-                  numClouds = Math.floor(Math.random() * 6) + 4;    // 4-9 clouds
+                } else if (random < 0.8) {
+                  // Negative memories (20%): more clouds than suns
+                  numClouds = Math.floor(Math.random() * 8) + 8;    // 8-15 clouds
+                  numSuns = Math.floor(Math.random() * 5) + 2;     // 2-6 suns
+                } else if (random < 0.95) {
+                  // Balanced memories (15%): roughly equal
+                  numClouds = Math.floor(Math.random() * 6) + 5;    // 5-10 clouds
                   numSuns = Math.floor(Math.random() * 6) + 4;     // 4-9 suns
+                } else {
+                  // Positive memories (5%): more suns, but still some clouds
+                  numClouds = Math.floor(Math.random() * 4) + 2;   // 2-5 clouds
+                  numSuns = Math.floor(Math.random() * 8) + 6;     // 6-13 suns
                 }
               }
               
