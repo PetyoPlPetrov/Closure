@@ -1241,7 +1241,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
               startY={startPos?.startY}
             >
               <LinearGradient
-                colors={['#FFD700', '#FFA500', '#FF8C00']}
+                colors={['#FFD700', '#FFD700', '#FFD700']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={{
@@ -1574,7 +1574,7 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
             backgroundColor: colorScheme === 'dark' 
               ? 'rgba(255, 255, 255, 0.08)' 
               : 'rgba(255, 255, 255, 0.9)',
-            shadowColor: colorScheme === 'dark' ? '#FFA500' : '#FFA500',
+            shadowColor: colorScheme === 'dark' ? '#FFD700' : '#FFD700',
             shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
             shadowOpacity: colorScheme === 'dark' ? 0.9 : 0.7,
             shadowRadius: colorScheme === 'dark' ? 24 : 20,
@@ -1582,16 +1582,16 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
             overflow: 'visible', // Allow count text to be visible
             borderWidth: colorScheme === 'dark' ? 2 : 1.5,
             borderColor: colorScheme === 'dark' 
-              ? 'rgba(255, 220, 100, 0.5)' 
-              : 'rgba(255, 200, 0, 0.7)',
+              ? '#FFD700' 
+              : '#FFD700',
             opacity: allSunsVisible ? 0.4 : 1,
           }}
         >
           <LinearGradient
             colors={
               colorScheme === 'dark'
-                ? ['rgba(255, 230, 140, 0.85)', 'rgba(255, 180, 70, 0.7)', 'rgba(255, 140, 40, 0.85)']
-                : ['rgba(255, 250, 200, 1)', 'rgba(255, 230, 120, 0.95)', 'rgba(255, 210, 60, 1)']
+                ? ['#FFD700', '#FFD700', '#FFD700']
+                : ['#FFD700', '#FFD700', '#FFD700']
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -2218,7 +2218,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
               <Defs>
                 <SvgLinearGradient id={`memoryBorderGradient-${memory.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
                   <Stop offset="0%" stopColor="#FFD700" stopOpacity="1" />
-                  <Stop offset="100%" stopColor="#FFA500" stopOpacity="1" />
+                  <Stop offset="100%" stopColor="#FFD700" stopOpacity="1" />
                 </SvgLinearGradient>
               </Defs>
               {/* Background circle (cloudy/dark) */}
@@ -2270,7 +2270,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
                     colors={
                       sunnyPercentage >= 50
                         ? // Sunny gradient (bright/yellow) for positive memories
-                          ['rgba(255, 215, 0, 0.4)', 'rgba(255, 165, 0, 0.5)', 'rgba(255, 140, 0, 0.4)']
+                          ['rgba(255, 215, 0, 0.4)', 'rgba(255, 215, 0, 0.5)', 'rgba(255, 215, 0, 0.4)']
                         : // Dark gradient for negative memories
                           ['rgba(0, 0, 0, 0.5)', 'rgba(30, 30, 30, 0.6)', 'rgba(0, 0, 0, 0.5)']
                     }
@@ -2636,7 +2636,7 @@ const FloatingSun = React.memo(function FloatingSun({
         onPress={onPress}
       >
         <LinearGradient
-          colors={['#FFD700', '#FFA500', '#FF8C00']}
+          colors={['#FFD700', '#FFD700', '#FFD700']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={{
