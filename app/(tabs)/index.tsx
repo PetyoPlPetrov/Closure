@@ -10,17 +10,18 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { startTransition, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
-    Easing,
-    useAnimatedReaction,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withSpring,
-    withTiming,
+  Easing,
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -59,7 +60,7 @@ const DraggableMoment = React.memo(function DraggableMoment({
   const startX = useSharedValue(hasStartPosition ? propStartX! : initialX);
   const startY = useSharedValue(hasStartPosition ? propStartY! : initialY);
   const isDragging = useSharedValue(false);
-  const entranceProgress = useSharedValue(hasStartPosition ? 1 : 1); // Set to 1 when hasStartPosition to avoid affecting opacity
+  const entranceProgress = useSharedValue(hasStartPosition ? 1 : 0); // Start at 0 when no start position to enable entrance animation
   const scale = useSharedValue(hasStartPosition ? 0.3 : 1);
   const opacity = useSharedValue(hasStartPosition ? 0.95 : 1); // Start almost fully visible at button position to prevent blink
   
@@ -68,18 +69,26 @@ const DraggableMoment = React.memo(function DraggableMoment({
   const hitAreaHeight = height;
   
   // Entrance animation with delay - if start position provided, animate from there
-  React.useEffect(() => {
+  // Use useLayoutEffect to ensure initial state is set synchronously before paint
+  React.useLayoutEffect(() => {
     if (hasStartPosition && propStartX !== undefined && propStartY !== undefined && !animationStartedRef.current) {
-      // Mark animation as started to prevent reset
-      animationStartedRef.current = true;
-      
       // Set initial values immediately and synchronously to prevent any flash
       panX.value = propStartX;
       panY.value = propStartY;
       opacity.value = 0.95; // Start almost fully visible to prevent any blink
       scale.value = 0.3;
       entranceProgress.value = 1; // Set to 1 so it doesn't affect opacity (we use opacity.value directly)
-      
+    } else if (!hasStartPosition && !animationStartedRef.current) {
+      // Set initial state synchronously for entrance animation
+      entranceProgress.value = 0;
+    }
+  }, [hasStartPosition, propStartX, propStartY, panX, panY, opacity, scale, entranceProgress]);
+
+  // Start the actual animation after layout is complete
+  React.useEffect(() => {
+    if (hasStartPosition && propStartX !== undefined && propStartY !== undefined && !animationStartedRef.current) {
+      // Mark animation as started to prevent reset
+      animationStartedRef.current = true;
       // Use a very short delay (just one frame) to ensure render happens first
       const timer = setTimeout(() => {
         // Fade to full opacity smoothly
@@ -104,18 +113,20 @@ const DraggableMoment = React.memo(function DraggableMoment({
       return () => clearTimeout(timer);
     } else if (!hasStartPosition && !animationStartedRef.current) {
       // Only run normal entrance animation if we haven't started the button animation
-      entranceProgress.value = 0;
+      // Ensure minimum delay of 16ms (one frame) to allow component to mount and render
+      const actualDelay = Math.max(entranceDelay, 16);
       const timer = setTimeout(() => {
+        animationStartedRef.current = true; // Mark as started
         entranceProgress.value = withSpring(1, {
           damping: 12,
           stiffness: 150,
           mass: 0.8,
         });
-      }, entranceDelay);
+      }, actualDelay);
       return () => clearTimeout(timer);
     }
     // If animation has started, don't reset anything even if start position is cleared
-  }, [entranceProgress, entranceDelay, hasStartPosition, propStartX, propStartY, initialX, initialY, panX, panY, opacity, scale]);
+  }, [entranceDelay, hasStartPosition, propStartX, propStartY, initialX, initialY, panX, panY, opacity, scale, entranceProgress]);
   
   // Update position when initial values change (but not while dragging)
   React.useEffect(() => {
@@ -466,13 +477,10 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const prevIsFocusedRef = useRef<boolean | undefined>(undefined);
   // Track if animation has been started for current focus state to prevent duplicate starts
   const animationStartedForFocusRef = useRef<boolean>(false);
-  // Track press time to calculate total delay
-  const pressTimeRef = useRef<number | null>(null);
   
   // CRITICAL: Reset to State A synchronously BEFORE render when isFocused becomes true
   // useLayoutEffect runs synchronously after all DOM mutations but before paint
   useLayoutEffect(() => {
-    const layoutEffectTime = performance.now();
     const prevIsFocused = prevIsFocusedRef.current;
     
     // Initialize on first run if undefined
@@ -493,15 +501,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       // This MUST happen before the component renders with isFocused=true
       animationStartedForFocusRef.current = true; // Mark animation as started
       
-      // Calculate delays
-      const pressTime = pressTimeRef.current;
-      const delayToLayoutEffect = pressTime ? (layoutEffectTime - pressTime) : 0;
-      
-      console.log(`[FloatingAvatar] [TIMING] useLayoutEffect: Setting to State A (zoom-in start) at: ${layoutEffectTime.toFixed(2)}ms, profile: ${profile.id}`);
-      if (pressTime) {
-        console.log(`[FloatingAvatar] [TIMING] Total delay from press to useLayoutEffect: ${delayToLayoutEffect.toFixed(2)}ms`);
-      }
-      
       startX.value = position.x;
       startY.value = position.y;
       zoomProgress.value = 0; // Start at 0 (State A) - CRITICAL for animation to start from State A
@@ -511,15 +510,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       
       // Start animation immediately in useLayoutEffect for faster response
       // Start animation values immediately without waiting for RAF - useLayoutEffect runs synchronously
-      const animationStartTime = performance.now();
       const easingConfig = Easing.bezier(0.4, 0.0, 0.2, 1);
       const zoomInDuration = 1200;
-      
-      const delayToAnimationStart = pressTime ? (animationStartTime - pressTime) : 0;
-      console.log(`[FloatingAvatar] [TIMING] Starting animation in useLayoutEffect at: ${animationStartTime.toFixed(2)}ms (${(animationStartTime - layoutEffectTime).toFixed(2)}ms after useLayoutEffect start)`);
-      if (pressTime) {
-        console.log(`[FloatingAvatar] [TIMING] Total delay from press to animation start: ${delayToAnimationStart.toFixed(2)}ms`);
-      }
       
       // Start animations immediately - no RAF delay
       zoomProgress.value = withTiming(1, {
@@ -538,16 +530,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         duration: zoomInDuration,
         easing: easingConfig,
       });
-      
-      const animationSetTime = performance.now();
-      const delayToAnimationSet = pressTime ? (animationSetTime - pressTime) : 0;
-      console.log(`[FloatingAvatar] [TIMING] Animation values set at: ${animationSetTime.toFixed(2)}ms (${(animationSetTime - animationStartTime).toFixed(2)}ms after animation start)`);
-      if (pressTime) {
-        console.log(`[FloatingAvatar] [TIMING] Total delay from press to animation values set: ${delayToAnimationSet.toFixed(2)}ms`);
-      }
-      
-      // Reset press time ref
-      pressTimeRef.current = null;
     } else if (!isFocused && prevIsFocused) {
       // Transitioning from focused to unfocused - ensure we start from State B (focused state)
       // This prevents flashing by ensuring values are correct before zoom-out animation
@@ -742,12 +724,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       >
         <Pressable
           style={{ pointerEvents: 'auto' }} // Ensure Pressable can receive touches
-          onPress={() => {
-            const pressTime = performance.now();
-            pressTimeRef.current = pressTime;
-            console.log(`[FloatingAvatar] [TIMING] Press detected for profile: ${profile.id}, isFocused: ${isFocused}, time: ${pressTime.toFixed(2)}ms`);
-            onPress();
-          }}
+          onPress={onPress}
         >
           {/* Circular progress bar border */}
           <View
@@ -830,7 +807,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         const filteredMemories = memories.filter((memory) => {
           // If a memory is focused, only show that memory
           if (focusedMemory) {
-            return focusedMemory.profileId === profile.id && focusedMemory.memoryId === memory.id;
+            const shouldShow = focusedMemory.profileId === profile.id && focusedMemory.memoryId === memory.id;
+            return shouldShow;
           }
           // If profile is focused, show all its memories
           if (isFocused) {
@@ -840,6 +818,10 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           return true;
         });
         
+        // Memoize position objects to prevent unnecessary re-renders
+        const positionX = position.x;
+        const positionY = position.y;
+        
         return filteredMemories.map((memory, memIndex) => {
         // Find the original index in the full memories array for position calculation
         const originalIndex = memories.findIndex(m => m.id === memory.id);
@@ -848,8 +830,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         const memAnimatedValues = memoryAnimatedValues[originalIndex] || memoryAnimatedValues[memoryAnimatedValues.length - 1];
         
         // When focused, avatar is centered on screen, so use centered position for memory calculations
-        const avatarCenterX = isFocused ? SCREEN_WIDTH / 2 : position.x;
-        const avatarCenterY = isFocused ? SCREEN_HEIGHT / 2 : position.y;
+        const avatarCenterX = isFocused ? SCREEN_WIDTH / 2 : positionX;
+        const avatarCenterY = isFocused ? SCREEN_HEIGHT / 2 : positionY;
         
         // Initial position for first render - use centered position when focused
         const initialMemPos = {
@@ -946,10 +928,12 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             avatarTargetX={targetX}
             avatarTargetY={targetY}
             avatarPosition={position}
+            focusedMemory={focusedMemory}
           />
         );
         });
-      }, [memories, focusedMemory, profile.id, isFocused, memoryPositions, memoryAnimatedValues, position, focusedX, focusedY, startX, startY, targetX, targetY, zoomProgress, colorScheme, memorySlideOffset, onPress, onMemoryFocus])}
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [memories, focusedMemory, profile.id, isFocused, memoryPositions, memoryAnimatedValues, position.x, position.y, focusedX, focusedY, startX, startY, targetX, targetY, zoomProgress, colorScheme, memorySlideOffset, onPress, onMemoryFocus])}
     </>
   );
 }, (prevProps, nextProps) => {
@@ -1339,6 +1323,11 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
     });
   }, [isFocused, filteredSuns, isMemoryFocused, suns.length, calculateClampedPosition, sunWidth, sunHeight, memorySize, sunPositions, position, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, sunZIndex, colorScheme, onDoubleTap, onUpdateMemory, newlyCreatedMoments, memory, clouds.length]);
   
+  // Skip rendering moments for unfocused partners (not visible in viewport)
+  if (!isFocused) {
+    return null;
+  }
+  
   return (
     <>
       {/* Floating Clouds around Memory - only show when profile is focused */}
@@ -1706,6 +1695,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
   avatarTargetX,
   avatarTargetY,
   avatarPosition,
+  focusedMemory,
 }: {
   memory: any;
   position: { x: number; y: number };
@@ -1730,6 +1720,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
   avatarTargetX?: number;
   avatarTargetY?: number;
   avatarPosition?: { x: number; y: number };
+  focusedMemory?: { profileId: string; memoryId: string } | null;
 }) {
   const { isLargeDevice } = useLargeDevice();
   const colors = Colors[colorScheme ?? 'dark'];
@@ -2151,7 +2142,6 @@ const FloatingMemory = React.memo(function FloatingMemory({
 
   // Click on memory: focus the memory (and profile if not already focused)
   const handlePress = () => {
-    console.log('[FloatingMemory] Press detected on memory:', memory.id, 'isFocused:', isFocused, 'isMemoryFocused:', isMemoryFocused);
     if (isMemoryFocused) {
       // Already focused, do nothing
       return;
@@ -2167,6 +2157,13 @@ const FloatingMemory = React.memo(function FloatingMemory({
       onPress();
     }
   };
+
+  // Skip rendering this memory if another memory is focused and this one isn't
+  // This prevents unnecessary re-renders when a specific memory is focused
+  // Note: This check happens after hooks to comply with Rules of Hooks
+  if (focusedMemory && focusedMemory.profileId === memory.profileId && focusedMemory.memoryId !== memory.id) {
+    return null;
+  }
 
   return (
     <>
@@ -2306,10 +2303,6 @@ const FloatingMemory = React.memo(function FloatingMemory({
         const cloudZIndex = cloudsOnTop ? baseZIndex + 5 : baseZIndex + 4; // Higher than memories so moments are visible on top
         const sunZIndex = cloudsOnTop ? baseZIndex + 4 : baseZIndex + 5; // Higher than memories so moments are visible on top
         
-        // Debug: Log when memory is focused
-        if (isMemoryFocused) {
-          console.log('[FloatingMemory] Memory focused - clouds:', cloudCount, 'suns:', sunCount, 'cloudZIndex:', cloudZIndex, 'sunZIndex:', sunZIndex);
-        }
         
         return (
           <MemoryMomentsRenderer
@@ -2364,6 +2357,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
   );
 }, (prevProps, nextProps) => {
   // Custom comparison function to prevent unnecessary re-renders
+  // Note: avatarTargetX and avatarTargetY are constants (SCREEN_WIDTH/2, SCREEN_HEIGHT/2), so we don't need to compare them
   return (
     prevProps.memory.id === nextProps.memory.id &&
     prevProps.position.x === nextProps.position.x &&
@@ -2374,6 +2368,10 @@ const FloatingMemory = React.memo(function FloatingMemory({
     prevProps.isMemoryFocused === nextProps.isMemoryFocused &&
     prevProps.calculatedMemorySize === nextProps.calculatedMemorySize &&
     prevProps.colorScheme === nextProps.colorScheme &&
+    prevProps.avatarPosition?.x === nextProps.avatarPosition?.x &&
+    prevProps.avatarPosition?.y === nextProps.avatarPosition?.y &&
+    prevProps.focusedMemory?.profileId === nextProps.focusedMemory?.profileId &&
+    prevProps.focusedMemory?.memoryId === nextProps.focusedMemory?.memoryId &&
     (prevProps.memory.hardTruths?.length ?? 0) === (nextProps.memory.hardTruths?.length ?? 0) &&
     (prevProps.memory.goodFacts?.length ?? 0) === (nextProps.memory.goodFacts?.length ?? 0)
   );
@@ -3008,41 +3006,82 @@ export default function HomeScreen() {
   const [focusedMemory, setFocusedMemory] = useState<{ profileId: string; memoryId: string } | null>(null);
   // Track previous focused profile to handle shrink animation
   const previousFocusedIdRef = useRef<string | null>(null);
+  // Track if animations are complete - used to skip rendering unfocused partners
+  const [animationsComplete, setAnimationsComplete] = useState(false);
   
   // Update previous focused ID when focus changes
   React.useEffect(() => {
     if (focusedProfileId) {
       // When a profile is focused, remember it
       previousFocusedIdRef.current = focusedProfileId;
+      // Reset animations complete flag when focus changes
+      setAnimationsComplete(false);
     } else {
       // When focus is cleared, keep the previous ID for a moment to handle shrink animation
       // The ref will be cleared when a new profile is focused
+      // Reset animations complete flag when unfocusing
+      setAnimationsComplete(false);
     }
   }, [focusedProfileId]);
 
+  // Create stable callbacks for runOnJS
+  const handleSlideOutComplete = useCallback(() => {
+    setAnimationsComplete(true);
+  }, []);
+
+  const handleSlideInComplete = useCallback(() => {
+    setAnimationsComplete(false);
+  }, []);
+
   // Animated value for sliding other EX zones off-screen - only create when animations are ready
   const slideOffset = useSharedValue(0);
-  React.useEffect(() => {
+  
+  // Use useLayoutEffect to start animation synchronously before paint to prevent flash
+  React.useLayoutEffect(() => {
     if (animationsReady) {
       // Animate smoothly when focusing or unfocusing
       // Keep other ex-es hidden if either profile OR memory is focused
       const easingConfig = Easing.bezier(0.4, 0.0, 0.2, 1); // Smooth ease-in-out curve
       if (focusedProfileId || focusedMemory) {
         // Slide other zones out with smooth fade
-        slideOffset.value = withTiming(SCREEN_WIDTH * 2, {
-          duration: 1200, // Match the zoom-in duration for synchronized animation
-          easing: easingConfig,
-        });
+        const targetValue = SCREEN_WIDTH * 2;
+        const currentValue = slideOffset.value;
+        
+        // Only start animation if not already at target (prevents restarting)
+        if (Math.abs(currentValue - targetValue) > 1) {
+          slideOffset.value = withTiming(targetValue, {
+            duration: 1200, // Match the zoom-in duration for synchronized animation
+            easing: easingConfig,
+          }, (finished) => {
+            'worklet';
+            if (finished) {
+              runOnJS(handleSlideOutComplete)();
+            }
+          });
+        }
       } else {
         // Slide other zones back in - only when both profile and memory are unfocused
         // Start almost immediately when zoom-out begins for synchronized animation
-        slideOffset.value = withTiming(0, {
-          duration: 600, // Faster appearance - 600ms instead of 1200ms
-          easing: easingConfig,
-        });
+        const currentValue = slideOffset.value;
+        if (Math.abs(currentValue - 0) > 1) {
+          slideOffset.value = withTiming(0, {
+            duration: 600, // Faster appearance - 600ms instead of 1200ms
+            easing: easingConfig,
+          }, (finished) => {
+            'worklet';
+            // Animation complete - unfocusing is done
+            if (finished) {
+              runOnJS(handleSlideInComplete)();
+            }
+          });
+        } else {
+          // Already at 0, just reset the completion callback
+          runOnJS(handleSlideInComplete)();
+        }
       }
     }
-  }, [focusedProfileId, focusedMemory, animationsReady, slideOffset]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedProfileId, focusedMemory, animationsReady, handleSlideOutComplete, handleSlideInComplete]);
   
   // Slide offset for non-focused memories when a memory is focused
   const memorySlideOffset = useSharedValue(0);
@@ -3100,6 +3139,8 @@ export default function HomeScreen() {
       const memories = getIdealizedMemoriesByProfileId(profile.id);
       const currentPosition = getAvatarPosition(profile.id, index);
       const isFocused = focusedProfileId === profile.id;
+      // Calculate wasJustFocused here
+      const wasJustFocused = previousFocusedIdRef.current === profile.id && !focusedProfileId && !focusedMemory;
       
       return (
         <ProfileRenderer
@@ -3110,8 +3151,7 @@ export default function HomeScreen() {
           currentPosition={currentPosition}
           isFocused={isFocused}
           isProfileFocusedForMemory={false}
-          focusedProfileId={focusedProfileId}
-          previousFocusedId={previousFocusedIdRef.current}
+          wasJustFocused={wasJustFocused}
           focusedMemory={focusedMemory}
           slideOffset={slideOffset}
           getProfileYearSection={getProfileYearSection}
@@ -3121,10 +3161,12 @@ export default function HomeScreen() {
           colors={colors}
           colorScheme={colorScheme ?? 'dark'}
           memorySlideOffset={memorySlideOffset}
+          animationsComplete={animationsComplete}
+          focusedProfileId={focusedProfileId}
         />
       );
     });
-  }, [animationsReady, focusedProfileId, focusedMemory, visibleProfiles, getIdealizedMemoriesByProfileId, getAvatarPosition, previousFocusedIdRef, slideOffset, getProfileYearSection, updateAvatarPosition, setFocusedProfileId, setFocusedMemory, colors, colorScheme, memorySlideOffset]);
+  }, [animationsReady, focusedProfileId, focusedMemory, visibleProfiles, getIdealizedMemoriesByProfileId, getAvatarPosition, previousFocusedIdRef, slideOffset, getProfileYearSection, updateAvatarPosition, setFocusedProfileId, setFocusedMemory, colors, colorScheme, memorySlideOffset, animationsComplete]);
 
   if (sortedProfiles.length === 0) {
   return (
@@ -3218,6 +3260,7 @@ export default function HomeScreen() {
               setFocusedMemory={setFocusedMemory}
               colors={colors}
               memorySlideOffset={memorySlideOffset}
+              animationsComplete={animationsComplete}
             />
           )}
           
@@ -3259,6 +3302,7 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
   setFocusedMemory,
   colors,
   memorySlideOffset,
+  animationsComplete,
 }: {
   yearSections: Map<string, { year: number | string; top: number; bottom: number; height: number }>;
   profilesBySection: Map<string, any[]>;
@@ -3275,7 +3319,40 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
   setFocusedMemory: (memory: { profileId: string; memoryId: string } | null) => void;
   colors: any;
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
+  animationsComplete: boolean;
 }) {
+  // Memoize memories and positions for all profiles to prevent unnecessary re-renders
+  // Reuse previous references when data hasn't changed to prevent cascading re-renders
+  const profileDataMapRef = React.useRef<Map<string, { memories: any[]; position: { x: number; y: number } }>>(new Map());
+  const profileDataMap = useMemo(() => {
+    const dataMap = new Map<string, { memories: any[]; position: { x: number; y: number } }>();
+    Array.from(profilesBySection.values()).flat().forEach(({ profile, index: profileIndex }) => {
+      const memories = getIdealizedMemoriesByProfileId(profile.id);
+      const position = getAvatarPosition(profile.id, profileIndex);
+      
+      // Check if data actually changed for this profile
+      const prevData = profileDataMapRef.current.get(profile.id);
+      if (prevData && 
+          prevData.memories.length === memories.length &&
+          prevData.position.x === position.x &&
+          prevData.position.y === position.y) {
+        // Reuse previous reference if data is the same (check memory IDs to be sure)
+        const prevMemoryIds = prevData.memories.map(m => m?.id).join(',');
+        const currentMemoryIds = memories.map(m => m?.id).join(',');
+        if (prevMemoryIds === currentMemoryIds) {
+          dataMap.set(profile.id, prevData);
+          return; // Reuse previous reference
+        }
+      }
+      
+      // Data changed or first time - create new reference
+      dataMap.set(profile.id, { memories, position });
+    });
+    profileDataMapRef.current = dataMap;
+    return dataMap;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profilesBySection]); // Only profilesBySection - functions are stable via useCallback
+  
   return (
     <>
       {/* Render section backgrounds */}
@@ -3290,10 +3367,14 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
       {/* Render profiles at the same level (not nested in sections) */}
       {Array.from(profilesBySection.entries()).flatMap(([key, sectionProfilesData]) => {
         return sectionProfilesData.map(({ profile, index: profileIndex }) => {
-          const memories = getIdealizedMemoriesByProfileId(profile.id);
-          const currentPosition = getAvatarPosition(profile.id, profileIndex);
+          const profileData = profileDataMap.get(profile.id);
+          if (!profileData) return null; // Should not happen, but safety check
+          
+          const { memories, position: currentPosition } = profileData;
           const isFocused = focusedProfileId === profile.id;
           const isProfileFocusedForMemory = focusedMemory?.profileId === profile.id;
+          // Calculate wasJustFocused here to avoid passing previousFocusedId to all profiles
+          const wasJustFocused = previousFocusedId === profile.id && !focusedProfileId && !focusedMemory;
           
           return (
             <ProfileRenderer
@@ -3304,8 +3385,7 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
               currentPosition={currentPosition}
               isFocused={isFocused}
               isProfileFocusedForMemory={isProfileFocusedForMemory}
-              focusedProfileId={focusedProfileId}
-              previousFocusedId={previousFocusedId}
+              wasJustFocused={wasJustFocused}
               focusedMemory={focusedMemory}
               slideOffset={slideOffset}
               getProfileYearSection={getProfileYearSection}
@@ -3315,6 +3395,8 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
               colors={colors}
               colorScheme={colorScheme}
               memorySlideOffset={memorySlideOffset}
+              animationsComplete={animationsComplete}
+              focusedProfileId={focusedProfileId}
             />
           );
         });
@@ -3477,8 +3559,7 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
   currentPosition,
   isFocused,
   isProfileFocusedForMemory,
-  focusedProfileId,
-  previousFocusedId,
+  wasJustFocused,
   focusedMemory,
   slideOffset,
   getProfileYearSection,
@@ -3488,6 +3569,8 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
   colors,
   colorScheme,
   memorySlideOffset,
+  animationsComplete,
+  focusedProfileId,
 }: {
   profile: any;
   index: number;
@@ -3495,8 +3578,7 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
   currentPosition: { x: number; y: number };
   isFocused: boolean;
   isProfileFocusedForMemory: boolean;
-  focusedProfileId: string | null;
-  previousFocusedId: string | null;
+  wasJustFocused: boolean;
   focusedMemory: { profileId: string; memoryId: string } | null;
   slideOffset: ReturnType<typeof useSharedValue<number>>;
   getProfileYearSection: (profile: any) => { year: number | string; top: number; bottom: number; height: number } | undefined;
@@ -3506,6 +3588,8 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
   colors: any;
   colorScheme: 'light' | 'dark';
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
+  animationsComplete: boolean;
+  focusedProfileId: string | null;
 }) {
   // Determine slide direction for non-focused zones
   const centerX = SCREEN_WIDTH / 2;
@@ -3517,14 +3601,11 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
   
   // Memoize callbacks to prevent unnecessary re-renders
   const handlePress = useCallback(() => {
-    const pressTime = performance.now();
-    console.log(`[ProfileRenderer] [TIMING] onPress called, updating state at: ${pressTime.toFixed(2)}ms, profile: ${profile.id}`);
     const newFocusedId = isFocused ? null : profile.id;
-    // Use startTransition to mark this as a transition, allowing React to prioritize the animation
-    startTransition(() => {
-      setFocusedProfileId(newFocusedId);
-      setFocusedMemory(null);
-    });
+    // Don't use startTransition - it defers the update and causes flash
+    // Update state immediately so useLayoutEffect can run synchronously
+    setFocusedProfileId(newFocusedId);
+    setFocusedMemory(null);
   }, [profile.id, isFocused, setFocusedProfileId, setFocusedMemory]);
   
   const handleMemoryFocus = useCallback((profileId: string, memoryId: string) => {
@@ -3536,12 +3617,17 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
     return null;
   }
   
+  // Skip rendering unfocused partners and their memories/moments when animations are complete
+  // This prevents unnecessary re-renders for components not visible in viewport
+  if (animationsComplete && focusedProfileId && !isFocused) {
+    return null;
+  }
+  
   return (
     <NonFocusedZone
       key={profile.id}
       isFocused={isFocused}
-      wasJustFocused={previousFocusedId === profile.id && !focusedProfileId && !focusedMemory}
-      focusedProfileId={focusedProfileId}
+      wasJustFocused={wasJustFocused}
       slideOffset={slideOffset}
       slideDirectionX={slideDirectionX}
       slideDirectionY={slideDirectionY}
@@ -3562,16 +3648,49 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
     </NonFocusedZone>
   );
 }, (prevProps, nextProps) => {
+  // Quick reference check first
+  if (prevProps.memories === nextProps.memories) {
+    // Same reference, check other props
+    // Note: We don't check focusedProfileId directly - isFocused already captures focus changes
+    return (
+      prevProps.profile.id === nextProps.profile.id &&
+      prevProps.currentPosition.x === nextProps.currentPosition.x &&
+      prevProps.currentPosition.y === nextProps.currentPosition.y &&
+      prevProps.isFocused === nextProps.isFocused &&
+      prevProps.isProfileFocusedForMemory === nextProps.isProfileFocusedForMemory &&
+      prevProps.wasJustFocused === nextProps.wasJustFocused &&
+      prevProps.focusedMemory?.profileId === nextProps.focusedMemory?.profileId &&
+      prevProps.focusedMemory?.memoryId === nextProps.focusedMemory?.memoryId &&
+      prevProps.animationsComplete === nextProps.animationsComplete &&
+      prevProps.focusedProfileId === nextProps.focusedProfileId
+    );
+  }
+  
+  // Different reference - check if contents are the same (shallow comparison by ID)
+  if (prevProps.memories.length !== nextProps.memories.length) {
+    return false;
+  }
+  
+  // Compare memory IDs to see if contents changed
+  const prevIds = prevProps.memories.map(m => m?.id).join(',');
+  const nextIds = nextProps.memories.map(m => m?.id).join(',');
+  if (prevIds !== nextIds) {
+    return false;
+  }
+  
+  // Memories are the same, check other props
+  // Note: We don't check focusedProfileId directly - isFocused already captures focus changes
   return (
     prevProps.profile.id === nextProps.profile.id &&
     prevProps.currentPosition.x === nextProps.currentPosition.x &&
     prevProps.currentPosition.y === nextProps.currentPosition.y &&
     prevProps.isFocused === nextProps.isFocused &&
     prevProps.isProfileFocusedForMemory === nextProps.isProfileFocusedForMemory &&
-    prevProps.focusedProfileId === nextProps.focusedProfileId &&
+    prevProps.wasJustFocused === nextProps.wasJustFocused &&
     prevProps.focusedMemory?.profileId === nextProps.focusedMemory?.profileId &&
     prevProps.focusedMemory?.memoryId === nextProps.focusedMemory?.memoryId &&
-    prevProps.memories.length === nextProps.memories.length
+    prevProps.animationsComplete === nextProps.animationsComplete &&
+    prevProps.focusedProfileId === nextProps.focusedProfileId
   );
 });
 
@@ -3580,7 +3699,6 @@ const NonFocusedZone = React.memo(function NonFocusedZone({
   children,
   isFocused,
   wasJustFocused,
-  focusedProfileId,
   slideOffset,
   slideDirectionX,
   slideDirectionY,
@@ -3588,7 +3706,6 @@ const NonFocusedZone = React.memo(function NonFocusedZone({
   children: React.ReactNode;
   isFocused: boolean;
   wasJustFocused: boolean;
-  focusedProfileId: string | null;
   slideOffset: ReturnType<typeof useSharedValue<number>>;
   slideDirectionX: number;
   slideDirectionY: number;
@@ -3651,7 +3768,6 @@ const NonFocusedZone = React.memo(function NonFocusedZone({
   return (
     prevProps.isFocused === nextProps.isFocused &&
     prevProps.wasJustFocused === nextProps.wasJustFocused &&
-    prevProps.focusedProfileId === nextProps.focusedProfileId &&
     prevProps.slideDirectionX === nextProps.slideDirectionX &&
     prevProps.slideDirectionY === nextProps.slideDirectionY
   );
