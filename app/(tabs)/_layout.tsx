@@ -23,7 +23,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      initialRouteName="ex-profiles"
+      initialRouteName="spheres"
       screenOptions={{
         tabBarActiveTintColor: colors.primaryLight,
         tabBarInactiveTintColor: colorScheme === 'dark' ? '#ffffff' : Colors.light.text,
@@ -77,12 +77,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="ex-profiles"
+        name="spheres"
         options={{
-          title: t('tab.exProfiles'),
+          title: 'Spheres',
           tabBarIcon: ({ color }) => (
             <MaterialIcons 
-              name="group" 
+              name="category" 
               size={iconSize} 
               color={color}
             />
@@ -99,7 +99,7 @@ export default function TabLayout() {
                   marginTop: 6 * fontScale
                 }}
               >
-                {t('tab.exProfiles')}
+                Spheres
               </ThemedText>
             );
           },

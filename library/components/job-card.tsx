@@ -8,32 +8,27 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { useMemo } from 'react';
 import { StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
-import type { ExProfile } from '@/utils/JourneyProvider';
+import type { Job } from '@/utils/JourneyProvider';
 
-type ProfileCardProps = {
-  profile: ExProfile;
+type JobCardProps = {
+  job: Job;
   onPress?: () => void;
   onMorePress?: () => void;
   containerStyle?: ViewStyle;
 };
 
-export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: ProfileCardProps) {
+export function JobCard({ job, onPress, onMorePress, containerStyle }: JobCardProps) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
   const colors = Colors[colorScheme ?? 'dark'];
   const t = useTranslate();
-  const { getIdealizedMemoriesByProfileId } = useJourney();
+  const { getIdealizedMemoriesByEntityId } = useJourney();
 
-  const isComplete = profile.isCompleted || profile.setupProgress === 100;
-  const memories = getIdealizedMemoriesByProfileId(profile.id);
+  const isComplete = job.isCompleted || job.setupProgress === 100;
+  const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
   const memoryCount = memories.length;
   
-  // Debug logging
-  if (memoryCount === 0 && profile.id) {
-    console.log(`[ProfileCard] Profile ${profile.name} (ID: ${profile.id}) has 0 memories`);
-  }
-  
-  // Calculate relationship quality (sunny percentage) - same as EX avatar border
+  // Calculate job satisfaction (sunny percentage)
   const sunnyPercentage = useMemo(() => {
     let totalClouds = 0;
     let totalSuns = 0;
@@ -44,12 +39,12 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
     });
     
     const total = totalClouds + totalSuns;
-    if (total === 0) return 0; // No moments if no data
+    if (total === 0) return 0;
     
-    // Percentage of sunny moments (0-100)
     return Math.round((totalSuns / total) * 100);
   }, [memories]);
-  const initials = profile.name
+  
+  const initials = job.name
     .split(' ')
     .map((n) => n[0])
     .join('')
@@ -96,19 +91,6 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
           fontWeight: '600',
           fontSize: 20 * fontScale,
         },
-        statusOverlay: {
-          position: 'absolute',
-          bottom: -4 * fontScale,
-          right: -4 * fontScale,
-          width: 24 * fontScale,
-          height: 24 * fontScale,
-          borderRadius: 12 * fontScale,
-          backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: 2,
-          borderColor: colorScheme === 'dark' ? colors.background : '#ffffff',
-        },
         content: {
           flex: 1,
           gap: 4 * fontScale,
@@ -120,7 +102,7 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
           marginBottom: 4 * fontScale,
           opacity: 0.7,
         },
-        relationship: {
+        dateRange: {
           marginBottom: 8 * fontScale,
         },
         moreButton: {
@@ -140,9 +122,8 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
           opacity: 0.7,
         },
       }),
-    [fontScale, colorScheme, avatarBgColor, colors.background]
+    [fontScale, colorScheme, avatarBgColor]
   );
-
 
   const handleCardPress = () => {
     if (onPress) {
@@ -166,9 +147,9 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
       >
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            {profile.imageUri ? (
+            {job.imageUri ? (
               <Image
-                source={{ uri: profile.imageUri }}
+                source={{ uri: job.imageUri }}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -177,35 +158,37 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
                 contentFit="cover"
               />
             ) : (
-              <ThemedText weight="semibold" style={styles.avatarText}>
-                {initials}
-              </ThemedText>
+              <MaterialIcons
+                name="work"
+                size={28 * fontScale}
+                color={colorScheme === 'dark' ? '#ffffff' : '#000000'}
+              />
             )}
           </View>
           <View style={styles.content}>
             <ThemedText size="l" weight="bold" style={styles.name}>
-              {profile.name}
+              {job.name}
             </ThemedText>
-            {profile.description && (
+            {job.description && (
               <ThemedText size="sm" weight="normal" style={styles.description}>
-                {profile.description.length > 30 ? profile.description.substring(0, 30) + '...' : profile.description}
+                {job.description.length > 30 ? job.description.substring(0, 30) + '...' : job.description}
               </ThemedText>
             )}
-            {(profile.relationshipStartDate || profile.relationshipDuration) && (
-              <ThemedText size="sm" weight="normal" style={styles.relationship}>
-                {profile.relationshipStartDate ? (
-                  (() => {
-                    const startDate = new Date(profile.relationshipStartDate);
-                    const endDate = profile.relationshipEndDate ? new Date(profile.relationshipEndDate) : null;
+            {(job.startDate || job.endDate) && (
+              <ThemedText size="sm" weight="normal" style={styles.dateRange}>
+                {(() => {
+                  const startDate = job.startDate ? new Date(job.startDate) : null;
+                  const endDate = job.endDate ? new Date(job.endDate) : null;
+                  if (startDate && endDate) {
                     const startStr = startDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-                    const endStr = endDate 
-                      ? endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
-                      : 'Ongoing';
+                    const endStr = endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
                     return `${startStr} - ${endStr}`;
-                  })()
-                ) : (
-                  profile.relationshipDuration
-                )}
+                  } else if (startDate) {
+                    const startStr = startDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+                    return `${startStr} - Ongoing`;
+                  }
+                  return null;
+                })()}
               </ThemedText>
             )}
           </View>
@@ -221,7 +204,7 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
           </ThemedText>
           {memoryCount > 0 && (
             <ThemedText size="sm" weight="normal" style={styles.memoryText}>
-              Relationship quality: {sunnyPercentage}% positive
+              Job satisfaction: {sunnyPercentage}% positive
             </ThemedText>
           )}
         </View>
@@ -242,4 +225,5 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
     </View>
   );
 }
+
 

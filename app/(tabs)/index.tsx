@@ -3,13 +3,14 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
-import { useJourney } from '@/utils/JourneyProvider';
+import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
@@ -249,9 +250,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   colors: any;
   colorScheme: 'light' | 'dark';
   isFocused: boolean;
-  focusedMemory?: { profileId: string; memoryId: string } | null;
+  focusedMemory?: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null;
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
-  onMemoryFocus?: (profileId: string, memoryId: string) => void;
+  onMemoryFocus?: (entityId: string, memoryId: string, sphere?: LifeSphere) => void;
   yearSection?: { year: number | string; top: number; bottom: number; height: number };
 }) {
   const baseAvatarSize = 80;
@@ -804,17 +805,19 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
       {/* Floating Memories around Avatar - rendered separately for proper z-index */}
       {useMemo(() => {
+        // Always show all memories - they should be visible around profiles at all times
         const filteredMemories = memories.filter((memory) => {
-          // If a memory is focused, only show that memory
+          // If a memory is focused, only show that specific memory
           if (focusedMemory) {
-            const shouldShow = focusedMemory.profileId === profile.id && focusedMemory.memoryId === memory.id;
-            return shouldShow;
+            const mem = focusedMemory as { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere };
+            if (mem.profileId === profile.id || mem.jobId === profile.id) {
+              // Show only the focused memory for this profile/job
+              return mem.memoryId === memory.id;
+            }
+            // If focused memory belongs to a different profile/job, hide all memories
+            return false;
           }
-          // If profile is focused, show all its memories
-          if (isFocused) {
-            return true;
-          }
-          // If nothing is focused, show all memories
+          // If nothing is focused, show all memories (they should always be visible)
           return true;
         });
         
@@ -918,7 +921,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             isFocused={isFocused}
             colorScheme={colorScheme}
             calculatedMemorySize={memorySize}
-            isMemoryFocused={focusedMemory?.profileId === profile.id && focusedMemory?.memoryId === memory.id}
+            isMemoryFocused={(focusedMemory?.profileId === profile.id || focusedMemory?.jobId === profile.id) && focusedMemory?.memoryId === memory.id}
             memorySlideOffset={memorySlideOffset}
             onPress={onPress}
             onMemoryFocus={onMemoryFocus}
@@ -1713,14 +1716,14 @@ const FloatingMemory = React.memo(function FloatingMemory({
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
   onUpdateMemory?: (updates: Partial<any>) => Promise<void>;
   onPress?: () => void;
-  onMemoryFocus?: (profileId: string, memoryId: string) => void;
+  onMemoryFocus?: (entityId: string, memoryId: string, sphere?: LifeSphere) => void;
   zoomProgress?: ReturnType<typeof useSharedValue<number>>;
   avatarStartX?: ReturnType<typeof useSharedValue<number>>;
   avatarStartY?: ReturnType<typeof useSharedValue<number>>;
   avatarTargetX?: number;
   avatarTargetY?: number;
   avatarPosition?: { x: number; y: number };
-  focusedMemory?: { profileId: string; memoryId: string } | null;
+  focusedMemory?: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null;
 }) {
   const { isLargeDevice } = useLargeDevice();
   const colors = Colors[colorScheme ?? 'dark'];
@@ -2149,7 +2152,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
     
     // Always try to focus the memory
     if (onMemoryFocus) {
-      onMemoryFocus(memory.profileId, memory.id);
+      onMemoryFocus(memory.entityId || memory.profileId || '', memory.id, memory.sphere || 'relationships');
     }
     
     // If profile is not focused, also focus it
@@ -2659,11 +2662,592 @@ const FloatingSun = React.memo(function FloatingSun({
   );
 });
 
+// Overall Percentage Avatar Component (center display)
+const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
+  percentage,
+  colorScheme,
+  colors,
+}: {
+  percentage: number;
+  colorScheme: 'light' | 'dark';
+  colors: any;
+}) {
+  const avatarSize = 120;
+  const borderWidth = 8;
+  const radius = (avatarSize + borderWidth) / 2 - borderWidth / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <View
+      style={{
+        width: avatarSize,
+        height: avatarSize,
+        borderRadius: avatarSize / 2,
+        backgroundColor: colorScheme === 'dark' 
+          ? 'rgba(14, 165, 233, 0.2)' 
+          : 'rgba(125, 211, 252, 0.3)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+      }}
+    >
+      <Svg
+        width={avatarSize}
+        height={avatarSize}
+        style={{ position: 'absolute', top: 0, left: 0 }}
+      >
+        <Defs>
+          <SvgLinearGradient id="overallBorderGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor="#FFD700" stopOpacity="1" />
+            <Stop offset="100%" stopColor="#FFD700" stopOpacity="1" />
+          </SvgLinearGradient>
+        </Defs>
+        <Circle
+          cx={avatarSize / 2}
+          cy={avatarSize / 2}
+          r={radius}
+          stroke="#000000"
+          strokeWidth={borderWidth}
+          fill="none"
+        />
+        <Circle
+          cx={avatarSize / 2}
+          cy={avatarSize / 2}
+          r={radius}
+          stroke="url(#overallBorderGradient)"
+          strokeWidth={borderWidth}
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
+        />
+      </Svg>
+      <ThemedText size="xl" weight="bold" style={{ color: colors.primaryLight, fontSize: 32 }}>
+        {Math.round(percentage)}%
+      </ThemedText>
+    </View>
+  );
+});
+
+// Sphere Avatar Component (simplified - no memories floating)
+// Floating Entity Component (for partners/jobs around spheres)
+const FloatingEntity = React.memo(function FloatingEntity({
+  entity,
+  position,
+  colorScheme,
+  colors,
+  delay = 0,
+  entityType,
+  memories,
+  selectedSphere,
+  zoomProgress,
+}: {
+  entity: any;
+  position: { x: number; y: number };
+  colorScheme: 'light' | 'dark';
+  colors: any;
+  delay?: number;
+  entityType: 'partner' | 'job';
+  memories: any[];
+  selectedSphere: LifeSphere | null;
+  zoomProgress: ReturnType<typeof useSharedValue<number>>;
+}) {
+  const floatOffset = useSharedValue(0);
+  
+  // Calculate sunny vs cloudy percentage for this entity
+  const sunnyPercentage = React.useMemo(() => {
+    let totalClouds = 0;
+    let totalSuns = 0;
+    
+    memories.forEach((memory) => {
+      totalClouds += (memory.hardTruths || []).length;
+      totalSuns += (memory.goodFacts || []).length;
+    });
+    
+    const total = totalClouds + totalSuns;
+    if (total === 0) return 50; // Default to neutral if no moments
+    
+    return (totalSuns / total) * 100;
+  }, [memories]);
+  
+  // Determine if more cloudy (dark) or sunny (light)
+  const isMoreSunny = sunnyPercentage >= 50;
+  
+  React.useEffect(() => {
+    const startAnimation = () => {
+      floatOffset.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 1500 + delay, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0, { duration: 1500 + delay, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+    };
+    
+    if (delay > 0) {
+      const timer = setTimeout(startAnimation, delay);
+      return () => clearTimeout(timer);
+    } else {
+      startAnimation();
+    }
+  }, [floatOffset, delay]);
+  
+  // Track if this floating entity should be hidden during zoom
+  const shouldHideShared = useSharedValue(selectedSphere !== null);
+  
+  React.useEffect(() => {
+    shouldHideShared.value = selectedSphere !== null;
+  }, [selectedSphere, shouldHideShared]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    const currentZoom = zoomProgress.value;
+    const shouldHide = shouldHideShared.value;
+    
+    // Fade out and scale down when sphere is selected
+    const opacity = shouldHide ? (1 - currentZoom) : 1;
+    const scale = shouldHide ? (1 - currentZoom * 0.8) : 1;
+    
+    // Only show floating animation when not zooming
+    const floatY = (!shouldHide && currentZoom === 0) ? floatOffset.value * 8 : 0; // 8px floating range
+    
+    return {
+      transform: [
+        { scale },
+        { translateY: floatY },
+      ],
+      opacity,
+    };
+  });
+  
+  const size = 24; // Smaller size (reduced from 28)
+  
+  // Color based on cloudy vs sunny: dark for more clouds, light for more suns
+  const backgroundColor = React.useMemo(() => {
+    if (isMoreSunny) {
+      // More sunny - lighter colors
+      return entityType === 'partner'
+        ? (colorScheme === 'dark' ? 'rgba(255, 150, 150, 0.6)' : 'rgba(255, 200, 200, 0.7)')
+        : (colorScheme === 'dark' ? 'rgba(150, 200, 255, 0.6)' : 'rgba(200, 230, 255, 0.7)');
+    } else {
+      // More cloudy - darker colors
+      return entityType === 'partner'
+        ? (colorScheme === 'dark' ? 'rgba(180, 60, 60, 0.7)' : 'rgba(200, 100, 100, 0.6)')
+        : (colorScheme === 'dark' ? 'rgba(60, 100, 180, 0.7)' : 'rgba(100, 130, 200, 0.6)');
+    }
+  }, [isMoreSunny, entityType, colorScheme]);
+  
+  const borderColor = React.useMemo(() => {
+    if (isMoreSunny) {
+      // More sunny - lighter border
+      return colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(100, 150, 255, 0.8)';
+    } else {
+      // More cloudy - darker border
+      return colorScheme === 'dark' ? 'rgba(100, 100, 100, 0.8)' : 'rgba(50, 50, 50, 0.7)';
+    }
+  }, [isMoreSunny, colorScheme]);
+  
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          left: position.x - size / 2,
+          top: position.y - size / 2,
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          zIndex: 40,
+        },
+        animatedStyle,
+      ]}
+    >
+      {entityType === 'partner' && entity.imageUri ? (
+        <Image
+          source={{ uri: entity.imageUri }}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth: 2,
+            borderColor: borderColor,
+          }}
+          contentFit="cover"
+        />
+      ) : (
+        <View
+          style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: backgroundColor,
+            borderWidth: 2,
+            borderColor: borderColor,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <MaterialIcons 
+            name={entityType === 'partner' ? 'person' : 'work'} 
+            size={16} 
+            color={isMoreSunny ? (colorScheme === 'dark' ? '#ffffff' : '#333333') : (colorScheme === 'dark' ? '#cccccc' : '#ffffff')} 
+          />
+        </View>
+      )}
+    </Animated.View>
+  );
+});
+
+const SphereAvatar = React.memo(function SphereAvatar({
+  sphere,
+  position,
+  colorScheme,
+  colors,
+  onPress,
+  sunnyPercentage,
+  selectedSphere,
+  zoomProgress,
+}: {
+  sphere: LifeSphere;
+  position: { x: number; y: number };
+  colorScheme: 'light' | 'dark';
+  colors: any;
+  onPress: () => void;
+  sunnyPercentage: number; // 0-100, percentage of sunny moments
+  selectedSphere: LifeSphere | null;
+  zoomProgress: ReturnType<typeof useSharedValue<number>>;
+}) {
+  const sphereSize = 80;
+  
+  const sphereIcons = {
+    relationships: 'favorite',
+    career: 'work',
+  };
+  
+  // Determine sphere background color based on sunny vs cloudy
+  // Lighter for more suns, darker for more clouds
+  const sphereBackgroundColor = React.useMemo(() => {
+    const isMoreSunny = sunnyPercentage >= 50;
+    
+    if (sphere === 'relationships') {
+      if (isMoreSunny) {
+        // More sunny - lighter pink/red
+        return colorScheme === 'dark' 
+          ? `rgba(255, 150, 150, ${0.4 + (sunnyPercentage / 100) * 0.3})` // Lighter pink
+          : `rgba(255, 200, 200, ${0.5 + (sunnyPercentage / 100) * 0.3})`; // Lighter pink
+      } else {
+        // More cloudy - darker red
+        const cloudyPercentage = 100 - sunnyPercentage;
+        return colorScheme === 'dark'
+          ? `rgba(180, 60, 60, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker red
+          : `rgba(200, 100, 100, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker red
+      }
+    } else {
+      // Career sphere
+      if (isMoreSunny) {
+        // More sunny - lighter blue
+        return colorScheme === 'dark' 
+          ? `rgba(150, 200, 255, ${0.4 + (sunnyPercentage / 100) * 0.3})` // Lighter blue
+          : `rgba(200, 230, 255, ${0.5 + (sunnyPercentage / 100) * 0.3})`; // Lighter blue
+      } else {
+        // More cloudy - darker blue
+        const cloudyPercentage = 100 - sunnyPercentage;
+        return colorScheme === 'dark'
+          ? `rgba(60, 100, 180, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker blue
+          : `rgba(100, 130, 200, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker blue
+      }
+    }
+  }, [sunnyPercentage, colorScheme, sphere]);
+
+  // Create subtle floating animation similar to floating memories
+  const floatAnimation = useSharedValue(0);
+  
+  // Different animation delays and durations for each sphere to create organic movement
+  const animationDelays = useMemo(() => ({
+    relationships: 0,
+    career: 500,
+  }), []);
+  
+  const animationDurations = useMemo(() => ({
+    relationships: 2000,
+    career: 1800,
+  }), []);
+
+  // Track if this sphere is selected using a shared value (worklet-compatible)
+  const isSelectedShared = useSharedValue(selectedSphere === sphere);
+  const isOtherSelectedShared = useSharedValue(selectedSphere !== null && selectedSphere !== sphere);
+  
+  React.useEffect(() => {
+    // Update shared values when selectedSphere changes
+    isSelectedShared.value = selectedSphere === sphere;
+    isOtherSelectedShared.value = selectedSphere !== null && selectedSphere !== sphere;
+  }, [selectedSphere, sphere, isSelectedShared, isOtherSelectedShared]);
+
+  React.useEffect(() => {
+    // Start floating animation after delay (only when not selected)
+    if (sphere === 'family' || selectedSphere !== null) return; // Family sphere is no longer supported
+    const delay = animationDelays[sphere];
+    const duration = animationDurations[sphere];
+    
+    const startAnimation = () => {
+      // Subtle floating animation (similar to floating memories)
+      // Goes from 0 to 1 and back, then multiplied by small value in animatedStyle
+      floatAnimation.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: duration / 2 }),
+          withTiming(0, { duration: duration / 2 })
+        ),
+        -1,
+        false
+      );
+    };
+    
+    // Start animation with delay
+    if (delay > 0) {
+      const timer = setTimeout(startAnimation, delay);
+      return () => clearTimeout(timer);
+    } else {
+      startAnimation();
+    }
+  }, [sphere, floatAnimation, animationDelays, animationDurations, selectedSphere]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    const currentZoom = zoomProgress.value;
+    const isSelected = isSelectedShared.value;
+    const isOtherSelected = isOtherSelectedShared.value;
+    
+    // If this sphere is selected, zoom in (scale up)
+    // If another sphere is selected, zoom out and fade (scale down, opacity down)
+    // If no sphere is selected, return to normal
+    
+    let scale = 1;
+    let opacity = 1;
+    
+    if (isSelected) {
+      // Selected sphere: zoom in (scale increases)
+      scale = 1 + (currentZoom * 0.5); // Scale from 1 to 1.5
+      opacity = 1;
+    } else if (isOtherSelected) {
+      // Other sphere: zoom out and fade
+      scale = 1 - (currentZoom * 0.8); // Scale from 1 to 0.2
+      opacity = 1 - currentZoom; // Fade from 1 to 0
+    }
+    
+    // Add floating animation only when fully unfocused and no sphere is selected
+    const floatY = (!isOtherSelected && !isSelected && currentZoom === 0) ? floatAnimation.value * 3 : 0;
+    
+    return {
+      transform: [
+        { scale },
+        { translateY: floatY },
+      ],
+      opacity,
+    };
+  });
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        position: 'absolute',
+        left: position.x - sphereSize / 2,
+        top: position.y - sphereSize / 2,
+        width: sphereSize,
+        height: sphereSize,
+        zIndex: 50,
+      }}
+    >
+      <Animated.View
+        style={[
+          {
+            width: sphereSize,
+            height: sphereSize,
+            borderRadius: sphereSize / 2,
+            backgroundColor: sphere === 'family' ? colors.background : sphereBackgroundColor,
+            justifyContent: 'center',
+            alignItems: 'center',
+          },
+          animatedStyle,
+        ]}
+      >
+        <MaterialIcons
+          name={(sphere === 'family' ? 'help' : sphereIcons[sphere]) as any}
+          size={sphereSize * 0.5}
+          color={colors.primaryLight}
+        />
+      </Animated.View>
+    </Pressable>
+  );
+});
+
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
-  const { profiles, getIdealizedMemoriesByProfileId, updateIdealizedMemory } = useJourney();
+  const params = useLocalSearchParams();
+  const { 
+    profiles, 
+    jobs, 
+    idealizedMemories,
+    getIdealizedMemoriesByProfileId, 
+    getIdealizedMemoriesByEntityId,
+    updateIdealizedMemory,
+    getEntitiesBySphere,
+    getOverallSunnyPercentage,
+    reloadIdealizedMemories,
+    reloadProfiles,
+    reloadJobs,
+  } = useJourney();
   const t = useTranslate();
+  
+  // Reload all data from AsyncStorage when screen comes into focus
+  // This ensures data is always fresh and not stale from React state
+  // This is especially important after running the mock data script or after app restart
+  const hasReloadedRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      // Only reload once per focus session to prevent infinite loops
+      if (hasReloadedRef.current) {
+        return;
+      }
+      
+      hasReloadedRef.current = true;
+      
+      Promise.all([
+        reloadIdealizedMemories(),
+        reloadProfiles(),
+        reloadJobs(),
+      ]).catch((error) => {
+        console.error('[HomeScreen] Error reloading data:', error);
+        hasReloadedRef.current = false; // Reset on error so we can retry
+      });
+      
+      // Reset reload flag when screen loses focus (cleanup)
+      return () => {
+        hasReloadedRef.current = false;
+      };
+    }, [reloadIdealizedMemories, reloadProfiles, reloadJobs])
+  );
+  
+  // Track selected sphere (null = showing all spheres, otherwise showing focused sphere)
+  // Initialize from URL params if present
+  const sphereParam = params.sphere && typeof params.sphere === 'string' && ['relationships', 'career'].includes(params.sphere) 
+    ? (params.sphere as LifeSphere)
+    : null;
+  const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(sphereParam);
+  const previousSelectedSphereRef = React.useRef<LifeSphere | null>(null);
+  const sphereRenderKeyRef = React.useRef<number>(0);
+  
+  // Zoom progress for sphere animations (0 = normal view, 1 = zoomed in/out)
+  const sphereZoomProgress = useSharedValue(0);
+  
+  // Update selectedSphere when params change (e.g., when navigating from spheres tab)
+  React.useEffect(() => {
+    if (sphereParam) {
+      setSelectedSphere(sphereParam);
+    }
+  }, [sphereParam]);
+  
+  // Animate zoom when selectedSphere changes
+  React.useEffect(() => {
+    if (selectedSphere !== null) {
+      // Zoom in - animate from 0 to 1
+      sphereZoomProgress.value = withSpring(1, {
+        damping: 20,
+        stiffness: 100,
+      });
+    } else {
+      // Zoom out - animate from 1 to 0
+      sphereZoomProgress.value = withSpring(0, {
+        damping: 20,
+        stiffness: 100,
+      });
+    }
+    previousSelectedSphereRef.current = selectedSphere;
+  }, [selectedSphere, sphereZoomProgress]);
+  
+  // Clear focused states when selectedSphere changes to prevent stale state
+  // This MUST run first to clear any cross-sphere state
+  const previousSphereForCleanup = React.useRef<LifeSphere | null>(null);
+  React.useEffect(() => {
+    // Clear focus states when sphere changes (including when selecting a sphere for the first time)
+    const sphereChanged = selectedSphere !== previousSphereForCleanup.current;
+    if (sphereChanged) {
+      // Clear all focus states immediately when sphere changes
+      setFocusedMemory(null);
+      setFocusedProfileId(null);
+      setFocusedJobId(null);
+      // Reset animations complete to ensure profiles aren't hidden by stale animation state
+      setAnimationsComplete(false);
+      // Increment render key to force remount of YearSectionsRenderer
+      sphereRenderKeyRef.current += 1;
+      previousSphereForCleanup.current = selectedSphere;
+    }
+  }, [selectedSphere]);
+  
+  // Overall sunny percentage across all spheres
+  // Function is already memoized in JourneyProvider and depends on idealizedMemories
+  const overallSunnyPercentage = getOverallSunnyPercentage();
+  
+  
+  // Calculate sunny percentage for relationships sphere (all profiles)
+  const relationshipsSunnyPercentage = useMemo(() => {
+    let totalClouds = 0;
+    let totalSuns = 0;
+    
+    profiles.forEach(profile => {
+      const memories = getIdealizedMemoriesByProfileId(profile.id);
+      memories.forEach((memory) => {
+        totalClouds += (memory.hardTruths || []).length;
+        totalSuns += (memory.goodFacts || []).length;
+      });
+    });
+    
+    const total = totalClouds + totalSuns;
+    if (total === 0) return 50; // Default to neutral if no moments
+    
+    return (totalSuns / total) * 100;
+  }, [profiles, getIdealizedMemoriesByProfileId]);
+  
+  // Calculate sunny percentage for career sphere (all jobs)
+  const careerSunnyPercentage = useMemo(() => {
+    let totalClouds = 0;
+    let totalSuns = 0;
+    
+    jobs.forEach(job => {
+      const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
+      memories.forEach((memory) => {
+        totalClouds += (memory.hardTruths || []).length;
+        totalSuns += (memory.goodFacts || []).length;
+      });
+    });
+    
+    const total = totalClouds + totalSuns;
+    if (total === 0) return 50; // Default to neutral if no moments
+    
+    return (totalSuns / total) * 100;
+  }, [jobs, getIdealizedMemoriesByEntityId]);
+  
+  // Calculate sphere positions (triangular layout around center)
+  const spherePositions = useMemo(() => {
+    const centerX = SCREEN_WIDTH / 2;
+    const centerY = SCREEN_HEIGHT / 2;
+    const radius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3; // Distance from center
+    
+    return {
+      relationships: {
+        x: centerX,
+        y: centerY - radius, // Top
+      },
+      career: {
+        x: centerX - radius * Math.cos(Math.PI / 6),
+        y: centerY + radius * Math.sin(Math.PI / 6), // Bottom left
+      },
+    };
+  }, []);
   
   // Sort profiles: current partners (ongoing) first, then by relationship start year (earliest first)
   const sortedProfiles = React.useMemo(() => {
@@ -2699,6 +3283,40 @@ export default function HomeScreen() {
       return bEndDate - aEndDate; // More recent date comes first
     });
   }, [profiles]);
+  
+  // Sort jobs: current jobs (ongoing) first, then by end year
+  const sortedJobs = React.useMemo(() => {
+    return [...jobs].sort((a, b) => {
+      // First, separate ongoing (current) vs ended jobs - ongoing on top
+      const aIsOngoing = a.endDate === null;
+      const bIsOngoing = b.endDate === null;
+      
+      if (aIsOngoing && !bIsOngoing) return -1; // a is ongoing, b is not - a comes first
+      if (!aIsOngoing && bIsOngoing) return 1;  // b is ongoing, a is not - b comes first
+      
+      // Both are ongoing or both are ended - sort by end date year (most recent first)
+      const aEndYear = aIsOngoing 
+        ? (a.startDate ? new Date(a.startDate).getFullYear() : 0)
+        : (a.endDate ? new Date(a.endDate).getFullYear() : 0);
+      const bEndYear = bIsOngoing 
+        ? (b.startDate ? new Date(b.startDate).getFullYear() : 0)
+        : (b.endDate ? new Date(b.endDate).getFullYear() : 0);
+      
+      // Sort by year descending (most recent first)
+      if (aEndYear !== bEndYear) {
+        return bEndYear - aEndYear; // More recent year comes first
+      }
+      
+      // If same year, sort by full end date (most recent first)
+      const aEndDate = aIsOngoing
+        ? (a.startDate ? new Date(a.startDate).getTime() : 0)
+        : (a.endDate ? new Date(a.endDate).getTime() : 0);
+      const bEndDate = bIsOngoing
+        ? (b.startDate ? new Date(b.startDate).getTime() : 0)
+        : (b.endDate ? new Date(b.endDate).getTime() : 0);
+      return bEndDate - aEndDate; // More recent date comes first
+    });
+  }, [jobs]);
   
   // Calculate year-based sections for each profile
   // Ongoing partners get their own section at the top, then sorted by end year
@@ -2755,6 +3373,114 @@ export default function HomeScreen() {
     
     return sections;
   }, [sortedProfiles]);
+  
+  // Get the section key for a job - defined before jobYearSections so it can be used there
+  const getJobSectionKey = React.useCallback((job: any): string | null => {
+    // Check if job is ongoing (no end date)
+    if (job.endDate === null || job.endDate === undefined || job.endDate === '') {
+      return 'ongoing';
+    } else {
+      try {
+        const endDate = new Date(job.endDate);
+        if (isNaN(endDate.getTime())) {
+          // Invalid date, try to use start date as fallback
+          if (job.startDate) {
+            const startDate = new Date(job.startDate);
+            if (!isNaN(startDate.getTime())) {
+              return startDate.getFullYear().toString();
+            }
+          }
+          return 'ongoing'; // Fallback to ongoing if date is invalid
+        }
+        const year = endDate.getFullYear();
+        return year.toString();
+      } catch (e) {
+        console.warn('Error parsing job end date:', job.id, job.endDate);
+        return 'ongoing'; // Fallback to ongoing on error
+      }
+    }
+  }, []);
+
+  // Calculate year-based sections for jobs (similar to profiles)
+  const jobYearSections = React.useMemo(() => {
+    const sections = new Map<string, { year: number | string; top: number; bottom: number; height: number }>();
+    const exZoneRadius = 0;
+    const topPadding = exZoneRadius + 20;
+    const bottomPadding = exZoneRadius + 20;
+    const availableHeight = SCREEN_HEIGHT - topPadding - bottomPadding;
+    
+    // Get all unique section keys from all jobs to ensure we create sections for every job
+    const allSectionKeys = new Set<string>();
+    sortedJobs.forEach(job => {
+      const sectionKey = getJobSectionKey(job);
+      if (sectionKey) {
+        allSectionKeys.add(sectionKey);
+      }
+    });
+    
+    // Extract all year section keys (excluding 'ongoing')
+    const yearSectionKeys = Array.from(allSectionKeys).filter(key => key !== 'ongoing');
+    const yearNumbers = yearSectionKeys
+      .map(key => {
+        const year = parseInt(key, 10);
+        return isNaN(year) ? null : year;
+      })
+      .filter((year): year is number => year !== null);
+    
+    // Sort years descending (most recent first)
+    const sortedYears = yearNumbers.sort((a, b) => b - a);
+    
+    // Calculate number of sections (ongoing + years, but at least 1)
+    const hasOngoingSection = allSectionKeys.has('ongoing');
+    const numSections = Math.max(1, (hasOngoingSection ? 1 : 0) + sortedYears.length);
+    const sectionHeight = numSections > 0 ? availableHeight / numSections : availableHeight;
+    
+    let currentTop = topPadding;
+    
+    // Create "Ongoing" section at the top if there are ongoing jobs (most recent first)
+    if (hasOngoingSection) {
+      sections.set('ongoing', {
+        year: 'Current',
+        top: currentTop,
+        bottom: currentTop + sectionHeight,
+        height: sectionHeight,
+      });
+      currentTop += sectionHeight;
+    }
+    
+    // Create sections for each year (most recent first) - ensure all section keys have sections
+    sortedYears.forEach((year) => {
+      const yearKey = year.toString();
+      if (allSectionKeys.has(yearKey)) {
+        sections.set(yearKey, {
+          year,
+          top: currentTop,
+          bottom: currentTop + sectionHeight,
+          height: sectionHeight,
+        });
+        currentTop += sectionHeight;
+      }
+    });
+    
+    // If no sections were created, create a default one
+    if (sections.size === 0) {
+      sections.set('default', {
+        year: 'All',
+        top: topPadding,
+        bottom: topPadding + availableHeight,
+        height: availableHeight,
+      });
+    }
+    
+    return sections;
+  }, [sortedJobs, getJobSectionKey]);
+
+  // Get the year section for a job
+  const getJobYearSection = React.useCallback((job: any) => {
+    const sectionKey = getJobSectionKey(job);
+    if (!sectionKey) return undefined;
+    return jobYearSections.get(sectionKey);
+  }, [jobYearSections, getJobSectionKey]);
   
   // Get the section key for a profile
   const getProfileSectionKey = React.useCallback((profile: any): string | null => {
@@ -3003,9 +3729,19 @@ export default function HomeScreen() {
 
   // Focused state management - must be at top level
   const [focusedProfileId, setFocusedProfileId] = useState<string | null>(null);
-  const [focusedMemory, setFocusedMemory] = useState<{ profileId: string; memoryId: string } | null>(null);
+  const [focusedJobId, setFocusedJobId] = useState<string | null>(null);
+  const [focusedMemory, setFocusedMemory] = useState<{ profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null>(null);
+  
+  // Helper: Get focusedMemory only if it matches the current selectedSphere
+  // This ensures cross-sphere focusedMemory is ignored everywhere
+  const getFocusedMemoryForSphere = useCallback((sphere: LifeSphere | null): { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null => {
+    if (!focusedMemory || !sphere) return null;
+    return focusedMemory.sphere === sphere ? focusedMemory : null;
+  }, [focusedMemory]);
   // Track previous focused profile to handle shrink animation
   const previousFocusedIdRef = useRef<string | null>(null);
+  // Track previous focused job to handle shrink animation
+  const previousFocusedJobIdRef = useRef<string | null>(null);
   // Track if animations are complete - used to skip rendering unfocused partners
   const [animationsComplete, setAnimationsComplete] = useState(false);
   
@@ -3024,6 +3760,50 @@ export default function HomeScreen() {
     }
   }, [focusedProfileId]);
 
+  // Update previous focused job ID when focus changes
+  React.useEffect(() => {
+    if (focusedJobId) {
+      // When a job is focused, remember it
+      previousFocusedJobIdRef.current = focusedJobId;
+      // Reset animations complete flag when focus changes
+      setAnimationsComplete(false);
+    } else {
+      // When focus is cleared, keep the previous ID for a moment to handle shrink animation
+      // Reset animations complete flag when unfocusing
+      setAnimationsComplete(false);
+    }
+  }, [focusedJobId]);
+
+  // Ensure entity is focused when memory is focused (for state consistency after tab switches)
+  // CRITICAL: Only sync if the memory's sphere matches the selected sphere
+  React.useEffect(() => {
+    if (focusedMemory && focusedMemory.sphere === selectedSphere) {
+      if (focusedMemory.profileId && selectedSphere === 'relationships') {
+        // Ensure profile is focused when its memory is focused
+        if (!focusedProfileId || focusedProfileId !== focusedMemory.profileId) {
+          setFocusedProfileId(focusedMemory.profileId);
+        }
+      } else if (focusedMemory.jobId && selectedSphere === 'career') {
+        // Ensure job is focused when its memory is focused
+        if (!focusedJobId || focusedJobId !== focusedMemory.jobId) {
+          setFocusedJobId(focusedMemory.jobId);
+        }
+      }
+    } else if (focusedMemory && focusedMemory.sphere !== selectedSphere) {
+      // If focusedMemory exists but is from a different sphere, clear it immediately
+      setFocusedMemory(null);
+      // Also clear any related focus states
+      if (focusedMemory.profileId) {
+        setFocusedProfileId(null);
+      }
+      if (focusedMemory.jobId) {
+        setFocusedJobId(null);
+      }
+      // Reset animations to ensure fresh rendering
+      setAnimationsComplete(false);
+    }
+  }, [focusedMemory, selectedSphere, focusedProfileId, focusedJobId]);
+
   // Create stable callbacks for runOnJS
   const handleSlideOutComplete = useCallback(() => {
     setAnimationsComplete(true);
@@ -3036,13 +3816,21 @@ export default function HomeScreen() {
   // Animated value for sliding other EX zones off-screen - only create when animations are ready
   const slideOffset = useSharedValue(0);
   
+  // CRITICAL: Immediately reset slideOffset when sphere changes to ensure profiles are visible
+  // This must run before the animation logic to prevent profiles from staying hidden
+  React.useLayoutEffect(() => {
+    // When sphere changes, immediately reset slideOffset to 0 to make profiles visible
+    // This fixes the issue where profiles stay hidden after drilling into a memory and switching spheres
+    slideOffset.value = 0;
+  }, [selectedSphere, slideOffset]);
+  
   // Use useLayoutEffect to start animation synchronously before paint to prevent flash
   React.useLayoutEffect(() => {
     if (animationsReady) {
       // Animate smoothly when focusing or unfocusing
       // Keep other ex-es hidden if either profile OR memory is focused
       const easingConfig = Easing.bezier(0.4, 0.0, 0.2, 1); // Smooth ease-in-out curve
-      if (focusedProfileId || focusedMemory) {
+      if (focusedProfileId || focusedJobId || focusedMemory) {
         // Slide other zones out with smooth fade
         const targetValue = SCREEN_WIDTH * 2;
         const currentValue = slideOffset.value;
@@ -3109,27 +3897,65 @@ export default function HomeScreen() {
     return sortedProfiles;
   }, [sortedProfiles]);
 
-  // Group visible profiles by their year sections, preserving their index in sortedProfiles
-  const profilesBySection = React.useMemo(() => {
-    const grouped = new Map<string, { profile: any; index: number }[]>();
+  // Group jobs by their year sections, preserving their index in sortedJobs
+  const jobsBySection = React.useMemo(() => {
+    const grouped = new Map<string, { job: any; index: number }[]>();
     
-    visibleProfiles.forEach(profile => {
-      const sectionKey = getProfileSectionKey(profile);
-      if (sectionKey && yearSections.has(sectionKey)) {
-        // Find the index in sortedProfiles
-        const indexInSorted = sortedProfiles.findIndex(p => p.id === profile.id);
-        
-        if (indexInSorted >= 0) {
-          if (!grouped.has(sectionKey)) {
-            grouped.set(sectionKey, []);
-          }
-          grouped.get(sectionKey)!.push({ profile, index: indexInSorted });
+    sortedJobs.forEach((job, indexInSorted) => {
+      const sectionKey = getJobSectionKey(job);
+      // Ensure section exists, create it if needed (shouldn't happen, but safety check)
+      if (sectionKey) {
+        // If section doesn't exist, log a warning but still try to add the job
+        if (!jobYearSections.has(sectionKey)) {
+          console.warn(`Job ${job.id} section key "${sectionKey}" not found in jobYearSections. Job might not display.`);
         }
+        // Add job to section anyway - we want all jobs to show
+        if (!grouped.has(sectionKey)) {
+          grouped.set(sectionKey, []);
+        }
+        grouped.get(sectionKey)!.push({ job, index: indexInSorted });
+      } else {
+        console.warn(`Job ${job.id} has no valid section key. Skipping.`);
       }
     });
     
     return grouped;
-  }, [visibleProfiles, sortedProfiles, getProfileSectionKey, yearSections]);
+  }, [sortedJobs, getJobSectionKey, jobYearSections]);
+
+  // Group visible profiles by their year sections, preserving their index in sortedProfiles
+  const profilesBySection = React.useMemo(() => {
+    const grouped = new Map<string, { profile: any; index: number }[]>();
+    
+    
+    visibleProfiles.forEach(profile => {
+      const sectionKey = getProfileSectionKey(profile);
+      if (sectionKey) {
+        // Find the index in sortedProfiles
+        const indexInSorted = sortedProfiles.findIndex(p => p.id === profile.id);
+        
+        if (indexInSorted >= 0) {
+          // Always add profile to group, even if section doesn't exist in yearSections yet
+          // The section will be created or we'll handle it during rendering
+          if (!grouped.has(sectionKey)) {
+            grouped.set(sectionKey, []);
+          }
+          grouped.get(sectionKey)!.push({ profile, index: indexInSorted });
+          
+          // Log warning if section doesn't exist in yearSections
+          if (!yearSections.has(sectionKey)) {
+            console.warn(`[profilesBySection] Profile ${profile.id} (${profile.name}) has section key "${sectionKey}" but section doesn't exist in yearSections. Profile will still be rendered.`);
+        }
+        } else {
+          console.warn(`[profilesBySection] Profile ${profile.id} (${profile.name}) not found in sortedProfiles. Index: ${indexInSorted}`);
+        }
+      } else {
+        console.warn(`[profilesBySection] Profile ${profile.id} (${profile.name}) has no valid section key. Skipping.`);
+      }
+    });
+    
+    const totalProfilesInSections = Array.from(grouped.values()).flat().length;
+    return grouped;
+  }, [visibleProfiles, sortedProfiles, getProfileSectionKey, yearSections, focusedProfileId, focusedMemory, selectedSphere]);
 
   // Memoize focused profiles render - must be called unconditionally
   const focusedProfilesRender = useMemo(() => {
@@ -3168,36 +3994,158 @@ export default function HomeScreen() {
     });
   }, [animationsReady, focusedProfileId, focusedMemory, visibleProfiles, getIdealizedMemoriesByProfileId, getAvatarPosition, previousFocusedIdRef, slideOffset, getProfileYearSection, updateAvatarPosition, setFocusedProfileId, setFocusedMemory, colors, colorScheme, memorySlideOffset, animationsComplete]);
 
-  if (sortedProfiles.length === 0) {
+  // Render sphere view - show all 3 spheres with memories floating around, center shows overall percentage
+  // When a sphere is selected, show the entities for that sphere (like year sections for relationships)
+  if (!selectedSphere) {
   return (
     <TabScreenContainer>
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <ThemedText size="l" style={{ opacity: 0.6, textAlign: 'center', paddingHorizontal: 40 }}>
-            {t('home.emptyState')}
-          </ThemedText>
+        <View style={{ flex: 1, height: SCREEN_HEIGHT, position: 'relative' }}>
+          {/* Center - Overall Percentage Avatar */}
+          <View
+            style={{
+              position: 'absolute',
+              left: SCREEN_WIDTH / 2 - 60,
+              top: SCREEN_HEIGHT / 2 - 60,
+              width: 120,
+              height: 120,
+              zIndex: 100,
+            }}
+          >
+            <OverallPercentageAvatar
+              percentage={overallSunnyPercentage}
+              colorScheme={colorScheme ?? 'dark'}
+              colors={colors}
+            />
+          </View>
+
+          {/* Three Spheres */}
+          {animationsReady && (
+            <>
+              <SphereAvatar
+                sphere="relationships"
+                position={spherePositions.relationships}
+                colorScheme={colorScheme ?? 'dark'}
+                colors={colors}
+                onPress={() => {
+                  // Clear all focus states when selecting a sphere to ensure fresh start
+                  setFocusedMemory(null);
+                  setFocusedProfileId(null);
+                  setFocusedJobId(null);
+                  setAnimationsComplete(false); // Reset animations immediately
+                  setSelectedSphere('relationships');
+                }}
+                sunnyPercentage={relationshipsSunnyPercentage}
+                selectedSphere={selectedSphere}
+                zoomProgress={sphereZoomProgress}
+              />
+              <SphereAvatar
+                sphere="career"
+                position={spherePositions.career}
+                colorScheme={colorScheme ?? 'dark'}
+                colors={colors}
+                onPress={() => {
+                  // Clear all focus states when selecting a sphere to ensure fresh start
+                  setFocusedMemory(null);
+                  setFocusedProfileId(null);
+                  setFocusedJobId(null);
+                  setAnimationsComplete(false); // Reset animations immediately
+                  setSelectedSphere('career');
+                }}
+                sunnyPercentage={careerSunnyPercentage}
+                selectedSphere={selectedSphere}
+                zoomProgress={sphereZoomProgress}
+              />
+              
+              {/* Floating Partners around Relationships Sphere */}
+              {sortedProfiles.slice(0, Math.min(sortedProfiles.length, 5)).map((profile, index) => {
+                const totalPartners = Math.min(sortedProfiles.length, 5);
+                const angle = (index * 2 * Math.PI) / totalPartners;
+                const radius = 65; // Closer to sphere (reduced from 100)
+                const memories = getIdealizedMemoriesByProfileId(profile.id);
+                
+                const x = spherePositions.relationships.x + Math.cos(angle) * radius;
+                const y = spherePositions.relationships.y + Math.sin(angle) * radius;
+                
+                return (
+                  <FloatingEntity
+                    key={`floating-partner-${profile.id}`}
+                    entity={profile}
+                    position={{ x, y }}
+                    colorScheme={colorScheme ?? 'dark'}
+                    colors={colors}
+                    delay={index * 200}
+                    entityType="partner"
+                    memories={memories}
+                    selectedSphere={selectedSphere}
+                    zoomProgress={sphereZoomProgress}
+                  />
+                );
+              })}
+              
+              {/* Floating Jobs around Career Sphere */}
+              {sortedJobs.slice(0, Math.min(sortedJobs.length, 5)).map((job, index) => {
+                const totalJobs = Math.min(sortedJobs.length, 5);
+                const angle = (index * 2 * Math.PI) / totalJobs;
+                const radius = 65; // Closer to sphere (reduced from 100)
+                const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
+                
+                const x = spherePositions.career.x + Math.cos(angle) * radius;
+                const y = spherePositions.career.y + Math.sin(angle) * radius;
+                
+                return (
+                  <FloatingEntity
+                    key={`floating-job-${job.id}`}
+                    entity={job}
+                    position={{ x, y }}
+                    colorScheme={colorScheme ?? 'dark'}
+                    colors={colors}
+                    delay={index * 200}
+                    entityType="job"
+                    memories={memories}
+                    selectedSphere={selectedSphere}
+                    zoomProgress={sphereZoomProgress}
+                  />
+                );
+              })}
+            </>
+          )}
         </View>
     </TabScreenContainer>
   );
 }
 
+  // When a sphere is focused, show entities for that sphere
+  // For relationships: show year sections with partners (the original home view)
+  // For career: show jobs
+  if (selectedSphere === 'relationships') {
+    // Show the original year sections view with partners
+    // Use the existing sortedProfiles and year sections logic
   return (
     <TabScreenContainer>
       <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
-        {/* Back button - only visible when focused */}
-        {(focusedProfileId || focusedMemory) && (
+          {/* Back button to return to sphere view */}
           <Pressable
             onPress={() => {
               if (focusedMemory) {
                 // If memory is focused, unfocus the memory and ensure profile is focused
-                // This returns to the focused EX view with memories floating around
+                // This returns to the focused profile view with memories floating around
                 setFocusedMemory(null);
-                // Ensure the profile is focused so we return to focused EX view
+                // Ensure the profile is focused so we return to focused profile view
+                if (focusedMemory.profileId) {
                 if (!focusedProfileId || focusedProfileId !== focusedMemory.profileId) {
                   setFocusedProfileId(focusedMemory.profileId);
                 }
-              } else {
-                // If only profile is focused, unfocus it (this will bring back other ex-es)
+                }
+              } else if (focusedProfileId) {
+                // If only profile is focused, unfocus it (this will bring back other profiles)
                 setFocusedProfileId(null);
+                setFocusedMemory(null); // Clear any stale memory state
+              } else {
+                // No focus, return to sphere selection
+                setFocusedMemory(null); // Clear any stale memory state
+                setFocusedProfileId(null); // Clear any stale profile focus
+                setFocusedJobId(null); // Clear any stale job focus
+                setSelectedSphere(null);
               }
             }}
             style={{
@@ -3220,7 +4168,338 @@ export default function HomeScreen() {
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
           </Pressable>
-        )}
+          
+          {/* Memory title header - shown when memory is focused */}
+          {focusedMemory && (() => {
+            const entityId = focusedMemory.profileId || focusedMemory.jobId;
+            const sphere = focusedMemory.sphere;
+            if (!entityId) return null;
+            
+            const memories = sphere === 'relationships' && focusedMemory.profileId
+              ? getIdealizedMemoriesByProfileId(focusedMemory.profileId)
+              : getIdealizedMemoriesByEntityId(entityId, sphere);
+            
+            const memoryData = memories.find(m => m.id === focusedMemory.memoryId);
+            if (!memoryData) return null;
+            
+            return (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 50,
+                  left: 80,
+                  right: 20,
+                  zIndex: 1000,
+                  paddingHorizontal: 12,
+                  paddingVertical: 12,
+                  backgroundColor: 'transparent',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <ThemedText
+                  size="l"
+                  weight="semibold"
+                  numberOfLines={2}
+                  style={{
+                    color: colors.text,
+                    textAlign: 'center',
+                  }}
+                >
+                  {memoryData.title || 'Memory'}
+                </ThemedText>
+              </View>
+            );
+          })()}
+
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={[
+              styles.content,
+              {
+                minHeight: SCREEN_HEIGHT,
+                height: Math.max(
+                  SCREEN_HEIGHT,
+                  sortedProfiles.length > 0
+                    ? (sortedProfiles.length - 1) * ((SCREEN_HEIGHT - (120 + 20) * 2) / Math.max(1, sortedProfiles.length - 1)) + (120 + 20) * 2
+                    : SCREEN_HEIGHT
+                ),
+                justifyContent: 'flex-start',
+                alignItems: 'flex-start',
+              },
+            ]}
+            showsVerticalScrollIndicator={true}
+            scrollEnabled={!focusedProfileId && !focusedJobId && !focusedMemory}
+          >
+            {/* Render year sections with profiles inside - hidden when focused */}
+            {(() => {
+              // CRITICAL: Only use focusedMemory if it's from relationships sphere
+              const relevantFocusedMemory = getFocusedMemoryForSphere('relationships');
+              const shouldRender = animationsReady && !focusedProfileId && !relevantFocusedMemory && sortedProfiles.length > 0 && profilesBySection.size > 0;
+              const totalProfilesInSections = Array.from(profilesBySection.values()).flat().length;
+              
+              if (shouldRender) {
+                const renderKey = `year-sections-relationships-${selectedSphere}-${sortedProfiles.length}-${sphereRenderKeyRef.current}`;
+                return (
+                  <YearSectionsRenderer
+                    key={renderKey}
+                    yearSections={yearSections}
+                    profilesBySection={profilesBySection}
+                    colorScheme={colorScheme ?? 'dark'}
+                    getIdealizedMemoriesByProfileId={getIdealizedMemoriesByProfileId}
+                    getAvatarPosition={getAvatarPosition}
+                    focusedProfileId={focusedProfileId}
+                    focusedMemory={relevantFocusedMemory}
+                    previousFocusedId={previousFocusedIdRef.current}
+                    slideOffset={slideOffset}
+                    getProfileYearSection={getProfileYearSection}
+                    updateAvatarPosition={updateAvatarPosition}
+                    setFocusedProfileId={setFocusedProfileId}
+                    setFocusedMemory={setFocusedMemory}
+                    colors={colors}
+                    memorySlideOffset={memorySlideOffset}
+                    animationsComplete={animationsComplete}
+                  />
+                );
+              }
+              return null;
+            })()}
+            
+            {/* Render focused profiles separately when focused (but hide profile when memory is focused) */}
+            {focusedProfilesRender}
+            
+            {/* Render focused memory separately when memory is focused */}
+            {focusedMemory && animationsReady && (
+              <FocusedMemoryRenderer
+                focusedMemory={focusedMemory}
+                sortedProfiles={sortedProfiles}
+                sortedJobs={sortedJobs}
+                getIdealizedMemoriesByProfileId={getIdealizedMemoriesByProfileId}
+                getIdealizedMemoriesByEntityId={getIdealizedMemoriesByEntityId}
+                updateIdealizedMemory={updateIdealizedMemory}
+                colorScheme={colorScheme ?? 'dark'}
+                memorySlideOffset={memorySlideOffset}
+                setFocusedMemory={setFocusedMemory}
+              />
+            )}
+          </ScrollView>
+        </View>
+      </TabScreenContainer>
+    );
+  }
+
+  // For career sphere, show jobs in year sections (similar to relationships)
+  if (selectedSphere === 'career') {
+    return (
+      <TabScreenContainer>
+        <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
+          {/* Back button to return to sphere view */}
+          <Pressable
+            onPress={() => {
+              if (focusedMemory) {
+                // If memory is focused, unfocus the memory and ensure job is focused
+                // This returns to the focused job view with memories floating around
+                setFocusedMemory(null);
+                // Ensure the job is focused so we return to focused job view
+                if (!focusedJobId || (focusedMemory.jobId && focusedJobId !== focusedMemory.jobId)) {
+                  setFocusedJobId(focusedMemory.jobId || null);
+                }
+              } else if (focusedJobId) {
+                // If only job is focused, unfocus it (this will bring back other jobs)
+                setFocusedJobId(null);
+              } else {
+                // No focus, return to sphere selection
+                setSelectedSphere(null);
+              }
+            }}
+            style={{
+              position: 'absolute',
+              top: 50,
+              left: 20,
+              zIndex: 1000,
+              width: 50,
+              height: 50,
+              borderRadius: 25,
+              backgroundColor: colors.background,
+              justifyContent: 'center',
+              alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 5,
+            }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+          </Pressable>
+          
+          {/* Memory title header - shown when memory is focused */}
+          {focusedMemory && (() => {
+            const entityId = focusedMemory.profileId || focusedMemory.jobId;
+            const sphere = focusedMemory.sphere;
+            if (!entityId) return null;
+            
+            const memories = sphere === 'relationships' && focusedMemory.profileId
+              ? getIdealizedMemoriesByProfileId(focusedMemory.profileId)
+              : getIdealizedMemoriesByEntityId(entityId, sphere);
+            
+            const memoryData = memories.find(m => m.id === focusedMemory.memoryId);
+            if (!memoryData) return null;
+            
+            return (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 50,
+                  left: 80,
+                  right: 20,
+                  zIndex: 1000,
+                  paddingHorizontal: 12,
+                  paddingVertical: 12,
+                  backgroundColor: 'transparent',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <ThemedText
+                  size="l"
+                  weight="semibold"
+                  numberOfLines={2}
+                  style={{
+                    color: colors.text,
+                    textAlign: 'center',
+                  }}
+                >
+                  {memoryData.title || 'Memory'}
+                </ThemedText>
+              </View>
+            );
+          })()}
+
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={[
+              styles.content,
+              {
+                minHeight: SCREEN_HEIGHT,
+                height: Math.max(
+                  SCREEN_HEIGHT,
+                  sortedJobs.length > 0
+                    ? (sortedJobs.length - 1) * ((SCREEN_HEIGHT - (120 + 20) * 2) / Math.max(1, sortedJobs.length - 1)) + (120 + 20) * 2
+                    : SCREEN_HEIGHT
+                ),
+                justifyContent: 'flex-start',
+                alignItems: 'flex-start',
+              },
+            ]}
+            showsVerticalScrollIndicator={true}
+            scrollEnabled={!focusedJobId && !focusedMemory}
+          >
+            {/* Render year sections with jobs inside */}
+            {animationsReady && !focusedMemory && (
+              <>
+                {/* Year section backgrounds */}
+                {Array.from(jobYearSections.entries()).map(([key, section]) => (
+                  <YearSectionBackground
+                    key={`job-year-section-bg-${key}`}
+                    section={section}
+                    colorScheme={colorScheme ?? 'dark'}
+                  />
+                ))}
+                
+                {/* Render jobs in their year sections */}
+                {Array.from(jobsBySection.entries()).map(([sectionKey, jobsData]) => {
+                  const section = jobYearSections.get(sectionKey);
+                  if (!section) {
+                    console.warn(`Section ${sectionKey} not found in jobYearSections`);
+                    return null;
+                  }
+                  
+                  // Sort jobs within the section by their index in sortedJobs (most recent first)
+                  const sortedJobsInSection = [...jobsData].sort((a, b) => a.index - b.index);
+                  
+                  return sortedJobsInSection.map(({ job, index: jobIndexInSorted }, jobIndexInSection) => {
+                    const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
+                    
+                    // Distribute jobs vertically within the section (most recent on top)
+                    // Each job gets a position based on its index in the section
+                    const totalJobsInSection = sortedJobsInSection.length;
+                    const sectionCenterY = section.top + section.height / 2;
+                    const verticalSpacing = totalJobsInSection > 1 
+                      ? Math.min(section.height / (totalJobsInSection + 1), 150) // Space between jobs
+                      : 0;
+                    
+                    // Position jobs from top to bottom (most recent first)
+                    const position = {
+                      x: SCREEN_WIDTH / 2,
+                      y: totalJobsInSection === 1
+                        ? sectionCenterY
+                        : section.top + verticalSpacing * (jobIndexInSection + 1)
+                    };
+                    
+                    const isFocused = focusedJobId === job.id;
+                    
+                    // Hide unfocused jobs when a job is focused
+                    if (focusedJobId && !isFocused) {
+                      return null;
+                    }
+                    
+                    return (
+                      <FloatingAvatar
+                        key={`job-${job.id}`}
+                        profile={job}
+                        position={position}
+                        memories={memories}
+                        onPress={() => {
+                          const newFocusedId = focusedJobId === job.id ? null : job.id;
+                          setFocusedJobId(newFocusedId);
+                          setFocusedMemory(null);
+                        }}
+                        colors={colors}
+                        colorScheme={colorScheme ?? 'dark'}
+                        isFocused={isFocused}
+                        focusedMemory={(() => {
+                          if (!focusedMemory) return null;
+                          const mem = focusedMemory as { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere };
+                          if (mem.jobId === job.id && mem.sphere === 'career') {
+                            return mem;
+                          }
+                          return null;
+                        })()}
+                        onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'career') => {
+                          setFocusedMemory({ jobId: entityId, memoryId, sphere });
+                        }}
+                        yearSection={section}
+                      />
+                    );
+                  });
+                })}
+              </>
+            )}
+            
+            {/* Render focused memory separately when memory is focused */}
+            {focusedMemory && animationsReady && (
+              <FocusedMemoryRenderer
+                focusedMemory={focusedMemory}
+                sortedProfiles={sortedProfiles}
+                sortedJobs={sortedJobs}
+                getIdealizedMemoriesByProfileId={getIdealizedMemoriesByProfileId}
+                getIdealizedMemoriesByEntityId={getIdealizedMemoriesByEntityId}
+                updateIdealizedMemory={updateIdealizedMemory}
+                colorScheme={colorScheme ?? 'dark'}
+                memorySlideOffset={memorySlideOffset}
+                setFocusedMemory={setFocusedMemory}
+              />
+            )}
+          </ScrollView>
+        </View>
+      </TabScreenContainer>
+    );
+  }
+
+  return (
+    <TabScreenContainer>
+      <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
 
         <ScrollView
           style={{ flex: 1 }}
@@ -3272,7 +4551,9 @@ export default function HomeScreen() {
             <FocusedMemoryRenderer
               focusedMemory={focusedMemory}
               sortedProfiles={sortedProfiles}
+                sortedJobs={sortedJobs}
               getIdealizedMemoriesByProfileId={getIdealizedMemoriesByProfileId}
+                getIdealizedMemoriesByEntityId={getIdealizedMemoriesByEntityId}
               updateIdealizedMemory={updateIdealizedMemory}
               colorScheme={colorScheme ?? 'dark'}
               memorySlideOffset={memorySlideOffset}
@@ -3286,7 +4567,8 @@ export default function HomeScreen() {
 }
 
 // Year Sections Renderer Component
-const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
+// NOTE: Removed React.memo temporarily to debug rendering issues after sphere changes
+const YearSectionsRenderer = function YearSectionsRenderer({
   yearSections,
   profilesBySection,
   colorScheme,
@@ -3310,23 +4592,29 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
   getIdealizedMemoriesByProfileId: (profileId: string) => any[];
   getAvatarPosition: (profileId: string, index: number) => { x: number; y: number };
   focusedProfileId: string | null;
-  focusedMemory: { profileId: string; memoryId: string } | null;
+  focusedMemory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null;
   previousFocusedId: string | null;
   slideOffset: ReturnType<typeof useSharedValue<number>>;
   getProfileYearSection: (profile: any) => { year: number | string; top: number; bottom: number; height: number } | undefined;
   updateAvatarPosition: (profileId: string, newPosition: { x: number; y: number }) => void;
   setFocusedProfileId: (id: string | null) => void;
-  setFocusedMemory: (memory: { profileId: string; memoryId: string } | null) => void;
+  setFocusedMemory: (memory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null) => void;
   colors: any;
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
   animationsComplete: boolean;
 }) {
+  // CRITICAL: Only use focusedMemory if it's from relationships sphere
+  // This ensures cross-sphere focusedMemory (e.g., from career) doesn't affect relationships rendering
+  const safeFocusedMemory = focusedMemory?.sphere === 'relationships' ? focusedMemory : null;
+  
   // Memoize memories and positions for all profiles to prevent unnecessary re-renders
   // Reuse previous references when data hasn't changed to prevent cascading re-renders
   const profileDataMapRef = React.useRef<Map<string, { memories: any[]; position: { x: number; y: number } }>>(new Map());
   const profileDataMap = useMemo(() => {
     const dataMap = new Map<string, { memories: any[]; position: { x: number; y: number } }>();
-    Array.from(profilesBySection.values()).flat().forEach(({ profile, index: profileIndex }) => {
+    const allProfilesInSections = Array.from(profilesBySection.values()).flat();
+    
+    allProfilesInSections.forEach(({ profile, index: profileIndex }) => {
       const memories = getIdealizedMemoriesByProfileId(profile.id);
       const position = getAvatarPosition(profile.id, profileIndex);
       
@@ -3365,16 +4653,21 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
       ))}
       
       {/* Render profiles at the same level (not nested in sections) */}
-      {Array.from(profilesBySection.entries()).flatMap(([key, sectionProfilesData]) => {
+      {(() => {
+        return Array.from(profilesBySection.entries()).flatMap(([key, sectionProfilesData]) => {
         return sectionProfilesData.map(({ profile, index: profileIndex }) => {
           const profileData = profileDataMap.get(profile.id);
-          if (!profileData) return null; // Should not happen, but safety check
+            if (!profileData) {
+              console.warn(`[YearSectionsRenderer] Profile ${profile.id} (${profile.name || 'unnamed'}) not found in profileDataMap! profileDataMap has ${profileDataMap.size} entries. Available IDs: ${Array.from(profileDataMap.keys()).join(', ')}`);
+              return null; // Should not happen, but safety check
+            }
           
           const { memories, position: currentPosition } = profileData;
           const isFocused = focusedProfileId === profile.id;
-          const isProfileFocusedForMemory = focusedMemory?.profileId === profile.id;
+          // Use safeFocusedMemory (already filtered by sphere) - only relationships memories
+          const isProfileFocusedForMemory = safeFocusedMemory?.profileId === profile.id;
           // Calculate wasJustFocused here to avoid passing previousFocusedId to all profiles
-          const wasJustFocused = previousFocusedId === profile.id && !focusedProfileId && !focusedMemory;
+          const wasJustFocused = previousFocusedId === profile.id && !focusedProfileId && !safeFocusedMemory;
           
           return (
             <ProfileRenderer
@@ -3386,7 +4679,7 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
               isFocused={isFocused}
               isProfileFocusedForMemory={isProfileFocusedForMemory}
               wasJustFocused={wasJustFocused}
-              focusedMemory={focusedMemory}
+              focusedMemory={safeFocusedMemory}
               slideOffset={slideOffset}
               getProfileYearSection={getProfileYearSection}
               updateAvatarPosition={updateAvatarPosition}
@@ -3400,50 +4693,11 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
             />
           );
         });
-      })}
+      });
+      })()}
     </>
   );
-}, (prevProps, nextProps) => {
-  // Compare yearSections by checking if all entries are the same
-  if (prevProps.yearSections.size !== nextProps.yearSections.size) {
-    return false;
-  }
-  
-  for (const [key, section] of prevProps.yearSections.entries()) {
-    const nextSection = nextProps.yearSections.get(key);
-    if (!nextSection) return false;
-    if (
-      section.year !== nextSection.year ||
-      section.top !== nextSection.top ||
-      section.bottom !== nextSection.bottom ||
-      section.height !== nextSection.height
-    ) {
-      return false;
-    }
-  }
-  
-  // Compare profilesBySection
-  if (prevProps.profilesBySection.size !== nextProps.profilesBySection.size) {
-    return false;
-  }
-  
-  for (const [key, profilesData] of prevProps.profilesBySection.entries()) {
-    const nextProfilesData = nextProps.profilesBySection.get(key);
-    if (!nextProfilesData || profilesData.length !== nextProfilesData.length) return false;
-    if (profilesData.some((item, i) => 
-      item.profile.id !== nextProfilesData[i]?.profile.id ||
-      item.index !== nextProfilesData[i]?.index
-    )) return false;
-  }
-  
-  return (
-    prevProps.colorScheme === nextProps.colorScheme &&
-    prevProps.focusedProfileId === nextProps.focusedProfileId &&
-    prevProps.focusedMemory?.profileId === nextProps.focusedMemory?.profileId &&
-    prevProps.focusedMemory?.memoryId === nextProps.focusedMemory?.memoryId &&
-    prevProps.previousFocusedId === nextProps.previousFocusedId
-  );
-});
+};
 
 // Year Section Background Component (just the visual container)
 const YearSectionBackground = React.memo(function YearSectionBackground({
@@ -3496,25 +4750,35 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
 const FocusedMemoryRenderer = React.memo(function FocusedMemoryRenderer({
   focusedMemory,
   sortedProfiles,
+  sortedJobs,
   getIdealizedMemoriesByProfileId,
+  getIdealizedMemoriesByEntityId,
   updateIdealizedMemory,
   colorScheme,
   memorySlideOffset,
   setFocusedMemory,
 }: {
-  focusedMemory: { profileId: string; memoryId: string };
+  focusedMemory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere };
   sortedProfiles: any[];
+  sortedJobs?: any[];
   getIdealizedMemoriesByProfileId: (profileId: string) => any[];
+  getIdealizedMemoriesByEntityId: (entityId: string, sphere: LifeSphere) => any[];
   updateIdealizedMemory: (memoryId: string, updates: Partial<any>) => Promise<void>;
   colorScheme: 'light' | 'dark';
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
-  setFocusedMemory: (memory: { profileId: string; memoryId: string } | null) => void;
+  setFocusedMemory: (memory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null) => void;
 }) {
-  const focusedProfile = sortedProfiles.find(p => p.id === focusedMemory.profileId);
-  if (!focusedProfile) return null;
+  const entityId = focusedMemory.profileId || focusedMemory.jobId;
+  const sphere = focusedMemory.sphere;
   
-  const focusedMemoryData = getIdealizedMemoriesByProfileId(focusedMemory.profileId)
-    .find(m => m.id === focusedMemory.memoryId);
+  if (!entityId) return null;
+  
+  // Get memories based on sphere
+  const memories = sphere === 'relationships' && focusedMemory.profileId
+    ? getIdealizedMemoriesByProfileId(focusedMemory.profileId)
+    : getIdealizedMemoriesByEntityId(entityId, sphere);
+  
+  const focusedMemoryData = memories.find(m => m.id === focusedMemory.memoryId);
   if (!focusedMemoryData) return null;
   
   return (
@@ -3579,12 +4843,12 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
   isFocused: boolean;
   isProfileFocusedForMemory: boolean;
   wasJustFocused: boolean;
-  focusedMemory: { profileId: string; memoryId: string } | null;
+  focusedMemory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null;
   slideOffset: ReturnType<typeof useSharedValue<number>>;
   getProfileYearSection: (profile: any) => { year: number | string; top: number; bottom: number; height: number } | undefined;
   updateAvatarPosition: (profileId: string, newPosition: { x: number; y: number }) => void;
   setFocusedProfileId: (id: string | null) => void;
-  setFocusedMemory: (memory: { profileId: string; memoryId: string } | null) => void;
+  setFocusedMemory: (memory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null) => void;
   colors: any;
   colorScheme: 'light' | 'dark';
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
@@ -3608,8 +4872,14 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
     setFocusedMemory(null);
   }, [profile.id, isFocused, setFocusedProfileId, setFocusedMemory]);
   
-  const handleMemoryFocus = useCallback((profileId: string, memoryId: string) => {
-    setFocusedMemory({ profileId, memoryId });
+  const handleMemoryFocus = useCallback((entityId: string, memoryId: string, sphere: LifeSphere = 'relationships') => {
+    if (sphere === 'relationships') {
+      setFocusedMemory({ profileId: entityId, memoryId, sphere });
+    } else if (sphere === 'career') {
+      setFocusedMemory({ jobId: entityId, memoryId, sphere });
+    } else {
+      setFocusedMemory({ profileId: entityId, memoryId, sphere });
+    }
   }, [setFocusedMemory]);
   
   // Don't render the profile at all when a memory is focused (it's rendered separately)
@@ -3619,6 +4889,7 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
   
   // Skip rendering unfocused partners and their memories/moments when animations are complete
   // This prevents unnecessary re-renders for components not visible in viewport
+  // Note: focusedMemory is already filtered by sphere in YearSectionsRenderer, so we can safely check it here
   if (animationsComplete && focusedProfileId && !isFocused) {
     return null;
   }
@@ -3642,7 +4913,7 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
         colorScheme={colorScheme ?? 'dark'}
         focusedMemory={focusedMemory}
         memorySlideOffset={memorySlideOffset}
-        onMemoryFocus={handleMemoryFocus}
+        onMemoryFocus={(entityId: string, memoryId: string) => handleMemoryFocus(entityId, memoryId, 'relationships')}
         yearSection={getProfileYearSection(profile)}
       />
     </NonFocusedZone>

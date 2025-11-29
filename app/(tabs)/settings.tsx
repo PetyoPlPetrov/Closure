@@ -11,6 +11,7 @@ import { useTheme } from '@/utils/ThemeContext';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Asset } from 'expo-asset';
 import { useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, DimensionValue, Modal, Pressable, ScrollView, StyleSheet, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 
 export default function SettingsScreen() {
@@ -20,11 +21,12 @@ export default function SettingsScreen() {
   const { maxContentWidth } = useLargeDevice();
   const { language, setLanguage } = useLanguage();
   const { themeMode, setThemeMode } = useTheme();
-  const { addProfile, addIdealizedMemory, profiles } = useJourney();
+  const { addProfile, addJob, addIdealizedMemory, profiles, getProfile, getIdealizedMemoriesByProfileId, idealizedMemories, reloadIdealizedMemories, reloadProfiles, reloadJobs } = useJourney();
   const t = useTranslate();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [themeDropdownVisible, setThemeDropdownVisible] = useState(false);
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
+  const [isDeletingData, setIsDeletingData] = useState(false);
 
   const styles = useMemo(
     () =>
@@ -219,6 +221,14 @@ export default function SettingsScreen() {
         { name: 'Olivia Brown', description: 'Long distance relationship', startDate: '2023-01-01', endDate: null, memoryCount: 5, ongoing: true },
       ];
 
+      // Define multiple fake jobs with different characteristics
+      // Two past jobs with consecutive years, one current job with 5 memories (more suns than clouds)
+      const fakeJobs = [
+        { name: 'Software Developer at TechCorp', description: 'My first job in tech', startDate: '2020-03-01', endDate: '2022-06-30', memoryCount: 8 },
+        { name: 'Senior Developer at StartupXYZ', description: 'Fast-paced startup environment', startDate: '2022-07-01', endDate: '2023-12-31', memoryCount: 10 },
+        { name: 'Lead Engineer at CurrentCompany', description: 'Current role, growing my career', startDate: '2024-01-01', endDate: null, memoryCount: 5, ongoing: true },
+      ];
+
       const memoryTitles = [
         'Our First Date', 'Summer Vacation', 'Birthday Celebration', 'Anniversary Dinner',
         'Weekend Getaway', 'Holiday Memories', 'Beach Day', 'Movie Night',
@@ -265,15 +275,75 @@ export default function SettingsScreen() {
         'Taught me about myself',
       ];
 
+      // Career-specific cloud and sun texts
+      const careerCloudTexts = [
+        'Poor work-life balance',
+        'Toxic management culture',
+        'Lack of growth opportunities',
+        'Unrealistic deadlines',
+        'No recognition for hard work',
+        'Limited creativity and autonomy',
+        'Poor communication from leadership',
+        'No clear career progression',
+        'Underpaid for the role',
+        'Unhealthy competition between colleagues',
+        'No support for learning and development',
+        'Constant micromanagement',
+        'No work-life boundaries',
+        'High stress and burnout',
+        'Lack of appreciation',
+      ];
+
+      const careerSunTexts = [
+        'Great team collaboration',
+        'Challenging and interesting projects',
+        'Excellent mentorship opportunities',
+        'Flexible work arrangements',
+        'Good compensation and benefits',
+        'Positive company culture',
+        'Opportunities for skill growth',
+        'Supportive management',
+        'Work that aligned with my values',
+        'Creative freedom',
+        'Impactful projects',
+        'Great colleagues and friendships',
+        'Recognition for achievements',
+        'Work-life balance',
+        'Learning new technologies',
+      ];
+
+      const careerMemoryTitles = [
+        'First Day', 'Major Project Launch', 'Team Offsite', 'Performance Review',
+        'Conference Presentation', 'Client Meeting', 'Code Review', 'Sprint Planning',
+        'Product Release', 'Company Event', 'Training Session', 'Hackathon',
+        'Year End Review', 'Promotion Day', 'Team Lunch', 'Milestone Celebration',
+        'Interview Process', 'Onboarding Experience', 'Project Retrospective', 'Company Retreat',
+        'Technical Challenge', 'Successful Deployment', 'Client Feedback', 'Team Building',
+        'Learning Opportunity', 'Innovation Week', 'Industry Conference', 'Mentorship Session',
+      ];
+
       // Create multiple profiles
       let createdProfiles = 0;
+      let createdJobs = 0;
       let createdMemories = 0;
       
       for (const profileData of fakeProfiles) {
         try {
-          console.log(`Creating profile: ${profileData.name} with ${profileData.memoryCount} memories`);
+          // Check if profile already exists
+          let profileId: string;
+          const existingProfile = profiles.find(p => p.name === profileData.name);
           
-          const profileId = await addProfile({
+          if (existingProfile) {
+            profileId = existingProfile.id;
+            // Verify the profile exists by checking if we can get it
+            if (!profileId) {
+              console.error(`[MOCK DATA] ⚠️ WARNING: Found existing profile but ID is empty!`);
+              continue;
+            }
+            // Brief delay to ensure profile is loaded
+            await new Promise(resolve => setTimeout(resolve, 100));
+          } else {
+            profileId = await addProfile({
             name: profileData.name,
             description: profileData.description,
             relationshipStartDate: profileData.startDate,
@@ -294,12 +364,23 @@ export default function SettingsScreen() {
               },
             },
           });
+            if (!profileId) {
+              console.error(`[MOCK DATA] ⚠️ ERROR: Profile creation returned empty ID!`);
+              continue;
+            }
+            // Brief delay after creating profile to ensure it's saved to AsyncStorage
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
 
-          console.log(`Profile ${profileData.name} created with ID: ${profileId}`);
-
-          // Create different amounts of memories for each profile
-          const numMemories = profileData.memoryCount;
+          // Check if profile already has memories - if not, create them
+          const existingMemories = getIdealizedMemoriesByProfileId(profileId);
           
+          // Only create memories if the profile doesn't have any yet
+          if (existingMemories.length === 0) {
+            // Create different amounts of memories for each profile
+            const numMemories = profileData.memoryCount;
+          
+            let successfullyCreatedCount = 0;
           for (let i = 0; i < numMemories; i++) {
             try {
               let numClouds: number;
@@ -348,7 +429,8 @@ export default function SettingsScreen() {
               // Use different memory titles for variety
               const memoryTitle = memoryTitles[i % memoryTitles.length] + ` (${i + 1})`;
 
-              await addIdealizedMemory(profileId, {
+                // Use explicit sphere parameter to ensure memories are created for relationships
+                await addIdealizedMemory(profileId, 'relationships', {
                 title: memoryTitle,
                 imageUri: maldivesImageUri,
                 hardTruths,
@@ -356,32 +438,208 @@ export default function SettingsScreen() {
               });
               
               createdMemories++;
-              console.log(`Created memory ${i + 1}/${numMemories} for ${profileData.name} (${numClouds} clouds, ${numSuns} suns)`);
+                successfullyCreatedCount++;
               
-              // Small delay to ensure state updates between memories
-              await new Promise(resolve => setTimeout(resolve, 100));
+                // Small delay to allow AsyncStorage write to complete
+                await new Promise(resolve => setTimeout(resolve, 50));
             } catch (memoryError) {
-              console.error(`Error creating memory ${i} for ${profileData.name}:`, memoryError);
+                console.error(`[MOCK DATA] ✗ Error creating memory ${i} for ${profileData.name}:`, memoryError);
+                // Log the full error details for debugging
+                if (memoryError instanceof Error) {
+                  console.error(`[MOCK DATA] Error details:`, memoryError.message, memoryError.stack);
+                } else {
+                  console.error(`[MOCK DATA] Error object:`, JSON.stringify(memoryError, null, 2));
+                }
+                // Don't increment createdMemories if it failed
+              }
             }
+          } else {
+            // Profile already has memories, skip creation
           }
           
           createdProfiles++;
-          console.log(`Completed profile ${profileData.name}: ${numMemories} memories created`);
           
-          // Wait a bit longer between profiles to ensure all memories are saved
-          await new Promise(resolve => setTimeout(resolve, 300));
+          // Brief delay between profiles for AsyncStorage writes
+          await new Promise(resolve => setTimeout(resolve, 100));
         } catch (profileError) {
           console.error(`Error creating profile ${profileData.name}:`, profileError);
         }
       }
 
-      Alert.alert('Success', `Created ${createdProfiles} profiles with ${createdMemories} total memories!`);
+      // Create multiple jobs
+      for (const jobData of fakeJobs) {
+        try {
+          const jobId = await addJob({
+            name: jobData.name,
+            description: jobData.description,
+            startDate: jobData.startDate,
+            endDate: jobData.endDate || undefined,
+            isOngoing: jobData.ongoing || false,
+            setupProgress: 100,
+            isCompleted: true,
+          });
+
+
+          // Create different amounts of memories for each job
+          const numMemories = jobData.memoryCount;
+          
+          for (let i = 0; i < numMemories; i++) {
+            try {
+              let numClouds: number;
+              let numSuns: number;
+              
+              // Each memory should have between 5-10 total moments (clouds + suns)
+              const totalMoments = Math.floor(Math.random() * 6) + 5; // 5-10 total moments
+              
+              // For current job (ongoing), ensure more suns than clouds
+              if (jobData.ongoing) {
+                // Current job: more suns than clouds
+                numClouds = 2; // Fixed at 2 clouds
+                numSuns = totalMoments - numClouds; // Rest are suns (will be 3-8, always more than clouds)
+              } else {
+                // Past jobs: more clouds than suns
+                numSuns = 2; // Fixed at 2 suns
+                numClouds = totalMoments - numSuns; // Rest are clouds (will be 3-8, always more than suns)
+              }
+              
+              // Verify we have at least 1 of each
+              if (numClouds < 1) numClouds = 1;
+              if (numSuns < 1) numSuns = 1;
+              
+              const hardTruths = [];
+              for (let j = 0; j < numClouds; j++) {
+                hardTruths.push({
+                  id: `cloud_${jobData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                  text: careerCloudTexts[Math.floor(Math.random() * careerCloudTexts.length)],
+                  x: Math.random() * 300 + 50,
+                  y: Math.random() * 400 + 50,
+                });
+              }
+
+              const goodFacts = [];
+              for (let j = 0; j < numSuns; j++) {
+                goodFacts.push({
+                  id: `sun_${jobData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                  text: careerSunTexts[Math.floor(Math.random() * careerSunTexts.length)],
+                  x: Math.random() * 300 + 50,
+                  y: Math.random() * 400 + 50,
+                });
+              }
+
+              // Use different memory titles for variety
+              const memoryTitle = careerMemoryTitles[i % careerMemoryTitles.length] + ` (${i + 1})`;
+
+              // Use new signature for career sphere: (entityId, sphere, memoryData)
+              await addIdealizedMemory(jobId, 'career', {
+                title: memoryTitle,
+                imageUri: maldivesImageUri,
+                hardTruths,
+                goodFacts,
+              });
+              
+              createdMemories++;
+              
+              // Brief delay to allow AsyncStorage write to complete
+              await new Promise(resolve => setTimeout(resolve, 50));
+            } catch (memoryError) {
+              console.error(`Error creating memory ${i} for ${jobData.name}:`, memoryError);
+            }
+          }
+          
+          createdJobs++;
+          
+          // Brief delay between jobs for AsyncStorage writes
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (jobError) {
+          console.error(`Error creating job ${jobData.name}:`, jobError);
+        }
+      }
+
+      // Reload all data to update React state after generating
+      // IMPORTANT: Load profiles and jobs FIRST, then memories (which runs cleanup)
+      // This ensures cleanup can find the entities it needs to validate memories
+      try {
+        // Load profiles and jobs first
+        await Promise.all([
+          reloadProfiles(),
+          reloadJobs(),
+        ]);
+        
+        // Then load memories (cleanup will now find the profiles/jobs in storage)
+        await reloadIdealizedMemories();
+      } catch (reloadError) {
+        console.error('[MOCK DATA] Error reloading data:', reloadError);
+        // Continue anyway - data is in storage even if state update fails
+      }
+
+      Alert.alert(
+        'Success', 
+        `Created ${createdProfiles} profiles and ${createdJobs} jobs with ${createdMemories} total memories!\n\nAll data has been saved to local storage. Navigate to the Spheres tab to see your data.`,
+        [{ text: 'OK' }]
+      );
     } catch (error) {
       console.error('Error generating fake data:', error);
       Alert.alert('Error', 'Failed to generate fake data. Please try again.');
     } finally {
       setIsGeneratingFakeData(false);
     }
+  };
+
+  const clearAllMockData = async () => {
+    // Show confirmation dialog
+    Alert.alert(
+      'Clear All App Data',
+      'Are you sure you want to delete ALL data from this app? This will remove:\n\n• All profiles/partners\n• All jobs\n• All memories\n• All family members\n• All avatar positions\n\nThis action cannot be undone.\n\nYour theme and language settings will be preserved.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete All Data',
+          style: 'destructive',
+          onPress: async () => {
+            if (isDeletingData) return;
+            setIsDeletingData(true);
+            try {
+              // Clear ALL data storage keys (keep user preferences like theme and language)
+              const STORAGE_KEY = '@closure:ex_profiles';
+              const IDEALIZED_MEMORIES_KEY = '@closure:idealized_memories';
+              const JOBS_STORAGE_KEY = '@closure:jobs';
+              const FAMILY_MEMBERS_STORAGE_KEY = '@closure:family_members';
+              const AVATAR_POSITIONS_KEY = '@closure:avatar_positions';
+              
+              await Promise.all([
+                AsyncStorage.removeItem(STORAGE_KEY),
+                AsyncStorage.removeItem(IDEALIZED_MEMORIES_KEY),
+                AsyncStorage.removeItem(JOBS_STORAGE_KEY),
+                AsyncStorage.removeItem(FAMILY_MEMBERS_STORAGE_KEY),
+                AsyncStorage.removeItem(AVATAR_POSITIONS_KEY),
+              ]);
+              
+              // Reload all data from storage to update state immediately
+              await Promise.all([
+                reloadIdealizedMemories(),
+                reloadProfiles(),
+                reloadJobs(),
+              ]);
+              
+              // Show success message
+              Alert.alert(
+                'Success',
+                'All app data has been deleted from local storage.\n\nThe app will now show 0% and no profiles/jobs/memories.\n\nPlease navigate away and back to the Spheres/Home tab to see the changes reflected in the UI.',
+                [{ text: 'OK' }]
+              );
+            } catch (error) {
+              console.error('[Settings] Error clearing app data:', error);
+              Alert.alert('Error', 'Failed to clear app data. Please try again.');
+            } finally {
+              setIsDeletingData(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -665,10 +923,43 @@ export default function SettingsScreen() {
                 weight="medium"
                 style={styles.dropdownText}
               >
-                {isGeneratingFakeData ? 'Generating...' : 'Generate Fake Profile & Memories'}
+                {isGeneratingFakeData ? 'Generating...' : 'Generate Fake Data (Profiles & Jobs)'}
               </ThemedText>
             </View>
             {isGeneratingFakeData && (
+              <MaterialIcons
+                name="hourglass-empty"
+                size={24 * fontScale}
+                color={colors.text}
+              />
+            )}
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.dropdown,
+              isDeletingData && { opacity: 0.5 },
+              { borderColor: colors.error || '#ff4444', borderWidth: 1, marginTop: 12 * fontScale }
+            ]}
+            onPress={clearAllMockData}
+            activeOpacity={0.7}
+            disabled={isDeletingData}
+          >
+            <View style={styles.dropdownContent}>
+              <MaterialIcons
+                name="delete-forever"
+                size={24 * fontScale}
+                color={colors.error || '#ff4444'}
+              />
+              <ThemedText
+                size="l"
+                weight="medium"
+                style={[styles.dropdownText, { color: colors.error || '#ff4444' }]}
+              >
+                {isDeletingData ? 'Deleting...' : 'Clear All App Data'}
+              </ThemedText>
+            </View>
+            {isDeletingData && (
               <MaterialIcons
                 name="hourglass-empty"
                 size={24 * fontScale}

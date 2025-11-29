@@ -6,7 +6,7 @@ import { ActionSheet } from "@/library/components/action-sheet";
 import { ConfirmationModal } from "@/library/components/confirmation-modal";
 import { MemoryCard } from "@/library/components/memory-card";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { useJourney } from "@/utils/JourneyProvider";
+import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
@@ -17,11 +17,23 @@ export default function IdealizedMemoriesScreen() {
   const colors = Colors[colorScheme ?? "dark"];
   const { maxContentWidth } = useLargeDevice();
   const params = useLocalSearchParams();
-  const { getIdealizedMemoriesByProfileId, deleteIdealizedMemory } = useJourney();
+  const { getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, deleteIdealizedMemory } = useJourney();
   const t = useTranslate();
   
+  // Support both old (profileId) and new (entityId + sphere) parameters
   const profileId = params.profileId as string | undefined;
-  const memories = profileId ? getIdealizedMemoriesByProfileId(profileId) : [];
+  const entityId = params.entityId as string | undefined;
+  const sphere = params.sphere as LifeSphere | undefined;
+  
+  // Determine which mode we're in: new (entityId + sphere) or old (profileId)
+  const isNewMode = !!(entityId && sphere);
+  
+  // Get memories - use new API if entityId and sphere are provided, otherwise use profileId
+  const memories = isNewMode
+    ? getIdealizedMemoriesByEntityId(entityId!, sphere!)
+    : profileId
+    ? getIdealizedMemoriesByProfileId(profileId)
+    : [];
   const hasMemories = memories.length > 0;
 
   const [selectedMemory, setSelectedMemory] = useState<typeof memories[0] | null>(null);
@@ -120,7 +132,14 @@ export default function IdealizedMemoriesScreen() {
   );
 
   const handleAddMemory = () => {
-    if (profileId) {
+    if (isNewMode && entityId && sphere) {
+      // New signature: use entityId and sphere
+      router.push({
+        pathname: "/add-idealized-memory",
+        params: { entityId, sphere },
+      });
+    } else if (profileId) {
+      // Old signature: use profileId for backward compatibility
       router.push({
         pathname: "/add-idealized-memory",
         params: { profileId },
@@ -131,7 +150,12 @@ export default function IdealizedMemoriesScreen() {
   };
 
   const handleMemoryPress = (memoryId: string) => {
-    if (profileId) {
+    if (isNewMode && entityId && sphere) {
+      router.push({
+        pathname: "/add-idealized-memory",
+        params: { entityId, sphere, memoryId, viewOnly: 'true' },
+      });
+    } else if (profileId) {
       router.push({
         pathname: "/add-idealized-memory",
         params: { profileId, memoryId },
@@ -145,12 +169,19 @@ export default function IdealizedMemoriesScreen() {
   };
 
   const handleEditMemory = () => {
-    if (selectedMemory && profileId) {
+    if (selectedMemory) {
       setActionSheetVisible(false);
-      router.push({
-        pathname: "/add-idealized-memory",
-        params: { profileId, memoryId: selectedMemory.id },
-      });
+      if (isNewMode && entityId && sphere) {
+        router.push({
+          pathname: "/add-idealized-memory",
+          params: { entityId, sphere, memoryId: selectedMemory.id },
+        });
+      } else if (profileId) {
+        router.push({
+          pathname: "/add-idealized-memory",
+          params: { profileId, memoryId: selectedMemory.id },
+        });
+      }
       setSelectedMemory(null);
     }
   };
@@ -184,7 +215,18 @@ export default function IdealizedMemoriesScreen() {
     <View style={styles.root}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+        <TouchableOpacity onPress={() => {
+          // Navigate back, if sphere is provided and back fails, navigate to home with sphere
+          if (sphere) {
+            router.replace({
+              pathname: '/(tabs)/',
+              params: { sphere },
+            });
+          } else {
+            // For other cases, try to go back
+            router.back();
+          }
+        }} style={styles.headerButton}>
           <MaterialIcons name="arrow-back" size={26} color={colors.text} />
         </TouchableOpacity>
 

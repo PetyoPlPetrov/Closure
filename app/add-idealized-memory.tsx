@@ -4,7 +4,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { FloatingActionButton } from '@/library/components/floating-action-button';
-import { useJourney } from '@/utils/JourneyProvider';
+import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
@@ -406,25 +406,46 @@ export default function AddIdealizedMemoryScreen() {
   const sunWidth = isLargeDevice ? 150 : 100;
   const sunHeight = isLargeDevice ? 150 : 100;
   const params = useLocalSearchParams();
-  const { addIdealizedMemory, updateIdealizedMemory, getIdealizedMemoriesByProfileId } = useJourney();
+  const { addIdealizedMemory, updateIdealizedMemory, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
   const t = useTranslate();
   
-  const profileId = params.profileId as string | undefined;
-  const memoryId = params.memoryId as string | undefined;
-  const viewOnly = params.viewOnly === 'true';
+  // Support both old (profileId) and new (entityId + sphere) parameters
+  // Handle params that might be strings or arrays (expo-router can return arrays)
+  const profileId = Array.isArray(params.profileId) ? params.profileId[0] : (params.profileId as string | undefined);
+  const entityId = Array.isArray(params.entityId) ? params.entityId[0] : (params.entityId as string | undefined);
+  const sphere = Array.isArray(params.sphere) ? params.sphere[0] as LifeSphere : (params.sphere as LifeSphere | undefined);
+  const memoryId = Array.isArray(params.memoryId) ? params.memoryId[0] : (params.memoryId as string | undefined);
+  const viewOnly = (Array.isArray(params.viewOnly) ? params.viewOnly[0] : params.viewOnly) === 'true';
   const isEditMode = memoryId !== undefined;
   
-  // Get existing memory if editing
-  const existingMemories = profileId ? getIdealizedMemoriesByProfileId(profileId) : [];
+  // Determine which mode we're in: new (entityId + sphere) or old (profileId)
+  const isNewMode = !!(entityId && sphere);
+  const finalEntityId = entityId || profileId;
+  const finalSphere = sphere || 'relationships';
+  
+  // Debug: log params to help troubleshoot
+  if (__DEV__) {
+    console.log('Memory screen params:', { profileId, entityId, sphere, memoryId, isNewMode });
+  }
+  
+  // Get existing memory if editing - use new API if entityId and sphere are provided
+  const existingMemories = isNewMode
+    ? getIdealizedMemoriesByEntityId(entityId!, sphere!)
+    : profileId 
+    ? getIdealizedMemoriesByProfileId(profileId) 
+    : [];
   const existingMemory = memoryId ? existingMemories.find(m => m.id === memoryId) : null;
 
-  // Redirect if profileId is missing
+  // Redirect if we don't have either profileId or (entityId + sphere)
   useEffect(() => {
-    if (!profileId) {
-      alert('Profile ID is missing. Redirecting back...');
+    const hasOldMode = !!profileId;
+    const hasNewMode = !!(entityId && sphere);
+    
+    if (!hasOldMode && !hasNewMode) {
+      alert('Missing required parameters. Please go back and try again.');
       router.back();
     }
-  }, [profileId]);
+  }, [entityId, profileId, sphere]);
 
   // 🔥 Two-way binding
   const [memoryLabel, setMemoryLabel] = useState(existingMemory?.title || '');
@@ -644,8 +665,12 @@ export default function AddIdealizedMemoryScreen() {
 
   // Function to handle check button press - save the memory
   const handleCheckButtonPress = async () => {
-    if (!profileId) {
-      alert('Profile ID is missing. Please go back and try again.');
+    // Check if we have either old mode (profileId) or new mode (entityId + sphere)
+    const hasOldMode = !!profileId;
+    const hasNewMode = !!(entityId && sphere);
+    
+    if (!hasOldMode && !hasNewMode) {
+      alert('Missing required parameters. Please go back and try again.');
       return;
     }
 
@@ -698,13 +723,26 @@ export default function AddIdealizedMemoryScreen() {
           goodFacts: goodFacts.length > 0 ? goodFacts : undefined,
         });
       } else {
-        // Create new memory
-        await addIdealizedMemory(profileId, {
-          title: memoryLabel.trim(),
-          imageUri: selectedImage || undefined,
-          hardTruths,
-          goodFacts: goodFacts.length > 0 ? goodFacts : undefined,
-        });
+        // Create new memory - support both old (profileId) and new (entityId + sphere) signatures
+        if (isNewMode && entityId && sphere) {
+          // New signature: (entityId, sphere, memoryData)
+          await addIdealizedMemory(entityId, sphere, {
+            title: memoryLabel.trim(),
+            imageUri: selectedImage || undefined,
+            hardTruths,
+            goodFacts: goodFacts.length > 0 ? goodFacts : undefined,
+          });
+        } else if (profileId) {
+          // Old signature: (profileId, memoryData) - backward compatibility
+          await addIdealizedMemory(profileId, {
+            title: memoryLabel.trim(),
+            imageUri: selectedImage || undefined,
+            hardTruths,
+            goodFacts: goodFacts.length > 0 ? goodFacts : undefined,
+          });
+        } else {
+          throw new Error('Missing required parameters to save memory');
+        }
       }
       
       // Navigate back after saving
