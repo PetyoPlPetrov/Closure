@@ -140,6 +140,7 @@ export interface Translations {
   'profile.relationshipQuality': string;
   'profile.relationshipQuality.positive': string;
   'job.ongoing': string;
+  'job.current': string;
   'job.noMemories': string;
   'job.oneMemory': string;
   'job.memories': string;
@@ -364,6 +365,7 @@ const translations: Record<Language, Translations> = {
     'profile.relationshipQuality': 'Relationship quality',
     'profile.relationshipQuality.positive': 'positive',
     'job.ongoing': 'Ongoing',
+    'job.current': 'Current',
     'job.noMemories': 'No memories',
     'job.oneMemory': '1 memory',
     'job.memories': 'memories',
@@ -423,7 +425,7 @@ const translations: Record<Language, Translations> = {
     'memory.error.fillAllSunsBeforeAdding': 'Please fill all existing suns with text before adding a new one.',
     'memory.actionSheet.edit': 'Edit',
     'memory.actionSheet.delete': 'Delete',
-    'memory.remindWhy': 'RemindWhy',
+    'memory.remindWhy': 'Remind Why',
     
     // Healing path
     'healingPath.title': 'Your Path to Healing',
@@ -586,6 +588,7 @@ const translations: Record<Language, Translations> = {
     'profile.relationshipQuality': 'Качество на връзката',
     'profile.relationshipQuality.positive': 'позитивно',
     'job.ongoing': 'Текуща',
+    'job.current': 'Текуща',
     'job.noMemories': 'Няма спомени',
     'job.oneMemory': '1 спомен',
     'job.memories': 'спомени',
@@ -645,7 +648,7 @@ const translations: Record<Language, Translations> = {
     'memory.error.fillAllSunsBeforeAdding': 'Моля, попълнете всички съществуващи слънца с текст, преди да добавите ново.',
     'memory.actionSheet.edit': 'Редактирай',
     'memory.actionSheet.delete': 'Изтрий',
-    'memory.remindWhy': 'RemindWhy',
+    'memory.remindWhy': 'Напомни защо',
     
     // Healing path
     'healingPath.title': 'Вашият Път към Изцеление',

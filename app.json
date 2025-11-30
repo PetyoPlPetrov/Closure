@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Sphere",
-    "slug": "Sphere",
+    "name": "Sferas",
+    "slug": "sphere",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -68,8 +68,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b4ff47dd-2503-4245-815c-979b90b64ce2"
+        "projectId": "813af76e-f936-4a41-89f2-7c4f0f9d4732"
       }
-    }
+    },
+    "owner": "petyoplpetrov"
   }
 }

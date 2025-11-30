@@ -2789,11 +2789,13 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
         justifyContent: 'center',
         alignItems: 'center',
         position: 'relative',
+        overflow: 'hidden', // Ensure perfect circle clipping
       }}
     >
       <Svg
         width={avatarSize}
         height={avatarSize}
+        viewBox={`0 0 ${avatarSize} ${avatarSize}`}
         style={{ position: 'absolute', top: 0, left: 0 }}
       >
         <Defs>
@@ -5231,6 +5233,13 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
   colorScheme: 'light' | 'dark';
   hideTitle?: boolean;
 }) {
+  const t = useTranslate();
+  
+  // Translate section year if it's a string, otherwise display the number
+  const displayYear = typeof section.year === 'string' 
+    ? (section.year === 'Ongoing' ? t('profile.ongoing') : section.year === 'Current' ? t('job.current') : section.year)
+    : section.year;
+  
   return (
     <View
       style={{
@@ -5257,7 +5266,7 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
           color: colorScheme === 'dark' ? '#ffffff' : '#000000',
         }}
       >
-        {section.year}
+        {displayYear}
       </ThemedText>
       )}
     </View>
