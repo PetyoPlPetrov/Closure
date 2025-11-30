@@ -95,14 +95,21 @@ export default function AddFamilyMemberScreen() {
           imageUri: selectedImage || undefined,
         });
       } else {
-        await addFamilyMember({
+        const newMemberId = await addFamilyMember({
           name: name.trim(),
           description: description.trim() || undefined,
           relationship: relationship.trim() || undefined,
           imageUri: selectedImage || undefined,
         });
+        // Navigate to memory creation screen for the new family member
+        router.replace({
+          pathname: '/idealized-memories',
+          params: { entityId: newMemberId, sphere: 'family' },
+        });
+        return; // Exit early to avoid the router.replace below
       }
 
+      // For edit mode, navigate back to tabs
       router.replace('/(tabs)/');
     } catch (error) {
       console.error(`Error ${isEditMode ? 'updating' : 'adding'} family member:`, error);

@@ -476,12 +476,7 @@ export default function SpheresScreen() {
                   <ProfileCard
                     key={profile.id}
                     profile={profile}
-                    onPress={() => {
-                      router.push({
-                        pathname: '/(tabs)/',
-                        params: { sphere: 'relationships', entityId: profile.id },
-                      });
-                    }}
+                    onPress={() => handleMorePress(profile)}
                     onMorePress={() => handleMorePress(profile)}
                   />
                 ))}
@@ -586,12 +581,7 @@ export default function SpheresScreen() {
                   <JobCard
                     key={job.id}
                     job={job}
-                    onPress={() => {
-                      router.push({
-                        pathname: '/idealized-memories',
-                        params: { sphere: 'career', entityId: job.id },
-                      });
-                    }}
+                    onPress={() => handleJobMorePress(job)}
                     onMorePress={() => handleJobMorePress(job)}
                   />
                 ))}
@@ -751,12 +741,7 @@ export default function SpheresScreen() {
                   <TouchableOpacity
                     key={member.id}
                     style={styles.entityCard}
-                    onPress={() => {
-                      router.push({
-                        pathname: '/idealized-memories',
-                        params: { sphere: 'family', entityId: member.id },
-                      });
-                    }}
+                    onPress={() => handleFamilyMemberMorePress(member)}
                     activeOpacity={0.7}
                   >
                     {member.imageUri ? (

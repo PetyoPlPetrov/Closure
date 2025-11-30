@@ -211,7 +211,7 @@ export default function AddJobScreen() {
         });
         router.replace('/(tabs)/spheres');
       } else {
-        await addJob({
+        const newJobId = await addJob({
           name: name.trim(),
           description: description.trim() || undefined,
           startDate: startDate ? startDate.toISOString().split('T')[0] : undefined,
@@ -220,7 +220,11 @@ export default function AddJobScreen() {
           isCompleted: false,
           ...(selectedImage && { imageUri: selectedImage }),
         });
-        router.replace('/(tabs)/spheres');
+        // Navigate to memory creation screen for the new job
+        router.replace({
+          pathname: '/idealized-memories',
+          params: { entityId: newJobId, sphere: 'career' },
+        });
       }
     } catch (error) {
       console.error(`Error ${isEditMode ? 'updating' : 'adding'} job:`, error);

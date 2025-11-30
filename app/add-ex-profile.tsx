@@ -252,7 +252,7 @@ export default function AddExProfileScreen() {
         router.replace('/(tabs)/spheres');
       } else {
         // Save new profile to local storage
-        await addProfile({
+        const newProfileId = await addProfile({
           name: name.trim(),
           description: description.trim() || undefined,
           relationshipDuration: undefined, // Can be added later
@@ -263,8 +263,11 @@ export default function AddExProfileScreen() {
           ...(selectedImage && { imageUri: selectedImage }),
         });
 
-        // Navigate back to spheres screen after successful save
-        router.replace('/(tabs)/spheres');
+        // Navigate to memory creation screen for the new profile
+        router.replace({
+          pathname: '/idealized-memories',
+          params: { profileId: newProfileId },
+        });
       }
     } catch (error) {
       console.error(`Error ${isEditMode ? 'updating' : 'adding'} profile:`, error);
