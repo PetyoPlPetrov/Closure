@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Closure",
-    "slug": "Closure",
+    "name": "Sphere",
+    "slug": "Sphere",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "closure",
+    "scheme": "sphere",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.petyoplpetrov.Closure",
+      "bundleIdentifier": "com.petyoplpetrov.Sphere",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -31,7 +31,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.petyoplpetrov.Closure",
+      "package": "com.petyoplpetrov.Sphere",
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ]

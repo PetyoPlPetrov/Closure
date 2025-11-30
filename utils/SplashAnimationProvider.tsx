@@ -1,22 +1,19 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { createContext, useContext, useEffect, useLayoutEffect, useState } from 'react';
 import { Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
 import Animated, {
-    Easing,
-    interpolate,
-    runOnJS,
-    useAnimatedProps,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withTiming,
+  Easing,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSpring,
+  withTiming
 } from 'react-native-reanimated';
-import Svg, { Defs, G, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
-
-// Create animated Path component for reanimated
-const AnimatedPath = Animated.createAnimatedComponent(Path) as any;
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -45,28 +42,36 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   const [isAnimationComplete, setIsAnimationComplete] = useState(false);
   const splashOpacity = useSharedValue(1);
 
-  // Sphere 1 animations
-  const sphere1X = useSharedValue(0);
-  const sphere1Y = useSharedValue(0);
+  // Avatar animations
+  const avatarScale = useSharedValue(0);
+  const avatarOpacity = useSharedValue(0);
   
-  // Sphere 2 animations
-  const sphere2X = useSharedValue(0);
-  const sphere2Y = useSharedValue(0);
+  // Text animations
+  const textOpacity = useSharedValue(0);
   
-  // Sphere 3 animations
-  const sphere3X = useSharedValue(0);
-  const sphere3Y = useSharedValue(0);
+  // Floating elements animations - 3 small spheres
+  const floatingElement1 = {
+    popOutProgress: useSharedValue(0),
+    orbitAngle: useSharedValue(0),
+    opacity: useSharedValue(0),
+    scale: useSharedValue(0),
+  };
+  
+  const floatingElement2 = {
+    popOutProgress: useSharedValue(0),
+    orbitAngle: useSharedValue(0),
+    opacity: useSharedValue(0),
+    scale: useSharedValue(0),
+  };
+  
+  const floatingElement3 = {
+    popOutProgress: useSharedValue(0),
+    orbitAngle: useSharedValue(0),
+    opacity: useSharedValue(0),
+    scale: useSharedValue(0),
+  };
 
-  // Logo pulse animation
-  const logoOpacity = useSharedValue(1);
-  
-  // Circle split animation - start merged (0) and split apart (1)
-  const circleSplitProgress = useSharedValue(0);
-  
-  // Circle pulse animation before split
-  const circlePulseScale = useSharedValue(1);
-
-  // Hide native splash screen immediately - use useLayoutEffect to run before paint
+  // Hide native splash screen immediately
   useLayoutEffect(() => {
     SplashScreen.hideAsync().catch(() => {
       // Ignore errors if splash screen is already hidden
@@ -74,129 +79,126 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   }, []);
 
   useEffect(() => {
-    // Use a small delay to ensure the component is fully mounted and ready
-    // This helps when the app first loads
-    const initTimeout = setTimeout(() => {
-    // Animate sphere 1 (12s, alternate, ease-in-out)
-    sphere1X.value = withRepeat(
-      withTiming(1, {
-        duration: 12000,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true
+    // Animation sequence:
+    // 1. Avatar appears (scale from 0, fade in)
+    // 2. Floating elements pop out from avatar center
+    // 3. Floating elements start orbiting around avatar
+    // 4. Mark animation as complete
+
+    // Step 1: Avatar entrance (600ms)
+    avatarOpacity.value = withTiming(1, { duration: 300 });
+    avatarScale.value = withSpring(1, {
+      damping: 12,
+      stiffness: 150,
+      mass: 0.8,
+    });
+
+    // Step 2: Floating elements pop out from center (800ms delay, 600ms duration)
+    const popOutDelay = 600;
+    
+    // Element 1 - pops out and starts orbiting
+    floatingElement1.opacity.value = withDelay(popOutDelay, withTiming(1, { duration: 300 }));
+    floatingElement1.scale.value = withDelay(
+      popOutDelay,
+      withSpring(1, {
+        damping: 15,
+        stiffness: 200,
+        mass: 0.5,
+      })
     );
-    sphere1Y.value = withRepeat(
+    floatingElement1.popOutProgress.value = withDelay(
+      popOutDelay,
       withTiming(1, {
-        duration: 12000,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true
-    );
-
-    // Animate sphere 2 (15s, alternate, ease-in-out, delay -4s)
-    const timeout2 = setTimeout(() => {
-      sphere2X.value = withRepeat(
-        withTiming(1, {
-          duration: 15000,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        -1,
-        true
-      );
-      sphere2Y.value = withRepeat(
-        withTiming(1, {
-          duration: 15000,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        -1,
-        true
-      );
-    }, 4000);
-
-    // Animate sphere 3 (18s, alternate, ease-in-out, delay -8s)
-    const timeout3 = setTimeout(() => {
-      sphere3X.value = withRepeat(
-        withTiming(1, {
-          duration: 18000,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        -1,
-        true
-      );
-      sphere3Y.value = withRepeat(
-        withTiming(1, {
-          duration: 18000,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        -1,
-        true
-      );
-    }, 8000);
-
-    // Animation sequence: Pulse first, then split
-    // Step 1: Pulse the merged circle (single slow pulse)
-    circlePulseScale.value = withSequence(
-      withTiming(1.12, {
-        duration: 800,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      withTiming(1, {
-        duration: 800,
-        easing: Easing.inOut(Easing.ease),
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+      }, (finished) => {
+        if (finished) {
+          // Start orbiting after pop out completes
+          floatingElement1.orbitAngle.value = withRepeat(
+            withTiming(360, {
+              duration: 4000,
+              easing: Easing.linear,
+            }),
+            -1,
+            false
+          );
+        }
       })
     );
 
-    // Step 2: After pulse, split the circles (2.5s, slower)
-    const splitTimeout = setTimeout(() => {
-      // Explicitly ensure we start from 0
-      circleSplitProgress.value = 0;
-      // Small delay to ensure the reset is applied before animation starts
-      setTimeout(() => {
-        circleSplitProgress.value = withTiming(1, {
-          duration: 2500,
-          easing: Easing.out(Easing.cubic),
-        }, (finished) => {
-          // Mark animation as complete when split finishes
-          if (finished) {
-            runOnJS(setIsAnimationComplete)(true);
-          }
-        });
-      }, 16); // One frame delay to ensure reset is applied
-    }, 1600); // Start after pulse completes (1.6s total: 0.8s grow + 0.8s shrink)
+    // Element 2 - pops out with delay
+    floatingElement2.opacity.value = withDelay(popOutDelay + 200, withTiming(1, { duration: 300 }));
+    floatingElement2.scale.value = withDelay(
+      popOutDelay + 200,
+      withSpring(1, {
+        damping: 15,
+        stiffness: 200,
+        mass: 0.5,
+      })
+    );
+    floatingElement2.popOutProgress.value = withDelay(
+      popOutDelay + 200,
+      withTiming(1, {
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+      }, (finished) => {
+        if (finished) {
+          floatingElement2.orbitAngle.value = withRepeat(
+            withTiming(360, {
+              duration: 4500, // Slightly different speed for variety
+              easing: Easing.linear,
+            }),
+            -1,
+            false
+          );
+        }
+      })
+    );
 
-    // Step 3: Logo pulse animation (6s, infinite) - start after split
-    // This runs in background while splash is visible
-    setTimeout(() => {
-      logoOpacity.value = withRepeat(
-        withSequence(
-          withTiming(0.5, {
-            duration: 3000,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          withTiming(0.9, {
-            duration: 3000,
-            easing: Easing.inOut(Easing.ease),
-          })
-        ),
-        -1,
-        true
-      );
-    }, 4100); // Start after pulse (1.6s) + split (2.5s) = 4.1s
+    // Element 3 - pops out with delay
+    floatingElement3.opacity.value = withDelay(popOutDelay + 400, withTiming(1, { duration: 300 }));
+    floatingElement3.scale.value = withDelay(
+      popOutDelay + 400,
+      withSpring(1, {
+        damping: 15,
+        stiffness: 200,
+        mass: 0.5,
+      })
+    );
+    floatingElement3.popOutProgress.value = withDelay(
+      popOutDelay + 400,
+      withTiming(1, {
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+      }, (finished) => {
+        if (finished) {
+          floatingElement3.orbitAngle.value = withRepeat(
+            withTiming(360, {
+              duration: 5000, // Different speed for variety
+              easing: Easing.linear,
+            }),
+            -1,
+            false
+          );
+        }
+      })
+    );
 
-      return () => {
-        if (timeout2) clearTimeout(timeout2);
-        if (timeout3) clearTimeout(timeout3);
-        if (splitTimeout) clearTimeout(splitTimeout);
-      };
-    }, 100); // Small delay to ensure component is ready
+    // Step 3: Text appears after elements start orbiting (2000ms delay)
+    textOpacity.value = withDelay(2000, withTiming(1, {
+      duration: 800,
+      easing: Easing.out(Easing.cubic),
+    }));
+
+    // Step 4: Mark animation as complete after text appears (3000ms total)
+    const completeTimeout = setTimeout(() => {
+      runOnJS(setIsAnimationComplete)(true);
+    }, 3000);
 
     return () => {
-      clearTimeout(initTimeout);
+      clearTimeout(completeTimeout);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount - shared values are stable
+  }, []);
 
   const finishHiding = () => {
     setIsVisible(false);
@@ -209,7 +211,6 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
       easing: Easing.ease,
     }, (finished) => {
       if (finished) {
-        // Hide after animation completes (run on JS thread)
         runOnJS(finishHiding)();
       }
     });
@@ -222,80 +223,79 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     };
   });
 
-  // Sphere 1 animated style
-  const sphere1Style = useAnimatedStyle(() => {
-    const translateX = interpolate(sphere1X.value, [0, 1], [0, SCREEN_WIDTH * 0.2]);
-    const translateY = interpolate(sphere1Y.value, [0, 1], [0, SCREEN_HEIGHT * 0.2]);
+  // Avatar animated style
+  const avatarAnimatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ translateX }, { translateY }],
+      opacity: avatarOpacity.value,
+      transform: [{ scale: avatarScale.value }],
     };
   });
 
-  // Sphere 2 animated style
-  const sphere2Style = useAnimatedStyle(() => {
-    const translateX = interpolate(sphere2X.value, [0, 1], [0, -SCREEN_WIDTH * 0.2]);
-    const translateY = interpolate(sphere2Y.value, [0, 1], [0, -SCREEN_HEIGHT * 0.2]);
+  // Text animated style
+  const textAnimatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ translateX }, { translateY }],
+      opacity: textOpacity.value,
     };
   });
 
-  // Sphere 3 animated style
-  const sphere3Style = useAnimatedStyle(() => {
-    const translateX = interpolate(sphere3X.value, [0, 1], [0, SCREEN_WIDTH * 0.1]);
-    const translateY = interpolate(sphere3Y.value, [0, 1], [0, -SCREEN_HEIGHT * 0.1]);
+  // Floating element 1 animated style
+  const floatingElement1Style = useAnimatedStyle(() => {
+    const radius = 120; // Orbit radius - increased from 80 to move elements further
+    const popOutRadius = interpolate(floatingElement1.popOutProgress.value, [0, 1], [0, radius]);
+    const angle = (floatingElement1.orbitAngle.value * Math.PI) / 180; // Convert to radians
+    const baseAngle = 0; // Start at top
+    
+    const x = Math.sin(baseAngle + angle) * popOutRadius;
+    const y = -Math.cos(baseAngle + angle) * popOutRadius;
+    
     return {
-      transform: [{ translateX }, { translateY }],
+      opacity: floatingElement1.opacity.value,
+      transform: [
+        { translateX: x },
+        { translateY: y },
+        { scale: floatingElement1.scale.value },
+      ],
     };
   });
 
-  // Logo animated style
-  const logoStyle = useAnimatedStyle(() => {
+  // Floating element 2 animated style
+  const floatingElement2Style = useAnimatedStyle(() => {
+    const radius = 120; // Orbit radius - increased from 80
+    const popOutRadius = interpolate(floatingElement2.popOutProgress.value, [0, 1], [0, radius]);
+    const angle = (floatingElement2.orbitAngle.value * Math.PI) / 180;
+    const baseAngle = (120 * Math.PI) / 180; // 120 degrees offset
+    
+    const x = Math.sin(baseAngle + angle) * popOutRadius;
+    const y = -Math.cos(baseAngle + angle) * popOutRadius;
+    
     return {
-      opacity: logoOpacity.value,
+      opacity: floatingElement2.opacity.value,
+      transform: [
+        { translateX: x },
+        { translateY: y },
+        { scale: floatingElement2.scale.value },
+      ],
     };
   });
 
-  // Circle 1 animated path (moves left as it splits)
-  // Start at center x=96, move to left position x=76
-  const circle1AnimatedProps = useAnimatedProps(() => {
-    'worklet';
-    const centerX = interpolate(
-      circleSplitProgress.value,
-      [0, 1],
-      [96, 76] // Start at center, move to left
-    );
-    // Apply pulse scale to the path (only when merged, i.e., splitProgress < 0.1)
-    const isMerged = circleSplitProgress.value < 0.1;
-    const scale = isMerged ? circlePulseScale.value : 1;
-    // Scale the circle path around its center
-    const scaledX = centerX;
-    const scaledSize = 48 * scale; // Scale the radius
-    const scaledControl = 32 * scale;
-    // Path for circle centered at scaledX with scaled size
-    const d = `M${scaledX} ${96 - scaledSize} C ${scaledX + scaledControl} ${96 - scaledSize}, ${scaledX + scaledSize} ${96 - scaledControl}, ${scaledX + scaledSize} ${96} C ${scaledX + scaledSize} ${96 + scaledControl}, ${scaledX + scaledControl} ${96 + scaledSize}, ${scaledX} ${96 + scaledSize} C ${scaledX - scaledControl} ${96 + scaledSize}, ${scaledX - scaledSize} ${96 + scaledControl}, ${scaledX - scaledSize} ${96} C ${scaledX - scaledSize} ${96 - scaledControl}, ${scaledX - scaledControl} ${96 - scaledSize}, ${scaledX} ${96 - scaledSize} Z`;
-    return { d } as any;
-  });
-
-  // Circle 2 animated path (moves right as it splits)
-  // Start at center x=96, move to right position x=116
-  const circle2AnimatedProps = useAnimatedProps(() => {
-    'worklet';
-    const centerX = interpolate(
-      circleSplitProgress.value,
-      [0, 1],
-      [96, 116] // Start at center, move to right
-    );
-    // Apply pulse scale to the path (only when merged, i.e., splitProgress < 0.1)
-    const isMerged = circleSplitProgress.value < 0.1;
-    const scale = isMerged ? circlePulseScale.value : 1;
-    // Scale the circle path around its center
-    const scaledX = centerX;
-    const scaledSize = 48 * scale; // Scale the radius
-    const scaledControl = 32 * scale;
-    // Path for circle centered at scaledX with scaled size
-    const d = `M${scaledX} ${96 - scaledSize} C ${scaledX + scaledControl} ${96 - scaledSize}, ${scaledX + scaledSize} ${96 - scaledControl}, ${scaledX + scaledSize} ${96} C ${scaledX + scaledSize} ${96 + scaledControl}, ${scaledX + scaledControl} ${96 + scaledSize}, ${scaledX} ${96 + scaledSize} C ${scaledX - scaledControl} ${96 + scaledSize}, ${scaledX - scaledSize} ${96 + scaledControl}, ${scaledX - scaledSize} ${96} C ${scaledX - scaledSize} ${96 - scaledControl}, ${scaledX - scaledControl} ${96 - scaledSize}, ${scaledX} ${96 - scaledSize} Z`;
-    return { d } as any;
+  // Floating element 3 animated style
+  const floatingElement3Style = useAnimatedStyle(() => {
+    const radius = 120; // Orbit radius - increased from 80
+    const popOutRadius = interpolate(floatingElement3.popOutProgress.value, [0, 1], [0, radius]);
+    const angle = (floatingElement3.orbitAngle.value * Math.PI) / 180;
+    const baseAngle = (240 * Math.PI) / 180; // 240 degrees offset
+    
+    const x = Math.sin(baseAngle + angle) * popOutRadius;
+    const y = -Math.cos(baseAngle + angle) * popOutRadius;
+    
+    return {
+      opacity: floatingElement3.opacity.value,
+      transform: [
+        { translateX: x },
+        { translateY: y },
+        { scale: floatingElement3.scale.value },
+      ],
+    };
   });
 
   return (
@@ -312,72 +312,67 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
           pointerEvents="box-none"
         >
           <View style={styles.container}>
-        <LinearGradient
-          colors={['#101A3D', '#2d4b81']}
-          style={StyleSheet.absoluteFill}
-        />
-        
-        {/* Animated Spheres */}
-        <View style={styles.sphereContainer}>
-          {/* Sphere 1 */}
-          <Animated.View style={[styles.sphere1, sphere1Style]}>
             <LinearGradient
-              colors={['rgba(200, 220, 255, 0.2)', 'rgba(108, 170, 223, 0.1)', 'rgba(16, 26, 61, 0)']}
-              style={styles.sphereGradient}
+              colors={['#101A3D', '#2d4b81']}
+              style={StyleSheet.absoluteFill}
             />
-          </Animated.View>
+            
+            {/* Content */}
+            <View style={styles.content}>
+              {/* Avatar Container with Floating Elements */}
+              <View style={styles.avatarContainer}>
+                {/* Central Avatar */}
+                <Animated.View style={[styles.avatarWrapper, avatarAnimatedStyle]}>
+                  <LinearGradient
+                    colors={['rgba(14, 165, 233, 0.3)', 'rgba(14, 165, 233, 0.15)', 'rgba(14, 165, 233, 0.05)']}
+                    style={styles.avatar}
+                  >
+                    <View style={styles.avatarInner}>
+                      <MaterialIcons name="person" size={40} color="rgba(255, 215, 0, 0.9)" />
+                    </View>
+                  </LinearGradient>
+                </Animated.View>
 
-          {/* Sphere 2 */}
-          <Animated.View style={[styles.sphere2, sphere2Style]}>
-            <LinearGradient
-              colors={['rgba(200, 220, 255, 0.2)', 'rgba(108, 170, 223, 0.1)', 'rgba(16, 26, 61, 0)']}
-              style={styles.sphereGradient}
-            />
-          </Animated.View>
+                {/* Floating Element 1 - Relationships (Heart) */}
+                <Animated.View style={[styles.floatingElement, floatingElement1Style]}>
+                  <LinearGradient
+                    colors={['rgba(255, 150, 150, 0.4)', 'rgba(255, 150, 150, 0.2)', 'rgba(255, 150, 150, 0.05)']}
+                    style={styles.floatingElementInner}
+                  >
+                    <MaterialIcons name="favorite" size={40} color="rgba(255, 180, 180, 0.9)" />
+                  </LinearGradient>
+                </Animated.View>
 
-          {/* Sphere 3 */}
-          <Animated.View style={[styles.sphere3, sphere3Style]}>
-            <LinearGradient
-              colors={['rgba(200, 220, 255, 0.2)', 'rgba(108, 170, 223, 0.1)', 'rgba(16, 26, 61, 0)']}
-              style={styles.sphereGradient}
-            />
-          </Animated.View>
-        </View>
+                {/* Floating Element 2 - Career (Briefcase) */}
+                <Animated.View style={[styles.floatingElement, floatingElement2Style]}>
+                  <LinearGradient
+                    colors={['rgba(150, 200, 255, 0.4)', 'rgba(150, 200, 255, 0.2)', 'rgba(150, 200, 255, 0.05)']}
+                    style={styles.floatingElementInner}
+                  >
+                    <MaterialIcons name="work" size={40} color="rgba(180, 220, 255, 0.9)" />
+                  </LinearGradient>
+                </Animated.View>
 
-        {/* Content */}
-        <View style={styles.content}>
-          <Animated.View style={[styles.logoContainer, logoStyle]}>
-            <Svg width={192} height={192} viewBox="0 0 192 192">
-              <Defs>
-                <SvgLinearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <Stop offset="0%" stopColor="#F0F4F8" stopOpacity="1" />
-                  <Stop offset="100%" stopColor="#A8C5E2" stopOpacity="1" />
-                </SvgLinearGradient>
-                <SvgLinearGradient id="grad2" x1="100%" y1="0%" x2="0%" y2="100%">
-                  <Stop offset="0%" stopColor="#F0F4F8" stopOpacity="1" />
-                  <Stop offset="100%" stopColor="#A8C5E2" stopOpacity="1" />
-                </SvgLinearGradient>
-              </Defs>
-              <G opacity="0.9">
-                {/* Circle 1 - animated path (splits left) */}
-                <AnimatedPath
-                  animatedProps={circle1AnimatedProps}
-                  fill="url(#grad1)"
-                />
-                {/* Circle 2 - animated path (splits right) */}
-                <AnimatedPath
-                  animatedProps={circle2AnimatedProps}
-                  fill="url(#grad2)"
-                />
-              </G>
-            </Svg>
-          </Animated.View>
+                {/* Floating Element 3 - Family */}
+                <Animated.View style={[styles.floatingElement, floatingElement3Style]}>
+                  <LinearGradient
+                    colors={['rgba(200, 150, 255, 0.4)', 'rgba(200, 150, 255, 0.2)', 'rgba(200, 150, 255, 0.05)']}
+                    style={styles.floatingElementInner}
+                  >
+                    <MaterialIcons name="family-restroom" size={40} color="rgba(220, 180, 255, 0.9)" />
+                  </LinearGradient>
+                </Animated.View>
+              </View>
 
-          <Text style={styles.title}>Closure</Text>
-          <Text style={styles.subtitle}>Embrace your new beginning.</Text>
-        </View>
-      </View>
-      </Animated.View>
+              {/* Quote Text */}
+              <Animated.View style={[styles.textContainer, textAnimatedStyle]}>
+                <Text style={styles.quote}>
+                  Live spherically — in many directions
+                </Text>
+              </Animated.View>
+            </View>
+          </View>
+        </Animated.View>
       )}
     </SplashContext.Provider>
   );
@@ -398,77 +393,80 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
   },
-  sphereContainer: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-  },
-  sphere1: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    top: '10%',
-    left: '5%',
-    borderRadius: 150,
-  },
-  sphere2: {
-    position: 'absolute',
-    width: 350,
-    height: 350,
-    bottom: '5%',
-    right: '10%',
-    borderRadius: 175,
-  },
-  sphere3: {
-    position: 'absolute',
-    width: 250,
-    height: 250,
-    top: '60%',
-    left: '20%',
-    borderRadius: 125,
-  },
-  sphereGradient: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 9999,
-  },
   content: {
     zIndex: 10,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingHorizontal: 16,
+    paddingTop: SCREEN_HEIGHT * 0.15, // Move content lower on screen
   },
-  logoContainer: {
-    width: 192,
-    height: 192,
-    marginBottom: 40,
-    alignItems: 'center',
+  avatarContainer: {
+    width: 360, // Increased to accommodate larger orbit radius (120 * 2 + 120 avatar = 360)
+    height: 360,
     justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 60,
+    position: 'relative',
   },
-  title: {
-    color: '#F0F4F8',
-    fontSize: 32,
-    fontWeight: '700',
-    letterSpacing: -1,
-    lineHeight: 40,
-    ...Platform.select({
-      web: {
-        fontFamily: 'Montserrat, sans-serif',
-      },
-      default: {
-        fontFamily: Platform.select({
-          ios: 'System',
-          android: 'sans-serif-medium',
-        }),
-      },
-    }),
+  avatarWrapper: {
+    width: 80, // Real size matching baseAvatarSize from main screen
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  subtitle: {
-    color: 'rgba(240, 244, 248, 0.7)',
-    fontSize: 16,
+  avatar: {
+    width: 80, // Real size matching baseAvatarSize from main screen
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    // Subtle mask/shadow effect
+    shadowColor: '#0EA5E9',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  avatarInner: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  floatingElement: {
+    position: 'absolute',
+    width: 80, // Real size matching sphereSize from main screen
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  floatingElementInner: {
+    width: 80, // Real size matching sphereSize from main screen
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    // Subtle mask effect with glow
+    shadowColor: '#FFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  textContainer: {
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    maxWidth: SCREEN_WIDTH - 64,
+  },
+  quote: {
+    color: 'rgba(240, 244, 248, 0.9)',
+    fontSize: 18,
     fontWeight: '400',
-    lineHeight: 24,
-    marginTop: 8,
+    lineHeight: 26,
+    textAlign: 'center',
+    fontStyle: 'italic',
     ...Platform.select({
       web: {
         fontFamily: 'Montserrat, sans-serif',
@@ -482,4 +480,3 @@ const styles = StyleSheet.create({
     }),
   },
 });
-
