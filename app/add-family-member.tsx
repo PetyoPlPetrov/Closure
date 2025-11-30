@@ -7,8 +7,8 @@ import { Input } from '@/library/components/input';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
-import { useTranslate } from '@/utils/languages/use-translate';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -81,7 +81,7 @@ export default function AddFamilyMemberScreen() {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      Alert.alert(t('common.error'), 'Name is required');
+      Alert.alert(t('common.error'), t('profile.familyMember.name.required'));
       return;
     }
 
@@ -151,34 +151,34 @@ export default function AddFamilyMemberScreen() {
         {/* Title and Description */}
         <View>
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.title}>
-            {isEditMode ? 'Edit Family Member' : 'Add Family Member'}
+            {isEditMode ? t('profile.editFamilyMember') : t('profile.addFamilyMember')}
           </ThemedText>
           <ThemedText size="sm" weight="normal" style={styles.description}>
             {isEditMode
-              ? 'Update family member information'
-              : 'Add a new family member to track your memories'}
+              ? t('profile.editFamilyMember.description')
+              : t('profile.addFamilyMember.description')}
           </ThemedText>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
           <Input
-            label="Name"
-            placeholder="Enter family member's name"
+            label={t('profile.name')}
+            placeholder={t('profile.familyMemberName.placeholder')}
             value={name}
             onChangeText={setName}
           />
 
           <Input
-            label="Relationship (Optional)"
-            placeholder="e.g., Mother, Brother, Cousin"
+            label={`${t('profile.relationshipType')} (${t('common.optional')})`}
+            placeholder={t('profile.relationshipType.placeholder')}
             value={relationship}
             onChangeText={setRelationship}
           />
 
           <TextArea
-            label="Description (Optional)"
-            placeholder="Brief description..."
+            label={`${t('profile.description')} (${t('common.optional')})`}
+            placeholder={t('profile.description.placeholder')}
             value={description}
             onChangeText={setDescription}
             maxLength={100}
@@ -212,7 +212,7 @@ export default function AddFamilyMemberScreen() {
             <ActivityIndicator color="#ffffff" />
           ) : (
             <ThemedText weight="bold" letterSpacing="l" style={{ color: '#ffffff' }}>
-              {isEditMode ? t('common.save') : 'Add Family Member'}
+              {isEditMode ? t('common.save') : t('profile.addFamilyMember')}
             </ThemedText>
           )}
         </TouchableOpacity>

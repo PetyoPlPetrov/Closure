@@ -1387,6 +1387,7 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
   handleAddCloud: () => void;
   handleAddSun: () => void;
 }) {
+  const t = useTranslate();
   // Memoize these calculations - must be called unconditionally
   const allClouds = useMemo(() => (memory.hardTruths || []).filter((truth: any) => truth && typeof truth === 'object' && !Array.isArray(truth)), [memory.hardTruths]);
   const allSuns = useMemo(() => (memory.goodFacts || []).filter((fact: any) => fact && typeof fact === 'object'), [memory.goodFacts]);
@@ -1548,7 +1549,7 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
           textAlign: 'center',
         }}
       >
-        RemindWhy
+        {t('memory.remindWhy')}
       </ThemedText>
     </View>
     

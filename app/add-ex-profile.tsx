@@ -326,7 +326,7 @@ export default function AddExProfileScreen() {
           />
 
           <TextArea
-            label={t('profile.description') + ' (Optional)'}
+            label={`${t('profile.description')} (${t('common.optional')})`}
             placeholder={t('profile.description.example')}
             value={description}
             onChangeText={(text) => {
@@ -343,7 +343,7 @@ export default function AddExProfileScreen() {
           <View style={{ gap: 16 * fontScale }}>
             <View>
               <ThemedText size="sm" weight="medium" style={{ marginBottom: 8 * fontScale }}>
-                Relationship Start Date
+                {t('profile.relationshipStartDate')}
               </ThemedText>
               <TouchableOpacity
                 onPress={() => setShowStartDatePicker(true)}
@@ -366,7 +366,7 @@ export default function AddExProfileScreen() {
                 <ThemedText size="m">
                   {relationshipStartDate
                     ? relationshipStartDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-                    : 'Select start date'}
+                    : t('profile.relationshipStartDate.select')}
                 </ThemedText>
                 <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
               </TouchableOpacity>
@@ -410,7 +410,7 @@ export default function AddExProfileScreen() {
                           </ThemedText>
                         </TouchableOpacity>
                         <ThemedText size="l" weight="semibold">
-                          Select Start Date
+                          {t('profile.relationshipStartDate.selectTitle')}
                         </ThemedText>
                         <TouchableOpacity
                           onPress={() => {
@@ -526,7 +526,7 @@ export default function AddExProfileScreen() {
                   }}
                   style={{ opacity: canSetAsOngoing ? 1 : 0.5 }}
                 >
-                  Relationship is ongoing
+                  {t('profile.relationshipOngoing')}
                 </ThemedText>
               </View>
               {hasExistingOngoingPartner && !isOngoing && (
@@ -539,7 +539,7 @@ export default function AddExProfileScreen() {
             {!isOngoing && (
               <View>
                 <ThemedText size="sm" weight="medium" style={{ marginBottom: 8 * fontScale }}>
-                  Relationship End Date
+                  {t('profile.relationshipEndDate')}
                 </ThemedText>
                 <TouchableOpacity
                   onPress={() => setShowEndDatePicker(true)}
@@ -562,7 +562,7 @@ export default function AddExProfileScreen() {
                   <ThemedText size="m">
                     {relationshipEndDate
                       ? relationshipEndDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-                      : 'Select end date'}
+                      : t('profile.relationshipEndDate.select')}
                   </ThemedText>
                   <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
                 </TouchableOpacity>
@@ -606,7 +606,7 @@ export default function AddExProfileScreen() {
                             </ThemedText>
                           </TouchableOpacity>
                           <ThemedText size="l" weight="semibold">
-                            Select End Date
+                            {t('profile.relationshipEndDate.selectTitle')}
                           </ThemedText>
                           <TouchableOpacity
                             onPress={() => {

@@ -99,7 +99,7 @@ export default function TabLayout() {
                   marginTop: 6 * fontScale
                 }}
               >
-                Spheres
+                {t('tab.spheres')}
               </ThemedText>
             );
           },

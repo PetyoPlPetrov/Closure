@@ -185,7 +185,7 @@ export function JobCard({ job, onPress, onMorePress, containerStyle }: JobCardPr
                     return `${startStr} - ${endStr}`;
                   } else if (startDate) {
                     const startStr = startDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-                    return `${startStr} - Ongoing`;
+                    return `${startStr} - ${t('job.ongoing')}`;
                   }
                   return null;
                 })()}
@@ -196,15 +196,15 @@ export function JobCard({ job, onPress, onMorePress, containerStyle }: JobCardPr
         <View style={styles.memoryInfo}>
           <ThemedText size="sm" weight="normal" style={styles.memoryText}>
             {memoryCount === 0 
-              ? 'No memories'
+              ? t('job.noMemories')
               : memoryCount === 1
-              ? '1 memory'
-              : `${memoryCount} memories`
+              ? t('job.oneMemory')
+              : `${memoryCount} ${t('job.memories')}`
             }
           </ThemedText>
           {memoryCount > 0 && (
             <ThemedText size="sm" weight="normal" style={styles.memoryText}>
-              Job satisfaction: {sunnyPercentage}% positive
+              {t('job.satisfaction')}: {sunnyPercentage}% {t('job.satisfaction.positive')}
             </ThemedText>
           )}
         </View>

@@ -44,22 +44,22 @@ export default function SpheresScreen() {
     {
       type: 'relationships',
       icon: 'favorite',
-      label: 'Relationships',
+      label: t('spheres.relationships'),
       entities: getEntitiesBySphere('relationships') as ExProfile[],
     },
     {
       type: 'career',
       icon: 'work',
-      label: 'Career',
+      label: t('spheres.career'),
       entities: getEntitiesBySphere('career') as Job[],
     },
     {
       type: 'family',
       icon: 'family-restroom',
-      label: 'Family',
+      label: t('spheres.family'),
       entities: getEntitiesBySphere('family') as FamilyMember[],
     },
-  ], [getEntitiesBySphere]);
+  ], [getEntitiesBySphere, t]);
 
   const overallPercentage = useMemo(() => getOverallSunnyPercentage(), [getOverallSunnyPercentage]);
 
@@ -331,7 +331,7 @@ export default function SpheresScreen() {
         <View style={styles.header}>
           <View style={styles.headerButton} />
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-            Life Spheres
+            {t('spheres.title')}
           </ThemedText>
           <View style={styles.headerButton} />
         </View>
@@ -395,12 +395,12 @@ export default function SpheresScreen() {
   const jobActionSheetOptions = selectedJob
     ? [
         {
-          label: 'Edit',
+          label: t('job.jobActionSheet.edit'),
           icon: 'edit' as const,
           onPress: handleEditJob,
         },
         {
-          label: 'Delete',
+          label: t('job.jobActionSheet.delete'),
           icon: 'delete' as const,
           onPress: handleJobDeletePress,
           destructive: true,
@@ -420,7 +420,7 @@ export default function SpheresScreen() {
             <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
           </Pressable>
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-            Relationships
+            {t('spheres.relationships')}
           </ThemedText>
           {relationshipsProfiles.length > 0 ? (
             <TouchableOpacity
@@ -525,7 +525,7 @@ export default function SpheresScreen() {
             <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
           </Pressable>
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-            Career
+            {t('spheres.career')}
           </ThemedText>
           {careerJobs.length > 0 ? (
             <TouchableOpacity
@@ -554,10 +554,10 @@ export default function SpheresScreen() {
             </View>
             <View style={styles.textContainer}>
               <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.heading}>
-                No jobs yet
+                {t('job.jobEmptyState.title')}
               </ThemedText>
               <ThemedText size="sm" weight="normal" style={styles.description}>
-                Start tracking your career journey
+                {t('job.jobEmptyState.description')}
               </ThemedText>
             </View>
             <TouchableOpacity
@@ -566,7 +566,7 @@ export default function SpheresScreen() {
               onPress={() => router.push('/add-job')}
             >
               <ThemedText weight="bold" letterSpacing="l" style={styles.buttonText}>
-                Add Job
+                {t('job.jobEmptyState.button')}
               </ThemedText>
             </TouchableOpacity>
           </ScrollView>
@@ -602,8 +602,8 @@ export default function SpheresScreen() {
 
         <ConfirmationModal
           visible={jobDeleteConfirmVisible && !!selectedJob}
-          title="Delete Job"
-          message={selectedJob ? `Are you sure you want to delete "${selectedJob.name}"? This action cannot be undone.` : ''}
+          title={t('job.jobDelete.confirm')}
+          message={selectedJob ? t('job.jobDelete.confirm.message.withName').replace('{name}', selectedJob.name) : ''}
           confirmLabel={t('common.delete')}
           cancelLabel={t('common.cancel')}
           onConfirm={handleJobDeleteConfirm}
@@ -662,12 +662,12 @@ export default function SpheresScreen() {
     const familyMemberActionSheetOptions = selectedFamilyMember
       ? [
           {
-            label: 'Edit',
+            label: t('profile.familyActionSheet.edit'),
             icon: 'edit' as const,
             onPress: handleEditFamilyMember,
           },
           {
-            label: 'Delete',
+            label: t('profile.familyActionSheet.delete'),
             icon: 'delete' as const,
             onPress: handleFamilyMemberDeletePress,
             destructive: true,
@@ -685,7 +685,7 @@ export default function SpheresScreen() {
             <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
           </Pressable>
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-            Family
+            {t('spheres.family')}
           </ThemedText>
           {familyMembersList.length > 0 ? (
             <TouchableOpacity
@@ -714,10 +714,10 @@ export default function SpheresScreen() {
             </View>
             <View style={styles.textContainer}>
               <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.heading}>
-                No family members yet
+                {t('profile.familyEmptyState.title')}
               </ThemedText>
               <ThemedText size="sm" weight="normal" style={styles.description}>
-                Start tracking your family relationships
+                {t('profile.familyEmptyState.description')}
               </ThemedText>
             </View>
             <TouchableOpacity
@@ -726,7 +726,7 @@ export default function SpheresScreen() {
               onPress={() => router.push('/add-family-member')}
             >
               <ThemedText weight="bold" letterSpacing="l" style={styles.buttonText}>
-                Add Family Member
+                {t('profile.familyEmptyState.button')}
               </ThemedText>
             </TouchableOpacity>
           </ScrollView>
@@ -802,8 +802,8 @@ export default function SpheresScreen() {
 
         <ConfirmationModal
           visible={familyMemberDeleteConfirmVisible && !!selectedFamilyMember}
-          title="Delete Family Member"
-          message={selectedFamilyMember ? `Are you sure you want to delete "${selectedFamilyMember.name}"? This action cannot be undone.` : ''}
+          title={t('profile.familyDelete.confirm')}
+          message={selectedFamilyMember ? t('profile.familyDelete.confirm.message.withName').replace('{name}', selectedFamilyMember.name) : ''}
           confirmLabel={t('common.delete')}
           cancelLabel={t('common.cancel')}
           onConfirm={handleFamilyMemberDeleteConfirm}
@@ -823,7 +823,7 @@ export default function SpheresScreen() {
       <View style={styles.header}>
         <View style={styles.headerButton} />
         <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-          Life Spheres
+          {t('spheres.title')}
         </ThemedText>
         <View style={styles.headerButton} />
       </View>
@@ -853,7 +853,7 @@ export default function SpheresScreen() {
                   {sphere.label}
                 </ThemedText>
                 <ThemedText size="xs" style={styles.sphereCount}>
-                  {sphere.entities.length} {sphere.entities.length === 1 ? 'item' : 'items'}
+                  {sphere.entities.length} {sphere.entities.length === 1 ? t('spheres.item') : t('spheres.items')}
                 </ThemedText>
               </TouchableOpacity>
             ))}

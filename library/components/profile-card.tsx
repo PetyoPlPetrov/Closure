@@ -200,7 +200,7 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
                     const startStr = startDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
                     const endStr = endDate 
                       ? endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
-                      : 'Ongoing';
+                      : t('profile.ongoing');
                     return `${startStr} - ${endStr}`;
                   })()
                 ) : (
@@ -213,15 +213,15 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
         <View style={styles.memoryInfo}>
           <ThemedText size="sm" weight="normal" style={styles.memoryText}>
             {memoryCount === 0 
-              ? 'No memories'
+              ? t('profile.noMemories')
               : memoryCount === 1
-              ? '1 memory'
-              : `${memoryCount} memories`
+              ? t('profile.oneMemory')
+              : `${memoryCount} ${t('profile.memories')}`
             }
           </ThemedText>
           {memoryCount > 0 && (
             <ThemedText size="sm" weight="normal" style={styles.memoryText}>
-              Relationship quality: {sunnyPercentage}% positive
+              {t('profile.relationshipQuality')}: {sunnyPercentage}% {t('profile.relationshipQuality.positive')}
             </ThemedText>
           )}
         </View>

@@ -9,6 +9,7 @@ export interface Translations {
   // Tab labels
   'tab.home': string;
   'tab.exProfiles': string;
+  'tab.spheres': string;
   'tab.settings': string;
   'home.emptyState': string;
   
@@ -45,6 +46,7 @@ export interface Translations {
   'common.ok': string;
   'common.success': string;
   'common.error': string;
+  'common.optional': string;
   
   // Profile screens
   'profile.add': string;
@@ -60,10 +62,8 @@ export interface Translations {
   'profile.description.placeholder': string;
   'profile.description.example': string;
   'profile.uploadPicture': string;
-  'profile.tapToAddPhoto': string;
   'profile.changePicture': string;
   'profile.openingGallery': string;
-  'profile.supportedFormats': string;
   'profile.delete': string;
   'profile.delete.confirm': string;
   'profile.delete.confirm.message': string;
@@ -88,6 +88,82 @@ export interface Translations {
   'profile.ongoing.warning': string;
   'profile.date.error.endBeforeStart': string;
   'profile.date.error.startAfterEnd': string;
+  'profile.relationshipStartDate': string;
+  'profile.relationshipStartDate.select': string;
+  'profile.relationshipStartDate.selectTitle': string;
+  'profile.relationshipEndDate': string;
+  'profile.relationshipEndDate.select': string;
+  'profile.relationshipEndDate.selectTitle': string;
+  'profile.relationshipOngoing': string;
+  'profile.familyMemberName': string;
+  'profile.familyMemberName.placeholder': string;
+  'profile.relationshipType': string;
+  'profile.relationshipType.placeholder': string;
+  'profile.addFamilyMember': string;
+  'profile.editFamilyMember': string;
+  'profile.editFamilyInfo': string;
+  'profile.familyEmptyState.title': string;
+  'profile.familyEmptyState.description': string;
+  'profile.familyEmptyState.button': string;
+  'profile.familyDelete.confirm': string;
+  'profile.familyDelete.confirm.message': string;
+  'profile.familyDelete.confirm.message.withName': string;
+  'profile.familyActionSheet.edit': string;
+  'profile.familyActionSheet.delete': string;
+  'job.addJob': string;
+  'job.editJob': string;
+  'job.editJobInfo': string;
+  'job.jobTitle': string;
+  'job.jobTitle.placeholder': string;
+  'job.companyName': string;
+  'job.companyName.placeholder': string;
+  'job.jobDescription': string;
+  'job.jobDescription.placeholder': string;
+  'job.jobEmptyState.title': string;
+  'job.jobEmptyState.description': string;
+  'job.jobEmptyState.button': string;
+  'job.jobDelete.confirm': string;
+  'job.jobDelete.confirm.message': string;
+  'job.jobDelete.confirm.message.withName': string;
+  'job.jobActionSheet.edit': string;
+  'job.jobActionSheet.delete': string;
+  'spheres.title': string;
+  'spheres.relationships': string;
+  'spheres.career': string;
+  'spheres.family': string;
+  'spheres.item': string;
+  'spheres.items': string;
+  'profile.ongoing': string;
+  'profile.noMemories': string;
+  'profile.oneMemory': string;
+  'profile.memories': string;
+  'profile.relationshipQuality': string;
+  'profile.relationshipQuality.positive': string;
+  'job.ongoing': string;
+  'job.noMemories': string;
+  'job.oneMemory': string;
+  'job.memories': string;
+  'job.satisfaction': string;
+  'job.satisfaction.positive': string;
+  'job.addNewJob': string;
+  'job.editJob.title': string;
+  'job.addJob.description': string;
+  'job.editJob.description': string;
+  'job.editJob.manage': string;
+  'job.jobTitleAndCompany': string;
+  'job.jobTitleAndCompany.placeholder': string;
+  'job.description.placeholder': string;
+  'job.startDate': string;
+  'job.startDate.select': string;
+  'job.startDate.selectTitle': string;
+  'job.currentJob': string;
+  'job.endDate': string;
+  'job.endDate.select': string;
+  'job.endDate.selectTitle': string;
+  'job.companyLogo': string;
+  'profile.addFamilyMember.description': string;
+  'profile.editFamilyMember.description': string;
+  'profile.familyMember.name.required': string;
   
   // Memory screens
   'memory.add': string;
@@ -123,6 +199,7 @@ export interface Translations {
   'memory.error.fillAllSunsBeforeAdding': string;
   'memory.actionSheet.edit': string;
   'memory.actionSheet.delete': string;
+  'memory.remindWhy': string;
   
   // Healing path
   'healingPath.title': string;
@@ -156,6 +233,7 @@ const translations: Record<Language, Translations> = {
     // Tab labels
     'tab.home': 'Home',
     'tab.exProfiles': 'Ex Profiles',
+    'tab.spheres': 'Spheres',
     'tab.settings': 'Settings',
     'home.emptyState': 'No profiles yet. Add your first ex-profile to get started.',
     
@@ -192,6 +270,7 @@ const translations: Record<Language, Translations> = {
     'common.ok': 'OK',
     'common.success': 'Success',
     'common.error': 'Error',
+    'common.optional': 'Optional',
     
     // Profile screens
     'profile.add': 'Add Profile',
@@ -207,10 +286,8 @@ const translations: Record<Language, Translations> = {
     'profile.description.placeholder': 'Enter a short description (max 30 characters)',
     'profile.description.example': 'e.g., College sweetheart, first love...',
     'profile.uploadPicture': 'Add a Picture',
-    'profile.tapToAddPhoto': 'Tap to Add Photo',
     'profile.changePicture': 'Change Picture',
     'profile.openingGallery': 'Opening gallery...',
-    'profile.supportedFormats': 'PNG, JPG or GIF',
     'profile.delete': 'Delete',
     'profile.delete.confirm': 'Delete Profile',
     'profile.delete.confirm.message': 'Are you sure you want to delete this profile? This will permanently delete all associated memories, hard truths, and data. This action cannot be undone.',
@@ -235,6 +312,82 @@ const translations: Record<Language, Translations> = {
     'profile.ongoing.warning': 'There is already an ongoing relationship',
     'profile.date.error.endBeforeStart': 'End date cannot be before start date.',
     'profile.date.error.startAfterEnd': 'Start date cannot be after end date.',
+    'profile.relationshipStartDate': 'Relationship Start Date',
+    'profile.relationshipStartDate.select': 'Select start date',
+    'profile.relationshipStartDate.selectTitle': 'Select Start Date',
+    'profile.relationshipEndDate': 'Relationship End Date',
+    'profile.relationshipEndDate.select': 'Select end date',
+    'profile.relationshipEndDate.selectTitle': 'Select End Date',
+    'profile.relationshipOngoing': 'Relationship is ongoing',
+    'profile.familyMemberName': 'Family Member Name',
+    'profile.familyMemberName.placeholder': 'Enter their name',
+    'profile.relationshipType': 'Relationship Type',
+    'profile.relationshipType.placeholder': 'e.g., Mother, Father, Sister...',
+    'profile.addFamilyMember': 'Add Family Member',
+    'profile.editFamilyMember': 'Edit Family Member',
+    'profile.editFamilyInfo': 'Edit Info',
+    'profile.familyEmptyState.title': 'No family members yet',
+    'profile.familyEmptyState.description': 'Start tracking your family relationships',
+    'profile.familyEmptyState.button': 'Add Family Member',
+    'profile.familyDelete.confirm': 'Delete Family Member',
+    'profile.familyDelete.confirm.message': 'Are you sure you want to delete this family member? This will permanently delete all associated memories and data. This action cannot be undone.',
+    'profile.familyDelete.confirm.message.withName': 'Are you sure you want to delete "{name}"? This will permanently delete all associated memories and data. This action cannot be undone.',
+    'profile.familyActionSheet.edit': 'Edit',
+    'profile.familyActionSheet.delete': 'Delete',
+    'job.addJob': 'Add Job',
+    'job.editJob': 'Edit Job',
+    'job.editJobInfo': 'Edit Info',
+    'job.jobTitle': 'Job Title',
+    'job.jobTitle.placeholder': 'Enter job title',
+    'job.companyName': 'Company Name',
+    'job.companyName.placeholder': 'Enter company name',
+    'job.jobDescription': 'Job Description',
+    'job.jobDescription.placeholder': 'Enter a short description',
+    'job.jobEmptyState.title': 'No jobs yet',
+    'job.jobEmptyState.description': 'Start tracking your career journey',
+    'job.jobEmptyState.button': 'Add Job',
+    'job.jobDelete.confirm': 'Delete Job',
+    'job.jobDelete.confirm.message': 'Are you sure you want to delete this job? This will permanently delete all associated memories and data. This action cannot be undone.',
+    'job.jobDelete.confirm.message.withName': 'Are you sure you want to delete "{name}"? This will permanently delete all associated memories and data. This action cannot be undone.',
+    'job.jobActionSheet.edit': 'Edit',
+    'job.jobActionSheet.delete': 'Delete',
+    'spheres.title': 'Life Spheres',
+    'spheres.relationships': 'Relationships',
+    'spheres.career': 'Career',
+    'spheres.family': 'Family',
+    'spheres.item': 'item',
+    'spheres.items': 'items',
+    'profile.ongoing': 'Ongoing',
+    'profile.noMemories': 'No memories',
+    'profile.oneMemory': '1 memory',
+    'profile.memories': 'memories',
+    'profile.relationshipQuality': 'Relationship quality',
+    'profile.relationshipQuality.positive': 'positive',
+    'job.ongoing': 'Ongoing',
+    'job.noMemories': 'No memories',
+    'job.oneMemory': '1 memory',
+    'job.memories': 'memories',
+    'job.satisfaction': 'Job satisfaction',
+    'job.satisfaction.positive': 'positive',
+    'job.addNewJob': 'Add New Job',
+    'job.editJob.title': 'Edit Job',
+    'job.addJob.description': 'Track your career journey by adding a job position.',
+    'job.editJob.description': 'Update your job information and track your career journey.',
+    'job.editJob.manage': 'Manage your job information and memories.',
+    'job.jobTitleAndCompany': 'Job Title / Company Name',
+    'job.jobTitleAndCompany.placeholder': 'e.g., Software Engineer at Google',
+    'job.description.placeholder': 'Brief description of the role...',
+    'job.startDate': 'Start Date',
+    'job.startDate.select': 'Select start date',
+    'job.startDate.selectTitle': 'Select Start Date',
+    'job.currentJob': 'Current job',
+    'job.endDate': 'End Date',
+    'job.endDate.select': 'Select end date',
+    'job.endDate.selectTitle': 'Select End Date',
+    'job.companyLogo': 'Company Logo / Image (Optional)',
+    'profile.addFamilyMember.description': 'Add a new family member to track your memories',
+    'profile.editFamilyMember.description': 'Update family member information',
+    'profile.familyMember.name.required': 'Name is required',
     
     // Memory screens
     'memory.add': 'Add Memory',
@@ -270,6 +423,7 @@ const translations: Record<Language, Translations> = {
     'memory.error.fillAllSunsBeforeAdding': 'Please fill all existing suns with text before adding a new one.',
     'memory.actionSheet.edit': 'Edit',
     'memory.actionSheet.delete': 'Delete',
+    'memory.remindWhy': 'RemindWhy',
     
     // Healing path
     'healingPath.title': 'Your Path to Healing',
@@ -301,6 +455,7 @@ const translations: Record<Language, Translations> = {
     // Tab labels
     'tab.home': 'Начало',
     'tab.exProfiles': 'Партньори',
+    'tab.spheres': 'Сфери',
     'tab.settings': 'Настройки',
     'home.emptyState': 'Няма профили все още. Добавете първи партньор, за да започнете.',
     
@@ -337,6 +492,7 @@ const translations: Record<Language, Translations> = {
     'common.ok': 'ОК',
     'common.success': 'Успех',
     'common.error': 'Грешка',
+    'common.optional': 'Незадължително',
     
     // Profile screens
     'profile.add': 'Добави Партньор',
@@ -352,10 +508,8 @@ const translations: Record<Language, Translations> = {
     'profile.description.placeholder': 'Въведете кратко описание (макс. 30 символа)',
     'profile.description.example': 'напр. Студентска любов, първа любов...',
     'profile.uploadPicture': 'Добави Снимка',
-    'profile.tapToAddPhoto': 'Докоснете, за да добавите снимка',
     'profile.changePicture': 'Промени Снимка',
     'profile.openingGallery': 'Отваряне на галерия...',
-    'profile.supportedFormats': 'PNG, JPG или GIF',
     'profile.delete': 'Изтрий',
     'profile.delete.confirm': 'Изтрий Профил',
     'profile.delete.confirm.message': 'Сигурни ли сте, че искате да изтриете този профил? Това ще изтрие постоянно всички свързани спомени, сурови истини и данни. Това действие не може да бъде отменено.',
@@ -380,6 +534,82 @@ const translations: Record<Language, Translations> = {
     'profile.ongoing.warning': 'Вече има текуща връзка',
     'profile.date.error.endBeforeStart': 'Датата на приключване не може да бъде преди датата на започване.',
     'profile.date.error.startAfterEnd': 'Датата на започване не може да бъде след датата на приключване.',
+    'profile.relationshipStartDate': 'Начална Дата на Връзката',
+    'profile.relationshipStartDate.select': 'Изберете начална дата',
+    'profile.relationshipStartDate.selectTitle': 'Изберете Начална Дата',
+    'profile.relationshipEndDate': 'Крайна Дата на Връзката',
+    'profile.relationshipEndDate.select': 'Изберете крайна дата',
+    'profile.relationshipEndDate.selectTitle': 'Изберете Крайна Дата',
+    'profile.relationshipOngoing': 'Връзката е текуща',
+    'profile.familyMemberName': 'Име на Член на Семейството',
+    'profile.familyMemberName.placeholder': 'Въведете името им',
+    'profile.relationshipType': 'Тип Връзка',
+    'profile.relationshipType.placeholder': 'напр. Майка, Баща, Сестра...',
+    'profile.addFamilyMember': 'Добави Член на Семейството',
+    'profile.editFamilyMember': 'Редактирай Член на Семейството',
+    'profile.editFamilyInfo': 'Редактирай Информация',
+    'profile.familyEmptyState.title': 'Все още няма членове на семейството',
+    'profile.familyEmptyState.description': 'Започнете да проследявате семейните си връзки',
+    'profile.familyEmptyState.button': 'Добави Член на Семейството',
+    'profile.familyDelete.confirm': 'Изтрий Член на Семейството',
+    'profile.familyDelete.confirm.message': 'Сигурни ли сте, че искате да изтриете този член на семейството? Това ще изтрие постоянно всички свързани спомени и данни. Това действие не може да бъде отменено.',
+    'profile.familyDelete.confirm.message.withName': 'Сигурни ли сте, че искате да изтриете "{name}"? Това ще изтрие постоянно всички свързани спомени и данни. Това действие не може да бъде отменено.',
+    'profile.familyActionSheet.edit': 'Редактирай',
+    'profile.familyActionSheet.delete': 'Изтрий',
+    'job.addJob': 'Добави Работно Място',
+    'job.editJob': 'Редактирай Работно Място',
+    'job.editJobInfo': 'Редактирай Информация',
+    'job.jobTitle': 'Длъжност',
+    'job.jobTitle.placeholder': 'Въведете длъжност',
+    'job.companyName': 'Име на Фирма',
+    'job.companyName.placeholder': 'Въведете име на фирма',
+    'job.jobDescription': 'Описание на Работата',
+    'job.jobDescription.placeholder': 'Въведете кратко описание',
+    'job.jobEmptyState.title': 'Все още няма работни места',
+    'job.jobEmptyState.description': 'Започнете да проследявате кариерното си пътешествие',
+    'job.jobEmptyState.button': 'Добави Работно Място',
+    'job.jobDelete.confirm': 'Изтрий Работно Място',
+    'job.jobDelete.confirm.message': 'Сигурни ли сте, че искате да изтриете това работно място? Това ще изтрие постоянно всички свързани спомени и данни. Това действие не може да бъде отменено.',
+    'job.jobDelete.confirm.message.withName': 'Сигурни ли сте, че искате да изтриете "{name}"? Това ще изтрие постоянно всички свързани спомени и данни. Това действие не може да бъде отменено.',
+    'job.jobActionSheet.edit': 'Редактирай',
+    'job.jobActionSheet.delete': 'Изтрий',
+    'spheres.title': 'Сфери',
+    'spheres.relationships': 'Връзки',
+    'spheres.career': 'Кариера',
+    'spheres.family': 'Семейство',
+    'spheres.item': 'елемент',
+    'spheres.items': 'елемента',
+    'profile.ongoing': 'Текуща',
+    'profile.noMemories': 'Няма спомени',
+    'profile.oneMemory': '1 спомен',
+    'profile.memories': 'спомени',
+    'profile.relationshipQuality': 'Качество на връзката',
+    'profile.relationshipQuality.positive': 'позитивно',
+    'job.ongoing': 'Текуща',
+    'job.noMemories': 'Няма спомени',
+    'job.oneMemory': '1 спомен',
+    'job.memories': 'спомени',
+    'job.satisfaction': 'Удовлетворение от работата',
+    'job.satisfaction.positive': 'позитивно',
+    'job.addNewJob': 'Добави Ново Работно Място',
+    'job.editJob.title': 'Редактирай Работно Място',
+    'job.addJob.description': 'Проследявайте кариерното си пътешествие, като добавите работна позиция.',
+    'job.editJob.description': 'Актуализирайте информацията за работата си и проследявайте кариерното си пътешествие.',
+    'job.editJob.manage': 'Управлявайте информацията за работата си и спомените.',
+    'job.jobTitleAndCompany': 'Длъжност / Име на Фирма',
+    'job.jobTitleAndCompany.placeholder': 'напр. Софтуерен инженер в Google',
+    'job.description.placeholder': 'Кратко описание на ролята...',
+    'job.startDate': 'Начална Дата',
+    'job.startDate.select': 'Изберете начална дата',
+    'job.startDate.selectTitle': 'Изберете Начална Дата',
+    'job.currentJob': 'Текуща работа',
+    'job.endDate': 'Крайна Дата',
+    'job.endDate.select': 'Изберете крайна дата',
+    'job.endDate.selectTitle': 'Изберете Крайна Дата',
+    'job.companyLogo': 'Лого на Фирма / Изображение (Незадължително)',
+    'profile.addFamilyMember.description': 'Добавете нов член на семейството, за да проследявате спомените си',
+    'profile.editFamilyMember.description': 'Актуализирайте информацията за член на семейството',
+    'profile.familyMember.name.required': 'Името е задължително',
     
     // Memory screens
     'memory.add': 'Добави Спомен',
@@ -415,6 +645,7 @@ const translations: Record<Language, Translations> = {
     'memory.error.fillAllSunsBeforeAdding': 'Моля, попълнете всички съществуващи слънца с текст, преди да добавите ново.',
     'memory.actionSheet.edit': 'Редактирай',
     'memory.actionSheet.delete': 'Изтрий',
+    'memory.remindWhy': 'RemindWhy',
     
     // Healing path
     'healingPath.title': 'Вашият Път към Изцеление',

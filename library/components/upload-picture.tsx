@@ -16,7 +16,6 @@ type UploadPictureProps = {
   hasImage?: boolean;
   imageUri?: string | null;
   isLoading?: boolean;
-  supportedFormats?: string;
   showShadow?: boolean;
   avatarMode?: boolean; // If true, makes it circular like an avatar
 };
@@ -29,7 +28,6 @@ export function UploadPicture({
   hasImage = false,
   imageUri,
   isLoading = false,
-  supportedFormats,
   showShadow = true,
   avatarMode = false,
 }: UploadPictureProps) {
@@ -37,7 +35,6 @@ export function UploadPicture({
   const fontScale = useFontScale();
   const colors = Colors[colorScheme ?? 'dark'];
   const t = useTranslate();
-  const defaultSupportedFormats = supportedFormats || t('profile.supportedFormats');
 
   const styles = useMemo(
     () =>
@@ -79,10 +76,6 @@ export function UploadPicture({
         },
         uploadText: {
           marginTop: 4 * fontScale,
-        },
-        supportedFormats: {
-          marginTop: 2 * fontScale,
-          textAlign: 'center',
         },
         deleteButton: {
           position: 'absolute',
@@ -230,29 +223,6 @@ export function UploadPicture({
                   </View>
                 )}
               </View>
-              <ThemedText 
-                size="sm" 
-                weight="medium" 
-                style={[
-                  styles.uploadText,
-                  {
-                    color: colorScheme === 'dark' ? '#ffffff' : '#000000',
-                  }
-                ]}
-              >
-                {hasImage ? t('profile.changePicture') : t('profile.tapToAddPhoto')}
-              </ThemedText>
-              <ThemedText 
-                size="xs" 
-                style={[
-                  styles.supportedFormats,
-                  {
-                    color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
-                  }
-                ]}
-              >
-                {defaultSupportedFormats}
-              </ThemedText>
             </>
           )}
         </TouchableOpacity>

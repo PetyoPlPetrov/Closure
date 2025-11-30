@@ -16,11 +16,11 @@ import {
   ActivityIndicator,
   Dimensions,
   PanResponder,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Animated, {
   useAnimatedReaction,
@@ -1357,9 +1357,7 @@ export default function AddIdealizedMemoryScreen() {
                 size={50}
                 color={colors.primaryLight}
               />
-              <ThemedText style={{ marginTop: 6, opacity: 0.75 }}>
-                {t('profile.tapToAddPhoto')}
-              </ThemedText>
+             
                 </>
               )}
             </TouchableOpacity>

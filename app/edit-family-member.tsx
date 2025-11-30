@@ -134,10 +134,10 @@ export default function EditFamilyMemberScreen() {
         {/* Title and Description */}
         <View>
         <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.title}>
-          Edit Family Member
+          {t('profile.editFamilyMember')}
         </ThemedText>
         <ThemedText size="sm" weight="normal" style={styles.description}>
-          Choose what you'd like to edit for this family member.
+          {t('profile.editFamilyMember.description')}
         </ThemedText>
         </View>
 
@@ -161,7 +161,7 @@ export default function EditFamilyMemberScreen() {
           >
             <MaterialIcons name="person" size={24 * fontScale} color={colors.primary} />
             <ThemedText weight="bold" letterSpacing="l" style={{ color: colors.text, flex: 1 }}>
-              Edit Info
+              {t('profile.editFamilyInfo')}
             </ThemedText>
             <MaterialIcons 
               name="chevron-right" 
@@ -192,7 +192,7 @@ export default function EditFamilyMemberScreen() {
               color={colors.primary} 
             />
             <ThemedText weight="bold" letterSpacing="l" style={{ color: colors.text, flex: 1 }}>
-              Edit Memories
+              {t('profile.editMemories')}
             </ThemedText>
             <MaterialIcons 
               name="chevron-right" 

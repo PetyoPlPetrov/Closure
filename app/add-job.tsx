@@ -248,7 +248,7 @@ export default function AddJobScreen() {
         <View style={styles.headerTitle}>
           <MaterialIcons name="work" size={20 * fontScale} color={colors.primary} />
           <ThemedText size="l" weight="bold" letterSpacing="s">
-            {isEditMode ? 'Edit Job' : 'Add Job'}
+            {isEditMode ? t('job.editJob.title') : t('job.addJob')}
           </ThemedText>
         </View>
         <View style={styles.headerButton} />
@@ -260,26 +260,26 @@ export default function AddJobScreen() {
       >
         <View>
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.title}>
-            {isEditMode ? 'Edit Job' : 'Add New Job'}
+            {isEditMode ? t('job.editJob.title') : t('job.addNewJob')}
           </ThemedText>
           <ThemedText size="sm" weight="normal" style={styles.description}>
             {isEditMode
-              ? 'Update your job information and track your career journey.'
-              : 'Track your career journey by adding a job position.'}
+              ? t('job.editJob.description')
+              : t('job.addJob.description')}
           </ThemedText>
         </View>
 
         <View style={styles.form}>
           <Input
-            label="Job Title / Company Name"
-            placeholder="e.g., Software Engineer at Google"
+            label={t('job.jobTitleAndCompany')}
+            placeholder={t('job.jobTitleAndCompany.placeholder')}
             value={name}
             onChangeText={setName}
           />
 
           <TextArea
-            label="Description (Optional)"
-            placeholder="Brief description of the role..."
+            label={`${t('job.jobDescription')} (${t('common.optional')})`}
+            placeholder={t('job.description.placeholder')}
             value={description}
             onChangeText={(text) => {
               if (text.length <= 30) {
@@ -294,7 +294,7 @@ export default function AddJobScreen() {
           <View style={{ gap: 16 * fontScale }}>
             <View>
               <ThemedText size="sm" weight="medium" style={{ marginBottom: 8 * fontScale }}>
-                Start Date
+                {t('job.startDate')}
               </ThemedText>
               <TouchableOpacity
                 onPress={() => setShowStartDatePicker(true)}
@@ -317,7 +317,7 @@ export default function AddJobScreen() {
                 <ThemedText size="m">
                   {startDate
                     ? startDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-                    : 'Select start date'}
+                    : t('job.startDate.select')}
                 </ThemedText>
                 <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
               </TouchableOpacity>
@@ -361,7 +361,7 @@ export default function AddJobScreen() {
                           </ThemedText>
                         </TouchableOpacity>
                         <ThemedText size="l" weight="semibold">
-                          Select Start Date
+                          {t('job.startDate.selectTitle')}
                         </ThemedText>
                         <TouchableOpacity
                           onPress={() => {
@@ -454,7 +454,7 @@ export default function AddJobScreen() {
                   size="m" 
                   onPress={() => setIsCurrent(!isCurrent)}
                 >
-                  Current job
+                  {t('job.currentJob')}
                 </ThemedText>
               </View>
             </View>
@@ -462,7 +462,7 @@ export default function AddJobScreen() {
             {!isCurrent && (
               <View>
                 <ThemedText size="sm" weight="medium" style={{ marginBottom: 8 * fontScale }}>
-                  End Date
+                  {t('job.endDate')}
                 </ThemedText>
                 <TouchableOpacity
                   onPress={() => setShowEndDatePicker(true)}
@@ -485,7 +485,7 @@ export default function AddJobScreen() {
                   <ThemedText size="m">
                     {endDate
                       ? endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-                      : 'Select end date'}
+                      : t('job.endDate.select')}
                   </ThemedText>
                   <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
                 </TouchableOpacity>
@@ -529,7 +529,7 @@ export default function AddJobScreen() {
                             </ThemedText>
                           </TouchableOpacity>
                           <ThemedText size="l" weight="semibold">
-                            Select End Date
+                            {t('job.endDate.selectTitle')}
                           </ThemedText>
                           <TouchableOpacity
                             onPress={() => {
@@ -604,7 +604,7 @@ export default function AddJobScreen() {
           </View>
 
           <UploadPicture 
-            label="Company Logo / Image (Optional)"
+            label={t('job.companyLogo')}
             onPress={handleUploadPicture}
             onDelete={handleDeleteImage}
             imageUri={selectedImage}
@@ -625,7 +625,7 @@ export default function AddJobScreen() {
           disabled={!isSaveEnabled}
         >
           <ThemedText weight="bold" letterSpacing="l" style={{ color: '#ffffff' }}>
-            {isEditMode ? 'Save' : 'Add Job'}
+            {isEditMode ? t('common.save') : t('job.addJob')}
           </ThemedText>
         </TouchableOpacity>
       </ScrollView>

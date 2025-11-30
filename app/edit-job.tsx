@@ -134,10 +134,10 @@ export default function EditJobScreen() {
         {/* Title and Description */}
         <View>
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.title}>
-            Edit Job
+            {t('job.editJob.title')}
           </ThemedText>
           <ThemedText size="sm" weight="normal" style={styles.description}>
-            Manage your job information and memories.
+            {t('job.editJob.manage')}
           </ThemedText>
         </View>
 
@@ -161,7 +161,7 @@ export default function EditJobScreen() {
           >
             <MaterialIcons name="work" size={24 * fontScale} color={colors.primary} />
             <ThemedText weight="bold" letterSpacing="l" style={{ color: colors.text, flex: 1 }}>
-              Edit Job Info
+              {t('job.editJobInfo')}
             </ThemedText>
             <MaterialIcons 
               name="chevron-right" 
@@ -192,7 +192,7 @@ export default function EditJobScreen() {
               color={colors.primary} 
             />
             <ThemedText weight="bold" letterSpacing="l" style={{ color: colors.text, flex: 1 }}>
-              Edit Memories
+              {t('profile.editMemories')}
             </ThemedText>
             <MaterialIcons 
               name="chevron-right" 
