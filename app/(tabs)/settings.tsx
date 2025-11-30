@@ -573,13 +573,16 @@ export default function SettingsScreen() {
       }
 
       Alert.alert(
-        'Success', 
-        `Created ${createdProfiles} profiles and ${createdJobs} jobs with ${createdMemories} total memories!\n\nAll data has been saved to local storage. Navigate to the Spheres tab to see your data.`,
-        [{ text: 'OK' }]
+        t('common.success'), 
+        t('settings.devTools.generateData.success')
+          .replace('{profiles}', createdProfiles.toString())
+          .replace('{jobs}', createdJobs.toString())
+          .replace('{memories}', createdMemories.toString()),
+        [{ text: t('common.ok') }]
       );
     } catch (error) {
       console.error('Error generating fake data:', error);
-      Alert.alert('Error', 'Failed to generate fake data. Please try again.');
+      Alert.alert(t('common.error'), t('settings.devTools.generateData.error'));
     } finally {
       setIsGeneratingFakeData(false);
     }
@@ -588,15 +591,15 @@ export default function SettingsScreen() {
   const clearAllMockData = async () => {
     // Show confirmation dialog
     Alert.alert(
-      'Clear All App Data',
-      'Are you sure you want to delete ALL data from this app? This will remove:\n\n• All profiles/partners\n• All jobs\n• All memories\n• All family members\n• All avatar positions\n\nThis action cannot be undone.\n\nYour theme and language settings will be preserved.',
+      t('settings.devTools.clearData.title'),
+      t('settings.devTools.clearData.message'),
       [
         {
-          text: 'Cancel',
+          text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Delete All Data',
+          text: t('settings.devTools.clearData.deleteButton'),
           style: 'destructive',
           onPress: async () => {
             if (isDeletingData) return;
@@ -626,13 +629,13 @@ export default function SettingsScreen() {
               
               // Show success message
               Alert.alert(
-                'Success',
-                'All app data has been deleted from local storage.\n\nThe app will now show 0% and no profiles/jobs/memories.\n\nPlease navigate away and back to the Spheres/Home tab to see the changes reflected in the UI.',
-                [{ text: 'OK' }]
+                t('common.success'),
+                t('settings.devTools.clearData.success'),
+                [{ text: t('common.ok') }]
               );
             } catch (error) {
               console.error('[Settings] Error clearing app data:', error);
-              Alert.alert('Error', 'Failed to clear app data. Please try again.');
+              Alert.alert(t('common.error'), t('settings.devTools.clearData.error'));
             } finally {
               setIsDeletingData(false);
             }

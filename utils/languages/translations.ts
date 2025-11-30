@@ -23,6 +23,13 @@ export interface Translations {
   'settings.theme.light': string;
   'settings.theme.dark': string;
   'settings.theme.system': string;
+  'settings.devTools.generateData.success': string;
+  'settings.devTools.generateData.error': string;
+  'settings.devTools.clearData.title': string;
+  'settings.devTools.clearData.message': string;
+  'settings.devTools.clearData.deleteButton': string;
+  'settings.devTools.clearData.success': string;
+  'settings.devTools.clearData.error': string;
   
   // Common
   'common.back': string;
@@ -35,6 +42,9 @@ export interface Translations {
   'common.confirm': string;
   'common.yes': string;
   'common.no': string;
+  'common.ok': string;
+  'common.success': string;
+  'common.error': string;
   
   // Profile screens
   'profile.add': string;
@@ -76,6 +86,8 @@ export interface Translations {
   'profile.ongoing.error.title': string;
   'profile.ongoing.error.message': string;
   'profile.ongoing.warning': string;
+  'profile.date.error.endBeforeStart': string;
+  'profile.date.error.startAfterEnd': string;
   
   // Memory screens
   'memory.add': string;
@@ -106,6 +118,9 @@ export interface Translations {
   'memory.error.titleRequired': string;
   'memory.error.saveFailed': string;
   'memory.error.deleteFailed': string;
+  'memory.error.atLeastOneMomentRequired': string;
+  'memory.error.fillAllCloudsBeforeAdding': string;
+  'memory.error.fillAllSunsBeforeAdding': string;
   'memory.actionSheet.edit': string;
   'memory.actionSheet.delete': string;
   
@@ -131,6 +146,9 @@ export interface Translations {
   'error.saveFailed': string;
   'error.deleteFailed': string;
   'error.loadFailed': string;
+  'error.missingParameters': string;
+  'error.cameraPermissionRequired': string;
+  'error.imagePickFailed': string;
 }
 
 const translations: Record<Language, Translations> = {
@@ -152,6 +170,13 @@ const translations: Record<Language, Translations> = {
     'settings.theme.light': 'Light',
     'settings.theme.dark': 'Dark',
     'settings.theme.system': 'System',
+    'settings.devTools.generateData.success': 'Created {profiles} profiles and {jobs} jobs with {memories} total memories!\n\nAll data has been saved to local storage. Navigate to the Spheres tab to see your data.',
+    'settings.devTools.generateData.error': 'Failed to generate fake data. Please try again.',
+    'settings.devTools.clearData.title': 'Clear All App Data',
+    'settings.devTools.clearData.message': 'Are you sure you want to delete ALL data from this app? This will remove:\n\n• All profiles/partners\n• All jobs\n• All memories\n• All family members\n• All avatar positions\n\nThis action cannot be undone.\n\nYour theme and language settings will be preserved.',
+    'settings.devTools.clearData.deleteButton': 'Delete All Data',
+    'settings.devTools.clearData.success': 'All app data has been deleted from local storage.\n\nThe app will now show 0% and no profiles/jobs/memories.\n\nPlease navigate away and back to the Spheres/Home tab to see the changes reflected in the UI.',
+    'settings.devTools.clearData.error': 'Failed to clear app data. Please try again.',
     
     // Common
     'common.back': 'Back',
@@ -164,6 +189,9 @@ const translations: Record<Language, Translations> = {
     'common.confirm': 'Confirm',
     'common.yes': 'Yes',
     'common.no': 'No',
+    'common.ok': 'OK',
+    'common.success': 'Success',
+    'common.error': 'Error',
     
     // Profile screens
     'profile.add': 'Add Profile',
@@ -205,6 +233,8 @@ const translations: Record<Language, Translations> = {
     'profile.ongoing.error.title': 'Cannot Set as Ongoing',
     'profile.ongoing.error.message': 'There is already an ongoing relationship. Please end the current relationship before starting a new one.',
     'profile.ongoing.warning': 'There is already an ongoing relationship',
+    'profile.date.error.endBeforeStart': 'End date cannot be before start date.',
+    'profile.date.error.startAfterEnd': 'Start date cannot be after end date.',
     
     // Memory screens
     'memory.add': 'Add Memory',
@@ -235,6 +265,9 @@ const translations: Record<Language, Translations> = {
     'memory.error.titleRequired': 'Please enter a memory title.',
     'memory.error.saveFailed': 'Failed to save memory. Please try again.',
     'memory.error.deleteFailed': 'Failed to delete memory. Please try again.',
+    'memory.error.atLeastOneMomentRequired': 'Please add at least one moment (cloud or sun) to the memory.',
+    'memory.error.fillAllCloudsBeforeAdding': 'Please fill all existing clouds with text before adding a new one.',
+    'memory.error.fillAllSunsBeforeAdding': 'Please fill all existing suns with text before adding a new one.',
     'memory.actionSheet.edit': 'Edit',
     'memory.actionSheet.delete': 'Delete',
     
@@ -260,6 +293,9 @@ const translations: Record<Language, Translations> = {
     'error.saveFailed': 'Failed to save. Please try again.',
     'error.deleteFailed': 'Failed to delete. Please try again.',
     'error.loadFailed': 'Failed to load. Please try again.',
+    'error.missingParameters': 'Missing required parameters. Please go back and try again.',
+    'error.cameraPermissionRequired': 'Sorry, we need camera roll permissions to upload photos!',
+    'error.imagePickFailed': 'Failed to pick image. Please try again.',
   },
   bg: {
     // Tab labels
@@ -279,6 +315,13 @@ const translations: Record<Language, Translations> = {
     'settings.theme.light': 'Светла',
     'settings.theme.dark': 'Тъмна',
     'settings.theme.system': 'Системна',
+    'settings.devTools.generateData.success': 'Създадени {profiles} профили и {jobs} работни места с общо {memories} спомени!\n\nВсички данни са запазени в локалното хранилище. Навигирайте до раздела Сфери, за да видите вашите данни.',
+    'settings.devTools.generateData.error': 'Неуспешно генериране на фалшиви данни. Моля, опитайте отново.',
+    'settings.devTools.clearData.title': 'Изтриване на всички данни на приложението',
+    'settings.devTools.clearData.message': 'Сигурни ли сте, че искате да изтриете ВСИЧКИ данни от това приложение? Това ще премахне:\n\n• Всички профили/партньори\n• Всички работни места\n• Всички спомени\n• Всички членове на семейството\n• Всички позиции на аватари\n\nТова действие не може да бъде отменено.\n\nВашите настройки за тема и език ще бъдат запазени.',
+    'settings.devTools.clearData.deleteButton': 'Изтрий Всички Данни',
+    'settings.devTools.clearData.success': 'Всички данни на приложението са изтрити от локалното хранилище.\n\nПриложението сега ще показва 0% и няма профили/работни места/спомени.\n\nМоля, навигирайте навън и обратно до раздела Сфери/Начало, за да видите промените, отразени в потребителския интерфейс.',
+    'settings.devTools.clearData.error': 'Неуспешно изтриване на данните на приложението. Моля, опитайте отново.',
     
     // Common
     'common.back': 'Назад',
@@ -291,6 +334,9 @@ const translations: Record<Language, Translations> = {
     'common.confirm': 'Потвърди',
     'common.yes': 'Да',
     'common.no': 'Не',
+    'common.ok': 'ОК',
+    'common.success': 'Успех',
+    'common.error': 'Грешка',
     
     // Profile screens
     'profile.add': 'Добави Партньор',
@@ -332,6 +378,8 @@ const translations: Record<Language, Translations> = {
     'profile.ongoing.error.title': 'Не може да се зададе като текуща',
     'profile.ongoing.error.message': 'Вече има текуща връзка. Моля, приключете текущата връзка, преди да започнете нова.',
     'profile.ongoing.warning': 'Вече има текуща връзка',
+    'profile.date.error.endBeforeStart': 'Датата на приключване не може да бъде преди датата на започване.',
+    'profile.date.error.startAfterEnd': 'Датата на започване не може да бъде след датата на приключване.',
     
     // Memory screens
     'memory.add': 'Добави Спомен',
@@ -362,6 +410,9 @@ const translations: Record<Language, Translations> = {
     'memory.error.titleRequired': 'Моля, въведете заглавие на спомена.',
     'memory.error.saveFailed': 'Неуспешно запазване на спомена. Моля, опитайте отново.',
     'memory.error.deleteFailed': 'Неуспешно изтриване на спомена. Моля, опитайте отново.',
+    'memory.error.atLeastOneMomentRequired': 'Моля, добавете поне един момент (облак или слънце) към спомена.',
+    'memory.error.fillAllCloudsBeforeAdding': 'Моля, попълнете всички съществуващи облаци с текст, преди да добавите нов.',
+    'memory.error.fillAllSunsBeforeAdding': 'Моля, попълнете всички съществуващи слънца с текст, преди да добавите ново.',
     'memory.actionSheet.edit': 'Редактирай',
     'memory.actionSheet.delete': 'Изтрий',
     
@@ -387,6 +438,9 @@ const translations: Record<Language, Translations> = {
     'error.saveFailed': 'Неуспешно запазване. Моля, опитайте отново.',
     'error.deleteFailed': 'Неуспешно изтриване. Моля, опитайте отново.',
     'error.loadFailed': 'Неуспешно зареждане. Моля, опитайте отново.',
+    'error.missingParameters': 'Липсват задължителни параметри. Моля, върнете се назад и опитайте отново.',
+    'error.cameraPermissionRequired': 'Съжаляваме, нуждаем се от разрешение за достъп до галерията, за да качваме снимки!',
+    'error.imagePickFailed': 'Неуспешно избиране на изображение. Моля, опитайте отново.',
   },
 };
 

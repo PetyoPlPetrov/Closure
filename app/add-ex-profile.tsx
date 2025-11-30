@@ -14,7 +14,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function AddExProfileScreen() {
@@ -187,7 +187,7 @@ export default function AddExProfileScreen() {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         setIsLoadingImage(false);
-        alert('Sorry, we need camera roll permissions to upload photos!');
+        alert(t('error.cameraPermissionRequired'));
         return;
       }
 
@@ -206,7 +206,7 @@ export default function AddExProfileScreen() {
     } catch (error) {
       console.error('Error picking image:', error);
       setIsLoadingImage(false);
-      alert('Failed to pick image. Please try again.');
+      alert(t('error.imagePickFailed'));
     }
   };
 
@@ -222,7 +222,7 @@ export default function AddExProfileScreen() {
       Alert.alert(
         t('profile.ongoing.error.title'),
         t('profile.ongoing.error.message'),
-        [{ text: t('common.ok') || 'OK' }]
+        [{ text: t('common.ok') }]
       );
       return;
     }
@@ -357,22 +357,111 @@ export default function AddExProfileScreen() {
                 </ThemedText>
                 <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
               </TouchableOpacity>
-              {showStartDatePicker && (
+              {Platform.OS === 'ios' ? (
+                <Modal
+                  visible={showStartDatePicker}
+                  transparent={true}
+                  animationType="slide"
+                  onRequestClose={() => setShowStartDatePicker(false)}
+                >
+                  <View
+                    style={{
+                      flex: 1,
+                      justifyContent: 'flex-end',
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    }}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: colorScheme === 'dark' ? '#1E3A52' : '#FFFFFF',
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        paddingTop: 20,
+                        paddingBottom: 40,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          paddingHorizontal: 20,
+                          paddingBottom: 10,
+                          borderBottomWidth: 1,
+                          borderBottomColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                        }}
+                      >
+                        <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
+                          <ThemedText size="m" style={{ color: colors.primary }}>
+                            {t('common.cancel')}
+                          </ThemedText>
+                        </TouchableOpacity>
+                        <ThemedText size="l" weight="semibold">
+                          Select Start Date
+                        </ThemedText>
+                        <TouchableOpacity
+                          onPress={() => {
+                            // Validate: start date cannot be after end date
+                            const currentStartDate = relationshipStartDate || new Date();
+                            if (relationshipEndDate && currentStartDate > relationshipEndDate) {
+                              Alert.alert(
+                                t('common.error'),
+                                t('profile.date.error.startAfterEnd'),
+                                [{ text: t('common.ok') }]
+                              );
+                              return;
+                            }
+                            setShowStartDatePicker(false);
+                          }}
+                        >
+                          <ThemedText size="m" style={{ color: colors.primary, fontWeight: '600' }}>
+                            {t('common.ok')}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      </View>
+                      <DateTimePicker
+                        value={relationshipStartDate || new Date()}
+                        mode="date"
+                        display="spinner"
+                        onChange={(event, selectedDate) => {
+                          if (selectedDate) {
+                            setRelationshipStartDate(selectedDate);
+                            // If end date exists and is before new start date, clear it
+                            if (relationshipEndDate && selectedDate > relationshipEndDate) {
+                              setRelationshipEndDate(null);
+                            }
+                          }
+                        }}
+                        maximumDate={relationshipEndDate || undefined}
+                        style={{ height: 200 }}
+                      />
+                    </View>
+                  </View>
+                </Modal>
+              ) : (
+                showStartDatePicker && (
                 <DateTimePicker
                   value={relationshipStartDate || new Date()}
                   mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    display="default"
                   onChange={(event, selectedDate) => {
-                    if (Platform.OS === 'android') {
                       setShowStartDatePicker(false);
-                    }
-                    if (event.type === 'set' && selectedDate) {
+                      if (event.type === 'set' && selectedDate) {
+                        // Validate: start date cannot be after end date
+                        if (relationshipEndDate && selectedDate > relationshipEndDate) {
+                          Alert.alert(
+                            t('common.error'),
+                            t('profile.date.error.startAfterEnd'),
+                            [{ text: t('common.ok') }]
+                          );
+                          setRelationshipEndDate(null); // Clear invalid end date
+                          return;
+                        }
                       setRelationshipStartDate(selectedDate);
-                    } else if (event.type === 'dismissed') {
-                      setShowStartDatePicker(false);
                     }
                   }}
                 />
+                )
               )}
             </View>
 
@@ -464,22 +553,115 @@ export default function AddExProfileScreen() {
                   </ThemedText>
                   <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
                 </TouchableOpacity>
-                {showEndDatePicker && (
+                {Platform.OS === 'ios' ? (
+                  <Modal
+                    visible={showEndDatePicker}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => setShowEndDatePicker(false)}
+                  >
+                    <View
+                      style={{
+                        flex: 1,
+                        justifyContent: 'flex-end',
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      }}
+                    >
+                      <View
+                        style={{
+                          backgroundColor: colorScheme === 'dark' ? '#1E3A52' : '#FFFFFF',
+                          borderTopLeftRadius: 20,
+                          borderTopRightRadius: 20,
+                          paddingTop: 20,
+                          paddingBottom: 40,
+                        }}
+                      >
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            paddingHorizontal: 20,
+                            paddingBottom: 10,
+                            borderBottomWidth: 1,
+                            borderBottomColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                          }}
+                        >
+                          <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                            <ThemedText size="m" style={{ color: colors.primary }}>
+                              {t('common.cancel')}
+                            </ThemedText>
+                          </TouchableOpacity>
+                          <ThemedText size="l" weight="semibold">
+                            Select End Date
+                          </ThemedText>
+                          <TouchableOpacity
+                            onPress={() => {
+                              // Validate: end date cannot be before start date
+                              const currentEndDate = relationshipEndDate || new Date();
+                              if (relationshipStartDate && currentEndDate < relationshipStartDate) {
+                                Alert.alert(
+                                  t('common.error'),
+                                  t('profile.date.error.endBeforeStart'),
+                                  [{ text: t('common.ok') }]
+                                );
+                                return;
+                              }
+                              setShowEndDatePicker(false);
+                            }}
+                          >
+                            <ThemedText size="m" style={{ color: colors.primary, fontWeight: '600' }}>
+                              {t('common.ok')}
+                            </ThemedText>
+                          </TouchableOpacity>
+                        </View>
+                        <DateTimePicker
+                          value={relationshipEndDate || new Date()}
+                          mode="date"
+                          display="spinner"
+                          onChange={(event, selectedDate) => {
+                            if (selectedDate) {
+                              // Validate: end date cannot be before start date
+                              if (relationshipStartDate && selectedDate < relationshipStartDate) {
+                                Alert.alert(
+                                  t('common.error'),
+                                  t('profile.date.error.endBeforeStart'),
+                                  [{ text: t('common.ok') }]
+                                );
+                                return;
+                              }
+                              setRelationshipEndDate(selectedDate);
+                            }
+                          }}
+                          minimumDate={relationshipStartDate || undefined}
+                          style={{ height: 200 }}
+                        />
+                      </View>
+                    </View>
+                  </Modal>
+                ) : (
+                  showEndDatePicker && (
                   <DateTimePicker
                     value={relationshipEndDate || new Date()}
                     mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    display="default"
                     onChange={(event, selectedDate) => {
-                      if (Platform.OS === 'android') {
                         setShowEndDatePicker(false);
-                      }
                       if (event.type === 'set' && selectedDate) {
+                        // Validate: end date cannot be before start date
+                        if (relationshipStartDate && selectedDate < relationshipStartDate) {
+                          Alert.alert(
+                            t('common.error'),
+                            t('profile.date.error.endBeforeStart'),
+                            [{ text: t('common.ok') }]
+                          );
+                          return;
+                        }
                         setRelationshipEndDate(selectedDate);
-                      } else if (event.type === 'dismissed') {
-                        setShowEndDatePicker(false);
                       }
                     }}
                   />
+                  )
                 )}
               </View>
             )}

@@ -442,7 +442,7 @@ export default function AddIdealizedMemoryScreen() {
     const hasNewMode = !!(entityId && sphere);
     
     if (!hasOldMode && !hasNewMode) {
-      alert('Missing required parameters. Please go back and try again.');
+      alert(t('error.missingParameters'));
       router.back();
     }
   }, [entityId, profileId, sphere]);
@@ -639,7 +639,7 @@ export default function AddIdealizedMemoryScreen() {
       console.log('Permission status:', status); // Debug log
       if (status !== 'granted') {
         setIsLoadingImage(false);
-        alert('Sorry, we need camera roll permissions to upload photos!');
+        alert(t('error.cameraPermissionRequired'));
         return;
       }
 
@@ -659,7 +659,7 @@ export default function AddIdealizedMemoryScreen() {
     } catch (error) {
       console.error('Error picking image:', error);
       setIsLoadingImage(false);
-      alert('Failed to pick image. Please try again.');
+      alert(t('error.imagePickFailed'));
     }
   };
 
@@ -670,7 +670,7 @@ export default function AddIdealizedMemoryScreen() {
     const hasNewMode = !!(entityId && sphere);
     
     if (!hasOldMode && !hasNewMode) {
-      alert('Missing required parameters. Please go back and try again.');
+      alert(t('error.missingParameters'));
       return;
     }
 
@@ -701,7 +701,7 @@ export default function AddIdealizedMemoryScreen() {
     // Require at least one moment (cloud or sun) total
     const totalMoments = clouds.length + suns.length;
     if (totalMoments === 0) {
-      alert('Please add at least one moment (cloud or sun) to the memory.');
+      alert(t('memory.error.atLeastOneMomentRequired'));
       return;
     }
 
@@ -772,7 +772,7 @@ export default function AddIdealizedMemoryScreen() {
     const allCloudsHaveText = clouds.length === 0 || clouds.every((cloud) => cloud.text.trim().length > 0);
     
     if (!allCloudsHaveText) {
-      alert('Please fill all existing clouds with text before adding a new one.');
+      alert(t('memory.error.fillAllCloudsBeforeAdding'));
       return;
     }
     
@@ -816,7 +816,7 @@ export default function AddIdealizedMemoryScreen() {
     const allSunsHaveText = suns.length === 0 || suns.every((sun) => sun.text.trim().length > 0);
     
     if (!allSunsHaveText) {
-      alert('Please fill all existing suns with text before adding a new one.');
+      alert(t('memory.error.fillAllSunsBeforeAdding'));
       return;
     }
     

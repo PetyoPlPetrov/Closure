@@ -13,7 +13,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function AddJobScreen() {
@@ -171,7 +171,7 @@ export default function AddJobScreen() {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         setIsLoadingImage(false);
-        alert('Sorry, we need camera roll permissions to upload photos!');
+        alert(t('error.cameraPermissionRequired'));
         return;
       }
 
@@ -189,7 +189,7 @@ export default function AddJobScreen() {
     } catch (error) {
       console.error('Error picking image:', error);
       setIsLoadingImage(false);
-      alert('Failed to pick image. Please try again.');
+      alert(t('error.imagePickFailed'));
     }
   };
 
@@ -317,22 +317,111 @@ export default function AddJobScreen() {
                 </ThemedText>
                 <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
               </TouchableOpacity>
-              {showStartDatePicker && (
-                <DateTimePicker
-                  value={startDate || new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(event, selectedDate) => {
-                    if (Platform.OS === 'android') {
+              {Platform.OS === 'ios' ? (
+                <Modal
+                  visible={showStartDatePicker}
+                  transparent={true}
+                  animationType="slide"
+                  onRequestClose={() => setShowStartDatePicker(false)}
+                >
+                  <View
+                    style={{
+                      flex: 1,
+                      justifyContent: 'flex-end',
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    }}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: colorScheme === 'dark' ? '#1E3A52' : '#FFFFFF',
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        paddingTop: 20,
+                        paddingBottom: 40,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          paddingHorizontal: 20,
+                          paddingBottom: 10,
+                          borderBottomWidth: 1,
+                          borderBottomColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                        }}
+                      >
+                        <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
+                          <ThemedText size="m" style={{ color: colors.primary }}>
+                            {t('common.cancel')}
+                          </ThemedText>
+                        </TouchableOpacity>
+                        <ThemedText size="l" weight="semibold">
+                          Select Start Date
+                        </ThemedText>
+                        <TouchableOpacity
+                          onPress={() => {
+                            // Validate: start date cannot be after end date
+                            const currentStartDate = startDate || new Date();
+                            if (endDate && currentStartDate > endDate) {
+                              Alert.alert(
+                                t('common.error'),
+                                t('profile.date.error.startAfterEnd'),
+                                [{ text: t('common.ok') }]
+                              );
+                              return;
+                            }
+                            setShowStartDatePicker(false);
+                          }}
+                        >
+                          <ThemedText size="m" style={{ color: colors.primary, fontWeight: '600' }}>
+                            {t('common.ok')}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      </View>
+                      <DateTimePicker
+                        value={startDate || new Date()}
+                        mode="date"
+                        display="spinner"
+                        onChange={(event, selectedDate) => {
+                          if (selectedDate) {
+                            setStartDate(selectedDate);
+                            // If end date exists and is before new start date, clear it
+                            if (endDate && selectedDate > endDate) {
+                              setEndDate(null);
+                            }
+                          }
+                        }}
+                        maximumDate={endDate || undefined}
+                        style={{ height: 200 }}
+                      />
+                    </View>
+                  </View>
+                </Modal>
+              ) : (
+                showStartDatePicker && (
+                  <DateTimePicker
+                    value={startDate || new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={(event, selectedDate) => {
                       setShowStartDatePicker(false);
-                    }
-                    if (event.type === 'set' && selectedDate) {
-                      setStartDate(selectedDate);
-                    } else if (event.type === 'dismissed') {
-                      setShowStartDatePicker(false);
-                    }
-                  }}
-                />
+                      if (event.type === 'set' && selectedDate) {
+                        // Validate: start date cannot be after end date
+                        if (endDate && selectedDate > endDate) {
+                          Alert.alert(
+                            t('common.error'),
+                            t('profile.date.error.startAfterEnd'),
+                            [{ text: t('common.ok') }]
+                          );
+                          setEndDate(null); // Clear invalid end date
+                          return;
+                        }
+                        setStartDate(selectedDate);
+                      }
+                    }}
+                  />
+                )
               )}
             </View>
 
@@ -396,22 +485,115 @@ export default function AddJobScreen() {
                   </ThemedText>
                   <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
                 </TouchableOpacity>
-                {showEndDatePicker && (
-                  <DateTimePicker
-                    value={endDate || new Date()}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={(event, selectedDate) => {
-                      if (Platform.OS === 'android') {
+                {Platform.OS === 'ios' ? (
+                  <Modal
+                    visible={showEndDatePicker}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => setShowEndDatePicker(false)}
+                  >
+                    <View
+                      style={{
+                        flex: 1,
+                        justifyContent: 'flex-end',
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      }}
+                    >
+                      <View
+                        style={{
+                          backgroundColor: colorScheme === 'dark' ? '#1E3A52' : '#FFFFFF',
+                          borderTopLeftRadius: 20,
+                          borderTopRightRadius: 20,
+                          paddingTop: 20,
+                          paddingBottom: 40,
+                        }}
+                      >
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            paddingHorizontal: 20,
+                            paddingBottom: 10,
+                            borderBottomWidth: 1,
+                            borderBottomColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                          }}
+                        >
+                          <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                            <ThemedText size="m" style={{ color: colors.primary }}>
+                              {t('common.cancel')}
+                            </ThemedText>
+                          </TouchableOpacity>
+                          <ThemedText size="l" weight="semibold">
+                            Select End Date
+                          </ThemedText>
+                          <TouchableOpacity
+                            onPress={() => {
+                              // Validate: end date cannot be before start date
+                              const currentEndDate = endDate || new Date();
+                              if (startDate && currentEndDate < startDate) {
+                                Alert.alert(
+                                  t('common.error'),
+                                  t('profile.date.error.endBeforeStart'),
+                                  [{ text: t('common.ok') }]
+                                );
+                                return;
+                              }
+                              setShowEndDatePicker(false);
+                            }}
+                          >
+                            <ThemedText size="m" style={{ color: colors.primary, fontWeight: '600' }}>
+                              {t('common.ok')}
+                            </ThemedText>
+                          </TouchableOpacity>
+                        </View>
+                        <DateTimePicker
+                          value={endDate || new Date()}
+                          mode="date"
+                          display="spinner"
+                          onChange={(event, selectedDate) => {
+                            if (selectedDate) {
+                              // Validate: end date cannot be before start date
+                              if (startDate && selectedDate < startDate) {
+                                Alert.alert(
+                                  t('common.error'),
+                                  t('profile.date.error.endBeforeStart'),
+                                  [{ text: t('common.ok') }]
+                                );
+                                return;
+                              }
+                              setEndDate(selectedDate);
+                            }
+                          }}
+                          minimumDate={startDate || undefined}
+                          style={{ height: 200 }}
+                        />
+                      </View>
+                    </View>
+                  </Modal>
+                ) : (
+                  showEndDatePicker && (
+                    <DateTimePicker
+                      value={endDate || new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={(event, selectedDate) => {
                         setShowEndDatePicker(false);
-                      }
-                      if (event.type === 'set' && selectedDate) {
-                        setEndDate(selectedDate);
-                      } else if (event.type === 'dismissed') {
-                        setShowEndDatePicker(false);
-                      }
-                    }}
-                  />
+                        if (event.type === 'set' && selectedDate) {
+                          // Validate: end date cannot be before start date
+                          if (startDate && selectedDate < startDate) {
+                            Alert.alert(
+                              t('common.error'),
+                              t('profile.date.error.endBeforeStart'),
+                              [{ text: t('common.ok') }]
+                            );
+                            return;
+                          }
+                          setEndDate(selectedDate);
+                        }
+                      }}
+                    />
+                  )
                 )}
               </View>
             )}
