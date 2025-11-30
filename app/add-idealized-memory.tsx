@@ -674,8 +674,14 @@ export default function AddIdealizedMemoryScreen() {
       return;
     }
 
-    const allCloudsHaveText = clouds.length > 0 && clouds.every((cloud) => cloud.text.trim().length > 0);
-    const allSunsHaveText = suns.length === 0 || suns.every((sun) => sun.text.trim().length > 0);
+    // Check title is required
+    if (memoryLabel.trim().length === 0) {
+      alert(t('memory.error.titleRequired'));
+      return;
+    }
+
+    // Check that all created clouds have text (if any exist)
+    const allCloudsHaveText = clouds.length === 0 || clouds.every((cloud) => cloud.text.trim().length > 0);
     
     if (!allCloudsHaveText) {
       // Show alert to fill all clouds
@@ -683,14 +689,19 @@ export default function AddIdealizedMemoryScreen() {
       return;
     }
 
+    // Check that all created suns have text (if any exist)
+    const allSunsHaveText = suns.length === 0 || suns.every((sun) => sun.text.trim().length > 0);
+    
     if (!allSunsHaveText) {
       // Show alert to fill all suns
       alert(t('memory.fillAllSuns'));
       return;
     }
 
-    if (memoryLabel.trim().length === 0) {
-      alert(t('memory.error.titleRequired'));
+    // Require at least one moment (cloud or sun) total
+    const totalMoments = clouds.length + suns.length;
+    if (totalMoments === 0) {
+      alert('Please add at least one moment (cloud or sun) to the memory.');
       return;
     }
 
@@ -1596,7 +1607,9 @@ export default function AddIdealizedMemoryScreen() {
             onPress={handleCheckButtonPress}
             icon="check"
             containerStyle={
-              !(clouds.length > 0 && clouds.every((cloud) => cloud.text.trim().length > 0) &&
+              !(memoryLabel.trim().length > 0 &&
+                (clouds.length + suns.length) > 0 &&
+                (clouds.length === 0 || clouds.every((cloud) => cloud.text.trim().length > 0)) &&
                 (suns.length === 0 || suns.every((sun) => sun.text.trim().length > 0))) || isSaving
                 ? styles.floatingButtonDisabled
                 : undefined

@@ -22,7 +22,7 @@ import Animated, {
   withRepeat,
   withSequence,
   withSpring,
-  withTiming,
+  withTiming
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -1407,7 +1407,7 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
   const buttonSize = isLargeDevice ? 96 : 88;
   const labelWidth = 100;
   const totalWidth = buttonSize + buttonSpacing + labelWidth + buttonSpacing + buttonSize;
-  const containerTop = memoryBottom + 80; // 80px spacing below memory (increased from 40px)
+  const containerTop = memoryBottom + 140; // 140px spacing below memory (moved lower)
   const colors = Colors[colorScheme ?? 'dark'];
   
   return (
@@ -1777,9 +1777,10 @@ const FloatingMemory = React.memo(function FloatingMemory({
       const memoryCenterX = SCREEN_WIDTH / 2;
       const memoryCenterY = SCREEN_HEIGHT / 2 - 120; // Moved higher to match memory position
       const padding = 20; // Padding from edges
+      const headerSafeZone = 120; // Safe zone from top to avoid header and back button
       const minX = padding + momentWidth / 2;
       const maxX = SCREEN_WIDTH - padding - momentWidth / 2;
-      const minY = padding + momentHeight / 2;
+      const minY = headerSafeZone + momentHeight / 2; // Ensure moments don't overlap header
       const maxY = SCREEN_HEIGHT - padding - momentHeight / 2;
       const availableWidth = maxX - minX;
       
@@ -1791,7 +1792,6 @@ const FloatingMemory = React.memo(function FloatingMemory({
         const memoryBottom = memoryCenterY + (memorySize / 2);
         const memoryTop = memoryCenterY - (memorySize / 2);
         const cloudSpacing = 60; // Distance from memory edge
-        const cloudYAbove = memoryTop - cloudSpacing - momentHeight / 2;
         const cloudYBelow = memoryBottom + cloudSpacing + momentHeight / 2;
         
         // Split clouds between above and below
@@ -1802,11 +1802,13 @@ const FloatingMemory = React.memo(function FloatingMemory({
         let targetY: number;
         
         if (index < cloudsAbove) {
-          // Place above memory
+          // Place above memory, but ensure it's below header safe zone
           const aboveIndex = index;
           const spacing = availableWidth / Math.max(1, cloudsAbove - 1);
           targetX = minX + (aboveIndex * spacing);
-          targetY = cloudYAbove;
+          // Use a safe zone above memory, clamped to not go into header
+          const safeAboveZone = memoryTop - 40; // Safe distance above memory
+          targetY = Math.max(minY, safeAboveZone);
         } else {
           // Place below memory
           const belowIndex = index - cloudsAbove;
@@ -1816,15 +1818,18 @@ const FloatingMemory = React.memo(function FloatingMemory({
         }
         
         momentX = savedX !== undefined ? Math.max(minX, Math.min(maxX, savedX)) : targetX;
-        momentY = savedY !== undefined ? Math.max(cloudYAbove, Math.min(cloudYBelow, savedY)) : targetY;
+        // Clamp Y to ensure it doesn't go into header area or below screen
+        momentY = savedY !== undefined 
+          ? Math.max(minY, Math.min(maxY, savedY))
+          : Math.max(minY, Math.min(maxY, targetY));
       } else {
         // Sun positioning: 70% below memory, 30% above
         const memoryBottom = memoryCenterY + (memorySize / 2);
         const memoryTop = memoryCenterY - (memorySize / 2);
         const belowMemoryStart = memoryBottom + 40;
         const belowMemoryEnd = maxY;
-        const aboveMemoryStart = minY;
-        const aboveMemoryEnd = memoryTop - 40;
+        const aboveMemoryStart = minY; // Already respects header safe zone
+        const aboveMemoryEnd = Math.max(minY, memoryTop - 40); // Ensure it doesn't go into header area
         
         const sunsBelow = Math.floor(totalCount * 0.7);
         const sunsAbove = totalCount - sunsBelow;
@@ -2224,15 +2229,48 @@ const FloatingMemory = React.memo(function FloatingMemory({
                   <Stop offset="100%" stopColor="#FFD700" stopOpacity="1" />
                 </SvgLinearGradient>
               </Defs>
-              {/* Background circle (cloudy/dark) */}
+              {/* Background circle (cloudy/dark) - color based on sunny percentage */}
+              {(() => {
+                // Calculate dark color based on sunny percentage
+                // The background circle represents the "cloudy" portion of the border
+                // When sunnyPercentage = 0 (all clouds): fully black rgba(0,0,0,1)
+                // When sunnyPercentage = 100 (all suns): very light gray (barely visible)
+                // When sunnyPercentage > 0: can't be fully black because there ARE suns present
+                
+                // Calculate the cloudy percentage
+                const cloudyPercentage = 100 - sunnyPercentage;
+                
+                let darkOpacity: number;
+                let darkColorValue: number;
+                
+                if (sunnyPercentage === 0) {
+                  // All clouds - fully black
+                  darkOpacity = 1;
+                  darkColorValue = 0;
+                } else if (sunnyPercentage === 100) {
+                  // All suns - very light gray (for border definition)
+                  darkOpacity = 0.2;
+                  darkColorValue = 200;
+                } else {
+                  // Mixed: interpolate between black and gray
+                  // More cloudy = darker, more black
+                  darkOpacity = 0.4 + (cloudyPercentage / 100) * 0.6; // Range: 0.4 to 1.0
+                  darkColorValue = (cloudyPercentage / 100) * 50; // Range: 0 (black) to 50 (dark gray)
+                }
+                
+                const darkColor = `rgba(${darkColorValue}, ${darkColorValue}, ${darkColorValue}, ${darkOpacity})`;
+                
+                return (
               <Circle
                 cx={memorySize / 2}
                 cy={memorySize / 2}
                 r={memorySize / 2 - 4}
-                stroke="#000000"
+                    stroke={darkColor}
                 strokeWidth={8}
                 fill="none"
               />
+                );
+              })()}
               {/* Progress circle (sunny/yellow) */}
               {(() => {
                 const borderRadius = memorySize / 2 - 4;
@@ -2274,8 +2312,24 @@ const FloatingMemory = React.memo(function FloatingMemory({
                       sunnyPercentage >= 50
                         ? // Sunny gradient (bright/yellow) for positive memories
                           ['rgba(255, 215, 0, 0.4)', 'rgba(255, 215, 0, 0.5)', 'rgba(255, 215, 0, 0.4)']
-                        : // Dark gradient for negative memories
-                          ['rgba(0, 0, 0, 0.5)', 'rgba(30, 30, 30, 0.6)', 'rgba(0, 0, 0, 0.5)']
+                        : // Dark gradient for negative memories - intensity based on cloudy percentage
+                          (() => {
+                            const cloudyPercentage = 100 - sunnyPercentage;
+                            // Calculate overlay opacity based on cloudy percentage
+                            // When 0% sunny (100% cloudy): dark overlay (opacity 0.65) - dark but still see some image
+                            // When 25% sunny: medium dark (opacity 0.55)
+                            // When 49% sunny: lighter dark (opacity 0.5)
+                            
+                            // Linear interpolation: darker when more cloudy, lighter when more sunny
+                            // Range: 0.5 (minimum) to 0.65 (maximum) - dark enough to indicate cloudy but not fully black
+                            const baseOpacity = 0.5 + (cloudyPercentage / 100) * 0.15; // Range: 0.5 to 0.65
+                            
+                            return [
+                              `rgba(0, 0, 0, ${baseOpacity})`,
+                              `rgba(0, 0, 0, ${Math.min(0.7, baseOpacity + 0.05)})`,
+                              `rgba(0, 0, 0, ${baseOpacity})`
+                            ];
+                          })()
                     }
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -2807,11 +2861,12 @@ const FloatingEntity = React.memo(function FloatingEntity({
     const currentZoom = zoomProgress.value;
     const shouldHide = shouldHideShared.value;
     
-    // Fade out and scale down when sphere is selected
-    const opacity = shouldHide ? (1 - currentZoom) : 1;
-    const scale = shouldHide ? (1 - currentZoom * 0.8) : 1;
+    // Fade out and scale down completely when sphere is selected
+    // Match the sphere animation timing for synchronized disappearance
+    const opacity = shouldHide ? (1 - currentZoom) : 1; // Fade from 1 to 0
+    const scale = shouldHide ? (1 - currentZoom * 1.0) : 1; // Scale from 1 to 0 (completely shrink)
     
-    // Only show floating animation when not zooming
+    // Only show floating animation when not zooming and sphere is not selected
     const floatY = (!shouldHide && currentZoom === 0) ? floatOffset.value * 8 : 0; // 8px floating range
     
     return {
@@ -2976,15 +3031,25 @@ const SphereAvatar = React.memo(function SphereAvatar({
     career: 1800,
   }), []);
 
-  // Track if this sphere is selected using a shared value (worklet-compatible)
-  const isSelectedShared = useSharedValue(selectedSphere === sphere);
-  const isOtherSelectedShared = useSharedValue(selectedSphere !== null && selectedSphere !== sphere);
+  // Track if this sphere is selected using shared values (worklet-compatible)
+  // Use numeric encoding: 0 = relationships, 1 = career, -1 = null
+  const sphereTypeNum = sphere === 'relationships' ? 0 : sphere === 'career' ? 1 : -1;
+  const selectedSphereNum = selectedSphere === 'relationships' ? 0 : selectedSphere === 'career' ? 1 : -1;
   
-  React.useEffect(() => {
-    // Update shared values when selectedSphere changes
-    isSelectedShared.value = selectedSphere === sphere;
-    isOtherSelectedShared.value = selectedSphere !== null && selectedSphere !== sphere;
-  }, [selectedSphere, sphere, isSelectedShared, isOtherSelectedShared]);
+  const selectedSphereNumShared = useSharedValue(selectedSphereNum);
+  const isSelectedFlag = useSharedValue(selectedSphereNum === sphereTypeNum ? 1 : 0);
+  const isOtherSelectedFlag = useSharedValue(selectedSphereNum !== -1 && selectedSphereNum !== sphereTypeNum ? 1 : 0);
+  
+  // Update shared values immediately when selectedSphere changes using useLayoutEffect
+  React.useLayoutEffect(() => {
+    // Convert selectedSphere to numeric value
+    const newSelectedNum = selectedSphere === 'relationships' ? 0 : selectedSphere === 'career' ? 1 : -1;
+    
+    // Update all shared values immediately and synchronously
+    selectedSphereNumShared.value = newSelectedNum;
+    isSelectedFlag.value = newSelectedNum === sphereTypeNum ? 1 : 0;
+    isOtherSelectedFlag.value = newSelectedNum !== -1 && newSelectedNum !== sphereTypeNum ? 1 : 0;
+  }, [selectedSphere, sphereTypeNum, selectedSphereNumShared, isSelectedFlag, isOtherSelectedFlag]);
 
   React.useEffect(() => {
     // Start floating animation after delay (only when not selected)
@@ -3016,9 +3081,15 @@ const SphereAvatar = React.memo(function SphereAvatar({
 
   const animatedStyle = useAnimatedStyle(() => {
     'worklet';
+    // Read all shared values to ensure reactivity
+    // These must be read at the top level to establish dependencies
     const currentZoom = zoomProgress.value;
-    const isSelected = isSelectedShared.value;
-    const isOtherSelected = isOtherSelectedShared.value;
+    const selectedFlag = isSelectedFlag.value;
+    const otherSelectedFlag = isOtherSelectedFlag.value;
+    
+    // Convert numeric flags to booleans for easier logic
+    const isSelected = selectedFlag === 1;
+    const isOtherSelected = otherSelectedFlag === 1;
     
     // If this sphere is selected, zoom in (scale up)
     // If another sphere is selected, zoom out and fade (scale down, opacity down)
@@ -3028,13 +3099,32 @@ const SphereAvatar = React.memo(function SphereAvatar({
     let opacity = 1;
     
     if (isSelected) {
-      // Selected sphere: zoom in (scale increases)
-      scale = 1 + (currentZoom * 0.5); // Scale from 1 to 1.5
-      opacity = 1;
+      // Selected sphere: zoom in with more pronounced scale
+      // Use easing curve for smooth zoom: scale from 1 to 1.8
+      scale = 1 + (currentZoom * 0.8); // Scale from 1 to 1.8
+      opacity = 1; // Keep fully visible
     } else if (isOtherSelected) {
-      // Other sphere: zoom out and fade
-      scale = 1 - (currentZoom * 0.8); // Scale from 1 to 0.2
-      opacity = 1 - currentZoom; // Fade from 1 to 0
+      // Other sphere: zoom out and fade completely
+      // Use easing curve for smooth disappearance: scale from 1 to 0, opacity from 1 to 0
+      // Ensure values are properly interpolated based on currentZoom
+      const fadeProgress = currentZoom; // 0 to 1
+      scale = 1 - fadeProgress; // Scale from 1 to 0
+      opacity = 1 - fadeProgress; // Fade from 1 to 0
+      
+      // Clamp values to ensure they stay in valid range
+      scale = Math.max(0, Math.min(1, scale));
+      opacity = Math.max(0, Math.min(1, opacity));
+    } else {
+      // No sphere selected: return to normal state
+      // When zooming back out, interpolate smoothly
+      if (currentZoom > 0) {
+        // Coming back from a zoomed state - reverse the animation
+        scale = Math.max(0, 1 - (currentZoom * 1.0));
+        opacity = Math.max(0, 1 - currentZoom);
+      } else {
+        scale = 1;
+        opacity = 1;
+      }
     }
     
     // Add floating animation only when fully unfocused and no sphere is selected
@@ -3152,18 +3242,23 @@ export default function HomeScreen() {
   }, [sphereParam]);
   
   // Animate zoom when selectedSphere changes
-  React.useEffect(() => {
+  // Use useLayoutEffect to ensure animation starts after shared values are updated in child components
+  React.useLayoutEffect(() => {
     if (selectedSphere !== null) {
-      // Zoom in - animate from 0 to 1
-      sphereZoomProgress.value = withSpring(1, {
-        damping: 20,
-        stiffness: 100,
+      // Reset to 0 first to ensure animation starts from the beginning
+      sphereZoomProgress.value = 0;
+      // Then animate to 1 - use a tiny delay to ensure all child component useLayoutEffects have run
+      requestAnimationFrame(() => {
+        sphereZoomProgress.value = withTiming(1, {
+          duration: 800,
+          easing: Easing.bezier(0.4, 0.0, 0.2, 1), // Smooth ease-in-out
+        });
       });
     } else {
-      // Zoom out - animate from 1 to 0
-      sphereZoomProgress.value = withSpring(0, {
-        damping: 20,
-        stiffness: 100,
+      // Zoom out - animate from 1 to 0 with smooth easing
+      sphereZoomProgress.value = withTiming(0, {
+        duration: 600,
+        easing: Easing.bezier(0.4, 0.0, 0.2, 1), // Smooth ease-in-out
       });
     }
     previousSelectedSphereRef.current = selectedSphere;
@@ -3919,6 +4014,21 @@ export default function HomeScreen() {
       }
     });
     
+    // Sort jobs within each section to ensure ongoing items are first
+    grouped.forEach((jobs, sectionKey) => {
+      jobs.sort((a, b) => {
+        // First, ensure ongoing items come first within each section
+        const aIsOngoing = a.job.endDate === null || a.job.endDate === undefined || a.job.endDate === '';
+        const bIsOngoing = b.job.endDate === null || b.job.endDate === undefined || b.job.endDate === '';
+        
+        if (aIsOngoing && !bIsOngoing) return -1; // a is ongoing, b is not - a comes first
+        if (!aIsOngoing && bIsOngoing) return 1;  // b is ongoing, a is not - b comes first
+        
+        // Both are ongoing or both are ended - sort by index (which preserves sortedJobs order)
+        return a.index - b.index;
+      });
+    });
+    
     return grouped;
   }, [sortedJobs, getJobSectionKey, jobYearSections]);
 
@@ -3951,6 +4061,21 @@ export default function HomeScreen() {
       } else {
         console.warn(`[profilesBySection] Profile ${profile.id} (${profile.name}) has no valid section key. Skipping.`);
       }
+    });
+    
+    // Sort profiles within each section to ensure ongoing items are first
+    grouped.forEach((profiles, sectionKey) => {
+      profiles.sort((a, b) => {
+        // First, ensure ongoing items come first within each section
+        const aIsOngoing = a.profile.relationshipEndDate === null || a.profile.relationshipEndDate === undefined;
+        const bIsOngoing = b.profile.relationshipEndDate === null || b.profile.relationshipEndDate === undefined;
+        
+        if (aIsOngoing && !bIsOngoing) return -1; // a is ongoing, b is not - a comes first
+        if (!aIsOngoing && bIsOngoing) return 1;  // b is ongoing, a is not - b comes first
+        
+        // Both are ongoing or both are ended - sort by index (which preserves sortedProfiles order)
+        return a.index - b.index;
+      });
     });
     
     const totalProfilesInSections = Array.from(grouped.values()).flat().length;
@@ -4404,6 +4529,7 @@ export default function HomeScreen() {
                     key={`job-year-section-bg-${key}`}
                     section={section}
                     colorScheme={colorScheme ?? 'dark'}
+                    hideTitle={!!focusedMemory || !!focusedJobId}
                   />
                 ))}
                 
@@ -4415,8 +4541,18 @@ export default function HomeScreen() {
                     return null;
                   }
                   
-                  // Sort jobs within the section by their index in sortedJobs (most recent first)
-                  const sortedJobsInSection = [...jobsData].sort((a, b) => a.index - b.index);
+                  // Sort jobs within the section: ongoing first, then by index (most recent first)
+                  const sortedJobsInSection = [...jobsData].sort((a, b) => {
+                    // First, ensure ongoing items come first
+                    const aIsOngoing = a.job.endDate === null || a.job.endDate === undefined || a.job.endDate === '';
+                    const bIsOngoing = b.job.endDate === null || b.job.endDate === undefined || b.job.endDate === '';
+                    
+                    if (aIsOngoing && !bIsOngoing) return -1; // a is ongoing, b is not - a comes first
+                    if (!aIsOngoing && bIsOngoing) return 1;  // b is ongoing, a is not - b comes first
+                    
+                    // Both are ongoing or both are ended - sort by index (most recent first)
+                    return a.index - b.index;
+                  });
                   
                   return sortedJobsInSection.map(({ job, index: jobIndexInSorted }, jobIndexInSection) => {
                     const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
@@ -4649,6 +4785,7 @@ const YearSectionsRenderer = function YearSectionsRenderer({
           key={`year-section-bg-${key}`}
           section={section}
           colorScheme={colorScheme}
+          hideTitle={!!safeFocusedMemory || !!focusedProfileId}
         />
       ))}
       
@@ -4703,9 +4840,11 @@ const YearSectionsRenderer = function YearSectionsRenderer({
 const YearSectionBackground = React.memo(function YearSectionBackground({
   section,
   colorScheme,
+  hideTitle = false,
 }: {
   section: { year: number | string; top: number; bottom: number; height: number };
   colorScheme: 'light' | 'dark';
+  hideTitle?: boolean;
 }) {
   return (
     <View
@@ -4720,20 +4859,22 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
         pointerEvents: 'none', // Allow touches to pass through
       }}
     >
-      {/* Year label */}
-      <ThemedText
-        size="xl"
-        weight="bold"
-        style={{
-          position: 'absolute',
-          left: 16,
-          top: 8,
-          opacity: 0.6,
-          color: colorScheme === 'dark' ? '#ffffff' : '#000000',
-        }}
-      >
-        {section.year}
-      </ThemedText>
+      {/* Year label - hide when memory or job is focused */}
+      {!hideTitle && (
+        <ThemedText
+          size="xl"
+          weight="bold"
+          style={{
+            position: 'absolute',
+            left: 16,
+            top: 8,
+            opacity: 0.6,
+            color: colorScheme === 'dark' ? '#ffffff' : '#000000',
+          }}
+        >
+          {section.year}
+        </ThemedText>
+      )}
     </View>
   );
 }, (prevProps, nextProps) => {
@@ -4742,7 +4883,8 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
     prevProps.section.top === nextProps.section.top &&
     prevProps.section.bottom === nextProps.section.bottom &&
     prevProps.section.height === nextProps.section.height &&
-    prevProps.colorScheme === nextProps.colorScheme
+    prevProps.colorScheme === nextProps.colorScheme &&
+    prevProps.hideTitle === nextProps.hideTitle
   );
 });
 
