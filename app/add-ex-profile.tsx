@@ -8,7 +8,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
 import { useTranslate } from '@/utils/languages/use-translate';
-import { useJourney } from '@/utils/JourneyProvider';
+import { useJourney, type ExProfile } from '@/utils/JourneyProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -230,14 +230,24 @@ export default function AddExProfileScreen() {
     try {
       if (isEditMode && profileId) {
         // Update existing profile
-        await updateProfile(profileId, {
+        // Explicitly handle imageUri: if selectedImage is null, we need to clear it
+        // Use undefined to clear the field (will be omitted in JSON, but the spread will overwrite)
+        const updateData: Partial<ExProfile> = {
           name: name.trim(),
           description: description.trim() || undefined,
-          ...(selectedImage && { imageUri: selectedImage }),
           relationshipStartDate: relationshipStartDate ? relationshipStartDate.toISOString().split('T')[0] : undefined,
           relationshipEndDate: isOngoing ? null : (relationshipEndDate ? relationshipEndDate.toISOString().split('T')[0] : undefined),
-          // Preserve other fields
-        });
+        };
+        
+        // Always include imageUri in update - if null, set to undefined to clear it
+        if (selectedImage !== null) {
+          updateData.imageUri = selectedImage;
+        } else {
+          // Explicitly set to undefined to clear the image
+          updateData.imageUri = undefined;
+        }
+        
+        await updateProfile(profileId, updateData);
         // Navigate back to spheres screen after edit
         router.replace('/(tabs)/spheres');
       } else {

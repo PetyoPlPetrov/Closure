@@ -2803,7 +2803,7 @@ const FloatingEntity = React.memo(function FloatingEntity({
   colorScheme: 'light' | 'dark';
   colors: any;
   delay?: number;
-  entityType: 'partner' | 'job';
+  entityType: 'partner' | 'job' | 'family';
   memories: any[];
   selectedSphere: LifeSphere | null;
   zoomProgress: ReturnType<typeof useSharedValue<number>>;
@@ -2884,14 +2884,24 @@ const FloatingEntity = React.memo(function FloatingEntity({
   const backgroundColor = React.useMemo(() => {
     if (isMoreSunny) {
       // More sunny - lighter colors
-      return entityType === 'partner'
-        ? (colorScheme === 'dark' ? 'rgba(255, 150, 150, 0.6)' : 'rgba(255, 200, 200, 0.7)')
-        : (colorScheme === 'dark' ? 'rgba(150, 200, 255, 0.6)' : 'rgba(200, 230, 255, 0.7)');
+      if (entityType === 'partner') {
+        return colorScheme === 'dark' ? 'rgba(255, 150, 150, 0.6)' : 'rgba(255, 200, 200, 0.7)';
+      } else if (entityType === 'job') {
+        return colorScheme === 'dark' ? 'rgba(150, 200, 255, 0.6)' : 'rgba(200, 230, 255, 0.7)';
+      } else {
+        // family
+        return colorScheme === 'dark' ? 'rgba(200, 150, 255, 0.6)' : 'rgba(230, 200, 255, 0.7)';
+      }
     } else {
       // More cloudy - darker colors
-      return entityType === 'partner'
-        ? (colorScheme === 'dark' ? 'rgba(180, 60, 60, 0.7)' : 'rgba(200, 100, 100, 0.6)')
-        : (colorScheme === 'dark' ? 'rgba(60, 100, 180, 0.7)' : 'rgba(100, 130, 200, 0.6)');
+      if (entityType === 'partner') {
+        return colorScheme === 'dark' ? 'rgba(180, 60, 60, 0.7)' : 'rgba(200, 100, 100, 0.6)';
+      } else if (entityType === 'job') {
+        return colorScheme === 'dark' ? 'rgba(60, 100, 180, 0.7)' : 'rgba(100, 130, 200, 0.6)';
+      } else {
+        // family
+        return colorScheme === 'dark' ? 'rgba(120, 60, 180, 0.7)' : 'rgba(150, 100, 200, 0.6)';
+      }
     }
   }, [isMoreSunny, entityType, colorScheme]);
   
@@ -2920,7 +2930,7 @@ const FloatingEntity = React.memo(function FloatingEntity({
         animatedStyle,
       ]}
     >
-      {entityType === 'partner' && entity.imageUri ? (
+      {entity.imageUri ? (
         <Image
           source={{ uri: entity.imageUri }}
           style={{
@@ -2946,7 +2956,11 @@ const FloatingEntity = React.memo(function FloatingEntity({
           }}
         >
           <MaterialIcons 
-            name={entityType === 'partner' ? 'person' : 'work'} 
+            name={
+              entityType === 'partner' ? 'person' : 
+              entityType === 'family' ? 'people' : 
+              'work'
+            } 
             size={16} 
             color={isMoreSunny ? (colorScheme === 'dark' ? '#ffffff' : '#333333') : (colorScheme === 'dark' ? '#cccccc' : '#ffffff')} 
           />
@@ -2980,6 +2994,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
   const sphereIcons = {
     relationships: 'favorite',
     career: 'work',
+    family: 'family-restroom',
   };
   
   // Determine sphere background color based on sunny vs cloudy
@@ -3000,7 +3015,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
           ? `rgba(180, 60, 60, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker red
           : `rgba(200, 100, 100, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker red
       }
-    } else {
+    } else if (sphere === 'career') {
       // Career sphere
       if (isMoreSunny) {
         // More sunny - lighter blue
@@ -3014,6 +3029,20 @@ const SphereAvatar = React.memo(function SphereAvatar({
           ? `rgba(60, 100, 180, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker blue
           : `rgba(100, 130, 200, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker blue
       }
+    } else {
+      // Family sphere
+      if (isMoreSunny) {
+        // More sunny - lighter purple/violet
+        return colorScheme === 'dark' 
+          ? `rgba(200, 150, 255, ${0.4 + (sunnyPercentage / 100) * 0.3})` // Lighter purple
+          : `rgba(230, 200, 255, ${0.5 + (sunnyPercentage / 100) * 0.3})`; // Lighter purple
+      } else {
+        // More cloudy - darker purple
+        const cloudyPercentage = 100 - sunnyPercentage;
+        return colorScheme === 'dark'
+          ? `rgba(120, 60, 180, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker purple
+          : `rgba(150, 100, 200, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker purple
+      }
     }
   }, [sunnyPercentage, colorScheme, sphere]);
 
@@ -3024,17 +3053,19 @@ const SphereAvatar = React.memo(function SphereAvatar({
   const animationDelays = useMemo(() => ({
     relationships: 0,
     career: 500,
+    family: 1000,
   }), []);
   
   const animationDurations = useMemo(() => ({
     relationships: 2000,
     career: 1800,
+    family: 1900,
   }), []);
 
   // Track if this sphere is selected using shared values (worklet-compatible)
   // Use numeric encoding: 0 = relationships, 1 = career, -1 = null
-  const sphereTypeNum = sphere === 'relationships' ? 0 : sphere === 'career' ? 1 : -1;
-  const selectedSphereNum = selectedSphere === 'relationships' ? 0 : selectedSphere === 'career' ? 1 : -1;
+  const sphereTypeNum = sphere === 'relationships' ? 0 : sphere === 'career' ? 1 : sphere === 'family' ? 2 : -1;
+  const selectedSphereNum = selectedSphere === 'relationships' ? 0 : selectedSphere === 'career' ? 1 : selectedSphere === 'family' ? 2 : -1;
   
   const selectedSphereNumShared = useSharedValue(selectedSphereNum);
   const isSelectedFlag = useSharedValue(selectedSphereNum === sphereTypeNum ? 1 : 0);
@@ -3043,7 +3074,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
   // Update shared values immediately when selectedSphere changes using useLayoutEffect
   React.useLayoutEffect(() => {
     // Convert selectedSphere to numeric value
-    const newSelectedNum = selectedSphere === 'relationships' ? 0 : selectedSphere === 'career' ? 1 : -1;
+    const newSelectedNum = selectedSphere === 'relationships' ? 0 : selectedSphere === 'career' ? 1 : selectedSphere === 'family' ? 2 : -1;
     
     // Update all shared values immediately and synchronously
     selectedSphereNumShared.value = newSelectedNum;
@@ -3053,7 +3084,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
 
   React.useEffect(() => {
     // Start floating animation after delay (only when not selected)
-    if (sphere === 'family' || selectedSphere !== null) return; // Family sphere is no longer supported
+    if (selectedSphere !== null) return;
     const delay = animationDelays[sphere];
     const duration = animationDurations[sphere];
     
@@ -3157,7 +3188,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
             width: sphereSize,
             height: sphereSize,
             borderRadius: sphereSize / 2,
-            backgroundColor: sphere === 'family' ? colors.background : sphereBackgroundColor,
+            backgroundColor: sphereBackgroundColor,
             justifyContent: 'center',
             alignItems: 'center',
           },
@@ -3165,7 +3196,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
         ]}
       >
         <MaterialIcons
-          name={(sphere === 'family' ? 'help' : sphereIcons[sphere]) as any}
+          name={sphereIcons[sphere] as any}
           size={sphereSize * 0.5}
           color={colors.primaryLight}
         />
@@ -3181,6 +3212,7 @@ export default function HomeScreen() {
   const { 
     profiles, 
     jobs, 
+    familyMembers,
     idealizedMemories,
     getIdealizedMemoriesByProfileId, 
     getIdealizedMemoriesByEntityId,
@@ -3190,6 +3222,7 @@ export default function HomeScreen() {
     reloadIdealizedMemories,
     reloadProfiles,
     reloadJobs,
+    reloadFamilyMembers,
   } = useJourney();
   const t = useTranslate();
   
@@ -3210,6 +3243,7 @@ export default function HomeScreen() {
         reloadIdealizedMemories(),
         reloadProfiles(),
         reloadJobs(),
+        reloadFamilyMembers(),
       ]).catch((error) => {
         console.error('[HomeScreen] Error reloading data:', error);
         hasReloadedRef.current = false; // Reset on error so we can retry
@@ -3219,12 +3253,12 @@ export default function HomeScreen() {
       return () => {
         hasReloadedRef.current = false;
       };
-    }, [reloadIdealizedMemories, reloadProfiles, reloadJobs])
+    }, [reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers])
   );
   
   // Track selected sphere (null = showing all spheres, otherwise showing focused sphere)
   // Initialize from URL params if present
-  const sphereParam = params.sphere && typeof params.sphere === 'string' && ['relationships', 'career'].includes(params.sphere) 
+  const sphereParam = params.sphere && typeof params.sphere === 'string' && ['relationships', 'career', 'family'].includes(params.sphere) 
     ? (params.sphere as LifeSphere)
     : null;
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(sphereParam);
@@ -3275,6 +3309,7 @@ export default function HomeScreen() {
       setFocusedMemory(null);
       setFocusedProfileId(null);
       setFocusedJobId(null);
+      setFocusedFamilyMemberId(null);
       // Reset animations complete to ensure profiles aren't hidden by stale animation state
       setAnimationsComplete(false);
       // Increment render key to force remount of YearSectionsRenderer
@@ -3326,6 +3361,25 @@ export default function HomeScreen() {
     return (totalSuns / total) * 100;
   }, [jobs, getIdealizedMemoriesByEntityId]);
   
+  // Calculate sunny percentage for family sphere (all family members)
+  const familySunnyPercentage = useMemo(() => {
+    let totalClouds = 0;
+    let totalSuns = 0;
+    
+    familyMembers.forEach(member => {
+      const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
+      memories.forEach((memory) => {
+        totalClouds += (memory.hardTruths || []).length;
+        totalSuns += (memory.goodFacts || []).length;
+      });
+    });
+    
+    const total = totalClouds + totalSuns;
+    if (total === 0) return 50; // Default to neutral if no moments
+    
+    return (totalSuns / total) * 100;
+  }, [familyMembers, getIdealizedMemoriesByEntityId]);
+  
   // Calculate sphere positions (triangular layout around center)
   const spherePositions = useMemo(() => {
     const centerX = SCREEN_WIDTH / 2;
@@ -3340,6 +3394,10 @@ export default function HomeScreen() {
       career: {
         x: centerX - radius * Math.cos(Math.PI / 6),
         y: centerY + radius * Math.sin(Math.PI / 6), // Bottom left
+      },
+      family: {
+        x: centerX + radius * Math.cos(Math.PI / 6),
+        y: centerY + radius * Math.sin(Math.PI / 6), // Bottom right
       },
     };
   }, []);
@@ -3593,6 +3651,27 @@ export default function HomeScreen() {
     if (!sectionKey) return undefined;
     return yearSections.get(sectionKey);
   }, [yearSections, getProfileSectionKey]);
+
+  // Calculate sections for family members (single section covering all, no year grouping)
+  const familyYearSections = React.useMemo(() => {
+    const sections = new Map<string, { year: number | string; top: number; bottom: number; height: number }>();
+    const exZoneRadius = 0;
+    const topPadding = exZoneRadius + 20;
+    const bottomPadding = exZoneRadius + 20;
+    const availableHeight = SCREEN_HEIGHT - topPadding - bottomPadding;
+    
+    // Create a single section for all family members
+    if (familyMembers.length > 0) {
+      sections.set('all', {
+        year: 'Family',
+        top: topPadding,
+        bottom: topPadding + availableHeight,
+        height: availableHeight,
+      });
+    }
+    
+    return sections;
+  }, [familyMembers]);
   
   // Check if splash is still visible - delay heavy animations until splash is done
   const { isVisible: isSplashVisible } = useSplash();
@@ -3825,11 +3904,12 @@ export default function HomeScreen() {
   // Focused state management - must be at top level
   const [focusedProfileId, setFocusedProfileId] = useState<string | null>(null);
   const [focusedJobId, setFocusedJobId] = useState<string | null>(null);
-  const [focusedMemory, setFocusedMemory] = useState<{ profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null>(null);
+  const [focusedFamilyMemberId, setFocusedFamilyMemberId] = useState<string | null>(null);
+  const [focusedMemory, setFocusedMemory] = useState<{ profileId?: string; jobId?: string; familyMemberId?: string; memoryId: string; sphere: LifeSphere } | null>(null);
   
   // Helper: Get focusedMemory only if it matches the current selectedSphere
   // This ensures cross-sphere focusedMemory is ignored everywhere
-  const getFocusedMemoryForSphere = useCallback((sphere: LifeSphere | null): { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null => {
+  const getFocusedMemoryForSphere = useCallback((sphere: LifeSphere | null): { profileId?: string; jobId?: string; familyMemberId?: string; memoryId: string; sphere: LifeSphere } | null => {
     if (!focusedMemory || !sphere) return null;
     return focusedMemory.sphere === sphere ? focusedMemory : null;
   }, [focusedMemory]);
@@ -3883,6 +3963,11 @@ export default function HomeScreen() {
         if (!focusedJobId || focusedJobId !== focusedMemory.jobId) {
           setFocusedJobId(focusedMemory.jobId);
         }
+      } else if (focusedMemory.familyMemberId && selectedSphere === 'family') {
+        // Ensure family member is focused when its memory is focused
+        if (!focusedFamilyMemberId || focusedFamilyMemberId !== focusedMemory.familyMemberId) {
+          setFocusedFamilyMemberId(focusedMemory.familyMemberId);
+        }
       }
     } else if (focusedMemory && focusedMemory.sphere !== selectedSphere) {
       // If focusedMemory exists but is from a different sphere, clear it immediately
@@ -3894,10 +3979,13 @@ export default function HomeScreen() {
       if (focusedMemory.jobId) {
         setFocusedJobId(null);
       }
+      if (focusedMemory.familyMemberId) {
+        setFocusedFamilyMemberId(null);
+      }
       // Reset animations to ensure fresh rendering
       setAnimationsComplete(false);
     }
-  }, [focusedMemory, selectedSphere, focusedProfileId, focusedJobId]);
+  }, [focusedMemory, selectedSphere, focusedProfileId, focusedJobId, focusedFamilyMemberId]);
 
   // Create stable callbacks for runOnJS
   const handleSlideOutComplete = useCallback(() => {
@@ -4124,7 +4212,7 @@ export default function HomeScreen() {
   if (!selectedSphere) {
   return (
     <TabScreenContainer>
-        <View style={{ flex: 1, height: SCREEN_HEIGHT, position: 'relative' }}>
+        <View style={{ flex: 1, height: SCREEN_HEIGHT, position: 'relative', justifyContent: 'center', alignItems: 'center' }}>
           {/* Center - Overall Percentage Avatar */}
           <View
             style={{
@@ -4173,10 +4261,29 @@ export default function HomeScreen() {
                   setFocusedMemory(null);
                   setFocusedProfileId(null);
                   setFocusedJobId(null);
+                  setFocusedFamilyMemberId(null);
                   setAnimationsComplete(false); // Reset animations immediately
                   setSelectedSphere('career');
                 }}
                 sunnyPercentage={careerSunnyPercentage}
+                selectedSphere={selectedSphere}
+                zoomProgress={sphereZoomProgress}
+              />
+              <SphereAvatar
+                sphere="family"
+                position={spherePositions.family}
+                colorScheme={colorScheme ?? 'dark'}
+                colors={colors}
+                onPress={() => {
+                  // Clear all focus states when selecting a sphere to ensure fresh start
+                  setFocusedMemory(null);
+                  setFocusedProfileId(null);
+                  setFocusedJobId(null);
+                  setFocusedFamilyMemberId(null);
+                  setAnimationsComplete(false); // Reset animations immediately
+                  setSelectedSphere('family');
+                }}
+                sunnyPercentage={familySunnyPercentage}
                 selectedSphere={selectedSphere}
                 zoomProgress={sphereZoomProgress}
               />
@@ -4226,6 +4333,32 @@ export default function HomeScreen() {
                     colors={colors}
                     delay={index * 200}
                     entityType="job"
+                    memories={memories}
+                    selectedSphere={selectedSphere}
+                    zoomProgress={sphereZoomProgress}
+                  />
+                );
+              })}
+              
+              {/* Floating Family Members around Family Sphere */}
+              {familyMembers.slice(0, Math.min(familyMembers.length, 5)).map((member, index) => {
+                const totalMembers = Math.min(familyMembers.length, 5);
+                const angle = (index * 2 * Math.PI) / totalMembers;
+                const radius = 65; // Closer to sphere (reduced from 100)
+                const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
+                
+                const x = spherePositions.family.x + Math.cos(angle) * radius;
+                const y = spherePositions.family.y + Math.sin(angle) * radius;
+                
+                return (
+                  <FloatingEntity
+                    key={`floating-member-${member.id}`}
+                    entity={member}
+                    position={{ x, y }}
+                    colorScheme={colorScheme ?? 'dark'}
+                    colors={colors}
+                    delay={index * 200}
+                    entityType="family"
                     memories={memories}
                     selectedSphere={selectedSphere}
                     zoomProgress={sphereZoomProgress}
@@ -4633,6 +4766,213 @@ export default function HomeScreen() {
     );
   }
 
+  // For family sphere, show family members in a simple list (no year sections)
+  if (selectedSphere === 'family') {
+    return (
+      <TabScreenContainer>
+        <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
+          {/* Back button to return to sphere view */}
+          <Pressable
+            onPress={() => {
+              if (focusedMemory) {
+                // If memory is focused, unfocus the memory and ensure family member is focused
+                // This returns to the focused family member view with memories floating around
+                setFocusedMemory(null);
+                // Ensure the family member is focused so we return to focused family member view
+                if (!focusedFamilyMemberId || (focusedMemory.familyMemberId && focusedFamilyMemberId !== focusedMemory.familyMemberId)) {
+                  setFocusedFamilyMemberId(focusedMemory.familyMemberId || null);
+                }
+              } else if (focusedFamilyMemberId) {
+                // If only family member is focused, unfocus it (this will bring back other family members)
+                setFocusedFamilyMemberId(null);
+                setFocusedMemory(null); // Clear any stale memory state
+              } else {
+                // No focus, return to sphere selection
+                setFocusedMemory(null); // Clear any stale memory state
+                setFocusedProfileId(null); // Clear any stale profile focus
+                setFocusedJobId(null); // Clear any stale job focus
+                setFocusedFamilyMemberId(null); // Clear any stale family member focus
+                setSelectedSphere(null);
+              }
+            }}
+            style={{
+              position: 'absolute',
+              top: 50,
+              left: 20,
+              zIndex: 1000,
+              width: 50,
+              height: 50,
+              borderRadius: 25,
+              backgroundColor: colors.background,
+              justifyContent: 'center',
+              alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 5,
+            }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+          </Pressable>
+          
+          {/* Memory title header - shown when memory is focused */}
+          {focusedMemory && (() => {
+            const entityId = focusedMemory.profileId || focusedMemory.jobId || focusedMemory.familyMemberId;
+            const sphere = focusedMemory.sphere;
+            if (!entityId) return null;
+            
+            const memories = getIdealizedMemoriesByEntityId(entityId, sphere);
+            
+            const memoryData = memories.find(m => m.id === focusedMemory.memoryId);
+            if (!memoryData) return null;
+            
+            return (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 50,
+                  left: 80,
+                  right: 20,
+                  zIndex: 1000,
+                  paddingHorizontal: 12,
+                  paddingVertical: 12,
+                  backgroundColor: 'transparent',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <ThemedText
+                  size="l"
+                  weight="semibold"
+                  numberOfLines={2}
+                  style={{
+                    color: colors.text,
+                    textAlign: 'center',
+                  }}
+                >
+                  {memoryData.title}
+                </ThemedText>
+              </View>
+            );
+          })()}
+          
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={[
+              styles.content,
+              {
+                minHeight: SCREEN_HEIGHT,
+                height: Math.max(
+                  SCREEN_HEIGHT,
+                  familyMembers.length > 0
+                    ? (familyMembers.length - 1) * ((SCREEN_HEIGHT - (120 + 20) * 2) / Math.max(1, familyMembers.length - 1)) + (120 + 20) * 2
+                    : SCREEN_HEIGHT
+                ),
+                justifyContent: 'flex-start',
+                alignItems: 'flex-start',
+              },
+            ]}
+            showsVerticalScrollIndicator={true}
+            scrollEnabled={!focusedFamilyMemberId && !focusedMemory}
+          >
+            {/* Render family members with year section backgrounds (titles hidden) */}
+            {animationsReady && !focusedMemory && (
+              <>
+                {/* Year section backgrounds - titles are hidden */}
+                {Array.from(familyYearSections.entries()).map(([key, section]) => (
+                  <YearSectionBackground
+                    key={`family-year-section-bg-${key}`}
+                    section={section}
+                    colorScheme={colorScheme ?? 'dark'}
+                    hideTitle={true}
+                  />
+                ))}
+                
+                {/* Show family members distributed within the section */}
+                {familyMembers.map((member, index) => {
+                  const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
+                  
+                  // Get the section for family members
+                  const section = familyYearSections.get('all');
+                  
+                  // Distribute family members vertically within the section
+                  const totalMembers = familyMembers.length;
+                  const sectionCenterY = section ? section.top + section.height / 2 : SCREEN_HEIGHT / 2;
+                  
+                  // Increased spacing between family members for better visual separation
+                  // Minimum spacing of 200px between family members
+                  const minSpacing = 200;
+                  const verticalSpacing = totalMembers > 1 
+                    ? Math.max(minSpacing, Math.min((section?.height || SCREEN_HEIGHT) / (totalMembers + 1), 250))
+                    : 0;
+                  
+                  const position = {
+                    x: SCREEN_WIDTH / 2,
+                    y: totalMembers === 1
+                      ? sectionCenterY
+                      : (section?.top || 150) + verticalSpacing * (index + 1)
+                  };
+                  
+                  const isFocused = focusedFamilyMemberId === member.id;
+                  
+                  // Hide unfocused family members when a family member is focused
+                  if (focusedFamilyMemberId && !isFocused) {
+                    return null;
+                  }
+                  
+                  return (
+                    <FloatingAvatar
+                      key={`family-member-${member.id}`}
+                      profile={member}
+                      position={position}
+                      memories={memories}
+                      onPress={() => {
+                        const newFocusedId = focusedFamilyMemberId === member.id ? null : member.id;
+                        setFocusedFamilyMemberId(newFocusedId);
+                        setFocusedMemory(null);
+                      }}
+                      colors={colors}
+                      colorScheme={colorScheme ?? 'dark'}
+                      isFocused={isFocused}
+                      focusedMemory={(() => {
+                        if (!focusedMemory) return null;
+                        const mem = focusedMemory as { profileId?: string; jobId?: string; familyMemberId?: string; memoryId: string; sphere: LifeSphere };
+                        if (mem.familyMemberId === member.id && mem.sphere === 'family') {
+                          return mem;
+                        }
+                        return null;
+                      })()}
+                      onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'family') => {
+                        setFocusedMemory({ familyMemberId: entityId, memoryId, sphere });
+                      }}
+                      yearSection={section}
+                    />
+                  );
+                })}
+              </>
+            )}
+            
+            {/* Render focused memory separately when memory is focused */}
+            {focusedMemory && animationsReady && (
+              <FocusedMemoryRenderer
+                focusedMemory={focusedMemory}
+                sortedProfiles={sortedProfiles}
+                sortedJobs={sortedJobs}
+                getIdealizedMemoriesByProfileId={getIdealizedMemoriesByProfileId}
+                getIdealizedMemoriesByEntityId={getIdealizedMemoriesByEntityId}
+                updateIdealizedMemory={updateIdealizedMemory}
+                colorScheme={colorScheme ?? 'dark'}
+                memorySlideOffset={memorySlideOffset}
+                setFocusedMemory={setFocusedMemory}
+              />
+            )}
+          </ScrollView>
+        </View>
+      </TabScreenContainer>
+    );
+  }
+
   return (
     <TabScreenContainer>
       <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
@@ -4861,19 +5201,19 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
     >
       {/* Year label - hide when memory or job is focused */}
       {!hideTitle && (
-        <ThemedText
-          size="xl"
-          weight="bold"
-          style={{
-            position: 'absolute',
-            left: 16,
-            top: 8,
-            opacity: 0.6,
-            color: colorScheme === 'dark' ? '#ffffff' : '#000000',
-          }}
-        >
-          {section.year}
-        </ThemedText>
+      <ThemedText
+        size="xl"
+        weight="bold"
+        style={{
+          position: 'absolute',
+          left: 16,
+          top: 8,
+          opacity: 0.6,
+          color: colorScheme === 'dark' ? '#ffffff' : '#000000',
+        }}
+      >
+        {section.year}
+      </ThemedText>
       )}
     </View>
   );
@@ -4900,7 +5240,7 @@ const FocusedMemoryRenderer = React.memo(function FocusedMemoryRenderer({
   memorySlideOffset,
   setFocusedMemory,
 }: {
-  focusedMemory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere };
+  focusedMemory: { profileId?: string; jobId?: string; familyMemberId?: string; memoryId: string; sphere: LifeSphere };
   sortedProfiles: any[];
   sortedJobs?: any[];
   getIdealizedMemoriesByProfileId: (profileId: string) => any[];
@@ -4908,9 +5248,9 @@ const FocusedMemoryRenderer = React.memo(function FocusedMemoryRenderer({
   updateIdealizedMemory: (memoryId: string, updates: Partial<any>) => Promise<void>;
   colorScheme: 'light' | 'dark';
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
-  setFocusedMemory: (memory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null) => void;
+  setFocusedMemory: (memory: { profileId?: string; jobId?: string; familyMemberId?: string; memoryId: string; sphere: LifeSphere } | null) => void;
 }) {
-  const entityId = focusedMemory.profileId || focusedMemory.jobId;
+  const entityId = focusedMemory.profileId || focusedMemory.jobId || focusedMemory.familyMemberId;
   const sphere = focusedMemory.sphere;
   
   if (!entityId) return null;
@@ -4951,7 +5291,9 @@ const FocusedMemoryRenderer = React.memo(function FocusedMemoryRenderer({
   );
 }, (prevProps, nextProps) => {
   return (
-    prevProps.focusedMemory.profileId === nextProps.focusedMemory.profileId &&
+    (prevProps.focusedMemory.profileId === nextProps.focusedMemory.profileId || 
+     prevProps.focusedMemory.jobId === nextProps.focusedMemory.jobId ||
+     prevProps.focusedMemory.familyMemberId === nextProps.focusedMemory.familyMemberId) &&
     prevProps.focusedMemory.memoryId === nextProps.focusedMemory.memoryId &&
     prevProps.colorScheme === nextProps.colorScheme
   );

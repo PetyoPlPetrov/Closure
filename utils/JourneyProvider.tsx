@@ -253,6 +253,7 @@ type JourneyContextType = {
   reloadIdealizedMemories: () => Promise<void>; // Reload memories from AsyncStorage
   reloadProfiles: () => Promise<void>; // Reload profiles from AsyncStorage
   reloadJobs: () => Promise<void>; // Reload jobs from AsyncStorage
+  reloadFamilyMembers: () => Promise<void>; // Reload family members from AsyncStorage
 };
 
 const JourneyContext = createContext<JourneyContextType | undefined>(undefined);
@@ -495,13 +496,34 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
 
   const updateProfile = useCallback(
     async (id: string, updates: Partial<ExProfile>) => {
-      const updatedProfiles = profiles.map((profile) => {
+      // Read existing profiles from storage first to avoid stale state issues
+      let existingProfiles: ExProfile[] = [];
+      try {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          existingProfiles = JSON.parse(stored) as ExProfile[];
+        }
+      } catch (error) {
+        console.error('[JourneyProvider] Error reading existing profiles from storage:', error);
+        existingProfiles = profiles; // Fallback to current state
+      }
+      
+      const updatedProfiles = existingProfiles.map((profile) => {
         if (profile.id === id) {
           const updatedProfile = {
             ...profile,
             ...updates,
             updatedAt: new Date().toISOString(),
           };
+          // Explicitly handle undefined values - delete the property if it's being cleared
+          Object.keys(updates).forEach((key) => {
+            if (updates[key as keyof ExProfile] === undefined && key !== 'description') {
+              // For imageUri, if explicitly set to undefined, delete it to clear the image
+              if (key === 'imageUri') {
+                delete (updatedProfile as any).imageUri;
+              }
+            }
+          });
           // Recalculate setupProgress based on personal info and memories
           const memoryCount = idealizedMemories.filter(m => m.profileId === id).length;
           updatedProfile.setupProgress = calculateSetupProgress(updatedProfile, memoryCount);
@@ -644,7 +666,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       
       if (sphere === 'relationships') {
         const profile = profiles.find((p) => p.id === entityId);
-        if (profile) {
+      if (profile) {
           await updateProfile(entityId, {});
         }
       } else if (sphere === 'career') {
@@ -892,19 +914,40 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
   const saveFamilyMember = useCallback(
     async (newMember: FamilyMember) => {
       try {
-        let updatedMembers: FamilyMember[] = [];
-        setFamilyMembers((prevMembers) => {
-          updatedMembers = [...prevMembers, newMember];
-          return updatedMembers;
-        });
-        await AsyncStorage.setItem(FAMILY_MEMBERS_STORAGE_KEY, JSON.stringify(updatedMembers));
-        setFamilyMembers(updatedMembers);
+        // CRITICAL: Read existing family members from storage FIRST to avoid overwriting
+        // This ensures we never lose existing family members when creating multiple members quickly
+        let existingMembers: FamilyMember[] = [];
+        try {
+          const stored = await AsyncStorage.getItem(FAMILY_MEMBERS_STORAGE_KEY);
+          if (stored) {
+            existingMembers = JSON.parse(stored) as FamilyMember[];
+          }
+        } catch (error) {
+          console.error('[JourneyProvider] Error reading existing family members from storage:', error);
+          // If read fails, fall back to current state
+          existingMembers = familyMembers;
+        }
+        
+        // Check if family member already exists
+        const memberExists = existingMembers.some(m => m.id === newMember.id);
+        if (memberExists) {
+          console.warn(`[JourneyProvider] Family member with ID ${newMember.id} already exists, updating instead of creating`);
+          // Update existing member
+          const updatedMembers = existingMembers.map(m => m.id === newMember.id ? newMember : m);
+          await AsyncStorage.setItem(FAMILY_MEMBERS_STORAGE_KEY, JSON.stringify(updatedMembers));
+          setFamilyMembers(updatedMembers);
+        } else {
+          // Add new member
+          const updatedMembers = [...existingMembers, newMember];
+          await AsyncStorage.setItem(FAMILY_MEMBERS_STORAGE_KEY, JSON.stringify(updatedMembers));
+          setFamilyMembers(updatedMembers);
+        }
       } catch (error) {
         console.error('Error saving family member:', error);
         throw error;
       }
     },
-    []
+    [familyMembers]
   );
 
   const updateFamilyMembersInStorage = useCallback(
@@ -1130,6 +1173,21 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     }
   }, []);
 
+  // Reload family members from AsyncStorage
+  const reloadFamilyMembers = useCallback(async () => {
+    try {
+      const stored = await AsyncStorage.getItem(FAMILY_MEMBERS_STORAGE_KEY);
+      if (stored) {
+        const parsedMembers = JSON.parse(stored) as FamilyMember[];
+        setFamilyMembers(parsedMembers);
+      } else {
+        setFamilyMembers([]);
+      }
+    } catch (err) {
+      console.error('[JourneyProvider] Error reloading family members:', err);
+    }
+  }, []);
+
   const value: JourneyContextType = {
     profiles,
     isLoading: isLoading || isLoadingJobs || isLoadingFamily,
@@ -1159,6 +1217,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     reloadIdealizedMemories: loadIdealizedMemories,
     reloadProfiles,
     reloadJobs,
+    reloadFamilyMembers,
   };
 
   return <JourneyContext.Provider value={value}>{children}</JourneyContext.Provider>;

@@ -5,17 +5,16 @@ import { useFontScale, useIconScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { ActionSheet } from '@/library/components/action-sheet';
 import { ConfirmationModal } from '@/library/components/confirmation-modal';
-import { FloatingActionButton } from '@/library/components/floating-action-button';
 import { ProfileCard } from '@/library/components/profile-card';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useTranslate } from '@/utils/languages/use-translate';
-import type { LifeSphere, ExProfile, Job } from '@/utils/JourneyProvider';
+import type { LifeSphere, ExProfile, Job, FamilyMember } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { JobCard } from '@/library/components/job-card';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
@@ -23,7 +22,7 @@ export default function SpheresScreen() {
   const fontScale = useFontScale();
   const iconScale = useIconScale();
   const { maxContentWidth } = useLargeDevice();
-  const { profiles, jobs, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, deleteProfile, deleteJob, reloadIdealizedMemories } = useJourney();
+  const { profiles, jobs, familyMembers, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, deleteProfile, deleteJob, deleteFamilyMember, reloadIdealizedMemories } = useJourney();
   const t = useTranslate();
   
   // Reload memories when screen comes into focus (e.g., after running mock data script)
@@ -41,7 +40,7 @@ export default function SpheresScreen() {
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
-  const spheres: { type: LifeSphere; icon: string; label: string; entities: (ExProfile | Job)[] }[] = useMemo(() => [
+  const spheres: { type: LifeSphere; icon: string; label: string; entities: (ExProfile | Job | FamilyMember)[] }[] = useMemo(() => [
     {
       type: 'relationships',
       icon: 'favorite',
@@ -53,6 +52,12 @@ export default function SpheresScreen() {
       icon: 'work',
       label: 'Career',
       entities: getEntitiesBySphere('career') as Job[],
+    },
+    {
+      type: 'family',
+      icon: 'family-restroom',
+      label: 'Family',
+      entities: getEntitiesBySphere('family') as FamilyMember[],
     },
   ], [getEntitiesBySphere]);
 
@@ -163,6 +168,11 @@ export default function SpheresScreen() {
         : 'rgba(125, 211, 252, 0.3)',
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    iconContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 24 * fontScale,
     },
     addButton: {
       marginTop: 8 * fontScale,
@@ -309,6 +319,9 @@ export default function SpheresScreen() {
       case 'career':
         router.push('/add-job');
         break;
+      case 'family':
+        router.push('/add-family-member');
+        break;
     }
   };
 
@@ -332,7 +345,11 @@ export default function SpheresScreen() {
   const selectedSphereData = selectedSphere ? spheres.find(s => s.type === selectedSphere) : null;
   const relationshipsProfiles = selectedSphere === 'relationships' ? (selectedSphereData?.entities as ExProfile[] || []) : [];
   const careerJobs = selectedSphere === 'career' ? (selectedSphereData?.entities as Job[] || []) : [];
+  const familyMembersList = selectedSphere === 'family' ? (selectedSphereData?.entities as FamilyMember[] || []) : [];
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [selectedFamilyMember, setSelectedFamilyMember] = useState<FamilyMember | null>(null);
+  const [familyMemberActionSheetVisible, setFamilyMemberActionSheetVisible] = useState(false);
+  const [familyMemberDeleteConfirmVisible, setFamilyMemberDeleteConfirmVisible] = useState(false);
   const [jobActionSheetVisible, setJobActionSheetVisible] = useState(false);
   const [jobDeleteConfirmVisible, setJobDeleteConfirmVisible] = useState(false);
   
@@ -405,7 +422,17 @@ export default function SpheresScreen() {
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             Relationships
           </ThemedText>
-          <View style={styles.headerButton} />
+          {relationshipsProfiles.length > 0 ? (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.push('/add-ex-profile')}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="add" size={24 * fontScale} color={colors.primary} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerButton} />
+          )}
         </View>
 
         {relationshipsProfiles.length === 0 ? (
@@ -460,12 +487,6 @@ export default function SpheresScreen() {
                 ))}
               </View>
             </ScrollView>
-            <View style={styles.fabContainer}>
-              <FloatingActionButton
-                onPress={() => router.push('/add-ex-profile')}
-                icon="add"
-              />
-            </View>
           </>
         )}
 
@@ -511,7 +532,17 @@ export default function SpheresScreen() {
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             Career
           </ThemedText>
-          <View style={styles.headerButton} />
+          {careerJobs.length > 0 ? (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.push('/add-job')}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="add" size={24 * fontScale} color={colors.primary} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerButton} />
+          )}
         </View>
 
         {careerJobs.length === 0 ? (
@@ -566,12 +597,6 @@ export default function SpheresScreen() {
                 ))}
               </View>
             </ScrollView>
-            <View style={styles.fabContainer}>
-              <FloatingActionButton
-                onPress={() => router.push('/add-job')}
-                icon="add"
-              />
-            </View>
           </>
         )}
 
@@ -596,6 +621,211 @@ export default function SpheresScreen() {
             setJobDeleteConfirmVisible(false);
             setJobActionSheetVisible(false);
             setSelectedJob(null);
+          }}
+          destructive
+        />
+      </TabScreenContainer>
+    );
+  }
+
+  // Show family members view when family sphere is selected
+  if (selectedSphere === 'family') {
+    const handleFamilyMemberMorePress = (member: FamilyMember) => {
+      setSelectedFamilyMember(member);
+      setFamilyMemberActionSheetVisible(true);
+    };
+    
+    const handleEditFamilyMember = () => {
+      if (selectedFamilyMember) {
+        router.push({
+          pathname: '/edit-family-member',
+          params: { memberId: selectedFamilyMember.id },
+        });
+        setFamilyMemberActionSheetVisible(false);
+        setSelectedFamilyMember(null);
+      }
+    };
+    
+    const handleFamilyMemberDeletePress = () => {
+      setFamilyMemberActionSheetVisible(false);
+      setFamilyMemberDeleteConfirmVisible(true);
+    };
+    
+    const handleFamilyMemberDeleteConfirm = async () => {
+      if (!selectedFamilyMember) {
+        setFamilyMemberDeleteConfirmVisible(false);
+        setSelectedFamilyMember(null);
+        return;
+      }
+      
+      try {
+        await deleteFamilyMember(selectedFamilyMember.id);
+        setFamilyMemberDeleteConfirmVisible(false);
+        setSelectedFamilyMember(null);
+      } catch (error) {
+        console.error('Error deleting family member:', error);
+        setFamilyMemberDeleteConfirmVisible(false);
+        setSelectedFamilyMember(null);
+      }
+    };
+    
+    const familyMemberActionSheetOptions = selectedFamilyMember
+      ? [
+          {
+            label: 'Edit',
+            icon: 'edit' as const,
+            onPress: handleEditFamilyMember,
+          },
+          {
+            label: 'Delete',
+            icon: 'delete' as const,
+            onPress: handleFamilyMemberDeletePress,
+            destructive: true,
+          },
+        ]
+      : [];
+
+    return (
+      <TabScreenContainer>
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => setSelectedSphere(null)}
+            style={styles.headerButton}
+          >
+            <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
+          </Pressable>
+          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+            Family
+          </ThemedText>
+          {familyMembersList.length > 0 ? (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.push('/add-family-member')}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="add" size={24 * fontScale} color={colors.primary} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerButton} />
+          )}
+        </View>
+
+        {familyMembersList.length === 0 ? (
+          <ScrollView
+            contentContainerStyle={[styles.scrollContent, styles.content]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.iconContainer}>
+              <MaterialIcons
+                name="family-restroom"
+                size={100 * fontScale * iconScale}
+                color={colorScheme === 'dark' ? colors.primaryLight : colors.primary}
+              />
+            </View>
+            <View style={styles.textContainer}>
+              <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.heading}>
+                No family members yet
+              </ThemedText>
+              <ThemedText size="sm" weight="normal" style={styles.description}>
+                Start tracking your family relationships
+              </ThemedText>
+            </View>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: colors.primary }]}
+              activeOpacity={0.8}
+              onPress={() => router.push('/add-family-member')}
+            >
+              <ThemedText weight="bold" letterSpacing="l" style={styles.buttonText}>
+                Add Family Member
+              </ThemedText>
+            </TouchableOpacity>
+          </ScrollView>
+        ) : (
+          <>
+            <ScrollView
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.listContentWrapper}>
+                {familyMembersList.map((member) => (
+                  <TouchableOpacity
+                    key={member.id}
+                    style={styles.entityCard}
+                    onPress={() => {
+                      router.push({
+                        pathname: '/idealized-memories',
+                        params: { sphere: 'family', entityId: member.id },
+                      });
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    {member.imageUri ? (
+                      <Image
+                        source={{ uri: member.imageUri }}
+                        style={styles.entityImage}
+                      />
+                    ) : (
+                      <View style={[styles.entityImage, { alignItems: 'center', justifyContent: 'center' }]}>
+                        <MaterialIcons
+                          name="person"
+                          size={24 * fontScale}
+                          color={colors.primary}
+                        />
+                      </View>
+                    )}
+                    <View style={styles.entityInfo}>
+                      <ThemedText size="m" weight="bold">
+                        {member.name}
+                      </ThemedText>
+                      {member.relationship && (
+                        <ThemedText size="sm" style={{ opacity: 0.7 }}>
+                          {member.relationship}
+                        </ThemedText>
+                      )}
+                      {member.description && (
+                        <ThemedText size="xs" style={{ opacity: 0.6 }} numberOfLines={1}>
+                          {member.description}
+                        </ThemedText>
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleFamilyMemberMorePress(member)}
+                      style={{ padding: 8 * fontScale }}
+                    >
+                      <MaterialIcons
+                        name="more-vert"
+                        size={24 * fontScale}
+                        color={colors.icon}
+                      />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </>
+        )}
+
+        <ActionSheet
+          visible={familyMemberActionSheetVisible}
+          title={selectedFamilyMember ? `${selectedFamilyMember.name}` : ''}
+          options={familyMemberActionSheetOptions}
+          onCancel={() => {
+            setFamilyMemberActionSheetVisible(false);
+            setSelectedFamilyMember(null);
+          }}
+        />
+
+        <ConfirmationModal
+          visible={familyMemberDeleteConfirmVisible && !!selectedFamilyMember}
+          title="Delete Family Member"
+          message={selectedFamilyMember ? `Are you sure you want to delete "${selectedFamilyMember.name}"? This action cannot be undone.` : ''}
+          confirmLabel={t('common.delete')}
+          cancelLabel={t('common.cancel')}
+          onConfirm={handleFamilyMemberDeleteConfirm}
+          onCancel={() => {
+            setFamilyMemberDeleteConfirmVisible(false);
+            setFamilyMemberActionSheetVisible(false);
+            setSelectedFamilyMember(null);
           }}
           destructive
         />

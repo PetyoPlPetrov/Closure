@@ -21,7 +21,7 @@ export default function SettingsScreen() {
   const { maxContentWidth } = useLargeDevice();
   const { language, setLanguage } = useLanguage();
   const { themeMode, setThemeMode } = useTheme();
-  const { addProfile, addJob, addIdealizedMemory, profiles, getProfile, getIdealizedMemoriesByProfileId, idealizedMemories, reloadIdealizedMemories, reloadProfiles, reloadJobs } = useJourney();
+  const { addProfile, addJob, addFamilyMember, addIdealizedMemory, profiles, familyMembers, getProfile, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories, reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers } = useJourney();
   const t = useTranslate();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [themeDropdownVisible, setThemeDropdownVisible] = useState(false);
@@ -229,6 +229,13 @@ export default function SettingsScreen() {
         { name: 'Lead Engineer at CurrentCompany', description: 'Current role, growing my career', startDate: '2024-01-01', endDate: null, memoryCount: 5, ongoing: true },
       ];
 
+      // Define multiple fake family members with different characteristics
+      const fakeFamilyMembers = [
+        { name: 'Sarah Johnson', relationship: 'Sister', description: 'My older sister and best friend', memoryCount: 8 },
+        { name: 'Michael Johnson', relationship: 'Brother', description: 'My younger brother', memoryCount: 6 },
+        { name: 'Maria Johnson', relationship: 'Mother', description: 'My loving mother', memoryCount: 10 },
+      ];
+
       const memoryTitles = [
         'Our First Date', 'Summer Vacation', 'Birthday Celebration', 'Anniversary Dinner',
         'Weekend Getaway', 'Holiday Memories', 'Beach Day', 'Movie Night',
@@ -322,9 +329,57 @@ export default function SettingsScreen() {
         'Learning Opportunity', 'Innovation Week', 'Industry Conference', 'Mentorship Session',
       ];
 
+      // Family-specific cloud and sun texts
+      const familyCloudTexts = [
+        'We often had disagreements that went unresolved',
+        'Sometimes felt misunderstood by them',
+        'Had difficulty communicating about important matters',
+        'Felt judged for my life choices',
+        'Struggled with boundaries in our relationship',
+        'Felt pressure to meet their expectations',
+        'Had conflicting values at times',
+        'Felt like they didn\'t respect my independence',
+        'Experienced emotional distance',
+        'Had unresolved past conflicts',
+        'Felt like they favored other siblings',
+        'Struggled with generational differences',
+        'Had different priorities in life',
+        'Felt like my feelings weren\'t validated',
+        'Experienced tension during family gatherings',
+      ];
+
+      const familySunTexts = [
+        'Always there when I needed support',
+        'Shared many happy childhood memories',
+        'Had great family traditions together',
+        'Was a source of wisdom and guidance',
+        'Made me feel loved and accepted',
+        'Shared similar values and beliefs',
+        'Had fun family vacations together',
+        'Was always encouraging of my goals',
+        'Made family gatherings special',
+        'Taught me important life lessons',
+        'Had a strong family bond',
+        'Was proud of my achievements',
+        'Made me laugh with family jokes',
+        'Created a warm and welcoming home',
+        'Was always there for celebrations',
+      ];
+
+      const familyMemoryTitles = [
+        'Family Dinner', 'Birthday Celebration', 'Holiday Gathering', 'Summer Vacation',
+        'Weekend Visit', 'Family Reunion', 'Graduation Day', 'Wedding Day',
+        'Christmas Morning', 'Thanksgiving Dinner', 'Family Game Night', 'Beach Trip',
+        'Cooking Together', 'Movie Night', 'Birthday Party', 'Anniversary Celebration',
+        'School Event', 'Family Photo Session', 'Outdoor Adventure', 'Holiday Tradition',
+        'Sunday Brunch', 'Birthday Surprise', 'Family Road Trip', 'Holiday Decorating',
+        'Special Occasion', 'Family Meeting', 'Gift Exchange', 'Memorial Day',
+      ];
+
       // Create multiple profiles
       let createdProfiles = 0;
       let createdJobs = 0;
+      let createdFamilyMembers = 0;
       let createdMemories = 0;
       
       for (const profileData of fakeProfiles) {
@@ -475,6 +530,7 @@ export default function SettingsScreen() {
             startDate: jobData.startDate,
             endDate: jobData.endDate || undefined,
             isOngoing: jobData.ongoing || false,
+            imageUri: exImageUri,
             setupProgress: 100,
             isCompleted: true,
           });
@@ -555,17 +611,135 @@ export default function SettingsScreen() {
         }
       }
 
+      // Create multiple family members
+      console.log('[MOCK DATA] Starting family members creation...');
+      for (const memberData of fakeFamilyMembers) {
+        try {
+          console.log(`[MOCK DATA] Creating family member: ${memberData.name}`);
+          // Check if family member already exists
+          let memberId: string;
+          const existingMember = familyMembers.find(m => m.name === memberData.name);
+          
+          if (existingMember) {
+            console.log(`[MOCK DATA] Family member ${memberData.name} already exists, using existing ID`);
+            memberId = existingMember.id;
+            if (!memberId) {
+              console.error(`[MOCK DATA] ⚠️ WARNING: Found existing family member but ID is empty!`);
+              continue;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+          } else {
+            console.log(`[MOCK DATA] Creating new family member: ${memberData.name}`);
+            memberId = await addFamilyMember({
+              name: memberData.name,
+              description: memberData.description,
+              relationship: memberData.relationship,
+              imageUri: exImageUri,
+            });
+            
+            if (!memberId) {
+              console.error(`[MOCK DATA] ⚠️ ERROR: Family member creation returned empty ID!`);
+              continue;
+            }
+            console.log(`[MOCK DATA] ✓ Family member created with ID: ${memberId}`);
+            // Wait a bit longer to ensure family member is saved to AsyncStorage
+            await new Promise(resolve => setTimeout(resolve, 300));
+            // Reload family members to update state
+            await reloadFamilyMembers();
+            // Reload memories to ensure state is up to date
+            await reloadIdealizedMemories();
+          }
+
+          // Check if family member already has memories - if not, create them
+          // Reload memories first to ensure we have the latest state
+          await reloadIdealizedMemories();
+          const existingMemories = getIdealizedMemoriesByEntityId(memberId, 'family');
+          console.log(`[MOCK DATA] Family member ${memberData.name} has ${existingMemories.length} existing memories`);
+          
+          if (existingMemories.length === 0) {
+            const numMemories = memberData.memoryCount;
+            console.log(`[MOCK DATA] Creating ${numMemories} memories for ${memberData.name}`);
+            
+            for (let i = 0; i < numMemories; i++) {
+              try {
+                let numClouds: number;
+                let numSuns: number;
+                
+                // Each memory should have between 5-10 total moments (clouds + suns)
+                const totalMoments = Math.floor(Math.random() * 6) + 5; // 5-10 total moments
+                
+                // For family, mix of clouds and suns (slightly more suns)
+                numSuns = Math.floor(totalMoments * 0.6); // ~60% suns
+                numClouds = totalMoments - numSuns; // Rest are clouds
+                
+                // Verify we have at least 1 of each
+                if (numClouds < 1) numClouds = 1;
+                if (numSuns < 1) numSuns = 1;
+                
+                const hardTruths = [];
+                for (let j = 0; j < numClouds; j++) {
+                  hardTruths.push({
+                    id: `cloud_${memberData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                    text: familyCloudTexts[Math.floor(Math.random() * familyCloudTexts.length)],
+                    x: Math.random() * 300 + 50,
+                    y: Math.random() * 400 + 50,
+                  });
+                }
+
+                const goodFacts = [];
+                for (let j = 0; j < numSuns; j++) {
+                  goodFacts.push({
+                    id: `sun_${memberData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                    text: familySunTexts[Math.floor(Math.random() * familySunTexts.length)],
+                    x: Math.random() * 300 + 50,
+                    y: Math.random() * 400 + 50,
+                  });
+                }
+
+                const memoryTitle = familyMemoryTitles[i % familyMemoryTitles.length] + ` (${i + 1})`;
+
+                console.log(`[MOCK DATA] Creating memory ${i + 1}/${numMemories} for ${memberData.name}: ${memoryTitle}`);
+                await addIdealizedMemory(memberId, 'family', {
+                  title: memoryTitle,
+                  imageUri: maldivesImageUri,
+                  hardTruths,
+                  goodFacts,
+                });
+                
+                createdMemories++;
+                console.log(`[MOCK DATA] ✓ Memory created successfully (${createdMemories} total)`);
+                
+                await new Promise(resolve => setTimeout(resolve, 50));
+              } catch (memoryError) {
+                console.error(`[MOCK DATA] ✗ Error creating memory ${i} for ${memberData.name}:`, memoryError);
+              }
+            }
+          } else {
+            console.log(`[MOCK DATA] Skipping memory creation for ${memberData.name} - already has memories`);
+          }
+          
+          createdFamilyMembers++;
+          console.log(`[MOCK DATA] ✓ Completed family member ${memberData.name} (${createdFamilyMembers} total)`);
+          
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (memberError) {
+          console.error(`[MOCK DATA] ✗ Error creating family member ${memberData.name}:`, memberError);
+        }
+      }
+      console.log(`[MOCK DATA] ✓ Created ${createdFamilyMembers} family members with ${createdMemories} total memories`);
+
       // Reload all data to update React state after generating
-      // IMPORTANT: Load profiles and jobs FIRST, then memories (which runs cleanup)
+      // IMPORTANT: Load profiles, jobs, and family members FIRST, then memories (which runs cleanup)
       // This ensures cleanup can find the entities it needs to validate memories
       try {
-        // Load profiles and jobs first
+        // Load profiles, jobs, and family members first
         await Promise.all([
           reloadProfiles(),
           reloadJobs(),
+          reloadFamilyMembers(),
         ]);
         
-        // Then load memories (cleanup will now find the profiles/jobs in storage)
+        // Then load memories (cleanup will now find all entities in storage)
         await reloadIdealizedMemories();
       } catch (reloadError) {
         console.error('[MOCK DATA] Error reloading data:', reloadError);
@@ -574,10 +748,7 @@ export default function SettingsScreen() {
 
       Alert.alert(
         t('common.success'), 
-        t('settings.devTools.generateData.success')
-          .replace('{profiles}', createdProfiles.toString())
-          .replace('{jobs}', createdJobs.toString())
-          .replace('{memories}', createdMemories.toString()),
+        `Created ${createdProfiles} profiles, ${createdJobs} jobs, ${createdFamilyMembers} family members, and ${createdMemories} total memories`,
         [{ text: t('common.ok') }]
       );
     } catch (error) {
@@ -625,6 +796,7 @@ export default function SettingsScreen() {
                 reloadIdealizedMemories(),
                 reloadProfiles(),
                 reloadJobs(),
+                reloadFamilyMembers(),
               ]);
               
               // Show success message
