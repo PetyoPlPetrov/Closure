@@ -14,15 +14,14 @@ import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
-  Easing,
-  runOnJS,
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming
+    Easing,
+    runOnJS,
+    useAnimatedReaction,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withSpring,
+    withTiming
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -132,8 +131,17 @@ const DraggableMoment = React.memo(function DraggableMoment({
   // Update position when initial values change (but not while dragging)
   React.useEffect(() => {
     if (!isDragging.value && !hasStartPosition) {
-      panX.value = initialX;
-      panY.value = initialY;
+      // Animate smoothly to the new initial position
+      panX.value = withSpring(initialX, {
+        damping: 15,
+        stiffness: 150,
+        mass: 1,
+      });
+      panY.value = withSpring(initialY, {
+        damping: 15,
+        stiffness: 150,
+        mass: 1,
+      });
       startX.value = initialX;
       startY.value = initialY;
     }
@@ -258,19 +266,19 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const baseAvatarSize = 80;
   const focusedAvatarSize = 100; // Smaller focused size so memories fit
   const avatarSize = isFocused ? focusedAvatarSize : baseAvatarSize;
-  // Memory radius - when focused, push memories further from partner
-  // Maximum distance from center to edge is min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
-  // We need: memoryRadius + maxMemorySize/2 + maxMomentRadius + maxMomentSize/2 <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
-  // Estimate: maxMemorySize ~45 (half of previous), maxMomentRadius ~40, maxMomentSize ~12, padding ~30
-  // So: memoryRadius <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2) - 22.5 - 40 - 6 - 30 = min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2) - 98.5
+  // Memory radius - when focused, ensure all floating elements fit within viewport
+  // Calculation: memoryRadius + memorySize/2 + momentRadius + momentSize/2 + padding <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
+  // Where: memoryRadius is from avatar center, memorySize/2 = 22.5, momentRadius = 40, momentSize/2 = 6, padding = 25
+  // So: memoryRadius + 22.5 + 40 + 6 + 25 = memoryRadius + 93.5 <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
+  // Therefore: memoryRadius <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2) - 93.5
   const maxDistanceFromCenter = Math.min(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-  const estimatedMaxMemorySize = 45; // Updated for half-size memories
-  const estimatedMaxMomentRadius = 40;
-  const estimatedMaxMomentSize = 12;
-  const safetyPadding = 30;
+  const estimatedMaxMemorySize = 45; // Maximum memory size when focused
+  const estimatedMaxMomentRadius = 40; // Maximum radius of moments around memory
+  const estimatedMaxMomentSize = 12; // Maximum moment size
+  const safetyPadding = 25; // Safety padding from viewport edges
   const maxAllowedRadius = maxDistanceFromCenter - estimatedMaxMemorySize / 2 - estimatedMaxMomentRadius - estimatedMaxMomentSize / 2 - safetyPadding;
-  const memoryRadius = isFocused ? Math.min(170, maxAllowedRadius) : 60; // Push memories further when focused (increased from 135 to 170)
-  const exZoneRadius = isFocused ? 215 : 120; // Adjusted zone when memories are further
+  const memoryRadius = isFocused ? Math.max(80, Math.min(110, maxAllowedRadius)) : 60; // Ensure all floating elements fit within viewport (80-110px range when focused)
+  const exZoneRadius = isFocused ? 180 : 120; // Adjusted zone when memories are closer
   
   // Calculate sunny moments percentage for progress bar
   const sunnyPercentage = useMemo(() => {
@@ -401,10 +409,10 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     if (!isFocused) {
       // Only float when not focused
       floatAnimation.value = withRepeat(
-        withSequence(
-          withTiming(1, { duration: 2000 }),
-          withTiming(0, { duration: 2000 })
-        ),
+        withTiming(1, {
+          duration: 4000,
+          easing: Easing.inOut(Easing.ease),
+        }),
         -1,
         true
       );
@@ -465,7 +473,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const startX = useSharedValue(position.x);
   const startY = useSharedValue(position.y);
   
-  // Target position for focused state (State B - centered)
+  // Target position for focused state (State B - centered in visible viewport)
   const targetX = SCREEN_WIDTH / 2;
   const targetY = SCREEN_HEIGHT / 2;
   
@@ -672,6 +680,30 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       ((m.hardTruths || []).length + (m.goodFacts || []).length)
     ), 0);
     
+    // Pre-calculate all angles to identify the top 2 elements (only if more than 5 elements)
+    const topTwoIndices = isFocused && memories.length > 5 ? (() => {
+      const topAngle = -Math.PI / 2; // Top position
+      const allAngles = memories.map((_, idx) => {
+        const baseAngle = (idx * 2 * Math.PI) / memories.length;
+        const seed = idx * 0.618;
+        const angleVar = (Math.cos(seed * 2) * 0.15);
+        return baseAngle + angleVar;
+      });
+      
+      // Find distances from top angle for all elements
+      const distancesFromTop = allAngles.map(angle => {
+        const diff = Math.abs(angle - topAngle);
+        return Math.min(diff, 2 * Math.PI - diff);
+      });
+      
+      // Sort by distance and get the indices of the top 2 closest elements
+      return distancesFromTop
+        .map((dist, idx) => ({ dist, idx }))
+        .sort((a, b) => a.dist - b.dist)
+        .slice(0, 2)
+        .map(item => item.idx);
+    })() : [];
+    
     return memories.map((memory, memIndex) => {
       // Calculate moment count for this memory
       const momentCount = (memory.hardTruths || []).length + (memory.goodFacts || []).length;
@@ -692,7 +724,19 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       const distanceVariation = 0.9 + (Math.sin(variationSeed) * 0.2); // Range: 0.9 to 1.1
       
       // Combine moment-based distance with unique variation
-      const variedRadius = memoryRadius * momentsDistanceMultiplier * distanceVariation;
+      let variedRadius = memoryRadius * momentsDistanceMultiplier * distanceVariation;
+      
+      // Adjust radius based on number of floating elements
+      if (memories.length < 5) {
+        // When there are less than 5 elements, bring them closer to avatar
+        // In focused memory view, bring them even closer
+        const closerMultiplier = isFocused ? 0.45 : 0.6; // 55% reduction when focused, 40% when unfocused
+        variedRadius = variedRadius * closerMultiplier;
+      } else if (isFocused && memories.length > 5 && topTwoIndices.includes(memIndex)) {
+        // When focused and there are more than 5 elements, push top 2 elements further away
+        const additionalRadius = 50; // Significant additional distance for top 2 elements
+        variedRadius = variedRadius + additionalRadius;
+      }
       
       // Distribute angles evenly around the circle
       const angle = (memIndex * 2 * Math.PI) / memories.length;
@@ -707,7 +751,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         offsetY: variedRadius * Math.sin(variedAngle),
       };
     });
-  }, [memories, memoryRadius]); // memoryRadius already depends on isFocused
+  }, [memories, memoryRadius, isFocused]);
 
   return (
     <>
@@ -1976,10 +2020,10 @@ const FloatingMemory = React.memo(function FloatingMemory({
   React.useEffect(() => {
     if (!isMemoryFocused) {
       floatAnimation.value = withRepeat(
-        withSequence(
-          withTiming(1, { duration: 1500 }),
-          withTiming(0, { duration: 1500 })
-        ),
+        withTiming(1, {
+          duration: 3000,
+          easing: Easing.inOut(Easing.ease),
+        }),
         -1,
         true
       );
@@ -2483,10 +2527,10 @@ const FloatingCloud = React.memo(function FloatingCloud({
   
   React.useEffect(() => {
     floatAnimation.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 1000 }),
-        withTiming(0, { duration: 1000 })
-      ),
+      withTiming(1, {
+        duration: 2000,
+        easing: Easing.inOut(Easing.ease),
+      }),
       -1,
       true
     );
@@ -2633,10 +2677,10 @@ const FloatingSun = React.memo(function FloatingSun({
   
   React.useEffect(() => {
     floatAnimation.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 1000 }),
-        withTiming(0, { duration: 1000 })
-      ),
+      withTiming(1, {
+        duration: 2000,
+        easing: Easing.inOut(Easing.ease),
+      }),
       -1,
       true
     );
@@ -2833,12 +2877,12 @@ const FloatingEntity = React.memo(function FloatingEntity({
   React.useEffect(() => {
     const startAnimation = () => {
       floatOffset.value = withRepeat(
-        withSequence(
-          withTiming(1, { duration: 1500 + delay, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0, { duration: 1500 + delay, easing: Easing.inOut(Easing.ease) })
-        ),
+        withTiming(1, {
+          duration: (1500 + delay) * 2,
+          easing: Easing.inOut(Easing.ease),
+        }),
         -1,
-        false
+        true
       );
     };
     
@@ -3093,12 +3137,12 @@ const SphereAvatar = React.memo(function SphereAvatar({
       // Subtle floating animation (similar to floating memories)
       // Goes from 0 to 1 and back, then multiplied by small value in animatedStyle
       floatAnimation.value = withRepeat(
-        withSequence(
-          withTiming(1, { duration: duration / 2 }),
-          withTiming(0, { duration: duration / 2 })
-        ),
+        withTiming(1, {
+          duration: duration,
+          easing: Easing.inOut(Easing.ease),
+        }),
         -1,
-        false
+        true
       );
     };
     
