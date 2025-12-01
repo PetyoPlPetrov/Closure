@@ -236,12 +236,23 @@ export default function RelationshipsComparisonScreen() {
       opacity: 0.7,
     },
     barContainer: {
-      marginBottom: 24 * fontScale,
+      marginBottom: 16 * fontScale,
+      borderRadius: 12 * fontScale,
+      padding: 16 * fontScale,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.05)' 
+        : 'rgba(0, 0, 0, 0.05)',
+      borderWidth: 1,
+      borderColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.1)',
     },
     barRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 16 * fontScale,
+    },
+    chevronIcon: {
+      marginLeft: 12 * fontScale,
     },
     avatarContainer: {
       width: 40 * fontScale,
@@ -299,7 +310,7 @@ export default function RelationshipsComparisonScreen() {
       opacity: 0.7,
     },
     barWrapper: {
-      flex: 1,
+      width: 100 * fontScale,
       height: 32 * fontScale,
       borderRadius: 16 * fontScale,
       overflow: 'hidden',
@@ -307,6 +318,7 @@ export default function RelationshipsComparisonScreen() {
       backgroundColor: colorScheme === 'dark' 
         ? 'rgba(255, 255, 255, 0.1)' 
         : 'rgba(0, 0, 0, 0.1)',
+      marginRight: 12 * fontScale,
     },
     cloudSegment: {
       height: '100%',
@@ -559,27 +571,6 @@ export default function RelationshipsComparisonScreen() {
               
               return (
                 <>
-                  {/* Overall Comparison Summary */}
-                  <View style={styles.comparisonHeader}>
-                    <View style={styles.comparisonItem}>
-                      <ThemedText size="xl" weight="bold" style={[styles.comparisonValue, { color: '#f87171' }]}>
-                        {relationships.totalMoments}
-                      </ThemedText>
-                      <ThemedText size="xs" style={styles.comparisonLabel}>
-                        {t('insights.comparison.relationships.totalMoments')}
-                      </ThemedText>
-                    </View>
-                    <View style={styles.comparisonDivider} />
-                    <View style={styles.comparisonItem}>
-                      <ThemedText size="xl" weight="bold" style={[styles.comparisonValue, { color: '#3b82f6' }]}>
-                        {career.totalMoments}
-                      </ThemedText>
-                      <ThemedText size="xs" style={styles.comparisonLabel}>
-                        {t('insights.comparison.career.totalMoments')}
-                      </ThemedText>
-                    </View>
-                  </View>
-
                   {/* Single Stacked Bar Chart */}
                   <View style={styles.comparisonBarChartContainer}>
                     {/* Legend */}
@@ -587,7 +578,7 @@ export default function RelationshipsComparisonScreen() {
                       <View style={styles.legendItem}>
                         <View style={[styles.legendColor, { backgroundColor: '#f87171' }]} />
                         <ThemedText size="sm" weight="semibold" style={styles.legendLabel}>
-                          {t('spheres.relationships')}
+                          {t('spheres.relationships')} ({relationships.totalMoments})
                         </ThemedText>
                         <ThemedText size="sm" weight="bold" style={[styles.legendValue, { color: '#f87171' }]}>
                           {Math.round(relationshipsPercentage)}%
@@ -596,7 +587,7 @@ export default function RelationshipsComparisonScreen() {
                       <View style={styles.legendItem}>
                         <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
                         <ThemedText size="sm" weight="semibold" style={styles.legendLabel}>
-                          {t('spheres.career')}
+                          {t('spheres.career')} ({career.totalMoments})
                         </ThemedText>
                         <ThemedText size="sm" weight="bold" style={[styles.legendValue, { color: '#3b82f6' }]}>
                           {Math.round(careerPercentage)}%
@@ -663,7 +654,12 @@ export default function RelationshipsComparisonScreen() {
               const sunPercentage = data.total > 0 ? (data.totalSuns / data.total) * 100 : 0;
               
               return (
-                <View key={data.profile.id} style={styles.barContainer}>
+                <TouchableOpacity 
+                  key={data.profile.id} 
+                  style={styles.barContainer}
+                  onPress={() => router.push(`/relationship-detail?id=${data.profile.id}`)}
+                  activeOpacity={0.7}
+                >
                   <View style={styles.barRow}>
                     {/* Avatar */}
                     <View style={styles.avatarContainer}>
@@ -735,8 +731,16 @@ export default function RelationshipsComparisonScreen() {
                         />
                       )}
                     </View>
+                    
+                    {/* Chevron Icon */}
+                    <MaterialIcons 
+                      name="chevron-right" 
+                      size={24 * fontScale} 
+                      color={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'}
+                      style={styles.chevronIcon}
+                    />
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
 

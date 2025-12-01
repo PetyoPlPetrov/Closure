@@ -214,6 +214,32 @@ export interface Translations {
   'insights.comparison.family.insight.balancedTime': string;
   'insights.comparison.family.insight.betterFamilyQuality': string;
   'insights.comparison.family.insight.betterCareerQuality': string;
+  'insights.detail.relationship.title': string;
+  'insights.detail.relationship.noData': string;
+  'insights.detail.relationship.memories.title': string;
+  'insights.detail.relationship.memories.noData': string;
+  'insights.detail.relationship.memories.more.better': string;
+  'insights.detail.relationship.memories.more.worse': string;
+  'insights.detail.relationship.memories.more.same': string;
+  'insights.detail.relationship.memories.less.better': string;
+  'insights.detail.relationship.memories.less.worse': string;
+  'insights.detail.relationship.memories.less.same': string;
+  'insights.detail.relationship.memories.same.better': string;
+  'insights.detail.relationship.memories.same.worse': string;
+  'insights.detail.relationship.memories.same.same': string;
+  'insights.detail.job.title': string;
+  'insights.detail.job.noData': string;
+  'insights.detail.job.memories.title': string;
+  'insights.detail.job.memories.noData': string;
+  'insights.detail.job.memories.more.better': string;
+  'insights.detail.job.memories.more.worse': string;
+  'insights.detail.job.memories.more.same': string;
+  'insights.detail.job.memories.less.better': string;
+  'insights.detail.job.memories.less.worse': string;
+  'insights.detail.job.memories.less.same': string;
+  'insights.detail.job.memories.same.better': string;
+  'insights.detail.job.memories.same.worse': string;
+  'insights.detail.job.memories.same.same': string;
   'insights.suggestion.relationships.worse': string;
   'insights.suggestion.relationships.low': string;
   'insights.suggestion.relationships.progress': string;
@@ -482,7 +508,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.familyMembers': 'Family Members',
     'insights.comparison.relationships.title': 'Relationships Comparison',
     'insights.comparison.relationships.chartTitle': 'How Sunny and Cloudy Moments Change Across Partners',
-    'insights.comparison.relationships.subtitle': 'recorded by each partner',
+    'insights.comparison.relationships.subtitle': 'Overall amount of moments',
     'insights.comparison.relationships.goodMoments': 'Sunny Facts',
     'insights.comparison.relationships.badMoments': 'Cloudy Moments',
     'insights.comparison.relationships.you': 'You',
@@ -503,7 +529,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.relationships.sphereComparison.betterCareerQuality': 'Your career has significantly better quality (more sunny moments) compared to your relationships. Consider focusing more on building positive connections.',
     'insights.comparison.career.title': 'Career Comparison',
     'insights.comparison.career.chartTitle': 'How Sunny and Cloudy Moments Change Across Jobs',
-    'insights.comparison.career.subtitle': 'recorded for each job',
+    'insights.comparison.career.subtitle': 'Overall amount of moments',
     'insights.comparison.career.goodMoments': 'Sunny Facts',
     'insights.comparison.career.badMoments': 'Cloudy Moments',
     'insights.comparison.career.warning.lower': 'Your current job has a lower proportion of sunny moments compared to your past jobs. Consider what might be causing this difference.',
@@ -530,6 +556,32 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.family.insight.balancedTime': 'You have a well-balanced distribution of time between family and career.',
     'insights.comparison.family.insight.betterFamilyQuality': 'Your family moments have significantly better quality than your career moments. This shows strong family connections!',
     'insights.comparison.family.insight.betterCareerQuality': 'Your career moments have better quality than your family moments. Consider nurturing more positive family experiences.',
+    'insights.detail.relationship.title': 'Relationship Details',
+    'insights.detail.relationship.noData': 'Relationship not found',
+    'insights.detail.relationship.memories.title': 'Memories',
+    'insights.detail.relationship.memories.noData': 'No memories recorded for this relationship',
+    'insights.detail.relationship.memories.more.better': 'This relationship has significantly more memories compared to your other relationships, and the overall quality (sunny moments) is better.',
+    'insights.detail.relationship.memories.more.worse': 'This relationship has significantly more memories compared to your other relationships, but the overall quality (sunny moments) is lower.',
+    'insights.detail.relationship.memories.more.same': 'This relationship has significantly more memories compared to your other relationships, with similar overall quality.',
+    'insights.detail.relationship.memories.less.better': 'This relationship has fewer memories compared to your other relationships, but the overall quality (sunny moments) is better.',
+    'insights.detail.relationship.memories.less.worse': 'This relationship has fewer memories compared to your other relationships, and the overall quality (sunny moments) is also lower.',
+    'insights.detail.relationship.memories.less.same': 'This relationship has fewer memories compared to your other relationships, with similar overall quality.',
+    'insights.detail.relationship.memories.same.better': 'This relationship has approximately the same amount of memories as your other relationships, but the overall quality (sunny moments) is better.',
+    'insights.detail.relationship.memories.same.worse': 'This relationship has approximately the same amount of memories as your other relationships, but the overall quality (sunny moments) is lower.',
+    'insights.detail.relationship.memories.same.same': 'This relationship has approximately the same amount of memories and similar overall quality compared to your other relationships.',
+    'insights.detail.job.title': 'Job Details',
+    'insights.detail.job.noData': 'Job not found',
+    'insights.detail.job.memories.title': 'Memories',
+    'insights.detail.job.memories.noData': 'No memories recorded for this job',
+    'insights.detail.job.memories.more.better': 'This job has significantly more memories compared to your other jobs, and the overall quality (sunny moments) is better.',
+    'insights.detail.job.memories.more.worse': 'This job has significantly more memories compared to your other jobs, but the overall quality (sunny moments) is lower.',
+    'insights.detail.job.memories.more.same': 'This job has significantly more memories compared to your other jobs, with similar overall quality.',
+    'insights.detail.job.memories.less.better': 'This job has fewer memories compared to your other jobs, but the overall quality (sunny moments) is better.',
+    'insights.detail.job.memories.less.worse': 'This job has fewer memories compared to your other jobs, and the overall quality (sunny moments) is also lower.',
+    'insights.detail.job.memories.less.same': 'This job has fewer memories compared to your other jobs, with similar overall quality.',
+    'insights.detail.job.memories.same.better': 'This job has approximately the same amount of memories as your other jobs, but the overall quality (sunny moments) is better.',
+    'insights.detail.job.memories.same.worse': 'This job has approximately the same amount of memories as your other jobs, but the overall quality (sunny moments) is lower.',
+    'insights.detail.job.memories.same.same': 'This job has approximately the same amount of memories and similar overall quality compared to your other jobs.',
     'insights.suggestion.relationships.worse': 'Your current relationship has fewer sunny moments compared to past relationships. Consider focusing on creating more positive experiences together.',
     'insights.suggestion.relationships.low': 'Create more sunny moments with your current partner to strengthen your relationship. Small gestures and quality time can make a big difference.',
     'insights.suggestion.relationships.progress': 'Great progress! You\'re creating more positive moments than in your past relationships. Keep nurturing this connection.',
@@ -796,7 +848,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.familyMembers': 'Семейни Членове',
     'insights.comparison.relationships.title': 'Сравнение на Връзките',
     'insights.comparison.relationships.chartTitle': 'Как Слънчевите и Облачните Моменти Се Променят При Партньорите',
-    'insights.comparison.relationships.subtitle': 'записани от всеки партньор',
+    'insights.comparison.relationships.subtitle': 'Общо количество моменти',
     'insights.comparison.relationships.goodMoments': 'Слънчеви Факти',
     'insights.comparison.relationships.badMoments': 'Облачни Моменти',
     'insights.comparison.relationships.you': 'Ти',
@@ -817,7 +869,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.relationships.sphereComparison.betterCareerQuality': 'Вашата кариера има значително по-добро качество (повече слънчеви моменти) в сравнение с връзките ви. Помислете да се фокусирате повече върху изграждането на позитивни връзки.',
     'insights.comparison.career.title': 'Сравнение на Кариера',
     'insights.comparison.career.chartTitle': 'Как Слънчевите и Облачните Моменти Се Променят При Работите',
-    'insights.comparison.career.subtitle': 'записани за всяка работа',
+    'insights.comparison.career.subtitle': 'Общо количество моменти',
     'insights.comparison.career.goodMoments': 'Слънчеви Факти',
     'insights.comparison.career.badMoments': 'Облачни Моменти',
     'insights.comparison.career.warning.lower': 'Текущата ви работа има по-ниска пропорция на слънчеви моменти в сравнение с миналите ви работи. Помислете какво може да причинява тази разлика.',
@@ -844,6 +896,32 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.family.insight.balancedTime': 'Имате добре балансирано разпределение на времето между семейство и кариера.',
     'insights.comparison.family.insight.betterFamilyQuality': 'Вашите семейни моменти имат значително по-добро качество от кариерните моменти. Това показва силни семейни връзки!',
     'insights.comparison.family.insight.betterCareerQuality': 'Вашите кариерни моменти имат по-добро качество от семейните моменти. Помислете да подхранвате повече положителни семейни преживявания.',
+    'insights.detail.relationship.title': 'Детайли за Връзката',
+    'insights.detail.relationship.noData': 'Връзката не е намерена',
+    'insights.detail.relationship.memories.title': 'Спомени',
+    'insights.detail.relationship.memories.noData': 'Няма записани спомени за тази връзка',
+    'insights.detail.relationship.memories.more.better': 'Тази връзка има значително повече спомени в сравнение с другите ви връзки, и общото качество (слънчеви моменти) е по-добро.',
+    'insights.detail.relationship.memories.more.worse': 'Тази връзка има значително повече спомени в сравнение с другите ви връзки, но общото качество (слънчеви моменти) е по-ниско.',
+    'insights.detail.relationship.memories.more.same': 'Тази връзка има значително повече спомени в сравнение с другите ви връзки, с подобно общо качество.',
+    'insights.detail.relationship.memories.less.better': 'Тази връзка има по-малко спомени в сравнение с другите ви връзки, но общото качество (слънчеви моменти) е по-добро.',
+    'insights.detail.relationship.memories.less.worse': 'Тази връзка има по-малко спомени в сравнение с другите ви връзки, и общото качество (слънчеви моменти) също е по-ниско.',
+    'insights.detail.relationship.memories.less.same': 'Тази връзка има по-малко спомени в сравнение с другите ви връзки, с подобно общо качество.',
+    'insights.detail.relationship.memories.same.better': 'Тази връзка има приблизително същото количество спомени като другите ви връзки, но общото качество (слънчеви моменти) е по-добро.',
+    'insights.detail.relationship.memories.same.worse': 'Тази връзка има приблизително същото количество спомени като другите ви връзки, но общото качество (слънчеви моменти) е по-ниско.',
+    'insights.detail.relationship.memories.same.same': 'Тази връзка има приблизително същото количество спомени и подобно общо качество в сравнение с другите ви връзки.',
+    'insights.detail.job.title': 'Детайли за Работата',
+    'insights.detail.job.noData': 'Работата не е намерена',
+    'insights.detail.job.memories.title': 'Спомени',
+    'insights.detail.job.memories.noData': 'Няма записани спомени за тази работа',
+    'insights.detail.job.memories.more.better': 'Тази работа има значително повече спомени в сравнение с другите ви работи, и общото качество (слънчеви моменти) е по-добро.',
+    'insights.detail.job.memories.more.worse': 'Тази работа има значително повече спомени в сравнение с другите ви работи, но общото качество (слънчеви моменти) е по-ниско.',
+    'insights.detail.job.memories.more.same': 'Тази работа има значително повече спомени в сравнение с другите ви работи, с подобно общо качество.',
+    'insights.detail.job.memories.less.better': 'Тази работа има по-малко спомени в сравнение с другите ви работи, но общото качество (слънчеви моменти) е по-добро.',
+    'insights.detail.job.memories.less.worse': 'Тази работа има по-малко спомени в сравнение с другите ви работи, и общото качество (слънчеви моменти) също е по-ниско.',
+    'insights.detail.job.memories.less.same': 'Тази работа има по-малко спомени в сравнение с другите ви работи, с подобно общо качество.',
+    'insights.detail.job.memories.same.better': 'Тази работа има приблизително същото количество спомени като другите ви работи, но общото качество (слънчеви моменти) е по-добро.',
+    'insights.detail.job.memories.same.worse': 'Тази работа има приблизително същото количество спомени като другите ви работи, но общото качество (слънчеви моменти) е по-ниско.',
+    'insights.detail.job.memories.same.same': 'Тази работа има приблизително същото количество спомени и подобно общо качество в сравнение с другите ви работи.',
     'insights.suggestion.relationships.worse': 'Текущата ви връзка има по-малко слънчеви моменти в сравнение с миналите връзки. Помислете за създаване на повече положителни преживявания заедно.',
     'insights.suggestion.relationships.low': 'Създайте повече слънчеви моменти с текущия си партньор, за да укрепите връзката. Малките жестове и качественото време могат да направят голяма разлика.',
     'insights.suggestion.relationships.progress': 'Отличен напредък! Създавате повече положителни моменти от миналите си връзки. Продължете да поддържате тази връзка.',

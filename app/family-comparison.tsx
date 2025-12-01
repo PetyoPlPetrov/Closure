@@ -9,9 +9,7 @@ import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import React, { useMemo } from 'react';
-import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function FamilyComparisonScreen() {
   const colorScheme = useColorScheme();
@@ -19,7 +17,7 @@ export default function FamilyComparisonScreen() {
   const fontScale = useFontScale();
   const t = useTranslate();
   
-  const { jobs, familyMembers, getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
+  const { getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
 
   // Calculate sphere data for family and career
   const sphereData = useMemo(() => {
@@ -60,8 +58,8 @@ export default function FamilyComparisonScreen() {
     };
   }, [getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
 
-  // Calculate comparison insights
-  const comparisonInsights = useMemo(() => {
+  // Calculate comparison insights with 20% threshold rule
+  const sphereComparison = useMemo(() => {
     const family = sphereData.family;
     const career = sphereData.career;
     const totalAllMoments = family.totalMoments + career.totalMoments;
@@ -70,18 +68,54 @@ export default function FamilyComparisonScreen() {
       return null;
     }
 
-    const insights = {
+    const timeDifference = family.totalMoments - career.totalMoments;
+
+    // Threshold: 20% of the larger amount
+    const largerAmount = Math.max(family.totalMoments, career.totalMoments);
+    const TIME_THRESHOLD_PERCENTAGE = 0.2; // 20% of larger amount
+
+    const insights: { type: 'warning' | 'kudos' | 'info'; message: string }[] = [];
+
+    // Time comparison insights - check if difference is more than 20% of larger amount
+    if (largerAmount > 0) {
+      const differencePercentage = Math.abs(timeDifference) / largerAmount;
+      
+      if (differencePercentage > TIME_THRESHOLD_PERCENTAGE) {
+        // One sphere prevails significantly (more than 20% difference)
+        if (timeDifference > 0) {
+          // Family has more moments
+          insights.push({
+            type: 'kudos',
+            message: t('insights.comparison.family.insight.moreFamilyTime'),
+          });
+        } else {
+          // Career has more moments
+          insights.push({
+            type: 'warning',
+            message: t('insights.comparison.family.insight.moreCareerTime'),
+          });
+        }
+      } else {
+        // Approximately balanced
+        insights.push({
+          type: 'kudos',
+          message: t('insights.comparison.family.insight.balancedTime'),
+        });
+      }
+    } else {
+      // No data
+      insights.push({
+        type: 'info',
+        message: t('insights.comparison.family.insight.balancedTime'),
+      });
+    }
+
+    return {
       family,
       career,
-      totalAllMoments,
-      familyPercentage: totalAllMoments > 0 ? (family.totalMoments / totalAllMoments) * 100 : 0,
-      careerPercentage: totalAllMoments > 0 ? (career.totalMoments / totalAllMoments) * 100 : 0,
-      qualityDifference: family.sunnyPercentage - career.sunnyPercentage,
-      timeBalance: family.totalMoments > career.totalMoments ? 'family' : career.totalMoments > family.totalMoments ? 'career' : 'balanced',
+      insights,
     };
-
-    return insights;
-  }, [sphereData]);
+  }, [sphereData, t]);
 
   const styles = useMemo(() => StyleSheet.create({
     container: {
@@ -117,121 +151,6 @@ export default function FamilyComparisonScreen() {
       marginBottom: 32 * fontScale,
       opacity: 0.7,
     },
-    comparisonContainer: {
-      gap: 32 * fontScale,
-    },
-    sphereCard: {
-      borderRadius: 16 * fontScale,
-      padding: 20 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 255, 255, 0.05)' 
-        : 'rgba(0, 0, 0, 0.05)',
-      marginBottom: 24 * fontScale,
-    },
-    sphereHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 16 * fontScale,
-      gap: 12 * fontScale,
-    },
-    sphereIcon: {
-      width: 48 * fontScale,
-      height: 48 * fontScale,
-      borderRadius: 24 * fontScale,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    sphereTitle: {
-      flex: 1,
-    },
-    totalMomentsContainer: {
-      marginBottom: 16 * fontScale,
-    },
-    totalMomentsLabel: {
-      marginBottom: 8 * fontScale,
-      opacity: 0.8,
-    },
-    totalMomentsBar: {
-      height: 48 * fontScale,
-      borderRadius: 24 * fontScale,
-      overflow: 'hidden',
-      flexDirection: 'row',
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 255, 255, 0.1)' 
-        : 'rgba(0, 0, 0, 0.1)',
-    },
-    totalMomentsFill: {
-      height: '100%',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    totalMomentsText: {
-      color: '#ffffff',
-      fontWeight: '700',
-    },
-    qualityContainer: {
-      marginTop: 16 * fontScale,
-    },
-    qualityLabel: {
-      marginBottom: 12 * fontScale,
-      opacity: 0.8,
-    },
-    qualityBar: {
-      height: 40 * fontScale,
-      borderRadius: 20 * fontScale,
-      overflow: 'hidden',
-      flexDirection: 'row',
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 255, 255, 0.1)' 
-        : 'rgba(0, 0, 0, 0.1)',
-      marginBottom: 8 * fontScale,
-    },
-    qualitySegment: {
-      height: '100%',
-    },
-    qualityInfo: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginTop: 4 * fontScale,
-    },
-    qualityText: {
-      fontSize: 12 * fontScale,
-      opacity: 0.7,
-    },
-    insightCard: {
-      borderRadius: 12 * fontScale,
-      padding: 16 * fontScale,
-      marginTop: 8 * fontScale,
-      marginBottom: 24 * fontScale,
-    },
-    insightCardWarning: {
-      backgroundColor: '#ff6b6b20',
-      borderWidth: 1,
-      borderColor: '#ff6b6b40',
-    },
-    insightCardInfo: {
-      backgroundColor: colors.primaryLight + '20',
-      borderWidth: 1,
-      borderColor: colors.primaryLight + '40',
-    },
-    insightCardKudos: {
-      backgroundColor: '#10b98120',
-      borderWidth: 1,
-      borderColor: '#10b98140',
-    },
-    insightText: {
-      fontSize: 14 * fontScale,
-      lineHeight: 20 * fontScale,
-    },
-    insightWarningText: {
-      color: '#ff6b6b',
-    },
-    insightInfoText: {
-      color: colors.primaryLight,
-    },
-    insightKudosText: {
-      color: '#10b981',
-    },
     comparisonHeader: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -253,36 +172,82 @@ export default function FamilyComparisonScreen() {
       opacity: 0.7,
       textAlign: 'center',
     },
-    divider: {
+    comparisonDivider: {
       width: 1,
       height: 40 * fontScale,
       backgroundColor: colorScheme === 'dark' 
         ? 'rgba(255, 255, 255, 0.2)' 
         : 'rgba(0, 0, 0, 0.2)',
     },
-    categoriesContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      paddingTop: 24 * fontScale,
-      marginTop: 16 * fontScale,
+    comparisonBarChartContainer: {
+      marginBottom: 24 * fontScale,
     },
-    categoryItem: {
+    barChartLegend: {
+      marginBottom: 16 * fontScale,
+      gap: 12 * fontScale,
+    },
+    legendItem: {
+      flexDirection: 'row',
       alignItems: 'center',
       gap: 8 * fontScale,
     },
-    categoryIcon: {
-      width: 48 * fontScale,
+    legendColor: {
+      width: 16 * fontScale,
+      height: 16 * fontScale,
+      borderRadius: 8 * fontScale,
+    },
+    legendLabel: {
+      flex: 1,
+    },
+    legendValue: {
+      fontSize: 14 * fontScale,
+    },
+    stackedBarWrapper: {
       height: 48 * fontScale,
       borderRadius: 24 * fontScale,
-      justifyContent: 'center',
-      alignItems: 'center',
+      overflow: 'hidden',
+      flexDirection: 'row',
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.1)',
     },
-    categoryText: {
-      fontSize: 12 * fontScale,
+    stackedBarSegment: {
+      height: '100%',
+    },
+    insightsContainer: {
+      marginTop: 8 * fontScale,
+    },
+    insightCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12 * fontScale,
+      borderRadius: 12 * fontScale,
+      padding: 16 * fontScale,
+      marginBottom: 12 * fontScale,
+    },
+    insightWarning: {
+      backgroundColor: '#ff6b6b20',
+      borderWidth: 1,
+      borderColor: '#ff6b6b40',
+    },
+    insightInfo: {
+      backgroundColor: colors.primaryLight + '20',
+      borderWidth: 1,
+      borderColor: colors.primaryLight + '40',
+    },
+    insightKudos: {
+      backgroundColor: '#10b98120',
+      borderWidth: 1,
+      borderColor: '#10b98140',
+    },
+    insightText: {
+      flex: 1,
+      fontSize: 14 * fontScale,
+      lineHeight: 20 * fontScale,
     },
   }), [fontScale, colorScheme, colors]);
 
-  if (!comparisonInsights) {
+  if (!sphereComparison) {
     return (
       <TabScreenContainer>
         <View style={styles.container}>
@@ -311,19 +276,6 @@ export default function FamilyComparisonScreen() {
       </TabScreenContainer>
     );
   }
-
-  const { family, career, totalAllMoments, familyPercentage, careerPercentage } = comparisonInsights;
-  
-  // Calculate bar widths based on total moments
-  const maxMoments = Math.max(family.totalMoments, career.totalMoments, 1);
-  const familyBarWidth = (family.totalMoments / maxMoments) * 100;
-  const careerBarWidth = (career.totalMoments / maxMoments) * 100;
-
-  // Calculate quality segment percentages
-  const familyCloudPct = family.totalMoments > 0 ? (family.totalClouds / family.totalMoments) * 100 : 0;
-  const familySunPct = family.totalMoments > 0 ? (family.totalSuns / family.totalMoments) * 100 : 0;
-  const careerCloudPct = career.totalMoments > 0 ? (career.totalClouds / career.totalMoments) * 100 : 0;
-  const careerSunPct = career.totalMoments > 0 ? (career.totalSuns / career.totalMoments) * 100 : 0;
 
   return (
     <TabScreenContainer>
@@ -355,262 +307,115 @@ export default function FamilyComparisonScreen() {
               {t('insights.comparison.family.subtitle')}
             </ThemedText>
 
-            {/* Overall Comparison Summary */}
-            <View style={styles.comparisonHeader}>
-              <View style={styles.comparisonItem}>
-                <ThemedText size="xl" weight="bold" style={[styles.comparisonValue, { color: '#10b981' }]}>
-                  {family.totalMoments}
-                </ThemedText>
-                <ThemedText size="xs" style={styles.comparisonLabel}>
-                  {t('insights.comparison.family.totalMoments')} - {t('spheres.family')}
-                </ThemedText>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.comparisonItem}>
-                <ThemedText size="xl" weight="bold" style={[styles.comparisonValue, { color: '#3b82f6' }]}>
-                  {career.totalMoments}
-                </ThemedText>
-                <ThemedText size="xs" style={styles.comparisonLabel}>
-                  {t('insights.comparison.family.totalMoments')} - {t('spheres.career')}
-                </ThemedText>
-              </View>
-            </View>
-
-            {/* Family Sphere Card */}
-            <View style={styles.sphereCard}>
-              <View style={styles.sphereHeader}>
-                <View style={[styles.sphereIcon, { backgroundColor: '#10b98120' }]}>
-                  <MaterialIcons name="family-restroom" size={24 * fontScale} color="#10b981" />
-                </View>
-                <ThemedText size="lg" weight="bold" style={styles.sphereTitle}>
-                  {t('spheres.family')}
-                </ThemedText>
-                <ThemedText size="sm" weight="bold" style={{ color: '#10b981' }}>
-                  {Math.round(family.sunnyPercentage)}%
-                </ThemedText>
-              </View>
-
-              {/* Total Moments Bar */}
-              <View style={styles.totalMomentsContainer}>
-                <ThemedText size="xs" style={styles.totalMomentsLabel}>
-                  {t('insights.comparison.family.totalMoments')}: {family.totalMoments}
-                </ThemedText>
-                <View style={styles.totalMomentsBar}>
-                  <View 
-                    style={[
-                      styles.totalMomentsFill, 
-                      { 
-                        width: `${familyBarWidth}%`,
-                        backgroundColor: '#10b981',
-                      }
-                    ]}
-                  >
-                    <ThemedText size="sm" weight="bold" style={styles.totalMomentsText}>
-                      {family.totalMoments}
-                    </ThemedText>
-                  </View>
-                </View>
-              </View>
-
-              {/* Quality Bar */}
-              <View style={styles.qualityContainer}>
-                <ThemedText size="xs" style={styles.qualityLabel}>
-                  {t('insights.comparison.family.quality')}
-                </ThemedText>
-                <View style={styles.qualityBar}>
-                  {family.totalClouds > 0 && (
-                    <View
-                      style={[
-                        styles.qualitySegment,
-                        {
-                          width: `${familyCloudPct}%`,
-                          backgroundColor: '#000000',
-                        }
-                      ]}
-                    />
-                  )}
-                  {family.totalSuns > 0 && (
-                    <View
-                      style={[
-                        styles.qualitySegment,
-                        {
-                          width: `${familySunPct}%`,
-                          backgroundColor: '#FFD700',
-                        }
-                      ]}
-                    />
-                  )}
-                </View>
-                <View style={styles.qualityInfo}>
-                  <ThemedText size="xs" style={styles.qualityText}>
-                    {t('insights.comparison.family.cloudy')}: {family.totalClouds}
-                  </ThemedText>
-                  <ThemedText size="xs" style={styles.qualityText}>
-                    {t('insights.comparison.family.sunny')}: {family.totalSuns}
-                  </ThemedText>
-                </View>
-              </View>
-            </View>
-
-            {/* Career Sphere Card */}
-            <View style={styles.sphereCard}>
-              <View style={styles.sphereHeader}>
-                <View style={[styles.sphereIcon, { backgroundColor: '#3b82f620' }]}>
-                  <MaterialIcons name="work" size={24 * fontScale} color="#3b82f6" />
-                </View>
-                <ThemedText size="lg" weight="bold" style={styles.sphereTitle}>
-                  {t('spheres.career')}
-                </ThemedText>
-                <ThemedText size="sm" weight="bold" style={{ color: '#3b82f6' }}>
-                  {Math.round(career.sunnyPercentage)}%
-                </ThemedText>
-              </View>
-
-              {/* Total Moments Bar */}
-              <View style={styles.totalMomentsContainer}>
-                <ThemedText size="xs" style={styles.totalMomentsLabel}>
-                  {t('insights.comparison.family.totalMoments')}: {career.totalMoments}
-                </ThemedText>
-                <View style={styles.totalMomentsBar}>
-                  <View 
-                    style={[
-                      styles.totalMomentsFill, 
-                      { 
-                        width: `${careerBarWidth}%`,
-                        backgroundColor: '#3b82f6',
-                      }
-                    ]}
-                  >
-                    <ThemedText size="sm" weight="bold" style={styles.totalMomentsText}>
-                      {career.totalMoments}
-                    </ThemedText>
-                  </View>
-                </View>
-              </View>
-
-              {/* Quality Bar */}
-              <View style={styles.qualityContainer}>
-                <ThemedText size="xs" style={styles.qualityLabel}>
-                  {t('insights.comparison.family.quality')}
-                </ThemedText>
-                <View style={styles.qualityBar}>
-                  {career.totalClouds > 0 && (
-                    <View
-                      style={[
-                        styles.qualitySegment,
-                        {
-                          width: `${careerCloudPct}%`,
-                          backgroundColor: '#000000',
-                        }
-                      ]}
-                    />
-                  )}
-                  {career.totalSuns > 0 && (
-                    <View
-                      style={[
-                        styles.qualitySegment,
-                        {
-                          width: `${careerSunPct}%`,
-                          backgroundColor: '#FFD700',
-                        }
-                      ]}
-                    />
-                  )}
-                </View>
-                <View style={styles.qualityInfo}>
-                  <ThemedText size="xs" style={styles.qualityText}>
-                    {t('insights.comparison.family.cloudy')}: {career.totalClouds}
-                  </ThemedText>
-                  <ThemedText size="xs" style={styles.qualityText}>
-                    {t('insights.comparison.family.sunny')}: {career.totalSuns}
-                  </ThemedText>
-                </View>
-              </View>
-            </View>
-
-            {/* Insights Messages */}
+            {/* Sphere Comparison - Family vs Career */}
             {(() => {
-              const insights = [];
+              const { family, career, insights } = sphereComparison;
+              const totalAllMoments = family.totalMoments + career.totalMoments;
               
-              // Time balance insight
-              if (comparisonInsights.timeBalance === 'family' && family.totalMoments > 0) {
-                insights.push({
-                  type: 'info',
-                  message: t('insights.comparison.family.insight.moreFamilyTime'),
-                });
-              } else if (comparisonInsights.timeBalance === 'career' && career.totalMoments > 0) {
-                insights.push({
-                  type: 'warning',
-                  message: t('insights.comparison.family.insight.moreCareerTime'),
-                });
-              } else if (comparisonInsights.timeBalance === 'balanced' && totalAllMoments > 0) {
-                insights.push({
-                  type: 'kudos',
-                  message: t('insights.comparison.family.insight.balancedTime'),
-                });
-              }
+              // Calculate percentages of total (should add up to 100%)
+              const familyPercentage = totalAllMoments > 0 
+                ? (family.totalMoments / totalAllMoments) * 100 
+                : 0;
+              const careerPercentage = totalAllMoments > 0 
+                ? (career.totalMoments / totalAllMoments) * 100 
+                : 0;
+              
+              return (
+                <>
+                  {/* Overall Comparison Summary */}
+                  <View style={styles.comparisonHeader}>
+                    <View style={styles.comparisonItem}>
+                      <ThemedText size="xl" weight="bold" style={[styles.comparisonValue, { color: '#10b981' }]}>
+                        {family.totalMoments}
+                      </ThemedText>
+                      <ThemedText size="xs" style={styles.comparisonLabel}>
+                        {t('insights.comparison.family.totalMoments')}
+                      </ThemedText>
+                    </View>
+                    <View style={styles.comparisonDivider} />
+                    <View style={styles.comparisonItem}>
+                      <ThemedText size="xl" weight="bold" style={[styles.comparisonValue, { color: '#3b82f6' }]}>
+                        {career.totalMoments}
+                      </ThemedText>
+                      <ThemedText size="xs" style={styles.comparisonLabel}>
+                        {t('insights.comparison.family.totalMoments')}
+                      </ThemedText>
+                    </View>
+                  </View>
 
-              // Quality comparison
-              if (Math.abs(comparisonInsights.qualityDifference) > 10) {
-                if (comparisonInsights.qualityDifference > 10) {
-                  insights.push({
-                    type: 'kudos',
-                    message: t('insights.comparison.family.insight.betterFamilyQuality'),
-                  });
-                } else {
-                  insights.push({
-                    type: 'info',
-                    message: t('insights.comparison.family.insight.betterCareerQuality'),
-                  });
-                }
-              }
+                  {/* Single Stacked Bar Chart */}
+                  <View style={styles.comparisonBarChartContainer}>
+                    {/* Legend */}
+                    <View style={styles.barChartLegend}>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendColor, { backgroundColor: '#10b981' }]} />
+                        <ThemedText size="sm" weight="semibold" style={styles.legendLabel}>
+                          {t('spheres.family')}
+                        </ThemedText>
+                        <ThemedText size="sm" weight="bold" style={[styles.legendValue, { color: '#10b981' }]}>
+                          {Math.round(familyPercentage)}%
+                        </ThemedText>
+                      </View>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
+                        <ThemedText size="sm" weight="semibold" style={styles.legendLabel}>
+                          {t('spheres.career')}
+                        </ThemedText>
+                        <ThemedText size="sm" weight="bold" style={[styles.legendValue, { color: '#3b82f6' }]}>
+                          {Math.round(careerPercentage)}%
+                        </ThemedText>
+                      </View>
+                    </View>
+                    
+                    {/* Stacked Bar */}
+                    <View style={styles.stackedBarWrapper}>
+                      <View style={[styles.stackedBarSegment, { 
+                        width: `${familyPercentage}%`, 
+                        backgroundColor: '#10b981' 
+                      }]} />
+                      <View style={[styles.stackedBarSegment, { 
+                        width: `${careerPercentage}%`, 
+                        backgroundColor: '#3b82f6' 
+                      }]} />
+                    </View>
+                  </View>
 
-              return insights.map((insight, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.insightCard,
-                    insight.type === 'warning' ? styles.insightCardWarning :
-                    insight.type === 'kudos' ? styles.insightCardKudos :
-                    styles.insightCardInfo
-                  ]}
-                >
-                  <ThemedText
-                    size="sm"
-                    weight="semibold"
-                    style={[
-                      styles.insightText,
-                      insight.type === 'warning' ? styles.insightWarningText :
-                      insight.type === 'kudos' ? styles.insightKudosText :
-                      styles.insightInfoText
-                    ]}
-                  >
-                    {insight.message}
-                  </ThemedText>
-                </View>
-              ));
+                  {/* Comparison Insights */}
+                  {insights.length > 0 && (
+                    <View style={styles.insightsContainer}>
+                      {insights.map((insight, index) => (
+                        <View
+                          key={index}
+                          style={[
+                            styles.insightCard,
+                            insight.type === 'warning' && styles.insightWarning,
+                            insight.type === 'kudos' && styles.insightKudos,
+                            insight.type === 'info' && styles.insightInfo,
+                          ]}
+                        >
+                          <MaterialIcons
+                            name={
+                              insight.type === 'warning' ? 'warning' :
+                              insight.type === 'kudos' ? 'celebration' :
+                              'info'
+                            }
+                            size={20 * fontScale}
+                            color={
+                              insight.type === 'warning' ? '#ff6b6b' :
+                              insight.type === 'kudos' ? '#10b981' :
+                              colors.icon
+                            }
+                          />
+                          <ThemedText size="sm" style={styles.insightText}>
+                            {insight.message}
+                          </ThemedText>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </>
+              );
             })()}
-
-            {/* Categories Legend */}
-            <View style={styles.categoriesContainer}>
-              <View style={styles.categoryItem}>
-                <View style={[styles.categoryIcon, { backgroundColor: '#FFD70020' }]}>
-                  <MaterialIcons name="wb-sunny" size={24 * fontScale} color="#FFD700" />
-                </View>
-                <ThemedText size="sm" style={[styles.categoryText, { color: '#FFD700' }]}>
-                  {t('insights.comparison.family.sunny')}
-                </ThemedText>
-              </View>
-              
-              <View style={styles.categoryItem}>
-                <View style={[styles.categoryIcon, { backgroundColor: '#00000020' }]}>
-                  <MaterialIcons name="cloud" size={24 * fontScale} color="#000000" />
-                </View>
-                <ThemedText size="sm" style={[styles.categoryText, { color: colorScheme === 'dark' ? '#ffffff' : '#000000' }]}>
-                  {t('insights.comparison.family.cloudy')}
-                </ThemedText>
-              </View>
-            </View>
           </View>
         </ScrollView>
       </View>
