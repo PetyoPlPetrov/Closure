@@ -13,21 +13,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Dimensions,
-  PanResponder,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Dimensions,
+    KeyboardAvoidingView,
+    PanResponder,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import Animated, {
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
+    useAnimatedReaction,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+    withTiming,
 } from 'react-native-reanimated';
 import { Defs, Path, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -615,6 +617,8 @@ export default function AddIdealizedMemoryScreen() {
   
   // Track button positions for animation
   const plusButtonRef = useRef<View>(null);
+  const titleInputRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const sunButtonRef = useRef<View>(null);
   const floatingButtonRef = useRef<View>(null);
   const [plusButtonPos, setPlusButtonPos] = useState<{ x: number; y: number } | null>(null);
@@ -1299,19 +1303,24 @@ export default function AddIdealizedMemoryScreen() {
 
         <View style={{ flex: 1 }} />
 
-        <TouchableOpacity style={styles.headerButton}>
-          <MaterialIcons name="help-outline" size={26} color={colors.text} />
-        </TouchableOpacity>
+        <View style={styles.headerButton} />
       </View>
 
       {/* Scroll content */}
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={true}
-        nestedScrollEnabled={true}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <View style={styles.centerContent}>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={true}
+          nestedScrollEnabled={true}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.centerContent}>
           <View style={styles.uploadShadowWrap}>
             <TouchableOpacity
               ref={containerRef}
@@ -1366,6 +1375,7 @@ export default function AddIdealizedMemoryScreen() {
           {/* Editable memory label */}
           <View style={styles.memoryLabelContainer}>
             <TextInput
+              ref={titleInputRef}
               value={memoryLabel}
               onChangeText={setMemoryLabel}
               style={styles.memoryLabelInput}
@@ -1373,6 +1383,12 @@ export default function AddIdealizedMemoryScreen() {
               placeholderTextColor={colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'}
               textAlign="center"
               editable={!viewOnly}
+              onFocus={() => {
+                // Scroll to title input when focused to ensure it's visible above keyboard
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollTo({ y: 150, animated: true });
+                }, 300);
+              }}
             />
           </View>
 
@@ -1522,7 +1538,8 @@ export default function AddIdealizedMemoryScreen() {
           </View>
           )}
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Cloud Bubbles - render all clouds positioned on screen (after ScrollView to ensure they appear on top) */}
       {clouds.map((cloud) => {

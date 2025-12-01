@@ -234,7 +234,28 @@ export default function IdealizedMemoriesScreen() {
           {t('memory.title')}
         </ThemedText>
 
-        <View style={styles.headerButton} />
+        {hasMemories ? (
+          <TouchableOpacity 
+            onPress={() => {
+              // Navigate to home view
+              if (sphere) {
+                router.replace({
+                  pathname: '/(tabs)/',
+                  params: { sphere },
+                });
+              } else {
+                router.replace('/(tabs)/');
+              }
+            }} 
+            style={styles.headerButton}
+          >
+            <ThemedText style={{ color: colors.primary, fontSize: 14 }}>
+              {t('common.done')}
+            </ThemedText>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerButton} />
+        )}
       </View>
 
       {hasMemories ? (

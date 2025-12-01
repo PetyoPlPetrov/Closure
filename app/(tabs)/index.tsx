@@ -3739,7 +3739,7 @@ export default function HomeScreen() {
   const [avatarPositionsState, setAvatarPositionsState] = React.useState<Map<string, { x: number; y: number }>>(new Map());
 
   // Storage key for avatar positions
-  const AVATAR_POSITIONS_KEY = '@closure:avatar_positions';
+  const AVATAR_POSITIONS_KEY = '@sferas:avatar_positions';
 
   // Load saved avatar positions from storage
   const [savedPositions, setSavedPositions] = React.useState<Map<string, { x: number; y: number }> | null>(null);

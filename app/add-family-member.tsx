@@ -137,7 +137,7 @@ export default function AddFamilyMemberScreen() {
         <View style={styles.headerTitle}>
           <MaterialIcons name="settings" size={20 * fontScale} color={colors.primary} />
           <ThemedText size="l" weight="bold" letterSpacing="s">
-            Closure
+            Sferas
           </ThemedText>
         </View>
         <View style={styles.headerButton} />

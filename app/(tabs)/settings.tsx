@@ -9,9 +9,9 @@ import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useTheme } from '@/utils/ThemeContext';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Asset } from 'expo-asset';
 import { useMemo, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, DimensionValue, Modal, Pressable, ScrollView, StyleSheet, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 
 export default function SettingsScreen() {
@@ -777,11 +777,11 @@ export default function SettingsScreen() {
             setIsDeletingData(true);
             try {
               // Clear ALL data storage keys (keep user preferences like theme and language)
-              const STORAGE_KEY = '@closure:ex_profiles';
-              const IDEALIZED_MEMORIES_KEY = '@closure:idealized_memories';
-              const JOBS_STORAGE_KEY = '@closure:jobs';
-              const FAMILY_MEMBERS_STORAGE_KEY = '@closure:family_members';
-              const AVATAR_POSITIONS_KEY = '@closure:avatar_positions';
+              const STORAGE_KEY = '@sferas:ex_profiles';
+              const IDEALIZED_MEMORIES_KEY = '@sferas:idealized_memories';
+              const JOBS_STORAGE_KEY = '@sferas:jobs';
+              const FAMILY_MEMBERS_STORAGE_KEY = '@sferas:family_members';
+              const AVATAR_POSITIONS_KEY = '@sferas:avatar_positions';
               
               await Promise.all([
                 AsyncStorage.removeItem(STORAGE_KEY),

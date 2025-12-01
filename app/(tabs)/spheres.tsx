@@ -5,16 +5,185 @@ import { useFontScale, useIconScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { ActionSheet } from '@/library/components/action-sheet';
 import { ConfirmationModal } from '@/library/components/confirmation-modal';
+import { JobCard } from '@/library/components/job-card';
 import { ProfileCard } from '@/library/components/profile-card';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
-import { useTranslate } from '@/utils/languages/use-translate';
-import type { LifeSphere, ExProfile, Job, FamilyMember } from '@/utils/JourneyProvider';
+import type { ExProfile, FamilyMember, Job, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
-import { JobCard } from '@/library/components/job-card';
+import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Wheel of Life Visualization Component
+function WheelOfLifeVisualization({
+  distribution,
+  quality,
+  colors,
+  colorScheme,
+  fontScale,
+}: {
+  distribution: { relationships: number; career: number; family: number }; // Percentage of total moments
+  quality: { relationships: number; career: number; family: number }; // Sunny percentage for gradient
+  colors: typeof Colors.dark;
+  colorScheme: 'light' | 'dark' | null;
+  fontScale: number;
+}) {
+  const size = Math.min(280 * fontScale, SCREEN_WIDTH - 80);
+  const center = size / 2;
+  const radius = size / 2 - 20;
+  const gapAngle = 5; // Gap in degrees between slices
+
+  // Normalize distribution percentages
+  const totalDistribution = distribution.relationships + distribution.career + distribution.family;
+  const normalizedDist = {
+    relationships: totalDistribution > 0 ? (distribution.relationships / totalDistribution) * 100 : 33.33,
+    career: totalDistribution > 0 ? (distribution.career / totalDistribution) * 100 : 33.33,
+    family: totalDistribution > 0 ? (distribution.family / totalDistribution) * 100 : 33.33,
+  };
+
+  // Calculate available angle (360 minus gaps between 3 slices)
+  const totalGaps = gapAngle * 3; // 3 gaps between 3 slices
+  const availableAngle = 360 - totalGaps;
+
+  // Calculate pie slice angles (start from top, clockwise)
+  let currentAngle = -90; // Start at top
+
+  const relStartAngle = currentAngle;
+  const relSweepAngle = (normalizedDist.relationships / 100) * availableAngle;
+  currentAngle += relSweepAngle + gapAngle;
+
+  const careerStartAngle = currentAngle;
+  const careerSweepAngle = (normalizedDist.career / 100) * availableAngle;
+  currentAngle += careerSweepAngle + gapAngle;
+
+  const familyStartAngle = currentAngle;
+  const familySweepAngle = (normalizedDist.family / 100) * availableAngle;
+
+  // Helper function to create pie slice path (triangle from center)
+  const createPieSlice = (startAngle: number, sweepAngle: number) => {
+    if (sweepAngle <= 0) return '';
+
+    const startRad = (startAngle * Math.PI) / 180;
+    const endRad = ((startAngle + sweepAngle) * Math.PI) / 180;
+
+    const x1 = center + Math.cos(startRad) * radius;
+    const y1 = center + Math.sin(startRad) * radius;
+    const x2 = center + Math.cos(endRad) * radius;
+    const y2 = center + Math.sin(endRad) * radius;
+
+    const largeArcFlag = sweepAngle > 180 ? 1 : 0;
+
+    return `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+  };
+
+  const relationshipsPath = createPieSlice(relStartAngle, relSweepAngle);
+  const careerPath = createPieSlice(careerStartAngle, careerSweepAngle);
+  const familyPath = createPieSlice(familyStartAngle, familySweepAngle);
+
+  // Calculate label positions (middle of each slice)
+  const getLabelPosition = (startAngle: number, sweepAngle: number) => {
+    const midAngle = startAngle + sweepAngle / 2;
+    const midRad = (midAngle * Math.PI) / 180;
+    const labelRadius = radius * 0.65; // Position label at 65% of radius
+    return {
+      x: center + Math.cos(midRad) * labelRadius,
+      y: center + Math.sin(midRad) * labelRadius,
+    };
+  };
+
+  const relLabelPos = getLabelPosition(relStartAngle, relSweepAngle);
+  const careerLabelPos = getLabelPosition(careerStartAngle, careerSweepAngle);
+  const familyLabelPos = getLabelPosition(familyStartAngle, familySweepAngle);
+
+  // Get distinct fixed colors for each sphere
+  const relationshipsColor = '#f87171'; // Red/pink for relationships
+  const careerColor = '#3b82f6'; // Blue for career
+  const familyColor = '#10b981'; // Green for family
+
+  return (
+    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {/* Background circle */}
+      <Circle cx={center} cy={center} r={radius} fill="none" stroke={colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth={2} />
+
+      {/* Relationships slice */}
+      {relationshipsPath && (
+        <>
+          <Path
+            d={relationshipsPath}
+            fill={relationshipsColor}
+            opacity={0.6}
+          />
+          {relSweepAngle > 5 && (
+            <SvgText
+              x={relLabelPos.x}
+              y={relLabelPos.y}
+              fontSize={14 * fontScale}
+              fill={colors.text}
+              textAnchor="middle"
+              alignmentBaseline="middle"
+              fontWeight="bold"
+            >
+              {Math.round(normalizedDist.relationships)}%
+            </SvgText>
+          )}
+        </>
+      )}
+
+      {/* Career slice */}
+      {careerPath && (
+        <>
+          <Path
+            d={careerPath}
+            fill={careerColor}
+            opacity={0.6}
+          />
+          {careerSweepAngle > 5 && (
+            <SvgText
+              x={careerLabelPos.x}
+              y={careerLabelPos.y}
+              fontSize={14 * fontScale}
+              fill={colors.text}
+              textAnchor="middle"
+              alignmentBaseline="middle"
+              fontWeight="bold"
+            >
+              {Math.round(normalizedDist.career)}%
+            </SvgText>
+          )}
+        </>
+      )}
+
+      {/* Family slice */}
+      {familyPath && (
+        <>
+          <Path
+            d={familyPath}
+            fill={familyColor}
+            opacity={0.6}
+          />
+          {familySweepAngle > 5 && (
+            <SvgText
+              x={familyLabelPos.x}
+              y={familyLabelPos.y}
+              fontSize={14 * fontScale}
+              fill={colors.text}
+              textAnchor="middle"
+              alignmentBaseline="middle"
+              fontWeight="bold"
+            >
+              {Math.round(normalizedDist.family)}%
+            </SvgText>
+          )}
+        </>
+      )}
+    </Svg>
+  );
+}
 
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
@@ -22,7 +191,7 @@ export default function SpheresScreen() {
   const fontScale = useFontScale();
   const iconScale = useIconScale();
   const { maxContentWidth } = useLargeDevice();
-  const { profiles, jobs, familyMembers, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, deleteProfile, deleteJob, deleteFamilyMember, reloadIdealizedMemories } = useJourney();
+  const { profiles, jobs, familyMembers, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, deleteProfile, deleteJob, deleteFamilyMember, reloadIdealizedMemories, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
   const t = useTranslate();
   
   // Reload memories when screen comes into focus (e.g., after running mock data script)
@@ -39,6 +208,79 @@ export default function SpheresScreen() {
   const [selectedProfile, setSelectedProfile] = useState<ExProfile | null>(null);
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [expandedSphere, setExpandedSphere] = useState<LifeSphere | null>(null);
+
+  // Calculate entity-level scores for comparison
+  const entityComparisons = useMemo(() => {
+    const calculateEntityScore = (entityId: string, sphereType: LifeSphere): number => {
+      const memories = sphereType === 'relationships'
+        ? getIdealizedMemoriesByProfileId(entityId)
+        : getIdealizedMemoriesByEntityId(entityId, sphereType);
+      
+      let totalClouds = 0;
+      let totalSuns = 0;
+      
+      memories.forEach((memory) => {
+        totalClouds += (memory.hardTruths || []).length;
+        totalSuns += (memory.goodFacts || []).length;
+      });
+      
+      const total = totalClouds + totalSuns;
+      if (total === 0) return 0;
+      
+      const percentage = (totalSuns / total) * 100;
+      return Math.max(0, Math.min(100, isNaN(percentage) ? 0 : percentage));
+    };
+
+    const relationships = profiles
+      .map(p => ({
+        id: p.id,
+        name: p.name,
+        score: calculateEntityScore(p.id, 'relationships'),
+        isOngoing: !p.relationshipEndDate,
+        entity: p,
+      }))
+      .filter(e => e.score > 0)
+      .sort((a, b) => {
+        // Sort: ongoing first, then by score descending
+        if (a.isOngoing && !b.isOngoing) return -1;
+        if (!a.isOngoing && b.isOngoing) return 1;
+        return b.score - a.score;
+      });
+
+    const jobsList = jobs
+      .map(j => ({
+        id: j.id,
+        name: j.name,
+        score: calculateEntityScore(j.id, 'career'),
+        isOngoing: !j.endDate,
+        entity: j,
+      }))
+      .filter(e => e.score > 0)
+      .sort((a, b) => {
+        // Sort: ongoing first, then by score descending
+        if (a.isOngoing && !b.isOngoing) return -1;
+        if (!a.isOngoing && b.isOngoing) return 1;
+        return b.score - a.score;
+      });
+
+    const familyMembersList = familyMembers
+      .map(f => ({
+        id: f.id,
+        name: f.name,
+        score: calculateEntityScore(f.id, 'family'),
+        isOngoing: true, // Family members are always "ongoing"
+        entity: f,
+      }))
+      .filter(e => e.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    return {
+      relationships,
+      career: jobsList,
+      family: familyMembersList,
+    };
+  }, [profiles, jobs, familyMembers, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
 
   const spheres: { type: LifeSphere; icon: string; label: string; entities: (ExProfile | Job | FamilyMember)[] }[] = useMemo(() => [
     {
@@ -62,6 +304,245 @@ export default function SpheresScreen() {
   ], [getEntitiesBySphere, t]);
 
   const overallPercentage = useMemo(() => getOverallSunnyPercentage(), [getOverallSunnyPercentage]);
+
+  // Calculate sunny percentage for each sphere
+  // Calculate sphere data: total moments (for distribution) and sunny percentage (for quality)
+  const sphereData = useMemo(() => {
+    const calculateSphereData = (sphereType: LifeSphere) => {
+      const entities = getEntitiesBySphere(sphereType);
+      if (entities.length === 0) return { totalMoments: 0, sunnyPercentage: 0 };
+
+      let totalClouds = 0;
+      let totalSuns = 0;
+
+      entities.forEach((entity) => {
+        const memories = sphereType === 'relationships' && 'id' in entity
+          ? getIdealizedMemoriesByProfileId(entity.id)
+          : getIdealizedMemoriesByEntityId(entity.id, sphereType);
+
+        memories.forEach((memory) => {
+          totalClouds += (memory.hardTruths || []).length;
+          totalSuns += (memory.goodFacts || []).length;
+        });
+      });
+
+      const totalMoments = totalClouds + totalSuns;
+      const sunnyPercentage = totalMoments > 0 
+        ? (totalSuns / totalMoments) * 100 
+        : 0;
+
+      return {
+        totalMoments,
+        sunnyPercentage: Math.max(0, Math.min(100, isNaN(sunnyPercentage) ? 0 : sunnyPercentage)),
+      };
+    };
+
+    return {
+      relationships: calculateSphereData('relationships'),
+      career: calculateSphereData('career'),
+      family: calculateSphereData('family'),
+    };
+  }, [getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
+
+  // Calculate distribution percentages (for segment sizes)
+  const sphereDistribution = useMemo(() => {
+    const totalAllMoments = sphereData.relationships.totalMoments + 
+                           sphereData.career.totalMoments + 
+                           sphereData.family.totalMoments;
+    
+    if (totalAllMoments === 0) {
+      return {
+        relationships: 33.33,
+        career: 33.33,
+        family: 33.33,
+      };
+    }
+
+    return {
+      relationships: (sphereData.relationships.totalMoments / totalAllMoments) * 100,
+      career: (sphereData.career.totalMoments / totalAllMoments) * 100,
+      family: (sphereData.family.totalMoments / totalAllMoments) * 100,
+    };
+  }, [sphereData]);
+
+  // Keep sphereScores for insights (sunny percentage)
+  const sphereScores = useMemo(() => ({
+    relationships: sphereData.relationships.sunnyPercentage,
+    career: sphereData.career.sunnyPercentage,
+    family: sphereData.family.sunnyPercentage,
+  }), [sphereData]);
+
+  // Calculate entity-level scores and generate detailed insights
+  const insights = useMemo(() => {
+    const insightsList: { 
+      sphere: LifeSphere; 
+      message: string; 
+      priority: 'high' | 'medium' | 'low';
+      details?: { entityName: string; percentage: number; comparison?: string };
+    }[] = [];
+
+    // Helper to calculate entity score
+    const calculateEntityScore = (entityId: string, sphereType: LifeSphere): number => {
+      const memories = sphereType === 'relationships'
+        ? getIdealizedMemoriesByProfileId(entityId)
+        : getIdealizedMemoriesByEntityId(entityId, sphereType);
+      
+      let totalClouds = 0;
+      let totalSuns = 0;
+      
+      memories.forEach((memory) => {
+        totalClouds += (memory.hardTruths || []).length;
+        totalSuns += (memory.goodFacts || []).length;
+      });
+      
+      const total = totalClouds + totalSuns;
+      if (total === 0) return 0;
+      
+      const percentage = (totalSuns / total) * 100;
+      return Math.max(0, Math.min(100, isNaN(percentage) ? 0 : percentage));
+    };
+
+    // Relationships analysis
+    const relationshipsEntities = profiles.filter(p => 
+      p.relationshipStartDate || p.relationshipEndDate !== undefined
+    );
+    if (relationshipsEntities.length > 0) {
+      const currentRelationships = relationshipsEntities.filter(p => !p.relationshipEndDate);
+      const pastRelationships = relationshipsEntities.filter(p => p.relationshipEndDate);
+      
+      // Analyze current relationships
+      currentRelationships.forEach(profile => {
+        const score = calculateEntityScore(profile.id, 'relationships');
+        // Only generate insights if there are memories and score is below 50%
+        if (score > 0 && score < 50) {
+          // Compare with past relationships that have memories
+          const pastScoresWithData = pastRelationships
+            .map(p => calculateEntityScore(p.id, 'relationships'))
+            .filter(s => s > 0); // Only include past relationships with memories
+          
+          const avgPastScore = pastScoresWithData.length > 0 
+            ? pastScoresWithData.reduce((a, b) => a + b, 0) / pastScoresWithData.length 
+            : null;
+          
+          let messageKey = 'insights.relationships.current.low';
+          let comparison: string | undefined = undefined;
+          
+          if (avgPastScore !== null && avgPastScore < 50) {
+            // Pattern detected - similar low scores across relationships
+            messageKey = 'insights.relationships.pattern.current';
+            comparison = `This is similar to your past relationships (avg ${Math.round(avgPastScore)}% sunny).`;
+          } else if (avgPastScore !== null) {
+            comparison = `Your past relationships averaged ${Math.round(avgPastScore)}% sunny.`;
+          }
+          
+          insightsList.push({
+            sphere: 'relationships',
+            message: messageKey,
+            priority: score < 30 ? 'high' : 'medium',
+            details: {
+              entityName: profile.name,
+              percentage: Math.round(score),
+              comparison: comparison,
+            },
+          });
+        }
+      });
+    }
+
+    // Career analysis
+    const careerEntities = jobs.filter(j => j.startDate);
+    if (careerEntities.length > 0) {
+      const currentJobs = careerEntities.filter(j => !j.endDate);
+      const pastJobs = careerEntities.filter(j => j.endDate);
+      
+      // Analyze current jobs
+      currentJobs.forEach(job => {
+        const score = calculateEntityScore(job.id, 'career');
+        // Only generate insights if there are memories and score is below 50%
+        if (score > 0 && score < 50) {
+          const pastScoresWithData = pastJobs
+            .map(j => calculateEntityScore(j.id, 'career'))
+            .filter(s => s > 0); // Only include past jobs with memories
+          
+          const avgPastScore = pastScoresWithData.length > 0 
+            ? pastScoresWithData.reduce((a, b) => a + b, 0) / pastScoresWithData.length 
+            : null;
+          
+          let messageKey = 'insights.career.current.low';
+          let comparison: string | undefined = undefined;
+          
+          if (avgPastScore !== null && avgPastScore < 50) {
+            // Pattern detected - similar low scores across jobs
+            messageKey = 'insights.career.pattern.current';
+            comparison = `This pattern is similar to your previous jobs (avg ${Math.round(avgPastScore)}% positive).`;
+          } else if (avgPastScore !== null) {
+            comparison = `Your previous jobs averaged ${Math.round(avgPastScore)}% positive moments.`;
+          }
+          
+          insightsList.push({
+            sphere: 'career',
+            message: messageKey,
+            priority: score < 30 ? 'high' : 'medium',
+            details: {
+              entityName: job.name,
+              percentage: Math.round(score),
+              comparison: comparison,
+            },
+          });
+        }
+      });
+    }
+
+    // Family analysis - compare all family members
+    if (familyMembers.length > 1) {
+      const familyScores = familyMembers
+        .map(member => ({
+          member,
+          score: calculateEntityScore(member.id, 'family'),
+        }))
+        .filter(({ score }) => score > 0); // Only include members with memories
+      
+      if (familyScores.length > 1) {
+        const lowScoreMembers = familyScores.filter(({ score }) => score > 0 && score < 50);
+        const avgScore = familyScores.reduce((sum, { score }) => sum + score, 0) / familyScores.length;
+        
+        lowScoreMembers.forEach(({ member, score }) => {
+          let messageKey = 'insights.family.member.low';
+          let comparison: string | undefined = undefined;
+          
+          if (avgScore < 50) {
+            // Pattern detected - similar low scores across family
+            messageKey = 'insights.family.pattern';
+            comparison = `This is similar to other family relationships (avg ${Math.round(avgScore)}% positive).`;
+          }
+          
+          insightsList.push({
+            sphere: 'family',
+            message: messageKey,
+            priority: score < 30 ? 'high' : 'medium',
+            details: {
+              entityName: member.name,
+              percentage: Math.round(score),
+              comparison: comparison,
+            },
+          });
+        });
+      } else if (familyScores.length === 1 && familyScores[0].score > 0 && familyScores[0].score < 50) {
+        // Single family member with low score
+        insightsList.push({
+          sphere: 'family',
+          message: 'insights.family.member.low',
+          priority: familyScores[0].score < 30 ? 'high' : 'medium',
+          details: {
+            entityName: familyScores[0].member.name,
+            percentage: Math.round(familyScores[0].score),
+          },
+        });
+      }
+    }
+
+    return insightsList;
+  }, [profiles, jobs, familyMembers, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
 
   const styles = useMemo(() => StyleSheet.create({
     header: {
@@ -232,6 +713,179 @@ export default function SpheresScreen() {
       paddingHorizontal: 16 * fontScale,
     },
     buttonText: {},
+    wheelContainer: {
+      marginBottom: 32 * fontScale,
+      padding: 20 * fontScale,
+      borderRadius: 16 * fontScale,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.05)' 
+        : 'rgba(0, 0, 0, 0.05)',
+    },
+    wheelTitle: {
+      textAlign: 'center',
+      marginBottom: 8 * fontScale,
+    },
+    wheelSubtitle: {
+      textAlign: 'center',
+      opacity: 0.7,
+      marginBottom: 24 * fontScale,
+    },
+    wheelWrapper: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginVertical: 20 * fontScale,
+    },
+    scoresContainer: {
+      marginTop: 24 * fontScale,
+      gap: 16 * fontScale,
+    },
+    scoreItem: {
+      marginBottom: 12 * fontScale,
+      borderRadius: 12 * fontScale,
+      padding: 12 * fontScale,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.03)' 
+        : 'rgba(0, 0, 0, 0.03)',
+    },
+    scoreRowTouchable: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12 * fontScale,
+      marginBottom: 8 * fontScale,
+    },
+    scoreRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12 * fontScale,
+      marginBottom: 8 * fontScale,
+    },
+    scoreLabel: {
+      flex: 1,
+    },
+    scoreValue: {
+      minWidth: 50 * fontScale,
+      textAlign: 'right',
+    },
+    scoreBarContainer: {
+      height: 6 * fontScale,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.1)',
+      borderRadius: 3 * fontScale,
+      overflow: 'hidden',
+    },
+    scoreBar: {
+      height: '100%',
+      borderRadius: 3 * fontScale,
+    },
+    insightsContainer: {
+      marginTop: 32 * fontScale,
+      gap: 16 * fontScale,
+    },
+    insightsTitle: {
+      marginBottom: 12 * fontScale,
+    },
+    insightItem: {
+      padding: 16 * fontScale,
+      borderRadius: 12 * fontScale,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.03)' 
+        : 'rgba(0, 0, 0, 0.03)',
+      borderLeftWidth: 4,
+      marginBottom: 12 * fontScale,
+    },
+    insightHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8 * fontScale,
+      marginBottom: 8 * fontScale,
+    },
+    insightSphere: {
+      flex: 1,
+    },
+    insightMessage: {
+      opacity: 0.8,
+      lineHeight: 20 * fontScale,
+    },
+    insightPercentage: {
+      marginTop: 4 * fontScale,
+      fontWeight: '600',
+    },
+    comparisonContainer: {
+      marginTop: 16 * fontScale,
+      paddingTop: 16 * fontScale,
+      borderTopWidth: 1,
+      borderTopColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.1)',
+    },
+    comparisonSection: {
+      marginBottom: 16 * fontScale,
+    },
+    comparisonSectionTitle: {
+      marginBottom: 12 * fontScale,
+      opacity: 0.8,
+    },
+    entityComparisonItem: {
+      marginBottom: 12 * fontScale,
+    },
+    entityComparisonName: {
+      marginBottom: 6 * fontScale,
+      opacity: 0.9,
+    },
+    entityComparisonRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8 * fontScale,
+    },
+    entityScoreBarContainer: {
+      flex: 1,
+      height: 4 * fontScale,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.1)',
+      borderRadius: 2 * fontScale,
+      overflow: 'hidden',
+    },
+    entityScoreBar: {
+      height: '100%',
+      borderRadius: 2 * fontScale,
+    },
+    entityScoreValue: {
+      minWidth: 40 * fontScale,
+      textAlign: 'right',
+    },
+    suggestionContainer: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8 * fontScale,
+      marginTop: 16 * fontScale,
+      padding: 12 * fontScale,
+      borderRadius: 8 * fontScale,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(14, 165, 233, 0.15)' 
+        : 'rgba(125, 211, 252, 0.2)',
+    },
+    suggestionText: {
+      flex: 1,
+      opacity: 0.9,
+      lineHeight: 20 * fontScale,
+    },
+    percentageExplanation: {
+      marginTop: 16 * fontScale,
+      marginBottom: 8 * fontScale,
+      paddingHorizontal: 20 * fontScale,
+      paddingVertical: 12 * fontScale,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.05)' 
+        : 'rgba(0, 0, 0, 0.05)',
+      borderRadius: 8 * fontScale,
+    },
+    percentageExplanationText: {
+      opacity: 0.7,
+      lineHeight: 18 * fontScale,
+      textAlign: 'center',
+    },
   }), [fontScale, iconScale, colorScheme, colors, maxContentWidth]);
 
   const handleSpherePress = (sphere: LifeSphere) => {
@@ -346,6 +1000,28 @@ export default function SpheresScreen() {
   const relationshipsProfiles = selectedSphere === 'relationships' ? (selectedSphereData?.entities as ExProfile[] || []) : [];
   const careerJobs = selectedSphere === 'career' ? (selectedSphereData?.entities as Job[] || []) : [];
   const familyMembersList = selectedSphere === 'family' ? (selectedSphereData?.entities as FamilyMember[] || []) : [];
+  
+  // Check if any entity has at least one memory
+  const hasAnyRelationshipMemory = useMemo(() => {
+    return relationshipsProfiles.some(profile => {
+      const memories = getIdealizedMemoriesByProfileId(profile.id);
+      return memories.length > 0;
+    });
+  }, [relationshipsProfiles, getIdealizedMemoriesByProfileId]);
+  
+  const hasAnyCareerMemory = useMemo(() => {
+    return careerJobs.some(job => {
+      const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
+      return memories.length > 0;
+    });
+  }, [careerJobs, getIdealizedMemoriesByEntityId]);
+  
+  const hasAnyFamilyMemory = useMemo(() => {
+    return familyMembersList.some(member => {
+      const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
+      return memories.length > 0;
+    });
+  }, [familyMembersList, getIdealizedMemoriesByEntityId]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [selectedFamilyMember, setSelectedFamilyMember] = useState<FamilyMember | null>(null);
   const [familyMemberActionSheetVisible, setFamilyMemberActionSheetVisible] = useState(false);
@@ -422,7 +1098,17 @@ export default function SpheresScreen() {
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.relationships')}
           </ThemedText>
-          {relationshipsProfiles.length > 0 ? (
+          {hasAnyRelationshipMemory ? (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.replace({ pathname: '/(tabs)' })}
+              activeOpacity={0.7}
+            >
+              <ThemedText style={{ color: colors.primary, fontSize: 14 }}>
+                {t('common.done')}
+              </ThemedText>
+            </TouchableOpacity>
+          ) : relationshipsProfiles.length > 0 ? (
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => router.push('/add-ex-profile')}
@@ -527,7 +1213,17 @@ export default function SpheresScreen() {
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.career')}
           </ThemedText>
-          {careerJobs.length > 0 ? (
+          {hasAnyCareerMemory ? (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.replace({ pathname: '/(tabs)' })}
+              activeOpacity={0.7}
+            >
+              <ThemedText style={{ color: colors.primary, fontSize: 14 }}>
+                {t('common.done')}
+              </ThemedText>
+            </TouchableOpacity>
+          ) : careerJobs.length > 0 ? (
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => router.push('/add-job')}
@@ -687,7 +1383,17 @@ export default function SpheresScreen() {
           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.family')}
           </ThemedText>
-          {familyMembersList.length > 0 ? (
+          {hasAnyFamilyMemory ? (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.replace({ pathname: '/(tabs)' })}
+              activeOpacity={0.7}
+            >
+              <ThemedText style={{ color: colors.primary, fontSize: 14 }}>
+                {t('common.done')}
+              </ThemedText>
+            </TouchableOpacity>
+          ) : familyMembersList.length > 0 ? (
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => router.push('/add-family-member')}
@@ -833,31 +1539,269 @@ export default function SpheresScreen() {
         contentContainerStyle={{ paddingBottom: 100 * fontScale }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Sphere Selection Grid - only show when no sphere is selected */}
+        {/* Wheel of Life Analysis - only show when no sphere is selected */}
         {!selectedSphere && (
-          <View style={styles.sphereGrid}>
-            {spheres.map((sphere) => (
-              <TouchableOpacity
-                key={sphere.type}
-                style={styles.sphereCard}
-                onPress={() => handleSpherePress(sphere.type)}
-                activeOpacity={0.8}
-              >
-                <MaterialIcons
-                  name={sphere.icon as any}
-                  size={40 * fontScale * iconScale}
-                  color={colors.primary}
-                  style={styles.sphereIcon}
+          <>
+            {/* Wheel of Life Visualization */}
+            <View style={styles.wheelContainer}>
+              <ThemedText size="l" weight="bold" style={styles.wheelTitle}>
+                {t('insights.wheelOfLife.title')}
+              </ThemedText>
+              <ThemedText size="sm" style={styles.wheelSubtitle}>
+                {t('insights.wheelOfLife.subtitle')}
+              </ThemedText>
+              
+              <View style={styles.wheelWrapper}>
+                <WheelOfLifeVisualization
+                  distribution={sphereDistribution}
+                  quality={sphereScores}
+                  colors={colors}
+                  colorScheme={colorScheme}
+                  fontScale={fontScale}
                 />
-                <ThemedText size="sm" weight="bold" style={styles.sphereLabel}>
-                  {sphere.label}
+              </View>
+
+              {/* Sphere Scores */}
+              <View style={styles.scoresContainer}>
+                {spheres.map((sphere) => {
+                  const score = sphereScores[sphere.type];
+                  // Use fixed colors matching the wheel of life pie chart
+                  const sphereColor = sphere.type === 'relationships' ? '#f87171' : 
+                                     sphere.type === 'career' ? '#3b82f6' : 
+                                     '#10b981'; // family
+                  const isExpanded = expandedSphere === sphere.type;
+                  const entities = entityComparisons[sphere.type];
+                  const currentEntities = entities.filter(e => e.isOngoing);
+                  const pastEntities = entities.filter(e => !e.isOngoing);
+                  
+                  return (
+                    <View key={sphere.type} style={styles.scoreItem}>
+                      <TouchableOpacity
+                        style={styles.scoreRowTouchable}
+                        onPress={() => {
+                          // Navigate to relationships comparison view if relationships
+                          if (sphere.type === 'relationships' && entities.length > 0) {
+                            router.push('/relationships-comparison');
+                          } else {
+                            // For other spheres, expand/collapse
+                            setExpandedSphere(isExpanded ? null : sphere.type);
+                          }
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialIcons
+                          name={sphere.icon as any}
+                          size={20 * fontScale}
+                          color={sphereColor}
+                        />
+                        <ThemedText size="sm" weight="semibold" style={styles.scoreLabel}>
+                          {sphere.label}
+                        </ThemedText>
+                        <ThemedText size="sm" weight="bold" style={[styles.scoreValue, { color: sphereColor }]}>
+                          {Math.round(score)}%
+                        </ThemedText>
+                        <MaterialIcons
+                          name={sphere.type === 'relationships' ? 'arrow-forward' : (isExpanded ? 'expand-less' : 'expand-more')}
+                          size={24 * fontScale}
+                          color={colors.icon}
+                        />
+                      </TouchableOpacity>
+                      <View style={styles.scoreBarContainer}>
+                        <View style={[styles.scoreBar, { width: `${score}%`, backgroundColor: sphereColor }]} />
+                      </View>
+                      
+                      {/* Expanded Comparison Section */}
+                      {isExpanded && sphere.type !== 'relationships' && entities.length > 0 && (
+                        <View style={styles.comparisonContainer}>
+                          {/* Current/Ongoing Entities */}
+                          {currentEntities.length > 0 && (
+                            <View style={styles.comparisonSection}>
+                              <ThemedText size="sm" weight="bold" style={styles.comparisonSectionTitle}>
+                                {sphere.type === 'relationships' ? t('insights.comparison.currentRelationships') :
+                                 sphere.type === 'career' ? t('insights.comparison.currentJobs') :
+                                 t('insights.comparison.familyMembers')}
+                              </ThemedText>
+                              {currentEntities.map((entity) => {
+                                return (
+                                  <View key={entity.id} style={styles.entityComparisonItem}>
+                                    <ThemedText size="xs" style={styles.entityComparisonName}>
+                                      {entity.name}
+                                    </ThemedText>
+                                    <View style={styles.entityComparisonRow}>
+                                      <View style={styles.entityScoreBarContainer}>
+                                        <View style={[styles.entityScoreBar, { width: `${entity.score}%`, backgroundColor: sphereColor }]} />
+                                      </View>
+                                      <ThemedText size="xs" weight="bold" style={[styles.entityScoreValue, { color: sphereColor }]}>
+                                        {Math.round(entity.score)}%
+                                      </ThemedText>
+                                    </View>
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          )}
+                          
+                          {/* Past Entities */}
+                          {pastEntities.length > 0 && (
+                            <View style={styles.comparisonSection}>
+                              <ThemedText size="sm" weight="bold" style={styles.comparisonSectionTitle}>
+                                {sphere.type === 'relationships' ? t('insights.comparison.pastRelationships') :
+                                 sphere.type === 'career' ? t('insights.comparison.pastJobs') :
+                                 ''}
+                              </ThemedText>
+                              {pastEntities.map((entity) => {
+                                return (
+                                  <View key={entity.id} style={styles.entityComparisonItem}>
+                                    <ThemedText size="xs" style={styles.entityComparisonName}>
+                                      {entity.name}
+                                    </ThemedText>
+                                    <View style={styles.entityComparisonRow}>
+                                      <View style={styles.entityScoreBarContainer}>
+                                        <View style={[styles.entityScoreBar, { width: `${entity.score}%`, backgroundColor: sphereColor }]} />
+                                      </View>
+                                      <ThemedText size="xs" weight="bold" style={[styles.entityScoreValue, { color: sphereColor }]}>
+                                        {Math.round(entity.score)}%
+                                      </ThemedText>
+                                    </View>
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          )}
+                          
+                          {/* Suggestions */}
+                          {currentEntities.length > 0 && (() => {
+                            const currentScore = currentEntities[0].score;
+                            const avgPastScore = pastEntities.length > 0 
+                              ? pastEntities.reduce((sum, e) => sum + e.score, 0) / pastEntities.length 
+                              : null;
+                            
+                            let suggestionKey = '';
+                            if (currentScore < 50 && avgPastScore !== null && currentScore < avgPastScore) {
+                              // Current is worse than past
+                              suggestionKey = `insights.suggestion.${sphere.type}.worse`;
+                            } else if (currentScore < 50) {
+                              // Current is low
+                              suggestionKey = `insights.suggestion.${sphere.type}.low`;
+                            } else if (avgPastScore !== null && currentScore > avgPastScore + 10) {
+                              // Good progression
+                              suggestionKey = `insights.suggestion.${sphere.type}.progress`;
+                            } else if (currentScore >= 70) {
+                              // Strong performance
+                              suggestionKey = `insights.suggestion.${sphere.type}.strong`;
+                            }
+                            
+                            if (suggestionKey) {
+                              return (
+                                <View style={styles.suggestionContainer}>
+                                  <MaterialIcons
+                                    name="lightbulb"
+                                    size={20 * fontScale}
+                                    color={colors.primaryLight}
+                                  />
+                                  <ThemedText size="sm" style={styles.suggestionText}>
+                                    {t(suggestionKey as any)}
+                                  </ThemedText>
+                                </View>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Percentage Explanation */}
+              <View style={styles.percentageExplanation}>
+                <ThemedText size="xs" style={styles.percentageExplanationText}>
+                  {t('insights.wheelOfLife.percentageExplanation')}
                 </ThemedText>
-                <ThemedText size="xs" style={styles.sphereCount}>
-                  {sphere.entities.length} {sphere.entities.length === 1 ? t('spheres.item') : t('spheres.items')}
-                </ThemedText>
-              </TouchableOpacity>
-            ))}
-          </View>
+              </View>
+
+              {/* Insights */}
+              {insights.length > 0 && (
+                <View style={styles.insightsContainer}>
+                  <ThemedText size="m" weight="bold" style={styles.insightsTitle}>
+                    {t('insights.recommendations.title')}
+                  </ThemedText>
+                  {insights.map((insight, index) => {
+                    const sphereData = spheres.find(s => s.type === insight.sphere);
+                    const priorityColor = insight.priority === 'high' ? '#ff6b6b' : insight.priority === 'medium' ? '#ffa500' : colors.primaryLight;
+                    
+                    // Build the message with details
+                    let messageText = t(insight.message as any);
+                    if (insight.details) {
+                      // Replace placeholders in the message
+                      messageText = messageText
+                        .replace(/{name}/g, insight.details.entityName)
+                        .replace(/{percentage}/g, insight.details.percentage.toString());
+                      
+                      // Add comparison if available
+                      if (insight.details.comparison) {
+                        messageText += ` ${insight.details.comparison}`;
+                      }
+                    }
+                    
+                    return (
+                      <View key={index} style={[styles.insightItem, { borderLeftColor: priorityColor }]}>
+                        <View style={styles.insightHeader}>
+                          <MaterialIcons
+                            name={sphereData?.icon as any || 'info'}
+                            size={20 * fontScale}
+                            color={priorityColor}
+                          />
+                          <ThemedText size="sm" weight="bold" style={styles.insightSphere}>
+                            {sphereData?.label}
+                            {insight.details && (
+                              <ThemedText size="xs" style={{ opacity: 0.7 }}>
+                                {' • '}{insight.details.entityName}
+                              </ThemedText>
+                            )}
+                          </ThemedText>
+                        </View>
+                        <ThemedText size="sm" style={styles.insightMessage}>
+                          {messageText}
+                        </ThemedText>
+                        {insight.details && (
+                          <ThemedText size="xs" style={[styles.insightPercentage, { color: priorityColor }]}>
+                            {insight.details.percentage}% sunny
+                          </ThemedText>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+
+            {/* Sphere Selection Grid */}
+            <View style={styles.sphereGrid}>
+              {spheres.map((sphere) => (
+                <TouchableOpacity
+                  key={sphere.type}
+                  style={styles.sphereCard}
+                  onPress={() => handleSpherePress(sphere.type)}
+                  activeOpacity={0.8}
+                >
+                  <MaterialIcons
+                    name={sphere.icon as any}
+                    size={40 * fontScale * iconScale}
+                    color={colors.primary}
+                    style={styles.sphereIcon}
+                  />
+                  <ThemedText size="sm" weight="bold" style={styles.sphereLabel}>
+                    {sphere.label}
+                  </ThemedText>
+                  <ThemedText size="xs" style={styles.sphereCount}>
+                    {sphere.entities.length} {sphere.entities.length === 1 ? t('spheres.item') : t('spheres.items')}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
         )}
       </ScrollView>
     </TabScreenContainer>

@@ -37,6 +37,7 @@ export interface Translations {
   'common.save': string;
   'common.cancel': string;
   'common.delete': string;
+  'common.done': string;
   'common.edit': string;
   'common.add': string;
   'common.close': string;
@@ -133,6 +134,56 @@ export interface Translations {
   'spheres.family': string;
   'spheres.item': string;
   'spheres.items': string;
+  
+  // Insights
+  'insights.wheelOfLife.title': string;
+  'insights.wheelOfLife.subtitle': string;
+  'insights.wheelOfLife.percentageExplanation': string;
+  'insights.recommendations.title': string;
+  'insights.relationships.critical': string;
+  'insights.relationships.needsImprovement': string;
+  'insights.relationships.strength': string;
+  'insights.career.critical': string;
+  'insights.career.needsImprovement': string;
+  'insights.career.strength': string;
+  'insights.family.critical': string;
+  'insights.family.needsImprovement': string;
+  'insights.family.strength': string;
+  'insights.relationships.current.low': string;
+  'insights.relationships.pattern.current': string;
+  'insights.career.current.low': string;
+  'insights.career.pattern.current': string;
+  'insights.family.member.low': string;
+  'insights.family.pattern': string;
+  'insights.comparison.currentRelationships': string;
+  'insights.comparison.pastRelationships': string;
+  'insights.comparison.currentJobs': string;
+  'insights.comparison.pastJobs': string;
+  'insights.comparison.familyMembers': string;
+  'insights.comparison.relationships.title': string;
+  'insights.comparison.relationships.chartTitle': string;
+  'insights.comparison.relationships.subtitle': string;
+  'insights.comparison.relationships.goodMoments': string;
+  'insights.comparison.relationships.badMoments': string;
+  'insights.comparison.relationships.you': string;
+  'insights.comparison.relationships.partner': string;
+  'insights.comparison.relationships.cloudyLabel': string;
+  'insights.comparison.relationships.facts': string;
+  'insights.comparison.relationships.warning.lower': string;
+  'insights.comparison.relationships.warning.close': string;
+  'insights.comparison.relationships.kudos': string;
+  'insights.comparison.relationships.percentageExplanationTitle': string;
+  'insights.comparison.relationships.percentageExplanation': string;
+  'insights.suggestion.relationships.worse': string;
+  'insights.suggestion.relationships.low': string;
+  'insights.suggestion.relationships.progress': string;
+  'insights.suggestion.relationships.strong': string;
+  'insights.suggestion.career.worse': string;
+  'insights.suggestion.career.low': string;
+  'insights.suggestion.career.progress': string;
+  'insights.suggestion.career.strong': string;
+  'insights.suggestion.family.low': string;
+  'insights.suggestion.family.strong': string;
   'profile.ongoing': string;
   'profile.noMemories': string;
   'profile.oneMemory': string;
@@ -262,6 +313,7 @@ const translations: Record<Language, Translations> = {
     'common.save': 'Save',
     'common.cancel': 'Cancel',
     'common.delete': 'Delete',
+    'common.done': 'Done',
     'common.edit': 'Edit',
     'common.add': 'Add',
     'common.close': 'Close',
@@ -299,7 +351,7 @@ const translations: Record<Language, Translations> = {
     'profile.editNewPath': 'Edit New Path',
     'profile.editNewPath.description': 'Update your profile information and continue your healing journey.',
     'profile.startHealingPath': 'Start Healing Path',
-    'profile.emptyState.title': 'Begin Your Journey to Closure',
+    'profile.emptyState.title': 'Begin Your Journey to Sferas',
     'profile.emptyState.description': 'This is a safe space to document past relationships objectively. Creating a profile is the first constructive step towards understanding and moving on.',
     'profile.emptyState.button': 'Add Your First Partner Profile',
     'profile.actionSheet.edit': 'Edit Profile',
@@ -358,6 +410,56 @@ const translations: Record<Language, Translations> = {
     'spheres.family': 'Family',
     'spheres.item': 'item',
     'spheres.items': 'items',
+    
+    // Insights
+    'insights.wheelOfLife.title': 'Wheel of Life',
+    'insights.wheelOfLife.subtitle': 'Your life balance across different spheres',
+    'insights.wheelOfLife.percentageExplanation': 'The percentages represent the proportion of sunny (positive) moments versus cloudy (difficult) moments across all entities in each sphere. A higher percentage indicates more positive experiences.',
+    'insights.recommendations.title': 'Recommendations',
+    'insights.relationships.critical': 'Your relationships sphere needs urgent attention. Focus on creating positive memories and addressing challenges.',
+    'insights.relationships.needsImprovement': 'Your relationships sphere could benefit from more positive moments. Consider focusing on building stronger connections.',
+    'insights.relationships.strength': 'Your relationships sphere is a strength! Keep nurturing these connections.',
+    'insights.career.critical': 'Your career sphere needs urgent attention. Focus on creating positive experiences and addressing work challenges.',
+    'insights.career.needsImprovement': 'Your career sphere could benefit from more positive moments. Consider focusing on professional growth and satisfaction.',
+    'insights.career.strength': 'Your career sphere is a strength! Keep building on your professional success.',
+    'insights.family.critical': 'Your family sphere needs urgent attention. Focus on creating positive memories and strengthening family bonds.',
+    'insights.family.needsImprovement': 'Your family sphere could benefit from more positive moments. Consider focusing on family relationships and connections.',
+    'insights.family.strength': 'Your family sphere is a strength! Keep nurturing these important relationships.',
+    'insights.relationships.current.low': 'Only {percentage}% of the moments in your current relationship with {name} are sunny (the rest are cloudy).',
+    'insights.relationships.pattern.current': 'Only {percentage}% of the moments in your current relationship with {name} are sunny.',
+    'insights.career.current.low': 'Only {percentage}% of the moments in your current job at {name} are positive (the rest are challenging).',
+    'insights.career.pattern.current': 'Only {percentage}% of the moments in your current job at {name} are positive.',
+    'insights.family.member.low': 'Only {percentage}% of the moments with {name} are positive (the rest are challenging).',
+    'insights.family.pattern': 'Only {percentage}% of the moments with {name} are positive.',
+    'insights.comparison.currentRelationships': 'Current Relationships',
+    'insights.comparison.pastRelationships': 'Past Relationships',
+    'insights.comparison.currentJobs': 'Current Jobs',
+    'insights.comparison.pastJobs': 'Previous Jobs',
+    'insights.comparison.familyMembers': 'Family Members',
+    'insights.comparison.relationships.title': 'Relationships Comparison',
+    'insights.comparison.relationships.chartTitle': 'How Sunny and Cloudy Moments Change Across Partners',
+    'insights.comparison.relationships.subtitle': 'recorded by each partner',
+    'insights.comparison.relationships.goodMoments': 'Sunny Facts',
+    'insights.comparison.relationships.badMoments': 'Cloudy Moments',
+    'insights.comparison.relationships.you': 'You',
+    'insights.comparison.relationships.partner': 'Partner',
+    'insights.comparison.relationships.cloudyLabel': 'C',
+    'insights.comparison.relationships.facts': 'Facts',
+    'insights.comparison.relationships.warning.lower': 'Your current partner has a lower proportion of sunny moments compared to your past relationships. Consider what might be causing this difference.',
+    'insights.comparison.relationships.warning.close': 'Your current relationship has a similar proportion of sunny moments to your past relationships. This might be a pattern worth examining.',
+    'insights.comparison.relationships.kudos': 'Great progress! Your current relationship has significantly more sunny moments compared to your past relationships. Keep nurturing this positive connection!',
+    'insights.comparison.relationships.percentageExplanationTitle': 'What does this percentage mean?',
+    'insights.comparison.relationships.percentageExplanation': 'The {percentage}% represents the proportion of sunny (positive) moments versus cloudy (difficult) moments. A higher percentage means more positive experiences recorded.',
+    'insights.suggestion.relationships.worse': 'Your current relationship has fewer sunny moments compared to past relationships. Consider focusing on creating more positive experiences together.',
+    'insights.suggestion.relationships.low': 'Create more sunny moments with your current partner to strengthen your relationship. Small gestures and quality time can make a big difference.',
+    'insights.suggestion.relationships.progress': 'Great progress! You\'re creating more positive moments than in your past relationships. Keep nurturing this connection.',
+    'insights.suggestion.relationships.strong': 'Your relationship is thriving with many sunny moments! Continue to foster this positive connection.',
+    'insights.suggestion.career.worse': 'Your current job has fewer positive moments compared to previous roles. Consider what changes could improve your work satisfaction.',
+    'insights.suggestion.career.low': 'Focus on creating more positive experiences at work. Identify what brings you joy and satisfaction in your role.',
+    'insights.suggestion.career.progress': 'Excellent progress! You\'re experiencing more positive moments than in previous jobs. Keep building on this success.',
+    'insights.suggestion.career.strong': 'You\'re thriving in your career with many positive moments! Continue to grow and find fulfillment in your work.',
+    'insights.suggestion.family.low': 'Create more positive moments with family members to strengthen these important relationships.',
+    'insights.suggestion.family.strong': 'Your family relationships are strong with many positive moments! Keep nurturing these bonds.',
     'profile.ongoing': 'Ongoing',
     'profile.noMemories': 'No memories',
     'profile.oneMemory': '1 memory',
@@ -493,6 +595,7 @@ const translations: Record<Language, Translations> = {
     'common.no': 'Не',
     'common.ok': 'ОК',
     'common.success': 'Успех',
+    'common.done': 'Готово',
     'common.error': 'Грешка',
     'common.optional': 'Незадължително',
     
@@ -581,6 +684,57 @@ const translations: Record<Language, Translations> = {
     'spheres.family': 'Семейство',
     'spheres.item': 'елемент',
     'spheres.items': 'елемента',
+    
+    // Insights
+    'insights.wheelOfLife.title': 'Колело на Живота',
+    'insights.wheelOfLife.subtitle': 'Вашият жизнен баланс в различните сфери',
+    'insights.wheelOfLife.percentageExplanation': 'Процентите представляват пропорцията на слънчеви (позитивни) моменти спрямо облачни (трудни) моменти във всички обекти в всяка сфера. По-висок процент означава повече позитивни преживявания.',
+    'insights.recommendations.title': 'Препоръки',
+    'insights.relationships.critical': 'Сферата на връзките ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни спомени и решаването на предизвикателства.',
+    'insights.relationships.needsImprovement': 'Сферата на връзките ви може да се подобри с повече положителни моменти. Помислете за фокусиране върху изграждането на по-силни връзки.',
+    'insights.relationships.strength': 'Сферата на връзките ви е сила! Продължете да поддържате тези връзки.',
+    'insights.career.critical': 'Сферата на кариерата ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни преживявания и решаването на работни предизвикателства.',
+    'insights.career.needsImprovement': 'Сферата на кариерата ви може да се подобри с повече положителни моменти. Помислете за фокусиране върху професионално развитие и удовлетворение.',
+    'insights.career.strength': 'Сферата на кариерата ви е сила! Продължете да градите върху професионалния си успех.',
+    'insights.family.critical': 'Сферата на семейството ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни спомени и укрепването на семейните връзки.',
+    'insights.family.needsImprovement': 'Сферата на семейството ви може да се подобри с повече положителни моменти. Помислете за фокусиране върху семейните отношения и връзки.',
+    'insights.family.strength': 'Сферата на семейството ви е сила! Продължете да поддържате тези важни връзки.',
+    'insights.relationships.current.low': 'Само {percentage}% от моментите в текущата ви връзка с {name} са слънчеви (останалите са облачни).',
+    'insights.relationships.pattern.current': 'Само {percentage}% от моментите в текущата ви връзка с {name} са слънчеви.',
+    'insights.career.current.low': 'Само {percentage}% от моментите в текущата ви работа в {name} са положителни (останалите са предизвикателни).',
+    'insights.career.pattern.current': 'Само {percentage}% от моментите в текущата ви работа в {name} са положителни.',
+    'insights.family.member.low': 'Само {percentage}% от моментите с {name} са положителни (останалите са предизвикателни).',
+    'insights.family.pattern': 'Само {percentage}% от моментите с {name} са положителни.',
+    'insights.comparison.currentRelationships': 'Текущи Връзки',
+    'insights.comparison.pastRelationships': 'Минали Връзки',
+    'insights.comparison.currentJobs': 'Текущи Работни Места',
+    'insights.comparison.pastJobs': 'Предишни Работни Места',
+    'insights.comparison.familyMembers': 'Семейни Членове',
+    'insights.comparison.relationships.title': 'Сравнение на Връзките',
+    'insights.comparison.relationships.chartTitle': 'Как Слънчевите и Облачните Моменти Се Променят При Партньорите',
+    'insights.comparison.relationships.subtitle': 'записани от всеки партньор',
+    'insights.comparison.relationships.goodMoments': 'Слънчеви Факти',
+    'insights.comparison.relationships.badMoments': 'Облачни Моменти',
+    'insights.comparison.relationships.you': 'Ти',
+    'insights.comparison.relationships.partner': 'Партньор',
+    'insights.comparison.relationships.cloudyLabel': 'О',
+    'insights.comparison.relationships.facts': 'Факта',
+    'insights.comparison.relationships.warning.lower': 'Текущият ви партньор има по-ниска пропорция на слънчеви моменти в сравнение с миналите ви връзки. Помислете какво може да причинява тази разлика.',
+    'insights.comparison.relationships.warning.close': 'Текущата ви връзка има подобна пропорция на слънчеви моменти като миналите ви връзки. Това може да е модел, който си заслужава да разгледате.',
+    'insights.comparison.relationships.kudos': 'Отличен прогрес! Текущата ви връзка има значително повече слънчеви моменти в сравнение с миналите ви връзки. Продължавайте да подхранвате тази позитивна връзка!',
+    'insights.comparison.relationships.percentageExplanationTitle': 'Какво означава този процент?',
+    'insights.comparison.relationships.percentageExplanation': 'Процентът от {percentage}% представлява пропорцията на слънчеви (позитивни) моменти спрямо облачни (трудни) моменти. По-висок процент означава повече записани позитивни преживявания.',
+    'insights.suggestion.relationships.worse': 'Текущата ви връзка има по-малко слънчеви моменти в сравнение с миналите връзки. Помислете за създаване на повече положителни преживявания заедно.',
+    'insights.suggestion.relationships.low': 'Създайте повече слънчеви моменти с текущия си партньор, за да укрепите връзката. Малките жестове и качественото време могат да направят голяма разлика.',
+    'insights.suggestion.relationships.progress': 'Отличен напредък! Създавате повече положителни моменти от миналите си връзки. Продължете да поддържате тази връзка.',
+    'insights.suggestion.relationships.strong': 'Връзката ви процъфтява с много слънчеви моменти! Продължете да поддържате тази положителна връзка.',
+    'insights.suggestion.career.worse': 'Текущата ви работа има по-малко положителни моменти в сравнение с предишните роли. Помислете какви промени могат да подобрят удовлетворението ви от работата.',
+    'insights.suggestion.career.low': 'Фокусирайте се върху създаване на повече положителни преживявания на работа. Идентифицирайте какво ви носи радост и удовлетворение в ролята ви.',
+    'insights.suggestion.career.progress': 'Отличен напредък! Преживявате повече положителни моменти от предишните си работи. Продължете да градите върху този успех.',
+    'insights.suggestion.career.strong': 'Процъфтявате в кариерата си с много положителни моменти! Продължете да растете и намирате удовлетворение в работата си.',
+    'insights.suggestion.family.low': 'Създайте повече положителни моменти със семейните членове, за да укрепите тези важни връзки.',
+    'insights.suggestion.family.strong': 'Семейните ви връзки са силни с много положителни моменти! Продължете да поддържате тези връзки.',
+    
     'profile.ongoing': 'Текуща',
     'profile.noMemories': 'Няма спомени',
     'profile.oneMemory': '1 спомен',

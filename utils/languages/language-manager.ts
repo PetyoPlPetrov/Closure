@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language } from './translations';
 
-const LANGUAGE_STORAGE_KEY = '@closure:language';
+const LANGUAGE_STORAGE_KEY = '@sferas:language';
 
 export const languageManager = {
   async getLanguage(): Promise<Language | null> {

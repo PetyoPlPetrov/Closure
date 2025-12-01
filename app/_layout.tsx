@@ -54,6 +54,7 @@ function AppContent() {
         <Stack.Screen name="edit-family-member" options={{ headerShown: false }} />
         <Stack.Screen name="idealized-memories" options={{ headerShown: false }} />
         <Stack.Screen name="add-idealized-memory" options={{ headerShown: false }} />
+        <Stack.Screen name="relationships-comparison" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />

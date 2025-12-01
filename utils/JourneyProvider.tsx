@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 
-const STORAGE_KEY = '@closure:ex_profiles';
-const IDEALIZED_MEMORIES_KEY = '@closure:idealized_memories';
-const JOBS_STORAGE_KEY = '@closure:jobs';
-const FAMILY_MEMBERS_STORAGE_KEY = '@closure:family_members';
+const STORAGE_KEY = '@sferas:ex_profiles';
+const IDEALIZED_MEMORIES_KEY = '@sferas:idealized_memories';
+const JOBS_STORAGE_KEY = '@sferas:jobs';
+const FAMILY_MEMBERS_STORAGE_KEY = '@sferas:family_members';
 
 // Life sphere types
 export type LifeSphere = 'relationships' | 'career' | 'family';
