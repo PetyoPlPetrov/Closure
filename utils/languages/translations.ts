@@ -138,6 +138,7 @@ export interface Translations {
   // Insights
   'insights.wheelOfLife.title': string;
   'insights.wheelOfLife.subtitle': string;
+  'insights.wheelOfLife.distributionExplanation': string;
   'insights.wheelOfLife.percentageExplanation': string;
   'insights.recommendations.title': string;
   'insights.relationships.critical': string;
@@ -159,6 +160,9 @@ export interface Translations {
   'insights.comparison.pastRelationships': string;
   'insights.comparison.currentJobs': string;
   'insights.comparison.pastJobs': string;
+  'insights.comparison.label.current': string;
+  'insights.comparison.label.ex': string;
+  'insights.comparison.label.past': string;
   'insights.comparison.familyMembers': string;
   'insights.comparison.relationships.title': string;
   'insights.comparison.relationships.chartTitle': string;
@@ -174,6 +178,42 @@ export interface Translations {
   'insights.comparison.relationships.kudos': string;
   'insights.comparison.relationships.percentageExplanationTitle': string;
   'insights.comparison.relationships.percentageExplanation': string;
+  'insights.comparison.relationships.totalMoments': string;
+  'insights.comparison.relationships.quality': string;
+  'insights.comparison.relationships.sphereComparison.moreRelationshipTime': string;
+  'insights.comparison.relationships.sphereComparison.moreCareerTime': string;
+  'insights.comparison.relationships.sphereComparison.balancedTime': string;
+  'insights.comparison.relationships.sphereComparison.betterRelationshipQuality': string;
+  'insights.comparison.relationships.sphereComparison.betterCareerQuality': string;
+  'insights.comparison.career.title': string;
+  'insights.comparison.career.chartTitle': string;
+  'insights.comparison.career.subtitle': string;
+  'insights.comparison.career.goodMoments': string;
+  'insights.comparison.career.badMoments': string;
+  'insights.comparison.career.warning.lower': string;
+  'insights.comparison.career.warning.close': string;
+  'insights.comparison.career.kudos': string;
+  'insights.comparison.career.percentageExplanationTitle': string;
+  'insights.comparison.career.percentageExplanation': string;
+  'insights.comparison.career.totalMoments': string;
+  'insights.comparison.career.quality': string;
+  'insights.comparison.career.sphereComparison.moreCareerTime': string;
+  'insights.comparison.career.sphereComparison.moreRelationshipTime': string;
+  'insights.comparison.career.sphereComparison.balancedTime': string;
+  'insights.comparison.career.sphereComparison.betterCareerQuality': string;
+  'insights.comparison.career.sphereComparison.betterRelationshipQuality': string;
+  'insights.comparison.family.title': string;
+  'insights.comparison.family.subtitle': string;
+  'insights.comparison.family.totalMoments': string;
+  'insights.comparison.family.quality': string;
+  'insights.comparison.family.sunny': string;
+  'insights.comparison.family.cloudy': string;
+  'insights.comparison.family.noData': string;
+  'insights.comparison.family.insight.moreFamilyTime': string;
+  'insights.comparison.family.insight.moreCareerTime': string;
+  'insights.comparison.family.insight.balancedTime': string;
+  'insights.comparison.family.insight.betterFamilyQuality': string;
+  'insights.comparison.family.insight.betterCareerQuality': string;
   'insights.suggestion.relationships.worse': string;
   'insights.suggestion.relationships.low': string;
   'insights.suggestion.relationships.progress': string;
@@ -412,8 +452,9 @@ const translations: Record<Language, Translations> = {
     'spheres.items': 'items',
     
     // Insights
-    'insights.wheelOfLife.title': 'Wheel of Life',
-    'insights.wheelOfLife.subtitle': 'Your life balance across different spheres',
+    'insights.wheelOfLife.title': 'Insights',
+    'insights.wheelOfLife.subtitle': 'Analyze your life balance across different spheres',
+    'insights.wheelOfLife.distributionExplanation': 'The percentages show how much time you dedicate to each sphere in terms of total moments. They represent the proportion of all your moments that belong to each sphere compared to the others.',
     'insights.wheelOfLife.percentageExplanation': 'The percentages represent the proportion of sunny (positive) moments versus cloudy (difficult) moments across all entities in each sphere. A higher percentage indicates more positive experiences.',
     'insights.recommendations.title': 'Recommendations',
     'insights.relationships.critical': 'Your relationships sphere needs urgent attention. Focus on creating positive memories and addressing challenges.',
@@ -435,6 +476,9 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.pastRelationships': 'Past Relationships',
     'insights.comparison.currentJobs': 'Current Jobs',
     'insights.comparison.pastJobs': 'Previous Jobs',
+    'insights.comparison.label.current': 'Current',
+    'insights.comparison.label.ex': 'Ex',
+    'insights.comparison.label.past': 'Past',
     'insights.comparison.familyMembers': 'Family Members',
     'insights.comparison.relationships.title': 'Relationships Comparison',
     'insights.comparison.relationships.chartTitle': 'How Sunny and Cloudy Moments Change Across Partners',
@@ -450,6 +494,42 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.relationships.kudos': 'Great progress! Your current relationship has significantly more sunny moments compared to your past relationships. Keep nurturing this positive connection!',
     'insights.comparison.relationships.percentageExplanationTitle': 'What does this percentage mean?',
     'insights.comparison.relationships.percentageExplanation': 'The {percentage}% represents the proportion of sunny (positive) moments versus cloudy (difficult) moments. A higher percentage means more positive experiences recorded.',
+    'insights.comparison.relationships.totalMoments': 'Total Moments',
+    'insights.comparison.relationships.quality': 'sunny',
+    'insights.comparison.relationships.sphereComparison.moreRelationshipTime': 'Relationships prevail in your life, with significantly more moments recorded compared to career. Your personal connections are a priority.',
+    'insights.comparison.relationships.sphereComparison.moreCareerTime': 'Career prevails in your life, with significantly more moments recorded compared to relationships. Consider balancing your focus between work and personal connections.',
+    'insights.comparison.relationships.sphereComparison.balancedTime': 'You have an approximately balanced work-life distribution between relationships and career.',
+    'insights.comparison.relationships.sphereComparison.betterRelationshipQuality': 'Your relationships have significantly better quality (more sunny moments) compared to your career. Great job nurturing your connections!',
+    'insights.comparison.relationships.sphereComparison.betterCareerQuality': 'Your career has significantly better quality (more sunny moments) compared to your relationships. Consider focusing more on building positive connections.',
+    'insights.comparison.career.title': 'Career Comparison',
+    'insights.comparison.career.chartTitle': 'How Sunny and Cloudy Moments Change Across Jobs',
+    'insights.comparison.career.subtitle': 'recorded for each job',
+    'insights.comparison.career.goodMoments': 'Sunny Facts',
+    'insights.comparison.career.badMoments': 'Cloudy Moments',
+    'insights.comparison.career.warning.lower': 'Your current job has a lower proportion of sunny moments compared to your past jobs. Consider what might be causing this difference.',
+    'insights.comparison.career.warning.close': 'Your current job has a similar proportion of sunny moments to your past jobs. This might be a pattern worth examining.',
+    'insights.comparison.career.kudos': 'Great progress! Your current job has significantly more sunny moments compared to your past jobs. Keep nurturing this positive experience!',
+    'insights.comparison.career.percentageExplanationTitle': 'What does this percentage mean?',
+    'insights.comparison.career.percentageExplanation': 'The {percentage}% represents the proportion of sunny (positive) moments versus cloudy (difficult) moments across all your career experiences. A higher percentage means more positive experiences recorded.',
+    'insights.comparison.career.totalMoments': 'Total Moments',
+    'insights.comparison.career.quality': 'sunny',
+    'insights.comparison.career.sphereComparison.moreCareerTime': 'Career prevails in your life, with significantly more moments recorded compared to relationships. Consider balancing your focus between work and personal connections.',
+    'insights.comparison.career.sphereComparison.moreRelationshipTime': 'Relationships prevail in your life, with significantly more moments recorded compared to career. Your personal connections are a priority.',
+    'insights.comparison.career.sphereComparison.balancedTime': 'You have an approximately balanced work-life distribution between career and relationships.',
+    'insights.comparison.career.sphereComparison.betterCareerQuality': 'Your career has significantly better quality (more sunny moments) compared to your relationships. Consider focusing more on building positive connections.',
+    'insights.comparison.career.sphereComparison.betterRelationshipQuality': 'Your relationships have significantly better quality (more sunny moments) compared to your career. Great job nurturing your connections!',
+    'insights.comparison.family.title': 'Family vs Career Comparison',
+    'insights.comparison.family.subtitle': 'Comparing time spent and moment quality',
+    'insights.comparison.family.totalMoments': 'Total Moments',
+    'insights.comparison.family.quality': 'Moment Quality',
+    'insights.comparison.family.sunny': 'Sunny',
+    'insights.comparison.family.cloudy': 'Cloudy',
+    'insights.comparison.family.noData': 'No data available for comparison',
+    'insights.comparison.family.insight.moreFamilyTime': 'You spend more time with family than on your career. Great balance!',
+    'insights.comparison.family.insight.moreCareerTime': 'You spend more time on your career than with family. Consider finding more time for family moments.',
+    'insights.comparison.family.insight.balancedTime': 'You have a well-balanced distribution of time between family and career.',
+    'insights.comparison.family.insight.betterFamilyQuality': 'Your family moments have significantly better quality than your career moments. This shows strong family connections!',
+    'insights.comparison.family.insight.betterCareerQuality': 'Your career moments have better quality than your family moments. Consider nurturing more positive family experiences.',
     'insights.suggestion.relationships.worse': 'Your current relationship has fewer sunny moments compared to past relationships. Consider focusing on creating more positive experiences together.',
     'insights.suggestion.relationships.low': 'Create more sunny moments with your current partner to strengthen your relationship. Small gestures and quality time can make a big difference.',
     'insights.suggestion.relationships.progress': 'Great progress! You\'re creating more positive moments than in your past relationships. Keep nurturing this connection.',
@@ -686,8 +766,9 @@ const translations: Record<Language, Translations> = {
     'spheres.items': 'елемента',
     
     // Insights
-    'insights.wheelOfLife.title': 'Колело на Живота',
-    'insights.wheelOfLife.subtitle': 'Вашият жизнен баланс в различните сфери',
+    'insights.wheelOfLife.title': 'Прозрения',
+    'insights.wheelOfLife.subtitle': 'Анализирайте жизнения си баланс в различните сфери',
+    'insights.wheelOfLife.distributionExplanation': 'Процентите показват колко време отделяте на всяка сфера по отношение на общите моменти. Те представляват пропорцията на всичките ви моменти, които принадлежат на всяка сфера, в сравнение с останалите.',
     'insights.wheelOfLife.percentageExplanation': 'Процентите представляват пропорцията на слънчеви (позитивни) моменти спрямо облачни (трудни) моменти във всички обекти в всяка сфера. По-висок процент означава повече позитивни преживявания.',
     'insights.recommendations.title': 'Препоръки',
     'insights.relationships.critical': 'Сферата на връзките ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни спомени и решаването на предизвикателства.',
@@ -709,6 +790,9 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.pastRelationships': 'Минали Връзки',
     'insights.comparison.currentJobs': 'Текущи Работни Места',
     'insights.comparison.pastJobs': 'Предишни Работни Места',
+    'insights.comparison.label.current': 'Текуща',
+    'insights.comparison.label.ex': 'Бивша',
+    'insights.comparison.label.past': 'Минала',
     'insights.comparison.familyMembers': 'Семейни Членове',
     'insights.comparison.relationships.title': 'Сравнение на Връзките',
     'insights.comparison.relationships.chartTitle': 'Как Слънчевите и Облачните Моменти Се Променят При Партньорите',
@@ -724,6 +808,42 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.relationships.kudos': 'Отличен прогрес! Текущата ви връзка има значително повече слънчеви моменти в сравнение с миналите ви връзки. Продължавайте да подхранвате тази позитивна връзка!',
     'insights.comparison.relationships.percentageExplanationTitle': 'Какво означава този процент?',
     'insights.comparison.relationships.percentageExplanation': 'Процентът от {percentage}% представлява пропорцията на слънчеви (позитивни) моменти спрямо облачни (трудни) моменти. По-висок процент означава повече записани позитивни преживявания.',
+    'insights.comparison.relationships.totalMoments': 'Общо Моменти',
+    'insights.comparison.relationships.quality': 'слънчеви',
+    'insights.comparison.relationships.sphereComparison.moreRelationshipTime': 'Връзките преобладават в живота ви, с значително повече записани моменти в сравнение с кариерата. Личните ви връзки са приоритет.',
+    'insights.comparison.relationships.sphereComparison.moreCareerTime': 'Кариерата преобладава в живота ви, с значително повече записани моменти в сравнение с връзките. Помислете за балансиране на фокуса между работа и лични връзки.',
+    'insights.comparison.relationships.sphereComparison.balancedTime': 'Имате приблизително балансирано разпределение на работа и личен живот между връзки и кариера.',
+    'insights.comparison.relationships.sphereComparison.betterRelationshipQuality': 'Вашите връзки имат значително по-добро качество (повече слънчеви моменти) в сравнение с кариерата ви. Отлична работа в поддържането на връзките!',
+    'insights.comparison.relationships.sphereComparison.betterCareerQuality': 'Вашата кариера има значително по-добро качество (повече слънчеви моменти) в сравнение с връзките ви. Помислете да се фокусирате повече върху изграждането на позитивни връзки.',
+    'insights.comparison.career.title': 'Сравнение на Кариера',
+    'insights.comparison.career.chartTitle': 'Как Слънчевите и Облачните Моменти Се Променят При Работите',
+    'insights.comparison.career.subtitle': 'записани за всяка работа',
+    'insights.comparison.career.goodMoments': 'Слънчеви Факти',
+    'insights.comparison.career.badMoments': 'Облачни Моменти',
+    'insights.comparison.career.warning.lower': 'Текущата ви работа има по-ниска пропорция на слънчеви моменти в сравнение с миналите ви работи. Помислете какво може да причинява тази разлика.',
+    'insights.comparison.career.warning.close': 'Текущата ви работа има подобна пропорция на слънчеви моменти като миналите ви работи. Това може да е модел, който си заслужава да разгледате.',
+    'insights.comparison.career.kudos': 'Отличен прогрес! Текущата ви работа има значително повече слънчеви моменти в сравнение с миналите ви работи. Продължавайте да подхранвате това позитивно преживяване!',
+    'insights.comparison.career.percentageExplanationTitle': 'Какво означава този процент?',
+    'insights.comparison.career.percentageExplanation': 'Процентът от {percentage}% представлява пропорцията на слънчеви (позитивни) моменти спрямо облачни (трудни) моменти във всички ваши кариерни преживявания. По-висок процент означава повече записани позитивни преживявания.',
+    'insights.comparison.career.totalMoments': 'Общо Моменти',
+    'insights.comparison.career.quality': 'слънчеви',
+    'insights.comparison.career.sphereComparison.moreCareerTime': 'Кариерата преобладава в живота ви, с значително повече записани моменти в сравнение с връзките. Помислете за балансиране на фокуса между работа и лични връзки.',
+    'insights.comparison.career.sphereComparison.moreRelationshipTime': 'Връзките преобладават в живота ви, с значително повече записани моменти в сравнение с кариерата. Личните ви връзки са приоритет.',
+    'insights.comparison.career.sphereComparison.balancedTime': 'Имате приблизително балансирано разпределение на работа и личен живот между кариера и връзки.',
+    'insights.comparison.career.sphereComparison.betterCareerQuality': 'Вашата кариера има значително по-добро качество (повече слънчеви моменти) в сравнение с връзките ви. Помислете да се фокусирате повече върху изграждането на позитивни връзки.',
+    'insights.comparison.career.sphereComparison.betterRelationshipQuality': 'Вашите връзки имат значително по-добро качество (повече слънчеви моменти) в сравнение с кариерата ви. Отлична работа в поддържането на връзките!',
+    'insights.comparison.family.title': 'Семейство срещу Кариера',
+    'insights.comparison.family.subtitle': 'Сравнение на времето и качеството на моментите',
+    'insights.comparison.family.totalMoments': 'Общи Моменти',
+    'insights.comparison.family.quality': 'Качество на Моментите',
+    'insights.comparison.family.sunny': 'Слънчеви',
+    'insights.comparison.family.cloudy': 'Облачни',
+    'insights.comparison.family.noData': 'Няма налични данни за сравнение',
+    'insights.comparison.family.insight.moreFamilyTime': 'Отделяте повече време за семейството, отколкото за кариерата. Отличен баланс!',
+    'insights.comparison.family.insight.moreCareerTime': 'Отделяте повече време за кариерата, отколкото за семейството. Помислете да намерите повече време за семейни моменти.',
+    'insights.comparison.family.insight.balancedTime': 'Имате добре балансирано разпределение на времето между семейство и кариера.',
+    'insights.comparison.family.insight.betterFamilyQuality': 'Вашите семейни моменти имат значително по-добро качество от кариерните моменти. Това показва силни семейни връзки!',
+    'insights.comparison.family.insight.betterCareerQuality': 'Вашите кариерни моменти имат по-добро качество от семейните моменти. Помислете да подхранвате повече положителни семейни преживявания.',
     'insights.suggestion.relationships.worse': 'Текущата ви връзка има по-малко слънчеви моменти в сравнение с миналите връзки. Помислете за създаване на повече положителни преживявания заедно.',
     'insights.suggestion.relationships.low': 'Създайте повече слънчеви моменти с текущия си партньор, за да укрепите връзката. Малките жестове и качественото време могат да направят голяма разлика.',
     'insights.suggestion.relationships.progress': 'Отличен напредък! Създавате повече положителни моменти от миналите си връзки. Продължете да поддържате тази връзка.',

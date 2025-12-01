@@ -3,7 +3,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
-import type { ExProfile, LifeSphere } from '@/utils/JourneyProvider';
+import type { Job, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -11,38 +11,37 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-export default function RelationshipsComparisonScreen() {
+export default function CareerComparisonScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const t = useTranslate();
   
-  const { profiles, jobs, getIdealizedMemoriesByProfileId, getEntitiesBySphere, getIdealizedMemoriesByEntityId } = useJourney();
+  const { jobs, profiles, getIdealizedMemoriesByEntityId, getEntitiesBySphere, getIdealizedMemoriesByProfileId } = useJourney();
 
-  // Calculate data points for each partner
+  // Calculate data points for each job
   const chartData = useMemo(() => {
-    // Sort profiles chronologically (by start date, with ongoing first)
-    const sortedProfiles = [...profiles]
-      .filter(p => p.relationshipStartDate || p.relationshipEndDate !== undefined)
+    // Sort jobs chronologically (by start date, with ongoing first)
+    const sortedJobs = [...jobs]
+      .filter(j => j.startDate)
       .sort((a, b) => {
         // Ongoing first
-        if (!a.relationshipEndDate && b.relationshipEndDate) return -1;
-        if (a.relationshipEndDate && !b.relationshipEndDate) return 1;
+        if (!a.endDate && b.endDate) return -1;
+        if (a.endDate && !b.endDate) return 1;
         
         // Then by start date (newest first)
-        if (a.relationshipStartDate && b.relationshipStartDate) {
-          return new Date(b.relationshipStartDate).getTime() - new Date(a.relationshipStartDate).getTime();
+        if (a.startDate && b.startDate) {
+          return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
         }
         return 0;
       })
       .reverse(); // Reverse to show oldest first
 
-    const mapped = sortedProfiles.map((profile) => {
-      const memories = getIdealizedMemoriesByProfileId(profile.id);
+    const mapped = sortedJobs.map((job) => {
+      const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
       
       let totalSuns = 0;
       let totalClouds = 0;
@@ -56,24 +55,24 @@ export default function RelationshipsComparisonScreen() {
       const sunPercentage = total > 0 ? (totalSuns / total) * 100 : 0;
       
       return {
-        profile,
+        job,
         totalSuns,
         totalClouds,
         total,
         sunPercentage,
       };
-    }).filter(data => data.total > 0); // Only include profiles with memories
+    }).filter(data => data.total > 0); // Only include jobs with memories
     
     // Sort: ongoing first, then by date
     return mapped.sort((a, b) => {
-      if (!a.profile.relationshipEndDate && b.profile.relationshipEndDate) return -1;
-      if (a.profile.relationshipEndDate && !b.profile.relationshipEndDate) return 1;
+      if (!a.job.endDate && b.job.endDate) return -1;
+      if (a.job.endDate && !b.job.endDate) return 1;
       return 0;
     });
-  }, [profiles, getIdealizedMemoriesByProfileId]);
+  }, [jobs, getIdealizedMemoriesByEntityId]);
 
-  // Calculate relationships sphere overall data
-  const relationshipsSphereData = useMemo(() => {
+  // Calculate career sphere overall data
+  const careerSphereData = useMemo(() => {
     let totalSuns = 0;
     let totalClouds = 0;
 
@@ -95,16 +94,19 @@ export default function RelationshipsComparisonScreen() {
     };
   }, [chartData]);
 
-  // Calculate career sphere data
-  const careerSphereData = useMemo(() => {
-    const entities = getEntitiesBySphere('career');
+  // Calculate relationships sphere data
+  const relationshipsSphereData = useMemo(() => {
+    const entities = getEntitiesBySphere('relationships');
     if (entities.length === 0) return { totalSuns: 0, totalClouds: 0, totalMoments: 0, sunnyPercentage: 0 };
 
     let totalClouds = 0;
     let totalSuns = 0;
 
     entities.forEach((entity) => {
-      const memories = getIdealizedMemoriesByEntityId(entity.id, 'career');
+      const memories = 'id' in entity
+        ? getIdealizedMemoriesByProfileId(entity.id)
+        : [];
+
       memories.forEach((memory) => {
         totalClouds += (memory.hardTruths || []).length;
         totalSuns += (memory.goodFacts || []).length;
@@ -122,23 +124,23 @@ export default function RelationshipsComparisonScreen() {
       totalMoments,
       sunnyPercentage: Math.max(0, Math.min(100, isNaN(sunnyPercentage) ? 0 : sunnyPercentage)),
     };
-  }, [getEntitiesBySphere, getIdealizedMemoriesByEntityId]);
+  }, [getEntitiesBySphere, getIdealizedMemoriesByProfileId]);
 
-  // Calculate comparison between relationships and career
+  // Calculate comparison between career and relationships
   const sphereComparison = useMemo(() => {
-    const relationships = relationshipsSphereData;
     const career = careerSphereData;
-    const totalAllMoments = relationships.totalMoments + career.totalMoments;
+    const relationships = relationshipsSphereData;
+    const totalAllMoments = career.totalMoments + relationships.totalMoments;
 
     if (totalAllMoments === 0) {
       return null;
     }
 
-    const timeDifference = relationships.totalMoments - career.totalMoments;
-    const qualityDifference = relationships.sunnyPercentage - career.sunnyPercentage;
+    const timeDifference = career.totalMoments - relationships.totalMoments;
+    const qualityDifference = career.sunnyPercentage - relationships.sunnyPercentage;
 
     // Threshold: 20% of the larger amount
-    const largerAmount = Math.max(relationships.totalMoments, career.totalMoments);
+    const largerAmount = Math.max(career.totalMoments, relationships.totalMoments);
     const TIME_THRESHOLD_PERCENTAGE = 0.2; // 20% of larger amount
     const QUALITY_THRESHOLD_SIGNIFICANT = 10; // 10% difference is significant
 
@@ -151,30 +153,30 @@ export default function RelationshipsComparisonScreen() {
       if (differencePercentage > TIME_THRESHOLD_PERCENTAGE) {
         // One sphere prevails significantly (more than 20% difference)
         if (timeDifference > 0) {
+          // Career has more moments - warning
+          insights.push({
+            type: 'warning',
+            message: t('insights.comparison.career.sphereComparison.moreCareerTime'),
+          });
+        } else {
           // Relationships have more moments
           insights.push({
             type: 'info',
-            message: t('insights.comparison.relationships.sphereComparison.moreRelationshipTime'),
-          });
-        } else {
-          // Career has more moments
-          insights.push({
-            type: 'warning',
-            message: t('insights.comparison.relationships.sphereComparison.moreCareerTime'),
+            message: t('insights.comparison.career.sphereComparison.moreRelationshipTime'),
           });
         }
       } else {
         // Approximately balanced
         insights.push({
           type: 'info',
-          message: t('insights.comparison.relationships.sphereComparison.balancedTime'),
+          message: t('insights.comparison.career.sphereComparison.balancedTime'),
         });
       }
     } else {
       // No data
       insights.push({
         type: 'info',
-        message: t('insights.comparison.relationships.sphereComparison.balancedTime'),
+        message: t('insights.comparison.career.sphereComparison.balancedTime'),
       });
     }
 
@@ -183,23 +185,74 @@ export default function RelationshipsComparisonScreen() {
       if (qualityDifference > QUALITY_THRESHOLD_SIGNIFICANT) {
         insights.push({
           type: 'kudos',
-          message: t('insights.comparison.relationships.sphereComparison.betterRelationshipQuality'),
+          message: t('insights.comparison.career.sphereComparison.betterCareerQuality'),
         });
       } else {
         insights.push({
           type: 'info',
-          message: t('insights.comparison.relationships.sphereComparison.betterCareerQuality'),
+          message: t('insights.comparison.career.sphereComparison.betterRelationshipQuality'),
         });
       }
     }
 
     return {
-      relationships,
       career,
+      relationships,
       insights,
     };
-  }, [relationshipsSphereData, careerSphereData, t]);
+  }, [careerSphereData, relationshipsSphereData, t]);
 
+  // Calculate comparison message and current percentage
+  const comparisonData = useMemo(() => {
+    const currentJob = chartData.find(d => !d.job.endDate);
+    const pastJobs = chartData.filter(d => d.job.endDate);
+    
+    if (!currentJob) {
+      return null;
+    }
+    
+    const currentSunPercentage = currentJob.sunPercentage;
+    
+    // If there are no past jobs, only return the percentage
+    if (pastJobs.length === 0) {
+      return {
+        currentSunPercentage,
+        message: null,
+        messageType: null as 'warning' | 'kudos' | null,
+      };
+    }
+    
+    const avgPastSunPercentage = pastJobs.reduce((sum, j) => sum + j.sunPercentage, 0) / pastJobs.length;
+    const difference = currentSunPercentage - avgPastSunPercentage;
+    
+    // Thresholds for warnings/kudos
+    const THRESHOLD_WARNING_LOWER = -3; // 3% worse
+    const THRESHOLD_CLOSE = 5; // Within 5% (considered close/not much improvement)
+    const THRESHOLD_KUDOS = 5; // 5% better (considered doing better)
+    
+    let message = null;
+    let messageType: 'warning' | 'kudos' | null = null;
+    
+    if (difference < THRESHOLD_WARNING_LOWER) {
+      // Warning: current job has lower sunny percentage
+      message = t('insights.comparison.career.warning.lower');
+      messageType = 'warning';
+    } else if (difference >= THRESHOLD_WARNING_LOWER && difference <= THRESHOLD_CLOSE) {
+      // Warning: close to past jobs (not much improvement)
+      message = t('insights.comparison.career.warning.close');
+      messageType = 'warning';
+    } else if (difference > THRESHOLD_KUDOS) {
+      // Kudos: doing better
+      message = t('insights.comparison.career.kudos');
+      messageType = 'kudos';
+    }
+    
+    return {
+      currentSunPercentage,
+      message,
+      messageType,
+    };
+  }, [chartData, t]);
 
   const styles = useMemo(() => StyleSheet.create({
     container: {
@@ -262,7 +315,7 @@ export default function RelationshipsComparisonScreen() {
       height: '100%',
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: colors.primary + '40',
+      backgroundColor: '#3b82f640',
     },
     barLabel: {
       flex: 1,
@@ -280,13 +333,13 @@ export default function RelationshipsComparisonScreen() {
       paddingHorizontal: 8 * fontScale,
       paddingVertical: 4 * fontScale,
       borderRadius: 10 * fontScale,
-      backgroundColor: colors.primaryLight + '20',
+      backgroundColor: '#3b82f620',
     },
     statusBadgeCurrentText: {
       fontSize: 10 * fontScale,
-      color: colors.primaryLight,
+      color: '#3b82f6',
     },
-    statusBadgeEx: {
+    statusBadgePast: {
       paddingHorizontal: 8 * fontScale,
       paddingVertical: 4 * fontScale,
       borderRadius: 10 * fontScale,
@@ -294,7 +347,7 @@ export default function RelationshipsComparisonScreen() {
         ? 'rgba(255, 255, 255, 0.1)' 
         : 'rgba(0, 0, 0, 0.1)',
     },
-    statusBadgeExText: {
+    statusBadgePastText: {
       fontSize: 10 * fontScale,
       opacity: 0.7,
     },
@@ -528,7 +581,7 @@ export default function RelationshipsComparisonScreen() {
           </TouchableOpacity>
           
           <ThemedText size="l" weight="bold" style={styles.headerTitle}>
-            {t('insights.comparison.relationships.title')}
+            {t('insights.comparison.career.title')}
           </ThemedText>
           
           <View style={styles.headerButton} />
@@ -541,20 +594,20 @@ export default function RelationshipsComparisonScreen() {
           <View style={styles.content}>
             {/* Subtitle */}
             <ThemedText size="sm" style={styles.subtitle}>
-              {t('insights.comparison.relationships.subtitle')}
+              {t('insights.comparison.career.subtitle')}
             </ThemedText>
 
-            {/* Sphere Comparison - Relationships vs Career */}
+            {/* Sphere Comparison - Career vs Relationships */}
             {sphereComparison && (() => {
-              const { relationships, career, insights } = sphereComparison;
-              const totalAllMoments = relationships.totalMoments + career.totalMoments;
+              const { career, relationships, insights } = sphereComparison;
+              const totalAllMoments = career.totalMoments + relationships.totalMoments;
               
               // Calculate percentages of total (should add up to 100%)
-              const relationshipsPercentage = totalAllMoments > 0 
-                ? (relationships.totalMoments / totalAllMoments) * 100 
-                : 0;
               const careerPercentage = totalAllMoments > 0 
                 ? (career.totalMoments / totalAllMoments) * 100 
+                : 0;
+              const relationshipsPercentage = totalAllMoments > 0 
+                ? (relationships.totalMoments / totalAllMoments) * 100 
                 : 0;
               
               return (
@@ -562,20 +615,20 @@ export default function RelationshipsComparisonScreen() {
                   {/* Overall Comparison Summary */}
                   <View style={styles.comparisonHeader}>
                     <View style={styles.comparisonItem}>
-                      <ThemedText size="xl" weight="bold" style={[styles.comparisonValue, { color: '#f87171' }]}>
-                        {relationships.totalMoments}
-                      </ThemedText>
-                      <ThemedText size="xs" style={styles.comparisonLabel}>
-                        {t('insights.comparison.relationships.totalMoments')}
-                      </ThemedText>
-                    </View>
-                    <View style={styles.comparisonDivider} />
-                    <View style={styles.comparisonItem}>
                       <ThemedText size="xl" weight="bold" style={[styles.comparisonValue, { color: '#3b82f6' }]}>
                         {career.totalMoments}
                       </ThemedText>
                       <ThemedText size="xs" style={styles.comparisonLabel}>
                         {t('insights.comparison.career.totalMoments')}
+                      </ThemedText>
+                    </View>
+                    <View style={styles.comparisonDivider} />
+                    <View style={styles.comparisonItem}>
+                      <ThemedText size="xl" weight="bold" style={[styles.comparisonValue, { color: '#f87171' }]}>
+                        {relationships.totalMoments}
+                      </ThemedText>
+                      <ThemedText size="xs" style={styles.comparisonLabel}>
+                        {t('insights.comparison.relationships.totalMoments')}
                       </ThemedText>
                     </View>
                   </View>
@@ -585,15 +638,6 @@ export default function RelationshipsComparisonScreen() {
                     {/* Legend */}
                     <View style={styles.barChartLegend}>
                       <View style={styles.legendItem}>
-                        <View style={[styles.legendColor, { backgroundColor: '#f87171' }]} />
-                        <ThemedText size="sm" weight="semibold" style={styles.legendLabel}>
-                          {t('spheres.relationships')}
-                        </ThemedText>
-                        <ThemedText size="sm" weight="bold" style={[styles.legendValue, { color: '#f87171' }]}>
-                          {Math.round(relationshipsPercentage)}%
-                        </ThemedText>
-                      </View>
-                      <View style={styles.legendItem}>
                         <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
                         <ThemedText size="sm" weight="semibold" style={styles.legendLabel}>
                           {t('spheres.career')}
@@ -602,17 +646,26 @@ export default function RelationshipsComparisonScreen() {
                           {Math.round(careerPercentage)}%
                         </ThemedText>
                       </View>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendColor, { backgroundColor: '#f87171' }]} />
+                        <ThemedText size="sm" weight="semibold" style={styles.legendLabel}>
+                          {t('spheres.relationships')}
+                        </ThemedText>
+                        <ThemedText size="sm" weight="bold" style={[styles.legendValue, { color: '#f87171' }]}>
+                          {Math.round(relationshipsPercentage)}%
+                        </ThemedText>
+                      </View>
                     </View>
                     
                     {/* Stacked Bar */}
                     <View style={styles.stackedBarWrapper}>
                       <View style={[styles.stackedBarSegment, { 
-                        width: `${relationshipsPercentage}%`, 
-                        backgroundColor: '#f87171' 
-                      }]} />
-                      <View style={[styles.stackedBarSegment, { 
                         width: `${careerPercentage}%`, 
                         backgroundColor: '#3b82f6' 
+                      }]} />
+                      <View style={[styles.stackedBarSegment, { 
+                        width: `${relationshipsPercentage}%`, 
+                        backgroundColor: '#f87171' 
                       }]} />
                     </View>
                   </View>
@@ -656,51 +709,51 @@ export default function RelationshipsComparisonScreen() {
               );
             })()}
 
-            {/* Bar Charts for each partner */}
+            {/* Bar Charts for each job */}
             {chartData.map((data) => {
-              // Calculate percentage widths based on total for this partner
+              // Calculate percentage widths based on total for this job
               const cloudPercentage = data.total > 0 ? (data.totalClouds / data.total) * 100 : 0;
               const sunPercentage = data.total > 0 ? (data.totalSuns / data.total) * 100 : 0;
               
               return (
-                <View key={data.profile.id} style={styles.barContainer}>
+                <View key={data.job.id} style={styles.barContainer}>
                   <View style={styles.barRow}>
-                    {/* Avatar */}
+                    {/* Avatar/Icon */}
                     <View style={styles.avatarContainer}>
-                      {data.profile.imageUri ? (
+                      {data.job.imageUri ? (
                         <Image
-                          source={{ uri: data.profile.imageUri }}
+                          source={{ uri: data.job.imageUri }}
                           style={styles.avatar}
                           contentFit="cover"
                         />
                       ) : (
                         <View style={styles.avatarPlaceholder}>
                           <MaterialIcons 
-                            name="person" 
+                            name="work" 
                             size={20 * fontScale} 
-                            color={colors.primaryLight} 
+                            color="#3b82f6" 
                           />
                         </View>
                       )}
                     </View>
                     
-                    {/* Partner Name with Status Badge */}
+                    {/* Job Name with Status Badge */}
                     <View style={styles.barLabel}>
                       <View style={styles.nameRow}>
                         <ThemedText size="sm" weight="semibold">
-                          {data.profile.name}
+                          {data.job.name}
                         </ThemedText>
-                        {!data.profile.relationshipEndDate ? (
+                        {!data.job.endDate ? (
                           <View style={styles.statusBadgeCurrent}>
-                            <MaterialIcons name="favorite" size={12 * fontScale} color={colors.primaryLight} />
+                            <MaterialIcons name="work" size={12 * fontScale} color="#3b82f6" />
                             <ThemedText size="xs" weight="bold" style={styles.statusBadgeCurrentText}>
                               {t('insights.comparison.label.current')}
                             </ThemedText>
                           </View>
                         ) : (
-                          <View style={styles.statusBadgeEx}>
-                            <ThemedText size="xs" weight="semibold" style={styles.statusBadgeExText}>
-                              {t('insights.comparison.label.ex')}
+                          <View style={styles.statusBadgePast}>
+                            <ThemedText size="xs" weight="semibold" style={styles.statusBadgePastText}>
+                              {t('insights.comparison.label.past')}
                             </ThemedText>
                           </View>
                         )}
@@ -740,6 +793,31 @@ export default function RelationshipsComparisonScreen() {
               );
             })}
 
+            {/* Divider */}
+            <View style={styles.divider} />
+
+            {/* Comparison Message */}
+            {comparisonData && comparisonData.message && comparisonData.messageType && (
+              <View style={[
+                styles.comparisonContainer,
+                comparisonData.messageType === 'warning' 
+                  ? styles.comparisonWarning 
+                  : styles.comparisonKudos
+              ]}>
+                <ThemedText 
+                  size="sm" 
+                  weight="semibold"
+                  style={[
+                    styles.comparisonText,
+                    comparisonData.messageType === 'warning' 
+                      ? styles.comparisonWarningText 
+                      : styles.comparisonKudosText
+                  ]}
+                >
+                  {comparisonData.message}
+                </ThemedText>
+              </View>
+            )}
 
 
             {/* Categories */}
@@ -749,7 +827,7 @@ export default function RelationshipsComparisonScreen() {
                   <MaterialIcons name="wb-sunny" size={24 * fontScale} color="#FFD700" />
                 </View>
                 <ThemedText size="sm" style={[styles.categoryText, { color: '#FFD700' }]}>
-                  {t('insights.comparison.relationships.goodMoments')}
+                  {t('insights.comparison.career.goodMoments')}
                 </ThemedText>
               </View>
               
@@ -758,7 +836,7 @@ export default function RelationshipsComparisonScreen() {
                   <MaterialIcons name="cloud" size={24 * fontScale} color="#000000" />
                 </View>
                 <ThemedText size="sm" style={[styles.categoryText, { color: colorScheme === 'dark' ? '#ffffff' : '#000000' }]}>
-                  {t('insights.comparison.relationships.badMoments')}
+                  {t('insights.comparison.career.badMoments')}
                 </ThemedText>
               </View>
             </View>
@@ -768,3 +846,4 @@ export default function RelationshipsComparisonScreen() {
     </TabScreenContainer>
   );
 }
+

@@ -12,178 +12,10 @@ import type { ExProfile, FamilyMember, Job, LifeSphere } from '@/utils/JourneyPr
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// Wheel of Life Visualization Component
-function WheelOfLifeVisualization({
-  distribution,
-  quality,
-  colors,
-  colorScheme,
-  fontScale,
-}: {
-  distribution: { relationships: number; career: number; family: number }; // Percentage of total moments
-  quality: { relationships: number; career: number; family: number }; // Sunny percentage for gradient
-  colors: typeof Colors.dark;
-  colorScheme: 'light' | 'dark' | null;
-  fontScale: number;
-}) {
-  const size = Math.min(280 * fontScale, SCREEN_WIDTH - 80);
-  const center = size / 2;
-  const radius = size / 2 - 20;
-  const gapAngle = 5; // Gap in degrees between slices
-
-  // Normalize distribution percentages
-  const totalDistribution = distribution.relationships + distribution.career + distribution.family;
-  const normalizedDist = {
-    relationships: totalDistribution > 0 ? (distribution.relationships / totalDistribution) * 100 : 33.33,
-    career: totalDistribution > 0 ? (distribution.career / totalDistribution) * 100 : 33.33,
-    family: totalDistribution > 0 ? (distribution.family / totalDistribution) * 100 : 33.33,
-  };
-
-  // Calculate available angle (360 minus gaps between 3 slices)
-  const totalGaps = gapAngle * 3; // 3 gaps between 3 slices
-  const availableAngle = 360 - totalGaps;
-
-  // Calculate pie slice angles (start from top, clockwise)
-  let currentAngle = -90; // Start at top
-
-  const relStartAngle = currentAngle;
-  const relSweepAngle = (normalizedDist.relationships / 100) * availableAngle;
-  currentAngle += relSweepAngle + gapAngle;
-
-  const careerStartAngle = currentAngle;
-  const careerSweepAngle = (normalizedDist.career / 100) * availableAngle;
-  currentAngle += careerSweepAngle + gapAngle;
-
-  const familyStartAngle = currentAngle;
-  const familySweepAngle = (normalizedDist.family / 100) * availableAngle;
-
-  // Helper function to create pie slice path (triangle from center)
-  const createPieSlice = (startAngle: number, sweepAngle: number) => {
-    if (sweepAngle <= 0) return '';
-
-    const startRad = (startAngle * Math.PI) / 180;
-    const endRad = ((startAngle + sweepAngle) * Math.PI) / 180;
-
-    const x1 = center + Math.cos(startRad) * radius;
-    const y1 = center + Math.sin(startRad) * radius;
-    const x2 = center + Math.cos(endRad) * radius;
-    const y2 = center + Math.sin(endRad) * radius;
-
-    const largeArcFlag = sweepAngle > 180 ? 1 : 0;
-
-    return `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
-  };
-
-  const relationshipsPath = createPieSlice(relStartAngle, relSweepAngle);
-  const careerPath = createPieSlice(careerStartAngle, careerSweepAngle);
-  const familyPath = createPieSlice(familyStartAngle, familySweepAngle);
-
-  // Calculate label positions (middle of each slice)
-  const getLabelPosition = (startAngle: number, sweepAngle: number) => {
-    const midAngle = startAngle + sweepAngle / 2;
-    const midRad = (midAngle * Math.PI) / 180;
-    const labelRadius = radius * 0.65; // Position label at 65% of radius
-    return {
-      x: center + Math.cos(midRad) * labelRadius,
-      y: center + Math.sin(midRad) * labelRadius,
-    };
-  };
-
-  const relLabelPos = getLabelPosition(relStartAngle, relSweepAngle);
-  const careerLabelPos = getLabelPosition(careerStartAngle, careerSweepAngle);
-  const familyLabelPos = getLabelPosition(familyStartAngle, familySweepAngle);
-
-  // Get distinct fixed colors for each sphere
-  const relationshipsColor = '#f87171'; // Red/pink for relationships
-  const careerColor = '#3b82f6'; // Blue for career
-  const familyColor = '#10b981'; // Green for family
-
-  return (
-    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {/* Background circle */}
-      <Circle cx={center} cy={center} r={radius} fill="none" stroke={colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth={2} />
-
-      {/* Relationships slice */}
-      {relationshipsPath && (
-        <>
-          <Path
-            d={relationshipsPath}
-            fill={relationshipsColor}
-            opacity={0.6}
-          />
-          {relSweepAngle > 5 && (
-            <SvgText
-              x={relLabelPos.x}
-              y={relLabelPos.y}
-              fontSize={14 * fontScale}
-              fill={colors.text}
-              textAnchor="middle"
-              alignmentBaseline="middle"
-              fontWeight="bold"
-            >
-              {Math.round(normalizedDist.relationships)}%
-            </SvgText>
-          )}
-        </>
-      )}
-
-      {/* Career slice */}
-      {careerPath && (
-        <>
-          <Path
-            d={careerPath}
-            fill={careerColor}
-            opacity={0.6}
-          />
-          {careerSweepAngle > 5 && (
-            <SvgText
-              x={careerLabelPos.x}
-              y={careerLabelPos.y}
-              fontSize={14 * fontScale}
-              fill={colors.text}
-              textAnchor="middle"
-              alignmentBaseline="middle"
-              fontWeight="bold"
-            >
-              {Math.round(normalizedDist.career)}%
-            </SvgText>
-          )}
-        </>
-      )}
-
-      {/* Family slice */}
-      {familyPath && (
-        <>
-          <Path
-            d={familyPath}
-            fill={familyColor}
-            opacity={0.6}
-          />
-          {familySweepAngle > 5 && (
-            <SvgText
-              x={familyLabelPos.x}
-              y={familyLabelPos.y}
-              fontSize={14 * fontScale}
-              fill={colors.text}
-              textAnchor="middle"
-              alignmentBaseline="middle"
-              fontWeight="bold"
-            >
-              {Math.round(normalizedDist.family)}%
-            </SvgText>
-          )}
-        </>
-      )}
-    </Svg>
-  );
-}
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
@@ -608,6 +440,52 @@ export default function SpheresScreen() {
     sphereCount: {
       textAlign: 'center',
       opacity: 0.7,
+    },
+    insightsButtonContainer: {
+      marginTop: 32 * fontScale,
+      borderRadius: 20 * fontScale,
+      overflow: 'hidden',
+      shadowColor: '#8b5cf6',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 16,
+      elevation: 12,
+    },
+    insightsButtonGradient: {
+      borderRadius: 20 * fontScale,
+      padding: 20 * fontScale,
+    },
+    insightsButtonContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 16 * fontScale,
+    },
+    insightsIconContainer: {
+      position: 'relative',
+      width: 56 * fontScale,
+      height: 56 * fontScale,
+      borderRadius: 28 * fontScale,
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sparkleIcon: {
+      position: 'absolute',
+      top: -4,
+      right: -4,
+    },
+    insightsTextContainer: {
+      flex: 1,
+      gap: 4 * fontScale,
+    },
+    insightsButtonTitle: {
+      color: '#ffffff',
+      fontWeight: '700',
+    },
+    insightsButtonSubtitle: {
+      color: 'rgba(255, 255, 255, 0.9)',
+      opacity: 0.9,
     },
     entityList: {
       gap: 12 * fontScale,
@@ -1539,245 +1417,9 @@ export default function SpheresScreen() {
         contentContainerStyle={{ paddingBottom: 100 * fontScale }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Wheel of Life Analysis - only show when no sphere is selected */}
+        {/* Sphere Selection Grid - only show when no sphere is selected */}
         {!selectedSphere && (
           <>
-            {/* Wheel of Life Visualization */}
-            <View style={styles.wheelContainer}>
-              <ThemedText size="l" weight="bold" style={styles.wheelTitle}>
-                {t('insights.wheelOfLife.title')}
-              </ThemedText>
-              <ThemedText size="sm" style={styles.wheelSubtitle}>
-                {t('insights.wheelOfLife.subtitle')}
-              </ThemedText>
-              
-              <View style={styles.wheelWrapper}>
-                <WheelOfLifeVisualization
-                  distribution={sphereDistribution}
-                  quality={sphereScores}
-                  colors={colors}
-                  colorScheme={colorScheme}
-                  fontScale={fontScale}
-                />
-              </View>
-
-              {/* Sphere Scores */}
-              <View style={styles.scoresContainer}>
-                {spheres.map((sphere) => {
-                  const score = sphereScores[sphere.type];
-                  // Use fixed colors matching the wheel of life pie chart
-                  const sphereColor = sphere.type === 'relationships' ? '#f87171' : 
-                                     sphere.type === 'career' ? '#3b82f6' : 
-                                     '#10b981'; // family
-                  const isExpanded = expandedSphere === sphere.type;
-                  const entities = entityComparisons[sphere.type];
-                  const currentEntities = entities.filter(e => e.isOngoing);
-                  const pastEntities = entities.filter(e => !e.isOngoing);
-                  
-                  return (
-                    <View key={sphere.type} style={styles.scoreItem}>
-                      <TouchableOpacity
-                        style={styles.scoreRowTouchable}
-                        onPress={() => {
-                          // Navigate to relationships comparison view if relationships
-                          if (sphere.type === 'relationships' && entities.length > 0) {
-                            router.push('/relationships-comparison');
-                          } else {
-                            // For other spheres, expand/collapse
-                            setExpandedSphere(isExpanded ? null : sphere.type);
-                          }
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <MaterialIcons
-                          name={sphere.icon as any}
-                          size={20 * fontScale}
-                          color={sphereColor}
-                        />
-                        <ThemedText size="sm" weight="semibold" style={styles.scoreLabel}>
-                          {sphere.label}
-                        </ThemedText>
-                        <ThemedText size="sm" weight="bold" style={[styles.scoreValue, { color: sphereColor }]}>
-                          {Math.round(score)}%
-                        </ThemedText>
-                        <MaterialIcons
-                          name={sphere.type === 'relationships' ? 'arrow-forward' : (isExpanded ? 'expand-less' : 'expand-more')}
-                          size={24 * fontScale}
-                          color={colors.icon}
-                        />
-                      </TouchableOpacity>
-                      <View style={styles.scoreBarContainer}>
-                        <View style={[styles.scoreBar, { width: `${score}%`, backgroundColor: sphereColor }]} />
-                      </View>
-                      
-                      {/* Expanded Comparison Section */}
-                      {isExpanded && sphere.type !== 'relationships' && entities.length > 0 && (
-                        <View style={styles.comparisonContainer}>
-                          {/* Current/Ongoing Entities */}
-                          {currentEntities.length > 0 && (
-                            <View style={styles.comparisonSection}>
-                              <ThemedText size="sm" weight="bold" style={styles.comparisonSectionTitle}>
-                                {sphere.type === 'relationships' ? t('insights.comparison.currentRelationships') :
-                                 sphere.type === 'career' ? t('insights.comparison.currentJobs') :
-                                 t('insights.comparison.familyMembers')}
-                              </ThemedText>
-                              {currentEntities.map((entity) => {
-                                return (
-                                  <View key={entity.id} style={styles.entityComparisonItem}>
-                                    <ThemedText size="xs" style={styles.entityComparisonName}>
-                                      {entity.name}
-                                    </ThemedText>
-                                    <View style={styles.entityComparisonRow}>
-                                      <View style={styles.entityScoreBarContainer}>
-                                        <View style={[styles.entityScoreBar, { width: `${entity.score}%`, backgroundColor: sphereColor }]} />
-                                      </View>
-                                      <ThemedText size="xs" weight="bold" style={[styles.entityScoreValue, { color: sphereColor }]}>
-                                        {Math.round(entity.score)}%
-                                      </ThemedText>
-                                    </View>
-                                  </View>
-                                );
-                              })}
-                            </View>
-                          )}
-                          
-                          {/* Past Entities */}
-                          {pastEntities.length > 0 && (
-                            <View style={styles.comparisonSection}>
-                              <ThemedText size="sm" weight="bold" style={styles.comparisonSectionTitle}>
-                                {sphere.type === 'relationships' ? t('insights.comparison.pastRelationships') :
-                                 sphere.type === 'career' ? t('insights.comparison.pastJobs') :
-                                 ''}
-                              </ThemedText>
-                              {pastEntities.map((entity) => {
-                                return (
-                                  <View key={entity.id} style={styles.entityComparisonItem}>
-                                    <ThemedText size="xs" style={styles.entityComparisonName}>
-                                      {entity.name}
-                                    </ThemedText>
-                                    <View style={styles.entityComparisonRow}>
-                                      <View style={styles.entityScoreBarContainer}>
-                                        <View style={[styles.entityScoreBar, { width: `${entity.score}%`, backgroundColor: sphereColor }]} />
-                                      </View>
-                                      <ThemedText size="xs" weight="bold" style={[styles.entityScoreValue, { color: sphereColor }]}>
-                                        {Math.round(entity.score)}%
-                                      </ThemedText>
-                                    </View>
-                                  </View>
-                                );
-                              })}
-                            </View>
-                          )}
-                          
-                          {/* Suggestions */}
-                          {currentEntities.length > 0 && (() => {
-                            const currentScore = currentEntities[0].score;
-                            const avgPastScore = pastEntities.length > 0 
-                              ? pastEntities.reduce((sum, e) => sum + e.score, 0) / pastEntities.length 
-                              : null;
-                            
-                            let suggestionKey = '';
-                            if (currentScore < 50 && avgPastScore !== null && currentScore < avgPastScore) {
-                              // Current is worse than past
-                              suggestionKey = `insights.suggestion.${sphere.type}.worse`;
-                            } else if (currentScore < 50) {
-                              // Current is low
-                              suggestionKey = `insights.suggestion.${sphere.type}.low`;
-                            } else if (avgPastScore !== null && currentScore > avgPastScore + 10) {
-                              // Good progression
-                              suggestionKey = `insights.suggestion.${sphere.type}.progress`;
-                            } else if (currentScore >= 70) {
-                              // Strong performance
-                              suggestionKey = `insights.suggestion.${sphere.type}.strong`;
-                            }
-                            
-                            if (suggestionKey) {
-                              return (
-                                <View style={styles.suggestionContainer}>
-                                  <MaterialIcons
-                                    name="lightbulb"
-                                    size={20 * fontScale}
-                                    color={colors.primaryLight}
-                                  />
-                                  <ThemedText size="sm" style={styles.suggestionText}>
-                                    {t(suggestionKey as any)}
-                                  </ThemedText>
-                                </View>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </View>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-
-              {/* Percentage Explanation */}
-              <View style={styles.percentageExplanation}>
-                <ThemedText size="xs" style={styles.percentageExplanationText}>
-                  {t('insights.wheelOfLife.percentageExplanation')}
-                </ThemedText>
-              </View>
-
-              {/* Insights */}
-              {insights.length > 0 && (
-                <View style={styles.insightsContainer}>
-                  <ThemedText size="m" weight="bold" style={styles.insightsTitle}>
-                    {t('insights.recommendations.title')}
-                  </ThemedText>
-                  {insights.map((insight, index) => {
-                    const sphereData = spheres.find(s => s.type === insight.sphere);
-                    const priorityColor = insight.priority === 'high' ? '#ff6b6b' : insight.priority === 'medium' ? '#ffa500' : colors.primaryLight;
-                    
-                    // Build the message with details
-                    let messageText = t(insight.message as any);
-                    if (insight.details) {
-                      // Replace placeholders in the message
-                      messageText = messageText
-                        .replace(/{name}/g, insight.details.entityName)
-                        .replace(/{percentage}/g, insight.details.percentage.toString());
-                      
-                      // Add comparison if available
-                      if (insight.details.comparison) {
-                        messageText += ` ${insight.details.comparison}`;
-                      }
-                    }
-                    
-                    return (
-                      <View key={index} style={[styles.insightItem, { borderLeftColor: priorityColor }]}>
-                        <View style={styles.insightHeader}>
-                          <MaterialIcons
-                            name={sphereData?.icon as any || 'info'}
-                            size={20 * fontScale}
-                            color={priorityColor}
-                          />
-                          <ThemedText size="sm" weight="bold" style={styles.insightSphere}>
-                            {sphereData?.label}
-                            {insight.details && (
-                              <ThemedText size="xs" style={{ opacity: 0.7 }}>
-                                {' • '}{insight.details.entityName}
-                              </ThemedText>
-                            )}
-                          </ThemedText>
-                        </View>
-                        <ThemedText size="sm" style={styles.insightMessage}>
-                          {messageText}
-                        </ThemedText>
-                        {insight.details && (
-                          <ThemedText size="xs" style={[styles.insightPercentage, { color: priorityColor }]}>
-                            {insight.details.percentage}% sunny
-                          </ThemedText>
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-
-            {/* Sphere Selection Grid */}
             <View style={styles.sphereGrid}>
               {spheres.map((sphere) => (
                 <TouchableOpacity
@@ -1801,6 +1443,45 @@ export default function SpheresScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+
+            {/* Premium Insights Button */}
+            <TouchableOpacity
+              style={styles.insightsButtonContainer}
+              onPress={() => router.push('/insights')}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={
+                  colorScheme === 'dark'
+                    ? ['#8b5cf6', '#6366f1', '#3b82f6', '#0ea5e9']
+                    : ['#a78bfa', '#818cf8', '#60a5fa', '#38bdf8']
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.insightsButtonGradient}
+              >
+                <View style={styles.insightsButtonContent}>
+                  <View style={styles.insightsIconContainer}>
+                    <MaterialIcons name="insights" size={32 * fontScale} color="#ffffff" />
+                    <MaterialIcons
+                      name="auto-awesome"
+                      size={16 * fontScale}
+                      color="#FFD700"
+                      style={styles.sparkleIcon}
+                    />
+                  </View>
+                  <View style={styles.insightsTextContainer}>
+                    <ThemedText size="lg" weight="bold" style={styles.insightsButtonTitle}>
+                      {t('insights.wheelOfLife.title')}
+                    </ThemedText>
+                    <ThemedText size="xs" style={styles.insightsButtonSubtitle}>
+                      {t('insights.wheelOfLife.subtitle')}
+                    </ThemedText>
+                  </View>
+                  <MaterialIcons name="arrow-forward" size={24 * fontScale} color="#ffffff" />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
           </>
         )}
       </ScrollView>

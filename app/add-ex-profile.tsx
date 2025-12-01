@@ -7,15 +7,14 @@ import { Input } from '@/library/components/input';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
-import { useTranslate } from '@/utils/languages/use-translate';
 import { useJourney, type ExProfile } from '@/utils/JourneyProvider';
+import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Image } from 'expo-image';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { Alert, Modal, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function AddExProfileScreen() {
   const colorScheme = useColorScheme();
