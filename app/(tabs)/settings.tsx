@@ -21,7 +21,7 @@ export default function SettingsScreen() {
   const { maxContentWidth } = useLargeDevice();
   const { language, setLanguage } = useLanguage();
   const { themeMode, setThemeMode } = useTheme();
-  const { addProfile, addJob, addFamilyMember, addIdealizedMemory, profiles, familyMembers, getProfile, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories, reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers } = useJourney();
+  const { addProfile, addJob, addFamilyMember, addIdealizedMemory, profiles, jobs, familyMembers, getProfile, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories, reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers } = useJourney();
   const t = useTranslate();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [themeDropdownVisible, setThemeDropdownVisible] = useState(false);
@@ -212,28 +212,27 @@ export default function SettingsScreen() {
           const maldivesImageUri = maldivesAsset.localUri || maldivesAsset.uri;
 
       // Define multiple fake profiles with different names and characteristics
-      // Two ex partners with consecutive years, one current partner with 5 memories (more suns than clouds)
-      // At least 5 memories, max 10 memories per profile
-      // Each memory should have between 5-10 total moments (clouds + suns)
+      // Random number of memories between 1 and 8 per profile
       const fakeProfiles = [
-        { name: 'Mark Johnson', description: 'College sweetheart, first love', startDate: '2020-01-15', endDate: '2021-12-31', memoryCount: 10 },
-        { name: 'Emma Williams', description: 'High school romance', startDate: '2021-01-01', endDate: '2022-12-31', memoryCount: 10 },
-        { name: 'Olivia Brown', description: 'Long distance relationship', startDate: '2023-01-01', endDate: null, memoryCount: 5, ongoing: true },
+        { name: 'Mark Johnson', description: 'College sweetheart, first love', startDate: '2020-01-15', endDate: '2021-12-31' },
+        { name: 'Emma Williams', description: 'High school romance', startDate: '2021-01-01', endDate: '2022-12-31' },
+        { name: 'Olivia Brown', description: 'Long distance relationship', startDate: '2023-01-01', endDate: null, ongoing: true },
       ];
 
       // Define multiple fake jobs with different characteristics
-      // Two past jobs with consecutive years, one current job with 5 memories (more suns than clouds)
+      // Random number of memories between 1 and 8 per job
       const fakeJobs = [
-        { name: 'Software Developer at TechCorp', description: 'My first job in tech', startDate: '2020-03-01', endDate: '2022-06-30', memoryCount: 8 },
-        { name: 'Senior Developer at StartupXYZ', description: 'Fast-paced startup environment', startDate: '2022-07-01', endDate: '2023-12-31', memoryCount: 10 },
-        { name: 'Lead Engineer at CurrentCompany', description: 'Current role, growing my career', startDate: '2024-01-01', endDate: null, memoryCount: 5, ongoing: true },
+        { name: 'Software Developer at TechCorp', description: 'My first job in tech', startDate: '2020-03-01', endDate: '2022-06-30' },
+        { name: 'Senior Developer at StartupXYZ', description: 'Fast-paced startup environment', startDate: '2022-07-01', endDate: '2023-12-31' },
+        { name: 'Lead Engineer at CurrentCompany', description: 'Current role, growing my career', startDate: '2024-01-01', endDate: null, ongoing: true },
       ];
 
       // Define multiple fake family members with different characteristics
+      // Random number of memories between 1 and 8 per family member
       const fakeFamilyMembers = [
-        { name: 'Sarah Johnson', relationship: 'Sister', description: 'My older sister and best friend', memoryCount: 8 },
-        { name: 'Michael Johnson', relationship: 'Brother', description: 'My younger brother', memoryCount: 6 },
-        { name: 'Maria Johnson', relationship: 'Mother', description: 'My loving mother', memoryCount: 10 },
+        { name: 'Sarah Johnson', relationship: 'Sister', description: 'My older sister and best friend' },
+        { name: 'Michael Johnson', relationship: 'Brother', description: 'My younger brother' },
+        { name: 'Maria Johnson', relationship: 'Mother', description: 'My loving mother' },
       ];
 
       const memoryTitles = [
@@ -432,8 +431,8 @@ export default function SettingsScreen() {
           
           // Only create memories if the profile doesn't have any yet
           if (existingMemories.length === 0) {
-            // Create different amounts of memories for each profile
-            const numMemories = profileData.memoryCount;
+            // Generate random number of memories between 1 and 8
+            const numMemories = Math.floor(Math.random() * 8) + 1; // 1-8 memories
           
             let successfullyCreatedCount = 0;
           for (let i = 0; i < numMemories; i++) {
@@ -441,23 +440,26 @@ export default function SettingsScreen() {
               let numClouds: number;
               let numSuns: number;
               
-              // Each memory should have between 5-10 total moments (clouds + suns)
-              const totalMoments = Math.floor(Math.random() * 6) + 5; // 5-10 total moments
+              // Each memory should have between 2-8 total moments (clouds + suns)
+              const totalMoments = Math.floor(Math.random() * 7) + 2; // 2-8 total moments
               
-              // For current partner (ongoing), ensure more suns than clouds
+              // Ensure at least 1 cloudy and 1 sunny moment
+              // Distribute remaining moments randomly
+              const remainingMoments = totalMoments - 2; // Subtract the guaranteed 1 cloud + 1 sun
+              
               if (profileData.ongoing) {
                 // Current partner: more suns than clouds
-                // Use 2 clouds max, rest are suns (ensures suns > clouds when totalMoments >= 5)
-                numClouds = 2; // Fixed at 2 clouds
-                numSuns = totalMoments - numClouds; // Rest are suns (will be 3-8, always more than clouds)
+                // Start with 1 cloud and 1 sun, then add more suns
+                numClouds = 1;
+                numSuns = 1 + remainingMoments; // All remaining go to suns
               } else {
                 // Ex partners: more clouds than suns
-                // Use 2 suns max, rest are clouds (ensures clouds > suns when totalMoments >= 5)
-                numSuns = 2; // Fixed at 2 suns
-                numClouds = totalMoments - numSuns; // Rest are clouds (will be 3-8, always more than suns)
+                // Start with 1 cloud and 1 sun, then add more clouds
+                numClouds = 1 + remainingMoments; // All remaining go to clouds
+                numSuns = 1;
               }
               
-              // Verify we have at least 1 of each
+              // Verify we have at least 1 of each (should always be true with above logic)
               if (numClouds < 1) numClouds = 1;
               if (numSuns < 1) numSuns = 1;
               
@@ -524,41 +526,69 @@ export default function SettingsScreen() {
       // Create multiple jobs
       for (const jobData of fakeJobs) {
         try {
-          const jobId = await addJob({
-            name: jobData.name,
-            description: jobData.description,
-            startDate: jobData.startDate,
-            endDate: jobData.endDate || undefined,
-            isOngoing: jobData.ongoing || false,
-            imageUri: exImageUri,
-            setupProgress: 100,
-            isCompleted: true,
-          });
-
-
-          // Create different amounts of memories for each job
-          const numMemories = jobData.memoryCount;
+          // Check if job already exists
+          let jobId: string;
+          const existingJob = jobs.find(j => j.name === jobData.name);
           
-          for (let i = 0; i < numMemories; i++) {
+          if (existingJob) {
+            jobId = existingJob.id;
+            if (!jobId) {
+              console.error(`[MOCK DATA] ⚠️ WARNING: Found existing job but ID is empty!`);
+              continue;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+          } else {
+            jobId = await addJob({
+              name: jobData.name,
+              description: jobData.description,
+              startDate: jobData.startDate,
+              endDate: jobData.endDate || undefined,
+              isOngoing: jobData.ongoing || false,
+              imageUri: exImageUri,
+              setupProgress: 100,
+              isCompleted: true,
+            });
+            if (!jobId) {
+              console.error(`[MOCK DATA] ⚠️ ERROR: Job creation returned empty ID!`);
+              continue;
+            }
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+
+          // Check if job already has memories - if not, create them
+          const existingMemories = getIdealizedMemoriesByEntityId(jobId, 'career');
+          
+          // Only create memories if the job doesn't have any yet
+          if (existingMemories.length === 0) {
+            // Generate random number of memories between 1 and 8
+            const numMemories = Math.floor(Math.random() * 8) + 1; // 1-8 memories
+          
+            for (let i = 0; i < numMemories; i++) {
             try {
               let numClouds: number;
               let numSuns: number;
               
-              // Each memory should have between 5-10 total moments (clouds + suns)
-              const totalMoments = Math.floor(Math.random() * 6) + 5; // 5-10 total moments
+              // Each memory should have between 2-8 total moments (clouds + suns)
+              const totalMoments = Math.floor(Math.random() * 7) + 2; // 2-8 total moments
+              
+              // Ensure at least 1 cloudy and 1 sunny moment
+              // Distribute remaining moments randomly
+              const remainingMoments = totalMoments - 2; // Subtract the guaranteed 1 cloud + 1 sun
               
               // For current job (ongoing), ensure more suns than clouds
               if (jobData.ongoing) {
                 // Current job: more suns than clouds
-                numClouds = 2; // Fixed at 2 clouds
-                numSuns = totalMoments - numClouds; // Rest are suns (will be 3-8, always more than clouds)
+                // Start with 1 cloud and 1 sun, then add more suns
+                numClouds = 1;
+                numSuns = 1 + remainingMoments; // All remaining go to suns
               } else {
                 // Past jobs: more clouds than suns
-                numSuns = 2; // Fixed at 2 suns
-                numClouds = totalMoments - numSuns; // Rest are clouds (will be 3-8, always more than suns)
+                // Start with 1 cloud and 1 sun, then add more clouds
+                numClouds = 1 + remainingMoments; // All remaining go to clouds
+                numSuns = 1;
               }
               
-              // Verify we have at least 1 of each
+              // Verify we have at least 1 of each (should always be true with above logic)
               if (numClouds < 1) numClouds = 1;
               if (numSuns < 1) numSuns = 1;
               
@@ -600,6 +630,9 @@ export default function SettingsScreen() {
             } catch (memoryError) {
               console.error(`Error creating memory ${i} for ${jobData.name}:`, memoryError);
             }
+          }
+          } else {
+            // Job already has memories, skip creation
           }
           
           createdJobs++;
@@ -657,7 +690,8 @@ export default function SettingsScreen() {
           console.log(`[MOCK DATA] Family member ${memberData.name} has ${existingMemories.length} existing memories`);
           
           if (existingMemories.length === 0) {
-            const numMemories = memberData.memoryCount;
+            // Generate random number of memories between 1 and 8
+            const numMemories = Math.floor(Math.random() * 8) + 1; // 1-8 memories
             console.log(`[MOCK DATA] Creating ${numMemories} memories for ${memberData.name}`);
             
             for (let i = 0; i < numMemories; i++) {
@@ -665,14 +699,22 @@ export default function SettingsScreen() {
                 let numClouds: number;
                 let numSuns: number;
                 
-                // Each memory should have between 5-10 total moments (clouds + suns)
-                const totalMoments = Math.floor(Math.random() * 6) + 5; // 5-10 total moments
+                // Each memory should have between 2-8 total moments (clouds + suns)
+                const totalMoments = Math.floor(Math.random() * 7) + 2; // 2-8 total moments
+                
+                // Ensure at least 1 cloudy and 1 sunny moment
+                // Distribute remaining moments randomly (slightly more suns for family)
+                const remainingMoments = totalMoments - 2; // Subtract the guaranteed 1 cloud + 1 sun
                 
                 // For family, mix of clouds and suns (slightly more suns)
-                numSuns = Math.floor(totalMoments * 0.6); // ~60% suns
-                numClouds = totalMoments - numSuns; // Rest are clouds
+                // Start with 1 cloud and 1 sun, then distribute remaining 60/40 suns/clouds
+                const sunsFromRemaining = Math.floor(remainingMoments * 0.6);
+                const cloudsFromRemaining = remainingMoments - sunsFromRemaining;
                 
-                // Verify we have at least 1 of each
+                numClouds = 1 + cloudsFromRemaining;
+                numSuns = 1 + sunsFromRemaining;
+                
+                // Verify we have at least 1 of each (should always be true with above logic)
                 if (numClouds < 1) numClouds = 1;
                 if (numSuns < 1) numSuns = 1;
                 

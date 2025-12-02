@@ -7,14 +7,14 @@ import { Input } from '@/library/components/input';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
-import { useTranslate } from '@/utils/languages/use-translate';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Modal, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function AddJobScreen() {
   const colorScheme = useColorScheme();
@@ -143,13 +143,13 @@ export default function AddJobScreen() {
         },
         form: {
           gap: 20 * fontScale,
-          maxWidth: maxContentWidth,
+          maxWidth: maxContentWidth as any,
           alignSelf: 'center',
           width: '100%',
         },
         button: {
           width: '100%',
-          maxWidth: maxContentWidth,
+          maxWidth: maxContentWidth as any,
           height: 48 * fontScale,
           borderRadius: 8 * fontScale,
           alignItems: 'center',
@@ -314,7 +314,7 @@ export default function AddJobScreen() {
                 }}
                 activeOpacity={0.7}
               >
-                <ThemedText size="m">
+                <ThemedText size="l">
                   {startDate
                     ? startDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
                     : t('job.startDate.select')}
@@ -356,7 +356,7 @@ export default function AddJobScreen() {
                         }}
                       >
                         <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
-                          <ThemedText size="m" style={{ color: colors.primary }}>
+                          <ThemedText size="l" style={{ color: colors.primary }}>
                             {t('common.cancel')}
                           </ThemedText>
                         </TouchableOpacity>
@@ -378,7 +378,7 @@ export default function AddJobScreen() {
                             setShowStartDatePicker(false);
                           }}
                         >
-                          <ThemedText size="m" style={{ color: colors.primary, fontWeight: '600' }}>
+                          <ThemedText size="l" style={{ color: colors.primary, fontWeight: '600' }}>
                             {t('common.ok')}
                           </ThemedText>
                         </TouchableOpacity>
@@ -451,7 +451,7 @@ export default function AddJobScreen() {
                   )}
                 </TouchableOpacity>
                 <ThemedText 
-                  size="m" 
+                  size="l" 
                   onPress={() => setIsCurrent(!isCurrent)}
                 >
                   {t('job.currentJob')}
@@ -482,7 +482,7 @@ export default function AddJobScreen() {
                   }}
                   activeOpacity={0.7}
                 >
-                  <ThemedText size="m">
+                  <ThemedText size="l">
                     {endDate
                       ? endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
                       : t('job.endDate.select')}
@@ -524,7 +524,7 @@ export default function AddJobScreen() {
                           }}
                         >
                           <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
-                            <ThemedText size="m" style={{ color: colors.primary }}>
+                            <ThemedText size="l" style={{ color: colors.primary }}>
                               {t('common.cancel')}
                             </ThemedText>
                           </TouchableOpacity>
@@ -546,7 +546,7 @@ export default function AddJobScreen() {
                               setShowEndDatePicker(false);
                             }}
                           >
-                            <ThemedText size="m" style={{ color: colors.primary, fontWeight: '600' }}>
+                            <ThemedText size="l" style={{ color: colors.primary, fontWeight: '600' }}>
                               {t('common.ok')}
                             </ThemedText>
                           </TouchableOpacity>

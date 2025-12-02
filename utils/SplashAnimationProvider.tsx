@@ -1,8 +1,9 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
-import React, { createContext, useContext, useEffect, useLayoutEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
+import { useLargeDevice } from '@/hooks/use-large-device';
 import Animated, {
   Easing,
   interpolate,
@@ -40,6 +41,7 @@ interface SplashAnimationProviderProps {
 export function SplashAnimationProvider({ children }: SplashAnimationProviderProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [isAnimationComplete, setIsAnimationComplete] = useState(false);
+  const { isTablet } = useLargeDevice();
   const splashOpacity = useSharedValue(1);
 
   // Avatar animations
@@ -70,6 +72,13 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     opacity: useSharedValue(0),
     scale: useSharedValue(0),
   };
+
+  // Dynamic quote style based on device size
+  const quoteStyle = useMemo(() => ({
+    ...styles.quote,
+    fontSize: isTablet ? 28 : 18,
+    lineHeight: isTablet ? 38 : 26,
+  }), [isTablet]);
 
   // Hide native splash screen immediately
   useLayoutEffect(() => {
@@ -366,7 +375,7 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
 
               {/* Quote Text */}
               <Animated.View style={[styles.textContainer, textAnimatedStyle]}>
-                <Text style={styles.quote}>
+                <Text style={quoteStyle}>
                   Live spherically — in many directions
                 </Text>
               </Animated.View>

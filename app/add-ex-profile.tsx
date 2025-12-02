@@ -157,13 +157,13 @@ export default function AddExProfileScreen() {
         },
         form: {
           gap: 20 * fontScale,
-          maxWidth: maxContentWidth,
+          maxWidth: maxContentWidth as any,
           alignSelf: 'center',
           width: '100%',
         },
         button: {
           width: '100%',
-          maxWidth: maxContentWidth,
+          maxWidth: maxContentWidth as any,
           height: 48 * fontScale,
           borderRadius: 8 * fontScale,
           alignItems: 'center',
@@ -362,7 +362,7 @@ export default function AddExProfileScreen() {
                 }}
                 activeOpacity={0.7}
               >
-                <ThemedText size="m">
+                <ThemedText size="l">
                   {relationshipStartDate
                     ? relationshipStartDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
                     : t('profile.relationshipStartDate.select')}
@@ -404,7 +404,7 @@ export default function AddExProfileScreen() {
                         }}
                       >
                         <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
-                          <ThemedText size="m" style={{ color: colors.primary }}>
+                          <ThemedText size="l" style={{ color: colors.primary }}>
                             {t('common.cancel')}
                           </ThemedText>
                         </TouchableOpacity>
@@ -426,7 +426,7 @@ export default function AddExProfileScreen() {
                             setShowStartDatePicker(false);
                           }}
                         >
-                          <ThemedText size="m" style={{ color: colors.primary, fontWeight: '600' }}>
+                          <ThemedText size="l" style={{ color: colors.primary, fontWeight: '600' }}>
                             {t('common.ok')}
                           </ThemedText>
                         </TouchableOpacity>
@@ -511,7 +511,7 @@ export default function AddExProfileScreen() {
                   )}
                 </TouchableOpacity>
                 <ThemedText 
-                  size="m" 
+                  size="l" 
                   onPress={() => {
                     if (!canSetAsOngoing && !isOngoing) {
                       Alert.alert(
@@ -558,7 +558,7 @@ export default function AddExProfileScreen() {
                   }}
                   activeOpacity={0.7}
                 >
-                  <ThemedText size="m">
+                  <ThemedText size="l">
                     {relationshipEndDate
                       ? relationshipEndDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
                       : t('profile.relationshipEndDate.select')}
@@ -600,7 +600,7 @@ export default function AddExProfileScreen() {
                           }}
                         >
                           <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
-                            <ThemedText size="m" style={{ color: colors.primary }}>
+                            <ThemedText size="l" style={{ color: colors.primary }}>
                               {t('common.cancel')}
                             </ThemedText>
                           </TouchableOpacity>
@@ -622,7 +622,7 @@ export default function AddExProfileScreen() {
                               setShowEndDatePicker(false);
                             }}
                           >
-                            <ThemedText size="m" style={{ color: colors.primary, fontWeight: '600' }}>
+                            <ThemedText size="l" style={{ color: colors.primary, fontWeight: '600' }}>
                               {t('common.ok')}
                             </ThemedText>
                           </TouchableOpacity>

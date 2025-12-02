@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sferas",
     "slug": "sphere",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "sphere",
@@ -13,7 +13,8 @@
       "bundleIdentifier": "com.petyoplpetrov.Sphere",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "1.0.1"
     },
     "android": {
       "adaptiveIcon": {
@@ -34,7 +35,8 @@
       "package": "com.petyoplpetrov.Sphere",
       "permissions": [
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "versionCode": 1
     },
     "web": {
       "output": "static",

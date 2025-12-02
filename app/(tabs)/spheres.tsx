@@ -22,7 +22,7 @@ export default function SpheresScreen() {
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const iconScale = useIconScale();
-  const { maxContentWidth } = useLargeDevice();
+  const { maxContentWidth, isLargeDevice } = useLargeDevice();
   const { profiles, jobs, familyMembers, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, deleteProfile, deleteJob, deleteFamilyMember, reloadIdealizedMemories, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
   const t = useTranslate();
   
@@ -41,6 +41,12 @@ export default function SpheresScreen() {
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [expandedSphere, setExpandedSphere] = useState<LifeSphere | null>(null);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [selectedFamilyMember, setSelectedFamilyMember] = useState<FamilyMember | null>(null);
+  const [familyMemberActionSheetVisible, setFamilyMemberActionSheetVisible] = useState(false);
+  const [familyMemberDeleteConfirmVisible, setFamilyMemberDeleteConfirmVisible] = useState(false);
+  const [jobActionSheetVisible, setJobActionSheetVisible] = useState(false);
+  const [jobDeleteConfirmVisible, setJobDeleteConfirmVisible] = useState(false);
 
   // Calculate entity-level scores for comparison
   const entityComparisons = useMemo(() => {
@@ -398,17 +404,28 @@ export default function SpheresScreen() {
     },
     content: {
       flex: 1,
-      padding: 16 * fontScale,
-      gap: 24 * fontScale,
+      alignContent: 'stretch',
+    },
+    mainContentContainer: {
+      //width: '100%',
+      //gap: 32 * fontScale,
+      alignItems: 'center',
+      alignSelf: 'stretch',
+      justifyContent: 'space-between',
+      ...(!isLargeDevice && { paddingLeft: 18 * fontScale }),
     },
     sphereGrid: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
+      //flexWrap: 'wrap',
       gap: 16 * fontScale,
       justifyContent: 'center',
+      flex: 1,
+      minHeight: 100 * fontScale,
+      minWidth: 100 * fontScale,
+     // maxHeight: 140 * fontScale,
     },
     sphereCard: {
-      width: (maxContentWidth - 48 * fontScale) / 3,
+      width: typeof maxContentWidth === 'number' ? (maxContentWidth - 48 * fontScale) / 3 : undefined,
       minWidth: 100 * fontScale,
       aspectRatio: 1,
       borderRadius: 16 * fontScale,
@@ -450,6 +467,9 @@ export default function SpheresScreen() {
       shadowOpacity: 0.3,
       shadowRadius: 16,
       elevation: 12,
+      width: '100%',
+      maxWidth: maxContentWidth as any,
+      alignSelf: 'center',
     },
     insightsButtonGradient: {
       borderRadius: 20 * fontScale,
@@ -460,6 +480,8 @@ export default function SpheresScreen() {
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 16 * fontScale,
+            width: '100%',
+
     },
     insightsIconContainer: {
       position: 'relative',
@@ -552,7 +574,7 @@ export default function SpheresScreen() {
       alignItems: 'center',
     },
     listContentWrapper: {
-      maxWidth: maxContentWidth,
+      maxWidth: maxContentWidth as any,
       width: '100%',
       alignSelf: 'center',
     },
@@ -564,9 +586,10 @@ export default function SpheresScreen() {
     scrollContent: {
       flexGrow: 1,
       justifyContent: 'center',
-      maxWidth: maxContentWidth,
+      maxWidth: maxContentWidth as any,
       alignSelf: 'center',
       width: '100%',
+      paddingHorizontal: 16 * fontScale,
     },
     textContainer: {
       alignItems: 'center',
@@ -589,6 +612,7 @@ export default function SpheresScreen() {
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 16 * fontScale,
+      marginTop: 32 * fontScale,
     },
     buttonText: {},
     wheelContainer: {
@@ -764,23 +788,32 @@ export default function SpheresScreen() {
       lineHeight: 18 * fontScale,
       textAlign: 'center',
     },
-  }), [fontScale, iconScale, colorScheme, colors, maxContentWidth]);
+  }), [fontScale, iconScale, colorScheme, colors, maxContentWidth, isLargeDevice]);
 
   const handleSpherePress = (sphere: LifeSphere) => {
-    setSelectedSphere(selectedSphere === sphere ? null : sphere);
+    // Check if the sphere has any moments (floating things) - this determines if it's visually empty
+    const hasMoments = sphereData[sphere].totalMoments > 0;
+    
+    // If sphere has no moments (empty sphere on main screen), always show empty state
+    // If sphere has moments, toggle selection as before
+    if (!hasMoments) {
+      setSelectedSphere(sphere);
+    } else {
+      setSelectedSphere(selectedSphere === sphere ? null : sphere);
+    }
   };
 
   const handleEntityPress = (entity: ExProfile | Job, sphere: LifeSphere) => {
     if (sphere === 'relationships') {
       // For relationships, navigate to home screen with selected sphere
       router.push({
-        pathname: '/(tabs)/',
+        pathname: '/(tabs)' as const,
         params: { sphere: 'relationships', entityId: entity.id },
       });
     } else {
       // For other spheres, navigate to home screen
       router.push({
-        pathname: '/(tabs)/',
+        pathname: '/(tabs)' as const,
         params: { sphere, entityId: entity.id },
       });
     }
@@ -857,29 +890,14 @@ export default function SpheresScreen() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <TabScreenContainer>
-        <View style={styles.header}>
-          <View style={styles.headerButton} />
-          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-            {t('spheres.title')}
-          </ThemedText>
-          <View style={styles.headerButton} />
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </TabScreenContainer>
-    );
-  }
-
+  // Define these before the loading check to use in hooks
   const selectedSphereData = selectedSphere ? spheres.find(s => s.type === selectedSphere) : null;
-  const relationshipsProfiles = selectedSphere === 'relationships' ? (selectedSphereData?.entities as ExProfile[] || []) : [];
-  const careerJobs = selectedSphere === 'career' ? (selectedSphereData?.entities as Job[] || []) : [];
-  const familyMembersList = selectedSphere === 'family' ? (selectedSphereData?.entities as FamilyMember[] || []) : [];
+  // Use the actual data sources directly instead of relying on selectedSphereData
+  const relationshipsProfiles = selectedSphere === 'relationships' ? profiles : [];
+  const careerJobs = selectedSphere === 'career' ? jobs : [];
+  const familyMembersList = selectedSphere === 'family' ? familyMembers : [];
   
-  // Check if any entity has at least one memory
+  // Check if any entity has at least one memory - moved before loading check
   const hasAnyRelationshipMemory = useMemo(() => {
     return relationshipsProfiles.some(profile => {
       const memories = getIdealizedMemoriesByProfileId(profile.id);
@@ -900,12 +918,23 @@ export default function SpheresScreen() {
       return memories.length > 0;
     });
   }, [familyMembersList, getIdealizedMemoriesByEntityId]);
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [selectedFamilyMember, setSelectedFamilyMember] = useState<FamilyMember | null>(null);
-  const [familyMemberActionSheetVisible, setFamilyMemberActionSheetVisible] = useState(false);
-  const [familyMemberDeleteConfirmVisible, setFamilyMemberDeleteConfirmVisible] = useState(false);
-  const [jobActionSheetVisible, setJobActionSheetVisible] = useState(false);
-  const [jobDeleteConfirmVisible, setJobDeleteConfirmVisible] = useState(false);
+
+  if (isLoading) {
+    return (
+      <TabScreenContainer>
+        <View style={styles.header}>
+          <View style={styles.headerButton} />
+          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+            {t('spheres.title')}
+          </ThemedText>
+          <View style={styles.headerButton} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </TabScreenContainer>
+    );
+  }
   
   const handleJobMorePress = (job: Job) => {
     setSelectedJob(job);
@@ -999,7 +1028,7 @@ export default function SpheresScreen() {
           )}
         </View>
 
-        {relationshipsProfiles.length === 0 ? (
+        {profiles.length === 0 ? (
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.content]}
             showsVerticalScrollIndicator={false}
@@ -1114,7 +1143,7 @@ export default function SpheresScreen() {
           )}
         </View>
 
-        {careerJobs.length === 0 ? (
+        {(!jobs || !Array.isArray(jobs) || jobs.length === 0) ? (
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.content]}
             showsVerticalScrollIndicator={false}
@@ -1284,7 +1313,7 @@ export default function SpheresScreen() {
           )}
         </View>
 
-        {familyMembersList.length === 0 ? (
+        {familyMembers.length === 0 ? (
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.content]}
             showsVerticalScrollIndicator={false}
@@ -1343,7 +1372,7 @@ export default function SpheresScreen() {
                       </View>
                     )}
                     <View style={styles.entityInfo}>
-                      <ThemedText size="m" weight="bold">
+                      <ThemedText size="l" weight="bold">
                         {member.name}
                       </ThemedText>
                       {member.relationship && (
@@ -1414,34 +1443,41 @@ export default function SpheresScreen() {
 
       <ScrollView 
         style={styles.content}
-        contentContainerStyle={{ paddingBottom: 100 * fontScale }}
+        contentContainerStyle={{ 
+          padding: 16 * fontScale,
+          paddingBottom: 100 * fontScale,
+          alignItems: 'center',
+          flexGrow: 0,
+        }}
         showsVerticalScrollIndicator={false}
       >
         {/* Sphere Selection Grid - only show when no sphere is selected */}
         {!selectedSphere && (
           <>
-            <View style={styles.sphereGrid}>
-              {spheres.map((sphere) => (
-                <TouchableOpacity
-                  key={sphere.type}
-                  style={styles.sphereCard}
-                  onPress={() => handleSpherePress(sphere.type)}
-                  activeOpacity={0.8}
-                >
-                  <MaterialIcons
-                    name={sphere.icon as any}
-                    size={40 * fontScale * iconScale}
-                    color={colors.primary}
-                    style={styles.sphereIcon}
-                  />
-                  <ThemedText size="sm" weight="bold" style={styles.sphereLabel}>
-                    {sphere.label}
-                  </ThemedText>
-                  <ThemedText size="xs" style={styles.sphereCount}>
-                    {sphere.entities.length} {sphere.entities.length === 1 ? t('spheres.item') : t('spheres.items')}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.mainContentContainer}>
+              <View style={styles.sphereGrid}>
+                {spheres.map((sphere) => (
+                  <TouchableOpacity
+                    key={sphere.type}
+                    style={styles.sphereCard}
+                    onPress={() => handleSpherePress(sphere.type)}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialIcons
+                      name={sphere.icon as any}
+                      size={40 * fontScale * iconScale}
+                      color={colors.primary}
+                      style={styles.sphereIcon}
+                    />
+                    <ThemedText size="sm" weight="bold" style={styles.sphereLabel}>
+                      {sphere.label}
+                    </ThemedText>
+                    <ThemedText size="xs" style={styles.sphereCount}>
+                      {sphere.entities.length} {sphere.entities.length === 1 ? t('spheres.item') : t('spheres.items')}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {/* Premium Insights Button */}
@@ -1471,7 +1507,7 @@ export default function SpheresScreen() {
                     />
                   </View>
                   <View style={styles.insightsTextContainer}>
-                    <ThemedText size="lg" weight="bold" style={styles.insightsButtonTitle}>
+                    <ThemedText size="l" weight="bold" style={styles.insightsButtonTitle}>
                       {t('insights.wheelOfLife.title')}
                     </ThemedText>
                     <ThemedText size="xs" style={styles.insightsButtonSubtitle}>

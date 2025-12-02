@@ -1,19 +1,46 @@
 import { useMemo } from 'react';
 import { Dimensions } from 'react-native';
 
+export type DeviceSize = 'small' | 'large' | 'tablet';
+
 /**
- * Hook to detect large devices and provide max-width constraint
- * Returns max-width of 75% screen width for devices wider than 768px (iPad and larger)
+ * Hook to detect device size and provide max-width constraint
+ * - Small: < 768px (phones)
+ * - Large: 768px - 1024px (large phones, small tablets)
+ * - Tablet: >= 1024px (tablets in landscape, desktops)
  */
 export function useLargeDevice() {
   const screenWidth = Dimensions.get('window').width;
-  const isLargeDevice = screenWidth > 768;
+  
+  const deviceSize: DeviceSize = useMemo(() => {
+    if (screenWidth >= 1024) {
+      return 'tablet';
+    } else if (screenWidth >= 768) {
+      return 'large';
+    } else {
+      return 'small';
+    }
+  }, [screenWidth]);
+
+  const isLargeDevice = deviceSize === 'large' || deviceSize === 'tablet';
+  const isTablet = deviceSize === 'tablet';
+  const isSmall = deviceSize === 'small';
+
   const maxContentWidth = useMemo(() => {
-    return isLargeDevice ? screenWidth * 0.75 : '100%';
-  }, [isLargeDevice, screenWidth]);
+    if (isTablet) {
+      return screenWidth * 0.75;
+    } else if (isLargeDevice) {
+      return screenWidth * 0.85;
+    } else {
+      return '100%';
+    }
+  }, [screenWidth, isTablet, isLargeDevice]);
 
   return {
-    isLargeDevice,
+    deviceSize,
+    isLargeDevice, // For backward compatibility
+    isTablet,
+    isSmall,
     maxContentWidth,
     screenWidth,
   };

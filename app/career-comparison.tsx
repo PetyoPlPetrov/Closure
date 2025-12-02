@@ -137,12 +137,10 @@ export default function CareerComparisonScreen() {
     }
 
     const timeDifference = career.totalMoments - relationships.totalMoments;
-    const qualityDifference = career.sunnyPercentage - relationships.sunnyPercentage;
 
     // Threshold: 20% of the larger amount
     const largerAmount = Math.max(career.totalMoments, relationships.totalMoments);
     const TIME_THRESHOLD_PERCENTAGE = 0.2; // 20% of larger amount
-    const QUALITY_THRESHOLD_SIGNIFICANT = 10; // 10% difference is significant
 
     const insights: { type: 'warning' | 'kudos' | 'info'; message: string }[] = [];
 
@@ -180,20 +178,7 @@ export default function CareerComparisonScreen() {
       });
     }
 
-    // Quality comparison insights
-    if (Math.abs(qualityDifference) > QUALITY_THRESHOLD_SIGNIFICANT) {
-      if (qualityDifference > QUALITY_THRESHOLD_SIGNIFICANT) {
-        insights.push({
-          type: 'kudos',
-          message: t('insights.comparison.career.sphereComparison.betterCareerQuality'),
-        });
-      } else {
-        insights.push({
-          type: 'info',
-          message: t('insights.comparison.career.sphereComparison.betterRelationshipQuality'),
-        });
-      }
-    }
+    // Quality comparison insights removed - not appropriate to congratulate about better work quality vs relationships
 
     return {
       career,
