@@ -7,6 +7,7 @@ import type { LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -17,7 +18,7 @@ export default function FamilyComparisonScreen() {
   const fontScale = useFontScale();
   const t = useTranslate();
   
-  const { getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
+  const { familyMembers, getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
 
   // Calculate sphere data for family and career
   const sphereData = useMemo(() => {
@@ -116,6 +117,145 @@ export default function FamilyComparisonScreen() {
       insights,
     };
   }, [sphereData, t]);
+
+  // Calculate family members comparison
+  const familyMembersComparison = useMemo(() => {
+    if (familyMembers.length === 0) return null;
+
+    const membersData = familyMembers.map((member) => {
+      const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
+      
+      let totalClouds = 0;
+      let totalSuns = 0;
+      
+      memories.forEach((memory) => {
+        totalClouds += (memory.hardTruths || []).length;
+        totalSuns += (memory.goodFacts || []).length;
+      });
+      
+      const totalMoments = totalClouds + totalSuns;
+      const sunnyPercentage = totalMoments > 0 
+        ? (totalSuns / totalMoments) * 100 
+        : 0;
+
+      return {
+        member,
+        totalMoments,
+        totalClouds,
+        totalSuns,
+        sunnyPercentage: Math.max(0, Math.min(100, isNaN(sunnyPercentage) ? 0 : sunnyPercentage)),
+      };
+    }).filter(data => data.totalMoments > 0); // Only include members with memories
+
+    if (membersData.length === 0) return null;
+
+    // Calculate average moments
+    const totalAllMoments = membersData.reduce((sum, data) => sum + data.totalMoments, 0);
+    const averageMoments = totalAllMoments / membersData.length;
+    const maxMoments = Math.max(...membersData.map(d => d.totalMoments));
+    
+    // Threshold: 20% of the larger amount
+    const THRESHOLD_PERCENTAGE = 0.2;
+    const threshold = maxMoments * THRESHOLD_PERCENTAGE;
+
+    // Find who has most moments
+    const mostMomentsMember = membersData.reduce((max, current) => 
+      current.totalMoments > max.totalMoments ? current : max
+    );
+
+    // Find who has least moments
+    const leastMomentsMember = membersData.reduce((min, current) => 
+      current.totalMoments < min.totalMoments ? current : min
+    );
+
+    // Check if balanced (all members within 20% of max)
+    const isBalanced = membersData.every(data => {
+      const difference = maxMoments - data.totalMoments;
+      return difference <= threshold;
+    });
+
+    // Calculate average quality for comparison
+    const averageSunnyPercentage = membersData.length > 0
+      ? membersData.reduce((sum, data) => sum + data.sunnyPercentage, 0) / membersData.length
+      : 0;
+
+    // Find members with more cloudy moments (lower sunny percentage)
+    const cloudyThreshold = 50; // Less than 50% sunny means more cloudy
+    const qualityThreshold = 10; // 10% difference is significant
+    const needsQualityTime = membersData
+      .filter(data => data.sunnyPercentage < cloudyThreshold)
+      .sort((a, b) => a.sunnyPercentage - b.sunnyPercentage); // Sort by worst quality first
+
+    const insights: { type: 'kudos' | 'info' | 'warning'; message: string }[] = [];
+
+    // Balance insight
+    if (isBalanced) {
+      insights.push({
+        type: 'kudos',
+        message: t('insights.comparison.family.members.balanced'),
+      });
+    } else {
+      // Someone needs to catch up - consider both quantity and quality
+      if (leastMomentsMember && mostMomentsMember && leastMomentsMember.member.id !== mostMomentsMember.member.id) {
+        const difference = maxMoments - leastMomentsMember.totalMoments;
+        const differencePercentage = (difference / maxMoments) * 100;
+        
+        if (differencePercentage > 20) { // 20% threshold
+          // Check quality difference
+          const qualityDifference = averageSunnyPercentage - leastMomentsMember.sunnyPercentage;
+          
+          // Build message considering both quantity and quality
+          let message = `${t('insights.comparison.family.members.catchUp')} ${leastMomentsMember.member.name}`;
+          
+          if (qualityDifference > qualityThreshold) {
+            // They have fewer moments AND worse quality
+            message += ` ${t('insights.comparison.family.members.andQuality')}`;
+          }
+          
+          message += '.';
+          
+          insights.push({
+            type: qualityDifference > qualityThreshold ? 'warning' : 'info',
+            message,
+          });
+        }
+      }
+    }
+
+    // Quality insights - for members who need quality time but aren't the least moments
+    if (needsQualityTime.length > 0) {
+      needsQualityTime.forEach((data) => {
+        // Skip if we already mentioned them in the catch up message
+        if (leastMomentsMember && data.member.id === leastMomentsMember.member.id) {
+          return;
+        }
+        
+        const qualityDifference = averageSunnyPercentage - data.sunnyPercentage;
+        if (qualityDifference > qualityThreshold) {
+          insights.push({
+            type: 'warning',
+            message: `${t('insights.comparison.family.members.qualityTime')} ${data.member.name}.`,
+          });
+        }
+      });
+    }
+
+    // Most moments insight
+    if (mostMomentsMember && !isBalanced) {
+      insights.push({
+        type: 'info',
+        message: `${t('insights.comparison.family.members.mostTime')} ${mostMomentsMember.member.name}.`,
+      });
+    }
+
+    return {
+      membersData,
+      totalAllMoments,
+      averageMoments,
+      isBalanced,
+      insights,
+    };
+  }, [familyMembers, getIdealizedMemoriesByEntityId, t]);
 
   const styles = useMemo(() => StyleSheet.create({
     container: {
@@ -245,6 +385,80 @@ export default function FamilyComparisonScreen() {
       fontSize: 14 * fontScale,
       lineHeight: 20 * fontScale,
     },
+    familyMembersSection: {
+      marginTop: 32 * fontScale,
+    },
+    sectionTitle: {
+      marginBottom: 16 * fontScale,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.1)',
+      marginVertical: 24 * fontScale,
+    },
+    barContainer: {
+      marginBottom: 16 * fontScale,
+      borderRadius: 12 * fontScale,
+      padding: 16 * fontScale,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.05)' 
+        : 'rgba(0, 0, 0, 0.05)',
+      borderWidth: 1,
+      borderColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.1)',
+    },
+    barRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    chevronIcon: {
+      marginLeft: 12 * fontScale,
+    },
+    avatarContainer: {
+      width: 40 * fontScale,
+      height: 40 * fontScale,
+      borderRadius: 20 * fontScale,
+      overflow: 'hidden',
+      marginRight: 12 * fontScale,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.1)',
+    },
+    avatar: {
+      width: '100%',
+      height: '100%',
+    },
+    avatarPlaceholder: {
+      width: '100%',
+      height: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#10b98140',
+    },
+    barLabel: {
+      flex: 1,
+      marginRight: 12 * fontScale,
+    },
+    barWrapper: {
+      width: 100 * fontScale,
+      height: 32 * fontScale,
+      borderRadius: 16 * fontScale,
+      overflow: 'hidden',
+      flexDirection: 'row',
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.1)',
+      marginRight: 12 * fontScale,
+    },
+    cloudSegment: {
+      height: '100%',
+    },
+    sunSegment: {
+      height: '100%',
+    },
   }), [fontScale, colorScheme, colors]);
 
   if (!sphereComparison) {
@@ -322,27 +536,6 @@ export default function FamilyComparisonScreen() {
               
               return (
                 <>
-                  {/* Overall Comparison Summary */}
-                  <View style={styles.comparisonHeader}>
-                    <View style={styles.comparisonItem}>
-                      <ThemedText size="xl" weight="bold" style={[styles.comparisonValue, { color: '#10b981' }]}>
-                        {family.totalMoments}
-                      </ThemedText>
-                      <ThemedText size="xs" style={styles.comparisonLabel}>
-                        {t('insights.comparison.family.totalMoments')}
-                      </ThemedText>
-                    </View>
-                    <View style={styles.comparisonDivider} />
-                    <View style={styles.comparisonItem}>
-                      <ThemedText size="xl" weight="bold" style={[styles.comparisonValue, { color: '#3b82f6' }]}>
-                        {career.totalMoments}
-                      </ThemedText>
-                      <ThemedText size="xs" style={styles.comparisonLabel}>
-                        {t('insights.comparison.family.totalMoments')}
-                      </ThemedText>
-                    </View>
-                  </View>
-
                   {/* Single Stacked Bar Chart */}
                   <View style={styles.comparisonBarChartContainer}>
                     {/* Legend */}
@@ -350,7 +543,7 @@ export default function FamilyComparisonScreen() {
                       <View style={styles.legendItem}>
                         <View style={[styles.legendColor, { backgroundColor: '#10b981' }]} />
                         <ThemedText size="sm" weight="semibold" style={styles.legendLabel}>
-                          {t('spheres.family')}
+                          {t('spheres.family')} ({family.totalMoments})
                         </ThemedText>
                         <ThemedText size="sm" weight="bold" style={[styles.legendValue, { color: '#10b981' }]}>
                           {Math.round(familyPercentage)}%
@@ -359,7 +552,7 @@ export default function FamilyComparisonScreen() {
                       <View style={styles.legendItem}>
                         <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
                         <ThemedText size="sm" weight="semibold" style={styles.legendLabel}>
-                          {t('spheres.career')}
+                          {t('spheres.career')} ({career.totalMoments})
                         </ThemedText>
                         <ThemedText size="sm" weight="bold" style={[styles.legendValue, { color: '#3b82f6' }]}>
                           {Math.round(careerPercentage)}%
@@ -416,6 +609,141 @@ export default function FamilyComparisonScreen() {
                 </>
               );
             })()}
+
+            {/* Family Members Comparison Section */}
+            {familyMembersComparison && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.familyMembersSection}>
+                  <ThemedText size="l" weight="bold" style={styles.sectionTitle}>
+                    {t('insights.comparison.family.members.title')}
+                  </ThemedText>
+
+                  {/* Family Members Insights */}
+                  {familyMembersComparison.insights.length > 0 && (
+                    <View style={styles.insightsContainer}>
+                      {familyMembersComparison.insights.map((insight, index) => (
+                        <View
+                          key={index}
+                          style={[
+                            styles.insightCard,
+                            insight.type === 'warning' && styles.insightWarning,
+                            insight.type === 'kudos' && styles.insightKudos,
+                            insight.type === 'info' && styles.insightInfo,
+                          ]}
+                        >
+                          <MaterialIcons
+                            name={
+                              insight.type === 'warning' ? 'warning' :
+                              insight.type === 'kudos' ? 'celebration' :
+                              'info'
+                            }
+                            size={20 * fontScale}
+                            color={
+                              insight.type === 'warning' ? '#ff6b6b' :
+                              insight.type === 'kudos' ? '#10b981' :
+                              colors.icon
+                            }
+                          />
+                          <ThemedText size="sm" style={styles.insightText}>
+                            {insight.message}
+                          </ThemedText>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Individual Family Member Records */}
+                  {familyMembersComparison.membersData
+                    .sort((a, b) => b.totalMoments - a.totalMoments) // Sort by most moments first
+                    .map((data) => {
+                      const cloudPercentage = data.totalMoments > 0 
+                        ? (data.totalClouds / data.totalMoments) * 100 
+                        : 0;
+                      const sunPercentage = data.totalMoments > 0 
+                        ? (data.totalSuns / data.totalMoments) * 100 
+                        : 0;
+
+                      return (
+                        <TouchableOpacity
+                          key={data.member.id}
+                          style={styles.barContainer}
+                          onPress={() => router.push({
+                            pathname: '/family-member-detail',
+                            params: { id: data.member.id },
+                          })}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.barRow}>
+                            {/* Avatar */}
+                            <View style={styles.avatarContainer}>
+                              {data.member.imageUri ? (
+                                <Image
+                                  source={{ uri: data.member.imageUri }}
+                                  style={styles.avatar}
+                                  contentFit="cover"
+                                />
+                              ) : (
+                                <View style={styles.avatarPlaceholder}>
+                                  <MaterialIcons 
+                                    name="family-restroom" 
+                                    size={20 * fontScale} 
+                                    color="#10b981" 
+                                  />
+                                </View>
+                              )}
+                            </View>
+                            
+                            {/* Family Member Name */}
+                            <View style={styles.barLabel}>
+                              <ThemedText size="sm" weight="semibold">
+                                {data.member.name}
+                              </ThemedText>
+                            </View>
+                            
+                            {/* Bar Chart */}
+                            <View style={styles.barWrapper}>
+                              {/* Cloudy segment (black) - on the left */}
+                              {data.totalClouds > 0 && (
+                                <View
+                                  style={[
+                                    styles.cloudSegment,
+                                    { 
+                                      width: `${cloudPercentage}%`,
+                                      backgroundColor: '#000000'
+                                    }
+                                  ]}
+                                />
+                              )}
+                              
+                              {/* Sunny segment (yellow/gold) - on the right */}
+                              {data.totalSuns > 0 && (
+                                <View
+                                  style={[
+                                    styles.sunSegment,
+                                    { 
+                                      width: `${sunPercentage}%`,
+                                      backgroundColor: '#FFD700'
+                                    }
+                                  ]}
+                                />
+                              )}
+                            </View>
+                            
+                            {/* Chevron Icon */}
+                            <MaterialIcons 
+                              name="chevron-right" 
+                              size={24 * fontScale} 
+                              color={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'}
+                              style={styles.chevronIcon}
+                            />
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                </View>
+              </>
+            )}
           </View>
         </ScrollView>
       </View>

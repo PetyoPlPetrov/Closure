@@ -59,6 +59,7 @@ function AppContent() {
         <Stack.Screen name="family-comparison" options={{ headerShown: false }} />
         <Stack.Screen name="relationship-detail" options={{ headerShown: false }} />
         <Stack.Screen name="job-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="family-member-detail" options={{ headerShown: false }} />
         <Stack.Screen name="insights" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>

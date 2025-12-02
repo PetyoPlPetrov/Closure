@@ -190,6 +190,17 @@ export default function RelationshipDetailScreen() {
       backgroundColor: colorScheme === 'dark' 
         ? 'rgba(255, 255, 255, 0.05)' 
         : 'rgba(0, 0, 0, 0.05)',
+      borderWidth: 1,
+      borderColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.1)',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    memoryCardContent: {
+      flex: 1,
+      marginRight: 12 * fontScale,
     },
     memoryTitle: {
       marginBottom: 12 * fontScale,
@@ -334,12 +345,27 @@ export default function RelationshipDetailScreen() {
                   const sunnyPercentage = (sunnyCount / total) * 100;
                   
                   return (
-                    <View key={memory.id} style={styles.memoryCard}>
-                      <ThemedText size="sm" weight="semibold" style={styles.memoryTitle}>
-                        {memory.title}
-                      </ThemedText>
-                      
-                      <View style={styles.memoryBar}>
+                    <TouchableOpacity 
+                      key={memory.id} 
+                      style={styles.memoryCard}
+                      onPress={() => router.push({
+                        pathname: '/(tabs)',
+                        params: {
+                          focusedMemoryId: memory.id,
+                          profileId: profile.id,
+                          sphere: 'relationships',
+                          returnTo: 'relationship-detail',
+                          returnToId: profile.id,
+                        },
+                      })}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.memoryCardContent}>
+                        <ThemedText size="sm" weight="semibold" style={styles.memoryTitle}>
+                          {memory.title}
+                        </ThemedText>
+                        
+                        <View style={styles.memoryBar}>
                         {cloudyCount > 0 && (
                           <View
                             style={[
@@ -363,7 +389,13 @@ export default function RelationshipDetailScreen() {
                           />
                         )}
                       </View>
-                    </View>
+                      </View>
+                      <MaterialIcons 
+                        name="chevron-right" 
+                        size={24 * fontScale} 
+                        color={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'}
+                      />
+                    </TouchableOpacity>
                   );
                 })
               )}

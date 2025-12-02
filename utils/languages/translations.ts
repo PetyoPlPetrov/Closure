@@ -214,6 +214,12 @@ export interface Translations {
   'insights.comparison.family.insight.balancedTime': string;
   'insights.comparison.family.insight.betterFamilyQuality': string;
   'insights.comparison.family.insight.betterCareerQuality': string;
+  'insights.comparison.family.members.title': string;
+  'insights.comparison.family.members.balanced': string;
+  'insights.comparison.family.members.catchUp': string;
+  'insights.comparison.family.members.andQuality': string;
+  'insights.comparison.family.members.qualityTime': string;
+  'insights.comparison.family.members.mostTime': string;
   'insights.detail.relationship.title': string;
   'insights.detail.relationship.noData': string;
   'insights.detail.relationship.memories.title': string;
@@ -240,6 +246,19 @@ export interface Translations {
   'insights.detail.job.memories.same.better': string;
   'insights.detail.job.memories.same.worse': string;
   'insights.detail.job.memories.same.same': string;
+  'insights.detail.family.title': string;
+  'insights.detail.family.noData': string;
+  'insights.detail.family.memories.title': string;
+  'insights.detail.family.memories.noData': string;
+  'insights.detail.family.memories.more.better': string;
+  'insights.detail.family.memories.more.worse': string;
+  'insights.detail.family.memories.more.same': string;
+  'insights.detail.family.memories.less.better': string;
+  'insights.detail.family.memories.less.worse': string;
+  'insights.detail.family.memories.less.same': string;
+  'insights.detail.family.memories.same.better': string;
+  'insights.detail.family.memories.same.worse': string;
+  'insights.detail.family.memories.same.same': string;
   'insights.suggestion.relationships.worse': string;
   'insights.suggestion.relationships.low': string;
   'insights.suggestion.relationships.progress': string;
@@ -544,8 +563,8 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.career.sphereComparison.balancedTime': 'You have an approximately balanced work-life distribution between career and relationships.',
     'insights.comparison.career.sphereComparison.betterCareerQuality': 'Your career has significantly better quality (more sunny moments) compared to your relationships. Consider focusing more on building positive connections.',
     'insights.comparison.career.sphereComparison.betterRelationshipQuality': 'Your relationships have significantly better quality (more sunny moments) compared to your career. Great job nurturing your connections!',
-    'insights.comparison.family.title': 'Family vs Career Comparison',
-    'insights.comparison.family.subtitle': 'Comparing time spent and moment quality',
+    'insights.comparison.family.title': 'Family Comparison',
+    'insights.comparison.family.subtitle': 'Overall amount of moments',
     'insights.comparison.family.totalMoments': 'Total Moments',
     'insights.comparison.family.quality': 'Moment Quality',
     'insights.comparison.family.sunny': 'Sunny',
@@ -556,6 +575,12 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.family.insight.balancedTime': 'You have a well-balanced distribution of time between family and career.',
     'insights.comparison.family.insight.betterFamilyQuality': 'Your family moments have significantly better quality than your career moments. This shows strong family connections!',
     'insights.comparison.family.insight.betterCareerQuality': 'Your career moments have better quality than your family moments. Consider nurturing more positive family experiences.',
+    'insights.comparison.family.members.title': 'Time with Family Members',
+    'insights.comparison.family.members.balanced': 'You have a well-balanced distribution of moments across all family members. Great family harmony!',
+    'insights.comparison.family.members.catchUp': 'Consider spending more time with',
+    'insights.comparison.family.members.andQuality': 'and their moments have lower quality',
+    'insights.comparison.family.members.qualityTime': 'Try spending more quality time with',
+    'insights.comparison.family.members.mostTime': 'You spend most of your family moments with',
     'insights.detail.relationship.title': 'Relationship Details',
     'insights.detail.relationship.noData': 'Relationship not found',
     'insights.detail.relationship.memories.title': 'Memories',
@@ -582,6 +607,19 @@ const translations: Record<Language, Translations> = {
     'insights.detail.job.memories.same.better': 'This job has approximately the same amount of memories as your other jobs, but the overall quality (sunny moments) is better.',
     'insights.detail.job.memories.same.worse': 'This job has approximately the same amount of memories as your other jobs, but the overall quality (sunny moments) is lower.',
     'insights.detail.job.memories.same.same': 'This job has approximately the same amount of memories and similar overall quality compared to your other jobs.',
+    'insights.detail.family.title': 'Family Member Details',
+    'insights.detail.family.noData': 'Family member not found',
+    'insights.detail.family.memories.title': 'Memories',
+    'insights.detail.family.memories.noData': 'No memories recorded for this family member',
+    'insights.detail.family.memories.more.better': 'This family member has significantly more memories compared to your other family members, and the overall quality (sunny moments) is better.',
+    'insights.detail.family.memories.more.worse': 'This family member has significantly more memories compared to your other family members, but the overall quality (sunny moments) is lower.',
+    'insights.detail.family.memories.more.same': 'This family member has significantly more memories compared to your other family members, with similar overall quality.',
+    'insights.detail.family.memories.less.better': 'This family member has fewer memories compared to your other family members, but the overall quality (sunny moments) is better.',
+    'insights.detail.family.memories.less.worse': 'This family member has fewer memories compared to your other family members, and the overall quality (sunny moments) is also lower.',
+    'insights.detail.family.memories.less.same': 'This family member has fewer memories compared to your other family members, with similar overall quality.',
+    'insights.detail.family.memories.same.better': 'This family member has approximately the same amount of memories as your other family members, but the overall quality (sunny moments) is better.',
+    'insights.detail.family.memories.same.worse': 'This family member has approximately the same amount of memories as your other family members, but the overall quality (sunny moments) is lower.',
+    'insights.detail.family.memories.same.same': 'This family member has approximately the same amount of memories and similar overall quality compared to your other family members.',
     'insights.suggestion.relationships.worse': 'Your current relationship has fewer sunny moments compared to past relationships. Consider focusing on creating more positive experiences together.',
     'insights.suggestion.relationships.low': 'Create more sunny moments with your current partner to strengthen your relationship. Small gestures and quality time can make a big difference.',
     'insights.suggestion.relationships.progress': 'Great progress! You\'re creating more positive moments than in your past relationships. Keep nurturing this connection.',
@@ -829,9 +867,9 @@ const translations: Record<Language, Translations> = {
     'insights.career.critical': 'Сферата на кариерата ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни преживявания и решаването на работни предизвикателства.',
     'insights.career.needsImprovement': 'Сферата на кариерата ви може да се подобри с повече положителни моменти. Помислете за фокусиране върху професионално развитие и удовлетворение.',
     'insights.career.strength': 'Сферата на кариерата ви е сила! Продължете да градите върху професионалния си успех.',
-    'insights.family.critical': 'Сферата на семейството ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни спомени и укрепването на семейните връзки.',
-    'insights.family.needsImprovement': 'Сферата на семейството ви може да се подобри с повече положителни моменти. Помислете за фокусиране върху семейните отношения и връзки.',
-    'insights.family.strength': 'Сферата на семейството ви е сила! Продължете да поддържате тези важни връзки.',
+    'insights.family.critical': 'Сферата на семейството ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни спомени и укрепването на семейни взаимоотношения.',
+    'insights.family.needsImprovement': 'Сферата на семейството ви може да се подобри с повече положителни моменти. Помислете за фокусиране върху семейните отношения и взаимоотношения.',
+    'insights.family.strength': 'Сферата на семейството ви е сила! Продължете да поддържате тези важни взаимоотношения.',
     'insights.relationships.current.low': 'Само {percentage}% от моментите в текущата ви връзка с {name} са слънчеви (останалите са облачни).',
     'insights.relationships.pattern.current': 'Само {percentage}% от моментите в текущата ви връзка с {name} са слънчеви.',
     'insights.career.current.low': 'Само {percentage}% от моментите в текущата ви работа в {name} са положителни (останалите са предизвикателни).',
@@ -884,8 +922,8 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.career.sphereComparison.balancedTime': 'Имате приблизително балансирано разпределение на работа и личен живот между кариера и връзки.',
     'insights.comparison.career.sphereComparison.betterCareerQuality': 'Вашата кариера има значително по-добро качество (повече слънчеви моменти) в сравнение с връзките ви. Помислете да се фокусирате повече върху изграждането на позитивни връзки.',
     'insights.comparison.career.sphereComparison.betterRelationshipQuality': 'Вашите връзки имат значително по-добро качество (повече слънчеви моменти) в сравнение с кариерата ви. Отлична работа в поддържането на връзките!',
-    'insights.comparison.family.title': 'Семейство срещу Кариера',
-    'insights.comparison.family.subtitle': 'Сравнение на времето и качеството на моментите',
+    'insights.comparison.family.title': 'Семейство',
+    'insights.comparison.family.subtitle': 'Общо количество моменти',
     'insights.comparison.family.totalMoments': 'Общи Моменти',
     'insights.comparison.family.quality': 'Качество на Моментите',
     'insights.comparison.family.sunny': 'Слънчеви',
@@ -894,8 +932,14 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.family.insight.moreFamilyTime': 'Отделяте повече време за семейството, отколкото за кариерата. Отличен баланс!',
     'insights.comparison.family.insight.moreCareerTime': 'Отделяте повече време за кариерата, отколкото за семейството. Помислете да намерите повече време за семейни моменти.',
     'insights.comparison.family.insight.balancedTime': 'Имате добре балансирано разпределение на времето между семейство и кариера.',
-    'insights.comparison.family.insight.betterFamilyQuality': 'Вашите семейни моменти имат значително по-добро качество от кариерните моменти. Това показва силни семейни връзки!',
+    'insights.comparison.family.insight.betterFamilyQuality': 'Вашите семейни моменти имат значително по-добро качество от кариерните моменти. Това показва силни семейни взаимоотношения!',
     'insights.comparison.family.insight.betterCareerQuality': 'Вашите кариерни моменти имат по-добро качество от семейните моменти. Помислете да подхранвате повече положителни семейни преживявания.',
+    'insights.comparison.family.members.title': 'Време със Семейни Членове',
+    'insights.comparison.family.members.balanced': 'Имате добре балансирано разпределение на моментите между всички семейни членове. Отлична семейна хармония!',
+    'insights.comparison.family.members.catchUp': 'Помислете да отделите повече време с',
+    'insights.comparison.family.members.andQuality': 'и техните моменти имат по-ниско качество',
+    'insights.comparison.family.members.qualityTime': 'Опитайте се да отделите повече качествено време с',
+    'insights.comparison.family.members.mostTime': 'Отделяте най-много от семейните си моменти с',
     'insights.detail.relationship.title': 'Детайли за Връзката',
     'insights.detail.relationship.noData': 'Връзката не е намерена',
     'insights.detail.relationship.memories.title': 'Спомени',
@@ -922,6 +966,19 @@ const translations: Record<Language, Translations> = {
     'insights.detail.job.memories.same.better': 'Тази работа има приблизително същото количество спомени като другите ви работи, но общото качество (слънчеви моменти) е по-добро.',
     'insights.detail.job.memories.same.worse': 'Тази работа има приблизително същото количество спомени като другите ви работи, но общото качество (слънчеви моменти) е по-ниско.',
     'insights.detail.job.memories.same.same': 'Тази работа има приблизително същото количество спомени и подобно общо качество в сравнение с другите ви работи.',
+    'insights.detail.family.title': 'Детайли за Семейния Член',
+    'insights.detail.family.noData': 'Семейният член не е намерен',
+    'insights.detail.family.memories.title': 'Спомени',
+    'insights.detail.family.memories.noData': 'Няма записани спомени за този семейен член',
+    'insights.detail.family.memories.more.better': 'Този семейен член има значително повече спомени в сравнение с другите ви семейни членове, и общото качество (слънчеви моменти) е по-добро.',
+    'insights.detail.family.memories.more.worse': 'Този семейен член има значително повече спомени в сравнение с другите ви семейни членове, но общото качество (слънчеви моменти) е по-ниско.',
+    'insights.detail.family.memories.more.same': 'Този семейен член има значително повече спомени в сравнение с другите ви семейни членове, с подобно общо качество.',
+    'insights.detail.family.memories.less.better': 'Този семейен член има по-малко спомени в сравнение с другите ви семейни членове, но общото качество (слънчеви моменти) е по-добро.',
+    'insights.detail.family.memories.less.worse': 'Този семейен член има по-малко спомени в сравнение с другите ви семейни членове, и общото качество (слънчеви моменти) също е по-ниско.',
+    'insights.detail.family.memories.less.same': 'Този семейен член има по-малко спомени в сравнение с другите ви семейни членове, с подобно общо качество.',
+    'insights.detail.family.memories.same.better': 'Този семейен член има приблизително същото количество спомени като другите ви семейни членове, но общото качество (слънчеви моменти) е по-добро.',
+    'insights.detail.family.memories.same.worse': 'Този семейен член има приблизително същото количество спомени като другите ви семейни членове, но общото качество (слънчеви моменти) е по-ниско.',
+    'insights.detail.family.memories.same.same': 'Този семейен член има приблизително същото количество спомени и подобно общо качество в сравнение с другите ви семейни членове.',
     'insights.suggestion.relationships.worse': 'Текущата ви връзка има по-малко слънчеви моменти в сравнение с миналите връзки. Помислете за създаване на повече положителни преживявания заедно.',
     'insights.suggestion.relationships.low': 'Създайте повече слънчеви моменти с текущия си партньор, за да укрепите връзката. Малките жестове и качественото време могат да направят голяма разлика.',
     'insights.suggestion.relationships.progress': 'Отличен напредък! Създавате повече положителни моменти от миналите си връзки. Продължете да поддържате тази връзка.',

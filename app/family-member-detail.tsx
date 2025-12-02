@@ -3,7 +3,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
-import type { Job } from '@/utils/JourneyProvider';
+import type { FamilyMember } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -12,36 +12,36 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-export default function JobDetailScreen() {
+export default function FamilyMemberDetailScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const t = useTranslate();
   const { id } = useLocalSearchParams<{ id: string }>();
   
-  const { jobs, getIdealizedMemoriesByEntityId } = useJourney();
+  const { familyMembers, getIdealizedMemoriesByEntityId } = useJourney();
 
-  const job = useMemo(() => {
-    return jobs.find(j => j.id === id);
-  }, [jobs, id]);
+  const familyMember = useMemo(() => {
+    return familyMembers.find(m => m.id === id);
+  }, [familyMembers, id]);
 
   const memories = useMemo(() => {
     if (!id) return [];
-    return getIdealizedMemoriesByEntityId(id, 'career');
+    return getIdealizedMemoriesByEntityId(id, 'family');
   }, [id, getIdealizedMemoriesByEntityId]);
 
-  // Calculate comparison with other jobs
+  // Calculate comparison with other family members
   const comparisonData = useMemo(() => {
-    if (!job || memories.length === 0) return null;
+    if (!familyMember || memories.length === 0) return null;
 
-    const allJobs = jobs.filter(j => {
-      const jobMemories = getIdealizedMemoriesByEntityId(j.id, 'career');
-      return jobMemories.length > 0;
+    const allMembers = familyMembers.filter(m => {
+      const memberMemories = getIdealizedMemoriesByEntityId(m.id, 'family');
+      return memberMemories.length > 0;
     });
 
-    if (allJobs.length <= 1) return null;
+    if (allMembers.length <= 1) return null;
 
-    // Calculate current job's quality
+    // Calculate current member's quality
     let currentSunny = 0;
     let currentCloudy = 0;
     memories.forEach((memory) => {
@@ -52,20 +52,20 @@ export default function JobDetailScreen() {
     const currentSunnyPercentage = currentTotal > 0 ? (currentSunny / currentTotal) * 100 : 0;
 
     const currentMemoriesCount = memories.length;
-    const otherJobs = allJobs.filter(j => j.id !== job.id);
+    const otherMembers = allMembers.filter(m => m.id !== familyMember.id);
     
-    const otherData = otherJobs.map(j => {
-      const jobMemories = getIdealizedMemoriesByEntityId(j.id, 'career');
+    const otherData = otherMembers.map(m => {
+      const memberMemories = getIdealizedMemoriesByEntityId(m.id, 'family');
       let sunny = 0;
       let cloudy = 0;
-      jobMemories.forEach((memory) => {
+      memberMemories.forEach((memory) => {
         sunny += (memory.goodFacts || []).length;
         cloudy += (memory.hardTruths || []).length;
       });
       const total = sunny + cloudy;
       const sunnyPercentage = total > 0 ? (sunny / total) * 100 : 0;
       return {
-        count: jobMemories.length,
+        count: memberMemories.length,
         sunnyPercentage,
       };
     });
@@ -99,13 +99,13 @@ export default function JobDetailScreen() {
       qualityComparison = 'worse';
     }
 
-    // Generate combined message
-    const messageKey = `insights.detail.job.memories.${countComparison}.${qualityComparison}`;
+    // Generate combined message for family member
+    const messageKey = `insights.detail.family.memories.${countComparison}.${qualityComparison}`;
     return {
       type: countComparison,
       message: t(messageKey),
     };
-  }, [job, memories, jobs, getIdealizedMemoriesByEntityId, t]);
+  }, [familyMember, memories, familyMembers, getIdealizedMemoriesByEntityId, t]);
 
   const styles = useMemo(() => StyleSheet.create({
     container: {
@@ -136,7 +136,7 @@ export default function JobDetailScreen() {
       paddingHorizontal: 20 * fontScale,
       paddingTop: 24 * fontScale,
     },
-    jobHeader: {
+    profileHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       marginBottom: 24 * fontScale,
@@ -160,12 +160,12 @@ export default function JobDetailScreen() {
       height: '100%',
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: '#3b82f640',
+      backgroundColor: '#10b98140',
     },
-    jobInfo: {
+    profileInfo: {
       flex: 1,
     },
-    jobName: {
+    profileName: {
       marginBottom: 4 * fontScale,
     },
     comparisonCard: {
@@ -224,7 +224,7 @@ export default function JobDetailScreen() {
     },
   }), [fontScale, colorScheme, colors]);
 
-  if (!job) {
+  if (!familyMember) {
     return (
       <TabScreenContainer>
         <View style={styles.container}>
@@ -238,7 +238,7 @@ export default function JobDetailScreen() {
             </TouchableOpacity>
             
             <ThemedText size="l" weight="bold" style={styles.headerTitle}>
-              {t('insights.detail.job.title')}
+              {t('insights.detail.family.title')}
             </ThemedText>
             
             <View style={styles.headerButton} />
@@ -246,7 +246,7 @@ export default function JobDetailScreen() {
 
           <View style={styles.content}>
             <ThemedText size="sm" style={styles.noData}>
-              {t('insights.detail.job.noData')}
+              {t('insights.detail.family.noData')}
             </ThemedText>
           </View>
         </View>
@@ -268,7 +268,7 @@ export default function JobDetailScreen() {
           </TouchableOpacity>
           
           <ThemedText size="l" weight="bold" style={styles.headerTitle}>
-            {job.name}
+            {familyMember.name}
           </ThemedText>
           
           <View style={styles.headerButton} />
@@ -279,38 +279,29 @@ export default function JobDetailScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
-            {/* Job Header */}
-            <View style={styles.jobHeader}>
+            {/* Family Member Header */}
+            <View style={styles.profileHeader}>
               <View style={styles.avatarContainer}>
-                {job.imageUri ? (
+                {familyMember.imageUri ? (
                   <Image
-                    source={{ uri: job.imageUri }}
+                    source={{ uri: familyMember.imageUri }}
                     style={styles.avatar}
                     contentFit="cover"
                   />
                 ) : (
                   <View style={styles.avatarPlaceholder}>
                     <MaterialIcons 
-                      name="work" 
+                      name="family-restroom" 
                       size={32 * fontScale} 
-                      color="#3b82f6" 
+                      color="#10b981" 
                     />
                   </View>
                 )}
               </View>
-              <View style={styles.jobInfo}>
-                <ThemedText size="lg" weight="bold" style={styles.jobName}>
-                  {job.name}
+              <View style={styles.profileInfo}>
+                <ThemedText size="lg" weight="bold" style={styles.profileName}>
+                  {familyMember.name}
                 </ThemedText>
-                {!job.endDate ? (
-                  <ThemedText size="xs" style={{ opacity: 0.7 }}>
-                    {t('insights.comparison.label.current')}
-                  </ThemedText>
-                ) : (
-                  <ThemedText size="xs" style={{ opacity: 0.7 }}>
-                    {t('insights.comparison.label.past')}
-                  </ThemedText>
-                )}
               </View>
             </View>
 
@@ -326,12 +317,12 @@ export default function JobDetailScreen() {
             {/* Memories Section */}
             <View style={styles.memoriesSection}>
               <ThemedText size="lg" weight="bold" style={{ marginBottom: 16 * fontScale }}>
-                {t('insights.detail.job.memories.title')}
+                {t('insights.detail.family.memories.title')}
               </ThemedText>
               
               {memories.length === 0 ? (
                 <ThemedText size="sm" style={styles.noData}>
-                  {t('insights.detail.job.memories.noData')}
+                  {t('insights.detail.family.memories.noData')}
                 </ThemedText>
               ) : (
                 memories.map((memory) => {
@@ -352,10 +343,10 @@ export default function JobDetailScreen() {
                         pathname: '/(tabs)',
                         params: {
                           focusedMemoryId: memory.id,
-                          jobId: job.id,
-                          sphere: 'career',
-                          returnTo: 'job-detail',
-                          returnToId: job.id,
+                          familyMemberId: id,
+                          sphere: 'family',
+                          returnTo: 'family-member-detail',
+                          returnToId: id,
                         },
                       })}
                       activeOpacity={0.7}

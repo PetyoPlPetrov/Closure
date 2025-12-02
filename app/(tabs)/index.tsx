@@ -10,17 +10,17 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
-    Easing,
-    runOnJS,
-    useAnimatedReaction,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSpring,
+  Easing,
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSpring,
     withTiming
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
@@ -3996,6 +3996,31 @@ export default function HomeScreen() {
     }
   }, [focusedJobId]);
 
+  // Handle URL parameters to set focused memory
+  React.useEffect(() => {
+    const focusedMemoryId = params.focusedMemoryId as string | undefined;
+    const profileId = params.profileId as string | undefined;
+    const jobId = params.jobId as string | undefined;
+    const familyMemberId = params.familyMemberId as string | undefined;
+    const sphere = params.sphere as LifeSphere | undefined;
+    
+    if (focusedMemoryId && sphere) {
+      if (profileId && sphere === 'relationships') {
+        setFocusedMemory({ profileId, memoryId: focusedMemoryId, sphere });
+        setFocusedProfileId(profileId);
+        setSelectedSphere('relationships');
+      } else if (jobId && sphere === 'career') {
+        setFocusedMemory({ jobId, memoryId: focusedMemoryId, sphere });
+        setFocusedJobId(jobId);
+        setSelectedSphere('career');
+      } else if (familyMemberId && sphere === 'family') {
+        setFocusedMemory({ familyMemberId, memoryId: focusedMemoryId, sphere });
+        setFocusedFamilyMemberId(familyMemberId);
+        setSelectedSphere('family');
+      }
+    }
+  }, [params.focusedMemoryId, params.profileId, params.jobId, params.familyMemberId, params.sphere]);
+
   // Ensure entity is focused when memory is focused (for state consistency after tab switches)
   // CRITICAL: Only sync if the memory's sphere matches the selected sphere
   React.useEffect(() => {
@@ -4431,6 +4456,17 @@ export default function HomeScreen() {
           {/* Back button to return to sphere view */}
           <Pressable
             onPress={() => {
+              // Check if we came from a detail view (insights)
+              const returnTo = params.returnTo as string | undefined;
+              const returnToId = params.returnToId as string | undefined;
+              
+              if (returnTo && returnToId) {
+                // Navigate back to the detail view - use back() since detail view is in history
+                router.back();
+                return;
+              }
+              
+              // Default behavior - unfocus memory/profile
               if (focusedMemory) {
                 // If memory is focused, unfocus the memory and ensure profile is focused
                 // This returns to the focused profile view with memories floating around
@@ -4601,6 +4637,17 @@ export default function HomeScreen() {
           {/* Back button to return to sphere view */}
           <Pressable
             onPress={() => {
+              // Check if we came from a detail view (insights)
+              const returnTo = params.returnTo as string | undefined;
+              const returnToId = params.returnToId as string | undefined;
+              
+              if (returnTo && returnToId) {
+                // Navigate back to the detail view - use back() since detail view is in history
+                router.back();
+                return;
+              }
+              
+              // Default behavior - unfocus memory/job
               if (focusedMemory) {
                 // If memory is focused, unfocus the memory and ensure job is focused
                 // This returns to the focused job view with memories floating around
@@ -4821,6 +4868,16 @@ export default function HomeScreen() {
           {/* Back button to return to sphere view */}
           <Pressable
             onPress={() => {
+              // Check if we came from a detail view (insights)
+              const returnTo = params.returnTo as string | undefined;
+              const returnToId = params.returnToId as string | undefined;
+              
+              if (returnTo && returnToId) {
+                // Navigate back to the detail view - use back() since detail view is in history
+                router.back();
+                return;
+              }
+              
               if (focusedMemory) {
                 // If memory is focused, unfocus the memory and ensure family member is focused
                 // This returns to the focused family member view with memories floating around
