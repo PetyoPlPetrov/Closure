@@ -4855,9 +4855,9 @@ export default function HomeScreen() {
               top: 50,
               left: 20,
               zIndex: 1000,
-              width: 50,
-              height: 50,
-              borderRadius: 25,
+              width: isTablet ? 70 : 50,
+              height: isTablet ? 70 : 50,
+              borderRadius: isTablet ? 35 : 25,
               backgroundColor: colors.background,
               justifyContent: 'center',
               alignItems: 'center',
@@ -4868,8 +4868,52 @@ export default function HomeScreen() {
               elevation: 5,
             }}
           >
-            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+            <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
+          
+          {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            // Check if an entity is focused and get its name
+            let entityName: string | null = null;
+            
+            if (focusedProfileId && selectedSphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              entityName = profile?.name || null;
+            } else if (focusedJobId && selectedSphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              entityName = job?.name || null;
+            } else if (focusedFamilyMemberId && selectedSphere === 'family') {
+              const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
+              entityName = member?.name || null;
+            } else if (focusedFriendId && selectedSphere === 'friends') {
+              const friend = friends.find(f => f.id === focusedFriendId);
+              entityName = friend?.name || null;
+            } else if (focusedHobbyId && selectedSphere === 'hobbies') {
+              const hobby = hobbies.find(h => h.id === focusedHobbyId);
+              entityName = hobby?.name || null;
+            }
+            
+            // Show entity name if focused, otherwise show sphere name
+            const displayText = entityName || t(`spheres.${selectedSphere}`);
+            
+            return (
+              <ThemedText
+                size={isTablet ? "xl" : "l"}
+                weight="semibold"
+                numberOfLines={1}
+                style={{
+                  position: 'absolute',
+                  top: 62,
+                  right: 20,
+                  zIndex: 1000,
+                  color: colors.text,
+                  textAlign: 'right',
+                }}
+              >
+                {displayText}
+              </ThemedText>
+            );
+          })()}
           
           {/* Memory title header - shown when memory is focused */}
           {focusedMemory && (() => {
@@ -5030,9 +5074,9 @@ export default function HomeScreen() {
               top: 50,
               left: 20,
               zIndex: 1000,
-              width: 50,
-              height: 50,
-              borderRadius: 25,
+              width: isTablet ? 70 : 50,
+              height: isTablet ? 70 : 50,
+              borderRadius: isTablet ? 35 : 25,
               backgroundColor: colors.background,
               justifyContent: 'center',
               alignItems: 'center',
@@ -5043,8 +5087,52 @@ export default function HomeScreen() {
               elevation: 5,
             }}
           >
-            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+            <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
+          
+          {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            // Check if an entity is focused and get its name
+            let entityName: string | null = null;
+            
+            if (focusedProfileId && selectedSphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              entityName = profile?.name || null;
+            } else if (focusedJobId && selectedSphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              entityName = job?.name || null;
+            } else if (focusedFamilyMemberId && selectedSphere === 'family') {
+              const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
+              entityName = member?.name || null;
+            } else if (focusedFriendId && selectedSphere === 'friends') {
+              const friend = friends.find(f => f.id === focusedFriendId);
+              entityName = friend?.name || null;
+            } else if (focusedHobbyId && selectedSphere === 'hobbies') {
+              const hobby = hobbies.find(h => h.id === focusedHobbyId);
+              entityName = hobby?.name || null;
+            }
+            
+            // Show entity name if focused, otherwise show sphere name
+            const displayText = entityName || t(`spheres.${selectedSphere}`);
+            
+            return (
+              <ThemedText
+                size={isTablet ? "xl" : "l"}
+                weight="semibold"
+                numberOfLines={1}
+                style={{
+                  position: 'absolute',
+                  top: 62,
+                  right: 20,
+                  zIndex: 1000,
+                  color: colors.text,
+                  textAlign: 'right',
+                }}
+              >
+                {displayText}
+              </ThemedText>
+            );
+          })()}
           
           {/* Memory title header - shown when memory is focused */}
           {focusedMemory && (() => {
@@ -5112,14 +5200,23 @@ export default function HomeScreen() {
             {animationsReady && !focusedMemory && (
               <>
                 {/* Year section backgrounds */}
-                {Array.from(jobYearSections.entries()).map(([key, section]) => (
-                  <YearSectionBackground
-                    key={`job-year-section-bg-${key}`}
-                    section={section}
-                    colorScheme={colorScheme ?? 'dark'}
-                    hideTitle={!!focusedMemory || !!focusedJobId}
-                  />
-                ))}
+                {Array.from(jobYearSections.entries()).map(([key, section]) => {
+                  // Get the name of the job(s) in this year section
+                  const jobsInSection = jobsBySection.get(key);
+                  const sectionJobName = jobsInSection && jobsInSection.length > 0 
+                    ? jobsInSection[0].job.name 
+                    : null;
+                  
+                  return (
+                    <YearSectionBackground
+                      key={`job-year-section-bg-${key}`}
+                      section={section}
+                      colorScheme={colorScheme ?? 'dark'}
+                      hideTitle={!!focusedMemory}
+                      focusedEntityName={sectionJobName}
+                    />
+                  );
+                })}
                 
                 {/* Render jobs in their year sections */}
                 {Array.from(jobsBySection.entries()).map(([sectionKey, jobsData]) => {
@@ -5265,9 +5362,9 @@ export default function HomeScreen() {
               top: 50,
               left: 20,
               zIndex: 1000,
-              width: 50,
-              height: 50,
-              borderRadius: 25,
+              width: isTablet ? 70 : 50,
+              height: isTablet ? 70 : 50,
+              borderRadius: isTablet ? 35 : 25,
               backgroundColor: colors.background,
               justifyContent: 'center',
               alignItems: 'center',
@@ -5278,8 +5375,52 @@ export default function HomeScreen() {
               elevation: 5,
             }}
           >
-            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+            <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
+          
+          {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            // Check if an entity is focused and get its name
+            let entityName: string | null = null;
+            
+            if (focusedProfileId && selectedSphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              entityName = profile?.name || null;
+            } else if (focusedJobId && selectedSphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              entityName = job?.name || null;
+            } else if (focusedFamilyMemberId && selectedSphere === 'family') {
+              const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
+              entityName = member?.name || null;
+            } else if (focusedFriendId && selectedSphere === 'friends') {
+              const friend = friends.find(f => f.id === focusedFriendId);
+              entityName = friend?.name || null;
+            } else if (focusedHobbyId && selectedSphere === 'hobbies') {
+              const hobby = hobbies.find(h => h.id === focusedHobbyId);
+              entityName = hobby?.name || null;
+            }
+            
+            // Show entity name if focused, otherwise show sphere name
+            const displayText = entityName || t(`spheres.${selectedSphere}`);
+            
+            return (
+              <ThemedText
+                size={isTablet ? "xl" : "l"}
+                weight="semibold"
+                numberOfLines={1}
+                style={{
+                  position: 'absolute',
+                  top: 62,
+                  right: 20,
+                  zIndex: 1000,
+                  color: colors.text,
+                  textAlign: 'right',
+                }}
+              >
+                {displayText}
+              </ThemedText>
+            );
+          })()}
           
           {/* Memory title header - shown when memory is focused */}
           {focusedMemory && (() => {
@@ -5477,9 +5618,9 @@ export default function HomeScreen() {
               top: 50,
               left: 20,
               zIndex: 1000,
-              width: 50,
-              height: 50,
-              borderRadius: 25,
+              width: isTablet ? 70 : 50,
+              height: isTablet ? 70 : 50,
+              borderRadius: isTablet ? 35 : 25,
               backgroundColor: colors.background,
               justifyContent: 'center',
               alignItems: 'center',
@@ -5490,8 +5631,52 @@ export default function HomeScreen() {
               elevation: 5,
             }}
           >
-            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+            <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
+          
+          {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            // Check if an entity is focused and get its name
+            let entityName: string | null = null;
+            
+            if (focusedProfileId && selectedSphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              entityName = profile?.name || null;
+            } else if (focusedJobId && selectedSphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              entityName = job?.name || null;
+            } else if (focusedFamilyMemberId && selectedSphere === 'family') {
+              const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
+              entityName = member?.name || null;
+            } else if (focusedFriendId && selectedSphere === 'friends') {
+              const friend = friends.find(f => f.id === focusedFriendId);
+              entityName = friend?.name || null;
+            } else if (focusedHobbyId && selectedSphere === 'hobbies') {
+              const hobby = hobbies.find(h => h.id === focusedHobbyId);
+              entityName = hobby?.name || null;
+            }
+            
+            // Show entity name if focused, otherwise show sphere name
+            const displayText = entityName || t(`spheres.${selectedSphere}`);
+            
+            return (
+              <ThemedText
+                size={isTablet ? "xl" : "l"}
+                weight="semibold"
+                numberOfLines={1}
+                style={{
+                  position: 'absolute',
+                  top: 62,
+                  right: 20,
+                  zIndex: 1000,
+                  color: colors.text,
+                  textAlign: 'right',
+                }}
+              >
+                {displayText}
+              </ThemedText>
+            );
+          })()}
           
           {/* Memory title header - shown when memory is focused */}
           {focusedMemory && (() => {
@@ -5688,9 +5873,9 @@ export default function HomeScreen() {
               top: 50,
               left: 20,
               zIndex: 1000,
-              width: 50,
-              height: 50,
-              borderRadius: 25,
+              width: isTablet ? 70 : 50,
+              height: isTablet ? 70 : 50,
+              borderRadius: isTablet ? 35 : 25,
               backgroundColor: colors.background,
               justifyContent: 'center',
               alignItems: 'center',
@@ -5701,8 +5886,52 @@ export default function HomeScreen() {
               elevation: 5,
             }}
           >
-            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+            <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
+          
+          {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            // Check if an entity is focused and get its name
+            let entityName: string | null = null;
+            
+            if (focusedProfileId && selectedSphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              entityName = profile?.name || null;
+            } else if (focusedJobId && selectedSphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              entityName = job?.name || null;
+            } else if (focusedFamilyMemberId && selectedSphere === 'family') {
+              const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
+              entityName = member?.name || null;
+            } else if (focusedFriendId && selectedSphere === 'friends') {
+              const friend = friends.find(f => f.id === focusedFriendId);
+              entityName = friend?.name || null;
+            } else if (focusedHobbyId && selectedSphere === 'hobbies') {
+              const hobby = hobbies.find(h => h.id === focusedHobbyId);
+              entityName = hobby?.name || null;
+            }
+            
+            // Show entity name if focused, otherwise show sphere name
+            const displayText = entityName || t(`spheres.${selectedSphere}`);
+            
+            return (
+              <ThemedText
+                size={isTablet ? "xl" : "l"}
+                weight="semibold"
+                numberOfLines={1}
+                style={{
+                  position: 'absolute',
+                  top: 62,
+                  right: 20,
+                  zIndex: 1000,
+                  color: colors.text,
+                  textAlign: 'right',
+                }}
+              >
+                {displayText}
+              </ThemedText>
+            );
+          })()}
           
           {/* Memory title header - shown when memory is focused */}
           {focusedMemory && (() => {
@@ -6004,17 +6233,31 @@ const YearSectionsRenderer = function YearSectionsRenderer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profilesBySection]); // Only profilesBySection - functions are stable via useCallback
   
+  // Get the name of the partner in each year section (show first/primary partner name per section)
+  const getSectionEntityName = (sectionKey: string) => {
+    const sectionProfiles = profilesBySection.get(sectionKey);
+    if (sectionProfiles && sectionProfiles.length > 0) {
+      // Return the name of the first partner in this section
+      return sectionProfiles[0].profile.name;
+    }
+    return null;
+  };
+  
   return (
     <>
       {/* Render section backgrounds */}
-      {Array.from(yearSections.entries()).map(([key, section]) => (
-        <YearSectionBackground
-          key={`year-section-bg-${key}`}
-          section={section}
-          colorScheme={colorScheme}
-          hideTitle={!!safeFocusedMemory || !!focusedProfileId}
-        />
-      ))}
+      {Array.from(yearSections.entries()).map(([key, section]) => {
+        const sectionEntityName = getSectionEntityName(key);
+        return (
+          <YearSectionBackground
+            key={`year-section-bg-${key}`}
+            section={section}
+            colorScheme={colorScheme}
+            hideTitle={!!safeFocusedMemory}
+            focusedEntityName={sectionEntityName}
+          />
+        );
+      })}
       
       {/* Render profiles at the same level (not nested in sections) */}
       {(() => {
@@ -6068,10 +6311,12 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
   section,
   colorScheme,
   hideTitle = false,
+  focusedEntityName,
 }: {
   section: { year: number | string; top: number; bottom: number; height: number };
   colorScheme: 'light' | 'dark';
   hideTitle?: boolean;
+  focusedEntityName?: string | null;
 }) {
   const t = useTranslate();
   
@@ -6079,6 +6324,9 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
   const displayYear = typeof section.year === 'string' 
     ? (section.year === 'Ongoing' ? t('profile.ongoing') : section.year === 'Current' ? t('job.current') : section.year)
     : section.year;
+  
+  // Combine year and entity name if entity is focused
+  const displayText = focusedEntityName ? `${displayYear} - ${focusedEntityName}` : displayYear;
   
   return (
     <View
@@ -6095,19 +6343,37 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
     >
       {/* Year label - hide when memory or job is focused */}
       {!hideTitle && (
-      <ThemedText
-        size="xl"
-        weight="bold"
-        style={{
-          position: 'absolute',
-          left: 16,
-          top: 8,
-          opacity: 0.6,
-          color: colorScheme === 'dark' ? '#ffffff' : '#000000',
-        }}
-      >
-        {displayYear}
-      </ThemedText>
+        <View
+          style={{
+            position: 'absolute',
+            left: 16,
+            top: 8,
+          }}
+        >
+          <ThemedText
+            size="l"
+            weight="bold"
+            style={{
+              opacity: 0.6,
+              color: colorScheme === 'dark' ? '#ffffff' : '#000000',
+            }}
+          >
+            {displayYear}
+          </ThemedText>
+          {focusedEntityName && (
+            <ThemedText
+              size="sm"
+              weight="medium"
+              style={{
+                marginTop: 4,
+                opacity: 0.5,
+                color: colorScheme === 'dark' ? '#ffffff' : '#000000',
+              }}
+            >
+              {focusedEntityName}
+            </ThemedText>
+          )}
+        </View>
       )}
     </View>
   );
@@ -6118,7 +6384,8 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
     prevProps.section.bottom === nextProps.section.bottom &&
     prevProps.section.height === nextProps.section.height &&
     prevProps.colorScheme === nextProps.colorScheme &&
-    prevProps.hideTitle === nextProps.hideTitle
+    prevProps.hideTitle === nextProps.hideTitle &&
+    prevProps.focusedEntityName === nextProps.focusedEntityName
   );
 });
 
