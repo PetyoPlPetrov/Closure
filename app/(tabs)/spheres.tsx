@@ -1986,27 +1986,49 @@ export default function SpheresScreen() {
           <>
             <View style={styles.mainContentContainer}>
               <View style={styles.sphereGrid}>
-                {spheres.map((sphere) => (
-                  <TouchableOpacity
-                    key={sphere.type}
-                    style={styles.sphereCard}
-                    onPress={() => handleSpherePress(sphere.type)}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialIcons
-                      name={sphere.icon as any}
-                      size={32 * fontScale * iconScale}
-                      color={colors.primary}
-                      style={styles.sphereIcon}
-                    />
-                    <ThemedText size="xs" weight="bold" style={styles.sphereLabel}>
-                      {sphere.label}
-                    </ThemedText>
-                    <ThemedText size="xs" style={styles.sphereCount}>
-                      {sphere.entities.length} {sphere.entities.length === 1 ? t('spheres.item') : t('spheres.items')}
-                    </ThemedText>
-                  </TouchableOpacity>
-                ))}
+                {spheres.map((sphere) => {
+                  // Get sphere-specific colors matching the insights screen
+                  const getSphereColor = (sphereType: LifeSphere): string => {
+                    switch (sphereType) {
+                      case 'relationships':
+                        return '#f87171'; // Red/pink
+                      case 'career':
+                        return '#3b82f6'; // Blue
+                      case 'family':
+                        return '#10b981'; // Green
+                      case 'friends':
+                        return '#8b5cf6'; // Purple
+                      case 'hobbies':
+                        return '#f97316'; // Orange
+                      default:
+                        return colors.primary;
+                    }
+                  };
+                  
+                  const sphereColor = getSphereColor(sphere.type);
+                  
+                  return (
+                    <TouchableOpacity
+                      key={sphere.type}
+                      style={styles.sphereCard}
+                      onPress={() => handleSpherePress(sphere.type)}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialIcons
+                        name={sphere.icon as any}
+                        size={32 * fontScale * iconScale}
+                        color={sphereColor}
+                        style={styles.sphereIcon}
+                      />
+                      <ThemedText size="xs" weight="bold" style={styles.sphereLabel}>
+                        {sphere.label}
+                      </ThemedText>
+                      <ThemedText size="xs" style={styles.sphereCount}>
+                        {sphere.entities.length} {sphere.entities.length === 1 ? t('spheres.item') : t('spheres.items')}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 

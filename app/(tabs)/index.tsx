@@ -2621,26 +2621,38 @@ const FloatingCloud = React.memo(function FloatingCloud({
       // Calculate from focused avatar position: focused + memory offset + cloud offset
       const cloudX = focusedX.value + memoryOffsetX + offsetX;
       const cloudY = focusedY.value + memoryOffsetY + offsetY;
-      return {
-        left: cloudX - cloudSize / 2,
-        top: cloudY - cloudSize / 2,
-      };
+      // Check for valid numbers
+      if (isNaN(cloudX) || isNaN(cloudY)) {
+        // Fallback to position if calculation results in NaN
+      } else {
+        return {
+          left: cloudX - cloudSize / 2,
+          top: cloudY - cloudSize / 2,
+        };
+      }
     }
     if (avatarPanX && avatarPanY) {
       // Calculate from avatar position: avatar + memory offset + cloud offset
       const cloudX = avatarPanX.value + memoryOffsetX + offsetX;
       const cloudY = avatarPanY.value + memoryOffsetY + offsetY;
-      return {
-        left: cloudX - cloudSize / 2,
-        top: cloudY - cloudSize / 2,
-      };
+      // Check for valid numbers
+      if (isNaN(cloudX) || isNaN(cloudY)) {
+        // Fallback to position if calculation results in NaN
+      } else {
+        return {
+          left: cloudX - cloudSize / 2,
+          top: cloudY - cloudSize / 2,
+        };
+      }
     }
     // When memory is focused but no avatar position, use the position prop directly
     // This handles the case when memory is focused independently
     // Position is already relative to screen center, so use it directly
     // For focused memory, position is already at screen center, so we use it as-is
-    const finalX = position.x - cloudSize / 2;
-    const finalY = position.y - cloudSize / 2;
+    const safeX = typeof position?.x === 'number' && !isNaN(position.x) ? position.x : 0;
+    const safeY = typeof position?.y === 'number' && !isNaN(position.y) ? position.y : 0;
+    const finalX = safeX - cloudSize / 2;
+    const finalY = safeY - cloudSize / 2;
     return {
       left: finalX,
       top: finalY,
@@ -2675,7 +2687,15 @@ const FloatingCloud = React.memo(function FloatingCloud({
           width: safeCloudSize,
           height: safeCloudSize,
         }}
-        onPress={onPress}
+        onPress={() => {
+          if (onPress) {
+            try {
+              onPress();
+            } catch (error) {
+              console.error('[FloatingCloud] Error in onPress:', error);
+            }
+          }
+        }}
       >
         <View
           style={{
@@ -2771,25 +2791,37 @@ const FloatingSun = React.memo(function FloatingSun({
       // Calculate from focused avatar position: focused + memory offset + sun offset
       const sunX = focusedX.value + memoryOffsetX + offsetX;
       const sunY = focusedY.value + memoryOffsetY + offsetY;
-      return {
-        left: sunX - sunSize / 2,
-        top: sunY - sunSize / 2,
-      };
+      // Check for valid numbers
+      if (isNaN(sunX) || isNaN(sunY)) {
+        // Fallback to position if calculation results in NaN
+      } else {
+        return {
+          left: sunX - sunSize / 2,
+          top: sunY - sunSize / 2,
+        };
+      }
     }
     if (avatarPanX && avatarPanY) {
       // Calculate from avatar position: avatar + memory offset + sun offset
       const sunX = avatarPanX.value + memoryOffsetX + offsetX;
       const sunY = avatarPanY.value + memoryOffsetY + offsetY;
-      return {
-        left: sunX - sunSize / 2,
-        top: sunY - sunSize / 2,
-      };
+      // Check for valid numbers
+      if (isNaN(sunX) || isNaN(sunY)) {
+        // Fallback to position if calculation results in NaN
+      } else {
+        return {
+          left: sunX - sunSize / 2,
+          top: sunY - sunSize / 2,
+        };
+      }
     }
     // When memory is focused but no avatar position, use the position prop directly
     // This handles the case when memory is focused independently
+    const safeX = typeof position?.x === 'number' && !isNaN(position.x) ? position.x : 0;
+    const safeY = typeof position?.y === 'number' && !isNaN(position.y) ? position.y : 0;
     return {
-      left: position.x - sunSize / 2,
-      top: position.y - sunSize / 2,
+      left: safeX - sunSize / 2,
+      top: safeY - sunSize / 2,
     };
   });
 
@@ -2807,7 +2839,15 @@ const FloatingSun = React.memo(function FloatingSun({
     >
       <Pressable
         style={{ pointerEvents: 'auto' }} // Ensure Pressable can receive touches
-        onPress={onPress}
+        onPress={() => {
+          if (onPress) {
+            try {
+              onPress();
+            } catch (error) {
+              console.error('[FloatingSun] Error in onPress:', error);
+            }
+          }
+        }}
       >
         <LinearGradient
           colors={['#FFD700', '#FFD700', '#FFD700']}
@@ -3110,6 +3150,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
   sunnyPercentage,
   selectedSphere,
   zoomProgress,
+  disabled = false,
 }: {
   sphere: LifeSphere;
   position: { x: number; y: number };
@@ -3119,6 +3160,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
   sunnyPercentage: number; // 0-100, percentage of sunny moments
   selectedSphere: LifeSphere | null;
   zoomProgress: ReturnType<typeof useSharedValue<number>>;
+  disabled?: boolean;
 }) {
   const { isTablet } = useLargeDevice();
   const sphereSize = isTablet ? 120 : 80; // 50% larger on tablets
@@ -3334,7 +3376,8 @@ const SphereAvatar = React.memo(function SphereAvatar({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
       style={{
         position: 'absolute',
         left: position.x - sphereSize / 2,
@@ -3342,6 +3385,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
         width: sphereSize,
         height: sphereSize,
         zIndex: 50,
+        opacity: disabled ? 0.4 : 1,
       }}
     >
       <Animated.View
@@ -3350,7 +3394,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
             width: sphereSize,
             height: sphereSize,
             borderRadius: sphereSize / 2,
-            backgroundColor: sphereBackgroundColor,
+            backgroundColor: disabled ? 'rgba(128, 128, 128, 0.3)' : sphereBackgroundColor,
             justifyContent: 'center',
             alignItems: 'center',
           },
@@ -4587,6 +4631,7 @@ export default function HomeScreen() {
                 sunnyPercentage={relationshipsSunnyPercentage}
                 selectedSphere={selectedSphere}
                 zoomProgress={sphereZoomProgress}
+                disabled={profiles.length === 0}
               />
               <SphereAvatar
                 sphere="career"
@@ -4607,6 +4652,7 @@ export default function HomeScreen() {
                 sunnyPercentage={careerSunnyPercentage}
                 selectedSphere={selectedSphere}
                 zoomProgress={sphereZoomProgress}
+                disabled={jobs.length === 0}
               />
               <SphereAvatar
                 sphere="family"
@@ -4627,6 +4673,7 @@ export default function HomeScreen() {
                 sunnyPercentage={familySunnyPercentage}
                 selectedSphere={selectedSphere}
                 zoomProgress={sphereZoomProgress}
+                disabled={familyMembers.length === 0}
               />
               <SphereAvatar
                 sphere="friends"
@@ -4647,6 +4694,7 @@ export default function HomeScreen() {
                 sunnyPercentage={friendsSunnyPercentage}
                 selectedSphere={selectedSphere}
                 zoomProgress={sphereZoomProgress}
+                disabled={friends.length === 0}
               />
               <SphereAvatar
                 sphere="hobbies"
@@ -4667,6 +4715,7 @@ export default function HomeScreen() {
                 sunnyPercentage={hobbiesSunnyPercentage}
                 selectedSphere={selectedSphere}
                 zoomProgress={sphereZoomProgress}
+                disabled={hobbies.length === 0}
               />
               
               {/* Floating Partners around Relationships Sphere */}

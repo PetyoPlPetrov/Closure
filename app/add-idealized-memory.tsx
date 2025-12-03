@@ -11,7 +11,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Dimensions,
@@ -47,6 +47,8 @@ function AnimatedCloud({
   cloudHeight,
   placeholder,
   viewOnly = false,
+  inputRef,
+  shouldAutoFocus = false,
 }: {
   cloud: { id: string; text: string; x: number; y: number; startX?: number; startY?: number };
   panHandlers: any;
@@ -60,6 +62,8 @@ function AnimatedCloud({
   cloudHeight: number;
   placeholder: string;
   viewOnly?: boolean;
+  inputRef?: React.RefObject<TextInput>;
+  shouldAutoFocus?: boolean;
 }) {
   // Animation values
   const translateX = useSharedValue(cloud.startX !== undefined ? cloud.startX : cloud.x);
@@ -72,6 +76,16 @@ function AnimatedCloud({
   useEffect(() => {
     onRegisterAnimatedValues(cloud.id, translateX, translateY);
   }, [cloud.id, translateX, translateY, onRegisterAnimatedValues]);
+
+  // Focus input immediately if auto-focus is enabled and there's no animation
+  useEffect(() => {
+    if (shouldAutoFocus && inputRef?.current && cloud.startX === undefined && cloud.startY === undefined) {
+      // No animation, focus immediately
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [shouldAutoFocus, inputRef, cloud.startX, cloud.startY]);
 
   // Animate to final position when cloud is created
   useEffect(() => {
@@ -98,9 +112,15 @@ function AnimatedCloud({
       setTimeout(() => {
         isAnimating.current = false;
         onAnimationComplete(cloud.id);
+        // Focus the input after animation completes if auto-focus is enabled
+        if (shouldAutoFocus && inputRef?.current) {
+          setTimeout(() => {
+            inputRef.current?.focus();
+          }, 100);
+        }
       }, 1000);
     }
-  }, [cloud.id, cloud.startX, cloud.startY, cloud.x, cloud.y, opacity, scale, translateX, translateY, onAnimationComplete]);
+  }, [cloud.id, cloud.startX, cloud.startY, cloud.x, cloud.y, opacity, scale, translateX, translateY, onAnimationComplete, shouldAutoFocus, inputRef]);
 
   // Sync position during drag (update immediately without animation)
   useAnimatedReaction(
@@ -204,6 +224,7 @@ function AnimatedCloud({
         }}
       >
         <TextInput
+          ref={inputRef}
           value={cloud.text}
           onChangeText={(text) => {
             if (!viewOnly && text.length <= 50) {
@@ -216,6 +237,7 @@ function AnimatedCloud({
           multiline
           maxLength={50}
           editable={!viewOnly}
+          autoFocus={shouldAutoFocus}
         />
       </View>
     </Animated.View>
@@ -236,6 +258,8 @@ function AnimatedSun({
   sunHeight,
   placeholder,
   viewOnly = false,
+  inputRef,
+  shouldAutoFocus = false,
 }: {
   sun: { id: string; text: string; x: number; y: number; startX?: number; startY?: number };
   panHandlers: any;
@@ -249,6 +273,8 @@ function AnimatedSun({
   sunHeight: number;
   placeholder: string;
   viewOnly?: boolean;
+  inputRef?: React.RefObject<TextInput>;
+  shouldAutoFocus?: boolean;
 }) {
   // Animation values
   const translateX = useSharedValue(sun.startX !== undefined ? sun.startX : sun.x);
@@ -261,6 +287,16 @@ function AnimatedSun({
   useEffect(() => {
     onRegisterAnimatedValues(sun.id, translateX, translateY);
   }, [sun.id, translateX, translateY, onRegisterAnimatedValues]);
+
+  // Focus input immediately if auto-focus is enabled and there's no animation
+  useEffect(() => {
+    if (shouldAutoFocus && inputRef?.current && sun.startX === undefined && sun.startY === undefined) {
+      // No animation, focus immediately
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [shouldAutoFocus, inputRef, sun.startX, sun.startY]);
 
   // Animate to final position when sun is created
   useEffect(() => {
@@ -285,9 +321,15 @@ function AnimatedSun({
       setTimeout(() => {
         isAnimating.current = false;
         onAnimationComplete(sun.id);
+        // Focus the input after animation completes if auto-focus is enabled
+        if (shouldAutoFocus && inputRef?.current) {
+          setTimeout(() => {
+            inputRef.current?.focus();
+          }, 100);
+        }
       }, 1000);
     }
-  }, [sun.id, sun.startX, sun.startY, sun.x, sun.y, opacity, scale, translateX, translateY, onAnimationComplete]);
+  }, [sun.id, sun.startX, sun.startY, sun.x, sun.y, opacity, scale, translateX, translateY, onAnimationComplete, shouldAutoFocus, inputRef]);
 
   // Sync position during drag
   useAnimatedReaction(
@@ -376,6 +418,7 @@ function AnimatedSun({
         }}
       >
         <TextInput
+          ref={inputRef}
           value={sun.text}
           onChangeText={(text) => {
             if (!viewOnly && text.length <= 50) {
@@ -388,6 +431,7 @@ function AnimatedSun({
           multiline
           maxLength={50}
           editable={!viewOnly}
+          autoFocus={shouldAutoFocus}
         />
       </View>
     </Animated.View>
@@ -624,6 +668,14 @@ export default function AddIdealizedMemoryScreen() {
   const [plusButtonPos, setPlusButtonPos] = useState<{ x: number; y: number } | null>(null);
   const [sunButtonPos, setSunButtonPos] = useState<{ x: number; y: number } | null>(null);
   
+  // Track refs for cloud and sun TextInputs to enable auto-focus
+  const cloudInputRefs = useRef<Record<string, TextInput | null>>({});
+  const sunInputRefs = useRef<Record<string, TextInput | null>>({});
+  
+  // Track the ID of the newly created moment that should be focused
+  const [newlyCreatedCloudId, setNewlyCreatedCloudId] = useState<string | null>(null);
+  const [newlyCreatedSunId, setNewlyCreatedSunId] = useState<string | null>(null);
+  
   // Track drag start positions for each cloud
   const dragStart = useRef<Record<string, { x: number; y: number }>>({});
   
@@ -812,6 +864,8 @@ export default function AddIdealizedMemoryScreen() {
       startY: startPos.y - (cloudHeight / 2), // Center cloud vertically
     };
     setClouds((prev) => [...prev, newCloud]);
+    // Set the newly created cloud ID to trigger auto-focus
+    setNewlyCreatedCloudId(newCloud.id);
   };
 
   // Function to add a new sun
@@ -854,6 +908,8 @@ export default function AddIdealizedMemoryScreen() {
       startY: startPos.y - (sunHeight / 2), // Center sun vertically
     };
     setSuns((prev) => [...prev, newSun]);
+    // Set the newly created sun ID to trigger auto-focus
+    setNewlyCreatedSunId(newSun.id);
   };
 
   // Store animated values ref for each cloud to access current position
@@ -1544,6 +1600,13 @@ export default function AddIdealizedMemoryScreen() {
       {/* Cloud Bubbles - render all clouds positioned on screen (after ScrollView to ensure they appear on top) */}
       {clouds.map((cloud) => {
         const pan = createPanResponder(cloud.id);
+        // Create or get ref for this cloud's input
+        if (!cloudInputRefs.current[cloud.id]) {
+          cloudInputRefs.current[cloud.id] = React.createRef<TextInput>();
+        }
+        const inputRef = cloudInputRefs.current[cloud.id];
+        const shouldAutoFocus = newlyCreatedCloudId === cloud.id;
+        
         return (
           <AnimatedCloud
             key={cloud.id}
@@ -1566,14 +1629,25 @@ export default function AddIdealizedMemoryScreen() {
                   c.id === id ? { ...c, startX: undefined, startY: undefined } : c
                 )
               );
+              // Clear the newly created flag after animation completes
+              if (newlyCreatedCloudId === id) {
+                setNewlyCreatedCloudId(null);
+              }
             }}
             onDelete={(id) => {
               setClouds((prev) => prev.filter((c) => c.id !== id));
+              // Clean up ref when cloud is deleted
+              delete cloudInputRefs.current[id];
+              if (newlyCreatedCloudId === id) {
+                setNewlyCreatedCloudId(null);
+              }
             }}
             onRegisterAnimatedValues={(id, translateX, translateY) => {
               cloudAnimatedValues.current[id] = { translateX, translateY };
             }}
             viewOnly={viewOnly}
+            inputRef={inputRef}
+            shouldAutoFocus={shouldAutoFocus}
           />
         );
       })}
@@ -1581,6 +1655,13 @@ export default function AddIdealizedMemoryScreen() {
       {/* Sun Elements - render all suns positioned on screen */}
       {suns.map((sun) => {
         const pan = createSunPanResponder(sun.id);
+        // Create or get ref for this sun's input
+        if (!sunInputRefs.current[sun.id]) {
+          sunInputRefs.current[sun.id] = React.createRef<TextInput>();
+        }
+        const inputRef = sunInputRefs.current[sun.id];
+        const shouldAutoFocus = newlyCreatedSunId === sun.id;
+        
         return (
           <AnimatedSun
             key={sun.id}
@@ -1600,14 +1681,25 @@ export default function AddIdealizedMemoryScreen() {
               setSuns((prev) =>
                 prev.map((s) => (s.id === id ? { ...s, startX: undefined, startY: undefined } : s))
               );
+              // Clear the newly created flag after animation completes
+              if (newlyCreatedSunId === id) {
+                setNewlyCreatedSunId(null);
+              }
             }}
             onDelete={(id) => {
               setSuns((prev) => prev.filter((s) => s.id !== id));
+              // Clean up ref when sun is deleted
+              delete sunInputRefs.current[id];
+              if (newlyCreatedSunId === id) {
+                setNewlyCreatedSunId(null);
+              }
             }}
             onRegisterAnimatedValues={(id, translateX, translateY) => {
               sunAnimatedValues.current[id] = { translateX, translateY };
             }}
             viewOnly={viewOnly}
+            inputRef={inputRef}
+            shouldAutoFocus={shouldAutoFocus}
           />
         );
       })}
