@@ -43,6 +43,12 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   const [isAnimationComplete, setIsAnimationComplete] = useState(false);
   const { isTablet } = useLargeDevice();
   const splashOpacity = useSharedValue(1);
+  
+  // Scale sizes for tablets
+  const avatarSize = isTablet ? 120 : 80; // 50% larger on tablets
+  const sphereSize = isTablet ? 120 : 80; // 50% larger on tablets
+  const orbitRadius = isTablet ? 180 : 120; // 50% larger on tablets
+  const avatarContainerSize = isTablet ? 540 : 360; // Accommodate larger orbit radius
 
   // Avatar animations
   const avatarScale = useSharedValue(0);
@@ -116,10 +122,17 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
       mass: 0.8,
     });
 
-    // Step 2: Floating elements pop out from center (800ms delay, 600ms duration)
+    // Step 2: Floating elements pop out from center (600ms delay, 600ms duration each)
     const popOutDelay = 600;
+    const popOutDuration = 600;
     
-    // Element 1 - pops out and starts orbiting
+    // Calculate when the last element finishes popping out
+    // Element 5 starts at popOutDelay + 800, takes popOutDuration to finish
+    const lastElementFinishTime = popOutDelay + 800 + popOutDuration; // 2000ms
+    // All elements should start orbiting at the same time, after the last one finishes
+    const orbitStartDelay = lastElementFinishTime;
+    
+    // Element 1 - pops out
     floatingElement1.opacity.value = withDelay(popOutDelay, withTiming(1, { duration: 300 }));
     floatingElement1.scale.value = withDelay(
       popOutDelay,
@@ -132,21 +145,21 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     floatingElement1.popOutProgress.value = withDelay(
       popOutDelay,
       withTiming(1, {
-        duration: 600,
+        duration: popOutDuration,
         easing: Easing.out(Easing.cubic),
-      }, (finished) => {
-        if (finished) {
-          // Start orbiting after pop out completes
-          floatingElement1.orbitAngle.value = withRepeat(
-            withTiming(360, {
-              duration: 4000,
-              easing: Easing.linear,
-      }),
-      -1,
-            false
-          );
-        }
       })
+    );
+    // Start orbiting at the same time as all others
+    floatingElement1.orbitAngle.value = withDelay(
+      orbitStartDelay,
+      withRepeat(
+        withTiming(360, {
+          duration: 4000,
+          easing: Easing.linear,
+        }),
+        -1,
+        false
+      )
     );
 
     // Element 2 - pops out with delay
@@ -162,20 +175,21 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     floatingElement2.popOutProgress.value = withDelay(
       popOutDelay + 200,
       withTiming(1, {
-        duration: 600,
+        duration: popOutDuration,
         easing: Easing.out(Easing.cubic),
-      }, (finished) => {
-        if (finished) {
-          floatingElement2.orbitAngle.value = withRepeat(
-            withTiming(360, {
-              duration: 4500, // Slightly different speed for variety
-              easing: Easing.linear,
-      }),
-      -1,
-            false
-          );
-        }
       })
+    );
+    // Start orbiting at the same time as all others
+    floatingElement2.orbitAngle.value = withDelay(
+      orbitStartDelay,
+      withRepeat(
+        withTiming(360, {
+          duration: 4000,
+          easing: Easing.linear,
+        }),
+        -1,
+        false
+      )
     );
 
     // Element 3 - pops out with delay
@@ -190,21 +204,22 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     );
     floatingElement3.popOutProgress.value = withDelay(
       popOutDelay + 400,
-        withTiming(1, {
-        duration: 600,
+      withTiming(1, {
+        duration: popOutDuration,
         easing: Easing.out(Easing.cubic),
-      }, (finished) => {
-        if (finished) {
-          floatingElement3.orbitAngle.value = withRepeat(
-            withTiming(360, {
-              duration: 5000, // Different speed for variety
-              easing: Easing.linear,
+      })
+    );
+    // Start orbiting at the same time as all others
+    floatingElement3.orbitAngle.value = withDelay(
+      orbitStartDelay,
+      withRepeat(
+        withTiming(360, {
+          duration: 4000,
+          easing: Easing.linear,
         }),
         -1,
-            false
-          );
-        }
-      })
+        false
+      )
     );
 
     // Element 4 - Friends - pops out with delay
@@ -220,23 +235,24 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     floatingElement4.popOutProgress.value = withDelay(
       popOutDelay + 600,
       withTiming(1, {
-        duration: 600,
+        duration: popOutDuration,
         easing: Easing.out(Easing.cubic),
-      }, (finished) => {
-        if (finished) {
-          floatingElement4.orbitAngle.value = withRepeat(
-            withTiming(360, {
-              duration: 5500, // Different speed for variety
-              easing: Easing.linear,
-            }),
-            -1,
-            false
-          );
-        }
       })
     );
+    // Start orbiting at the same time as all others
+    floatingElement4.orbitAngle.value = withDelay(
+      orbitStartDelay,
+      withRepeat(
+        withTiming(360, {
+          duration: 4000,
+          easing: Easing.linear,
+        }),
+        -1,
+        false
+      )
+    );
 
-    // Element 5 - Hobbies - pops out with delay
+    // Element 5 - Hobbies - pops out with delay (last one)
     floatingElement5.opacity.value = withDelay(popOutDelay + 800, withTiming(1, { duration: 300 }));
     floatingElement5.scale.value = withDelay(
       popOutDelay + 800,
@@ -249,20 +265,21 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     floatingElement5.popOutProgress.value = withDelay(
       popOutDelay + 800,
       withTiming(1, {
-        duration: 600,
+        duration: popOutDuration,
         easing: Easing.out(Easing.cubic),
-      }, (finished) => {
-        if (finished) {
-          floatingElement5.orbitAngle.value = withRepeat(
-            withTiming(360, {
-              duration: 6000, // Different speed for variety
-              easing: Easing.linear,
-            }),
-            -1,
-            false
-          );
-        }
       })
+    );
+    // Start orbiting at the same time as all others
+    floatingElement5.orbitAngle.value = withDelay(
+      orbitStartDelay,
+      withRepeat(
+        withTiming(360, {
+          duration: 4000,
+          easing: Easing.linear,
+        }),
+        -1,
+        false
+      )
     );
 
     // Step 3: Text appears after elements start orbiting (2000ms delay)
@@ -319,15 +336,17 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     };
   });
 
-  // Floating element 1 animated style
+  // Floating element 1 animated style - Relationships (0°)
   const floatingElement1Style = useAnimatedStyle(() => {
-    const radius = 120; // Orbit radius - increased from 80 to move elements further
+    const radius = orbitRadius; // Orbit radius (scaled for tablet)
     const popOutRadius = interpolate(floatingElement1.popOutProgress.value, [0, 1], [0, radius]);
-    const angle = (floatingElement1.orbitAngle.value * Math.PI) / 180; // Convert to radians
-    const baseAngle = 0; // Start at top
+    const orbitAngleRad = (floatingElement1.orbitAngle.value * Math.PI) / 180; // Convert to radians
+    const baseAngleRad = (0 * Math.PI) / 180; // 0 degrees - top position
     
-    const x = Math.sin(baseAngle + angle) * popOutRadius;
-    const y = -Math.cos(baseAngle + angle) * popOutRadius;
+    // Calculate position: baseAngle determines starting position, orbitAngle adds rotation
+    const totalAngle = baseAngleRad + orbitAngleRad;
+    const x = Math.sin(totalAngle) * popOutRadius;
+    const y = -Math.cos(totalAngle) * popOutRadius;
     
     return {
       opacity: floatingElement1.opacity.value,
@@ -339,15 +358,16 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     };
   });
 
-  // Floating element 2 animated style
+  // Floating element 2 animated style - Career (72°)
   const floatingElement2Style = useAnimatedStyle(() => {
-    const radius = 120; // Orbit radius - increased from 80
+    const radius = orbitRadius; // Orbit radius (scaled for tablet)
     const popOutRadius = interpolate(floatingElement2.popOutProgress.value, [0, 1], [0, radius]);
-    const angle = (floatingElement2.orbitAngle.value * Math.PI) / 180;
-    const baseAngle = (120 * Math.PI) / 180; // 120 degrees offset
+    const orbitAngleRad = (floatingElement2.orbitAngle.value * Math.PI) / 180;
+    const baseAngleRad = (72 * Math.PI) / 180; // 72 degrees offset (360/5 = 72)
     
-    const x = Math.sin(baseAngle + angle) * popOutRadius;
-    const y = -Math.cos(baseAngle + angle) * popOutRadius;
+    const totalAngle = baseAngleRad + orbitAngleRad;
+    const x = Math.sin(totalAngle) * popOutRadius;
+    const y = -Math.cos(totalAngle) * popOutRadius;
     
     return {
       opacity: floatingElement2.opacity.value,
@@ -359,15 +379,16 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     };
   });
 
-  // Floating element 3 animated style
+  // Floating element 3 animated style - Family (144°)
   const floatingElement3Style = useAnimatedStyle(() => {
-    const radius = 120; // Orbit radius - increased from 80
+    const radius = orbitRadius; // Orbit radius (scaled for tablet)
     const popOutRadius = interpolate(floatingElement3.popOutProgress.value, [0, 1], [0, radius]);
-    const angle = (floatingElement3.orbitAngle.value * Math.PI) / 180;
-    const baseAngle = (240 * Math.PI) / 180; // 240 degrees offset
+    const orbitAngleRad = (floatingElement3.orbitAngle.value * Math.PI) / 180;
+    const baseAngleRad = (144 * Math.PI) / 180; // 144 degrees offset (72 * 2)
     
-    const x = Math.sin(baseAngle + angle) * popOutRadius;
-    const y = -Math.cos(baseAngle + angle) * popOutRadius;
+    const totalAngle = baseAngleRad + orbitAngleRad;
+    const x = Math.sin(totalAngle) * popOutRadius;
+    const y = -Math.cos(totalAngle) * popOutRadius;
     
     return {
       opacity: floatingElement3.opacity.value,
@@ -379,15 +400,16 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     };
   });
 
-  // Floating element 4 animated style (Friends)
+  // Floating element 4 animated style - Friends (216°)
   const floatingElement4Style = useAnimatedStyle(() => {
-    const radius = 120; // Orbit radius
+    const radius = orbitRadius; // Orbit radius (scaled for tablet)
     const popOutRadius = interpolate(floatingElement4.popOutProgress.value, [0, 1], [0, radius]);
-    const angle = (floatingElement4.orbitAngle.value * Math.PI) / 180;
-    const baseAngle = (300 * Math.PI) / 180; // 300 degrees offset
+    const orbitAngleRad = (floatingElement4.orbitAngle.value * Math.PI) / 180;
+    const baseAngleRad = (216 * Math.PI) / 180; // 216 degrees offset (72 * 3)
     
-    const x = Math.sin(baseAngle + angle) * popOutRadius;
-    const y = -Math.cos(baseAngle + angle) * popOutRadius;
+    const totalAngle = baseAngleRad + orbitAngleRad;
+    const x = Math.sin(totalAngle) * popOutRadius;
+    const y = -Math.cos(totalAngle) * popOutRadius;
     
     return {
       opacity: floatingElement4.opacity.value,
@@ -399,15 +421,16 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     };
   });
 
-  // Floating element 5 animated style (Hobbies)
+  // Floating element 5 animated style - Hobbies (288°)
   const floatingElement5Style = useAnimatedStyle(() => {
-    const radius = 120; // Orbit radius
+    const radius = orbitRadius; // Orbit radius (scaled for tablet)
     const popOutRadius = interpolate(floatingElement5.popOutProgress.value, [0, 1], [0, radius]);
-    const angle = (floatingElement5.orbitAngle.value * Math.PI) / 180;
-    const baseAngle = (0 * Math.PI) / 180; // 0 degrees offset (top)
+    const orbitAngleRad = (floatingElement5.orbitAngle.value * Math.PI) / 180;
+    const baseAngleRad = (288 * Math.PI) / 180; // 288 degrees offset (72 * 4)
     
-    const x = Math.sin(baseAngle + angle) * popOutRadius;
-    const y = -Math.cos(baseAngle + angle) * popOutRadius;
+    const totalAngle = baseAngleRad + orbitAngleRad;
+    const x = Math.sin(totalAngle) * popOutRadius;
+    const y = -Math.cos(totalAngle) * popOutRadius;
     
     return {
       opacity: floatingElement5.opacity.value,
@@ -441,69 +464,69 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
             {/* Content */}
             <View style={styles.content}>
               {/* Avatar Container with Floating Elements */}
-              <View style={styles.avatarContainer}>
+              <View style={[styles.avatarContainer, { width: avatarContainerSize, height: avatarContainerSize }]}>
                 {/* Central Avatar */}
-                <Animated.View style={[styles.avatarWrapper, avatarAnimatedStyle]}>
+                <Animated.View style={[styles.avatarWrapper, avatarAnimatedStyle, { width: avatarSize, height: avatarSize }]}>
                   <LinearGradient
                     colors={['rgba(14, 165, 233, 0.3)', 'rgba(14, 165, 233, 0.15)', 'rgba(14, 165, 233, 0.05)']}
-                    style={styles.avatar}
+                    style={[styles.avatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
                   >
                     <View style={styles.avatarInner}>
-                      <MaterialIcons name="person" size={40} color="rgba(255, 215, 0, 0.9)" />
+                      <MaterialIcons name="person" size={isTablet ? 60 : 40} color="rgba(255, 215, 0, 0.9)" />
                     </View>
                   </LinearGradient>
                 </Animated.View>
 
                 {/* Floating Element 1 - Relationships (Heart) */}
-                <Animated.View style={[styles.floatingElement, floatingElement1Style]}>
+                <Animated.View style={[styles.floatingElement, floatingElement1Style, { width: sphereSize, height: sphereSize }]}>
             <LinearGradient
                     colors={['rgba(255, 150, 150, 0.4)', 'rgba(255, 150, 150, 0.2)', 'rgba(255, 150, 150, 0.05)']}
-                    style={styles.floatingElementInner}
+                    style={[styles.floatingElementInner, { width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2 }]}
                   >
-                    <MaterialIcons name="favorite" size={40} color="rgba(255, 180, 180, 0.9)" />
+                    <MaterialIcons name="favorite" size={isTablet ? 60 : 40} color="rgba(255, 180, 180, 0.9)" />
                   </LinearGradient>
           </Animated.View>
 
                 {/* Floating Element 2 - Career (Briefcase) */}
-                <Animated.View style={[styles.floatingElement, floatingElement2Style]}>
+                <Animated.View style={[styles.floatingElement, floatingElement2Style, { width: sphereSize, height: sphereSize }]}>
             <LinearGradient
                     colors={['rgba(150, 200, 255, 0.4)', 'rgba(150, 200, 255, 0.2)', 'rgba(150, 200, 255, 0.05)']}
-                    style={styles.floatingElementInner}
+                    style={[styles.floatingElementInner, { width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2 }]}
                   >
-                    <MaterialIcons name="work" size={40} color="rgba(180, 220, 255, 0.9)" />
+                    <MaterialIcons name="work" size={isTablet ? 60 : 40} color="rgba(180, 220, 255, 0.9)" />
                   </LinearGradient>
           </Animated.View>
 
                 {/* Floating Element 3 - Family */}
-                <Animated.View style={[styles.floatingElement, floatingElement3Style]}>
+                <Animated.View style={[styles.floatingElement, floatingElement3Style, { width: sphereSize, height: sphereSize }]}>
                   <LinearGradient
                     colors={['rgba(200, 150, 255, 0.4)', 'rgba(200, 150, 255, 0.2)', 'rgba(200, 150, 255, 0.05)']}
-                    style={styles.floatingElementInner}
+                    style={[styles.floatingElementInner, { width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2 }]}
                   >
-                    <MaterialIcons name="family-restroom" size={40} color="rgba(220, 180, 255, 0.9)" />
+                    <MaterialIcons name="family-restroom" size={isTablet ? 60 : 40} color="rgba(220, 180, 255, 0.9)" />
                   </LinearGradient>
                 </Animated.View>
 
                 {/* Floating Element 4 - Friends */}
-                <Animated.View style={[styles.floatingElement, floatingElement4Style]}>
+                <Animated.View style={[styles.floatingElement, floatingElement4Style, { width: sphereSize, height: sphereSize }]}>
                   <LinearGradient
                     colors={['rgba(139, 92, 246, 0.4)', 'rgba(139, 92, 246, 0.2)', 'rgba(139, 92, 246, 0.05)']}
-                    style={styles.floatingElementInner}
+                    style={[styles.floatingElementInner, { width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2 }]}
                   >
-                    <MaterialIcons name="people" size={40} color="rgba(167, 139, 250, 0.9)" />
+                    <MaterialIcons name="people" size={isTablet ? 60 : 40} color="rgba(167, 139, 250, 0.9)" />
                   </LinearGradient>
                 </Animated.View>
 
                 {/* Floating Element 5 - Hobbies */}
-                <Animated.View style={[styles.floatingElement, floatingElement5Style]}>
-                  <LinearGradient
+                <Animated.View style={[styles.floatingElement, floatingElement5Style, { width: sphereSize, height: sphereSize }]}>
+            <LinearGradient
                     colors={['rgba(249, 115, 22, 0.4)', 'rgba(249, 115, 22, 0.2)', 'rgba(249, 115, 22, 0.05)']}
-                    style={styles.floatingElementInner}
+                    style={[styles.floatingElementInner, { width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2 }]}
                   >
-                    <MaterialIcons name="sports-esports" size={40} color="rgba(255, 157, 88, 0.9)" />
+                    <MaterialIcons name="sports-esports" size={isTablet ? 60 : 40} color="rgba(255, 157, 88, 0.9)" />
                   </LinearGradient>
-                </Animated.View>
-              </View>
+          </Animated.View>
+        </View>
 
               {/* Quote Text */}
               <Animated.View style={[styles.textContainer, textAnimatedStyle]}>
@@ -542,7 +565,7 @@ const styles = StyleSheet.create({
     paddingTop: SCREEN_HEIGHT * 0.15, // Move content lower on screen
   },
   avatarContainer: {
-    width: 360, // Increased to accommodate larger orbit radius (120 * 2 + 120 avatar = 360)
+    width: 360, // Base size, will be overridden dynamically
     height: 360,
     justifyContent: 'center',
     alignItems: 'center',
@@ -550,13 +573,13 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   avatarWrapper: {
-    width: 80, // Real size matching baseAvatarSize from main screen
+    width: 80, // Base size, will be overridden dynamically
     height: 80,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatar: {
-    width: 80, // Real size matching baseAvatarSize from main screen
+    width: 80, // Base size, will be overridden dynamically
     height: 80,
     borderRadius: 40,
     justifyContent: 'center',
@@ -577,13 +600,13 @@ const styles = StyleSheet.create({
   },
   floatingElement: {
     position: 'absolute',
-    width: 80, // Real size matching sphereSize from main screen
+    width: 80, // Base size, will be overridden dynamically
     height: 80,
     justifyContent: 'center',
     alignItems: 'center',
   },
   floatingElementInner: {
-    width: 80, // Real size matching sphereSize from main screen
+    width: 80, // Base size, will be overridden dynamically
     height: 80,
     borderRadius: 40,
     justifyContent: 'center',

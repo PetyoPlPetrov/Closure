@@ -500,10 +500,12 @@ export default function SpheresScreen() {
     },
     sphereLabel: {
       textAlign: 'center',
+      fontSize: 11 * fontScale,
     },
     sphereCount: {
       textAlign: 'center',
       opacity: 0.7,
+      fontSize: 10 * fontScale,
     },
     insightsButtonContainer: {
       marginTop: 20 * fontScale,
@@ -629,6 +631,20 @@ export default function SpheresScreen() {
       position: 'absolute',
       bottom: 26 * fontScale,
       right: 16 * fontScale,
+      zIndex: 10,
+    },
+    fabButton: {
+      width: 56 * fontScale,
+      height: 56 * fontScale,
+      borderRadius: 28 * fontScale,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 8,
     },
     scrollContent: {
       flexGrow: 1,
@@ -1128,6 +1144,15 @@ export default function SpheresScreen() {
                 ))}
               </View>
             </ScrollView>
+            <View style={styles.fabContainer}>
+              <TouchableOpacity
+                style={styles.fabButton}
+                onPress={() => handleAddEntity('relationships')}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="add" size={24 * fontScale} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
           </>
         )}
 
@@ -1243,6 +1268,15 @@ export default function SpheresScreen() {
                 ))}
               </View>
             </ScrollView>
+            <View style={styles.fabContainer}>
+              <TouchableOpacity
+                style={styles.fabButton}
+                onPress={() => handleAddEntity('career')}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="add" size={24 * fontScale} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
           </>
         )}
 
@@ -1453,6 +1487,15 @@ export default function SpheresScreen() {
                 ))}
               </View>
             </ScrollView>
+            <View style={styles.fabContainer}>
+              <TouchableOpacity
+                style={styles.fabButton}
+                onPress={() => handleAddEntity('family')}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="add" size={24 * fontScale} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
           </>
         )}
 
@@ -1661,7 +1704,15 @@ export default function SpheresScreen() {
                 ))}
               </View>
             </ScrollView>
-
+            <View style={styles.fabContainer}>
+              <TouchableOpacity
+                style={styles.fabButton}
+                onPress={() => handleAddEntity('friends')}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="add" size={24 * fontScale} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
           </>
         )}
 
@@ -1870,7 +1921,15 @@ export default function SpheresScreen() {
                 ))}
               </View>
             </ScrollView>
-
+            <View style={styles.fabContainer}>
+              <TouchableOpacity
+                style={styles.fabButton}
+                onPress={() => handleAddEntity('hobbies')}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="add" size={24 * fontScale} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
           </>
         )}
 

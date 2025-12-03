@@ -263,8 +263,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   onMemoryFocus?: (entityId: string, memoryId: string, sphere?: LifeSphere) => void;
   yearSection?: { year: number | string; top: number; bottom: number; height: number };
 }) {
-  const baseAvatarSize = 80;
-  const focusedAvatarSize = 100; // Smaller focused size so memories fit
+  const { isTablet } = useLargeDevice();
+  const baseAvatarSize = isTablet ? 120 : 80; // 50% larger on tablets
+  const focusedAvatarSize = isTablet ? 150 : 100; // 50% larger on tablets
   const avatarSize = isFocused ? focusedAvatarSize : baseAvatarSize;
   // Memory radius - when focused, ensure all floating elements fit within viewport
   // Calculation: memoryRadius + memorySize/2 + momentRadius + momentSize/2 + padding <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
@@ -272,12 +273,18 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   // So: memoryRadius + 22.5 + 40 + 6 + 25 = memoryRadius + 93.5 <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
   // Therefore: memoryRadius <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2) - 93.5
   const maxDistanceFromCenter = Math.min(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-  const estimatedMaxMemorySize = 45; // Maximum memory size when focused
-  const estimatedMaxMomentRadius = 40; // Maximum radius of moments around memory
-  const estimatedMaxMomentSize = 12; // Maximum moment size
-  const safetyPadding = 25; // Safety padding from viewport edges
+  const estimatedMaxMemorySize = isTablet ? 68 : 45; // Maximum memory size when focused (50% larger on tablets)
+  const estimatedMaxMomentRadius = isTablet ? 60 : 40; // Maximum radius of moments around memory (50% larger on tablets)
+  const estimatedMaxMomentSize = isTablet ? 18 : 12; // Maximum moment size (50% larger on tablets)
+  const safetyPadding = isTablet ? 38 : 25; // Safety padding from viewport edges (50% larger on tablets)
   const maxAllowedRadius = maxDistanceFromCenter - estimatedMaxMemorySize / 2 - estimatedMaxMomentRadius - estimatedMaxMomentSize / 2 - safetyPadding;
-  const memoryRadius = isFocused ? Math.max(80, Math.min(110, maxAllowedRadius)) : 60; // Ensure all floating elements fit within viewport (80-110px range when focused)
+  // On tablets, increase memory radius when focused to position memories further from avatar
+  // Use larger base radius on tablets to start with more spacing
+  const baseMemoryRadius = isFocused 
+    ? (isTablet ? Math.max(120, Math.min(160, maxAllowedRadius)) : Math.max(80, Math.min(110, maxAllowedRadius)))
+    : (isTablet ? 90 : 60);
+  // On tablets, position memories much further from avatar when focused (3x distance for better spacing)
+  const memoryRadius = isTablet && isFocused ? baseMemoryRadius * 3 : baseMemoryRadius;
   const exZoneRadius = isFocused ? 180 : 120; // Adjusted zone when memories are closer
   
   // Calculate sunny moments percentage for progress bar
@@ -705,10 +712,10 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     })() : [];
     
     // Calculate maximum safe radius based on avatar position and viewport boundaries
-    // Memory size: 45px when focused, 30px when unfocused
-    const memorySize = isFocused ? 45 : 30;
+    // Memory size: account for tablets (68px focused, 45px unfocused on tablets; 45px focused, 30px unfocused on phones)
+    const memorySize = isFocused ? (isTablet ? 68 : 45) : (isTablet ? 45 : 30);
     const memoryRadiusSize = memorySize / 2; // Half the memory size
-    const safetyPadding = 10; // Small padding from viewport edge
+    const safetyPadding = isTablet ? 38 : 10; // Larger padding on tablets to match the increased sizes
     
     // Calculate distances from avatar center to each viewport edge
     const distanceToTop = position.y;
@@ -814,7 +821,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         offsetY: variedRadius * sinAngle,
       };
     });
-  }, [memories, memoryRadius, isFocused]);
+  }, [memories, memoryRadius, isFocused, isTablet, position]);
 
   return (
     <>
@@ -952,11 +959,12 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         // Calculate maximum memory size based on viewport constraints
         // Worst case: memory at memoryRadius from avatar, with moments orbiting at maxMomentRadius from memory
         // We need to ensure the entire EX zone fits: avatar + memoryRadius + memorySize/2 + maxMomentRadius + maxMomentSize/2 <= viewport edge
-        const cloudSize = isFocused ? 12 : 24;
-        const sunSize = isFocused ? 10 : 22;
+        // Scale moment sizes for tablets (50% larger)
+        const cloudSize = isFocused ? (isTablet ? 18 : 12) : (isTablet ? 36 : 24);
+        const sunSize = isFocused ? (isTablet ? 15 : 10) : (isTablet ? 33 : 22);
         const maxMomentSize = Math.max(cloudSize, sunSize);
-        const cloudRadius = isFocused ? 40 : 25;
-        const sunRadius = isFocused ? 38 : 22;
+        const cloudRadius = isFocused ? (isTablet ? 60 : 40) : (isTablet ? 38 : 25);
+        const sunRadius = isFocused ? (isTablet ? 57 : 38) : (isTablet ? 33 : 22);
         const maxMomentRadius = Math.max(cloudRadius, sunRadius);
         
         // Calculate distances from memory center (avatar + offset) to nearest viewport edges
@@ -1008,8 +1016,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             baseMemorySize = baseSize; // 35px
           }
         } else {
-          // Not focused, use smaller size
-          baseMemorySize = 50;
+          // Not focused, use smaller size (scale for tablets)
+          baseMemorySize = isTablet ? 75 : 50; // 50% larger on tablets
         }
         
         const memorySize = Math.min(baseMemorySize, calculatedMaxMemorySize);
@@ -1833,7 +1841,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
   avatarPosition?: { x: number; y: number };
   focusedMemory?: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null;
 }) {
-  const { isLargeDevice } = useLargeDevice();
+  const { isLargeDevice, isTablet } = useLargeDevice();
   const colors = Colors[colorScheme ?? 'dark'];
   
   // Track which moments are visible (initially none when memory is focused)
@@ -1863,16 +1871,17 @@ const FloatingMemory = React.memo(function FloatingMemory({
   }, [isMemoryFocused, memory.hardTruths, memory.goodFacts]);
   
   // When memory is focused, use smaller size like in creation screen (250px)
-  // Otherwise use calculated size or default
+  // Otherwise use calculated size or default (scale for tablets)
   const memorySize = isMemoryFocused 
-    ? (isLargeDevice ? 300 : 250) 
+    ? (isTablet ? 375 : (isLargeDevice ? 300 : 250)) // 50% larger on tablets
     : (calculatedMemorySize ?? (isFocused ? 65 : 50));
   
   // Cloud and sun dimensions from creation screen (used when memory is focused)
-  const cloudWidth = isLargeDevice ? 480 : 320;
-  const cloudHeight = isLargeDevice ? 150 : 100;
-  const sunWidth = isLargeDevice ? 150 : 100;
-  const sunHeight = isLargeDevice ? 150 : 100;
+  // Scale for tablets (50% larger)
+  const cloudWidth = isTablet ? 720 : (isLargeDevice ? 480 : 320); // 50% larger on tablets
+  const cloudHeight = isTablet ? 225 : (isLargeDevice ? 150 : 100); // 50% larger on tablets
+  const sunWidth = isTablet ? 225 : (isLargeDevice ? 150 : 100); // 50% larger on tablets
+  const sunHeight = isTablet ? 225 : (isLargeDevice ? 150 : 100); // 50% larger on tablets
   
   // Increase cloud and sun radius when focused to push them further from memory
   const cloudRadius = isFocused ? 40 : 25; // Further away when focused
@@ -2834,8 +2843,9 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   colorScheme: 'light' | 'dark';
   colors: any;
 }) {
-  const avatarSize = 120;
-  const borderWidth = 8;
+  const { isTablet } = useLargeDevice();
+  const avatarSize = isTablet ? 180 : 120; // 50% larger on tablets
+  const borderWidth = isTablet ? 12 : 8; // Scale border width proportionally
   const radius = (avatarSize + borderWidth) / 2 - borderWidth / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
@@ -2988,7 +2998,8 @@ const FloatingEntity = React.memo(function FloatingEntity({
     };
   });
   
-  const size = 24; // Smaller size (reduced from 28)
+  const { isTablet } = useLargeDevice();
+  const size = isTablet ? 36 : 24; // 50% larger on tablets
   
   // Color based on cloudy vs sunny: dark for more clouds, light for more suns
   const backgroundColor = React.useMemo(() => {
@@ -3055,7 +3066,7 @@ const FloatingEntity = React.memo(function FloatingEntity({
             width: size,
             height: size,
             borderRadius: size / 2,
-            borderWidth: 2,
+            borderWidth: isTablet ? 3 : 2,
             borderColor: borderColor,
           }}
           contentFit="cover"
@@ -3067,7 +3078,7 @@ const FloatingEntity = React.memo(function FloatingEntity({
             height: size,
             borderRadius: size / 2,
             backgroundColor: backgroundColor,
-            borderWidth: 2,
+            borderWidth: isTablet ? 3 : 2,
             borderColor: borderColor,
             justifyContent: 'center',
             alignItems: 'center',
@@ -3081,7 +3092,7 @@ const FloatingEntity = React.memo(function FloatingEntity({
               entityType === 'hobby' ? 'sports-esports' :
               'work'
             } 
-            size={16} 
+            size={isTablet ? 24 : 16} 
             color={isMoreSunny ? (colorScheme === 'dark' ? '#ffffff' : '#333333') : (colorScheme === 'dark' ? '#cccccc' : '#ffffff')} 
           />
         </View>
@@ -3109,7 +3120,8 @@ const SphereAvatar = React.memo(function SphereAvatar({
   selectedSphere: LifeSphere | null;
   zoomProgress: ReturnType<typeof useSharedValue<number>>;
 }) {
-  const sphereSize = 80;
+  const { isTablet } = useLargeDevice();
+  const sphereSize = isTablet ? 120 : 80; // 50% larger on tablets
   
   const sphereIcons = {
     relationships: 'favorite',
@@ -3358,6 +3370,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
+  const { isTablet } = useLargeDevice();
   const params = useLocalSearchParams();
   const { 
     profiles, 
@@ -4530,22 +4543,27 @@ export default function HomeScreen() {
     <TabScreenContainer>
         <View style={{ flex: 1, height: SCREEN_HEIGHT, position: 'relative', justifyContent: 'center', alignItems: 'center' }}>
           {/* Center - Overall Percentage Avatar */}
-          <View
-            style={{
-              position: 'absolute',
-              left: SCREEN_WIDTH / 2 - 60,
-              top: SCREEN_HEIGHT / 2 - 60,
-              width: 120,
-              height: 120,
-              zIndex: 100,
-            }}
-          >
-            <OverallPercentageAvatar
-              percentage={overallSunnyPercentage}
-              colorScheme={colorScheme ?? 'dark'}
-              colors={colors}
-            />
-          </View>
+          {(() => {
+            const avatarSize = isTablet ? 180 : 120;
+            return (
+              <View
+                style={{
+                  position: 'absolute',
+                  left: SCREEN_WIDTH / 2 - avatarSize / 2,
+                  top: SCREEN_HEIGHT / 2 - avatarSize / 2,
+                  width: avatarSize,
+                  height: avatarSize,
+                  zIndex: 100,
+                }}
+              >
+                <OverallPercentageAvatar
+                  percentage={overallSunnyPercentage}
+                  colorScheme={colorScheme ?? 'dark'}
+                  colors={colors}
+                />
+              </View>
+            );
+          })()}
 
           {/* Five Spheres */}
           {animationsReady && (
