@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 import { JourneyProvider } from '@/utils/JourneyProvider';
 import { LanguageProvider } from '@/utils/languages/language-context';
 import { SplashAnimationProvider, useSplash } from '@/utils/SplashAnimationProvider';
+import { SubscriptionProvider } from '@/utils/SubscriptionProvider';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/utils/ThemeContext';
 
 // Hide native splash immediately when this module loads
@@ -68,6 +69,7 @@ function AppContent() {
         <Stack.Screen name="friend-detail" options={{ headerShown: false }} />
         <Stack.Screen name="hobby-detail" options={{ headerShown: false }} />
         <Stack.Screen name="insights" options={{ headerShown: false }} />
+        <Stack.Screen name="paywall" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />
@@ -83,9 +85,11 @@ export default function RootLayout() {
     <AppThemeProvider>
       <SplashAnimationProvider>
         <LanguageProvider>
-          <JourneyProvider>
-            <AppContent />
-          </JourneyProvider>
+          <SubscriptionProvider>
+            <JourneyProvider>
+              <AppContent />
+            </JourneyProvider>
+          </SubscriptionProvider>
         </LanguageProvider>
       </SplashAnimationProvider>
     </AppThemeProvider>

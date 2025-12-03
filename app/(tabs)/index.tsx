@@ -3743,6 +3743,16 @@ export default function HomeScreen() {
     });
   }, [jobs]);
   
+  // Get the section key for a profile - defined before yearSections so it can be used there
+  const getProfileSectionKey = React.useCallback((profile: any): string | null => {
+    if (profile.relationshipEndDate === null || profile.relationshipEndDate === undefined) {
+      return 'ongoing';
+    } else {
+      const year = new Date(profile.relationshipEndDate).getFullYear();
+      return year.toString();
+    }
+  }, []);
+  
   // Calculate year-based sections for each profile
   // Ongoing partners get their own section at the top, then sorted by end year
   const yearSections = React.useMemo(() => {
@@ -3768,14 +3778,24 @@ export default function HomeScreen() {
     // Sort years descending (most recent first)
     const sortedYears = Array.from(years).sort((a, b) => b - a);
     
+    // Get all section keys that profiles might use (including from visibleProfiles to catch any that might not be in sortedProfiles yet)
+    const allProfileSectionKeys = new Set<string>();
+    sortedProfiles.forEach(profile => {
+      const sectionKey = getProfileSectionKey(profile);
+      if (sectionKey) {
+        allProfileSectionKeys.add(sectionKey);
+      }
+    });
+    
     // Calculate number of sections (ongoing + years)
-    const numSections = (ongoingProfiles.length > 0 ? 1 : 0) + sortedYears.length;
+    const hasOngoing = allProfileSectionKeys.has('ongoing') || ongoingProfiles.length > 0;
+    const numSections = (hasOngoing ? 1 : 0) + sortedYears.length;
     const sectionHeight = numSections > 0 ? availableHeight / numSections : availableHeight;
     
     let currentTop = topPadding;
     
-    // Create "Ongoing" section at the top if there are ongoing partners
-    if (ongoingProfiles.length > 0) {
+    // Create "Ongoing" section at the top if there are ongoing partners or if any profile uses 'ongoing' key
+    if (hasOngoing) {
       sections.set('ongoing', {
         year: 'Ongoing',
         top: currentTop,
@@ -3797,7 +3817,7 @@ export default function HomeScreen() {
     });
     
     return sections;
-  }, [sortedProfiles]);
+  }, [sortedProfiles, getProfileSectionKey]);
   
   // Get the section key for a job - defined before jobYearSections so it can be used there
   const getJobSectionKey = React.useCallback((job: any): string | null => {
@@ -3906,16 +3926,6 @@ export default function HomeScreen() {
     if (!sectionKey) return undefined;
     return jobYearSections.get(sectionKey);
   }, [jobYearSections, getJobSectionKey]);
-  
-  // Get the section key for a profile
-  const getProfileSectionKey = React.useCallback((profile: any): string | null => {
-    if (profile.relationshipEndDate === null || profile.relationshipEndDate === undefined) {
-      return 'ongoing';
-    } else {
-      const year = new Date(profile.relationshipEndDate).getFullYear();
-      return year.toString();
-    }
-  }, []);
 
   // Get the year section for a profile
   const getProfileYearSection = React.useCallback((profile: any) => {

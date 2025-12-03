@@ -8,6 +8,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useSubscription } from '@/utils/SubscriptionProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -20,7 +21,8 @@ export default function AddJobScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
-  const { addJob, updateJob, getJob } = useJourney();
+  const { addJob, updateJob, getJob, jobs } = useJourney();
+  const { isSubscribed } = useSubscription();
   const params = useLocalSearchParams();
   const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
@@ -44,6 +46,13 @@ export default function AddJobScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
+
+  // Check subscription limit when component loads (only for new jobs, not edits)
+  useEffect(() => {
+    if (!isEditMode && !isSubscribed && jobs.length >= 1) {
+      router.replace('/paywall');
+    }
+  }, [isEditMode, isSubscribed, jobs.length]);
 
   // Load existing job data when in edit mode
   useEffect(() => {
@@ -199,6 +208,12 @@ export default function AddJobScreen() {
 
   const handleSubmit = async () => {
     if (!isSaveEnabled) return;
+
+    // Check subscription limit for new jobs (not edits)
+    if (!isEditMode && !isSubscribed && jobs.length >= 1) {
+      router.replace('/paywall');
+      return;
+    }
 
     try {
       if (isEditMode && jobId) {

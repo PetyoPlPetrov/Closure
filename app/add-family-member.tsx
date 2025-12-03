@@ -8,6 +8,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useSubscription } from '@/utils/SubscriptionProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,7 +20,8 @@ export default function AddFamilyMemberScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
-  const { addFamilyMember, updateFamilyMember, getFamilyMember } = useJourney();
+  const { addFamilyMember, updateFamilyMember, getFamilyMember, familyMembers } = useJourney();
+  const { isSubscribed } = useSubscription();
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
   const t = useTranslate();
@@ -34,6 +36,13 @@ export default function AddFamilyMemberScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Check subscription limit when component loads (only for new family members, not edits)
+  useEffect(() => {
+    if (!isEditMode && !isSubscribed && familyMembers.length >= 1) {
+      router.replace('/paywall');
+    }
+  }, [isEditMode, isSubscribed, familyMembers.length]);
 
   // Load existing member data when in edit mode
   useEffect(() => {
@@ -82,6 +91,12 @@ export default function AddFamilyMemberScreen() {
   const handleSubmit = async () => {
     if (!name.trim()) {
       Alert.alert(t('common.error'), t('profile.familyMember.name.required'));
+      return;
+    }
+
+    // Check subscription limit for new family members (not edits)
+    if (!isEditMode && !isSubscribed && familyMembers.length >= 1) {
+      router.replace('/paywall');
       return;
     }
 

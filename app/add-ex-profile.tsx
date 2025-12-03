@@ -8,6 +8,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
 import { useJourney, type ExProfile } from '@/utils/JourneyProvider';
+import { useSubscription } from '@/utils/SubscriptionProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -21,6 +22,7 @@ export default function AddExProfileScreen() {
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const { addProfile, updateProfile, getProfile, profiles } = useJourney();
+  const { isSubscribed } = useSubscription();
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
   const t = useTranslate();
@@ -44,6 +46,13 @@ export default function AddExProfileScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
+
+  // Check subscription limit when component loads (only for new profiles, not edits)
+  useEffect(() => {
+    if (!isEditMode && !isSubscribed && profiles.length >= 1) {
+      router.replace('/paywall');
+    }
+  }, [isEditMode, isSubscribed, profiles.length]);
 
   // Load existing profile data when in edit mode
   useEffect(() => {
@@ -215,6 +224,12 @@ export default function AddExProfileScreen() {
 
   const handleSubmit = async () => {
     if (!isSaveEnabled) return;
+
+    // Check subscription limit for new profiles (not edits)
+    if (!isEditMode && !isSubscribed && profiles.length >= 1) {
+      router.replace('/paywall');
+      return;
+    }
 
     // Validate: prevent setting as ongoing if there's already an ongoing partner
     if (isOngoing && hasExistingOngoingPartner && (!isEditMode || existingProfile?.relationshipEndDate !== null)) {
@@ -702,7 +717,11 @@ export default function AddExProfileScreen() {
           disabled={!isSaveEnabled}
         >
           <ThemedText weight="bold" letterSpacing="l" style={{ color: '#ffffff' }}>
-            {isEditMode ? t('common.save') : t('profile.startHealingPath')}
+            {isEditMode 
+              ? t('common.save') 
+              : profiles.length === 0 
+                ? t('profile.startHealingPath') 
+                : t('profile.add')}
           </ThemedText>
         </TouchableOpacity>
       </ScrollView>

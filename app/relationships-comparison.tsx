@@ -639,6 +639,18 @@ export default function RelationshipsComparisonScreen() {
                           </ThemedText>
                         </View>
                       ))}
+                      
+                      {/* General Balance Suggestion */}
+                      <View style={[styles.insightCard, styles.insightInfo]}>
+                        <MaterialIcons
+                          name="balance"
+                          size={20 * fontScale}
+                          color={colors.primaryLight}
+                        />
+                        <ThemedText size="sm" style={styles.insightText}>
+                          {t('insights.comparison.general.balance')}
+                        </ThemedText>
+                      </View>
                     </View>
                   )}
 

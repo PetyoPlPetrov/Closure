@@ -10,12 +10,13 @@ import { ProfileCard } from '@/library/components/profile-card';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import type { ExProfile, FamilyMember, Job, Friend, Hobby, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useSubscription } from '@/utils/SubscriptionProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
@@ -24,7 +25,32 @@ export default function SpheresScreen() {
   const iconScale = useIconScale();
   const { maxContentWidth, isLargeDevice } = useLargeDevice();
   const { profiles, jobs, familyMembers, friends, hobbies, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, deleteProfile, deleteJob, deleteFamilyMember, deleteFriend, deleteHobby, reloadIdealizedMemories, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
+  const { isSubscribed } = useSubscription();
   const t = useTranslate();
+
+  const checkSubscriptionLimit = (sphere: LifeSphere): boolean => {
+    if (isSubscribed) return true; // Subscribed users can create unlimited
+    
+    switch (sphere) {
+      case 'relationships':
+        return profiles.length < 1;
+      case 'career':
+        return jobs.length < 1;
+      case 'family':
+        return familyMembers.length < 1;
+      case 'friends':
+        return friends.length < 1;
+      case 'hobbies':
+        return hobbies.length < 1;
+      default:
+        return true;
+    }
+  };
+
+  const showSubscriptionPrompt = (sphere: LifeSphere) => {
+    // Directly navigate to paywall without showing alert
+    router.push('/paywall');
+  };
   
   // Reload memories when screen comes into focus (e.g., after running mock data script)
   useFocusEffect(
@@ -940,6 +966,11 @@ export default function SpheresScreen() {
     : [];
 
   const handleAddEntity = (sphere: LifeSphere) => {
+    if (!checkSubscriptionLimit(sphere)) {
+      showSubscriptionPrompt(sphere);
+      return;
+    }
+    
     switch (sphere) {
       case 'relationships':
         router.push('/add-ex-profile');
@@ -1087,7 +1118,13 @@ export default function SpheresScreen() {
           ) : relationshipsProfiles.length > 0 ? (
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() => router.push('/add-ex-profile')}
+              onPress={() => {
+                if (!checkSubscriptionLimit('relationships')) {
+                  showSubscriptionPrompt('relationships');
+                } else {
+                  router.push('/add-ex-profile');
+                }
+              }}
               activeOpacity={0.7}
             >
               <MaterialIcons name="add" size={24 * fontScale} color={colors.primary} />
@@ -1120,7 +1157,13 @@ export default function SpheresScreen() {
             <TouchableOpacity
               style={[styles.button, { backgroundColor: colors.primary }]}
               activeOpacity={0.8}
-              onPress={() => router.push('/add-ex-profile')}
+              onPress={() => {
+                if (!checkSubscriptionLimit('relationships')) {
+                  showSubscriptionPrompt('relationships');
+                } else {
+                  router.push('/add-ex-profile');
+                }
+              }}
             >
               <ThemedText weight="bold" letterSpacing="l" style={styles.buttonText}>
                 {t('profile.emptyState.button')}
@@ -2035,7 +2078,13 @@ export default function SpheresScreen() {
             {/* Premium Insights Button */}
             <TouchableOpacity
               style={styles.insightsButtonContainer}
-              onPress={() => router.push('/insights')}
+              onPress={() => {
+                if (!isSubscribed) {
+                  router.push('/paywall');
+                } else {
+                  router.push('/insights');
+                }
+              }}
               activeOpacity={0.9}
             >
               <LinearGradient

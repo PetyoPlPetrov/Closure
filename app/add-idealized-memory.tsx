@@ -11,9 +11,11 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     Dimensions,
     KeyboardAvoidingView,
     PanResponder,
@@ -489,6 +491,7 @@ export default function AddIdealizedMemoryScreen() {
     
     if (!hasOldMode && !hasNewMode) {
       alert(t('error.missingParameters'));
+      isNavigatingAway.current = true;
       router.back();
     }
   }, [entityId, profileId, sphere]);
@@ -498,6 +501,136 @@ export default function AddIdealizedMemoryScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(existingMemory?.imageUri || null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Track initial state for unsaved changes detection
+  const initialMemoryLabel = useRef(existingMemory?.title || '');
+  const initialSelectedImage = useRef(existingMemory?.imageUri || null);
+  const initialClouds = useRef<typeof clouds>([]);
+  const initialSuns = useRef<typeof suns>([]);
+  
+  // Navigation hook for intercepting back navigation
+  const navigation = useNavigation();
+  const isNavigatingAway = useRef(false);
+  
+  // Function to check if there are unsaved changes
+  const hasUnsavedChanges = useCallback(() => {
+    // Check if title changed
+    if (memoryLabel.trim() !== initialMemoryLabel.current.trim()) {
+      return true;
+    }
+    
+    // Check if image changed
+    if (selectedImage !== initialSelectedImage.current) {
+      return true;
+    }
+    
+    // Check if clouds changed (count, text, or positions)
+    if (clouds.length !== initialClouds.current.length) {
+      return true;
+    }
+    
+    // Check if cloud text or positions changed
+    for (const cloud of clouds) {
+      const initialCloud = initialClouds.current.find(c => c.id === cloud.id);
+      if (!initialCloud) {
+        return true; // New cloud added
+      }
+      if (cloud.text.trim() !== initialCloud.text.trim() || 
+          cloud.x !== initialCloud.x || 
+          cloud.y !== initialCloud.y) {
+        return true;
+      }
+    }
+    
+    // Check if any initial cloud was deleted
+    for (const initialCloud of initialClouds.current) {
+      if (!clouds.find(c => c.id === initialCloud.id)) {
+        return true;
+      }
+    }
+    
+    // Check if suns changed (count, text, or positions)
+    if (suns.length !== initialSuns.current.length) {
+      return true;
+    }
+    
+    // Check if sun text or positions changed
+    for (const sun of suns) {
+      const initialSun = initialSuns.current.find(s => s.id === sun.id);
+      if (!initialSun) {
+        return true; // New sun added
+      }
+      if (sun.text.trim() !== initialSun.text.trim() || 
+          sun.x !== initialSun.x || 
+          sun.y !== initialSun.y) {
+        return true;
+      }
+    }
+    
+    // Check if any initial sun was deleted
+    for (const initialSun of initialSuns.current) {
+      if (!suns.find(s => s.id === initialSun.id)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }, [memoryLabel, selectedImage, clouds, suns]);
+  
+  // Intercept navigation to show confirmation dialog if there are unsaved changes
+  useEffect(() => {
+    // Don't intercept navigation in view-only mode
+    if (viewOnly) {
+      return;
+    }
+    
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // Don't show dialog if we're intentionally navigating away
+      if (isNavigatingAway.current) {
+        return;
+      }
+      
+      // Don't show dialog if we're saving (navigation is intentional)
+      if (isSaving) {
+        return;
+      }
+      
+      // Don't show dialog if there are no unsaved changes
+      if (!hasUnsavedChanges()) {
+        return;
+      }
+      
+      // Prevent default behavior of leaving the screen
+      e.preventDefault();
+      
+      // Show confirmation dialog
+      Alert.alert(
+        t('memory.unsavedChanges.title'),
+        t('memory.unsavedChanges.message'),
+        [
+          {
+            text: t('common.cancel'),
+            style: 'cancel',
+            onPress: () => {
+              // Do nothing, stay on screen
+            },
+          },
+          {
+            text: t('common.discard'),
+            style: 'destructive',
+            onPress: () => {
+              // Mark as intentionally navigating away
+              isNavigatingAway.current = true;
+              // Navigate away
+              router.back();
+            },
+          },
+        ]
+      );
+    });
+    
+    return unsubscribe;
+  }, [navigation, hasUnsavedChanges, isSaving, t, viewOnly]);
   
   // Cloud bubbles state - array of clouds with position and animation
   const [clouds, setClouds] = useState<{
@@ -582,6 +715,8 @@ export default function AddIdealizedMemoryScreen() {
     if (existingMemory) {
       setMemoryLabel(existingMemory.title || '');
       setSelectedImage(existingMemory.imageUri || null);
+      initialMemoryLabel.current = existingMemory.title || '';
+      initialSelectedImage.current = existingMemory.imageUri || null;
       
       // Initialize clouds from existing memory
       if (existingMemory.hardTruths && existingMemory.hardTruths.length > 0) {
@@ -593,7 +728,7 @@ export default function AddIdealizedMemoryScreen() {
         const minY = padding;
         const maxY = screenH - cloudHeight - padding;
         
-        const initialClouds = existingMemory.hardTruths.map((truth) => {
+        const initialCloudsData = existingMemory.hardTruths.map((truth) => {
           // Use saved positions if available, otherwise calculate default position
           if (truth.x !== undefined && truth.y !== undefined) {
             // Clamp saved positions to ensure they're within viewport
@@ -617,7 +752,8 @@ export default function AddIdealizedMemoryScreen() {
           }
         });
         
-        setClouds(initialClouds);
+        setClouds(initialCloudsData);
+        initialClouds.current = initialCloudsData.map(c => ({ ...c }));
       }
 
       // Initialize suns from existing memory
@@ -630,7 +766,7 @@ export default function AddIdealizedMemoryScreen() {
         const minY = padding;
         const maxY = screenH - sunHeight - padding;
         
-        const initialSuns = existingMemory.goodFacts.map((fact) => {
+        const initialSunsData = existingMemory.goodFacts.map((fact) => {
           // Use saved positions if available, otherwise calculate default position
           if (fact.x !== undefined && fact.y !== undefined) {
             // Clamp saved positions to ensure they're within viewport
@@ -654,8 +790,15 @@ export default function AddIdealizedMemoryScreen() {
           }
         });
         
-        setSuns(initialSuns);
+        setSuns(initialSunsData);
+        initialSuns.current = initialSunsData.map(s => ({ ...s }));
       }
+    } else {
+      // New memory - initialize refs with empty state
+      initialMemoryLabel.current = '';
+      initialSelectedImage.current = null;
+      initialClouds.current = [];
+      initialSuns.current = [];
     }
   }, [existingMemory, cloudWidth, cloudHeight, sunWidth, sunHeight, getInitialCloudPosition, getInitialSunPosition]);
   
@@ -812,7 +955,14 @@ export default function AddIdealizedMemoryScreen() {
         }
       }
       
+      // Update initial state after saving to prevent false positives
+      initialMemoryLabel.current = memoryLabel.trim();
+      initialSelectedImage.current = selectedImage;
+      initialClouds.current = clouds.map(c => ({ ...c }));
+      initialSuns.current = suns.map(s => ({ ...s }));
+      
       // Navigate back after saving
+      isNavigatingAway.current = true;
       router.back();
     } catch (error) {
       console.error('Error saving memory:', error);
@@ -1352,7 +1502,39 @@ export default function AddIdealizedMemoryScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            // Don't check for changes in view-only mode
+            if (viewOnly) {
+              isNavigatingAway.current = true;
+              router.back();
+              return;
+            }
+            
+            // Check for unsaved changes before navigating
+            if (hasUnsavedChanges() && !isSaving) {
+              Alert.alert(
+                t('memory.unsavedChanges.title'),
+                t('memory.unsavedChanges.message'),
+                [
+                  {
+                    text: t('common.cancel'),
+                    style: 'cancel',
+                  },
+                  {
+                    text: t('common.discard'),
+                    style: 'destructive',
+                    onPress: () => {
+                      isNavigatingAway.current = true;
+                      router.back();
+                    },
+                  },
+                ]
+              );
+            } else {
+              isNavigatingAway.current = true;
+              router.back();
+            }
+          }}
         >
           <MaterialIcons name="arrow-back" size={26} color={colors.text} />
         </TouchableOpacity>
@@ -1381,13 +1563,20 @@ export default function AddIdealizedMemoryScreen() {
             <TouchableOpacity
               ref={containerRef}
               style={styles.uploadContainer}
-              onPress={viewOnly ? undefined : pickImage}
+              onPress={viewOnly ? undefined : () => {
+                // Don't open gallery if image is already selected
+                // User must remove current image first
+                if (selectedImage) {
+                  return;
+                }
+                pickImage();
+              }}
               onLayout={() => {
                 // Container ref is available for potential future use
               }}
               activeOpacity={0.8}
               delayPressIn={0}
-              disabled={isLoadingImage || viewOnly}
+              disabled={isLoadingImage || viewOnly || !!selectedImage}
             >
               {isLoadingImage ? (
                 <View style={styles.loadingContainer}>

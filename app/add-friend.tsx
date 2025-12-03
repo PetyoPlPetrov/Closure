@@ -8,6 +8,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useSubscription } from '@/utils/SubscriptionProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,7 +20,8 @@ export default function AddFriendScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
-  const { addFriend, updateFriend, getFriend } = useJourney();
+  const { addFriend, updateFriend, getFriend, friends } = useJourney();
+  const { isSubscribed } = useSubscription();
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
   const t = useTranslate();
@@ -33,6 +35,13 @@ export default function AddFriendScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Check subscription limit when component loads (only for new friends, not edits)
+  useEffect(() => {
+    if (!isEditMode && !isSubscribed && friends.length >= 1) {
+      router.replace('/paywall');
+    }
+  }, [isEditMode, isSubscribed, friends.length]);
 
   // Load existing friend data when in edit mode
   useEffect(() => {
@@ -80,6 +89,12 @@ export default function AddFriendScreen() {
   const handleSubmit = async () => {
     if (!name.trim()) {
       Alert.alert(t('common.error'), t('profile.friend.name.required'));
+      return;
+    }
+
+    // Check subscription limit for new friends (not edits)
+    if (!isEditMode && !isSubscribed && friends.length >= 1) {
+      router.replace('/paywall');
       return;
     }
 

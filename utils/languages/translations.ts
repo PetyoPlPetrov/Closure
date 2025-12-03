@@ -48,6 +48,9 @@ export interface Translations {
   'common.success': string;
   'common.error': string;
   'common.optional': string;
+  'common.discard': string;
+  'memory.unsavedChanges.title': string;
+  'memory.unsavedChanges.message': string;
   
   // Profile screens
   'profile.add': string;
@@ -217,6 +220,7 @@ export interface Translations {
   'insights.comparison.relationships.sphereComparison.balancedTime': string;
   'insights.comparison.relationships.sphereComparison.betterRelationshipQuality': string;
   'insights.comparison.relationships.sphereComparison.betterCareerQuality': string;
+  'insights.comparison.general.balance': string;
   'insights.comparison.career.title': string;
   'insights.comparison.career.chartTitle': string;
   'insights.comparison.career.subtitle': string;
@@ -419,6 +423,35 @@ export interface Translations {
   'error.missingParameters': string;
   'error.cameraPermissionRequired': string;
   'error.imagePickFailed': string;
+  
+  // Subscription
+  'subscription.title': string;
+  'subscription.subtitle': string;
+  'subscription.feature.unlimited': string;
+  'subscription.feature.insights': string;
+  'subscription.feature.support': string;
+  'subscription.monthly.title': string;
+  'subscription.monthly.period': string;
+  'subscription.yearly.title': string;
+  'subscription.yearly.period': string;
+  'subscription.yearly.savings': string;
+  'subscription.purchase': string;
+  'subscription.restore': string;
+  'subscription.view': string;
+  'subscription.success.title': string;
+  'subscription.success.message': string;
+  'subscription.error.title': string;
+  'subscription.error.message': string;
+  'subscription.restore.success.title': string;
+  'subscription.restore.success.message': string;
+  'subscription.restore.error.title': string;
+  'subscription.restore.error.message': string;
+  'subscription.limit.title': string;
+  'subscription.limit.partner': string;
+  'subscription.limit.job': string;
+  'subscription.limit.friend': string;
+  'subscription.limit.family': string;
+  'subscription.limit.hobby': string;
 }
 
 const translations: Record<Language, Translations> = {
@@ -465,6 +498,9 @@ const translations: Record<Language, Translations> = {
     'common.success': 'Success',
     'common.error': 'Error',
     'common.optional': 'Optional',
+    'common.discard': 'Discard',
+    'memory.unsavedChanges.title': 'Unsaved Changes',
+    'memory.unsavedChanges.message': 'You have unsaved changes. Are you sure you want to leave? Your changes will be lost.',
     
     // Profile screens
     'profile.add': 'Add Profile',
@@ -634,6 +670,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.relationships.sphereComparison.balancedTime': 'You have an approximately balanced work-life distribution between relationships and career.',
     'insights.comparison.relationships.sphereComparison.betterRelationshipQuality': 'Your relationships have significantly better quality (more sunny moments) compared to your career. Great job nurturing your connections!',
     'insights.comparison.relationships.sphereComparison.betterCareerQuality': 'Your career has significantly better quality (more sunny moments) compared to your relationships. Consider focusing more on building positive connections.',
+    'insights.comparison.general.balance': 'Remember to strive for balance in life. No sphere should be left behind - nurturing all aspects of your life contributes to overall well-being.',
     'insights.comparison.career.title': 'Career Comparison',
     'insights.comparison.career.chartTitle': 'How Sunny and Cloudy Moments Change Across Jobs',
     'insights.comparison.career.subtitle': 'Overall amount of moments',
@@ -836,6 +873,35 @@ const translations: Record<Language, Translations> = {
     'error.missingParameters': 'Missing required parameters. Please go back and try again.',
     'error.cameraPermissionRequired': 'Sorry, we need camera roll permissions to upload photos!',
     'error.imagePickFailed': 'Failed to pick image. Please try again.',
+    
+    // Subscription
+    'subscription.title': 'Unlock Premium',
+    'subscription.subtitle': 'Get unlimited access to all features',
+    'subscription.feature.unlimited': 'Unlimited partners, jobs, friends, family members, and hobbies',
+    'subscription.feature.insights': 'Access to premium insights and analytics',
+    'subscription.feature.support': 'Priority support and updates',
+    'subscription.monthly.title': 'Monthly',
+    'subscription.monthly.period': 'per month',
+    'subscription.yearly.title': 'Yearly',
+    'subscription.yearly.period': 'per year',
+    'subscription.yearly.savings': 'Save {percent}%',
+    'subscription.purchase': 'Subscribe',
+    'subscription.restore': 'Restore Purchases',
+    'subscription.view': 'View Plans',
+    'subscription.success.title': 'Success!',
+    'subscription.success.message': 'Your subscription is now active!',
+    'subscription.error.title': 'Purchase Failed',
+    'subscription.error.message': 'Something went wrong. Please try again.',
+    'subscription.restore.success.title': 'Restored',
+    'subscription.restore.success.message': 'Your purchases have been restored.',
+    'subscription.restore.error.title': 'Restore Failed',
+    'subscription.restore.error.message': 'No purchases found to restore.',
+    'subscription.limit.title': 'Subscription Required',
+    'subscription.limit.partner': 'You can create one partner for free. Subscribe to create more partners.',
+    'subscription.limit.job': 'You can create one job for free. Subscribe to create more jobs.',
+    'subscription.limit.friend': 'You can create one friend for free. Subscribe to create more friends.',
+    'subscription.limit.family': 'You can create one family member for free. Subscribe to create more family members.',
+    'subscription.limit.hobby': 'You can create one hobby for free. Subscribe to create more hobbies.',
   },
   bg: {
     // Tab labels
@@ -880,6 +946,9 @@ const translations: Record<Language, Translations> = {
     'common.done': 'Готово',
     'common.error': 'Грешка',
     'common.optional': 'Незадължително',
+    'common.discard': 'Отхвърли',
+    'memory.unsavedChanges.title': 'Незапазени промени',
+    'memory.unsavedChanges.message': 'Имате незапазени промени. Сигурни ли сте, че искате да напуснете? Промените ви ще бъдат загубени.',
     
     // Profile screens
     'profile.add': 'Добави Партньор',
@@ -1049,6 +1118,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.relationships.sphereComparison.balancedTime': 'Имате приблизително балансирано разпределение на работа и личен живот между връзки и кариера.',
     'insights.comparison.relationships.sphereComparison.betterRelationshipQuality': 'Вашите връзки имат значително по-добро качество (повече слънчеви моменти) в сравнение с кариерата ви. Отлична работа в поддържането на връзките!',
     'insights.comparison.relationships.sphereComparison.betterCareerQuality': 'Вашата кариера има значително по-добро качество (повече слънчеви моменти) в сравнение с връзките ви. Помислете да се фокусирате повече върху изграждането на позитивни връзки.',
+    'insights.comparison.general.balance': 'Не забравяйте да се стремите към баланс в живота. Никоя сфера не трябва да остане изоставена - грижата за всички аспекти на живота ви допринася за общото благополучие.',
     'insights.comparison.career.title': 'Сравнение на Кариера',
     'insights.comparison.career.chartTitle': 'Как Слънчевите и Облачните Моменти Се Променят При Работите',
     'insights.comparison.career.subtitle': 'Общо количество моменти',
@@ -1252,6 +1322,35 @@ const translations: Record<Language, Translations> = {
     'error.missingParameters': 'Липсват задължителни параметри. Моля, върнете се назад и опитайте отново.',
     'error.cameraPermissionRequired': 'Съжаляваме, нуждаем се от разрешение за достъп до галерията, за да качваме снимки!',
     'error.imagePickFailed': 'Неуспешно избиране на изображение. Моля, опитайте отново.',
+    
+    // Subscription
+    'subscription.title': 'Отключи Премиум',
+    'subscription.subtitle': 'Получи неограничен достъп до всички функции',
+    'subscription.feature.unlimited': 'Неограничени партньори, работни места, приятели, членове на семейството и хобита',
+    'subscription.feature.insights': 'Достъп до премиум анализи и статистики',
+    'subscription.feature.support': 'Приоритетна поддръжка и актуализации',
+    'subscription.monthly.title': 'Месечно',
+    'subscription.monthly.period': 'на месец',
+    'subscription.yearly.title': 'Годишно',
+    'subscription.yearly.period': 'на година',
+    'subscription.yearly.savings': 'Спестете {percent}%',
+    'subscription.purchase': 'Абонирай се',
+    'subscription.restore': 'Възстанови Покупки',
+    'subscription.view': 'Виж Планове',
+    'subscription.success.title': 'Успех!',
+    'subscription.success.message': 'Вашият абонамент е вече активен!',
+    'subscription.error.title': 'Неуспешна покупка',
+    'subscription.error.message': 'Нещо се обърка. Моля, опитайте отново.',
+    'subscription.restore.success.title': 'Възстановено',
+    'subscription.restore.success.message': 'Вашите покупки са възстановени.',
+    'subscription.restore.error.title': 'Неуспешно възстановяване',
+    'subscription.restore.error.message': 'Не са намерени покупки за възстановяване.',
+    'subscription.limit.title': 'Изисква се абонамент',
+    'subscription.limit.partner': 'Можете да създадете един партньор безплатно. Абонирайте се, за да създавате повече партньори.',
+    'subscription.limit.job': 'Можете да създадете едно работно място безплатно. Абонирайте се, за да създавате повече работни места.',
+    'subscription.limit.friend': 'Можете да създадете един приятел безплатно. Абонирайте се, за да създавате повече приятели.',
+    'subscription.limit.family': 'Можете да създадете един член на семейството безплатно. Абонирайте се, за да създавате повече членове на семейството.',
+    'subscription.limit.hobby': 'Можете да създадете едно хоби безплатно. Абонирайте се, за да създавате повече хобита.',
   },
 };
 

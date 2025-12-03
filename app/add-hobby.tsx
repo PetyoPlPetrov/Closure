@@ -8,6 +8,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useSubscription } from '@/utils/SubscriptionProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,7 +20,8 @@ export default function AddHobbyScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
-  const { addHobby, updateHobby, getHobby } = useJourney();
+  const { addHobby, updateHobby, getHobby, hobbies } = useJourney();
+  const { isSubscribed } = useSubscription();
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
   const t = useTranslate();
@@ -33,6 +35,13 @@ export default function AddHobbyScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Check subscription limit when component loads (only for new hobbies, not edits)
+  useEffect(() => {
+    if (!isEditMode && !isSubscribed && hobbies.length >= 1) {
+      router.replace('/paywall');
+    }
+  }, [isEditMode, isSubscribed, hobbies.length]);
 
   // Load existing hobby data when in edit mode
   useEffect(() => {
@@ -80,6 +89,12 @@ export default function AddHobbyScreen() {
   const handleSubmit = async () => {
     if (!name.trim()) {
       Alert.alert(t('common.error'), t('profile.hobby.name.required'));
+      return;
+    }
+
+    // Check subscription limit for new hobbies (not edits)
+    if (!isEditMode && !isSubscribed && hobbies.length >= 1) {
+      router.replace('/paywall');
       return;
     }
 
