@@ -704,6 +704,26 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         .map(item => item.idx);
     })() : [];
     
+    // Calculate maximum safe radius based on avatar position and viewport boundaries
+    // Memory size: 45px when focused, 30px when unfocused
+    const memorySize = isFocused ? 45 : 30;
+    const memoryRadiusSize = memorySize / 2; // Half the memory size
+    const safetyPadding = 10; // Small padding from viewport edge
+    
+    // Calculate distances from avatar center to each viewport edge
+    const distanceToTop = position.y;
+    const distanceToBottom = SCREEN_HEIGHT - position.y;
+    const distanceToLeft = position.x;
+    const distanceToRight = SCREEN_WIDTH - position.x;
+    
+    // Maximum safe radius is the minimum distance to any edge, minus memory radius and padding
+    const maxSafeRadius = Math.min(
+      distanceToTop,
+      distanceToBottom,
+      distanceToLeft,
+      distanceToRight
+    ) - memoryRadiusSize - safetyPadding;
+    
     return memories.map((memory, memIndex) => {
       // Calculate moment count for this memory
       const momentCount = (memory.hardTruths || []).length + (memory.goodFacts || []).length;
@@ -728,27 +748,70 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       
       // Adjust radius based on number of floating elements
       if (memories.length < 5) {
-        // When there are less than 5 elements, bring them closer to avatar
-        // In focused memory view, bring them even closer
-        const closerMultiplier = isFocused ? 0.45 : 0.6; // 55% reduction when focused, 40% when unfocused
-        variedRadius = variedRadius * closerMultiplier;
+        // When there are less than 5 elements, position them just a bit further from avatar
+        // But ensure single memory stays fully visible in viewport
+        if (memories.length === 1) {
+          // For single memory, keep it closer to ensure it's fully visible
+          const closerMultiplier = isFocused ? 0.9 : 0.95; // Slightly closer to ensure visibility
+          variedRadius = variedRadius * closerMultiplier;
+        } else {
+          // For 2-4 memories, position them just a bit further
+          const furtherMultiplier = isFocused ? 1.1 : 1.05; // 10% further when focused, 5% further when unfocused
+          variedRadius = variedRadius * furtherMultiplier;
+        }
       } else if (isFocused && memories.length > 5 && topTwoIndices.includes(memIndex)) {
         // When focused and there are more than 5 elements, push top 2 elements further away
         const additionalRadius = 50; // Significant additional distance for top 2 elements
         variedRadius = variedRadius + additionalRadius;
       }
       
-      // Distribute angles evenly around the circle
+      // CRITICAL: Ensure memory stays fully within viewport
+      // Calculate the actual position this memory would be at
       const angle = (memIndex * 2 * Math.PI) / memories.length;
-      
-      // Add slight angle variation for more organic feel
       const angleVariation = (Math.cos(variationSeed * 2) * 0.15); // ±15% angle variation
       const variedAngle = angle + angleVariation;
       
+      // CRITICAL: Calculate maximum safe radius for this specific angle
+      // We need to ensure the memory circle (center + radius) stays fully within viewport
+      const cosAngle = Math.cos(variedAngle);
+      const sinAngle = Math.sin(variedAngle);
+      
+      // Calculate maximum radius based on horizontal constraint (X direction)
+      let maxRadiusX: number;
+      if (cosAngle > 0) {
+        // Moving right - limited by right edge
+        maxRadiusX = (distanceToRight - memoryRadiusSize - safetyPadding) / Math.abs(cosAngle);
+      } else if (cosAngle < 0) {
+        // Moving left - limited by left edge
+        maxRadiusX = (distanceToLeft - memoryRadiusSize - safetyPadding) / Math.abs(cosAngle);
+      } else {
+        // cosAngle === 0, moving vertically only
+        maxRadiusX = Infinity;
+      }
+      
+      // Calculate maximum radius based on vertical constraint (Y direction)
+      let maxRadiusY: number;
+      if (sinAngle > 0) {
+        // Moving down - limited by bottom edge
+        maxRadiusY = (distanceToBottom - memoryRadiusSize - safetyPadding) / Math.abs(sinAngle);
+      } else if (sinAngle < 0) {
+        // Moving up - limited by top edge
+        maxRadiusY = (distanceToTop - memoryRadiusSize - safetyPadding) / Math.abs(sinAngle);
+      } else {
+        // sinAngle === 0, moving horizontally only
+        maxRadiusY = Infinity;
+      }
+      
+      // The maximum safe radius is the minimum of both constraints
+      const maxRadiusInDirection = Math.min(maxRadiusX, maxRadiusY, maxSafeRadius);
+      
+      // Clamp variedRadius to ensure memory stays fully visible
+      variedRadius = Math.min(variedRadius, Math.max(0, maxRadiusInDirection));
+      
       return {
         angle: variedAngle,
-        offsetX: variedRadius * Math.cos(variedAngle),
-        offsetY: variedRadius * Math.sin(variedAngle),
+        offsetX: variedRadius * cosAngle,
+        offsetY: variedRadius * sinAngle,
       };
     });
   }, [memories, memoryRadius, isFocused]);
@@ -2850,7 +2913,7 @@ const FloatingEntity = React.memo(function FloatingEntity({
   colorScheme: 'light' | 'dark';
   colors: any;
   delay?: number;
-  entityType: 'partner' | 'job' | 'family';
+  entityType: 'partner' | 'job' | 'family' | 'friend' | 'hobby';
   memories: any[];
   selectedSphere: LifeSphere | null;
   zoomProgress: ReturnType<typeof useSharedValue<number>>;
@@ -2935,9 +2998,13 @@ const FloatingEntity = React.memo(function FloatingEntity({
         return colorScheme === 'dark' ? 'rgba(255, 150, 150, 0.6)' : 'rgba(255, 200, 200, 0.7)';
       } else if (entityType === 'job') {
         return colorScheme === 'dark' ? 'rgba(150, 200, 255, 0.6)' : 'rgba(200, 230, 255, 0.7)';
-      } else {
-        // family
+      } else if (entityType === 'family') {
         return colorScheme === 'dark' ? 'rgba(200, 150, 255, 0.6)' : 'rgba(230, 200, 255, 0.7)';
+      } else if (entityType === 'friend') {
+        return colorScheme === 'dark' ? 'rgba(139, 92, 246, 0.6)' : 'rgba(167, 139, 250, 0.7)';
+      } else {
+        // hobby
+        return colorScheme === 'dark' ? 'rgba(249, 115, 22, 0.6)' : 'rgba(255, 157, 88, 0.7)';
       }
     } else {
       // More cloudy - darker colors
@@ -2945,9 +3012,13 @@ const FloatingEntity = React.memo(function FloatingEntity({
         return colorScheme === 'dark' ? 'rgba(180, 60, 60, 0.7)' : 'rgba(200, 100, 100, 0.6)';
       } else if (entityType === 'job') {
         return colorScheme === 'dark' ? 'rgba(60, 100, 180, 0.7)' : 'rgba(100, 130, 200, 0.6)';
-      } else {
-        // family
+      } else if (entityType === 'family') {
         return colorScheme === 'dark' ? 'rgba(120, 60, 180, 0.7)' : 'rgba(150, 100, 200, 0.6)';
+      } else if (entityType === 'friend') {
+        return colorScheme === 'dark' ? 'rgba(88, 28, 135, 0.7)' : 'rgba(124, 58, 237, 0.6)';
+      } else {
+        // hobby
+        return colorScheme === 'dark' ? 'rgba(154, 52, 18, 0.7)' : 'rgba(234, 88, 12, 0.6)';
       }
     }
   }, [isMoreSunny, entityType, colorScheme]);
@@ -3005,7 +3076,9 @@ const FloatingEntity = React.memo(function FloatingEntity({
           <MaterialIcons 
             name={
               entityType === 'partner' ? 'person' : 
-              entityType === 'family' ? 'people' : 
+              entityType === 'family' ? 'family-restroom' : 
+              entityType === 'friend' ? 'people' :
+              entityType === 'hobby' ? 'sports-esports' :
               'work'
             } 
             size={16} 
@@ -3042,6 +3115,8 @@ const SphereAvatar = React.memo(function SphereAvatar({
     relationships: 'favorite',
     career: 'work',
     family: 'family-restroom',
+    friends: 'people',
+    hobbies: 'sports-esports',
   };
   
   // Determine sphere background color based on sunny vs cloudy
@@ -3076,7 +3151,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
           ? `rgba(60, 100, 180, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker blue
           : `rgba(100, 130, 200, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker blue
       }
-    } else {
+    } else if (sphere === 'family') {
       // Family sphere
       if (isMoreSunny) {
         // More sunny - lighter purple/violet
@@ -3090,6 +3165,30 @@ const SphereAvatar = React.memo(function SphereAvatar({
           ? `rgba(120, 60, 180, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker purple
           : `rgba(150, 100, 200, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker purple
       }
+    } else if (sphere === 'friends') {
+      // Friends sphere - purple/violet
+      if (isMoreSunny) {
+        return colorScheme === 'dark' 
+          ? `rgba(139, 92, 246, ${0.4 + (sunnyPercentage / 100) * 0.3})` // Lighter purple
+          : `rgba(167, 139, 250, ${0.5 + (sunnyPercentage / 100) * 0.3})`; // Lighter purple
+      } else {
+        const cloudyPercentage = 100 - sunnyPercentage;
+        return colorScheme === 'dark'
+          ? `rgba(88, 28, 135, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker purple
+          : `rgba(124, 58, 237, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker purple
+      }
+    } else {
+      // Hobbies sphere - orange
+      if (isMoreSunny) {
+        return colorScheme === 'dark' 
+          ? `rgba(249, 115, 22, ${0.4 + (sunnyPercentage / 100) * 0.3})` // Lighter orange
+          : `rgba(255, 157, 88, ${0.5 + (sunnyPercentage / 100) * 0.3})`; // Lighter orange
+      } else {
+        const cloudyPercentage = 100 - sunnyPercentage;
+        return colorScheme === 'dark'
+          ? `rgba(154, 52, 18, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker orange
+          : `rgba(234, 88, 12, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker orange
+      }
     }
   }, [sunnyPercentage, colorScheme, sphere]);
 
@@ -3101,18 +3200,22 @@ const SphereAvatar = React.memo(function SphereAvatar({
     relationships: 0,
     career: 500,
     family: 1000,
+    friends: 1500,
+    hobbies: 2000,
   }), []);
   
   const animationDurations = useMemo(() => ({
     relationships: 2000,
     career: 1800,
     family: 1900,
+    friends: 1950,
+    hobbies: 1850,
   }), []);
 
   // Track if this sphere is selected using shared values (worklet-compatible)
-  // Use numeric encoding: 0 = relationships, 1 = career, -1 = null
-  const sphereTypeNum = sphere === 'relationships' ? 0 : sphere === 'career' ? 1 : sphere === 'family' ? 2 : -1;
-  const selectedSphereNum = selectedSphere === 'relationships' ? 0 : selectedSphere === 'career' ? 1 : selectedSphere === 'family' ? 2 : -1;
+  // Use numeric encoding: 0 = relationships, 1 = career, 2 = family, 3 = friends, 4 = hobbies, -1 = null
+  const sphereTypeNum = sphere === 'relationships' ? 0 : sphere === 'career' ? 1 : sphere === 'family' ? 2 : sphere === 'friends' ? 3 : sphere === 'hobbies' ? 4 : -1;
+  const selectedSphereNum = selectedSphere === 'relationships' ? 0 : selectedSphere === 'career' ? 1 : selectedSphere === 'family' ? 2 : selectedSphere === 'friends' ? 3 : selectedSphere === 'hobbies' ? 4 : -1;
   
   const selectedSphereNumShared = useSharedValue(selectedSphereNum);
   const isSelectedFlag = useSharedValue(selectedSphereNum === sphereTypeNum ? 1 : 0);
@@ -3121,7 +3224,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
   // Update shared values immediately when selectedSphere changes using useLayoutEffect
   React.useLayoutEffect(() => {
     // Convert selectedSphere to numeric value
-    const newSelectedNum = selectedSphere === 'relationships' ? 0 : selectedSphere === 'career' ? 1 : selectedSphere === 'family' ? 2 : -1;
+    const newSelectedNum = selectedSphere === 'relationships' ? 0 : selectedSphere === 'career' ? 1 : selectedSphere === 'family' ? 2 : selectedSphere === 'friends' ? 3 : selectedSphere === 'hobbies' ? 4 : -1;
     
     // Update all shared values immediately and synchronously
     selectedSphereNumShared.value = newSelectedNum;
@@ -3260,6 +3363,8 @@ export default function HomeScreen() {
     profiles, 
     jobs, 
     familyMembers,
+    friends,
+    hobbies,
     idealizedMemories,
     getIdealizedMemoriesByProfileId, 
     getIdealizedMemoriesByEntityId,
@@ -3270,6 +3375,8 @@ export default function HomeScreen() {
     reloadProfiles,
     reloadJobs,
     reloadFamilyMembers,
+    reloadFriends,
+    reloadHobbies,
   } = useJourney();
   const t = useTranslate();
   
@@ -3291,6 +3398,8 @@ export default function HomeScreen() {
         reloadProfiles(),
         reloadJobs(),
         reloadFamilyMembers(),
+        reloadFriends(),
+        reloadHobbies(),
       ]).catch((error) => {
         console.error('[HomeScreen] Error reloading data:', error);
         hasReloadedRef.current = false; // Reset on error so we can retry
@@ -3300,12 +3409,12 @@ export default function HomeScreen() {
       return () => {
         hasReloadedRef.current = false;
       };
-    }, [reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers])
+    }, [reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies])
   );
   
   // Track selected sphere (null = showing all spheres, otherwise showing focused sphere)
   // Initialize from URL params if present
-  const sphereParam = params.sphere && typeof params.sphere === 'string' && ['relationships', 'career', 'family'].includes(params.sphere) 
+  const sphereParam = params.sphere && typeof params.sphere === 'string' && ['relationships', 'career', 'family', 'friends', 'hobbies'].includes(params.sphere) 
     ? (params.sphere as LifeSphere)
     : null;
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(sphereParam);
@@ -3426,25 +3535,84 @@ export default function HomeScreen() {
     
     return (totalSuns / total) * 100;
   }, [familyMembers, getIdealizedMemoriesByEntityId]);
+
+  // Calculate sunny percentage for friends sphere (all friends)
+  const friendsSunnyPercentage = useMemo(() => {
+    let totalClouds = 0;
+    let totalSuns = 0;
+    
+    friends.forEach(friend => {
+      const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
+      memories.forEach((memory) => {
+        totalClouds += (memory.hardTruths || []).length;
+        totalSuns += (memory.goodFacts || []).length;
+      });
+    });
+    
+    const total = totalClouds + totalSuns;
+    if (total === 0) return 50; // Default to neutral if no moments
+    
+    return (totalSuns / total) * 100;
+  }, [friends, getIdealizedMemoriesByEntityId]);
+
+  // Calculate sunny percentage for hobbies sphere (all hobbies)
+  const hobbiesSunnyPercentage = useMemo(() => {
+    let totalClouds = 0;
+    let totalSuns = 0;
+    
+    hobbies.forEach(hobby => {
+      const memories = getIdealizedMemoriesByEntityId(hobby.id, 'hobbies');
+      memories.forEach((memory) => {
+        totalClouds += (memory.hardTruths || []).length;
+        totalSuns += (memory.goodFacts || []).length;
+      });
+    });
+    
+    const total = totalClouds + totalSuns;
+    if (total === 0) return 50; // Default to neutral if no moments
+    
+    return (totalSuns / total) * 100;
+  }, [hobbies, getIdealizedMemoriesByEntityId]);
   
-  // Calculate sphere positions (triangular layout around center)
+  // Calculate sphere positions (evenly distributed in a circle for 5 spheres)
   const spherePositions = useMemo(() => {
     const centerX = SCREEN_WIDTH / 2;
     const centerY = SCREEN_HEIGHT / 2;
     const radius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3; // Distance from center
     
+    // 5 spheres evenly distributed around a circle
+    // Start from top (-90 degrees) and distribute evenly: 360 / 5 = 72 degrees apart
+    const numSpheres = 5;
+    const angleStep = (2 * Math.PI) / numSpheres; // 72 degrees in radians
+    const startAngle = -Math.PI / 2; // Start from top (-90 degrees)
+    
+    // Calculate positions for each sphere
+    const relationshipsAngle = startAngle + 0 * angleStep;
+    const careerAngle = startAngle + 1 * angleStep;
+    const familyAngle = startAngle + 2 * angleStep;
+    const friendsAngle = startAngle + 3 * angleStep;
+    const hobbiesAngle = startAngle + 4 * angleStep;
+    
     return {
       relationships: {
-        x: centerX,
-        y: centerY - radius, // Top
+        x: centerX + radius * Math.cos(relationshipsAngle),
+        y: centerY + radius * Math.sin(relationshipsAngle),
       },
       career: {
-        x: centerX - radius * Math.cos(Math.PI / 6),
-        y: centerY + radius * Math.sin(Math.PI / 6), // Bottom left
+        x: centerX + radius * Math.cos(careerAngle),
+        y: centerY + radius * Math.sin(careerAngle),
       },
       family: {
-        x: centerX + radius * Math.cos(Math.PI / 6),
-        y: centerY + radius * Math.sin(Math.PI / 6), // Bottom right
+        x: centerX + radius * Math.cos(familyAngle),
+        y: centerY + radius * Math.sin(familyAngle),
+      },
+      friends: {
+        x: centerX + radius * Math.cos(friendsAngle),
+        y: centerY + radius * Math.sin(friendsAngle),
+      },
+      hobbies: {
+        x: centerX + radius * Math.cos(hobbiesAngle),
+        y: centerY + radius * Math.sin(hobbiesAngle),
       },
     };
   }, []);
@@ -3719,6 +3887,48 @@ export default function HomeScreen() {
     
     return sections;
   }, [familyMembers]);
+
+  // Calculate sections for friends (single section covering all, no year grouping)
+  const friendsYearSections = React.useMemo(() => {
+    const sections = new Map<string, { year: number | string; top: number; bottom: number; height: number }>();
+    const exZoneRadius = 0;
+    const topPadding = exZoneRadius + 20;
+    const bottomPadding = exZoneRadius + 20;
+    const availableHeight = SCREEN_HEIGHT - topPadding - bottomPadding;
+    
+    // Create a single section for all friends
+    if (friends.length > 0) {
+      sections.set('all', {
+        year: 'Friends',
+        top: topPadding,
+        bottom: topPadding + availableHeight,
+        height: availableHeight,
+      });
+    }
+    
+    return sections;
+  }, [friends]);
+
+  // Calculate sections for hobbies (single section covering all, no year grouping)
+  const hobbiesYearSections = React.useMemo(() => {
+    const sections = new Map<string, { year: number | string; top: number; bottom: number; height: number }>();
+    const exZoneRadius = 0;
+    const topPadding = exZoneRadius + 20;
+    const bottomPadding = exZoneRadius + 20;
+    const availableHeight = SCREEN_HEIGHT - topPadding - bottomPadding;
+    
+    // Create a single section for all hobbies
+    if (hobbies.length > 0) {
+      sections.set('all', {
+        year: 'Hobbies',
+        top: topPadding,
+        bottom: topPadding + availableHeight,
+        height: availableHeight,
+      });
+    }
+    
+    return sections;
+  }, [hobbies]);
   
   // Check if splash is still visible - delay heavy animations until splash is done
   const { isVisible: isSplashVisible } = useSplash();
@@ -3952,7 +4162,9 @@ export default function HomeScreen() {
   const [focusedProfileId, setFocusedProfileId] = useState<string | null>(null);
   const [focusedJobId, setFocusedJobId] = useState<string | null>(null);
   const [focusedFamilyMemberId, setFocusedFamilyMemberId] = useState<string | null>(null);
-  const [focusedMemory, setFocusedMemory] = useState<{ profileId?: string; jobId?: string; familyMemberId?: string; memoryId: string; sphere: LifeSphere } | null>(null);
+  const [focusedFriendId, setFocusedFriendId] = useState<string | null>(null);
+  const [focusedHobbyId, setFocusedHobbyId] = useState<string | null>(null);
+  const [focusedMemory, setFocusedMemory] = useState<{ profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null>(null);
   
   // Helper: Get focusedMemory only if it matches the current selectedSphere
   // This ensures cross-sphere focusedMemory is ignored everywhere
@@ -4002,6 +4214,9 @@ export default function HomeScreen() {
     const profileId = params.profileId as string | undefined;
     const jobId = params.jobId as string | undefined;
     const familyMemberId = params.familyMemberId as string | undefined;
+    const friendId = params.friendId as string | undefined;
+    const hobbyId = params.hobbyId as string | undefined;
+    const entityId = params.entityId as string | undefined;
     const sphere = params.sphere as LifeSphere | undefined;
     
     if (focusedMemoryId && sphere) {
@@ -4017,9 +4232,28 @@ export default function HomeScreen() {
         setFocusedMemory({ familyMemberId, memoryId: focusedMemoryId, sphere });
         setFocusedFamilyMemberId(familyMemberId);
         setSelectedSphere('family');
+      } else if ((friendId || entityId) && sphere === 'friends') {
+        const id = friendId || entityId;
+        setFocusedMemory({ friendId: id, memoryId: focusedMemoryId, sphere });
+        setFocusedFriendId(id!);
+        setSelectedSphere('friends');
+      } else if ((hobbyId || entityId) && sphere === 'hobbies') {
+        const id = hobbyId || entityId;
+        setFocusedMemory({ hobbyId: id, memoryId: focusedMemoryId, sphere });
+        setFocusedHobbyId(id!);
+        setSelectedSphere('hobbies');
+      }
+    } else if (entityId && sphere) {
+      // Handle navigation from spheres tab without focused memory
+      if (sphere === 'friends') {
+        setFocusedFriendId(entityId);
+        setSelectedSphere('friends');
+      } else if (sphere === 'hobbies') {
+        setFocusedHobbyId(entityId);
+        setSelectedSphere('hobbies');
       }
     }
-  }, [params.focusedMemoryId, params.profileId, params.jobId, params.familyMemberId, params.sphere]);
+  }, [params.focusedMemoryId, params.profileId, params.jobId, params.familyMemberId, params.friendId, params.hobbyId, params.entityId, params.sphere]);
 
   // Ensure entity is focused when memory is focused (for state consistency after tab switches)
   // CRITICAL: Only sync if the memory's sphere matches the selected sphere
@@ -4039,6 +4273,16 @@ export default function HomeScreen() {
         // Ensure family member is focused when its memory is focused
         if (!focusedFamilyMemberId || focusedFamilyMemberId !== focusedMemory.familyMemberId) {
           setFocusedFamilyMemberId(focusedMemory.familyMemberId);
+        }
+      } else if (focusedMemory.friendId && selectedSphere === 'friends') {
+        // Ensure friend is focused when its memory is focused
+        if (!focusedFriendId || focusedFriendId !== focusedMemory.friendId) {
+          setFocusedFriendId(focusedMemory.friendId);
+        }
+      } else if (focusedMemory.hobbyId && selectedSphere === 'hobbies') {
+        // Ensure hobby is focused when its memory is focused
+        if (!focusedHobbyId || focusedHobbyId !== focusedMemory.hobbyId) {
+          setFocusedHobbyId(focusedMemory.hobbyId);
         }
       }
     } else if (focusedMemory && focusedMemory.sphere !== selectedSphere) {
@@ -4303,7 +4547,7 @@ export default function HomeScreen() {
             />
           </View>
 
-          {/* Three Spheres */}
+          {/* Five Spheres */}
           {animationsReady && (
             <>
               <SphereAvatar
@@ -4316,6 +4560,9 @@ export default function HomeScreen() {
                   setFocusedMemory(null);
                   setFocusedProfileId(null);
                   setFocusedJobId(null);
+                  setFocusedFamilyMemberId(null);
+                  setFocusedFriendId(null);
+                  setFocusedHobbyId(null);
                   setAnimationsComplete(false); // Reset animations immediately
                   setSelectedSphere('relationships');
                 }}
@@ -4334,6 +4581,8 @@ export default function HomeScreen() {
                   setFocusedProfileId(null);
                   setFocusedJobId(null);
                   setFocusedFamilyMemberId(null);
+                  setFocusedFriendId(null);
+                  setFocusedHobbyId(null);
                   setAnimationsComplete(false); // Reset animations immediately
                   setSelectedSphere('career');
                 }}
@@ -4352,10 +4601,52 @@ export default function HomeScreen() {
                   setFocusedProfileId(null);
                   setFocusedJobId(null);
                   setFocusedFamilyMemberId(null);
+                  setFocusedFriendId(null);
+                  setFocusedHobbyId(null);
                   setAnimationsComplete(false); // Reset animations immediately
                   setSelectedSphere('family');
                 }}
                 sunnyPercentage={familySunnyPercentage}
+                selectedSphere={selectedSphere}
+                zoomProgress={sphereZoomProgress}
+              />
+              <SphereAvatar
+                sphere="friends"
+                position={spherePositions.friends}
+                colorScheme={colorScheme ?? 'dark'}
+                colors={colors}
+                onPress={() => {
+                  // Clear all focus states when selecting a sphere to ensure fresh start
+                  setFocusedMemory(null);
+                  setFocusedProfileId(null);
+                  setFocusedJobId(null);
+                  setFocusedFamilyMemberId(null);
+                  setFocusedFriendId(null);
+                  setFocusedHobbyId(null);
+                  setAnimationsComplete(false); // Reset animations immediately
+                  setSelectedSphere('friends');
+                }}
+                sunnyPercentage={friendsSunnyPercentage}
+                selectedSphere={selectedSphere}
+                zoomProgress={sphereZoomProgress}
+              />
+              <SphereAvatar
+                sphere="hobbies"
+                position={spherePositions.hobbies}
+                colorScheme={colorScheme ?? 'dark'}
+                colors={colors}
+                onPress={() => {
+                  // Clear all focus states when selecting a sphere to ensure fresh start
+                  setFocusedMemory(null);
+                  setFocusedProfileId(null);
+                  setFocusedJobId(null);
+                  setFocusedFamilyMemberId(null);
+                  setFocusedFriendId(null);
+                  setFocusedHobbyId(null);
+                  setAnimationsComplete(false); // Reset animations immediately
+                  setSelectedSphere('hobbies');
+                }}
+                sunnyPercentage={hobbiesSunnyPercentage}
                 selectedSphere={selectedSphere}
                 zoomProgress={sphereZoomProgress}
               />
@@ -4431,6 +4722,58 @@ export default function HomeScreen() {
                     colors={colors}
                     delay={index * 200}
                     entityType="family"
+                    memories={memories}
+                    selectedSphere={selectedSphere}
+                    zoomProgress={sphereZoomProgress}
+                  />
+                );
+              })}
+              
+              {/* Floating Friends around Friends Sphere */}
+              {friends.slice(0, Math.min(friends.length, 5)).map((friend, index) => {
+                const totalFriends = Math.min(friends.length, 5);
+                const angle = (index * 2 * Math.PI) / totalFriends;
+                const radius = 65; // Closer to sphere (reduced from 100)
+                const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
+                
+                const x = spherePositions.friends.x + Math.cos(angle) * radius;
+                const y = spherePositions.friends.y + Math.sin(angle) * radius;
+                
+                return (
+                  <FloatingEntity
+                    key={`floating-friend-${friend.id}`}
+                    entity={friend}
+                    position={{ x, y }}
+                    colorScheme={colorScheme ?? 'dark'}
+                    colors={colors}
+                    delay={index * 200}
+                    entityType="friend"
+                    memories={memories}
+                    selectedSphere={selectedSphere}
+                    zoomProgress={sphereZoomProgress}
+                  />
+                );
+              })}
+              
+              {/* Floating Hobbies around Hobbies Sphere */}
+              {hobbies.slice(0, Math.min(hobbies.length, 5)).map((hobby, index) => {
+                const totalHobbies = Math.min(hobbies.length, 5);
+                const angle = (index * 2 * Math.PI) / totalHobbies;
+                const radius = 65; // Closer to sphere (reduced from 100)
+                const memories = getIdealizedMemoriesByEntityId(hobby.id, 'hobbies');
+                
+                const x = spherePositions.hobbies.x + Math.cos(angle) * radius;
+                const y = spherePositions.hobbies.y + Math.sin(angle) * radius;
+                
+                return (
+                  <FloatingEntity
+                    key={`floating-hobby-${hobby.id}`}
+                    entity={hobby}
+                    position={{ x, y }}
+                    colorScheme={colorScheme ?? 'dark'}
+                    colors={colors}
+                    delay={index * 200}
+                    entityType="hobby"
                     memories={memories}
                     selectedSphere={selectedSphere}
                     zoomProgress={sphereZoomProgress}
@@ -5077,6 +5420,428 @@ export default function HomeScreen() {
     );
   }
 
+  // For friends sphere, show friends in a simple list (no year sections)
+  if (selectedSphere === 'friends') {
+    return (
+      <TabScreenContainer>
+        <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
+          {/* Back button to return to sphere view */}
+          <Pressable
+            onPress={() => {
+              const returnTo = params.returnTo as string | undefined;
+              const returnToId = params.returnToId as string | undefined;
+              
+              if (returnTo && returnToId) {
+                router.back();
+                return;
+              }
+              
+              if (focusedMemory) {
+                setFocusedMemory(null);
+                if (!focusedFriendId || (focusedMemory.friendId && focusedFriendId !== focusedMemory.friendId)) {
+                  setFocusedFriendId(focusedMemory.friendId || null);
+                }
+              } else if (focusedFriendId) {
+                setFocusedFriendId(null);
+                setFocusedMemory(null);
+              } else {
+                setFocusedMemory(null);
+                setFocusedProfileId(null);
+                setFocusedJobId(null);
+                setFocusedFamilyMemberId(null);
+                setFocusedFriendId(null);
+                setFocusedHobbyId(null);
+                setSelectedSphere(null);
+              }
+            }}
+            style={{
+              position: 'absolute',
+              top: 50,
+              left: 20,
+              zIndex: 1000,
+              width: 50,
+              height: 50,
+              borderRadius: 25,
+              backgroundColor: colors.background,
+              justifyContent: 'center',
+              alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 5,
+            }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+          </Pressable>
+          
+          {/* Memory title header - shown when memory is focused */}
+          {focusedMemory && (() => {
+            const entityId = focusedMemory.profileId || focusedMemory.jobId || focusedMemory.familyMemberId || focusedMemory.friendId || focusedMemory.hobbyId;
+            const sphere = focusedMemory.sphere;
+            if (!entityId) return null;
+            
+            const memories = getIdealizedMemoriesByEntityId(entityId, sphere);
+            
+            const memoryData = memories.find(m => m.id === focusedMemory.memoryId);
+            if (!memoryData) return null;
+            
+            return (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 50,
+                  left: 80,
+                  right: 20,
+                  zIndex: 1000,
+                  paddingHorizontal: 12,
+                  paddingVertical: 12,
+                  backgroundColor: 'transparent',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <ThemedText
+                  size="l"
+                  weight="semibold"
+                  numberOfLines={2}
+                  style={{
+                    color: colors.text,
+                    textAlign: 'center',
+                  }}
+                >
+                  {memoryData.title}
+                </ThemedText>
+              </View>
+            );
+          })()}
+          
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={[
+              styles.content,
+              {
+                minHeight: SCREEN_HEIGHT,
+                height: Math.max(
+                  SCREEN_HEIGHT,
+                  friends.length > 0
+                    ? (friends.length - 1) * ((SCREEN_HEIGHT - (120 + 20) * 2) / Math.max(1, friends.length - 1)) + (120 + 20) * 2
+                    : SCREEN_HEIGHT
+                ),
+                justifyContent: 'flex-start',
+                alignItems: 'flex-start',
+              },
+            ]}
+            showsVerticalScrollIndicator={true}
+            scrollEnabled={!focusedFriendId && !focusedMemory}
+          >
+            {/* Render friends with year section backgrounds (titles hidden) */}
+            {animationsReady && !focusedMemory && (
+              <>
+                {/* Year section backgrounds - titles are hidden */}
+                {Array.from(friendsYearSections.entries()).map(([key, section]) => (
+                  <YearSectionBackground
+                    key={`friends-year-section-bg-${key}`}
+                    section={section}
+                    colorScheme={colorScheme ?? 'dark'}
+                    hideTitle={true}
+                  />
+                ))}
+                
+                {/* Show friends distributed within the section */}
+                {friends.map((friend, index) => {
+                  const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
+                  
+                  // Get the section for friends
+                  const section = friendsYearSections.get('all');
+                  
+                  // Distribute friends vertically within the section
+                  const totalFriends = friends.length;
+                  const sectionCenterY = section ? section.top + section.height / 2 : SCREEN_HEIGHT / 2;
+                  
+                  // Increased spacing between friends for better visual separation
+                  const minSpacing = 200;
+                  const verticalSpacing = totalFriends > 1 
+                    ? Math.max(minSpacing, Math.min((section?.height || SCREEN_HEIGHT) / (totalFriends + 1), 250))
+                    : 0;
+                  
+                  const position = {
+                    x: SCREEN_WIDTH / 2,
+                    y: totalFriends === 1
+                      ? sectionCenterY
+                      : (section?.top || 150) + verticalSpacing * (index + 1)
+                  };
+                  
+                  const isFocused = focusedFriendId === friend.id;
+                  
+                  // Hide unfocused friends when a friend is focused
+                  if (focusedFriendId && !isFocused) {
+                    return null;
+                  }
+                  
+                  return (
+                    <FloatingAvatar
+                      key={`friend-${friend.id}`}
+                      profile={friend}
+                      position={position}
+                      memories={memories}
+                      onPress={() => {
+                        const newFocusedId = focusedFriendId === friend.id ? null : friend.id;
+                        setFocusedFriendId(newFocusedId);
+                        setFocusedMemory(null);
+                      }}
+                      colors={colors}
+                      colorScheme={colorScheme ?? 'dark'}
+                      isFocused={isFocused}
+                      focusedMemory={(() => {
+                        if (!focusedMemory) return null;
+                        const mem = focusedMemory as { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere };
+                        if (mem.friendId === friend.id && mem.sphere === 'friends') {
+                          return mem;
+                        }
+                        return null;
+                      })()}
+                      onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'friends') => {
+                        setFocusedMemory({ friendId: entityId, memoryId, sphere });
+                      }}
+                      yearSection={section}
+                    />
+                  );
+                })}
+              </>
+            )}
+            
+            {/* Render focused memory separately when memory is focused */}
+            {focusedMemory && animationsReady && (
+              <FocusedMemoryRenderer
+                focusedMemory={focusedMemory}
+                sortedProfiles={sortedProfiles}
+                sortedJobs={sortedJobs}
+                getIdealizedMemoriesByProfileId={getIdealizedMemoriesByProfileId}
+                getIdealizedMemoriesByEntityId={getIdealizedMemoriesByEntityId}
+                updateIdealizedMemory={updateIdealizedMemory}
+                colorScheme={colorScheme ?? 'dark'}
+                memorySlideOffset={memorySlideOffset}
+                setFocusedMemory={setFocusedMemory}
+              />
+            )}
+          </ScrollView>
+        </View>
+      </TabScreenContainer>
+    );
+  }
+
+  // For hobbies sphere, show hobbies in a simple list (no year sections)
+  if (selectedSphere === 'hobbies') {
+    return (
+      <TabScreenContainer>
+        <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
+          {/* Back button to return to sphere view */}
+          <Pressable
+            onPress={() => {
+              const returnTo = params.returnTo as string | undefined;
+              const returnToId = params.returnToId as string | undefined;
+              
+              if (returnTo && returnToId) {
+                router.back();
+                return;
+              }
+              
+              if (focusedMemory) {
+                setFocusedMemory(null);
+                if (!focusedHobbyId || (focusedMemory.hobbyId && focusedHobbyId !== focusedMemory.hobbyId)) {
+                  setFocusedHobbyId(focusedMemory.hobbyId || null);
+                }
+              } else if (focusedHobbyId) {
+                setFocusedHobbyId(null);
+                setFocusedMemory(null);
+              } else {
+                setFocusedMemory(null);
+                setFocusedProfileId(null);
+                setFocusedJobId(null);
+                setFocusedFamilyMemberId(null);
+                setFocusedFriendId(null);
+                setFocusedHobbyId(null);
+                setSelectedSphere(null);
+              }
+            }}
+            style={{
+              position: 'absolute',
+              top: 50,
+              left: 20,
+              zIndex: 1000,
+              width: 50,
+              height: 50,
+              borderRadius: 25,
+              backgroundColor: colors.background,
+              justifyContent: 'center',
+              alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 5,
+            }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+          </Pressable>
+          
+          {/* Memory title header - shown when memory is focused */}
+          {focusedMemory && (() => {
+            const entityId = focusedMemory.profileId || focusedMemory.jobId || focusedMemory.familyMemberId || focusedMemory.friendId || focusedMemory.hobbyId;
+            const sphere = focusedMemory.sphere;
+            if (!entityId) return null;
+            
+            const memories = getIdealizedMemoriesByEntityId(entityId, sphere);
+            
+            const memoryData = memories.find(m => m.id === focusedMemory.memoryId);
+            if (!memoryData) return null;
+            
+            return (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 50,
+                  left: 80,
+                  right: 20,
+                  zIndex: 1000,
+                  paddingHorizontal: 12,
+                  paddingVertical: 12,
+                  backgroundColor: 'transparent',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <ThemedText
+                  size="l"
+                  weight="semibold"
+                  numberOfLines={2}
+                  style={{
+                    color: colors.text,
+                    textAlign: 'center',
+                  }}
+                >
+                  {memoryData.title}
+                </ThemedText>
+              </View>
+            );
+          })()}
+          
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={[
+              styles.content,
+              {
+                minHeight: SCREEN_HEIGHT,
+                height: Math.max(
+                  SCREEN_HEIGHT,
+                  hobbies.length > 0
+                    ? (hobbies.length - 1) * ((SCREEN_HEIGHT - (120 + 20) * 2) / Math.max(1, hobbies.length - 1)) + (120 + 20) * 2
+                    : SCREEN_HEIGHT
+                ),
+                justifyContent: 'flex-start',
+                alignItems: 'flex-start',
+              },
+            ]}
+            showsVerticalScrollIndicator={true}
+            scrollEnabled={!focusedHobbyId && !focusedMemory}
+          >
+            {/* Render hobbies with year section backgrounds (titles hidden) */}
+            {animationsReady && !focusedMemory && (
+              <>
+                {/* Year section backgrounds - titles are hidden */}
+                {Array.from(hobbiesYearSections.entries()).map(([key, section]) => (
+                  <YearSectionBackground
+                    key={`hobbies-year-section-bg-${key}`}
+                    section={section}
+                    colorScheme={colorScheme ?? 'dark'}
+                    hideTitle={true}
+                  />
+                ))}
+                
+                {/* Show hobbies distributed within the section */}
+                {hobbies.map((hobby, index) => {
+                  const memories = getIdealizedMemoriesByEntityId(hobby.id, 'hobbies');
+                  
+                  // Get the section for hobbies
+                  const section = hobbiesYearSections.get('all');
+                  
+                  // Distribute hobbies vertically within the section
+                  const totalHobbies = hobbies.length;
+                  const sectionCenterY = section ? section.top + section.height / 2 : SCREEN_HEIGHT / 2;
+                  
+                  // Increased spacing between hobbies for better visual separation
+                  const minSpacing = 200;
+                  const verticalSpacing = totalHobbies > 1 
+                    ? Math.max(minSpacing, Math.min((section?.height || SCREEN_HEIGHT) / (totalHobbies + 1), 250))
+                    : 0;
+                  
+                  const position = {
+                    x: SCREEN_WIDTH / 2,
+                    y: totalHobbies === 1
+                      ? sectionCenterY
+                      : (section?.top || 150) + verticalSpacing * (index + 1)
+                  };
+                  
+                  const isFocused = focusedHobbyId === hobby.id;
+                  
+                  // Hide unfocused hobbies when a hobby is focused
+                  if (focusedHobbyId && !isFocused) {
+                    return null;
+                  }
+                  
+                  return (
+                    <FloatingAvatar
+                      key={`hobby-${hobby.id}`}
+                      profile={hobby}
+                      position={position}
+                      memories={memories}
+                      onPress={() => {
+                        const newFocusedId = focusedHobbyId === hobby.id ? null : hobby.id;
+                        setFocusedHobbyId(newFocusedId);
+                        setFocusedMemory(null);
+                      }}
+                      colors={colors}
+                      colorScheme={colorScheme ?? 'dark'}
+                      isFocused={isFocused}
+                      focusedMemory={(() => {
+                        if (!focusedMemory) return null;
+                        const mem = focusedMemory as { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere };
+                        if (mem.hobbyId === hobby.id && mem.sphere === 'hobbies') {
+                          return mem;
+                        }
+                        return null;
+                      })()}
+                      onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'hobbies') => {
+                        setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
+                      }}
+                      yearSection={section}
+                    />
+                  );
+                })}
+              </>
+            )}
+            
+            {/* Render focused memory separately when memory is focused */}
+            {focusedMemory && animationsReady && (
+              <FocusedMemoryRenderer
+                focusedMemory={focusedMemory}
+                sortedProfiles={sortedProfiles}
+                sortedJobs={sortedJobs}
+                getIdealizedMemoriesByProfileId={getIdealizedMemoriesByProfileId}
+                getIdealizedMemoriesByEntityId={getIdealizedMemoriesByEntityId}
+                updateIdealizedMemory={updateIdealizedMemory}
+                colorScheme={colorScheme ?? 'dark'}
+                memorySlideOffset={memorySlideOffset}
+                setFocusedMemory={setFocusedMemory}
+              />
+            )}
+          </ScrollView>
+        </View>
+      </TabScreenContainer>
+    );
+  }
+
   return (
     <TabScreenContainer>
       <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
@@ -5351,7 +6116,7 @@ const FocusedMemoryRenderer = React.memo(function FocusedMemoryRenderer({
   memorySlideOffset,
   setFocusedMemory,
 }: {
-  focusedMemory: { profileId?: string; jobId?: string; familyMemberId?: string; memoryId: string; sphere: LifeSphere };
+  focusedMemory: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere };
   sortedProfiles: any[];
   sortedJobs?: any[];
   getIdealizedMemoriesByProfileId: (profileId: string) => any[];
@@ -5359,9 +6124,9 @@ const FocusedMemoryRenderer = React.memo(function FocusedMemoryRenderer({
   updateIdealizedMemory: (memoryId: string, updates: Partial<any>) => Promise<void>;
   colorScheme: 'light' | 'dark';
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
-  setFocusedMemory: (memory: { profileId?: string; jobId?: string; familyMemberId?: string; memoryId: string; sphere: LifeSphere } | null) => void;
+  setFocusedMemory: (memory: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null) => void;
 }) {
-  const entityId = focusedMemory.profileId || focusedMemory.jobId || focusedMemory.familyMemberId;
+  const entityId = focusedMemory.profileId || focusedMemory.jobId || focusedMemory.familyMemberId || focusedMemory.friendId || focusedMemory.hobbyId;
   const sphere = focusedMemory.sphere;
   
   if (!entityId) return null;

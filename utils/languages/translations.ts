@@ -103,6 +103,8 @@ export interface Translations {
   'profile.addFamilyMember': string;
   'profile.editFamilyMember': string;
   'profile.editFamilyInfo': string;
+  'profile.editFriendInfo': string;
+  'profile.editHobbyInfo': string;
   'profile.familyEmptyState.title': string;
   'profile.familyEmptyState.description': string;
   'profile.familyEmptyState.button': string;
@@ -111,6 +113,34 @@ export interface Translations {
   'profile.familyDelete.confirm.message.withName': string;
   'profile.familyActionSheet.edit': string;
   'profile.familyActionSheet.delete': string;
+  'profile.friendName': string;
+  'profile.friendName.placeholder': string;
+  'profile.addFriend': string;
+  'profile.editFriend': string;
+  'profile.editFriend.description': string;
+  'profile.friendEmptyState.title': string;
+  'profile.friendEmptyState.description': string;
+  'profile.friendEmptyState.button': string;
+  'profile.friendDelete.confirm': string;
+  'profile.friendDelete.confirm.message': string;
+  'profile.friendDelete.confirm.message.withName': string;
+  'profile.friendActionSheet.edit': string;
+  'profile.friendActionSheet.delete': string;
+  'profile.friend.name.required': string;
+  'profile.hobbyName': string;
+  'profile.hobbyName.placeholder': string;
+  'profile.addHobby': string;
+  'profile.editHobby': string;
+  'profile.editHobby.description': string;
+  'profile.hobbyEmptyState.title': string;
+  'profile.hobbyEmptyState.description': string;
+  'profile.hobbyEmptyState.button': string;
+  'profile.hobbyDelete.confirm': string;
+  'profile.hobbyDelete.confirm.message': string;
+  'profile.hobbyDelete.confirm.message.withName': string;
+  'profile.hobbyActionSheet.edit': string;
+  'profile.hobbyActionSheet.delete': string;
+  'profile.hobby.name.required': string;
   'job.addJob': string;
   'job.editJob': string;
   'job.editJobInfo': string;
@@ -132,6 +162,8 @@ export interface Translations {
   'spheres.relationships': string;
   'spheres.career': string;
   'spheres.family': string;
+  'spheres.friends': string;
+  'spheres.hobbies': string;
   'spheres.item': string;
   'spheres.items': string;
   
@@ -220,6 +252,30 @@ export interface Translations {
   'insights.comparison.family.members.andQuality': string;
   'insights.comparison.family.members.qualityTime': string;
   'insights.comparison.family.members.mostTime': string;
+  'insights.comparison.friends.title': string;
+  'insights.comparison.friends.subtitle': string;
+  'insights.comparison.friends.noData': string;
+  'insights.comparison.friends.otherSpheres': string;
+  'insights.comparison.friends.insight.moreFriendsTime': string;
+  'insights.comparison.friends.insight.moreOtherSpheresTime': string;
+  'insights.comparison.friends.insight.balancedTime': string;
+  'insights.comparison.friends.members.title': string;
+  'insights.comparison.friends.members.balanced': string;
+  'insights.comparison.friends.members.catchUp': string;
+  'insights.comparison.friends.members.andQuality': string;
+  'insights.comparison.friends.members.qualityTime': string;
+  'insights.comparison.friends.members.mostTime': string;
+  'insights.comparison.hobbies.title': string;
+  'insights.comparison.hobbies.subtitle': string;
+  'insights.comparison.hobbies.noData': string;
+  'insights.comparison.hobbies.otherSpheres': string;
+  'insights.comparison.hobbies.insight.moreHobbiesTime': string;
+  'insights.comparison.hobbies.insight.moreOtherSpheresTime': string;
+  'insights.comparison.hobbies.insight.balancedTime': string;
+  'insights.comparison.hobbies.members.title': string;
+  'insights.comparison.hobbies.members.balanced': string;
+  'insights.comparison.hobbies.members.catchUp': string;
+  'insights.comparison.hobbies.members.mostTime': string;
   'insights.detail.relationship.title': string;
   'insights.detail.relationship.noData': string;
   'insights.detail.relationship.memories.title': string;
@@ -464,6 +520,8 @@ const translations: Record<Language, Translations> = {
     'profile.addFamilyMember': 'Add Family Member',
     'profile.editFamilyMember': 'Edit Family Member',
     'profile.editFamilyInfo': 'Edit Info',
+    'profile.editFriendInfo': 'Edit Info',
+    'profile.editHobbyInfo': 'Edit Info',
     'profile.familyEmptyState.title': 'No family members yet',
     'profile.familyEmptyState.description': 'Start tracking your family relationships',
     'profile.familyEmptyState.button': 'Add Family Member',
@@ -472,6 +530,34 @@ const translations: Record<Language, Translations> = {
     'profile.familyDelete.confirm.message.withName': 'Are you sure you want to delete "{name}"? This will permanently delete all associated memories and data. This action cannot be undone.',
     'profile.familyActionSheet.edit': 'Edit',
     'profile.familyActionSheet.delete': 'Delete',
+    'profile.friendName': 'Friend Name',
+    'profile.friendName.placeholder': 'Enter their name',
+    'profile.addFriend': 'Add Friend',
+    'profile.editFriend': 'Edit Friend',
+    'profile.editFriend.description': 'Update your friend\'s information',
+    'profile.friendEmptyState.title': 'No friends yet',
+    'profile.friendEmptyState.description': 'Start tracking your friendships',
+    'profile.friendEmptyState.button': 'Add Friend',
+    'profile.friendDelete.confirm': 'Delete Friend',
+    'profile.friendDelete.confirm.message': 'Are you sure you want to delete this friend? This will permanently delete all associated memories and data. This action cannot be undone.',
+    'profile.friendDelete.confirm.message.withName': 'Are you sure you want to delete "{name}"? This will permanently delete all associated memories and data. This action cannot be undone.',
+    'profile.friendActionSheet.edit': 'Edit',
+    'profile.friendActionSheet.delete': 'Delete',
+    'profile.friend.name.required': 'Name is required',
+    'profile.hobbyName': 'Hobby Name',
+    'profile.hobbyName.placeholder': 'Enter hobby name',
+    'profile.addHobby': 'Add Hobby',
+    'profile.editHobby': 'Edit Hobby',
+    'profile.editHobby.description': 'Update your hobby\'s information',
+    'profile.hobbyEmptyState.title': 'No hobbies yet',
+    'profile.hobbyEmptyState.description': 'Start tracking your hobbies',
+    'profile.hobbyEmptyState.button': 'Add Hobby',
+    'profile.hobbyDelete.confirm': 'Delete Hobby',
+    'profile.hobbyDelete.confirm.message': 'Are you sure you want to delete this hobby? This will permanently delete all associated memories and data. This action cannot be undone.',
+    'profile.hobbyDelete.confirm.message.withName': 'Are you sure you want to delete "{name}"? This will permanently delete all associated memories and data. This action cannot be undone.',
+    'profile.hobbyActionSheet.edit': 'Edit',
+    'profile.hobbyActionSheet.delete': 'Delete',
+    'profile.hobby.name.required': 'Name is required',
     'job.addJob': 'Add Job',
     'job.editJob': 'Edit Job',
     'job.editJobInfo': 'Edit Info',
@@ -493,6 +579,8 @@ const translations: Record<Language, Translations> = {
     'spheres.relationships': 'Relationships',
     'spheres.career': 'Career',
     'spheres.family': 'Family',
+    'spheres.friends': 'Friends',
+    'spheres.hobbies': 'Hobbies',
     'spheres.item': 'item',
     'spheres.items': 'items',
     
@@ -581,6 +669,30 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.family.members.andQuality': 'and their moments have lower quality',
     'insights.comparison.family.members.qualityTime': 'Try spending more quality time with',
     'insights.comparison.family.members.mostTime': 'You spend most of your family moments with',
+    'insights.comparison.friends.title': 'Friends Comparison',
+    'insights.comparison.friends.subtitle': 'Overall amount of moments',
+    'insights.comparison.friends.noData': 'No data available for comparison',
+    'insights.comparison.friends.otherSpheres': 'Other Spheres',
+    'insights.comparison.friends.insight.moreFriendsTime': 'You spend more time with friends than on average with other spheres. Great social balance!',
+    'insights.comparison.friends.insight.moreOtherSpheresTime': 'You spend less time with friends compared to other spheres. Consider finding more time for friendships.',
+    'insights.comparison.friends.insight.balancedTime': 'You have a well-balanced distribution of time between friends and other spheres.',
+    'insights.comparison.friends.members.title': 'Time with Friends',
+    'insights.comparison.friends.members.balanced': 'You have a well-balanced distribution of moments across all friends. Great friendship harmony!',
+    'insights.comparison.friends.members.catchUp': 'Consider spending more time with',
+    'insights.comparison.friends.members.andQuality': 'and their moments have lower quality',
+    'insights.comparison.friends.members.qualityTime': 'Try spending more quality time with',
+    'insights.comparison.friends.members.mostTime': 'You spend most of your friend moments with',
+    'insights.comparison.hobbies.title': 'Hobbies Comparison',
+    'insights.comparison.hobbies.subtitle': 'Overall amount of moments',
+    'insights.comparison.hobbies.noData': 'No data available for comparison',
+    'insights.comparison.hobbies.otherSpheres': 'Other Spheres',
+    'insights.comparison.hobbies.insight.moreHobbiesTime': 'You spend more time on hobbies than on average with other spheres. Great personal development!',
+    'insights.comparison.hobbies.insight.moreOtherSpheresTime': 'You spend less time on hobbies compared to other spheres. Consider finding more time for your interests.',
+    'insights.comparison.hobbies.insight.balancedTime': 'You have a well-balanced distribution of time between hobbies and other spheres.',
+    'insights.comparison.hobbies.members.title': 'Time on Hobbies',
+    'insights.comparison.hobbies.members.balanced': 'You have a well-balanced distribution of moments across all hobbies. Great hobby balance!',
+    'insights.comparison.hobbies.members.catchUp': 'Consider spending more time on',
+    'insights.comparison.hobbies.members.mostTime': 'You spend most of your hobby moments on',
     'insights.detail.relationship.title': 'Relationship Details',
     'insights.detail.relationship.noData': 'Relationship not found',
     'insights.detail.relationship.memories.title': 'Memories',
@@ -823,6 +935,8 @@ const translations: Record<Language, Translations> = {
     'profile.addFamilyMember': 'Добави Член на Семейството',
     'profile.editFamilyMember': 'Редактирай Член на Семейството',
     'profile.editFamilyInfo': 'Редактирай Информация',
+    'profile.editFriendInfo': 'Редактирай Информация',
+    'profile.editHobbyInfo': 'Редактирай Информация',
     'profile.familyEmptyState.title': 'Все още няма членове на семейството',
     'profile.familyEmptyState.description': 'Започнете да проследявате семейните си връзки',
     'profile.familyEmptyState.button': 'Добави Член на Семейството',
@@ -831,6 +945,34 @@ const translations: Record<Language, Translations> = {
     'profile.familyDelete.confirm.message.withName': 'Сигурни ли сте, че искате да изтриете "{name}"? Това ще изтрие постоянно всички свързани спомени и данни. Това действие не може да бъде отменено.',
     'profile.familyActionSheet.edit': 'Редактирай',
     'profile.familyActionSheet.delete': 'Изтрий',
+    'profile.friendName': 'Име на Приятел',
+    'profile.friendName.placeholder': 'Въведете името им',
+    'profile.addFriend': 'Добави Приятел',
+    'profile.editFriend': 'Редактирай Приятел',
+    'profile.editFriend.description': 'Актуализирайте информацията за вашия приятел',
+    'profile.friendEmptyState.title': 'Все още няма приятели',
+    'profile.friendEmptyState.description': 'Започнете да проследявате вашите приятелства',
+    'profile.friendEmptyState.button': 'Добави Приятел',
+    'profile.friendDelete.confirm': 'Изтрий Приятел',
+    'profile.friendDelete.confirm.message': 'Сигурни ли сте, че искате да изтриете този приятел? Това ще изтрие постоянно всички свързани спомени и данни. Това действие не може да бъде отменено.',
+    'profile.friendDelete.confirm.message.withName': 'Сигурни ли сте, че искате да изтриете "{name}"? Това ще изтрие постоянно всички свързани спомени и данни. Това действие не може да бъде отменено.',
+    'profile.friendActionSheet.edit': 'Редактирай',
+    'profile.friendActionSheet.delete': 'Изтрий',
+    'profile.friend.name.required': 'Името е задължително',
+    'profile.hobbyName': 'Име на Хоби',
+    'profile.hobbyName.placeholder': 'Въведете име на хоби',
+    'profile.addHobby': 'Добави Хоби',
+    'profile.editHobby': 'Редактирай Хоби',
+    'profile.editHobby.description': 'Актуализирайте информацията за вашето хоби',
+    'profile.hobbyEmptyState.title': 'Все още няма хобита',
+    'profile.hobbyEmptyState.description': 'Започнете да проследявате вашите хобита',
+    'profile.hobbyEmptyState.button': 'Добави Хоби',
+    'profile.hobbyDelete.confirm': 'Изтрий Хоби',
+    'profile.hobbyDelete.confirm.message': 'Сигурни ли сте, че искате да изтриете това хоби? Това ще изтрие постоянно всички свързани спомени и данни. Това действие не може да бъде отменено.',
+    'profile.hobbyDelete.confirm.message.withName': 'Сигурни ли сте, че искате да изтриете "{name}"? Това ще изтрие постоянно всички свързани спомени и данни. Това действие не може да бъде отменено.',
+    'profile.hobbyActionSheet.edit': 'Редактирай',
+    'profile.hobbyActionSheet.delete': 'Изтрий',
+    'profile.hobby.name.required': 'Името е задължително',
     'job.addJob': 'Добави Работно Място',
     'job.editJob': 'Редактирай Работно Място',
     'job.editJobInfo': 'Редактирай Информация',
@@ -852,6 +994,8 @@ const translations: Record<Language, Translations> = {
     'spheres.relationships': 'Връзки',
     'spheres.career': 'Кариера',
     'spheres.family': 'Семейство',
+    'spheres.friends': 'Приятели',
+    'spheres.hobbies': 'Хобита',
     'spheres.item': 'елемент',
     'spheres.items': 'елемента',
     
@@ -940,6 +1084,30 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.family.members.andQuality': 'и техните моменти имат по-ниско качество',
     'insights.comparison.family.members.qualityTime': 'Опитайте се да отделите повече качествено време с',
     'insights.comparison.family.members.mostTime': 'Отделяте най-много от семейните си моменти с',
+    'insights.comparison.friends.title': 'Сравнение на Приятели',
+    'insights.comparison.friends.subtitle': 'Общо количество моменти',
+    'insights.comparison.friends.noData': 'Няма налични данни за сравнение',
+    'insights.comparison.friends.otherSpheres': 'Други Сфери',
+    'insights.comparison.friends.insight.moreFriendsTime': 'Отделяте повече време за приятели, отколкото средно за други сфери. Отличен социален баланс!',
+    'insights.comparison.friends.insight.moreOtherSpheresTime': 'Отделяте по-малко време за приятели в сравнение с други сфери. Помислете да намерите повече време за приятелства.',
+    'insights.comparison.friends.insight.balancedTime': 'Имате добре балансирано разпределение на времето между приятели и други сфери.',
+    'insights.comparison.friends.members.title': 'Време с Приятели',
+    'insights.comparison.friends.members.balanced': 'Имате добре балансирано разпределение на моментите между всички приятели. Отлична хармония в приятелствата!',
+    'insights.comparison.friends.members.catchUp': 'Помислете да отделите повече време с',
+    'insights.comparison.friends.members.andQuality': 'и техните моменти имат по-ниско качество',
+    'insights.comparison.friends.members.qualityTime': 'Опитайте се да отделите повече качествено време с',
+    'insights.comparison.friends.members.mostTime': 'Отделяте най-много от моментите си с приятели с',
+    'insights.comparison.hobbies.title': 'Сравнение на Хобита',
+    'insights.comparison.hobbies.subtitle': 'Общо количество моменти',
+    'insights.comparison.hobbies.noData': 'Няма налични данни за сравнение',
+    'insights.comparison.hobbies.otherSpheres': 'Други Сфери',
+    'insights.comparison.hobbies.insight.moreHobbiesTime': 'Отделяте повече време за хобита, отколкото средно за други сфери. Отлично личностно развитие!',
+    'insights.comparison.hobbies.insight.moreOtherSpheresTime': 'Отделяте по-малко време за хобита в сравнение с други сфери. Помислете да намерите повече време за вашите интереси.',
+    'insights.comparison.hobbies.insight.balancedTime': 'Имате добре балансирано разпределение на времето между хобита и други сфери.',
+    'insights.comparison.hobbies.members.title': 'Време за Хобита',
+    'insights.comparison.hobbies.members.balanced': 'Имате добре балансирано разпределение на моментите между всички хобита. Отличен баланс на хобитата!',
+    'insights.comparison.hobbies.members.catchUp': 'Помислете да отделите повече време за',
+    'insights.comparison.hobbies.members.mostTime': 'Отделяте най-много от моментите си за хобита за',
     'insights.detail.relationship.title': 'Детайли за Връзката',
     'insights.detail.relationship.noData': 'Връзката не е намерена',
     'insights.detail.relationship.memories.title': 'Спомени',

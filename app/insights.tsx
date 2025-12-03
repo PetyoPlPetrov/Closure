@@ -222,6 +222,8 @@ export default function InsightsScreen() {
       relationships: calculateSphereData('relationships'),
       career: calculateSphereData('career'),
       family: calculateSphereData('family'),
+      friends: calculateSphereData('friends'),
+      hobbies: calculateSphereData('hobbies'),
     };
   }, [getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
 
@@ -251,6 +253,8 @@ export default function InsightsScreen() {
     relationships: sphereData.relationships.sunnyPercentage,
     career: sphereData.career.sunnyPercentage,
     family: sphereData.family.sunnyPercentage,
+    friends: sphereData.friends.sunnyPercentage,
+    hobbies: sphereData.hobbies.sunnyPercentage,
   }), [sphereData]);
 
   const spheres: { type: LifeSphere; icon: string; label: string; entities: any[] }[] = useMemo(() => [
@@ -271,6 +275,18 @@ export default function InsightsScreen() {
       icon: 'family-restroom',
       label: t('spheres.family'),
       entities: getEntitiesBySphere('family'),
+    },
+    {
+      type: 'friends',
+      icon: 'people',
+      label: t('spheres.friends'),
+      entities: getEntitiesBySphere('friends'),
+    },
+    {
+      type: 'hobbies',
+      icon: 'sports-esports',
+      label: t('spheres.hobbies'),
+      entities: getEntitiesBySphere('hobbies'),
     },
   ], [getEntitiesBySphere, t]);
 
@@ -444,10 +460,12 @@ export default function InsightsScreen() {
               // Use fixed colors matching the wheel of life pie chart
               const sphereColor = sphere.type === 'relationships' ? '#f87171' : 
                                  sphere.type === 'career' ? '#3b82f6' : 
-                                 '#10b981'; // family
+                                 sphere.type === 'family' ? '#10b981' :
+                                 sphere.type === 'friends' ? '#3b82f6' :
+                                 '#8b5cf6'; // hobbies
               
               const hasEntities = sphere.entities.length > 0;
-              const isClickable = (sphere.type === 'relationships' || sphere.type === 'career' || sphere.type === 'family') && hasEntities;
+              const isClickable = (sphere.type === 'relationships' || sphere.type === 'career' || sphere.type === 'family' || sphere.type === 'friends' || sphere.type === 'hobbies') && hasEntities;
               
               return (
                 <TouchableOpacity
@@ -460,6 +478,10 @@ export default function InsightsScreen() {
                       router.push('/career-comparison');
                     } else if (sphere.type === 'family' && hasEntities) {
                       router.push('/family-comparison');
+                    } else if (sphere.type === 'friends' && hasEntities) {
+                      router.push('/friends-comparison');
+                    } else if (sphere.type === 'hobbies' && hasEntities) {
+                      router.push('/hobbies-comparison');
                     }
                   }}
                   activeOpacity={isClickable ? 0.7 : 1}

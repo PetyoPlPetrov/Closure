@@ -216,8 +216,14 @@ export default function IdealizedMemoriesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => {
-          // Navigate back, if sphere is provided and back fails, navigate to home with sphere
-          if (sphere) {
+          const returnTo = params.returnTo as string | undefined;
+          
+          // If we have a returnTo parameter, just go back (the edit screen should be in the stack)
+          // This ensures proper navigation flow like family sphere
+          if (returnTo) {
+            router.back();
+          } else if (sphere) {
+            // Navigate back, if sphere is provided and back fails, navigate to home with sphere
             router.replace({
               pathname: '/(tabs)/',
               params: { sphere },

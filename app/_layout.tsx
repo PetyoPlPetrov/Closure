@@ -51,14 +51,22 @@ function AppContent() {
         <Stack.Screen name="edit-job" options={{ headerShown: false }} />
         <Stack.Screen name="add-family-member" options={{ headerShown: false }} />
         <Stack.Screen name="edit-family-member" options={{ headerShown: false }} />
+        <Stack.Screen name="edit-friend" options={{ headerShown: false }} />
+        <Stack.Screen name="edit-hobby" options={{ headerShown: false }} />
+        <Stack.Screen name="add-friend" options={{ headerShown: false }} />
+        <Stack.Screen name="add-hobby" options={{ headerShown: false }} />
         <Stack.Screen name="idealized-memories" options={{ headerShown: false }} />
         <Stack.Screen name="add-idealized-memory" options={{ headerShown: false }} />
         <Stack.Screen name="relationships-comparison" options={{ headerShown: false }} />
         <Stack.Screen name="career-comparison" options={{ headerShown: false }} />
         <Stack.Screen name="family-comparison" options={{ headerShown: false }} />
+        <Stack.Screen name="friends-comparison" options={{ headerShown: false }} />
+        <Stack.Screen name="hobbies-comparison" options={{ headerShown: false }} />
         <Stack.Screen name="relationship-detail" options={{ headerShown: false }} />
         <Stack.Screen name="job-detail" options={{ headerShown: false }} />
         <Stack.Screen name="family-member-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="friend-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="hobby-detail" options={{ headerShown: false }} />
         <Stack.Screen name="insights" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>

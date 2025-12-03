@@ -5,13 +5,13 @@ import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, 
 import { Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import Animated, {
-  Easing,
-  interpolate,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
+    Easing,
+    interpolate,
+    runOnJS,
+    useAnimatedStyle,
+    useSharedValue,
   withDelay,
-  withRepeat,
+    withRepeat,
   withSpring,
   withTiming
 } from 'react-native-reanimated';
@@ -51,7 +51,7 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   // Text animations
   const textOpacity = useSharedValue(0);
   
-  // Floating elements animations - 3 small spheres
+  // Floating elements animations - 5 small spheres
   const floatingElement1 = {
     popOutProgress: useSharedValue(0),
     orbitAngle: useSharedValue(0),
@@ -67,6 +67,20 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   };
   
   const floatingElement3 = {
+    popOutProgress: useSharedValue(0),
+    orbitAngle: useSharedValue(0),
+    opacity: useSharedValue(0),
+    scale: useSharedValue(0),
+  };
+  
+  const floatingElement4 = {
+    popOutProgress: useSharedValue(0),
+    orbitAngle: useSharedValue(0),
+    opacity: useSharedValue(0),
+    scale: useSharedValue(0),
+  };
+  
+  const floatingElement5 = {
     popOutProgress: useSharedValue(0),
     orbitAngle: useSharedValue(0),
     opacity: useSharedValue(0),
@@ -127,8 +141,8 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
             withTiming(360, {
               duration: 4000,
               easing: Easing.linear,
-            }),
-            -1,
+      }),
+      -1,
             false
           );
         }
@@ -156,8 +170,8 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
             withTiming(360, {
               duration: 4500, // Slightly different speed for variety
               easing: Easing.linear,
-            }),
-            -1,
+      }),
+      -1,
             false
           );
         }
@@ -176,7 +190,7 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     );
     floatingElement3.popOutProgress.value = withDelay(
       popOutDelay + 400,
-      withTiming(1, {
+        withTiming(1, {
         duration: 600,
         easing: Easing.out(Easing.cubic),
       }, (finished) => {
@@ -184,6 +198,64 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
           floatingElement3.orbitAngle.value = withRepeat(
             withTiming(360, {
               duration: 5000, // Different speed for variety
+              easing: Easing.linear,
+        }),
+        -1,
+            false
+          );
+        }
+      })
+    );
+
+    // Element 4 - Friends - pops out with delay
+    floatingElement4.opacity.value = withDelay(popOutDelay + 600, withTiming(1, { duration: 300 }));
+    floatingElement4.scale.value = withDelay(
+      popOutDelay + 600,
+      withSpring(1, {
+        damping: 15,
+        stiffness: 200,
+        mass: 0.5,
+      })
+    );
+    floatingElement4.popOutProgress.value = withDelay(
+      popOutDelay + 600,
+      withTiming(1, {
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+      }, (finished) => {
+        if (finished) {
+          floatingElement4.orbitAngle.value = withRepeat(
+            withTiming(360, {
+              duration: 5500, // Different speed for variety
+              easing: Easing.linear,
+            }),
+            -1,
+            false
+          );
+        }
+      })
+    );
+
+    // Element 5 - Hobbies - pops out with delay
+    floatingElement5.opacity.value = withDelay(popOutDelay + 800, withTiming(1, { duration: 300 }));
+    floatingElement5.scale.value = withDelay(
+      popOutDelay + 800,
+      withSpring(1, {
+        damping: 15,
+        stiffness: 200,
+        mass: 0.5,
+      })
+    );
+    floatingElement5.popOutProgress.value = withDelay(
+      popOutDelay + 800,
+      withTiming(1, {
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+      }, (finished) => {
+        if (finished) {
+          floatingElement5.orbitAngle.value = withRepeat(
+            withTiming(360, {
+              duration: 6000, // Different speed for variety
               easing: Easing.linear,
             }),
             -1,
@@ -196,13 +268,13 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     // Step 3: Text appears after elements start orbiting (2000ms delay)
     textOpacity.value = withDelay(2000, withTiming(1, {
       duration: 800,
-      easing: Easing.out(Easing.cubic),
+          easing: Easing.out(Easing.cubic),
     }));
 
-    // Step 4: Mark animation as complete after text appears (3000ms total)
+    // Step 4: Mark animation as complete after text appears (3500ms total - increased for 5 elements)
     const completeTimeout = setTimeout(() => {
-      runOnJS(setIsAnimationComplete)(true);
-    }, 3000);
+            runOnJS(setIsAnimationComplete)(true);
+    }, 3500);
 
     return () => {
       clearTimeout(completeTimeout);
@@ -307,6 +379,46 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     };
   });
 
+  // Floating element 4 animated style (Friends)
+  const floatingElement4Style = useAnimatedStyle(() => {
+    const radius = 120; // Orbit radius
+    const popOutRadius = interpolate(floatingElement4.popOutProgress.value, [0, 1], [0, radius]);
+    const angle = (floatingElement4.orbitAngle.value * Math.PI) / 180;
+    const baseAngle = (300 * Math.PI) / 180; // 300 degrees offset
+    
+    const x = Math.sin(baseAngle + angle) * popOutRadius;
+    const y = -Math.cos(baseAngle + angle) * popOutRadius;
+    
+    return {
+      opacity: floatingElement4.opacity.value,
+      transform: [
+        { translateX: x },
+        { translateY: y },
+        { scale: floatingElement4.scale.value },
+      ],
+    };
+  });
+
+  // Floating element 5 animated style (Hobbies)
+  const floatingElement5Style = useAnimatedStyle(() => {
+    const radius = 120; // Orbit radius
+    const popOutRadius = interpolate(floatingElement5.popOutProgress.value, [0, 1], [0, radius]);
+    const angle = (floatingElement5.orbitAngle.value * Math.PI) / 180;
+    const baseAngle = (0 * Math.PI) / 180; // 0 degrees offset (top)
+    
+    const x = Math.sin(baseAngle + angle) * popOutRadius;
+    const y = -Math.cos(baseAngle + angle) * popOutRadius;
+    
+    return {
+      opacity: floatingElement5.opacity.value,
+      transform: [
+        { translateX: x },
+        { translateY: y },
+        { scale: floatingElement5.scale.value },
+      ],
+    };
+  });
+
   return (
     <SplashContext.Provider value={{ hideSplash, isVisible, isAnimationComplete }}>
       {children}
@@ -321,11 +433,11 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
           pointerEvents="box-none"
         >
           <View style={styles.container}>
-            <LinearGradient
-              colors={['#101A3D', '#2d4b81']}
-              style={StyleSheet.absoluteFill}
-            />
-            
+        <LinearGradient
+          colors={['#101A3D', '#2d4b81']}
+          style={StyleSheet.absoluteFill}
+        />
+        
             {/* Content */}
             <View style={styles.content}>
               {/* Avatar Container with Floating Elements */}
@@ -344,23 +456,23 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
 
                 {/* Floating Element 1 - Relationships (Heart) */}
                 <Animated.View style={[styles.floatingElement, floatingElement1Style]}>
-                  <LinearGradient
+            <LinearGradient
                     colors={['rgba(255, 150, 150, 0.4)', 'rgba(255, 150, 150, 0.2)', 'rgba(255, 150, 150, 0.05)']}
                     style={styles.floatingElementInner}
                   >
                     <MaterialIcons name="favorite" size={40} color="rgba(255, 180, 180, 0.9)" />
                   </LinearGradient>
-                </Animated.View>
+          </Animated.View>
 
                 {/* Floating Element 2 - Career (Briefcase) */}
                 <Animated.View style={[styles.floatingElement, floatingElement2Style]}>
-                  <LinearGradient
+            <LinearGradient
                     colors={['rgba(150, 200, 255, 0.4)', 'rgba(150, 200, 255, 0.2)', 'rgba(150, 200, 255, 0.05)']}
                     style={styles.floatingElementInner}
                   >
                     <MaterialIcons name="work" size={40} color="rgba(180, 220, 255, 0.9)" />
                   </LinearGradient>
-                </Animated.View>
+          </Animated.View>
 
                 {/* Floating Element 3 - Family */}
                 <Animated.View style={[styles.floatingElement, floatingElement3Style]}>
@@ -371,6 +483,26 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
                     <MaterialIcons name="family-restroom" size={40} color="rgba(220, 180, 255, 0.9)" />
                   </LinearGradient>
                 </Animated.View>
+
+                {/* Floating Element 4 - Friends */}
+                <Animated.View style={[styles.floatingElement, floatingElement4Style]}>
+                  <LinearGradient
+                    colors={['rgba(139, 92, 246, 0.4)', 'rgba(139, 92, 246, 0.2)', 'rgba(139, 92, 246, 0.05)']}
+                    style={styles.floatingElementInner}
+                  >
+                    <MaterialIcons name="people" size={40} color="rgba(167, 139, 250, 0.9)" />
+                  </LinearGradient>
+                </Animated.View>
+
+                {/* Floating Element 5 - Hobbies */}
+                <Animated.View style={[styles.floatingElement, floatingElement5Style]}>
+                  <LinearGradient
+                    colors={['rgba(249, 115, 22, 0.4)', 'rgba(249, 115, 22, 0.2)', 'rgba(249, 115, 22, 0.05)']}
+                    style={styles.floatingElementInner}
+                  >
+                    <MaterialIcons name="sports-esports" size={40} color="rgba(255, 157, 88, 0.9)" />
+                  </LinearGradient>
+                </Animated.View>
               </View>
 
               {/* Quote Text */}
@@ -378,10 +510,10 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
                 <Text style={quoteStyle}>
                   Live spherically — in many directions
                 </Text>
-              </Animated.View>
-            </View>
-          </View>
-        </Animated.View>
+          </Animated.View>
+        </View>
+      </View>
+      </Animated.View>
       )}
     </SplashContext.Provider>
   );

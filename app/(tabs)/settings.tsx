@@ -21,7 +21,7 @@ export default function SettingsScreen() {
   const { maxContentWidth } = useLargeDevice();
   const { language, setLanguage } = useLanguage();
   const { themeMode, setThemeMode } = useTheme();
-  const { addProfile, addJob, addFamilyMember, addIdealizedMemory, profiles, jobs, familyMembers, getProfile, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories, reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers } = useJourney();
+  const { addProfile, addJob, addFamilyMember, addFriend, addHobby, addIdealizedMemory, profiles, jobs, familyMembers, friends, hobbies, getProfile, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories, reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies } = useJourney();
   const t = useTranslate();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [themeDropdownVisible, setThemeDropdownVisible] = useState(false);
@@ -235,6 +235,24 @@ export default function SettingsScreen() {
         { name: 'Maria Johnson', relationship: 'Mother', description: 'My loving mother' },
       ];
 
+      // Define multiple fake friends with different characteristics
+      // Random number of memories between 1 and 8 per friend
+      const fakeFriends = [
+        { name: 'Alex Thompson', description: 'College roommate and best friend' },
+        { name: 'Jessica Martinez', description: 'Childhood friend, always there for me' },
+        { name: 'David Chen', description: 'Work friend turned close friend' },
+        { name: 'Sophie Anderson', description: 'Gym buddy and confidant' },
+      ];
+
+      // Define multiple fake hobbies with different characteristics
+      // Random number of memories between 1 and 8 per hobby
+      const fakeHobbies = [
+        { name: 'Photography', description: 'Capturing beautiful moments' },
+        { name: 'Reading', description: 'Exploring new worlds through books' },
+        { name: 'Cooking', description: 'Creating delicious meals' },
+        { name: 'Hiking', description: 'Exploring nature trails' },
+      ];
+
       const memoryTitles = [
         'Our First Date', 'Summer Vacation', 'Birthday Celebration', 'Anniversary Dinner',
         'Weekend Getaway', 'Holiday Memories', 'Beach Day', 'Movie Night',
@@ -375,10 +393,106 @@ export default function SettingsScreen() {
         'Special Occasion', 'Family Meeting', 'Gift Exchange', 'Memorial Day',
       ];
 
+      // Friends-specific cloud and sun texts
+      const friendsCloudTexts = [
+        'Sometimes canceled plans last minute',
+        'Wasn\'t always reliable when I needed support',
+        'Had different priorities that caused distance',
+        'Sometimes made me feel left out',
+        'Wasn\'t always there during tough times',
+        'Had communication issues',
+        'Sometimes took our friendship for granted',
+        'Had different values that created tension',
+        'Wasn\'t always considerate of my feelings',
+        'Had conflicts that went unresolved',
+        'Sometimes prioritized other friends over me',
+        'Wasn\'t always honest with me',
+        'Had different expectations of friendship',
+        'Sometimes made me feel judged',
+        'Wasn\'t always available when I needed them',
+      ];
+
+      const friendsSunTexts = [
+        'Always made me laugh',
+        'Was there for me during tough times',
+        'Shared amazing adventures together',
+        'Had great conversations',
+        'Was supportive of my goals',
+        'Made me feel accepted',
+        'Had fun together',
+        'Was a good listener',
+        'Shared similar interests',
+        'Was reliable and trustworthy',
+        'Made me feel valued',
+        'Had great memories together',
+        'Was understanding and patient',
+        'Made me feel included',
+        'Was a true friend',
+      ];
+
+      const friendsMemoryTitles = [
+        'Coffee Meetup', 'Birthday Party', 'Weekend Hangout', 'Concert Night',
+        'Road Trip', 'Movie Night', 'Dinner Out', 'Game Night',
+        'Beach Day', 'Hiking Adventure', 'Festival Experience', 'Shopping Spree',
+        'Late Night Chat', 'Birthday Celebration', 'Holiday Gathering', 'Sports Event',
+        'Picnic in the Park', 'Concert Experience', 'Weekend Getaway', 'Adventure Day',
+        'Fun Night Out', 'Relaxing Day', 'Special Occasion', 'Memorable Moment',
+        'Great Conversation', 'Fun Activity', 'Shared Experience', 'Friendship Moment',
+      ];
+
+      // Hobbies-specific cloud and sun texts
+      const hobbiesCloudTexts = [
+        'Sometimes felt frustrated with slow progress',
+        'Had moments of self-doubt',
+        'Struggled to find time for it',
+        'Felt like I wasn\'t improving',
+        'Had difficulty staying motivated',
+        'Sometimes felt overwhelmed',
+        'Had setbacks that were discouraging',
+        'Felt like I wasn\'t good enough',
+        'Had moments of giving up',
+        'Struggled with perfectionism',
+        'Felt like I was wasting time',
+        'Had difficulty balancing with other priorities',
+        'Sometimes felt bored',
+        'Had moments of frustration',
+        'Felt like I wasn\'t making progress',
+      ];
+
+      const hobbiesSunTexts = [
+        'Felt accomplished and proud',
+        'Found joy and relaxation',
+        'Learned something new',
+        'Felt creative and inspired',
+        'Had moments of flow',
+        'Felt peaceful and calm',
+        'Made progress and improved',
+        'Felt energized and motivated',
+        'Had fun and enjoyed it',
+        'Felt like I was growing',
+        'Found it therapeutic',
+        'Felt proud of my work',
+        'Had moments of clarity',
+        'Felt like I was expressing myself',
+        'Found it fulfilling',
+      ];
+
+      const hobbiesMemoryTitles = [
+        'First Attempt', 'Breakthrough Moment', 'Practice Session', 'Creative Project',
+        'Learning Experience', 'Achievement Unlocked', 'Fun Activity', 'Relaxing Session',
+        'New Technique', 'Personal Best', 'Inspiring Moment', 'Enjoyable Time',
+        'Progress Made', 'Fun Experiment', 'Creative Flow', 'Satisfying Result',
+        'Learning Curve', 'Moment of Clarity', 'Fun Challenge', 'Rewarding Experience',
+        'New Discovery', 'Skill Improvement', 'Enjoyable Moment', 'Personal Growth',
+        'Creative Expression', 'Fun Activity', 'Achievement', 'Memorable Session',
+      ];
+
       // Create multiple profiles
       let createdProfiles = 0;
       let createdJobs = 0;
       let createdFamilyMembers = 0;
+      let createdFriends = 0;
+      let createdHobbies = 0;
       let createdMemories = 0;
       
       for (const profileData of fakeProfiles) {
@@ -770,15 +884,203 @@ export default function SettingsScreen() {
       }
       console.log(`[MOCK DATA] ✓ Created ${createdFamilyMembers} family members with ${createdMemories} total memories`);
 
+      // Create multiple friends
+      for (const friendData of fakeFriends) {
+        try {
+          console.log(`[MOCK DATA] Creating friend: ${friendData.name}`);
+          let friendId: string;
+          const existingFriend = friends.find(f => f.name === friendData.name);
+          
+          if (existingFriend) {
+            friendId = existingFriend.id;
+            if (!friendId) {
+              console.error(`[MOCK DATA] ⚠️ WARNING: Found existing friend but ID is empty!`);
+              continue;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+          } else {
+            friendId = await addFriend({
+              name: friendData.name,
+              description: friendData.description,
+              imageUri: exImageUri,
+            });
+            
+            if (!friendId) {
+              console.error(`[MOCK DATA] ⚠️ ERROR: Friend creation returned empty ID!`);
+              continue;
+            }
+            await new Promise(resolve => setTimeout(resolve, 300));
+            await reloadFriends();
+            await reloadIdealizedMemories();
+          }
+
+          await reloadIdealizedMemories();
+          const existingMemories = getIdealizedMemoriesByEntityId(friendId, 'friends');
+          
+          if (existingMemories.length === 0) {
+            const numMemories = Math.floor(Math.random() * 8) + 1;
+            
+            for (let i = 0; i < numMemories; i++) {
+              try {
+                const totalMoments = Math.floor(Math.random() * 7) + 2;
+                const remainingMoments = totalMoments - 2;
+                const sunsFromRemaining = Math.floor(remainingMoments * 0.6);
+                const cloudsFromRemaining = remainingMoments - sunsFromRemaining;
+                
+                let numClouds = 1 + cloudsFromRemaining;
+                let numSuns = 1 + sunsFromRemaining;
+                
+                if (numClouds < 1) numClouds = 1;
+                if (numSuns < 1) numSuns = 1;
+                
+                const hardTruths = [];
+                for (let j = 0; j < numClouds; j++) {
+                  hardTruths.push({
+                    id: `cloud_${friendData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                    text: friendsCloudTexts[Math.floor(Math.random() * friendsCloudTexts.length)],
+                    x: Math.random() * 300 + 50,
+                    y: Math.random() * 400 + 50,
+                  });
+                }
+
+                const goodFacts = [];
+                for (let j = 0; j < numSuns; j++) {
+                  goodFacts.push({
+                    id: `sun_${friendData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                    text: friendsSunTexts[Math.floor(Math.random() * friendsSunTexts.length)],
+                    x: Math.random() * 300 + 50,
+                    y: Math.random() * 400 + 50,
+                  });
+                }
+
+                const memoryTitle = friendsMemoryTitles[i % friendsMemoryTitles.length] + ` (${i + 1})`;
+
+                await addIdealizedMemory(friendId, 'friends', {
+                  title: memoryTitle,
+                  imageUri: maldivesImageUri,
+                  hardTruths,
+                  goodFacts,
+                });
+                
+                createdMemories++;
+                await new Promise(resolve => setTimeout(resolve, 50));
+              } catch (memoryError) {
+                console.error(`[MOCK DATA] ✗ Error creating memory ${i} for ${friendData.name}:`, memoryError);
+              }
+            }
+          }
+          
+          createdFriends++;
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (friendError) {
+          console.error(`[MOCK DATA] ✗ Error creating friend ${friendData.name}:`, friendError);
+        }
+      }
+
+      // Create multiple hobbies
+      for (const hobbyData of fakeHobbies) {
+        try {
+          console.log(`[MOCK DATA] Creating hobby: ${hobbyData.name}`);
+          let hobbyId: string;
+          const existingHobby = hobbies.find(h => h.name === hobbyData.name);
+          
+          if (existingHobby) {
+            hobbyId = existingHobby.id;
+            if (!hobbyId) {
+              console.error(`[MOCK DATA] ⚠️ WARNING: Found existing hobby but ID is empty!`);
+              continue;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+          } else {
+            hobbyId = await addHobby({
+              name: hobbyData.name,
+              description: hobbyData.description,
+              imageUri: exImageUri,
+            });
+            
+            if (!hobbyId) {
+              console.error(`[MOCK DATA] ⚠️ ERROR: Hobby creation returned empty ID!`);
+              continue;
+            }
+            await new Promise(resolve => setTimeout(resolve, 300));
+            await reloadHobbies();
+            await reloadIdealizedMemories();
+          }
+
+          await reloadIdealizedMemories();
+          const existingMemories = getIdealizedMemoriesByEntityId(hobbyId, 'hobbies');
+          
+          if (existingMemories.length === 0) {
+            const numMemories = Math.floor(Math.random() * 8) + 1;
+            
+            for (let i = 0; i < numMemories; i++) {
+              try {
+                const totalMoments = Math.floor(Math.random() * 7) + 2;
+                const remainingMoments = totalMoments - 2;
+                const sunsFromRemaining = Math.floor(remainingMoments * 0.7);
+                const cloudsFromRemaining = remainingMoments - sunsFromRemaining;
+                
+                let numClouds = 1 + cloudsFromRemaining;
+                let numSuns = 1 + sunsFromRemaining;
+                
+                if (numClouds < 1) numClouds = 1;
+                if (numSuns < 1) numSuns = 1;
+                
+                const hardTruths = [];
+                for (let j = 0; j < numClouds; j++) {
+                  hardTruths.push({
+                    id: `cloud_${hobbyData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                    text: hobbiesCloudTexts[Math.floor(Math.random() * hobbiesCloudTexts.length)],
+                    x: Math.random() * 300 + 50,
+                    y: Math.random() * 400 + 50,
+                  });
+                }
+
+                const goodFacts = [];
+                for (let j = 0; j < numSuns; j++) {
+                  goodFacts.push({
+                    id: `sun_${hobbyData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                    text: hobbiesSunTexts[Math.floor(Math.random() * hobbiesSunTexts.length)],
+                    x: Math.random() * 300 + 50,
+                    y: Math.random() * 400 + 50,
+                  });
+                }
+
+                const memoryTitle = hobbiesMemoryTitles[i % hobbiesMemoryTitles.length] + ` (${i + 1})`;
+
+                await addIdealizedMemory(hobbyId, 'hobbies', {
+                  title: memoryTitle,
+                  imageUri: maldivesImageUri,
+                  hardTruths,
+                  goodFacts,
+                });
+                
+                createdMemories++;
+                await new Promise(resolve => setTimeout(resolve, 50));
+              } catch (memoryError) {
+                console.error(`[MOCK DATA] ✗ Error creating memory ${i} for ${hobbyData.name}:`, memoryError);
+              }
+            }
+          }
+          
+          createdHobbies++;
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (hobbyError) {
+          console.error(`[MOCK DATA] ✗ Error creating hobby ${hobbyData.name}:`, hobbyError);
+        }
+      }
+
       // Reload all data to update React state after generating
-      // IMPORTANT: Load profiles, jobs, and family members FIRST, then memories (which runs cleanup)
+      // IMPORTANT: Load profiles, jobs, family members, friends, and hobbies FIRST, then memories (which runs cleanup)
       // This ensures cleanup can find the entities it needs to validate memories
       try {
-        // Load profiles, jobs, and family members first
+        // Load profiles, jobs, family members, friends, and hobbies first
         await Promise.all([
           reloadProfiles(),
           reloadJobs(),
           reloadFamilyMembers(),
+          reloadFriends(),
+          reloadHobbies(),
         ]);
         
         // Then load memories (cleanup will now find all entities in storage)
@@ -790,7 +1092,7 @@ export default function SettingsScreen() {
 
       Alert.alert(
         t('common.success'), 
-        `Created ${createdProfiles} profiles, ${createdJobs} jobs, ${createdFamilyMembers} family members, and ${createdMemories} total memories`,
+        `Created ${createdProfiles} profiles, ${createdJobs} jobs, ${createdFamilyMembers} family members, ${createdFriends} friends, ${createdHobbies} hobbies, and ${createdMemories} total memories`,
         [{ text: t('common.ok') }]
       );
     } catch (error) {
@@ -823,6 +1125,8 @@ export default function SettingsScreen() {
               const IDEALIZED_MEMORIES_KEY = '@sferas:idealized_memories';
               const JOBS_STORAGE_KEY = '@sferas:jobs';
               const FAMILY_MEMBERS_STORAGE_KEY = '@sferas:family_members';
+              const FRIENDS_STORAGE_KEY = '@sferas:friends';
+              const HOBBIES_STORAGE_KEY = '@sferas:hobbies';
               const AVATAR_POSITIONS_KEY = '@sferas:avatar_positions';
               
               await Promise.all([
@@ -830,6 +1134,8 @@ export default function SettingsScreen() {
                 AsyncStorage.removeItem(IDEALIZED_MEMORIES_KEY),
                 AsyncStorage.removeItem(JOBS_STORAGE_KEY),
                 AsyncStorage.removeItem(FAMILY_MEMBERS_STORAGE_KEY),
+                AsyncStorage.removeItem(FRIENDS_STORAGE_KEY),
+                AsyncStorage.removeItem(HOBBIES_STORAGE_KEY),
                 AsyncStorage.removeItem(AVATAR_POSITIONS_KEY),
               ]);
               
@@ -839,6 +1145,8 @@ export default function SettingsScreen() {
                 reloadProfiles(),
                 reloadJobs(),
                 reloadFamilyMembers(),
+                reloadFriends(),
+                reloadHobbies(),
               ]);
               
               // Show success message

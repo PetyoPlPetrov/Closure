@@ -5,9 +5,11 @@ const STORAGE_KEY = '@sferas:ex_profiles';
 const IDEALIZED_MEMORIES_KEY = '@sferas:idealized_memories';
 const JOBS_STORAGE_KEY = '@sferas:jobs';
 const FAMILY_MEMBERS_STORAGE_KEY = '@sferas:family_members';
+const FRIENDS_STORAGE_KEY = '@sferas:friends';
+const HOBBIES_STORAGE_KEY = '@sferas:hobbies';
 
 // Life sphere types
-export type LifeSphere = 'relationships' | 'career' | 'family';
+export type LifeSphere = 'relationships' | 'career' | 'family' | 'friends' | 'hobbies';
 
 export type SectionCompletion = {
   idealizedMemories: boolean;
@@ -81,6 +83,32 @@ export type FamilyMember = {
   setupProgress: number; // 0-100
   isCompleted: boolean;
   sphere: LifeSphere; // Always 'family'
+  createdAt: string;
+  updatedAt: string;
+};
+
+// Friend entity for friends sphere
+export type Friend = {
+  id: string;
+  name: string;
+  description?: string;
+  imageUri?: string;
+  setupProgress: number; // 0-100
+  isCompleted: boolean;
+  sphere: LifeSphere; // Always 'friends'
+  createdAt: string;
+  updatedAt: string;
+};
+
+// Hobby entity for hobbies sphere
+export type Hobby = {
+  id: string;
+  name: string;
+  description?: string;
+  imageUri?: string;
+  setupProgress: number; // 0-100
+  isCompleted: boolean;
+  sphere: LifeSphere; // Always 'hobbies'
   createdAt: string;
   updatedAt: string;
 };
@@ -235,6 +263,20 @@ type JourneyContextType = {
   deleteFamilyMember: (id: string) => Promise<void>;
   getFamilyMember: (id: string) => FamilyMember | undefined;
   
+  // Friends sphere
+  friends: Friend[];
+  addFriend: (friend: Omit<Friend, 'id' | 'createdAt' | 'updatedAt' | 'sphere'>) => Promise<string>;
+  updateFriend: (id: string, updates: Partial<Friend>) => Promise<void>;
+  deleteFriend: (id: string) => Promise<void>;
+  getFriend: (id: string) => Friend | undefined;
+  
+  // Hobbies sphere
+  hobbies: Hobby[];
+  addHobby: (hobby: Omit<Hobby, 'id' | 'createdAt' | 'updatedAt' | 'sphere'>) => Promise<string>;
+  updateHobby: (id: string, updates: Partial<Hobby>) => Promise<void>;
+  deleteHobby: (id: string) => Promise<void>;
+  getHobby: (id: string) => Hobby | undefined;
+  
   // Idealized Memories (supports all spheres)
   idealizedMemories: IdealizedMemory[];
   addIdealizedMemory: (
@@ -248,12 +290,14 @@ type JourneyContextType = {
   getIdealizedMemoriesByProfileId: (profileId: string) => IdealizedMemory[]; // Deprecated but kept for backward compatibility
   
   // Helper functions
-  getEntitiesBySphere: (sphere: LifeSphere) => (ExProfile | Job | FamilyMember)[];
+  getEntitiesBySphere: (sphere: LifeSphere) => (ExProfile | Job | FamilyMember | Friend | Hobby)[];
   getOverallSunnyPercentage: () => number; // Overall percentage across all spheres
   reloadIdealizedMemories: () => Promise<void>; // Reload memories from AsyncStorage
   reloadProfiles: () => Promise<void>; // Reload profiles from AsyncStorage
   reloadJobs: () => Promise<void>; // Reload jobs from AsyncStorage
   reloadFamilyMembers: () => Promise<void>; // Reload family members from AsyncStorage
+  reloadFriends: () => Promise<void>; // Reload friends from AsyncStorage
+  reloadHobbies: () => Promise<void>; // Reload hobbies from AsyncStorage
 };
 
 const JourneyContext = createContext<JourneyContextType | undefined>(undefined);
@@ -267,8 +311,12 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
   const [idealizedMemories, setIdealizedMemories] = useState<IdealizedMemory[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [hobbies, setHobbies] = useState<Hobby[]>([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(true);
   const [isLoadingFamily, setIsLoadingFamily] = useState(true);
+  const [isLoadingFriends, setIsLoadingFriends] = useState(true);
+  const [isLoadingHobbies, setIsLoadingHobbies] = useState(true);
 
   // Load idealized memories function (can be called to reload)
   const loadIdealizedMemories = useCallback(async () => {
@@ -291,6 +339,8 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         let profilesCount = 0;
         let jobsCount = 0;
         let familyCount = 0;
+        let friendsCount = 0;
+        let hobbiesCount = 0;
         try {
           // Load profiles
           const storedProfiles = await AsyncStorage.getItem(STORAGE_KEY);
@@ -315,6 +365,22 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
             familyCount = parsedFamily.length;
             parsedFamily.forEach(f => validEntityIds.add(f.id));
           }
+          
+          // Load friends
+          const storedFriends = await AsyncStorage.getItem(FRIENDS_STORAGE_KEY);
+          if (storedFriends) {
+            const parsedFriends = JSON.parse(storedFriends) as Friend[];
+            friendsCount = parsedFriends.length;
+            parsedFriends.forEach(f => validEntityIds.add(f.id));
+          }
+          
+          // Load hobbies
+          const storedHobbies = await AsyncStorage.getItem(HOBBIES_STORAGE_KEY);
+          if (storedHobbies) {
+            const parsedHobbies = JSON.parse(storedHobbies) as Hobby[];
+            hobbiesCount = parsedHobbies.length;
+            parsedHobbies.forEach(h => validEntityIds.add(h.id));
+          }
         } catch (error) {
           console.error('[JourneyProvider] Error reading entities for orphan cleanup:', error);
           // If we can't read entities, don't clean up - safer to keep all memories
@@ -325,10 +391,10 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         const beforeCleanupCount = migratedMemories.length;
         let cleanedMemories: IdealizedMemory[];
         
-        if (validEntityIds.size === 0 && (profilesCount > 0 || jobsCount > 0 || familyCount > 0)) {
+        if (validEntityIds.size === 0 && (profilesCount > 0 || jobsCount > 0 || familyCount > 0 || friendsCount > 0 || hobbiesCount > 0)) {
           // We tried to load entities but got 0 IDs, even though counts > 0
           // This is suspicious - don't clean up, just log a warning
-          console.warn(`[JourneyProvider] ⚠️ Warning: Found ${profilesCount} profiles, ${jobsCount} jobs, ${familyCount} family but 0 valid IDs. Skipping cleanup to avoid data loss.`);
+          console.warn(`[JourneyProvider] ⚠️ Warning: Found ${profilesCount} profiles, ${jobsCount} jobs, ${familyCount} family, ${friendsCount} friends, ${hobbiesCount} hobbies but 0 valid IDs. Skipping cleanup to avoid data loss.`);
           cleanedMemories = migratedMemories;
         } else if (validEntityIds.size === 0) {
           // No entities at all - keep all memories for now (might be fresh install)
@@ -351,7 +417,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
               orphanedMemories.push(memory);
             }
             
-            if (memory.sphere === 'relationships' || memory.sphere === 'career' || memory.sphere === 'family') {
+            if (memory.sphere === 'relationships' || memory.sphere === 'career' || memory.sphere === 'family' || memory.sphere === 'friends' || memory.sphere === 'hobbies') {
               return isValid;
             }
             
@@ -421,6 +487,44 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       }
     };
     loadFamilyMembers();
+  }, []);
+
+  // Load friends on mount
+  useEffect(() => {
+    const loadFriends = async () => {
+      try {
+        setIsLoadingFriends(true);
+        const stored = await AsyncStorage.getItem(FRIENDS_STORAGE_KEY);
+        if (stored) {
+          const parsedFriends = JSON.parse(stored) as Friend[];
+          setFriends(parsedFriends);
+        }
+      } catch (err) {
+        console.error('Error loading friends:', err);
+      } finally {
+        setIsLoadingFriends(false);
+      }
+    };
+    loadFriends();
+  }, []);
+
+  // Load hobbies on mount
+  useEffect(() => {
+    const loadHobbies = async () => {
+      try {
+        setIsLoadingHobbies(true);
+        const stored = await AsyncStorage.getItem(HOBBIES_STORAGE_KEY);
+        if (stored) {
+          const parsedHobbies = JSON.parse(stored) as Hobby[];
+          setHobbies(parsedHobbies);
+        }
+      } catch (err) {
+        console.error('Error loading hobbies:', err);
+      } finally {
+        setIsLoadingHobbies(false);
+      }
+    };
+    loadHobbies();
   }, []);
 
   const saveProfile = useCallback(
@@ -1053,21 +1157,285 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     [familyMembers]
   );
 
+  // Friends management functions
+  const saveFriend = useCallback(
+    async (newFriend: Friend) => {
+      try {
+        let existingFriends: Friend[] = [];
+        try {
+          const stored = await AsyncStorage.getItem(FRIENDS_STORAGE_KEY);
+          if (stored) {
+            existingFriends = JSON.parse(stored) as Friend[];
+          }
+        } catch (error) {
+          console.error('[JourneyProvider] Error reading existing friends from storage:', error);
+          existingFriends = friends;
+        }
+        
+        const friendExists = existingFriends.some(f => f.id === newFriend.id);
+        if (friendExists) {
+          const updatedFriends = existingFriends.map(f => f.id === newFriend.id ? newFriend : f);
+          await AsyncStorage.setItem(FRIENDS_STORAGE_KEY, JSON.stringify(updatedFriends));
+          setFriends(updatedFriends);
+        } else {
+          const updatedFriends = [...existingFriends, newFriend];
+          await AsyncStorage.setItem(FRIENDS_STORAGE_KEY, JSON.stringify(updatedFriends));
+          setFriends(updatedFriends);
+        }
+      } catch (error) {
+        console.error('Error saving friend:', error);
+        throw error;
+      }
+    },
+    [friends]
+  );
+
+  const updateFriendsInStorage = useCallback(
+    async (updatedFriends: Friend[]) => {
+      try {
+        await AsyncStorage.setItem(FRIENDS_STORAGE_KEY, JSON.stringify(updatedFriends));
+        setFriends(updatedFriends);
+      } catch (error) {
+        console.error('Error updating friends:', error);
+        throw error;
+      }
+    },
+    []
+  );
+
+  const addFriend = useCallback(
+    async (friendData: Omit<Friend, 'id' | 'createdAt' | 'updatedAt' | 'sphere'>): Promise<string> => {
+      const now = new Date().toISOString();
+      const newFriend: Friend = {
+        ...friendData,
+        id: `friend_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        sphere: 'friends',
+        createdAt: now,
+        updatedAt: now,
+      };
+      newFriend.setupProgress = calculateSetupProgress(newFriend, 0);
+      newFriend.isCompleted = newFriend.setupProgress === 100;
+      await saveFriend(newFriend);
+      return newFriend.id;
+    },
+    [saveFriend]
+  );
+
+  const updateFriend = useCallback(
+    async (id: string, updates: Partial<Friend>) => {
+      const updatedFriends = friends.map((friend) => {
+        if (friend.id === id) {
+          const updatedFriend = {
+            ...friend,
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          };
+          const memoryCount = idealizedMemories.filter(m => m.entityId === id && m.sphere === 'friends').length;
+          updatedFriend.setupProgress = calculateSetupProgress(updatedFriend, memoryCount);
+          updatedFriend.isCompleted = updatedFriend.setupProgress === 100;
+          return updatedFriend;
+        }
+        return friend;
+      });
+      await updateFriendsInStorage(updatedFriends);
+    },
+    [friends, updateFriendsInStorage, idealizedMemories]
+  );
+
+  const deleteFriend = useCallback(
+    async (id: string) => {
+      const updatedFriends = friends.filter((friend) => friend.id !== id);
+      
+      if (updatedFriends.length === friends.length) {
+        console.warn(`[JourneyProvider] Friend with id ${id} not found for deletion`);
+        return;
+      }
+      
+      let existingMemories: IdealizedMemory[] = [];
+      try {
+        const stored = await AsyncStorage.getItem(IDEALIZED_MEMORIES_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as IdealizedMemory[];
+          existingMemories = parsed.map((memory) => ({
+            ...memory,
+            entityId: memory.entityId || memory.profileId || '',
+            sphere: memory.sphere || 'relationships',
+            profileId: memory.profileId || memory.entityId || '',
+          }));
+        }
+      } catch (error) {
+        console.error('[JourneyProvider] Error reading memories from storage during friend deletion:', error);
+        existingMemories = idealizedMemories;
+      }
+      
+      const updatedMemories = existingMemories.filter((memory) => 
+        !(memory.entityId === id && memory.sphere === 'friends')
+      );
+      
+      await saveIdealizedMemoriesToStorage(updatedMemories);
+      setIdealizedMemories(updatedMemories);
+      
+      await updateFriendsInStorage(updatedFriends);
+    },
+    [friends, updateFriendsInStorage, idealizedMemories, saveIdealizedMemoriesToStorage]
+  );
+
+  const getFriend = useCallback(
+    (id: string) => {
+      return friends.find((friend) => friend.id === id);
+    },
+    [friends]
+  );
+
+  // Hobbies management functions
+  const saveHobby = useCallback(
+    async (newHobby: Hobby) => {
+      try {
+        let existingHobbies: Hobby[] = [];
+        try {
+          const stored = await AsyncStorage.getItem(HOBBIES_STORAGE_KEY);
+          if (stored) {
+            existingHobbies = JSON.parse(stored) as Hobby[];
+          }
+        } catch (error) {
+          console.error('[JourneyProvider] Error reading existing hobbies from storage:', error);
+          existingHobbies = hobbies;
+        }
+        
+        const hobbyExists = existingHobbies.some(h => h.id === newHobby.id);
+        if (hobbyExists) {
+          const updatedHobbies = existingHobbies.map(h => h.id === newHobby.id ? newHobby : h);
+          await AsyncStorage.setItem(HOBBIES_STORAGE_KEY, JSON.stringify(updatedHobbies));
+          setHobbies(updatedHobbies);
+        } else {
+          const updatedHobbies = [...existingHobbies, newHobby];
+          await AsyncStorage.setItem(HOBBIES_STORAGE_KEY, JSON.stringify(updatedHobbies));
+          setHobbies(updatedHobbies);
+        }
+      } catch (error) {
+        console.error('Error saving hobby:', error);
+        throw error;
+      }
+    },
+    [hobbies]
+  );
+
+  const updateHobbiesInStorage = useCallback(
+    async (updatedHobbies: Hobby[]) => {
+      try {
+        await AsyncStorage.setItem(HOBBIES_STORAGE_KEY, JSON.stringify(updatedHobbies));
+        setHobbies(updatedHobbies);
+      } catch (error) {
+        console.error('Error updating hobbies:', error);
+        throw error;
+      }
+    },
+    []
+  );
+
+  const addHobby = useCallback(
+    async (hobbyData: Omit<Hobby, 'id' | 'createdAt' | 'updatedAt' | 'sphere'>): Promise<string> => {
+      const now = new Date().toISOString();
+      const newHobby: Hobby = {
+        ...hobbyData,
+        id: `hobby_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        sphere: 'hobbies',
+        createdAt: now,
+        updatedAt: now,
+      };
+      newHobby.setupProgress = calculateSetupProgress(newHobby, 0);
+      newHobby.isCompleted = newHobby.setupProgress === 100;
+      await saveHobby(newHobby);
+      return newHobby.id;
+    },
+    [saveHobby]
+  );
+
+  const updateHobby = useCallback(
+    async (id: string, updates: Partial<Hobby>) => {
+      const updatedHobbies = hobbies.map((hobby) => {
+        if (hobby.id === id) {
+          const updatedHobby = {
+            ...hobby,
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          };
+          const memoryCount = idealizedMemories.filter(m => m.entityId === id && m.sphere === 'hobbies').length;
+          updatedHobby.setupProgress = calculateSetupProgress(updatedHobby, memoryCount);
+          updatedHobby.isCompleted = updatedHobby.setupProgress === 100;
+          return updatedHobby;
+        }
+        return hobby;
+      });
+      await updateHobbiesInStorage(updatedHobbies);
+    },
+    [hobbies, updateHobbiesInStorage, idealizedMemories]
+  );
+
+  const deleteHobby = useCallback(
+    async (id: string) => {
+      const updatedHobbies = hobbies.filter((hobby) => hobby.id !== id);
+      
+      if (updatedHobbies.length === hobbies.length) {
+        console.warn(`[JourneyProvider] Hobby with id ${id} not found for deletion`);
+        return;
+      }
+      
+      let existingMemories: IdealizedMemory[] = [];
+      try {
+        const stored = await AsyncStorage.getItem(IDEALIZED_MEMORIES_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as IdealizedMemory[];
+          existingMemories = parsed.map((memory) => ({
+            ...memory,
+            entityId: memory.entityId || memory.profileId || '',
+            sphere: memory.sphere || 'relationships',
+            profileId: memory.profileId || memory.entityId || '',
+          }));
+        }
+      } catch (error) {
+        console.error('[JourneyProvider] Error reading memories from storage during hobby deletion:', error);
+        existingMemories = idealizedMemories;
+      }
+      
+      const updatedMemories = existingMemories.filter((memory) => 
+        !(memory.entityId === id && memory.sphere === 'hobbies')
+      );
+      
+      await saveIdealizedMemoriesToStorage(updatedMemories);
+      setIdealizedMemories(updatedMemories);
+      
+      await updateHobbiesInStorage(updatedHobbies);
+    },
+    [hobbies, updateHobbiesInStorage, idealizedMemories, saveIdealizedMemoriesToStorage]
+  );
+
+  const getHobby = useCallback(
+    (id: string) => {
+      return hobbies.find((hobby) => hobby.id === id);
+    },
+    [hobbies]
+  );
+
   // Helper functions
   const getEntitiesBySphere = useCallback(
     (sphere: LifeSphere) => {
       switch (sphere) {
         case 'relationships':
-          return profiles as (ExProfile | Job | FamilyMember)[];
+          return profiles as (ExProfile | Job | FamilyMember | Friend | Hobby)[];
         case 'career':
-          return jobs as (ExProfile | Job | FamilyMember)[];
+          return jobs as (ExProfile | Job | FamilyMember | Friend | Hobby)[];
         case 'family':
-          return familyMembers as (ExProfile | Job | FamilyMember)[];
+          return familyMembers as (ExProfile | Job | FamilyMember | Friend | Hobby)[];
+        case 'friends':
+          return friends as (ExProfile | Job | FamilyMember | Friend | Hobby)[];
+        case 'hobbies':
+          return hobbies as (ExProfile | Job | FamilyMember | Friend | Hobby)[];
         default:
           return [];
       }
     },
-    [profiles, jobs, familyMembers]
+    [profiles, jobs, familyMembers, friends, hobbies]
   );
 
   const getOverallSunnyPercentage = useCallback(() => {
@@ -1091,6 +1459,12 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         case 'family':
           // For family, check if family member exists
           return familyMembers.some(f => f.id === memory.entityId);
+        case 'friends':
+          // For friends, check if friend exists
+          return friends.some(f => f.id === memory.entityId);
+        case 'hobbies':
+          // For hobbies, check if hobby exists
+          return hobbies.some(h => h.id === memory.entityId);
         default:
           return false;
       }
@@ -1124,7 +1498,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     }
     
     return result;
-  }, [idealizedMemories, profiles, jobs, familyMembers]);
+  }, [idealizedMemories, profiles, jobs, familyMembers, friends, hobbies]);
 
   // Reload profiles from AsyncStorage
   const reloadProfiles = useCallback(async () => {
@@ -1188,9 +1562,39 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     }
   }, []);
 
+  // Reload friends from AsyncStorage
+  const reloadFriends = useCallback(async () => {
+    try {
+      const stored = await AsyncStorage.getItem(FRIENDS_STORAGE_KEY);
+      if (stored) {
+        const parsedFriends = JSON.parse(stored) as Friend[];
+        setFriends(parsedFriends);
+      } else {
+        setFriends([]);
+      }
+    } catch (err) {
+      console.error('[JourneyProvider] Error reloading friends:', err);
+    }
+  }, []);
+
+  // Reload hobbies from AsyncStorage
+  const reloadHobbies = useCallback(async () => {
+    try {
+      const stored = await AsyncStorage.getItem(HOBBIES_STORAGE_KEY);
+      if (stored) {
+        const parsedHobbies = JSON.parse(stored) as Hobby[];
+        setHobbies(parsedHobbies);
+      } else {
+        setHobbies([]);
+      }
+    } catch (err) {
+      console.error('[JourneyProvider] Error reloading hobbies:', err);
+    }
+  }, []);
+
   const value: JourneyContextType = {
     profiles,
-    isLoading: isLoading || isLoadingJobs || isLoadingFamily,
+    isLoading: isLoading || isLoadingJobs || isLoadingFamily || isLoadingFriends || isLoadingHobbies,
     error,
     addProfile,
     updateProfile,
@@ -1206,6 +1610,16 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     updateFamilyMember,
     deleteFamilyMember,
     getFamilyMember,
+    friends,
+    addFriend,
+    updateFriend,
+    deleteFriend,
+    getFriend,
+    hobbies,
+    addHobby,
+    updateHobby,
+    deleteHobby,
+    getHobby,
     idealizedMemories,
     addIdealizedMemory,
     updateIdealizedMemory,
@@ -1218,6 +1632,8 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     reloadProfiles,
     reloadJobs,
     reloadFamilyMembers,
+    reloadFriends,
+    reloadHobbies,
   };
 
   return <JourneyContext.Provider value={value}>{children}</JourneyContext.Provider>;

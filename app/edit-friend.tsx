@@ -11,17 +11,17 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-export default function EditFamilyMemberScreen() {
+export default function EditFriendScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const { maxContentWidth } = useLargeDevice();
   const params = useLocalSearchParams();
-  const { getFamilyMember } = useJourney();
+  const { getFriend } = useJourney();
   const t = useTranslate();
   
-  const memberId = params.memberId as string | undefined;
-  const member = memberId ? getFamilyMember(memberId) : null;
+  const friendId = params.friendId as string | undefined;
+  const friend = friendId ? getFriend(friendId) : null;
 
   const styles = useMemo(
     () =>
@@ -76,32 +76,32 @@ export default function EditFamilyMemberScreen() {
     [fontScale, maxContentWidth]
   );
 
-  const handleEditMemberInfo = () => {
-    if (memberId) {
+  const handleEditFriendInfo = () => {
+    if (friendId) {
       router.push({
-        pathname: '/add-family-member',
-        params: { memberId, edit: 'true' },
+        pathname: '/add-friend',
+        params: { friendId, edit: 'true' },
       });
     }
   };
 
   const handleEditMemories = () => {
-    if (memberId) {
+    if (friendId) {
       router.push({
         pathname: '/idealized-memories',
-        params: { entityId: memberId, sphere: 'family', returnTo: 'edit-family-member', returnToId: memberId },
+        params: { entityId: friendId, sphere: 'friends', returnTo: 'edit-friend', returnToId: friendId },
       });
     }
   };
 
-  // Redirect if member not found
+  // Redirect if friend not found
   useEffect(() => {
-    if (!member && memberId) {
+    if (!friend && friendId) {
       router.back();
     }
-  }, [member, memberId]);
+  }, [friend, friendId]);
 
-  if (!member) {
+  if (!friend) {
     return null;
   }
 
@@ -121,7 +121,7 @@ export default function EditFamilyMemberScreen() {
           />
         </TouchableOpacity>
         <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-          {member.name}
+          {friend.name}
         </ThemedText>
         <View style={styles.headerButton} />
       </View>
@@ -134,10 +134,10 @@ export default function EditFamilyMemberScreen() {
         {/* Title and Description */}
         <View>
         <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.title}>
-          {t('profile.editFamilyMember')}
+          {t('profile.editFriend')}
         </ThemedText>
         <ThemedText size="sm" weight="normal" style={styles.description}>
-          {t('profile.editFamilyMember.description')}
+          {t('profile.editFriend.description')}
         </ThemedText>
         </View>
 
@@ -156,12 +156,12 @@ export default function EditFamilyMemberScreen() {
                   : 'rgba(0, 0, 0, 0.1)',
               },
             ]}
-            onPress={handleEditMemberInfo}
+            onPress={handleEditFriendInfo}
             activeOpacity={0.8}
           >
             <MaterialIcons name="person" size={24 * fontScale} color={colors.primary} />
             <ThemedText weight="bold" letterSpacing="l" style={{ color: colors.text, flex: 1 }}>
-              {t('profile.editFamilyInfo')}
+              {t('profile.editFriendInfo')}
             </ThemedText>
             <MaterialIcons 
               name="chevron-right" 

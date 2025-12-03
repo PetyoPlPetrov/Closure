@@ -8,14 +8,14 @@ import { ConfirmationModal } from '@/library/components/confirmation-modal';
 import { JobCard } from '@/library/components/job-card';
 import { ProfileCard } from '@/library/components/profile-card';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
-import type { ExProfile, FamilyMember, Job, LifeSphere } from '@/utils/JourneyProvider';
+import type { ExProfile, FamilyMember, Job, Friend, Hobby, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
@@ -23,7 +23,7 @@ export default function SpheresScreen() {
   const fontScale = useFontScale();
   const iconScale = useIconScale();
   const { maxContentWidth, isLargeDevice } = useLargeDevice();
-  const { profiles, jobs, familyMembers, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, deleteProfile, deleteJob, deleteFamilyMember, reloadIdealizedMemories, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
+  const { profiles, jobs, familyMembers, friends, hobbies, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, deleteProfile, deleteJob, deleteFamilyMember, deleteFriend, deleteHobby, reloadIdealizedMemories, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
   const t = useTranslate();
   
   // Reload memories when screen comes into focus (e.g., after running mock data script)
@@ -45,6 +45,12 @@ export default function SpheresScreen() {
   const [selectedFamilyMember, setSelectedFamilyMember] = useState<FamilyMember | null>(null);
   const [familyMemberActionSheetVisible, setFamilyMemberActionSheetVisible] = useState(false);
   const [familyMemberDeleteConfirmVisible, setFamilyMemberDeleteConfirmVisible] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [friendActionSheetVisible, setFriendActionSheetVisible] = useState(false);
+  const [friendDeleteConfirmVisible, setFriendDeleteConfirmVisible] = useState(false);
+  const [selectedHobby, setSelectedHobby] = useState<Hobby | null>(null);
+  const [hobbyActionSheetVisible, setHobbyActionSheetVisible] = useState(false);
+  const [hobbyDeleteConfirmVisible, setHobbyDeleteConfirmVisible] = useState(false);
   const [jobActionSheetVisible, setJobActionSheetVisible] = useState(false);
   const [jobDeleteConfirmVisible, setJobDeleteConfirmVisible] = useState(false);
 
@@ -113,14 +119,38 @@ export default function SpheresScreen() {
       .filter(e => e.score > 0)
       .sort((a, b) => b.score - a.score);
 
+    const friendsList = friends
+      .map(f => ({
+        id: f.id,
+        name: f.name,
+        score: calculateEntityScore(f.id, 'friends'),
+        isOngoing: true, // Friends are always "ongoing"
+        entity: f,
+      }))
+      .filter(e => e.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    const hobbiesList = hobbies
+      .map(h => ({
+        id: h.id,
+        name: h.name,
+        score: calculateEntityScore(h.id, 'hobbies'),
+        isOngoing: true, // Hobbies are always "ongoing"
+        entity: h,
+      }))
+      .filter(e => e.score > 0)
+      .sort((a, b) => b.score - a.score);
+
     return {
       relationships,
       career: jobsList,
       family: familyMembersList,
+      friends: friendsList,
+      hobbies: hobbiesList,
     };
-  }, [profiles, jobs, familyMembers, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
+  }, [profiles, jobs, familyMembers, friends, hobbies, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
 
-  const spheres: { type: LifeSphere; icon: string; label: string; entities: (ExProfile | Job | FamilyMember)[] }[] = useMemo(() => [
+  const spheres: { type: LifeSphere; icon: string; label: string; entities: (ExProfile | Job | FamilyMember | Friend | Hobby)[] }[] = useMemo(() => [
     {
       type: 'relationships',
       icon: 'favorite',
@@ -138,6 +168,18 @@ export default function SpheresScreen() {
       icon: 'family-restroom',
       label: t('spheres.family'),
       entities: getEntitiesBySphere('family') as FamilyMember[],
+    },
+    {
+      type: 'friends',
+      icon: 'people',
+      label: t('spheres.friends'),
+      entities: getEntitiesBySphere('friends') as Friend[],
+    },
+    {
+      type: 'hobbies',
+      icon: 'sports-esports',
+      label: t('spheres.hobbies'),
+      entities: getEntitiesBySphere('hobbies') as Hobby[],
     },
   ], [getEntitiesBySphere, t]);
 
@@ -179,6 +221,8 @@ export default function SpheresScreen() {
       relationships: calculateSphereData('relationships'),
       career: calculateSphereData('career'),
       family: calculateSphereData('family'),
+      friends: calculateSphereData('friends'),
+      hobbies: calculateSphereData('hobbies'),
     };
   }, [getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
 
@@ -208,6 +252,8 @@ export default function SpheresScreen() {
     relationships: sphereData.relationships.sunnyPercentage,
     career: sphereData.career.sunnyPercentage,
     family: sphereData.family.sunnyPercentage,
+    friends: sphereData.friends.sunnyPercentage,
+    hobbies: sphereData.hobbies.sunnyPercentage,
   }), [sphereData]);
 
   // Calculate entity-level scores and generate detailed insights
@@ -390,7 +436,7 @@ export default function SpheresScreen() {
       paddingHorizontal: 16 * fontScale,
       paddingTop: 8 * fontScale,
       paddingBottom: 8 * fontScale,
-      marginTop: 50,
+      marginTop: 20,
     },
     headerButton: {
       width: 48 * fontScale,
@@ -416,8 +462,8 @@ export default function SpheresScreen() {
     },
     sphereGrid: {
       flexDirection: 'row',
-      //flexWrap: 'wrap',
-      gap: 16 * fontScale,
+      flexWrap: 'wrap',
+      gap: 12 * fontScale,
       justifyContent: 'center',
       flex: 1,
       minHeight: 100 * fontScale,
@@ -425,14 +471,15 @@ export default function SpheresScreen() {
      // maxHeight: 140 * fontScale,
     },
     sphereCard: {
-      width: typeof maxContentWidth === 'number' ? (maxContentWidth - 48 * fontScale) / 3 : undefined,
+      width: (Dimensions.get('window').width - 48 * fontScale - 32 * fontScale) / 2, // Screen width minus padding and gap, divided by 2
       minWidth: 100 * fontScale,
+      maxWidth: 180 * fontScale,
       aspectRatio: 1,
-      borderRadius: 16 * fontScale,
-      padding: 16 * fontScale,
+      borderRadius: 12 * fontScale,
+      padding: 12 * fontScale,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 8 * fontScale,
+      gap: 6 * fontScale,
       backgroundColor: colorScheme === 'dark' 
         ? 'rgba(14, 165, 233, 0.1)' 
         : 'rgba(125, 211, 252, 0.2)',
@@ -459,35 +506,35 @@ export default function SpheresScreen() {
       opacity: 0.7,
     },
     insightsButtonContainer: {
-      marginTop: 32 * fontScale,
-      borderRadius: 20 * fontScale,
+      marginTop: 20 * fontScale,
+      borderRadius: 16 * fontScale,
       overflow: 'hidden',
       shadowColor: '#8b5cf6',
-      shadowOffset: { width: 0, height: 8 },
+      shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.3,
-      shadowRadius: 16,
-      elevation: 12,
+      shadowRadius: 12,
+      elevation: 10,
       width: '100%',
       maxWidth: maxContentWidth as any,
       alignSelf: 'center',
     },
     insightsButtonGradient: {
-      borderRadius: 20 * fontScale,
-      padding: 20 * fontScale,
+      borderRadius: 16 * fontScale,
+      padding: 14 * fontScale,
     },
     insightsButtonContent: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: 16 * fontScale,
+      gap: 12 * fontScale,
             width: '100%',
 
     },
     insightsIconContainer: {
       position: 'relative',
-      width: 56 * fontScale,
-      height: 56 * fontScale,
-      borderRadius: 28 * fontScale,
+      width: 48 * fontScale,
+      height: 48 * fontScale,
+      borderRadius: 24 * fontScale,
       backgroundColor: 'rgba(255, 255, 255, 0.2)',
       alignItems: 'center',
       justifyContent: 'center',
@@ -499,7 +546,7 @@ export default function SpheresScreen() {
     },
     insightsTextContainer: {
       flex: 1,
-      gap: 4 * fontScale,
+      gap: 2 * fontScale,
     },
     insightsButtonTitle: {
       color: '#ffffff',
@@ -887,6 +934,12 @@ export default function SpheresScreen() {
       case 'family':
         router.push('/add-family-member');
         break;
+      case 'friends':
+        router.push('/add-friend');
+        break;
+      case 'hobbies':
+        router.push('/add-hobby');
+        break;
     }
   };
 
@@ -924,7 +977,7 @@ export default function SpheresScreen() {
       <TabScreenContainer>
         <View style={styles.header}>
           <View style={styles.headerButton} />
-          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+          <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.title')}
           </ThemedText>
           <View style={styles.headerButton} />
@@ -1431,11 +1484,429 @@ export default function SpheresScreen() {
     );
   }
 
+  if (selectedSphere === 'friends') {
+    const handleFriendMorePress = (friend: Friend) => {
+      setSelectedFriend(friend);
+      setFriendActionSheetVisible(true);
+    };
+    
+    const handleEditFriend = () => {
+      if (selectedFriend) {
+        router.push({
+          pathname: '/edit-friend',
+          params: { friendId: selectedFriend.id },
+        });
+        setFriendActionSheetVisible(false);
+        setSelectedFriend(null);
+      }
+    };
+    
+    const handleFriendDeletePress = () => {
+      setFriendActionSheetVisible(false);
+      setFriendDeleteConfirmVisible(true);
+    };
+    
+    const handleFriendDeleteConfirm = async () => {
+      if (selectedFriend) {
+        try {
+          await deleteFriend(selectedFriend.id);
+          setFriendDeleteConfirmVisible(false);
+          setSelectedFriend(null);
+        } catch (error) {
+          console.error('Error deleting friend:', error);
+          setFriendDeleteConfirmVisible(false);
+          setSelectedFriend(null);
+        }
+      }
+    };
+    
+    const friendActionSheetOptions = selectedFriend
+      ? [
+          {
+            label: t('profile.friendActionSheet.edit'),
+            icon: 'edit' as const,
+            onPress: handleEditFriend,
+          },
+          {
+            label: t('profile.friendActionSheet.delete'),
+            icon: 'delete' as const,
+            onPress: handleFriendDeletePress,
+            destructive: true,
+          },
+        ]
+      : [];
+
+    const friendsList = selectedSphere === 'friends' ? friends : [];
+    const hasAnyFriendMemory = useMemo(() => {
+      return friendsList.some(friend => {
+        const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
+        return memories.length > 0;
+      });
+    }, [friendsList, getIdealizedMemoriesByEntityId]);
+
+    return (
+      <TabScreenContainer>
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => setSelectedSphere(null)}
+            style={styles.headerButton}
+          >
+            <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
+          </Pressable>
+          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+            {t('spheres.friends')}
+          </ThemedText>
+          {hasAnyFriendMemory ? (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.replace({ pathname: '/(tabs)' })}
+              activeOpacity={0.7}
+            >
+              <ThemedText style={{ color: colors.primary, fontSize: 14 }}>
+                {t('common.done')}
+              </ThemedText>
+            </TouchableOpacity>
+          ) : friendsList.length > 0 ? (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.push('/add-friend')}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="add" size={24 * fontScale} color={colors.primary} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerButton} />
+          )}
+        </View>
+
+        {friends.length === 0 ? (
+          <ScrollView
+            contentContainerStyle={[styles.scrollContent, styles.content]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.iconContainer}>
+              <MaterialIcons
+                name="people"
+                size={100 * fontScale * iconScale}
+                color={colorScheme === 'dark' ? colors.primaryLight : colors.primary}
+              />
+            </View>
+            <View style={styles.textContainer}>
+              <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.heading}>
+                {t('profile.friendEmptyState.title')}
+              </ThemedText>
+              <ThemedText size="sm" weight="normal" style={styles.description}>
+                {t('profile.friendEmptyState.description')}
+              </ThemedText>
+            </View>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: colors.primary }]}
+              activeOpacity={0.8}
+              onPress={() => router.push('/add-friend')}
+            >
+              <ThemedText weight="bold" letterSpacing="l" style={styles.buttonText}>
+                {t('profile.friendEmptyState.button')}
+              </ThemedText>
+            </TouchableOpacity>
+          </ScrollView>
+        ) : (
+          <>
+            <ScrollView
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.listContentWrapper}>
+                {friendsList.map((friend) => (
+                  <TouchableOpacity
+                    key={friend.id}
+                    style={styles.entityCard}
+                    onPress={() => handleFriendMorePress(friend)}
+                    activeOpacity={0.7}
+                  >
+                    {friend.imageUri ? (
+                      <Image
+                        source={{ uri: friend.imageUri }}
+                        style={styles.entityImage}
+                      />
+                    ) : (
+                      <View style={[styles.entityImage, { alignItems: 'center', justifyContent: 'center' }]}>
+                        <MaterialIcons
+                          name="people"
+                          size={24 * fontScale}
+                          color={colors.primary}
+                        />
+                      </View>
+                    )}
+                    <View style={styles.entityInfo}>
+                      <ThemedText size="l" weight="bold">
+                        {friend.name}
+                      </ThemedText>
+                      {friend.description && (
+                        <ThemedText size="xs" style={{ opacity: 0.6 }} numberOfLines={1}>
+                          {friend.description}
+                        </ThemedText>
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleFriendMorePress(friend)}
+                      style={{ padding: 8 * fontScale }}
+                    >
+                      <MaterialIcons
+                        name="more-vert"
+                        size={24 * fontScale}
+                        color={colors.icon}
+                      />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+          </>
+        )}
+
+        <ActionSheet
+          visible={friendActionSheetVisible}
+          title={selectedFriend ? `${selectedFriend.name}` : ''}
+          options={friendActionSheetOptions}
+          onCancel={() => {
+            setFriendActionSheetVisible(false);
+            setSelectedFriend(null);
+          }}
+        />
+
+        <ConfirmationModal
+          visible={friendDeleteConfirmVisible && !!selectedFriend}
+          title={t('profile.friendDelete.confirm')}
+          message={selectedFriend ? t('profile.friendDelete.confirm.message.withName').replace('{name}', selectedFriend.name) : ''}
+          confirmLabel={t('common.delete')}
+          cancelLabel={t('common.cancel')}
+          onConfirm={handleFriendDeleteConfirm}
+          onCancel={() => {
+            setFriendDeleteConfirmVisible(false);
+            setFriendActionSheetVisible(false);
+            setSelectedFriend(null);
+          }}
+          destructive
+        />
+      </TabScreenContainer>
+    );
+  }
+
+  if (selectedSphere === 'hobbies') {
+    const handleHobbyMorePress = (hobby: Hobby) => {
+      setSelectedHobby(hobby);
+      setHobbyActionSheetVisible(true);
+    };
+    
+    const handleEditHobby = () => {
+      if (selectedHobby) {
+        router.push({
+          pathname: '/edit-hobby',
+          params: { hobbyId: selectedHobby.id },
+        });
+        setHobbyActionSheetVisible(false);
+        setSelectedHobby(null);
+      }
+    };
+    
+    const handleHobbyDeletePress = () => {
+      setHobbyActionSheetVisible(false);
+      setHobbyDeleteConfirmVisible(true);
+    };
+    
+    const handleHobbyDeleteConfirm = async () => {
+      if (selectedHobby) {
+        try {
+          await deleteHobby(selectedHobby.id);
+          setHobbyDeleteConfirmVisible(false);
+          setSelectedHobby(null);
+        } catch (error) {
+          console.error('Error deleting hobby:', error);
+          setHobbyDeleteConfirmVisible(false);
+          setSelectedHobby(null);
+        }
+      }
+    };
+    
+    const hobbyActionSheetOptions = selectedHobby
+      ? [
+          {
+            label: t('profile.hobbyActionSheet.edit'),
+            icon: 'edit' as const,
+            onPress: handleEditHobby,
+          },
+          {
+            label: t('profile.hobbyActionSheet.delete'),
+            icon: 'delete' as const,
+            onPress: handleHobbyDeletePress,
+            destructive: true,
+          },
+        ]
+      : [];
+
+    const hobbiesList = selectedSphere === 'hobbies' ? hobbies : [];
+    const hasAnyHobbyMemory = useMemo(() => {
+      return hobbiesList.some(hobby => {
+        const memories = getIdealizedMemoriesByEntityId(hobby.id, 'hobbies');
+        return memories.length > 0;
+      });
+    }, [hobbiesList, getIdealizedMemoriesByEntityId]);
+
+    return (
+      <TabScreenContainer>
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => setSelectedSphere(null)}
+            style={styles.headerButton}
+          >
+            <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
+          </Pressable>
+          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+            {t('spheres.hobbies')}
+          </ThemedText>
+          {hasAnyHobbyMemory ? (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.replace({ pathname: '/(tabs)' })}
+              activeOpacity={0.7}
+            >
+              <ThemedText style={{ color: colors.primary, fontSize: 14 }}>
+                {t('common.done')}
+              </ThemedText>
+            </TouchableOpacity>
+          ) : hobbiesList.length > 0 ? (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.push('/add-hobby')}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="add" size={24 * fontScale} color={colors.primary} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerButton} />
+          )}
+        </View>
+
+        {hobbies.length === 0 ? (
+          <ScrollView
+            contentContainerStyle={[styles.scrollContent, styles.content]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.iconContainer}>
+              <MaterialIcons
+                name="sports-esports"
+                size={100 * fontScale * iconScale}
+                color={colorScheme === 'dark' ? colors.primaryLight : colors.primary}
+              />
+            </View>
+            <View style={styles.textContainer}>
+              <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.heading}>
+                {t('profile.hobbyEmptyState.title')}
+              </ThemedText>
+              <ThemedText size="sm" weight="normal" style={styles.description}>
+                {t('profile.hobbyEmptyState.description')}
+              </ThemedText>
+            </View>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: colors.primary }]}
+              activeOpacity={0.8}
+              onPress={() => router.push('/add-hobby')}
+            >
+              <ThemedText weight="bold" letterSpacing="l" style={styles.buttonText}>
+                {t('profile.hobbyEmptyState.button')}
+              </ThemedText>
+            </TouchableOpacity>
+          </ScrollView>
+        ) : (
+          <>
+            <ScrollView
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.listContentWrapper}>
+                {hobbiesList.map((hobby) => (
+                  <TouchableOpacity
+                    key={hobby.id}
+                    style={styles.entityCard}
+                    onPress={() => handleHobbyMorePress(hobby)}
+                    activeOpacity={0.7}
+                  >
+                    {hobby.imageUri ? (
+                      <Image
+                        source={{ uri: hobby.imageUri }}
+                        style={styles.entityImage}
+                      />
+                    ) : (
+                      <View style={[styles.entityImage, { alignItems: 'center', justifyContent: 'center' }]}>
+                        <MaterialIcons
+                          name="sports-esports"
+                          size={24 * fontScale}
+                          color={colors.primary}
+                        />
+                      </View>
+                    )}
+                    <View style={styles.entityInfo}>
+                      <ThemedText size="l" weight="bold">
+                        {hobby.name}
+                      </ThemedText>
+                      {hobby.description && (
+                        <ThemedText size="xs" style={{ opacity: 0.6 }} numberOfLines={1}>
+                          {hobby.description}
+                        </ThemedText>
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleHobbyMorePress(hobby)}
+                      style={{ padding: 8 * fontScale }}
+                    >
+                      <MaterialIcons
+                        name="more-vert"
+                        size={24 * fontScale}
+                        color={colors.icon}
+                      />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+          </>
+        )}
+
+        <ActionSheet
+          visible={hobbyActionSheetVisible}
+          title={selectedHobby ? `${selectedHobby.name}` : ''}
+          options={hobbyActionSheetOptions}
+          onCancel={() => {
+            setHobbyActionSheetVisible(false);
+            setSelectedHobby(null);
+          }}
+        />
+
+        <ConfirmationModal
+          visible={hobbyDeleteConfirmVisible && !!selectedHobby}
+          title={t('profile.hobbyDelete.confirm')}
+          message={selectedHobby ? t('profile.hobbyDelete.confirm.message.withName').replace('{name}', selectedHobby.name) : ''}
+          confirmLabel={t('common.delete')}
+          cancelLabel={t('common.cancel')}
+          onConfirm={handleHobbyDeleteConfirm}
+          onCancel={() => {
+            setHobbyDeleteConfirmVisible(false);
+            setHobbyActionSheetVisible(false);
+            setSelectedHobby(null);
+          }}
+          destructive
+        />
+      </TabScreenContainer>
+    );
+  }
+
   return (
     <TabScreenContainer>
       <View style={styles.header}>
         <View style={styles.headerButton} />
-        <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+        <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
           {t('spheres.title')}
         </ThemedText>
         <View style={styles.headerButton} />
@@ -1444,8 +1915,8 @@ export default function SpheresScreen() {
       <ScrollView 
         style={styles.content}
         contentContainerStyle={{ 
-          padding: 16 * fontScale,
-          paddingBottom: 100 * fontScale,
+          padding: 12 * fontScale,
+          paddingBottom: 80 * fontScale,
           alignItems: 'center',
           flexGrow: 0,
         }}
@@ -1465,11 +1936,11 @@ export default function SpheresScreen() {
                   >
                     <MaterialIcons
                       name={sphere.icon as any}
-                      size={40 * fontScale * iconScale}
+                      size={32 * fontScale * iconScale}
                       color={colors.primary}
                       style={styles.sphereIcon}
                     />
-                    <ThemedText size="sm" weight="bold" style={styles.sphereLabel}>
+                    <ThemedText size="xs" weight="bold" style={styles.sphereLabel}>
                       {sphere.label}
                     </ThemedText>
                     <ThemedText size="xs" style={styles.sphereCount}>
@@ -1498,23 +1969,23 @@ export default function SpheresScreen() {
               >
                 <View style={styles.insightsButtonContent}>
                   <View style={styles.insightsIconContainer}>
-                    <MaterialIcons name="insights" size={32 * fontScale} color="#ffffff" />
+                    <MaterialIcons name="insights" size={28 * fontScale} color="#ffffff" />
                     <MaterialIcons
                       name="auto-awesome"
-                      size={16 * fontScale}
+                      size={14 * fontScale}
                       color="#FFD700"
                       style={styles.sparkleIcon}
                     />
                   </View>
                   <View style={styles.insightsTextContainer}>
-                    <ThemedText size="l" weight="bold" style={styles.insightsButtonTitle}>
+                    <ThemedText size="sm" weight="bold" style={styles.insightsButtonTitle}>
                       {t('insights.wheelOfLife.title')}
                     </ThemedText>
                     <ThemedText size="xs" style={styles.insightsButtonSubtitle}>
                       {t('insights.wheelOfLife.subtitle')}
                     </ThemedText>
                   </View>
-                  <MaterialIcons name="arrow-forward" size={24 * fontScale} color="#ffffff" />
+                  <MaterialIcons name="arrow-forward" size={20 * fontScale} color="#ffffff" />
                 </View>
               </LinearGradient>
             </TouchableOpacity>
