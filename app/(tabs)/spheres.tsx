@@ -477,14 +477,22 @@ export default function SpheresScreen() {
     },
     content: {
       flex: 1,
-      alignContent: 'stretch',
+      padding: 12 * fontScale,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    mainContentWrapper: {
+      flex: 1,
+      width: '100%',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      maxHeight: Dimensions.get('window').height - 200 * fontScale, // Account for header and safe area
     },
     mainContentContainer: {
-      //width: '100%',
-      //gap: 32 * fontScale,
+      width: '100%',
       alignItems: 'center',
       alignSelf: 'stretch',
-      justifyContent: 'space-between',
+      flexShrink: 1,
       ...(!isLargeDevice && { paddingLeft: 18 * fontScale }),
     },
     sphereGrid: {
@@ -492,10 +500,9 @@ export default function SpheresScreen() {
       flexWrap: 'wrap',
       gap: 12 * fontScale,
       justifyContent: 'center',
-      flex: 1,
+      flexShrink: 1,
       minHeight: 100 * fontScale,
       minWidth: 100 * fontScale,
-     // maxHeight: 140 * fontScale,
     },
     sphereCard: {
       width: (Dimensions.get('window').width - 48 * fontScale - 32 * fontScale) / 2, // Screen width minus padding and gap, divided by 2
@@ -535,7 +542,7 @@ export default function SpheresScreen() {
       fontSize: 10 * fontScale,
     },
     insightsButtonContainer: {
-      marginTop: 20 * fontScale,
+      marginTop: 12 * fontScale,
       borderRadius: 16 * fontScale,
       overflow: 'hidden',
       shadowColor: '#8b5cf6',
@@ -546,6 +553,7 @@ export default function SpheresScreen() {
       width: '100%',
       maxWidth: maxContentWidth as any,
       alignSelf: 'center',
+      flexShrink: 0,
     },
     insightsButtonGradient: {
       borderRadius: 16 * fontScale,
@@ -2018,19 +2026,12 @@ export default function SpheresScreen() {
         <View style={styles.headerButton} />
       </View>
 
-      <ScrollView 
+      <View 
         style={styles.content}
-        contentContainerStyle={{ 
-          padding: 12 * fontScale,
-          paddingBottom: 80 * fontScale,
-          alignItems: 'center',
-          flexGrow: 0,
-        }}
-        showsVerticalScrollIndicator={false}
       >
         {/* Sphere Selection Grid - only show when no sphere is selected */}
         {!selectedSphere && (
-          <>
+          <View style={styles.mainContentWrapper}>
             <View style={styles.mainContentContainer}>
               <View style={styles.sphereGrid}>
                 {spheres.map((sphere) => {
@@ -2123,9 +2124,9 @@ export default function SpheresScreen() {
                 </View>
               </LinearGradient>
             </TouchableOpacity>
-          </>
+          </View>
         )}
-      </ScrollView>
+      </View>
     </TabScreenContainer>
   );
 }

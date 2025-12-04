@@ -531,7 +531,7 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
               {/* Quote Text */}
               <Animated.View style={[styles.textContainer, textAnimatedStyle]}>
                 <Text style={quoteStyle}>
-                  Live spherically — in many directions
+                  Live spherically, in many directions!
                 </Text>
           </Animated.View>
         </View>

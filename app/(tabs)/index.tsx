@@ -20,7 +20,6 @@ import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withRepeat,
   withSpring,
   withTiming
@@ -283,8 +282,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   // On tablets, increase memory radius when focused to position memories further from avatar
   // Use larger base radius on tablets to start with more spacing
   const baseMemoryRadius = isFocused 
-    ? (isTablet ? Math.max(120, Math.min(160, maxAllowedRadius)) : Math.max(80, Math.min(110, maxAllowedRadius)))
-    : (isTablet ? 90 : 60);
+    ? (isTablet ? Math.max(120, Math.min(160, maxAllowedRadius)) : Math.max(60, Math.min(90, maxAllowedRadius))) // Reduced for phones when focused
+    : (isTablet ? 90 : 60); // Base radius for floating memories around spheres (reverted to original)
   // On tablets, position memories much further from avatar when focused (3x distance for better spacing)
   const memoryRadius = isTablet && isFocused ? baseMemoryRadius * 3 : baseMemoryRadius;
   const exZoneRadius = isFocused ? 180 : 120; // Adjusted zone when memories are closer
@@ -1019,7 +1018,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           }
         } else {
           // Not focused, use smaller size (scale for tablets)
-          baseMemorySize = isTablet ? 75 : 50; // 50% larger on tablets
+          baseMemorySize = isTablet ? 75 : 40; // Smaller on non-tablet devices
         }
         
         const memorySize = Math.min(baseMemorySize, calculatedMaxMemorySize);
@@ -1683,7 +1682,7 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
     >
         <Pressable
           onPress={handleAddSun}
-          disabled={allSunsVisible}
+          disabled={allSunsVisible || totalSunsCount === 0}
         >
         <View
           style={{
@@ -1705,7 +1704,7 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
             borderColor: colorScheme === 'dark' 
               ? '#FFD700' 
               : '#FFD700',
-            opacity: allSunsVisible ? 0.4 : 1,
+            opacity: (allSunsVisible || totalSunsCount === 0) ? 0.4 : 1,
           }}
         >
           <LinearGradient
@@ -1741,38 +1740,36 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
                 color={colorScheme === 'dark' ? '#FFFFFF' : '#555'} 
               />
             </View>
-            {/* Count badge - horizontal bar at bottom of circle */}
-            {totalSunsCount > 0 && (
-              <View
+            {/* Count badge - horizontal bar at bottom of circle - always show, even if 0/0 */}
+            <View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 2,
+                right: 2,
+                height: 28,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#000000',
+                borderBottomLeftRadius: isLargeDevice ? 48 : 44,
+                borderBottomRightRadius: isLargeDevice ? 48 : 44,
+                borderTopLeftRadius: 6,
+                borderTopRightRadius: 6,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+              }}
+            >
+              <ThemedText
                 style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 2,
-                  right: 2,
-                  height: 28,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#000000',
-                  borderBottomLeftRadius: isLargeDevice ? 48 : 44,
-                  borderBottomRightRadius: isLargeDevice ? 48 : 44,
-                  borderTopLeftRadius: 6,
-                  borderTopRightRadius: 6,
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
+                  fontSize: isLargeDevice ? 12 : 11,
+                  fontWeight: '600',
+                  color: '#FFFFFF',
+                  textAlign: 'center',
                 }}
               >
-                <ThemedText
-                  style={{
-                    fontSize: isLargeDevice ? 12 : 11,
-                    fontWeight: '600',
-                    color: '#FFFFFF',
-                    textAlign: 'center',
-                  }}
-                >
-                  {visibleSunsCount}/{totalSunsCount}
-                </ThemedText>
-              </View>
-            )}
+                {visibleSunsCount}/{totalSunsCount}
+              </ThemedText>
+            </View>
           </LinearGradient>
         </View>
       </Pressable>
@@ -1876,7 +1873,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
   // Otherwise use calculated size or default (scale for tablets)
   const memorySize = isMemoryFocused 
     ? (isTablet ? 375 : (isLargeDevice ? 300 : 250)) // 50% larger on tablets
-    : (calculatedMemorySize ?? (isFocused ? 65 : 50));
+    : (calculatedMemorySize ?? (isFocused ? 65 : 40));
   
   // Cloud and sun dimensions from creation screen (used when memory is focused)
   // Scale for tablets (50% larger)
@@ -2243,29 +2240,60 @@ const FloatingMemory = React.memo(function FloatingMemory({
     if (total === 0) return 50; // Neutral if no moments
     return (totalSuns / total) * 100;
   }, [clouds.length, suns.length]);
+  
+  // Determine if memory is "sunny" (more good facts than hard truths) or "cloudy" (more hard truths than good facts)
+  const isSunny = suns.length > clouds.length;
+  const isCloudy = clouds.length > suns.length;
+  const hasMoments = clouds.length + suns.length > 0;
 
   // Calculate cloud and sun positions relative to memory
-  const cloudPositions = useMemo(() => {
-    return clouds.map((_: any, cloudIndex: number) => {
-      const angle = (cloudIndex * 2 * Math.PI) / clouds.length;
-      return {
-        angle,
-        offsetX: cloudRadius * Math.cos(angle),
-        offsetY: cloudRadius * Math.sin(angle),
-      };
-    });
-  }, [clouds, cloudRadius]);
-
-  const sunPositions = useMemo(() => {
-    return suns.map((_: any, sunIndex: number) => {
-      const angle = ((sunIndex + clouds.length) * 2 * Math.PI) / (suns.length + clouds.length);
-      return {
-        angle,
-        offsetX: sunRadius * Math.cos(angle),
-        offsetY: sunRadius * Math.sin(angle),
-      };
-    });
-  }, [suns, clouds, sunRadius]);
+  // Distribute all moments evenly around the circle, interleaving clouds and suns
+  const { cloudPositions, sunPositions } = useMemo(() => {
+    const totalMoments = clouds.length + suns.length;
+    if (totalMoments === 0) {
+      return { cloudPositions: [], sunPositions: [] };
+    }
+    
+    // Use Bresenham-like algorithm to distribute clouds and suns evenly
+    // This ensures they're interleaved proportionally without overlaps
+    const cloudPositionsResult: { angle: number; offsetX: number; offsetY: number }[] = [];
+    const sunPositionsResult: { angle: number; offsetX: number; offsetY: number }[] = [];
+    
+    let cloudError = 0;
+    let sunError = 0;
+    let cloudIndex = 0;
+    let sunIndex = 0;
+    
+    // Distribute positions using error accumulation (Bresenham-like)
+    for (let position = 0; position < totalMoments; position++) {
+      // Calculate error for both types
+      cloudError += clouds.length;
+      sunError += suns.length;
+      
+      // Choose the one with higher error (needs placement more)
+      if (cloudIndex < clouds.length && (sunIndex >= suns.length || cloudError >= sunError)) {
+        const angle = (position * 2 * Math.PI) / totalMoments;
+        cloudPositionsResult.push({
+          angle,
+          offsetX: cloudRadius * Math.cos(angle),
+          offsetY: cloudRadius * Math.sin(angle),
+        });
+        cloudIndex++;
+        cloudError -= totalMoments;
+      } else if (sunIndex < suns.length) {
+        const angle = (position * 2 * Math.PI) / totalMoments;
+        sunPositionsResult.push({
+          angle,
+          offsetX: sunRadius * Math.cos(angle),
+          offsetY: sunRadius * Math.sin(angle),
+        });
+        sunIndex++;
+        sunError -= totalMoments;
+      }
+    }
+    
+    return { cloudPositions: cloudPositionsResult, sunPositions: sunPositionsResult };
+  }, [clouds, suns, cloudRadius, sunRadius]);
 
   // Click on memory: focus the memory (and profile if not already focused)
   const handlePress = () => {
@@ -2317,6 +2345,66 @@ const FloatingMemory = React.memo(function FloatingMemory({
           }}
           onPress={handlePress}
         >
+          {/* SVG Progress Bar Border - shows black and yellow proportionally - only show when not focused */}
+          {hasMoments && !isMemoryFocused && (
+            <Svg
+              width={memorySize}
+              height={memorySize}
+              style={{ position: 'absolute', top: 0, left: 0, zIndex: 10 }}
+            >
+              {(() => {
+                  const centerX = memorySize / 2;
+                  const centerY = memorySize / 2;
+                  const strokeWidth = 1;
+                  const borderRadius = memorySize / 2 - strokeWidth / 2; // Align border exactly on circle edge
+                  const circumference = 2 * Math.PI * borderRadius;
+                const cloudyPercentage = 100 - sunnyPercentage;
+                
+                  // Black circle for cloudy portion - starts at top (-90 degrees)
+                  const blackDashLength = (cloudyPercentage / 100) * circumference;
+                  
+                  // Yellow circle for sunny portion - starts where black ends
+                  const yellowDashLength = (sunnyPercentage / 100) * circumference;
+                  // Rotate yellow to start where black ends: -90 (start) + (cloudyPercentage / 100) * 360 (where black ends)
+                  const yellowRotation = -90 + (cloudyPercentage / 100) * 360;
+                
+                return (
+                    <>
+                      {/* Black border for cloudy moments */}
+                      {cloudyPercentage > 0 && (
+              <Circle
+                          cx={centerX}
+                          cy={centerY}
+                          r={borderRadius}
+                          stroke="#000000"
+                          strokeWidth={strokeWidth}
+                fill="none"
+                          strokeDasharray={`${blackDashLength} ${circumference * 10}`}
+                          strokeDashoffset={0}
+                          strokeLinecap="round"
+                          transform={`rotate(-90 ${centerX} ${centerY})`}
+                        />
+                      )}
+                      {/* Yellow border for sunny moments */}
+                      {sunnyPercentage > 0 && (
+                  <Circle
+                          cx={centerX}
+                          cy={centerY}
+                    r={borderRadius}
+                          stroke="#FFD700"
+                          strokeWidth={strokeWidth}
+                    fill="none"
+                          strokeDasharray={`${yellowDashLength} ${circumference * 10}`}
+                          strokeDashoffset={0}
+                    strokeLinecap="round"
+                          transform={`rotate(${yellowRotation} ${centerX} ${centerY})`}
+                  />
+                      )}
+                    </>
+                );
+              })()}
+            </Svg>
+            )}
           <View
             style={{
               width: memorySize,
@@ -2336,83 +2424,6 @@ const FloatingMemory = React.memo(function FloatingMemory({
               position: 'relative',
             }}
           >
-            {/* SVG Progress Bar Border - same as avatar */}
-            <Svg
-              width={memorySize}
-              height={memorySize}
-              style={{ position: 'absolute', top: 0, left: 0 }}
-            >
-              <Defs>
-                <SvgLinearGradient id={`memoryBorderGradient-${memory.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                  <Stop offset="0%" stopColor="#FFD700" stopOpacity="1" />
-                  <Stop offset="100%" stopColor="#FFD700" stopOpacity="1" />
-                </SvgLinearGradient>
-              </Defs>
-              {/* Background circle (cloudy/dark) - color based on sunny percentage */}
-              {(() => {
-                // Calculate dark color based on sunny percentage
-                // The background circle represents the "cloudy" portion of the border
-                // When sunnyPercentage = 0 (all clouds): fully black rgba(0,0,0,1)
-                // When sunnyPercentage = 100 (all suns): very light gray (barely visible)
-                // When sunnyPercentage > 0: can't be fully black because there ARE suns present
-                
-                // Calculate the cloudy percentage
-                const cloudyPercentage = 100 - sunnyPercentage;
-                
-                let darkOpacity: number;
-                let darkColorValue: number;
-                
-                if (sunnyPercentage === 0) {
-                  // All clouds - fully black
-                  darkOpacity = 1;
-                  darkColorValue = 0;
-                } else if (sunnyPercentage === 100) {
-                  // All suns - very light gray (for border definition)
-                  darkOpacity = 0.2;
-                  darkColorValue = 200;
-                } else {
-                  // Mixed: interpolate between black and gray
-                  // More cloudy = darker, more black
-                  darkOpacity = 0.4 + (cloudyPercentage / 100) * 0.6; // Range: 0.4 to 1.0
-                  darkColorValue = (cloudyPercentage / 100) * 50; // Range: 0 (black) to 50 (dark gray)
-                }
-                
-                const darkColor = `rgba(${darkColorValue}, ${darkColorValue}, ${darkColorValue}, ${darkOpacity})`;
-                
-                return (
-              <Circle
-                cx={memorySize / 2}
-                cy={memorySize / 2}
-                r={memorySize / 2 - 4}
-                    stroke={darkColor}
-                strokeWidth={8}
-                fill="none"
-              />
-                );
-              })()}
-              {/* Progress circle (sunny/yellow) */}
-              {(() => {
-                const borderRadius = memorySize / 2 - 4;
-                const circumference = 2 * Math.PI * borderRadius;
-                const strokeDashoffset = circumference - (sunnyPercentage / 100) * circumference;
-                const gradientId = `memoryBorderGradient-${memory.id}`;
-                return (
-                  <Circle
-                    cx={memorySize / 2}
-                    cy={memorySize / 2}
-                    r={borderRadius}
-                    stroke={`url(#${gradientId})`}
-                    strokeWidth={8}
-                    fill="none"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
-                    strokeLinecap="round"
-                    transform={`rotate(-90 ${memorySize / 2} ${memorySize / 2})`}
-                  />
-                );
-              })()}
-            </Svg>
-            
             {memory.imageUri ? (
               <>
                 <Image
@@ -2886,7 +2897,35 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   colors: any;
 }) {
   const { isTablet } = useLargeDevice();
-  const avatarSize = isTablet ? 180 : 120; // 50% larger on tablets
+  
+  // Calculate if floating entities intersect with main circle and adjust size accordingly
+  // Floating entities are positioned: spherePosition + (cos(angle) * entityRadius, sin(angle) * entityRadius)
+  // Where spherePosition is at distance Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3 from center
+  // And entityRadius is isTablet ? 85 : 55 (larger on tablets by default)
+  // Floating entity size is isTablet ? 36 : 24, so radius is isTablet ? 18 : 12
+  const sphereDistanceFromCenter = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3;
+  const floatingEntityRadius = isTablet ? 85 : 55;
+  const floatingEntitySize = isTablet ? 36 : 24;
+  const floatingEntityRadiusSize = floatingEntitySize / 2;
+  
+  // Calculate minimum distance from main center to floating entity edge
+  // This happens when the floating entity is positioned closest to center (on the line from center to sphere)
+  const minDistanceToFloatingEntity = sphereDistanceFromCenter - floatingEntityRadius - floatingEntityRadiusSize;
+  
+  // Base avatar size
+  const baseAvatarSize = isTablet ? 180 : 120;
+  const baseAvatarRadius = baseAvatarSize / 2;
+  
+  // Check if main circle (with some padding) would intersect floating entities
+  // Add 5px padding to ensure clear separation
+  const padding = 5;
+  const maxSafeAvatarRadius = minDistanceToFloatingEntity - padding;
+  
+  // Use smaller size if intersection detected, otherwise use base size
+  const avatarSize = maxSafeAvatarRadius < baseAvatarRadius 
+    ? Math.max(maxSafeAvatarRadius * 2, isTablet ? 140 : 90) // Minimum size to ensure readability
+    : baseAvatarSize;
+  
   const borderWidth = isTablet ? 12 : 8; // Scale border width proportionally
   const radius = (avatarSize + borderWidth) / 2 - borderWidth / 2;
   const circumference = 2 * Math.PI * radius;
@@ -4753,7 +4792,19 @@ export default function HomeScreen() {
 
           {/* Center - Overall Percentage Avatar */}
           {(() => {
-            const avatarSize = isTablet ? 180 : 120;
+            // Calculate avatar size considering floating entities intersection
+            const sphereDistanceFromCenter = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3;
+            const floatingEntityRadius = isTablet ? 85 : 55; // Larger on tablets by default
+            const floatingEntitySize = isTablet ? 36 : 24;
+            const floatingEntityRadiusSize = floatingEntitySize / 2;
+            const minDistanceToFloatingEntity = sphereDistanceFromCenter - floatingEntityRadius - floatingEntityRadiusSize;
+            const baseAvatarSize = isTablet ? 180 : 120;
+            const baseAvatarRadius = baseAvatarSize / 2;
+            const padding = 5;
+            const maxSafeAvatarRadius = minDistanceToFloatingEntity - padding;
+            const avatarSize = maxSafeAvatarRadius < baseAvatarRadius 
+              ? Math.max(maxSafeAvatarRadius * 2, isTablet ? 140 : 90)
+              : baseAvatarSize;
             return (
               <View
                 style={{
@@ -4887,7 +4938,7 @@ export default function HomeScreen() {
               {sortedProfiles.slice(0, Math.min(sortedProfiles.length, 5)).map((profile, index) => {
                 const totalPartners = Math.min(sortedProfiles.length, 5);
                 const angle = (index * 2 * Math.PI) / totalPartners;
-                const radius = 65; // Closer to sphere (reduced from 100)
+                const radius = isTablet ? 85 : 55; // Larger distance on tablets by default
                 const memories = getIdealizedMemoriesByProfileId(profile.id);
                 
                 const x = spherePositions.relationships.x + Math.cos(angle) * radius;
@@ -4913,7 +4964,7 @@ export default function HomeScreen() {
               {sortedJobs.slice(0, Math.min(sortedJobs.length, 5)).map((job, index) => {
                 const totalJobs = Math.min(sortedJobs.length, 5);
                 const angle = (index * 2 * Math.PI) / totalJobs;
-                const radius = 65; // Closer to sphere (reduced from 100)
+                const radius = isTablet ? 85 : 55; // Larger distance on tablets by default
                 const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
                 
                 const x = spherePositions.career.x + Math.cos(angle) * radius;
@@ -4939,7 +4990,7 @@ export default function HomeScreen() {
               {familyMembers.slice(0, Math.min(familyMembers.length, 5)).map((member, index) => {
                 const totalMembers = Math.min(familyMembers.length, 5);
                 const angle = (index * 2 * Math.PI) / totalMembers;
-                const radius = 65; // Closer to sphere (reduced from 100)
+                const radius = isTablet ? 85 : 55; // Larger distance on tablets by default
                 const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
                 
                 const x = spherePositions.family.x + Math.cos(angle) * radius;
@@ -4965,7 +5016,7 @@ export default function HomeScreen() {
               {friends.slice(0, Math.min(friends.length, 5)).map((friend, index) => {
                 const totalFriends = Math.min(friends.length, 5);
                 const angle = (index * 2 * Math.PI) / totalFriends;
-                const radius = 65; // Closer to sphere (reduced from 100)
+                const radius = isTablet ? 85 : 55; // Larger distance on tablets by default
                 const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
                 
                 const x = spherePositions.friends.x + Math.cos(angle) * radius;
@@ -4991,7 +5042,7 @@ export default function HomeScreen() {
               {hobbies.slice(0, Math.min(hobbies.length, 5)).map((hobby, index) => {
                 const totalHobbies = Math.min(hobbies.length, 5);
                 const angle = (index * 2 * Math.PI) / totalHobbies;
-                const radius = 65; // Closer to sphere (reduced from 100)
+                const radius = isTablet ? 85 : 55; // Larger distance on tablets by default
                 const memories = getIdealizedMemoriesByEntityId(hobby.id, 'hobbies');
                 
                 const x = spherePositions.hobbies.x + Math.cos(angle) * radius;

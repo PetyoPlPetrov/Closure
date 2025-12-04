@@ -3,9 +3,10 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { useMemo, useState } from 'react';
+import { StyleSheet, TouchableOpacity, View, ViewStyle, LayoutChangeEvent } from 'react-native';
 import { Image } from 'expo-image';
+import Svg, { Path } from 'react-native-svg';
 
 export type IdealizedMemory = {
   id: string;
@@ -40,6 +41,30 @@ export function MemoryCard({
   const fontScale = useFontScale();
   const colors = Colors[colorScheme ?? 'dark'];
 
+  const hardTruthCount = memory.hardTruths.length;
+  const hasHardTruths = hardTruthCount > 0;
+  const goodFactCount = memory.goodFacts?.length || 0;
+  const hasGoodFacts = goodFactCount > 0;
+  
+  // Determine if memory is "sunny" (more good facts than hard truths) or "cloudy" (more hard truths than good facts)
+  const isSunny = goodFactCount > hardTruthCount;
+  const isCloudy = hardTruthCount > goodFactCount;
+  const totalMoments = hardTruthCount + goodFactCount;
+  const hasMoments = totalMoments > 0;
+  
+  // Calculate percentages for segmented border
+  const sunnyPercentage = hasMoments ? (goodFactCount / totalMoments) * 100 : 0;
+  const cloudyPercentage = hasMoments ? (hardTruthCount / totalMoments) * 100 : 0;
+  
+  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
+  
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setContainerDimensions({ width, height });
+    }
+  };
+
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -51,12 +76,29 @@ export function MemoryCard({
               : '#ffffff',
           padding: 16 * fontScale,
           gap: 12 * fontScale,
-          borderWidth: 1,
-          borderColor:
-            colorScheme === 'dark'
-              ? 'rgba(255, 255, 255, 0.1)'
-              : 'rgba(0, 0, 0, 0.1)',
+          borderWidth: (isSunny && hasMoments) || (isCloudy && hasMoments) ? 3 : 1,
+          borderColor: isSunny && hasMoments 
+            ? '#FFD700' // Gold/yellow for sunny memories
+            : isCloudy && hasMoments
+              ? '#000000' // Black for cloudy memories
+              : colorScheme === 'dark'
+                ? 'rgba(255, 255, 255, 0.1)'
+                : 'rgba(0, 0, 0, 0.1)',
           position: 'relative',
+          ...(isSunny && hasMoments && {
+            shadowColor: '#FFD700',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.6,
+            shadowRadius: 10,
+            elevation: 5,
+          }),
+          ...(isCloudy && hasMoments && {
+            shadowColor: '#000000',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.4,
+            shadowRadius: 8,
+            elevation: 4,
+          }),
         },
         cardContent: {
           flex: 1,
@@ -138,16 +180,80 @@ export function MemoryCard({
           gap: 4 * fontScale,
         },
       }),
-    [fontScale, colorScheme, colors.primary]
+    [fontScale, colorScheme, colors.primary, isSunny, isCloudy, hasMoments]
   );
 
-  const hardTruthCount = memory.hardTruths.length;
-  const hasHardTruths = hardTruthCount > 0;
-  const goodFactCount = memory.goodFacts?.length || 0;
-  const hasGoodFacts = goodFactCount > 0;
-
   return (
-    <View style={[styles.container, containerStyle]}>
+    <View 
+      style={[styles.container, containerStyle]}
+      onLayout={handleLayout}
+    >
+      {/* Segmented border SVG - shows black and yellow proportionally */}
+      {hasMoments && containerDimensions.width > 0 && containerDimensions.height > 0 && (
+        <Svg
+          width={containerDimensions.width}
+          height={containerDimensions.height}
+          style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+        >
+          {(() => {
+            const borderRadius = 12 * fontScale;
+            const borderWidth = 3;
+            const w = containerDimensions.width;
+            const h = containerDimensions.height;
+            const r = borderRadius;
+            
+            // Calculate perimeter of rounded rectangle
+            const straightSides = 2 * (w + h) - 8 * r;
+            const cornerArcs = 2 * Math.PI * r;
+            const perimeter = straightSides + cornerArcs;
+            
+            // Black border for cloudy portion
+            const blackLength = (cloudyPercentage / 100) * perimeter;
+            const blackDashArray = `${blackLength} ${perimeter}`;
+            const blackDashOffset = perimeter - blackLength;
+            
+            // Yellow border for sunny portion
+            const yellowLength = (sunnyPercentage / 100) * perimeter;
+            const yellowDashArray = `${yellowLength} ${perimeter}`;
+            const yellowDashOffset = perimeter - yellowLength;
+            const yellowStartOffset = blackLength; // Yellow starts where black ends
+            
+            // Create rounded rectangle path
+            const path = `M ${r} 0 L ${w - r} 0 Q ${w} 0 ${w} ${r} L ${w} ${h - r} Q ${w} ${h} ${w - r} ${h} L ${r} ${h} Q 0 ${h} 0 ${h - r} L 0 ${r} Q 0 0 ${r} 0 Z`;
+            
+            return (
+              <>
+                {/* Black border for cloudy moments */}
+                {cloudyPercentage > 0 && (
+                  <Path
+                    d={path}
+                    stroke="#000000"
+                    strokeWidth={borderWidth}
+                    fill="none"
+                    strokeDasharray={blackDashArray}
+                    strokeDashoffset={blackDashOffset}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+                {/* Yellow border for sunny moments */}
+                {sunnyPercentage > 0 && (
+                  <Path
+                    d={path}
+                    stroke="#FFD700"
+                    strokeWidth={borderWidth}
+                    fill="none"
+                    strokeDasharray={yellowDashArray}
+                    strokeDashoffset={yellowDashOffset - yellowStartOffset}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+              </>
+            );
+          })()}
+        </Svg>
+      )}
       <TouchableOpacity
         style={styles.cardContent}
         onPress={onPress}

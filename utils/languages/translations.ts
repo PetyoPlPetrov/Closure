@@ -119,6 +119,7 @@ export interface Translations {
   'profile.friendName': string;
   'profile.friendName.placeholder': string;
   'profile.addFriend': string;
+  'profile.addFriend.description': string;
   'profile.editFriend': string;
   'profile.editFriend.description': string;
   'profile.friendEmptyState.title': string;
@@ -133,6 +134,7 @@ export interface Translations {
   'profile.hobbyName': string;
   'profile.hobbyName.placeholder': string;
   'profile.addHobby': string;
+  'profile.addHobby.description': string;
   'profile.editHobby': string;
   'profile.editHobby.description': string;
   'profile.hobbyEmptyState.title': string;
@@ -573,6 +575,7 @@ const translations: Record<Language, Translations> = {
     'profile.friendName': 'Friend Name',
     'profile.friendName.placeholder': 'Enter their name',
     'profile.addFriend': 'Add Friend',
+    'profile.addFriend.description': 'Add a friend to track your relationship moments',
     'profile.editFriend': 'Edit Friend',
     'profile.editFriend.description': 'Update your friend\'s information',
     'profile.friendEmptyState.title': 'No friends yet',
@@ -587,6 +590,7 @@ const translations: Record<Language, Translations> = {
     'profile.hobbyName': 'Hobby Name',
     'profile.hobbyName.placeholder': 'Enter hobby name',
     'profile.addHobby': 'Add Hobby',
+    'profile.addHobby.description': 'Add a hobby to track your activity moments',
     'profile.editHobby': 'Edit Hobby',
     'profile.editHobby.description': 'Update your hobby\'s information',
     'profile.hobbyEmptyState.title': 'No hobbies yet',
@@ -617,7 +621,7 @@ const translations: Record<Language, Translations> = {
     'job.jobActionSheet.delete': 'Delete',
     'spheres.title': 'Life Spheres',
     'spheres.encouragement.general': 'You have lots of great moments in your life. Take time to enjoy and appreciate them!',
-    'spheres.encouragement.goodMomentsPrevail': 'Wonderful! Good moments prevail in your life. Appreciate and realize the positive experiences you\'ve created! ✨',
+    'spheres.encouragement.goodMomentsPrevail': 'Wonderful! Good moments prevail in your life. Appreciate and embrace the positive experiences you\'ve created! ✨',
     'spheres.encouragement.keepPushing': 'Keep pushing forward, even though it\'s hard! Consider meeting up with family or friends, or exploring a new hobby to create more sunny moments in your life. 💪',
     'spheres.encouragement.calculating': 'Analyzing your moments',
     'spheres.relationships': 'Relationships',
@@ -1025,6 +1029,7 @@ const translations: Record<Language, Translations> = {
     'profile.friendName': 'Име на Приятел',
     'profile.friendName.placeholder': 'Въведете името им',
     'profile.addFriend': 'Добави Приятел',
+    'profile.addFriend.description': 'Добавете приятел, за да проследявате моментите от вашата връзка',
     'profile.editFriend': 'Редактирай Приятел',
     'profile.editFriend.description': 'Актуализирайте информацията за вашия приятел',
     'profile.friendEmptyState.title': 'Все още няма приятели',
@@ -1039,6 +1044,7 @@ const translations: Record<Language, Translations> = {
     'profile.hobbyName': 'Име на Хоби',
     'profile.hobbyName.placeholder': 'Въведете име на хоби',
     'profile.addHobby': 'Добави Хоби',
+    'profile.addHobby.description': 'Добавете хоби, за да проследявате моментите от вашата дейност',
     'profile.editHobby': 'Редактирай Хоби',
     'profile.editHobby.description': 'Актуализирайте информацията за вашето хоби',
     'profile.hobbyEmptyState.title': 'Все още няма хобита',
@@ -1069,7 +1075,7 @@ const translations: Record<Language, Translations> = {
     'job.jobActionSheet.delete': 'Изтрий',
     'spheres.title': 'Сфери',
     'spheres.encouragement.general': 'Имате много прекрасни моменти в живота си. Отделете време да ги насладите и оцените!',
-    'spheres.encouragement.goodMomentsPrevail': 'Чудесно! Добрите моменти преобладават в живота ви. Оценете и осъзнайте позитивните преживявания, които сте създали! ✨',
+    'spheres.encouragement.goodMomentsPrevail': 'Чудесно! Добрите моменти преобладават в живота ви. Оценете и приемете позитивните преживявания, които сте създали! ✨',
     'spheres.encouragement.keepPushing': 'Продължавайте напред, въпреки че е трудно! Помислете да се срещнете с семейство или приятели, или да опитате ново хоби, за да създадете повече слънчеви моменти в живота си. 💪',
     'spheres.encouragement.calculating': 'Анализиране на вашите моменти',
     'spheres.relationships': 'Връзки',
