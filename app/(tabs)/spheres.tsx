@@ -16,7 +16,8 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image } from 'expo-image';
 
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
@@ -1491,6 +1492,7 @@ export default function SpheresScreen() {
                       <Image
                         source={{ uri: member.imageUri }}
                         style={styles.entityImage}
+                        contentFit="cover"
                       />
                     ) : (
                       <View style={[styles.entityImage, { alignItems: 'center', justifyContent: 'center' }]}>
@@ -1713,6 +1715,7 @@ export default function SpheresScreen() {
                       <Image
                         source={{ uri: friend.imageUri }}
                         style={styles.entityImage}
+                        contentFit="cover"
                       />
                     ) : (
                       <View style={[styles.entityImage, { alignItems: 'center', justifyContent: 'center' }]}>
@@ -1930,6 +1933,7 @@ export default function SpheresScreen() {
                       <Image
                         source={{ uri: hobby.imageUri }}
                         style={styles.entityImage}
+                        contentFit="cover"
                       />
                     ) : (
                       <View style={[styles.entityImage, { alignItems: 'center', justifyContent: 'center' }]}>

@@ -257,38 +257,46 @@ export default function InsightsScreen() {
     hobbies: sphereData.hobbies.sunnyPercentage,
   }), [sphereData]);
 
-  const spheres: { type: LifeSphere; icon: string; label: string; entities: any[] }[] = useMemo(() => [
-    {
-      type: 'relationships',
-      icon: 'favorite',
-      label: t('spheres.relationships'),
-      entities: getEntitiesBySphere('relationships'),
-    },
-    {
-      type: 'career',
-      icon: 'work',
-      label: t('spheres.career'),
-      entities: getEntitiesBySphere('career'),
-    },
-    {
-      type: 'family',
-      icon: 'family-restroom',
-      label: t('spheres.family'),
-      entities: getEntitiesBySphere('family'),
-    },
-    {
-      type: 'friends',
-      icon: 'people',
-      label: t('spheres.friends'),
-      entities: getEntitiesBySphere('friends'),
-    },
-    {
-      type: 'hobbies',
-      icon: 'sports-esports',
-      label: t('spheres.hobbies'),
-      entities: getEntitiesBySphere('hobbies'),
-    },
-  ], [getEntitiesBySphere, t]);
+  const spheres: { type: LifeSphere; icon: string; label: string; entities: any[] }[] = useMemo(() => {
+    const allSpheres = [
+      {
+        type: 'relationships' as LifeSphere,
+        icon: 'favorite',
+        label: t('spheres.relationships'),
+        entities: getEntitiesBySphere('relationships'),
+      },
+      {
+        type: 'career' as LifeSphere,
+        icon: 'work',
+        label: t('spheres.career'),
+        entities: getEntitiesBySphere('career'),
+      },
+      {
+        type: 'family' as LifeSphere,
+        icon: 'family-restroom',
+        label: t('spheres.family'),
+        entities: getEntitiesBySphere('family'),
+      },
+      {
+        type: 'friends' as LifeSphere,
+        icon: 'people',
+        label: t('spheres.friends'),
+        entities: getEntitiesBySphere('friends'),
+      },
+      {
+        type: 'hobbies' as LifeSphere,
+        icon: 'sports-esports',
+        label: t('spheres.hobbies'),
+        entities: getEntitiesBySphere('hobbies'),
+      },
+    ];
+    
+    // Filter out spheres that have no memories/moments
+    return allSpheres.filter(sphere => {
+      const data = sphereData[sphere.type];
+      return data.totalMoments > 0;
+    });
+  }, [getEntitiesBySphere, t, sphereData]);
 
   const styles = useMemo(() => StyleSheet.create({
     header: {

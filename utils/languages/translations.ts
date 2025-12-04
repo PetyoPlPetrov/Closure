@@ -162,6 +162,10 @@ export interface Translations {
   'job.jobActionSheet.edit': string;
   'job.jobActionSheet.delete': string;
   'spheres.title': string;
+  'spheres.encouragement.general': string;
+  'spheres.encouragement.goodMomentsPrevail': string;
+  'spheres.encouragement.keepPushing': string;
+  'spheres.encouragement.calculating': string;
   'spheres.relationships': string;
   'spheres.career': string;
   'spheres.family': string;
@@ -612,6 +616,10 @@ const translations: Record<Language, Translations> = {
     'job.jobActionSheet.edit': 'Edit',
     'job.jobActionSheet.delete': 'Delete',
     'spheres.title': 'Life Spheres',
+    'spheres.encouragement.general': 'You have lots of great moments in your life. Take time to enjoy and appreciate them!',
+    'spheres.encouragement.goodMomentsPrevail': 'Wonderful! Good moments prevail in your life. Appreciate and realize the positive experiences you\'ve created! ✨',
+    'spheres.encouragement.keepPushing': 'Keep pushing forward, even though it\'s hard! Consider meeting up with family or friends, or exploring a new hobby to create more sunny moments in your life. 💪',
+    'spheres.encouragement.calculating': 'Analyzing your moments',
     'spheres.relationships': 'Relationships',
     'spheres.career': 'Career',
     'spheres.family': 'Family',
@@ -1060,6 +1068,10 @@ const translations: Record<Language, Translations> = {
     'job.jobActionSheet.edit': 'Редактирай',
     'job.jobActionSheet.delete': 'Изтрий',
     'spheres.title': 'Сфери',
+    'spheres.encouragement.general': 'Имате много прекрасни моменти в живота си. Отделете време да ги насладите и оцените!',
+    'spheres.encouragement.goodMomentsPrevail': 'Чудесно! Добрите моменти преобладават в живота ви. Оценете и осъзнайте позитивните преживявания, които сте създали! ✨',
+    'spheres.encouragement.keepPushing': 'Продължавайте напред, въпреки че е трудно! Помислете да се срещнете с семейство или приятели, или да опитате ново хоби, за да създадете повече слънчеви моменти в живота си. 💪',
+    'spheres.encouragement.calculating': 'Анализиране на вашите моменти',
     'spheres.relationships': 'Връзки',
     'spheres.career': 'Кариера',
     'spheres.family': 'Семейство',

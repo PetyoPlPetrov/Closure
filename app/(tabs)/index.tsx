@@ -1,6 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
@@ -19,9 +20,10 @@ import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withRepeat,
   withSpring,
-    withTiming
+  withTiming
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -3414,6 +3416,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
+  const fontScale = useFontScale();
   const { isTablet } = useLargeDevice();
   const params = useLocalSearchParams();
   const { 
@@ -3534,6 +3537,54 @@ export default function HomeScreen() {
   // Overall sunny percentage across all spheres
   // Function is already memoized in JourneyProvider and depends on idealizedMemories
   const overallSunnyPercentage = getOverallSunnyPercentage();
+  
+  // Check if there are any moments (memories) at all - if yes, show encouraging message even if percentage is 0
+  const hasAnyMoments = useMemo(() => {
+    return idealizedMemories && idealizedMemories.length > 0;
+  }, [idealizedMemories]);
+  
+  // Animation values for encouraging message
+  const encouragementOpacity = useSharedValue(0);
+  const encouragementScale = useSharedValue(0.95);
+  const encouragementGlow = useSharedValue(0);
+  const isGoodMoments = overallSunnyPercentage > 50;
+  
+  // Animate encouragement message on mount/update
+  React.useEffect(() => {
+    if (hasAnyMoments) {
+      // Fade in and scale up
+      encouragementOpacity.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) });
+      encouragementScale.value = withSpring(1, { damping: 12, stiffness: 150 });
+      
+      // Subtle glow pulse for good moments
+      if (isGoodMoments) {
+        encouragementGlow.value = withRepeat(
+          withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+          -1,
+          true
+        );
+      } else {
+        encouragementGlow.value = 0;
+      }
+    } else {
+      encouragementOpacity.value = 0;
+      encouragementScale.value = 0.95;
+      encouragementGlow.value = 0;
+    }
+  }, [hasAnyMoments, isGoodMoments]);
+  
+  // Animated styles for encouragement message
+  const encouragementAnimatedStyle = useAnimatedStyle(() => {
+    const glowOpacity = isGoodMoments 
+      ? 0.15 + (encouragementGlow.value * 0.1)
+      : 0.05;
+    
+    return {
+      opacity: encouragementOpacity.value,
+      transform: [{ scale: encouragementScale.value }],
+      shadowOpacity: glowOpacity,
+    };
+  });
   
   
   // Calculate sunny percentage for relationships sphere (all profiles)
@@ -3998,7 +4049,7 @@ export default function HomeScreen() {
   }, [hobbies]);
   
   // Check if splash is still visible - delay heavy animations until splash is done
-  const { isVisible: isSplashVisible } = useSplash();
+  const { isVisible: isSplashVisible, isAnimationComplete: isSplashAnimationComplete } = useSplash();
   const [animationsReady, setAnimationsReady] = useState(false);
   
   React.useEffect(() => {
@@ -4596,6 +4647,110 @@ export default function HomeScreen() {
   return (
     <TabScreenContainer>
         <View style={{ flex: 1, height: SCREEN_HEIGHT, position: 'relative', justifyContent: 'center', alignItems: 'center' }}>
+          {/* Encouraging Message Section */}
+          {hasAnyMoments && (
+            <Animated.View 
+              style={[
+                {
+                  position: 'absolute',
+                  top: 80,
+                  left: 20,
+                  right: 20,
+                  zIndex: 200,
+                  paddingHorizontal: 24 * fontScale,
+                  paddingVertical: 18 * fontScale,
+                  borderRadius: 16 * fontScale,
+                  overflow: 'hidden',
+                },
+                encouragementAnimatedStyle,
+              ]}
+            >
+              {/* Gradient background */}
+              <LinearGradient
+                colors={
+                  overallSunnyPercentage > 50
+                    ? colorScheme === 'dark'
+                      ? ['rgba(100, 150, 255, 0.15)', 'rgba(100, 150, 255, 0.08)', 'rgba(100, 150, 255, 0.12)']
+                      : ['rgba(100, 150, 255, 0.12)', 'rgba(100, 150, 255, 0.06)', 'rgba(100, 150, 255, 0.1)']
+                    : colorScheme === 'dark'
+                      ? ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.06)']
+                      : ['rgba(0, 0, 0, 0.05)', 'rgba(0, 0, 0, 0.02)', 'rgba(0, 0, 0, 0.04)']
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                }}
+              />
+              
+              {/* Border */}
+              <View
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  borderRadius: 16 * fontScale,
+                  borderWidth: 1.5,
+                  borderColor: overallSunnyPercentage > 50
+                    ? colorScheme === 'dark'
+                      ? 'rgba(100, 150, 255, 0.4)'
+                      : 'rgba(100, 150, 255, 0.3)'
+                    : colorScheme === 'dark'
+                      ? 'rgba(255, 255, 255, 0.15)'
+                      : 'rgba(0, 0, 0, 0.12)',
+                }}
+              />
+              
+              {/* Shadow/Glow effect */}
+              {overallSunnyPercentage > 50 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    left: -10,
+                    right: -10,
+                    top: -10,
+                    bottom: -10,
+                    borderRadius: 20 * fontScale,
+                    backgroundColor: colorScheme === 'dark'
+                      ? 'rgba(100, 150, 255, 0.2)'
+                      : 'rgba(100, 150, 255, 0.15)',
+                    opacity: 0.3,
+                    zIndex: -1,
+                  }}
+                />
+              )}
+              
+              {/* Content */}
+              <ThemedText 
+                size="sm" 
+                style={{
+                  textAlign: 'center',
+                  lineHeight: 22 * fontScale,
+                  fontWeight: overallSunnyPercentage > 50 ? '600' : '500',
+                  color: overallSunnyPercentage > 50 
+                    ? colors.primaryLight 
+                    : colors.text,
+                  textShadowColor: overallSunnyPercentage > 50 && colorScheme === 'dark'
+                    ? 'rgba(100, 150, 255, 0.3)'
+                    : 'transparent',
+                  textShadowOffset: overallSunnyPercentage > 50 ? { width: 0, height: 1 } : { width: 0, height: 0 },
+                  textShadowRadius: overallSunnyPercentage > 50 ? 4 : 0,
+                }}
+              >
+                {overallSunnyPercentage > 50 
+                  ? t('spheres.encouragement.goodMomentsPrevail')
+                  : t('spheres.encouragement.keepPushing')
+                }
+              </ThemedText>
+            </Animated.View>
+          )}
+
           {/* Center - Overall Percentage Avatar */}
           {(() => {
             const avatarSize = isTablet ? 180 : 120;

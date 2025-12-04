@@ -4,7 +4,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, View, ViewStyle, Image } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Image } from 'expo-image';
 
 export type IdealizedMemory = {
   id: string;
@@ -158,7 +159,7 @@ export function MemoryCard({
             <Image
               source={{ uri: memory.imageUri }}
               style={styles.image}
-              resizeMode="cover"
+              contentFit="cover"
             />
           ) : (
             <View style={styles.imagePlaceholder}>
