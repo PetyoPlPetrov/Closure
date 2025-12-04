@@ -833,19 +833,61 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       const memoryToDelete = idealizedMemories.find(m => m.id === id);
       const updatedMemories = idealizedMemories.filter((memory) => memory.id !== id);
       await saveIdealizedMemoriesToStorage(updatedMemories);
+      setIdealizedMemories(updatedMemories); // Update state so UI reflects deletion immediately
       
       // Update profile setup progress if memory was deleted
       if (memoryToDelete) {
-        const profile = profiles.find((p) => p.id === memoryToDelete.profileId);
+        // Check both profileId (old) and entityId (new) for backward compatibility
+        const entityId = memoryToDelete.entityId || memoryToDelete.profileId;
+        const sphere = memoryToDelete.sphere || 'relationships';
+        
+        // Update the appropriate entity based on sphere
+        if (sphere === 'relationships' && entityId) {
+          const profile = profiles.find((p) => p.id === entityId);
         if (profile) {
-          const memoryCount = updatedMemories.filter(m => m.profileId === memoryToDelete.profileId).length;
-          await updateProfile(memoryToDelete.profileId, {
+            const memoryCount = updatedMemories.filter(m => 
+              (m.profileId === entityId || m.entityId === entityId) && m.sphere === 'relationships'
+            ).length;
+            await updateProfile(entityId, {
             // setupProgress will be recalculated in updateProfile with new memory count
           });
+          }
+        } else if (sphere === 'career' && entityId) {
+          const job = jobs.find((j) => j.id === entityId);
+          if (job) {
+            const memoryCount = updatedMemories.filter(m => m.entityId === entityId && m.sphere === 'career').length;
+            await updateJob(entityId, {
+              // setupProgress will be recalculated in updateJob with new memory count
+            });
+          }
+        } else if (sphere === 'family' && entityId) {
+          const member = familyMembers.find((m) => m.id === entityId);
+          if (member) {
+            const memoryCount = updatedMemories.filter(m => m.entityId === entityId && m.sphere === 'family').length;
+            await updateFamilyMember(entityId, {
+              // setupProgress will be recalculated in updateFamilyMember with new memory count
+            });
+          }
+        } else if (sphere === 'friends' && entityId) {
+          const friend = friends.find((f) => f.id === entityId);
+          if (friend) {
+            const memoryCount = updatedMemories.filter(m => m.entityId === entityId && m.sphere === 'friends').length;
+            await updateFriend(entityId, {
+              // setupProgress will be recalculated in updateFriend with new memory count
+            });
+          }
+        } else if (sphere === 'hobbies' && entityId) {
+          const hobby = hobbies.find((h) => h.id === entityId);
+          if (hobby) {
+            const memoryCount = updatedMemories.filter(m => m.entityId === entityId && m.sphere === 'hobbies').length;
+            await updateHobby(entityId, {
+              // setupProgress will be recalculated in updateHobby with new memory count
+            });
+          }
         }
       }
     },
-    [idealizedMemories, profiles, saveIdealizedMemoriesToStorage, updateProfile]
+    [idealizedMemories, profiles, jobs, familyMembers, friends, hobbies, saveIdealizedMemoriesToStorage, updateProfile, updateJob, updateFamilyMember, updateFriend, updateHobby]
   );
 
   const getIdealizedMemoriesByProfileId = useCallback(
@@ -1592,6 +1634,94 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     }
   }, []);
 
+  // Clean up orphaned memories (memories whose associated entities no longer exist)
+  const cleanupOrphanedMemories = useCallback(async (): Promise<number> => {
+    try {
+      // Read all current entities from storage
+      const validEntityIds = new Set<string>();
+      
+      // Load profiles
+      const storedProfiles = await AsyncStorage.getItem(STORAGE_KEY);
+      if (storedProfiles) {
+        const parsedProfiles = JSON.parse(storedProfiles) as ExProfile[];
+        parsedProfiles.forEach(p => validEntityIds.add(p.id));
+      }
+      
+      // Load jobs
+      const storedJobs = await AsyncStorage.getItem(JOBS_STORAGE_KEY);
+      if (storedJobs) {
+        const parsedJobs = JSON.parse(storedJobs) as Job[];
+        parsedJobs.forEach(j => validEntityIds.add(j.id));
+      }
+      
+      // Load family members
+      const storedFamily = await AsyncStorage.getItem(FAMILY_MEMBERS_STORAGE_KEY);
+      if (storedFamily) {
+        const parsedFamily = JSON.parse(storedFamily) as FamilyMember[];
+        parsedFamily.forEach(f => validEntityIds.add(f.id));
+      }
+      
+      // Load friends
+      const storedFriends = await AsyncStorage.getItem(FRIENDS_STORAGE_KEY);
+      if (storedFriends) {
+        const parsedFriends = JSON.parse(storedFriends) as Friend[];
+        parsedFriends.forEach(f => validEntityIds.add(f.id));
+      }
+      
+      // Load hobbies
+      const storedHobbies = await AsyncStorage.getItem(HOBBIES_STORAGE_KEY);
+      if (storedHobbies) {
+        const parsedHobbies = JSON.parse(storedHobbies) as Hobby[];
+        parsedHobbies.forEach(h => validEntityIds.add(h.id));
+      }
+      
+      // Read all memories from storage
+      const storedMemories = await AsyncStorage.getItem(IDEALIZED_MEMORIES_KEY);
+      if (!storedMemories) {
+        console.log('[JourneyProvider] No memories found to clean up');
+        return 0;
+      }
+      
+      const allMemories = JSON.parse(storedMemories) as IdealizedMemory[];
+      const beforeCount = allMemories.length;
+      
+      // Filter out orphaned memories
+      const cleanedMemories = allMemories.filter((memory) => {
+        const entityId = memory.entityId || memory.profileId || '';
+        
+        if (!entityId) {
+          console.warn(`[JourneyProvider] Memory ${memory.id} has no entityId or profileId, removing it`);
+          return false; // Remove memories without entity references
+        }
+        
+        // Check if the entity exists
+        const isValid = validEntityIds.has(entityId);
+        
+        if (!isValid) {
+          console.log(`[JourneyProvider] Removing orphaned memory ${memory.id} (entity ${entityId} not found)`);
+        }
+        
+        return isValid;
+      });
+      
+      const orphanedCount = beforeCount - cleanedMemories.length;
+      
+      if (orphanedCount > 0) {
+        // Save cleaned memories back to storage
+        await saveIdealizedMemoriesToStorage(cleanedMemories);
+        setIdealizedMemories(cleanedMemories);
+        console.log(`[JourneyProvider] Cleaned up ${orphanedCount} orphaned memories`);
+      } else {
+        console.log('[JourneyProvider] No orphaned memories found');
+      }
+      
+      return orphanedCount;
+    } catch (error) {
+      console.error('[JourneyProvider] Error cleaning up orphaned memories:', error);
+      throw error;
+    }
+  }, [saveIdealizedMemoriesToStorage]);
+
   const value: JourneyContextType = {
     profiles,
     isLoading: isLoading || isLoadingJobs || isLoadingFamily || isLoadingFriends || isLoadingHobbies,
@@ -1634,6 +1764,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     reloadFamilyMembers,
     reloadFriends,
     reloadHobbies,
+    cleanupOrphanedMemories,
   };
 
   return <JourneyContext.Provider value={value}>{children}</JourneyContext.Provider>;

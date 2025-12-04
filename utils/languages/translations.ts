@@ -31,6 +31,10 @@ export interface Translations {
   'settings.devTools.clearData.deleteButton': string;
   'settings.devTools.clearData.success': string;
   'settings.devTools.clearData.error': string;
+  'settings.devTools.cleanupMemories.button': string;
+  'settings.devTools.cleanupMemories.success.withCount': string;
+  'settings.devTools.cleanupMemories.success.noOrphans': string;
+  'settings.devTools.cleanupMemories.error': string;
   
   // Common
   'common.back': string;
@@ -51,6 +55,11 @@ export interface Translations {
   'common.discard': string;
   'memory.unsavedChanges.title': string;
   'memory.unsavedChanges.message': string;
+  
+  // Walkthrough
+  'walkthrough.title': string;
+  'walkthrough.message': string;
+  'walkthrough.button': string;
   
   // Profile screens
   'profile.add': string;
@@ -487,6 +496,10 @@ const translations: Record<Language, Translations> = {
     'settings.devTools.clearData.deleteButton': 'Delete All Data',
     'settings.devTools.clearData.success': 'All app data has been deleted from local storage.\n\nThe app will now show 0% and no profiles/jobs/memories.\n\nPlease navigate away and back to the Spheres/Home tab to see the changes reflected in the UI.',
     'settings.devTools.clearData.error': 'Failed to clear app data. Please try again.',
+    'settings.devTools.cleanupMemories.button': 'Clean Up Orphaned Memories',
+    'settings.devTools.cleanupMemories.success.withCount': 'Cleaned up {count} orphaned memories.',
+    'settings.devTools.cleanupMemories.success.noOrphans': 'No orphaned memories found. All memories are valid.',
+    'settings.devTools.cleanupMemories.error': 'Failed to clean up orphaned memories. Please try again.',
     
     // Common
     'common.back': 'Back',
@@ -507,6 +520,9 @@ const translations: Record<Language, Translations> = {
     'common.discard': 'Discard',
     'memory.unsavedChanges.title': 'Unsaved Changes',
     'memory.unsavedChanges.message': 'You have unsaved changes. Are you sure you want to leave? Your changes will be lost.',
+    'walkthrough.title': 'Welcome!',
+    'walkthrough.message': 'Create records in each sphere to track the cloudy and sunny moments of your life. Start by adding a partner, job, family member, friend, or hobby!',
+    'walkthrough.button': 'Got it!',
     
     // Profile screens
     'profile.add': 'Add Profile',
@@ -941,6 +957,10 @@ const translations: Record<Language, Translations> = {
     'settings.devTools.clearData.deleteButton': 'Изтрий Всички Данни',
     'settings.devTools.clearData.success': 'Всички данни на приложението са изтрити от локалното хранилище.\n\nПриложението сега ще показва 0% и няма профили/работни места/спомени.\n\nМоля, навигирайте навън и обратно до раздела Сфери/Начало, за да видите промените, отразени в потребителския интерфейс.',
     'settings.devTools.clearData.error': 'Неуспешно изтриване на данните на приложението. Моля, опитайте отново.',
+    'settings.devTools.cleanupMemories.button': 'Изчисти изолирани спомени',
+    'settings.devTools.cleanupMemories.success.withCount': 'Изчистени са {count} изолирани спомена.',
+    'settings.devTools.cleanupMemories.success.noOrphans': 'Не са намерени изолирани спомени. Всички спомени са валидни.',
+    'settings.devTools.cleanupMemories.error': 'Неуспешно изчистване на изолираните спомени. Моля, опитайте отново.',
     
     // Common
     'common.back': 'Назад',
@@ -961,6 +981,9 @@ const translations: Record<Language, Translations> = {
     'common.discard': 'Отхвърли',
     'memory.unsavedChanges.title': 'Незапазени промени',
     'memory.unsavedChanges.message': 'Имате незапазени промени. Сигурни ли сте, че искате да напуснете? Промените ви ще бъдат загубени.',
+    'walkthrough.title': 'Добре дошли!',
+    'walkthrough.message': 'Създайте записи във всяка сфера, за да проследявате облачните и слънчевите моменти от живота си. Започнете като добавите партньор, работа, член на семейството, приятел или хоби!',
+    'walkthrough.button': 'Разбрах!',
     
     // Profile screens
     'profile.add': 'Добави Партньор',

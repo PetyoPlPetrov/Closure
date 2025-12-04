@@ -11,6 +11,7 @@ import { useTheme } from '@/utils/ThemeContext';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Asset } from 'expo-asset';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, DimensionValue, Modal, Pressable, ScrollView, StyleSheet, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 
@@ -21,12 +22,13 @@ export default function SettingsScreen() {
   const { maxContentWidth } = useLargeDevice();
   const { language, setLanguage } = useLanguage();
   const { themeMode, setThemeMode } = useTheme();
-  const { addProfile, addJob, addFamilyMember, addFriend, addHobby, addIdealizedMemory, profiles, jobs, familyMembers, friends, hobbies, getProfile, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories, reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies } = useJourney();
+  const { addProfile, addJob, addFamilyMember, addFriend, addHobby, addIdealizedMemory, profiles, jobs, familyMembers, friends, hobbies, getProfile, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories, reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies, cleanupOrphanedMemories } = useJourney();
   const t = useTranslate();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [themeDropdownVisible, setThemeDropdownVisible] = useState(false);
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
   const [isDeletingData, setIsDeletingData] = useState(false);
+  const [isCleaningMemories, setIsCleaningMemories] = useState(false);
 
   const styles = useMemo(
     () =>
@@ -1103,6 +1105,27 @@ export default function SettingsScreen() {
     }
   };
 
+  const cleanupOrphanedMemoriesHandler = async () => {
+    if (isCleaningMemories) return;
+    setIsCleaningMemories(true);
+    try {
+      const cleanedCount = await cleanupOrphanedMemories();
+      const message = cleanedCount > 0 
+        ? t('settings.devTools.cleanupMemories.success.withCount').replace('{count}', cleanedCount.toString())
+        : t('settings.devTools.cleanupMemories.success.noOrphans');
+      Alert.alert(
+        t('common.success'),
+        message,
+        [{ text: t('common.ok') }]
+      );
+    } catch (error) {
+      console.error('[Settings] Error cleaning orphaned memories:', error);
+      Alert.alert(t('common.error'), t('settings.devTools.cleanupMemories.error'));
+    } finally {
+      setIsCleaningMemories(false);
+    }
+  };
+
   const clearAllMockData = async () => {
     // Show confirmation dialog
     Alert.alert(
@@ -1128,6 +1151,7 @@ export default function SettingsScreen() {
               const FRIENDS_STORAGE_KEY = '@sferas:friends';
               const HOBBIES_STORAGE_KEY = '@sferas:hobbies';
               const AVATAR_POSITIONS_KEY = '@sferas:avatar_positions';
+              const WALKTHROUGH_SHOWN_KEY = '@sferas:walkthrough_shown';
               
               await Promise.all([
                 AsyncStorage.removeItem(STORAGE_KEY),
@@ -1137,6 +1161,7 @@ export default function SettingsScreen() {
                 AsyncStorage.removeItem(FRIENDS_STORAGE_KEY),
                 AsyncStorage.removeItem(HOBBIES_STORAGE_KEY),
                 AsyncStorage.removeItem(AVATAR_POSITIONS_KEY),
+                AsyncStorage.removeItem(WALKTHROUGH_SHOWN_KEY), // Clear walkthrough flag so it shows again
               ]);
               
               // Reload all data from storage to update state immediately
@@ -1148,6 +1173,9 @@ export default function SettingsScreen() {
                 reloadFriends(),
                 reloadHobbies(),
               ]);
+              
+              // Navigate to spheres tab to show walkthrough
+              router.replace('/(tabs)/spheres');
               
               // Show success message
               Alert.alert(

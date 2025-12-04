@@ -12,16 +12,17 @@ import { useSubscription } from '@/utils/SubscriptionProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function AddExProfileScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
-  const { addProfile, updateProfile, getProfile, profiles } = useJourney();
+  const { addProfile, updateProfile, getProfile, profiles, isLoading } = useJourney();
   const { isSubscribed } = useSubscription();
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
@@ -47,12 +48,41 @@ export default function AddExProfileScreen() {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
 
+  // Refs to store initial values for unsaved changes detection
+  const initialName = useRef('');
+  const initialDescription = useRef('');
+  const initialStartDate = useRef<Date | null>(null);
+  const initialEndDate = useRef<Date | null>(null);
+  const initialIsOngoing = useRef(false);
+  const initialImage = useRef<string | null>(null);
+  const isNavigatingAway = useRef(false);
+  const isSaving = useRef(false);
+  
+  // Track initial profile count to prevent redirect after saving first profile
+  const initialProfileCount = useRef<number | null>(null);
+
+  // Navigation hook for intercepting back navigation
+  const navigation = useNavigation();
+
   // Check subscription limit when component loads (only for new profiles, not edits)
   useEffect(() => {
-    if (!isEditMode && !isSubscribed && profiles.length >= 1) {
+    // Don't check subscription until profiles have finished loading
+    if (isLoading) return;
+    
+    // Store initial profile count on first load
+    if (initialProfileCount.current === null) {
+      initialProfileCount.current = profiles.length;
+    }
+    
+    // Don't check if we're saving or navigating away (prevents redirect after saving first profile)
+    if (isSaving.current || isNavigatingAway.current) return;
+    
+    // Only redirect if user already had 1+ profiles when they entered this screen
+    // This prevents redirect after successfully saving the first profile
+    if (!isEditMode && !isSubscribed && initialProfileCount.current >= 1) {
       router.replace('/paywall');
     }
-  }, [isEditMode, isSubscribed, profiles.length]);
+  }, [isEditMode, isSubscribed, profiles.length, isLoading]);
 
   // Load existing profile data when in edit mode
   useEffect(() => {
@@ -79,6 +109,14 @@ export default function AddExProfileScreen() {
       setOriginalStartDate(existingProfile.relationshipStartDate || '');
       setOriginalEndDate(existingProfile.relationshipEndDate || '');
       setOriginalIsOngoing(ongoing);
+      
+      // Store initial values in refs for unsaved changes detection
+      initialName.current = profileName;
+      initialDescription.current = profileDescription;
+      initialStartDate.current = startDate;
+      initialEndDate.current = endDate;
+      initialIsOngoing.current = ongoing;
+      initialImage.current = profileImage;
     } else {
       // Reset original values when not in edit mode
       setOriginalName('');
@@ -91,11 +129,26 @@ export default function AddExProfileScreen() {
       setOriginalStartDate('');
       setOriginalEndDate('');
       setOriginalIsOngoing(false);
+      
+      // Reset refs for unsaved changes detection
+      initialName.current = '';
+      initialDescription.current = '';
+      initialStartDate.current = null;
+      initialEndDate.current = null;
+      initialIsOngoing.current = false;
+      initialImage.current = null;
+      
+      // Reset initial profile count when not in edit mode (new profile creation)
+      initialProfileCount.current = null;
     }
   }, [existingProfile, isEditMode]);
 
-  // Check if form is valid (name is filled)
-  const isFormValid = name.trim().length > 0;
+  // Check if form is valid (name is filled, start date is chosen, and either end date or ongoing is set)
+  const isFormValid = useMemo(() => {
+    return name.trim().length > 0 && 
+      relationshipStartDate !== null && 
+      (isOngoing || relationshipEndDate !== null);
+  }, [name, relationshipStartDate, isOngoing, relationshipEndDate]);
 
   // Check if there's already an ongoing partner (excluding current profile if editing)
   const hasExistingOngoingPartner = useMemo(() => {
@@ -128,6 +181,95 @@ export default function AddExProfileScreen() {
 
   // Button is enabled when form is valid AND there are changes
   const isSaveEnabled = isFormValid && hasChanges;
+
+  // Function to check if there are unsaved changes
+  const hasUnsavedChanges = useCallback(() => {
+    // Check if name changed
+    if (name.trim() !== initialName.current.trim()) {
+      return true;
+    }
+    
+    // Check if description changed
+    if (description.trim() !== initialDescription.current.trim()) {
+      return true;
+    }
+    
+    // Check if image changed
+    if (selectedImage !== initialImage.current) {
+      return true;
+    }
+    
+    // Check if start date changed
+    const currentStartDateStr = relationshipStartDate ? relationshipStartDate.toISOString().split('T')[0] : '';
+    const initialStartDateStr = initialStartDate.current ? initialStartDate.current.toISOString().split('T')[0] : '';
+    if (currentStartDateStr !== initialStartDateStr) {
+      return true;
+    }
+    
+    // Check if end date or ongoing status changed
+    const currentEndDateStr = isOngoing ? null : (relationshipEndDate ? relationshipEndDate.toISOString().split('T')[0] : '');
+    const initialEndDateStr = initialIsOngoing.current ? null : (initialEndDate.current ? initialEndDate.current.toISOString().split('T')[0] : '');
+    if (currentEndDateStr !== initialEndDateStr) {
+      return true;
+    }
+    
+    // Check if ongoing status changed
+    if (isOngoing !== initialIsOngoing.current) {
+      return true;
+    }
+    
+    return false;
+  }, [name, description, selectedImage, relationshipStartDate, relationshipEndDate, isOngoing]);
+
+  // Intercept navigation to show confirmation dialog if there are unsaved changes
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // Don't show dialog if we're intentionally navigating away
+      if (isNavigatingAway.current) {
+        return;
+      }
+      
+      // Don't show dialog if we're saving (navigation is intentional)
+      if (isSaving.current) {
+        return;
+      }
+      
+      // Don't show dialog if there are no unsaved changes
+      if (!hasUnsavedChanges()) {
+        return;
+      }
+      
+      // Prevent default behavior of leaving the screen
+      e.preventDefault();
+      
+      // Show confirmation dialog
+      Alert.alert(
+        t('memory.unsavedChanges.title'),
+        t('memory.unsavedChanges.message'),
+        [
+          {
+            text: t('common.cancel'),
+            style: 'cancel',
+            onPress: () => {
+              // Do nothing, stay on screen
+            },
+          },
+          {
+            text: t('common.discard'),
+            style: 'destructive',
+            onPress: () => {
+              // Mark as intentionally navigating away
+              isNavigatingAway.current = true;
+              // Navigate away
+              router.back();
+            },
+          },
+        ]
+      );
+    });
+    
+    return unsubscribe;
+  }, [navigation, hasUnsavedChanges, t]);
 
   const styles = useMemo(
     () =>
@@ -225,8 +367,13 @@ export default function AddExProfileScreen() {
   const handleSubmit = async () => {
     if (!isSaveEnabled) return;
 
+    // Mark as saving to prevent unsaved changes dialog
+    isSaving.current = true;
+
     // Check subscription limit for new profiles (not edits)
-    if (!isEditMode && !isSubscribed && profiles.length >= 1) {
+    // Only check if profiles have loaded (to avoid false positives)
+    if (!isEditMode && !isSubscribed && !isLoading && profiles.length >= 1) {
+      isSaving.current = false;
       router.replace('/paywall');
       return;
     }
@@ -262,6 +409,9 @@ export default function AddExProfileScreen() {
         }
         
         await updateProfile(profileId, updateData);
+        // Mark as navigating away to prevent unsaved changes dialog
+        isNavigatingAway.current = true;
+        isSaving.current = false;
         // Navigate back to spheres screen after edit
         router.replace('/(tabs)/spheres');
       } else {
@@ -277,6 +427,9 @@ export default function AddExProfileScreen() {
           ...(selectedImage && { imageUri: selectedImage }),
         });
 
+        // Mark as navigating away to prevent unsaved changes dialog
+        isNavigatingAway.current = true;
+        isSaving.current = false;
         // Navigate to memory creation screen for the new profile
         router.replace({
           pathname: '/idealized-memories',
@@ -285,6 +438,7 @@ export default function AddExProfileScreen() {
       }
     } catch (error) {
       console.error(`Error ${isEditMode ? 'updating' : 'adding'} profile:`, error);
+      isSaving.current = false;
       // TODO: Show error message to user
     }
   };
@@ -295,7 +449,30 @@ export default function AddExProfileScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            if (hasUnsavedChanges()) {
+              Alert.alert(
+                t('memory.unsavedChanges.title'),
+                t('memory.unsavedChanges.message'),
+                [
+                  {
+                    text: t('common.cancel'),
+                    style: 'cancel',
+                  },
+                  {
+                    text: t('common.discard'),
+                    style: 'destructive',
+                    onPress: () => {
+                      isNavigatingAway.current = true;
+                      router.back();
+                    },
+                  },
+                ]
+              );
+            } else {
+              router.back();
+            }
+          }}
           activeOpacity={0.7}
         >
           <MaterialIcons
@@ -428,6 +605,10 @@ export default function AddExProfileScreen() {
                         </ThemedText>
                         <TouchableOpacity
                           onPress={() => {
+                            // If no date was selected yet, use the current date from the picker (which defaults to today)
+                            if (!relationshipStartDate) {
+                              setRelationshipStartDate(new Date());
+                            }
                             // Validate: start date cannot be after end date
                             const currentStartDate = relationshipStartDate || new Date();
                             if (relationshipEndDate && currentStartDate > relationshipEndDate) {
@@ -624,6 +805,10 @@ export default function AddExProfileScreen() {
                           </ThemedText>
                           <TouchableOpacity
                             onPress={() => {
+                              // If no date was selected yet, use the current date from the picker (which defaults to today)
+                              if (!relationshipEndDate) {
+                                setRelationshipEndDate(new Date());
+                              }
                               // Validate: end date cannot be before start date
                               const currentEndDate = relationshipEndDate || new Date();
                               if (relationshipStartDate && currentEndDate < relationshipStartDate) {
@@ -717,11 +902,7 @@ export default function AddExProfileScreen() {
           disabled={!isSaveEnabled}
         >
           <ThemedText weight="bold" letterSpacing="l" style={{ color: '#ffffff' }}>
-            {isEditMode 
-              ? t('common.save') 
-              : profiles.length === 0 
-                ? t('profile.startHealingPath') 
-                : t('profile.add')}
+            {isEditMode ? t('common.save') : t('common.add')}
           </ThemedText>
         </TouchableOpacity>
       </ScrollView>

@@ -12,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -3465,6 +3465,7 @@ export default function HomeScreen() {
     friends,
     hobbies,
     idealizedMemories,
+    isLoading,
     getIdealizedMemoriesByProfileId, 
     getIdealizedMemoriesByEntityId,
     updateIdealizedMemory,
@@ -3479,6 +3480,22 @@ export default function HomeScreen() {
   } = useJourney();
   const t = useTranslate();
   
+  // Redirect to spheres tab if there's no data (first time user)
+  const hasRedirectedRef = useRef(false);
+  useEffect(() => {
+    // Only check once after data has loaded
+    if (isLoading || hasRedirectedRef.current) return;
+    
+    const totalEntities = profiles.length + jobs.length + familyMembers.length + friends.length + hobbies.length;
+    const totalMemories = idealizedMemories.length;
+    
+    // If there's no data, redirect to spheres tab
+    if (totalEntities === 0 && totalMemories === 0) {
+      hasRedirectedRef.current = true;
+      router.replace('/(tabs)/spheres');
+    }
+  }, [isLoading, profiles.length, jobs.length, familyMembers.length, friends.length, hobbies.length, idealizedMemories.length]);
+
   // Reload all data from AsyncStorage when screen comes into focus
   // This ensures data is always fresh and not stale from React state
   // This is especially important after running the mock data script or after app restart

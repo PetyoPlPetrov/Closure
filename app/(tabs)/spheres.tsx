@@ -8,6 +8,7 @@ import { ConfirmationModal } from '@/library/components/confirmation-modal';
 import { JobCard } from '@/library/components/job-card';
 import { ProfileCard } from '@/library/components/profile-card';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
+import { WalkthroughModal } from '@/library/components/walkthrough-modal';
 import type { ExProfile, FamilyMember, Job, Friend, Hobby, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useSubscription } from '@/utils/SubscriptionProvider';
@@ -15,9 +16,11 @@ import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSplash } from '@/utils/SplashAnimationProvider';
 
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
@@ -25,9 +28,12 @@ export default function SpheresScreen() {
   const fontScale = useFontScale();
   const iconScale = useIconScale();
   const { maxContentWidth, isLargeDevice } = useLargeDevice();
-  const { profiles, jobs, familyMembers, friends, hobbies, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, deleteProfile, deleteJob, deleteFamilyMember, deleteFriend, deleteHobby, reloadIdealizedMemories, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
+  const { profiles, jobs, familyMembers, friends, hobbies, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, deleteProfile, deleteJob, deleteFamilyMember, deleteFriend, deleteHobby, reloadIdealizedMemories, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories } = useJourney();
   const { isSubscribed } = useSubscription();
+  const { isAnimationComplete, isVisible: isSplashVisible } = useSplash();
   const t = useTranslate();
+  
+  const [walkthroughVisible, setWalkthroughVisible] = useState(false);
 
   const checkSubscriptionLimit = (sphere: LifeSphere): boolean => {
     if (isSubscribed) return true; // Subscribed users can create unlimited
@@ -59,9 +65,65 @@ export default function SpheresScreen() {
       console.log('[SpheresScreen] Reloading memories on focus...');
       reloadIdealizedMemories().then((count) => {
         console.log(`[SpheresScreen] Reloaded ${count} memories from storage`);
+        
+        // Check for walkthrough after reloading memories
+        const checkWalkthrough = async () => {
+          // Wait for loading to complete AND splash animation to finish AND splash to be hidden
+          if (!isLoading && isAnimationComplete && !isSplashVisible) {
+            const totalEntities = profiles.length + jobs.length + familyMembers.length + friends.length + hobbies.length;
+            const totalMemories = count; // Use the reloaded count
+            
+            if (totalEntities === 0 && totalMemories === 0) {
+              // Wait 1 second after splash animation finishes and spheres tab is visible
+              setTimeout(() => {
+                setWalkthroughVisible(true);
+              }, 1000);
+            }
+          }
+        };
+        
+        checkWalkthrough();
       });
-    }, [reloadIdealizedMemories])
+    }, [reloadIdealizedMemories, isLoading, isAnimationComplete, isSplashVisible, profiles.length, jobs.length, familyMembers.length, friends.length, hobbies.length])
   );
+
+  // Check for first launch and show walkthrough if no memories exist
+  useEffect(() => {
+    const checkAndShowWalkthrough = async () => {
+      try {
+        // Wait for loading to complete AND splash animation to finish AND splash to be hidden
+        if (!isLoading && isAnimationComplete && !isSplashVisible) {
+          // Check if there are any entities or memories
+          const totalEntities = profiles.length + jobs.length + familyMembers.length + friends.length + hobbies.length;
+          const totalMemories = idealizedMemories.length;
+          
+          // If no entities and no memories, show walkthrough (regardless of previous flag)
+          // This handles both first launch and data cleared scenarios
+          if (totalEntities === 0 && totalMemories === 0) {
+            // Wait 1 second after splash animation finishes and spheres tab is visible
+            setTimeout(() => {
+              setWalkthroughVisible(true);
+            }, 1000);
+          }
+        }
+      } catch (error) {
+        console.error('[SpheresScreen] Error checking walkthrough:', error);
+      }
+    };
+    
+    checkAndShowWalkthrough();
+  }, [isLoading, isAnimationComplete, isSplashVisible, profiles.length, jobs.length, familyMembers.length, friends.length, hobbies.length, idealizedMemories.length]);
+
+  const handleWalkthroughDismiss = useCallback(async () => {
+    try {
+      const WALKTHROUGH_SHOWN_KEY = '@sferas:walkthrough_shown';
+      await AsyncStorage.setItem(WALKTHROUGH_SHOWN_KEY, 'true');
+      setWalkthroughVisible(false);
+    } catch (error) {
+      console.error('[SpheresScreen] Error saving walkthrough flag:', error);
+      setWalkthroughVisible(false);
+    }
+  }, []);
 
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<ExProfile | null>(null);
@@ -2127,6 +2189,12 @@ export default function SpheresScreen() {
           </View>
         )}
       </View>
+
+      {/* Walkthrough Modal */}
+      <WalkthroughModal
+        visible={walkthroughVisible}
+        onDismiss={handleWalkthroughDismiss}
+      />
     </TabScreenContainer>
   );
 }
