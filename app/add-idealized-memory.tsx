@@ -6,6 +6,7 @@ import { useLargeDevice } from '@/hooks/use-large-device';
 import { FloatingActionButton } from '@/library/components/floating-action-button';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { logMomentCreated } from '@/utils/analytics';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -505,6 +506,26 @@ export default function AddIdealizedMemoryScreen() {
   // Track initial state for unsaved changes detection
   const initialMemoryLabel = useRef(existingMemory?.title || '');
   const initialSelectedImage = useRef(existingMemory?.imageUri || null);
+  // Cloud bubbles state - array of clouds with position and animation
+  const [clouds, setClouds] = useState<{
+    id: string;
+    text: string;
+    x: number;
+    y: number;
+    startX?: number;
+    startY?: number;
+  }[]>([]);
+
+  // Sun elements state - array of suns with position and animation (for good facts)
+  const [suns, setSuns] = useState<{
+    id: string;
+    text: string;
+    x: number;
+    y: number;
+    startX?: number;
+    startY?: number;
+  }[]>([]);
+  
   const initialClouds = useRef<typeof clouds>([]);
   const initialSuns = useRef<typeof suns>([]);
   
@@ -631,26 +652,6 @@ export default function AddIdealizedMemoryScreen() {
     
     return unsubscribe;
   }, [navigation, hasUnsavedChanges, isSaving, t, viewOnly]);
-  
-  // Cloud bubbles state - array of clouds with position and animation
-  const [clouds, setClouds] = useState<{
-    id: string;
-    text: string;
-    x: number;
-    y: number;
-    startX?: number;
-    startY?: number;
-  }[]>([]);
-
-  // Sun elements state - array of suns with position and animation (for good facts)
-  const [suns, setSuns] = useState<{
-    id: string;
-    text: string;
-    x: number;
-    y: number;
-    startX?: number;
-    startY?: number;
-  }[]>([]);
 
   // Function to get initial cloud position (center of screen with small random offset)
   const getInitialCloudPosition = useCallback(() => {
@@ -1016,6 +1017,11 @@ export default function AddIdealizedMemoryScreen() {
     setClouds((prev) => [...prev, newCloud]);
     // Set the newly created cloud ID to trigger auto-focus
     setNewlyCreatedCloudId(newCloud.id);
+    
+    // Log analytics event
+    logMomentCreated(finalSphere, 'cloud').catch((error) => {
+      console.warn('Failed to log moment created:', error);
+    });
   };
 
   // Function to add a new sun
@@ -1060,6 +1066,11 @@ export default function AddIdealizedMemoryScreen() {
     setSuns((prev) => [...prev, newSun]);
     // Set the newly created sun ID to trigger auto-focus
     setNewlyCreatedSunId(newSun.id);
+    
+    // Log analytics event
+    logMomentCreated(finalSphere, 'sun').catch((error) => {
+      console.warn('Failed to log moment created:', error);
+    });
   };
 
   // Store animated values ref for each cloud to access current position

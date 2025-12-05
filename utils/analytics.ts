@@ -1,0 +1,116 @@
+// utils/analytics.ts
+import { Platform } from 'react-native';
+import { getFirebaseApp } from './firebase';
+
+// Suppress deprecation warnings during migration period
+// Remove this once React Native Firebase fully supports modular API for Analytics
+if (Platform.OS !== 'web' && typeof globalThis !== 'undefined') {
+  (globalThis as any).RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
+}
+
+let analytics: any = null;
+let analyticsInitialized = false;
+
+const initializeAnalytics = () => {
+  if (analyticsInitialized) {
+    return analytics;
+  }
+
+  // Skip on web platform
+  if (Platform.OS === 'web') {
+    return null;
+  }
+
+  try {
+    // Check if Firebase is initialized (it should be initialized in _layout.tsx)
+    const firebaseApp = getFirebaseApp();
+    if (!firebaseApp) {
+      console.warn('Firebase Analytics: Firebase app not initialized');
+      return null;
+    }
+
+    const rnfbAnalytics = require('@react-native-firebase/analytics');
+    // Using namespaced API for now (deprecated but still functional)
+    // React Native Firebase Analytics modular API is not fully available yet
+    analytics = rnfbAnalytics.default();
+    analyticsInitialized = true;
+    console.log('✓ Firebase Analytics initialized');
+    return analytics;
+  } catch (error: any) {
+    console.warn('Firebase Analytics not available:', error?.message || error);
+    return null;
+  }
+};
+
+// Don't initialize analytics on module load - wait until first use
+// This ensures Firebase is initialized first
+
+/**
+ * Log a custom event to Firebase Analytics
+ */
+export const logEvent = async (eventName: string, params?: Record<string, any>) => {
+  if (Platform.OS === 'web') {
+    console.log('[Analytics] Event:', eventName, params);
+    return;
+  }
+
+  try {
+    if (!analytics) {
+      analytics = initializeAnalytics();
+    }
+
+    if (analytics) {
+      await analytics.logEvent(eventName, params || {});
+      console.log(`✓ Analytics: ${eventName}`, params || {});
+    }
+  } catch (error: any) {
+    console.warn(`Failed to log event ${eventName}:`, error?.message || error);
+  }
+};
+
+/**
+ * Log when a sphere entity is created
+ */
+export const logEntityCreated = async (sphere: string, entityType: string) => {
+  await logEvent('entity_created', {
+    sphere,
+    entity_type: entityType,
+  });
+};
+
+/**
+ * Log when a memory is created
+ */
+export const logMemoryCreated = async (sphere: string) => {
+  await logEvent('memory_created', {
+    sphere,
+  });
+};
+
+/**
+ * Log when a memory is deleted
+ */
+export const logMemoryDeleted = async (sphere: string) => {
+  await logEvent('memory_deleted', {
+    sphere,
+  });
+};
+
+/**
+ * Log when a moment is created
+ */
+export const logMomentCreated = async (sphere: string, momentType: 'cloud' | 'sun') => {
+  await logEvent('moment_created', {
+    sphere,
+    moment_type: momentType,
+  });
+};
+
+export default {
+  logEvent,
+  logEntityCreated,
+  logMemoryCreated,
+  logMemoryDeleted,
+  logMomentCreated,
+};
+

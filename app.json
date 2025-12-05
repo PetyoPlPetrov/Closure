@@ -14,7 +14,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "1.0.7"
+      "buildNumber": "1.0.7",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -36,14 +37,28 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 7
+      "versionCode": 7,
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "@react-native-firebase/app",
       "expo-router",
+       [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "buildReactNativeFromSource": true,
+            "podfileProperties": {
+              "use_modular_headers!": true
+            }
+          }
+        }
+       ],
       [
         "expo-splash-screen",
         {
@@ -54,14 +69,9 @@
           "resizeMode": "contain"
         }
       ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "The app accesses your photos to let you share them.",
-          "cameraPermission": "The app accesses your camera to let you take photos."
-        }
-      ],
-      "./plugins/with-transparent-splash-logo.js"
+      "./plugins/with-transparent-splash-logo.js",
+      "./plugins/with-firebase-appdelegate",
+      "./plugins/withAnalyticsSourcePatch.js"
     ],
     "experiments": {
       "typedRoutes": true,

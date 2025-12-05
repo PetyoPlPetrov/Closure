@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import { logEntityCreated, logMemoryCreated, logMemoryDeleted, logMomentCreated } from '@/utils/analytics';
 
 const STORAGE_KEY = '@sferas:ex_profiles';
 const IDEALIZED_MEMORIES_KEY = '@sferas:idealized_memories';
@@ -292,12 +293,13 @@ type JourneyContextType = {
   // Helper functions
   getEntitiesBySphere: (sphere: LifeSphere) => (ExProfile | Job | FamilyMember | Friend | Hobby)[];
   getOverallSunnyPercentage: () => number; // Overall percentage across all spheres
-  reloadIdealizedMemories: () => Promise<void>; // Reload memories from AsyncStorage
+  reloadIdealizedMemories: () => Promise<number>; // Reload memories from AsyncStorage, returns count
   reloadProfiles: () => Promise<void>; // Reload profiles from AsyncStorage
   reloadJobs: () => Promise<void>; // Reload jobs from AsyncStorage
   reloadFamilyMembers: () => Promise<void>; // Reload family members from AsyncStorage
   reloadFriends: () => Promise<void>; // Reload friends from AsyncStorage
   reloadHobbies: () => Promise<void>; // Reload hobbies from AsyncStorage
+  cleanupOrphanedMemories: () => Promise<number>; // Clean up orphaned memories and return count
 };
 
 const JourneyContext = createContext<JourneyContextType | undefined>(undefined);
@@ -593,6 +595,10 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       newProfile.setupProgress = calculateSetupProgress(newProfile, 0);
       newProfile.isCompleted = newProfile.setupProgress === 100;
       await saveProfile(newProfile);
+      
+      // Log analytics event
+      await logEntityCreated('relationships', 'partner');
+      
       return newProfile.id;
     },
     [saveProfile]
@@ -710,6 +716,59 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     [profiles]
   );
 
+  // Storage update functions - defined early to avoid circular dependencies
+  const updateJobsInStorage = useCallback(
+    async (updatedJobs: Job[]) => {
+      try {
+        await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(updatedJobs));
+        setJobs(updatedJobs);
+      } catch (error) {
+        console.error('Error updating jobs:', error);
+        throw error;
+      }
+    },
+    []
+  );
+
+  const updateFamilyMembersInStorage = useCallback(
+    async (updatedMembers: FamilyMember[]) => {
+      try {
+        await AsyncStorage.setItem(FAMILY_MEMBERS_STORAGE_KEY, JSON.stringify(updatedMembers));
+        setFamilyMembers(updatedMembers);
+      } catch (error) {
+        console.error('Error updating family members:', error);
+        throw error;
+      }
+    },
+    []
+  );
+
+  const updateFriendsInStorage = useCallback(
+    async (updatedFriends: Friend[]) => {
+      try {
+        await AsyncStorage.setItem(FRIENDS_STORAGE_KEY, JSON.stringify(updatedFriends));
+        setFriends(updatedFriends);
+      } catch (error) {
+        console.error('Error updating friends:', error);
+        throw error;
+      }
+    },
+    []
+  );
+
+  const updateHobbiesInStorage = useCallback(
+    async (updatedHobbies: Hobby[]) => {
+      try {
+        await AsyncStorage.setItem(HOBBIES_STORAGE_KEY, JSON.stringify(updatedHobbies));
+        setHobbies(updatedHobbies);
+      } catch (error) {
+        console.error('Error updating hobbies:', error);
+        throw error;
+      }
+    },
+    []
+  );
+
   // Internal function with new signature
   const addIdealizedMemoryInternal = useCallback(
     async (
@@ -764,6 +823,9 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
 
       // Save to storage
       await saveIdealizedMemoriesToStorage(updatedMemories);
+      
+      // Log analytics event
+      await logMemoryCreated(sphere);
 
       // Update entity setup progress based on new memory count
       const memoryCount = updatedMemories.filter(m => m.entityId === entityId && m.sphere === sphere).length;
@@ -785,7 +847,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         }
       }
     },
-    [profiles, jobs, familyMembers, saveIdealizedMemoriesToStorage, updateProfile, updateJob, updateFamilyMember, idealizedMemories]
+    [profiles, jobs, familyMembers, saveIdealizedMemoriesToStorage, updateProfile, idealizedMemories]
   );
 
   // Public function with new signature - supports multiple spheres
@@ -813,17 +875,43 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
 
   const updateIdealizedMemory = useCallback(
     async (id: string, updates: Partial<IdealizedMemory>) => {
-      const updatedMemories = idealizedMemories.map((memory) => {
-        if (memory.id === id) {
+      const memory = idealizedMemories.find(m => m.id === id);
+      const updatedMemories = idealizedMemories.map((mem) => {
+        if (mem.id === id) {
           return {
-            ...memory,
+            ...mem,
             ...updates,
             updatedAt: new Date().toISOString(),
           };
         }
-        return memory;
+        return mem;
       });
       await saveIdealizedMemoriesToStorage(updatedMemories);
+      
+      // Log analytics events for moment creation
+      if (memory && updates) {
+        const sphere = memory.sphere || 'relationships';
+        
+        // Check if hard truths (clouds) were added
+        if (updates.hardTruths && Array.isArray(updates.hardTruths)) {
+          const previousCount = memory.hardTruths?.length || 0;
+          const newCount = updates.hardTruths.length;
+          if (newCount > previousCount) {
+            // New cloud(s) added
+            await logMomentCreated(sphere, 'cloud');
+          }
+        }
+        
+        // Check if good facts (suns) were added
+        if (updates.goodFacts && Array.isArray(updates.goodFacts)) {
+          const previousCount = memory.goodFacts?.length || 0;
+          const newCount = updates.goodFacts.length;
+          if (newCount > previousCount) {
+            // New sun(s) added
+            await logMomentCreated(sphere, 'sun');
+          }
+        }
+      }
     },
     [idealizedMemories, saveIdealizedMemoriesToStorage]
   );
@@ -834,6 +922,12 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       const updatedMemories = idealizedMemories.filter((memory) => memory.id !== id);
       await saveIdealizedMemoriesToStorage(updatedMemories);
       setIdealizedMemories(updatedMemories); // Update state so UI reflects deletion immediately
+      
+      // Log analytics event
+      if (memoryToDelete) {
+        const sphere = memoryToDelete.sphere || 'relationships';
+        await logMemoryDeleted(sphere);
+      }
       
       // Update profile setup progress if memory was deleted
       if (memoryToDelete) {
@@ -856,38 +950,74 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           const job = jobs.find((j) => j.id === entityId);
           if (job) {
             const memoryCount = updatedMemories.filter(m => m.entityId === entityId && m.sphere === 'career').length;
-            await updateJob(entityId, {
-              // setupProgress will be recalculated in updateJob with new memory count
+            const updatedJobs = jobs.map((j) => {
+              if (j.id === entityId) {
+                return {
+                  ...j,
+                  setupProgress: calculateSetupProgress(j, memoryCount),
+                  isCompleted: calculateSetupProgress(j, memoryCount) === 100,
+                  updatedAt: new Date().toISOString(),
+                };
+              }
+              return j;
             });
+            await updateJobsInStorage(updatedJobs);
           }
         } else if (sphere === 'family' && entityId) {
           const member = familyMembers.find((m) => m.id === entityId);
           if (member) {
             const memoryCount = updatedMemories.filter(m => m.entityId === entityId && m.sphere === 'family').length;
-            await updateFamilyMember(entityId, {
-              // setupProgress will be recalculated in updateFamilyMember with new memory count
+            const updatedMembers = familyMembers.map((m) => {
+              if (m.id === entityId) {
+                return {
+                  ...m,
+                  setupProgress: calculateSetupProgress(m, memoryCount),
+                  isCompleted: calculateSetupProgress(m, memoryCount) === 100,
+                  updatedAt: new Date().toISOString(),
+                };
+              }
+              return m;
             });
+            await updateFamilyMembersInStorage(updatedMembers);
           }
         } else if (sphere === 'friends' && entityId) {
           const friend = friends.find((f) => f.id === entityId);
           if (friend) {
             const memoryCount = updatedMemories.filter(m => m.entityId === entityId && m.sphere === 'friends').length;
-            await updateFriend(entityId, {
-              // setupProgress will be recalculated in updateFriend with new memory count
+            const updatedFriends = friends.map((f) => {
+              if (f.id === entityId) {
+                return {
+                  ...f,
+                  setupProgress: calculateSetupProgress(f, memoryCount),
+                  isCompleted: calculateSetupProgress(f, memoryCount) === 100,
+                  updatedAt: new Date().toISOString(),
+                };
+              }
+              return f;
             });
+            await updateFriendsInStorage(updatedFriends);
           }
         } else if (sphere === 'hobbies' && entityId) {
           const hobby = hobbies.find((h) => h.id === entityId);
           if (hobby) {
             const memoryCount = updatedMemories.filter(m => m.entityId === entityId && m.sphere === 'hobbies').length;
-            await updateHobby(entityId, {
-              // setupProgress will be recalculated in updateHobby with new memory count
+            const updatedHobbies = hobbies.map((h) => {
+              if (h.id === entityId) {
+                return {
+                  ...h,
+                  setupProgress: calculateSetupProgress(h, memoryCount),
+                  isCompleted: calculateSetupProgress(h, memoryCount) === 100,
+                  updatedAt: new Date().toISOString(),
+                };
+              }
+              return h;
             });
+            await updateHobbiesInStorage(updatedHobbies);
           }
         }
       }
     },
-    [idealizedMemories, profiles, jobs, familyMembers, friends, hobbies, saveIdealizedMemoriesToStorage, updateProfile, updateJob, updateFamilyMember, updateFriend, updateHobby]
+    [idealizedMemories, profiles, jobs, familyMembers, friends, hobbies, saveIdealizedMemoriesToStorage, updateProfile, updateJobsInStorage, updateFamilyMembersInStorage, updateFriendsInStorage, updateHobbiesInStorage]
   );
 
   const getIdealizedMemoriesByProfileId = useCallback(
@@ -953,19 +1083,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     [jobs]
   );
 
-  const updateJobsInStorage = useCallback(
-    async (updatedJobs: Job[]) => {
-      try {
-        await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(updatedJobs));
-        setJobs(updatedJobs);
-      } catch (error) {
-        console.error('Error updating jobs:', error);
-        throw error;
-      }
-    },
-    []
-  );
-
   const addJob = useCallback(
     async (jobData: Omit<Job, 'id' | 'createdAt' | 'updatedAt' | 'sphere'>): Promise<string> => {
       const now = new Date().toISOString();
@@ -979,6 +1096,10 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       newJob.setupProgress = calculateSetupProgress(newJob, 0);
       newJob.isCompleted = newJob.setupProgress === 100;
       await saveJob(newJob);
+      
+      // Log analytics event
+      await logEntityCreated('career', 'job');
+      
       return newJob.id;
     },
     [saveJob]
@@ -1096,19 +1217,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     [familyMembers]
   );
 
-  const updateFamilyMembersInStorage = useCallback(
-    async (updatedMembers: FamilyMember[]) => {
-      try {
-        await AsyncStorage.setItem(FAMILY_MEMBERS_STORAGE_KEY, JSON.stringify(updatedMembers));
-        setFamilyMembers(updatedMembers);
-      } catch (error) {
-        console.error('Error updating family members:', error);
-        throw error;
-      }
-    },
-    []
-  );
-
   const addFamilyMember = useCallback(
     async (memberData: Omit<FamilyMember, 'id' | 'createdAt' | 'updatedAt' | 'sphere'>): Promise<string> => {
       const now = new Date().toISOString();
@@ -1122,6 +1230,10 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       newMember.setupProgress = calculateSetupProgress(newMember, 0);
       newMember.isCompleted = newMember.setupProgress === 100;
       await saveFamilyMember(newMember);
+      
+      // Log analytics event
+      await logEntityCreated('family', 'family_member');
+      
       return newMember.id;
     },
     [saveFamilyMember]
@@ -1232,19 +1344,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     [friends]
   );
 
-  const updateFriendsInStorage = useCallback(
-    async (updatedFriends: Friend[]) => {
-      try {
-        await AsyncStorage.setItem(FRIENDS_STORAGE_KEY, JSON.stringify(updatedFriends));
-        setFriends(updatedFriends);
-      } catch (error) {
-        console.error('Error updating friends:', error);
-        throw error;
-      }
-    },
-    []
-  );
-
   const addFriend = useCallback(
     async (friendData: Omit<Friend, 'id' | 'createdAt' | 'updatedAt' | 'sphere'>): Promise<string> => {
       const now = new Date().toISOString();
@@ -1258,6 +1357,10 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       newFriend.setupProgress = calculateSetupProgress(newFriend, 0);
       newFriend.isCompleted = newFriend.setupProgress === 100;
       await saveFriend(newFriend);
+      
+      // Log analytics event
+      await logEntityCreated('friends', 'friend');
+      
       return newFriend.id;
     },
     [saveFriend]
@@ -1362,19 +1465,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     [hobbies]
   );
 
-  const updateHobbiesInStorage = useCallback(
-    async (updatedHobbies: Hobby[]) => {
-      try {
-        await AsyncStorage.setItem(HOBBIES_STORAGE_KEY, JSON.stringify(updatedHobbies));
-        setHobbies(updatedHobbies);
-      } catch (error) {
-        console.error('Error updating hobbies:', error);
-        throw error;
-      }
-    },
-    []
-  );
-
   const addHobby = useCallback(
     async (hobbyData: Omit<Hobby, 'id' | 'createdAt' | 'updatedAt' | 'sphere'>): Promise<string> => {
       const now = new Date().toISOString();
@@ -1388,6 +1478,10 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       newHobby.setupProgress = calculateSetupProgress(newHobby, 0);
       newHobby.isCompleted = newHobby.setupProgress === 100;
       await saveHobby(newHobby);
+      
+      // Log analytics event
+      await logEntityCreated('hobbies', 'hobby');
+      
       return newHobby.id;
     },
     [saveHobby]

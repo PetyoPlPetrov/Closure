@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "719571886531",
+    "project_id": "funfacts-c3b87",
+    "storage_bucket": "funfacts-c3b87.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:719571886531:android:1e80cdac8a2bd45b0f9d76",
+        "android_client_info": {
+          "package_name": "com.petyoplpetrov.FunFacts"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAMRWpVn1iWc9uD_AIq4jd3jSEPyv6PSjI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      },
+      "admob_app_id": "ca-app-pub-7258081299134493~1906367823"
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:719571886531:android:384d64064938d11d0f9d76",
+        "android_client_info": {
+          "package_name": "com.petyoplpetrov.Sphere"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAMRWpVn1iWc9uD_AIq4jd3jSEPyv6PSjI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

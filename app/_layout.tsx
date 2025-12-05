@@ -10,6 +10,8 @@ import { LanguageProvider } from '@/utils/languages/language-context';
 import { SplashAnimationProvider, useSplash } from '@/utils/SplashAnimationProvider';
 import { SubscriptionProvider } from '@/utils/SubscriptionProvider';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/utils/ThemeContext';
+// Firebase is automatically initialized via Expo plugin (@react-native-firebase/app)
+// No manual initialization needed
 
 // Hide native splash immediately when this module loads
 SplashScreen.preventAutoHideAsync();
