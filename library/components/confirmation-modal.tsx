@@ -4,11 +4,11 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useMemo } from 'react';
 import {
-  Modal,
-  StyleSheet,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    Modal,
+    StyleSheet,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from 'react-native';
 
 type ConfirmationModalProps = {
@@ -120,7 +120,7 @@ export function ConfirmationModal({
                     try {
                       await onConfirm();
                     } catch (error) {
-                      console.error('Error in confirmation modal onConfirm:', error);
+                      // Error in confirmation modal onConfirm
                     }
                   }}
                   activeOpacity={0.8}

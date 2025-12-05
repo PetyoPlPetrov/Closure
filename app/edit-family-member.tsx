@@ -49,7 +49,7 @@ export default function EditFamilyMemberScreen() {
           padding: 16 * fontScale,
           paddingBottom: 32 * fontScale,
           gap: 24 * fontScale,
-          maxWidth: maxContentWidth,
+          maxWidth: maxContentWidth as any,
           alignSelf: 'center',
           width: '100%',
         },

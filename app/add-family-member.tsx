@@ -76,7 +76,6 @@ export default function AddFamilyMemberScreen() {
         setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
       setIsLoadingImage(false);
       alert(t('error.imagePickFailed'));
     }
@@ -115,6 +114,8 @@ export default function AddFamilyMemberScreen() {
           description: description.trim() || undefined,
           relationship: relationship.trim() || undefined,
           imageUri: selectedImage || undefined,
+          setupProgress: 0,
+          isCompleted: false,
         });
         // Navigate to memory creation screen for the new family member
         router.replace({
@@ -125,9 +126,8 @@ export default function AddFamilyMemberScreen() {
       }
 
       // For edit mode, navigate back to tabs
-      router.replace('/(tabs)/');
+      router.replace('/(tabs)/' as any);
     } catch (error) {
-      console.error(`Error ${isEditMode ? 'updating' : 'adding'} family member:`, error);
       Alert.alert(t('common.error'), t('error.saveFailed'));
     } finally {
       setIsSaving(false);

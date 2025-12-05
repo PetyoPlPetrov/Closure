@@ -25,7 +25,6 @@ const initializeAnalytics = () => {
     // Check if Firebase is initialized (it should be initialized in _layout.tsx)
     const firebaseApp = getFirebaseApp();
     if (!firebaseApp) {
-      console.warn('Firebase Analytics: Firebase app not initialized');
       return null;
     }
 
@@ -34,10 +33,8 @@ const initializeAnalytics = () => {
     // React Native Firebase Analytics modular API is not fully available yet
     analytics = rnfbAnalytics.default();
     analyticsInitialized = true;
-    console.log('✓ Firebase Analytics initialized');
     return analytics;
   } catch (error: any) {
-    console.warn('Firebase Analytics not available:', error?.message || error);
     return null;
   }
 };
@@ -50,7 +47,6 @@ const initializeAnalytics = () => {
  */
 export const logEvent = async (eventName: string, params?: Record<string, any>) => {
   if (Platform.OS === 'web') {
-    console.log('[Analytics] Event:', eventName, params);
     return;
   }
 
@@ -61,10 +57,9 @@ export const logEvent = async (eventName: string, params?: Record<string, any>) 
 
     if (analytics) {
       await analytics.logEvent(eventName, params || {});
-      console.log(`✓ Analytics: ${eventName}`, params || {});
     }
   } catch (error: any) {
-    console.warn(`Failed to log event ${eventName}:`, error?.message || error);
+    // Failed to log event
   }
 };
 

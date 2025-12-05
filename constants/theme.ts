@@ -16,6 +16,7 @@ export const Colors = {
     primary: '#34C759',
     primaryLight: '#7dd3fc',
     primaryDark: '#0c4a6e',
+    error: '#ff4444',
   },
   dark: {
     text: '#ECEDEE',
@@ -27,6 +28,7 @@ export const Colors = {
     primary: '#38bdf8',
     primaryLight: '#7dd3fc',
     primaryDark: '#0c4a6e',
+    error: '#ff4444',
   },
 };
 

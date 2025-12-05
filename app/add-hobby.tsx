@@ -74,7 +74,6 @@ export default function AddHobbyScreen() {
         setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
       setIsLoadingImage(false);
       alert(t('error.imagePickFailed'));
     }
@@ -111,6 +110,8 @@ export default function AddHobbyScreen() {
           name: name.trim(),
           description: description.trim() || undefined,
           imageUri: selectedImage || undefined,
+          setupProgress: 0,
+          isCompleted: false,
         });
         // Navigate to memory creation screen for the new hobby
         router.replace({
@@ -121,9 +122,8 @@ export default function AddHobbyScreen() {
       }
 
       // For edit mode, navigate back to tabs
-      router.replace('/(tabs)/');
+      router.replace('/(tabs)/' as any);
     } catch (error) {
-      console.error(`Error ${isEditMode ? 'updating' : 'adding'} hobby:`, error);
       Alert.alert(t('common.error'), t('error.saveFailed'));
     } finally {
       setIsSaving(false);

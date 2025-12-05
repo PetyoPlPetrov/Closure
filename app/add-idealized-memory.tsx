@@ -4,35 +4,35 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { FloatingActionButton } from '@/library/components/floating-action-button';
+import { logMomentCreated } from '@/utils/analytics';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
-import { logMomentCreated } from '@/utils/analytics';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    KeyboardAvoidingView,
-    PanResponder,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  KeyboardAvoidingView,
+  PanResponder,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Animated, {
-    useAnimatedReaction,
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
-    withTiming,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { Defs, Path, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -65,7 +65,7 @@ function AnimatedCloud({
   cloudHeight: number;
   placeholder: string;
   viewOnly?: boolean;
-  inputRef?: React.RefObject<TextInput>;
+  inputRef?: React.RefObject<TextInput | null>;
   shouldAutoFocus?: boolean;
 }) {
   // Animation values
@@ -276,7 +276,7 @@ function AnimatedSun({
   sunHeight: number;
   placeholder: string;
   viewOnly?: boolean;
-  inputRef?: React.RefObject<TextInput>;
+  inputRef?: React.RefObject<TextInput | null>;
   shouldAutoFocus?: boolean;
 }) {
   // Animation values
@@ -471,11 +471,6 @@ export default function AddIdealizedMemoryScreen() {
   const isNewMode = !!(entityId && sphere);
   const finalEntityId = entityId || profileId;
   const finalSphere = sphere || 'relationships';
-  
-  // Debug: log params to help troubleshoot
-  if (__DEV__) {
-    console.log('Memory screen params:', { profileId, entityId, sphere, memoryId, isNewMode });
-  }
   
   // Get existing memory if editing - use new API if entityId and sphere are provided
   const existingMemories = isNewMode
@@ -813,8 +808,8 @@ export default function AddIdealizedMemoryScreen() {
   const [sunButtonPos, setSunButtonPos] = useState<{ x: number; y: number } | null>(null);
   
   // Track refs for cloud and sun TextInputs to enable auto-focus
-  const cloudInputRefs = useRef<Record<string, TextInput | null>>({});
-  const sunInputRefs = useRef<Record<string, TextInput | null>>({});
+  const cloudInputRefs = useRef<Record<string, React.RefObject<TextInput | null>>>({});
+  const sunInputRefs = useRef<Record<string, React.RefObject<TextInput | null>>>({});
   
   // Track the ID of the newly created moment that should be focused
   const [newlyCreatedCloudId, setNewlyCreatedCloudId] = useState<string | null>(null);
@@ -831,12 +826,10 @@ export default function AddIdealizedMemoryScreen() {
 
   // Function to pick an image
   const pickImage = async () => {
-    console.log('pickImage called'); // Debug log
     setIsLoadingImage(true);
     try {
       // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      console.log('Permission status:', status); // Debug log
       if (status !== 'granted') {
         setIsLoadingImage(false);
         alert(t('error.cameraPermissionRequired'));
@@ -851,13 +844,11 @@ export default function AddIdealizedMemoryScreen() {
         quality: 1,
       });
 
-      console.log('Image picker result:', result); // Debug log
       setIsLoadingImage(false);
       if (!result.canceled && result.assets && result.assets[0]) {
         setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
       setIsLoadingImage(false);
       alert(t('error.imagePickFailed'));
     }
@@ -966,7 +957,6 @@ export default function AddIdealizedMemoryScreen() {
       isNavigatingAway.current = true;
       router.back();
     } catch (error) {
-      console.error('Error saving memory:', error);
       alert(t('memory.error.saveFailed'));
     } finally {
       setIsSaving(false);
@@ -1019,8 +1009,8 @@ export default function AddIdealizedMemoryScreen() {
     setNewlyCreatedCloudId(newCloud.id);
     
     // Log analytics event
-    logMomentCreated(finalSphere, 'cloud').catch((error) => {
-      console.warn('Failed to log moment created:', error);
+    logMomentCreated(finalSphere, 'cloud').catch(() => {
+      // Failed to log moment created
     });
   };
 
@@ -1068,8 +1058,8 @@ export default function AddIdealizedMemoryScreen() {
     setNewlyCreatedSunId(newSun.id);
     
     // Log analytics event
-    logMomentCreated(finalSphere, 'sun').catch((error) => {
-      console.warn('Failed to log moment created:', error);
+    logMomentCreated(finalSphere, 'sun').catch(() => {
+      // Failed to log moment created
     });
   };
 
@@ -1804,7 +1794,7 @@ export default function AddIdealizedMemoryScreen() {
         if (!cloudInputRefs.current[cloud.id]) {
           cloudInputRefs.current[cloud.id] = React.createRef<TextInput>();
         }
-        const inputRef = cloudInputRefs.current[cloud.id];
+        const inputRef = cloudInputRefs.current[cloud.id]!;
         const shouldAutoFocus = newlyCreatedCloudId === cloud.id;
         
         return (
@@ -1859,7 +1849,7 @@ export default function AddIdealizedMemoryScreen() {
         if (!sunInputRefs.current[sun.id]) {
           sunInputRefs.current[sun.id] = React.createRef<TextInput>();
         }
-        const inputRef = sunInputRefs.current[sun.id];
+        const inputRef = sunInputRefs.current[sun.id]!;
         const shouldAutoFocus = newlyCreatedSunId === sun.id;
         
         return (

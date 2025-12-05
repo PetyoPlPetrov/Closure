@@ -507,7 +507,6 @@ export default function SettingsScreen() {
             profileId = existingProfile.id;
             // Verify the profile exists by checking if we can get it
             if (!profileId) {
-              console.error(`[MOCK DATA] ⚠️ WARNING: Found existing profile but ID is empty!`);
               continue;
             }
             // Brief delay to ensure profile is loaded
@@ -535,7 +534,6 @@ export default function SettingsScreen() {
             },
           });
             if (!profileId) {
-              console.error(`[MOCK DATA] ⚠️ ERROR: Profile creation returned empty ID!`);
               continue;
             }
             // Brief delay after creating profile to ensure it's saved to AsyncStorage
@@ -616,13 +614,6 @@ export default function SettingsScreen() {
                 // Small delay to allow AsyncStorage write to complete
                 await new Promise(resolve => setTimeout(resolve, 50));
             } catch (memoryError) {
-                console.error(`[MOCK DATA] ✗ Error creating memory ${i} for ${profileData.name}:`, memoryError);
-                // Log the full error details for debugging
-                if (memoryError instanceof Error) {
-                  console.error(`[MOCK DATA] Error details:`, memoryError.message, memoryError.stack);
-                } else {
-                  console.error(`[MOCK DATA] Error object:`, JSON.stringify(memoryError, null, 2));
-                }
                 // Don't increment createdMemories if it failed
               }
             }
@@ -635,7 +626,7 @@ export default function SettingsScreen() {
           // Brief delay between profiles for AsyncStorage writes
           await new Promise(resolve => setTimeout(resolve, 100));
         } catch (profileError) {
-          console.error(`Error creating profile ${profileData.name}:`, profileError);
+          // Error creating profile
         }
       }
 
@@ -649,7 +640,6 @@ export default function SettingsScreen() {
           if (existingJob) {
             jobId = existingJob.id;
             if (!jobId) {
-              console.error(`[MOCK DATA] ⚠️ WARNING: Found existing job but ID is empty!`);
               continue;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -659,13 +649,11 @@ export default function SettingsScreen() {
               description: jobData.description,
               startDate: jobData.startDate,
               endDate: jobData.endDate || undefined,
-              isOngoing: jobData.ongoing || false,
               imageUri: exImageUri,
-              setupProgress: 100,
-              isCompleted: true,
+              setupProgress: 0,
+              isCompleted: false,
             });
             if (!jobId) {
-              console.error(`[MOCK DATA] ⚠️ ERROR: Job creation returned empty ID!`);
               continue;
             }
             await new Promise(resolve => setTimeout(resolve, 200));
@@ -744,7 +732,7 @@ export default function SettingsScreen() {
               // Brief delay to allow AsyncStorage write to complete
               await new Promise(resolve => setTimeout(resolve, 50));
             } catch (memoryError) {
-              console.error(`Error creating memory ${i} for ${jobData.name}:`, memoryError);
+              // Error creating memory
             }
           }
           } else {
@@ -756,41 +744,36 @@ export default function SettingsScreen() {
           // Brief delay between jobs for AsyncStorage writes
           await new Promise(resolve => setTimeout(resolve, 100));
         } catch (jobError) {
-          console.error(`Error creating job ${jobData.name}:`, jobError);
+          // Error creating job
         }
       }
 
       // Create multiple family members
-      console.log('[MOCK DATA] Starting family members creation...');
       for (const memberData of fakeFamilyMembers) {
         try {
-          console.log(`[MOCK DATA] Creating family member: ${memberData.name}`);
           // Check if family member already exists
           let memberId: string;
           const existingMember = familyMembers.find(m => m.name === memberData.name);
           
           if (existingMember) {
-            console.log(`[MOCK DATA] Family member ${memberData.name} already exists, using existing ID`);
             memberId = existingMember.id;
             if (!memberId) {
-              console.error(`[MOCK DATA] ⚠️ WARNING: Found existing family member but ID is empty!`);
               continue;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
           } else {
-            console.log(`[MOCK DATA] Creating new family member: ${memberData.name}`);
             memberId = await addFamilyMember({
               name: memberData.name,
               description: memberData.description,
               relationship: memberData.relationship,
               imageUri: exImageUri,
+              setupProgress: 0,
+              isCompleted: false,
             });
             
             if (!memberId) {
-              console.error(`[MOCK DATA] ⚠️ ERROR: Family member creation returned empty ID!`);
               continue;
             }
-            console.log(`[MOCK DATA] ✓ Family member created with ID: ${memberId}`);
             // Wait a bit longer to ensure family member is saved to AsyncStorage
             await new Promise(resolve => setTimeout(resolve, 300));
             // Reload family members to update state
@@ -803,12 +786,10 @@ export default function SettingsScreen() {
           // Reload memories first to ensure we have the latest state
           await reloadIdealizedMemories();
           const existingMemories = getIdealizedMemoriesByEntityId(memberId, 'family');
-          console.log(`[MOCK DATA] Family member ${memberData.name} has ${existingMemories.length} existing memories`);
           
           if (existingMemories.length === 0) {
             // Generate random number of memories between 1 and 8
             const numMemories = Math.floor(Math.random() * 8) + 1; // 1-8 memories
-            console.log(`[MOCK DATA] Creating ${numMemories} memories for ${memberData.name}`);
             
             for (let i = 0; i < numMemories; i++) {
               try {
@@ -856,7 +837,6 @@ export default function SettingsScreen() {
 
                 const memoryTitle = familyMemoryTitles[i % familyMemoryTitles.length] + ` (${i + 1})`;
 
-                console.log(`[MOCK DATA] Creating memory ${i + 1}/${numMemories} for ${memberData.name}: ${memoryTitle}`);
                 await addIdealizedMemory(memberId, 'family', {
                   title: memoryTitle,
                   imageUri: maldivesImageUri,
@@ -865,38 +845,31 @@ export default function SettingsScreen() {
                 });
                 
                 createdMemories++;
-                console.log(`[MOCK DATA] ✓ Memory created successfully (${createdMemories} total)`);
                 
                 await new Promise(resolve => setTimeout(resolve, 50));
               } catch (memoryError) {
-                console.error(`[MOCK DATA] ✗ Error creating memory ${i} for ${memberData.name}:`, memoryError);
+                // Error creating memory
               }
             }
-          } else {
-            console.log(`[MOCK DATA] Skipping memory creation for ${memberData.name} - already has memories`);
           }
           
           createdFamilyMembers++;
-          console.log(`[MOCK DATA] ✓ Completed family member ${memberData.name} (${createdFamilyMembers} total)`);
           
           await new Promise(resolve => setTimeout(resolve, 100));
         } catch (memberError) {
-          console.error(`[MOCK DATA] ✗ Error creating family member ${memberData.name}:`, memberError);
+          // Error creating family member
         }
       }
-      console.log(`[MOCK DATA] ✓ Created ${createdFamilyMembers} family members with ${createdMemories} total memories`);
 
       // Create multiple friends
       for (const friendData of fakeFriends) {
         try {
-          console.log(`[MOCK DATA] Creating friend: ${friendData.name}`);
           let friendId: string;
           const existingFriend = friends.find(f => f.name === friendData.name);
           
           if (existingFriend) {
             friendId = existingFriend.id;
             if (!friendId) {
-              console.error(`[MOCK DATA] ⚠️ WARNING: Found existing friend but ID is empty!`);
               continue;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -905,10 +878,11 @@ export default function SettingsScreen() {
               name: friendData.name,
               description: friendData.description,
               imageUri: exImageUri,
+              setupProgress: 0,
+              isCompleted: false,
             });
             
             if (!friendId) {
-              console.error(`[MOCK DATA] ⚠️ ERROR: Friend creation returned empty ID!`);
               continue;
             }
             await new Promise(resolve => setTimeout(resolve, 300));
@@ -967,7 +941,7 @@ export default function SettingsScreen() {
                 createdMemories++;
                 await new Promise(resolve => setTimeout(resolve, 50));
               } catch (memoryError) {
-                console.error(`[MOCK DATA] ✗ Error creating memory ${i} for ${friendData.name}:`, memoryError);
+                // Error creating memory
               }
             }
           }
@@ -975,21 +949,19 @@ export default function SettingsScreen() {
           createdFriends++;
           await new Promise(resolve => setTimeout(resolve, 100));
         } catch (friendError) {
-          console.error(`[MOCK DATA] ✗ Error creating friend ${friendData.name}:`, friendError);
+          // Error creating friend
         }
       }
 
       // Create multiple hobbies
       for (const hobbyData of fakeHobbies) {
         try {
-          console.log(`[MOCK DATA] Creating hobby: ${hobbyData.name}`);
           let hobbyId: string;
           const existingHobby = hobbies.find(h => h.name === hobbyData.name);
           
           if (existingHobby) {
             hobbyId = existingHobby.id;
             if (!hobbyId) {
-              console.error(`[MOCK DATA] ⚠️ WARNING: Found existing hobby but ID is empty!`);
               continue;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -998,10 +970,11 @@ export default function SettingsScreen() {
               name: hobbyData.name,
               description: hobbyData.description,
               imageUri: exImageUri,
+              setupProgress: 0,
+              isCompleted: false,
             });
             
             if (!hobbyId) {
-              console.error(`[MOCK DATA] ⚠️ ERROR: Hobby creation returned empty ID!`);
               continue;
             }
             await new Promise(resolve => setTimeout(resolve, 300));
@@ -1060,7 +1033,7 @@ export default function SettingsScreen() {
                 createdMemories++;
                 await new Promise(resolve => setTimeout(resolve, 50));
               } catch (memoryError) {
-                console.error(`[MOCK DATA] ✗ Error creating memory ${i} for ${hobbyData.name}:`, memoryError);
+                // Error creating memory
               }
             }
           }
@@ -1068,7 +1041,7 @@ export default function SettingsScreen() {
           createdHobbies++;
           await new Promise(resolve => setTimeout(resolve, 100));
         } catch (hobbyError) {
-          console.error(`[MOCK DATA] ✗ Error creating hobby ${hobbyData.name}:`, hobbyError);
+          // Error creating hobby
         }
       }
 
@@ -1088,7 +1061,6 @@ export default function SettingsScreen() {
         // Then load memories (cleanup will now find all entities in storage)
         await reloadIdealizedMemories();
       } catch (reloadError) {
-        console.error('[MOCK DATA] Error reloading data:', reloadError);
         // Continue anyway - data is in storage even if state update fails
       }
 
@@ -1098,7 +1070,6 @@ export default function SettingsScreen() {
         [{ text: t('common.ok') }]
       );
     } catch (error) {
-      console.error('Error generating fake data:', error);
       Alert.alert(t('common.error'), t('settings.devTools.generateData.error'));
     } finally {
       setIsGeneratingFakeData(false);
@@ -1119,7 +1090,6 @@ export default function SettingsScreen() {
         [{ text: t('common.ok') }]
       );
     } catch (error) {
-      console.error('[Settings] Error cleaning orphaned memories:', error);
       Alert.alert(t('common.error'), t('settings.devTools.cleanupMemories.error'));
     } finally {
       setIsCleaningMemories(false);
@@ -1184,7 +1154,6 @@ export default function SettingsScreen() {
                 [{ text: t('common.ok') }]
               );
             } catch (error) {
-              console.error('[Settings] Error clearing app data:', error);
               Alert.alert(t('common.error'), t('settings.devTools.clearData.error'));
             } finally {
               setIsDeletingData(false);

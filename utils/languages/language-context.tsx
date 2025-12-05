@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import * as Localization from 'expo-localization';
-import { Language } from './translations';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { languageManager } from './language-manager';
+import { Language } from './translations';
 
 interface LanguageContextType {
   language: Language;
@@ -50,7 +50,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (localizationError) {
           // expo-localization not available yet (needs rebuild), try fallback
-          console.warn('[LanguageProvider] expo-localization not available, using fallback:', localizationError);
         }
 
         // Fallback: check locale string if available
@@ -66,7 +65,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
           setLanguageState('en');
         }
       } catch (error) {
-        console.error('[LanguageProvider] Error detecting language:', error);
         setLanguageState('en');
       } finally {
         setIsDetecting(false);

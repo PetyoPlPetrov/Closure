@@ -196,7 +196,6 @@ export default function AddJobScreen() {
         setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
       setIsLoadingImage(false);
       alert(t('error.imagePickFailed'));
     }
@@ -242,7 +241,7 @@ export default function AddJobScreen() {
         });
       }
     } catch (error) {
-      console.error(`Error ${isEditMode ? 'updating' : 'adding'} job:`, error);
+      // Error saving job
     }
   };
 

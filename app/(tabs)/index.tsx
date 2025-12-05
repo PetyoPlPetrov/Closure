@@ -15,14 +15,14 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
-  Easing,
-  runOnJS,
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSpring,
-  withTiming
+    Easing,
+    runOnJS,
+    useAnimatedReaction,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withSpring,
+    withTiming
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -1150,7 +1150,6 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
     return filteredClouds.map((cloud: any, cloudIndex: number) => {
         // Additional safety check
         if (!cloud || typeof cloud !== 'object') {
-          console.warn(`[FloatingMemory] Invalid cloud at index ${cloudIndex}:`, cloud);
           return null;
         }
         
@@ -1267,7 +1266,6 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
         // Not focused - use small circular cloud
         const cloudPosData = cloudPositions[cloudIndex];
         if (!cloudPosData) {
-          console.warn(`[FloatingMemory] Missing cloud position data at index ${cloudIndex}`);
           return null;
         }
         
@@ -2219,9 +2217,6 @@ const FloatingMemory = React.memo(function FloatingMemory({
     // Filter out any invalid entries (must be objects, not arrays, not strings)
     const validClouds = truths.filter((truth: any) => {
       const isValid = truth && typeof truth === 'object' && !Array.isArray(truth);
-      if (!isValid) {
-        console.warn('[FloatingMemory] Invalid hardTruth entry:', truth, 'Type:', typeof truth);
-      }
       return isValid;
     });
     return validClouds;
@@ -2675,7 +2670,6 @@ const FloatingCloud = React.memo(function FloatingCloud({
   // Safety check - if cloud is invalid, don't render (after all hooks)
   // Ensure cloud is a valid object and not a string or primitive
   if (!cloud || typeof cloud !== 'object' || Array.isArray(cloud)) {
-    console.warn('[FloatingCloud] Invalid cloud object:', cloud);
     return null;
   }
 
@@ -2705,7 +2699,7 @@ const FloatingCloud = React.memo(function FloatingCloud({
             try {
               onPress();
             } catch (error) {
-              console.error('[FloatingCloud] Error in onPress:', error);
+              // Error in onPress
             }
           }
         }}
@@ -2857,7 +2851,7 @@ const FloatingSun = React.memo(function FloatingSun({
             try {
               onPress();
             } catch (error) {
-              console.error('[FloatingSun] Error in onPress:', error);
+              // Error in onPress
             }
           }
         }}
@@ -3517,7 +3511,6 @@ export default function HomeScreen() {
         reloadFriends(),
         reloadHobbies(),
       ]).catch((error) => {
-        console.error('[HomeScreen] Error reloading data:', error);
         hasReloadedRef.current = false; // Reset on error so we can retry
       });
       
@@ -3947,7 +3940,6 @@ export default function HomeScreen() {
         const year = endDate.getFullYear();
         return year.toString();
       } catch (e) {
-        console.warn('Error parsing job end date:', job.id, job.endDate);
         return 'ongoing'; // Fallback to ongoing on error
       }
     }
@@ -4142,7 +4134,7 @@ export default function HomeScreen() {
           setSavedPositions(positionsMap);
         }
       } catch (error) {
-        console.error('Error loading avatar positions:', error);
+        // Error loading avatar positions
       } finally {
         setPositionsLoaded(true);
       }
@@ -4304,8 +4296,8 @@ export default function HomeScreen() {
       next.forEach((pos, id) => {
         positionsObj[id] = pos;
       });
-      AsyncStorage.setItem(AVATAR_POSITIONS_KEY, JSON.stringify(positionsObj)).catch((error) => {
-        console.error('Error saving avatar positions:', error);
+      AsyncStorage.setItem(AVATAR_POSITIONS_KEY, JSON.stringify(positionsObj)).catch(() => {
+        // Error saving avatar positions
       });
       
       return next;
@@ -4578,17 +4570,11 @@ export default function HomeScreen() {
       const sectionKey = getJobSectionKey(job);
       // Ensure section exists, create it if needed (shouldn't happen, but safety check)
       if (sectionKey) {
-        // If section doesn't exist, log a warning but still try to add the job
-        if (!jobYearSections.has(sectionKey)) {
-          console.warn(`Job ${job.id} section key "${sectionKey}" not found in jobYearSections. Job might not display.`);
-        }
         // Add job to section anyway - we want all jobs to show
         if (!grouped.has(sectionKey)) {
           grouped.set(sectionKey, []);
         }
         grouped.get(sectionKey)!.push({ job, index: indexInSorted });
-      } else {
-        console.warn(`Job ${job.id} has no valid section key. Skipping.`);
       }
     });
     
@@ -4628,16 +4614,7 @@ export default function HomeScreen() {
             grouped.set(sectionKey, []);
           }
           grouped.get(sectionKey)!.push({ profile, index: indexInSorted });
-          
-          // Log warning if section doesn't exist in yearSections
-          if (!yearSections.has(sectionKey)) {
-            console.warn(`[profilesBySection] Profile ${profile.id} (${profile.name}) has section key "${sectionKey}" but section doesn't exist in yearSections. Profile will still be rendered.`);
         }
-        } else {
-          console.warn(`[profilesBySection] Profile ${profile.id} (${profile.name}) not found in sortedProfiles. Index: ${indexInSorted}`);
-        }
-      } else {
-        console.warn(`[profilesBySection] Profile ${profile.id} (${profile.name}) has no valid section key. Skipping.`);
       }
     });
     
@@ -5157,26 +5134,31 @@ export default function HomeScreen() {
           {!focusedMemory && selectedSphere && (() => {
             // Check if an entity is focused and get its name
             let entityName: string | null = null;
+            const sphere = selectedSphere as LifeSphere; // Use type assertion to avoid type narrowing issues
             
-            if (focusedProfileId && selectedSphere === 'relationships') {
+            if (focusedProfileId && sphere === 'relationships') {
               const profile = profiles.find(p => p.id === focusedProfileId);
               entityName = profile?.name || null;
-            } else if (focusedJobId && selectedSphere === 'career') {
+            }
+            if (focusedJobId && sphere === 'career') {
               const job = jobs.find(j => j.id === focusedJobId);
               entityName = job?.name || null;
-            } else if (focusedFamilyMemberId && selectedSphere === 'family') {
+            }
+            if (focusedFamilyMemberId && sphere === 'family') {
               const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
               entityName = member?.name || null;
-            } else if (focusedFriendId && selectedSphere === 'friends') {
+            }
+            if (focusedFriendId && sphere === 'friends') {
               const friend = friends.find(f => f.id === focusedFriendId);
               entityName = friend?.name || null;
-            } else if (focusedHobbyId && selectedSphere === 'hobbies') {
+            }
+            if (focusedHobbyId && sphere === 'hobbies') {
               const hobby = hobbies.find(h => h.id === focusedHobbyId);
               entityName = hobby?.name || null;
             }
             
             // Show entity name if focused, otherwise show sphere name
-            const displayText = entityName || t(`spheres.${selectedSphere}`);
+            const displayText = entityName || t(`spheres.${sphere}`);
             
             return (
               <ThemedText
@@ -5376,26 +5358,31 @@ export default function HomeScreen() {
           {!focusedMemory && selectedSphere && (() => {
             // Check if an entity is focused and get its name
             let entityName: string | null = null;
+            const sphere = selectedSphere as LifeSphere; // Use type assertion to avoid type narrowing issues
             
-            if (focusedProfileId && selectedSphere === 'relationships') {
+            if (focusedProfileId && sphere === 'relationships') {
               const profile = profiles.find(p => p.id === focusedProfileId);
               entityName = profile?.name || null;
-            } else if (focusedJobId && selectedSphere === 'career') {
+            }
+            if (focusedJobId && sphere === 'career') {
               const job = jobs.find(j => j.id === focusedJobId);
               entityName = job?.name || null;
-            } else if (focusedFamilyMemberId && selectedSphere === 'family') {
+            }
+            if (focusedFamilyMemberId && sphere === 'family') {
               const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
               entityName = member?.name || null;
-            } else if (focusedFriendId && selectedSphere === 'friends') {
+            }
+            if (focusedFriendId && sphere === 'friends') {
               const friend = friends.find(f => f.id === focusedFriendId);
               entityName = friend?.name || null;
-            } else if (focusedHobbyId && selectedSphere === 'hobbies') {
+            }
+            if (focusedHobbyId && sphere === 'hobbies') {
               const hobby = hobbies.find(h => h.id === focusedHobbyId);
               entityName = hobby?.name || null;
             }
             
             // Show entity name if focused, otherwise show sphere name
-            const displayText = entityName || t(`spheres.${selectedSphere}`);
+            const displayText = entityName || t(`spheres.${sphere}`);
             
             return (
               <ThemedText
@@ -5504,7 +5491,6 @@ export default function HomeScreen() {
                 {Array.from(jobsBySection.entries()).map(([sectionKey, jobsData]) => {
                   const section = jobYearSections.get(sectionKey);
                   if (!section) {
-                    console.warn(`Section ${sectionKey} not found in jobYearSections`);
                     return null;
                   }
                   
@@ -5664,26 +5650,31 @@ export default function HomeScreen() {
           {!focusedMemory && selectedSphere && (() => {
             // Check if an entity is focused and get its name
             let entityName: string | null = null;
+            const sphere = selectedSphere as LifeSphere; // Use type assertion to avoid type narrowing issues
             
-            if (focusedProfileId && selectedSphere === 'relationships') {
+            if (focusedProfileId && sphere === 'relationships') {
               const profile = profiles.find(p => p.id === focusedProfileId);
               entityName = profile?.name || null;
-            } else if (focusedJobId && selectedSphere === 'career') {
+            }
+            if (focusedJobId && sphere === 'career') {
               const job = jobs.find(j => j.id === focusedJobId);
               entityName = job?.name || null;
-            } else if (focusedFamilyMemberId && selectedSphere === 'family') {
+            }
+            if (focusedFamilyMemberId && sphere === 'family') {
               const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
               entityName = member?.name || null;
-            } else if (focusedFriendId && selectedSphere === 'friends') {
+            }
+            if (focusedFriendId && sphere === 'friends') {
               const friend = friends.find(f => f.id === focusedFriendId);
               entityName = friend?.name || null;
-            } else if (focusedHobbyId && selectedSphere === 'hobbies') {
+            }
+            if (focusedHobbyId && sphere === 'hobbies') {
               const hobby = hobbies.find(h => h.id === focusedHobbyId);
               entityName = hobby?.name || null;
             }
             
             // Show entity name if focused, otherwise show sphere name
-            const displayText = entityName || t(`spheres.${selectedSphere}`);
+            const displayText = entityName || t(`spheres.${sphere}`);
             
             return (
               <ThemedText
@@ -5920,26 +5911,31 @@ export default function HomeScreen() {
           {!focusedMemory && selectedSphere && (() => {
             // Check if an entity is focused and get its name
             let entityName: string | null = null;
+            const sphere = selectedSphere as LifeSphere; // Use type assertion to avoid type narrowing issues
             
-            if (focusedProfileId && selectedSphere === 'relationships') {
+            if (focusedProfileId && sphere === 'relationships') {
               const profile = profiles.find(p => p.id === focusedProfileId);
               entityName = profile?.name || null;
-            } else if (focusedJobId && selectedSphere === 'career') {
+            }
+            if (focusedJobId && sphere === 'career') {
               const job = jobs.find(j => j.id === focusedJobId);
               entityName = job?.name || null;
-            } else if (focusedFamilyMemberId && selectedSphere === 'family') {
+            }
+            if (focusedFamilyMemberId && sphere === 'family') {
               const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
               entityName = member?.name || null;
-            } else if (focusedFriendId && selectedSphere === 'friends') {
+            }
+            if (focusedFriendId && sphere === 'friends') {
               const friend = friends.find(f => f.id === focusedFriendId);
               entityName = friend?.name || null;
-            } else if (focusedHobbyId && selectedSphere === 'hobbies') {
+            }
+            if (focusedHobbyId && sphere === 'hobbies') {
               const hobby = hobbies.find(h => h.id === focusedHobbyId);
               entityName = hobby?.name || null;
             }
             
             // Show entity name if focused, otherwise show sphere name
-            const displayText = entityName || t(`spheres.${selectedSphere}`);
+            const displayText = entityName || t(`spheres.${sphere}`);
             
             return (
               <ThemedText
@@ -6175,26 +6171,31 @@ export default function HomeScreen() {
           {!focusedMemory && selectedSphere && (() => {
             // Check if an entity is focused and get its name
             let entityName: string | null = null;
+            const sphere = selectedSphere as LifeSphere; // Use type assertion to avoid type narrowing issues
             
-            if (focusedProfileId && selectedSphere === 'relationships') {
+            if (focusedProfileId && sphere === 'relationships') {
               const profile = profiles.find(p => p.id === focusedProfileId);
               entityName = profile?.name || null;
-            } else if (focusedJobId && selectedSphere === 'career') {
+            }
+            if (focusedJobId && sphere === 'career') {
               const job = jobs.find(j => j.id === focusedJobId);
               entityName = job?.name || null;
-            } else if (focusedFamilyMemberId && selectedSphere === 'family') {
+            }
+            if (focusedFamilyMemberId && sphere === 'family') {
               const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
               entityName = member?.name || null;
-            } else if (focusedFriendId && selectedSphere === 'friends') {
+            }
+            if (focusedFriendId && sphere === 'friends') {
               const friend = friends.find(f => f.id === focusedFriendId);
               entityName = friend?.name || null;
-            } else if (focusedHobbyId && selectedSphere === 'hobbies') {
+            }
+            if (focusedHobbyId && sphere === 'hobbies') {
               const hobby = hobbies.find(h => h.id === focusedHobbyId);
               entityName = hobby?.name || null;
             }
             
             // Show entity name if focused, otherwise show sphere name
-            const displayText = entityName || t(`spheres.${selectedSphere}`);
+            const displayText = entityName || t(`spheres.${sphere}`);
             
             return (
               <ThemedText
@@ -6547,7 +6548,6 @@ const YearSectionsRenderer = function YearSectionsRenderer({
         return sectionProfilesData.map(({ profile, index: profileIndex }) => {
           const profileData = profileDataMap.get(profile.id);
             if (!profileData) {
-              console.warn(`[YearSectionsRenderer] Profile ${profile.id} (${profile.name || 'unnamed'}) not found in profileDataMap! profileDataMap has ${profileDataMap.size} entries. Available IDs: ${Array.from(profileDataMap.keys()).join(', ')}`);
               return null; // Should not happen, but safety check
             }
           

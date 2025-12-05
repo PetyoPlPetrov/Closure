@@ -354,7 +354,6 @@ export default function AddExProfileScreen() {
         setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
       setIsLoadingImage(false);
       alert(t('error.imagePickFailed'));
     }
@@ -437,7 +436,6 @@ export default function AddExProfileScreen() {
         });
       }
     } catch (error) {
-      console.error(`Error ${isEditMode ? 'updating' : 'adding'} profile:`, error);
       isSaving.current = false;
       // TODO: Show error message to user
     }

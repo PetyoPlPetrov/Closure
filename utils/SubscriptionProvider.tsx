@@ -170,7 +170,6 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const mockCustomerInfo = createMockCustomerInfo(false, null);
       setCustomerInfo(mockCustomerInfo);
     } catch (error) {
-      console.error('Error checking subscription:', error);
       setSubscriptionStatus('not_subscribed');
       setIsSubscribed(false);
     }
@@ -203,10 +202,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       // Update customer info
       const mockCustomerInfo = createMockCustomerInfo(true, expiryDate, pkg.product.identifier);
       setCustomerInfo(mockCustomerInfo);
-      
-      console.log(`[Mock] Successfully purchased ${pkg.product.title} - expires ${expiryDate.toLocaleDateString()} (not persisted)`);
     } catch (error: any) {
-      console.error('Error purchasing package:', error);
       throw error;
     }
   }, []);
@@ -220,7 +216,6 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       // Always throw error since we don't persist subscriptions
       throw new Error('No purchases found to restore');
     } catch (error) {
-      console.error('Error restoring purchases:', error);
       throw error;
     }
   }, []);
@@ -236,7 +231,6 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         // Check subscription status
         await checkSubscription();
       } catch (error) {
-        console.error('Error initializing mock subscription:', error);
         setSubscriptionStatus('not_subscribed');
         setIsSubscribed(false);
       }

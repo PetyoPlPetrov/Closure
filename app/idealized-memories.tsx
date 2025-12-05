@@ -5,8 +5,8 @@ import { useLargeDevice } from "@/hooks/use-large-device";
 import { ActionSheet } from "@/library/components/action-sheet";
 import { ConfirmationModal } from "@/library/components/confirmation-modal";
 import { MemoryCard } from "@/library/components/memory-card";
-import { useTranslate } from "@/utils/languages/use-translate";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
+import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
@@ -198,7 +198,6 @@ export default function IdealizedMemoriesScreen() {
         setDeleteConfirmVisible(false);
         setSelectedMemory(null);
       } catch (error) {
-        console.error("Error deleting memory:", error);
         alert(t('memory.error.deleteFailed'));
         setDeleteConfirmVisible(false);
         setSelectedMemory(null);

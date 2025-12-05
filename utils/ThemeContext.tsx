@@ -43,7 +43,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setThemeModeState('dark');
       }
     } catch (error) {
-      console.error('Error loading theme mode:', error);
       setThemeModeState('dark');
     }
   };
@@ -53,7 +52,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
       setThemeModeState(mode);
     } catch (error) {
-      console.error('Error saving theme mode:', error);
+      // Error saving theme mode
     }
   };
 

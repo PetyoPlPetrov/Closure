@@ -2,13 +2,13 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
-import { useTranslate } from '@/utils/languages/use-translate';
+import type { ExProfile } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { useMemo } from 'react';
 import { StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
-import type { ExProfile } from '@/utils/JourneyProvider';
 
 type ProfileCardProps = {
   profile: ExProfile;
@@ -27,11 +27,6 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
   const isComplete = profile.isCompleted || profile.setupProgress === 100;
   const memories = getIdealizedMemoriesByProfileId(profile.id);
   const memoryCount = memories.length;
-  
-  // Debug logging
-  if (memoryCount === 0 && profile.id) {
-    console.log(`[ProfileCard] Profile ${profile.name} (ID: ${profile.id}) has 0 memories`);
-  }
   
   // Calculate relationship quality (sunny percentage) - same as EX avatar border
   const sunnyPercentage = useMemo(() => {

@@ -82,7 +82,6 @@ export default function RealityCheckScreen() {
 
   const handleEmotionalDebtLedger = () => {
     // TODO: Navigate to Emotional Debt Ledger screen
-    console.log('Emotional Debt Ledger pressed');
   };
 
   return (

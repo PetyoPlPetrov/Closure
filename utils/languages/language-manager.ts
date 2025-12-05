@@ -12,7 +12,6 @@ export const languageManager = {
       }
       return null;
     } catch (error) {
-      console.error('[languageManager] Error getting language:', error);
       return null;
     }
   },
@@ -21,7 +20,7 @@ export const languageManager = {
     try {
       await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, language);
     } catch (error) {
-      console.error('[languageManager] Error setting language:', error);
+      // Error setting language
     }
   },
 };

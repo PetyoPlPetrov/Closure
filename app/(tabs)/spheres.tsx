@@ -9,18 +9,18 @@ import { JobCard } from '@/library/components/job-card';
 import { ProfileCard } from '@/library/components/profile-card';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { WalkthroughModal } from '@/library/components/walkthrough-modal';
-import type { ExProfile, FamilyMember, Job, Friend, Hobby, LifeSphere } from '@/utils/JourneyProvider';
+import type { ExProfile, FamilyMember, Friend, Hobby, Job, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useSplash } from '@/utils/SplashAnimationProvider';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Image } from 'expo-image';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSplash } from '@/utils/SplashAnimationProvider';
+import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
@@ -62,10 +62,7 @@ export default function SpheresScreen() {
   // Reload memories when screen comes into focus (e.g., after running mock data script)
   useFocusEffect(
     useCallback(() => {
-      console.log('[SpheresScreen] Reloading memories on focus...');
       reloadIdealizedMemories().then((count) => {
-        console.log(`[SpheresScreen] Reloaded ${count} memories from storage`);
-        
         // Check for walkthrough after reloading memories
         const checkWalkthrough = async () => {
           // Wait for loading to complete AND splash animation to finish AND splash to be hidden
@@ -107,7 +104,7 @@ export default function SpheresScreen() {
           }
         }
       } catch (error) {
-        console.error('[SpheresScreen] Error checking walkthrough:', error);
+        // Error checking walkthrough
       }
     };
     
@@ -120,7 +117,6 @@ export default function SpheresScreen() {
       await AsyncStorage.setItem(WALKTHROUGH_SHOWN_KEY, 'true');
       setWalkthroughVisible(false);
     } catch (error) {
-      console.error('[SpheresScreen] Error saving walkthrough flag:', error);
       setWalkthroughVisible(false);
     }
   }, []);
@@ -1014,7 +1010,6 @@ export default function SpheresScreen() {
       setDeleteConfirmVisible(false);
       setSelectedProfile(null);
     } catch (error) {
-      console.error('Error deleting profile:', error);
       setDeleteConfirmVisible(false);
       setSelectedProfile(null);
     }
@@ -1140,7 +1135,6 @@ export default function SpheresScreen() {
       setJobDeleteConfirmVisible(false);
       setSelectedJob(null);
     } catch (error) {
-      console.error('Error deleting job:', error);
       setJobDeleteConfirmVisible(false);
       setSelectedJob(null);
     }
@@ -1457,7 +1451,6 @@ export default function SpheresScreen() {
         setFamilyMemberDeleteConfirmVisible(false);
         setSelectedFamilyMember(null);
       } catch (error) {
-        console.error('Error deleting family member:', error);
         setFamilyMemberDeleteConfirmVisible(false);
         setSelectedFamilyMember(null);
       }
@@ -1671,7 +1664,6 @@ export default function SpheresScreen() {
           setFriendDeleteConfirmVisible(false);
           setSelectedFriend(null);
         } catch (error) {
-          console.error('Error deleting friend:', error);
           setFriendDeleteConfirmVisible(false);
           setSelectedFriend(null);
         }
@@ -1889,7 +1881,6 @@ export default function SpheresScreen() {
           setHobbyDeleteConfirmVisible(false);
           setSelectedHobby(null);
         } catch (error) {
-          console.error('Error deleting hobby:', error);
           setHobbyDeleteConfirmVisible(false);
           setSelectedHobby(null);
         }

@@ -1,6 +1,6 @@
+import { logEntityCreated, logMemoryCreated, logMemoryDeleted, logMomentCreated } from '@/utils/analytics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
-import { logEntityCreated, logMemoryCreated, logMemoryDeleted, logMomentCreated } from '@/utils/analytics';
 
 const STORAGE_KEY = '@sferas:ex_profiles';
 const IDEALIZED_MEMORIES_KEY = '@sferas:idealized_memories';
@@ -228,7 +228,6 @@ function useProfiles(): [ExProfile[], boolean, Error | null, (profiles: ExProfil
       } catch (err) {
         const error = err instanceof Error ? err : new Error('Failed to load profiles');
         setError(error);
-        console.error('Error loading profiles:', error);
       } finally {
         setIsLoading(false);
       }
@@ -384,9 +383,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
             parsedHobbies.forEach(h => validEntityIds.add(h.id));
           }
         } catch (error) {
-          console.error('[JourneyProvider] Error reading entities for orphan cleanup:', error);
           // If we can't read entities, don't clean up - safer to keep all memories
-          console.warn('[JourneyProvider] Skipping orphan cleanup due to error');
         }
         
         // Filter out orphaned memories (only if we successfully loaded entities)
@@ -395,8 +392,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         
         if (validEntityIds.size === 0 && (profilesCount > 0 || jobsCount > 0 || familyCount > 0 || friendsCount > 0 || hobbiesCount > 0)) {
           // We tried to load entities but got 0 IDs, even though counts > 0
-          // This is suspicious - don't clean up, just log a warning
-          console.warn(`[JourneyProvider] ⚠️ Warning: Found ${profilesCount} profiles, ${jobsCount} jobs, ${familyCount} family, ${friendsCount} friends, ${hobbiesCount} hobbies but 0 valid IDs. Skipping cleanup to avoid data loss.`);
+          // This is suspicious - don't clean up to avoid data loss
           cleanedMemories = migratedMemories;
         } else if (validEntityIds.size === 0) {
           // No entities at all - keep all memories for now (might be fresh install)
@@ -408,7 +404,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
             const entityId = memory.entityId || memory.profileId || '';
             
             if (!entityId) {
-              console.warn(`[JourneyProvider] Memory ${memory.id} has no entityId or profileId, keeping it`);
               return true;
             }
             
@@ -424,7 +419,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
             }
             
             // If sphere is unknown, keep the memory for now (might be data migration issue)
-            console.warn(`[JourneyProvider] Memory ${memory.id} has unknown sphere: ${memory.sphere}, keeping it`);
             return true;
           });
           
@@ -443,7 +437,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         return 0;
         }
       } catch (err) {
-      console.error('[JourneyProvider] Error loading idealized memories:', err);
       return 0;
       }
   }, []);
@@ -464,7 +457,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           setJobs(parsedJobs);
         }
       } catch (err) {
-        console.error('Error loading jobs:', err);
+        // Error loading jobs
       } finally {
         setIsLoadingJobs(false);
       }
@@ -483,7 +476,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           setFamilyMembers(parsedMembers);
         }
       } catch (err) {
-        console.error('Error loading family members:', err);
+        // Error loading family members
       } finally {
         setIsLoadingFamily(false);
       }
@@ -502,7 +495,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           setFriends(parsedFriends);
         }
       } catch (err) {
-        console.error('Error loading friends:', err);
+        // Error loading friends
       } finally {
         setIsLoadingFriends(false);
       }
@@ -521,7 +514,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           setHobbies(parsedHobbies);
         }
       } catch (err) {
-        console.error('Error loading hobbies:', err);
+        // Error loading hobbies
       } finally {
         setIsLoadingHobbies(false);
       }
@@ -541,7 +534,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
             existingProfiles = JSON.parse(stored) as ExProfile[];
           }
         } catch (error) {
-          console.error('[JourneyProvider] Error reading existing profiles from storage:', error);
           // If read fails, fall back to current state
           existingProfiles = profiles;
         }
@@ -549,7 +541,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         // Check if profile already exists
         const profileExists = existingProfiles.some(p => p.id === newProfile.id);
         if (profileExists) {
-          console.warn(`[JourneyProvider] Profile with ID ${newProfile.id} already exists, updating instead of creating`);
           // Update existing profile
           const updatedProfiles = existingProfiles.map(p => p.id === newProfile.id ? newProfile : p);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProfiles));
@@ -561,7 +552,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           setProfiles(updatedProfiles);
         }
       } catch (error) {
-        console.error('[JourneyProvider] Error saving profile:', error);
         throw error;
       }
     },
@@ -574,7 +564,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProfiles));
         setProfiles(updatedProfiles);
       } catch (error) {
-        console.error('[JourneyProvider] Error updating profiles:', error);
         throw error;
       }
     },
@@ -613,10 +602,9 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         if (stored) {
           existingProfiles = JSON.parse(stored) as ExProfile[];
         }
-      } catch (error) {
-        console.error('[JourneyProvider] Error reading existing profiles from storage:', error);
-        existingProfiles = profiles; // Fallback to current state
-      }
+        } catch (error) {
+          existingProfiles = profiles; // Fallback to current state
+        }
       
       const updatedProfiles = existingProfiles.map((profile) => {
         if (profile.id === id) {
@@ -655,10 +643,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         await AsyncStorage.setItem(IDEALIZED_MEMORIES_KEY, jsonString);
         // Don't call setIdealizedMemories here - it's already set by the caller
       } catch (error) {
-        console.error('[JourneyProvider] ✗ Error saving idealized memories to storage:', error);
-        if (error instanceof Error) {
-          console.error('[JourneyProvider] Error details:', error.message, error.stack);
-        }
         throw error; // Re-throw to let caller know it failed
       }
     },
@@ -671,7 +655,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       const updatedProfiles = profiles.filter((profile) => profile.id !== id);
       
       if (updatedProfiles.length === profiles.length) {
-        console.warn(`[JourneyProvider] Profile with id ${id} not found for deletion`);
         return;
       }
       
@@ -690,7 +673,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           }));
         }
       } catch (error) {
-        console.error('[JourneyProvider] Error reading memories from storage during profile deletion:', error);
         existingMemories = idealizedMemories; // Fallback to state if read fails
       }
       
@@ -723,7 +705,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(updatedJobs));
         setJobs(updatedJobs);
       } catch (error) {
-        console.error('Error updating jobs:', error);
         throw error;
       }
     },
@@ -736,7 +717,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         await AsyncStorage.setItem(FAMILY_MEMBERS_STORAGE_KEY, JSON.stringify(updatedMembers));
         setFamilyMembers(updatedMembers);
       } catch (error) {
-        console.error('Error updating family members:', error);
         throw error;
       }
     },
@@ -749,7 +729,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         await AsyncStorage.setItem(FRIENDS_STORAGE_KEY, JSON.stringify(updatedFriends));
         setFriends(updatedFriends);
       } catch (error) {
-        console.error('Error updating friends:', error);
         throw error;
       }
     },
@@ -762,7 +741,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         await AsyncStorage.setItem(HOBBIES_STORAGE_KEY, JSON.stringify(updatedHobbies));
         setHobbies(updatedHobbies);
       } catch (error) {
-        console.error('Error updating hobbies:', error);
         throw error;
       }
     },
@@ -803,7 +781,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           }));
         }
       } catch (error) {
-        console.error('[JourneyProvider] Error reading existing memories from storage:', error);
         // If read fails, fall back to current state
         existingMemories = idealizedMemories;
       }
@@ -811,7 +788,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       // Check if this memory already exists (shouldn't happen, but safety check)
       const memoryExists = existingMemories.some(m => m.id === newMemory.id);
       if (memoryExists) {
-        console.warn(`[JourneyProvider] Memory with ID ${newMemory.id} already exists, skipping creation`);
         return;
       }
       
@@ -1056,7 +1032,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
             existingJobs = JSON.parse(stored) as Job[];
           }
         } catch (error) {
-          console.error('[JourneyProvider] Error reading existing jobs from storage:', error);
           // If read fails, fall back to current state
           existingJobs = jobs;
         }
@@ -1064,7 +1039,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         // Check if job already exists
         const jobExists = existingJobs.some(j => j.id === newJob.id);
         if (jobExists) {
-          console.warn(`[JourneyProvider] Job with ID ${newJob.id} already exists, updating instead of creating`);
           // Update existing job
           const updatedJobs = existingJobs.map(j => j.id === newJob.id ? newJob : j);
           await AsyncStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(updatedJobs));
@@ -1076,7 +1050,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           setJobs(updatedJobs);
         }
       } catch (error) {
-        console.error('[JourneyProvider] Error saving job:', error);
         throw error;
       }
     },
@@ -1132,7 +1105,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       const updatedJobs = jobs.filter((job) => job.id !== id);
       
       if (updatedJobs.length === jobs.length) {
-        console.warn(`[JourneyProvider] Job with id ${id} not found for deletion`);
         return;
       }
       
@@ -1151,7 +1123,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           }));
         }
       } catch (error) {
-        console.error('[JourneyProvider] Error reading memories from storage during job deletion:', error);
         existingMemories = idealizedMemories; // Fallback to state if read fails
       }
       
@@ -1190,7 +1161,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
             existingMembers = JSON.parse(stored) as FamilyMember[];
           }
         } catch (error) {
-          console.error('[JourneyProvider] Error reading existing family members from storage:', error);
           // If read fails, fall back to current state
           existingMembers = familyMembers;
         }
@@ -1198,7 +1168,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         // Check if family member already exists
         const memberExists = existingMembers.some(m => m.id === newMember.id);
         if (memberExists) {
-          console.warn(`[JourneyProvider] Family member with ID ${newMember.id} already exists, updating instead of creating`);
           // Update existing member
           const updatedMembers = existingMembers.map(m => m.id === newMember.id ? newMember : m);
           await AsyncStorage.setItem(FAMILY_MEMBERS_STORAGE_KEY, JSON.stringify(updatedMembers));
@@ -1210,7 +1179,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           setFamilyMembers(updatedMembers);
         }
       } catch (error) {
-        console.error('Error saving family member:', error);
         throw error;
       }
     },
@@ -1266,7 +1234,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       const updatedMembers = familyMembers.filter((member) => member.id !== id);
       
       if (updatedMembers.length === familyMembers.length) {
-        console.warn(`[JourneyProvider] Family member with id ${id} not found for deletion`);
         return;
       }
       
@@ -1285,7 +1252,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           }));
         }
       } catch (error) {
-        console.error('[JourneyProvider] Error reading memories from storage during family member deletion:', error);
         existingMemories = idealizedMemories; // Fallback to state if read fails
       }
       
@@ -1322,7 +1288,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
             existingFriends = JSON.parse(stored) as Friend[];
           }
         } catch (error) {
-          console.error('[JourneyProvider] Error reading existing friends from storage:', error);
           existingFriends = friends;
         }
         
@@ -1337,7 +1302,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           setFriends(updatedFriends);
         }
       } catch (error) {
-        console.error('Error saving friend:', error);
         throw error;
       }
     },
@@ -1392,7 +1356,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       const updatedFriends = friends.filter((friend) => friend.id !== id);
       
       if (updatedFriends.length === friends.length) {
-        console.warn(`[JourneyProvider] Friend with id ${id} not found for deletion`);
         return;
       }
       
@@ -1409,7 +1372,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           }));
         }
       } catch (error) {
-        console.error('[JourneyProvider] Error reading memories from storage during friend deletion:', error);
         existingMemories = idealizedMemories;
       }
       
@@ -1443,7 +1405,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
             existingHobbies = JSON.parse(stored) as Hobby[];
           }
         } catch (error) {
-          console.error('[JourneyProvider] Error reading existing hobbies from storage:', error);
           existingHobbies = hobbies;
         }
         
@@ -1458,7 +1419,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           setHobbies(updatedHobbies);
         }
       } catch (error) {
-        console.error('Error saving hobby:', error);
         throw error;
       }
     },
@@ -1513,7 +1473,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       const updatedHobbies = hobbies.filter((hobby) => hobby.id !== id);
       
       if (updatedHobbies.length === hobbies.length) {
-        console.warn(`[JourneyProvider] Hobby with id ${id} not found for deletion`);
         return;
       }
       
@@ -1530,7 +1489,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           }));
         }
       } catch (error) {
-        console.error('[JourneyProvider] Error reading memories from storage during hobby deletion:', error);
         existingMemories = idealizedMemories;
       }
       
@@ -1664,7 +1622,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         setProfiles([]);
       }
     } catch (err) {
-      console.error('[JourneyProvider] Error reloading profiles:', err);
+      // Error reloading profiles
     }
   }, [setProfiles]);
 
@@ -1679,7 +1637,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         setJobs([]);
       }
     } catch (err) {
-      console.error('[JourneyProvider] Error reloading jobs:', err);
+      // Error reloading jobs
     }
   }, []);
 
@@ -1694,7 +1652,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         setFamilyMembers([]);
       }
     } catch (err) {
-      console.error('[JourneyProvider] Error reloading family members:', err);
+      // Error reloading family members
     }
   }, []);
 
@@ -1709,7 +1667,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         setFriends([]);
       }
     } catch (err) {
-      console.error('[JourneyProvider] Error reloading friends:', err);
+      // Error reloading friends
     }
   }, []);
 
@@ -1724,7 +1682,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         setHobbies([]);
       }
     } catch (err) {
-      console.error('[JourneyProvider] Error reloading hobbies:', err);
+      // Error reloading hobbies
     }
   }, []);
 
@@ -1772,7 +1730,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       // Read all memories from storage
       const storedMemories = await AsyncStorage.getItem(IDEALIZED_MEMORIES_KEY);
       if (!storedMemories) {
-        console.log('[JourneyProvider] No memories found to clean up');
         return 0;
       }
       
@@ -1784,16 +1741,11 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         const entityId = memory.entityId || memory.profileId || '';
         
         if (!entityId) {
-          console.warn(`[JourneyProvider] Memory ${memory.id} has no entityId or profileId, removing it`);
           return false; // Remove memories without entity references
         }
         
         // Check if the entity exists
         const isValid = validEntityIds.has(entityId);
-        
-        if (!isValid) {
-          console.log(`[JourneyProvider] Removing orphaned memory ${memory.id} (entity ${entityId} not found)`);
-        }
         
         return isValid;
       });
@@ -1804,14 +1756,10 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         // Save cleaned memories back to storage
         await saveIdealizedMemoriesToStorage(cleanedMemories);
         setIdealizedMemories(cleanedMemories);
-        console.log(`[JourneyProvider] Cleaned up ${orphanedCount} orphaned memories`);
-      } else {
-        console.log('[JourneyProvider] No orphaned memories found');
       }
       
       return orphanedCount;
     } catch (error) {
-      console.error('[JourneyProvider] Error cleaning up orphaned memories:', error);
       throw error;
     }
   }, [saveIdealizedMemoriesToStorage]);

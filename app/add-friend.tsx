@@ -74,7 +74,6 @@ export default function AddFriendScreen() {
         setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
       setIsLoadingImage(false);
       alert(t('error.imagePickFailed'));
     }
@@ -111,6 +110,8 @@ export default function AddFriendScreen() {
           name: name.trim(),
           description: description.trim() || undefined,
           imageUri: selectedImage || undefined,
+          setupProgress: 0,
+          isCompleted: false,
         });
         // Navigate to memory creation screen for the new friend
         router.replace({
@@ -121,9 +122,8 @@ export default function AddFriendScreen() {
       }
 
       // For edit mode, navigate back to tabs
-      router.replace('/(tabs)/');
+      router.replace('/(tabs)/' as any);
     } catch (error) {
-      console.error(`Error ${isEditMode ? 'updating' : 'adding'} friend:`, error);
       Alert.alert(t('common.error'), t('error.saveFailed'));
     } finally {
       setIsSaving(false);

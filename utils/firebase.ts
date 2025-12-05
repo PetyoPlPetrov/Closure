@@ -26,7 +26,6 @@ export const getFirebaseApp = () => {
     firebaseApp = firebase.app();
     return firebaseApp;
   } catch (error: any) {
-    console.warn('Firebase not available:', error?.message || error);
     return null;
   }
 };
