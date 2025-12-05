@@ -7,6 +7,7 @@ import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo } from 'react';
 import { StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 
@@ -62,15 +63,18 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
       StyleSheet.create({
         container: {
           borderRadius: 12 * fontScale,
-          backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(255, 255, 255, 0.05)' 
-            : '#ffffff',
+          backgroundColor: 'transparent', // Transparent to show gradient
           padding: 16 * fontScale,
           gap: 12 * fontScale,
           borderWidth: 1,
           borderColor: colorScheme === 'dark' 
             ? 'rgba(255, 255, 255, 0.1)' 
             : 'rgba(0, 0, 0, 0.1)',
+          overflow: 'hidden', // Required for gradient to respect borderRadius
+        },
+        containerGradient: {
+          ...StyleSheet.absoluteFillObject,
+          borderRadius: 12 * fontScale,
         },
         header: {
           flexDirection: 'row',
@@ -153,6 +157,16 @@ export function ProfileCard({ profile, onPress, onMorePress, containerStyle }: P
 
   return (
     <View style={[styles.container, containerStyle]}>
+      {colorScheme === 'dark' ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12 * fontScale }]} />
+      ) : (
+        <LinearGradient
+          colors={['#FFFFFF', '#F0F0F0', '#E0E0E0']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.containerGradient}
+        />
+      )}
       <TouchableOpacity
         style={{ flex: 1 }}
         onPress={handleCardPress}

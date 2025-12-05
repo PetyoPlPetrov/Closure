@@ -119,13 +119,15 @@ export default function IdealizedMemoriesScreen() {
         listContent: {
           padding: 16,
           paddingBottom: 100,
-          gap: 16,
           alignItems: "center",
         },
         listContentWrapper: {
           ...(typeof maxContentWidth === 'number' ? { maxWidth: maxContentWidth } : {}),
           width: "100%",
           alignSelf: "center",
+        },
+        memoryCardSpacing: {
+          marginBottom: 16, // Add gap between memory cards
         },
       }),
     [colorScheme, colors.background, maxContentWidth]
@@ -254,7 +256,12 @@ export default function IdealizedMemoriesScreen() {
             }} 
             style={styles.headerButton}
           >
-            <ThemedText style={{ color: colors.primary, fontSize: 14 }}>
+            <ThemedText style={{ 
+              color: colorScheme === 'dark' 
+                ? colors.textHighEmphasis || '#FFFFFF' 
+                : '#11181C', 
+              fontSize: 14 
+            }}>
               {t('common.done')}
             </ThemedText>
           </TouchableOpacity>
@@ -271,13 +278,14 @@ export default function IdealizedMemoriesScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.listContentWrapper}>
-              {memories.map((memory) => (
-                <MemoryCard
-                  key={memory.id}
-                  memory={memory}
-                  onPress={() => handleMemoryPress(memory.id)}
-                  onMorePress={() => handleMorePress(memory)}
-                />
+              {memories.map((memory, index) => (
+                <View key={memory.id} style={index < memories.length - 1 ? styles.memoryCardSpacing : undefined}>
+                  <MemoryCard
+                    memory={memory}
+                    onPress={() => handleMemoryPress(memory.id)}
+                    onMorePress={() => handleMorePress(memory)}
+                  />
+                </View>
               ))}
             </View>
           </ScrollView>

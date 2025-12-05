@@ -900,7 +900,7 @@ export default function AddExProfileScreen() {
           disabled={!isSaveEnabled}
         >
           <ThemedText weight="bold" letterSpacing="l" style={{ color: '#ffffff' }}>
-            {isEditMode ? t('common.save') : t('common.add')}
+            {isEditMode ? t('common.save') : t('profile.add')}
           </ThemedText>
         </TouchableOpacity>
       </ScrollView>

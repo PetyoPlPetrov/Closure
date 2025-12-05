@@ -538,13 +538,16 @@ export default function SpheresScreen() {
       padding: 12 * fontScale,
       alignItems: 'center',
       justifyContent: 'center',
+      paddingTop: 0, // Remove top padding to allow better centering
+      paddingBottom: 0, // Remove bottom padding to allow better centering
     },
     mainContentWrapper: {
       flex: 1,
       width: '100%',
-      justifyContent: 'space-between',
+      justifyContent: 'center',
       alignItems: 'center',
       maxHeight: Dimensions.get('window').height - 200 * fontScale, // Account for header and safe area
+      gap: 24 * fontScale, // Add gap between sphere grid and insights button
     },
     mainContentContainer: {
       width: '100%',
@@ -568,23 +571,21 @@ export default function SpheresScreen() {
       maxWidth: 180 * fontScale,
       aspectRatio: 1,
       borderRadius: 12 * fontScale,
+      overflow: 'hidden', // Required for gradient to respect borderRadius
+      borderWidth: 1,
+      borderColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' // Subtle border with low opacity
+        : 'rgba(125, 211, 252, 0.4)',
+    },
+    sphereCardContent: {
+      flex: 1,
       padding: 12 * fontScale,
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(14, 165, 233, 0.1)' 
-        : 'rgba(125, 211, 252, 0.2)',
-      borderWidth: 1,
-      borderColor: colorScheme === 'dark' 
-        ? 'rgba(14, 165, 233, 0.3)' 
-        : 'rgba(125, 211, 252, 0.4)',
     },
     sphereCardActive: {
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(14, 165, 233, 0.3)' 
-        : 'rgba(125, 211, 252, 0.4)',
-      borderColor: colors.primaryLight,
+      borderColor: colors.primary,
       borderWidth: 2,
     },
     sphereIcon: {
@@ -592,15 +593,15 @@ export default function SpheresScreen() {
     },
     sphereLabel: {
       textAlign: 'center',
-      fontSize: 11 * fontScale,
+      fontSize: 14 * fontScale, // Increased from 11
     },
     sphereCount: {
       textAlign: 'center',
-      opacity: 0.7,
       fontSize: 10 * fontScale,
+      color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.8)' : '#333333', // Darker color for better contrast in light mode
     },
     insightsButtonContainer: {
-      marginTop: 12 * fontScale,
+      marginTop: 0, // Remove marginTop since gap is handled by mainContentWrapper
       borderRadius: 16 * fontScale,
       overflow: 'hidden',
       shadowColor: '#8b5cf6',
@@ -669,7 +670,7 @@ export default function SpheresScreen() {
       height: 48 * fontScale,
       borderRadius: 24 * fontScale,
       backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(14, 165, 233, 0.2)' 
+        ? Colors.dark.surfaceElevated1 // Use elevation-based surface color
         : 'rgba(125, 211, 252, 0.3)',
     },
     entityInfo: {
@@ -687,7 +688,7 @@ export default function SpheresScreen() {
       height: 80 * fontScale * iconScale,
       borderRadius: 40 * fontScale * iconScale,
       backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(14, 165, 233, 0.2)' 
+        ? Colors.dark.surfaceElevated1 // Use elevation-based surface color
         : 'rgba(125, 211, 252, 0.3)',
       alignItems: 'center',
       justifyContent: 'center',
@@ -921,7 +922,7 @@ export default function SpheresScreen() {
       padding: 12 * fontScale,
       borderRadius: 8 * fontScale,
       backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(14, 165, 233, 0.15)' 
+        ? Colors.dark.surfaceElevated1 // Use elevation-based surface color
         : 'rgba(125, 211, 252, 0.2)',
     },
     suggestionText: {
@@ -1167,7 +1168,7 @@ export default function SpheresScreen() {
           >
             <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
           </Pressable>
-          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+          <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.relationships')}
           </ThemedText>
           {hasAnyRelationshipMemory ? (
@@ -1176,7 +1177,12 @@ export default function SpheresScreen() {
               onPress={() => router.replace({ pathname: '/(tabs)' })}
               activeOpacity={0.7}
             >
-              <ThemedText style={{ color: colors.primary, fontSize: 14 }}>
+              <ThemedText style={{ 
+                color: colorScheme === 'dark' 
+                  ? colors.textHighEmphasis || '#FFFFFF' 
+                  : '#11181C', 
+                fontSize: 14 
+              }}>
                 {t('common.done')}
               </ThemedText>
             </TouchableOpacity>
@@ -1303,7 +1309,7 @@ export default function SpheresScreen() {
           >
             <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
           </Pressable>
-          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+          <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.career')}
           </ThemedText>
           {hasAnyCareerMemory ? (
@@ -1312,7 +1318,12 @@ export default function SpheresScreen() {
               onPress={() => router.replace({ pathname: '/(tabs)' })}
               activeOpacity={0.7}
             >
-              <ThemedText style={{ color: colors.primary, fontSize: 14 }}>
+              <ThemedText style={{ 
+                color: colorScheme === 'dark' 
+                  ? colors.textHighEmphasis || '#FFFFFF' 
+                  : '#11181C', 
+                fontSize: 14 
+              }}>
                 {t('common.done')}
               </ThemedText>
             </TouchableOpacity>
@@ -1481,7 +1492,7 @@ export default function SpheresScreen() {
           >
             <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
           </Pressable>
-          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+          <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.family')}
           </ThemedText>
           {hasAnyFamilyMemory ? (
@@ -1490,7 +1501,12 @@ export default function SpheresScreen() {
               onPress={() => router.replace({ pathname: '/(tabs)' })}
               activeOpacity={0.7}
             >
-              <ThemedText style={{ color: colors.primary, fontSize: 14 }}>
+              <ThemedText style={{ 
+                color: colorScheme === 'dark' 
+                  ? colors.textHighEmphasis || '#FFFFFF' 
+                  : '#11181C', 
+                fontSize: 14 
+              }}>
                 {t('common.done')}
               </ThemedText>
             </TouchableOpacity>
@@ -1703,7 +1719,7 @@ export default function SpheresScreen() {
           >
             <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
           </Pressable>
-          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+          <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.friends')}
           </ThemedText>
           {hasAnyFriendMemory ? (
@@ -1712,7 +1728,12 @@ export default function SpheresScreen() {
               onPress={() => router.replace({ pathname: '/(tabs)' })}
               activeOpacity={0.7}
             >
-              <ThemedText style={{ color: colors.primary, fontSize: 14 }}>
+              <ThemedText style={{ 
+                color: colorScheme === 'dark' 
+                  ? colors.textHighEmphasis || '#FFFFFF' 
+                  : '#11181C', 
+                fontSize: 14 
+              }}>
                 {t('common.done')}
               </ThemedText>
             </TouchableOpacity>
@@ -1920,7 +1941,7 @@ export default function SpheresScreen() {
           >
             <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
           </Pressable>
-          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+          <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.hobbies')}
           </ThemedText>
           {hasAnyHobbyMemory ? (
@@ -1929,7 +1950,12 @@ export default function SpheresScreen() {
               onPress={() => router.replace({ pathname: '/(tabs)' })}
               activeOpacity={0.7}
             >
-              <ThemedText style={{ color: colors.primary, fontSize: 14 }}>
+              <ThemedText style={{ 
+                color: colorScheme === 'dark' 
+                  ? colors.textHighEmphasis || '#FFFFFF' 
+                  : '#11181C', 
+                fontSize: 14 
+              }}>
                 {t('common.done')}
               </ThemedText>
             </TouchableOpacity>
@@ -2073,7 +2099,7 @@ export default function SpheresScreen() {
     <TabScreenContainer>
       <View style={styles.header}>
         <View style={styles.headerButton} />
-        <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+        <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
           {t('spheres.title')}
         </ThemedText>
         <View style={styles.headerButton} />
@@ -2088,45 +2114,89 @@ export default function SpheresScreen() {
             <View style={styles.mainContentContainer}>
               <View style={styles.sphereGrid}>
                 {spheres.map((sphere) => {
-                  // Get sphere-specific colors matching the insights screen
+                  // Get sphere-specific colors - theme-aware for proper contrast
+                  // Light mode: Use darker, more saturated colors for contrast against light grey backgrounds
+                  // Dark mode: Use desaturated colors for reduced eye strain and better readability
                   const getSphereColor = (sphereType: LifeSphere): string => {
-                    switch (sphereType) {
-                      case 'relationships':
-                        return '#f87171'; // Red/pink
-                      case 'career':
-                        return '#3b82f6'; // Blue
-                      case 'family':
-                        return '#10b981'; // Green
-                      case 'friends':
-                        return '#8b5cf6'; // Purple
-                      case 'hobbies':
-                        return '#f97316'; // Orange
-                      default:
-                        return colors.primary;
+                    if (colorScheme === 'light') {
+                      // Light mode: Use darker, more saturated colors for better contrast
+                      // Following Material Design principles for light surfaces
+                      switch (sphereType) {
+                        case 'relationships':
+                          return '#D32F2F'; // Darker red for better contrast
+                        case 'career':
+                          return '#1976D2'; // Darker blue for better contrast
+                        case 'family':
+                          return '#388E3C'; // Darker green for better contrast
+                        case 'friends':
+                          return '#7B1FA2'; // Darker purple for better contrast
+                        case 'hobbies':
+                          return '#F57C00'; // Darker orange for better contrast
+                        default:
+                          return '#1976D2'; // Default to darker blue
+                      }
+                    } else {
+                      // Dark mode: Use desaturated colors (Material Design 300 palette)
+                      // These work well against dark backgrounds and reduce eye strain
+                      switch (sphereType) {
+                        case 'relationships':
+                          return '#E57373'; // Desaturated red
+                        case 'career':
+                          return '#64B5F6'; // Desaturated blue
+                        case 'family':
+                          return '#81C784'; // Desaturated green
+                        case 'friends':
+                          return '#BA68C8'; // Desaturated purple
+                        case 'hobbies':
+                          return '#FFB74D'; // Desaturated orange
+                        default:
+                          return '#64B5F6'; // Default to desaturated blue
+                      }
                     }
                   };
                   
                   const sphereColor = getSphereColor(sphere.type);
+                  const isActive = expandedSphere === sphere.type;
+                  
+                  // Very subtle gradient colors for dark mode (from slightly darker to slightly lighter blue-grey)
+                  const darkGradientColors = ['#223041', '#243041', '#263041'] as const;
+                  // Very subtle grey gradient for light mode (darker for better contrast with darker icon colors)
+                  const lightGradientColors = ['rgb(170, 170, 170)', 'rgb(180, 180, 180)', 'rgb(175, 175, 175)'] as const;
+                  
+                  // Active state gradient (slightly brighter)
+                  const darkActiveGradientColors = ['#2D3A4F', '#2F3A4F', '#313A4F'] as const;
+                  const lightActiveGradientColors = ['rgb(190, 190, 190)', 'rgb(200, 200, 200)', 'rgb(195, 195, 195)'] as const;
                   
                   return (
                     <TouchableOpacity
                       key={sphere.type}
-                      style={styles.sphereCard}
+                      style={[styles.sphereCard, isActive && styles.sphereCardActive]}
                       onPress={() => handleSpherePress(sphere.type)}
                       activeOpacity={0.8}
                     >
-                      <MaterialIcons
-                        name={sphere.icon as any}
-                        size={32 * fontScale * iconScale}
-                        color={sphereColor}
-                        style={styles.sphereIcon}
-                      />
-                      <ThemedText size="xs" weight="bold" style={styles.sphereLabel}>
-                        {sphere.label}
-                      </ThemedText>
-                      <ThemedText size="xs" style={styles.sphereCount}>
-                        {sphere.entities.length} {sphere.entities.length === 1 ? t('spheres.item') : t('spheres.items')}
-                      </ThemedText>
+                      <LinearGradient
+                        colors={
+                          colorScheme === 'dark'
+                            ? (isActive ? darkActiveGradientColors : darkGradientColors)
+                            : (isActive ? lightActiveGradientColors : lightGradientColors)
+                        }
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.sphereCardContent}
+                      >
+                        <MaterialIcons
+                          name={sphere.icon as any}
+                          size={32 * fontScale * iconScale}
+                          color={sphereColor}
+                          style={styles.sphereIcon}
+                        />
+                        <ThemedText size="xs" weight="bold" style={styles.sphereLabel}>
+                          {sphere.label}
+                        </ThemedText>
+                        <ThemedText size="xs" style={styles.sphereCount}>
+                          {sphere.entities.length} {sphere.entities.length === 1 ? t('spheres.item') : t('spheres.items')}
+                        </ThemedText>
+                      </LinearGradient>
                     </TouchableOpacity>
                   );
                 })}
@@ -2148,7 +2218,7 @@ export default function SpheresScreen() {
               <LinearGradient
                 colors={
                   colorScheme === 'dark'
-                    ? ['#8b5cf6', '#6366f1', '#3b82f6', '#0ea5e9']
+                    ? ['#BA68C8', '#9575CD', '#64B5F6', '#4DB6AC'] // Desaturated purple-to-blue gradient
                     : ['#a78bfa', '#818cf8', '#60a5fa', '#38bdf8']
                 }
                 start={{ x: 0, y: 0 }}

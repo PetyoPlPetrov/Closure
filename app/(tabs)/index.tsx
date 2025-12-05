@@ -3207,76 +3207,174 @@ const SphereAvatar = React.memo(function SphereAvatar({
     friends: 'people',
     hobbies: 'sports-esports',
   };
+
+  // Get sphere-specific icon colors - theme-aware for proper contrast
+  // Light mode: Use darker, more saturated colors for contrast against light grey backgrounds
+  // Dark mode: Use desaturated colors for reduced eye strain and better readability
+  const getSphereIconColor = (sphereType: LifeSphere): string => {
+    if (colorScheme === 'light') {
+      // Light mode: Use darker, more saturated colors for better contrast with light grey backgrounds
+      // Following Material Design principles for light surfaces
+      switch (sphereType) {
+        case 'relationships':
+          return '#D32F2F'; // Darker red for better contrast
+        case 'career':
+          return '#1976D2'; // Darker blue for better contrast
+        case 'family':
+          return '#388E3C'; // Darker green for better contrast
+        case 'friends':
+          return '#7B1FA2'; // Darker purple for better contrast
+        case 'hobbies':
+          return '#F57C00'; // Darker orange for better contrast
+        default:
+          return '#1976D2'; // Default to darker blue
+      }
+    } else {
+      // Dark mode: Use desaturated colors (Material Design 300 palette)
+      // These work well against dark backgrounds and reduce eye strain
+      switch (sphereType) {
+        case 'relationships':
+          return '#E57373'; // Desaturated red
+        case 'career':
+          return '#64B5F6'; // Desaturated blue
+        case 'family':
+          return '#81C784'; // Desaturated green
+        case 'friends':
+          return '#BA68C8'; // Desaturated purple
+        case 'hobbies':
+          return '#FFB74D'; // Desaturated orange
+        default:
+          return '#64B5F6'; // Default to desaturated blue
+      }
+    }
+  };
   
-  // Determine sphere background color based on sunny vs cloudy
+  // Determine sphere background gradient colors based on sunny vs cloudy
   // Lighter for more suns, darker for more clouds
-  const sphereBackgroundColor = React.useMemo(() => {
+  // Returns an array of 3 colors for a subtle gradient
+  // Light mode uses grey shades, dark mode uses colorful gradients
+  const sphereGradientColors = React.useMemo(() => {
     const isMoreSunny = sunnyPercentage >= 50;
     
+    // Light mode: Use darker grey shades for better contrast with darker icon colors
+    // Following accessibility guidelines: darker backgrounds provide better contrast
+    if (colorScheme === 'light') {
+      if (isMoreSunny) {
+        // More sunny - medium grey gradient (darker for better contrast)
+        // Base grey value increases with sunny percentage but stays darker for contrast
+        const baseGrey = 170 + (sunnyPercentage / 100) * 30; // Range: 170-200 (darker than before)
+        return [
+          `rgb(${baseGrey - 8}, ${baseGrey - 8}, ${baseGrey - 8})`, // Slightly darker
+          `rgb(${baseGrey}, ${baseGrey}, ${baseGrey})`, // Base color
+          `rgb(${baseGrey + 8}, ${baseGrey + 8}, ${baseGrey + 8})`, // Slightly lighter
+        ] as const;
+      } else {
+        // More cloudy - darker grey gradient
+        const cloudyPercentage = 100 - sunnyPercentage;
+        const baseGrey = 130 + (cloudyPercentage / 100) * 40; // Range: 130-170 (darker for contrast)
+        return [
+          `rgb(${baseGrey - 8}, ${baseGrey - 8}, ${baseGrey - 8})`, // Slightly darker
+          `rgb(${baseGrey}, ${baseGrey}, ${baseGrey})`, // Base color
+          `rgb(${baseGrey + 8}, ${baseGrey + 8}, ${baseGrey + 8})`, // Slightly lighter
+        ] as const;
+      }
+    }
+    
+    // Dark mode: Use colorful gradients (existing logic)
     if (sphere === 'relationships') {
       if (isMoreSunny) {
-        // More sunny - lighter pink/red
-        return colorScheme === 'dark' 
-          ? `rgba(255, 150, 150, ${0.4 + (sunnyPercentage / 100) * 0.3})` // Lighter pink
-          : `rgba(255, 200, 200, ${0.5 + (sunnyPercentage / 100) * 0.3})`; // Lighter pink
+        // More sunny - lighter pink/red gradient
+        const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
+        return [
+          `rgba(255, 140, 140, ${baseOpacity - 0.05})`, // Slightly darker
+          `rgba(255, 150, 150, ${baseOpacity})`, // Base color
+          `rgba(255, 160, 160, ${baseOpacity + 0.05})`, // Slightly lighter
+        ] as const;
       } else {
-        // More cloudy - darker red
+        // More cloudy - darker red gradient
         const cloudyPercentage = 100 - sunnyPercentage;
-        return colorScheme === 'dark'
-          ? `rgba(180, 60, 60, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker red
-          : `rgba(200, 100, 100, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker red
+        const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
+        return [
+          `rgba(170, 50, 50, ${baseOpacity - 0.05})`,
+          `rgba(180, 60, 60, ${baseOpacity})`,
+          `rgba(190, 70, 70, ${baseOpacity + 0.05})`,
+        ] as const;
       }
     } else if (sphere === 'career') {
       // Career sphere
       if (isMoreSunny) {
-        // More sunny - lighter blue
-        return colorScheme === 'dark' 
-          ? `rgba(150, 200, 255, ${0.4 + (sunnyPercentage / 100) * 0.3})` // Lighter blue
-          : `rgba(200, 230, 255, ${0.5 + (sunnyPercentage / 100) * 0.3})`; // Lighter blue
+        // More sunny - lighter blue gradient
+        const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
+        return [
+          `rgba(140, 190, 245, ${baseOpacity - 0.05})`,
+          `rgba(150, 200, 255, ${baseOpacity})`,
+          `rgba(160, 210, 255, ${baseOpacity + 0.05})`,
+        ] as const;
       } else {
-        // More cloudy - darker blue
+        // More cloudy - darker blue gradient
         const cloudyPercentage = 100 - sunnyPercentage;
-        return colorScheme === 'dark'
-          ? `rgba(60, 100, 180, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker blue
-          : `rgba(100, 130, 200, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker blue
+        const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
+        return [
+          `rgba(50, 90, 170, ${baseOpacity - 0.05})`,
+          `rgba(60, 100, 180, ${baseOpacity})`,
+          `rgba(70, 110, 190, ${baseOpacity + 0.05})`,
+        ] as const;
       }
     } else if (sphere === 'family') {
       // Family sphere
       if (isMoreSunny) {
-        // More sunny - lighter purple/violet
-        return colorScheme === 'dark' 
-          ? `rgba(200, 150, 255, ${0.4 + (sunnyPercentage / 100) * 0.3})` // Lighter purple
-          : `rgba(230, 200, 255, ${0.5 + (sunnyPercentage / 100) * 0.3})`; // Lighter purple
+        // More sunny - lighter purple/violet gradient
+        const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
+        return [
+          `rgba(190, 140, 245, ${baseOpacity - 0.05})`,
+          `rgba(200, 150, 255, ${baseOpacity})`,
+          `rgba(210, 160, 255, ${baseOpacity + 0.05})`,
+        ] as const;
       } else {
-        // More cloudy - darker purple
+        // More cloudy - darker purple gradient
         const cloudyPercentage = 100 - sunnyPercentage;
-        return colorScheme === 'dark'
-          ? `rgba(120, 60, 180, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker purple
-          : `rgba(150, 100, 200, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker purple
+        const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
+        return [
+          `rgba(110, 50, 170, ${baseOpacity - 0.05})`,
+          `rgba(120, 60, 180, ${baseOpacity})`,
+          `rgba(130, 70, 190, ${baseOpacity + 0.05})`,
+        ] as const;
       }
     } else if (sphere === 'friends') {
       // Friends sphere - purple/violet
       if (isMoreSunny) {
-        return colorScheme === 'dark' 
-          ? `rgba(139, 92, 246, ${0.4 + (sunnyPercentage / 100) * 0.3})` // Lighter purple
-          : `rgba(167, 139, 250, ${0.5 + (sunnyPercentage / 100) * 0.3})`; // Lighter purple
+        const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
+        return [
+          `rgba(129, 82, 236, ${baseOpacity - 0.05})`,
+          `rgba(139, 92, 246, ${baseOpacity})`,
+          `rgba(149, 102, 255, ${baseOpacity + 0.05})`,
+        ] as const;
       } else {
         const cloudyPercentage = 100 - sunnyPercentage;
-        return colorScheme === 'dark'
-          ? `rgba(88, 28, 135, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker purple
-          : `rgba(124, 58, 237, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker purple
+        const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
+        return [
+          `rgba(78, 18, 125, ${baseOpacity - 0.05})`,
+          `rgba(88, 28, 135, ${baseOpacity})`,
+          `rgba(98, 38, 145, ${baseOpacity + 0.05})`,
+        ] as const;
       }
     } else {
       // Hobbies sphere - orange
       if (isMoreSunny) {
-        return colorScheme === 'dark' 
-          ? `rgba(249, 115, 22, ${0.4 + (sunnyPercentage / 100) * 0.3})` // Lighter orange
-          : `rgba(255, 157, 88, ${0.5 + (sunnyPercentage / 100) * 0.3})`; // Lighter orange
+        const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
+        return [
+          `rgba(239, 105, 12, ${baseOpacity - 0.05})`,
+          `rgba(249, 115, 22, ${baseOpacity})`,
+          `rgba(255, 125, 32, ${baseOpacity + 0.05})`,
+        ] as const;
       } else {
         const cloudyPercentage = 100 - sunnyPercentage;
-        return colorScheme === 'dark'
-          ? `rgba(154, 52, 18, ${0.3 + (cloudyPercentage / 100) * 0.4})` // Darker orange
-          : `rgba(234, 88, 12, ${0.4 + (cloudyPercentage / 100) * 0.4})`; // Darker orange
+        const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
+        return [
+          `rgba(144, 42, 8, ${baseOpacity - 0.05})`,
+          `rgba(154, 52, 18, ${baseOpacity})`,
+          `rgba(164, 62, 28, ${baseOpacity + 0.05})`,
+        ] as const;
       }
     }
   }, [sunnyPercentage, colorScheme, sphere]);
@@ -3429,18 +3527,50 @@ const SphereAvatar = React.memo(function SphereAvatar({
             width: sphereSize,
             height: sphereSize,
             borderRadius: sphereSize / 2,
-            backgroundColor: disabled ? 'rgba(128, 128, 128, 0.3)' : sphereBackgroundColor,
+            overflow: 'hidden', // Required for gradient to respect borderRadius
             justifyContent: 'center',
             alignItems: 'center',
           },
           animatedStyle,
         ]}
       >
-        <MaterialIcons
-          name={sphereIcons[sphere] as any}
-          size={sphereSize * 0.5}
-          color={colors.primaryLight}
-        />
+        {disabled ? (
+          <Animated.View
+            style={{
+              width: sphereSize,
+              height: sphereSize,
+              borderRadius: sphereSize / 2,
+              backgroundColor: 'rgba(128, 128, 128, 0.3)',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <MaterialIcons
+              name={sphereIcons[sphere] as any}
+              size={sphereSize * 0.5}
+              color={getSphereIconColor(sphere)}
+            />
+          </Animated.View>
+        ) : (
+          <LinearGradient
+            colors={sphereGradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              width: sphereSize,
+              height: sphereSize,
+              borderRadius: sphereSize / 2,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <MaterialIcons
+              name={sphereIcons[sphere] as any}
+              size={sphereSize * 0.5}
+              color={getSphereIconColor(sphere)}
+            />
+          </LinearGradient>
+        )}
       </Animated.View>
     </Pressable>
   );
@@ -3734,7 +3864,7 @@ export default function HomeScreen() {
   // Calculate sphere positions (evenly distributed in a circle for 5 spheres)
   const spherePositions = useMemo(() => {
     const centerX = SCREEN_WIDTH / 2;
-    const centerY = SCREEN_HEIGHT / 2;
+    const centerY = SCREEN_HEIGHT / 2 + 60; // Lower the main circle and floating elements by 60px
     const radius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3; // Distance from center
     
     // 5 spheres evenly distributed around a circle
@@ -4804,7 +4934,7 @@ export default function HomeScreen() {
                 style={{
                   position: 'absolute',
                   left: SCREEN_WIDTH / 2 - avatarSize / 2,
-                  top: SCREEN_HEIGHT / 2 - avatarSize / 2,
+                  top: SCREEN_HEIGHT / 2 - avatarSize / 2 + 60, // Lower the main circle by 60px
                   width: avatarSize,
                   height: avatarSize,
                   zIndex: 100,

@@ -60,7 +60,7 @@ function AnimatedCloud({
   onAnimationComplete: (id: string) => void;
   onDelete: (id: string) => void;
   onRegisterAnimatedValues: (id: string, translateX: any, translateY: any) => void;
-  colors: typeof Colors.dark;
+  colors: typeof Colors.light | typeof Colors.dark;
   cloudWidth: number;
   cloudHeight: number;
   placeholder: string;
@@ -271,7 +271,7 @@ function AnimatedSun({
   onAnimationComplete: (id: string) => void;
   onDelete: (id: string) => void;
   onRegisterAnimatedValues: (id: string, translateX: any, translateY: any) => void;
-  colors: typeof Colors.dark;
+  colors: typeof Colors.light | typeof Colors.dark;
   sunWidth: number;
   sunHeight: number;
   placeholder: string;

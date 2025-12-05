@@ -1,6 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
@@ -8,7 +10,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
-import { TAB_BACKGROUND_COLOR_DARK } from '@/library/components/tab-screen-container';
 import { useTranslate } from '@/utils/languages/use-translate';
 
 export default function TabLayout() {
@@ -21,20 +22,41 @@ export default function TabLayout() {
   // Scale icon size: 28 base size, 30% larger on tablets (28 * 1.3 = 36.4, round to 36)
   const iconSize = Math.round(28 * fontScale);
 
+  // Custom tab bar background with gradient
+  const TabBarBackground = () => {
+    if (colorScheme === 'dark') {
+      return (
+        <LinearGradient
+          colors={['#1A2332', '#1A2332']}
+          style={StyleSheet.absoluteFill}
+        />
+      );
+    }
+    return (
+      <LinearGradient
+        colors={['#FFFFFF', '#D0D0D0', '#B0B0B0']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+    );
+  };
+
   return (
     <Tabs
       initialRouteName="spheres"
       screenOptions={{
-        tabBarActiveTintColor: colors.primaryLight,
-        tabBarInactiveTintColor: colorScheme === 'dark' ? '#ffffff' : Colors.light.text,
+        tabBarActiveTintColor: colorScheme === 'dark' ? colors.primaryLight : '#1976D2', // Darker blue for better contrast on white
+        tabBarInactiveTintColor: colorScheme === 'dark' ? '#ffffff' : '#666666', // Darker grey for better contrast on white
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarLabelPosition: 'below-icon', // Ensures icons and labels are vertically stacked
+        tabBarBackground: TabBarBackground,
         tabBarStyle: {
-          backgroundColor: colorScheme === 'dark' ? TAB_BACKGROUND_COLOR_DARK : '#ffffff',
+          backgroundColor: 'transparent', // Transparent to show gradient background
           borderTopColor: colorScheme === 'dark' 
-            ? 'rgba(14, 165, 233, 0.3)' 
-            : 'rgba(226, 232, 240, 1)',
+            ? 'rgba(255, 255, 255, 0.1)' // Subtle border with low opacity for dark mode
+            : 'rgba(150, 150, 150, 0.6)', // Darker grey border for light mode
           borderTopWidth: 1,
           paddingBottom: Math.max(32 * fontScale, insets.bottom + 12),
           paddingTop: 8 * fontScale,
@@ -59,7 +81,7 @@ export default function TabLayout() {
           title: 'Home',
           tabBarIcon: ({ color }) => <MaterialIcons name="home" size={iconSize} color={color} />,
           tabBarLabel: ({ focused, color }) => {
-            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : Colors.light.text;
+            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : '#666666'; // Darker grey for better contrast on white
             return (
               <ThemedText
                 size="xs"
@@ -88,7 +110,7 @@ export default function TabLayout() {
             />
           ),
           tabBarLabel: ({ focused, color }) => {
-            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : Colors.light.text;
+            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : '#666666'; // Darker grey for better contrast on white
             return (
               <ThemedText
                 size="xs"
@@ -111,7 +133,7 @@ export default function TabLayout() {
           title: 'Settings',
           tabBarIcon: ({ color }) => <MaterialIcons name="settings" size={iconSize} color={color} />,
           tabBarLabel: ({ focused, color }) => {
-            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : Colors.light.text;
+            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : '#666666'; // Darker grey for better contrast on white
             return (
               <ThemedText
                 size="xs"

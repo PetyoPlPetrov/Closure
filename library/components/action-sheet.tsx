@@ -3,6 +3,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo } from 'react';
 import {
   Modal,
@@ -47,11 +48,17 @@ export function ActionSheet({
           justifyContent: 'flex-end',
         },
         container: {
-          backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
+          backgroundColor: 'transparent', // Transparent to show gradient
           borderTopLeftRadius: 16 * fontScale,
           borderTopRightRadius: 16 * fontScale,
           paddingBottom: 32 * fontScale,
           maxHeight: '80%',
+          overflow: 'hidden', // Required for gradient to respect borderRadius
+        },
+        containerGradient: {
+          flex: 1,
+          borderTopLeftRadius: 16 * fontScale,
+          borderTopRightRadius: 16 * fontScale,
         },
         header: {
           padding: 16 * fontScale,
@@ -103,6 +110,16 @@ export function ActionSheet({
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
             <View style={styles.container}>
+              {colorScheme === 'dark' ? (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background, borderRadius: 16 * fontScale }]} />
+              ) : (
+                <LinearGradient
+                  colors={['#FFFFFF', '#D0D0D0', '#B0B0B0']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={[StyleSheet.absoluteFill, styles.containerGradient]}
+                />
+              )}
               {/* Header */}
               <View style={styles.header}>
                 <ThemedText size="l" weight="bold" letterSpacing="s">

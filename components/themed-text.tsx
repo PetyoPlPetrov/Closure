@@ -36,6 +36,7 @@ export type ThemedTextProps = TextProps & {
   weight?: FontWeight;
   letterSpacing?: LetterSpacing;
   type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
+  emphasis?: 'high' | 'medium' | 'disabled'; // Text emphasis level for dark mode
 };
 
 export function ThemedText({
@@ -44,12 +45,33 @@ export function ThemedText({
   weight = 'normal',
   letterSpacing,
   type = 'default',
+  emphasis = 'high',
   ...rest
 }: ThemedTextProps) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
-  // Dark mode: white (#ffffff), Light mode: dark text color (#18181b)
-  const textColor = colorScheme === 'dark' ? '#ffffff' : Colors.light.text;
+  
+  // Determine text color based on theme and emphasis level
+  // Dark mode: use proper opacity levels (87% high, 60% medium, 38% disabled)
+  // Light mode: use standard text color
+  let textColor: string;
+  if (colorScheme === 'dark') {
+    switch (emphasis) {
+      case 'high':
+        textColor = Colors.dark.textHighEmphasis;
+        break;
+      case 'medium':
+        textColor = Colors.dark.textMediumEmphasis;
+        break;
+      case 'disabled':
+        textColor = Colors.dark.textDisabled;
+        break;
+      default:
+        textColor = Colors.dark.textHighEmphasis;
+    }
+  } else {
+    textColor = Colors.light.text;
+  }
   
   // Use size preset if provided, otherwise use default
   // Scale by fontScale (1.5 for tablets, 1.0 for phones)

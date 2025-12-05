@@ -525,7 +525,7 @@ const translations: Record<Language, Translations> = {
     'walkthrough.button': 'Got it!',
     
     // Profile screens
-    'profile.add': 'Add Profile',
+    'profile.add': 'Add Partner',
     'profile.edit': 'Edit Profile',
     'profile.editExInfo': 'Edit Info',
     'profile.editMemories': 'Edit Memories',

@@ -3,9 +3,10 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useMemo, useState } from 'react';
-import { StyleSheet, TouchableOpacity, View, ViewStyle, LayoutChangeEvent } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useMemo, useState } from 'react';
+import { LayoutChangeEvent, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 export type IdealizedMemory = {
@@ -13,14 +14,14 @@ export type IdealizedMemory = {
   title: string;
   description?: string;
   imageUri?: string;
-  hardTruths: Array<{
+  hardTruths: {
     id: string;
     text: string;
-  }>;
-  goodFacts?: Array<{
+  }[];
+  goodFacts?: {
     id: string;
     text: string;
-  }>;
+  }[];
   createdAt: string;
 };
 
@@ -70,21 +71,16 @@ export function MemoryCard({
       StyleSheet.create({
         container: {
           borderRadius: 12 * fontScale,
-          backgroundColor:
-            colorScheme === 'dark'
-              ? 'rgba(255, 255, 255, 0.05)'
-              : '#ffffff',
+          backgroundColor: 'transparent', // Transparent to show gradient
           padding: 16 * fontScale,
           gap: 12 * fontScale,
-          borderWidth: (isSunny && hasMoments) || (isCloudy && hasMoments) ? 3 : 1,
-          borderColor: isSunny && hasMoments 
-            ? '#FFD700' // Gold/yellow for sunny memories
-            : isCloudy && hasMoments
-              ? '#000000' // Black for cloudy memories
-              : colorScheme === 'dark'
-                ? 'rgba(255, 255, 255, 0.1)'
-                : 'rgba(0, 0, 0, 0.1)',
+          // Remove border when hasMoments is true - SVG handles the segmented border
+          borderWidth: hasMoments ? 0 : 1,
+          borderColor: colorScheme === 'dark'
+            ? 'rgba(255, 255, 255, 0.1)'
+            : 'rgba(0, 0, 0, 0.1)',
           position: 'relative',
+          overflow: 'hidden', // Required for gradient to respect borderRadius
           ...(isSunny && hasMoments && {
             shadowColor: '#FFD700',
             shadowOffset: { width: 0, height: 0 },
@@ -99,6 +95,14 @@ export function MemoryCard({
             shadowRadius: 8,
             elevation: 4,
           }),
+        },
+        containerGradient: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          borderRadius: 12 * fontScale,
         },
         cardContent: {
           flex: 1,
@@ -157,7 +161,9 @@ export function MemoryCard({
           marginTop: 8 * fontScale,
         },
         hardTruthText: {
-          color: colors.primary,
+          color: colorScheme === 'dark' 
+            ? '#9CA3AF' // Dark grey for dark mode
+            : '#4B5563', // Dark grey for light mode (darker than clouds)
         },
         hardTruthTextEmpty: {
           color:
@@ -166,7 +172,9 @@ export function MemoryCard({
               : 'rgba(148, 163, 184, 0.8)',
         },
         goodFactText: {
-          color: '#FFA500', // Orange color for suns
+          color: colorScheme === 'dark' 
+            ? '#FFD700' // Bright yellow/gold for dark mode (good contrast)
+            : '#D97706', // Darker amber/yellow for light mode (good contrast)
         },
         goodFactTextEmpty: {
           color:
@@ -188,6 +196,16 @@ export function MemoryCard({
       style={[styles.container, containerStyle]}
       onLayout={handleLayout}
     >
+      {colorScheme === 'dark' ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12 * fontScale }]} />
+      ) : (
+        <LinearGradient
+          colors={['#FFFFFF', '#F0F0F0', '#E0E0E0']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.containerGradient}
+        />
+      )}
       {/* Segmented border SVG - shows black and yellow proportionally */}
       {hasMoments && containerDimensions.width > 0 && containerDimensions.height > 0 && (
         <Svg
@@ -321,7 +339,9 @@ export function MemoryCard({
                 <MaterialIcons
                   name="cloud"
                   size={16 * fontScale}
-                  color={hasHardTruths ? colors.primary : 'rgba(148, 163, 184, 0.5)'}
+                  color={hasHardTruths 
+                    ? (colorScheme === 'dark' ? '#9CA3AF' : '#4B5563') // Dark grey to match text
+                    : 'rgba(148, 163, 184, 0.5)'}
                 />
                 <ThemedText
                   size="xs"
@@ -341,7 +361,9 @@ export function MemoryCard({
                 <MaterialIcons
                   name="wb-sunny"
                   size={16 * fontScale}
-                  color={hasGoodFacts ? '#FFA500' : 'rgba(148, 163, 184, 0.5)'}
+                  color={hasGoodFacts 
+                    ? (colorScheme === 'dark' ? '#FFD700' : '#D97706') // Yellow to match text
+                    : 'rgba(148, 163, 184, 0.5)'}
                 />
                 <ThemedText
                   size="xs"
