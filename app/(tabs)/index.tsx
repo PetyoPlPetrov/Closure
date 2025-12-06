@@ -608,7 +608,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       // Values should already be set to State B in useLayoutEffect
       // Start animation immediately - all values animate together
       const easingConfig = Easing.bezier(0.4, 0.0, 0.2, 1);
-      const zoomOutDuration = 4500; // Much slower, more gradual zoom-out
+      const zoomOutDuration = 9000; // Much slower, more gradual zoom-out
       
       // Animate from focused state (progress = 1) back to unfocused (progress = 0)
       // Position, scale, and progress all animate together for smooth zoom-out
@@ -4635,6 +4635,11 @@ export default function HomeScreen() {
       // When focus is cleared, keep the previous ID for a moment to handle shrink animation
       // Reset animations complete flag when unfocusing
       setAnimationsComplete(false);
+      // Clear the previous focused job ID after animation completes (9000ms matches zoom-out duration)
+      const timeoutId = setTimeout(() => {
+        previousFocusedJobIdRef.current = null;
+      }, 9000);
+      return () => clearTimeout(timeoutId);
     }
   }, [focusedJobId]);
 
@@ -4938,6 +4943,86 @@ export default function HomeScreen() {
     });
   }, [animationsReady, focusedProfileId, focusedMemory, visibleProfiles, getIdealizedMemoriesByProfileId, getAvatarPosition, previousFocusedIdRef, slideOffset, getProfileYearSection, updateAvatarPosition, setFocusedProfileId, setFocusedMemory, colors, colorScheme, memorySlideOffset, animationsComplete]);
 
+  // Memoize focused jobs render - must be called unconditionally
+  // This renders jobs when they're focused, and also handles the unfocus animation
+  const focusedJobsRender = useMemo(() => {
+    if (!animationsReady || focusedMemory) return null;
+    
+    // Only render if there's a focused job OR if we need to handle unfocus animation
+    if (!focusedJobId && !previousFocusedJobIdRef.current) return null;
+    
+    return sortedJobs.map((job, index) => {
+      const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
+      const isFocused = focusedJobId === job.id;
+      const wasJustFocused = previousFocusedJobIdRef.current === job.id && !focusedJobId;
+      
+      // Render focused job OR job that was just unfocused (for animation)
+      if (!isFocused && !wasJustFocused) return null;
+      
+      // Get the job's year section to calculate original position
+      const yearSection = getJobYearSection(job);
+      let currentPosition: { x: number; y: number };
+      
+      if (isFocused) {
+        // When focused, center on screen
+        currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+      } else if (wasJustFocused && yearSection) {
+        // When just unfocused, use original position from year section
+        // Find the job's position in its section
+        const sectionKey = getJobSectionKey(job);
+        const jobsInSection = sectionKey ? jobsBySection.get(sectionKey) : undefined;
+        if (jobsInSection) {
+          const jobIndexInSection = jobsInSection.findIndex(({ job: j }) => j.id === job.id);
+          const totalJobsInSection = jobsInSection.length;
+          const sectionCenterY = yearSection.top + yearSection.height / 2;
+          const verticalSpacing = totalJobsInSection > 1 
+            ? Math.min(yearSection.height / (totalJobsInSection + 1), 150)
+            : 0;
+          currentPosition = {
+            x: SCREEN_WIDTH / 2,
+            y: totalJobsInSection === 1
+              ? sectionCenterY
+              : yearSection.top + verticalSpacing * (jobIndexInSection + 1)
+          };
+        } else {
+          currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+        }
+      } else {
+        // Fallback
+        currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+      }
+      
+      return (
+        <FloatingAvatar
+          key={job.id}
+          profile={job}
+          position={currentPosition}
+          memories={memories}
+          onPress={() => {
+            const newFocusedId = focusedJobId === job.id ? null : job.id;
+            setFocusedJobId(newFocusedId);
+            setFocusedMemory(null);
+          }}
+          colors={colors}
+          colorScheme={colorScheme ?? 'dark'}
+          isFocused={isFocused}
+          focusedMemory={(() => {
+            if (!focusedMemory) return null;
+            const mem = focusedMemory as { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere };
+            if (mem.jobId === job.id && mem.sphere === 'career') {
+              return mem;
+            }
+            return null;
+          })()}
+          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'career') => {
+            setFocusedMemory({ jobId: entityId, memoryId, sphere });
+          }}
+          yearSection={yearSection}
+        />
+      );
+    });
+  }, [animationsReady, focusedJobId, focusedMemory, sortedJobs, getIdealizedMemoriesByEntityId, getJobYearSection, getJobSectionKey, jobsBySection, previousFocusedJobIdRef, setFocusedJobId, setFocusedMemory, colors, colorScheme]);
+
   // Render sphere view - show all 3 spheres with memories floating around, center shows overall percentage
   // When a sphere is selected, show the entities for that sphere (like year sections for relationships)
   if (!selectedSphere) {
@@ -4950,7 +5035,7 @@ export default function HomeScreen() {
               style={[
                 {
                   position: 'absolute',
-                  top: 80,
+                  top: 100,
                   left: 20,
                   right: 20,
                   zIndex: 200,
@@ -5739,14 +5824,18 @@ export default function HomeScreen() {
                   const sectionJobName = jobsInSection && jobsInSection.length > 0 
                     ? jobsInSection[0].job.name 
                     : null;
+                  // Check if this section contains the focused job
+                  const isFocusedSection = jobsInSection?.some(({ job }) => job.id === focusedJobId) ?? false;
+                  // Hide title if memory is focused OR if a job is focused (but show it if this is the focused job's section)
+                  const shouldHideTitle = !!focusedMemory || (!!focusedJobId && !isFocusedSection);
                   
                   return (
                     <YearSectionBackground
                       key={`job-year-section-bg-${key}`}
                       section={section}
                       colorScheme={colorScheme ?? 'dark'}
-                      hideTitle={!!focusedMemory}
-                      focusedEntityName={sectionJobName}
+                      hideTitle={shouldHideTitle}
+                      focusedEntityName={isFocusedSection ? sectionJobName : null}
                     />
                   );
                 })}
@@ -5791,9 +5880,11 @@ export default function HomeScreen() {
                     };
                     
                     const isFocused = focusedJobId === job.id;
+                    const wasJustFocused = previousFocusedJobIdRef.current === job.id && !focusedJobId;
                     
                     // Hide unfocused jobs when a job is focused
-                    if (focusedJobId && !isFocused) {
+                    // Also hide job that was just unfocused (it's being animated in focusedJobsRender)
+                    if ((focusedJobId && !isFocused) || wasJustFocused) {
                       return null;
                     }
                     
@@ -5829,6 +5920,9 @@ export default function HomeScreen() {
                 })}
               </>
             )}
+            
+            {/* Render focused jobs separately when focused (but hide job when memory is focused) */}
+            {focusedJobsRender}
             
             {/* Render focused memory separately when memory is focused */}
             {focusedMemory && animationsReady && (
@@ -6813,13 +6907,18 @@ const YearSectionsRenderer = function YearSectionsRenderer({
       {/* Render section backgrounds */}
       {Array.from(yearSections.entries()).map(([key, section]) => {
         const sectionEntityName = getSectionEntityName(key);
+        // Check if this section contains the focused profile
+        const sectionProfiles = profilesBySection.get(key);
+        const isFocusedSection = sectionProfiles?.some(({ profile }) => profile.id === focusedProfileId) ?? false;
+        // Hide title if memory is focused OR if a profile is focused (but show it if this is the focused profile's section)
+        const shouldHideTitle = !!safeFocusedMemory || (!!focusedProfileId && !isFocusedSection);
         return (
           <YearSectionBackground
             key={`year-section-bg-${key}`}
             section={section}
             colorScheme={colorScheme}
-            hideTitle={!!safeFocusedMemory}
-            focusedEntityName={sectionEntityName}
+            hideTitle={shouldHideTitle}
+            focusedEntityName={isFocusedSection ? sectionEntityName : null}
           />
         );
       })}
@@ -6883,6 +6982,7 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
   focusedEntityName?: string | null;
 }) {
   const t = useTranslate();
+  const { isTablet } = useLargeDevice();
   
   // Translate section year if it's a string, otherwise display the number
   const displayYear = typeof section.year === 'string' 
@@ -6891,6 +6991,17 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
   
   // Combine year and entity name if entity is focused
   const displayText = focusedEntityName ? `${displayYear} - ${focusedEntityName}` : displayYear;
+  
+  // Back arrow button position: top: 70, height: isTablet ? 70 : 50
+  // So bottom of button is at: 70 + (isTablet ? 70 : 50) = 120 or 140
+  // Position year title below the back arrow button
+  const backArrowBottom = 70 + (isTablet ? 70 : 50);
+  const backArrowLeft = 20;
+  // Calculate vertical position: if section starts below back arrow, position at section top + small offset
+  // Otherwise, position just below back arrow
+  const yearTitleTop = section.top < backArrowBottom + 10 
+    ? backArrowBottom + 10 - section.top  // Position below back arrow relative to section
+    : 8; // Default position if section is far below
   
   return (
     <View
@@ -6910,8 +7021,8 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
         <View
           style={{
             position: 'absolute',
-            left: 16,
-            top: 8,
+            left: backArrowLeft, // Align with back arrow button
+            top: yearTitleTop, // Position below back arrow button
           }}
         >
           <ThemedText

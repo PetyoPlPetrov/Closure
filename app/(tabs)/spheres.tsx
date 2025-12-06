@@ -3,8 +3,6 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale, useIconScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
-import { ActionSheet } from '@/library/components/action-sheet';
-import { ConfirmationModal } from '@/library/components/confirmation-modal';
 import { JobCard } from '@/library/components/job-card';
 import { ProfileCard } from '@/library/components/profile-card';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
@@ -122,22 +120,7 @@ export default function SpheresScreen() {
   }, []);
 
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(null);
-  const [selectedProfile, setSelectedProfile] = useState<ExProfile | null>(null);
-  const [actionSheetVisible, setActionSheetVisible] = useState(false);
-  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [expandedSphere, setExpandedSphere] = useState<LifeSphere | null>(null);
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [selectedFamilyMember, setSelectedFamilyMember] = useState<FamilyMember | null>(null);
-  const [familyMemberActionSheetVisible, setFamilyMemberActionSheetVisible] = useState(false);
-  const [familyMemberDeleteConfirmVisible, setFamilyMemberDeleteConfirmVisible] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
-  const [friendActionSheetVisible, setFriendActionSheetVisible] = useState(false);
-  const [friendDeleteConfirmVisible, setFriendDeleteConfirmVisible] = useState(false);
-  const [selectedHobby, setSelectedHobby] = useState<Hobby | null>(null);
-  const [hobbyActionSheetVisible, setHobbyActionSheetVisible] = useState(false);
-  const [hobbyDeleteConfirmVisible, setHobbyDeleteConfirmVisible] = useState(false);
-  const [jobActionSheetVisible, setJobActionSheetVisible] = useState(false);
-  const [jobDeleteConfirmVisible, setJobDeleteConfirmVisible] = useState(false);
 
   // Calculate entity-level scores for comparison
   const entityComparisons = useMemo(() => {
@@ -977,60 +960,12 @@ export default function SpheresScreen() {
   };
   
   const handleMorePress = (profile: ExProfile) => {
-    setSelectedProfile(profile);
-    setActionSheetVisible(true);
+    router.push({
+      pathname: '/edit-profile',
+      params: { profileId: profile.id },
+    });
   };
 
-  const handleEditProfile = () => {
-    if (selectedProfile) {
-      router.push({
-        pathname: '/edit-profile',
-        params: { profileId: selectedProfile.id },
-      });
-      setActionSheetVisible(false);
-      setSelectedProfile(null);
-    }
-  };
-
-  const handleDeletePress = () => {
-    setActionSheetVisible(false);
-    setDeleteConfirmVisible(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!selectedProfile) {
-      setDeleteConfirmVisible(false);
-      setSelectedProfile(null);
-      return;
-    }
-
-    const profileIdToDelete = selectedProfile.id;
-
-    try {
-      await deleteProfile(profileIdToDelete);
-      setDeleteConfirmVisible(false);
-      setSelectedProfile(null);
-    } catch (error) {
-      setDeleteConfirmVisible(false);
-      setSelectedProfile(null);
-    }
-  };
-
-  const actionSheetOptions = selectedProfile
-    ? [
-        {
-          label: t('profile.actionSheet.edit'),
-          icon: 'edit' as const,
-          onPress: handleEditProfile,
-        },
-        {
-          label: t('profile.actionSheet.delete'),
-          icon: 'delete' as const,
-          onPress: handleDeletePress,
-          destructive: true,
-        },
-      ]
-    : [];
 
   const handleAddEntity = (sphere: LifeSphere) => {
     if (!checkSubscriptionLimit(sphere)) {
@@ -1120,58 +1055,12 @@ export default function SpheresScreen() {
   }
   
   const handleJobMorePress = (job: Job) => {
-    setSelectedJob(job);
-    setJobActionSheetVisible(true);
+    router.push({
+      pathname: '/edit-job',
+      params: { jobId: job.id },
+    });
   };
   
-  const handleEditJob = () => {
-    if (selectedJob) {
-      router.push({
-        pathname: '/edit-job',
-        params: { jobId: selectedJob.id },
-      });
-      setJobActionSheetVisible(false);
-      setSelectedJob(null);
-    }
-  };
-  
-  const handleJobDeletePress = () => {
-    setJobActionSheetVisible(false);
-    setJobDeleteConfirmVisible(true);
-  };
-  
-  const handleJobDeleteConfirm = async () => {
-    if (!selectedJob) {
-      setJobDeleteConfirmVisible(false);
-      setSelectedJob(null);
-      return;
-    }
-    
-    try {
-      await deleteJob(selectedJob.id);
-      setJobDeleteConfirmVisible(false);
-      setSelectedJob(null);
-    } catch (error) {
-      setJobDeleteConfirmVisible(false);
-      setSelectedJob(null);
-    }
-  };
-  
-  const jobActionSheetOptions = selectedJob
-    ? [
-        {
-          label: t('job.jobActionSheet.edit'),
-          icon: 'edit' as const,
-          onPress: handleEditJob,
-        },
-        {
-          label: t('job.jobActionSheet.delete'),
-          icon: 'delete' as const,
-          onPress: handleJobDeletePress,
-          destructive: true,
-        },
-      ]
-    : [];
 
   // Show relationships profiles view (ex-profiles content) when relationships sphere is selected
   if (selectedSphere === 'relationships') {
@@ -1187,24 +1076,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.relationships')}
           </ThemedText>
-          {relationshipsProfiles.length > 0 ? (
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => router.replace({ pathname: '/(tabs)' })}
-              activeOpacity={0.7}
-            >
-              <ThemedText style={{ 
-                color: colorScheme === 'dark' 
-                  ? colors.textHighEmphasis || '#FFFFFF' 
-                  : '#11181C', 
-                fontSize: 14 
-              }}>
-                {t('common.done')}
-              </ThemedText>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.headerButton} />
-          )}
+          <View style={styles.headerButton} />
         </View>
 
         {profiles.length === 0 ? (
@@ -1272,30 +1144,6 @@ export default function SpheresScreen() {
           </>
         )}
 
-        <ActionSheet
-          visible={actionSheetVisible}
-          title={selectedProfile ? `${selectedProfile.name}'s Profile` : ''}
-          options={actionSheetOptions}
-          onCancel={() => {
-            setActionSheetVisible(false);
-            setSelectedProfile(null);
-          }}
-        />
-
-        <ConfirmationModal
-          visible={deleteConfirmVisible && !!selectedProfile}
-          title={t('profile.delete.confirm')}
-          message={selectedProfile ? t('profile.delete.confirm.message.withName').replace('{name}', selectedProfile.name) : ''}
-          confirmLabel={t('common.delete')}
-          cancelLabel={t('common.cancel')}
-          onConfirm={handleDeleteConfirm}
-          onCancel={() => {
-            setDeleteConfirmVisible(false);
-            setActionSheetVisible(false);
-            setSelectedProfile(null);
-          }}
-          destructive
-        />
       </TabScreenContainer>
     );
   }
@@ -1314,24 +1162,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.career')}
           </ThemedText>
-          {careerJobs.length > 0 ? (
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => router.replace({ pathname: '/(tabs)' })}
-              activeOpacity={0.7}
-            >
-              <ThemedText style={{ 
-                color: colorScheme === 'dark' 
-                  ? colors.textHighEmphasis || '#FFFFFF' 
-                  : '#11181C', 
-                fontSize: 14 
-              }}>
-                {t('common.done')}
-              </ThemedText>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.headerButton} />
-          )}
+          <View style={styles.headerButton} />
         </View>
 
         {(!jobs || !Array.isArray(jobs) || jobs.length === 0) ? (
@@ -1393,30 +1224,6 @@ export default function SpheresScreen() {
           </>
         )}
 
-        <ActionSheet
-          visible={jobActionSheetVisible}
-          title={selectedJob ? `${selectedJob.name}` : ''}
-          options={jobActionSheetOptions}
-          onCancel={() => {
-            setJobActionSheetVisible(false);
-            setSelectedJob(null);
-          }}
-        />
-
-        <ConfirmationModal
-          visible={jobDeleteConfirmVisible && !!selectedJob}
-          title={t('job.jobDelete.confirm')}
-          message={selectedJob ? t('job.jobDelete.confirm.message.withName').replace('{name}', selectedJob.name) : ''}
-          confirmLabel={t('common.delete')}
-          cancelLabel={t('common.cancel')}
-          onConfirm={handleJobDeleteConfirm}
-          onCancel={() => {
-            setJobDeleteConfirmVisible(false);
-            setJobActionSheetVisible(false);
-            setSelectedJob(null);
-          }}
-          destructive
-        />
       </TabScreenContainer>
     );
   }
@@ -1424,58 +1231,12 @@ export default function SpheresScreen() {
   // Show family members view when family sphere is selected
   if (selectedSphere === 'family') {
     const handleFamilyMemberMorePress = (member: FamilyMember) => {
-      setSelectedFamilyMember(member);
-      setFamilyMemberActionSheetVisible(true);
+      router.push({
+        pathname: '/edit-family-member',
+        params: { memberId: member.id },
+      });
     };
     
-    const handleEditFamilyMember = () => {
-      if (selectedFamilyMember) {
-        router.push({
-          pathname: '/edit-family-member',
-          params: { memberId: selectedFamilyMember.id },
-        });
-        setFamilyMemberActionSheetVisible(false);
-        setSelectedFamilyMember(null);
-      }
-    };
-    
-    const handleFamilyMemberDeletePress = () => {
-      setFamilyMemberActionSheetVisible(false);
-      setFamilyMemberDeleteConfirmVisible(true);
-    };
-    
-    const handleFamilyMemberDeleteConfirm = async () => {
-      if (!selectedFamilyMember) {
-        setFamilyMemberDeleteConfirmVisible(false);
-        setSelectedFamilyMember(null);
-        return;
-      }
-      
-      try {
-        await deleteFamilyMember(selectedFamilyMember.id);
-        setFamilyMemberDeleteConfirmVisible(false);
-        setSelectedFamilyMember(null);
-      } catch (error) {
-        setFamilyMemberDeleteConfirmVisible(false);
-        setSelectedFamilyMember(null);
-      }
-    };
-    
-    const familyMemberActionSheetOptions = selectedFamilyMember
-      ? [
-          {
-            label: t('profile.familyActionSheet.edit'),
-            icon: 'edit' as const,
-            onPress: handleEditFamilyMember,
-          },
-          {
-            label: t('profile.familyActionSheet.delete'),
-            icon: 'delete' as const,
-            onPress: handleFamilyMemberDeletePress,
-            destructive: true,
-          },
-        ]
-      : [];
 
     return (
       <TabScreenContainer>
@@ -1489,24 +1250,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.family')}
           </ThemedText>
-          {familyMembersList.length > 0 ? (
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => router.replace({ pathname: '/(tabs)' })}
-              activeOpacity={0.7}
-            >
-              <ThemedText style={{ 
-                color: colorScheme === 'dark' 
-                  ? colors.textHighEmphasis || '#FFFFFF' 
-                  : '#11181C', 
-                fontSize: 14 
-              }}>
-                {t('common.done')}
-              </ThemedText>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.headerButton} />
-          )}
+          <View style={styles.headerButton} />
         </View>
 
         {familyMembers.length === 0 ? (
@@ -1609,84 +1353,18 @@ export default function SpheresScreen() {
           </>
         )}
 
-        <ActionSheet
-          visible={familyMemberActionSheetVisible}
-          title={selectedFamilyMember ? `${selectedFamilyMember.name}` : ''}
-          options={familyMemberActionSheetOptions}
-          onCancel={() => {
-            setFamilyMemberActionSheetVisible(false);
-            setSelectedFamilyMember(null);
-          }}
-        />
-
-        <ConfirmationModal
-          visible={familyMemberDeleteConfirmVisible && !!selectedFamilyMember}
-          title={t('profile.familyDelete.confirm')}
-          message={selectedFamilyMember ? t('profile.familyDelete.confirm.message.withName').replace('{name}', selectedFamilyMember.name) : ''}
-          confirmLabel={t('common.delete')}
-          cancelLabel={t('common.cancel')}
-          onConfirm={handleFamilyMemberDeleteConfirm}
-          onCancel={() => {
-            setFamilyMemberDeleteConfirmVisible(false);
-            setFamilyMemberActionSheetVisible(false);
-            setSelectedFamilyMember(null);
-          }}
-          destructive
-        />
       </TabScreenContainer>
     );
   }
 
   if (selectedSphere === 'friends') {
     const handleFriendMorePress = (friend: Friend) => {
-      setSelectedFriend(friend);
-      setFriendActionSheetVisible(true);
+      router.push({
+        pathname: '/edit-friend',
+        params: { friendId: friend.id },
+      });
     };
     
-    const handleEditFriend = () => {
-      if (selectedFriend) {
-        router.push({
-          pathname: '/edit-friend',
-          params: { friendId: selectedFriend.id },
-        });
-        setFriendActionSheetVisible(false);
-        setSelectedFriend(null);
-      }
-    };
-    
-    const handleFriendDeletePress = () => {
-      setFriendActionSheetVisible(false);
-      setFriendDeleteConfirmVisible(true);
-    };
-    
-    const handleFriendDeleteConfirm = async () => {
-      if (selectedFriend) {
-        try {
-          await deleteFriend(selectedFriend.id);
-          setFriendDeleteConfirmVisible(false);
-          setSelectedFriend(null);
-        } catch (error) {
-          setFriendDeleteConfirmVisible(false);
-          setSelectedFriend(null);
-        }
-      }
-    };
-    
-    const friendActionSheetOptions = selectedFriend
-      ? [
-          {
-            label: t('profile.friendActionSheet.edit'),
-            icon: 'edit' as const,
-            onPress: handleEditFriend,
-          },
-          {
-            label: t('profile.friendActionSheet.delete'),
-            icon: 'delete' as const,
-            onPress: handleFriendDeletePress,
-            destructive: true,
-          },
-        ]
-      : [];
 
 
     return (
@@ -1701,24 +1379,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.friends')}
           </ThemedText>
-          {friendsList.length > 0 ? (
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => router.replace({ pathname: '/(tabs)' })}
-              activeOpacity={0.7}
-            >
-              <ThemedText style={{ 
-                color: colorScheme === 'dark' 
-                  ? colors.textHighEmphasis || '#FFFFFF' 
-                  : '#11181C', 
-                fontSize: 14 
-              }}>
-                {t('common.done')}
-              </ThemedText>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.headerButton} />
-          )}
+          <View style={styles.headerButton} />
         </View>
 
         {friends.length === 0 ? (
@@ -1816,84 +1477,18 @@ export default function SpheresScreen() {
           </>
         )}
 
-        <ActionSheet
-          visible={friendActionSheetVisible}
-          title={selectedFriend ? `${selectedFriend.name}` : ''}
-          options={friendActionSheetOptions}
-          onCancel={() => {
-            setFriendActionSheetVisible(false);
-            setSelectedFriend(null);
-          }}
-        />
-
-        <ConfirmationModal
-          visible={friendDeleteConfirmVisible && !!selectedFriend}
-          title={t('profile.friendDelete.confirm')}
-          message={selectedFriend ? t('profile.friendDelete.confirm.message.withName').replace('{name}', selectedFriend.name) : ''}
-          confirmLabel={t('common.delete')}
-          cancelLabel={t('common.cancel')}
-          onConfirm={handleFriendDeleteConfirm}
-          onCancel={() => {
-            setFriendDeleteConfirmVisible(false);
-            setFriendActionSheetVisible(false);
-            setSelectedFriend(null);
-          }}
-          destructive
-        />
       </TabScreenContainer>
     );
   }
 
   if (selectedSphere === 'hobbies') {
     const handleHobbyMorePress = (hobby: Hobby) => {
-      setSelectedHobby(hobby);
-      setHobbyActionSheetVisible(true);
+      router.push({
+        pathname: '/edit-hobby',
+        params: { hobbyId: hobby.id },
+      });
     };
     
-    const handleEditHobby = () => {
-      if (selectedHobby) {
-        router.push({
-          pathname: '/edit-hobby',
-          params: { hobbyId: selectedHobby.id },
-        });
-        setHobbyActionSheetVisible(false);
-        setSelectedHobby(null);
-      }
-    };
-    
-    const handleHobbyDeletePress = () => {
-      setHobbyActionSheetVisible(false);
-      setHobbyDeleteConfirmVisible(true);
-    };
-    
-    const handleHobbyDeleteConfirm = async () => {
-      if (selectedHobby) {
-        try {
-          await deleteHobby(selectedHobby.id);
-          setHobbyDeleteConfirmVisible(false);
-          setSelectedHobby(null);
-        } catch (error) {
-          setHobbyDeleteConfirmVisible(false);
-          setSelectedHobby(null);
-        }
-      }
-    };
-    
-    const hobbyActionSheetOptions = selectedHobby
-      ? [
-          {
-            label: t('profile.hobbyActionSheet.edit'),
-            icon: 'edit' as const,
-            onPress: handleEditHobby,
-          },
-          {
-            label: t('profile.hobbyActionSheet.delete'),
-            icon: 'delete' as const,
-            onPress: handleHobbyDeletePress,
-            destructive: true,
-          },
-        ]
-      : [];
 
 
     return (
@@ -1908,24 +1503,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.hobbies')}
           </ThemedText>
-          {hobbiesList.length > 0 ? (
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => router.replace({ pathname: '/(tabs)' })}
-              activeOpacity={0.7}
-            >
-              <ThemedText style={{ 
-                color: colorScheme === 'dark' 
-                  ? colors.textHighEmphasis || '#FFFFFF' 
-                  : '#11181C', 
-                fontSize: 14 
-              }}>
-                {t('common.done')}
-              </ThemedText>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.headerButton} />
-          )}
+          <View style={styles.headerButton} />
         </View>
 
         {hobbies.length === 0 ? (
@@ -2023,30 +1601,6 @@ export default function SpheresScreen() {
           </>
         )}
 
-        <ActionSheet
-          visible={hobbyActionSheetVisible}
-          title={selectedHobby ? `${selectedHobby.name}` : ''}
-          options={hobbyActionSheetOptions}
-          onCancel={() => {
-            setHobbyActionSheetVisible(false);
-            setSelectedHobby(null);
-          }}
-        />
-
-        <ConfirmationModal
-          visible={hobbyDeleteConfirmVisible && !!selectedHobby}
-          title={t('profile.hobbyDelete.confirm')}
-          message={selectedHobby ? t('profile.hobbyDelete.confirm.message.withName').replace('{name}', selectedHobby.name) : ''}
-          confirmLabel={t('common.delete')}
-          cancelLabel={t('common.cancel')}
-          onConfirm={handleHobbyDeleteConfirm}
-          onCancel={() => {
-            setHobbyDeleteConfirmVisible(false);
-            setHobbyActionSheetVisible(false);
-            setSelectedHobby(null);
-          }}
-          destructive
-        />
       </TabScreenContainer>
     );
   }
