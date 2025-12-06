@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sferas",
     "slug": "sphere",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "sphere",
@@ -14,7 +14,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "1.0.7",
+      "buildNumber": "1.0.8",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
@@ -37,7 +37,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 7,
+      "versionCode": 8,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -47,7 +47,7 @@
     "plugins": [
       "@react-native-firebase/app",
       "expo-router",
-       [
+      [
         "expo-build-properties",
         {
           "ios": {
@@ -58,7 +58,7 @@
             }
           }
         }
-       ],
+      ],
       [
         "expo-splash-screen",
         {
