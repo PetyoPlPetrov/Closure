@@ -304,7 +304,7 @@ export default function InsightsScreen() {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 16 * fontScale,
-      paddingTop: 8 * fontScale,
+      paddingTop: 20 * fontScale,
       paddingBottom: 8 * fontScale,
       marginTop: 50,
     },

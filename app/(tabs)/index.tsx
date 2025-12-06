@@ -680,6 +680,18 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
   // Calculate memory positions based on current animated position
   const memoryPositions = useMemo(() => {
+    // Debug logging for Sophie Anderson
+    if (profile.id === 'friend_1764974729115_dr1zdkoh3' || profile.name === 'Sophie Anderson') {
+      console.log(`[Memory Positions Debug] Calculating positions for:`, {
+        entityId: profile.id,
+        entityName: profile.name,
+        memoriesCount: memories.length,
+        position: position,
+        isFocused: isFocused,
+        memoryRadius: memoryRadius
+      });
+    }
+    
     // Calculate max moments count to normalize distances
     const maxMomentsCount = Math.max(...memories.map(m => 
       ((m.hardTruths || []).length + (m.goodFacts || []).length)
@@ -725,12 +737,22 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     const distanceToRight = SCREEN_WIDTH - position.x;
     
     // Maximum safe radius is the minimum distance to any edge, minus memory radius and padding
-    const maxSafeRadius = Math.min(
-      distanceToTop,
-      distanceToBottom,
-      distanceToLeft,
-      distanceToRight
-    ) - memoryRadiusSize - safetyPadding;
+    // Calculate minimum required radius: avatar radius + memory radius + padding to ensure memories float around avatar
+    const avatarRadius = avatarSize / 2;
+    const memoryRadiusForSpacing = memoryRadiusSize; // Half the memory size
+    // Increase spacing padding when focused to ensure memories are clearly separated from avatar
+    const spacingPadding = isFocused ? 30 : 20; // More padding when focused (30px) vs unfocused (20px)
+    const minRequiredRadius = avatarRadius + memoryRadiusForSpacing + spacingPadding; // Ensure memories are clearly outside avatar
+    
+    const maxSafeRadius = Math.max(
+      minRequiredRadius,
+      Math.min(
+        distanceToTop,
+        distanceToBottom,
+        distanceToLeft,
+        distanceToRight
+      ) - memoryRadiusSize - safetyPadding
+    );
     
     return memories.map((memory, memIndex) => {
       // Calculate moment count for this memory
@@ -756,15 +778,19 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       
       // Adjust radius based on number of floating elements
       if (memories.length < 5) {
-        // When there are less than 5 elements, position them just a bit further from avatar
+        // When there are less than 5 elements, position them further from avatar
         // But ensure single memory stays fully visible in viewport
         if (memories.length === 1) {
           // For single memory, keep it closer to ensure it's fully visible
           const closerMultiplier = isFocused ? 0.9 : 0.95; // Slightly closer to ensure visibility
           variedRadius = variedRadius * closerMultiplier;
+        } else if (memories.length === 2) {
+          // For 2 memories, position them further to ensure clear separation
+          const furtherMultiplier = isFocused ? 1.25 : 1.15; // 25% further when focused, 15% further when unfocused
+          variedRadius = variedRadius * furtherMultiplier;
         } else {
-          // For 2-4 memories, position them just a bit further
-          const furtherMultiplier = isFocused ? 1.1 : 1.05; // 10% further when focused, 5% further when unfocused
+          // For 3-4 memories, position them further
+          const furtherMultiplier = isFocused ? 1.2 : 1.1; // 20% further when focused, 10% further when unfocused
           variedRadius = variedRadius * furtherMultiplier;
         }
       } else if (isFocused && memories.length > 5 && topTwoIndices.includes(memIndex)) {
@@ -811,18 +837,44 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       }
       
       // The maximum safe radius is the minimum of both constraints
-      const maxRadiusInDirection = Math.min(maxRadiusX, maxRadiusY, maxSafeRadius);
+      // Use the same minimum radius calculation to ensure memories float around avatar
+      const maxRadiusInDirection = Math.max(
+        minRequiredRadius,
+        Math.min(maxRadiusX, maxRadiusY, maxSafeRadius)
+      );
       
-      // Clamp variedRadius to ensure memory stays fully visible
-      variedRadius = Math.min(variedRadius, Math.max(0, maxRadiusInDirection));
+      // Clamp variedRadius to ensure memory stays fully visible, but never go below minimum
+      // This ensures memories are always positioned outside the avatar, floating around it
+      variedRadius = Math.max(minRequiredRadius, Math.min(variedRadius, maxRadiusInDirection));
+      
+      const offsetX = variedRadius * cosAngle;
+      const offsetY = variedRadius * sinAngle;
+      
+      // Debug logging for Sophie Anderson
+      if (profile.id === 'friend_1764974729115_dr1zdkoh3' || profile.name === 'Sophie Anderson') {
+        console.log(`[Memory Position Debug] Memory ${memIndex + 1}/${memories.length} "${memory.title}":`, {
+          memoryId: memory.id,
+          angle: variedAngle,
+          variedRadius: variedRadius,
+          maxRadiusInDirection: maxRadiusInDirection,
+          offsetX: offsetX,
+          offsetY: offsetY,
+          calculatedX: position.x + offsetX,
+          calculatedY: position.y + offsetY,
+          avatarPosition: position,
+          isWithinViewport: (position.x + offsetX >= 0 && position.x + offsetX <= SCREEN_WIDTH && position.y + offsetY >= 0 && position.y + offsetY <= SCREEN_HEIGHT),
+          screenWidth: SCREEN_WIDTH,
+          screenHeight: SCREEN_HEIGHT
+        });
+      }
       
       return {
         angle: variedAngle,
-        offsetX: variedRadius * cosAngle,
-        offsetY: variedRadius * sinAngle,
+        offsetX: offsetX,
+        offsetY: offsetY,
       };
     });
-  }, [memories, memoryRadius, isFocused, isTablet, position]);
+  }, [memories, memoryRadius, isFocused, isTablet, position, profile.id, profile.name]);
 
   return (
     <>
@@ -920,27 +972,45 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
       {/* Floating Memories around Avatar - rendered separately for proper z-index */}
       {useMemo(() => {
+        // Debug logging for memory filtering
+        console.log(`[FloatingAvatar Debug] Entity:`, {
+          id: profile.id,
+          name: profile.name,
+          totalMemories: memories.length,
+          memories: memories.map(m => ({ id: m.id, title: m.title })),
+          focusedMemory: focusedMemory,
+          isFocused: isFocused
+        });
+        
         // Always show all memories - they should be visible around profiles at all times
         const filteredMemories = memories.filter((memory) => {
           // If a memory is focused, only show that specific memory
           if (focusedMemory) {
-            const mem = focusedMemory as { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere };
-            if (mem.profileId === profile.id || mem.jobId === profile.id) {
-              // Show only the focused memory for this profile/job
+            const mem = focusedMemory as { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere };
+            if (mem.profileId === profile.id || mem.jobId === profile.id || mem.familyMemberId === profile.id || mem.friendId === profile.id || mem.hobbyId === profile.id) {
+              // Show only the focused memory for this entity
               return mem.memoryId === memory.id;
             }
-            // If focused memory belongs to a different profile/job, hide all memories
+            // If focused memory belongs to a different entity, hide all memories
             return false;
           }
           // If nothing is focused, show all memories (they should always be visible)
           return true;
         });
         
+        console.log(`[FloatingAvatar Debug] Filtered memories:`, {
+          entityId: profile.id,
+          entityName: profile.name,
+          totalMemories: memories.length,
+          filteredMemoriesCount: filteredMemories.length,
+          filteredMemoryIds: filteredMemories.map(m => m.id)
+        });
+        
         // Memoize position objects to prevent unnecessary re-renders
         const positionX = position.x;
         const positionY = position.y;
         
-        return filteredMemories.map((memory, memIndex) => {
+        const renderedMemories = filteredMemories.map((memory, memIndex) => {
         // Find the original index in the full memories array for position calculation
         const originalIndex = memories.findIndex(m => m.id === memory.id);
         const memPosData = memoryPositions[originalIndex];
@@ -964,8 +1034,26 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         const cloudSize = isFocused ? (isTablet ? 18 : 12) : (isTablet ? 36 : 24);
         const sunSize = isFocused ? (isTablet ? 15 : 10) : (isTablet ? 33 : 22);
         const maxMomentSize = Math.max(cloudSize, sunSize);
-        const cloudRadius = isFocused ? (isTablet ? 60 : 40) : (isTablet ? 38 : 25);
-        const sunRadius = isFocused ? (isTablet ? 57 : 38) : (isTablet ? 33 : 22);
+        // Calculate moment radius to ensure moments are outside memory circle border
+        // Use estimated memory size for calculation (will be refined later)
+        // Estimate: when focused, memory is ~32-42% of avatar size, when unfocused it's ~40-75px
+        const estimatedMemorySize = isFocused 
+          ? focusedAvatarSize * 0.37 // Average of 32% and 42%
+          : (isTablet ? 60 : 40); // Average estimate for unfocused
+        const estimatedMemoryRadius = estimatedMemorySize / 2;
+        const momentSize = isFocused ? (isTablet ? 18 : 12) : (isTablet ? 36 : 24);
+        const momentRadiusSize = momentSize / 2;
+        const momentPadding = 8; // Padding to ensure moments are clearly outside memory border
+        
+        // Base radius: memory radius + moment radius + padding
+        const baseMomentRadius = estimatedMemoryRadius + momentRadiusSize + momentPadding;
+        
+        const cloudRadius = isFocused 
+          ? (isTablet ? baseMomentRadius + 20 : baseMomentRadius + 15) 
+          : (isTablet ? 38 : 25);
+        const sunRadius = isFocused 
+          ? (isTablet ? baseMomentRadius + 18 : baseMomentRadius + 13) 
+          : (isTablet ? 33 : 22);
         const maxMomentRadius = Math.max(cloudRadius, sunRadius);
         
         // Calculate distances from memory center (avatar + offset) to nearest viewport edges
@@ -1002,19 +1090,19 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         // Scale memory size based on moment count when focused
         let baseMemorySize: number;
         if (isFocused) {
-          // Base size is 35% of focused avatar size (35px - half of previous 70px)
-          const baseSize = focusedAvatarSize * 0.35; // 35px
+          // Base size is 32% of focused avatar size (32px - slightly bigger than before)
+          const baseSize = focusedAvatarSize * 0.32; // 32px (increased from 30px)
           
           if (maxMomentsCount > minMomentsCount) {
-            // Scale from base size (35px) to up to 45% of avatar size (45px) based on moment count
+            // Scale from base size (32px) to up to 42% of avatar size (42px) based on moment count
             // More moments = bigger memory, but keep it smaller than avatar
             const momentsFactor = (momentCount - minMomentsCount) / (maxMomentsCount - minMomentsCount);
-            // Scale from 35px (fewest moments) to 45px (most moments, 45% of avatar)
-            const maxSize = focusedAvatarSize * 0.45; // 45px (45% of 100px avatar)
-            baseMemorySize = baseSize + (momentsFactor * (maxSize - baseSize)); // Range: 35 to 45
+            // Scale from 32px (fewest moments) to 42px (most moments, 42% of avatar)
+            const maxSize = focusedAvatarSize * 0.42; // 42px (42% of 100px avatar, increased from 38px)
+            baseMemorySize = baseSize + (momentsFactor * (maxSize - baseSize)); // Range: 32 to 42
           } else {
-            // All memories have same moment count, use base size (35% of avatar)
-            baseMemorySize = baseSize; // 35px
+            // All memories have same moment count, use base size (32% of avatar)
+            baseMemorySize = baseSize; // 32px
           }
         } else {
           // Not focused, use smaller size (scale for tablets)
@@ -1022,6 +1110,26 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         }
         
         const memorySize = Math.min(baseMemorySize, calculatedMaxMemorySize);
+        
+        // Debug logging for memory positioning
+        if (profile.id === 'friend_1764974729115_dr1zdkoh3' || profile.name === 'Sophie Anderson') {
+          console.log(`[FloatingMemory Position Debug] Memory "${memory.title}":`, {
+            entityId: profile.id,
+            entityName: profile.name,
+            memoryId: memory.id,
+            memoryIndex: memIndex,
+            initialPosition: initialMemPos,
+            offsetX: memPosData.offsetX,
+            offsetY: memPosData.offsetY,
+            avatarPosition: { x: positionX, y: positionY },
+            avatarCenter: { x: avatarCenterX, y: avatarCenterY },
+            memorySize: memorySize,
+            isFocused: isFocused,
+            screenWidth: SCREEN_WIDTH,
+            screenHeight: SCREEN_HEIGHT,
+            isWithinViewport: initialMemPos.x >= 0 && initialMemPos.x <= SCREEN_WIDTH && initialMemPos.y >= 0 && initialMemPos.y <= SCREEN_HEIGHT
+          });
+        }
         
         return (
           <FloatingMemory
@@ -1051,6 +1159,17 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           />
         );
         });
+        
+        console.log(`[FloatingAvatar Debug] Rendered floating memories count:`, {
+          entityId: profile.id,
+          entityName: profile.name,
+          totalMemories: memories.length,
+          filteredMemoriesCount: filteredMemories.length,
+          renderedMemoriesCount: renderedMemories.length,
+          renderedMemoryTitles: filteredMemories.map(m => m.title)
+        });
+        
+        return renderedMemories;
       // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [memories, focusedMemory, profile.id, isFocused, memoryPositions, memoryAnimatedValues, position.x, position.y, focusedX, focusedY, startX, startY, targetX, targetY, zoomProgress, colorScheme, memorySlideOffset, onPress, onMemoryFocus])}
     </>
@@ -1880,9 +1999,24 @@ const FloatingMemory = React.memo(function FloatingMemory({
   const sunWidth = isTablet ? 225 : (isLargeDevice ? 150 : 100); // 50% larger on tablets
   const sunHeight = isTablet ? 225 : (isLargeDevice ? 150 : 100); // 50% larger on tablets
   
-  // Increase cloud and sun radius when focused to push them further from memory
-  const cloudRadius = isFocused ? 40 : 25; // Further away when focused
-  const sunRadius = isFocused ? 38 : 22; // Further away when focused
+  // Calculate moment radius to ensure moments are outside memory circle border
+  // Memory size is determined above (either focused size or calculatedMemorySize)
+  const memoryRadius = memorySize / 2;
+  
+  // Moment sizes when not focused (they're smaller when focused, but we use unfocused sizes for radius calculation)
+  const cloudSize = isFocused ? 12 : 24;
+  const sunSize = isFocused ? 10 : 22;
+  const cloudMomentRadius = cloudSize / 2;
+  const sunMomentRadius = sunSize / 2;
+  const momentPadding = 10; // Padding to ensure moments are clearly outside memory border
+  
+  // Base radius: memory radius + moment radius + padding
+  // Add extra spacing when focused to ensure clear separation
+  const baseCloudRadius = memoryRadius + cloudMomentRadius + momentPadding;
+  const baseSunRadius = memoryRadius + sunMomentRadius + momentPadding;
+  
+  const cloudRadius = isFocused ? baseCloudRadius + 15 : 25; // Further away when focused, with extra spacing
+  const sunRadius = isFocused ? baseSunRadius + 13 : 22; // Further away when focused, with extra spacing
   
   // Helper function to calculate and clamp moment position within viewport
   // Distributes moments evenly across the entire screen for better visibility
@@ -2323,7 +2457,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
             position: 'absolute',
             left: position.x - memorySize / 2,
             top: position.y - memorySize / 2,
-            zIndex: isMemoryFocused ? 1000 : 20, // Memory base layer - lower than moments
+            zIndex: isMemoryFocused ? 1000 : 50, // Memory base layer - higher than avatars (100) so they appear in front
             pointerEvents: 'box-none', // Allow touches to pass through to Pressable
           },
           memoryAnimatedPosition,
@@ -5241,7 +5375,7 @@ export default function HomeScreen() {
             }}
             style={{
               position: 'absolute',
-              top: 50,
+              top: 70,
               left: 20,
               zIndex: 1000,
               width: isTablet ? 70 : 50,
@@ -5297,7 +5431,7 @@ export default function HomeScreen() {
                 numberOfLines={1}
                 style={{
                   position: 'absolute',
-                  top: 62,
+                  top: 82,
                   right: 20,
                   zIndex: 1000,
                   color: colors.text,
@@ -5326,7 +5460,7 @@ export default function HomeScreen() {
               <View
                 style={{
                   position: 'absolute',
-                  top: 50,
+                  top: 70,
                   left: 80,
                   right: 20,
                   zIndex: 1000,
@@ -5465,7 +5599,7 @@ export default function HomeScreen() {
             }}
             style={{
               position: 'absolute',
-              top: 50,
+              top: 70,
               left: 20,
               zIndex: 1000,
               width: isTablet ? 70 : 50,
@@ -5521,7 +5655,7 @@ export default function HomeScreen() {
                 numberOfLines={1}
                 style={{
                   position: 'absolute',
-                  top: 62,
+                  top: 82,
                   right: 20,
                   zIndex: 1000,
                   color: colors.text,
@@ -5550,7 +5684,7 @@ export default function HomeScreen() {
               <View
                 style={{
                   position: 'absolute',
-                  top: 50,
+                  top: 70,
                   left: 80,
                   right: 20,
                   zIndex: 1000,
@@ -5757,7 +5891,7 @@ export default function HomeScreen() {
             }}
             style={{
               position: 'absolute',
-              top: 50,
+              top: 70,
               left: 20,
               zIndex: 1000,
               width: isTablet ? 70 : 50,
@@ -5813,7 +5947,7 @@ export default function HomeScreen() {
                 numberOfLines={1}
                 style={{
                   position: 'absolute',
-                  top: 62,
+                  top: 82,
                   right: 20,
                   zIndex: 1000,
                   color: colors.text,
@@ -5840,7 +5974,7 @@ export default function HomeScreen() {
               <View
                 style={{
                   position: 'absolute',
-                  top: 50,
+                  top: 70,
                   left: 80,
                   right: 20,
                   zIndex: 1000,
@@ -6018,7 +6152,7 @@ export default function HomeScreen() {
             }}
             style={{
               position: 'absolute',
-              top: 50,
+              top: 70,
               left: 20,
               zIndex: 1000,
               width: isTablet ? 70 : 50,
@@ -6074,7 +6208,7 @@ export default function HomeScreen() {
                 numberOfLines={1}
                 style={{
                   position: 'absolute',
-                  top: 62,
+                  top: 82,
                   right: 20,
                   zIndex: 1000,
                   color: colors.text,
@@ -6101,7 +6235,7 @@ export default function HomeScreen() {
               <View
                 style={{
                   position: 'absolute',
-                  top: 50,
+                  top: 70,
                   left: 80,
                   right: 20,
                   zIndex: 1000,
@@ -6163,6 +6297,14 @@ export default function HomeScreen() {
                 {friends.map((friend, index) => {
                   const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
                   
+                  // Debug logging for friends and their memories
+                  console.log(`[Friends Debug] Friend ${index + 1}/${friends.length}:`, {
+                    id: friend.id,
+                    name: friend.name,
+                    memoriesCount: memories.length,
+                    memories: memories.map(m => ({ id: m.id, title: m.title, hardTruths: (m.hardTruths || []).length, goodFacts: (m.goodFacts || []).length }))
+                  });
+                  
                   // Get the section for friends
                   const section = friendsYearSections.get('all');
                   
@@ -6189,6 +6331,16 @@ export default function HomeScreen() {
                   if (focusedFriendId && !isFocused) {
                     return null;
                   }
+                  
+                  console.log(`[Friends Debug] Rendering FloatingAvatar for friend:`, {
+                    friendId: friend.id,
+                    friendName: friend.name,
+                    memoriesCount: memories.length,
+                    memories: memories.map(m => ({ id: m.id, title: m.title })),
+                    position: position,
+                    isFocused: isFocused,
+                    focusedMemory: focusedMemory
+                  });
                   
                   return (
                     <FloatingAvatar
@@ -6278,7 +6430,7 @@ export default function HomeScreen() {
             }}
             style={{
               position: 'absolute',
-              top: 50,
+              top: 70,
               left: 20,
               zIndex: 1000,
               width: isTablet ? 70 : 50,
@@ -6334,7 +6486,7 @@ export default function HomeScreen() {
                 numberOfLines={1}
                 style={{
                   position: 'absolute',
-                  top: 62,
+                  top: 82,
                   right: 20,
                   zIndex: 1000,
                   color: colors.text,
@@ -6361,7 +6513,7 @@ export default function HomeScreen() {
               <View
                 style={{
                   position: 'absolute',
-                  top: 50,
+                  top: 70,
                   left: 80,
                   right: 20,
                   zIndex: 1000,

@@ -123,9 +123,9 @@ export default function AddJobScreen() {
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingHorizontal: 16 * fontScale,
-          paddingTop: 8 * fontScale,
+          paddingTop: 20 * fontScale,
           paddingBottom: 8 * fontScale,
-          marginTop: 20,
+          marginTop: 50,
         },
         headerButton: {
           width: 48 * fontScale,

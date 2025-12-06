@@ -5,6 +5,7 @@ import { useLargeDevice } from "@/hooks/use-large-device";
 import { ActionSheet } from "@/library/components/action-sheet";
 import { ConfirmationModal } from "@/library/components/confirmation-modal";
 import { MemoryCard } from "@/library/components/memory-card";
+import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -43,14 +44,14 @@ export default function IdealizedMemoriesScreen() {
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        root: {
+        container: {
           flex: 1,
-          backgroundColor: colors.background,
         },
         header: {
           flexDirection: "row",
           alignItems: "center",
           marginTop: 50,
+          paddingTop: 20,
           marginBottom: 10,
           paddingHorizontal: 20,
         },
@@ -213,9 +214,10 @@ export default function IdealizedMemoriesScreen() {
   };
 
   return (
-    <View style={styles.root}>
-      {/* Header */}
-      <View style={styles.header}>
+    <TabScreenContainer>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
         <TouchableOpacity onPress={() => {
           const returnTo = params.returnTo as string | undefined;
           
@@ -365,6 +367,7 @@ export default function IdealizedMemoriesScreen() {
         onCancel={handleCancelDelete}
         destructive
       />
-    </View>
+      </View>
+    </TabScreenContainer>
   );
 }

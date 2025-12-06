@@ -519,9 +519,9 @@ export default function SpheresScreen() {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 16 * fontScale,
-      paddingTop: 8 * fontScale,
+      paddingTop: 20 * fontScale,
       paddingBottom: 8 * fontScale,
-      marginTop: 20,
+      marginTop: 50,
     },
     headerButton: {
       width: 48 * fontScale,
@@ -1063,6 +1063,8 @@ export default function SpheresScreen() {
   const relationshipsProfiles = selectedSphere === 'relationships' ? profiles : [];
   const careerJobs = selectedSphere === 'career' ? jobs : [];
   const familyMembersList = selectedSphere === 'family' ? familyMembers : [];
+  const friendsList = selectedSphere === 'friends' ? friends : [];
+  const hobbiesList = selectedSphere === 'hobbies' ? hobbies : [];
   
   // Check if any entity has at least one memory - moved before loading check
   const hasAnyRelationshipMemory = useMemo(() => {
@@ -1085,6 +1087,20 @@ export default function SpheresScreen() {
       return memories.length > 0;
     });
   }, [familyMembersList, getIdealizedMemoriesByEntityId]);
+
+  const hasAnyFriendMemory = useMemo(() => {
+    return friendsList.some(friend => {
+      const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
+      return memories.length > 0;
+    });
+  }, [friendsList, getIdealizedMemoriesByEntityId]);
+
+  const hasAnyHobbyMemory = useMemo(() => {
+    return hobbiesList.some(hobby => {
+      const memories = getIdealizedMemoriesByEntityId(hobby.id, 'hobbies');
+      return memories.length > 0;
+    });
+  }, [hobbiesList, getIdealizedMemoriesByEntityId]);
 
   if (isLoading) {
     return (
@@ -1702,13 +1718,6 @@ export default function SpheresScreen() {
         ]
       : [];
 
-    const friendsList = selectedSphere === 'friends' ? friends : [];
-    const hasAnyFriendMemory = useMemo(() => {
-      return friendsList.some(friend => {
-        const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
-        return memories.length > 0;
-      });
-    }, [friendsList, getIdealizedMemoriesByEntityId]);
 
     return (
       <TabScreenContainer>
@@ -1924,13 +1933,6 @@ export default function SpheresScreen() {
         ]
       : [];
 
-    const hobbiesList = selectedSphere === 'hobbies' ? hobbies : [];
-    const hasAnyHobbyMemory = useMemo(() => {
-      return hobbiesList.some(hobby => {
-        const memories = getIdealizedMemoriesByEntityId(hobby.id, 'hobbies');
-        return memories.length > 0;
-      });
-    }, [hobbiesList, getIdealizedMemoriesByEntityId]);
 
     return (
       <TabScreenContainer>

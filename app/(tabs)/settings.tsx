@@ -61,6 +61,7 @@ export default function SettingsScreen() {
           width: '100%',
         },
         title: {
+          marginTop: 50,
           marginBottom: 8 * fontScale,
         },
         section: {

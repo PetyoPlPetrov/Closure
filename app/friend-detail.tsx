@@ -116,8 +116,9 @@ export default function FriendDetailScreen() {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 20 * fontScale,
-      paddingTop: 20 * fontScale,
+      paddingTop: 32 * fontScale,
       paddingBottom: 16 * fontScale,
+      marginTop: 50,
       borderBottomWidth: 1,
       borderBottomColor: colorScheme === 'dark' 
         ? 'rgba(255, 255, 255, 0.1)' 
