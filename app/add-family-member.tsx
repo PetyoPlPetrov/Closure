@@ -13,7 +13,7 @@ import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function AddFamilyMemberScreen() {
@@ -36,13 +36,26 @@ export default function AddFamilyMemberScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Track initial family member count to prevent redirect after saving first member
+  const initialFamilyMemberCount = useRef<number | null>(null);
 
   // Check subscription limit when component loads (only for new family members, not edits)
   useEffect(() => {
-    if (!isEditMode && !isSubscribed && familyMembers.length >= 1) {
+    // Store initial family member count on first load
+    if (initialFamilyMemberCount.current === null) {
+      initialFamilyMemberCount.current = familyMembers.length;
+    }
+    
+    // Don't check if we're saving (prevents redirect after saving first member)
+    if (isSaving) return;
+    
+    // Only redirect if user already had 1+ family members when they entered this screen
+    // This prevents redirect after successfully saving the first member
+    if (!isEditMode && !isSubscribed && initialFamilyMemberCount.current >= 1) {
       router.replace('/paywall');
     }
-  }, [isEditMode, isSubscribed, familyMembers.length]);
+  }, [isEditMode, isSubscribed, familyMembers.length, isSaving]);
 
   // Load existing member data when in edit mode
   useEffect(() => {
@@ -94,7 +107,8 @@ export default function AddFamilyMemberScreen() {
     }
 
     // Check subscription limit for new family members (not edits)
-    if (!isEditMode && !isSubscribed && familyMembers.length >= 1) {
+    // Only check if user already had 1+ family members when they entered this screen
+    if (!isEditMode && !isSubscribed && initialFamilyMemberCount.current !== null && initialFamilyMemberCount.current >= 1) {
       router.replace('/paywall');
       return;
     }
@@ -242,8 +256,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 20,
     paddingBottom: 8,
+    marginTop: 70,
   },
   headerButton: {
     width: 40,

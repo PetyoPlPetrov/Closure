@@ -11,12 +11,16 @@ import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function IdealizedMemoriesScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const { maxContentWidth } = useLargeDevice();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, deleteIdealizedMemory } = useJourney();
   const t = useTranslate();
@@ -50,20 +54,27 @@ export default function IdealizedMemoriesScreen() {
         header: {
           flexDirection: "row",
           alignItems: "center",
+          justifyContent: "space-between",
           marginTop: 50,
           paddingTop: 20,
           marginBottom: 10,
-          paddingHorizontal: 20,
+          paddingHorizontal: Math.max(16, Math.min(20, SCREEN_WIDTH * 0.05)), // Responsive padding: 5% of screen width, min 16px, max 20px
+          minHeight: 48,
+          width: '100%',
         },
         headerButton: {
-          width: 48,
+          minWidth: 48,
           height: 48,
           justifyContent: "center",
           alignItems: "center",
+          flexShrink: 0,
         },
         headerTitle: {
           flex: 1,
-          textAlign: "center",
+          alignItems: "center",
+          justifyContent: "center",
+          paddingHorizontal: 8,
+          minWidth: 0, // Allow flex item to shrink below content size
         },
         centerContent: {
           flex: 1,
@@ -239,9 +250,11 @@ export default function IdealizedMemoriesScreen() {
           <MaterialIcons name="arrow-back" size={26} color={colors.text} />
         </TouchableOpacity>
 
-        <ThemedText size="l" weight="bold" style={styles.headerTitle}>
-          {t('memory.title')}
-        </ThemedText>
+        <View style={styles.headerTitle}>
+          <ThemedText size="l" weight="bold" numberOfLines={1} style={{ textAlign: "center" }}>
+            {t('memory.title')}
+          </ThemedText>
+        </View>
 
         {hasMemories ? (
           <TouchableOpacity 

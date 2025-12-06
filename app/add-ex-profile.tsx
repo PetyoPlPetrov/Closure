@@ -281,7 +281,7 @@ export default function AddExProfileScreen() {
           paddingHorizontal: 16 * fontScale,
           paddingTop: 20 * fontScale,
           paddingBottom: 8 * fontScale,
-          marginTop: 50,
+          marginTop: 70,
         },
         headerButton: {
           width: 48 * fontScale,

@@ -13,7 +13,7 @@ import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function AddFriendScreen() {
@@ -35,13 +35,26 @@ export default function AddFriendScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Track initial friend count to prevent redirect after saving first friend
+  const initialFriendCount = useRef<number | null>(null);
 
   // Check subscription limit when component loads (only for new friends, not edits)
   useEffect(() => {
-    if (!isEditMode && !isSubscribed && friends.length >= 1) {
+    // Store initial friend count on first load
+    if (initialFriendCount.current === null) {
+      initialFriendCount.current = friends.length;
+    }
+    
+    // Don't check if we're saving (prevents redirect after saving first friend)
+    if (isSaving) return;
+    
+    // Only redirect if user already had 1+ friends when they entered this screen
+    // This prevents redirect after successfully saving the first friend
+    if (!isEditMode && !isSubscribed && initialFriendCount.current >= 1) {
       router.replace('/paywall');
     }
-  }, [isEditMode, isSubscribed, friends.length]);
+  }, [isEditMode, isSubscribed, friends.length, isSaving]);
 
   // Load existing friend data when in edit mode
   useEffect(() => {
@@ -92,7 +105,8 @@ export default function AddFriendScreen() {
     }
 
     // Check subscription limit for new friends (not edits)
-    if (!isEditMode && !isSubscribed && friends.length >= 1) {
+    // Only check if user already had 1+ friends when they entered this screen
+    if (!isEditMode && !isSubscribed && initialFriendCount.current !== null && initialFriendCount.current >= 1) {
       router.replace('/paywall');
       return;
     }
@@ -231,8 +245,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 20,
     paddingBottom: 8,
+    marginTop: 70,
   },
   headerButton: {
     width: 40,

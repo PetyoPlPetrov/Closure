@@ -14,7 +14,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function AddJobScreen() {
@@ -46,10 +46,24 @@ export default function AddJobScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
+  
+  // Track initial job count to prevent redirect after saving first job
+  const initialJobCount = useRef<number | null>(null);
+  const isSaving = useRef(false);
 
   // Check subscription limit when component loads (only for new jobs, not edits)
   useEffect(() => {
-    if (!isEditMode && !isSubscribed && jobs.length >= 1) {
+    // Store initial job count on first load
+    if (initialJobCount.current === null) {
+      initialJobCount.current = jobs.length;
+    }
+    
+    // Don't check if we're saving (prevents redirect after saving first job)
+    if (isSaving.current) return;
+    
+    // Only redirect if user already had 1+ jobs when they entered this screen
+    // This prevents redirect after successfully saving the first job
+    if (!isEditMode && !isSubscribed && initialJobCount.current >= 1) {
       router.replace('/paywall');
     }
   }, [isEditMode, isSubscribed, jobs.length]);
@@ -125,7 +139,7 @@ export default function AddJobScreen() {
           paddingHorizontal: 16 * fontScale,
           paddingTop: 20 * fontScale,
           paddingBottom: 8 * fontScale,
-          marginTop: 50,
+          marginTop: 70,
         },
         headerButton: {
           width: 48 * fontScale,
@@ -209,10 +223,14 @@ export default function AddJobScreen() {
     if (!isSaveEnabled) return;
 
     // Check subscription limit for new jobs (not edits)
-    if (!isEditMode && !isSubscribed && jobs.length >= 1) {
+    // Only check if user already had 1+ jobs when they entered this screen
+    if (!isEditMode && !isSubscribed && initialJobCount.current !== null && initialJobCount.current >= 1) {
       router.replace('/paywall');
       return;
     }
+
+    // Mark as saving to prevent useEffect redirect
+    isSaving.current = true;
 
     try {
       if (isEditMode && jobId) {
@@ -235,13 +253,17 @@ export default function AddJobScreen() {
           ...(selectedImage && { imageUri: selectedImage }),
         });
         // Navigate to memory creation screen for the new job
+        // Reset saving flag before navigation
+        isSaving.current = false;
         router.replace({
           pathname: '/idealized-memories',
           params: { entityId: newJobId, sphere: 'career' },
         });
+        return; // Exit early to prevent any further execution
       }
     } catch (error) {
       // Error saving job
+      isSaving.current = false;
     }
   };
 

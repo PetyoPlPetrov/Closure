@@ -1187,7 +1187,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.relationships')}
           </ThemedText>
-          {hasAnyRelationshipMemory ? (
+          {relationshipsProfiles.length > 0 ? (
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => router.replace({ pathname: '/(tabs)' })}
@@ -1201,20 +1201,6 @@ export default function SpheresScreen() {
               }}>
                 {t('common.done')}
               </ThemedText>
-            </TouchableOpacity>
-          ) : relationshipsProfiles.length > 0 ? (
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => {
-                if (!checkSubscriptionLimit('relationships')) {
-                  showSubscriptionPrompt('relationships');
-                } else {
-                  router.push('/add-ex-profile');
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons name="add" size={24 * fontScale} color={colors.primary} />
             </TouchableOpacity>
           ) : (
             <View style={styles.headerButton} />
@@ -1328,7 +1314,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.career')}
           </ThemedText>
-          {hasAnyCareerMemory ? (
+          {careerJobs.length > 0 ? (
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => router.replace({ pathname: '/(tabs)' })}
@@ -1342,14 +1328,6 @@ export default function SpheresScreen() {
               }}>
                 {t('common.done')}
               </ThemedText>
-            </TouchableOpacity>
-          ) : careerJobs.length > 0 ? (
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => router.push('/add-job')}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons name="add" size={24 * fontScale} color={colors.primary} />
             </TouchableOpacity>
           ) : (
             <View style={styles.headerButton} />
@@ -1511,7 +1489,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.family')}
           </ThemedText>
-          {hasAnyFamilyMemory ? (
+          {familyMembersList.length > 0 ? (
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => router.replace({ pathname: '/(tabs)' })}
@@ -1525,14 +1503,6 @@ export default function SpheresScreen() {
               }}>
                 {t('common.done')}
               </ThemedText>
-            </TouchableOpacity>
-          ) : familyMembersList.length > 0 ? (
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => router.push('/add-family-member')}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons name="add" size={24 * fontScale} color={colors.primary} />
             </TouchableOpacity>
           ) : (
             <View style={styles.headerButton} />
@@ -1731,7 +1701,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.friends')}
           </ThemedText>
-          {hasAnyFriendMemory ? (
+          {friendsList.length > 0 ? (
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => router.replace({ pathname: '/(tabs)' })}
@@ -1745,14 +1715,6 @@ export default function SpheresScreen() {
               }}>
                 {t('common.done')}
               </ThemedText>
-            </TouchableOpacity>
-          ) : friendsList.length > 0 ? (
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => router.push('/add-friend')}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons name="add" size={24 * fontScale} color={colors.primary} />
             </TouchableOpacity>
           ) : (
             <View style={styles.headerButton} />
@@ -1946,7 +1908,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.hobbies')}
           </ThemedText>
-          {hasAnyHobbyMemory ? (
+          {hobbiesList.length > 0 ? (
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => router.replace({ pathname: '/(tabs)' })}
@@ -1960,14 +1922,6 @@ export default function SpheresScreen() {
               }}>
                 {t('common.done')}
               </ThemedText>
-            </TouchableOpacity>
-          ) : hobbiesList.length > 0 ? (
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => router.push('/add-hobby')}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons name="add" size={24 * fontScale} color={colors.primary} />
             </TouchableOpacity>
           ) : (
             <View style={styles.headerButton} />
