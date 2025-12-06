@@ -12,6 +12,7 @@ import { useJourney } from '@/utils/JourneyProvider';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { onSpheresTabPress } from '@/utils/spheres-tab-press';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
@@ -30,7 +31,7 @@ export default function SpheresScreen() {
   const iconScale = useIconScale();
   const { maxContentWidth, isLargeDevice } = useLargeDevice();
   const { profiles, jobs, familyMembers, friends, hobbies, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, deleteProfile, deleteJob, deleteFamilyMember, deleteFriend, deleteHobby, reloadIdealizedMemories, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories } = useJourney();
-  const { isSubscribed } = useSubscription();
+  const { isSubscribed, presentPaywallIfNeeded, offerings } = useSubscription();
   const { isAnimationComplete, isVisible: isSplashVisible } = useSplash();
   const t = useTranslate();
   
@@ -146,6 +147,33 @@ export default function SpheresScreen() {
 
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(null);
   const [expandedSphere, setExpandedSphere] = useState<LifeSphere | null>(null);
+  
+  // Use a ref to always get the current selectedSphere value in the callback
+  const selectedSphereRef = React.useRef<LifeSphere | null>(null);
+  
+  // Keep ref in sync with state
+  React.useEffect(() => {
+    selectedSphereRef.current = selectedSphere;
+  }, [selectedSphere]);
+  
+  // Listen for spheres tab press events - only when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      // Listen for tab press events
+      const unsubscribe = onSpheresTabPress(() => {
+        const currentSelectedSphere = selectedSphereRef.current;
+        
+        // Check if there's a selected sphere - if so, clear it to return to main view
+        if (currentSelectedSphere) {
+          setSelectedSphere(null);
+        }
+      });
+      
+      return () => {
+        unsubscribe();
+      };
+    }, []) // Empty deps - we use ref for current value
+  );
 
   // Calculate entity-level scores for comparison
   const entityComparisons = useMemo(() => {
@@ -1017,8 +1045,8 @@ export default function SpheresScreen() {
   };
   
   const handleMorePress = (profile: ExProfile) => {
-    router.push({
-      pathname: '/edit-profile',
+      router.push({
+        pathname: '/edit-profile',
       params: { profileId: profile.id },
     });
   };
@@ -1112,8 +1140,8 @@ export default function SpheresScreen() {
   }
   
   const handleJobMorePress = (job: Job) => {
-    router.push({
-      pathname: '/edit-job',
+      router.push({
+        pathname: '/edit-job',
       params: { jobId: job.id },
     });
   };
@@ -1133,7 +1161,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.relationships')}
           </ThemedText>
-          <View style={styles.headerButton} />
+            <View style={styles.headerButton} />
         </View>
 
         {profiles.length === 0 ? (
@@ -1219,7 +1247,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.career')}
           </ThemedText>
-          <View style={styles.headerButton} />
+            <View style={styles.headerButton} />
         </View>
 
         {(!jobs || !Array.isArray(jobs) || jobs.length === 0) ? (
@@ -1288,8 +1316,8 @@ export default function SpheresScreen() {
   // Show family members view when family sphere is selected
   if (selectedSphere === 'family') {
     const handleFamilyMemberMorePress = (member: FamilyMember) => {
-      router.push({
-        pathname: '/edit-family-member',
+        router.push({
+          pathname: '/edit-family-member',
         params: { memberId: member.id },
       });
     };
@@ -1307,7 +1335,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.family')}
           </ThemedText>
-          <View style={styles.headerButton} />
+            <View style={styles.headerButton} />
         </View>
 
         {familyMembers.length === 0 ? (
@@ -1416,8 +1444,8 @@ export default function SpheresScreen() {
 
   if (selectedSphere === 'friends') {
     const handleFriendMorePress = (friend: Friend) => {
-      router.push({
-        pathname: '/edit-friend',
+        router.push({
+          pathname: '/edit-friend',
         params: { friendId: friend.id },
       });
     };
@@ -1436,7 +1464,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.friends')}
           </ThemedText>
-          <View style={styles.headerButton} />
+            <View style={styles.headerButton} />
         </View>
 
         {friends.length === 0 ? (
@@ -1540,8 +1568,8 @@ export default function SpheresScreen() {
 
   if (selectedSphere === 'hobbies') {
     const handleHobbyMorePress = (hobby: Hobby) => {
-      router.push({
-        pathname: '/edit-hobby',
+        router.push({
+          pathname: '/edit-hobby',
         params: { hobbyId: hobby.id },
       });
     };
@@ -1560,7 +1588,7 @@ export default function SpheresScreen() {
           <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
             {t('spheres.hobbies')}
           </ThemedText>
-          <View style={styles.headerButton} />
+            <View style={styles.headerButton} />
         </View>
 
         {hobbies.length === 0 ? (
@@ -1731,12 +1759,14 @@ export default function SpheresScreen() {
                     >
                       <TouchableOpacity
                         style={{ width: '100%', height: '100%' }}
-                        onPress={() => {
-                          if (!isSubscribed) {
-                            router.push('/paywall');
-                          } else {
+                        onPress={async () => {
+                          // Use RevenueCat's presentPaywallIfNeeded - it will check entitlement and show paywall if needed
+                          const hasAccess = await presentPaywallIfNeeded('Sfera Premium', offerings || undefined);
+                          if (hasAccess) {
+                            // User has access (either already subscribed or just purchased), navigate to insights
                             router.push('/insights');
                           }
+                          // If hasAccess is false, user cancelled or error occurred, don't navigate
                         }}
                         activeOpacity={0.9}
                       >
@@ -1764,7 +1794,7 @@ export default function SpheresScreen() {
                     </AnimatedView>
 
                     {/* Sphere boxes arranged in a circle around the Insights button */}
-                    <View style={styles.sphereGrid}>
+              <View style={styles.sphereGrid}>
                       {spheres.map((sphere, index) => {
                         // Calculate circular positions for 5 spheres
                         // Start from top (90 degrees) and distribute evenly (360/5 = 72 degrees apart)
@@ -1883,7 +1913,7 @@ export default function SpheresScreen() {
                     </TouchableOpacity>
                   );
                 })}
-                    </View>
+              </View>
                   </>
                 );
               })()}

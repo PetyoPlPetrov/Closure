@@ -19,7 +19,7 @@ export default function PaywallScreen() {
   const fontScale = useFontScale();
   const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
-  const { offerings, purchasePackage, restorePurchases, subscriptionStatus } = useSubscription();
+  const { offerings, purchasePackage, restorePurchases, subscriptionStatus, presentPaywall } = useSubscription();
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PurchasesPackage | null>(null);
 
@@ -92,6 +92,38 @@ export default function PaywallScreen() {
       setIsPurchasing(false);
     }
   }, [restorePurchases, t]);
+
+  const handlePresentRevenueCatPaywall = useCallback(async () => {
+    if (isPurchasing) return;
+    
+    try {
+      setIsPurchasing(true);
+      const success = await presentPaywall();
+      
+      if (success) {
+        // User purchased or restored through RevenueCat UI
+        Alert.alert(
+          t('subscription.success.title') || 'Success!',
+          t('subscription.success.message') || 'Your subscription is now active!',
+          [
+            {
+              text: t('common.ok') || 'OK',
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      }
+      // If cancelled or error, just return without showing alert
+    } catch (error: any) {
+      Alert.alert(
+        t('subscription.error.title') || 'Error',
+        error.message || t('subscription.error.message') || 'Something went wrong. Please try again.',
+        [{ text: t('common.ok') || 'OK' }]
+      );
+    } finally {
+      setIsPurchasing(false);
+    }
+  }, [isPurchasing, presentPaywall, t]);
 
   const formatPrice = (pkg: PurchasesPackage) => {
     return pkg.product.priceString;
@@ -255,6 +287,13 @@ export default function PaywallScreen() {
           fontSize: 14 * fontScale,
           color: colors.primary,
         },
+        revenuecatButton: {
+          backgroundColor: colorScheme === 'dark' 
+            ? 'rgba(255, 255, 255, 0.1)' 
+            : 'rgba(0, 0, 0, 0.1)',
+          borderWidth: 2,
+          borderColor: colors.primary,
+        },
       }),
     [fontScale, maxContentWidth, colorScheme, colors]
   );
@@ -399,7 +438,26 @@ export default function PaywallScreen() {
             )}
           </View>
 
-          {/* Purchase Button */}
+          {/* RevenueCat UI Paywall Button (Alternative) */}
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              styles.revenuecatButton,
+              isPurchasing && styles.primaryButtonDisabled,
+            ]}
+            onPress={handlePresentRevenueCatPaywall}
+            disabled={isPurchasing}
+          >
+            {isPurchasing ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <ThemedText style={styles.primaryButtonText}>
+                {t('subscription.presentPaywall') || 'View Subscription Options'}
+              </ThemedText>
+            )}
+          </TouchableOpacity>
+
+          {/* Purchase Button (Custom UI) */}
           <TouchableOpacity
             style={[
               styles.primaryButton,
@@ -415,6 +473,17 @@ export default function PaywallScreen() {
                 {t('subscription.purchase') || 'Subscribe'}
               </ThemedText>
             )}
+          </TouchableOpacity>
+
+          {/* Restore Button */}
+          <TouchableOpacity
+            style={styles.restoreButton}
+            onPress={handleRestore}
+            disabled={isPurchasing}
+          >
+            <ThemedText style={styles.restoreButtonText}>
+              {t('subscription.restore') || 'Restore Purchases'}
+            </ThemedText>
           </TouchableOpacity>
 
           {/* Close Button */}

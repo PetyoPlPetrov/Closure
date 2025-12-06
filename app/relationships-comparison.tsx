@@ -280,36 +280,6 @@ export default function RelationshipsComparisonScreen() {
       flex: 1,
       marginRight: 12 * fontScale,
     },
-    nameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8 * fontScale,
-    },
-    statusBadgeCurrent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4 * fontScale,
-      paddingHorizontal: 8 * fontScale,
-      paddingVertical: 4 * fontScale,
-      borderRadius: 10 * fontScale,
-      backgroundColor: colors.primaryLight + '20',
-    },
-    statusBadgeCurrentText: {
-      fontSize: 10 * fontScale,
-      color: colors.primaryLight,
-    },
-    statusBadgeEx: {
-      paddingHorizontal: 8 * fontScale,
-      paddingVertical: 4 * fontScale,
-      borderRadius: 10 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 255, 255, 0.1)' 
-        : 'rgba(0, 0, 0, 0.1)',
-    },
-    statusBadgeExText: {
-      fontSize: 10 * fontScale,
-      opacity: 0.7,
-    },
     barWrapper: {
       width: 100 * fontScale,
       height: 32 * fontScale,
@@ -693,27 +663,11 @@ export default function RelationshipsComparisonScreen() {
                       )}
                     </View>
                     
-                    {/* Partner Name with Status Badge */}
+                    {/* Partner Name */}
                     <View style={styles.barLabel}>
-                      <View style={styles.nameRow}>
-                        <ThemedText size="sm" weight="semibold">
-                          {data.profile.name}
-                        </ThemedText>
-                        {!data.profile.relationshipEndDate ? (
-                          <View style={styles.statusBadgeCurrent}>
-                            <MaterialIcons name="favorite" size={12 * fontScale} color={colors.primaryLight} />
-                            <ThemedText size="xs" weight="bold" style={styles.statusBadgeCurrentText}>
-                              {t('insights.comparison.label.current')}
-                            </ThemedText>
-                          </View>
-                        ) : (
-                          <View style={styles.statusBadgeEx}>
-                            <ThemedText size="xs" weight="semibold" style={styles.statusBadgeExText}>
-                              {t('insights.comparison.label.ex')}
-                            </ThemedText>
-                          </View>
-                        )}
-                      </View>
+                      <ThemedText size="sm" weight="semibold">
+                        {data.profile.name}
+                      </ThemedText>
                     </View>
                     
                     {/* Bar Chart */}

@@ -5,7 +5,7 @@ import React from 'react';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HapticTab } from '@/components/haptic-tab';
+import { HapticTab, HomeTabButton, SpheresTabButton } from '@/components/haptic-tab';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -96,6 +96,7 @@ export default function TabLayout() {
               </ThemedText>
             );
           },
+          tabBarButton: HomeTabButton,
         }}
       />
       <Tabs.Screen
@@ -125,6 +126,7 @@ export default function TabLayout() {
               </ThemedText>
             );
           },
+          tabBarButton: SpheresTabButton,
         }}
       />
       <Tabs.Screen

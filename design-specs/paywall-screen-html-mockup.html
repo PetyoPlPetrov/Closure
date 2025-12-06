@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paywall Screen - Design Mockup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(180deg, #1A2332 0%, #1A2332 100%);
+            color: #FFFFFF;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            background: #000000;
+            border-radius: 40px;
+            padding: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .screen {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #1A2332 0%, #1A2332 100%);
+            border-radius: 32px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .status-bar {
+            height: 44px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .header {
+            padding: 50px 16px 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .back-button {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .star-icon {
+            width: 20px;
+            height: 20px;
+            color: #4A9EFF;
+        }
+
+        .header-text {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .content {
+            padding: 16px;
+            max-height: calc(100% - 200px);
+            overflow-y: auto;
+        }
+
+        .main-title {
+            font-size: 32px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            text-align: center;
+            opacity: 0.7;
+            margin-bottom: 24px;
+        }
+
+        .features {
+            margin-bottom: 24px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .checkmark-container {
+            width: 24px;
+            height: 24px;
+            border-radius: 12px;
+            background: #4A9EFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .checkmark {
+            width: 16px;
+            height: 16px;
+            color: white;
+        }
+
+        .feature-text {
+            font-size: 16px;
+            line-height: 24px;
+            flex: 1;
+        }
+
+        .packages {
+            margin-bottom: 24px;
+        }
+
+        .package-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .package-card.selected {
+            border: 2px solid #4A9EFF;
+        }
+
+        .package-card:hover {
+            transform: scale(0.98);
+        }
+
+        .package-info {
+            flex: 1;
+        }
+
+        .package-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .package-price {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .package-period {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        .savings-badge {
+            background: #4A9EFF;
+            padding: 4px 8px;
+            border-radius: 8px;
+            margin-top: 8px;
+            display: inline-block;
+        }
+
+        .savings-text {
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .buttons {
+            margin-top: 24px;
+        }
+
+        .button {
+            width: 100%;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            margin-bottom: 16px;
+        }
+
+        .button:hover {
+            opacity: 0.8;
+        }
+
+        .button:active {
+            opacity: 0.7;
+        }
+
+        .button-revenuecat {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #4A9EFF;
+            color: white;
+        }
+
+        .button-primary {
+            background: #4A9EFF;
+            color: white;
+            border: none;
+        }
+
+        .button-text {
+            padding: 16px;
+            text-align: center;
+            font-size: 14px;
+            color: #4A9EFF;
+            cursor: pointer;
+        }
+
+        .spacer {
+            width: 48px;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="screen">
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <div>23:10</div>
+                <div>📶 🔋</div>
+            </div>
+
+            <!-- Header -->
+            <div class="header">
+                <div class="back-button">←</div>
+                <div class="header-title">
+                    <svg class="star-icon" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    <span class="header-text">Отключи Премиум</span>
+                </div>
+                <div class="spacer"></div>
+            </div>
+
+            <!-- Content -->
+            <div class="content">
+                <h1 class="main-title">Отключи Премиум</h1>
+                <p class="subtitle">Получи неограничен достъп до всички функции</p>
+
+                <!-- Features -->
+                <div class="features">
+                    <div class="feature-item">
+                        <div class="checkmark-container">
+                            <svg class="checkmark" fill="white" viewBox="0 0 24 24">
+                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                            </svg>
+                        </div>
+                        <div class="feature-text">
+                            Неограничени партньори, работни места, приятели членове на семейството и хобита
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="checkmark-container">
+                            <svg class="checkmark" fill="white" viewBox="0 0 24 24">
+                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                            </svg>
+                        </div>
+                        <div class="feature-text">
+                            Достъп до премиум анализи и статистики
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="checkmark-container">
+                            <svg class="checkmark" fill="white" viewBox="0 0 24 24">
+                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                            </svg>
+                        </div>
+                        <div class="feature-text">
+                            Приоритетна поддръжка и актуализации
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Packages -->
+                <div class="packages">
+                    <div class="package-card selected">
+                        <div class="package-info">
+                            <div class="package-title">Годишно</div>
+                            <div class="package-price">79,99 US$</div>
+                            <div class="package-period">на година</div>
+                            <div class="savings-badge">
+                                <span class="savings-text">Спестете 33%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="package-card">
+                        <div class="package-info">
+                            <div class="package-title">Месечно</div>
+                            <div class="package-price">9,99 US$</div>
+                            <div class="package-period">на месец</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div class="buttons">
+                    <div class="button button-revenuecat">
+                        View Subscription Options
+                    </div>
+                    <div class="button button-primary">
+                        Абонирай се
+                    </div>
+                    <div class="button-text">Restore Purchases</div>
+                    <div class="button-text">Close</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

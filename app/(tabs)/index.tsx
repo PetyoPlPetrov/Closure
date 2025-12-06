@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
@@ -3959,6 +3960,43 @@ export default function HomeScreen() {
   const previousSelectedSphereRef = React.useRef<LifeSphere | null>(null);
   const sphereRenderKeyRef = React.useRef<number>(0);
   
+  // Track if home screen was already focused to detect when user presses home tab while already on home
+  const isHomeFocusedRef = React.useRef<boolean>(false);
+  const navigation = useNavigation();
+  
+  // Listen for tab press events using navigation listeners
+  useFocusEffect(
+    React.useCallback(() => {
+      // Listen for tab press events
+      const unsubscribe = navigation.addListener('tabPress', () => {
+        // Check if there's any focused view
+        const hasFocusedView = !!(focusedMemory || selectedSphere || focusedProfileId || focusedJobId || focusedFamilyMemberId || focusedFriendId || focusedHobbyId);
+        
+        if (hasFocusedView) {
+          // Clear all focused states to return to main view
+          setFocusedMemory(null);
+          setSelectedSphere(null);
+          setFocusedProfileId(null);
+          setFocusedJobId(null);
+          setFocusedFamilyMemberId(null);
+          setFocusedFriendId(null);
+          setFocusedHobbyId(null);
+          // Clear URL params to reset navigation state
+          router.replace('/');
+        }
+      });
+      
+      // Mark that home screen is now focused
+      isHomeFocusedRef.current = true;
+      
+      return () => {
+        unsubscribe();
+        // When leaving home tab, reset the ref
+        isHomeFocusedRef.current = false;
+      };
+    }, [navigation, focusedMemory, selectedSphere, focusedProfileId, focusedJobId, focusedFamilyMemberId, focusedFriendId, focusedHobbyId])
+  );
+  
   // Zoom progress for sphere animations (0 = normal view, 1 = zoomed in/out)
   const sphereZoomProgress = useSharedValue(0);
   
@@ -5733,16 +5771,59 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
-          {/* Entity name below back arrow - shown when partner/friend/family/hobby is focused (not jobs) */}
+          {/* Year title below back arrow - shown when partner/job is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            let yearTitle: string | null = null;
+            const sphere = selectedSphere as LifeSphere;
+            
+            // Get year for focused entity
+            if (focusedJobId && sphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              if (job?.startDate) {
+                const year = new Date(job.startDate).getFullYear();
+                yearTitle = year.toString();
+              }
+            }
+            if (focusedProfileId && sphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              if (profile?.relationshipStartDate) {
+                const year = new Date(profile.relationshipStartDate).getFullYear();
+                yearTitle = year.toString();
+              }
+            }
+            
+            if (yearTitle) {
+              return (
+                <ThemedText
+                  size="l"
+                  weight="bold"
+                  numberOfLines={1}
+                  style={{
+                    position: 'absolute',
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Below back arrow
+                    left: 20, // Align with back arrow
+                    zIndex: 1000,
+                    color: colors.text,
+                    opacity: 0.6,
+                  }}
+                >
+                  {yearTitle}
+                </ThemedText>
+              );
+            }
+            return null;
+          })()}
+          
+          {/* Entity name below back arrow - shown when partner/job/friend/family/hobby is focused */}
           {!focusedMemory && selectedSphere && (() => {
             let entityName: string | null = null;
             const sphere = selectedSphere as LifeSphere;
             
-            // Skip showing entity name for jobs (career sphere)
-            if (sphere === 'career' && focusedJobId) {
-              return null;
+            // Include jobs (career sphere) - show name below back arrow for all entities
+            if (focusedJobId && sphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              entityName = job?.name || null;
             }
-            
             if (focusedProfileId && sphere === 'relationships') {
               const profile = profiles.find(p => p.id === focusedProfileId);
               entityName = profile?.name || null;
@@ -6012,16 +6093,59 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
-          {/* Entity name below back arrow - shown when partner/friend/family/hobby is focused (not jobs) */}
+          {/* Year title below back arrow - shown when partner/job is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            let yearTitle: string | null = null;
+            const sphere = selectedSphere as LifeSphere;
+            
+            // Get year for focused entity
+            if (focusedJobId && sphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              if (job?.startDate) {
+                const year = new Date(job.startDate).getFullYear();
+                yearTitle = year.toString();
+              }
+            }
+            if (focusedProfileId && sphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              if (profile?.relationshipStartDate) {
+                const year = new Date(profile.relationshipStartDate).getFullYear();
+                yearTitle = year.toString();
+              }
+            }
+            
+            if (yearTitle) {
+              return (
+                <ThemedText
+                  size="l"
+                  weight="bold"
+                  numberOfLines={1}
+                  style={{
+                    position: 'absolute',
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Below back arrow
+                    left: 20, // Align with back arrow
+                    zIndex: 1000,
+                    color: colors.text,
+                    opacity: 0.6,
+                  }}
+                >
+                  {yearTitle}
+                </ThemedText>
+              );
+            }
+            return null;
+          })()}
+          
+          {/* Entity name below back arrow - shown when partner/job/friend/family/hobby is focused */}
           {!focusedMemory && selectedSphere && (() => {
             let entityName: string | null = null;
             const sphere = selectedSphere as LifeSphere;
             
-            // Skip showing entity name for jobs (career sphere)
-            if (sphere === 'career' && focusedJobId) {
-              return null;
+            // Include jobs (career sphere) - show name below back arrow for all entities
+            if (focusedJobId && sphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              entityName = job?.name || null;
             }
-            
             if (focusedProfileId && sphere === 'relationships') {
               const profile = profiles.find(p => p.id === focusedProfileId);
               entityName = profile?.name || null;
@@ -6181,6 +6305,38 @@ export default function HomeScreen() {
             {/* Render year sections with jobs inside */}
             {animationsReady && !focusedMemory && (
               <>
+                {/* Year titles below back arrow - shown for each year section in listing view */}
+                {!focusedJobId && Array.from(jobYearSections.entries()).map(([key, section]) => {
+                  const displayYear = typeof section.year === 'string' 
+                    ? (section.year === 'Ongoing' ? t('profile.ongoing') : section.year === 'Current' ? t('job.current') : section.year)
+                    : section.year;
+                  
+                  // Position year title below back arrow, aligned with section top
+                  const backArrowBottom = (isTablet ? 70 : 50) + (isTablet ? 70 : 50);
+                  const yearTitleTop = section.top < backArrowBottom + 10 
+                    ? backArrowBottom + 10  // Position below back arrow
+                    : section.top + 8; // Position at section top if section is far below
+                  
+                  return (
+                    <ThemedText
+                      key={`job-year-title-${key}`}
+                      size="l"
+                      weight="bold"
+                      numberOfLines={1}
+                      style={{
+                        position: 'absolute',
+                        top: yearTitleTop,
+                        left: 20, // Align with back arrow
+                        zIndex: 1000,
+                        color: colors.text,
+                        opacity: 0.6,
+                      }}
+                    >
+                      {displayYear}
+                    </ThemedText>
+                  );
+                })}
+                
                 {/* Year section backgrounds */}
                 {Array.from(jobYearSections.entries()).map(([key, section]) => {
                   // Get the name of the job(s) in this year section
@@ -6191,6 +6347,7 @@ export default function HomeScreen() {
                   // Check if this section contains the focused job
                   const isFocusedSection = jobsInSection?.some(({ job }) => job.id === focusedJobId) ?? false;
                   // Hide title if memory is focused OR if a job is focused (but show it if this is the focused job's section)
+                  // Don't show focusedEntityName in year section - it's now shown below back arrow
                   const shouldHideTitle = !!focusedMemory || (!!focusedJobId && !isFocusedSection);
                   
                   return (
@@ -6199,7 +6356,7 @@ export default function HomeScreen() {
                       section={section}
                       colorScheme={colorScheme ?? 'dark'}
                       hideTitle={shouldHideTitle}
-                      focusedEntityName={isFocusedSection ? sectionJobName : null}
+                      focusedEntityName={null} // Don't show entity name in year section - it's shown below back arrow
                     />
                   );
                 })}
@@ -6368,16 +6525,59 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
-          {/* Entity name below back arrow - shown when partner/friend/family/hobby is focused (not jobs) */}
+          {/* Year title below back arrow - shown when partner/job is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            let yearTitle: string | null = null;
+            const sphere = selectedSphere as LifeSphere;
+            
+            // Get year for focused entity
+            if (focusedJobId && sphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              if (job?.startDate) {
+                const year = new Date(job.startDate).getFullYear();
+                yearTitle = year.toString();
+              }
+            }
+            if (focusedProfileId && sphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              if (profile?.relationshipStartDate) {
+                const year = new Date(profile.relationshipStartDate).getFullYear();
+                yearTitle = year.toString();
+              }
+            }
+            
+            if (yearTitle) {
+              return (
+                <ThemedText
+                  size="l"
+                  weight="bold"
+                  numberOfLines={1}
+                  style={{
+                    position: 'absolute',
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Below back arrow
+                    left: 20, // Align with back arrow
+                    zIndex: 1000,
+                    color: colors.text,
+                    opacity: 0.6,
+                  }}
+                >
+                  {yearTitle}
+                </ThemedText>
+              );
+            }
+            return null;
+          })()}
+          
+          {/* Entity name below back arrow - shown when partner/job/friend/family/hobby is focused */}
           {!focusedMemory && selectedSphere && (() => {
             let entityName: string | null = null;
             const sphere = selectedSphere as LifeSphere;
             
-            // Skip showing entity name for jobs (career sphere)
-            if (sphere === 'career' && focusedJobId) {
-              return null;
+            // Include jobs (career sphere) - show name below back arrow for all entities
+            if (focusedJobId && sphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              entityName = job?.name || null;
             }
-            
             if (focusedProfileId && sphere === 'relationships') {
               const profile = profiles.find(p => p.id === focusedProfileId);
               entityName = profile?.name || null;
@@ -6690,16 +6890,59 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
-          {/* Entity name below back arrow - shown when partner/friend/family/hobby is focused (not jobs) */}
+          {/* Year title below back arrow - shown when partner/job is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            let yearTitle: string | null = null;
+            const sphere = selectedSphere as LifeSphere;
+            
+            // Get year for focused entity
+            if (focusedJobId && sphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              if (job?.startDate) {
+                const year = new Date(job.startDate).getFullYear();
+                yearTitle = year.toString();
+              }
+            }
+            if (focusedProfileId && sphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              if (profile?.relationshipStartDate) {
+                const year = new Date(profile.relationshipStartDate).getFullYear();
+                yearTitle = year.toString();
+              }
+            }
+            
+            if (yearTitle) {
+              return (
+                <ThemedText
+                  size="l"
+                  weight="bold"
+                  numberOfLines={1}
+                  style={{
+                    position: 'absolute',
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Below back arrow
+                    left: 20, // Align with back arrow
+                    zIndex: 1000,
+                    color: colors.text,
+                    opacity: 0.6,
+                  }}
+                >
+                  {yearTitle}
+                </ThemedText>
+              );
+            }
+            return null;
+          })()}
+          
+          {/* Entity name below back arrow - shown when partner/job/friend/family/hobby is focused */}
           {!focusedMemory && selectedSphere && (() => {
             let entityName: string | null = null;
             const sphere = selectedSphere as LifeSphere;
             
-            // Skip showing entity name for jobs (career sphere)
-            if (sphere === 'career' && focusedJobId) {
-              return null;
+            // Include jobs (career sphere) - show name below back arrow for all entities
+            if (focusedJobId && sphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              entityName = job?.name || null;
             }
-            
             if (focusedProfileId && sphere === 'relationships') {
               const profile = profiles.find(p => p.id === focusedProfileId);
               entityName = profile?.name || null;
@@ -7011,16 +7254,59 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
-          {/* Entity name below back arrow - shown when partner/friend/family/hobby is focused (not jobs) */}
+          {/* Year title below back arrow - shown when partner/job is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            let yearTitle: string | null = null;
+            const sphere = selectedSphere as LifeSphere;
+            
+            // Get year for focused entity
+            if (focusedJobId && sphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              if (job?.startDate) {
+                const year = new Date(job.startDate).getFullYear();
+                yearTitle = year.toString();
+              }
+            }
+            if (focusedProfileId && sphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              if (profile?.relationshipStartDate) {
+                const year = new Date(profile.relationshipStartDate).getFullYear();
+                yearTitle = year.toString();
+              }
+            }
+            
+            if (yearTitle) {
+              return (
+                <ThemedText
+                  size="l"
+                  weight="bold"
+                  numberOfLines={1}
+                  style={{
+                    position: 'absolute',
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Below back arrow
+                    left: 20, // Align with back arrow
+                    zIndex: 1000,
+                    color: colors.text,
+                    opacity: 0.6,
+                  }}
+                >
+                  {yearTitle}
+                </ThemedText>
+              );
+            }
+            return null;
+          })()}
+          
+          {/* Entity name below back arrow - shown when partner/job/friend/family/hobby is focused */}
           {!focusedMemory && selectedSphere && (() => {
             let entityName: string | null = null;
             const sphere = selectedSphere as LifeSphere;
             
-            // Skip showing entity name for jobs (career sphere)
-            if (sphere === 'career' && focusedJobId) {
-              return null;
+            // Include jobs (career sphere) - show name below back arrow for all entities
+            if (focusedJobId && sphere === 'career') {
+              const job = jobs.find(j => j.id === focusedJobId);
+              entityName = job?.name || null;
             }
-            
             if (focusedProfileId && sphere === 'relationships') {
               const profile = profiles.find(p => p.id === focusedProfileId);
               entityName = profile?.name || null;
@@ -7431,8 +7717,43 @@ const YearSectionsRenderer = function YearSectionsRenderer({
     return null;
   };
   
+  const t = useTranslate();
+  const { isTablet } = useLargeDevice();
+  
   return (
     <>
+      {/* Year titles below back arrow - shown for each year section in listing view */}
+      {!focusedProfileId && Array.from(yearSections.entries()).map(([key, section]) => {
+        const displayYear = typeof section.year === 'string' 
+          ? (section.year === 'Ongoing' ? t('profile.ongoing') : section.year === 'Current' ? t('job.current') : section.year)
+          : section.year;
+        
+        // Position year title below back arrow, aligned with section top
+        const backArrowBottom = (isTablet ? 70 : 50) + (isTablet ? 70 : 50);
+        const yearTitleTop = section.top < backArrowBottom + 10 
+          ? backArrowBottom + 10  // Position below back arrow
+          : section.top + 8; // Position at section top if section is far below
+        
+        return (
+          <ThemedText
+            key={`year-title-${key}`}
+            size="l"
+            weight="bold"
+            numberOfLines={1}
+            style={{
+              position: 'absolute',
+              top: yearTitleTop,
+              left: 20, // Align with back arrow
+              zIndex: 1000,
+              color: colors.text,
+              opacity: 0.6,
+            }}
+          >
+            {displayYear}
+          </ThemedText>
+        );
+      })}
+      
       {/* Render section backgrounds */}
       {Array.from(yearSections.entries()).map(([key, section]) => {
         const sectionEntityName = getSectionEntityName(key);
@@ -7447,7 +7768,7 @@ const YearSectionsRenderer = function YearSectionsRenderer({
             section={section}
             colorScheme={colorScheme}
             hideTitle={shouldHideTitle}
-            focusedEntityName={isFocusedSection ? sectionEntityName : null}
+            focusedEntityName={null} // Don't show entity name in year section - it's shown below back arrow
           />
         );
       })}
@@ -7545,40 +7866,7 @@ const YearSectionBackground = React.memo(function YearSectionBackground({
         pointerEvents: 'none', // Allow touches to pass through
       }}
     >
-      {/* Year label - hide when memory or job is focused */}
-      {!hideTitle && (
-        <View
-          style={{
-            position: 'absolute',
-            left: backArrowLeft, // Align with back arrow button
-            top: yearTitleTop, // Position below back arrow button
-          }}
-        >
-          <ThemedText
-            size="l"
-            weight="bold"
-            style={{
-              opacity: 0.6,
-              color: colorScheme === 'dark' ? '#ffffff' : '#000000',
-            }}
-          >
-            {displayYear}
-          </ThemedText>
-          {focusedEntityName && (
-            <ThemedText
-              size="sm"
-              weight="medium"
-              style={{
-                marginTop: 4,
-                opacity: 0.5,
-                color: colorScheme === 'dark' ? '#ffffff' : '#000000',
-              }}
-            >
-              {focusedEntityName}
-            </ThemedText>
-          )}
-        </View>
-      )}
+      {/* Year label removed - now shown below back arrow when entity is focused */}
     </View>
   );
 }, (prevProps, nextProps) => {
