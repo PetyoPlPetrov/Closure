@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function SpheresScreen() {
@@ -32,6 +32,8 @@ export default function SpheresScreen() {
   const t = useTranslate();
   
   const [walkthroughVisible, setWalkthroughVisible] = useState(false);
+  const containerRef = useRef<View>(null);
+  const [containerLayout, setContainerLayout] = useState<{ width: number; height: number; x: number; y: number } | null>(null);
 
   const checkSubscriptionLimit = (sphere: LifeSphere): boolean => {
     if (isSubscribed) return true; // Subscribed users can create unlimited
@@ -504,7 +506,7 @@ export default function SpheresScreen() {
       paddingHorizontal: 16 * fontScale,
       paddingTop: 20 * fontScale,
       paddingBottom: 8 * fontScale,
-      marginTop: 50,
+      marginTop: 70,
     },
     headerButton: {
       width: 48 * fontScale,
@@ -518,7 +520,7 @@ export default function SpheresScreen() {
     },
     content: {
       flex: 1,
-      padding: 12 * fontScale,
+      paddingHorizontal: 12 * fontScale,
       alignItems: 'center',
       justifyContent: 'center',
       paddingTop: 0, // Remove top padding to allow better centering
@@ -529,24 +531,25 @@ export default function SpheresScreen() {
       width: '100%',
       justifyContent: 'center',
       alignItems: 'center',
-      maxHeight: Dimensions.get('window').height - 200 * fontScale, // Account for header and safe area
-      gap: 24 * fontScale, // Add gap between sphere grid and insights button
+      position: 'relative',
     },
     mainContentContainer: {
       width: '100%',
+      height: '100%',
       alignItems: 'center',
-      alignSelf: 'stretch',
+      justifyContent: 'center',
+      position: 'relative',
       flexShrink: 1,
-      ...(!isLargeDevice && { paddingLeft: 18 * fontScale }),
     },
     sphereGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 12 * fontScale,
+      width: '100%',
+      height: '100%',
+      position: 'relative',
+      alignItems: 'center',
       justifyContent: 'center',
-      flexShrink: 1,
-      minHeight: 100 * fontScale,
-      minWidth: 100 * fontScale,
+    },
+    sphereCardPositioned: {
+      position: 'absolute',
     },
     sphereCard: {
       width: (Dimensions.get('window').width - 48 * fontScale - 32 * fontScale) / 2, // Screen width minus padding and gap, divided by 2
@@ -584,7 +587,7 @@ export default function SpheresScreen() {
       color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.8)' : '#333333', // Darker color for better contrast in light mode
     },
     insightsButtonContainer: {
-      marginTop: 0, // Remove marginTop since gap is handled by mainContentWrapper
+      marginTop: 0,
       borderRadius: 16 * fontScale,
       overflow: 'hidden',
       shadowColor: '#8b5cf6',
@@ -592,10 +595,37 @@ export default function SpheresScreen() {
       shadowOpacity: 0.3,
       shadowRadius: 12,
       elevation: 10,
-      width: '100%',
-      maxWidth: maxContentWidth as any,
-      alignSelf: 'center',
+      width: (Dimensions.get('window').width - 48 * fontScale - 32 * fontScale) / 2, // Match sphere card width
+      minWidth: 100 * fontScale,
+      maxWidth: 180 * fontScale,
       flexShrink: 0,
+    },
+    insightsButtonContainerCentered: {
+      position: 'absolute',
+      borderRadius: 30 * fontScale, // Circular
+      overflow: 'hidden',
+      shadowColor: '#8b5cf6',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 10,
+      width: 60 * fontScale,
+      height: 60 * fontScale,
+      zIndex: 10,
+    },
+    insightsButtonGradientCircular: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 30 * fontScale,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    insightsIconContainerCircular: {
+      position: 'relative',
+      width: '100%',
+      height: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     insightsButtonGradient: {
       borderRadius: 16 * fontScale,
@@ -1620,47 +1650,152 @@ export default function SpheresScreen() {
       >
         {/* Sphere Selection Grid - only show when no sphere is selected */}
         {!selectedSphere && (
-          <View style={styles.mainContentWrapper}>
+          <View 
+            style={styles.mainContentWrapper}
+            ref={containerRef}
+            onLayout={(event) => {
+              const { width, height, x, y } = event.nativeEvent.layout;
+              setContainerLayout({ width, height, x, y });
+            }}
+          >
             <View style={styles.mainContentContainer}>
-              <View style={styles.sphereGrid}>
-                {spheres.map((sphere) => {
+              {/* Calculate center point relative to container - this will be used for both Insights button and sphere cards */}
+              {containerLayout && (() => {
+                // Calculate center based on the actual visual space
+                // The center should be in the middle of the circle formed by the boxes
+                const centerX = containerLayout.width / 2;
+                
+                // Pre-calculate values used by both button and cards
+                const radius = 140 * fontScale;
+                const screenWidth = Dimensions.get('window').width;
+                const cardWidth = (screenWidth - 48 * fontScale - 32 * fontScale) / 2;
+                const cardHalfWidth = cardWidth / 2;
+                const cardHalfHeight = cardWidth / 2; // Cards are square (aspectRatio: 1)
+                
+                // Calculate the visual center Y by finding the midpoint between topmost and bottommost cards
+                // Top card is at angle 90° (top), bottom card is at angle -90° (bottom)
+                // Card centers are at: centerY + radius * sin(angle)
+                const topCardAngle = 90 * (Math.PI / 180);
+                const bottomCardAngle = -90 * (Math.PI / 180);
+                
+                // Calculate where card centers would be (relative to container top)
+                const containerCenterY = containerLayout.height / 2;
+                const topCardCenterY = containerCenterY + radius * Math.sin(topCardAngle);
+                const bottomCardCenterY = containerCenterY + radius * Math.sin(bottomCardAngle);
+                
+                // The visual center is the midpoint between the top and bottom card centers
+                // This ensures the button is centered in the actual space between boxes
+                const centerY = (topCardCenterY + bottomCardCenterY) / 2;
+                
+                return (
+                  <>
+                    {/* Insights button in the center - circular */}
+                    <TouchableOpacity
+                      style={[
+                        styles.insightsButtonContainerCentered,
+                        {
+                          left: centerX - 30 * fontScale,
+                          top: centerY - 25 * fontScale, // Center the button at visual center
+                        },
+                      ]}
+                      onPress={() => {
+                        if (!isSubscribed) {
+                          router.push('/paywall');
+                        } else {
+                          router.push('/insights');
+                        }
+                      }}
+                      activeOpacity={0.9}
+                    >
+                      <LinearGradient
+                        colors={
+                          colorScheme === 'dark'
+                            ? ['#BA68C8', '#9575CD', '#64B5F6', '#4DB6AC'] // Desaturated purple-to-blue gradient
+                            : ['#a78bfa', '#818cf8', '#60a5fa', '#38bdf8']
+                        }
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.insightsButtonGradientCircular}
+                      >
+                        <View style={styles.insightsIconContainerCircular}>
+                          <MaterialIcons name="insights" size={28 * fontScale} color="#ffffff" />
+                          <MaterialIcons
+                            name="auto-awesome"
+                            size={14 * fontScale}
+                            color="#FFD700"
+                            style={styles.sparkleIcon}
+                          />
+                        </View>
+                      </LinearGradient>
+                    </TouchableOpacity>
+
+                    {/* Sphere boxes arranged in a circle around the Insights button */}
+                    <View style={styles.sphereGrid}>
+                      {spheres.map((sphere, index) => {
+                        // Calculate circular positions for 5 spheres
+                        // Start from top (90 degrees) and distribute evenly (360/5 = 72 degrees apart)
+                        let angle = (90 - (index * 72)) * (Math.PI / 180); // Convert to radians, start from top
+                        
+                        // Move hobbies and career boxes to middle position to overlap both upper and bottom boxes
+                        // Career is index 1 (top-right at 18°), Hobbies is index 4 (bottom-left at -126°)
+                        if (sphere.type === 'career') {
+                          // Move career to middle-right position (around 0° to -20°)
+                          // This positions it between top-right and bottom, overlapping both
+                          angle = 10 * (Math.PI / 180); // Middle-right position
+                        } else if (sphere.type === 'hobbies') {
+                          // Move hobbies to middle-left position, slightly down (around 175°)
+                          // This positions it between top-left and bottom, overlapping both
+                          angle = 170 * (Math.PI / 180); // Middle-left position, slightly down
+                        } else if (sphere.type === 'friends') {
+                          // Move friends box up to top-left position
+                          // Friends is at index 3, default angle would be (90 - 216) = -126° = 234° (bottom-left)
+                          // To move to top-left, set to around 135° (top-left)
+                          angle = 260 * (Math.PI / 200); // Position at top-left (135°)
+                        } else if (sphere.type === 'family') {
+                          // Move family box up (from default position)  
+                          // Family is at index 2, default angle would be (90 - 144) = -54° = 306°
+                          // To move up towards top (90°), we need to increase the angle
+                          // Calculate default and then adjust
+                          const defaultAngleDeg = 85 - (index * 65);
+                          angle = (defaultAngleDeg - 25) * (Math.PI / 180); // Move up by 15 degrees
+                        }
+                        
+                        // Position cards around the center point (same as Insights button)
+                        // The center point is the center of the circle, so we position cards relative to that
+                        const x = centerX + radius * Math.cos(angle) - cardHalfWidth; // Subtract half card width
+                        const y = centerY + radius * Math.sin(angle) - cardHalfHeight; // Subtract half card height
+                  
                   // Get sphere-specific colors - theme-aware for proper contrast
-                  // Light mode: Use darker, more saturated colors for contrast against light grey backgrounds
-                  // Dark mode: Use desaturated colors for reduced eye strain and better readability
                   const getSphereColor = (sphereType: LifeSphere): string => {
                     if (colorScheme === 'light') {
-                      // Light mode: Use darker, more saturated colors for better contrast
-                      // Following Material Design principles for light surfaces
                       switch (sphereType) {
                         case 'relationships':
-                          return '#D32F2F'; // Darker red for better contrast
+                          return '#D32F2F';
                         case 'career':
-                          return '#1976D2'; // Darker blue for better contrast
+                          return '#1976D2';
                         case 'family':
-                          return '#388E3C'; // Darker green for better contrast
+                          return '#388E3C';
                         case 'friends':
-                          return '#7B1FA2'; // Darker purple for better contrast
+                          return '#7B1FA2';
                         case 'hobbies':
-                          return '#F57C00'; // Darker orange for better contrast
+                          return '#F57C00';
                         default:
-                          return '#1976D2'; // Default to darker blue
+                          return '#1976D2';
                       }
                     } else {
-                      // Dark mode: Use desaturated colors (Material Design 300 palette)
-                      // These work well against dark backgrounds and reduce eye strain
                       switch (sphereType) {
                         case 'relationships':
-                          return '#E57373'; // Desaturated red
+                          return '#E57373';
                         case 'career':
-                          return '#64B5F6'; // Desaturated blue
+                          return '#64B5F6';
                         case 'family':
-                          return '#81C784'; // Desaturated green
+                          return '#81C784';
                         case 'friends':
-                          return '#BA68C8'; // Desaturated purple
+                          return '#BA68C8';
                         case 'hobbies':
-                          return '#FFB74D'; // Desaturated orange
+                          return '#FFB74D';
                         default:
-                          return '#64B5F6'; // Default to desaturated blue
+                          return '#64B5F6';
                       }
                     }
                   };
@@ -1668,19 +1803,23 @@ export default function SpheresScreen() {
                   const sphereColor = getSphereColor(sphere.type);
                   const isActive = expandedSphere === sphere.type;
                   
-                  // Very subtle gradient colors for dark mode (from slightly darker to slightly lighter blue-grey)
                   const darkGradientColors = ['#223041', '#243041', '#263041'] as const;
-                  // Very subtle grey gradient for light mode (darker for better contrast with darker icon colors)
                   const lightGradientColors = ['rgb(170, 170, 170)', 'rgb(180, 180, 180)', 'rgb(175, 175, 175)'] as const;
-                  
-                  // Active state gradient (slightly brighter)
                   const darkActiveGradientColors = ['#2D3A4F', '#2F3A4F', '#313A4F'] as const;
                   const lightActiveGradientColors = ['rgb(190, 190, 190)', 'rgb(200, 200, 200)', 'rgb(195, 195, 195)'] as const;
                   
                   return (
                     <TouchableOpacity
                       key={sphere.type}
-                      style={[styles.sphereCard, isActive && styles.sphereCardActive]}
+                      style={[
+                        styles.sphereCard,
+                        styles.sphereCardPositioned,
+                        isActive && styles.sphereCardActive,
+                        {
+                          left: x,
+                          top: y,
+                        },
+                      ]}
                       onPress={() => handleSpherePress(sphere.type)}
                       activeOpacity={0.8}
                     >
@@ -1710,53 +1849,11 @@ export default function SpheresScreen() {
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+                    </View>
+                  </>
+                );
+              })()}
             </View>
-
-            {/* Premium Insights Button */}
-            <TouchableOpacity
-              style={styles.insightsButtonContainer}
-              onPress={() => {
-                if (!isSubscribed) {
-                  router.push('/paywall');
-                } else {
-                  router.push('/insights');
-                }
-              }}
-              activeOpacity={0.9}
-            >
-              <LinearGradient
-                colors={
-                  colorScheme === 'dark'
-                    ? ['#BA68C8', '#9575CD', '#64B5F6', '#4DB6AC'] // Desaturated purple-to-blue gradient
-                    : ['#a78bfa', '#818cf8', '#60a5fa', '#38bdf8']
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.insightsButtonGradient}
-              >
-                <View style={styles.insightsButtonContent}>
-                  <View style={styles.insightsIconContainer}>
-                    <MaterialIcons name="insights" size={28 * fontScale} color="#ffffff" />
-                    <MaterialIcons
-                      name="auto-awesome"
-                      size={14 * fontScale}
-                      color="#FFD700"
-                      style={styles.sparkleIcon}
-                    />
-                  </View>
-                  <View style={styles.insightsTextContainer}>
-                    <ThemedText size="sm" weight="bold" style={styles.insightsButtonTitle}>
-                      {t('insights.wheelOfLife.title')}
-                    </ThemedText>
-                    <ThemedText size="xs" style={styles.insightsButtonSubtitle}>
-                      {t('insights.wheelOfLife.subtitle')}
-                    </ThemedText>
-                  </View>
-                  <MaterialIcons name="arrow-forward" size={20 * fontScale} color="#ffffff" />
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
           </View>
         )}
       </View>

@@ -251,6 +251,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   memorySlideOffset,
   onMemoryFocus,
   yearSection,
+  onPositionChange,
+  enableDragging = false,
 }: {
   profile: any;
   position: { x: number; y: number };
@@ -263,6 +265,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
   onMemoryFocus?: (entityId: string, memoryId: string, sphere?: LifeSphere) => void;
   yearSection?: { year: number | string; top: number; bottom: number; height: number };
+  onPositionChange?: (x: number, y: number) => void;
+  enableDragging?: boolean;
 }) {
   const { isTablet } = useLargeDevice();
   const baseAvatarSize = isTablet ? 120 : 80; // 50% larger on tablets
@@ -322,6 +326,84 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const floatAnimation = useSharedValue(0);
   const panX = useSharedValue(position.x);
   const panY = useSharedValue(position.y);
+  const isDragging = useSharedValue(false);
+  const dragStartX = useSharedValue(position.x);
+  const dragStartY = useSharedValue(position.y);
+  const dragStartedRef = useRef(false); // Track if a drag gesture started
+  
+  // PanResponder for dragging when enabled
+  const panResponder = React.useMemo(
+    () =>
+      enableDragging && !isFocused
+        ? PanResponder.create({
+            onStartShouldSetPanResponder: () => false, // Don't capture on start - let Pressable handle taps
+            onMoveShouldSetPanResponder: (evt, gestureState) => {
+              // Only capture if there's significant movement (more than 10px to avoid accidental drags)
+              const hasMovement = Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
+              if (hasMovement) {
+                dragStartedRef.current = true; // Mark that we started dragging
+              }
+              return hasMovement;
+            },
+            onPanResponderGrant: () => {
+              dragStartedRef.current = true;
+              isDragging.value = true;
+              dragStartX.value = panX.value;
+              dragStartY.value = panY.value;
+            },
+            onPanResponderMove: (evt, gestureState) => {
+              if (!dragStartedRef.current) return;
+              
+              const newX = dragStartX.value + gestureState.dx;
+              const newY = dragStartY.value + gestureState.dy;
+              
+              // Clamp to viewport bounds
+              const padding = avatarSize / 2 + 20;
+              const minX = padding;
+              const maxX = SCREEN_WIDTH - padding;
+              const minY = padding;
+              const maxY = SCREEN_HEIGHT - padding;
+              
+              panX.value = Math.max(minX, Math.min(maxX, newX));
+              panY.value = Math.max(minY, Math.min(maxY, newY));
+            },
+            onPanResponderRelease: (evt, gestureState) => {
+              const wasDragging = dragStartedRef.current;
+              dragStartedRef.current = false;
+              isDragging.value = false;
+              
+              if (wasDragging) {
+                const newX = dragStartX.value + gestureState.dx;
+                const newY = dragStartY.value + gestureState.dy;
+                
+                // Clamp to viewport bounds
+                const padding = avatarSize / 2 + 20;
+                const minX = padding;
+                const maxX = SCREEN_WIDTH - padding;
+                const minY = padding;
+                const maxY = SCREEN_HEIGHT - padding;
+                
+                const finalX = Math.max(minX, Math.min(maxX, newX));
+                const finalY = Math.max(minY, Math.min(maxY, newY));
+                
+                panX.value = finalX;
+                panY.value = finalY;
+                dragStartX.value = finalX;
+                dragStartY.value = finalY;
+                
+                // Notify parent of position change
+                onPositionChange?.(finalX, finalY);
+              }
+            },
+            onPanResponderTerminate: () => {
+              dragStartedRef.current = false;
+              isDragging.value = false;
+            },
+            onPanResponderTerminationRequest: () => false,
+          })
+        : null,
+    [enableDragging, isFocused, panX, panY, dragStartX, dragStartY, avatarSize, onPositionChange]
+  );
   
   // Create individual animated values for each memory with different speeds
   // Create enough for up to 25 memories to support profiles with many memories
@@ -403,15 +485,17 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     });
   }, [memoryPanX0, memoryPanX1, memoryPanX2, memoryPanX3, memoryPanX4, memoryPanX5, memoryPanX6, memoryPanX7, memoryPanX8, memoryPanX9, memoryPanX10, memoryPanX11, memoryPanX12, memoryPanX13, memoryPanX14, memoryPanX15, memoryPanX16, memoryPanX17, memoryPanX18, memoryPanX19, memoryPanX20, memoryPanX21, memoryPanX22, memoryPanX23, memoryPanX24, memoryPanY0, memoryPanY1, memoryPanY2, memoryPanY3, memoryPanY4, memoryPanY5, memoryPanY6, memoryPanY7, memoryPanY8, memoryPanY9, memoryPanY10, memoryPanY11, memoryPanY12, memoryPanY13, memoryPanY14, memoryPanY15, memoryPanY16, memoryPanY17, memoryPanY18, memoryPanY19, memoryPanY20, memoryPanY21, memoryPanY22, memoryPanY23, memoryPanY24]);
   
-  // Update pan values when position prop changes
+  // Update pan values when position prop changes (but not while dragging)
   React.useEffect(() => {
-    panX.value = position.x;
-    panY.value = position.y;
-    memoryAnimatedValues.forEach((mem) => {
-      mem.panX.value = position.x;
-      mem.panY.value = position.y;
-    });
-  }, [position.x, position.y, panX, panY, memoryAnimatedValues]);
+    if (!isDragging.value) {
+      panX.value = position.x;
+      panY.value = position.y;
+      memoryAnimatedValues.forEach((mem) => {
+        mem.panX.value = position.x;
+        mem.panY.value = position.y;
+      });
+    }
+  }, [position.x, position.y, panX, panY, memoryAnimatedValues, isDragging]);
   
   React.useEffect(() => {
     if (!isFocused) {
@@ -518,6 +602,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       // This MUST happen before the component renders with isFocused=true
       animationStartedForFocusRef.current = true; // Mark animation as started
       
+      // Store the original position - position prop now contains the original position
+      // (not the center) because we updated focused renderers to pass original position
       startX.value = position.x;
       startY.value = position.y;
       zoomProgress.value = 0; // Start at 0 (State A) - CRITICAL for animation to start from State A
@@ -608,7 +694,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       // Values should already be set to State B in useLayoutEffect
       // Start animation immediately - all values animate together
       const easingConfig = Easing.bezier(0.4, 0.0, 0.2, 1);
-      const zoomOutDuration = 9000; // Much slower, more gradual zoom-out
+      const zoomOutDuration = 1200; // Faster zoom-out to match zoom-in duration
       
       // Animate from focused state (progress = 1) back to unfocused (progress = 0)
       // Position, scale, and progress all animate together for smooth zoom-out
@@ -635,32 +721,53 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
   const animatedStyle = useAnimatedStyle(() => {
     'worklet';
+    // When dragging is enabled and not focused, use panX/panY directly
+    if (enableDragging && !isFocused) {
+      const floatOffset = floatAnimation.value * 6;
+      return {
+        transform: [
+          { translateX: panX.value - position.x },
+          { translateY: panY.value - position.y + floatOffset },
+          { scale: zoomScale.value },
+        ],
+      };
+    }
+    
     // Interpolate position and scale based on zoom progress
     // When zoomProgress = 0: at start position (State A), scale = 1
     // When zoomProgress = 1: at center position (State B), scale = focusedScale
+    
+    // Use the stored start position instead of position prop to prevent flickering
+    // This ensures we always animate from the correct starting point
+    const startPosX = startX.value;
+    const startPosY = startY.value;
     
     let currentX: number;
     let currentY: number;
     
     if (isFocused) {
       // Zoom-in: interpolate from start position to center
-      currentX = startX.value + (targetX - startX.value) * zoomProgress.value;
-      currentY = startY.value + (targetY - startY.value) * zoomProgress.value;
+      currentX = startPosX + (targetX - startPosX) * zoomProgress.value;
+      currentY = startPosY + (targetY - startPosY) * zoomProgress.value;
     } else {
       // Zoom-out: interpolate from center back to original position
+      // Use focusedX/focusedY which are the current animated positions, not the prop
       // When zoomProgress = 1: at center (targetX, targetY)
       // When zoomProgress = 0: at original position (position.x, position.y)
-      currentX = targetX + (position.x - targetX) * (1 - zoomProgress.value);
-      currentY = targetY + (position.y - targetY) * (1 - zoomProgress.value);
+      const endPosX = position.x;
+      const endPosY = position.y;
+      currentX = focusedX.value + (endPosX - focusedX.value) * (1 - zoomProgress.value);
+      currentY = focusedY.value + (endPosY - focusedY.value) * (1 - zoomProgress.value);
     }
     
     if (isFocused) {
       // When focused, use interpolated position and scale (zoom-in effect)
       const currentScale = zoomScale.value;
+      // Use startPosX/Y instead of position.x/y to ensure we animate from the correct starting point
       return {
         transform: [
-          { translateX: currentX - position.x },
-          { translateY: currentY - position.y },
+          { translateX: currentX - startPosX },
+          { translateY: currentY - startPosY },
           { scale: currentScale },
         ],
       };
@@ -668,11 +775,14 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     // When not focused, continue using interpolated values for smooth zoom-out
     // Add floating animation only when fully unfocused (zoomProgress = 0)
     const floatOffset = zoomProgress.value === 0 ? floatAnimation.value * 6 : 0;
+    // Use the current animated position as reference, not the prop
+    const refX = zoomProgress.value > 0 ? focusedX.value : position.x;
+    const refY = zoomProgress.value > 0 ? focusedY.value : position.y;
     
     return {
       transform: [
-        { translateX: currentX - position.x },
-        { translateY: currentY - position.y + floatOffset },
+        { translateX: currentX - refX },
+        { translateY: currentY - refY + floatOffset },
         { scale: zoomScale.value },
       ],
     };
@@ -680,18 +790,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
   // Calculate memory positions based on current animated position
   const memoryPositions = useMemo(() => {
-    // Debug logging for Sophie Anderson
-    if (profile.id === 'friend_1764974729115_dr1zdkoh3' || profile.name === 'Sophie Anderson') {
-      console.log(`[Memory Positions Debug] Calculating positions for:`, {
-        entityId: profile.id,
-        entityName: profile.name,
-        memoriesCount: memories.length,
-        position: position,
-        isFocused: isFocused,
-        memoryRadius: memoryRadius
-      });
-    }
-    
     // Calculate max moments count to normalize distances
     const maxMomentsCount = Math.max(...memories.map(m => 
       ((m.hardTruths || []).length + (m.goodFacts || []).length)
@@ -850,24 +948,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       const offsetX = variedRadius * cosAngle;
       const offsetY = variedRadius * sinAngle;
       
-      // Debug logging for Sophie Anderson
-      if (profile.id === 'friend_1764974729115_dr1zdkoh3' || profile.name === 'Sophie Anderson') {
-        console.log(`[Memory Position Debug] Memory ${memIndex + 1}/${memories.length} "${memory.title}":`, {
-          memoryId: memory.id,
-          angle: variedAngle,
-          variedRadius: variedRadius,
-          maxRadiusInDirection: maxRadiusInDirection,
-          offsetX: offsetX,
-          offsetY: offsetY,
-          calculatedX: position.x + offsetX,
-          calculatedY: position.y + offsetY,
-          avatarPosition: position,
-          isWithinViewport: (position.x + offsetX >= 0 && position.x + offsetX <= SCREEN_WIDTH && position.y + offsetY >= 0 && position.y + offsetY <= SCREEN_HEIGHT),
-          screenWidth: SCREEN_WIDTH,
-          screenHeight: SCREEN_HEIGHT
-        });
-      }
-      
       return {
         angle: variedAngle,
         offsetX: offsetX,
@@ -879,20 +959,32 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   return (
     <>
       <Animated.View
+        {...(panResponder?.panHandlers || {})}
         style={[
           {
             position: 'absolute',
             left: position.x - avatarSize / 2,
             top: position.y - avatarSize / 2,
             zIndex: 100, // Much higher z-index to ensure avatars are always on top and interactive
-            pointerEvents: 'box-none', // Allow touches to pass through to children
+            pointerEvents: enableDragging && !isFocused ? 'auto' : 'box-none', // Allow touches when dragging enabled
           },
           animatedStyle,
         ]}
       >
         <Pressable
-          style={{ pointerEvents: 'auto' }} // Ensure Pressable can receive touches
-          onPress={onPress}
+          style={{ pointerEvents: 'auto' }} // Always allow press events
+          onPress={() => {
+            // Only trigger onPress if we didn't drag
+            // Use a small delay to check if drag started (PanResponder needs time to set the flag)
+            const checkDrag = () => {
+              if (!dragStartedRef.current && !isDragging.value) {
+                onPress();
+              }
+            };
+            // Check immediately and after a short delay to catch drags that start quickly
+            checkDrag();
+            setTimeout(checkDrag, 100);
+          }}
         >
           {/* Circular progress bar border */}
           <View
@@ -972,16 +1064,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
       {/* Floating Memories around Avatar - rendered separately for proper z-index */}
       {useMemo(() => {
-        // Debug logging for memory filtering
-        console.log(`[FloatingAvatar Debug] Entity:`, {
-          id: profile.id,
-          name: profile.name,
-          totalMemories: memories.length,
-          memories: memories.map(m => ({ id: m.id, title: m.title })),
-          focusedMemory: focusedMemory,
-          isFocused: isFocused
-        });
-        
         // Always show all memories - they should be visible around profiles at all times
         const filteredMemories = memories.filter((memory) => {
           // If a memory is focused, only show that specific memory
@@ -998,14 +1080,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           return true;
         });
         
-        console.log(`[FloatingAvatar Debug] Filtered memories:`, {
-          entityId: profile.id,
-          entityName: profile.name,
-          totalMemories: memories.length,
-          filteredMemoriesCount: filteredMemories.length,
-          filteredMemoryIds: filteredMemories.map(m => m.id)
-        });
-        
         // Memoize position objects to prevent unnecessary re-renders
         const positionX = position.x;
         const positionY = position.y;
@@ -1017,11 +1091,13 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         // Safety check: if we have more memories than animated values, use the last available one
         const memAnimatedValues = memoryAnimatedValues[originalIndex] || memoryAnimatedValues[memoryAnimatedValues.length - 1];
         
-        // When focused, avatar is centered on screen, so use centered position for memory calculations
-        const avatarCenterX = isFocused ? SCREEN_WIDTH / 2 : positionX;
-        const avatarCenterY = isFocused ? SCREEN_HEIGHT / 2 : positionY;
+        // When focused, use the position prop which should be the animated position
+        // The position prop is updated to center when focused, so use it directly
+        // This ensures memories follow the avatar smoothly during animation
+        const avatarCenterX = positionX;
+        const avatarCenterY = positionY;
         
-        // Initial position for first render - use centered position when focused
+        // Initial position for first render - position prop already contains animated position
         const initialMemPos = {
           x: avatarCenterX + memPosData.offsetX,
           y: avatarCenterY + memPosData.offsetY,
@@ -1111,26 +1187,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         
         const memorySize = Math.min(baseMemorySize, calculatedMaxMemorySize);
         
-        // Debug logging for memory positioning
-        if (profile.id === 'friend_1764974729115_dr1zdkoh3' || profile.name === 'Sophie Anderson') {
-          console.log(`[FloatingMemory Position Debug] Memory "${memory.title}":`, {
-            entityId: profile.id,
-            entityName: profile.name,
-            memoryId: memory.id,
-            memoryIndex: memIndex,
-            initialPosition: initialMemPos,
-            offsetX: memPosData.offsetX,
-            offsetY: memPosData.offsetY,
-            avatarPosition: { x: positionX, y: positionY },
-            avatarCenter: { x: avatarCenterX, y: avatarCenterY },
-            memorySize: memorySize,
-            isFocused: isFocused,
-            screenWidth: SCREEN_WIDTH,
-            screenHeight: SCREEN_HEIGHT,
-            isWithinViewport: initialMemPos.x >= 0 && initialMemPos.x <= SCREEN_WIDTH && initialMemPos.y >= 0 && initialMemPos.y <= SCREEN_HEIGHT
-          });
-        }
-        
         return (
           <FloatingMemory
             key={`memory-${memory.id}-${memIndex}`}
@@ -1158,15 +1214,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             focusedMemory={focusedMemory}
           />
         );
-        });
-        
-        console.log(`[FloatingAvatar Debug] Rendered floating memories count:`, {
-          entityId: profile.id,
-          entityName: profile.name,
-          totalMemories: memories.length,
-          filteredMemoriesCount: filteredMemories.length,
-          renderedMemoriesCount: renderedMemories.length,
-          renderedMemoryTitles: filteredMemories.map(m => m.title)
         });
         
         return renderedMemories;
@@ -2135,14 +2182,33 @@ const FloatingMemory = React.memo(function FloatingMemory({
     
     // Store start position for animation (button center, since panX/panY represent center)
     // Set this FIRST before marking as visible to ensure it's available when component renders
-    if (cloudButtonPos) {
-      setNewlyCreatedMoments(prev => {
-        const next = new Map(prev);
-        next.set(nextCloud.id, {
-          startX: cloudButtonPos.x,
-          startY: cloudButtonPos.y,
+    // If button position isn't measured yet, measure it using requestAnimationFrame to ensure layout is complete
+    const storeStartPosition = (buttonPos: { x: number; y: number } | null) => {
+      if (buttonPos) {
+        setNewlyCreatedMoments(prev => {
+          const next = new Map(prev);
+          next.set(nextCloud.id, {
+            startX: buttonPos.x,
+            startY: buttonPos.y,
+          });
+          return next;
         });
-        return next;
+      }
+    };
+    
+    if (cloudButtonPos) {
+      storeStartPosition(cloudButtonPos);
+    } else if (cloudButtonRef.current) {
+      // If position not available yet, measure it now
+      // Use requestAnimationFrame to ensure layout has completed
+      requestAnimationFrame(() => {
+        cloudButtonRef.current?.measure((fx: number, fy: number, width: number, height: number, px: number, py: number) => {
+          const buttonCenterX = px + width / 2;
+          const buttonCenterY = py + height / 2;
+          const measuredPos = { x: buttonCenterX, y: buttonCenterY };
+          setCloudButtonPos(measuredPos);
+          storeStartPosition(measuredPos);
+        });
       });
     }
     
@@ -2153,11 +2219,21 @@ const FloatingMemory = React.memo(function FloatingMemory({
     await onUpdateMemory({ hardTruths: updatedHardTruths });
     
     // Mark as visible AFTER start position is set
-    // Use a small delay to ensure state update completes
-    setTimeout(() => {
-      setVisibleMomentIds(prev => new Set([...prev, nextCloud.id]));
-      // Don't clear start position - it's harmless to keep it and prevents re-render issues
-    }, 50); // Small delay to ensure start position state is set
+    // If button position was already available, mark visible immediately
+    // Otherwise, wait for the measurement to complete
+    const markVisible = () => {
+      setTimeout(() => {
+        setVisibleMomentIds(prev => new Set([...prev, nextCloud.id]));
+        // Don't clear start position - it's harmless to keep it and prevents re-render issues
+      }, 50); // Small delay to ensure start position state is set
+    };
+    
+    if (cloudButtonPos) {
+      markVisible();
+    } else {
+      // Wait a bit longer if we had to measure the button position
+      setTimeout(markVisible, 100);
+    }
   }, [memory.hardTruths, visibleMomentIds, onUpdateMemory, calculateClampedPosition, cloudWidth, cloudHeight, memorySize, cloudButtonPos]);
   
   // Handler to create a new sun moment
@@ -2184,14 +2260,33 @@ const FloatingMemory = React.memo(function FloatingMemory({
     
     // Store start position for animation (button center, since panX/panY represent center)
     // Set this FIRST before marking as visible to ensure it's available when component renders
-    if (sunButtonPos) {
-      setNewlyCreatedMoments(prev => {
-        const next = new Map(prev);
-        next.set(nextSun.id, {
-          startX: sunButtonPos.x,
-          startY: sunButtonPos.y,
+    // If button position isn't measured yet, measure it using requestAnimationFrame to ensure layout is complete
+    const storeStartPosition = (buttonPos: { x: number; y: number } | null) => {
+      if (buttonPos) {
+        setNewlyCreatedMoments(prev => {
+          const next = new Map(prev);
+          next.set(nextSun.id, {
+            startX: buttonPos.x,
+            startY: buttonPos.y,
+          });
+          return next;
         });
-        return next;
+      }
+    };
+    
+    if (sunButtonPos) {
+      storeStartPosition(sunButtonPos);
+    } else if (sunButtonRef.current) {
+      // If position not available yet, measure it now
+      // Use requestAnimationFrame to ensure layout has completed
+      requestAnimationFrame(() => {
+        sunButtonRef.current?.measure((fx: number, fy: number, width: number, height: number, px: number, py: number) => {
+          const buttonCenterX = px + width / 2;
+          const buttonCenterY = py + height / 2;
+          const measuredPos = { x: buttonCenterX, y: buttonCenterY };
+          setSunButtonPos(measuredPos);
+          storeStartPosition(measuredPos);
+        });
       });
     }
     
@@ -2202,11 +2297,21 @@ const FloatingMemory = React.memo(function FloatingMemory({
     await onUpdateMemory({ goodFacts: updatedGoodFacts });
     
     // Mark as visible AFTER start position is set
-    // Use a small delay to ensure state update completes
-    setTimeout(() => {
-      setVisibleMomentIds(prev => new Set([...prev, nextSun.id]));
-      // Don't clear start position - it's harmless to keep it and prevents re-render issues
-    }, 50); // Small delay to ensure start position state is set
+    // If button position was already available, mark visible immediately
+    // Otherwise, wait for the measurement to complete
+    const markVisible = () => {
+      setTimeout(() => {
+        setVisibleMomentIds(prev => new Set([...prev, nextSun.id]));
+        // Don't clear start position - it's harmless to keep it and prevents re-render issues
+      }, 50); // Small delay to ensure start position state is set
+    };
+    
+    if (sunButtonPos) {
+      markVisible();
+    } else {
+      // Wait a bit longer if we had to measure the button position
+      setTimeout(markVisible, 100);
+    }
   }, [memory.goodFacts, visibleMomentIds, onUpdateMemory, calculateClampedPosition, sunWidth, sunHeight, memorySize, sunButtonPos]);
 
   const floatAnimation = useSharedValue(0);
@@ -4378,8 +4483,11 @@ export default function HomeScreen() {
   // Track positions for each avatar (for dragging)
   const [avatarPositionsState, setAvatarPositionsState] = React.useState<Map<string, { x: number; y: number }>>(new Map());
 
-  // Storage key for avatar positions
+  // Storage keys for entity positions
   const AVATAR_POSITIONS_KEY = '@sferas:avatar_positions';
+  const FAMILY_POSITIONS_KEY = '@sferas:family_positions';
+  const FRIEND_POSITIONS_KEY = '@sferas:friend_positions';
+  const HOBBY_POSITIONS_KEY = '@sferas:hobby_positions';
 
   // Load saved avatar positions from storage
   const [savedPositions, setSavedPositions] = React.useState<Map<string, { x: number; y: number }> | null>(null);
@@ -4549,6 +4657,11 @@ export default function HomeScreen() {
     return avatarPositions.get(profileId) || { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
   }, [avatarPositions]);
   
+  // Position storage for family/friends/hobbies
+  const [familyPositionsState, setFamilyPositionsState] = React.useState<Map<string, { x: number; y: number }>>(new Map());
+  const [friendPositionsState, setFriendPositionsState] = React.useState<Map<string, { x: number; y: number }>>(new Map());
+  const [hobbyPositionsState, setHobbyPositionsState] = React.useState<Map<string, { x: number; y: number }>>(new Map());
+  
   // Update position for a profile and save to storage
   const updateAvatarPosition = React.useCallback(async (profileId: string, newPosition: { x: number; y: number }) => {
     setAvatarPositionsState((prev) => {
@@ -4562,6 +4675,63 @@ export default function HomeScreen() {
       });
       AsyncStorage.setItem(AVATAR_POSITIONS_KEY, JSON.stringify(positionsObj)).catch(() => {
         // Error saving avatar positions
+      });
+      
+      return next;
+    });
+  }, []);
+  
+  // Update position for a family member and save to storage
+  const updateFamilyMemberPosition = React.useCallback(async (memberId: string, newPosition: { x: number; y: number }) => {
+    setFamilyPositionsState((prev) => {
+      const next = new Map(prev);
+      next.set(memberId, newPosition);
+      
+      // Save to AsyncStorage asynchronously
+      const positionsObj: Record<string, { x: number; y: number }> = {};
+      next.forEach((pos, id) => {
+        positionsObj[id] = pos;
+      });
+      AsyncStorage.setItem(FAMILY_POSITIONS_KEY, JSON.stringify(positionsObj)).catch(() => {
+        // Error saving family positions
+      });
+      
+      return next;
+    });
+  }, []);
+  
+  // Update position for a friend and save to storage
+  const updateFriendPosition = React.useCallback(async (friendId: string, newPosition: { x: number; y: number }) => {
+    setFriendPositionsState((prev) => {
+      const next = new Map(prev);
+      next.set(friendId, newPosition);
+      
+      // Save to AsyncStorage asynchronously
+      const positionsObj: Record<string, { x: number; y: number }> = {};
+      next.forEach((pos, id) => {
+        positionsObj[id] = pos;
+      });
+      AsyncStorage.setItem(FRIEND_POSITIONS_KEY, JSON.stringify(positionsObj)).catch(() => {
+        // Error saving friend positions
+      });
+      
+      return next;
+    });
+  }, []);
+  
+  // Update position for a hobby and save to storage
+  const updateHobbyPosition = React.useCallback(async (hobbyId: string, newPosition: { x: number; y: number }) => {
+    setHobbyPositionsState((prev) => {
+      const next = new Map(prev);
+      next.set(hobbyId, newPosition);
+      
+      // Save to AsyncStorage asynchronously
+      const positionsObj: Record<string, { x: number; y: number }> = {};
+      next.forEach((pos, id) => {
+        positionsObj[id] = pos;
+      });
+      AsyncStorage.setItem(HOBBY_POSITIONS_KEY, JSON.stringify(positionsObj)).catch(() => {
+        // Error saving hobby positions
       });
       
       return next;
@@ -4638,7 +4808,7 @@ export default function HomeScreen() {
       // Clear the previous focused job ID after animation completes (9000ms matches zoom-out duration)
       const timeoutId = setTimeout(() => {
         previousFocusedJobIdRef.current = null;
-      }, 9000);
+      }, 1200);
       return () => clearTimeout(timeoutId);
     }
   }, [focusedJobId]);
@@ -4964,8 +5134,32 @@ export default function HomeScreen() {
       let currentPosition: { x: number; y: number };
       
       if (isFocused) {
-        // When focused, center on screen
-        currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+        // When focused, use original position - the animation will move it to center
+        // Calculate original position from year section
+        if (yearSection) {
+          const sectionKey = getJobSectionKey(job);
+          const jobsInSection = sectionKey ? jobsBySection.get(sectionKey) : undefined;
+          if (jobsInSection) {
+            const jobIndexInSection = jobsInSection.findIndex(({ job: j }) => j.id === job.id);
+            const totalJobsInSection = jobsInSection.length;
+            const sectionCenterY = yearSection.top + yearSection.height / 2;
+            const verticalSpacing = totalJobsInSection > 1 
+              ? Math.min(yearSection.height / (totalJobsInSection + 1), 150)
+              : 0;
+            currentPosition = {
+              x: SCREEN_WIDTH / 2,
+              y: totalJobsInSection === 1
+                ? sectionCenterY
+                : yearSection.top + verticalSpacing * (jobIndexInSection + 1)
+            };
+          } else {
+            // Fallback to center if section not found
+            currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+          }
+        } else {
+          // Fallback to center if no year section
+          currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+        }
       } else if (wasJustFocused && yearSection) {
         // When just unfocused, use original position from year section
         // Find the job's position in its section
@@ -5479,6 +5673,47 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
+          {/* Entity name below back arrow - shown when friend/family/hobby is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            let entityName: string | null = null;
+            const sphere = selectedSphere as LifeSphere;
+            
+            if (focusedFriendId && sphere === 'friends') {
+              const friend = friends.find(f => f.id === focusedFriendId);
+              entityName = friend?.name || null;
+            }
+            if (focusedFamilyMemberId && sphere === 'family') {
+              const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
+              entityName = member?.name || null;
+            }
+            if (focusedHobbyId && sphere === 'hobbies') {
+              const hobby = hobbies.find(h => h.id === focusedHobbyId);
+              entityName = hobby?.name || null;
+            }
+            
+            if (entityName) {
+              return (
+                <ThemedText
+                  size="s"
+                  weight="medium"
+                  numberOfLines={1}
+                  style={{
+                    position: 'absolute',
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 16, // Below back button with more spacing
+                    left: 20,
+                    right: 20,
+                    zIndex: 1000,
+                    color: colors.text,
+                    maxWidth: SCREEN_WIDTH - 100, // Leave space for right side content
+                  }}
+                >
+                  {entityName}
+                </ThemedText>
+              );
+            }
+            return null;
+          })()}
+          
           {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
           {!focusedMemory && selectedSphere && (() => {
             // Check if an entity is focused and get its name
@@ -5506,8 +5741,13 @@ export default function HomeScreen() {
               entityName = hobby?.name || null;
             }
             
-            // Show entity name if focused, otherwise show sphere name
-            const displayText = entityName || t(`spheres.${sphere}`);
+            // Only show sphere name when no entity is focused - entity name is shown below Текуща
+            // Don't show entity name here to avoid duplication
+            if (entityName) {
+              return null; // Hide when entity is focused - title is shown below Текуща
+            }
+            
+            const displayText = t(`spheres.${sphere}`);
             
             return (
               <ThemedText
@@ -5703,6 +5943,47 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
+          {/* Entity name below back arrow - shown when friend/family/hobby is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            let entityName: string | null = null;
+            const sphere = selectedSphere as LifeSphere;
+            
+            if (focusedFriendId && sphere === 'friends') {
+              const friend = friends.find(f => f.id === focusedFriendId);
+              entityName = friend?.name || null;
+            }
+            if (focusedFamilyMemberId && sphere === 'family') {
+              const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
+              entityName = member?.name || null;
+            }
+            if (focusedHobbyId && sphere === 'hobbies') {
+              const hobby = hobbies.find(h => h.id === focusedHobbyId);
+              entityName = hobby?.name || null;
+            }
+            
+            if (entityName) {
+              return (
+                <ThemedText
+                  size="s"
+                  weight="medium"
+                  numberOfLines={1}
+                  style={{
+                    position: 'absolute',
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 16, // Below back button with more spacing
+                    left: 20,
+                    right: 20,
+                    zIndex: 1000,
+                    color: colors.text,
+                    maxWidth: SCREEN_WIDTH - 100, // Leave space for right side content
+                  }}
+                >
+                  {entityName}
+                </ThemedText>
+              );
+            }
+            return null;
+          })()}
+          
           {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
           {!focusedMemory && selectedSphere && (() => {
             // Check if an entity is focused and get its name
@@ -5730,8 +6011,13 @@ export default function HomeScreen() {
               entityName = hobby?.name || null;
             }
             
-            // Show entity name if focused, otherwise show sphere name
-            const displayText = entityName || t(`spheres.${sphere}`);
+            // Only show sphere name when no entity is focused - entity name is shown below Текуща
+            // Don't show entity name here to avoid duplication
+            if (entityName) {
+              return null; // Hide when entity is focused - title is shown below Текуща
+            }
+            
+            const displayText = t(`spheres.${sphere}`);
             
             return (
               <ThemedText
@@ -6004,6 +6290,47 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
+          {/* Entity name below back arrow - shown when friend/family/hobby is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            let entityName: string | null = null;
+            const sphere = selectedSphere as LifeSphere;
+            
+            if (focusedFriendId && sphere === 'friends') {
+              const friend = friends.find(f => f.id === focusedFriendId);
+              entityName = friend?.name || null;
+            }
+            if (focusedFamilyMemberId && sphere === 'family') {
+              const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
+              entityName = member?.name || null;
+            }
+            if (focusedHobbyId && sphere === 'hobbies') {
+              const hobby = hobbies.find(h => h.id === focusedHobbyId);
+              entityName = hobby?.name || null;
+            }
+            
+            if (entityName) {
+              return (
+                <ThemedText
+                  size="s"
+                  weight="medium"
+                  numberOfLines={1}
+                  style={{
+                    position: 'absolute',
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 16, // Below back button with more spacing
+                    left: 20,
+                    right: 20,
+                    zIndex: 1000,
+                    color: colors.text,
+                    maxWidth: SCREEN_WIDTH - 100, // Leave space for right side content
+                  }}
+                >
+                  {entityName}
+                </ThemedText>
+              );
+            }
+            return null;
+          })()}
+          
           {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
           {!focusedMemory && selectedSphere && (() => {
             // Check if an entity is focused and get its name
@@ -6031,8 +6358,13 @@ export default function HomeScreen() {
               entityName = hobby?.name || null;
             }
             
-            // Show entity name if focused, otherwise show sphere name
-            const displayText = entityName || t(`spheres.${sphere}`);
+            // Only show sphere name when no entity is focused - entity name is shown below Текуща
+            // Don't show entity name here to avoid duplication
+            if (entityName) {
+              return null; // Hide when entity is focused - title is shown below Текуща
+            }
+            
+            const displayText = t(`spheres.${sphere}`);
             
             return (
               <ThemedText
@@ -6158,11 +6490,15 @@ export default function HomeScreen() {
                     return null;
                   }
                   
+                  // Get saved position or use calculated position
+                  const savedPosition = familyPositionsState.get(member.id);
+                  const finalPosition = savedPosition || position;
+                  
                   return (
                     <FloatingAvatar
                       key={`family-member-${member.id}`}
                       profile={member}
-                      position={position}
+                      position={finalPosition}
                       memories={memories}
                       onPress={() => {
                         const newFocusedId = focusedFamilyMemberId === member.id ? null : member.id;
@@ -6184,6 +6520,8 @@ export default function HomeScreen() {
                         setFocusedMemory({ familyMemberId: entityId, memoryId, sphere });
                       }}
                       yearSection={section}
+                      enableDragging={!isFocused}
+                      onPositionChange={(x, y) => updateFamilyMemberPosition(member.id, { x, y })}
                     />
                   );
                 })}
@@ -6265,6 +6603,47 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
+          {/* Entity name below back arrow - shown when friend/family/hobby is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            let entityName: string | null = null;
+            const sphere = selectedSphere as LifeSphere;
+            
+            if (focusedFriendId && sphere === 'friends') {
+              const friend = friends.find(f => f.id === focusedFriendId);
+              entityName = friend?.name || null;
+            }
+            if (focusedFamilyMemberId && sphere === 'family') {
+              const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
+              entityName = member?.name || null;
+            }
+            if (focusedHobbyId && sphere === 'hobbies') {
+              const hobby = hobbies.find(h => h.id === focusedHobbyId);
+              entityName = hobby?.name || null;
+            }
+            
+            if (entityName) {
+              return (
+                <ThemedText
+                  size="s"
+                  weight="medium"
+                  numberOfLines={1}
+                  style={{
+                    position: 'absolute',
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 16, // Below back button with more spacing
+                    left: 20,
+                    right: 20,
+                    zIndex: 1000,
+                    color: colors.text,
+                    maxWidth: SCREEN_WIDTH - 100, // Leave space for right side content
+                  }}
+                >
+                  {entityName}
+                </ThemedText>
+              );
+            }
+            return null;
+          })()}
+          
           {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
           {!focusedMemory && selectedSphere && (() => {
             // Check if an entity is focused and get its name
@@ -6292,8 +6671,13 @@ export default function HomeScreen() {
               entityName = hobby?.name || null;
             }
             
-            // Show entity name if focused, otherwise show sphere name
-            const displayText = entityName || t(`spheres.${sphere}`);
+            // Only show sphere name when no entity is focused - entity name is shown below Текуща
+            // Don't show entity name here to avoid duplication
+            if (entityName) {
+              return null; // Hide when entity is focused - title is shown below Текуща
+            }
+            
+            const displayText = t(`spheres.${sphere}`);
             
             return (
               <ThemedText
@@ -6391,14 +6775,6 @@ export default function HomeScreen() {
                 {friends.map((friend, index) => {
                   const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
                   
-                  // Debug logging for friends and their memories
-                  console.log(`[Friends Debug] Friend ${index + 1}/${friends.length}:`, {
-                    id: friend.id,
-                    name: friend.name,
-                    memoriesCount: memories.length,
-                    memories: memories.map(m => ({ id: m.id, title: m.title, hardTruths: (m.hardTruths || []).length, goodFacts: (m.goodFacts || []).length }))
-                  });
-                  
                   // Get the section for friends
                   const section = friendsYearSections.get('all');
                   
@@ -6426,21 +6802,15 @@ export default function HomeScreen() {
                     return null;
                   }
                   
-                  console.log(`[Friends Debug] Rendering FloatingAvatar for friend:`, {
-                    friendId: friend.id,
-                    friendName: friend.name,
-                    memoriesCount: memories.length,
-                    memories: memories.map(m => ({ id: m.id, title: m.title })),
-                    position: position,
-                    isFocused: isFocused,
-                    focusedMemory: focusedMemory
-                  });
+                  // Get saved position or use calculated position
+                  const savedPosition = friendPositionsState.get(friend.id);
+                  const finalPosition = savedPosition || position;
                   
                   return (
                     <FloatingAvatar
                       key={`friend-${friend.id}`}
                       profile={friend}
-                      position={position}
+                      position={finalPosition}
                       memories={memories}
                       onPress={() => {
                         const newFocusedId = focusedFriendId === friend.id ? null : friend.id;
@@ -6462,6 +6832,8 @@ export default function HomeScreen() {
                         setFocusedMemory({ friendId: entityId, memoryId, sphere });
                       }}
                       yearSection={section}
+                      enableDragging={!isFocused}
+                      onPositionChange={(x, y) => updateFriendPosition(friend.id, { x, y })}
                     />
                   );
                 })}
@@ -6543,6 +6915,47 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
+          {/* Entity name below back arrow - shown when friend/family/hobby is focused */}
+          {!focusedMemory && selectedSphere && (() => {
+            let entityName: string | null = null;
+            const sphere = selectedSphere as LifeSphere;
+            
+            if (focusedFriendId && sphere === 'friends') {
+              const friend = friends.find(f => f.id === focusedFriendId);
+              entityName = friend?.name || null;
+            }
+            if (focusedFamilyMemberId && sphere === 'family') {
+              const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
+              entityName = member?.name || null;
+            }
+            if (focusedHobbyId && sphere === 'hobbies') {
+              const hobby = hobbies.find(h => h.id === focusedHobbyId);
+              entityName = hobby?.name || null;
+            }
+            
+            if (entityName) {
+              return (
+                <ThemedText
+                  size="s"
+                  weight="medium"
+                  numberOfLines={1}
+                  style={{
+                    position: 'absolute',
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 16, // Below back button with more spacing
+                    left: 20,
+                    right: 20,
+                    zIndex: 1000,
+                    color: colors.text,
+                    maxWidth: SCREEN_WIDTH - 100, // Leave space for right side content
+                  }}
+                >
+                  {entityName}
+                </ThemedText>
+              );
+            }
+            return null;
+          })()}
+          
           {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
           {!focusedMemory && selectedSphere && (() => {
             // Check if an entity is focused and get its name
@@ -6570,8 +6983,13 @@ export default function HomeScreen() {
               entityName = hobby?.name || null;
             }
             
-            // Show entity name if focused, otherwise show sphere name
-            const displayText = entityName || t(`spheres.${sphere}`);
+            // Only show sphere name when no entity is focused - entity name is shown below Текуща
+            // Don't show entity name here to avoid duplication
+            if (entityName) {
+              return null; // Hide when entity is focused - title is shown below Текуща
+            }
+            
+            const displayText = t(`spheres.${sphere}`);
             
             return (
               <ThemedText
@@ -6696,11 +7114,15 @@ export default function HomeScreen() {
                     return null;
                   }
                   
+                  // Get saved position or use calculated position
+                  const savedPosition = hobbyPositionsState.get(hobby.id);
+                  const finalPosition = savedPosition || position;
+                  
                   return (
                     <FloatingAvatar
                       key={`hobby-${hobby.id}`}
                       profile={hobby}
-                      position={position}
+                      position={finalPosition}
                       memories={memories}
                       onPress={() => {
                         const newFocusedId = focusedHobbyId === hobby.id ? null : hobby.id;
@@ -6722,6 +7144,8 @@ export default function HomeScreen() {
                         setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
                       }}
                       yearSection={section}
+                      enableDragging={!isFocused}
+                      onPositionChange={(x, y) => updateHobbyPosition(hobby.id, { x, y })}
                     />
                   );
                 })}
@@ -7207,10 +7631,10 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
     return null;
   }
   
-  // Skip rendering unfocused partners and their memories/moments when animations are complete
-  // This prevents unnecessary re-renders for components not visible in viewport
+  // Hide unfocused profiles immediately when a profile is focused
+  // This prevents showing both start and end positions simultaneously
   // Note: focusedMemory is already filtered by sphere in YearSectionsRenderer, so we can safely check it here
-  if (animationsComplete && focusedProfileId && !isFocused) {
+  if (focusedProfileId && !isFocused) {
     return null;
   }
   
