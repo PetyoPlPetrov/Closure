@@ -19,6 +19,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+
+const AnimatedView = Animated.createAnimatedComponent(View);
 
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
@@ -34,6 +37,26 @@ export default function SpheresScreen() {
   const [walkthroughVisible, setWalkthroughVisible] = useState(false);
   const containerRef = useRef<View>(null);
   const [containerLayout, setContainerLayout] = useState<{ width: number; height: number; x: number; y: number } | null>(null);
+  
+  // Pulse animation for Insights button
+  const pulseScale = useSharedValue(1);
+  
+  useEffect(() => {
+    pulseScale.value = withRepeat(
+      withTiming(1.12, {
+        duration: 2000,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1, // Infinite repeat
+      true // Reverse animation
+    );
+  }, [pulseScale]);
+  
+  const pulseAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: pulseScale.value }],
+    };
+  });
 
   const checkSubscriptionLimit = (sphere: LifeSphere): boolean => {
     if (isSubscribed) return true; // Subscribed users can create unlimited
@@ -554,7 +577,7 @@ export default function SpheresScreen() {
     sphereCard: {
       width: (Dimensions.get('window').width - 48 * fontScale - 32 * fontScale) / 2, // Screen width minus padding and gap, divided by 2
       minWidth: 100 * fontScale,
-      maxWidth: 180 * fontScale,
+      maxWidth: 140 * fontScale,
       aspectRatio: 1,
       borderRadius: 12 * fontScale,
       overflow: 'hidden', // Required for gradient to respect borderRadius
@@ -603,15 +626,18 @@ export default function SpheresScreen() {
     insightsButtonContainerCentered: {
       position: 'absolute',
       borderRadius: 30 * fontScale, // Circular
-      overflow: 'hidden',
-      shadowColor: '#8b5cf6',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.3,
-      shadowRadius: 12,
-      elevation: 10,
       width: 60 * fontScale,
       height: 60 * fontScale,
       zIndex: 10,
+      // Shadow/elevation effect
+      shadowColor: '#8b5cf6',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.6,
+      shadowRadius: 20,
+      elevation: 12,
+      // Border for additional visual depth
+      borderWidth: 3,
+      borderColor: 'rgba(255, 255, 255, 0.3)',
     },
     insightsButtonGradientCircular: {
       width: '100%',
@@ -619,6 +645,7 @@ export default function SpheresScreen() {
       borderRadius: 30 * fontScale,
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden', // Keep gradient circular
     },
     insightsIconContainerCircular: {
       position: 'relative',
@@ -1668,7 +1695,9 @@ export default function SpheresScreen() {
                 // Pre-calculate values used by both button and cards
                 const radius = 140 * fontScale;
                 const screenWidth = Dimensions.get('window').width;
-                const cardWidth = (screenWidth - 48 * fontScale - 32 * fontScale) / 2;
+                // Calculate card width with smaller max size
+                const calculatedCardWidth = (screenWidth - 48 * fontScale - 32 * fontScale) / 2;
+                const cardWidth = Math.min(calculatedCardWidth, 140 * fontScale);
                 const cardHalfWidth = cardWidth / 2;
                 const cardHalfHeight = cardWidth / 2; // Cards are square (aspectRatio: 1)
                 
@@ -1690,24 +1719,28 @@ export default function SpheresScreen() {
                 return (
                   <>
                     {/* Insights button in the center - circular */}
-                    <TouchableOpacity
+                    <AnimatedView
                       style={[
                         styles.insightsButtonContainerCentered,
                         {
                           left: centerX - 30 * fontScale,
-                          top: centerY - 25 * fontScale, // Center the button at visual center
+                          top: centerY - 20 * fontScale, // Elevated button position
                         },
+                        pulseAnimatedStyle,
                       ]}
-                      onPress={() => {
-                        if (!isSubscribed) {
-                          router.push('/paywall');
-                        } else {
-                          router.push('/insights');
-                        }
-                      }}
-                      activeOpacity={0.9}
                     >
-                      <LinearGradient
+                      <TouchableOpacity
+                        style={{ width: '100%', height: '100%' }}
+                        onPress={() => {
+                          if (!isSubscribed) {
+                            router.push('/paywall');
+                          } else {
+                            router.push('/insights');
+                          }
+                        }}
+                        activeOpacity={0.9}
+                      >
+                        <LinearGradient
                         colors={
                           colorScheme === 'dark'
                             ? ['#BA68C8', '#9575CD', '#64B5F6', '#4DB6AC'] // Desaturated purple-to-blue gradient
@@ -1727,7 +1760,8 @@ export default function SpheresScreen() {
                           />
                         </View>
                       </LinearGradient>
-                    </TouchableOpacity>
+                      </TouchableOpacity>
+                    </AnimatedView>
 
                     {/* Sphere boxes arranged in a circle around the Insights button */}
                     <View style={styles.sphereGrid}>
@@ -1745,7 +1779,7 @@ export default function SpheresScreen() {
                         } else if (sphere.type === 'hobbies') {
                           // Move hobbies to middle-left position, slightly down (around 175°)
                           // This positions it between top-left and bottom, overlapping both
-                          angle = 170 * (Math.PI / 180); // Middle-left position, slightly down
+                          angle = 145 * (Math.PI / 155); // Middle-left position, slightly down
                         } else if (sphere.type === 'friends') {
                           // Move friends box up to top-left position
                           // Friends is at index 3, default angle would be (90 - 216) = -126° = 234° (bottom-left)

@@ -15,14 +15,14 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
-    Easing,
-    runOnJS,
-    useAnimatedReaction,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSpring,
-    withTiming
+  Easing,
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSpring,
+  withTiming
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -330,6 +330,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const dragStartX = useSharedValue(position.x);
   const dragStartY = useSharedValue(position.y);
   const dragStartedRef = useRef(false); // Track if a drag gesture started
+  const dragHandlePulse = useSharedValue(0); // Animation for drag handle pulse
   
   // PanResponder for dragging when enabled
   const panResponder = React.useMemo(
@@ -513,6 +514,34 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       floatAnimation.value = 0;
     }
   }, [floatAnimation, isFocused]);
+  
+  // Pulse drag handle icon twice when dragging is enabled and avatar is not focused
+  React.useEffect(() => {
+    if (enableDragging && !isFocused) {
+      // Pulse animation: scale from 1 -> 1.3 -> 1, repeat twice
+      // Use withRepeat with 2 iterations to pulse twice
+      dragHandlePulse.value = withRepeat(
+        withTiming(1, {
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        2, // Repeat twice (so it goes: 0->1->0->1->0)
+        true // Reverse animation
+      );
+    } else {
+      dragHandlePulse.value = 0;
+    }
+  }, [enableDragging, isFocused, dragHandlePulse]);
+  
+  // Animated style for drag handle pulse
+  const dragHandleAnimatedStyle = useAnimatedStyle(() => {
+    // Pulse: scale from 1 to 1.3 and back to 1
+    // dragHandlePulse.value goes from 0 to 1 and back to 0
+    const scale = 1 + (dragHandlePulse.value * 0.3);
+    return {
+      transform: [{ scale }],
+    };
+  });
 
   // Animate each memory to follow avatar with different speeds
   // Use a single reaction that handles all memories
@@ -839,7 +868,10 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     const avatarRadius = avatarSize / 2;
     const memoryRadiusForSpacing = memoryRadiusSize; // Half the memory size
     // Increase spacing padding when focused to ensure memories are clearly separated from avatar
-    const spacingPadding = isFocused ? 30 : 20; // More padding when focused (30px) vs unfocused (20px)
+    // When there are more than 5 memories, push them further out
+    const baseSpacingPadding = isFocused ? 30 : 20; // More padding when focused (30px) vs unfocused (20px)
+    const extraSpacingForManyMemories = isFocused && memories.length > 5 ? 25 : 0; // Extra spacing when more than 5 memories (increased from 15 to 25)
+    const spacingPadding = baseSpacingPadding + extraSpacingForManyMemories;
     const minRequiredRadius = avatarRadius + memoryRadiusForSpacing + spacingPadding; // Ensure memories are clearly outside avatar
     
     const maxSafeRadius = Math.max(
@@ -893,7 +925,11 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         }
       } else if (isFocused && memories.length > 5 && topTwoIndices.includes(memIndex)) {
         // When focused and there are more than 5 elements, push top 2 elements further away
-        const additionalRadius = 50; // Significant additional distance for top 2 elements
+        const additionalRadius = 75; // Increased additional distance for top 2 elements (from 60 to 75)
+        variedRadius = variedRadius + additionalRadius;
+      } else if (isFocused && memories.length > 5) {
+        // For all other memories when there are more than 5, push them further out too
+        const additionalRadius = 30; // Additional distance for other memories (increased from 20 to 30)
         variedRadius = variedRadius + additionalRadius;
       }
       
@@ -1058,6 +1094,30 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                 </ThemedText>
               )}
             </View>
+            
+            {/* Drag handle icon overlay - shown when dragging is enabled and not focused */}
+            {enableDragging && !isFocused && (
+              <Animated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    top: -6,
+                    right: -6,
+                    backgroundColor: colors.primary,
+                    borderRadius: 10,
+                    padding: 4,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 4,
+                    elevation: 5,
+                  },
+                  dragHandleAnimatedStyle,
+                ]}
+              >
+                <MaterialIcons name="drag-indicator" size={16} color="#fff" />
+              </Animated.View>
+            )}
           </View>
         </Pressable>
       </Animated.View>
@@ -5673,11 +5733,20 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
-          {/* Entity name below back arrow - shown when friend/family/hobby is focused */}
+          {/* Entity name below back arrow - shown when partner/friend/family/hobby is focused (not jobs) */}
           {!focusedMemory && selectedSphere && (() => {
             let entityName: string | null = null;
             const sphere = selectedSphere as LifeSphere;
             
+            // Skip showing entity name for jobs (career sphere)
+            if (sphere === 'career' && focusedJobId) {
+              return null;
+            }
+            
+            if (focusedProfileId && sphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              entityName = profile?.name || null;
+            }
             if (focusedFriendId && sphere === 'friends') {
               const friend = friends.find(f => f.id === focusedFriendId);
               entityName = friend?.name || null;
@@ -5694,17 +5763,17 @@ export default function HomeScreen() {
             if (entityName) {
               return (
                 <ThemedText
-                  size="s"
+                  size="l"
                   weight="medium"
                   numberOfLines={1}
                   style={{
                     position: 'absolute',
-                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 16, // Below back button with more spacing
-                    left: 20,
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Lower the name further
                     right: 20,
                     zIndex: 1000,
                     color: colors.text,
-                    maxWidth: SCREEN_WIDTH - 100, // Leave space for right side content
+                    maxWidth: SCREEN_WIDTH - 100, // Leave space for left side content
+                    textAlign: 'right',
                   }}
                 >
                   {entityName}
@@ -5943,11 +6012,20 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
-          {/* Entity name below back arrow - shown when friend/family/hobby is focused */}
+          {/* Entity name below back arrow - shown when partner/friend/family/hobby is focused (not jobs) */}
           {!focusedMemory && selectedSphere && (() => {
             let entityName: string | null = null;
             const sphere = selectedSphere as LifeSphere;
             
+            // Skip showing entity name for jobs (career sphere)
+            if (sphere === 'career' && focusedJobId) {
+              return null;
+            }
+            
+            if (focusedProfileId && sphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              entityName = profile?.name || null;
+            }
             if (focusedFriendId && sphere === 'friends') {
               const friend = friends.find(f => f.id === focusedFriendId);
               entityName = friend?.name || null;
@@ -5964,17 +6042,17 @@ export default function HomeScreen() {
             if (entityName) {
               return (
                 <ThemedText
-                  size="s"
+                  size="l"
                   weight="medium"
                   numberOfLines={1}
                   style={{
                     position: 'absolute',
-                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 16, // Below back button with more spacing
-                    left: 20,
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Lower the name further
                     right: 20,
                     zIndex: 1000,
                     color: colors.text,
-                    maxWidth: SCREEN_WIDTH - 100, // Leave space for right side content
+                    maxWidth: SCREEN_WIDTH - 100, // Leave space for left side content
+                    textAlign: 'right',
                   }}
                 >
                   {entityName}
@@ -6290,11 +6368,20 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
-          {/* Entity name below back arrow - shown when friend/family/hobby is focused */}
+          {/* Entity name below back arrow - shown when partner/friend/family/hobby is focused (not jobs) */}
           {!focusedMemory && selectedSphere && (() => {
             let entityName: string | null = null;
             const sphere = selectedSphere as LifeSphere;
             
+            // Skip showing entity name for jobs (career sphere)
+            if (sphere === 'career' && focusedJobId) {
+              return null;
+            }
+            
+            if (focusedProfileId && sphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              entityName = profile?.name || null;
+            }
             if (focusedFriendId && sphere === 'friends') {
               const friend = friends.find(f => f.id === focusedFriendId);
               entityName = friend?.name || null;
@@ -6311,17 +6398,17 @@ export default function HomeScreen() {
             if (entityName) {
               return (
                 <ThemedText
-                  size="s"
+                  size="l"
                   weight="medium"
                   numberOfLines={1}
                   style={{
                     position: 'absolute',
-                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 16, // Below back button with more spacing
-                    left: 20,
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Lower the name further
                     right: 20,
                     zIndex: 1000,
                     color: colors.text,
-                    maxWidth: SCREEN_WIDTH - 100, // Leave space for right side content
+                    maxWidth: SCREEN_WIDTH - 100, // Leave space for left side content
+                    textAlign: 'right',
                   }}
                 >
                   {entityName}
@@ -6603,11 +6690,20 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
-          {/* Entity name below back arrow - shown when friend/family/hobby is focused */}
+          {/* Entity name below back arrow - shown when partner/friend/family/hobby is focused (not jobs) */}
           {!focusedMemory && selectedSphere && (() => {
             let entityName: string | null = null;
             const sphere = selectedSphere as LifeSphere;
             
+            // Skip showing entity name for jobs (career sphere)
+            if (sphere === 'career' && focusedJobId) {
+              return null;
+            }
+            
+            if (focusedProfileId && sphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              entityName = profile?.name || null;
+            }
             if (focusedFriendId && sphere === 'friends') {
               const friend = friends.find(f => f.id === focusedFriendId);
               entityName = friend?.name || null;
@@ -6624,17 +6720,17 @@ export default function HomeScreen() {
             if (entityName) {
               return (
                 <ThemedText
-                  size="s"
+                  size="l"
                   weight="medium"
                   numberOfLines={1}
                   style={{
                     position: 'absolute',
-                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 16, // Below back button with more spacing
-                    left: 20,
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Lower the name further
                     right: 20,
                     zIndex: 1000,
                     color: colors.text,
-                    maxWidth: SCREEN_WIDTH - 100, // Leave space for right side content
+                    maxWidth: SCREEN_WIDTH - 100, // Leave space for left side content
+                    textAlign: 'right',
                   }}
                 >
                   {entityName}
@@ -6915,11 +7011,20 @@ export default function HomeScreen() {
             <MaterialIcons name="arrow-back" size={isTablet ? 36 : 24} color={colors.text} />
           </Pressable>
           
-          {/* Entity name below back arrow - shown when friend/family/hobby is focused */}
+          {/* Entity name below back arrow - shown when partner/friend/family/hobby is focused (not jobs) */}
           {!focusedMemory && selectedSphere && (() => {
             let entityName: string | null = null;
             const sphere = selectedSphere as LifeSphere;
             
+            // Skip showing entity name for jobs (career sphere)
+            if (sphere === 'career' && focusedJobId) {
+              return null;
+            }
+            
+            if (focusedProfileId && sphere === 'relationships') {
+              const profile = profiles.find(p => p.id === focusedProfileId);
+              entityName = profile?.name || null;
+            }
             if (focusedFriendId && sphere === 'friends') {
               const friend = friends.find(f => f.id === focusedFriendId);
               entityName = friend?.name || null;
@@ -6936,17 +7041,17 @@ export default function HomeScreen() {
             if (entityName) {
               return (
                 <ThemedText
-                  size="s"
+                  size="l"
                   weight="medium"
                   numberOfLines={1}
                   style={{
                     position: 'absolute',
-                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 16, // Below back button with more spacing
-                    left: 20,
+                    top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Lower the name further
                     right: 20,
                     zIndex: 1000,
                     color: colors.text,
-                    maxWidth: SCREEN_WIDTH - 100, // Leave space for right side content
+                    maxWidth: SCREEN_WIDTH - 100, // Leave space for left side content
+                    textAlign: 'right',
                   }}
                 >
                   {entityName}
