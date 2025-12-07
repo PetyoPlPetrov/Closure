@@ -1,12 +1,13 @@
+import { LOG_LEVEL, Purchases, isNativeModuleAvailable } from '@/utils/revenuecat-wrapper';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { Platform } from 'react-native';
 import { useEffect } from 'react';
-import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+import { Platform } from 'react-native';
 import 'react-native-reanimated';
 
+import { handleDevError } from '@/utils/dev-error-handler';
 import { JourneyProvider } from '@/utils/JourneyProvider';
 import { LanguageProvider } from '@/utils/languages/language-context';
 import { SplashAnimationProvider, useSplash } from '@/utils/SplashAnimationProvider';
@@ -27,17 +28,37 @@ function AppContent() {
   const { colorScheme } = useTheme();
 
   useEffect(() => {
-    Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
+    const initializeRevenueCat = async () => {
+      // Only initialize if native module is available
+      if (!isNativeModuleAvailable || !Purchases || !LOG_LEVEL) {
+        if (__DEV__) {
+          console.warn('[RevenueCat] Native module not available. Skipping initialization.');
+        }
+        return;
+      }
 
-    // Platform-specific API keys
-    const iosApiKey = 'test_bwsKZRrhzegZZheOpaNyrIYYLmW';
-    const androidApiKey = 'test_bwsKZRrhzegZZheOpaNyrIYYLmW';
+      try {
+        // Set log level based on environment
+        Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.VERBOSE : LOG_LEVEL.ERROR);
 
-    if (Platform.OS === 'ios') {
-      Purchases.configure({ apiKey: iosApiKey });
-    } else if (Platform.OS === 'android') {
-      Purchases.configure({ apiKey: androidApiKey });
-    }
+        // Platform-specific API keys
+        const iosApiKey = 'test_bwsKZRrhzegZZheOpaNyrIYYLmW';
+        const androidApiKey = 'test_bwsKZRrhzegZZheOpaNyrIYYLmW';
+
+        if (Platform.OS === 'ios') {
+          Purchases.configure({ apiKey: iosApiKey });
+        } else if (Platform.OS === 'android') {
+          Purchases.configure({ apiKey: androidApiKey });
+        }
+      } catch (error) {
+        // Handle RevenueCat initialization errors
+        // Show error in dev mode, silently handle in production
+        handleDevError(error, 'RevenueCat Initialization');
+        // The app can still function without RevenueCat
+      }
+    };
+
+    initializeRevenueCat();
   }, []);
 
   useEffect(() => {

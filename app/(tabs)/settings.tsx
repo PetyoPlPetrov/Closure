@@ -11,6 +11,7 @@ import { useTheme } from '@/utils/ThemeContext';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Asset } from 'expo-asset';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, DimensionValue, Modal, Pressable, ScrollView, StyleSheet, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
@@ -203,16 +204,70 @@ export default function SettingsScreen() {
     
     setIsGeneratingFakeData(true);
         try {
-          // Get image URIs using expo-asset
-          const exAsset = Asset.fromModule(require('@/assets/images/ex.jpg'));
+          // Get image URIs using expo-asset for memory images
           const maldivesAsset = Asset.fromModule(require('@/assets/images/maldives.jpg'));
-          
-          // Download assets if needed
-          await exAsset.downloadAsync();
           await maldivesAsset.downloadAsync();
-          
-          const exImageUri = exAsset.localUri || exAsset.uri;
           const maldivesImageUri = maldivesAsset.localUri || maldivesAsset.uri;
+
+          // Map entity names to their local asset images
+          // Using try-catch for each require to handle missing images gracefully
+          const getEntityImageAsset = (entityName: string, category: 'profile' | 'job' | 'family' | 'friend' | 'hobby') => {
+            try {
+              const imageMap: Record<string, any> = {
+                // Profiles (Relationships)
+                'Mark Johnson': require('@/assets/images/fake-profile-mark.jpg'),
+                'Emma Williams': require('@/assets/images/fake-profile-emma.jpg'),
+                'Olivia Brown': require('@/assets/images/fake-profile-olivia.jpg'),
+                
+                // Jobs (Career)
+                'Software Developer at TechCorp': require('@/assets/images/fake-job-techcorp.jpg'),
+                'Senior Developer at StartupXYZ': require('@/assets/images/fake-job-startup.jpg'),
+                'Lead Engineer at CurrentCompany': require('@/assets/images/fake-job-current.jpg'),
+                
+                // Family Members
+                'Sarah Johnson': require('@/assets/images/fake-family-sarah.jpg'),
+                'Michael Johnson': require('@/assets/images/fake-family-michael.jpg'),
+                'Maria Johnson': require('@/assets/images/fake-family-maria.jpg'),
+                
+                // Friends
+                'Alex Thompson': require('@/assets/images/fake-friend-alex.jpg'),
+                'Jessica Martinez': require('@/assets/images/fake-friend-jessica.jpg'),
+                'David Chen': require('@/assets/images/fake-friend-david.jpg'),
+                'Sophie Anderson': require('@/assets/images/fake-friend-sophie.jpg'),
+                
+                // Hobbies
+                'Photography': require('@/assets/images/fake-hobby-photography.jpg'),
+                'Reading': require('@/assets/images/fake-hobby-reading.jpg'),
+                'Cooking': require('@/assets/images/fake-hobby-cooking.jpg'),
+                'Hiking': require('@/assets/images/fake-hobby-hiking.jpg'),
+              };
+              
+              return imageMap[entityName] || null;
+            } catch (error) {
+              // If require fails, return null to fall back to Unsplash
+              return null;
+            }
+          };
+
+          // Get entity image URI from local asset
+          const getEntityImageUri = async (entityName: string, category: 'profile' | 'job' | 'family' | 'friend' | 'hobby'): Promise<string> => {
+            const asset = getEntityImageAsset(entityName, category);
+            if (asset) {
+              const imageAsset = Asset.fromModule(asset);
+              await imageAsset.downloadAsync();
+              return imageAsset.localUri || imageAsset.uri;
+            }
+            // Fallback to Unsplash if local asset not found
+            const hash = entityName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            const categoryTerms: Record<string, string> = {
+              profile: 'couple,romance,people',
+              job: 'office,business,workplace',
+              family: 'family,people,portrait',
+              friend: 'friends,people,group',
+              hobby: 'hobby,activity,creative',
+            };
+            return `https://source.unsplash.com/400x400/?${categoryTerms[category]}&sig=${hash}`;
+          };
 
       // Define multiple fake profiles with different names and characteristics
       // Random number of memories between 1 and 8 per profile
@@ -255,6 +310,48 @@ export default function SettingsScreen() {
         { name: 'Cooking', description: 'Creating delicious meals' },
         { name: 'Hiking', description: 'Exploring nature trails' },
       ];
+
+      // Prefetch all entity images before creating entities
+      const prefetchEntityImages = async () => {
+        const imagePromises: Promise<string>[] = [];
+        
+        // Collect all image URIs that will be used
+        for (const profile of fakeProfiles) {
+          imagePromises.push(getEntityImageUri(profile.name, 'profile'));
+        }
+        for (const job of fakeJobs) {
+          imagePromises.push(getEntityImageUri(job.name, 'job'));
+        }
+        for (const member of fakeFamilyMembers) {
+          imagePromises.push(getEntityImageUri(member.name, 'family'));
+        }
+        for (const friend of fakeFriends) {
+          imagePromises.push(getEntityImageUri(friend.name, 'friend'));
+        }
+        for (const hobby of fakeHobbies) {
+          imagePromises.push(getEntityImageUri(hobby.name, 'hobby'));
+        }
+        
+        // Get all image URIs
+        const imageUrls = await Promise.all(imagePromises);
+        
+        // Prefetch all images in parallel (only for remote URLs)
+        try {
+          await Promise.all(imageUrls.map(url => {
+            if (url.startsWith('http')) {
+              return Image.prefetch(url).catch(() => {
+                // Ignore individual prefetch errors - images will still load when needed
+              });
+            }
+            return Promise.resolve(); // Local assets don't need prefetching
+          }));
+        } catch (error) {
+          // Prefetch errors are non-critical - images will load on demand
+        }
+      };
+
+      // Prefetch all entity images before starting entity creation
+      await prefetchEntityImages();
 
       const memoryTitles = [
         'Our First Date', 'Summer Vacation', 'Birthday Celebration', 'Anniversary Dinner',
@@ -518,7 +615,7 @@ export default function SettingsScreen() {
             description: profileData.description,
             relationshipStartDate: profileData.startDate,
             relationshipEndDate: profileData.endDate,
-              imageUri: exImageUri,
+              imageUri: await getEntityImageUri(profileData.name, 'profile'),
             setupProgress: 100,
             isCompleted: true,
             sections: {
@@ -650,7 +747,7 @@ export default function SettingsScreen() {
               description: jobData.description,
               startDate: jobData.startDate,
               endDate: jobData.endDate || undefined,
-              imageUri: exImageUri,
+              imageUri: await getEntityImageUri(jobData.name, 'job'),
               setupProgress: 0,
               isCompleted: false,
             });
@@ -767,7 +864,7 @@ export default function SettingsScreen() {
               name: memberData.name,
               description: memberData.description,
               relationship: memberData.relationship,
-              imageUri: exImageUri,
+              imageUri: await getEntityImageUri(memberData.name, 'family'),
               setupProgress: 0,
               isCompleted: false,
             });
@@ -878,7 +975,7 @@ export default function SettingsScreen() {
             friendId = await addFriend({
               name: friendData.name,
               description: friendData.description,
-              imageUri: exImageUri,
+              imageUri: await getEntityImageUri(friendData.name, 'friend'),
               setupProgress: 0,
               isCompleted: false,
             });
@@ -970,7 +1067,7 @@ export default function SettingsScreen() {
             hobbyId = await addHobby({
               name: hobbyData.name,
               description: hobbyData.description,
-              imageUri: exImageUri,
+              imageUri: await getEntityImageUri(hobbyData.name, 'hobby'),
               setupProgress: 0,
               isCompleted: false,
             });
@@ -1145,8 +1242,8 @@ export default function SettingsScreen() {
                 reloadHobbies(),
               ]);
               
-              // Navigate to spheres tab to show walkthrough
-              router.replace('/(tabs)/spheres');
+              // Note: After clearing data, the walkthrough will appear automatically
+              // when the user navigates to the spheres tab (handled in spheres.tsx)
               
               // Show success message
               Alert.alert(

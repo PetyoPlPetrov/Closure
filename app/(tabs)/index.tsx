@@ -3913,11 +3913,9 @@ export default function HomeScreen() {
     const totalEntities = profiles.length + jobs.length + familyMembers.length + friends.length + hobbies.length;
     const totalMemories = idealizedMemories.length;
     
-    // If there's no data, redirect to spheres tab
-    if (totalEntities === 0 && totalMemories === 0) {
-      hasRedirectedRef.current = true;
-      router.replace('/(tabs)/spheres');
-    }
+    // If there's no data, the walkthrough will appear automatically
+    // when the user navigates to the spheres tab (handled in spheres.tsx)
+    // No need to redirect here - let the user navigate naturally
   }, [isLoading, profiles.length, jobs.length, familyMembers.length, friends.length, hobbies.length, idealizedMemories.length]);
 
   // Reload all data from AsyncStorage when screen comes into focus

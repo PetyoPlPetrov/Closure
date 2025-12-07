@@ -1,14 +1,21 @@
 // Make sure to configure a Paywall in the Dashboard first.
 import type { PurchasesOffering } from 'react-native-purchases';
-import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
+import type { PAYWALL_RESULT as PAYWALL_RESULT_TYPE } from 'react-native-purchases-ui';
+import { handleDevError } from './dev-error-handler';
+import { PAYWALL_RESULT, RevenueCatUI, isNativeModuleAvailable } from './revenuecat-wrapper';
 
 /**
  * Present paywall for current offering
  * @returns Promise<boolean> - Returns true if user purchased or restored, false otherwise
  */
 export async function presentPaywall(): Promise<boolean> {
+  if (!isNativeModuleAvailable || !RevenueCatUI || !PAYWALL_RESULT) {
+    handleDevError(new Error('RevenueCat native module not available'), 'Present Paywall');
+    return false;
+  }
+
   try {
-    const paywallResult: PAYWALL_RESULT = await RevenueCatUI.presentPaywall();
+    const paywallResult: PAYWALL_RESULT_TYPE = await RevenueCatUI.presentPaywall();
 
     switch (paywallResult) {
       case PAYWALL_RESULT.NOT_PRESENTED:
@@ -23,6 +30,7 @@ export async function presentPaywall(): Promise<boolean> {
     }
   } catch (error) {
     // Error presenting paywall
+    handleDevError(error, 'Present Paywall');
     return false;
   }
 }
@@ -38,9 +46,13 @@ export async function presentPaywallIfNeeded(options: {
   requiredEntitlementIdentifier: string;
   offering?: PurchasesOffering;
 }): Promise<boolean> {
+  if (!isNativeModuleAvailable || !RevenueCatUI || !PAYWALL_RESULT) {
+    handleDevError(new Error('RevenueCat native module not available'), 'Present Paywall');
+    return false;
+  }
+
   try {
-    console.log('presentPaywallIfNeeded', options,RevenueCatUI);
-    const paywallResult: PAYWALL_RESULT = await RevenueCatUI.presentPaywallIfNeeded({
+    const paywallResult: PAYWALL_RESULT_TYPE = await RevenueCatUI.presentPaywallIfNeeded({
       requiredEntitlementIdentifier: options.requiredEntitlementIdentifier,
       offering: options.offering,
     });
@@ -62,6 +74,7 @@ export async function presentPaywallIfNeeded(options: {
     }
   } catch (error) {
     // Error presenting paywall
+    handleDevError(error, 'Present Paywall');
     return false;
   }
 }

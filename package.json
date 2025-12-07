@@ -12,6 +12,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "download-fake-images": "node ./scripts/download-fake-images.js",
     "bump:version": "node ./scripts/bump-version.js",
     "build:android": "eas build --platform android --profile production --local",
     "build:ios": "npm run bump:version && exec eas build --platform ios --profile production --local",
