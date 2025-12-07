@@ -27,14 +27,16 @@ export default function TabLayout() {
     if (colorScheme === 'dark') {
       return (
         <LinearGradient
-          colors={['#1A2332', '#1A2332']}
+          colors={['#243041', '#1F2A3A', '#1A2332', '#151D2A', '#0F1620']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
       );
     }
     return (
       <LinearGradient
-        colors={['#FFFFFF', '#D0D0D0', '#B0B0B0']}
+        colors={['#F0F0F0', '#E0E0E0', '#D0D0D0', '#C0C0C0', '#B0B0B0']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={StyleSheet.absoluteFill}

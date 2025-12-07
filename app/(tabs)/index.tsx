@@ -3305,6 +3305,24 @@ const FloatingEntity = React.memo(function FloatingEntity({
 }) {
   const floatOffset = useSharedValue(0);
   
+  // Animated position values - initialize with current position to prevent flash
+  const animatedX = useSharedValue(position.x);
+  const animatedY = useSharedValue(position.y);
+  
+  // Update animated position when position prop changes
+  React.useEffect(() => {
+    animatedX.value = withSpring(position.x, {
+      damping: 15,
+      stiffness: 150,
+      mass: 1,
+    });
+    animatedY.value = withSpring(position.y, {
+      damping: 15,
+      stiffness: 150,
+      mass: 1,
+    });
+  }, [position.x, position.y, animatedX, animatedY]);
+  
   // Calculate sunny vs cloudy percentage for this entity
   const sunnyPercentage = React.useMemo(() => {
     let totalClouds = 0;
@@ -3366,8 +3384,9 @@ const FloatingEntity = React.memo(function FloatingEntity({
     
     return {
       transform: [
+        { translateX: animatedX.value - position.x },
+        { translateY: animatedY.value - position.y + floatY },
         { scale },
-        { translateY: floatY },
       ],
       opacity,
     };
@@ -4842,7 +4861,7 @@ export default function HomeScreen() {
       StyleSheet.create({
         container: {
           flex: 1,
-          backgroundColor: colors.background,
+          backgroundColor: 'transparent', // Transparent so gradient from TabScreenContainer shows through
         },
         content: {
           width: SCREEN_WIDTH,
@@ -4872,6 +4891,12 @@ export default function HomeScreen() {
   const previousFocusedIdRef = useRef<string | null>(null);
   // Track previous focused job to handle shrink animation
   const previousFocusedJobIdRef = useRef<string | null>(null);
+  // Track previous focused family member to handle shrink animation
+  const previousFocusedFamilyMemberIdRef = useRef<string | null>(null);
+  // Track previous focused friend to handle shrink animation
+  const previousFocusedFriendIdRef = useRef<string | null>(null);
+  // Track previous focused hobby to handle shrink animation
+  const previousFocusedHobbyIdRef = useRef<string | null>(null);
   // Track if animations are complete - used to skip rendering unfocused partners
   const [animationsComplete, setAnimationsComplete] = useState(false);
   
@@ -4884,9 +4909,13 @@ export default function HomeScreen() {
       setAnimationsComplete(false);
     } else {
       // When focus is cleared, keep the previous ID for a moment to handle shrink animation
-      // The ref will be cleared when a new profile is focused
       // Reset animations complete flag when unfocusing
       setAnimationsComplete(false);
+      // Clear the previous focused profile ID after animation completes (matching career pattern)
+      const timeoutId = setTimeout(() => {
+        previousFocusedIdRef.current = null;
+      }, 1200);
+      return () => clearTimeout(timeoutId);
     }
   }, [focusedProfileId]);
 
@@ -4908,6 +4937,48 @@ export default function HomeScreen() {
       return () => clearTimeout(timeoutId);
     }
   }, [focusedJobId]);
+
+  // Update previous focused family member ID when focus changes
+  React.useEffect(() => {
+    if (focusedFamilyMemberId) {
+      previousFocusedFamilyMemberIdRef.current = focusedFamilyMemberId;
+      setAnimationsComplete(false);
+    } else {
+      setAnimationsComplete(false);
+      const timeoutId = setTimeout(() => {
+        previousFocusedFamilyMemberIdRef.current = null;
+      }, 1200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [focusedFamilyMemberId]);
+
+  // Update previous focused friend ID when focus changes
+  React.useEffect(() => {
+    if (focusedFriendId) {
+      previousFocusedFriendIdRef.current = focusedFriendId;
+      setAnimationsComplete(false);
+    } else {
+      setAnimationsComplete(false);
+      const timeoutId = setTimeout(() => {
+        previousFocusedFriendIdRef.current = null;
+      }, 1200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [focusedFriendId]);
+
+  // Update previous focused hobby ID when focus changes
+  React.useEffect(() => {
+    if (focusedHobbyId) {
+      previousFocusedHobbyIdRef.current = focusedHobbyId;
+      setAnimationsComplete(false);
+    } else {
+      setAnimationsComplete(false);
+      const timeoutId = setTimeout(() => {
+        previousFocusedHobbyIdRef.current = null;
+      }, 1200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [focusedHobbyId]);
 
   // Handle URL parameters to set focused memory
   React.useEffect(() => {
@@ -5014,15 +5085,24 @@ export default function HomeScreen() {
   }, []);
 
   // Animated value for sliding other EX zones off-screen - only create when animations are ready
-  const slideOffset = useSharedValue(0);
+  const slideOffset = useSharedValue(0); // For relationships
+  // Separate slideOffset values for each sphere
+  const careerSlideOffset = useSharedValue(0);
+  const familySlideOffset = useSharedValue(0);
+  const friendsSlideOffset = useSharedValue(0);
+  const hobbiesSlideOffset = useSharedValue(0);
   
   // CRITICAL: Immediately reset slideOffset when sphere changes to ensure profiles are visible
   // This must run before the animation logic to prevent profiles from staying hidden
   React.useLayoutEffect(() => {
-    // When sphere changes, immediately reset slideOffset to 0 to make profiles visible
-    // This fixes the issue where profiles stay hidden after drilling into a memory and switching spheres
+    // When sphere changes, immediately reset all slideOffsets to 0 to make entities visible
+    // This fixes the issue where entities stay hidden after drilling into a memory and switching spheres
     slideOffset.value = 0;
-  }, [selectedSphere, slideOffset]);
+    careerSlideOffset.value = 0;
+    familySlideOffset.value = 0;
+    friendsSlideOffset.value = 0;
+    hobbiesSlideOffset.value = 0;
+  }, [selectedSphere, slideOffset, careerSlideOffset, familySlideOffset, friendsSlideOffset, hobbiesSlideOffset]);
   
   // Use useLayoutEffect to start animation synchronously before paint to prevent flash
   React.useLayoutEffect(() => {
@@ -5030,15 +5110,35 @@ export default function HomeScreen() {
       // Animate smoothly when focusing or unfocusing
       // Keep other ex-es hidden if either profile OR memory is focused
       const easingConfig = Easing.bezier(0.4, 0.0, 0.2, 1); // Smooth ease-in-out curve
-      if (focusedProfileId || focusedJobId || focusedMemory) {
-        // Slide other zones out with smooth fade
-        const targetValue = SCREEN_WIDTH * 2;
+      const targetValue = SCREEN_WIDTH * 2;
+      
+      // Helper function to animate slideOffset
+      const animateSlideOffset = (offset: ReturnType<typeof useSharedValue<number>>, shouldSlideOut: boolean) => {
+        const currentValue = offset.value;
+        if (shouldSlideOut) {
+          if (Math.abs(currentValue - targetValue) > 1) {
+            offset.value = withTiming(targetValue, {
+              duration: 1200,
+              easing: easingConfig,
+            });
+          }
+        } else {
+          if (Math.abs(currentValue - 0) > 1) {
+            offset.value = withTiming(0, {
+              duration: 600,
+              easing: easingConfig,
+            });
+          }
+        }
+      };
+      
+      // Relationships slideOffset
+      const shouldSlideOutRelationships = focusedProfileId || (focusedMemory && focusedMemory.sphere === 'relationships');
+      if (shouldSlideOutRelationships) {
         const currentValue = slideOffset.value;
-        
-        // Only start animation if not already at target (prevents restarting)
         if (Math.abs(currentValue - targetValue) > 1) {
           slideOffset.value = withTiming(targetValue, {
-            duration: 1200, // Match the zoom-in duration for synchronized animation
+            duration: 1200,
             easing: easingConfig,
           }, (finished) => {
             'worklet';
@@ -5048,28 +5148,36 @@ export default function HomeScreen() {
           });
         }
       } else {
-        // Slide other zones back in - only when both profile and memory are unfocused
-        // Start almost immediately when zoom-out begins for synchronized animation
         const currentValue = slideOffset.value;
         if (Math.abs(currentValue - 0) > 1) {
           slideOffset.value = withTiming(0, {
-            duration: 600, // Faster appearance - 600ms instead of 1200ms
+            duration: 600,
             easing: easingConfig,
           }, (finished) => {
             'worklet';
-            // Animation complete - unfocusing is done
             if (finished) {
               runOnJS(handleSlideInComplete)();
             }
           });
         } else {
-          // Already at 0, just reset the completion callback
           runOnJS(handleSlideInComplete)();
         }
       }
+      
+      // Career slideOffset
+      animateSlideOffset(careerSlideOffset, focusedJobId || (focusedMemory && focusedMemory.sphere === 'career'));
+      
+      // Family slideOffset
+      animateSlideOffset(familySlideOffset, focusedFamilyMemberId || (focusedMemory && focusedMemory.sphere === 'family'));
+      
+      // Friends slideOffset
+      animateSlideOffset(friendsSlideOffset, focusedFriendId || (focusedMemory && focusedMemory.sphere === 'friends'));
+      
+      // Hobbies slideOffset
+      animateSlideOffset(hobbiesSlideOffset, focusedHobbyId || (focusedMemory && focusedMemory.sphere === 'hobbies'));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusedProfileId, focusedMemory, animationsReady, handleSlideOutComplete, handleSlideInComplete]);
+  }, [focusedProfileId, focusedJobId, focusedFamilyMemberId, focusedFriendId, focusedHobbyId, focusedMemory, animationsReady, handleSlideOutComplete, handleSlideInComplete, slideOffset, careerSlideOffset, familySlideOffset, friendsSlideOffset, hobbiesSlideOffset]);
   
   // Slide offset for non-focused memories when a memory is focused
   const memorySlideOffset = useSharedValue(0);
@@ -5173,41 +5281,80 @@ export default function HomeScreen() {
   }, [visibleProfiles, sortedProfiles, getProfileSectionKey, yearSections, focusedProfileId, focusedMemory, selectedSphere]);
 
   // Memoize focused profiles render - must be called unconditionally
+  // This renders profiles when they're focused, and also handles the unfocus animation
+  // Changed to match career pattern: use FloatingAvatar directly instead of ProfileRenderer
   const focusedProfilesRender = useMemo(() => {
-    if (!animationsReady || !focusedProfileId || focusedMemory) return null;
+    if (!animationsReady || focusedMemory) return null;
+    
+    // Only render if there's a focused profile OR if we need to handle unfocus animation
+    if (!focusedProfileId && !previousFocusedIdRef.current) return null;
+    
+    if (__DEV__) {
+      console.log('[RELATIONSHIPS] focusedProfilesRender:', {
+        focusedProfileId,
+        previousFocusedId: previousFocusedIdRef.current,
+        totalProfiles: visibleProfiles.length
+      });
+    }
     
     return visibleProfiles.map((profile, index) => {
       const memories = getIdealizedMemoriesByProfileId(profile.id);
-      const currentPosition = getAvatarPosition(profile.id, index);
       const isFocused = focusedProfileId === profile.id;
-      // Calculate wasJustFocused here
-      const wasJustFocused = previousFocusedIdRef.current === profile.id && !focusedProfileId && !focusedMemory;
+      const wasJustFocused = previousFocusedIdRef.current === profile.id && !focusedProfileId;
+      
+      if (__DEV__ && (isFocused || wasJustFocused)) {
+        console.log('[RELATIONSHIPS] Profile:', profile.name, { isFocused, wasJustFocused });
+      }
+      
+      // Render focused profile OR profile that was just unfocused (for animation)
+      if (!isFocused && !wasJustFocused) return null;
+      
+      // Get the profile's year section to calculate original position
+      const yearSection = getProfileYearSection(profile);
+      let currentPosition: { x: number; y: number };
+      
+      if (isFocused) {
+        // When focused, use original position - the animation will move it to center
+        // Calculate original position from year section
+        currentPosition = getAvatarPosition(profile.id, index);
+      } else if (wasJustFocused) {
+        // When just unfocused, use original position from year section
+        currentPosition = getAvatarPosition(profile.id, index);
+      } else {
+        // Fallback
+        currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+      }
       
       return (
-        <ProfileRenderer
+        <FloatingAvatar
           key={profile.id}
           profile={profile}
-          index={index}
+          position={currentPosition}
           memories={memories}
-          currentPosition={currentPosition}
-          isFocused={isFocused}
-          isProfileFocusedForMemory={false}
-          wasJustFocused={wasJustFocused}
-          focusedMemory={focusedMemory}
-          slideOffset={slideOffset}
-          getProfileYearSection={getProfileYearSection}
-          updateAvatarPosition={updateAvatarPosition}
-          setFocusedProfileId={setFocusedProfileId}
-          setFocusedMemory={setFocusedMemory}
+          onPress={() => {
+            const newFocusedId = focusedProfileId === profile.id ? null : profile.id;
+            setFocusedProfileId(newFocusedId);
+            setFocusedMemory(null);
+          }}
           colors={colors}
           colorScheme={colorScheme ?? 'dark'}
-          memorySlideOffset={memorySlideOffset}
-          animationsComplete={animationsComplete}
-          focusedProfileId={focusedProfileId}
+          isFocused={isFocused}
+          focusedMemory={(() => {
+            if (!focusedMemory) return null;
+            const mem = focusedMemory as { profileId?: string; memoryId: string; sphere: LifeSphere };
+            if (mem.profileId === profile.id && mem.sphere === 'relationships') {
+              return mem;
+            }
+            return null;
+          })()}
+          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'relationships') => {
+            setFocusedMemory({ profileId: entityId, memoryId, sphere });
+          }}
+          yearSection={yearSection}
         />
       );
     });
-  }, [animationsReady, focusedProfileId, focusedMemory, visibleProfiles, getIdealizedMemoriesByProfileId, getAvatarPosition, previousFocusedIdRef, slideOffset, getProfileYearSection, updateAvatarPosition, setFocusedProfileId, setFocusedMemory, colors, colorScheme, memorySlideOffset, animationsComplete]);
+  }, [animationsReady, focusedProfileId, focusedMemory, visibleProfiles, getIdealizedMemoriesByProfileId, getAvatarPosition, getProfileYearSection, previousFocusedIdRef, setFocusedProfileId, setFocusedMemory, colors, colorScheme]);
 
   // Memoize focused jobs render - must be called unconditionally
   // This renders jobs when they're focused, and also handles the unfocus animation
@@ -5217,10 +5364,22 @@ export default function HomeScreen() {
     // Only render if there's a focused job OR if we need to handle unfocus animation
     if (!focusedJobId && !previousFocusedJobIdRef.current) return null;
     
+    if (__DEV__) {
+      console.log('[CAREER] focusedJobsRender:', {
+        focusedJobId,
+        previousFocusedJobId: previousFocusedJobIdRef.current,
+        totalJobs: sortedJobs.length
+      });
+    }
+    
     return sortedJobs.map((job, index) => {
       const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
       const isFocused = focusedJobId === job.id;
       const wasJustFocused = previousFocusedJobIdRef.current === job.id && !focusedJobId;
+      
+      if (__DEV__ && (isFocused || wasJustFocused)) {
+        console.log('[CAREER] Job:', job.name, { isFocused, wasJustFocused });
+      }
       
       // Render focused job OR job that was just unfocused (for animation)
       if (!isFocused && !wasJustFocused) return null;
@@ -5312,6 +5471,237 @@ export default function HomeScreen() {
       );
     });
   }, [animationsReady, focusedJobId, focusedMemory, sortedJobs, getIdealizedMemoriesByEntityId, getJobYearSection, getJobSectionKey, jobsBySection, previousFocusedJobIdRef, setFocusedJobId, setFocusedMemory, colors, colorScheme]);
+
+  // Memoize focused family members render - must be called unconditionally
+  // This renders family members when they're focused, and also handles the unfocus animation
+  const focusedFamilyMembersRender = useMemo(() => {
+    if (!animationsReady || focusedMemory) return null;
+    
+    // Only render if there's a focused family member OR if we need to handle unfocus animation
+    if (!focusedFamilyMemberId && !previousFocusedFamilyMemberIdRef.current) return null;
+    
+    if (__DEV__) {
+      console.log('[FAMILY] focusedFamilyMembersRender:', {
+        focusedFamilyMemberId,
+        previousFocusedFamilyMemberId: previousFocusedFamilyMemberIdRef.current,
+        totalMembers: familyMembers.length
+      });
+    }
+    
+    return familyMembers.map((member, index) => {
+      const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
+      const isFocused = focusedFamilyMemberId === member.id;
+      const wasJustFocused = previousFocusedFamilyMemberIdRef.current === member.id && !focusedFamilyMemberId;
+      
+      if (__DEV__ && (isFocused || wasJustFocused)) {
+        console.log('[FAMILY] Member:', member.name, { isFocused, wasJustFocused });
+      }
+      
+      // Render focused family member OR family member that was just unfocused (for animation)
+      if (!isFocused && !wasJustFocused) return null;
+      
+      // Get the family member's section to calculate original position
+      const section = familyYearSections.get('all');
+      let currentPosition: { x: number; y: number };
+      
+      if (isFocused || wasJustFocused) {
+        // Calculate original position from section
+        if (section) {
+          const totalMembers = familyMembers.length;
+          const sectionCenterY = section.top + section.height / 2;
+          const minSpacing = 200;
+          const verticalSpacing = totalMembers > 1 
+            ? Math.max(minSpacing, Math.min(section.height / (totalMembers + 1), 250))
+            : 0;
+          currentPosition = {
+            x: SCREEN_WIDTH / 2,
+            y: totalMembers === 1
+              ? sectionCenterY
+              : section.top + verticalSpacing * (index + 1)
+          };
+        } else {
+          currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+        }
+      } else {
+        currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+      }
+      
+      return (
+        <FloatingAvatar
+          key={member.id}
+          profile={member}
+          position={currentPosition}
+          memories={memories}
+          onPress={() => {
+            const newFocusedId = focusedFamilyMemberId === member.id ? null : member.id;
+            setFocusedFamilyMemberId(newFocusedId);
+            setFocusedMemory(null);
+          }}
+          colors={colors}
+          colorScheme={colorScheme ?? 'dark'}
+          isFocused={isFocused}
+          focusedMemory={(() => {
+            if (!focusedMemory) return null;
+            const mem = focusedMemory as { familyMemberId?: string; memoryId: string; sphere: LifeSphere };
+            if (mem.familyMemberId === member.id && mem.sphere === 'family') {
+              return mem;
+            }
+            return null;
+          })()}
+          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'family') => {
+            setFocusedMemory({ familyMemberId: entityId, memoryId, sphere });
+          }}
+          yearSection={section}
+        />
+      );
+    });
+  }, [animationsReady, focusedFamilyMemberId, focusedMemory, familyMembers, getIdealizedMemoriesByEntityId, familyYearSections, previousFocusedFamilyMemberIdRef, setFocusedFamilyMemberId, setFocusedMemory, colors, colorScheme]);
+
+  // Memoize focused friends render - must be called unconditionally
+  // This renders friends when they're focused, and also handles the unfocus animation
+  const focusedFriendsRender = useMemo(() => {
+    if (!animationsReady || focusedMemory) return null;
+    
+    // Only render if there's a focused friend OR if we need to handle unfocus animation
+    if (!focusedFriendId && !previousFocusedFriendIdRef.current) return null;
+    
+    return friends.map((friend, index) => {
+      const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
+      const isFocused = focusedFriendId === friend.id;
+      const wasJustFocused = previousFocusedFriendIdRef.current === friend.id && !focusedFriendId;
+      
+      // Render focused friend OR friend that was just unfocused (for animation)
+      if (!isFocused && !wasJustFocused) return null;
+      
+      // Get the friend's section to calculate original position
+      const section = friendsYearSections.get('all');
+      let currentPosition: { x: number; y: number };
+      
+      if (isFocused || wasJustFocused) {
+        // Calculate original position from section
+        if (section) {
+          const totalFriends = friends.length;
+          const sectionCenterY = section.top + section.height / 2;
+          const minSpacing = 200;
+          const verticalSpacing = totalFriends > 1 
+            ? Math.max(minSpacing, Math.min(section.height / (totalFriends + 1), 250))
+            : 0;
+          currentPosition = {
+            x: SCREEN_WIDTH / 2,
+            y: totalFriends === 1
+              ? sectionCenterY
+              : section.top + verticalSpacing * (index + 1)
+          };
+        } else {
+          currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+        }
+      } else {
+        currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+      }
+      
+      return (
+        <FloatingAvatar
+          key={friend.id}
+          profile={friend}
+          position={currentPosition}
+          memories={memories}
+          onPress={() => {
+            const newFocusedId = focusedFriendId === friend.id ? null : friend.id;
+            setFocusedFriendId(newFocusedId);
+            setFocusedMemory(null);
+          }}
+          colors={colors}
+          colorScheme={colorScheme ?? 'dark'}
+          isFocused={isFocused}
+          focusedMemory={(() => {
+            if (!focusedMemory) return null;
+            const mem = focusedMemory as { friendId?: string; memoryId: string; sphere: LifeSphere };
+            if (mem.friendId === friend.id && mem.sphere === 'friends') {
+              return mem;
+            }
+            return null;
+          })()}
+          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'friends') => {
+            setFocusedMemory({ friendId: entityId, memoryId, sphere });
+          }}
+          yearSection={section}
+        />
+      );
+    });
+  }, [animationsReady, focusedFriendId, focusedMemory, friends, getIdealizedMemoriesByEntityId, friendsYearSections, previousFocusedFriendIdRef, setFocusedFriendId, setFocusedMemory, colors, colorScheme]);
+
+  // Memoize focused hobbies render - must be called unconditionally
+  // This renders hobbies when they're focused, and also handles the unfocus animation
+  const focusedHobbiesRender = useMemo(() => {
+    if (!animationsReady || focusedMemory) return null;
+    
+    // Only render if there's a focused hobby OR if we need to handle unfocus animation
+    if (!focusedHobbyId && !previousFocusedHobbyIdRef.current) return null;
+    
+    return hobbies.map((hobby, index) => {
+      const memories = getIdealizedMemoriesByEntityId(hobby.id, 'hobbies');
+      const isFocused = focusedHobbyId === hobby.id;
+      const wasJustFocused = previousFocusedHobbyIdRef.current === hobby.id && !focusedHobbyId;
+      
+      // Render focused hobby OR hobby that was just unfocused (for animation)
+      if (!isFocused && !wasJustFocused) return null;
+      
+      // Get the hobby's section to calculate original position
+      const section = hobbiesYearSections.get('all');
+      let currentPosition: { x: number; y: number };
+      
+      if (isFocused || wasJustFocused) {
+        // Calculate original position from section
+        if (section) {
+          const totalHobbies = hobbies.length;
+          const sectionCenterY = section.top + section.height / 2;
+          const minSpacing = 200;
+          const verticalSpacing = totalHobbies > 1 
+            ? Math.max(minSpacing, Math.min(section.height / (totalHobbies + 1), 250))
+            : 0;
+          currentPosition = {
+            x: SCREEN_WIDTH / 2,
+            y: totalHobbies === 1
+              ? sectionCenterY
+              : section.top + verticalSpacing * (index + 1)
+          };
+        } else {
+          currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+        }
+      } else {
+        currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
+      }
+      
+      return (
+        <FloatingAvatar
+          key={hobby.id}
+          profile={hobby}
+          position={currentPosition}
+          memories={memories}
+          onPress={() => {
+            const newFocusedId = focusedHobbyId === hobby.id ? null : hobby.id;
+            setFocusedHobbyId(newFocusedId);
+            setFocusedMemory(null);
+          }}
+          colors={colors}
+          colorScheme={colorScheme ?? 'dark'}
+          isFocused={isFocused}
+          focusedMemory={(() => {
+            if (!focusedMemory) return null;
+            const mem = focusedMemory as { hobbyId?: string; memoryId: string; sphere: LifeSphere };
+            if (mem.hobbyId === hobby.id && mem.sphere === 'hobbies') {
+              return mem;
+            }
+            return null;
+          })()}
+          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'hobbies') => {
+            setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
+          }}
+          yearSection={section}
+        />
+      );
+    });
+  }, [animationsReady, focusedHobbyId, focusedMemory, hobbies, getIdealizedMemoriesByEntityId, hobbiesYearSections, previousFocusedHobbyIdRef, setFocusedHobbyId, setFocusedMemory, colors, colorScheme]);
 
   // Render sphere view - show all 3 spheres with memories floating around, center shows overall percentage
   // When a sphere is selected, show the entities for that sphere (like year sections for relationships)
@@ -5982,6 +6372,8 @@ export default function HomeScreen() {
             {(() => {
               // CRITICAL: Only use focusedMemory if it's from relationships sphere
               const relevantFocusedMemory = getFocusedMemoryForSphere('relationships');
+              // Allow year sections to render when no profile is focused (even if one was just unfocused)
+              // The ProfileRenderer will hide the specific profile that was just unfocused
               const shouldRender = animationsReady && !focusedProfileId && !relevantFocusedMemory && sortedProfiles.length > 0 && profilesBySection.size > 0;
               const totalProfilesInSections = Array.from(profilesBySection.values()).flat().length;
               
@@ -6407,33 +6799,50 @@ export default function HomeScreen() {
                       return null;
                     }
                     
+                    // Calculate slide direction for slide-in animation
+                    const centerX = SCREEN_WIDTH / 2;
+                    const centerY = SCREEN_HEIGHT / 2;
+                    const dx = position.x - centerX;
+                    const dy = position.y - centerY;
+                    const slideDirectionX = dx > 0 ? 1 : -1;
+                    const slideDirectionY = dy > 0 ? 1 : -1;
+                    
                     return (
-                      <FloatingAvatar
-                        key={`job-${job.id}`}
-                        profile={job}
-                        position={position}
-                        memories={memories}
-                        onPress={() => {
-                          const newFocusedId = focusedJobId === job.id ? null : job.id;
-                          setFocusedJobId(newFocusedId);
-                          setFocusedMemory(null);
-                        }}
-                        colors={colors}
-                        colorScheme={colorScheme ?? 'dark'}
+                      <NonFocusedZone
+                        key={`job-zone-${job.id}`}
                         isFocused={isFocused}
-                        focusedMemory={(() => {
-                          if (!focusedMemory) return null;
-                          const mem = focusedMemory as { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere };
-                          if (mem.jobId === job.id && mem.sphere === 'career') {
-                            return mem;
-                          }
-                          return null;
-                        })()}
-                        onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'career') => {
-                          setFocusedMemory({ jobId: entityId, memoryId, sphere });
-                        }}
-                        yearSection={section}
-                      />
+                        wasJustFocused={wasJustFocused}
+                        slideOffset={careerSlideOffset}
+                        slideDirectionX={slideDirectionX}
+                        slideDirectionY={slideDirectionY}
+                      >
+                        <FloatingAvatar
+                          key={`job-${job.id}`}
+                          profile={job}
+                          position={position}
+                          memories={memories}
+                          onPress={() => {
+                            const newFocusedId = focusedJobId === job.id ? null : job.id;
+                            setFocusedJobId(newFocusedId);
+                            setFocusedMemory(null);
+                          }}
+                          colors={colors}
+                          colorScheme={colorScheme ?? 'dark'}
+                          isFocused={isFocused}
+                          focusedMemory={(() => {
+                            if (!focusedMemory) return null;
+                            const mem = focusedMemory as { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere };
+                            if (mem.jobId === job.id && mem.sphere === 'career') {
+                              return mem;
+                            }
+                            return null;
+                          })()}
+                          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'career') => {
+                            setFocusedMemory({ jobId: entityId, memoryId, sphere });
+                          }}
+                          yearSection={section}
+                        />
+                      </NonFocusedZone>
                     );
                   });
                 })}
@@ -6769,9 +7178,11 @@ export default function HomeScreen() {
                   };
                   
                   const isFocused = focusedFamilyMemberId === member.id;
+                  const wasJustFocused = previousFocusedFamilyMemberIdRef.current === member.id && !focusedFamilyMemberId;
                   
                   // Hide unfocused family members when a family member is focused
-                  if (focusedFamilyMemberId && !isFocused) {
+                  // Also hide family member that was just unfocused (it's being animated in focusedFamilyMembersRender)
+                  if ((focusedFamilyMemberId && !isFocused) || wasJustFocused) {
                     return null;
                   }
                   
@@ -6779,39 +7190,59 @@ export default function HomeScreen() {
                   const savedPosition = familyPositionsState.get(member.id);
                   const finalPosition = savedPosition || position;
                   
+                  // Calculate slide direction for slide-in animation
+                  const centerX = SCREEN_WIDTH / 2;
+                  const centerY = SCREEN_HEIGHT / 2;
+                  const dx = finalPosition.x - centerX;
+                  const dy = finalPosition.y - centerY;
+                  const slideDirectionX = dx > 0 ? 1 : -1;
+                  const slideDirectionY = dy > 0 ? 1 : -1;
+                  
                   return (
-                    <FloatingAvatar
-                      key={`family-member-${member.id}`}
-                      profile={member}
-                      position={finalPosition}
-                      memories={memories}
-                      onPress={() => {
-                        const newFocusedId = focusedFamilyMemberId === member.id ? null : member.id;
-                        setFocusedFamilyMemberId(newFocusedId);
-                        setFocusedMemory(null);
-                      }}
-                      colors={colors}
-                      colorScheme={colorScheme ?? 'dark'}
+                    <NonFocusedZone
+                      key={`family-zone-${member.id}`}
                       isFocused={isFocused}
-                      focusedMemory={(() => {
-                        if (!focusedMemory) return null;
-                        const mem = focusedMemory as { profileId?: string; jobId?: string; familyMemberId?: string; memoryId: string; sphere: LifeSphere };
-                        if (mem.familyMemberId === member.id && mem.sphere === 'family') {
-                          return mem;
-                        }
-                        return null;
-                      })()}
-                      onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'family') => {
-                        setFocusedMemory({ familyMemberId: entityId, memoryId, sphere });
-                      }}
-                      yearSection={section}
-                      enableDragging={!isFocused}
-                      onPositionChange={(x, y) => updateFamilyMemberPosition(member.id, { x, y })}
-                    />
+                      wasJustFocused={wasJustFocused}
+                      slideOffset={familySlideOffset}
+                      slideDirectionX={slideDirectionX}
+                      slideDirectionY={slideDirectionY}
+                    >
+                      <FloatingAvatar
+                        key={`family-member-${member.id}`}
+                        profile={member}
+                        position={finalPosition}
+                        memories={memories}
+                        onPress={() => {
+                          const newFocusedId = focusedFamilyMemberId === member.id ? null : member.id;
+                          setFocusedFamilyMemberId(newFocusedId);
+                          setFocusedMemory(null);
+                        }}
+                        colors={colors}
+                        colorScheme={colorScheme ?? 'dark'}
+                        isFocused={isFocused}
+                        focusedMemory={(() => {
+                          if (!focusedMemory) return null;
+                          const mem = focusedMemory as { profileId?: string; jobId?: string; familyMemberId?: string; memoryId: string; sphere: LifeSphere };
+                          if (mem.familyMemberId === member.id && mem.sphere === 'family') {
+                            return mem;
+                          }
+                          return null;
+                        })()}
+                        onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'family') => {
+                          setFocusedMemory({ familyMemberId: entityId, memoryId, sphere });
+                        }}
+                        yearSection={section}
+                        enableDragging={!isFocused}
+                        onPositionChange={(x, y) => updateFamilyMemberPosition(member.id, { x, y })}
+                      />
+                    </NonFocusedZone>
                   );
                 })}
               </>
             )}
+            
+            {/* Render focused family members separately when focused (but hide family member when memory is focused) */}
+            {focusedFamilyMembersRender}
             
             {/* Render focused memory separately when memory is focused */}
             {focusedMemory && animationsReady && (
@@ -7133,9 +7564,11 @@ export default function HomeScreen() {
                   };
                   
                   const isFocused = focusedFriendId === friend.id;
+                  const wasJustFocused = previousFocusedFriendIdRef.current === friend.id && !focusedFriendId;
                   
                   // Hide unfocused friends when a friend is focused
-                  if (focusedFriendId && !isFocused) {
+                  // Also hide friend that was just unfocused (it's being animated in focusedFriendsRender)
+                  if ((focusedFriendId && !isFocused) || wasJustFocused) {
                     return null;
                   }
                   
@@ -7143,39 +7576,59 @@ export default function HomeScreen() {
                   const savedPosition = friendPositionsState.get(friend.id);
                   const finalPosition = savedPosition || position;
                   
+                  // Calculate slide direction for slide-in animation
+                  const centerX = SCREEN_WIDTH / 2;
+                  const centerY = SCREEN_HEIGHT / 2;
+                  const dx = finalPosition.x - centerX;
+                  const dy = finalPosition.y - centerY;
+                  const slideDirectionX = dx > 0 ? 1 : -1;
+                  const slideDirectionY = dy > 0 ? 1 : -1;
+                  
                   return (
-                    <FloatingAvatar
-                      key={`friend-${friend.id}`}
-                      profile={friend}
-                      position={finalPosition}
-                      memories={memories}
-                      onPress={() => {
-                        const newFocusedId = focusedFriendId === friend.id ? null : friend.id;
-                        setFocusedFriendId(newFocusedId);
-                        setFocusedMemory(null);
-                      }}
-                      colors={colors}
-                      colorScheme={colorScheme ?? 'dark'}
+                    <NonFocusedZone
+                      key={`friend-zone-${friend.id}`}
                       isFocused={isFocused}
-                      focusedMemory={(() => {
-                        if (!focusedMemory) return null;
-                        const mem = focusedMemory as { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere };
-                        if (mem.friendId === friend.id && mem.sphere === 'friends') {
-                          return mem;
-                        }
-                        return null;
-                      })()}
-                      onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'friends') => {
-                        setFocusedMemory({ friendId: entityId, memoryId, sphere });
-                      }}
-                      yearSection={section}
-                      enableDragging={!isFocused}
-                      onPositionChange={(x, y) => updateFriendPosition(friend.id, { x, y })}
-                    />
+                      wasJustFocused={wasJustFocused}
+                      slideOffset={friendsSlideOffset}
+                      slideDirectionX={slideDirectionX}
+                      slideDirectionY={slideDirectionY}
+                    >
+                      <FloatingAvatar
+                        key={`friend-${friend.id}`}
+                        profile={friend}
+                        position={finalPosition}
+                        memories={memories}
+                        onPress={() => {
+                          const newFocusedId = focusedFriendId === friend.id ? null : friend.id;
+                          setFocusedFriendId(newFocusedId);
+                          setFocusedMemory(null);
+                        }}
+                        colors={colors}
+                        colorScheme={colorScheme ?? 'dark'}
+                        isFocused={isFocused}
+                        focusedMemory={(() => {
+                          if (!focusedMemory) return null;
+                          const mem = focusedMemory as { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere };
+                          if (mem.friendId === friend.id && mem.sphere === 'friends') {
+                            return mem;
+                          }
+                          return null;
+                        })()}
+                        onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'friends') => {
+                          setFocusedMemory({ friendId: entityId, memoryId, sphere });
+                        }}
+                        yearSection={section}
+                        enableDragging={!isFocused}
+                        onPositionChange={(x, y) => updateFriendPosition(friend.id, { x, y })}
+                      />
+                    </NonFocusedZone>
                   );
                 })}
               </>
             )}
+            
+            {/* Render focused friends separately when focused (but hide friend when memory is focused) */}
+            {focusedFriendsRender}
             
             {/* Render focused memory separately when memory is focused */}
             {focusedMemory && animationsReady && (
@@ -7497,9 +7950,11 @@ export default function HomeScreen() {
                   };
                   
                   const isFocused = focusedHobbyId === hobby.id;
+                  const wasJustFocused = previousFocusedHobbyIdRef.current === hobby.id && !focusedHobbyId;
                   
                   // Hide unfocused hobbies when a hobby is focused
-                  if (focusedHobbyId && !isFocused) {
+                  // Also hide hobby that was just unfocused (it's being animated in focusedHobbiesRender)
+                  if ((focusedHobbyId && !isFocused) || wasJustFocused) {
                     return null;
                   }
                   
@@ -7507,39 +7962,59 @@ export default function HomeScreen() {
                   const savedPosition = hobbyPositionsState.get(hobby.id);
                   const finalPosition = savedPosition || position;
                   
+                  // Calculate slide direction for slide-in animation
+                  const centerX = SCREEN_WIDTH / 2;
+                  const centerY = SCREEN_HEIGHT / 2;
+                  const dx = finalPosition.x - centerX;
+                  const dy = finalPosition.y - centerY;
+                  const slideDirectionX = dx > 0 ? 1 : -1;
+                  const slideDirectionY = dy > 0 ? 1 : -1;
+                  
                   return (
-                    <FloatingAvatar
-                      key={`hobby-${hobby.id}`}
-                      profile={hobby}
-                      position={finalPosition}
-                      memories={memories}
-                      onPress={() => {
-                        const newFocusedId = focusedHobbyId === hobby.id ? null : hobby.id;
-                        setFocusedHobbyId(newFocusedId);
-                        setFocusedMemory(null);
-                      }}
-                      colors={colors}
-                      colorScheme={colorScheme ?? 'dark'}
+                    <NonFocusedZone
+                      key={`hobby-zone-${hobby.id}`}
                       isFocused={isFocused}
-                      focusedMemory={(() => {
-                        if (!focusedMemory) return null;
-                        const mem = focusedMemory as { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere };
-                        if (mem.hobbyId === hobby.id && mem.sphere === 'hobbies') {
-                          return mem;
-                        }
-                        return null;
-                      })()}
-                      onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'hobbies') => {
-                        setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
-                      }}
-                      yearSection={section}
-                      enableDragging={!isFocused}
-                      onPositionChange={(x, y) => updateHobbyPosition(hobby.id, { x, y })}
-                    />
+                      wasJustFocused={wasJustFocused}
+                      slideOffset={hobbiesSlideOffset}
+                      slideDirectionX={slideDirectionX}
+                      slideDirectionY={slideDirectionY}
+                    >
+                      <FloatingAvatar
+                        key={`hobby-${hobby.id}`}
+                        profile={hobby}
+                        position={finalPosition}
+                        memories={memories}
+                        onPress={() => {
+                          const newFocusedId = focusedHobbyId === hobby.id ? null : hobby.id;
+                          setFocusedHobbyId(newFocusedId);
+                          setFocusedMemory(null);
+                        }}
+                        colors={colors}
+                        colorScheme={colorScheme ?? 'dark'}
+                        isFocused={isFocused}
+                        focusedMemory={(() => {
+                          if (!focusedMemory) return null;
+                          const mem = focusedMemory as { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere };
+                          if (mem.hobbyId === hobby.id && mem.sphere === 'hobbies') {
+                            return mem;
+                          }
+                          return null;
+                        })()}
+                        onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'hobbies') => {
+                          setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
+                        }}
+                        yearSection={section}
+                        enableDragging={!isFocused}
+                        onPositionChange={(x, y) => updateHobbyPosition(hobby.id, { x, y })}
+                      />
+                    </NonFocusedZone>
                   );
                 })}
               </>
             )}
+            
+            {/* Render focused hobbies separately when focused (but hide hobby when memory is focused) */}
+            {focusedHobbiesRender}
             
             {/* Render focused memory separately when memory is focused */}
             {focusedMemory && animationsReady && (
@@ -8023,9 +8498,10 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
   }
   
   // Hide unfocused profiles immediately when a profile is focused
+  // Also hide profile that was just unfocused (it's being animated in focusedProfilesRender)
   // This prevents showing both start and end positions simultaneously
   // Note: focusedMemory is already filtered by sphere in YearSectionsRenderer, so we can safely check it here
-  if (focusedProfileId && !isFocused) {
+  if ((focusedProfileId && !isFocused) || wasJustFocused) {
     return null;
   }
   

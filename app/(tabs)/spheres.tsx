@@ -44,7 +44,7 @@ export default function SpheresScreen() {
   
   useEffect(() => {
     pulseScale.value = withRepeat(
-      withTiming(1.12, {
+      withTiming(1.25, { // Increased from 1.12 to 1.25 to compensate for smaller base size
         duration: 2000,
         easing: Easing.inOut(Easing.ease),
       }),
@@ -653,9 +653,9 @@ export default function SpheresScreen() {
     },
     insightsButtonContainerCentered: {
       position: 'absolute',
-      borderRadius: 30 * fontScale, // Circular
-      width: 60 * fontScale,
-      height: 60 * fontScale,
+      borderRadius: 24 * fontScale, // Circular - reduced from 30
+      width: 48 * fontScale, // Reduced from 60
+      height: 48 * fontScale, // Reduced from 60
       zIndex: 10,
       // Shadow/elevation effect
       shadowColor: '#8b5cf6',
@@ -670,7 +670,7 @@ export default function SpheresScreen() {
     insightsButtonGradientCircular: {
       width: '100%',
       height: '100%',
-      borderRadius: 30 * fontScale,
+      borderRadius: 24 * fontScale, // Reduced from 30 to match container
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden', // Keep gradient circular
@@ -783,11 +783,13 @@ export default function SpheresScreen() {
       paddingBottom: 100 * fontScale,
       gap: 16 * fontScale,
       alignItems: 'center',
+      backgroundColor: 'transparent', // Ensure transparent so gradient shows through
     },
     listContentWrapper: {
       maxWidth: maxContentWidth as any,
       width: '100%',
       alignSelf: 'center',
+      backgroundColor: 'transparent', // Ensure transparent so gradient shows through
     },
     fabContainer: {
       position: 'absolute',
@@ -815,6 +817,7 @@ export default function SpheresScreen() {
       alignSelf: 'center',
       width: '100%',
       paddingHorizontal: 16 * fontScale,
+      backgroundColor: 'transparent', // Ensure transparent so gradient shows through
     },
     textContainer: {
       alignItems: 'center',
@@ -1168,6 +1171,7 @@ export default function SpheresScreen() {
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.content]}
             showsVerticalScrollIndicator={false}
+            style={{ backgroundColor: 'transparent' }}
           >
             <View style={styles.iconContainer}>
               <MaterialIcons
@@ -1205,6 +1209,7 @@ export default function SpheresScreen() {
             <ScrollView
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              style={{ backgroundColor: 'transparent' }}
             >
               <View style={styles.listContentWrapper}>
                 {relationshipsProfiles.map((profile) => (
@@ -1254,6 +1259,7 @@ export default function SpheresScreen() {
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.content]}
             showsVerticalScrollIndicator={false}
+            style={{ backgroundColor: 'transparent' }}
           >
             <View style={styles.iconContainer}>
               <MaterialIcons
@@ -1285,6 +1291,7 @@ export default function SpheresScreen() {
             <ScrollView
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              style={{ backgroundColor: 'transparent' }}
             >
               <View style={styles.listContentWrapper}>
                 {careerJobs.map((job) => (
@@ -1342,6 +1349,7 @@ export default function SpheresScreen() {
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.content]}
             showsVerticalScrollIndicator={false}
+            style={{ backgroundColor: 'transparent' }}
           >
             <View style={styles.iconContainer}>
               <MaterialIcons
@@ -1373,6 +1381,7 @@ export default function SpheresScreen() {
             <ScrollView
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              style={{ backgroundColor: 'transparent' }}
             >
               <View style={styles.listContentWrapper}>
                 {familyMembersList.map((member) => (
@@ -1471,6 +1480,7 @@ export default function SpheresScreen() {
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.content]}
             showsVerticalScrollIndicator={false}
+            style={{ backgroundColor: 'transparent' }}
           >
             <View style={styles.iconContainer}>
               <MaterialIcons
@@ -1502,6 +1512,7 @@ export default function SpheresScreen() {
             <ScrollView
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              style={{ backgroundColor: 'transparent' }}
             >
               <View style={styles.listContentWrapper}>
                 {friendsList.map((friend) => (
@@ -1595,6 +1606,7 @@ export default function SpheresScreen() {
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.content]}
             showsVerticalScrollIndicator={false}
+            style={{ backgroundColor: 'transparent' }}
           >
             <View style={styles.iconContainer}>
               <MaterialIcons
@@ -1626,6 +1638,7 @@ export default function SpheresScreen() {
             <ScrollView
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              style={{ backgroundColor: 'transparent' }}
             >
               <View style={styles.listContentWrapper}>
                 {hobbiesList.map((hobby) => (
@@ -1751,7 +1764,7 @@ export default function SpheresScreen() {
                       style={[
                         styles.insightsButtonContainerCentered,
                         {
-                          left: centerX - 30 * fontScale,
+                          left: centerX - 24 * fontScale, // Adjusted for smaller button (was 30)
                           top: centerY - 20 * fontScale, // Elevated button position
                         },
                         pulseAnimatedStyle,
@@ -1781,10 +1794,10 @@ export default function SpheresScreen() {
                         style={styles.insightsButtonGradientCircular}
                       >
                         <View style={styles.insightsIconContainerCircular}>
-                          <MaterialIcons name="insights" size={28 * fontScale} color="#ffffff" />
+                          <MaterialIcons name="insights" size={24 * fontScale} color="#ffffff" />
                           <MaterialIcons
                             name="auto-awesome"
-                            size={14 * fontScale}
+                            size={12 * fontScale}
                             color="#FFD700"
                             style={styles.sparkleIcon}
                           />

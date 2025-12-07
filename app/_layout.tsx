@@ -1,4 +1,4 @@
-import { LOG_LEVEL, Purchases, isNativeModuleAvailable } from '@/utils/revenuecat-wrapper';
+import { ENABLE_REVENUECAT, LOG_LEVEL, Purchases, isNativeModuleAvailable } from '@/utils/revenuecat-wrapper';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -29,6 +29,14 @@ function AppContent() {
 
   useEffect(() => {
     const initializeRevenueCat = async () => {
+      // Skip initialization if RevenueCat is disabled via feature flag
+      if (!ENABLE_REVENUECAT) {
+        if (__DEV__) {
+          console.warn('[RevenueCat] RevenueCat initialization skipped (disabled via feature flag).');
+        }
+        return;
+      }
+
       // Only initialize if native module is available
       if (!isNativeModuleAvailable || !Purchases || !LOG_LEVEL) {
         if (__DEV__) {
@@ -42,7 +50,7 @@ function AppContent() {
         Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.VERBOSE : LOG_LEVEL.ERROR);
 
         // Platform-specific API keys
-        const iosApiKey = 'test_bwsKZRrhzegZZheOpaNyrIYYLmW';
+        const iosApiKey = 'appl_DEXthnrRgJUgeRHbnAqcepQbhkl';
         const androidApiKey = 'test_bwsKZRrhzegZZheOpaNyrIYYLmW';
 
         if (Platform.OS === 'ios') {

@@ -1,13 +1,11 @@
 /**
  * Safe wrapper for RevenueCat native modules
- * Handles cases where native modules aren't available (e.g., Expo Go)
+ * Handles cases where native modules aren't available
  */
 
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
-
-// Check if we're in Expo Go (which doesn't support native modules)
-const isExpoGo = Constants.executionEnvironment === 'storeClient';
+// Feature flag to enable/disable RevenueCat initialization
+// Set to false to disable RevenueCat (useful when using test keys in production)
+export const ENABLE_REVENUECAT = false;
 
 // Check if native modules are available
 let Purchases: any = null;
@@ -16,7 +14,7 @@ let LOG_LEVEL: any = null;
 let PAYWALL_RESULT: any = null;
 let isNativeModuleAvailable = false;
 
-if (!isExpoGo) {
+if (ENABLE_REVENUECAT) {
   try {
     // Try to import native modules
     const purchasesModule = require('react-native-purchases');
@@ -38,7 +36,9 @@ if (!isExpoGo) {
       console.warn('[RevenueCat] Native module not available. RevenueCat features will be disabled.');
     }
   }
+} else if (__DEV__) {
+  console.warn('[RevenueCat] RevenueCat is disabled via feature flag (ENABLE_REVENUECAT = false).');
 }
 
-export { Purchases, RevenueCatUI, LOG_LEVEL, PAYWALL_RESULT, isNativeModuleAvailable };
+export { isNativeModuleAvailable, LOG_LEVEL, PAYWALL_RESULT, Purchases, RevenueCatUI };
 
