@@ -2,14 +2,15 @@ import { ENABLE_REVENUECAT, isNativeModuleAvailable, LOG_LEVEL, Purchases } from
 import { HeaderBackButton } from '@react-navigation/elements';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { router, Stack } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import 'react-native-reanimated';
 
 import { handleDevError } from '@/utils/dev-error-handler';
-import { JourneyProvider } from '@/utils/JourneyProvider';
+import { JourneyProvider, LifeSphere } from '@/utils/JourneyProvider';
 import { LanguageProvider } from '@/utils/languages/language-context';
 import { NotificationsProvider } from '@/utils/NotificationsProvider';
 import { SplashAnimationProvider, useSplash } from '@/utils/SplashAnimationProvider';
@@ -28,6 +29,8 @@ export const unstable_settings = {
 function AppContent() {
   const { hideSplash, isAnimationComplete } = useSplash();
   const { colorScheme } = useTheme();
+  const notificationListener = useRef<Notifications.Subscription>();
+  const responseListener = useRef<Notifications.Subscription>();
 
   useEffect(() => {
     const initializeRevenueCat = async () => {
@@ -89,6 +92,65 @@ function AppContent() {
       return () => clearTimeout(fallbackTimer);
     }
   }, [hideSplash, isAnimationComplete]);
+
+  // Handle notification deep linking
+  useEffect(() => {
+    // This listener is fired whenever a notification is received while the app is foregrounded
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+      console.log('[NotificationReceived] ==========================================');
+      console.log('[NotificationReceived] 📬 Notification received while app is foregrounded');
+      console.log('[NotificationReceived] Received at:', new Date().toISOString());
+      console.log('[NotificationReceived] Title:', notification.request.content.title);
+      console.log('[NotificationReceived] Body:', notification.request.content.body);
+      console.log('[NotificationReceived] Data:', JSON.stringify(notification.request.content.data, null, 2));
+      console.log('[NotificationReceived] Trigger:', JSON.stringify(notification.request.trigger, null, 2));
+      console.log('[NotificationReceived] Notification ID:', notification.request.identifier);
+
+      // Check if this is an immediate fire or scheduled
+      const scheduledAt = (notification.request.content.data as any)?.scheduledAt;
+      if (scheduledAt) {
+        const timeSinceScheduled = Date.now() - scheduledAt;
+        console.log('[NotificationReceived] Time since scheduled:', timeSinceScheduled, 'ms');
+        if (timeSinceScheduled < 5000) {
+          console.error('[NotificationReceived] ⚠️ FIRED IMMEDIATELY! This notification was scheduled less than 5 seconds ago!');
+        }
+      }
+      console.log('[NotificationReceived] ==========================================');
+      // We don't need to do anything here, just showing the notification is enough
+    });
+
+    // This listener is fired whenever a user taps on or interacts with a notification
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+
+      if (data.type === 'entity_reminder' && data.entityId && data.sphere) {
+        const entityId = data.entityId as string;
+        const sphere = data.sphere as LifeSphere;
+
+        // Navigate to the appropriate entity detail screen based on sphere
+        if (sphere === 'relationships') {
+          router.push(`/relationship-detail?id=${entityId}`);
+        } else if (sphere === 'career') {
+          router.push(`/job-detail?id=${entityId}`);
+        } else if (sphere === 'family') {
+          router.push(`/family-member-detail?id=${entityId}`);
+        } else if (sphere === 'friends') {
+          router.push(`/friend-detail?id=${entityId}`);
+        } else if (sphere === 'hobbies') {
+          router.push(`/hobby-detail?id=${entityId}`);
+        }
+      }
+    });
+
+    return () => {
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+    };
+  }, []);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
