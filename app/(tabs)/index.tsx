@@ -255,6 +255,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   yearSection,
   onPositionChange,
   enableDragging = false,
+  externalPositionX,
+  externalPositionY,
 }: {
   profile: any;
   position: { x: number; y: number };
@@ -269,6 +271,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   yearSection?: { year: number | string; top: number; bottom: number; height: number };
   onPositionChange?: (x: number, y: number) => void;
   enableDragging?: boolean;
+  externalPositionX?: ReturnType<typeof useSharedValue<number>>;
+  externalPositionY?: ReturnType<typeof useSharedValue<number>>;
 }) {
   const { isTablet } = useLargeDevice();
   const baseAvatarSize = isTablet ? 120 : 80; // 50% larger on tablets
@@ -337,7 +341,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   // PanResponder for dragging when enabled
   const panResponder = React.useMemo(
     () =>
-      enableDragging && !isFocused
+      enableDragging
         ? PanResponder.create({
             onStartShouldSetPanResponder: () => false, // Don't capture on start - let Pressable handle taps
             onMoveShouldSetPanResponder: (evt, gestureState) => {
@@ -367,8 +371,15 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               const minY = padding;
               const maxY = SCREEN_HEIGHT - padding;
               
-              panX.value = Math.max(minX, Math.min(maxX, newX));
-              panY.value = Math.max(minY, Math.min(maxY, newY));
+              const clampedX = Math.max(minX, Math.min(maxX, newX));
+              const clampedY = Math.max(minY, Math.min(maxY, newY));
+              
+              panX.value = clampedX;
+              panY.value = clampedY;
+              
+              // Update external position shared values if provided (for SparkledDots tracking)
+              if (externalPositionX) externalPositionX.value = clampedX;
+              if (externalPositionY) externalPositionY.value = clampedY;
             },
             onPanResponderRelease: (evt, gestureState) => {
               const wasDragging = dragStartedRef.current;
@@ -394,6 +405,10 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                 dragStartX.value = finalX;
                 dragStartY.value = finalY;
                 
+                // Update external position shared values if provided (for SparkledDots tracking)
+                if (externalPositionX) externalPositionX.value = finalX;
+                if (externalPositionY) externalPositionY.value = finalY;
+                
                 // Notify parent of position change
                 onPositionChange?.(finalX, finalY);
               }
@@ -405,7 +420,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             onPanResponderTerminationRequest: () => false,
           })
         : null,
-    [enableDragging, isFocused, panX, panY, dragStartX, dragStartY, avatarSize, onPositionChange]
+    [enableDragging, isFocused, panX, panY, dragStartX, dragStartY, avatarSize, onPositionChange, externalPositionX, externalPositionY]
   );
   
   // Create individual animated values for each memory with different speeds
@@ -1425,9 +1440,21 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
               startX={startPos?.startX}
               startY={startPos?.startY}
             >
-              <Svg 
-                width={cloudWidth} 
-                height={cloudHeight} 
+              <View
+                style={{
+                  width: cloudWidth,
+                  height: cloudHeight,
+                  // Dark glow for clouds (negative moments)
+                  shadowColor: '#4A5568',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.7,
+                  shadowRadius: isTablet ? 10 : 7,
+                  elevation: 8,
+                }}
+              >
+              <Svg
+                width={cloudWidth}
+                height={cloudHeight}
                 viewBox="0 0 320 100"
                 preserveAspectRatio="xMidYMid meet"
                 style={{ position: 'absolute', top: 0, left: 0 }}
@@ -1488,6 +1515,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
                 >
                   {cloud.text}
                 </ThemedText>
+              </View>
               </View>
             </DraggableMoment>
           );
@@ -1587,9 +1615,21 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
               startX={startPos?.startX}
               startY={startPos?.startY}
             >
-              <Svg 
-                width={sunWidth} 
-                height={sunHeight} 
+              <View
+                style={{
+                  width: sunWidth,
+                  height: sunHeight,
+                  // Golden glow for suns (positive moments)
+                  shadowColor: '#FFD700',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.8,
+                  shadowRadius: isTablet ? 12 : 9,
+                  elevation: 10,
+                }}
+              >
+              <Svg
+                width={sunWidth}
+                height={sunHeight}
                 viewBox="0 0 160 160"
                 preserveAspectRatio="xMidYMid meet"
                 style={{ position: 'absolute', top: 0, left: 0 }}
@@ -1694,6 +1734,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
                     {sun.text.split('\n')[1]}
                   </ThemedText>
                 )}
+              </View>
               </View>
             </DraggableMoment>
           );
@@ -2770,8 +2811,8 @@ const FloatingMemory = React.memo(function FloatingMemory({
               width: memorySize,
               height: memorySize,
               borderRadius: memorySize / 2,
-              backgroundColor: colorScheme === 'dark' 
-                ? 'rgba(100, 150, 200, 0.9)' 
+              backgroundColor: colorScheme === 'dark'
+                ? 'rgba(100, 150, 200, 0.9)'
                 : 'rgba(150, 200, 255, 0.95)',
               justifyContent: 'center',
               alignItems: 'center',
@@ -3493,13 +3534,20 @@ const SparkledDots = React.memo(function SparkledDots({
   fullScreen = false,
 }: {
   avatarSize: number;
-  avatarCenterX: number;
-  avatarCenterY: number;
+  avatarCenterX: number | Animated.SharedValue<number>;
+  avatarCenterY: number | Animated.SharedValue<number>;
   colorScheme: 'light' | 'dark';
   fullScreen?: boolean;
 }) {
   const { isTablet } = useLargeDevice();
+
+    // Check if we're using animated values
+    const isAnimated = typeof avatarCenterX === 'object' && 'value' in avatarCenterX;
   
+    // Extract static values for initial calculation (or use directly if not animated)
+    const staticCenterX = isAnimated ? (avatarCenterX as ReturnType<typeof useSharedValue<number>>).value : avatarCenterX;
+    const staticCenterY = isAnimated ? (avatarCenterY as ReturnType<typeof useSharedValue<number>>).value : avatarCenterY;
+
   // Generate random positions for dots around the avatar
   // Create more dots with better visibility
   const dots = React.useMemo(() => {
@@ -3507,85 +3555,90 @@ const SparkledDots = React.memo(function SparkledDots({
     const numDotsCenter = isTablet ? 35 : 25; // Main dots in center
     const minRadius = avatarSize / 2 + 20; // Start closer to avatar
     const maxRadius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.42; // Extend to near sphere positions
-    
+
     const centerDots = Array.from({ length: numDotsCenter }, (_, i) => {
       // Random angle and radius for scattered effect
       const angle = Math.random() * 2 * Math.PI;
       const radius = minRadius + Math.random() * (maxRadius - minRadius);
-      const x = avatarCenterX + Math.cos(angle) * radius;
-      const y = avatarCenterY + Math.sin(angle) * radius;
-      
+
+      // Store offset from center instead of absolute position for animated dots
+      const offsetX = Math.cos(angle) * radius;
+      const offsetY = Math.sin(angle) * radius;
+
       // Medium size range for better visibility (2-4px)
       const size = 2 + Math.random() * 2;
-      
+
       // Random delay for staggered animation
       const delay = Math.random() * 2000;
-      
+
       // Random animation duration (2.5-4 seconds)
       const duration = 2500 + Math.random() * 1500;
-      
-      return { x, y, size, delay, duration, id: `center-${i}` };
+
+      return { offsetX, offsetY, size, delay, duration, id: `center-${i}`, fixed: false };
     });
-    
+
     if (fullScreen) {
       // Add just a few dots at top and bottom when fullScreen mode is enabled
       const numDotsTop = isTablet ? 4 : 3; // Few dots at top
       const numDotsBottom = isTablet ? 4 : 3; // Few dots at bottom
       const topAreaHeight = SCREEN_HEIGHT * 0.15; // Top 15% of screen
       const bottomAreaHeight = SCREEN_HEIGHT * 0.15; // Bottom 15% of screen
-      
+
       const topDots = Array.from({ length: numDotsTop }, (_, i) => {
-        // Random positions in top area
-        const x = Math.random() * SCREEN_WIDTH;
-        const y = Math.random() * topAreaHeight;
-        
+        // Random positions in top area - these stay fixed
+        const offsetX = Math.random() * SCREEN_WIDTH - staticCenterX;
+        const offsetY = Math.random() * topAreaHeight - staticCenterY;
+
         // Medium size range for better visibility (2-4px)
         const size = 2 + Math.random() * 2;
-        
+
         // Random delay for staggered animation
         const delay = Math.random() * 2000;
-        
+
         // Random animation duration (2.5-4 seconds)
         const duration = 2500 + Math.random() * 1500;
-        
-        return { x, y, size, delay, duration, id: `top-${i}` };
+
+        return { offsetX, offsetY, size, delay, duration, id: `top-${i}`, fixed: true };
       });
-      
+
       const bottomDots = Array.from({ length: numDotsBottom }, (_, i) => {
-        // Random positions in bottom area
-        const x = Math.random() * SCREEN_WIDTH;
-        const y = SCREEN_HEIGHT - bottomAreaHeight + Math.random() * bottomAreaHeight;
-        
+        // Random positions in bottom area - these stay fixed
+        const offsetX = Math.random() * SCREEN_WIDTH - staticCenterX;
+        const offsetY = (SCREEN_HEIGHT - bottomAreaHeight + Math.random() * bottomAreaHeight) - staticCenterY;
+
         // Medium size range for better visibility (2-4px)
         const size = 2 + Math.random() * 2;
-        
+
         // Random delay for staggered animation
         const delay = Math.random() * 2000;
-        
+
         // Random animation duration (2.5-4 seconds)
         const duration = 2500 + Math.random() * 1500;
-        
-        return { x, y, size, delay, duration, id: `bottom-${i}` };
+
+        return { offsetX, offsetY, size, delay, duration, id: `bottom-${i}`, fixed: true };
       });
-      
+
       return [...centerDots, ...topDots, ...bottomDots];
     } else {
       // Original mode: only center dots
       return centerDots;
     }
-  }, [avatarSize, avatarCenterX, avatarCenterY, isTablet, fullScreen]);
-  
+  }, [avatarSize, staticCenterX, staticCenterY, isTablet, fullScreen]);
+
   return (
     <>
       {dots.map((dot) => (
         <SparkledDot
           key={dot.id}
-          x={dot.x}
-          y={dot.y}
+          avatarCenterX={avatarCenterX}
+          avatarCenterY={avatarCenterY}
+          offsetX={dot.offsetX}
+          offsetY={dot.offsetY}
           size={dot.size}
           delay={dot.delay}
           duration={dot.duration}
           colorScheme={colorScheme}
+          fixed={dot.fixed}
         />
       ))}
     </>
@@ -3594,36 +3647,45 @@ const SparkledDots = React.memo(function SparkledDots({
 
 // Individual Sparkled Dot Component
 const SparkledDot = React.memo(function SparkledDot({
-  x,
-  y,
+  avatarCenterX,
+  avatarCenterY,
+  offsetX,
+  offsetY,
   size,
   delay,
   duration,
   colorScheme,
+  fixed = false,
 }: {
-  x: number;
-  y: number;
+  avatarCenterX: number | Animated.SharedValue<number>;
+  avatarCenterY: number | Animated.SharedValue<number>;
+  offsetX: number;
+  offsetY: number;
   size: number;
   delay: number;
   duration: number;
   colorScheme: 'light' | 'dark';
+  fixed?: boolean;
 }) {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.7);
-  
+
+  // Check if we're using animated values
+  const isAnimated = typeof avatarCenterX === 'object' && 'value' in avatarCenterX;
+
   React.useEffect(() => {
     // Scale up animation
     scale.value = withDelay(
       delay,
       withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 })
     );
-    
+
     // Fade in first, then start pulsing with better visibility
     opacity.value = withDelay(
       delay,
-      withTiming(0.7, { 
-        duration: 600, 
-        easing: Easing.out(Easing.ease) 
+      withTiming(0.7, {
+        duration: 600,
+        easing: Easing.out(Easing.ease)
       }, (finished) => {
         if (finished) {
           // After fade in completes, start pulsing (between 0.4 and 0.7 for better visibility)
@@ -3636,24 +3698,43 @@ const SparkledDot = React.memo(function SparkledDot({
       })
     );
   }, [delay, duration, opacity, scale]);
-  
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: scale.value }],
-  }));
-  
+
+  const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    // Calculate position based on avatar center (animated or static) + offset
+    let x: number;
+    let y: number;
+
+      if (isAnimated && !fixed) {
+        // Use animated values for position tracking
+        x = (avatarCenterX as ReturnType<typeof useSharedValue<number>>).value + offsetX;
+        y = (avatarCenterY as ReturnType<typeof useSharedValue<number>>).value + offsetY;
+      } else {
+        // Use static values (either originally static or fixed position)
+        const staticX = isAnimated ? (avatarCenterX as ReturnType<typeof useSharedValue<number>>).value : avatarCenterX;
+        const staticY = isAnimated ? (avatarCenterY as ReturnType<typeof useSharedValue<number>>).value : avatarCenterY;
+        x = staticX + offsetX;
+        y = staticY + offsetY;
+      }
+
+    return {
+      opacity: opacity.value,
+      transform: [{ scale: scale.value }],
+      left: x - size / 2,
+      top: y - size / 2,
+    };
+  });
+
   // More visible glow color based on theme
-  const glowColor = colorScheme === 'dark' 
+  const glowColor = colorScheme === 'dark'
     ? 'rgba(255, 255, 255, 0.65)' // Increased from 0.4 to 0.65
     : 'rgba(255, 215, 0, 0.55)'; // Increased from 0.3 to 0.55
-  
+
   return (
     <Animated.View
       style={[
         {
           position: 'absolute',
-          left: x - size / 2,
-          top: y - size / 2,
           width: size,
           height: size,
           borderRadius: size / 2,
@@ -3828,6 +3909,22 @@ const FloatingEntity = React.memo(function FloatingEntity({
     }
   }, [isMoreSunny, colorScheme]);
   
+  // Get glow color based on entity type
+  const glowColor = React.useMemo(() => {
+    if (entityType === 'partner') {
+      return isMoreSunny ? '#ff6b6b' : '#cc4444';
+    } else if (entityType === 'job') {
+      return isMoreSunny ? '#4dabf7' : '#3b8ac7';
+    } else if (entityType === 'family') {
+      return isMoreSunny ? '#b197fc' : '#8b6bc4';
+    } else if (entityType === 'friend') {
+      return isMoreSunny ? '#8b5cf6' : '#6b3cc4';
+    } else {
+      // hobby
+      return isMoreSunny ? '#ff922b' : '#e67700';
+    }
+  }, [entityType, isMoreSunny]);
+
   return (
     <Animated.View
       style={[
@@ -3839,6 +3936,12 @@ const FloatingEntity = React.memo(function FloatingEntity({
           height: size,
           borderRadius: size / 2,
           zIndex: 40,
+          // Glowing effect
+          shadowColor: glowColor,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.8,
+          shadowRadius: isTablet ? 12 : 8,
+          elevation: 8, // For Android
         },
         animatedStyle,
       ]}
@@ -3868,16 +3971,16 @@ const FloatingEntity = React.memo(function FloatingEntity({
             alignItems: 'center',
           }}
         >
-          <MaterialIcons 
+          <MaterialIcons
             name={
-              entityType === 'partner' ? 'person' : 
-              entityType === 'family' ? 'family-restroom' : 
+              entityType === 'partner' ? 'person' :
+              entityType === 'family' ? 'family-restroom' :
               entityType === 'friend' ? 'people' :
               entityType === 'hobby' ? 'sports-esports' :
               'work'
-            } 
-            size={isTablet ? 24 : 16} 
-            color={isMoreSunny ? (colorScheme === 'dark' ? '#ffffff' : '#333333') : (colorScheme === 'dark' ? '#cccccc' : '#ffffff')} 
+            }
+            size={isTablet ? 24 : 16}
+            color={isMoreSunny ? (colorScheme === 'dark' ? '#ffffff' : '#333333') : (colorScheme === 'dark' ? '#cccccc' : '#ffffff')}
           />
         </View>
       )}
@@ -4216,6 +4319,24 @@ const SphereAvatar = React.memo(function SphereAvatar({
     };
   });
 
+  // Get glow color based on sphere type
+  const glowColor = React.useMemo(() => {
+    switch (sphere) {
+      case 'relationships':
+        return '#ff6b6b'; // Red glow for relationships
+      case 'career':
+        return '#4dabf7'; // Blue glow for career
+      case 'family':
+        return '#51cf66'; // Green glow for family
+      case 'friends':
+        return '#9775fa'; // Purple glow for friends
+      case 'hobbies':
+        return '#ff922b'; // Orange glow for hobbies
+      default:
+        return '#4dabf7';
+    }
+  }, [sphere]);
+
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
@@ -4239,6 +4360,12 @@ const SphereAvatar = React.memo(function SphereAvatar({
             overflow: 'hidden', // Required for gradient to respect borderRadius
             justifyContent: 'center',
             alignItems: 'center',
+            // Glowing effect for spheres
+            shadowColor: glowColor,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.8,
+            shadowRadius: isTablet ? 20 : 15,
+            elevation: 12, // For Android
           },
           animatedStyle,
         ]}
@@ -5271,6 +5398,14 @@ export default function HomeScreen() {
   const [focusedHobbyId, setFocusedHobbyId] = useState<string | null>(null);
   const [focusedMemory, setFocusedMemory] = useState<{ profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null>(null);
   
+  // Shared values to track focused avatar positions for SparkledDots
+  const focusedFamilyMemberPositionX = useSharedValue(SCREEN_WIDTH / 2);
+  const focusedFamilyMemberPositionY = useSharedValue(SCREEN_HEIGHT / 2 + 60);
+  const focusedFriendPositionX = useSharedValue(SCREEN_WIDTH / 2);
+  const focusedFriendPositionY = useSharedValue(SCREEN_HEIGHT / 2 + 60);
+  const focusedHobbyPositionX = useSharedValue(SCREEN_WIDTH / 2);
+  const focusedHobbyPositionY = useSharedValue(SCREEN_HEIGHT / 2 + 60);
+  
   // Helper: Get focusedMemory only if it matches the current selectedSphere
   // This ensures cross-sphere focusedMemory is ignored everywhere
   const getFocusedMemoryForSphere = useCallback((sphere: LifeSphere | null): { profileId?: string; jobId?: string; familyMemberId?: string; memoryId: string; sphere: LifeSphere } | null => {
@@ -5369,6 +5504,87 @@ export default function HomeScreen() {
       return () => clearTimeout(timeoutId);
     }
   }, [focusedHobbyId]);
+
+  // Initialize position shared values when family member becomes focused
+  React.useEffect(() => {
+    if (focusedFamilyMemberId && selectedSphere === 'family') {
+      const member = familyMembers.find(m => m.id === focusedFamilyMemberId);
+      if (member) {
+        const section = familyYearSections.get('all');
+        if (section) {
+          const totalMembers = familyMembers.length;
+          const sectionCenterY = section.top + section.height / 2;
+          const minSpacing = 200;
+          const verticalSpacing = totalMembers > 1 
+            ? Math.max(minSpacing, Math.min(section.height / (totalMembers + 1), 250))
+            : 0;
+          const index = familyMembers.findIndex(m => m.id === focusedFamilyMemberId);
+          const y = totalMembers === 1
+            ? sectionCenterY
+            : section.top + verticalSpacing * (index + 1);
+          focusedFamilyMemberPositionX.value = SCREEN_WIDTH / 2;
+          focusedFamilyMemberPositionY.value = y;
+        } else {
+          focusedFamilyMemberPositionX.value = SCREEN_WIDTH / 2;
+          focusedFamilyMemberPositionY.value = SCREEN_HEIGHT / 2 + 60;
+        }
+      }
+    }
+  }, [focusedFamilyMemberId, selectedSphere, familyMembers, familyYearSections, focusedFamilyMemberPositionX, focusedFamilyMemberPositionY]);
+
+  // Initialize position shared values when friend becomes focused
+  React.useEffect(() => {
+    if (focusedFriendId && selectedSphere === 'friends') {
+      const friend = friends.find(f => f.id === focusedFriendId);
+      if (friend) {
+        const section = friendsYearSections.get('all');
+        if (section) {
+          const totalFriends = friends.length;
+          const sectionCenterY = section.top + section.height / 2;
+          const minSpacing = 200;
+          const verticalSpacing = totalFriends > 1 
+            ? Math.max(minSpacing, Math.min(section.height / (totalFriends + 1), 250))
+            : 0;
+          const index = friends.findIndex(f => f.id === focusedFriendId);
+          const y = totalFriends === 1
+            ? sectionCenterY
+            : section.top + verticalSpacing * (index + 1);
+          focusedFriendPositionX.value = SCREEN_WIDTH / 2;
+          focusedFriendPositionY.value = y;
+        } else {
+          focusedFriendPositionX.value = SCREEN_WIDTH / 2;
+          focusedFriendPositionY.value = SCREEN_HEIGHT / 2 + 60;
+        }
+      }
+    }
+  }, [focusedFriendId, selectedSphere, friends, friendsYearSections, focusedFriendPositionX, focusedFriendPositionY]);
+
+  // Initialize position shared values when hobby becomes focused
+  React.useEffect(() => {
+    if (focusedHobbyId && selectedSphere === 'hobbies') {
+      const hobby = hobbies.find(h => h.id === focusedHobbyId);
+      if (hobby) {
+        const section = hobbiesYearSections.get('all');
+        if (section) {
+          const totalHobbies = hobbies.length;
+          const sectionCenterY = section.top + section.height / 2;
+          const minSpacing = 200;
+          const verticalSpacing = totalHobbies > 1 
+            ? Math.max(minSpacing, Math.min(section.height / (totalHobbies + 1), 250))
+            : 0;
+          const index = hobbies.findIndex(h => h.id === focusedHobbyId);
+          const y = totalHobbies === 1
+            ? sectionCenterY
+            : section.top + verticalSpacing * (index + 1);
+          focusedHobbyPositionX.value = SCREEN_WIDTH / 2;
+          focusedHobbyPositionY.value = y;
+        } else {
+          focusedHobbyPositionX.value = SCREEN_WIDTH / 2;
+          focusedHobbyPositionY.value = SCREEN_HEIGHT / 2 + 60;
+        }
+      }
+    }
+  }, [focusedHobbyId, selectedSphere, hobbies, hobbiesYearSections, focusedHobbyPositionX, focusedHobbyPositionY]);
 
   // Handle URL parameters to set focused memory
   React.useEffect(() => {
@@ -5942,10 +6158,20 @@ export default function HomeScreen() {
             setFocusedMemory({ familyMemberId: entityId, memoryId, sphere });
           }}
           yearSection={section}
+          enableDragging={true}
+          externalPositionX={isFocused ? focusedFamilyMemberPositionX : undefined}
+          externalPositionY={isFocused ? focusedFamilyMemberPositionY : undefined}
+          onPositionChange={(x, y) => {
+            if (isFocused) {
+              focusedFamilyMemberPositionX.value = x;
+              focusedFamilyMemberPositionY.value = y;
+            }
+            updateFamilyMemberPosition(member.id, { x, y });
+          }}
         />
       );
     });
-  }, [animationsReady, focusedFamilyMemberId, focusedMemory, familyMembers, getIdealizedMemoriesByEntityId, familyYearSections, previousFocusedFamilyMemberIdRef, setFocusedFamilyMemberId, setFocusedMemory, colors, colorScheme]);
+  }, [animationsReady, focusedFamilyMemberId, focusedMemory, familyMembers, getIdealizedMemoriesByEntityId, familyYearSections, previousFocusedFamilyMemberIdRef, setFocusedFamilyMemberId, setFocusedMemory, colors, colorScheme, focusedFamilyMemberPositionX, focusedFamilyMemberPositionY]);
 
   // Memoize focused friends render - must be called unconditionally
   // This renders friends when they're focused, and also handles the unfocus animation
@@ -6015,10 +6241,20 @@ export default function HomeScreen() {
             setFocusedMemory({ friendId: entityId, memoryId, sphere });
           }}
           yearSection={section}
+          enableDragging={true}
+          externalPositionX={isFocused ? focusedFriendPositionX : undefined}
+          externalPositionY={isFocused ? focusedFriendPositionY : undefined}
+          onPositionChange={(x, y) => {
+            if (isFocused) {
+              focusedFriendPositionX.value = x;
+              focusedFriendPositionY.value = y;
+            }
+            updateFriendPosition(friend.id, { x, y });
+          }}
         />
       );
     });
-  }, [animationsReady, focusedFriendId, focusedMemory, friends, getIdealizedMemoriesByEntityId, friendsYearSections, previousFocusedFriendIdRef, setFocusedFriendId, setFocusedMemory, colors, colorScheme]);
+  }, [animationsReady, focusedFriendId, focusedMemory, friends, getIdealizedMemoriesByEntityId, friendsYearSections, previousFocusedFriendIdRef, setFocusedFriendId, setFocusedMemory, colors, colorScheme, focusedFriendPositionX, focusedFriendPositionY]);
 
   // Memoize focused hobbies render - must be called unconditionally
   // This renders hobbies when they're focused, and also handles the unfocus animation
@@ -6088,10 +6324,20 @@ export default function HomeScreen() {
             setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
           }}
           yearSection={section}
+          enableDragging={true}
+          externalPositionX={isFocused ? focusedHobbyPositionX : undefined}
+          externalPositionY={isFocused ? focusedHobbyPositionY : undefined}
+          onPositionChange={(x, y) => {
+            if (isFocused) {
+              focusedHobbyPositionX.value = x;
+              focusedHobbyPositionY.value = y;
+            }
+            updateHobbyPosition(hobby.id, { x, y });
+          }}
         />
       );
     });
-  }, [animationsReady, focusedHobbyId, focusedMemory, hobbies, getIdealizedMemoriesByEntityId, hobbiesYearSections, previousFocusedHobbyIdRef, setFocusedHobbyId, setFocusedMemory, colors, colorScheme]);
+  }, [animationsReady, focusedHobbyId, focusedMemory, hobbies, getIdealizedMemoriesByEntityId, hobbiesYearSections, previousFocusedHobbyIdRef, setFocusedHobbyId, setFocusedMemory, colors, colorScheme, focusedHobbyPositionX, focusedHobbyPositionY]);
 
   // Render sphere view - show all 3 spheres with memories floating around, center shows overall percentage
   // When a sphere is selected, show the entities for that sphere (like year sections for relationships)
@@ -7317,8 +7563,8 @@ export default function HomeScreen() {
           {/* Sparkled Dots - Always visible on all screens */}
           <SparkledDots
             avatarSize={avatarSizeForDots}
-            avatarCenterX={avatarCenterX}
-            avatarCenterY={avatarCenterY}
+            avatarCenterX={focusedFamilyMemberId ? focusedFamilyMemberPositionX : avatarCenterX}
+            avatarCenterY={focusedFamilyMemberId ? focusedFamilyMemberPositionY : avatarCenterY}
             colorScheme={colorScheme ?? 'dark'}
           />
           
@@ -7717,8 +7963,8 @@ export default function HomeScreen() {
           {/* Sparkled Dots - Always visible on all screens */}
           <SparkledDots
             avatarSize={avatarSizeForDots}
-            avatarCenterX={avatarCenterX}
-            avatarCenterY={avatarCenterY}
+            avatarCenterX={focusedFriendId ? focusedFriendPositionX : avatarCenterX}
+            avatarCenterY={focusedFriendId ? focusedFriendPositionY : avatarCenterY}
             colorScheme={colorScheme ?? 'dark'}
           />
           
@@ -8111,8 +8357,8 @@ export default function HomeScreen() {
           {/* Sparkled Dots - Always visible on all screens */}
           <SparkledDots
             avatarSize={avatarSizeForDots}
-            avatarCenterX={avatarCenterX}
-            avatarCenterY={avatarCenterY}
+            avatarCenterX={focusedHobbyId ? focusedHobbyPositionX : avatarCenterX}
+            avatarCenterY={focusedHobbyId ? focusedHobbyPositionY : avatarCenterY}
             colorScheme={colorScheme ?? 'dark'}
           />
           
