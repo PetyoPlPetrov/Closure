@@ -1,6 +1,7 @@
-import { ENABLE_REVENUECAT, LOG_LEVEL, Purchases, isNativeModuleAvailable } from '@/utils/revenuecat-wrapper';
+import { ENABLE_REVENUECAT, isNativeModuleAvailable, LOG_LEVEL, Purchases } from '@/utils/revenuecat-wrapper';
+import { HeaderBackButton } from '@react-navigation/elements';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -10,6 +11,7 @@ import 'react-native-reanimated';
 import { handleDevError } from '@/utils/dev-error-handler';
 import { JourneyProvider } from '@/utils/JourneyProvider';
 import { LanguageProvider } from '@/utils/languages/language-context';
+import { NotificationsProvider } from '@/utils/NotificationsProvider';
 import { SplashAnimationProvider, useSplash } from '@/utils/SplashAnimationProvider';
 import { SubscriptionProvider } from '@/utils/SubscriptionProvider';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/utils/ThemeContext';
@@ -117,6 +119,31 @@ function AppContent() {
         <Stack.Screen name="hobby-detail" options={{ headerShown: false }} />
         <Stack.Screen name="insights" options={{ headerShown: false }} />
         <Stack.Screen name="paywall" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="notifications"
+          options={{
+            headerShown: true,
+            title: 'Notifications',
+            headerBackTitleVisible: false,
+            headerBackTitle: '',
+            headerLeft: (props) => (
+              <HeaderBackButton
+                {...props}
+                onPress={() => {
+                  // Always return to Settings tab
+                  router.replace('/settings');
+                }}
+                labelVisible={false}
+              />
+            ),
+          }}
+        />
+        <Stack.Screen
+          name="notifications/[sphere]/[entityId]"
+          options={{
+            headerShown: false,
+          }}
+        />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />
@@ -134,7 +161,9 @@ export default function RootLayout() {
         <LanguageProvider>
           <SubscriptionProvider>
             <JourneyProvider>
-              <AppContent />
+              <NotificationsProvider>
+                <AppContent />
+              </NotificationsProvider>
             </JourneyProvider>
           </SubscriptionProvider>
         </LanguageProvider>

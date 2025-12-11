@@ -9,6 +9,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { WalkthroughModal } from '@/library/components/walkthrough-modal';
 import type { ExProfile, FamilyMember, Friend, Hobby, Job, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
+import { ENABLE_REVENUECAT } from '@/utils/revenuecat-wrapper';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
@@ -1773,13 +1774,17 @@ export default function SpheresScreen() {
                       <TouchableOpacity
                         style={{ width: '100%', height: '100%' }}
                         onPress={async () => {
-                          // Use RevenueCat's presentPaywallIfNeeded - it will check entitlement and show paywall if needed
+                          // If RevenueCat is disabled, go straight to insights
+                          if (!ENABLE_REVENUECAT) {
+                            router.push('/insights');
+                            return;
+                          }
+
+                          // Otherwise, check entitlement via paywall
                           const hasAccess = await presentPaywallIfNeeded('Sfera Premium', offerings || undefined);
                           if (hasAccess) {
-                            // User has access (either already subscribed or just purchased), navigate to insights
                             router.push('/insights');
                           }
-                          // If hasAccess is false, user cancelled or error occurred, don't navigate
                         }}
                         activeOpacity={0.9}
                       >

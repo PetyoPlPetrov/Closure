@@ -24,6 +24,8 @@ export default function SettingsScreen() {
   const { language, setLanguage } = useLanguage();
   const { themeMode, setThemeMode } = useTheme();
   const { addProfile, addJob, addFamilyMember, addFriend, addHobby, addIdealizedMemory, profiles, jobs, familyMembers, friends, hobbies, getProfile, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories, reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies, cleanupOrphanedMemories } = useJourney();
+  // Subscription gating temporarily disabled
+  const { isSubscribed } = { isSubscribed: true as const };
   const t = useTranslate();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [themeDropdownVisible, setThemeDropdownVisible] = useState(false);
@@ -197,6 +199,10 @@ export default function SettingsScreen() {
     if (mode === 'light') return 'light-mode';
     if (mode === 'dark') return 'dark-mode';
     return 'brightness-auto';
+  };
+
+  const handleNotificationsPress = async () => {
+    router.push('/notifications');
   };
 
   const generateFakeData = async () => {
@@ -1520,6 +1526,38 @@ export default function SettingsScreen() {
             </View>
           </Pressable>
         </Modal>
+
+        <View style={styles.section}>
+          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            Notifications
+          </ThemedText>
+
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={handleNotificationsPress}
+            activeOpacity={0.7}
+          >
+            <View style={styles.dropdownContent}>
+              <MaterialIcons
+                name="notifications-active"
+                size={24 * fontScale}
+                color={colors.primary}
+              />
+              <ThemedText
+                size="l"
+                weight="medium"
+                style={styles.dropdownText}
+              >
+                Manage notifications
+              </ThemedText>
+            </View>
+            <MaterialIcons
+              name="arrow-forward-ios"
+              size={20 * fontScale}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        </View>
 
         {/* Temporary: Generate Fake Data Button */}
         <View style={styles.section}>
