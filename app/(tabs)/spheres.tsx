@@ -9,11 +9,11 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { WalkthroughModal } from '@/library/components/walkthrough-modal';
 import type { ExProfile, FamilyMember, Friend, Hobby, Job, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useTranslate } from '@/utils/languages/use-translate';
 import { ENABLE_REVENUECAT } from '@/utils/revenuecat-wrapper';
+import { onSpheresTabPress } from '@/utils/spheres-tab-press';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import { useSubscription } from '@/utils/SubscriptionProvider';
-import { useTranslate } from '@/utils/languages/use-translate';
-import { onSpheresTabPress } from '@/utils/spheres-tab-press';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
@@ -21,9 +21,147 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
 
 const AnimatedView = Animated.createAnimatedComponent(View);
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Sparkled Dots Component - animated glowing dots (copied from index.tsx)
+const SparkledDots = React.memo(function SparkledDots({
+  avatarSize,
+  avatarCenterX,
+  avatarCenterY,
+  colorScheme,
+}: {
+  avatarSize: number;
+  avatarCenterX: number;
+  avatarCenterY: number;
+  colorScheme: 'light' | 'dark';
+}) {
+  const { isTablet } = useLargeDevice();
+  
+  // Generate random positions for dots around the avatar
+  // Create more dots with better visibility
+  const dots = React.useMemo(() => {
+    const numDots = isTablet ? 35 : 25; // Increased from 18/12 to 35/25 for more density
+    const minRadius = avatarSize / 2 + 20; // Start closer to avatar
+    const maxRadius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.42; // Extend to near sphere positions
+    
+    return Array.from({ length: numDots }, (_, i) => {
+      // Random angle and radius for scattered effect
+      const angle = Math.random() * 2 * Math.PI;
+      const radius = minRadius + Math.random() * (maxRadius - minRadius);
+      const x = avatarCenterX + Math.cos(angle) * radius;
+      const y = avatarCenterY + Math.sin(angle) * radius;
+      
+      // Medium size range for better visibility (2-4px)
+      const size = 2 + Math.random() * 2;
+      
+      // Random delay for staggered animation
+      const delay = Math.random() * 2000;
+      
+      // Random animation duration (2.5-4 seconds)
+      const duration = 2500 + Math.random() * 1500;
+      
+      return { x, y, size, delay, duration, id: i };
+    });
+  }, [avatarSize, avatarCenterX, avatarCenterY, isTablet]);
+  
+  return (
+    <>
+      {dots.map((dot) => (
+        <SparkledDot
+          key={dot.id}
+          x={dot.x}
+          y={dot.y}
+          size={dot.size}
+          delay={dot.delay}
+          duration={dot.duration}
+          colorScheme={colorScheme}
+        />
+      ))}
+    </>
+  );
+});
+
+// Individual Sparkled Dot Component
+const SparkledDot = React.memo(function SparkledDot({
+  x,
+  y,
+  size,
+  delay,
+  duration,
+  colorScheme,
+}: {
+  x: number;
+  y: number;
+  size: number;
+  delay: number;
+  duration: number;
+  colorScheme: 'light' | 'dark';
+}) {
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.7);
+  
+  React.useEffect(() => {
+    // Scale up animation
+    scale.value = withDelay(
+      delay,
+      withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 })
+    );
+    
+    // Fade in first, then start pulsing with better visibility
+    opacity.value = withDelay(
+      delay,
+      withTiming(0.7, { 
+        duration: 600, 
+        easing: Easing.out(Easing.ease) 
+      }, (finished) => {
+        if (finished) {
+          // After fade in completes, start pulsing (between 0.4 and 0.7 for better visibility)
+          opacity.value = withRepeat(
+            withTiming(0.4, { duration, easing: Easing.inOut(Easing.ease) }),
+            -1,
+            true
+          );
+        }
+      })
+    );
+  }, [delay, duration, opacity, scale]);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+  
+  // More visible glow color based on theme
+  const glowColor = colorScheme === 'dark' 
+    ? 'rgba(255, 255, 255, 0.65)' // Increased from 0.4 to 0.65
+    : 'rgba(255, 215, 0, 0.55)'; // Increased from 0.3 to 0.55
+  
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          left: x - size / 2,
+          top: y - size / 2,
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: glowColor,
+          shadowColor: glowColor,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.8, // Increased from 0.6
+          shadowRadius: size * 2, // Increased from size * 1.5
+          elevation: 6, // Increased from 4
+        },
+        animatedStyle,
+      ]}
+    />
+  );
+});
 
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
@@ -1760,6 +1898,14 @@ export default function SpheresScreen() {
                 
                 return (
                   <>
+                    {/* Sparkled Dots around center */}
+                    <SparkledDots
+                      avatarSize={48 * fontScale} // Size of the Insights button
+                      avatarCenterX={centerX}
+                      avatarCenterY={centerY}
+                      colorScheme={colorScheme ?? 'dark'}
+                    />
+                    
                     {/* Insights button in the center - circular */}
                     <AnimatedView
                       style={[

@@ -3,16 +3,16 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
-import { TabScreenContainer } from '@/library/components/tab-screen-container';
+import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS, TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
@@ -21,11 +21,12 @@ import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withRepeat,
   withSpring,
   withTiming
 } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
+import Svg, { Circle, Defs, FeColorMatrix, FeGaussianBlur, FeMerge, FeMergeNode, Filter, Path, RadialGradient, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -1358,6 +1359,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   newlyCreatedMoments: Map<string, { startX: number; startY: number }>;
   memory: any;
 }) {
+  const fontScale = useFontScale();
+  
   // Memoize filtered clouds - must be called unconditionally
   const filteredClouds = useMemo(() => {
     if (!isFocused) return [];
@@ -1584,52 +1587,113 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
               startX={startPos?.startX}
               startY={startPos?.startY}
             >
-              <LinearGradient
-                colors={['#FFD700', '#FFD700', '#FFD700']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={{
-                  position: 'absolute',
-                  width: sunWidth,
-                  height: sunHeight,
-                  borderRadius: sunWidth / 2,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
+              <Svg 
+                width={sunWidth} 
+                height={sunHeight} 
+                viewBox="0 0 160 160"
+                preserveAspectRatio="xMidYMid meet"
+                style={{ position: 'absolute', top: 0, left: 0 }}
               >
-                <View style={{
-                  position: 'absolute',
-                  top: sunHeight * 0.2,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}>
-                  <MaterialIcons 
-                    name="wb-sunny" 
-                    size={sunWidth * 0.5} 
-                    color="#FFFFFF" 
-                  />
-                </View>
-              </LinearGradient>
+                <Defs>
+                  <RadialGradient 
+                    id={`sunGradient-${sun.id}`} 
+                    cx="80" 
+                    cy="80" 
+                    rx="48" 
+                    ry="48"
+                    fx="80"
+                    fy="80"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <Stop offset="0%" stopColor="#FFEB3B" stopOpacity="1" />
+                    <Stop offset="30%" stopColor="#FFEB3B" stopOpacity="1" />
+                    <Stop offset="60%" stopColor="#FFD700" stopOpacity="1" />
+                    <Stop offset="100%" stopColor="#FFC107" stopOpacity="1" />
+                  </RadialGradient>
+                </Defs>
+                {/* Sun rays - triangular rays */}
+                {Array.from({ length: 12 }).map((_, i) => {
+                  const angle = (i * 360) / 12;
+                  const radian = (angle * Math.PI) / 180;
+                  const centerX = 80;
+                  const centerY = 80;
+                  const innerRadius = 48; // Adjusted for smaller sun
+                  const outerRadius = 72; // Longer rays
+                  const rayWidth = 3; // Width of triangle base at outer edge
+                  
+                  // Calculate triangle points
+                  const innerX = centerX + Math.cos(radian) * innerRadius;
+                  const innerY = centerY + Math.sin(radian) * innerRadius;
+                  
+                  const outerX = centerX + Math.cos(radian) * outerRadius;
+                  const outerY = centerY + Math.sin(radian) * outerRadius;
+                  
+                  // Perpendicular vector for triangle width
+                  const perpAngle = radian + Math.PI / 2;
+                  const halfWidth = rayWidth / 2;
+                  const leftX = outerX + Math.cos(perpAngle) * halfWidth;
+                  const leftY = outerY + Math.sin(perpAngle) * halfWidth;
+                  const rightX = outerX + Math.cos(perpAngle + Math.PI) * halfWidth;
+                  const rightY = outerY + Math.sin(perpAngle + Math.PI) * halfWidth;
+                  
+                  return (
+                    <Path
+                      key={`ray-${i}`}
+                      d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
+                      fill="#FFD700"
+                    />
+                  );
+                })}
+                {/* Central circle - sized to fit text */}
+                <Circle
+                  cx="80"
+                  cy="80"
+                  r="48" // Adjusted for smaller sun
+                  fill={`url(#sunGradient-${sun.id})`}
+                />
+              </Svg>
               <View
                 style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
                   width: sunWidth,
                   height: sunHeight,
-                  justifyContent: 'flex-start',
+                  justifyContent: 'center',
                   alignItems: 'center',
-                  paddingHorizontal: 12,
-                  paddingTop: sunHeight * 0.25,
+                  // Calculate padding based on sun circle radius to ensure text fits inside
+                  // Sun radius in viewBox is 48, viewBox is 160, so actual radius = (sunWidth / 160) * 48
+                  paddingHorizontal: (sunWidth / 160) * 48 * 0.6, // 60% of radius for safe padding
+                  paddingVertical: (sunHeight / 160) * 48 * 0.4, // 40% of radius for vertical padding
                 }}
               >
                 <ThemedText
                   style={{
-                    color: '#000000',
-                    fontSize: 12,
+                    color: 'black',
+                    fontSize: 12 * fontScale, // Smaller font size to ensure text fits inside
                     textAlign: 'center',
-                    fontWeight: '500',
+                    fontWeight: '700',
+                    // Max width should be less than circle diameter minus padding
+                    //maxWidth: (sunWidth / 160) * 48 * 1.6, // 80% of diameter to ensure text fits
                   }}
+                  numberOfLines={2}
                 >
-                  {sun.text}
+                  {sun.text?.split('\n')[0] || sun.text}
                 </ThemedText>
+                {sun.text?.includes('\n') && (
+                  <ThemedText
+                    style={{
+                      color: 'black',
+                      fontSize: 7 * fontScale, // Smaller font size for second line
+                      textAlign: 'center',
+                      fontWeight: '600',
+                      maxWidth: (sunWidth / 160) * 48 * 1.6, // Same max width
+                    }}
+                    numberOfLines={1}
+                  >
+                    {sun.text.split('\n')[1]}
+                  </ThemedText>
+                )}
               </View>
             </DraggableMoment>
           );
@@ -2104,8 +2168,9 @@ const FloatingMemory = React.memo(function FloatingMemory({
   // Scale for tablets (50% larger)
   const cloudWidth = isTablet ? 720 : (isLargeDevice ? 480 : 320); // 50% larger on tablets
   const cloudHeight = isTablet ? 225 : (isLargeDevice ? 150 : 100); // 50% larger on tablets
-  const sunWidth = isTablet ? 225 : (isLargeDevice ? 150 : 100); // 50% larger on tablets
-  const sunHeight = isTablet ? 225 : (isLargeDevice ? 150 : 100); // 50% larger on tablets
+  // Sun size - smaller to fit text nicely
+  const sunWidth = isTablet ? 240 : (isLargeDevice ? 200 : 160); // Smaller size
+  const sunHeight = isTablet ? 240 : (isLargeDevice ? 200 : 160); // Smaller size
   
   // Calculate moment radius to ensure moments are outside memory circle border
   // Memory size is determined above (either focused size or calculatedMemorySize)
@@ -3156,25 +3221,69 @@ const FloatingSun = React.memo(function FloatingSun({
           }
         }}
       >
-        <LinearGradient
-          colors={['#FFD700', '#FFD700', '#FFD700']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            width: sunSize,
-            height: sunSize,
-            borderRadius: sunSize / 2,
-            justifyContent: 'center',
-            alignItems: 'center',
-            shadowColor: '#FFD700',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.5,
-            shadowRadius: 4,
-            elevation: 4,
-          }}
+        <Svg
+          width={sunSize}
+          height={sunSize}
+          viewBox="0 0 22 22"
+          style={{ position: 'absolute', top: 0, left: 0 }}
         >
-          <MaterialIcons name="wb-sunny" size={sunSize * 0.65} color="#FFFFFF" />
-        </LinearGradient>
+          <Defs>
+            <RadialGradient 
+              id={`floatingSunGradient-${sun?.id || 'default'}`} 
+              cx="11" 
+              cy="11" 
+              rx="5" 
+              ry="5"
+              fx="11"
+              fy="11"
+              gradientUnits="userSpaceOnUse"
+            >
+              <Stop offset="0%" stopColor="#FFB300" stopOpacity="1" />
+              <Stop offset="50%" stopColor="#FFC107" stopOpacity="1" />
+              <Stop offset="100%" stopColor="#FFD54F" stopOpacity="1" />
+            </RadialGradient>
+          </Defs>
+          {/* Sun rays - 16 triangular rays for smaller version */}
+          {Array.from({ length: 16 }).map((_, i) => {
+            const angle = (i * 360) / 16;
+            const radian = (angle * Math.PI) / 180;
+            const centerX = 11;
+            const centerY = 11;
+            const innerRadius = 5;
+            const outerRadius = 12; // Longer rays
+            const rayWidth = 1.2; // Width of triangle base at outer edge
+            
+            // Calculate triangle points
+            const innerX = centerX + Math.cos(radian) * innerRadius;
+            const innerY = centerY + Math.sin(radian) * innerRadius;
+            
+            const outerX = centerX + Math.cos(radian) * outerRadius;
+            const outerY = centerY + Math.sin(radian) * outerRadius;
+            
+            // Perpendicular vector for triangle width
+            const perpAngle = radian + Math.PI / 2;
+            const halfWidth = rayWidth / 2;
+            const leftX = outerX + Math.cos(perpAngle) * halfWidth;
+            const leftY = outerY + Math.sin(perpAngle) * halfWidth;
+            const rightX = outerX + Math.cos(perpAngle + Math.PI) * halfWidth;
+            const rightY = outerY + Math.sin(perpAngle + Math.PI) * halfWidth;
+            
+            return (
+              <Path
+                key={`floatingRay-${i}`}
+                d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
+                fill="#FFD700"
+              />
+            );
+          })}
+          {/* Central circle */}
+          <Circle
+            cx="11"
+            cy="11"
+            r="5"
+            fill={`url(#floatingSunGradient-${sun?.id || 'default'})`}
+          />
+        </Svg>
       </Pressable>
     </Animated.View>
   );
@@ -3225,21 +3334,32 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
+  // Use the same gradient colors as the screen background
+  const gradientColors = colorScheme === 'dark' ? DARK_GRADIENT_COLORS : LIGHT_GRADIENT_COLORS;
+
   return (
     <View
       style={{
         width: avatarSize,
         height: avatarSize,
         borderRadius: avatarSize / 2,
-        backgroundColor: colorScheme === 'dark' 
-          ? 'rgba(14, 165, 233, 0.2)' 
-          : 'rgba(125, 211, 252, 0.3)',
         justifyContent: 'center',
         alignItems: 'center',
         position: 'relative',
         overflow: 'hidden', // Ensure perfect circle clipping
       }}
     >
+      <LinearGradient
+        colors={gradientColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{
+          position: 'absolute',
+          width: avatarSize,
+          height: avatarSize,
+          borderRadius: avatarSize / 2,
+        }}
+      />
       <Svg
         width={avatarSize}
         height={avatarSize}
@@ -3248,9 +3368,77 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
       >
         <Defs>
           <SvgLinearGradient id="overallBorderGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#FFD700" stopOpacity="1" />
-            <Stop offset="100%" stopColor="#FFD700" stopOpacity="1" />
+            <Stop offset="0%" stopColor="#FFF9C4" stopOpacity="1" />
+            <Stop offset="50%" stopColor="#FFD700" stopOpacity="1" />
+            <Stop offset="100%" stopColor="#FFA000" stopOpacity="1" />
           </SvgLinearGradient>
+          {/* Strong outer glow filter - extends outward prominently */}
+          <Filter id="outerYellowGlow" x="-200%" y="-200%" width="500%" height="500%">
+            {/* Large outer glow layer - very spread out */}
+            <FeGaussianBlur in="SourceGraphic" stdDeviation="20" result="outerBlurLarge" />
+            <FeColorMatrix
+              in="outerBlurLarge"
+              type="matrix"
+              values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.5 0"
+              result="outerGlowLarge"
+            />
+            {/* Medium outer glow layer */}
+            <FeGaussianBlur in="SourceGraphic" stdDeviation="12" result="outerBlurMedium" />
+            <FeColorMatrix
+              in="outerBlurMedium"
+              type="matrix"
+              values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.7 0"
+              result="outerGlowMedium"
+            />
+            {/* Smaller outer glow layer for definition */}
+            <FeGaussianBlur in="SourceGraphic" stdDeviation="6" result="outerBlurSmall" />
+            <FeColorMatrix
+              in="outerBlurSmall"
+              type="matrix"
+              values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.9 0"
+              result="outerGlowSmall"
+            />
+            {/* Merge all outer glow layers */}
+            <FeMerge>
+              <FeMergeNode in="outerGlowLarge" />
+              <FeMergeNode in="outerGlowMedium" />
+              <FeMergeNode in="outerGlowSmall" />
+            </FeMerge>
+          </Filter>
+          {/* Enhanced glow filter with both inner and outer glow */}
+          <Filter id="yellowGlow" x="-200%" y="-200%" width="500%" height="500%">
+            {/* Strong outer glow - larger blur that extends outward prominently */}
+            <FeGaussianBlur in="SourceGraphic" stdDeviation="16" result="outerBlur" />
+            <FeColorMatrix
+              in="outerBlur"
+              type="matrix"
+              values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 1.0 0"
+              result="outerGlow"
+            />
+            {/* Medium outer glow for more spread */}
+            <FeGaussianBlur in="SourceGraphic" stdDeviation="10" result="outerBlurMedium" />
+            <FeColorMatrix
+              in="outerBlurMedium"
+              type="matrix"
+              values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.85 0"
+              result="outerGlowMedium"
+            />
+            {/* Inner glow - smaller blur that extends inward */}
+            <FeGaussianBlur in="SourceGraphic" stdDeviation="4" result="innerBlur" />
+            <FeColorMatrix
+              in="innerBlur"
+              type="matrix"
+              values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.8 0"
+              result="innerGlow"
+            />
+            {/* Merge: outer glows (behind), inner glow (middle), source (front) */}
+            <FeMerge>
+              <FeMergeNode in="outerGlow" />
+              <FeMergeNode in="outerGlowMedium" />
+              <FeMergeNode in="innerGlow" />
+              <FeMergeNode in="SourceGraphic" />
+            </FeMerge>
+          </Filter>
         </Defs>
         <Circle
           cx={avatarSize / 2}
@@ -3260,6 +3448,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
           strokeWidth={borderWidth}
           fill="none"
         />
+        {/* Outer glow layer - extends outward from the circle */}
         <Circle
           cx={avatarSize / 2}
           cy={avatarSize / 2}
@@ -3270,6 +3459,21 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
+          filter="url(#outerYellowGlow)"
+          transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
+        />
+        {/* Glowing yellow progress ring with enhanced shine (inner + outer glow) */}
+        <Circle
+          cx={avatarSize / 2}
+          cy={avatarSize / 2}
+          r={radius}
+          stroke="url(#overallBorderGradient)"
+          strokeWidth={borderWidth}
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          filter="url(#yellowGlow)"
           transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
         />
       </Svg>
@@ -3277,6 +3481,192 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
         {Math.round(percentage)}%
       </ThemedText>
     </View>
+  );
+});
+
+// Sparkled Dots Component - animated glowing dots around avatar
+const SparkledDots = React.memo(function SparkledDots({
+  avatarSize,
+  avatarCenterX,
+  avatarCenterY,
+  colorScheme,
+  fullScreen = false,
+}: {
+  avatarSize: number;
+  avatarCenterX: number;
+  avatarCenterY: number;
+  colorScheme: 'light' | 'dark';
+  fullScreen?: boolean;
+}) {
+  const { isTablet } = useLargeDevice();
+  
+  // Generate random positions for dots around the avatar
+  // Create more dots with better visibility
+  const dots = React.useMemo(() => {
+    // Always generate center dots around avatar/spheres (main concentration)
+    const numDotsCenter = isTablet ? 35 : 25; // Main dots in center
+    const minRadius = avatarSize / 2 + 20; // Start closer to avatar
+    const maxRadius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.42; // Extend to near sphere positions
+    
+    const centerDots = Array.from({ length: numDotsCenter }, (_, i) => {
+      // Random angle and radius for scattered effect
+      const angle = Math.random() * 2 * Math.PI;
+      const radius = minRadius + Math.random() * (maxRadius - minRadius);
+      const x = avatarCenterX + Math.cos(angle) * radius;
+      const y = avatarCenterY + Math.sin(angle) * radius;
+      
+      // Medium size range for better visibility (2-4px)
+      const size = 2 + Math.random() * 2;
+      
+      // Random delay for staggered animation
+      const delay = Math.random() * 2000;
+      
+      // Random animation duration (2.5-4 seconds)
+      const duration = 2500 + Math.random() * 1500;
+      
+      return { x, y, size, delay, duration, id: `center-${i}` };
+    });
+    
+    if (fullScreen) {
+      // Add just a few dots at top and bottom when fullScreen mode is enabled
+      const numDotsTop = isTablet ? 4 : 3; // Few dots at top
+      const numDotsBottom = isTablet ? 4 : 3; // Few dots at bottom
+      const topAreaHeight = SCREEN_HEIGHT * 0.15; // Top 15% of screen
+      const bottomAreaHeight = SCREEN_HEIGHT * 0.15; // Bottom 15% of screen
+      
+      const topDots = Array.from({ length: numDotsTop }, (_, i) => {
+        // Random positions in top area
+        const x = Math.random() * SCREEN_WIDTH;
+        const y = Math.random() * topAreaHeight;
+        
+        // Medium size range for better visibility (2-4px)
+        const size = 2 + Math.random() * 2;
+        
+        // Random delay for staggered animation
+        const delay = Math.random() * 2000;
+        
+        // Random animation duration (2.5-4 seconds)
+        const duration = 2500 + Math.random() * 1500;
+        
+        return { x, y, size, delay, duration, id: `top-${i}` };
+      });
+      
+      const bottomDots = Array.from({ length: numDotsBottom }, (_, i) => {
+        // Random positions in bottom area
+        const x = Math.random() * SCREEN_WIDTH;
+        const y = SCREEN_HEIGHT - bottomAreaHeight + Math.random() * bottomAreaHeight;
+        
+        // Medium size range for better visibility (2-4px)
+        const size = 2 + Math.random() * 2;
+        
+        // Random delay for staggered animation
+        const delay = Math.random() * 2000;
+        
+        // Random animation duration (2.5-4 seconds)
+        const duration = 2500 + Math.random() * 1500;
+        
+        return { x, y, size, delay, duration, id: `bottom-${i}` };
+      });
+      
+      return [...centerDots, ...topDots, ...bottomDots];
+    } else {
+      // Original mode: only center dots
+      return centerDots;
+    }
+  }, [avatarSize, avatarCenterX, avatarCenterY, isTablet, fullScreen]);
+  
+  return (
+    <>
+      {dots.map((dot) => (
+        <SparkledDot
+          key={dot.id}
+          x={dot.x}
+          y={dot.y}
+          size={dot.size}
+          delay={dot.delay}
+          duration={dot.duration}
+          colorScheme={colorScheme}
+        />
+      ))}
+    </>
+  );
+});
+
+// Individual Sparkled Dot Component
+const SparkledDot = React.memo(function SparkledDot({
+  x,
+  y,
+  size,
+  delay,
+  duration,
+  colorScheme,
+}: {
+  x: number;
+  y: number;
+  size: number;
+  delay: number;
+  duration: number;
+  colorScheme: 'light' | 'dark';
+}) {
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.7);
+  
+  React.useEffect(() => {
+    // Scale up animation
+    scale.value = withDelay(
+      delay,
+      withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 })
+    );
+    
+    // Fade in first, then start pulsing with better visibility
+    opacity.value = withDelay(
+      delay,
+      withTiming(0.7, { 
+        duration: 600, 
+        easing: Easing.out(Easing.ease) 
+      }, (finished) => {
+        if (finished) {
+          // After fade in completes, start pulsing (between 0.4 and 0.7 for better visibility)
+          opacity.value = withRepeat(
+            withTiming(0.4, { duration, easing: Easing.inOut(Easing.ease) }),
+            -1,
+            true
+          );
+        }
+      })
+    );
+  }, [delay, duration, opacity, scale]);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+  
+  // More visible glow color based on theme
+  const glowColor = colorScheme === 'dark' 
+    ? 'rgba(255, 255, 255, 0.65)' // Increased from 0.4 to 0.65
+    : 'rgba(255, 215, 0, 0.55)'; // Increased from 0.3 to 0.55
+  
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          left: x - size / 2,
+          top: y - size / 2,
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: glowColor,
+          shadowColor: glowColor,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.8, // Increased from 0.6
+          shadowRadius: size * 2, // Increased from size * 1.5
+          elevation: 6, // Increased from 4
+        },
+        animatedStyle,
+      ]}
+    />
   );
 });
 
@@ -5176,7 +5566,7 @@ export default function HomeScreen() {
       // Hobbies slideOffset
       animateSlideOffset(hobbiesSlideOffset, focusedHobbyId || (focusedMemory && focusedMemory.sphere === 'hobbies'));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [focusedProfileId, focusedJobId, focusedFamilyMemberId, focusedFriendId, focusedHobbyId, focusedMemory, animationsReady, handleSlideOutComplete, handleSlideInComplete, slideOffset, careerSlideOffset, familySlideOffset, friendsSlideOffset, hobbiesSlideOffset]);
   
   // Slide offset for non-focused memories when a memory is focused
@@ -5705,10 +6095,38 @@ export default function HomeScreen() {
 
   // Render sphere view - show all 3 spheres with memories floating around, center shows overall percentage
   // When a sphere is selected, show the entities for that sphere (like year sections for relationships)
+  
+  // Calculate avatar center coordinates for sparkled dots (always show on all screens)
+  const avatarCenterX = SCREEN_WIDTH / 2;
+  const avatarCenterY = SCREEN_HEIGHT / 2 + 60; // Lower the main circle by 60px
+  const baseAvatarSize = isTablet ? 180 : 120;
+  const avatarSizeForDots = baseAvatarSize; // Use base size for dots positioning
+  
   if (!selectedSphere) {
   return (
     <TabScreenContainer>
         <View style={{ flex: 1, height: SCREEN_HEIGHT, position: 'relative', justifyContent: 'center', alignItems: 'center' }}>
+          {/* Sparkled Dots - Always visible on all screens - full screen coverage */}
+          <SparkledDots
+            avatarSize={avatarSizeForDots}
+            avatarCenterX={avatarCenterX}
+            avatarCenterY={avatarCenterY}
+            colorScheme={colorScheme ?? 'dark'}
+            fullScreen={true}
+          />
+          
+          {/* Sparkled Dots around top text box - positioned behind the text box */}
+          {hasAnyMoments && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 250, zIndex: 150, pointerEvents: 'none' }}>
+              <SparkledDots
+                avatarSize={SCREEN_WIDTH * 0.8} // Use a larger area to cover the text box region and surrounding area
+                avatarCenterX={SCREEN_WIDTH / 2}
+                avatarCenterY={100 + 50} // Position around the text box (top: 100 + approximate height/2)
+                colorScheme={colorScheme ?? 'dark'}
+              />
+            </View>
+          )}
+          
           {/* Encouraging Message Section */}
           {hasAnyMoments && (
             <Animated.View 
@@ -5813,7 +6231,7 @@ export default function HomeScreen() {
             </Animated.View>
           )}
 
-          {/* Center - Overall Percentage Avatar */}
+          {/* Center - Overall Percentage Avatar with Sparkled Dots */}
           {(() => {
             // Calculate avatar size considering floating entities intersection
             const sphereDistanceFromCenter = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3;
@@ -5828,12 +6246,14 @@ export default function HomeScreen() {
             const avatarSize = maxSafeAvatarRadius < baseAvatarRadius 
               ? Math.max(maxSafeAvatarRadius * 2, isTablet ? 140 : 90)
               : baseAvatarSize;
+            const avatarCenterX = SCREEN_WIDTH / 2;
+            const avatarCenterY = SCREEN_HEIGHT / 2 + 60; // Lower the main circle by 60px
             return (
               <View
                 style={{
                   position: 'absolute',
-                  left: SCREEN_WIDTH / 2 - avatarSize / 2,
-                  top: SCREEN_HEIGHT / 2 - avatarSize / 2 + 60, // Lower the main circle by 60px
+                  left: avatarCenterX - avatarSize / 2,
+                  top: avatarCenterY - avatarSize / 2,
                   width: avatarSize,
                   height: avatarSize,
                   zIndex: 100,
@@ -6102,6 +6522,15 @@ export default function HomeScreen() {
   return (
     <TabScreenContainer>
       <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
+          {/* Sparkled Dots - Always visible on all screens - full screen coverage */}
+          <SparkledDots
+            avatarSize={avatarSizeForDots}
+            avatarCenterX={avatarCenterX}
+            avatarCenterY={avatarCenterY}
+            colorScheme={colorScheme ?? 'dark'}
+            fullScreen={true}
+          />
+          
           {/* Back button to return to sphere view */}
           <Pressable
             onPress={() => {
@@ -6432,6 +6861,14 @@ export default function HomeScreen() {
     return (
       <TabScreenContainer>
         <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
+          {/* Sparkled Dots - Always visible on all screens */}
+          <SparkledDots
+            avatarSize={avatarSizeForDots}
+            avatarCenterX={avatarCenterX}
+            avatarCenterY={avatarCenterY}
+            colorScheme={colorScheme ?? 'dark'}
+          />
+          
           {/* Back button to return to sphere view */}
           <Pressable
             onPress={() => {
@@ -6877,6 +7314,14 @@ export default function HomeScreen() {
     return (
       <TabScreenContainer>
         <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
+          {/* Sparkled Dots - Always visible on all screens */}
+          <SparkledDots
+            avatarSize={avatarSizeForDots}
+            avatarCenterX={avatarCenterX}
+            avatarCenterY={avatarCenterY}
+            colorScheme={colorScheme ?? 'dark'}
+          />
+          
           {/* Back button to return to sphere view */}
           <Pressable
             onPress={() => {
@@ -7269,6 +7714,14 @@ export default function HomeScreen() {
     return (
       <TabScreenContainer>
         <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
+          {/* Sparkled Dots - Always visible on all screens */}
+          <SparkledDots
+            avatarSize={avatarSizeForDots}
+            avatarCenterX={avatarCenterX}
+            avatarCenterY={avatarCenterY}
+            colorScheme={colorScheme ?? 'dark'}
+          />
+          
           {/* Back button to return to sphere view */}
           <Pressable
             onPress={() => {
@@ -7655,6 +8108,14 @@ export default function HomeScreen() {
     return (
       <TabScreenContainer>
         <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
+          {/* Sparkled Dots - Always visible on all screens */}
+          <SparkledDots
+            avatarSize={avatarSizeForDots}
+            avatarCenterX={avatarCenterX}
+            avatarCenterY={avatarCenterY}
+            colorScheme={colorScheme ?? 'dark'}
+          />
+          
           {/* Back button to return to sphere view */}
           <Pressable
             onPress={() => {
