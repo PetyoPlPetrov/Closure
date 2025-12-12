@@ -23,6 +23,7 @@ import Animated, {
   useSharedValue,
   withDelay,
   withRepeat,
+  withSequence,
   withSpring,
   withTiming
 } from 'react-native-reanimated';
@@ -4593,18 +4594,53 @@ export default function HomeScreen() {
     return idealizedMemories && idealizedMemories.length > 0;
   }, [idealizedMemories]);
   
+  // State to track if encouragement message is visible (toggled by clicking avatar)
+  const [isEncouragementVisible, setIsEncouragementVisible] = useState(false);
+  const previousEncouragementVisibleRef = useRef(false);
+  const hasAutoShownRef = useRef(false); // Track if we've auto-shown the message on initial load
+  
   // Animation values for encouraging message
   const encouragementOpacity = useSharedValue(0);
-  const encouragementScale = useSharedValue(0.95);
+  const encouragementScale = useSharedValue(0);
+  const encouragementTranslateX = useSharedValue(0);
+  const encouragementTranslateY = useSharedValue(0);
   const encouragementGlow = useSharedValue(0);
   const isGoodMoments = overallSunnyPercentage > 50;
   
-  // Animate encouragement message on mount/update
+  // Animation value for avatar bounce
+  const avatarBounceScale = useSharedValue(1);
+  
+  // Animated style for avatar bounce
+  const avatarBounceStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: avatarBounceScale.value }],
+    };
+  });
+  
+  // Avatar center position for animation (using different names to avoid conflicts)
+  const encouragementAvatarCenterX = SCREEN_WIDTH / 2;
+  const encouragementAvatarCenterY = SCREEN_HEIGHT / 2 + 60;
+  const messageTop = 100;
+  const messageLeft = 20;
+  const messageRight = 20;
+  const messageCenterX = messageLeft + (SCREEN_WIDTH - messageLeft - messageRight) / 2;
+  const messageCenterY = messageTop + 50; // Approximate center of message (top + half height)
+  
+  // Calculate translation from avatar center to message position
+  const translateXFromAvatar = messageCenterX - encouragementAvatarCenterX;
+  const translateYFromAvatar = messageCenterY - encouragementAvatarCenterY;
+  
+  // Animate encouragement message when visibility changes
   React.useEffect(() => {
-    if (hasAnyMoments) {
-      // Fade in and scale up
-      encouragementOpacity.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) });
-      encouragementScale.value = withSpring(1, { damping: 12, stiffness: 150 });
+    const wasVisible = previousEncouragementVisibleRef.current;
+    const isNowVisible = isEncouragementVisible && hasAnyMoments;
+    
+    if (isNowVisible) {
+      // Animate from avatar center: scale from 0, translate from avatar position
+      encouragementOpacity.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) });
+      encouragementScale.value = withSpring(1, { damping: 20, stiffness: 200 }); // Less bouncy: higher damping, higher stiffness
+      encouragementTranslateX.value = withSpring(translateXFromAvatar, { damping: 20, stiffness: 200 }); // Less bouncy
+      encouragementTranslateY.value = withSpring(translateYFromAvatar, { damping: 20, stiffness: 200 }); // Less bouncy
       
       // Subtle glow pulse for good moments
       if (isGoodMoments) {
@@ -4617,11 +4653,31 @@ export default function HomeScreen() {
         encouragementGlow.value = 0;
       }
     } else {
-      encouragementOpacity.value = 0;
-      encouragementScale.value = 0.95;
+      // Animate back to avatar center: scale to 0, translate back to avatar position
+      const disappearDuration = 300;
+      encouragementOpacity.value = withTiming(0, { duration: disappearDuration, easing: Easing.in(Easing.cubic) });
+      encouragementScale.value = withTiming(0, { duration: disappearDuration, easing: Easing.in(Easing.cubic) });
+      encouragementTranslateX.value = withTiming(0, { duration: disappearDuration, easing: Easing.in(Easing.cubic) });
+      encouragementTranslateY.value = withTiming(0, { duration: disappearDuration, easing: Easing.in(Easing.cubic) });
       encouragementGlow.value = 0;
+      
+      // Trigger avatar bounce when message is dismissed (was visible, now hidden)
+      // Start bounce near the end of the disappearing animation (at ~80% of the duration)
+      if (wasVisible && !isNowVisible) {
+        const bounceDelay = disappearDuration * 0.8; // Start bounce at 80% of disappear animation (240ms)
+        avatarBounceScale.value = withDelay(
+          bounceDelay,
+          withSequence(
+            withSpring(1.15, { damping: 8, stiffness: 300 }), // Bounce up
+            withSpring(1, { damping: 10, stiffness: 200 })   // Bounce back
+          )
+        );
+      }
     }
-  }, [hasAnyMoments, isGoodMoments]);
+    
+    // Update previous value
+    previousEncouragementVisibleRef.current = isNowVisible;
+  }, [isEncouragementVisible, hasAnyMoments, isGoodMoments, translateXFromAvatar, translateYFromAvatar, avatarBounceScale]);
   
   // Animated styles for encouragement message
   const encouragementAnimatedStyle = useAnimatedStyle(() => {
@@ -4631,7 +4687,11 @@ export default function HomeScreen() {
     
     return {
       opacity: encouragementOpacity.value,
-      transform: [{ scale: encouragementScale.value }],
+      transform: [
+        { translateX: encouragementTranslateX.value },
+        { translateY: encouragementTranslateY.value },
+        { scale: encouragementScale.value }
+      ],
       shadowOpacity: glowOpacity,
     };
   });
@@ -5111,6 +5171,25 @@ export default function HomeScreen() {
       return () => clearTimeout(timer);
     }
   }, [isSplashVisible]);
+  
+  // Auto-show encouragement message when splash animation completes and home screen is ready
+  React.useEffect(() => {
+    if (
+      !hasAutoShownRef.current &&
+      !isSplashVisible &&
+      isSplashAnimationComplete &&
+      animationsReady &&
+      hasAnyMoments &&
+      !selectedSphere // Only show on main home screen, not when a sphere is selected
+    ) {
+      // Small delay after splash completes to let everything settle
+      const timer = setTimeout(() => {
+        setIsEncouragementVisible(true);
+        hasAutoShownRef.current = true;
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isSplashVisible, isSplashAnimationComplete, animationsReady, hasAnyMoments, selectedSphere]);
   
   // Track positions for each avatar (for dragging)
   const [avatarPositionsState, setAvatarPositionsState] = React.useState<Map<string, { x: number; y: number }>>(new Map());
@@ -6379,9 +6458,11 @@ export default function HomeScreen() {
               style={[
                 {
                   position: 'absolute',
-                  top: 100,
-                  left: 20,
-                  right: 20,
+                  top: encouragementAvatarCenterY,
+                  left: encouragementAvatarCenterX,
+                  width: SCREEN_WIDTH - 40, // left + right = 40
+                  marginLeft: -(SCREEN_WIDTH - 40) / 2, // Center horizontally on avatar
+                  marginTop: -25, // Center vertically on avatar (approximate message height / 2)
                   zIndex: 200,
                   paddingHorizontal: 24 * fontScale,
                   paddingVertical: 18 * fontScale,
@@ -6391,6 +6472,33 @@ export default function HomeScreen() {
                 encouragementAnimatedStyle,
               ]}
             >
+              {/* Close button */}
+              <Pressable
+                onPress={() => setIsEncouragementVisible(false)}
+                style={{
+                  position: 'absolute',
+                  top: 12 * fontScale,
+                  right: 12 * fontScale,
+                  width: 28 * fontScale,
+                  height: 28 * fontScale,
+                  borderRadius: 14 * fontScale,
+                  backgroundColor: colorScheme === 'dark' 
+                    ? 'rgba(255, 255, 255, 0.1)' 
+                    : 'rgba(0, 0, 0, 0.08)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  zIndex: 10,
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <MaterialIcons 
+                  name="close" 
+                  size={18 * fontScale} 
+                  color={colors.text} 
+                  style={{ opacity: 0.7 }}
+                />
+              </Pressable>
+              
               {/* Gradient background */}
               <LinearGradient
                 colors={
@@ -6494,23 +6602,39 @@ export default function HomeScreen() {
               : baseAvatarSize;
             const avatarCenterX = SCREEN_WIDTH / 2;
             const avatarCenterY = SCREEN_HEIGHT / 2 + 60; // Lower the main circle by 60px
+            
             return (
-              <View
-                style={{
-                  position: 'absolute',
-                  left: avatarCenterX - avatarSize / 2,
-                  top: avatarCenterY - avatarSize / 2,
-                  width: avatarSize,
-                  height: avatarSize,
-                  zIndex: 100,
-                }}
+              <Animated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    left: avatarCenterX - avatarSize / 2,
+                    top: avatarCenterY - avatarSize / 2,
+                    width: avatarSize,
+                    height: avatarSize,
+                    zIndex: 100,
+                  },
+                  avatarBounceStyle,
+                ]}
               >
-                <OverallPercentageAvatar
-                  percentage={overallSunnyPercentage}
-                  colorScheme={colorScheme ?? 'dark'}
-                  colors={colors}
-                />
-              </View>
+                <Pressable
+                  onPress={() => {
+                    if (hasAnyMoments) {
+                      setIsEncouragementVisible(!isEncouragementVisible);
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                  }}
+                >
+                  <OverallPercentageAvatar
+                    percentage={overallSunnyPercentage}
+                    colorScheme={colorScheme ?? 'dark'}
+                    colors={colors}
+                  />
+                </Pressable>
+              </Animated.View>
             );
           })()}
 
