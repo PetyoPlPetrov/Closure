@@ -1941,15 +1941,25 @@ export default function SpheresScreen() {
                         <LinearGradient
                         colors={
                           colorScheme === 'dark'
-                            ? ['#BA68C8', '#9575CD', '#64B5F6', '#4DB6AC'] // Desaturated purple-to-blue gradient
-                            : ['#a78bfa', '#818cf8', '#60a5fa', '#38bdf8']
+                            ? ['#E91E63', '#F06292', '#FF8A80', '#FF6B9D'] // Vibrant pink-to-coral gradient for better contrast
+                            : ['#ec4899', '#f472b6', '#fb7185', '#fda4af']
                         }
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.insightsButtonGradientCircular}
                       >
+                        {/* Inner circle for better icon contrast */}
+                        <View style={{
+                          position: 'absolute',
+                          width: '70%',
+                          height: '70%',
+                          borderRadius: 1000,
+                          backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                          alignSelf: 'center',
+                          top: '15%',
+                        }} />
                         <View style={styles.insightsIconContainerCircular}>
-                          <MaterialIcons name="insights" size={24 * fontScale} color="#ffffff" />
+                          <MaterialIcons name="insights" size={24 * fontScale} color="#ffffff" style={{ textShadowColor: 'rgba(0, 0, 0, 0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 }} />
                           <MaterialIcons
                             name="auto-awesome"
                             size={12 * fontScale}

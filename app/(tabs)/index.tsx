@@ -350,7 +350,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               const hasMovement = Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
               if (hasMovement) {
                 dragStartedRef.current = true; // Mark that we started dragging
-                console.log('[DRAG] Movement detected, starting drag', { dx: gestureState.dx, dy: gestureState.dy });
               }
               return hasMovement;
             },
@@ -359,13 +358,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               isDragging.value = true;
               dragStartX.value = panX.value;
               dragStartY.value = panY.value;
-              console.log('[DRAG] Grant - Starting position:', {
-                x: panX.value,
-                y: panY.value,
-                hasExternalPos: !!externalPositionX,
-                externalX: externalPositionX?.value,
-                externalY: externalPositionY?.value
-              });
             },
             onPanResponderMove: (evt, gestureState) => {
               if (!dragStartedRef.current) return;
@@ -383,16 +375,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               const clampedX = Math.max(minX, Math.min(maxX, newX));
               const clampedY = Math.max(minY, Math.min(maxY, newY));
 
-              console.log('[DRAG] Move:', {
-                dx: gestureState.dx,
-                dy: gestureState.dy,
-                newX,
-                newY,
-                clampedX,
-                clampedY,
-                updatingExternal: !!externalPositionX
-              });
-
               panX.value = clampedX;
               panY.value = clampedY;
 
@@ -403,19 +385,15 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               // Update external position shared values if provided (for SparkledDots tracking)
               if (externalPositionX) {
                 externalPositionX.value = clampedX;
-                console.log('[DRAG] Updated externalPositionX to:', clampedX);
               }
               if (externalPositionY) {
                 externalPositionY.value = clampedY;
-                console.log('[DRAG] Updated externalPositionY to:', clampedY);
               }
             },
             onPanResponderRelease: (evt, gestureState) => {
               const wasDragging = dragStartedRef.current;
               dragStartedRef.current = false;
               isDragging.value = false;
-
-              console.log('[DRAG] Release - wasDragging:', wasDragging);
 
               if (wasDragging) {
                 const newX = dragStartX.value + gestureState.dx;
@@ -431,13 +409,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                 const finalX = Math.max(minX, Math.min(maxX, newX));
                 const finalY = Math.max(minY, Math.min(maxY, newY));
 
-                console.log('[DRAG] Release - Final position:', {
-                  finalX,
-                  finalY,
-                  callingOnPositionChange: !!onPositionChange,
-                  updatingExternal: !!externalPositionX
-                });
-
                 panX.value = finalX;
                 panY.value = finalY;
                 dragStartX.value = finalX;
@@ -450,11 +421,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                 // Update external position shared values if provided (for SparkledDots tracking)
                 if (externalPositionX) {
                   externalPositionX.value = finalX;
-                  console.log('[DRAG] Release - Updated externalPositionX to:', finalX);
                 }
                 if (externalPositionY) {
                   externalPositionY.value = finalY;
-                  console.log('[DRAG] Release - Updated externalPositionY to:', finalY);
                 }
 
                 // Notify parent of position change
@@ -623,15 +592,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     }),
     (current: { avatarX: number; avatarY: number }) => {
       'worklet';
-      // Log when avatar position changes (throttled)
-      if (Math.random() < 0.1) { // 10% of the time
-        console.log('[MEMORY-FOLLOW] Avatar position changed:', {
-          avatarX: current.avatarX,
-          avatarY: current.avatarY,
-          numMemories: memoryAnimatedValuesRef.current.length
-        });
-      }
-
       // Update each memory's position with its own spring parameters
       // The dramatic variation in damping/stiffness will create visible speed differences
       const values = memoryAnimatedValuesRef.current;
@@ -3598,18 +3558,12 @@ const SparkledDots = React.memo(function SparkledDots({
 }) {
   const { isTablet } = useLargeDevice();
 
-  // Log what we're receiving
-  React.useEffect(() => {
-    const isAnimated = typeof avatarCenterX === 'object' && 'value' in avatarCenterX;
-    console.log('[SPARKLEDOTS] Component rendered with:', {
-      isAnimated,
-      avatarCenterXType: typeof avatarCenterX,
-      avatarCenterYType: typeof avatarCenterY,
-      currentX: isAnimated ? (avatarCenterX as any).value : avatarCenterX,
-      currentY: isAnimated ? (avatarCenterY as any).value : avatarCenterY,
-      fullScreen
-    });
-  }, [avatarCenterX, avatarCenterY, fullScreen]);
+  // Check if we're using animated values
+  const isAnimated = typeof avatarCenterX === 'object' && 'value' in avatarCenterX;
+  
+  // Extract static values for initial calculation (or use directly if not animated)
+  const staticCenterX = isAnimated ? (avatarCenterX as ReturnType<typeof useSharedValue<number>>).value : avatarCenterX;
+  const staticCenterY = isAnimated ? (avatarCenterY as ReturnType<typeof useSharedValue<number>>).value : avatarCenterY;
 
   // Generate random positions for dots around the avatar
   // Create more dots with better visibility
@@ -3733,22 +3687,6 @@ const SparkledDot = React.memo(function SparkledDot({
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.7);
 
-  // Log what type of values we're receiving
-  React.useEffect(() => {
-    const isAnimated = typeof avatarCenterX === 'object' && 'value' in avatarCenterX;
-    console.log('[SPARKLE] Dot mounted:', {
-      isAnimated,
-      avatarCenterXType: typeof avatarCenterX,
-      avatarCenterYType: typeof avatarCenterY,
-      hasValueProp: isAnimated && 'value' in (avatarCenterX as any),
-      offsetX,
-      offsetY,
-      fixed,
-      initialCenterX: isAnimated ? (avatarCenterX as any).value : avatarCenterX,
-      initialCenterY: isAnimated ? (avatarCenterY as any).value : avatarCenterY
-    });
-  }, []);
-
   React.useEffect(() => {
     // Scale up animation
     scale.value = withDelay(
@@ -3790,18 +3728,6 @@ const SparkledDot = React.memo(function SparkledDot({
       const centerYVal = (avatarCenterY as ReturnType<typeof useSharedValue<number>>).value;
       x = centerXVal + offsetX;
       y = centerYVal + offsetY;
-
-      // Log position updates (throttled to avoid spam)
-      if (Math.random() < 0.01) { // Only log 1% of the time
-        console.log('[SPARKLE] Animated dot position:', {
-          centerX: centerXVal,
-          centerY: centerYVal,
-          offsetX,
-          offsetY,
-          finalX: x,
-          finalY: y
-        });
-      }
     } else if (isAnimated && fixed) {
       // Fixed dots stay in absolute position (don't follow avatar)
       // For fixed dots, offsetX/offsetY already contain absolute screen positions
@@ -6069,22 +5995,10 @@ export default function HomeScreen() {
     // Only render if there's a focused profile OR if we need to handle unfocus animation
     if (!focusedProfileId && !previousFocusedIdRef.current) return null;
     
-    if (__DEV__) {
-      console.log('[RELATIONSHIPS] focusedProfilesRender:', {
-        focusedProfileId,
-        previousFocusedId: previousFocusedIdRef.current,
-        totalProfiles: visibleProfiles.length
-      });
-    }
-    
     return visibleProfiles.map((profile, index) => {
       const memories = getIdealizedMemoriesByProfileId(profile.id);
       const isFocused = focusedProfileId === profile.id;
       const wasJustFocused = previousFocusedIdRef.current === profile.id && !focusedProfileId;
-      
-      if (__DEV__ && (isFocused || wasJustFocused)) {
-        console.log('[RELATIONSHIPS] Profile:', profile.name, { isFocused, wasJustFocused });
-      }
       
       // Render focused profile OR profile that was just unfocused (for animation)
       if (!isFocused && !wasJustFocused) return null;
@@ -6144,22 +6058,10 @@ export default function HomeScreen() {
     // Only render if there's a focused job OR if we need to handle unfocus animation
     if (!focusedJobId && !previousFocusedJobIdRef.current) return null;
     
-    if (__DEV__) {
-      console.log('[CAREER] focusedJobsRender:', {
-        focusedJobId,
-        previousFocusedJobId: previousFocusedJobIdRef.current,
-        totalJobs: sortedJobs.length
-      });
-    }
-    
     return sortedJobs.map((job, index) => {
       const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
       const isFocused = focusedJobId === job.id;
       const wasJustFocused = previousFocusedJobIdRef.current === job.id && !focusedJobId;
-      
-      if (__DEV__ && (isFocused || wasJustFocused)) {
-        console.log('[CAREER] Job:', job.name, { isFocused, wasJustFocused });
-      }
       
       // Render focused job OR job that was just unfocused (for animation)
       if (!isFocused && !wasJustFocused) return null;
@@ -6260,22 +6162,10 @@ export default function HomeScreen() {
     // Only render if there's a focused family member OR if we need to handle unfocus animation
     if (!focusedFamilyMemberId && !previousFocusedFamilyMemberIdRef.current) return null;
     
-    if (__DEV__) {
-      console.log('[FAMILY] focusedFamilyMembersRender:', {
-        focusedFamilyMemberId,
-        previousFocusedFamilyMemberId: previousFocusedFamilyMemberIdRef.current,
-        totalMembers: familyMembers.length
-      });
-    }
-    
     return familyMembers.map((member, index) => {
       const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
       const isFocused = focusedFamilyMemberId === member.id;
       const wasJustFocused = previousFocusedFamilyMemberIdRef.current === member.id && !focusedFamilyMemberId;
-      
-      if (__DEV__ && (isFocused || wasJustFocused)) {
-        console.log('[FAMILY] Member:', member.name, { isFocused, wasJustFocused });
-      }
       
       // Render focused family member OR family member that was just unfocused (for animation)
       if (!isFocused && !wasJustFocused) return null;
