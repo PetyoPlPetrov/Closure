@@ -1896,13 +1896,17 @@ export default function SpheresScreen() {
                 // This ensures the button is centered in the actual space between boxes
                 const centerY = (topCardCenterY + bottomCardCenterY) / 2;
                 
+                // Offset to move button lower (add 30px to move it down)
+                const buttonOffsetY = 22 * fontScale;
+                const buttonCenterY = centerY + buttonOffsetY;
+                
                 return (
                   <>
                     {/* Sparkled Dots around center */}
                     <SparkledDots
                       avatarSize={48 * fontScale} // Size of the Insights button
                       avatarCenterX={centerX}
-                      avatarCenterY={centerY}
+                      avatarCenterY={buttonCenterY}
                       colorScheme={colorScheme ?? 'dark'}
                     />
                     
@@ -1911,8 +1915,8 @@ export default function SpheresScreen() {
                       style={[
                         styles.insightsButtonContainerCentered,
                         {
-                          left: centerX - 24 * fontScale, // Adjusted for smaller button (was 30)
-                          top: centerY - 20 * fontScale, // Elevated button position
+                          left: centerX - 24 * fontScale, // Center horizontally (button width is 48)
+                          top: buttonCenterY - 24 * fontScale, // Center vertically (button height is 48)
                         },
                         pulseAnimatedStyle,
                       ]}

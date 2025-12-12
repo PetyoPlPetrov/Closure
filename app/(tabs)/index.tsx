@@ -14,7 +14,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
@@ -350,6 +350,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               const hasMovement = Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
               if (hasMovement) {
                 dragStartedRef.current = true; // Mark that we started dragging
+                console.log('[DRAG] Movement detected, starting drag', { dx: gestureState.dx, dy: gestureState.dy });
               }
               return hasMovement;
             },
@@ -358,58 +359,104 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               isDragging.value = true;
               dragStartX.value = panX.value;
               dragStartY.value = panY.value;
+              console.log('[DRAG] Grant - Starting position:', {
+                x: panX.value,
+                y: panY.value,
+                hasExternalPos: !!externalPositionX,
+                externalX: externalPositionX?.value,
+                externalY: externalPositionY?.value
+              });
             },
             onPanResponderMove: (evt, gestureState) => {
               if (!dragStartedRef.current) return;
-              
+
               const newX = dragStartX.value + gestureState.dx;
               const newY = dragStartY.value + gestureState.dy;
-              
+
               // Clamp to viewport bounds
               const padding = avatarSize / 2 + 20;
               const minX = padding;
               const maxX = SCREEN_WIDTH - padding;
               const minY = padding;
               const maxY = SCREEN_HEIGHT - padding;
-              
+
               const clampedX = Math.max(minX, Math.min(maxX, newX));
               const clampedY = Math.max(minY, Math.min(maxY, newY));
-              
+
+              console.log('[DRAG] Move:', {
+                dx: gestureState.dx,
+                dy: gestureState.dy,
+                newX,
+                newY,
+                clampedX,
+                clampedY,
+                updatingExternal: !!externalPositionX
+              });
+
               panX.value = clampedX;
               panY.value = clampedY;
-              
+
+              // Update focusedX/Y for memory following (CRITICAL!)
+              focusedX.value = clampedX;
+              focusedY.value = clampedY;
+
               // Update external position shared values if provided (for SparkledDots tracking)
-              if (externalPositionX) externalPositionX.value = clampedX;
-              if (externalPositionY) externalPositionY.value = clampedY;
+              if (externalPositionX) {
+                externalPositionX.value = clampedX;
+                console.log('[DRAG] Updated externalPositionX to:', clampedX);
+              }
+              if (externalPositionY) {
+                externalPositionY.value = clampedY;
+                console.log('[DRAG] Updated externalPositionY to:', clampedY);
+              }
             },
             onPanResponderRelease: (evt, gestureState) => {
               const wasDragging = dragStartedRef.current;
               dragStartedRef.current = false;
               isDragging.value = false;
-              
+
+              console.log('[DRAG] Release - wasDragging:', wasDragging);
+
               if (wasDragging) {
                 const newX = dragStartX.value + gestureState.dx;
                 const newY = dragStartY.value + gestureState.dy;
-                
+
                 // Clamp to viewport bounds
                 const padding = avatarSize / 2 + 20;
                 const minX = padding;
                 const maxX = SCREEN_WIDTH - padding;
                 const minY = padding;
                 const maxY = SCREEN_HEIGHT - padding;
-                
+
                 const finalX = Math.max(minX, Math.min(maxX, newX));
                 const finalY = Math.max(minY, Math.min(maxY, newY));
-                
+
+                console.log('[DRAG] Release - Final position:', {
+                  finalX,
+                  finalY,
+                  callingOnPositionChange: !!onPositionChange,
+                  updatingExternal: !!externalPositionX
+                });
+
                 panX.value = finalX;
                 panY.value = finalY;
                 dragStartX.value = finalX;
                 dragStartY.value = finalY;
-                
+
+                // Update focusedX/Y for memory following (CRITICAL!)
+                focusedX.value = finalX;
+                focusedY.value = finalY;
+
                 // Update external position shared values if provided (for SparkledDots tracking)
-                if (externalPositionX) externalPositionX.value = finalX;
-                if (externalPositionY) externalPositionY.value = finalY;
-                
+                if (externalPositionX) {
+                  externalPositionX.value = finalX;
+                  console.log('[DRAG] Release - Updated externalPositionX to:', finalX);
+                }
+                if (externalPositionY) {
+                  externalPositionY.value = finalY;
+                  console.log('[DRAG] Release - Updated externalPositionY to:', finalY);
+                }
+
                 // Notify parent of position change
                 onPositionChange?.(finalX, finalY);
               }
@@ -576,6 +623,15 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     }),
     (current: { avatarX: number; avatarY: number }) => {
       'worklet';
+      // Log when avatar position changes (throttled)
+      if (Math.random() < 0.1) { // 10% of the time
+        console.log('[MEMORY-FOLLOW] Avatar position changed:', {
+          avatarX: current.avatarX,
+          avatarY: current.avatarY,
+          numMemories: memoryAnimatedValuesRef.current.length
+        });
+      }
+
       // Update each memory's position with its own spring parameters
       // The dramatic variation in damping/stiffness will create visible speed differences
       const values = memoryAnimatedValuesRef.current;
@@ -3542,12 +3598,18 @@ const SparkledDots = React.memo(function SparkledDots({
 }) {
   const { isTablet } = useLargeDevice();
 
-    // Check if we're using animated values
+  // Log what we're receiving
+  React.useEffect(() => {
     const isAnimated = typeof avatarCenterX === 'object' && 'value' in avatarCenterX;
-  
-    // Extract static values for initial calculation (or use directly if not animated)
-    const staticCenterX = isAnimated ? (avatarCenterX as ReturnType<typeof useSharedValue<number>>).value : avatarCenterX;
-    const staticCenterY = isAnimated ? (avatarCenterY as ReturnType<typeof useSharedValue<number>>).value : avatarCenterY;
+    console.log('[SPARKLEDOTS] Component rendered with:', {
+      isAnimated,
+      avatarCenterXType: typeof avatarCenterX,
+      avatarCenterYType: typeof avatarCenterY,
+      currentX: isAnimated ? (avatarCenterX as any).value : avatarCenterX,
+      currentY: isAnimated ? (avatarCenterY as any).value : avatarCenterY,
+      fullScreen
+    });
+  }, [avatarCenterX, avatarCenterY, fullScreen]);
 
   // Generate random positions for dots around the avatar
   // Create more dots with better visibility
@@ -3562,7 +3624,7 @@ const SparkledDots = React.memo(function SparkledDots({
       const angle = Math.random() * 2 * Math.PI;
       const radius = minRadius + Math.random() * (maxRadius - minRadius);
 
-      // Store offset from center instead of absolute position for animated dots
+      // Store offset from center (0, 0) - will be added to actual center position in SparkledDot
       const offsetX = Math.cos(angle) * radius;
       const offsetY = Math.sin(angle) * radius;
 
@@ -3586,9 +3648,9 @@ const SparkledDots = React.memo(function SparkledDots({
       const bottomAreaHeight = SCREEN_HEIGHT * 0.15; // Bottom 15% of screen
 
       const topDots = Array.from({ length: numDotsTop }, (_, i) => {
-        // Random positions in top area - these stay fixed
-        const offsetX = Math.random() * SCREEN_WIDTH - staticCenterX;
-        const offsetY = Math.random() * topAreaHeight - staticCenterY;
+        // Random positions in top area - these stay fixed (absolute screen positions)
+        const offsetX = Math.random() * SCREEN_WIDTH;
+        const offsetY = Math.random() * topAreaHeight;
 
         // Medium size range for better visibility (2-4px)
         const size = 2 + Math.random() * 2;
@@ -3603,9 +3665,9 @@ const SparkledDots = React.memo(function SparkledDots({
       });
 
       const bottomDots = Array.from({ length: numDotsBottom }, (_, i) => {
-        // Random positions in bottom area - these stay fixed
-        const offsetX = Math.random() * SCREEN_WIDTH - staticCenterX;
-        const offsetY = (SCREEN_HEIGHT - bottomAreaHeight + Math.random() * bottomAreaHeight) - staticCenterY;
+        // Random positions in bottom area - these stay fixed (absolute screen positions)
+        const offsetX = Math.random() * SCREEN_WIDTH;
+        const offsetY = SCREEN_HEIGHT - bottomAreaHeight + Math.random() * bottomAreaHeight;
 
         // Medium size range for better visibility (2-4px)
         const size = 2 + Math.random() * 2;
@@ -3624,7 +3686,7 @@ const SparkledDots = React.memo(function SparkledDots({
       // Original mode: only center dots
       return centerDots;
     }
-  }, [avatarSize, staticCenterX, staticCenterY, isTablet, fullScreen]);
+  }, [avatarSize, isTablet, fullScreen]);
 
   return (
     <>
@@ -3671,8 +3733,21 @@ const SparkledDot = React.memo(function SparkledDot({
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.7);
 
-  // Check if we're using animated values
-  const isAnimated = typeof avatarCenterX === 'object' && 'value' in avatarCenterX;
+  // Log what type of values we're receiving
+  React.useEffect(() => {
+    const isAnimated = typeof avatarCenterX === 'object' && 'value' in avatarCenterX;
+    console.log('[SPARKLE] Dot mounted:', {
+      isAnimated,
+      avatarCenterXType: typeof avatarCenterX,
+      avatarCenterYType: typeof avatarCenterY,
+      hasValueProp: isAnimated && 'value' in (avatarCenterX as any),
+      offsetX,
+      offsetY,
+      fixed,
+      initialCenterX: isAnimated ? (avatarCenterX as any).value : avatarCenterX,
+      initialCenterY: isAnimated ? (avatarCenterY as any).value : avatarCenterY
+    });
+  }, []);
 
   React.useEffect(() => {
     // Scale up animation
@@ -3706,17 +3781,37 @@ const SparkledDot = React.memo(function SparkledDot({
     let x: number;
     let y: number;
 
-      if (isAnimated && !fixed) {
-        // Use animated values for position tracking
-        x = (avatarCenterX as ReturnType<typeof useSharedValue<number>>).value + offsetX;
-        y = (avatarCenterY as ReturnType<typeof useSharedValue<number>>).value + offsetY;
-      } else {
-        // Use static values (either originally static or fixed position)
-        const staticX = isAnimated ? (avatarCenterX as ReturnType<typeof useSharedValue<number>>).value : avatarCenterX;
-        const staticY = isAnimated ? (avatarCenterY as ReturnType<typeof useSharedValue<number>>).value : avatarCenterY;
-        x = staticX + offsetX;
-        y = staticY + offsetY;
+    // Check if we're using animated values (check inside worklet for reactivity)
+    const isAnimated = typeof avatarCenterX === 'object' && 'value' in avatarCenterX;
+
+    if (isAnimated && !fixed) {
+      // Use animated values for position tracking - dots follow avatar
+      const centerXVal = (avatarCenterX as ReturnType<typeof useSharedValue<number>>).value;
+      const centerYVal = (avatarCenterY as ReturnType<typeof useSharedValue<number>>).value;
+      x = centerXVal + offsetX;
+      y = centerYVal + offsetY;
+
+      // Log position updates (throttled to avoid spam)
+      if (Math.random() < 0.01) { // Only log 1% of the time
+        console.log('[SPARKLE] Animated dot position:', {
+          centerX: centerXVal,
+          centerY: centerYVal,
+          offsetX,
+          offsetY,
+          finalX: x,
+          finalY: y
+        });
       }
+    } else if (isAnimated && fixed) {
+      // Fixed dots stay in absolute position (don't follow avatar)
+      // For fixed dots, offsetX/offsetY already contain absolute screen positions
+      x = offsetX;
+      y = offsetY;
+    } else {
+      // Static avatar center - use static positioning
+      x = (avatarCenterX as number) + offsetX;
+      y = (avatarCenterY as number) + offsetY;
+    }
 
     return {
       opacity: opacity.value,
@@ -6238,8 +6333,8 @@ export default function HomeScreen() {
           }}
           yearSection={section}
           enableDragging={true}
-          externalPositionX={isFocused ? focusedFamilyMemberPositionX : undefined}
-          externalPositionY={isFocused ? focusedFamilyMemberPositionY : undefined}
+          externalPositionX={focusedFamilyMemberPositionX}
+          externalPositionY={focusedFamilyMemberPositionY}
           onPositionChange={(x, y) => {
             if (isFocused) {
               focusedFamilyMemberPositionX.value = x;
@@ -6321,8 +6416,8 @@ export default function HomeScreen() {
           }}
           yearSection={section}
           enableDragging={true}
-          externalPositionX={isFocused ? focusedFriendPositionX : undefined}
-          externalPositionY={isFocused ? focusedFriendPositionY : undefined}
+          externalPositionX={focusedFriendPositionX}
+          externalPositionY={focusedFriendPositionY}
           onPositionChange={(x, y) => {
             if (isFocused) {
               focusedFriendPositionX.value = x;
@@ -6404,8 +6499,8 @@ export default function HomeScreen() {
           }}
           yearSection={section}
           enableDragging={true}
-          externalPositionX={isFocused ? focusedHobbyPositionX : undefined}
-          externalPositionY={isFocused ? focusedHobbyPositionY : undefined}
+          externalPositionX={focusedHobbyPositionX}
+          externalPositionY={focusedHobbyPositionY}
           onPositionChange={(x, y) => {
             if (isFocused) {
               focusedHobbyPositionX.value = x;
@@ -7148,24 +7243,16 @@ export default function HomeScreen() {
             );
           })()}
 
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={[
+          <View
+            style={[
               styles.content,
               {
-                minHeight: SCREEN_HEIGHT,
-                height: Math.max(
-                  SCREEN_HEIGHT,
-                  sortedProfiles.length > 0
-                    ? (sortedProfiles.length - 1) * ((SCREEN_HEIGHT - (120 + 20) * 2) / Math.max(1, sortedProfiles.length - 1)) + (120 + 20) * 2
-                    : SCREEN_HEIGHT
-                ),
+                flex: 1,
+                height: SCREEN_HEIGHT,
                 justifyContent: 'flex-start',
                 alignItems: 'flex-start',
               },
             ]}
-            showsVerticalScrollIndicator={true}
-            scrollEnabled={!focusedProfileId && !focusedJobId && !focusedMemory}
           >
             {/* Render year sections with profiles inside - hidden when focused */}
             {(() => {
@@ -7220,7 +7307,7 @@ export default function HomeScreen() {
                 setFocusedMemory={setFocusedMemory}
               />
             )}
-          </ScrollView>
+          </View>
         </View>
       </TabScreenContainer>
     );
@@ -7480,24 +7567,16 @@ export default function HomeScreen() {
             );
           })()}
 
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={[
+          <View
+            style={[
               styles.content,
               {
-                minHeight: SCREEN_HEIGHT,
-                height: Math.max(
-                  SCREEN_HEIGHT,
-                  sortedJobs.length > 0
-                    ? (sortedJobs.length - 1) * ((SCREEN_HEIGHT - (120 + 20) * 2) / Math.max(1, sortedJobs.length - 1)) + (120 + 20) * 2
-                    : SCREEN_HEIGHT
-                ),
+                flex: 1,
+                height: SCREEN_HEIGHT,
                 justifyContent: 'flex-start',
                 alignItems: 'flex-start',
               },
             ]}
-            showsVerticalScrollIndicator={true}
-            scrollEnabled={!focusedJobId && !focusedMemory}
           >
             {/* Render year sections with jobs inside */}
             {animationsReady && !focusedMemory && (
@@ -7673,7 +7752,7 @@ export default function HomeScreen() {
                 setFocusedMemory={setFocusedMemory}
               />
             )}
-          </ScrollView>
+          </View>
         </View>
       </TabScreenContainer>
     );
@@ -7935,24 +8014,16 @@ export default function HomeScreen() {
             );
           })()}
           
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={[
+          <View
+            style={[
               styles.content,
               {
-                minHeight: SCREEN_HEIGHT,
-                height: Math.max(
-                  SCREEN_HEIGHT,
-                  familyMembers.length > 0
-                    ? (familyMembers.length - 1) * ((SCREEN_HEIGHT - (120 + 20) * 2) / Math.max(1, familyMembers.length - 1)) + (120 + 20) * 2
-                    : SCREEN_HEIGHT
-                ),
+                flex: 1,
+                height: SCREEN_HEIGHT,
                 justifyContent: 'flex-start',
                 alignItems: 'flex-start',
               },
             ]}
-            showsVerticalScrollIndicator={true}
-            scrollEnabled={!focusedFamilyMemberId && !focusedMemory}
           >
             {/* Render family members with year section backgrounds (titles hidden) */}
             {animationsReady && !focusedMemory && (
@@ -8049,6 +8120,8 @@ export default function HomeScreen() {
                         yearSection={section}
                         enableDragging={!isFocused}
                         onPositionChange={(x, y) => updateFamilyMemberPosition(member.id, { x, y })}
+                        externalPositionX={focusedFamilyMemberPositionX}
+                        externalPositionY={focusedFamilyMemberPositionY}
                       />
                     </NonFocusedZone>
                   );
@@ -8073,7 +8146,7 @@ export default function HomeScreen() {
                 setFocusedMemory={setFocusedMemory}
               />
             )}
-          </ScrollView>
+          </View>
         </View>
       </TabScreenContainer>
     );
@@ -8329,25 +8402,17 @@ export default function HomeScreen() {
               </View>
             );
           })()}
-          
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={[
+
+          <View
+            style={[
               styles.content,
               {
-                minHeight: SCREEN_HEIGHT,
-                height: Math.max(
-                  SCREEN_HEIGHT,
-                  friends.length > 0
-                    ? (friends.length - 1) * ((SCREEN_HEIGHT - (120 + 20) * 2) / Math.max(1, friends.length - 1)) + (120 + 20) * 2
-                    : SCREEN_HEIGHT
-                ),
+                flex: 1,
+                height: SCREEN_HEIGHT,
                 justifyContent: 'flex-start',
                 alignItems: 'flex-start',
               },
             ]}
-            showsVerticalScrollIndicator={true}
-            scrollEnabled={!focusedFriendId && !focusedMemory}
           >
             {/* Render friends with year section backgrounds (titles hidden) */}
             {animationsReady && !focusedMemory && (
@@ -8443,6 +8508,8 @@ export default function HomeScreen() {
                         yearSection={section}
                         enableDragging={!isFocused}
                         onPositionChange={(x, y) => updateFriendPosition(friend.id, { x, y })}
+                        externalPositionX={focusedFriendPositionX}
+                        externalPositionY={focusedFriendPositionY}
                       />
                     </NonFocusedZone>
                   );
@@ -8467,7 +8534,7 @@ export default function HomeScreen() {
                 setFocusedMemory={setFocusedMemory}
               />
             )}
-          </ScrollView>
+          </View>
         </View>
       </TabScreenContainer>
     );
@@ -8723,25 +8790,17 @@ export default function HomeScreen() {
               </View>
             );
           })()}
-          
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={[
+
+          <View
+            style={[
               styles.content,
               {
-                minHeight: SCREEN_HEIGHT,
-                height: Math.max(
-                  SCREEN_HEIGHT,
-                  hobbies.length > 0
-                    ? (hobbies.length - 1) * ((SCREEN_HEIGHT - (120 + 20) * 2) / Math.max(1, hobbies.length - 1)) + (120 + 20) * 2
-                    : SCREEN_HEIGHT
-                ),
+                flex: 1,
+                height: SCREEN_HEIGHT,
                 justifyContent: 'flex-start',
                 alignItems: 'flex-start',
               },
             ]}
-            showsVerticalScrollIndicator={true}
-            scrollEnabled={!focusedHobbyId && !focusedMemory}
           >
             {/* Render hobbies with year section backgrounds (titles hidden) */}
             {animationsReady && !focusedMemory && (
@@ -8837,6 +8896,8 @@ export default function HomeScreen() {
                         yearSection={section}
                         enableDragging={!isFocused}
                         onPositionChange={(x, y) => updateHobbyPosition(hobby.id, { x, y })}
+                        externalPositionX={focusedHobbyPositionX}
+                        externalPositionY={focusedHobbyPositionY}
                       />
                     </NonFocusedZone>
                   );
@@ -8861,7 +8922,7 @@ export default function HomeScreen() {
                 setFocusedMemory={setFocusedMemory}
               />
             )}
-          </ScrollView>
+          </View>
         </View>
       </TabScreenContainer>
     );
@@ -8871,25 +8932,16 @@ export default function HomeScreen() {
     <TabScreenContainer>
       <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
 
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={[
+        <View
+          style={[
             styles.content,
             {
-              minHeight: SCREEN_HEIGHT,
-              // Calculate content height to fit all profiles in list layout
-              height: Math.max(
-                SCREEN_HEIGHT,
-                sortedProfiles.length > 0
-                  ? (sortedProfiles.length - 1) * ((SCREEN_HEIGHT - (120 + 20) * 2) / Math.max(1, sortedProfiles.length - 1)) + (120 + 20) * 2
-                  : SCREEN_HEIGHT
-              ),
+              flex: 1,
+              height: SCREEN_HEIGHT,
               justifyContent: 'flex-start',
               alignItems: 'flex-start',
             },
           ]}
-          showsVerticalScrollIndicator={true}
-          scrollEnabled={!focusedProfileId && !focusedMemory}
         >
           {/* Render year sections with profiles inside - hidden when focused */}
           {animationsReady && !focusedProfileId && !focusedMemory && (
@@ -8930,7 +8982,7 @@ export default function HomeScreen() {
               setFocusedMemory={setFocusedMemory}
             />
           )}
-        </ScrollView>
+        </View>
       </View>
     </TabScreenContainer>
   );
