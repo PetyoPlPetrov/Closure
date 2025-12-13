@@ -10,6 +10,7 @@ import { Platform } from 'react-native';
 import 'react-native-reanimated';
 
 import { handleDevError } from '@/utils/dev-error-handler';
+import { InAppNotificationProvider } from '@/utils/InAppNotificationProvider';
 import { JourneyProvider, LifeSphere } from '@/utils/JourneyProvider';
 import { LanguageProvider } from '@/utils/languages/language-context';
 import { NotificationsProvider } from '@/utils/NotificationsProvider';
@@ -224,7 +225,9 @@ export default function RootLayout() {
           <SubscriptionProvider>
             <JourneyProvider>
               <NotificationsProvider>
-                <AppContent />
+                <InAppNotificationProvider>
+                  <AppContent />
+                </InAppNotificationProvider>
               </NotificationsProvider>
             </JourneyProvider>
           </SubscriptionProvider>

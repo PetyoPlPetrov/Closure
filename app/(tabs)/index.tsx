@@ -1,4 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
+import { StreakBadgeComponent } from '@/components/streak-badge';
+import { StreakModal } from '@/components/streak-modal';
+import { StreakRulesModal } from '@/components/streak-rules-modal';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
@@ -7,6 +10,15 @@ import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS, TabScreenContainer } from 
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useSplash } from '@/utils/SplashAnimationProvider';
+import {
+  getStreakData,
+  getCurrentBadge,
+  getNextBadge,
+  updateStreakOnMemoryCreation,
+  recalculateStreak,
+} from '@/utils/streak-manager';
+import { refreshStreakNotifications, sendMilestoneNotification } from '@/utils/streak-notifications';
+import type { StreakData, StreakBadge } from '@/utils/streak-types';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
@@ -1392,6 +1404,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   memory: any;
 }) {
   const fontScale = useFontScale();
+  const { isTablet } = useLargeDevice();
   
   // Memoize filtered clouds - must be called unconditionally
   const filteredClouds = useMemo(() => {
@@ -2525,6 +2538,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
   // Calculate memory position relative to avatar or center when memory is focused
   // Use the same interpolation logic as the avatar for smooth zoom transitions
   const memoryAnimatedPosition = useAnimatedStyle(() => {
+    'worklet';
     if (isMemoryFocused) {
       // When memory is focused, center it on screen (moved higher)
       // Positive offsetY moves UP (subtracted from center)
@@ -2534,13 +2548,12 @@ const FloatingMemory = React.memo(function FloatingMemory({
         top: SCREEN_HEIGHT / 2 - memorySize / 2 - offsetY,
       };
     }
-    
+
     // Use zoom interpolation if available (for smooth zoom-in/out transitions)
     if (zoomProgress && avatarStartX && avatarStartY && avatarTargetX !== undefined && avatarTargetY !== undefined && avatarPosition) {
-      'worklet';
       let avatarCurrentX: number;
       let avatarCurrentY: number;
-      
+
       if (isFocused) {
         // Zoom-in: interpolate from start position to center
         avatarCurrentX = avatarStartX.value + (avatarTargetX - avatarStartX.value) * zoomProgress.value;
@@ -2550,22 +2563,23 @@ const FloatingMemory = React.memo(function FloatingMemory({
         avatarCurrentX = avatarTargetX + (avatarPosition.x - avatarTargetX) * (1 - zoomProgress.value);
         avatarCurrentY = avatarTargetY + (avatarPosition.y - avatarTargetY) * (1 - zoomProgress.value);
       }
-      
+
       // Position memory relative to interpolated avatar position
       return {
         left: avatarCurrentX + offsetX - memorySize / 2,
         top: avatarCurrentY + offsetY - memorySize / 2,
       };
     }
-    
-    // Fallback: use focusedX/focusedY when available (they animate during zoom-in/out)
+
+    // Primary source: use focusedX/focusedY when available (they animate during zoom-in/out and drag)
+    // This ensures a single source of truth for position
     if (focusedX && focusedY) {
       return {
         left: focusedX.value + offsetX - memorySize / 2,
         top: focusedY.value + offsetY - memorySize / 2,
       };
     }
-    
+
     // Fallback to pan position only if focusedX/focusedY are not available
     if (avatarPanX && avatarPanY) {
       return {
@@ -2573,8 +2587,9 @@ const FloatingMemory = React.memo(function FloatingMemory({
         top: avatarPanY.value + offsetY - memorySize / 2,
       };
     }
+
     return {};
-  });
+  }, [isMemoryFocused, memorySize, zoomProgress, avatarStartX, avatarStartY, avatarTargetX, avatarTargetY, avatarPosition, isFocused, focusedX, focusedY, offsetX, offsetY, avatarPanX, avatarPanY]);
   
   // Slide out animation for non-focused memories
   const slideOutStyle = useAnimatedStyle(() => {
@@ -2731,24 +2746,47 @@ const FloatingMemory = React.memo(function FloatingMemory({
     }
   };
 
-  // Skip rendering this memory if another memory is focused and this one isn't
-  // This prevents unnecessary re-renders when a specific memory is focused
+  // Skip rendering this memory if another memory from the same entity is focused and this one isn't
+  // OR if THIS memory is focused (it will be rendered by FocusedMemoryRenderer instead)
+  // This prevents duplicate rendering and unnecessary re-renders when a specific memory is focused
   // Note: This check happens after hooks to comply with Rules of Hooks
-  if (focusedMemory && focusedMemory.profileId === memory.profileId && focusedMemory.memoryId !== memory.id) {
-    return null;
+  if (focusedMemory) {
+    const focusedEntityId = focusedMemory.profileId || focusedMemory.jobId || focusedMemory.familyMemberId || focusedMemory.friendId || focusedMemory.hobbyId;
+    const currentEntityId = memory.profileId || memory.jobId || memory.familyMemberId || memory.friendId || memory.hobbyId;
+
+    // Hide this memory if it's from the same entity and either:
+    // 1. This IS the focused memory (FocusedMemoryRenderer will handle it)
+    // 2. Another memory from this entity is focused
+    if (focusedEntityId === currentEntityId) {
+      return null;
+    }
   }
+
+  // Determine if we should use static or animated positioning
+  // Only use static position as fallback when no animated position is available
+  const hasAnimatedPosition = isMemoryFocused ||
+    (zoomProgress && avatarStartX && avatarStartY && avatarTargetX !== undefined && avatarTargetY !== undefined && avatarPosition) ||
+    (focusedX && focusedY) ||
+    (avatarPanX && avatarPanY);
+
+  // Build base style with conditional static positioning
+  const baseStyle = {
+    position: 'absolute' as const,
+    // Only set static position if there's no animated position
+    // This prevents duplicate rendering where both static and animated positions are visible
+    ...(hasAnimatedPosition ? {} : {
+      left: position.x - memorySize / 2,
+      top: position.y - memorySize / 2,
+    }),
+    zIndex: isMemoryFocused ? 1000 : 50, // Memory base layer - higher than avatars (100) so they appear in front
+    pointerEvents: 'box-none' as const, // Allow touches to pass through to Pressable
+  };
 
   return (
     <>
       <Animated.View
         style={[
-          {
-            position: 'absolute',
-            left: position.x - memorySize / 2,
-            top: position.y - memorySize / 2,
-            zIndex: isMemoryFocused ? 1000 : 50, // Memory base layer - higher than avatars (100) so they appear in front
-            pointerEvents: 'box-none', // Allow touches to pass through to Pressable
-          },
+          baseStyle,
           memoryAnimatedPosition,
           animatedStyle,
           slideOutStyle,
@@ -4461,7 +4499,40 @@ export default function HomeScreen() {
     reloadHobbies,
   } = useJourney();
   const t = useTranslate();
-  
+
+  // Streak feature state
+  const [streakData, setStreakData] = useState<StreakData | null>(null);
+  const [currentBadge, setCurrentBadge] = useState<StreakBadge | null>(null);
+  const [nextBadge, setNextBadge] = useState<StreakBadge | null>(null);
+  const [streakModalVisible, setStreakModalVisible] = useState(false);
+  const [streakRulesModalVisible, setStreakRulesModalVisible] = useState(false);
+
+  // Load streak data on mount and when screen focuses
+  const loadStreakData = useCallback(async () => {
+    try {
+      // Recalculate streak first (handles badge downgrade if days passed)
+      const data = await recalculateStreak();
+      setStreakData(data);
+
+      const badge = await getCurrentBadge();
+      setCurrentBadge(badge);
+
+      const next = await getNextBadge();
+      setNextBadge(next);
+
+      // Refresh notifications based on current streak status
+      await refreshStreakNotifications();
+    } catch (error) {
+      console.error('[HomeScreen] Error loading streak data:', error);
+    }
+  }, []);
+
+  // Load streak data on mount
+  useEffect(() => {
+    loadStreakData();
+  }, [loadStreakData]);
+
+
   // Redirect to spheres tab if there's no data (first time user)
   const hasRedirectedRef = useRef(false);
   useEffect(() => {
@@ -4496,6 +4567,7 @@ export default function HomeScreen() {
         reloadFamilyMembers(),
         reloadFriends(),
         reloadHobbies(),
+        loadStreakData(), // Reload streak data when screen regains focus
       ]).catch((error) => {
         hasReloadedRef.current = false; // Reset on error so we can retry
       });
@@ -4504,7 +4576,7 @@ export default function HomeScreen() {
       return () => {
         hasReloadedRef.current = false;
       };
-    }, [reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies])
+    }, [reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies, loadStreakData])
   );
   
   // Track selected sphere (null = showing all spheres, otherwise showing focused sphere)
@@ -6415,6 +6487,33 @@ export default function HomeScreen() {
   if (!selectedSphere) {
   return (
     <TabScreenContainer>
+        {/* Streak Badge - Top Right */}
+        {streakData && (
+          <StreakBadgeComponent
+            currentStreak={streakData.currentStreak}
+            currentBadge={currentBadge}
+            onPress={() => setStreakRulesModalVisible(true)}
+            onLongPress={() => setStreakModalVisible(true)}
+          />
+        )}
+
+        {/* Streak Rules Modal */}
+        <StreakRulesModal
+          visible={streakRulesModalVisible}
+          onClose={() => setStreakRulesModalVisible(false)}
+        />
+
+        {/* Streak Stats Modal */}
+        {streakData && (
+          <StreakModal
+            visible={streakModalVisible}
+            onClose={() => setStreakModalVisible(false)}
+            streakData={streakData}
+            currentBadge={currentBadge}
+            nextBadge={nextBadge}
+          />
+        )}
+
         <View style={{ flex: 1, height: SCREEN_HEIGHT, position: 'relative', justifyContent: 'center', alignItems: 'center' }}>
           {/* Sparkled Dots - Always visible on all screens - full screen coverage */}
           <SparkledDots
@@ -9184,6 +9283,8 @@ const FocusedMemoryRenderer = React.memo(function FocusedMemoryRenderer({
       onUpdateMemory={async (updates) => {
         if (focusedMemory) {
           await updateIdealizedMemory(focusedMemory.memoryId, updates);
+          // Note: Streak updates only happen when creating NEW memories (in add-idealized-memory.tsx)
+          // Editing existing memories does not affect streak
         }
       }}
     />

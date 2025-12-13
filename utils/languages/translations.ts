@@ -36,6 +36,34 @@ export interface Translations {
   'settings.devTools.cleanupMemories.success.noOrphans': string;
   'settings.devTools.cleanupMemories.error': string;
   
+  // Streak Rules Modal
+  'streakRules.title': string;
+  'streakRules.badges.title': string;
+  'streakRules.badges.subtitle': string;
+  'streakRules.badge.requires': string;
+  'streakRules.badge.requires.day': string;
+  'streakRules.badge.requires.days': string;
+  'streakRules.rarity.common': string;
+  'streakRules.rarity.rare': string;
+  'streakRules.rarity.epic': string;
+  'streakRules.rarity.legendary': string;
+  'streakRules.badge.spark.name': string;
+  'streakRules.badge.spark.description': string;
+  'streakRules.badge.flame.name': string;
+  'streakRules.badge.flame.description': string;
+  'streakRules.badge.keeper.name': string;
+  'streakRules.badge.keeper.description': string;
+  'streakRules.badge.champion.name': string;
+  'streakRules.badge.champion.description': string;
+  'streakRules.badge.warrior.name': string;
+  'streakRules.badge.warrior.description': string;
+  'streakRules.badge.legend.name': string;
+  'streakRules.badge.legend.description': string;
+  'streakRules.badge.titan.name': string;
+  'streakRules.badge.titan.description': string;
+  'streakRules.badge.immortal.name': string;
+  'streakRules.badge.immortal.description': string;
+  
   // Common
   'common.back': string;
   'common.save': string;
@@ -501,6 +529,34 @@ const translations: Record<Language, Translations> = {
     'settings.devTools.cleanupMemories.success.noOrphans': 'No orphaned memories found. All memories are valid.',
     'settings.devTools.cleanupMemories.error': 'Failed to clean up orphaned memories. Please try again.',
     
+    // Streak Rules Modal
+    'streakRules.title': 'How Streaks Work',
+    'streakRules.badges.title': 'Streak Badges',
+    'streakRules.badges.subtitle': 'Badges reflect your consecutive days. Higher streaks unlock better badges!',
+    'streakRules.badge.requires': 'Requires',
+    'streakRules.badge.requires.day': 'day',
+    'streakRules.badge.requires.days': 'days',
+    'streakRules.rarity.common': 'COMMON',
+    'streakRules.rarity.rare': 'RARE',
+    'streakRules.rarity.epic': 'EPIC',
+    'streakRules.rarity.legendary': 'LEGENDARY',
+    'streakRules.badge.spark.name': 'Spark',
+    'streakRules.badge.spark.description': 'First step on your journey',
+    'streakRules.badge.flame.name': 'Flame',
+    'streakRules.badge.flame.description': '3 days of consistent growth',
+    'streakRules.badge.keeper.name': 'Keeper',
+    'streakRules.badge.keeper.description': '1 week of dedication',
+    'streakRules.badge.champion.name': 'Champion',
+    'streakRules.badge.champion.description': '2 weeks strong',
+    'streakRules.badge.warrior.name': 'Warrior',
+    'streakRules.badge.warrior.description': '1 month of commitment',
+    'streakRules.badge.legend.name': 'Legend',
+    'streakRules.badge.legend.description': '2 months of mastery',
+    'streakRules.badge.titan.name': 'Titan',
+    'streakRules.badge.titan.description': '100-day milestone',
+    'streakRules.badge.immortal.name': 'Immortal',
+    'streakRules.badge.immortal.description': '1 year champion',
+    
     // Common
     'common.back': 'Back',
     'common.save': 'Save',
@@ -961,6 +1017,34 @@ const translations: Record<Language, Translations> = {
     'settings.devTools.cleanupMemories.success.withCount': 'Изчистени са {count} изолирани спомена.',
     'settings.devTools.cleanupMemories.success.noOrphans': 'Не са намерени изолирани спомени. Всички спомени са валидни.',
     'settings.devTools.cleanupMemories.error': 'Неуспешно изчистване на изолираните спомени. Моля, опитайте отново.',
+    
+    // Streak Rules Modal
+    'streakRules.title': 'Как Работят Поредиците',
+    'streakRules.badges.title': 'Значки за Поредица',
+    'streakRules.badges.subtitle': 'Значките отразяват вашите последователни дни. По-високи поредици отключват по-добри значки!',
+    'streakRules.badge.requires': 'Изисква',
+    'streakRules.badge.requires.day': 'ден',
+    'streakRules.badge.requires.days': 'дни',
+    'streakRules.rarity.common': 'ОБИКНОВЕНА',
+    'streakRules.rarity.rare': 'РЯДКА',
+    'streakRules.rarity.epic': 'ЕПИЧНА',
+    'streakRules.rarity.legendary': 'ЛЕГЕНДАРНА',
+    'streakRules.badge.spark.name': 'Искра',
+    'streakRules.badge.spark.description': 'Първа стъпка в вашето пътешествие',
+    'streakRules.badge.flame.name': 'Пламен',
+    'streakRules.badge.flame.description': '3 дни последователен растеж',
+    'streakRules.badge.keeper.name': 'Пазител',
+    'streakRules.badge.keeper.description': '1 седмица отдаденост',
+    'streakRules.badge.champion.name': 'Шампион',
+    'streakRules.badge.champion.description': '2 седмици силно',
+    'streakRules.badge.warrior.name': 'Воин',
+    'streakRules.badge.warrior.description': '1 месец ангажираност',
+    'streakRules.badge.legend.name': 'Легенда',
+    'streakRules.badge.legend.description': '2 месеца майсторство',
+    'streakRules.badge.titan.name': 'Титан',
+    'streakRules.badge.titan.description': '100-дневна постижение',
+    'streakRules.badge.immortal.name': 'Безсмъртен',
+    'streakRules.badge.immortal.description': '1 година шампион',
     
     // Common
     'common.back': 'Назад',

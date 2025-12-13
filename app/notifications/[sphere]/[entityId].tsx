@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -43,7 +43,9 @@ export default function NotificationDetailScreen() {
   const styles = useMemo(() => createStyles(palette, fontScale, insets.top), [palette, fontScale, insets.top]);
 
   const { friends, familyMembers, profiles } = useJourney();
-  const { assignments, setOverride } = useNotificationsManager();
+  const { assignments, setOverride, checkCondition } = useNotificationsManager();
+  
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
   const entityName =
     sphere === 'friends'
@@ -148,6 +150,15 @@ export default function NotificationDetailScreen() {
       router.replace('/notifications');
     }
   }, []);
+
+  // Check if condition is met for the current entity
+  // Use specific properties to avoid re-renders when other customDraft properties change
+  const isConditionMet = useMemo(() => {
+    if (currentOverride?.kind !== 'custom') {
+      return false;
+    }
+    return checkCondition(entityId, sphere, customDraft.condition, customDraft.noRecentDays);
+  }, [currentOverride?.kind, customDraft.condition, customDraft.noRecentDays, entityId, sphere, checkCondition]);
 
   return (
     <TabScreenContainer>
@@ -328,6 +339,14 @@ export default function NotificationDetailScreen() {
               <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
                 Condition
               </ThemedText>
+              {currentOverride?.kind === 'custom' && isConditionMet && (
+                <View style={styles.conditionBadgeInline}>
+                  <MaterialIcons name="check-circle" size={16 * fontScale} color={palette.primary} />
+                  <ThemedText size="xs" weight="medium" style={{ color: palette.primary, marginLeft: 4 * fontScale }}>
+                    Met
+                  </ThemedText>
+                </View>
+              )}
             </View>
             <View style={styles.chipRow}>
               {(sphere === 'relationships'
@@ -529,5 +548,10 @@ const createStyles = (
     },
     timePicker: {
       height: 200 * fontScale,
+    },
+    conditionBadgeInline: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4 * fontScale,
     },
   });

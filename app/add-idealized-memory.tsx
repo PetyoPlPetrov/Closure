@@ -5,8 +5,10 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { FloatingActionButton } from '@/library/components/floating-action-button';
 import { logMomentCreated } from '@/utils/analytics';
+import { useInAppNotification } from '@/utils/InAppNotificationProvider';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { updateStreakOnMemoryCreation } from '@/utils/streak-manager';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
@@ -15,24 +17,24 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  KeyboardAvoidingView,
-  PanResponder,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    KeyboardAvoidingView,
+    PanResponder,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import Animated, {
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
+    useAnimatedReaction,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+    withTiming,
 } from 'react-native-reanimated';
 import { Defs, Path, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -457,6 +459,7 @@ export default function AddIdealizedMemoryScreen() {
   const params = useLocalSearchParams();
   const { addIdealizedMemory, updateIdealizedMemory, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
   const t = useTranslate();
+  const { showNotification } = useInAppNotification();
   
   // Support both old (profileId) and new (entityId + sphere) parameters
   // Handle params that might be strings or arrays (expo-router can return arrays)
@@ -926,9 +929,10 @@ export default function AddIdealizedMemoryScreen() {
         });
       } else {
         // Create new memory - support both old (profileId) and new (entityId + sphere) signatures
+        let newMemoryId: string;
         if (isNewMode && entityId && sphere) {
           // New signature: (entityId, sphere, memoryData)
-          await addIdealizedMemory(entityId, sphere, {
+          newMemoryId = await addIdealizedMemory(entityId, sphere, {
             title: memoryLabel.trim(),
             imageUri: selectedImage || undefined,
             hardTruths,
@@ -936,7 +940,7 @@ export default function AddIdealizedMemoryScreen() {
           });
         } else if (profileId) {
           // Old signature: (profileId, memoryData) - backward compatibility
-          await addIdealizedMemory(profileId, {
+          newMemoryId = await addIdealizedMemory(profileId, {
             title: memoryLabel.trim(),
             imageUri: selectedImage || undefined,
             hardTruths,
@@ -944,6 +948,82 @@ export default function AddIdealizedMemoryScreen() {
           });
         } else {
           throw new Error('Missing required parameters to save memory');
+        }
+
+        // Trigger streak update for new memory creation
+        console.log('[AddMemory] New memory created, triggering streak update:', newMemoryId);
+        try {
+          const streakResult = await updateStreakOnMemoryCreation();
+          const currentStreak = streakResult.data.currentStreak;
+          
+          console.log('[AddMemory] Streak update result:', {
+            currentStreak,
+            streakIncreased: streakResult.streakIncreased,
+            newBadges: streakResult.newBadges.length,
+            newMilestones: streakResult.newMilestones.length,
+          });
+
+          // Show in-app notification for new badges or milestones
+          if (streakResult.newBadges.length > 0) {
+            const badge = streakResult.newBadges[0]; // Show first badge if multiple
+            const emoji = badge.daysRequired >= 100 ? '👑' : badge.daysRequired >= 30 ? '🏆' : badge.daysRequired >= 7 ? '🌟' : '🔥';
+            
+            console.log('[AddMemory] New badge earned:', badge.name, 'at', badge.daysRequired, 'days');
+            
+            showNotification({
+              title: 'New Badge Unlocked!',
+              message: `You've earned the ${badge.name} badge with ${badge.daysRequired} consecutive days!`,
+              emoji,
+              duration: 4000,
+            });
+          } else if (streakResult.newMilestones.length > 0) {
+            const milestone = streakResult.newMilestones[0];
+            const emoji = milestone >= 100 ? '👑' : milestone >= 30 ? '🏆' : milestone >= 7 ? '🌟' : '🔥';
+            
+            console.log('[AddMemory] New milestone reached:', milestone, 'days');
+            
+            showNotification({
+              title: `${milestone}-day streak!`,
+              message: `Amazing! You've created memories for ${milestone} days in a row.`,
+              emoji,
+              duration: 4000,
+            });
+          } else if (streakResult.streakIncreased || streakResult.isFirstMemory) {
+            // Show notification for regular streak increment (no badge/milestone) or first memory
+            const emoji = currentStreak >= 30 ? '👑' : currentStreak >= 14 ? '🏆' : currentStreak >= 7 ? '⭐' : currentStreak >= 3 ? '🔥' : '✨';
+
+            let title = '';
+            let message = '';
+
+            if (currentStreak === 1) {
+              title = 'Streak started!';
+              message = 'You\'re on day 1! Keep creating memories daily to build your streak.';
+            } else if (currentStreak === 2) {
+              title = 'Great start!';
+              message = '2 days in a row! One more day until your Flame badge.';
+            } else {
+              title = `${currentStreak}-day streak!`;
+              message = `Amazing! You've created memories for ${currentStreak} days in a row. Keep it up!`;
+            }
+
+            console.log('[AddMemory] Streak increased to:', currentStreak, 'days');
+            console.log('[AddMemory] Is first memory:', streakResult.isFirstMemory);
+            console.log('[AddMemory] Showing in-app notification:', title);
+            
+            showNotification({
+              title,
+              message,
+              emoji,
+              duration: 3000,
+            });
+          } else {
+            console.log('[AddMemory] Streak did not increase (already logged today or other reason)');
+          }
+
+          console.log('[AddMemory] Streak updated successfully:', currentStreak, 'days');
+        } catch (error) {
+          console.error('[AddMemory] Error updating streak:', error);
+          // Don't block memory creation if streak update fails
         }
       }
       

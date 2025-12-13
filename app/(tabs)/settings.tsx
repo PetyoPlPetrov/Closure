@@ -7,7 +7,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
-import { useTheme } from '@/utils/ThemeContext';
+import { resetStreakData } from '@/utils/streak-manager';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Asset } from 'expo-asset';
@@ -22,13 +22,11 @@ export default function SettingsScreen() {
   const fontScale = useFontScale();
   const { maxContentWidth } = useLargeDevice();
   const { language, setLanguage } = useLanguage();
-  const { themeMode, setThemeMode } = useTheme();
   const { addProfile, addJob, addFamilyMember, addFriend, addHobby, addIdealizedMemory, profiles, jobs, familyMembers, friends, hobbies, getProfile, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories, reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies, cleanupOrphanedMemories } = useJourney();
   // Subscription gating temporarily disabled
   const { isSubscribed } = { isSubscribed: true as const };
   const t = useTranslate();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
-  const [themeDropdownVisible, setThemeDropdownVisible] = useState(false);
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [isCleaningMemories, setIsCleaningMemories] = useState(false);
@@ -184,22 +182,6 @@ export default function SettingsScreen() {
     return lang === 'en' ? t('settings.language.english') : t('settings.language.bulgarian');
   };
 
-  const handleThemeChange = async (mode: 'light' | 'dark' | 'system') => {
-    await setThemeMode(mode);
-    setThemeDropdownVisible(false);
-  };
-
-  const getThemeLabel = (mode: 'light' | 'dark' | 'system') => {
-    if (mode === 'light') return t('settings.theme.light');
-    if (mode === 'dark') return t('settings.theme.dark');
-    return t('settings.theme.system');
-  };
-
-  const getThemeIcon = (mode: 'light' | 'dark' | 'system') => {
-    if (mode === 'light') return 'light-mode';
-    if (mode === 'dark') return 'dark-mode';
-    return 'brightness-auto';
-  };
 
   const handleNotificationsPress = async () => {
     router.push('/notifications');
@@ -1236,6 +1218,7 @@ export default function SettingsScreen() {
                 AsyncStorage.removeItem(HOBBIES_STORAGE_KEY),
                 AsyncStorage.removeItem(AVATAR_POSITIONS_KEY),
                 AsyncStorage.removeItem(WALKTHROUGH_SHOWN_KEY), // Clear walkthrough flag so it shows again
+                resetStreakData(), // Reset streak data
               ]);
               
               // Reload all data from storage to update state immediately
@@ -1377,144 +1360,6 @@ export default function SettingsScreen() {
                     </ThemedText>
                   </View>
                   {language === 'bg' && (
-                    <MaterialIcons
-                      name="check-circle"
-                      size={24 * fontScale}
-                      color={colors.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Modal>
-
-        <View style={styles.section}>
-          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            {t('settings.theme')}
-          </ThemedText>
-
-          <TouchableOpacity
-            style={styles.dropdown}
-            onPress={() => setThemeDropdownVisible(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.dropdownContent}>
-              <MaterialIcons
-                name={getThemeIcon(themeMode)}
-                size={24 * fontScale}
-                color={colors.primary}
-              />
-              <ThemedText
-                size="l"
-                weight="medium"
-                style={styles.dropdownText}
-              >
-                {getThemeLabel(themeMode)}
-              </ThemedText>
-            </View>
-            <MaterialIcons
-              name="arrow-drop-down"
-              size={24 * fontScale}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-        </View>
-
-        <Modal
-          visible={themeDropdownVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setThemeDropdownVisible(false)}
-        >
-          <Pressable
-            style={styles.modalOverlay}
-            onPress={() => setThemeDropdownVisible(false)}
-          >
-            <View style={styles.modalContent}>
-              <Pressable onPress={(e) => e.stopPropagation()}>
-                <View style={styles.modalHeader}>
-                  <ThemedText size="l" weight="bold">
-                    {t('settings.theme')}
-                  </ThemedText>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.dropdownOption}
-                  onPress={() => handleThemeChange('light')}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.dropdownOptionContent}>
-                    <MaterialIcons
-                      name="light-mode"
-                      size={24 * fontScale}
-                      color={colors.primary}
-                    />
-                    <ThemedText
-                      size="l"
-                      weight={themeMode === 'light' ? 'bold' : 'medium'}
-                      style={styles.dropdownOptionText}
-                    >
-                      {t('settings.theme.light')}
-                    </ThemedText>
-                  </View>
-                  {themeMode === 'light' && (
-                    <MaterialIcons
-                      name="check-circle"
-                      size={24 * fontScale}
-                      color={colors.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.dropdownOption}
-                  onPress={() => handleThemeChange('dark')}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.dropdownOptionContent}>
-                    <MaterialIcons
-                      name="dark-mode"
-                      size={24 * fontScale}
-                      color={colors.primary}
-                    />
-                    <ThemedText
-                      size="l"
-                      weight={themeMode === 'dark' ? 'bold' : 'medium'}
-                      style={styles.dropdownOptionText}
-                    >
-                      {t('settings.theme.dark')}
-                    </ThemedText>
-                  </View>
-                  {themeMode === 'dark' && (
-                    <MaterialIcons
-                      name="check-circle"
-                      size={24 * fontScale}
-                      color={colors.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.dropdownOption}
-                  onPress={() => handleThemeChange('system')}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.dropdownOptionContent}>
-                    <MaterialIcons
-                      name="brightness-auto"
-                      size={24 * fontScale}
-                      color={colors.primary}
-                    />
-                    <ThemedText
-                      size="l"
-                      weight={themeMode === 'system' ? 'bold' : 'medium'}
-                      style={styles.dropdownOptionText}
-                    >
-                      {t('settings.theme.system')}
-                    </ThemedText>
-                  </View>
-                  {themeMode === 'system' && (
                     <MaterialIcons
                       name="check-circle"
                       size={24 * fontScale}

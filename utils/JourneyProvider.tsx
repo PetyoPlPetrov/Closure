@@ -283,7 +283,7 @@ type JourneyContextType = {
     entityIdOrProfileId: string,
     sphereOrMemoryData: LifeSphere | Omit<IdealizedMemory, 'id' | 'entityId' | 'profileId' | 'sphere' | 'createdAt' | 'updatedAt'>,
     memoryData?: Omit<IdealizedMemory, 'id' | 'entityId' | 'profileId' | 'sphere' | 'createdAt' | 'updatedAt'>
-  ) => Promise<void>;
+  ) => Promise<string>; // Returns the new memory ID
   updateIdealizedMemory: (id: string, updates: Partial<IdealizedMemory>) => Promise<void>;
   deleteIdealizedMemory: (id: string) => Promise<void>;
   getIdealizedMemoriesByEntityId: (entityId: string, sphere: LifeSphere) => IdealizedMemory[];
@@ -802,6 +802,9 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       
       // Log analytics event
       await logMemoryCreated(sphere);
+
+      // Return the new memory ID so caller can detect creation
+      return newMemory.id;
 
       // Update entity setup progress based on new memory count
       const memoryCount = updatedMemories.filter(m => m.entityId === entityId && m.sphere === sphere).length;
