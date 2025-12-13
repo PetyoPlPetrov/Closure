@@ -6,16 +6,15 @@
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useEffect } from 'react';
-import { StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
-  withSequence,
   withSpring,
-  withTiming,
+  withTiming
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -77,6 +76,25 @@ export function InAppNotification({
     opacity: opacity.value,
   }));
 
+  // Determine background color with good contrast
+  const backgroundColor = colorScheme === 'dark' 
+    ? colors.surfaceElevated4 || '#3A4A5F' // Lighter elevated surface for better contrast
+    : '#FFFFFF';
+  
+  // Determine border color
+  const borderColor = colorScheme === 'dark'
+    ? colors.surfaceElevated8 || '#4A5A6F' // Subtle border for dark mode
+    : '#E5E5EA';
+
+  // Text colors with high contrast
+  const titleColor = colorScheme === 'dark' 
+    ? colors.textHighEmphasis || '#FFFFFF'
+    : colors.text || '#11181C';
+  
+  const messageColor = colorScheme === 'dark'
+    ? colors.textMediumEmphasis || 'rgba(255, 255, 255, 0.80)' // Slightly brighter for better contrast
+    : colors.icon || '#687076';
+
   if (!visible) return null;
 
   return (
@@ -84,9 +102,9 @@ export function InAppNotification({
       style={[
         styles.container,
         {
-          backgroundColor: colorScheme === 'dark' ? colors.card : '#FFFFFF',
-          borderColor: colorScheme === 'dark' ? colors.border : '#E5E5EA',
-          shadowColor: colorScheme === 'dark' ? '#000' : '#000',
+          backgroundColor,
+          borderColor,
+          shadowColor: '#000',
         },
         animatedStyle,
       ]}
@@ -97,13 +115,20 @@ export function InAppNotification({
         </ThemedText>
       )}
       <Animated.View style={styles.textContainer}>
-        <ThemedText size="md" weight="bold" style={styles.title}>
+        <ThemedText size="md" weight="bold" style={[styles.title, { color: titleColor }]}>
           {title}
         </ThemedText>
-        <ThemedText size="sm" style={[styles.message, { color: colors.textSecondary }]}>
+        <ThemedText size="sm" style={[styles.message, { color: messageColor }]}>
           {message}
         </ThemedText>
       </Animated.View>
+      <Pressable onPress={onHide} style={styles.closeButton}>
+        <MaterialIcons 
+          name="close" 
+          size={20} 
+          color={colorScheme === 'dark' ? colors.textHighEmphasis || '#FFFFFF' : colors.text || '#11181C'} 
+        />
+      </Pressable>
     </Animated.View>
   );
 }
@@ -116,7 +141,9 @@ const styles = StyleSheet.create({
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: 16,
+    paddingLeft: 16,
+    paddingRight: 20, // Extra padding on right to space button from edge
     borderRadius: 16,
     borderWidth: 1,
     shadowOffset: { width: 0, height: 4 },
@@ -131,11 +158,19 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     flex: 1,
+    marginRight: 16, // Add spacing between text and close button
   },
   title: {
     marginBottom: 2,
   },
   message: {
     lineHeight: 18,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

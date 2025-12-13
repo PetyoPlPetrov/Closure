@@ -28,7 +28,14 @@ export async function getStreakData(): Promise<StreakData> {
   try {
     const data = await AsyncStorage.getItem(STORAGE_KEY);
     if (data) {
-      return JSON.parse(data);
+      const parsedData = JSON.parse(data) as StreakData;
+      // Migrate old data: compute earnedBadges if missing
+      if (!parsedData.earnedBadges) {
+        parsedData.earnedBadges = checkNewBadges(parsedData.longestStreak || 0, []);
+        // Save migrated data
+        await saveStreakData(parsedData);
+      }
+      return parsedData;
     }
   } catch (error) {
     console.error('[StreakManager] Error reading streak data:', error);
@@ -44,6 +51,7 @@ export async function getStreakData(): Promise<StreakData> {
     memoryLogDates: [],
     currentBadge: null,
     milestones: [],
+    earnedBadges: [],
   };
 }
 
@@ -229,16 +237,22 @@ export async function updateStreakOnMemoryCreation(): Promise<{
     milestone => !previousMilestones.includes(milestone)
   );
 
+  // Calculate earned badges based on longest streak
+  const newLongestStreak = Math.max(newStreak, streakData.longestStreak || 0);
+  const previousEarnedBadges = streakData.earnedBadges || [];
+  const newEarnedBadges = checkNewBadges(newLongestStreak, previousEarnedBadges);
+
   const newStreakData: StreakData = {
     ...streakData,
     currentStreak: newStreak,
-    longestStreak: Math.max(newStreak, streakData.longestStreak || 0),
+    longestStreak: newLongestStreak,
     lastLoggedDate: today,
     streakStartDate: streakData.streakStartDate || today,
     totalDaysLogged: (streakData.totalDaysLogged || 0) + 1,
     memoryLogDates: last7DaysData, // Store only last 7 days
     currentBadge: currentBadge?.id || null,
     milestones: newMilestonesArray,
+    earnedBadges: newEarnedBadges,
   };
 
   console.log('[StreakManager] Saving new streak data:', {
@@ -280,11 +294,16 @@ export async function recalculateStreak(): Promise<StreakData> {
 
   // Update streak data if changed
   if (newStreak !== streakData.currentStreak || last7DaysData.length !== streakData.memoryLogDates?.length) {
+    // Ensure earnedBadges is computed based on longestStreak
+    const previousEarnedBadges = streakData.earnedBadges || [];
+    const updatedEarnedBadges = checkNewBadges(streakData.longestStreak || 0, previousEarnedBadges);
+    
     const updatedData: StreakData = {
       ...streakData,
       currentStreak: newStreak,
       memoryLogDates: last7DaysData,
       currentBadge: currentBadge?.id || null,
+      earnedBadges: updatedEarnedBadges,
     };
 
     await saveStreakData(updatedData);
@@ -338,7 +357,8 @@ export async function getDaysUntilStreakLost(): Promise<number> {
  */
 export async function getEarnedBadges(): Promise<StreakBadge[]> {
   const streakData = await getStreakData();
-  return STREAK_BADGES.filter(badge => streakData.earnedBadges.includes(badge.id));
+  const earnedBadgeIds = streakData.earnedBadges || [];
+  return STREAK_BADGES.filter(badge => earnedBadgeIds.includes(badge.id));
 }
 
 /**
@@ -383,6 +403,7 @@ export async function resetStreakData(): Promise<void> {
     memoryLogDates: [],
     currentBadge: null,
     milestones: [],
+    earnedBadges: [],
   };
 
   await saveStreakData(defaultData);

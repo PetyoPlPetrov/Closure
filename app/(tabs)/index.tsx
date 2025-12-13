@@ -6548,7 +6548,8 @@ export default function HomeScreen() {
                   marginLeft: -(SCREEN_WIDTH - 40) / 2, // Center horizontally on avatar
                   marginTop: -25, // Center vertically on avatar (approximate message height / 2)
                   zIndex: 200,
-                  paddingHorizontal: 24 * fontScale,
+                  paddingLeft: 24 * fontScale,
+                  paddingRight: 42 * fontScale, // Extra padding for close button (28px button + 12px margin + 12px spacing)
                   paddingVertical: 18 * fontScale,
                   borderRadius: 16 * fontScale,
                   overflow: 'hidden',

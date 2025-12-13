@@ -21,6 +21,7 @@ export interface StreakData {
   memoryLogDates: string[];        // Array of dates when memories were created (YYYY-MM-DD)
   currentBadge: string | null;     // Currently active badge ID based on rolling window
   milestones: number[];            // Array of achieved milestones [3, 7, 14...]
+  earnedBadges: string[];          // Array of badge IDs that have been earned (based on longestStreak)
 }
 
 export const STREAK_BADGES: StreakBadge[] = [

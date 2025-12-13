@@ -2,16 +2,16 @@
  * Streak Modal - Detailed Streak Statistics
  */
 
-import React from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { StreakData, StreakBadge } from '@/utils/streak-types';
+import type { StreakBadge, StreakData } from '@/utils/streak-types';
 import { STREAK_BADGES } from '@/utils/streak-types';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { LinearGradient } from 'expo-linear-gradient';
+import React from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 interface StreakModalProps {
   visible: boolean;
@@ -128,7 +128,7 @@ export const StreakModal = React.memo(function StreakModal({
                     Badges Earned
                   </ThemedText>
                   <ThemedText size="xl" weight="bold" style={{ marginTop: 4, color: colors.primary }}>
-                    {streakData.earnedBadges.length}
+                    {streakData.earnedBadges?.length || 0}
                   </ThemedText>
                 </View>
               </View>
@@ -162,7 +162,7 @@ export const StreakModal = React.memo(function StreakModal({
                 </ThemedText>
                 <View style={styles.badgesGrid}>
                   {STREAK_BADGES.map((badge) => {
-                    const isEarned = streakData.earnedBadges.includes(badge.id);
+                    const isEarned = streakData.earnedBadges?.includes(badge.id) || false;
                     const isCurrent = currentBadge?.id === badge.id;
 
                     return (
