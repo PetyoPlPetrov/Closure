@@ -102,6 +102,29 @@ function WheelOfLifeVisualization({
 
   return (
     <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {/* Shadow/Elevation effect - multiple layers for depth */}
+      <Circle
+        cx={center + 3}
+        cy={center + 3}
+        r={radius}
+        fill={colorScheme === 'dark' ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.2)'}
+        opacity={0.8}
+      />
+      <Circle
+        cx={center + 2}
+        cy={center + 2}
+        r={radius}
+        fill={colorScheme === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.15)'}
+        opacity={0.6}
+      />
+      <Circle
+        cx={center + 1}
+        cy={center + 1}
+        r={radius}
+        fill={colorScheme === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.1)'}
+        opacity={0.4}
+      />
+
       {/* Background circle */}
       <Circle cx={center} cy={center} r={radius} fill="none" stroke={colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth={2} />
 

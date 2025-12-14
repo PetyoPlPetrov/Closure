@@ -3,11 +3,12 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { Text, type TextProps } from 'react-native';
 
-type FontSize = 'xs' | 'sm' | 'l' | 'xl';
+type FontSize = 'xs' | 'sm' | 'l' | 'xl' | 'xxs';
 type FontWeight = 'normal' | 'medium' | 'semibold' | 'bold';
 type LetterSpacing = 's' | 'm' | 'l';
 
 const FONT_SIZES: Record<FontSize, number> = {
+  xxs: 10,
   xs: 12,
   sm: 14,
   l: 20,

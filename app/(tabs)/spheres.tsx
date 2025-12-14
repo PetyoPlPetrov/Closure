@@ -1941,8 +1941,8 @@ export default function SpheresScreen() {
                         <LinearGradient
                         colors={
                           colorScheme === 'dark'
-                            ? ['#E91E63', '#F06292', '#FF8A80', '#FF6B9D'] // Vibrant pink-to-coral gradient for better contrast
-                            : ['#ec4899', '#f472b6', '#fb7185', '#fda4af']
+                              ? ['#E91E63', '#F06292', '#FF8A80', '#FF6B9D'] // Vibrant pink-to-coral gradient for better contrast
+                              : ['#ec4899', '#f472b6', '#fb7185', '#fda4af']
                         }
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}

@@ -91,7 +91,8 @@ export default function TabLayout() {
                 letterSpacing="l"
                 style={{ 
                   color: focused ? color : inactiveColor,
-                  marginTop: 6 * fontScale
+                  marginTop: 6 * fontScale,
+                  lineHeight: 18 * fontScale
                 }}
               >
                 {t('tab.home')}
@@ -121,7 +122,8 @@ export default function TabLayout() {
                 letterSpacing="l"
                 style={{ 
                   color: focused ? color : inactiveColor,
-                  marginTop: 6 * fontScale
+                  marginTop: 6 * fontScale,
+                  lineHeight: 18 * fontScale
                 }}
               >
                 {t('tab.spheres')}
@@ -145,7 +147,8 @@ export default function TabLayout() {
                 letterSpacing="l"
                 style={{ 
                   color: focused ? color : inactiveColor,
-                  marginTop: 6 * fontScale
+                  marginTop: 6 * fontScale,
+                  lineHeight: 18 * fontScale
                 }}
               >
                 {t('tab.settings')}

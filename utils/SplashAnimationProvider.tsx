@@ -18,6 +18,81 @@ import Animated, {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+// Individual Sparkled Dot Component
+const SparkledDot = React.memo(function SparkledDot({
+  x,
+  y,
+  size,
+  delay,
+  duration,
+}: {
+  x: number;
+  y: number;
+  size: number;
+  delay: number;
+  duration: number;
+}) {
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.7);
+
+  React.useEffect(() => {
+    // Scale up animation
+    scale.value = withDelay(
+      delay,
+      withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 })
+    );
+
+    // Fade in first, then start pulsing
+    opacity.value = withDelay(
+      delay,
+      withTiming(0.7, {
+        duration: 600,
+        easing: Easing.out(Easing.ease)
+      }, (finished) => {
+        if (finished) {
+          // After fade in completes, start pulsing (between 0.4 and 0.7)
+          opacity.value = withRepeat(
+            withTiming(0.4, { duration, easing: Easing.inOut(Easing.ease) }),
+            -1,
+            true
+          );
+        }
+      })
+    );
+  }, [delay, duration, opacity, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: opacity.value,
+      transform: [{ scale: scale.value }],
+      left: x - size / 2,
+      top: y - size / 2,
+    };
+  });
+
+  const glowColor = 'rgba(255, 255, 255, 0.65)';
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: glowColor,
+          shadowColor: glowColor,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.8,
+          shadowRadius: size * 2,
+          elevation: 6,
+        },
+        animatedStyle,
+      ]}
+    />
+  );
+});
+
 interface SplashContextType {
   hideSplash: () => void;
   isVisible: boolean;
@@ -96,9 +171,59 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   // Dynamic quote style based on device size
   const quoteStyle = useMemo(() => ({
     ...styles.quote,
-    fontSize: isTablet ? 28 : 18,
-    lineHeight: isTablet ? 38 : 26,
+    fontSize: isTablet ? 32 : 20, // Larger for impact
+    lineHeight: isTablet ? 44 : 32,
+    letterSpacing: isTablet ? 4 : 3, // More spacing on tablets
   }), [isTablet]);
+
+  // Generate sparkled dots - scattered across the screen
+  const sparkledDots = useMemo(() => {
+    const numDots = isTablet ? 40 : 30; // More dots for immersive effect
+    const centerX = SCREEN_WIDTH / 2;
+    const centerY = SCREEN_HEIGHT * 0.35; // Centered around avatar area
+
+    const dots = [];
+
+    // Center dots around avatar
+    const numCenterDots = Math.floor(numDots * 0.6); // 60% around center
+    for (let i = 0; i < numCenterDots; i++) {
+      const angle = Math.random() * 2 * Math.PI;
+      const radius = (avatarSize / 2 + 20) + Math.random() * (Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35);
+      const x = centerX + Math.cos(angle) * radius;
+      const y = centerY + Math.sin(angle) * radius;
+      const size = 2 + Math.random() * 2;
+      const delay = Math.random() * 2000;
+      const duration = 2500 + Math.random() * 1500;
+
+      dots.push({ x, y, size, delay, duration, id: `center-${i}` });
+    }
+
+    // Top area dots
+    const numTopDots = Math.floor(numDots * 0.2); // 20% at top
+    for (let i = 0; i < numTopDots; i++) {
+      const x = Math.random() * SCREEN_WIDTH;
+      const y = Math.random() * (SCREEN_HEIGHT * 0.15);
+      const size = 2 + Math.random() * 2;
+      const delay = Math.random() * 2000;
+      const duration = 2500 + Math.random() * 1500;
+
+      dots.push({ x, y, size, delay, duration, id: `top-${i}` });
+    }
+
+    // Bottom area dots
+    const numBottomDots = numDots - numCenterDots - numTopDots; // Remaining at bottom
+    for (let i = 0; i < numBottomDots; i++) {
+      const x = Math.random() * SCREEN_WIDTH;
+      const y = SCREEN_HEIGHT - (SCREEN_HEIGHT * 0.15) + Math.random() * (SCREEN_HEIGHT * 0.15);
+      const size = 2 + Math.random() * 2;
+      const delay = Math.random() * 2000;
+      const duration = 2500 + Math.random() * 1500;
+
+      dots.push({ x, y, size, delay, duration, id: `bottom-${i}` });
+    }
+
+    return dots;
+  }, [isTablet, avatarSize]);
 
   // Hide native splash screen immediately
   useLayoutEffect(() => {
@@ -456,11 +581,21 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
           pointerEvents="box-none"
         >
           <View style={styles.container}>
-        <LinearGradient
-          colors={['#101A3D', '#2d4b81']}
-          style={StyleSheet.absoluteFill}
-        />
-        
+        {/* Solid background matching home screen dark mode */}
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1A2332' }]} />
+
+            {/* Sparkled Dots */}
+            {sparkledDots.map((dot) => (
+              <SparkledDot
+                key={dot.id}
+                x={dot.x}
+                y={dot.y}
+                size={dot.size}
+                delay={dot.delay}
+                duration={dot.duration}
+              />
+            ))}
+
             {/* Content */}
             <View style={styles.content}>
               {/* Avatar Container with Floating Elements */}
@@ -531,7 +666,7 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
               {/* Quote Text */}
               <Animated.View style={[styles.textContainer, textAnimatedStyle]}>
                 <Text style={quoteStyle}>
-                  Live spherically, in many directions!
+                  LIVE SPHERICALLY,{'\n'}IN MANY DIRECTIONS!
                 </Text>
           </Animated.View>
         </View>
@@ -625,21 +760,28 @@ const styles = StyleSheet.create({
     maxWidth: SCREEN_WIDTH - 64,
   },
   quote: {
-    color: 'rgba(240, 244, 248, 0.9)',
+    color: 'rgba(255, 255, 255, 0.95)',
     fontSize: 18,
-    fontWeight: '400',
-    lineHeight: 26,
+    fontWeight: '700', // Bold for impact
+    lineHeight: 28,
     textAlign: 'center',
-    fontStyle: 'italic',
+    letterSpacing: 3, // Wide letter spacing for modern look
+    textTransform: 'uppercase' as const,
+    textShadowColor: 'rgba(100, 181, 246, 0.5)', // Subtle blue glow
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
     ...Platform.select({
       web: {
-        fontFamily: 'Montserrat, sans-serif',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
+        fontWeight: '800',
       },
-      default: {
-        fontFamily: Platform.select({
-          ios: 'System',
-          android: 'sans-serif',
-        }),
+      ios: {
+        fontFamily: 'System',
+        fontWeight: '800',
+      },
+      android: {
+        fontFamily: 'sans-serif-condensed',
+        fontWeight: '700',
       },
     }),
   },

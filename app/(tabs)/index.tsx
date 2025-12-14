@@ -1,7 +1,7 @@
-import { ThemedText } from '@/components/themed-text';
 import { StreakBadgeComponent } from '@/components/streak-badge';
 import { StreakModal } from '@/components/streak-modal';
 import { StreakRulesModal } from '@/components/streak-rules-modal';
+import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
@@ -11,14 +11,12 @@ import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import {
-  getStreakData,
   getCurrentBadge,
   getNextBadge,
-  updateStreakOnMemoryCreation,
-  recalculateStreak,
+  recalculateStreak
 } from '@/utils/streak-manager';
-import { refreshStreakNotifications, sendMilestoneNotification } from '@/utils/streak-notifications';
-import type { StreakData, StreakBadge } from '@/utils/streak-types';
+import { refreshStreakNotifications } from '@/utils/streak-notifications';
+import type { StreakBadge, StreakData } from '@/utils/streak-types';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
@@ -26,7 +24,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Dimensions, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
@@ -4417,15 +4415,15 @@ const SphereAvatar = React.memo(function SphereAvatar({
             width: sphereSize,
             height: sphereSize,
             borderRadius: sphereSize / 2,
-            overflow: 'hidden', // Required for gradient to respect borderRadius
+            overflow: 'visible', // Changed to visible to show shadows properly
             justifyContent: 'center',
             alignItems: 'center',
-            // Glowing effect for spheres
-            shadowColor: glowColor,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.8,
-            shadowRadius: isTablet ? 20 : 15,
-            elevation: 12, // For Android
+            // Enhanced elevated shadow effect with glow
+            shadowColor: colorScheme === 'dark' ? glowColor : '#000',
+            shadowOffset: { width: 0, height: isTablet ? 4 : 3 },
+            shadowOpacity: colorScheme === 'dark' ? 0.4 : 0.2,
+            shadowRadius: isTablet ? 12 : 8,
+            elevation: 8, // For Android - subtle elevation effect
           },
           animatedStyle,
         ]}
@@ -4456,6 +4454,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
               width: sphereSize,
               height: sphereSize,
               borderRadius: sphereSize / 2,
+              overflow: 'hidden', // Ensures gradient respects border radius
               justifyContent: 'center',
               alignItems: 'center',
             }}
@@ -6538,7 +6537,7 @@ export default function HomeScreen() {
           
           {/* Encouraging Message Section */}
           {hasAnyMoments && (
-            <Animated.View 
+            <Animated.View
               style={[
                 {
                   position: 'absolute',
@@ -6552,7 +6551,15 @@ export default function HomeScreen() {
                   paddingRight: 42 * fontScale, // Extra padding for close button (28px button + 12px margin + 12px spacing)
                   paddingVertical: 18 * fontScale,
                   borderRadius: 16 * fontScale,
-                  overflow: 'hidden',
+                  backgroundColor: colorScheme === 'dark'
+                    ? 'rgba(26, 35, 50, 0.95)' // Semi-transparent dark background
+                    : 'rgba(255, 255, 255, 0.95)', // Semi-transparent light background
+                  // Enhanced elevated shadow effect
+                  shadowColor: colorScheme === 'dark' ? '#64B5F6' : '#000',
+                  shadowOffset: { width: 0, height: isTablet ? 8 : 6 },
+                  shadowOpacity: colorScheme === 'dark' ? 0.8 : 0.3,
+                  shadowRadius: isTablet ? 20 : 16,
+                  elevation: 12, // For Android - elevated effect
                 },
                 encouragementAnimatedStyle,
               ]}
@@ -6603,6 +6610,8 @@ export default function HomeScreen() {
                   right: 0,
                   top: 0,
                   bottom: 0,
+                  borderRadius: 16 * fontScale,
+                  overflow: 'hidden', // Ensure gradient respects border radius
                 }}
               />
               
@@ -6646,14 +6655,14 @@ export default function HomeScreen() {
               )}
               
               {/* Content */}
-              <ThemedText 
-                size="sm" 
+              <ThemedText
+                size="sm"
                 style={{
                   textAlign: 'center',
                   lineHeight: 22 * fontScale,
                   fontWeight: overallSunnyPercentage > 50 ? '600' : '500',
-                  color: overallSunnyPercentage > 50 
-                    ? colors.primaryLight 
+                  color: overallSunnyPercentage > 50
+                    ? colors.primaryLight
                     : colors.text,
                   textShadowColor: overallSunnyPercentage > 50 && colorScheme === 'dark'
                     ? 'rgba(100, 150, 255, 0.3)'
@@ -6662,7 +6671,7 @@ export default function HomeScreen() {
                   textShadowRadius: overallSunnyPercentage > 50 ? 4 : 0,
                 }}
               >
-                {overallSunnyPercentage > 50 
+                {overallSunnyPercentage > 50
                   ? t('spheres.encouragement.goodMomentsPrevail')
                   : t('spheres.encouragement.keepPushing')
                 }

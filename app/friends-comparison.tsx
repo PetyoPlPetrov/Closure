@@ -693,32 +693,54 @@ export default function FriendsComparisonScreen() {
                               </ThemedText>
                             </View>
                             
-                            {/* Bar Chart */}
+                            {/* Bar Chart with inline icons */}
                             <View style={styles.barWrapper}>
                               {/* Cloudy segment (black) - on the left */}
                               {data.totalClouds > 0 && (
                                 <View
                                   style={[
                                     styles.cloudSegment,
-                                    { 
+                                    {
                                       width: `${cloudPercentage}%`,
-                                      backgroundColor: '#000000'
+                                      backgroundColor: '#000000',
+                                      justifyContent: 'center',
+                                      alignItems: 'center',
                                     }
                                   ]}
-                                />
+                                >
+                                  {cloudPercentage > 20 && (
+                                    <MaterialIcons
+                                      name="cloud"
+                                      size={14 * fontScale}
+                                      color="#FFFFFF"
+                                      style={{ opacity: 0.8 }}
+                                    />
+                                  )}
+                                </View>
                               )}
-                              
+
                               {/* Sunny segment (yellow/gold) - on the right */}
                               {data.totalSuns > 0 && (
                                 <View
                                   style={[
                                     styles.sunSegment,
-                                    { 
+                                    {
                                       width: `${sunPercentage}%`,
-                                      backgroundColor: '#FFD700'
+                                      backgroundColor: '#FFD700',
+                                      justifyContent: 'center',
+                                      alignItems: 'center',
                                     }
                                   ]}
-                                />
+                                >
+                                  {sunPercentage > 20 && (
+                                    <MaterialIcons
+                                      name="wb-sunny"
+                                      size={14 * fontScale}
+                                      color="#000000"
+                                      style={{ opacity: 0.7 }}
+                                    />
+                                  )}
+                                </View>
                               )}
                             </View>
                             
