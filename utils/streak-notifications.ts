@@ -53,8 +53,6 @@ export async function scheduleStreakReminder(): Promise<void> {
       },
       trigger,
     });
-
-    console.log('[StreakNotifications] Scheduled reminder for 8 PM');
   } catch (error) {
     console.error('[StreakNotifications] Error scheduling reminder:', error);
   }
@@ -104,8 +102,6 @@ export async function scheduleStreakWarning(): Promise<void> {
       },
       trigger,
     });
-
-    console.log('[StreakNotifications] Scheduled warning for 10 PM');
   } catch (error) {
     console.error('[StreakNotifications] Error scheduling warning:', error);
   }
@@ -118,19 +114,14 @@ export async function sendMilestoneNotification(
   milestone: number,
   badgeName?: string
 ): Promise<void> {
-  console.log('[StreakNotifications] sendMilestoneNotification called:', { milestone, badgeName });
   try {
     // Check permissions first
     const { status } = await Notifications.getPermissionsAsync();
-    console.log('[StreakNotifications] Current permission status:', status);
     
     if (status !== 'granted') {
-      console.log('[StreakNotifications] Notification permissions not granted for milestone, requesting...');
       const { status: newStatus } = await Notifications.requestPermissionsAsync();
-      console.log('[StreakNotifications] Permission request result:', newStatus);
       
       if (newStatus !== 'granted') {
-        console.log('[StreakNotifications] ❌ Notification permissions denied for milestone');
         return;
       }
     }
@@ -148,9 +139,7 @@ export async function sendMilestoneNotification(
       body = `Amazing! You've created memories for ${milestone} days in a row.`;
     }
 
-    console.log('[StreakNotifications] Scheduling notification with:', { title, body });
-
-    const notificationId = await Notifications.scheduleNotificationAsync({
+    await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
@@ -160,8 +149,6 @@ export async function sendMilestoneNotification(
       },
       trigger: null, // Send immediately
     });
-
-    console.log('[StreakNotifications] ✅ Sent milestone notification:', milestone, 'ID:', notificationId);
   } catch (error) {
     console.error('[StreakNotifications] ❌ Error sending milestone notification:', error);
   }
@@ -171,19 +158,14 @@ export async function sendMilestoneNotification(
  * Send immediate notification for regular streak increment
  */
 export async function sendStreakIncrementNotification(currentStreak: number): Promise<void> {
-  console.log('[StreakNotifications] sendStreakIncrementNotification called:', currentStreak);
   try {
     // Check permissions first
     const { status } = await Notifications.getPermissionsAsync();
-    console.log('[StreakNotifications] Current permission status:', status);
     
     if (status !== 'granted') {
-      console.log('[StreakNotifications] Notification permissions not granted, requesting...');
       const { status: newStatus } = await Notifications.requestPermissionsAsync();
-      console.log('[StreakNotifications] Permission request result:', newStatus);
       
       if (newStatus !== 'granted') {
-        console.log('[StreakNotifications] ❌ Notification permissions denied');
         return;
       }
     }
@@ -204,9 +186,7 @@ export async function sendStreakIncrementNotification(currentStreak: number): Pr
       body = `Amazing! You've created memories for ${currentStreak} days in a row. Keep it up!`;
     }
 
-    console.log('[StreakNotifications] Scheduling notification with:', { title, body, currentStreak });
-
-    const notificationId = await Notifications.scheduleNotificationAsync({
+    await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
@@ -216,8 +196,6 @@ export async function sendStreakIncrementNotification(currentStreak: number): Pr
       },
       trigger: null, // Send immediately
     });
-
-    console.log('[StreakNotifications] ✅ Sent streak increment notification:', currentStreak, 'ID:', notificationId);
   } catch (error) {
     console.error('[StreakNotifications] ❌ Error sending streak increment notification:', error);
   }
@@ -247,8 +225,6 @@ export async function sendStreakLostNotification(lostStreak: number): Promise<vo
         repeats: false,
       },
     });
-
-    console.log('[StreakNotifications] Sent streak lost notification');
   } catch (error) {
     console.error('[StreakNotifications] Error sending streak lost notification:', error);
   }
@@ -261,7 +237,6 @@ export async function cancelAllStreakNotifications(): Promise<void> {
   try {
     await Notifications.cancelScheduledNotificationAsync(STREAK_REMINDER_ID);
     await Notifications.cancelScheduledNotificationAsync(STREAK_WARNING_ID);
-    console.log('[StreakNotifications] Cancelled all streak notifications');
   } catch (error) {
     console.error('[StreakNotifications] Error cancelling notifications:', error);
   }

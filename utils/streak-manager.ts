@@ -185,14 +185,9 @@ export async function updateStreakOnMemoryCreation(): Promise<{
   const today = getLocalDateString();
   const streakData = await getStreakData();
 
-  console.log('[StreakManager] updateStreakOnMemoryCreation called');
-  console.log('[StreakManager] Today:', today);
-  console.log('[StreakManager] Current memory log dates:', streakData.memoryLogDates);
-
   // Check if already logged today
   const alreadyLoggedToday = streakData.memoryLogDates?.includes(today);
   if (alreadyLoggedToday) {
-    console.log('[StreakManager] Already logged today - no change');
     return {
       data: streakData,
       streakIncreased: false,
@@ -215,10 +210,6 @@ export async function updateStreakOnMemoryCreation(): Promise<{
   const newStreak = calculateConsecutiveDays(last7DaysData);
   const streakIncreased = newStreak > previousStreak;
 
-  console.log('[StreakManager] Previous streak:', previousStreak);
-  console.log('[StreakManager] New streak:', newStreak);
-  console.log('[StreakManager] Streak increased:', streakIncreased);
-
   // Determine current badge based on new streak
   const currentBadge = getBadgeForStreak(newStreak);
   const previousBadge = getBadgeForStreak(previousStreak);
@@ -227,7 +218,6 @@ export async function updateStreakOnMemoryCreation(): Promise<{
   const newBadges: StreakBadge[] = [];
   if (currentBadge && (!previousBadge || currentBadge.daysRequired > previousBadge.daysRequired)) {
     newBadges.push(currentBadge);
-    console.log('[StreakManager] New badge earned:', currentBadge.name);
   }
 
   // Check milestones
@@ -255,12 +245,6 @@ export async function updateStreakOnMemoryCreation(): Promise<{
     earnedBadges: newEarnedBadges,
   };
 
-  console.log('[StreakManager] Saving new streak data:', {
-    currentStreak: newStreakData.currentStreak,
-    totalDaysLogged: newStreakData.totalDaysLogged,
-    memoryLogDates: newStreakData.memoryLogDates,
-  });
-
   await saveStreakData(newStreakData);
 
   return {
@@ -279,18 +263,12 @@ export async function updateStreakOnMemoryCreation(): Promise<{
 export async function recalculateStreak(): Promise<StreakData> {
   const streakData = await getStreakData();
 
-  console.log('[StreakManager] recalculateStreak called');
-  console.log('[StreakManager] Current memory log dates:', streakData.memoryLogDates);
-
   // Filter to only last 7 days
   const last7DaysData = filterLast7Days(streakData.memoryLogDates || []);
 
   // Recalculate consecutive days
   const newStreak = calculateConsecutiveDays(last7DaysData);
   const currentBadge = getBadgeForStreak(newStreak);
-
-  console.log('[StreakManager] Recalculated streak:', newStreak);
-  console.log('[StreakManager] Current badge:', currentBadge?.name || 'None');
 
   // Update streak data if changed
   if (newStreak !== streakData.currentStreak || last7DaysData.length !== streakData.memoryLogDates?.length) {
@@ -307,12 +285,6 @@ export async function recalculateStreak(): Promise<StreakData> {
     };
 
     await saveStreakData(updatedData);
-
-    console.log('[StreakManager] Streak recalculated and saved:', {
-      oldStreak: streakData.currentStreak,
-      newStreak,
-      memoryLogDates: last7DaysData,
-    });
 
     return updatedData;
   }

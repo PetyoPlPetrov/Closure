@@ -32,13 +32,8 @@ if (ENABLE_REVENUECAT) {
     }
   } catch (error) {
     // Native module not available - this is OK in development
-    if (__DEV__) {
-      console.warn('[RevenueCat] Native module not available. RevenueCat features will be disabled.');
-    }
   }
-} else if (__DEV__) {
-  console.warn('[RevenueCat] RevenueCat is disabled via feature flag (ENABLE_REVENUECAT = false).');
 }
 
-export { isNativeModuleAvailable, LOG_LEVEL, PAYWALL_RESULT, Purchases, RevenueCatUI };
+export { LOG_LEVEL, PAYWALL_RESULT, Purchases, RevenueCatUI, isNativeModuleAvailable };
 

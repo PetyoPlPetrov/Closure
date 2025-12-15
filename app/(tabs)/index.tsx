@@ -286,8 +286,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   externalPositionY?: ReturnType<typeof useSharedValue<number>>;
 }) {
   const { isTablet } = useLargeDevice();
-  const baseAvatarSize = isTablet ? 120 : 80; // 50% larger on tablets
-  const focusedAvatarSize = isTablet ? 150 : 100; // 50% larger on tablets
+  const baseAvatarSize = isTablet ? 120 : 100; // 50% larger on tablets, increased from 80 to 100
+  const focusedAvatarSize = isTablet ? 150 : 120; // 50% larger on tablets, increased from 100 to 120
   const avatarSize = isFocused ? focusedAvatarSize : baseAvatarSize;
   // Memory radius - when focused, ensure all floating elements fit within viewport
   // Calculation: memoryRadius + memorySize/2 + momentRadius + momentSize/2 + padding <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
@@ -3402,7 +3402,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   // Floating entity size is isTablet ? 36 : 24, so radius is isTablet ? 18 : 12
   const sphereDistanceFromCenter = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3;
   const floatingEntityRadius = isTablet ? 85 : 55;
-  const floatingEntitySize = isTablet ? 36 : 24;
+  const floatingEntitySize = isTablet ? 36 : 20; // Decreased from 24 to 20 for smaller floating elements
   const floatingEntityRadiusSize = floatingEntitySize / 2;
   
   // Calculate minimum distance from main center to floating entity edge
@@ -3410,7 +3410,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   const minDistanceToFloatingEntity = sphereDistanceFromCenter - floatingEntityRadius - floatingEntityRadiusSize;
   
   // Base avatar size
-  const baseAvatarSize = isTablet ? 180 : 120;
+  const baseAvatarSize = isTablet ? 180 : 140; // Increased from 120 to 140
   const baseAvatarRadius = baseAvatarSize / 2;
   
   // Check if main circle (with some padding) would intersect floating entities
@@ -6480,7 +6480,7 @@ export default function HomeScreen() {
   // Calculate avatar center coordinates for sparkled dots (always show on all screens)
   const avatarCenterX = SCREEN_WIDTH / 2;
   const avatarCenterY = SCREEN_HEIGHT / 2 + 60; // Lower the main circle by 60px
-  const baseAvatarSize = isTablet ? 180 : 120;
+  const baseAvatarSize = isTablet ? 180 : 140; // Increased from 120 to 140
   const avatarSizeForDots = baseAvatarSize; // Use base size for dots positioning
   
   if (!selectedSphere) {
@@ -6684,10 +6684,10 @@ export default function HomeScreen() {
             // Calculate avatar size considering floating entities intersection
             const sphereDistanceFromCenter = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3;
             const floatingEntityRadius = isTablet ? 85 : 55; // Larger on tablets by default
-            const floatingEntitySize = isTablet ? 36 : 24;
+            const floatingEntitySize = isTablet ? 36 : 20; // Decreased from 24 to 20 for smaller floating elements
             const floatingEntityRadiusSize = floatingEntitySize / 2;
             const minDistanceToFloatingEntity = sphereDistanceFromCenter - floatingEntityRadius - floatingEntityRadiusSize;
-            const baseAvatarSize = isTablet ? 180 : 120;
+            const baseAvatarSize = isTablet ? 180 : 140; // Increased from 120 to 140
             const baseAvatarRadius = baseAvatarSize / 2;
             const padding = 5;
             const maxSafeAvatarRadius = minDistanceToFloatingEntity - padding;

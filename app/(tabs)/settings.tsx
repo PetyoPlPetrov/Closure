@@ -22,9 +22,7 @@ export default function SettingsScreen() {
   const fontScale = useFontScale();
   const { maxContentWidth } = useLargeDevice();
   const { language, setLanguage } = useLanguage();
-  const { addProfile, addJob, addFamilyMember, addFriend, addHobby, addIdealizedMemory, profiles, jobs, familyMembers, friends, hobbies, getProfile, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories, reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies, cleanupOrphanedMemories } = useJourney();
-  // Subscription gating temporarily disabled
-  const { isSubscribed } = { isSubscribed: true as const };
+  const { addProfile, addJob, addFamilyMember, addFriend, addHobby, addIdealizedMemory, profiles, jobs, familyMembers, friends, hobbies, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies, cleanupOrphanedMemories } = useJourney();
   const t = useTranslate();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
@@ -231,7 +229,7 @@ export default function SettingsScreen() {
               };
               
               return imageMap[entityName] || null;
-            } catch (error) {
+            } catch (_error) {
               // If require fails, return null to fall back to Unsplash
               return null;
             }
@@ -333,7 +331,7 @@ export default function SettingsScreen() {
             }
             return Promise.resolve(); // Local assets don't need prefetching
           }));
-        } catch (error) {
+        } catch (_error) {
           // Prefetch errors are non-critical - images will load on demand
         }
       };
@@ -696,10 +694,10 @@ export default function SettingsScreen() {
               
               createdMemories++;
                 successfullyCreatedCount++;
-              
+
                 // Small delay to allow AsyncStorage write to complete
                 await new Promise(resolve => setTimeout(resolve, 50));
-            } catch (memoryError) {
+            } catch (_memoryError) {
                 // Don't increment createdMemories if it failed
               }
             }
@@ -708,10 +706,10 @@ export default function SettingsScreen() {
           }
           
           createdProfiles++;
-          
+
           // Brief delay between profiles for AsyncStorage writes
           await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (profileError) {
+        } catch (_profileError) {
           // Error creating profile
         }
       }
@@ -814,10 +812,10 @@ export default function SettingsScreen() {
               });
               
               createdMemories++;
-              
+
               // Brief delay to allow AsyncStorage write to complete
               await new Promise(resolve => setTimeout(resolve, 50));
-            } catch (memoryError) {
+            } catch (_memoryError) {
               // Error creating memory
             }
           }
@@ -826,10 +824,10 @@ export default function SettingsScreen() {
           }
           
           createdJobs++;
-          
+
           // Brief delay between jobs for AsyncStorage writes
           await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (jobError) {
+        } catch (_jobError) {
           // Error creating job
         }
       }
@@ -931,18 +929,18 @@ export default function SettingsScreen() {
                 });
                 
                 createdMemories++;
-                
+
                 await new Promise(resolve => setTimeout(resolve, 50));
-              } catch (memoryError) {
+              } catch (_memoryError) {
                 // Error creating memory
               }
             }
           }
           
           createdFamilyMembers++;
-          
+
           await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (memberError) {
+        } catch (_memberError) {
           // Error creating family member
         }
       }
@@ -1023,18 +1021,18 @@ export default function SettingsScreen() {
                   hardTruths,
                   goodFacts,
                 });
-                
+
                 createdMemories++;
                 await new Promise(resolve => setTimeout(resolve, 50));
-              } catch (memoryError) {
+              } catch (_memoryError) {
                 // Error creating memory
               }
             }
           }
-          
+
           createdFriends++;
           await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (friendError) {
+        } catch (_friendError) {
           // Error creating friend
         }
       }
@@ -1115,18 +1113,18 @@ export default function SettingsScreen() {
                   hardTruths,
                   goodFacts,
                 });
-                
+
                 createdMemories++;
                 await new Promise(resolve => setTimeout(resolve, 50));
-              } catch (memoryError) {
+              } catch (_memoryError) {
                 // Error creating memory
               }
             }
           }
-          
+
           createdHobbies++;
           await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (hobbyError) {
+        } catch (_hobbyError) {
           // Error creating hobby
         }
       }
@@ -1143,10 +1141,10 @@ export default function SettingsScreen() {
           reloadFriends(),
           reloadHobbies(),
         ]);
-        
+
         // Then load memories (cleanup will now find all entities in storage)
         await reloadIdealizedMemories();
-      } catch (reloadError) {
+      } catch (_reloadError) {
         // Continue anyway - data is in storage even if state update fails
       }
 
@@ -1155,7 +1153,7 @@ export default function SettingsScreen() {
         `Created ${createdProfiles} profiles, ${createdJobs} jobs, ${createdFamilyMembers} family members, ${createdFriends} friends, ${createdHobbies} hobbies, and ${createdMemories} total memories`,
         [{ text: t('common.ok') }]
       );
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(t('common.error'), t('settings.devTools.generateData.error'));
     } finally {
       setIsGeneratingFakeData(false);
@@ -1175,7 +1173,7 @@ export default function SettingsScreen() {
         message,
         [{ text: t('common.ok') }]
       );
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(t('common.error'), t('settings.devTools.cleanupMemories.error'));
     } finally {
       setIsCleaningMemories(false);
@@ -1240,7 +1238,7 @@ export default function SettingsScreen() {
                 t('settings.devTools.clearData.success'),
                 [{ text: t('common.ok') }]
               );
-            } catch (error) {
+            } catch (_error) {
               Alert.alert(t('common.error'), t('settings.devTools.clearData.error'));
             } finally {
               setIsDeletingData(false);

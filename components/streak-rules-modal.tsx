@@ -52,7 +52,7 @@ export function StreakRulesModal({ visible, onClose }: StreakRulesModalProps) {
             <ThemedText size="lg" weight="bold" style={styles.sectionTitle}>
               {t('streakRules.badges.title')}
             </ThemedText>
-            <ThemedText size="sm" style={[styles.subtitle, { color: colors.textSecondary }]}>
+            <ThemedText size="sm" style={[styles.subtitle, { color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary }]}>
               {t('streakRules.badges.subtitle')}
             </ThemedText>
 
@@ -83,7 +83,7 @@ export function StreakRulesModal({ visible, onClose }: StreakRulesModalProps) {
                       </ThemedText>
                     </View>
                   </View>
-                  <ThemedText size="sm" style={{ color: colors.textSecondary, marginTop: 2 }}>
+                  <ThemedText size="sm" style={{ color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary, marginTop: 2 }}>
                     {t(getBadgeDescriptionKey(badge.id))}
                   </ThemedText>
                   <ThemedText size="xs" weight="semibold" style={{ marginTop: 4, color: colors.primary }}>

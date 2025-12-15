@@ -1,8 +1,8 @@
 import { ENABLE_REVENUECAT, isNativeModuleAvailable, LOG_LEVEL, Purchases } from '@/utils/revenuecat-wrapper';
 import { HeaderBackButton } from '@react-navigation/elements';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { router, Stack } from 'expo-router';
 import * as Notifications from 'expo-notifications';
+import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
@@ -37,17 +37,11 @@ function AppContent() {
     const initializeRevenueCat = async () => {
       // Skip initialization if RevenueCat is disabled via feature flag
       if (!ENABLE_REVENUECAT) {
-        if (__DEV__) {
-          console.warn('[RevenueCat] RevenueCat initialization skipped (disabled via feature flag).');
-        }
         return;
       }
 
       // Only initialize if native module is available
       if (!isNativeModuleAvailable || !Purchases || !LOG_LEVEL) {
-        if (__DEV__) {
-          console.warn('[RevenueCat] Native module not available. Skipping initialization.');
-        }
         return;
       }
 
@@ -98,25 +92,14 @@ function AppContent() {
   useEffect(() => {
     // This listener is fired whenever a notification is received while the app is foregrounded
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('[NotificationReceived] ==========================================');
-      console.log('[NotificationReceived] 📬 Notification received while app is foregrounded');
-      console.log('[NotificationReceived] Received at:', new Date().toISOString());
-      console.log('[NotificationReceived] Title:', notification.request.content.title);
-      console.log('[NotificationReceived] Body:', notification.request.content.body);
-      console.log('[NotificationReceived] Data:', JSON.stringify(notification.request.content.data, null, 2));
-      console.log('[NotificationReceived] Trigger:', JSON.stringify(notification.request.trigger, null, 2));
-      console.log('[NotificationReceived] Notification ID:', notification.request.identifier);
-
       // Check if this is an immediate fire or scheduled
       const scheduledAt = (notification.request.content.data as any)?.scheduledAt;
       if (scheduledAt) {
         const timeSinceScheduled = Date.now() - scheduledAt;
-        console.log('[NotificationReceived] Time since scheduled:', timeSinceScheduled, 'ms');
         if (timeSinceScheduled < 5000) {
           console.error('[NotificationReceived] ⚠️ FIRED IMMEDIATELY! This notification was scheduled less than 5 seconds ago!');
         }
       }
-      console.log('[NotificationReceived] ==========================================');
       // We don't need to do anything here, just showing the notification is enough
     });
 
@@ -144,12 +127,8 @@ function AppContent() {
     });
 
     return () => {
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
-      }
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
     };
   }, []);
 
@@ -187,8 +166,6 @@ function AppContent() {
           options={{
             headerShown: true,
             title: 'Notifications',
-            headerBackTitleVisible: false,
-            headerBackTitle: '',
             headerLeft: (props) => (
               <HeaderBackButton
                 {...props}
@@ -196,7 +173,6 @@ function AppContent() {
                   // Always return to Settings tab
                   router.replace('/settings');
                 }}
-                labelVisible={false}
               />
             ),
           }}

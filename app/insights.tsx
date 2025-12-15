@@ -8,9 +8,13 @@ import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg';
+import Animated, { Easing, useAnimatedProps, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import Svg, { Circle, Defs, ForeignObject, G, LinearGradient as SvgLinearGradient, Path, Stop, Text as SvgText } from 'react-native-svg';
+
+const AnimatedG = Animated.createAnimatedComponent(G);
+const AnimatedLinearGradient = Animated.createAnimatedComponent(SvgLinearGradient);
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -21,28 +25,32 @@ function WheelOfLifeVisualization({
   colors,
   colorScheme,
   fontScale,
+  onSlicePress,
 }: {
-  distribution: { relationships: number; career: number; family: number }; // Percentage of total moments
-  quality: { relationships: number; career: number; family: number }; // Sunny percentage for gradient
+  distribution: { relationships: number; career: number; family: number; friends: number; hobbies: number }; // Percentage of total moments
+  quality: { relationships: number; career: number; family: number; friends: number; hobbies: number }; // Sunny percentage for gradient
   colors: typeof Colors.dark;
   colorScheme: 'light' | 'dark' | null;
   fontScale: number;
+  onSlicePress?: (sphere: LifeSphere) => void;
 }) {
-  const size = Math.min(280 * fontScale, SCREEN_WIDTH - 80);
+  const size = Math.min(380 * fontScale, SCREEN_WIDTH - 40);
   const center = size / 2;
   const radius = size / 2 - 20;
   const gapAngle = 5; // Gap in degrees between slices
 
   // Normalize distribution percentages
-  const totalDistribution = distribution.relationships + distribution.career + distribution.family;
+  const totalDistribution = distribution.relationships + distribution.career + distribution.family + distribution.friends + distribution.hobbies;
   const normalizedDist = {
-    relationships: totalDistribution > 0 ? (distribution.relationships / totalDistribution) * 100 : 33.33,
-    career: totalDistribution > 0 ? (distribution.career / totalDistribution) * 100 : 33.33,
-    family: totalDistribution > 0 ? (distribution.family / totalDistribution) * 100 : 33.33,
+    relationships: totalDistribution > 0 ? (distribution.relationships / totalDistribution) * 100 : 20,
+    career: totalDistribution > 0 ? (distribution.career / totalDistribution) * 100 : 20,
+    family: totalDistribution > 0 ? (distribution.family / totalDistribution) * 100 : 20,
+    friends: totalDistribution > 0 ? (distribution.friends / totalDistribution) * 100 : 20,
+    hobbies: totalDistribution > 0 ? (distribution.hobbies / totalDistribution) * 100 : 20,
   };
 
-  // Calculate available angle (360 minus gaps between 3 slices)
-  const totalGaps = gapAngle * 3; // 3 gaps between 3 slices
+  // Calculate available angle (360 minus gaps between 5 slices)
+  const totalGaps = gapAngle * 5; // 5 gaps between 5 slices
   const availableAngle = 360 - totalGaps;
 
   // Calculate pie slice angles (start from top, clockwise)
@@ -58,6 +66,14 @@ function WheelOfLifeVisualization({
 
   const familyStartAngle = currentAngle;
   const familySweepAngle = (normalizedDist.family / 100) * availableAngle;
+  currentAngle += familySweepAngle + gapAngle;
+
+  const friendsStartAngle = currentAngle;
+  const friendsSweepAngle = (normalizedDist.friends / 100) * availableAngle;
+  currentAngle += friendsSweepAngle + gapAngle;
+
+  const hobbiesStartAngle = currentAngle;
+  const hobbiesSweepAngle = (normalizedDist.hobbies / 100) * availableAngle;
 
   // Helper function to create pie slice path (triangle from center)
   const createPieSlice = (startAngle: number, sweepAngle: number) => {
@@ -79,6 +95,8 @@ function WheelOfLifeVisualization({
   const relationshipsPath = createPieSlice(relStartAngle, relSweepAngle);
   const careerPath = createPieSlice(careerStartAngle, careerSweepAngle);
   const familyPath = createPieSlice(familyStartAngle, familySweepAngle);
+  const friendsPath = createPieSlice(friendsStartAngle, friendsSweepAngle);
+  const hobbiesPath = createPieSlice(hobbiesStartAngle, hobbiesSweepAngle);
 
   // Calculate label positions (middle of each slice)
   const getLabelPosition = (startAngle: number, sweepAngle: number) => {
@@ -94,14 +112,278 @@ function WheelOfLifeVisualization({
   const relLabelPos = getLabelPosition(relStartAngle, relSweepAngle);
   const careerLabelPos = getLabelPosition(careerStartAngle, careerSweepAngle);
   const familyLabelPos = getLabelPosition(familyStartAngle, familySweepAngle);
+  const friendsLabelPos = getLabelPosition(friendsStartAngle, friendsSweepAngle);
+  const hobbiesLabelPos = getLabelPosition(hobbiesStartAngle, hobbiesSweepAngle);
 
-  // Get distinct fixed colors for each sphere
-  const relationshipsColor = '#f87171'; // Red/pink for relationships
-  const careerColor = '#3b82f6'; // Blue for career
-  const familyColor = '#10b981'; // Green for family
+  // Get sphere-specific colors - theme-aware for proper contrast (matching spheres.tsx)
+  const getSphereColor = (sphereType: 'relationships' | 'career' | 'family' | 'friends' | 'hobbies'): string => {
+    if (colorScheme === 'light') {
+      switch (sphereType) {
+        case 'relationships':
+          return '#D32F2F';
+        case 'career':
+          return '#1976D2';
+        case 'family':
+          return '#388E3C';
+        case 'friends':
+          return '#7B1FA2';
+        case 'hobbies':
+          return '#F57C00';
+        default:
+          return '#1976D2';
+      }
+    } else {
+      switch (sphereType) {
+        case 'relationships':
+          return '#E57373';
+        case 'career':
+          return '#64B5F6';
+        case 'family':
+          return '#81C784';
+        case 'friends':
+          return '#BA68C8';
+        case 'hobbies':
+          return '#FFB74D';
+        default:
+          return '#64B5F6';
+      }
+    }
+  };
+
+  const relationshipsColor = getSphereColor('relationships');
+  const careerColor = getSphereColor('career');
+  const familyColor = getSphereColor('family');
+  const friendsColor = getSphereColor('friends');
+  const hobbiesColor = getSphereColor('hobbies');
+
+  // Sphere icons
+  const sphereIcons = {
+    relationships: 'favorite',
+    career: 'work',
+    family: 'family-restroom',
+    friends: 'people',
+    hobbies: 'sports-esports',
+  };
+
+  // Icon size
+  const iconSize = 24 * fontScale;
+
+  // Pulsing animation state - randomly select which slice to pulse
+  const [pulsingSlice, setPulsingSlice] = useState<LifeSphere>('relationships');
+  const pulseScale = useSharedValue(1);
+  const pulseRotation = useSharedValue(0);
+  const gradientOffset = useSharedValue(-1);
+
+  useEffect(() => {
+    // Pulse duration: 1200ms grow + 1200ms shrink = 2400ms total
+    // Pause duration: 5000ms
+    // Total cycle: 2400ms + 5000ms = 7400ms per slice
+
+    const spheres: LifeSphere[] = ['relationships', 'career', 'family', 'friends', 'hobbies'];
+    let currentIndex = 0;
+
+    const runPulseAnimation = () => {
+      // Start scale animation - one pulse cycle
+      pulseScale.value = withSequence(
+        withTiming(1.12, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) })
+      );
+
+      // Start shake animation - subtle wiggle during pulse
+      pulseRotation.value = withSequence(
+        withTiming(1.5, { duration: 200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(-1.5, { duration: 200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 200, easing: Easing.inOut(Easing.ease) })
+      );
+
+      // Start gradient sweep animation - one sweep cycle
+      gradientOffset.value = -1;
+      gradientOffset.value = withTiming(2, { duration: 2400, easing: Easing.linear });
+    };
+
+    // Start first animation immediately
+    runPulseAnimation();
+
+    // Schedule slice changes: wait for animation to complete (2400ms) + pause (5000ms)
+    const interval = setInterval(() => {
+      // Move to next slice
+      currentIndex = (currentIndex + 1) % spheres.length;
+      setPulsingSlice(spheres[currentIndex]);
+
+      // Start new animation
+      runPulseAnimation();
+    }, 7400); // 2400ms animation + 5000ms pause
+
+    return () => clearInterval(interval);
+  }, [pulseScale, pulseRotation, gradientOffset]);
+
+  // Helper to get gradient colors for pulsing effect
+  const getGradientColor = (baseColor: string, isPulsing: boolean) => {
+    if (!isPulsing) return baseColor;
+
+    // Lighten the color for pulsing effect
+    if (baseColor.startsWith('#')) {
+      const r = parseInt(baseColor.slice(1, 3), 16);
+      const g = parseInt(baseColor.slice(3, 5), 16);
+      const b = parseInt(baseColor.slice(5, 7), 16);
+
+      // Increase brightness by 20%
+      const newR = Math.min(255, Math.floor(r * 1.2));
+      const newG = Math.min(255, Math.floor(g * 1.2));
+      const newB = Math.min(255, Math.floor(b * 1.2));
+
+      return `rgb(${newR}, ${newG}, ${newB})`;
+    }
+    return baseColor;
+  };
+
+  // Animated props for gradient sweep
+  const relationshipsGradientProps = useAnimatedProps(() => ({
+    x1: `${(gradientOffset.value - 0.3) * 100}%`,
+    x2: `${(gradientOffset.value + 0.3) * 100}%`,
+  }));
+
+  const careerGradientProps = useAnimatedProps(() => ({
+    x1: `${(gradientOffset.value - 0.3) * 100}%`,
+    x2: `${(gradientOffset.value + 0.3) * 100}%`,
+  }));
+
+  const familyGradientProps = useAnimatedProps(() => ({
+    x1: `${(gradientOffset.value - 0.3) * 100}%`,
+    x2: `${(gradientOffset.value + 0.3) * 100}%`,
+  }));
+
+  const friendsGradientProps = useAnimatedProps(() => ({
+    x1: `${(gradientOffset.value - 0.3) * 100}%`,
+    x2: `${(gradientOffset.value + 0.3) * 100}%`,
+  }));
+
+  const hobbiesGradientProps = useAnimatedProps(() => ({
+    x1: `${(gradientOffset.value - 0.3) * 100}%`,
+    x2: `${(gradientOffset.value + 0.3) * 100}%`,
+  }));
+
+  // Animated style for each slice group - for scale and rotation transform
+  const relationshipsAnimatedStyle = useAnimatedProps(() => ({
+    transform: [
+      { translateX: center },
+      { translateY: center },
+      { scale: pulsingSlice === 'relationships' ? pulseScale.value : 1 },
+      { rotate: `${pulsingSlice === 'relationships' ? pulseRotation.value : 0}deg` },
+      { translateX: -center },
+      { translateY: -center },
+    ],
+  }));
+
+  const careerAnimatedStyle = useAnimatedProps(() => ({
+    transform: [
+      { translateX: center },
+      { translateY: center },
+      { scale: pulsingSlice === 'career' ? pulseScale.value : 1 },
+      { rotate: `${pulsingSlice === 'career' ? pulseRotation.value : 0}deg` },
+      { translateX: -center },
+      { translateY: -center },
+    ],
+  }));
+
+  const familyAnimatedStyle = useAnimatedProps(() => ({
+    transform: [
+      { translateX: center },
+      { translateY: center },
+      { scale: pulsingSlice === 'family' ? pulseScale.value : 1 },
+      { rotate: `${pulsingSlice === 'family' ? pulseRotation.value : 0}deg` },
+      { translateX: -center },
+      { translateY: -center },
+    ],
+  }));
+
+  const friendsAnimatedStyle = useAnimatedProps(() => ({
+    transform: [
+      { translateX: center },
+      { translateY: center },
+      { scale: pulsingSlice === 'friends' ? pulseScale.value : 1 },
+      { rotate: `${pulsingSlice === 'friends' ? pulseRotation.value : 0}deg` },
+      { translateX: -center },
+      { translateY: -center },
+    ],
+  }));
+
+  const hobbiesAnimatedStyle = useAnimatedProps(() => ({
+    transform: [
+      { translateX: center },
+      { translateY: center },
+      { scale: pulsingSlice === 'hobbies' ? pulseScale.value : 1 },
+      { rotate: `${pulsingSlice === 'hobbies' ? pulseRotation.value : 0}deg` },
+      { translateX: -center },
+      { translateY: -center },
+    ],
+  }));
 
   return (
     <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <Defs>
+        {/* Subtle static gradients for each slice - radial from center */}
+        <SvgLinearGradient id="relationshipsStaticGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor={relationshipsColor} stopOpacity="1" />
+          <Stop offset="100%" stopColor={relationshipsColor} stopOpacity="0.5" />
+        </SvgLinearGradient>
+
+        <SvgLinearGradient id="careerStaticGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor={careerColor} stopOpacity="1" />
+          <Stop offset="100%" stopColor={careerColor} stopOpacity="0.5" />
+        </SvgLinearGradient>
+
+        <SvgLinearGradient id="familyStaticGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor={familyColor} stopOpacity="1" />
+          <Stop offset="100%" stopColor={familyColor} stopOpacity="0.5" />
+        </SvgLinearGradient>
+
+        <SvgLinearGradient id="friendsStaticGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor={friendsColor} stopOpacity="1" />
+          <Stop offset="100%" stopColor={friendsColor} stopOpacity="0.5" />
+        </SvgLinearGradient>
+
+        <SvgLinearGradient id="hobbiesStaticGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor={hobbiesColor} stopOpacity="1" />
+          <Stop offset="100%" stopColor={hobbiesColor} stopOpacity="0.5" />
+        </SvgLinearGradient>
+
+        {/* Animated gradient for relationships slice */}
+        <AnimatedLinearGradient id="relationshipsGradient" y1="0%" y2="0%" animatedProps={relationshipsGradientProps}>
+          <Stop offset="0%" stopColor={relationshipsColor} stopOpacity="0" />
+          <Stop offset="50%" stopColor="rgba(255,255,255,0.8)" stopOpacity="1" />
+          <Stop offset="100%" stopColor={relationshipsColor} stopOpacity="0" />
+        </AnimatedLinearGradient>
+
+        {/* Animated gradient for career slice */}
+        <AnimatedLinearGradient id="careerGradient" y1="0%" y2="0%" animatedProps={careerGradientProps}>
+          <Stop offset="0%" stopColor={careerColor} stopOpacity="0" />
+          <Stop offset="50%" stopColor="rgba(255,255,255,0.8)" stopOpacity="1" />
+          <Stop offset="100%" stopColor={careerColor} stopOpacity="0" />
+        </AnimatedLinearGradient>
+
+        {/* Animated gradient for family slice */}
+        <AnimatedLinearGradient id="familyGradient" y1="0%" y2="0%" animatedProps={familyGradientProps}>
+          <Stop offset="0%" stopColor={familyColor} stopOpacity="0" />
+          <Stop offset="50%" stopColor="rgba(255,255,255,0.8)" stopOpacity="1" />
+          <Stop offset="100%" stopColor={familyColor} stopOpacity="0" />
+        </AnimatedLinearGradient>
+
+        {/* Animated gradient for friends slice */}
+        <AnimatedLinearGradient id="friendsGradient" y1="0%" y2="0%" animatedProps={friendsGradientProps}>
+          <Stop offset="0%" stopColor={friendsColor} stopOpacity="0" />
+          <Stop offset="50%" stopColor="rgba(255,255,255,0.8)" stopOpacity="1" />
+          <Stop offset="100%" stopColor={friendsColor} stopOpacity="0" />
+        </AnimatedLinearGradient>
+
+        {/* Animated gradient for hobbies slice */}
+        <AnimatedLinearGradient id="hobbiesGradient" y1="0%" y2="0%" animatedProps={hobbiesGradientProps}>
+          <Stop offset="0%" stopColor={hobbiesColor} stopOpacity="0" />
+          <Stop offset="50%" stopColor="rgba(255,255,255,0.8)" stopOpacity="1" />
+          <Stop offset="100%" stopColor={hobbiesColor} stopOpacity="0" />
+        </AnimatedLinearGradient>
+      </Defs>
+
       {/* Shadow/Elevation effect - multiple layers for depth */}
       <Circle
         cx={center + 3}
@@ -130,74 +412,232 @@ function WheelOfLifeVisualization({
 
       {/* Relationships slice */}
       {relationshipsPath && (
-        <>
+        <AnimatedG onPress={() => onSlicePress?.('relationships')} animatedProps={relationshipsAnimatedStyle}>
           <Path
             d={relationshipsPath}
-            fill={relationshipsColor}
-            opacity={0.6}
+            fill="url(#relationshipsStaticGradient)"
           />
-          {relSweepAngle > 5 && (
-            <SvgText
-              x={relLabelPos.x}
-              y={relLabelPos.y}
-              fontSize={14 * fontScale}
-              fill={colors.text}
-              textAnchor="middle"
-              alignmentBaseline="middle"
-              fontWeight="bold"
-            >
-              {Math.round(normalizedDist.relationships)}%
-            </SvgText>
+          {pulsingSlice === 'relationships' && (
+            <Path
+              d={relationshipsPath}
+              fill="url(#relationshipsGradient)"
+              opacity={0.9}
+            />
           )}
-        </>
+          {relSweepAngle > 5 && (
+            <>
+              <ForeignObject
+                x={relLabelPos.x - iconSize / 2}
+                y={relLabelPos.y - iconSize - 8}
+                width={iconSize}
+                height={iconSize}
+              >
+                <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                  <MaterialIcons
+                    name={sphereIcons.relationships as any}
+                    size={iconSize}
+                    color={colors.text}
+                  />
+                </View>
+              </ForeignObject>
+              <SvgText
+                x={relLabelPos.x}
+                y={relLabelPos.y + 8}
+                fontSize={14 * fontScale}
+                fill={colors.text}
+                textAnchor="middle"
+                alignmentBaseline="middle"
+                fontWeight="bold"
+              >
+                {Math.round(normalizedDist.relationships)}%
+              </SvgText>
+            </>
+          )}
+        </AnimatedG>
       )}
 
       {/* Career slice */}
       {careerPath && (
-        <>
+        <AnimatedG onPress={() => onSlicePress?.('career')} animatedProps={careerAnimatedStyle}>
           <Path
             d={careerPath}
-            fill={careerColor}
-            opacity={0.6}
+            fill="url(#careerStaticGradient)"
           />
-          {careerSweepAngle > 5 && (
-            <SvgText
-              x={careerLabelPos.x}
-              y={careerLabelPos.y}
-              fontSize={14 * fontScale}
-              fill={colors.text}
-              textAnchor="middle"
-              alignmentBaseline="middle"
-              fontWeight="bold"
-            >
-              {Math.round(normalizedDist.career)}%
-            </SvgText>
+          {pulsingSlice === 'career' && (
+            <Path
+              d={careerPath}
+              fill="url(#careerGradient)"
+              opacity={0.9}
+            />
           )}
-        </>
+          {careerSweepAngle > 5 && (
+            <>
+              <ForeignObject
+                x={careerLabelPos.x - iconSize / 2}
+                y={careerLabelPos.y - iconSize - 8}
+                width={iconSize}
+                height={iconSize}
+              >
+                <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                  <MaterialIcons
+                    name={sphereIcons.career as any}
+                    size={iconSize}
+                    color={colors.text}
+                  />
+                </View>
+              </ForeignObject>
+              <SvgText
+                x={careerLabelPos.x}
+                y={careerLabelPos.y + 8}
+                fontSize={14 * fontScale}
+                fill={colors.text}
+                textAnchor="middle"
+                alignmentBaseline="middle"
+                fontWeight="bold"
+              >
+                {Math.round(normalizedDist.career)}%
+              </SvgText>
+            </>
+          )}
+        </AnimatedG>
       )}
 
       {/* Family slice */}
       {familyPath && (
-        <>
+        <AnimatedG onPress={() => onSlicePress?.('family')} animatedProps={familyAnimatedStyle}>
           <Path
             d={familyPath}
-            fill={familyColor}
-            opacity={0.6}
+            fill="url(#familyStaticGradient)"
           />
-          {familySweepAngle > 5 && (
-            <SvgText
-              x={familyLabelPos.x}
-              y={familyLabelPos.y}
-              fontSize={14 * fontScale}
-              fill={colors.text}
-              textAnchor="middle"
-              alignmentBaseline="middle"
-              fontWeight="bold"
-            >
-              {Math.round(normalizedDist.family)}%
-            </SvgText>
+          {pulsingSlice === 'family' && (
+            <Path
+              d={familyPath}
+              fill="url(#familyGradient)"
+              opacity={0.9}
+            />
           )}
-        </>
+          {familySweepAngle > 5 && (
+            <>
+              <ForeignObject
+                x={familyLabelPos.x - iconSize / 2}
+                y={familyLabelPos.y - iconSize - 8}
+                width={iconSize}
+                height={iconSize}
+              >
+                <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                  <MaterialIcons
+                    name={sphereIcons.family as any}
+                    size={iconSize}
+                    color={colors.text}
+                  />
+                </View>
+              </ForeignObject>
+              <SvgText
+                x={familyLabelPos.x}
+                y={familyLabelPos.y + 8}
+                fontSize={14 * fontScale}
+                fill={colors.text}
+                textAnchor="middle"
+                alignmentBaseline="middle"
+                fontWeight="bold"
+              >
+                {Math.round(normalizedDist.family)}%
+              </SvgText>
+            </>
+          )}
+        </AnimatedG>
+      )}
+
+      {/* Friends slice */}
+      {friendsPath && (
+        <AnimatedG onPress={() => onSlicePress?.('friends')} animatedProps={friendsAnimatedStyle}>
+          <Path
+            d={friendsPath}
+            fill="url(#friendsStaticGradient)"
+          />
+          {pulsingSlice === 'friends' && (
+            <Path
+              d={friendsPath}
+              fill="url(#friendsGradient)"
+              opacity={0.9}
+            />
+          )}
+          {friendsSweepAngle > 5 && (
+            <>
+              <ForeignObject
+                x={friendsLabelPos.x - iconSize / 2}
+                y={friendsLabelPos.y - iconSize - 8}
+                width={iconSize}
+                height={iconSize}
+              >
+                <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                  <MaterialIcons
+                    name={sphereIcons.friends as any}
+                    size={iconSize}
+                    color={colors.text}
+                  />
+                </View>
+              </ForeignObject>
+              <SvgText
+                x={friendsLabelPos.x}
+                y={friendsLabelPos.y + 8}
+                fontSize={14 * fontScale}
+                fill={colors.text}
+                textAnchor="middle"
+                alignmentBaseline="middle"
+                fontWeight="bold"
+              >
+                {Math.round(normalizedDist.friends)}%
+              </SvgText>
+            </>
+          )}
+        </AnimatedG>
+      )}
+
+      {/* Hobbies slice */}
+      {hobbiesPath && (
+        <AnimatedG onPress={() => onSlicePress?.('hobbies')} animatedProps={hobbiesAnimatedStyle}>
+          <Path
+            d={hobbiesPath}
+            fill="url(#hobbiesStaticGradient)"
+          />
+          {pulsingSlice === 'hobbies' && (
+            <Path
+              d={hobbiesPath}
+              fill="url(#hobbiesGradient)"
+              opacity={0.9}
+            />
+          )}
+          {hobbiesSweepAngle > 5 && (
+            <>
+              <ForeignObject
+                x={hobbiesLabelPos.x - iconSize / 2}
+                y={hobbiesLabelPos.y - iconSize - 8}
+                width={iconSize}
+                height={iconSize}
+              >
+                <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                  <MaterialIcons
+                    name={sphereIcons.hobbies as any}
+                    size={iconSize}
+                    color={colors.text}
+                  />
+                </View>
+              </ForeignObject>
+              <SvgText
+                x={hobbiesLabelPos.x}
+                y={hobbiesLabelPos.y + 8}
+                fontSize={14 * fontScale}
+                fill={colors.text}
+                textAnchor="middle"
+                alignmentBaseline="middle"
+                fontWeight="bold"
+              >
+                {Math.round(normalizedDist.hobbies)}%
+              </SvgText>
+            </>
+          )}
+        </AnimatedG>
       )}
     </Svg>
   );
@@ -209,6 +649,35 @@ export default function InsightsScreen() {
   const fontScale = useFontScale();
   const { profiles, jobs, familyMembers, getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
   const t = useTranslate();
+
+  // Temporary flag to hide the list view
+  const HIDE_LIST_VIEW = true;
+
+  // Handler for pie chart slice clicks
+  const handleSlicePress = (sphere: LifeSphere) => {
+    const entities = getEntitiesBySphere(sphere);
+    const hasEntities = entities.length > 0;
+
+    if (!hasEntities) return;
+
+    switch (sphere) {
+      case 'relationships':
+        router.push('/relationships-comparison');
+        break;
+      case 'career':
+        router.push('/career-comparison');
+        break;
+      case 'family':
+        router.push('/family-comparison');
+        break;
+      case 'friends':
+        router.push('/friends-comparison');
+        break;
+      case 'hobbies':
+        router.push('/hobbies-comparison');
+        break;
+    }
+  };
 
   // Calculate sphere data: total moments (for distribution) and sunny percentage (for quality)
   const sphereData = useMemo(() => {
@@ -252,15 +721,19 @@ export default function InsightsScreen() {
 
   // Calculate distribution percentages (for segment sizes)
   const sphereDistribution = useMemo(() => {
-    const totalAllMoments = sphereData.relationships.totalMoments + 
-                           sphereData.career.totalMoments + 
-                           sphereData.family.totalMoments;
-    
+    const totalAllMoments = sphereData.relationships.totalMoments +
+                           sphereData.career.totalMoments +
+                           sphereData.family.totalMoments +
+                           sphereData.friends.totalMoments +
+                           sphereData.hobbies.totalMoments;
+
     if (totalAllMoments === 0) {
       return {
-        relationships: 33.33,
-        career: 33.33,
-        family: 33.33,
+        relationships: 20,
+        career: 20,
+        family: 20,
+        friends: 20,
+        hobbies: 20,
       };
     }
 
@@ -268,6 +741,8 @@ export default function InsightsScreen() {
       relationships: (sphereData.relationships.totalMoments / totalAllMoments) * 100,
       career: (sphereData.career.totalMoments / totalAllMoments) * 100,
       family: (sphereData.family.totalMoments / totalAllMoments) * 100,
+      friends: (sphereData.friends.totalMoments / totalAllMoments) * 100,
+      hobbies: (sphereData.hobbies.totalMoments / totalAllMoments) * 100,
     };
   }, [sphereData]);
 
@@ -360,7 +835,7 @@ export default function InsightsScreen() {
     },
     wheelSubtitle: {
       textAlign: 'center',
-      opacity: 0.7,
+      opacity: 0.95,
       marginBottom: 24 * fontScale,
     },
     wheelWrapper: {
@@ -379,7 +854,7 @@ export default function InsightsScreen() {
       borderRadius: 8 * fontScale,
     },
     distributionExplanationText: {
-      opacity: 0.7,
+      opacity: 0.9,
       lineHeight: 18 * fontScale,
       textAlign: 'center',
     },
@@ -460,13 +935,10 @@ export default function InsightsScreen() {
       >
         {/* Wheel of Life Visualization */}
         <View style={styles.wheelContainer}>
-          <ThemedText size="l" weight="bold" style={styles.wheelTitle}>
-            {t('insights.wheelOfLife.title')}
-          </ThemedText>
           <ThemedText size="sm" style={styles.wheelSubtitle}>
             {t('insights.wheelOfLife.subtitle')}
           </ThemedText>
-          
+
           <View style={styles.wheelWrapper}>
             <WheelOfLifeVisualization
               distribution={sphereDistribution}
@@ -474,6 +946,7 @@ export default function InsightsScreen() {
               colors={colors}
               colorScheme={colorScheme}
               fontScale={fontScale}
+              onSlicePress={handleSlicePress}
             />
           </View>
 
@@ -484,16 +957,45 @@ export default function InsightsScreen() {
             </ThemedText>
           </View>
 
-          {/* Sphere Scores */}
-          <View style={styles.scoresContainer}>
+          {/* Sphere Scores - temporarily hidden */}
+          {!HIDE_LIST_VIEW && <View style={styles.scoresContainer}>
             {spheres.map((sphere) => {
               const score = sphereScores[sphere.type];
-              // Use fixed colors matching the wheel of life pie chart
-              const sphereColor = sphere.type === 'relationships' ? '#f87171' : 
-                                 sphere.type === 'career' ? '#3b82f6' : 
-                                 sphere.type === 'family' ? '#10b981' :
-                                 sphere.type === 'friends' ? '#3b82f6' :
-                                 '#8b5cf6'; // hobbies
+              // Get sphere-specific colors - theme-aware for proper contrast (matching spheres.tsx)
+              const getSphereColor = (sphereType: LifeSphere): string => {
+                if (colorScheme === 'light') {
+                  switch (sphereType) {
+                    case 'relationships':
+                      return '#D32F2F';
+                    case 'career':
+                      return '#1976D2';
+                    case 'family':
+                      return '#388E3C';
+                    case 'friends':
+                      return '#7B1FA2';
+                    case 'hobbies':
+                      return '#F57C00';
+                    default:
+                      return '#1976D2';
+                  }
+                } else {
+                  switch (sphereType) {
+                    case 'relationships':
+                      return '#E57373';
+                    case 'career':
+                      return '#64B5F6';
+                    case 'family':
+                      return '#81C784';
+                    case 'friends':
+                      return '#BA68C8';
+                    case 'hobbies':
+                      return '#FFB74D';
+                    default:
+                      return '#64B5F6';
+                  }
+                }
+              };
+              const sphereColor = getSphereColor(sphere.type);
               
               const hasEntities = sphere.entities.length > 0;
               const isClickable = (sphere.type === 'relationships' || sphere.type === 'career' || sphere.type === 'family' || sphere.type === 'friends' || sphere.type === 'hobbies') && hasEntities;
@@ -539,14 +1041,14 @@ export default function InsightsScreen() {
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </View>}
 
           {/* Percentage Explanation */}
-          <View style={styles.percentageExplanation}>
+          {!HIDE_LIST_VIEW && <View style={styles.percentageExplanation}>
             <ThemedText size="xs" style={styles.percentageExplanationText}>
               {t('insights.wheelOfLife.percentageExplanation')}
             </ThemedText>
-          </View>
+          </View>}
         </View>
       </ScrollView>
     </TabScreenContainer>

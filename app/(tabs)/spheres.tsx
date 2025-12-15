@@ -169,7 +169,7 @@ export default function SpheresScreen() {
   const fontScale = useFontScale();
   const iconScale = useIconScale();
   const { maxContentWidth, isLargeDevice } = useLargeDevice();
-  const { profiles, jobs, familyMembers, friends, hobbies, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, deleteProfile, deleteJob, deleteFamilyMember, deleteFriend, deleteHobby, reloadIdealizedMemories, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories } = useJourney();
+  const { profiles, jobs, familyMembers, friends, hobbies, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, reloadIdealizedMemories, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories } = useJourney();
   const { isSubscribed, presentPaywallIfNeeded, offerings } = useSubscription();
   const { isAnimationComplete, isVisible: isSplashVisible } = useSplash();
   const t = useTranslate();
@@ -183,7 +183,7 @@ export default function SpheresScreen() {
   
   useEffect(() => {
     pulseScale.value = withRepeat(
-      withTiming(1.25, { // Increased from 1.12 to 1.25 to compensate for smaller base size
+      withTiming(1.35, { // Increased for more prominent pulsing effect
         duration: 2000,
         easing: Easing.inOut(Easing.ease),
       }),
@@ -244,6 +244,7 @@ export default function SpheresScreen() {
         
         checkWalkthrough();
       });
+       
     }, [reloadIdealizedMemories, isLoading, isAnimationComplete, isSplashVisible, profiles.length, jobs.length, familyMembers.length, friends.length, hobbies.length])
   );
 
@@ -266,11 +267,11 @@ export default function SpheresScreen() {
             }, 1000);
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // Error checking walkthrough
       }
     };
-    
+
     checkAndShowWalkthrough();
   }, [isLoading, isAnimationComplete, isSplashVisible, profiles.length, jobs.length, familyMembers.length, friends.length, hobbies.length, idealizedMemories.length]);
 
@@ -279,13 +280,12 @@ export default function SpheresScreen() {
       const WALKTHROUGH_SHOWN_KEY = '@sferas:walkthrough_shown';
       await AsyncStorage.setItem(WALKTHROUGH_SHOWN_KEY, 'true');
       setWalkthroughVisible(false);
-    } catch (error) {
+    } catch (_error) {
       setWalkthroughVisible(false);
     }
   }, []);
 
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(null);
-  const [expandedSphere, setExpandedSphere] = useState<LifeSphere | null>(null);
   
   // Use a ref to always get the current selectedSphere value in the callback
   const selectedSphereRef = React.useRef<LifeSphere | null>(null);
@@ -315,7 +315,7 @@ export default function SpheresScreen() {
   );
 
   // Calculate entity-level scores for comparison
-  const entityComparisons = useMemo(() => {
+  const _entityComparisons = useMemo(() => {
     const calculateEntityScore = (entityId: string, sphereType: LifeSphere): number => {
       const memories = sphereType === 'relationships'
         ? getIdealizedMemoriesByProfileId(entityId)
@@ -443,7 +443,7 @@ export default function SpheresScreen() {
     },
   ], [getEntitiesBySphere, t]);
 
-  const overallPercentage = useMemo(() => getOverallSunnyPercentage(), [getOverallSunnyPercentage]);
+  const _overallPercentage = useMemo(() => getOverallSunnyPercentage(), [getOverallSunnyPercentage]);
 
   // Calculate sunny percentage for each sphere
   // Calculate sphere data: total moments (for distribution) and sunny percentage (for quality)
@@ -749,9 +749,15 @@ export default function SpheresScreen() {
       borderRadius: 12 * fontScale,
       overflow: 'hidden', // Required for gradient to respect borderRadius
       borderWidth: 1,
-      borderColor: colorScheme === 'dark' 
+      borderColor: colorScheme === 'dark'
         ? 'rgba(255, 255, 255, 0.1)' // Subtle border with low opacity
         : 'rgba(125, 211, 252, 0.4)',
+      // Subtle elevation shadow
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.15,
+      shadowRadius: 4,
+      elevation: 3,
     },
     sphereCardContent: {
       flex: 1,
@@ -867,10 +873,15 @@ export default function SpheresScreen() {
       alignItems: 'center',
       padding: 16 * fontScale,
       borderRadius: 12 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 255, 255, 0.05)' 
+      backgroundColor: colorScheme === 'dark'
+        ? 'rgba(255, 255, 255, 0.05)'
         : 'rgba(0, 0, 0, 0.05)',
       gap: 12 * fontScale,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.15,
+      shadowRadius: 4,
+      elevation: 3,
     },
     entityImage: {
       width: 48 * fontScale,
@@ -929,6 +940,7 @@ export default function SpheresScreen() {
       width: '100%',
       alignSelf: 'center',
       backgroundColor: 'transparent', // Ensure transparent so gradient shows through
+      gap: 12 * fontScale, // Add gap between list items
     },
     fabContainer: {
       position: 'absolute',
@@ -1155,7 +1167,7 @@ export default function SpheresScreen() {
       lineHeight: 18 * fontScale,
       textAlign: 'center',
     },
-  }), [fontScale, iconScale, colorScheme, colors, maxContentWidth, isLargeDevice]);
+  }), [fontScale, iconScale, colorScheme, colors.primary, colors.primaryLight, colors.text, colors.icon, colors.error, maxContentWidth]);
 
   const handleSpherePress = (sphere: LifeSphere) => {
     // Check if the sphere has any moments (floating things) - this determines if it's visually empty
@@ -1896,27 +1908,23 @@ export default function SpheresScreen() {
                 // This ensures the button is centered in the actual space between boxes
                 const centerY = (topCardCenterY + bottomCardCenterY) / 2;
                 
-                // Offset to move button lower (add 30px to move it down)
-                const buttonOffsetY = 22 * fontScale;
-                const buttonCenterY = centerY + buttonOffsetY;
-                
                 return (
                   <>
                     {/* Sparkled Dots around center */}
                     <SparkledDots
                       avatarSize={48 * fontScale} // Size of the Insights button
                       avatarCenterX={centerX}
-                      avatarCenterY={buttonCenterY}
+                      avatarCenterY={centerY}
                       colorScheme={colorScheme ?? 'dark'}
                     />
-                    
+
                     {/* Insights button in the center - circular */}
                     <AnimatedView
                       style={[
                         styles.insightsButtonContainerCentered,
                         {
-                          left: centerX - 24 * fontScale, // Center horizontally (button width is 48)
-                          top: buttonCenterY - 24 * fontScale, // Center vertically (button height is 48)
+                          left: centerX - 24 * fontScale, // Adjusted for smaller button (was 30)
+                          top: centerY - 20 * fontScale, // Elevated button position
                         },
                         pulseAnimatedStyle,
                       ]}
@@ -1941,25 +1949,15 @@ export default function SpheresScreen() {
                         <LinearGradient
                         colors={
                           colorScheme === 'dark'
-                              ? ['#E91E63', '#F06292', '#FF8A80', '#FF6B9D'] // Vibrant pink-to-coral gradient for better contrast
-                              : ['#ec4899', '#f472b6', '#fb7185', '#fda4af']
+                            ? ['#BA68C8', '#9575CD', '#64B5F6', '#4DB6AC'] // Desaturated purple-to-blue gradient
+                            : ['#a78bfa', '#818cf8', '#60a5fa', '#38bdf8']
                         }
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.insightsButtonGradientCircular}
                       >
-                        {/* Inner circle for better icon contrast */}
-                        <View style={{
-                          position: 'absolute',
-                          width: '70%',
-                          height: '70%',
-                          borderRadius: 1000,
-                          backgroundColor: 'rgba(0, 0, 0, 0.25)',
-                          alignSelf: 'center',
-                          top: '15%',
-                        }} />
                         <View style={styles.insightsIconContainerCircular}>
-                          <MaterialIcons name="insights" size={24 * fontScale} color="#ffffff" style={{ textShadowColor: 'rgba(0, 0, 0, 0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 }} />
+                          <MaterialIcons name="insights" size={24 * fontScale} color="#ffffff" />
                           <MaterialIcons
                             name="auto-awesome"
                             size={12 * fontScale}
@@ -2043,7 +2041,7 @@ export default function SpheresScreen() {
                   };
                   
                   const sphereColor = getSphereColor(sphere.type);
-                  const isActive = expandedSphere === sphere.type;
+                  const isActive = selectedSphere === sphere.type;
                   
                   const darkGradientColors = ['#223041', '#243041', '#263041'] as const;
                   const lightGradientColors = ['rgb(170, 170, 170)', 'rgb(180, 180, 180)', 'rgb(175, 175, 175)'] as const;

@@ -951,24 +951,14 @@ export default function AddIdealizedMemoryScreen() {
         }
 
         // Trigger streak update for new memory creation
-        console.log('[AddMemory] New memory created, triggering streak update:', newMemoryId);
         try {
           const streakResult = await updateStreakOnMemoryCreation();
           const currentStreak = streakResult.data.currentStreak;
-          
-          console.log('[AddMemory] Streak update result:', {
-            currentStreak,
-            streakIncreased: streakResult.streakIncreased,
-            newBadges: streakResult.newBadges.length,
-            newMilestones: streakResult.newMilestones.length,
-          });
 
           // Show in-app notification for new badges or milestones
           if (streakResult.newBadges.length > 0) {
             const badge = streakResult.newBadges[0]; // Show first badge if multiple
             const emoji = badge.daysRequired >= 100 ? '👑' : badge.daysRequired >= 30 ? '🏆' : badge.daysRequired >= 7 ? '🌟' : '🔥';
-            
-            console.log('[AddMemory] New badge earned:', badge.name, 'at', badge.daysRequired, 'days');
             
             showNotification({
               title: 'New Badge Unlocked!',
@@ -979,8 +969,6 @@ export default function AddIdealizedMemoryScreen() {
           } else if (streakResult.newMilestones.length > 0) {
             const milestone = streakResult.newMilestones[0];
             const emoji = milestone >= 100 ? '👑' : milestone >= 30 ? '🏆' : milestone >= 7 ? '🌟' : '🔥';
-            
-            console.log('[AddMemory] New milestone reached:', milestone, 'days');
             
             showNotification({
               title: `${milestone}-day streak!`,
@@ -1005,10 +993,6 @@ export default function AddIdealizedMemoryScreen() {
               title = `${currentStreak}-day streak!`;
               message = `Amazing! You've created memories for ${currentStreak} days in a row. Keep it up!`;
             }
-
-            console.log('[AddMemory] Streak increased to:', currentStreak, 'days');
-            console.log('[AddMemory] Is first memory:', streakResult.isFirstMemory);
-            console.log('[AddMemory] Showing in-app notification:', title);
             
             showNotification({
               title,
@@ -1016,11 +1000,7 @@ export default function AddIdealizedMemoryScreen() {
               emoji,
               duration: 3000,
             });
-          } else {
-            console.log('[AddMemory] Streak did not increase (already logged today or other reason)');
           }
-
-          console.log('[AddMemory] Streak updated successfully:', currentStreak, 'days');
         } catch (error) {
           console.error('[AddMemory] Error updating streak:', error);
           // Don't block memory creation if streak update fails
