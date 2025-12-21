@@ -20,6 +20,11 @@ import { ThemeProvider as AppThemeProvider, useTheme } from '@/utils/ThemeContex
 // Firebase is automatically initialized via Expo plugin (@react-native-firebase/app)
 // No manual initialization needed
 
+// Load notification test utilities in dev mode
+if (__DEV__) {
+  import('../scripts/test-notification');
+}
+
 // Hide native splash immediately when this module loads
 SplashScreen.preventAutoHideAsync();
 

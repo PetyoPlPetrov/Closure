@@ -43,7 +43,7 @@ export default function NotificationDetailScreen() {
   const styles = useMemo(() => createStyles(palette, fontScale, insets.top), [palette, fontScale, insets.top]);
 
   const { friends, familyMembers, profiles } = useJourney();
-  const { assignments, setOverride, checkCondition } = useNotificationsManager();
+  const { assignments, setOverride, checkCondition, getNextTriggerDate, getScheduledNotifications } = useNotificationsManager();
   
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -151,6 +151,29 @@ export default function NotificationDetailScreen() {
     }
   }, []);
 
+  const handleDebugNotifications = useCallback(async () => {
+    if (!__DEV__) return;
+
+    const scheduled = await getScheduledNotifications();
+    console.log('=== Scheduled Notifications ===');
+    console.log(`Total: ${scheduled.length}`);
+
+    scheduled.forEach((notification, index) => {
+      const trigger = notification.trigger as any;
+      const triggerDate = trigger.type === 'date' ? new Date(trigger.value) : null;
+      const secondsUntil = triggerDate ? Math.floor((triggerDate.getTime() - Date.now()) / 1000) : null;
+
+      console.log(`\n[${index + 1}] ${notification.content.title}`);
+      console.log(`  ID: ${notification.identifier}`);
+      console.log(`  Body: ${notification.content.body}`);
+      console.log(`  Trigger: ${triggerDate ? triggerDate.toLocaleString() : 'N/A'}`);
+      console.log(`  In: ${secondsUntil !== null ? `${secondsUntil}s` : 'N/A'}`);
+      console.log(`  Data:`, notification.content.data);
+    });
+
+    console.log('==============================');
+  }, [getScheduledNotifications]);
+
   // Check if condition is met for the current entity
   // Use specific properties to avoid re-renders when other customDraft properties change
   const isConditionMet = useMemo(() => {
@@ -159,6 +182,45 @@ export default function NotificationDetailScreen() {
     }
     return checkCondition(entityId, sphere, customDraft.condition, customDraft.noRecentDays);
   }, [currentOverride?.kind, customDraft.condition, customDraft.noRecentDays, entityId, sphere, checkCondition]);
+
+  // Countdown timer for dev mode
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  // Format seconds to human-readable format (e.g., "1d 2h 30m 15s" or "5m 30s" or "45s")
+  const formatCountdown = useCallback((totalSeconds: number): string => {
+    if (totalSeconds <= 0) return '0s';
+
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const parts: string[] = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+
+    return parts.join(' ');
+  }, []);
+
+  useEffect(() => {
+    if (__DEV__ && isConditionMet && currentOverride?.kind === 'custom') {
+      const updateCountdown = () => {
+        const nextTriggerDate = getNextTriggerDate(customDraft);
+        const now = new Date();
+        const secondsUntilTrigger = Math.floor((nextTriggerDate.getTime() - now.getTime()) / 1000);
+        setCountdown(secondsUntilTrigger > 0 ? secondsUntilTrigger : 0);
+      };
+
+      updateCountdown();
+      const interval = setInterval(updateCountdown, 1000);
+
+      return () => clearInterval(interval);
+    } else {
+      setCountdown(null);
+    }
+  }, [__DEV__, isConditionMet, currentOverride?.kind, customDraft, getNextTriggerDate]);
 
   return (
     <TabScreenContainer>
@@ -170,6 +232,11 @@ export default function NotificationDetailScreen() {
           <ThemedText size="xl" weight="bold" style={styles.title}>
             {entityName}
           </ThemedText>
+          {__DEV__ && (
+            <TouchableOpacity onPress={handleDebugNotifications} hitSlop={10} style={styles.backButton}>
+              <MaterialIcons name="bug-report" size={24 * fontScale} color={palette.primary} />
+            </TouchableOpacity>
+          )}
         </View>
         <ThemedText size="s" style={{ color: palette.muted }}>
           Sphere: {sphere}
@@ -345,6 +412,11 @@ export default function NotificationDetailScreen() {
                   <ThemedText size="xs" weight="medium" style={{ color: palette.primary, marginLeft: 4 * fontScale }}>
                     Met
                   </ThemedText>
+                  {__DEV__ && countdown !== null && (
+                    <ThemedText size="xs" weight="medium" style={{ color: palette.muted, marginLeft: 8 * fontScale }}>
+                      ({formatCountdown(countdown)})
+                    </ThemedText>
+                  )}
                 </View>
               )}
             </View>

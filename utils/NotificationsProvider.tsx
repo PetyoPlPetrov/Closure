@@ -14,7 +14,6 @@ const STORAGE_KEY_ASSIGNMENTS = '@sferas:notification_assignments';
 // Configure notification handler
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: true,
@@ -57,6 +56,8 @@ type NotificationContextType = {
   setSphereDefault: (sphere: LifeSphere, templateId?: string) => Promise<void>;
   setOverride: (sphere: LifeSphere, entityId: string, choice: EntityNotificationChoice) => Promise<void>;
   checkCondition: (entityId: string, sphere: LifeSphere, condition: string, noRecentDays?: number) => boolean;
+  getNextTriggerDate: (template: NotificationTemplate) => Date;
+  getScheduledNotifications: () => Promise<Notifications.NotificationRequest[]>;
 };
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -238,7 +239,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
         // Use explicit DateTriggerInput format - most reliable method for iOS
         // According to Expo docs: https://docs.expo.dev/versions/latest/sdk/notifications/
-        const triggerDate = new Date(Math.max(trigger.getTime(), Date.now() + 60000)); // At least 60 seconds in future
+        // In dev mode, allow shorter delays for testing; in production, enforce 60s minimum
+        const minDelay = __DEV__ ? 5000 : 60000; // 5s in dev, 60s in production
+        const triggerDate = new Date(Math.max(trigger.getTime(), Date.now() + minDelay));
 
         // Create explicit trigger object with type field
         const triggerInput = {
@@ -262,6 +265,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           trigger: triggerInput, // Use explicit DateTriggerInput format
         });
 
+        if (__DEV__) {
+          const secondsUntil = Math.floor((triggerDate.getTime() - Date.now()) / 1000);
+          console.log(`[Notification] Scheduled for ${entityName} in ${secondsUntil}s at ${triggerDate.toLocaleTimeString()}`);
+        }
+
         return notificationId;
       } catch (error) {
         return null;
@@ -274,6 +282,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const refreshSchedules = useCallback(async () => {
     setIsScheduling(true);
     try {
+      if (__DEV__) {
+        console.log('[Notification] Refreshing all schedules...');
+      }
       // Cancel all existing notifications
       await Notifications.cancelAllScheduledNotificationsAsync();
 
@@ -394,6 +405,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     [assignments]
   );
 
+  const getScheduledNotifications = useCallback(async () => {
+    return await Notifications.getAllScheduledNotificationsAsync();
+  }, []);
+
   const value = useMemo(
     () => ({
       templates,
@@ -406,6 +421,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setSphereDefault,
       setOverride,
       checkCondition,
+      getNextTriggerDate,
+      getScheduledNotifications,
     }),
     [
       templates,
@@ -418,6 +435,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setSphereDefault,
       setOverride,
       checkCondition,
+      getNextTriggerDate,
+      getScheduledNotifications,
     ]
   );
 
