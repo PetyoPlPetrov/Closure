@@ -2007,7 +2007,8 @@ export default function SpheresScreen() {
                   
                   // Get sphere-specific colors - theme-aware for proper contrast
                   const getSphereColor = (sphereType: LifeSphere): string => {
-                    if (colorScheme === 'light') {
+                    const scheme: 'light' | 'dark' = (colorScheme ?? 'dark') as 'light' | 'dark';
+                    if (scheme === 'light') {
                       switch (sphereType) {
                         case 'relationships':
                           return '#D32F2F';

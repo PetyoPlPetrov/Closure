@@ -365,9 +365,20 @@ export default function FamilyMemberDetailScreen() {
                               {
                                 width: `${cloudyPercentage}%`,
                                 backgroundColor: '#000000',
+                                justifyContent: 'center',
+                                alignItems: 'center',
                               }
                             ]}
-                          />
+                          >
+                            {cloudyPercentage > 20 && (
+                              <MaterialIcons
+                                name="cloud"
+                                size={14 * fontScale}
+                                color="#FFFFFF"
+                                style={{ opacity: 0.8 }}
+                              />
+                            )}
+                          </View>
                         )}
                         {sunnyCount > 0 && (
                           <View
@@ -376,9 +387,20 @@ export default function FamilyMemberDetailScreen() {
                               {
                                 width: `${sunnyPercentage}%`,
                                 backgroundColor: '#FFD700',
+                                justifyContent: 'center',
+                                alignItems: 'center',
                               }
                             ]}
-                          />
+                          >
+                            {sunnyPercentage > 20 && (
+                              <MaterialIcons
+                                name="wb-sunny"
+                                size={14 * fontScale}
+                                color="#000000"
+                                style={{ opacity: 0.7 }}
+                              />
+                            )}
+                          </View>
                         )}
                       </View>
                       </View>

@@ -10,11 +10,11 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useEffect } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+    withTiming
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -78,21 +78,21 @@ export function InAppNotification({
 
   // Determine background color with good contrast
   const backgroundColor = colorScheme === 'dark' 
-    ? colors.surfaceElevated4 || '#3A4A5F' // Lighter elevated surface for better contrast
+    ? (colors as any).surfaceElevated4 || '#3A4A5F' // Lighter elevated surface for better contrast
     : '#FFFFFF';
   
   // Determine border color
   const borderColor = colorScheme === 'dark'
-    ? colors.surfaceElevated8 || '#4A5A6F' // Subtle border for dark mode
+    ? (colors as any).surfaceElevated8 || '#4A5A6F' // Subtle border for dark mode
     : '#E5E5EA';
 
   // Text colors with high contrast
   const titleColor = colorScheme === 'dark' 
-    ? colors.textHighEmphasis || '#FFFFFF'
+    ? (colors as any).textHighEmphasis || '#FFFFFF'
     : colors.text || '#11181C';
   
   const messageColor = colorScheme === 'dark'
-    ? colors.textMediumEmphasis || 'rgba(255, 255, 255, 0.80)' // Slightly brighter for better contrast
+    ? (colors as any).textMediumEmphasis || 'rgba(255, 255, 255, 0.80)' // Slightly brighter for better contrast
     : colors.icon || '#687076';
 
   if (!visible) return null;
@@ -115,7 +115,7 @@ export function InAppNotification({
         </ThemedText>
       )}
       <Animated.View style={styles.textContainer}>
-        <ThemedText size="md" weight="bold" style={[styles.title, { color: titleColor }]}>
+        <ThemedText size="l" weight="bold" style={[styles.title, { color: titleColor }]}>
           {title}
         </ThemedText>
         <ThemedText size="sm" style={[styles.message, { color: messageColor }]}>
@@ -126,7 +126,7 @@ export function InAppNotification({
         <MaterialIcons 
           name="close" 
           size={20} 
-          color={colorScheme === 'dark' ? colors.textHighEmphasis || '#FFFFFF' : colors.text || '#11181C'} 
+          color={colorScheme === 'dark' ? (colors as any).textHighEmphasis || '#FFFFFF' : colors.text || '#11181C'} 
         />
       </Pressable>
     </Animated.View>

@@ -30,8 +30,8 @@ export const unstable_settings = {
 function AppContent() {
   const { hideSplash, isAnimationComplete } = useSplash();
   const { colorScheme } = useTheme();
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
+  const notificationListener = useRef<Notifications.Subscription | null>(null);
+  const responseListener = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
     const initializeRevenueCat = async () => {

@@ -11,9 +11,9 @@ import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import {
-    getCurrentBadge,
-    getNextBadge,
-    recalculateStreak
+  getCurrentBadge,
+  getNextBadge,
+  recalculateStreak
 } from '@/utils/streak-manager';
 import { refreshStreakNotifications } from '@/utils/streak-notifications';
 import type { StreakBadge, StreakData } from '@/utils/streak-types';
@@ -26,16 +26,15 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
-    Easing,
-    runOnJS,
-    useAnimatedReaction,
-    useAnimatedStyle,
-    useSharedValue,
-    withDelay,
-    withRepeat,
-    withSequence,
-    withSpring,
-    withTiming
+  Easing,
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSpring,
+  withTiming
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, FeColorMatrix, FeGaussianBlur, FeMerge, FeMergeNode, Filter, Path, RadialGradient, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -276,7 +275,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   colors: any;
   colorScheme: 'light' | 'dark';
   isFocused: boolean;
-  focusedMemory?: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null;
+  focusedMemory?: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null;
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
   onMemoryFocus?: (entityId: string, memoryId: string, sphere?: LifeSphere) => void;
   yearSection?: { year: number | string; top: number; bottom: number; height: number };
@@ -1586,7 +1585,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
           />
         );
     });
-  }, [isFocused, filteredClouds, calculateClampedPosition, cloudWidth, cloudHeight, memorySize, cloudPositions, position, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, cloudZIndex, colorScheme, onDoubleTap, onUpdateMemory, newlyCreatedMoments, memory, clouds.length, isMemoryFocused]);
+  }, [isFocused, filteredClouds, isMemoryFocused, cloudPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, cloudZIndex, colorScheme, onDoubleTap, calculateClampedPosition, cloudWidth, cloudHeight, clouds.length, memorySize, newlyCreatedMoments, isTablet, onUpdateMemory, memory.hardTruths]);
   
   // Memoize filtered suns - must be called unconditionally
   const filteredSuns = useMemo(() => {
@@ -1801,7 +1800,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
           />
         );
     });
-  }, [isFocused, filteredSuns, isMemoryFocused, suns.length, calculateClampedPosition, sunWidth, sunHeight, memorySize, sunPositions, position, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, sunZIndex, colorScheme, onDoubleTap, onUpdateMemory, newlyCreatedMoments, memory, clouds.length]);
+  }, [isFocused, filteredSuns, isMemoryFocused, sunPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, sunZIndex, colorScheme, onDoubleTap, calculateClampedPosition, sunWidth, sunHeight, suns.length, memorySize, newlyCreatedMoments, isTablet, fontScale, onUpdateMemory, memory.goodFacts]);
 
   // Memoize filtered lessons - must be called unconditionally
   const filteredLessons = useMemo(() => {
@@ -1845,18 +1844,6 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             await onUpdateMemory({ lessonsLearned: updatedLessons });
           }
         };
-
-        // Log lesson data for debugging
-        console.log('[Lesson Render]', {
-          id: lesson.id,
-          text: lesson.text,
-          x: lesson.x,
-          y: lesson.y,
-          clampedX: lessonX,
-          clampedY: lessonY,
-          hasText: !!lesson.text,
-          textLength: lesson.text?.length
-        });
 
         // Use DraggableMoment for lessons when memory is focused (same as suns)
         return (
@@ -2002,6 +1989,7 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
   const visibleSunsCount = useMemo(() => allSuns.filter((s: any) => s?.id && visibleMomentIds.has(s.id)).length, [allSuns, visibleMomentIds]);
   const visibleLessonsCount = useMemo(() => allLessons.filter((l: any) => l?.id && visibleMomentIds.has(l.id)).length, [allLessons, visibleMomentIds]);
 
+  // Always render buttons when memory is focused, even if all moments are visible
   if (!isMemoryFocused) return null;
   const totalCloudsCount = allClouds.length;
   const totalSunsCount = allSuns.length;
@@ -2010,25 +1998,24 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
   const allSunsVisible = totalSunsCount > 0 && visibleSunsCount >= totalSunsCount;
   const allLessonsVisible = totalLessonsCount > 0 && visibleLessonsCount >= totalLessonsCount;
 
-  // Calculate position below memory image (moved higher to match memory)
-  const offsetY = 120;
-  const memoryCenterY = SCREEN_HEIGHT / 2 - offsetY;
-  const memoryBottom = memoryCenterY + memorySize / 2;
+  // Calculate position at bottom of screen (above navigation bar)
   const buttonSpacing = isLargeDevice ? 12 : 10;
   const buttonSize = isLargeDevice ? 96 : 88;
   const labelWidth = 100;
   const bottomRowWidth = buttonSize + buttonSpacing + labelWidth + buttonSpacing + buttonSize; // Cloud + text + Sun
   const totalWidth = Math.max(buttonSize, bottomRowWidth); // Use the wider of the two rows
-  const containerTop = memoryBottom + 80; // Reduced from 140 to 80 to move badges up
+  const bottomNavBarHeight = 80; // Approximate height of bottom navigation bar
+  const bottomPadding = 60; // Padding from bottom - increased to move buttons up
+  const containerBottom = bottomNavBarHeight + bottomPadding; // Position above navigation bar
   const colors = Colors[colorScheme ?? 'dark'];
   
   return (
     <>
-      {/* Container for buttons and label */}
+      {/* All action buttons container - positioned at bottom */}
       <View
         style={{
           position: 'absolute',
-          top: containerTop,
+          bottom: containerBottom,
           left: SCREEN_WIDTH / 2 - totalWidth / 2,
           flexDirection: 'column',
           alignItems: 'center',
@@ -2108,36 +2095,7 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
                   color={colorScheme === 'dark' ? '#FFD700' : '#555'}
                 />
               </View>
-              {/* Count badge - horizontal bar at bottom of circle */}
-              <View
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 2,
-                  right: 2,
-                  height: 28,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#000000',
-                  borderBottomLeftRadius: isLargeDevice ? 48 : 44,
-                  borderBottomRightRadius: isLargeDevice ? 48 : 44,
-                  borderTopLeftRadius: 6,
-                  borderTopRightRadius: 6,
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                }}
-              >
-                <ThemedText
-                  style={{
-                    fontSize: isLargeDevice ? 12 : 11,
-                    fontWeight: '600',
-                    color: '#FFFFFF',
-                    textAlign: 'center',
-                  }}
-                >
-                  {visibleLessonsCount}/{totalLessonsCount}
-                </ThemedText>
-              </View>
+              {/* Count badge - REMOVED */}
             </LinearGradient>
           </View>
         </Pressable>
@@ -2150,6 +2108,7 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
+            minHeight: buttonSize, // Ensure consistent height
           }}
         >
         {/* Cloud Button */}
@@ -2161,6 +2120,9 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
               const buttonCenterY = py + height / 2;
               setCloudButtonPos({ x: buttonCenterX, y: buttonCenterY });
             });
+          }}
+          style={{
+            alignSelf: 'center',
           }}
         >
         <Pressable
@@ -2223,38 +2185,7 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
                 color={colorScheme === 'dark' ? '#FFFFFF' : '#555'} 
               />
             </View>
-            {/* Count badge - horizontal bar at bottom of circle */}
-            {totalCloudsCount > 0 && (
-              <View
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 2,
-                  right: 2,
-                  height: 28,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#000000',
-                  borderBottomLeftRadius: isLargeDevice ? 48 : 44,
-                  borderBottomRightRadius: isLargeDevice ? 48 : 44,
-                  borderTopLeftRadius: 6,
-                  borderTopRightRadius: 6,
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                }}
-              >
-                <ThemedText
-                  style={{
-                    fontSize: isLargeDevice ? 12 : 11,
-                    fontWeight: '600',
-                    color: '#FFFFFF',
-                    textAlign: 'center',
-                  }}
-                >
-                  {visibleCloudsCount}/{totalCloudsCount}
-                </ThemedText>
-              </View>
-            )}
+            {/* Count badge - REMOVED */}
           </LinearGradient>
         </View>
       </Pressable>
@@ -2291,10 +2222,13 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
           setSunButtonPos({ x: buttonCenterX, y: buttonCenterY });
         });
       }}
+      style={{
+        alignSelf: 'center',
+      }}
     >
         <Pressable
           onPress={handleAddSun}
-          disabled={allSunsVisible || totalSunsCount === 0}
+          disabled={allSunsVisible}
         >
         <View
           style={{
@@ -2316,7 +2250,7 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
             borderColor: colorScheme === 'dark' 
               ? '#FFD700' 
               : '#FFD700',
-            opacity: (allSunsVisible || totalSunsCount === 0) ? 0.4 : 1,
+            opacity: allSunsVisible ? 0.4 : 1,
           }}
         >
           <LinearGradient
@@ -2352,41 +2286,11 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
                 color={colorScheme === 'dark' ? '#FFFFFF' : '#555'} 
               />
             </View>
-            {/* Count badge - horizontal bar at bottom of circle - always show, even if 0/0 */}
-            <View
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 2,
-                right: 2,
-                height: 28,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#000000',
-                borderBottomLeftRadius: isLargeDevice ? 48 : 44,
-                borderBottomRightRadius: isLargeDevice ? 48 : 44,
-                borderTopLeftRadius: 6,
-                borderTopRightRadius: 6,
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-              }}
-            >
-              <ThemedText
-                style={{
-                  fontSize: isLargeDevice ? 12 : 11,
-                  fontWeight: '600',
-                  color: '#FFFFFF',
-                  textAlign: 'center',
-                }}
-              >
-                {visibleSunsCount}/{totalSunsCount}
-              </ThemedText>
-            </View>
+            {/* Count badge - REMOVED */}
           </LinearGradient>
         </View>
       </Pressable>
     </View>
-
         </View>
       </View>
     </>
@@ -2452,7 +2356,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
   avatarTargetX?: number;
   avatarTargetY?: number;
   avatarPosition?: { x: number; y: number };
-  focusedMemory?: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null;
+  focusedMemory?: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null;
 }) {
   const { isLargeDevice, isTablet } = useLargeDevice();
   
@@ -3312,7 +3216,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
         );
       })()}
       
-      {/* Cloud and Sun Buttons - only show when memory is focused */}
+      {/* Cloud and Sun Buttons - show buttons but without count badges */}
       <MemoryActionButtons
         isMemoryFocused={isMemoryFocused ?? false}
         memory={memory}
@@ -3923,8 +3827,8 @@ const SparkledDots = React.memo(function SparkledDots({
   fullScreen = false,
 }: {
   avatarSize: number;
-  avatarCenterX: number | Animated.SharedValue<number>;
-  avatarCenterY: number | Animated.SharedValue<number>;
+  avatarCenterX: number | ReturnType<typeof useSharedValue<number>>;
+  avatarCenterY: number | ReturnType<typeof useSharedValue<number>>;
   colorScheme: 'light' | 'dark';
   fullScreen?: boolean;
 }) {
@@ -4039,8 +3943,8 @@ const SparkledDot = React.memo(function SparkledDot({
   colorScheme,
   fixed = false,
 }: {
-  avatarCenterX: number | Animated.SharedValue<number>;
-  avatarCenterY: number | Animated.SharedValue<number>;
+  avatarCenterX: number | ReturnType<typeof useSharedValue<number>>;
+  avatarCenterY: number | ReturnType<typeof useSharedValue<number>>;
   offsetX: number;
   offsetY: number;
   size: number;
@@ -4319,9 +4223,9 @@ const FloatingEntity = React.memo(function FloatingEntity({
       style={[
         {
           ...(isWrapped ? {} : {
-            position: 'absolute',
-            left: position.x - size / 2,
-            top: position.y - size / 2,
+          position: 'absolute',
+          left: position.x - size / 2,
+          top: position.y - size / 2,
           }),
           width: size,
           height: size,
@@ -4839,9 +4743,9 @@ const SphereAvatar = React.memo(function SphereAvatar({
       disabled={disabled}
       style={{
         ...(isWrapped ? {} : {
-          position: 'absolute',
-          left: position.x - sphereSize / 2,
-          top: position.y - sphereSize / 2,
+        position: 'absolute',
+        left: position.x - sphereSize / 2,
+        top: position.y - sphereSize / 2,
         }),
         width: sphereSize,
         height: sphereSize,
@@ -5023,6 +4927,14 @@ export default function HomeScreen() {
   const previousSelectedSphereRef = React.useRef<LifeSphere | null>(null);
   const sphereRenderKeyRef = React.useRef<number>(0);
   
+  // Focused state management - must be at top level (moved before useFocusEffect)
+  const [focusedProfileId, setFocusedProfileId] = useState<string | null>(null);
+  const [focusedJobId, setFocusedJobId] = useState<string | null>(null);
+  const [focusedFamilyMemberId, setFocusedFamilyMemberId] = useState<string | null>(null);
+  const [focusedFriendId, setFocusedFriendId] = useState<string | null>(null);
+  const [focusedHobbyId, setFocusedHobbyId] = useState<string | null>(null);
+  const [focusedMemory, setFocusedMemory] = useState<{ profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null>(null);
+  
   // Track if home screen was already focused to detect when user presses home tab while already on home
   const isHomeFocusedRef = React.useRef<boolean>(false);
   const navigation = useNavigation();
@@ -5031,7 +4943,7 @@ export default function HomeScreen() {
   useFocusEffect(
     React.useCallback(() => {
       // Listen for tab press events
-      const unsubscribe = navigation.addListener('tabPress', () => {
+      const unsubscribe = navigation.addListener('tabPress' as any, () => {
         // Check if there's any focused view
         const hasFocusedView = !!(focusedMemory || selectedSphere || focusedProfileId || focusedJobId || focusedFamilyMemberId || focusedFriendId || focusedHobbyId);
         
@@ -5124,105 +5036,17 @@ export default function HomeScreen() {
   
   // State to track if encouragement message is visible (toggled by clicking avatar)
   const [isEncouragementVisible, setIsEncouragementVisible] = useState(false);
-  const previousEncouragementVisibleRef = useRef(false);
   const hasAutoShownRef = useRef(false); // Track if we've auto-shown the message on initial load
   
-  // Animation values for encouraging message
-  const encouragementOpacity = useSharedValue(0);
-  const encouragementScale = useSharedValue(0);
-  const encouragementTranslateX = useSharedValue(0);
-  const encouragementTranslateY = useSharedValue(0);
-  const encouragementGlow = useSharedValue(0);
-  const isGoodMoments = overallSunnyPercentage > 50;
-  
-  // Animation value for avatar bounce
-  const avatarBounceScale = useSharedValue(1);
-  
-  // Animated style for avatar bounce
-  const avatarBounceStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: avatarBounceScale.value }],
-    };
-  });
-  
-  // Avatar center position for animation (using different names to avoid conflicts)
-  const encouragementAvatarCenterX = SCREEN_WIDTH / 2;
-  const encouragementAvatarCenterY = SCREEN_HEIGHT / 2 + 60;
+  // Message position constants
   const messageTop = 100;
   const messageLeft = 20;
   const messageRight = 20;
-  const messageCenterX = messageLeft + (SCREEN_WIDTH - messageLeft - messageRight) / 2;
-  const messageCenterY = messageTop + 50; // Approximate center of message (top + half height)
   
-  // Calculate translation from avatar center to message position
-  const translateXFromAvatar = messageCenterX - encouragementAvatarCenterX;
-  const translateYFromAvatar = messageCenterY - encouragementAvatarCenterY;
-  
-  // Animate encouragement message when visibility changes
-  React.useEffect(() => {
-    const wasVisible = previousEncouragementVisibleRef.current;
-    const isNowVisible = isEncouragementVisible && hasAnyMoments;
-    
-    if (isNowVisible) {
-      // Animate from avatar center: scale from 0, translate from avatar position
-      encouragementOpacity.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) });
-      encouragementScale.value = withSpring(1, { damping: 20, stiffness: 200 }); // Less bouncy: higher damping, higher stiffness
-      encouragementTranslateX.value = withSpring(translateXFromAvatar, { damping: 20, stiffness: 200 }); // Less bouncy
-      encouragementTranslateY.value = withSpring(translateYFromAvatar, { damping: 20, stiffness: 200 }); // Less bouncy
-      
-      // Subtle glow pulse for good moments
-      if (isGoodMoments) {
-        encouragementGlow.value = withRepeat(
-          withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-          -1,
-          true
-        );
-      } else {
-        encouragementGlow.value = 0;
-      }
-    } else {
-      // Animate back to avatar center: scale to 0, translate back to avatar position
-      const disappearDuration = 300;
-      encouragementOpacity.value = withTiming(0, { duration: disappearDuration, easing: Easing.in(Easing.cubic) });
-      encouragementScale.value = withTiming(0, { duration: disappearDuration, easing: Easing.in(Easing.cubic) });
-      encouragementTranslateX.value = withTiming(0, { duration: disappearDuration, easing: Easing.in(Easing.cubic) });
-      encouragementTranslateY.value = withTiming(0, { duration: disappearDuration, easing: Easing.in(Easing.cubic) });
-      encouragementGlow.value = 0;
-      
-      // Trigger avatar bounce when message is dismissed (was visible, now hidden)
-      // Start bounce near the end of the disappearing animation (at ~80% of the duration)
-      if (wasVisible && !isNowVisible) {
-        const bounceDelay = disappearDuration * 0.8; // Start bounce at 80% of disappear animation (240ms)
-        avatarBounceScale.value = withDelay(
-          bounceDelay,
-          withSequence(
-            withSpring(1.15, { damping: 8, stiffness: 300 }), // Bounce up
-            withSpring(1, { damping: 10, stiffness: 200 })   // Bounce back
-          )
-        );
-      }
-    }
-    
-    // Update previous value
-    previousEncouragementVisibleRef.current = isNowVisible;
-  }, [isEncouragementVisible, hasAnyMoments, isGoodMoments, translateXFromAvatar, translateYFromAvatar, avatarBounceScale]);
-  
-  // Animated styles for encouragement message
-  const encouragementAnimatedStyle = useAnimatedStyle(() => {
-    const glowOpacity = isGoodMoments 
-      ? 0.15 + (encouragementGlow.value * 0.1)
-      : 0.05;
-    
-    return {
-      opacity: encouragementOpacity.value,
-      transform: [
-        { translateX: encouragementTranslateX.value },
-        { translateY: encouragementTranslateY.value },
-        { scale: encouragementScale.value }
-      ],
-      shadowOpacity: glowOpacity,
-    };
-  });
+  // Static styles for encouragement message (no animation)
+  const encouragementStaticStyle = {
+    opacity: (isEncouragementVisible && hasAnyMoments) ? 1 : 0,
+  };
   
   
   // Calculate sunny percentage for relationships sphere (all profiles)
@@ -5325,7 +5149,8 @@ export default function HomeScreen() {
   const wheelRotation = useSharedValue(0); // Current rotation in radians
   const wheelVelocity = useSharedValue(0); // Rotation velocity
   const isWheelSpinning = useSharedValue(false); // Is wheel currently spinning
-  const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
+  const previousIsWheelSpinning = useSharedValue(false); // Track previous spinning state
+  const [selectedLesson, setSelectedLesson] = useState<{ text: string; entityId: string; memoryId: string; sphere: LifeSphere } | null>(null);
   const [showLesson, setShowLesson] = useState(false);
   
   // Animation values for lesson notification (same style as encouragement message)
@@ -5382,7 +5207,7 @@ export default function HomeScreen() {
 
   // Collect all lessons from all memories across all spheres
   const getAllLessons = useCallback(() => {
-    const lessons: string[] = [];
+    const lessons: { text: string; entityId: string; memoryId: string; sphere: LifeSphere }[] = [];
 
     // Collect from relationships
     profiles.forEach(profile => {
@@ -5391,7 +5216,12 @@ export default function HomeScreen() {
         if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
           memory.lessonsLearned.forEach(lesson => {
             if (lesson.text && lesson.text.trim()) {
-              lessons.push(lesson.text);
+              lessons.push({
+                text: lesson.text,
+                entityId: profile.id,
+                memoryId: memory.id,
+                sphere: 'relationships' as LifeSphere,
+              });
             }
           });
         }
@@ -5405,7 +5235,12 @@ export default function HomeScreen() {
         if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
           memory.lessonsLearned.forEach(lesson => {
             if (lesson.text && lesson.text.trim()) {
-              lessons.push(lesson.text);
+              lessons.push({
+                text: lesson.text,
+                entityId: job.id,
+                memoryId: memory.id,
+                sphere: 'career' as LifeSphere,
+              });
             }
           });
         }
@@ -5419,7 +5254,12 @@ export default function HomeScreen() {
         if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
           memory.lessonsLearned.forEach(lesson => {
             if (lesson.text && lesson.text.trim()) {
-              lessons.push(lesson.text);
+              lessons.push({
+                text: lesson.text,
+                entityId: member.id,
+                memoryId: memory.id,
+                sphere: 'family' as LifeSphere,
+              });
             }
           });
         }
@@ -5433,7 +5273,12 @@ export default function HomeScreen() {
         if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
           memory.lessonsLearned.forEach(lesson => {
             if (lesson.text && lesson.text.trim()) {
-              lessons.push(lesson.text);
+              lessons.push({
+                text: lesson.text,
+                entityId: friend.id,
+                memoryId: memory.id,
+                sphere: 'friends' as LifeSphere,
+              });
             }
           });
         }
@@ -5447,7 +5292,12 @@ export default function HomeScreen() {
         if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
           memory.lessonsLearned.forEach(lesson => {
             if (lesson.text && lesson.text.trim()) {
-              lessons.push(lesson.text);
+              lessons.push({
+                text: lesson.text,
+                entityId: hobby.id,
+                memoryId: memory.id,
+                sphere: 'hobbies' as LifeSphere,
+              });
             }
           });
         }
@@ -5483,6 +5333,29 @@ export default function HomeScreen() {
       lessonTranslateY.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.cubic) });
     }
   }, [showLesson, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY]);
+
+  // Fade out lesson notification when wheel starts spinning
+  const fadeOutLesson = useCallback(() => {
+    // Animate lesson out smoothly
+    lessonOpacity.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.cubic) });
+    lessonScale.value = withTiming(0.8, { duration: 300, easing: Easing.in(Easing.cubic) });
+    lessonTranslateY.value = withTiming(-20, { duration: 300, easing: Easing.in(Easing.cubic) });
+    // Hide the lesson after animation completes
+      setTimeout(() => {
+        setShowLesson(false);
+    }, 300);
+  }, [lessonOpacity, lessonScale, lessonTranslateY]);
+
+  useAnimatedReaction(
+    () => isWheelSpinning.value,
+    (isSpinning) => {
+      // When wheel starts spinning (transitions from false to true)
+      if (isSpinning && !previousIsWheelSpinning.value) {
+        runOnJS(fadeOutLesson)();
+      }
+      previousIsWheelSpinning.value = isSpinning;
+    }
+  );
   
   // Animated style for lesson notification
   const lessonAnimatedStyle = useAnimatedStyle(() => {
@@ -5511,7 +5384,7 @@ export default function HomeScreen() {
         wheelVelocity.value = 0;
         // Small delay to ensure visual stop before showing lesson
         setTimeout(() => {
-          onWheelSpinComplete();
+        onWheelSpinComplete();
         }, 100);
       }
     }, 16); // ~60fps
@@ -6226,14 +6099,6 @@ export default function HomeScreen() {
       }),
     [colors.background, minHeight]
   );
-
-  // Focused state management - must be at top level
-  const [focusedProfileId, setFocusedProfileId] = useState<string | null>(null);
-  const [focusedJobId, setFocusedJobId] = useState<string | null>(null);
-  const [focusedFamilyMemberId, setFocusedFamilyMemberId] = useState<string | null>(null);
-  const [focusedFriendId, setFocusedFriendId] = useState<string | null>(null);
-  const [focusedHobbyId, setFocusedHobbyId] = useState<string | null>(null);
-  const [focusedMemory, setFocusedMemory] = useState<{ profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null>(null);
   
   // Shared values to track focused avatar positions for SparkledDots
   const focusedFamilyMemberPositionX = useSharedValue(SCREEN_WIDTH / 2);
@@ -6608,16 +6473,16 @@ export default function HomeScreen() {
       }
       
       // Career slideOffset
-      animateSlideOffset(careerSlideOffset, focusedJobId || (focusedMemory && focusedMemory.sphere === 'career'));
+      animateSlideOffset(careerSlideOffset, !!(focusedJobId || (focusedMemory && focusedMemory.sphere === 'career')));
       
       // Family slideOffset
-      animateSlideOffset(familySlideOffset, focusedFamilyMemberId || (focusedMemory && focusedMemory.sphere === 'family'));
+      animateSlideOffset(familySlideOffset, !!(focusedFamilyMemberId || (focusedMemory && focusedMemory.sphere === 'family')));
       
       // Friends slideOffset
-      animateSlideOffset(friendsSlideOffset, focusedFriendId || (focusedMemory && focusedMemory.sphere === 'friends'));
+      animateSlideOffset(friendsSlideOffset, !!(focusedFriendId || (focusedMemory && focusedMemory.sphere === 'friends')));
       
       // Hobbies slideOffset
-      animateSlideOffset(hobbiesSlideOffset, focusedHobbyId || (focusedMemory && focusedMemory.sphere === 'hobbies'));
+      animateSlideOffset(hobbiesSlideOffset, !!(focusedHobbyId || (focusedMemory && focusedMemory.sphere === 'hobbies')));
     }
      
   }, [focusedProfileId, focusedJobId, focusedFamilyMemberId, focusedFriendId, focusedHobbyId, focusedMemory, animationsReady, handleSlideOutComplete, handleSlideInComplete, slideOffset, careerSlideOffset, familySlideOffset, friendsSlideOffset, hobbiesSlideOffset]);
@@ -7202,15 +7067,13 @@ export default function HomeScreen() {
           
           {/* Encouraging Message Section */}
           {hasAnyMoments && (
-            <Animated.View
+            <View
               style={[
                 {
                   position: 'absolute',
-                  top: encouragementAvatarCenterY,
-                  left: encouragementAvatarCenterX,
-                  width: SCREEN_WIDTH - 40, // left + right = 40
-                  marginLeft: -(SCREEN_WIDTH - 40) / 2, // Center horizontally on avatar
-                  marginTop: -25, // Center vertically on avatar (approximate message height / 2)
+                  top: messageTop,
+                  left: messageLeft,
+                  right: messageRight,
                   zIndex: 200,
                   paddingLeft: 24 * fontScale,
                   paddingRight: 42 * fontScale, // Extra padding for close button (28px button + 12px margin + 12px spacing)
@@ -7226,7 +7089,7 @@ export default function HomeScreen() {
                   shadowRadius: isTablet ? 20 : 16,
                   elevation: 12, // For Android - elevated effect
                 },
-                encouragementAnimatedStyle,
+                encouragementStaticStyle,
               ]}
             >
               {/* Close button */}
@@ -7341,7 +7204,7 @@ export default function HomeScreen() {
                   : t('spheres.encouragement.keepPushing')
                 }
               </ThemedText>
-            </Animated.View>
+            </View>
           )}
 
           {/* Random Lesson from Wheel of Life Spin - matches focused memory view style */}
@@ -7351,24 +7214,74 @@ export default function HomeScreen() {
             const lessonSunHeight = isTablet ? 240 : (isLargeDevice ? 200 : 160);
             
             return (
-              <Animated.View
-                style={[
-                  {
-                    position: 'absolute',
+            <Animated.View
+              style={[
+                {
+                  position: 'absolute',
                     top: messageTop,
                     left: SCREEN_WIDTH / 2 - (lessonSunWidth / 2), // Center horizontally
-                    zIndex: 300, // Higher than encouragement message
+                  zIndex: 300, // Higher than encouragement message
                   },
                   lessonAnimatedStyle,
                 ]}
               >
                 {/* Simple circular view matching focused memory view - same style as lesson in MemoryMomentsRenderer */}
-                <View
-                  style={{
+              <Pressable
+                  onPress={() => {
+                    // Navigate to the memory this lesson belongs to
+                    const sphere = selectedLesson.sphere;
+                    const entityId = selectedLesson.entityId;
+                    const memoryId = selectedLesson.memoryId;
+
+                    // Set focused memory, focused entity, and selected sphere based on sphere type
+                    // We need to set the entity focus first, then the memory focus after a slight delay
+                    // to ensure the entity's FloatingAvatar component has rendered
+                    if (sphere === 'relationships') {
+                      const memoryData = { profileId: entityId, memoryId, sphere };
+                      setFocusedProfileId(entityId);
+                      setSelectedSphere('relationships');
+                      // Delay memory focus to ensure entity is rendered first
+                      setTimeout(() => {
+                        setFocusedMemory(memoryData);
+                      }, 100);
+                    } else if (sphere === 'career') {
+                      const memoryData = { jobId: entityId, memoryId, sphere };
+                      setFocusedJobId(entityId);
+                      setSelectedSphere('career');
+                      setTimeout(() => {
+                        setFocusedMemory(memoryData);
+                      }, 100);
+                    } else if (sphere === 'family') {
+                      const memoryData = { familyMemberId: entityId, memoryId, sphere };
+                      setFocusedFamilyMemberId(entityId);
+                      setSelectedSphere('family');
+                      setTimeout(() => {
+                        setFocusedMemory(memoryData);
+                      }, 100);
+                    } else if (sphere === 'friends') {
+                      const memoryData = { friendId: entityId, memoryId, sphere };
+                      setFocusedFriendId(entityId);
+                      setSelectedSphere('friends');
+                      setTimeout(() => {
+                        setFocusedMemory(memoryData);
+                      }, 100);
+                    } else if (sphere === 'hobbies') {
+                      const memoryData = { hobbyId: entityId, memoryId, sphere };
+                      setFocusedHobbyId(entityId);
+                      setSelectedSphere('hobbies');
+                      setTimeout(() => {
+                        setFocusedMemory(memoryData);
+                      }, 100);
+                    }
+
+                    // Close the lesson display
+                    setShowLesson(false);
+                  }}
+                style={{
                     width: lessonSunWidth,
                     height: lessonSunHeight,
-                    justifyContent: 'center',
-                    alignItems: 'center',
+                  justifyContent: 'center',
+                  alignItems: 'center',
                     backgroundColor: 'rgba(255, 215, 0, 0.15)',
                     borderRadius: lessonSunWidth / 2,
                     // Golden glow for lessons
@@ -7380,8 +7293,8 @@ export default function HomeScreen() {
                     padding: 8,
                     position: 'relative',
                   }}
-                >
-                  <MaterialIcons
+              >
+                <MaterialIcons
                     name="lightbulb"
                     size={lessonSunWidth * 0.4}
                     color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'}
@@ -7397,12 +7310,15 @@ export default function HomeScreen() {
                     }}
                     numberOfLines={4}
                   >
-                    {selectedLesson}
+                    {selectedLesson.text}
                   </ThemedText>
 
                   {/* Close button - positioned at top right */}
                   <Pressable
-                    onPress={() => setShowLesson(false)}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setShowLesson(false);
+                    }}
                     style={{
                       position: 'absolute',
                       top: 4,
@@ -7426,8 +7342,8 @@ export default function HomeScreen() {
                       style={{ opacity: 0.8 }}
                     />
                   </Pressable>
-                </View>
-              </Animated.View>
+                </Pressable>
+            </Animated.View>
             );
           })()}
 
@@ -7460,7 +7376,6 @@ export default function HomeScreen() {
                     height: avatarSize,
                     zIndex: 100,
                   },
-                  avatarBounceStyle,
                 ]}
               >
                 <Pressable
@@ -7698,17 +7613,17 @@ export default function HomeScreen() {
                     entityRadius={entityRadius}
                   >
                     <FloatingEntity
-                      entity={profile}
-                      position={{ x, y }}
-                      colorScheme={colorScheme ?? 'dark'}
-                      colors={colors}
-                      delay={index * 200}
-                      entityType="partner"
-                      memories={memories}
-                      selectedSphere={selectedSphere}
-                      zoomProgress={sphereZoomProgress}
+                    entity={profile}
+                    position={{ x, y }}
+                    colorScheme={colorScheme ?? 'dark'}
+                    colors={colors}
+                    delay={index * 200}
+                    entityType="partner"
+                    memories={memories}
+                    selectedSphere={selectedSphere}
+                    zoomProgress={sphereZoomProgress}
                       isWrapped={true}
-                    />
+                  />
                   </RotatableFloatingEntityWrapper>
                 );
               })}
@@ -7738,17 +7653,17 @@ export default function HomeScreen() {
                     entityRadius={entityRadius}
                   >
                     <FloatingEntity
-                      entity={job}
-                      position={{ x, y }}
-                      colorScheme={colorScheme ?? 'dark'}
-                      colors={colors}
-                      delay={index * 200}
-                      entityType="job"
-                      memories={memories}
-                      selectedSphere={selectedSphere}
-                      zoomProgress={sphereZoomProgress}
+                    entity={job}
+                    position={{ x, y }}
+                    colorScheme={colorScheme ?? 'dark'}
+                    colors={colors}
+                    delay={index * 200}
+                    entityType="job"
+                    memories={memories}
+                    selectedSphere={selectedSphere}
+                    zoomProgress={sphereZoomProgress}
                       isWrapped={true}
-                    />
+                  />
                   </RotatableFloatingEntityWrapper>
                 );
               })}
@@ -7778,17 +7693,17 @@ export default function HomeScreen() {
                     entityRadius={entityRadius}
                   >
                     <FloatingEntity
-                      entity={member}
-                      position={{ x, y }}
-                      colorScheme={colorScheme ?? 'dark'}
-                      colors={colors}
-                      delay={index * 200}
-                      entityType="family"
-                      memories={memories}
-                      selectedSphere={selectedSphere}
-                      zoomProgress={sphereZoomProgress}
+                    entity={member}
+                    position={{ x, y }}
+                    colorScheme={colorScheme ?? 'dark'}
+                    colors={colors}
+                    delay={index * 200}
+                    entityType="family"
+                    memories={memories}
+                    selectedSphere={selectedSphere}
+                    zoomProgress={sphereZoomProgress}
                       isWrapped={true}
-                    />
+                  />
                   </RotatableFloatingEntityWrapper>
                 );
               })}
@@ -7818,17 +7733,17 @@ export default function HomeScreen() {
                     entityRadius={entityRadius}
                   >
                     <FloatingEntity
-                      entity={friend}
-                      position={{ x, y }}
-                      colorScheme={colorScheme ?? 'dark'}
-                      colors={colors}
-                      delay={index * 200}
-                      entityType="friend"
-                      memories={memories}
-                      selectedSphere={selectedSphere}
-                      zoomProgress={sphereZoomProgress}
+                    entity={friend}
+                    position={{ x, y }}
+                    colorScheme={colorScheme ?? 'dark'}
+                    colors={colors}
+                    delay={index * 200}
+                    entityType="friend"
+                    memories={memories}
+                    selectedSphere={selectedSphere}
+                    zoomProgress={sphereZoomProgress}
                       isWrapped={true}
-                    />
+                  />
                   </RotatableFloatingEntityWrapper>
                 );
               })}
@@ -7858,17 +7773,17 @@ export default function HomeScreen() {
                     entityRadius={entityRadius}
                   >
                     <FloatingEntity
-                      entity={hobby}
-                      position={{ x, y }}
-                      colorScheme={colorScheme ?? 'dark'}
-                      colors={colors}
-                      delay={index * 200}
-                      entityType="hobby"
-                      memories={memories}
-                      selectedSphere={selectedSphere}
-                      zoomProgress={sphereZoomProgress}
+                    entity={hobby}
+                    position={{ x, y }}
+                    colorScheme={colorScheme ?? 'dark'}
+                    colors={colors}
+                    delay={index * 200}
+                    entityType="hobby"
+                    memories={memories}
+                    selectedSphere={selectedSphere}
+                    zoomProgress={sphereZoomProgress}
                       isWrapped={true}
-                    />
+                  />
                   </RotatableFloatingEntityWrapper>
                 );
               })}
@@ -9915,7 +9830,7 @@ const YearSectionsRenderer = function YearSectionsRenderer({
   getIdealizedMemoriesByProfileId: (profileId: string) => any[];
   getAvatarPosition: (profileId: string, index: number) => { x: number; y: number };
   focusedProfileId: string | null;
-  focusedMemory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null;
+  focusedMemory: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null;
   previousFocusedId: string | null;
   slideOffset: ReturnType<typeof useSharedValue<number>>;
   getProfileYearSection: (profile: any) => { year: number | string; top: number; bottom: number; height: number } | undefined;
@@ -10239,7 +10154,7 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
   isFocused: boolean;
   isProfileFocusedForMemory: boolean;
   wasJustFocused: boolean;
-  focusedMemory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null;
+  focusedMemory: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null;
   slideOffset: ReturnType<typeof useSharedValue<number>>;
   getProfileYearSection: (profile: any) => { year: number | string; top: number; bottom: number; height: number } | undefined;
   updateAvatarPosition: (profileId: string, newPosition: { x: number; y: number }) => void;

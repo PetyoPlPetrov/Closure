@@ -17,24 +17,24 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    KeyboardAvoidingView,
-    PanResponder,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  KeyboardAvoidingView,
+  PanResponder,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Animated, {
-    useAnimatedReaction,
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
-    withTiming,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { Defs, Ellipse, Path, RadialGradient, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -2688,47 +2688,6 @@ export default function AddIdealizedMemoryScreen() {
       </View>
       )}
 
-      {/* Bottom Badges showing moment counts */}
-      <View style={styles.bottomBadgesContainer}>
-        {/* Lesson Badge - positioned above cloud and sun */}
-        <View style={styles.momentBadge}>
-          <View style={[styles.momentBadgeCircle, { backgroundColor: colorScheme === 'dark' ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255, 215, 0, 0.25)' }]}>
-            <MaterialIcons name="lightbulb" size={isLargeDevice ? 28 : 24} color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'} />
-          </View>
-          <View style={[styles.momentCountBadge, { backgroundColor: colorScheme === 'dark' ? '#FFA000' : '#FF8C00' }]}>
-            <ThemedText style={[styles.momentCountText, { color: '#FFFFFF' }]}>
-              {lessons.filter(l => l.text.trim().length > 0).length}/{lessons.length}
-            </ThemedText>
-          </View>
-        </View>
-
-        {/* Cloud and Sun Badges - side by side */}
-        <View style={styles.bottomBadgesRow}>
-          {/* Cloud Badge */}
-          <View style={styles.momentBadge}>
-            <View style={[styles.momentBadgeCircle, { backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)' }]}>
-              <MaterialIcons name="cloud" size={isLargeDevice ? 32 : 28} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
-            </View>
-            <View style={[styles.momentCountBadge, { backgroundColor: '#000000' }]}>
-              <ThemedText style={styles.momentCountText}>
-                {clouds.filter(c => c.text.trim().length > 0).length}/{clouds.length}
-              </ThemedText>
-            </View>
-          </View>
-
-          {/* Sun Badge */}
-          <View style={styles.momentBadge}>
-            <View style={[styles.momentBadgeCircle, { backgroundColor: colorScheme === 'dark' ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 215, 0, 0.3)' }]}>
-              <MaterialIcons name="wb-sunny" size={isLargeDevice ? 28 : 24} color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'} />
-            </View>
-            <View style={[styles.momentCountBadge, { backgroundColor: colorScheme === 'dark' ? '#FFD700' : '#FFA000' }]}>
-              <ThemedText style={[styles.momentCountText, { color: '#000000' }]}>
-                {suns.filter(s => s.text.trim().length > 0).length}/{suns.length}
-              </ThemedText>
-            </View>
-          </View>
-        </View>
-      </View>
     </View>
   );
 }
