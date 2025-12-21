@@ -18,7 +18,11 @@ export default function FamilyComparisonScreen() {
   const fontScale = useFontScale();
   const t = useTranslate();
   
-  const { familyMembers, getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
+  const { familyMembers, jobs, getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
+
+  // Statistics should only be enabled when there's at least 1 entity per sphere being compared
+  // Family comparison compares family vs career, so we need at least 1 family member AND 1 job
+  const hasRequiredEntities = familyMembers.length > 0 && jobs.length > 0;
 
   // Calculate sphere data for family and career
   const sphereData = useMemo(() => {
@@ -78,30 +82,51 @@ export default function FamilyComparisonScreen() {
     const insights: { type: 'warning' | 'kudos' | 'info'; message: string }[] = [];
 
     // Time comparison insights - check if difference is more than 20% of larger amount
+    // IMPORTANT: If one sphere has 0 moments, it's never balanced - just state the fact
     if (largerAmount > 0) {
-      const differencePercentage = Math.abs(timeDifference) / largerAmount;
+      // Check if one sphere has 0 moments - if so, it's definitely not balanced
+      const hasZeroMoments = family.totalMoments === 0 || career.totalMoments === 0;
       
-      if (differencePercentage > TIME_THRESHOLD_PERCENTAGE) {
-        // One sphere prevails significantly (more than 20% difference)
-        if (timeDifference > 0) {
-          // Family has more moments
+      if (hasZeroMoments) {
+        // One sphere has no moments - just state the fact, no congratulations
+        if (family.totalMoments > 0) {
           insights.push({
-            type: 'kudos',
+            type: 'info',
             message: t('insights.comparison.family.insight.moreFamilyTime'),
           });
-        } else {
-          // Career has more moments
+        } else if (career.totalMoments > 0) {
           insights.push({
-            type: 'warning',
+            type: 'info',
             message: t('insights.comparison.family.insight.moreCareerTime'),
           });
         }
       } else {
-        // Approximately balanced
-        insights.push({
-          type: 'kudos',
-          message: t('insights.comparison.family.insight.balancedTime'),
-        });
+        // Both spheres have moments - check if they're approximately balanced
+        const differencePercentage = Math.abs(timeDifference) / largerAmount;
+        
+        if (differencePercentage > TIME_THRESHOLD_PERCENTAGE) {
+          // One sphere prevails significantly (more than 20% difference)
+          // Just state the fact, no congratulations
+          if (timeDifference > 0) {
+            // Family has more moments
+            insights.push({
+              type: 'info',
+              message: t('insights.comparison.family.insight.moreFamilyTime'),
+            });
+          } else {
+            // Career has more moments
+            insights.push({
+              type: 'info',
+              message: t('insights.comparison.family.insight.moreCareerTime'),
+            });
+          }
+        } else {
+          // Approximately balanced - this deserves congratulations
+          insights.push({
+            type: 'kudos',
+            message: t('insights.comparison.family.insight.balancedTime'),
+          });
+        }
       }
     } else {
       // No data
@@ -462,6 +487,37 @@ export default function FamilyComparisonScreen() {
     },
   }), [fontScale, colorScheme, colors]);
 
+  // If not enough entities, show message and return early
+  if (!hasRequiredEntities) {
+    return (
+      <TabScreenContainer>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
+            </TouchableOpacity>
+            
+            <ThemedText size="l" weight="bold" style={styles.headerTitle}>
+              {t('insights.comparison.family.title')}
+            </ThemedText>
+            
+            <View style={styles.headerButton} />
+          </View>
+
+          <View style={styles.content}>
+            <ThemedText size="sm" style={styles.subtitle}>
+              {t('insights.comparison.requiresEntities')}
+            </ThemedText>
+          </View>
+        </View>
+      </TabScreenContainer>
+    );
+  }
+
   if (!sphereComparison) {
     return (
       <TabScreenContainer>
@@ -487,6 +543,34 @@ export default function FamilyComparisonScreen() {
               {t('insights.comparison.family.noData')}
             </ThemedText>
           </View>
+        </View>
+      </TabScreenContainer>
+    );
+  }
+
+  // If not enough entities, show message and return early
+  if (!hasRequiredEntities) {
+    return (
+      <TabScreenContainer>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
+            </TouchableOpacity>
+            <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+              {t('insights.comparison.family.title')}
+            </ThemedText>
+            <View style={styles.headerButton} />
+          </View>
+          <ScrollView style={styles.content} contentContainerStyle={{ paddingTop: 40 * fontScale, alignItems: 'center' }}>
+            <ThemedText size="l" style={{ textAlign: 'center', opacity: 0.7 }}>
+              {t('insights.comparison.requiresEntities')}
+            </ThemedText>
+          </ScrollView>
         </View>
       </TabScreenContainer>
     );

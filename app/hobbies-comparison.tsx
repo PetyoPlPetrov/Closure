@@ -18,7 +18,12 @@ export default function HobbiesComparisonScreen() {
   const fontScale = useFontScale();
   const t = useTranslate();
   
-  const { hobbies, getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
+  const { hobbies, profiles, jobs, familyMembers, getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
+
+  // Statistics should only be enabled when there's at least 1 entity per sphere being compared
+  // Hobbies comparison compares hobbies vs other spheres, so we need at least 1 hobby AND at least 1 entity in other spheres
+  const hasOtherSpheresEntities = profiles.length > 0 || jobs.length > 0 || familyMembers.length > 0;
+  const hasRequiredEntities = hobbies.length > 0 && hasOtherSpheresEntities;
 
   // Calculate sphere data for hobbies and other spheres (relationships, career, family)
   const sphereData = useMemo(() => {
@@ -84,30 +89,51 @@ export default function HobbiesComparisonScreen() {
     const insights: { type: 'warning' | 'kudos' | 'info'; message: string }[] = [];
 
     // Time comparison insights - check if difference is more than 20% of larger amount
+    // IMPORTANT: If hobbies has 0 moments OR other spheres have 0 moments, it's never balanced - just state the fact
     if (largerAmount > 0) {
-      const differencePercentage = Math.abs(timeDifference) / largerAmount;
+      // Check if one side has 0 moments - if so, it's definitely not balanced
+      const hasZeroMoments = hobbiesData.totalMoments === 0 || otherSpheresTotal === 0;
       
-      if (differencePercentage > TIME_THRESHOLD_PERCENTAGE) {
-        // One sphere prevails significantly (more than 20% difference)
-        if (timeDifference > 0) {
-          // Hobbies has more moments than average
+      if (hasZeroMoments) {
+        // One side has no moments - just state the fact, no congratulations
+        if (hobbiesData.totalMoments > 0) {
           insights.push({
-            type: 'kudos',
+            type: 'info',
             message: t('insights.comparison.hobbies.insight.moreHobbiesTime'),
           });
-        } else {
-          // Other spheres average has more moments
+        } else if (otherSpheresTotal > 0) {
           insights.push({
-            type: 'warning',
+            type: 'info',
             message: t('insights.comparison.hobbies.insight.moreOtherSpheresTime'),
           });
         }
       } else {
-        // Approximately balanced
-        insights.push({
-          type: 'kudos',
-          message: t('insights.comparison.hobbies.insight.balancedTime'),
-        });
+        // Both sides have moments - check if they're approximately balanced
+        const differencePercentage = Math.abs(timeDifference) / largerAmount;
+        
+        if (differencePercentage > TIME_THRESHOLD_PERCENTAGE) {
+          // One side prevails significantly (more than 20% difference)
+          // Just state the fact, no congratulations
+          if (timeDifference > 0) {
+            // Hobbies has more moments than average
+            insights.push({
+              type: 'info',
+              message: t('insights.comparison.hobbies.insight.moreHobbiesTime'),
+            });
+          } else {
+            // Other spheres average has more moments
+            insights.push({
+              type: 'info',
+              message: t('insights.comparison.hobbies.insight.moreOtherSpheresTime'),
+            });
+          }
+        } else {
+          // Approximately balanced - this deserves congratulations
+          insights.push({
+            type: 'kudos',
+            message: t('insights.comparison.hobbies.insight.balancedTime'),
+          });
+        }
       }
     } else {
       // No data
@@ -410,6 +436,37 @@ export default function HobbiesComparisonScreen() {
       height: '100%',
     },
   }), [fontScale, colorScheme, colors]);
+
+  // If not enough entities, show message and return early
+  if (!hasRequiredEntities) {
+    return (
+      <TabScreenContainer>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
+            </TouchableOpacity>
+            
+            <ThemedText size="l" weight="bold" style={styles.headerTitle}>
+              {t('insights.comparison.hobbies.title')}
+            </ThemedText>
+            
+            <View style={styles.headerButton} />
+          </View>
+
+          <View style={styles.content}>
+            <ThemedText size="sm" style={styles.subtitle}>
+              {t('insights.comparison.requiresEntities')}
+            </ThemedText>
+          </View>
+        </View>
+      </TabScreenContainer>
+    );
+  }
 
   if (!sphereComparison) {
     return (

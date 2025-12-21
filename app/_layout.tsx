@@ -171,6 +171,7 @@ function AppContent() {
           options={{
             headerShown: true,
             title: 'Notifications',
+            headerBackTitle: '', // Remove "(tabs)" text from back button
             headerLeft: (props) => (
               <HeaderBackButton
                 {...props}

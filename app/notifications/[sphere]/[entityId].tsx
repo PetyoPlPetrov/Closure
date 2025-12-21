@@ -205,7 +205,7 @@ export default function NotificationDetailScreen() {
   }, []);
 
   useEffect(() => {
-    if (__DEV__ && isConditionMet && currentOverride?.kind === 'custom') {
+    if (isConditionMet && currentOverride?.kind === 'custom') {
       const updateCountdown = () => {
         const nextTriggerDate = getNextTriggerDate(customDraft);
         const now = new Date();
@@ -220,7 +220,7 @@ export default function NotificationDetailScreen() {
     } else {
       setCountdown(null);
     }
-  }, [__DEV__, isConditionMet, currentOverride?.kind, customDraft, getNextTriggerDate]);
+  }, [isConditionMet, currentOverride?.kind, customDraft, getNextTriggerDate]);
 
   return (
     <TabScreenContainer>
@@ -412,7 +412,7 @@ export default function NotificationDetailScreen() {
                   <ThemedText size="xs" weight="medium" style={{ color: palette.primary, marginLeft: 4 * fontScale }}>
                     Met
                   </ThemedText>
-                  {__DEV__ && countdown !== null && (
+                  {countdown !== null && (
                     <ThemedText size="xs" weight="medium" style={{ color: palette.muted, marginLeft: 8 * fontScale }}>
                       ({formatCountdown(countdown)})
                     </ThemedText>

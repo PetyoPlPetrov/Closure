@@ -5059,7 +5059,7 @@ export default function HomeScreen() {
   );
   
   // Message position constants
-  const messageTop = 100;
+  const messageTop = 150; // Lowered to avoid overlap with streak badge
   const messageLeft = 20;
   const messageRight = 20;
   
@@ -7144,12 +7144,12 @@ export default function HomeScreen() {
                   backgroundColor: colorScheme === 'dark'
                     ? 'rgba(26, 35, 50, 0.95)' // Semi-transparent dark background
                     : 'rgba(255, 255, 255, 0.95)', // Semi-transparent light background
-                  // Enhanced elevated shadow effect
+                  // Moderate shadow effect
                   shadowColor: colorScheme === 'dark' ? '#64B5F6' : '#000',
-                  shadowOffset: { width: 0, height: isTablet ? 8 : 6 },
-                  shadowOpacity: colorScheme === 'dark' ? 0.8 : 0.3,
-                  shadowRadius: isTablet ? 20 : 16,
-                  elevation: 12, // For Android - elevated effect
+                  shadowOffset: { width: 0, height: isTablet ? 4 : 3 },
+                  shadowOpacity: colorScheme === 'dark' ? 0.5 : 0.2,
+                  shadowRadius: isTablet ? 12 : 8,
+                  elevation: 6, // For Android - moderate elevation
                 },
                 encouragementStaticStyle,
               ]}
@@ -7255,10 +7255,10 @@ export default function HomeScreen() {
                     ? colors.primaryLight
                     : colors.text,
                   textShadowColor: overallSunnyPercentage > 50 && colorScheme === 'dark'
-                    ? 'rgba(100, 150, 255, 0.3)'
+                    ? 'rgba(100, 150, 255, 0.25)'
                     : 'transparent',
                   textShadowOffset: overallSunnyPercentage > 50 ? { width: 0, height: 1 } : { width: 0, height: 0 },
-                  textShadowRadius: overallSunnyPercentage > 50 ? 4 : 0,
+                  textShadowRadius: overallSunnyPercentage > 50 ? 3 : 0,
                 }}
               >
                 {overallSunnyPercentage > 50

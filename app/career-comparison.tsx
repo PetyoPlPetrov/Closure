@@ -22,6 +22,10 @@ export default function CareerComparisonScreen() {
   
   const { jobs, profiles, getIdealizedMemoriesByEntityId, getEntitiesBySphere, getIdealizedMemoriesByProfileId } = useJourney();
 
+  // Statistics should only be enabled when there's at least 1 entity per sphere being compared
+  // Career comparison compares career vs relationships, so we need at least 1 job AND 1 profile
+  const hasRequiredEntities = jobs.length > 0 && profiles.length > 0;
+
   // Calculate data points for each job
   const chartData = useMemo(() => {
     // Sort jobs chronologically (by start date, with ongoing first)
@@ -145,30 +149,50 @@ export default function CareerComparisonScreen() {
     const insights: { type: 'warning' | 'kudos' | 'info'; message: string }[] = [];
 
     // Time comparison insights - check if difference is more than 20% of larger amount
+    // IMPORTANT: If one sphere has 0 moments, it's never balanced - just state the fact
     if (largerAmount > 0) {
-      const differencePercentage = Math.abs(timeDifference) / largerAmount;
+      // Check if one sphere has 0 moments - if so, it's definitely not balanced
+      const hasZeroMoments = career.totalMoments === 0 || relationships.totalMoments === 0;
       
-      if (differencePercentage > TIME_THRESHOLD_PERCENTAGE) {
-        // One sphere prevails significantly (more than 20% difference)
-        if (timeDifference > 0) {
-          // Career has more moments - warning
+      if (hasZeroMoments) {
+        // One sphere has no moments - just state the fact, no congratulations
+        if (career.totalMoments > 0) {
           insights.push({
             type: 'warning',
             message: t('insights.comparison.career.sphereComparison.moreCareerTime'),
           });
-        } else {
-          // Relationships have more moments
+        } else if (relationships.totalMoments > 0) {
           insights.push({
             type: 'info',
             message: t('insights.comparison.career.sphereComparison.moreRelationshipTime'),
           });
         }
       } else {
-        // Approximately balanced
-        insights.push({
-          type: 'info',
-          message: t('insights.comparison.career.sphereComparison.balancedTime'),
-        });
+        // Both spheres have moments - check if they're approximately balanced
+        const differencePercentage = Math.abs(timeDifference) / largerAmount;
+        
+        if (differencePercentage > TIME_THRESHOLD_PERCENTAGE) {
+          // One sphere prevails significantly (more than 20% difference)
+          if (timeDifference > 0) {
+            // Career has more moments - warning
+            insights.push({
+              type: 'warning',
+              message: t('insights.comparison.career.sphereComparison.moreCareerTime'),
+            });
+          } else {
+            // Relationships have more moments
+            insights.push({
+              type: 'info',
+              message: t('insights.comparison.career.sphereComparison.moreRelationshipTime'),
+            });
+          }
+        } else {
+          // Approximately balanced - this deserves congratulations
+          insights.push({
+            type: 'kudos',
+            message: t('insights.comparison.career.sphereComparison.balancedTime'),
+          });
+        }
       }
     } else {
       // No data
@@ -534,6 +558,34 @@ export default function CareerComparisonScreen() {
       fontSize: 12 * fontScale,
     },
   }), [fontScale, colorScheme, colors]);
+
+  // If not enough entities, show message and return early
+  if (!hasRequiredEntities) {
+    return (
+      <TabScreenContainer>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
+            </TouchableOpacity>
+            <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
+              {t('insights.comparison.career.title')}
+            </ThemedText>
+            <View style={styles.headerButton} />
+          </View>
+          <ScrollView style={styles.content} contentContainerStyle={{ paddingTop: 40 * fontScale, alignItems: 'center' }}>
+            <ThemedText size="l" style={{ textAlign: 'center', opacity: 0.7 }}>
+              {t('insights.comparison.requiresEntities')}
+            </ThemedText>
+          </ScrollView>
+        </View>
+      </TabScreenContainer>
+    );
+  }
 
   return (
     <TabScreenContainer>

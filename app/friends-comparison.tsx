@@ -18,7 +18,12 @@ export default function FriendsComparisonScreen() {
   const fontScale = useFontScale();
   const t = useTranslate();
   
-  const { friends, getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
+  const { friends, profiles, jobs, familyMembers, getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
+
+  // Statistics should only be enabled when there's at least 1 entity per sphere being compared
+  // Friends comparison compares friends vs other spheres, so we need at least 1 friend AND at least 1 entity in other spheres
+  const hasOtherSpheresEntities = profiles.length > 0 || jobs.length > 0 || familyMembers.length > 0;
+  const hasRequiredEntities = friends.length > 0 && hasOtherSpheresEntities;
 
   // Calculate sphere data for friends and other spheres (relationships, career, family)
   const sphereData = useMemo(() => {
@@ -84,30 +89,51 @@ export default function FriendsComparisonScreen() {
     const insights: { type: 'warning' | 'kudos' | 'info'; message: string }[] = [];
 
     // Time comparison insights - check if difference is more than 20% of larger amount
+    // IMPORTANT: If friends has 0 moments OR other spheres have 0 moments, it's never balanced - just state the fact
     if (largerAmount > 0) {
-      const differencePercentage = Math.abs(timeDifference) / largerAmount;
+      // Check if one side has 0 moments - if so, it's definitely not balanced
+      const hasZeroMoments = friendsData.totalMoments === 0 || otherSpheresTotal === 0;
       
-      if (differencePercentage > TIME_THRESHOLD_PERCENTAGE) {
-        // One sphere prevails significantly (more than 20% difference)
-        if (timeDifference > 0) {
-          // Friends has more moments than average
+      if (hasZeroMoments) {
+        // One side has no moments - just state the fact, no congratulations
+        if (friendsData.totalMoments > 0) {
           insights.push({
-            type: 'kudos',
+            type: 'info',
             message: t('insights.comparison.friends.insight.moreFriendsTime'),
           });
-        } else {
-          // Other spheres average has more moments
+        } else if (otherSpheresTotal > 0) {
           insights.push({
-            type: 'warning',
+            type: 'info',
             message: t('insights.comparison.friends.insight.moreOtherSpheresTime'),
           });
         }
       } else {
-        // Approximately balanced
-        insights.push({
-          type: 'kudos',
-          message: t('insights.comparison.friends.insight.balancedTime'),
-        });
+        // Both sides have moments - check if they're approximately balanced
+        const differencePercentage = Math.abs(timeDifference) / largerAmount;
+        
+        if (differencePercentage > TIME_THRESHOLD_PERCENTAGE) {
+          // One side prevails significantly (more than 20% difference)
+          // Just state the fact, no congratulations
+          if (timeDifference > 0) {
+            // Friends has more moments than average
+            insights.push({
+              type: 'info',
+              message: t('insights.comparison.friends.insight.moreFriendsTime'),
+            });
+          } else {
+            // Other spheres average has more moments
+            insights.push({
+              type: 'info',
+              message: t('insights.comparison.friends.insight.moreOtherSpheresTime'),
+            });
+          }
+        } else {
+          // Approximately balanced - this deserves congratulations
+          insights.push({
+            type: 'kudos',
+            message: t('insights.comparison.friends.insight.balancedTime'),
+          });
+        }
       }
     } else {
       // No data
@@ -440,6 +466,37 @@ export default function FriendsComparisonScreen() {
       height: '100%',
     },
   }), [fontScale, colorScheme, colors]);
+
+  // If not enough entities, show message and return early
+  if (!hasRequiredEntities) {
+    return (
+      <TabScreenContainer>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
+            </TouchableOpacity>
+            
+            <ThemedText size="l" weight="bold" style={styles.headerTitle}>
+              {t('insights.comparison.friends.title')}
+            </ThemedText>
+            
+            <View style={styles.headerButton} />
+          </View>
+
+          <View style={styles.content}>
+            <ThemedText size="sm" style={styles.subtitle}>
+              {t('insights.comparison.requiresEntities')}
+            </ThemedText>
+          </View>
+        </View>
+      </TabScreenContainer>
+    );
+  }
 
   if (!sphereComparison) {
     return (
