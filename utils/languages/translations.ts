@@ -205,6 +205,7 @@ export interface Translations {
   'spheres.encouragement.goodMomentsPrevail': string;
   'spheres.encouragement.keepPushing': string;
   'spheres.encouragement.calculating': string;
+  'spheres.wheelOfLife.lessonLearned': string;
   'spheres.relationships': string;
   'spheres.career': string;
   'spheres.family': string;
@@ -698,6 +699,7 @@ const translations: Record<Language, Translations> = {
     'spheres.encouragement.goodMomentsPrevail': 'Wonderful! Good moments prevail in your life. Appreciate and embrace the positive experiences you\'ve created! ✨',
     'spheres.encouragement.keepPushing': 'Keep pushing forward, even though it\'s hard! Consider meeting up with family or friends, or exploring a new hobby to create more sunny moments in your life. 💪',
     'spheres.encouragement.calculating': 'Analyzing your moments',
+    'spheres.wheelOfLife.lessonLearned': 'Lesson from the Wheel of Life',
     'spheres.relationships': 'Relationships',
     'spheres.career': 'Career',
     'spheres.family': 'Family',
@@ -1189,6 +1191,7 @@ const translations: Record<Language, Translations> = {
     'spheres.encouragement.goodMomentsPrevail': 'Чудесно! Добрите моменти преобладават в живота ви. Оценете и приемете позитивните преживявания, които сте създали! ✨',
     'spheres.encouragement.keepPushing': 'Продължавайте напред, въпреки че е трудно! Помислете да се срещнете с семейство или приятели, или да опитате ново хоби, за да създадете повече слънчеви моменти в живота си. 💪',
     'spheres.encouragement.calculating': 'Анализиране на вашите моменти',
+    'spheres.wheelOfLife.lessonLearned': 'Урок от Колелото на Живота',
     'spheres.relationships': 'Връзки',
     'spheres.career': 'Кариера',
     'spheres.family': 'Семейство',

@@ -9,7 +9,6 @@ import { useInAppNotification } from '@/utils/InAppNotificationProvider';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { updateStreakOnMemoryCreation } from '@/utils/streak-manager';
-import { Ionicons } from '@expo/vector-icons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
@@ -2720,7 +2719,7 @@ export default function AddIdealizedMemoryScreen() {
           {/* Sun Badge */}
           <View style={styles.momentBadge}>
             <View style={[styles.momentBadgeCircle, { backgroundColor: colorScheme === 'dark' ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 215, 0, 0.3)' }]}>
-              <Ionicons name="sunny" size={isLargeDevice ? 28 : 24} color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'} />
+              <MaterialIcons name="wb-sunny" size={isLargeDevice ? 28 : 24} color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'} />
             </View>
             <View style={[styles.momentCountBadge, { backgroundColor: colorScheme === 'dark' ? '#FFD700' : '#FFA000' }]}>
               <ThemedText style={[styles.momentCountText, { color: '#000000' }]}>

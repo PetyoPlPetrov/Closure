@@ -11,9 +11,9 @@ import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import {
-  getCurrentBadge,
-  getNextBadge,
-  recalculateStreak
+    getCurrentBadge,
+    getNextBadge,
+    recalculateStreak
 } from '@/utils/streak-manager';
 import { refreshStreakNotifications } from '@/utils/streak-notifications';
 import type { StreakBadge, StreakData } from '@/utils/streak-types';
@@ -26,16 +26,16 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
-  Easing,
-  runOnJS,
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming
+    Easing,
+    runOnJS,
+    useAnimatedReaction,
+    useAnimatedStyle,
+    useSharedValue,
+    withDelay,
+    withRepeat,
+    withSequence,
+    withSpring,
+    withTiming
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, FeColorMatrix, FeGaussianBlur, FeMerge, FeMergeNode, Filter, Path, RadialGradient, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -4150,6 +4150,7 @@ const FloatingEntity = React.memo(function FloatingEntity({
   memories,
   selectedSphere,
   zoomProgress,
+  isWrapped = false,
 }: {
   entity: any;
   position: { x: number; y: number };
@@ -4160,6 +4161,7 @@ const FloatingEntity = React.memo(function FloatingEntity({
   memories: any[];
   selectedSphere: LifeSphere | null;
   zoomProgress: ReturnType<typeof useSharedValue<number>>;
+  isWrapped?: boolean; // If true, don't use absolute positioning (parent handles it)
 }) {
   const floatOffset = useSharedValue(0);
   
@@ -4316,9 +4318,11 @@ const FloatingEntity = React.memo(function FloatingEntity({
     <Animated.View
       style={[
         {
-          position: 'absolute',
-          left: position.x - size / 2,
-          top: position.y - size / 2,
+          ...(isWrapped ? {} : {
+            position: 'absolute',
+            left: position.x - size / 2,
+            top: position.y - size / 2,
+          }),
           width: size,
           height: size,
           borderRadius: size / 2,
@@ -4375,6 +4379,109 @@ const FloatingEntity = React.memo(function FloatingEntity({
   );
 });
 
+// Rotatable wrapper for spheres - applies rotation animation
+const RotatableSphereWrapper = React.memo(function RotatableSphereWrapper({
+  sphereIndex,
+  rotation,
+  centerX,
+  centerY,
+  radius,
+  angleStep,
+  startAngle,
+  children,
+}: {
+  sphereIndex: number;
+  rotation: ReturnType<typeof useSharedValue<number>>;
+  centerX: number;
+  centerY: number;
+  radius: number;
+  angleStep: number;
+  startAngle: number;
+  children: React.ReactNode;
+}) {
+  const { isTablet } = useLargeDevice();
+  const sphereSize = isTablet ? 120 : 80; // Match SphereAvatar size
+  const offset = -sphereSize / 2; // Center the sphere
+
+  // Calculate animated position based on rotation
+  const animatedStyle = useAnimatedStyle(() => {
+    const baseAngle = startAngle + sphereIndex * angleStep;
+    const currentAngle = baseAngle + rotation.value;
+    const x = centerX + radius * Math.cos(currentAngle);
+    const y = centerY + radius * Math.sin(currentAngle);
+
+    return {
+      position: 'absolute' as const,
+      left: x,
+      top: y,
+      transform: [{ translateX: offset }, { translateY: offset }],
+    };
+  });
+
+  return (
+    <Animated.View style={animatedStyle} pointerEvents="box-none">
+      {children}
+    </Animated.View>
+  );
+});
+
+// Wrapper for floating entities that rotate with their parent sphere
+const RotatableFloatingEntityWrapper = React.memo(function RotatableFloatingEntityWrapper({
+  sphereIndex,
+  rotation,
+  centerX,
+  centerY,
+  sphereRadius,
+  angleStep,
+  startAngle,
+  entityAngle,
+  entityRadius,
+  children,
+}: {
+  sphereIndex: number;
+  rotation: ReturnType<typeof useSharedValue<number>>;
+  centerX: number;
+  centerY: number;
+  sphereRadius: number;
+  angleStep: number;
+  startAngle: number;
+  entityAngle: number; // Base angle of entity relative to sphere (0 to 2π)
+  entityRadius: number; // Distance of entity from sphere center
+  children: React.ReactNode;
+}) {
+  const { isTablet } = useLargeDevice();
+  const entitySize = isTablet ? 36 : 24; // Match FloatingEntity size
+  const offset = -entitySize / 2; // Center the entity
+  
+  // Calculate animated position based on rotation
+  const animatedStyle = useAnimatedStyle(() => {
+    // Calculate rotated sphere position
+    const baseSphereAngle = startAngle + sphereIndex * angleStep;
+    const currentSphereAngle = baseSphereAngle + rotation.value;
+    const sphereX = centerX + sphereRadius * Math.cos(currentSphereAngle);
+    const sphereY = centerY + sphereRadius * Math.sin(currentSphereAngle);
+    
+    // Calculate entity position relative to rotated sphere
+    // entityAngle is relative to the sphere, so we add it to the sphere's current angle
+    const entityWorldAngle = currentSphereAngle + entityAngle;
+    const entityX = sphereX + entityRadius * Math.cos(entityWorldAngle);
+    const entityY = sphereY + entityRadius * Math.sin(entityWorldAngle);
+    
+    return {
+      position: 'absolute' as const,
+      left: entityX,
+      top: entityY,
+      transform: [{ translateX: offset }, { translateY: offset }],
+    };
+  });
+
+  return (
+    <Animated.View style={animatedStyle} pointerEvents="box-none">
+      {children}
+    </Animated.View>
+  );
+});
+
 const SphereAvatar = React.memo(function SphereAvatar({
   sphere,
   position,
@@ -4385,6 +4492,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
   selectedSphere,
   zoomProgress,
   disabled = false,
+  isWrapped = false,
 }: {
   sphere: LifeSphere;
   position: { x: number; y: number };
@@ -4395,6 +4503,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
   selectedSphere: LifeSphere | null;
   zoomProgress: ReturnType<typeof useSharedValue<number>>;
   disabled?: boolean;
+  isWrapped?: boolean; // If true, don't use absolute positioning (parent handles it)
 }) {
   const { isTablet } = useLargeDevice();
   const sphereSize = isTablet ? 120 : 80; // 50% larger on tablets
@@ -4729,9 +4838,11 @@ const SphereAvatar = React.memo(function SphereAvatar({
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
       style={{
-        position: 'absolute',
-        left: position.x - sphereSize / 2,
-        top: position.y - sphereSize / 2,
+        ...(isWrapped ? {} : {
+          position: 'absolute',
+          left: position.x - sphereSize / 2,
+          top: position.y - sphereSize / 2,
+        }),
         width: sphereSize,
         height: sphereSize,
         zIndex: 50,
@@ -4804,7 +4915,7 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
-  const { isTablet } = useLargeDevice();
+  const { isTablet, isLargeDevice } = useLargeDevice();
   const params = useLocalSearchParams();
   const { 
     profiles, 
@@ -5210,24 +5321,41 @@ export default function HomeScreen() {
   }, [hobbies, getIdealizedMemoriesByEntityId]);
   
   // Calculate sphere positions (evenly distributed in a circle for 5 spheres)
-  const spherePositions = useMemo(() => {
+  // Wheel of Life rotation state
+  const wheelRotation = useSharedValue(0); // Current rotation in radians
+  const wheelVelocity = useSharedValue(0); // Rotation velocity
+  const isWheelSpinning = useSharedValue(false); // Is wheel currently spinning
+  const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
+  const [showLesson, setShowLesson] = useState(false);
+  
+  // Animation values for lesson notification (same style as encouragement message)
+  const lessonOpacity = useSharedValue(0);
+  const lessonScale = useSharedValue(0);
+  const lessonTranslateX = useSharedValue(0);
+  const lessonTranslateY = useSharedValue(0);
+
+  // Constants for sphere circle
+  const sphereCircle = useMemo(() => {
     const centerX = SCREEN_WIDTH / 2;
     const centerY = SCREEN_HEIGHT / 2 + 60; // Lower the main circle and floating elements by 60px
     const radius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3; // Distance from center
-    
-    // 5 spheres evenly distributed around a circle
-    // Start from top (-90 degrees) and distribute evenly: 360 / 5 = 72 degrees apart
     const numSpheres = 5;
     const angleStep = (2 * Math.PI) / numSpheres; // 72 degrees in radians
     const startAngle = -Math.PI / 2; // Start from top (-90 degrees)
-    
-    // Calculate positions for each sphere
+
+    return { centerX, centerY, radius, angleStep, startAngle };
+  }, []);
+
+  // Calculate static sphere positions (for when not spinning)
+  const spherePositions = useMemo(() => {
+    const { centerX, centerY, radius, angleStep, startAngle } = sphereCircle;
+
     const relationshipsAngle = startAngle + 0 * angleStep;
     const careerAngle = startAngle + 1 * angleStep;
     const familyAngle = startAngle + 2 * angleStep;
     const friendsAngle = startAngle + 3 * angleStep;
     const hobbiesAngle = startAngle + 4 * angleStep;
-    
+
     return {
       relationships: {
         x: centerX + radius * Math.cos(relationshipsAngle),
@@ -5250,8 +5378,221 @@ export default function HomeScreen() {
         y: centerY + radius * Math.sin(hobbiesAngle),
       },
     };
-  }, []);
+  }, [sphereCircle]);
+
+  // Collect all lessons from all memories across all spheres
+  const getAllLessons = useCallback(() => {
+    const lessons: string[] = [];
+
+    // Collect from relationships
+    profiles.forEach(profile => {
+      const memories = getIdealizedMemoriesByProfileId(profile.id);
+      memories.forEach(memory => {
+        if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
+          memory.lessonsLearned.forEach(lesson => {
+            if (lesson.text && lesson.text.trim()) {
+              lessons.push(lesson.text);
+            }
+          });
+        }
+      });
+    });
+
+    // Collect from career
+    jobs.forEach(job => {
+      const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
+      memories.forEach(memory => {
+        if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
+          memory.lessonsLearned.forEach(lesson => {
+            if (lesson.text && lesson.text.trim()) {
+              lessons.push(lesson.text);
+            }
+          });
+        }
+      });
+    });
+
+    // Collect from family
+    familyMembers.forEach(member => {
+      const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
+      memories.forEach(memory => {
+        if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
+          memory.lessonsLearned.forEach(lesson => {
+            if (lesson.text && lesson.text.trim()) {
+              lessons.push(lesson.text);
+            }
+          });
+        }
+      });
+    });
+
+    // Collect from friends
+    friends.forEach(friend => {
+      const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
+      memories.forEach(memory => {
+        if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
+          memory.lessonsLearned.forEach(lesson => {
+            if (lesson.text && lesson.text.trim()) {
+              lessons.push(lesson.text);
+            }
+          });
+        }
+      });
+    });
+
+    // Collect from hobbies
+    hobbies.forEach(hobby => {
+      const memories = getIdealizedMemoriesByEntityId(hobby.id, 'hobbies');
+      memories.forEach(memory => {
+        if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
+          memory.lessonsLearned.forEach(lesson => {
+            if (lesson.text && lesson.text.trim()) {
+              lessons.push(lesson.text);
+            }
+          });
+        }
+      });
+    });
+
+    return lessons;
+  }, [profiles, jobs, familyMembers, friends, hobbies, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
+
+  // Handle wheel spin completion
+  const onWheelSpinComplete = useCallback(() => {
+    const lessons = getAllLessons();
+    if (lessons.length > 0) {
+      const randomIndex = Math.floor(Math.random() * lessons.length);
+      const randomLesson = lessons[randomIndex];
+      setSelectedLesson(randomLesson);
+      setShowLesson(true);
+
+      // Animate lesson notification appearance (same as encouragement message)
+      lessonOpacity.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) });
+      lessonScale.value = withSpring(1, { damping: 20, stiffness: 200 });
+      lessonTranslateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+      lessonTranslateY.value = withSpring(0, { damping: 20, stiffness: 200 });
+    }
+  }, [getAllLessons, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY]);
   
+  // Animate lesson notification when manually closed
+  useEffect(() => {
+    if (!showLesson) {
+      lessonOpacity.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.cubic) });
+      lessonScale.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.cubic) });
+      lessonTranslateX.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.cubic) });
+      lessonTranslateY.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.cubic) });
+    }
+  }, [showLesson, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY]);
+  
+  // Animated style for lesson notification
+  const lessonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: lessonOpacity.value,
+      transform: [
+        { translateX: lessonTranslateX.value },
+        { translateY: lessonTranslateY.value },
+        { scale: lessonScale.value }
+      ],
+    };
+  });
+
+  // Wheel rotation animation with deceleration
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isWheelSpinning.value && Math.abs(wheelVelocity.value) > 0.005) {
+        // Apply deceleration with exponential decay for natural slowdown
+        // Use a variable friction that increases as velocity decreases (more realistic)
+        const friction = 0.96 + (Math.abs(wheelVelocity.value) * 0.01); // Friction increases as speed decreases
+        wheelVelocity.value *= friction;
+        wheelRotation.value += wheelVelocity.value;
+      } else if (isWheelSpinning.value && Math.abs(wheelVelocity.value) <= 0.005) {
+        // Spin complete - ensure it's fully stopped
+        isWheelSpinning.value = false;
+        wheelVelocity.value = 0;
+        // Small delay to ensure visual stop before showing lesson
+        setTimeout(() => {
+          onWheelSpinComplete();
+        }, 100);
+      }
+    }, 16); // ~60fps
+
+    return () => clearInterval(interval);
+  }, [isWheelSpinning, wheelRotation, wheelVelocity, onWheelSpinComplete]);
+
+  // Pan gesture handling for wheel rotation
+  const lastAngle = useSharedValue(0);
+  const startAngle = useSharedValue(0);
+  const dragFrameCount = useSharedValue(0);
+  const isDragging = useSharedValue(false);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false, // Don't capture immediately - let children handle taps
+        onMoveShouldSetPanResponder: (evt, gestureState) => {
+          // Only capture if there's significant movement (it's a drag, not a tap)
+          return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+        },
+        onPanResponderGrant: (evt) => {
+          // Calculate initial angle from center
+          const touch = evt.nativeEvent;
+          const dx = touch.pageX - sphereCircle.centerX;
+          const dy = touch.pageY - sphereCircle.centerY;
+          startAngle.value = Math.atan2(dy, dx);
+          lastAngle.value = startAngle.value;
+          isWheelSpinning.value = false;
+          wheelVelocity.value = 0;
+          isDragging.value = true;
+          dragFrameCount.value = 0;
+        },
+        onPanResponderMove: (evt, gestureState) => {
+          const touch = evt.nativeEvent;
+          const dx = touch.pageX - sphereCircle.centerX;
+          const dy = touch.pageY - sphereCircle.centerY;
+          const currentAngle = Math.atan2(dy, dx);
+
+          // Calculate angle delta
+          let deltaAngle = currentAngle - lastAngle.value;
+
+          // Handle angle wrapping (when crossing -π/π boundary)
+          if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+          if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+
+          // Increment frame counter for acceleration
+          dragFrameCount.value += 1;
+
+          // Acceleration curve: start slow, then speed up
+          // Use frame count to simulate time (assuming ~60fps, 30 frames = ~500ms)
+          const targetFrames = 30; // Frames to reach full speed
+          const accelerationFactor = Math.min(1, dragFrameCount.value / targetFrames);
+          // Apply easing curve for smoother acceleration (ease-out cubic)
+          const easedAcceleration = 1 - Math.pow(1 - accelerationFactor, 3);
+          
+          // Apply acceleration to delta angle
+          // Start at 40% speed, gradually reach 100% over ~500ms
+          const acceleratedDelta = deltaAngle * (0.4 + easedAcceleration * 0.6);
+
+          wheelRotation.value += acceleratedDelta;
+          wheelVelocity.value = acceleratedDelta; // Track velocity for momentum
+          lastAngle.value = currentAngle;
+        },
+        onPanResponderRelease: () => {
+          isDragging.value = false;
+          dragFrameCount.value = 0;
+          // Start momentum spin if there's significant velocity
+          if (Math.abs(wheelVelocity.value) > 0.01) {
+            isWheelSpinning.value = true;
+            // Amplify initial velocity based on how fast they were dragging
+            // Faster drags get more momentum (scale from 2x to ~4x)
+            const velocityMagnitude = Math.abs(wheelVelocity.value);
+            const momentumMultiplier = 2.0 + Math.min(velocityMagnitude * 25, 2.0);
+            wheelVelocity.value *= momentumMultiplier;
+          }
+        },
+      }),
+    [sphereCircle.centerX, sphereCircle.centerY, wheelRotation, wheelVelocity, isWheelSpinning, lastAngle, startAngle, dragFrameCount, isDragging]
+  );
+
   // Sort profiles: current partners (ongoing) first, then by relationship start year (earliest first)
   const sortedProfiles = React.useMemo(() => {
     return [...profiles].sort((a, b) => {
@@ -7003,6 +7344,93 @@ export default function HomeScreen() {
             </Animated.View>
           )}
 
+          {/* Random Lesson from Wheel of Life Spin - matches focused memory view style */}
+          {showLesson && selectedLesson && (() => {
+            // Calculate sun dimensions to match MemoryMomentsRenderer
+            const lessonSunWidth = isTablet ? 240 : (isLargeDevice ? 200 : 160);
+            const lessonSunHeight = isTablet ? 240 : (isLargeDevice ? 200 : 160);
+            
+            return (
+              <Animated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    top: messageTop,
+                    left: SCREEN_WIDTH / 2 - (lessonSunWidth / 2), // Center horizontally
+                    zIndex: 300, // Higher than encouragement message
+                  },
+                  lessonAnimatedStyle,
+                ]}
+              >
+                {/* Simple circular view matching focused memory view - same style as lesson in MemoryMomentsRenderer */}
+                <View
+                  style={{
+                    width: lessonSunWidth,
+                    height: lessonSunHeight,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+                    borderRadius: lessonSunWidth / 2,
+                    // Golden glow for lessons
+                    shadowColor: '#FFD700',
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 0.8,
+                    shadowRadius: isTablet ? 12 : 8,
+                    elevation: 8,
+                    padding: 8,
+                    position: 'relative',
+                  }}
+                >
+                  <MaterialIcons
+                    name="lightbulb"
+                    size={lessonSunWidth * 0.4}
+                    color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'}
+                    style={{ marginBottom: 4 }}
+                  />
+                  <ThemedText
+                    style={{
+                      color: colorScheme === 'dark' ? '#000000' : '#1A1A1A',
+                      fontSize: 10 * fontScale,
+                      textAlign: 'center',
+                      fontWeight: '700',
+                      maxWidth: lessonSunWidth * 0.8,
+                    }}
+                    numberOfLines={4}
+                  >
+                    {selectedLesson}
+                  </ThemedText>
+
+                  {/* Close button - positioned at top right */}
+                  <Pressable
+                    onPress={() => setShowLesson(false)}
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: colorScheme === 'dark'
+                        ? 'rgba(0, 0, 0, 0.4)'
+                        : 'rgba(255, 255, 255, 0.9)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      zIndex: 10,
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialIcons
+                      name="close"
+                      size={16}
+                      color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                      style={{ opacity: 0.8 }}
+                    />
+                  </Pressable>
+                </View>
+              </Animated.View>
+            );
+          })()}
+
           {/* Center - Overall Percentage Avatar with Sparkled Dots */}
           {(() => {
             // Calculate avatar size considering floating entities intersection
@@ -7056,242 +7484,392 @@ export default function HomeScreen() {
             );
           })()}
 
-          {/* Five Spheres */}
+          {/* Five Spheres - wrapped in rotatable container */}
+          {animationsReady && (
+            <View
+              {...panResponder.panHandlers}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: SCREEN_WIDTH,
+                height: SCREEN_HEIGHT,
+                zIndex: 50,
+              }}
+              pointerEvents="auto"
+            >
+              <RotatableSphereWrapper
+                sphereIndex={0}
+                rotation={wheelRotation}
+                centerX={sphereCircle.centerX}
+                centerY={sphereCircle.centerY}
+                radius={sphereCircle.radius}
+                angleStep={sphereCircle.angleStep}
+                startAngle={sphereCircle.startAngle}
+              >
+                <SphereAvatar
+                  sphere="relationships"
+                  position={spherePositions.relationships}
+                  colorScheme={colorScheme ?? 'dark'}
+                  colors={colors}
+                  onPress={() => {
+                    if (!isWheelSpinning.value) {
+                      setFocusedMemory(null);
+                      setFocusedProfileId(null);
+                      setFocusedJobId(null);
+                      setFocusedFamilyMemberId(null);
+                      setFocusedFriendId(null);
+                      setFocusedHobbyId(null);
+                      setAnimationsComplete(false);
+                      setSelectedSphere('relationships');
+                    }
+                  }}
+                  sunnyPercentage={relationshipsSunnyPercentage}
+                  selectedSphere={selectedSphere}
+                  zoomProgress={sphereZoomProgress}
+                  disabled={profiles.length === 0}
+                  isWrapped={true}
+                />
+              </RotatableSphereWrapper>
+
+              <RotatableSphereWrapper
+                sphereIndex={1}
+                rotation={wheelRotation}
+                centerX={sphereCircle.centerX}
+                centerY={sphereCircle.centerY}
+                radius={sphereCircle.radius}
+                angleStep={sphereCircle.angleStep}
+                startAngle={sphereCircle.startAngle}
+              >
+                <SphereAvatar
+                  sphere="career"
+                  position={spherePositions.career}
+                  colorScheme={colorScheme ?? 'dark'}
+                  colors={colors}
+                  onPress={() => {
+                    if (!isWheelSpinning.value) {
+                      setFocusedMemory(null);
+                      setFocusedProfileId(null);
+                      setFocusedJobId(null);
+                      setFocusedFamilyMemberId(null);
+                      setFocusedFriendId(null);
+                      setFocusedHobbyId(null);
+                      setAnimationsComplete(false);
+                      setSelectedSphere('career');
+                    }
+                  }}
+                  sunnyPercentage={careerSunnyPercentage}
+                  selectedSphere={selectedSphere}
+                  zoomProgress={sphereZoomProgress}
+                  disabled={jobs.length === 0}
+                  isWrapped={true}
+                />
+              </RotatableSphereWrapper>
+
+              <RotatableSphereWrapper
+                sphereIndex={2}
+                rotation={wheelRotation}
+                centerX={sphereCircle.centerX}
+                centerY={sphereCircle.centerY}
+                radius={sphereCircle.radius}
+                angleStep={sphereCircle.angleStep}
+                startAngle={sphereCircle.startAngle}
+              >
+                <SphereAvatar
+                  sphere="family"
+                  position={spherePositions.family}
+                  colorScheme={colorScheme ?? 'dark'}
+                  colors={colors}
+                  onPress={() => {
+                    if (!isWheelSpinning.value) {
+                      setFocusedMemory(null);
+                      setFocusedProfileId(null);
+                      setFocusedJobId(null);
+                      setFocusedFamilyMemberId(null);
+                      setFocusedFriendId(null);
+                      setFocusedHobbyId(null);
+                      setAnimationsComplete(false);
+                      setSelectedSphere('family');
+                    }
+                  }}
+                  sunnyPercentage={familySunnyPercentage}
+                  selectedSphere={selectedSphere}
+                  zoomProgress={sphereZoomProgress}
+                  disabled={familyMembers.length === 0}
+                  isWrapped={true}
+                />
+              </RotatableSphereWrapper>
+
+              <RotatableSphereWrapper
+                sphereIndex={3}
+                rotation={wheelRotation}
+                centerX={sphereCircle.centerX}
+                centerY={sphereCircle.centerY}
+                radius={sphereCircle.radius}
+                angleStep={sphereCircle.angleStep}
+                startAngle={sphereCircle.startAngle}
+              >
+                <SphereAvatar
+                  sphere="friends"
+                  position={spherePositions.friends}
+                  colorScheme={colorScheme ?? 'dark'}
+                  colors={colors}
+                  onPress={() => {
+                    if (!isWheelSpinning.value) {
+                      setFocusedMemory(null);
+                      setFocusedProfileId(null);
+                      setFocusedJobId(null);
+                      setFocusedFamilyMemberId(null);
+                      setFocusedFriendId(null);
+                      setFocusedHobbyId(null);
+                      setAnimationsComplete(false);
+                      setSelectedSphere('friends');
+                    }
+                  }}
+                  sunnyPercentage={friendsSunnyPercentage}
+                  selectedSphere={selectedSphere}
+                  zoomProgress={sphereZoomProgress}
+                  disabled={friends.length === 0}
+                  isWrapped={true}
+                />
+              </RotatableSphereWrapper>
+
+              <RotatableSphereWrapper
+                sphereIndex={4}
+                rotation={wheelRotation}
+                centerX={sphereCircle.centerX}
+                centerY={sphereCircle.centerY}
+                radius={sphereCircle.radius}
+                angleStep={sphereCircle.angleStep}
+                startAngle={sphereCircle.startAngle}
+              >
+                <SphereAvatar
+                  sphere="hobbies"
+                  position={spherePositions.hobbies}
+                  colorScheme={colorScheme ?? 'dark'}
+                  colors={colors}
+                  onPress={() => {
+                    if (!isWheelSpinning.value) {
+                      setFocusedMemory(null);
+                      setFocusedProfileId(null);
+                      setFocusedJobId(null);
+                      setFocusedFamilyMemberId(null);
+                      setFocusedFriendId(null);
+                      setFocusedHobbyId(null);
+                      setAnimationsComplete(false);
+                      setSelectedSphere('hobbies');
+                    }
+                  }}
+                  sunnyPercentage={hobbiesSunnyPercentage}
+                  selectedSphere={selectedSphere}
+                  zoomProgress={sphereZoomProgress}
+                  disabled={hobbies.length === 0}
+                  isWrapped={true}
+                />
+              </RotatableSphereWrapper>
+            </View>
+          )}
+
+          {/* Floating entities - these should also rotate with the wheel */}
           {animationsReady && (
             <>
-              <SphereAvatar
-                sphere="relationships"
-                position={spherePositions.relationships}
-                colorScheme={colorScheme ?? 'dark'}
-                colors={colors}
-                onPress={() => {
-                  // Clear all focus states when selecting a sphere to ensure fresh start
-                  setFocusedMemory(null);
-                  setFocusedProfileId(null);
-                  setFocusedJobId(null);
-                  setFocusedFamilyMemberId(null);
-                  setFocusedFriendId(null);
-                  setFocusedHobbyId(null);
-                  setAnimationsComplete(false); // Reset animations immediately
-                  setSelectedSphere('relationships');
-                }}
-                sunnyPercentage={relationshipsSunnyPercentage}
-                selectedSphere={selectedSphere}
-                zoomProgress={sphereZoomProgress}
-                disabled={profiles.length === 0}
-              />
-              <SphereAvatar
-                sphere="career"
-                position={spherePositions.career}
-                colorScheme={colorScheme ?? 'dark'}
-                colors={colors}
-                onPress={() => {
-                  // Clear all focus states when selecting a sphere to ensure fresh start
-                  setFocusedMemory(null);
-                  setFocusedProfileId(null);
-                  setFocusedJobId(null);
-                  setFocusedFamilyMemberId(null);
-                  setFocusedFriendId(null);
-                  setFocusedHobbyId(null);
-                  setAnimationsComplete(false); // Reset animations immediately
-                  setSelectedSphere('career');
-                }}
-                sunnyPercentage={careerSunnyPercentage}
-                selectedSphere={selectedSphere}
-                zoomProgress={sphereZoomProgress}
-                disabled={jobs.length === 0}
-              />
-              <SphereAvatar
-                sphere="family"
-                position={spherePositions.family}
-                colorScheme={colorScheme ?? 'dark'}
-                colors={colors}
-                onPress={() => {
-                  // Clear all focus states when selecting a sphere to ensure fresh start
-                  setFocusedMemory(null);
-                  setFocusedProfileId(null);
-                  setFocusedJobId(null);
-                  setFocusedFamilyMemberId(null);
-                  setFocusedFriendId(null);
-                  setFocusedHobbyId(null);
-                  setAnimationsComplete(false); // Reset animations immediately
-                  setSelectedSphere('family');
-                }}
-                sunnyPercentage={familySunnyPercentage}
-                selectedSphere={selectedSphere}
-                zoomProgress={sphereZoomProgress}
-                disabled={familyMembers.length === 0}
-              />
-              <SphereAvatar
-                sphere="friends"
-                position={spherePositions.friends}
-                colorScheme={colorScheme ?? 'dark'}
-                colors={colors}
-                onPress={() => {
-                  // Clear all focus states when selecting a sphere to ensure fresh start
-                  setFocusedMemory(null);
-                  setFocusedProfileId(null);
-                  setFocusedJobId(null);
-                  setFocusedFamilyMemberId(null);
-                  setFocusedFriendId(null);
-                  setFocusedHobbyId(null);
-                  setAnimationsComplete(false); // Reset animations immediately
-                  setSelectedSphere('friends');
-                }}
-                sunnyPercentage={friendsSunnyPercentage}
-                selectedSphere={selectedSphere}
-                zoomProgress={sphereZoomProgress}
-                disabled={friends.length === 0}
-              />
-              <SphereAvatar
-                sphere="hobbies"
-                position={spherePositions.hobbies}
-                colorScheme={colorScheme ?? 'dark'}
-                colors={colors}
-                onPress={() => {
-                  // Clear all focus states when selecting a sphere to ensure fresh start
-                  setFocusedMemory(null);
-                  setFocusedProfileId(null);
-                  setFocusedJobId(null);
-                  setFocusedFamilyMemberId(null);
-                  setFocusedFriendId(null);
-                  setFocusedHobbyId(null);
-                  setAnimationsComplete(false); // Reset animations immediately
-                  setSelectedSphere('hobbies');
-                }}
-                sunnyPercentage={hobbiesSunnyPercentage}
-                selectedSphere={selectedSphere}
-                zoomProgress={sphereZoomProgress}
-                disabled={hobbies.length === 0}
-              />
-              
               {/* Floating Partners around Relationships Sphere */}
               {sortedProfiles.slice(0, Math.min(sortedProfiles.length, 5)).map((profile, index) => {
                 const totalPartners = Math.min(sortedProfiles.length, 5);
-                const angle = (index * 2 * Math.PI) / totalPartners;
-                const radius = isTablet ? 85 : 55; // Larger distance on tablets by default
+                const entityAngle = (index * 2 * Math.PI) / totalPartners; // Angle relative to sphere
+                const entityRadius = isTablet ? 85 : 55; // Larger distance on tablets by default
                 const memories = getIdealizedMemoriesByProfileId(profile.id);
                 
-                const x = spherePositions.relationships.x + Math.cos(angle) * radius;
-                const y = spherePositions.relationships.y + Math.sin(angle) * radius;
+                // Calculate static position for initial render (FloatingEntity needs it)
+                const x = spherePositions.relationships.x + Math.cos(entityAngle) * entityRadius;
+                const y = spherePositions.relationships.y + Math.sin(entityAngle) * entityRadius;
                 
                 return (
-                  <FloatingEntity
+                  <RotatableFloatingEntityWrapper
                     key={`floating-partner-${profile.id}`}
-                    entity={profile}
-                    position={{ x, y }}
-                    colorScheme={colorScheme ?? 'dark'}
-                    colors={colors}
-                    delay={index * 200}
-                    entityType="partner"
-                    memories={memories}
-                    selectedSphere={selectedSphere}
-                    zoomProgress={sphereZoomProgress}
-                  />
+                    sphereIndex={0} // relationships
+                    rotation={wheelRotation}
+                    centerX={sphereCircle.centerX}
+                    centerY={sphereCircle.centerY}
+                    sphereRadius={sphereCircle.radius}
+                    angleStep={sphereCircle.angleStep}
+                    startAngle={sphereCircle.startAngle}
+                    entityAngle={entityAngle}
+                    entityRadius={entityRadius}
+                  >
+                    <FloatingEntity
+                      entity={profile}
+                      position={{ x, y }}
+                      colorScheme={colorScheme ?? 'dark'}
+                      colors={colors}
+                      delay={index * 200}
+                      entityType="partner"
+                      memories={memories}
+                      selectedSphere={selectedSphere}
+                      zoomProgress={sphereZoomProgress}
+                      isWrapped={true}
+                    />
+                  </RotatableFloatingEntityWrapper>
                 );
               })}
               
               {/* Floating Jobs around Career Sphere */}
               {sortedJobs.slice(0, Math.min(sortedJobs.length, 5)).map((job, index) => {
                 const totalJobs = Math.min(sortedJobs.length, 5);
-                const angle = (index * 2 * Math.PI) / totalJobs;
-                const radius = isTablet ? 85 : 55; // Larger distance on tablets by default
+                const entityAngle = (index * 2 * Math.PI) / totalJobs; // Angle relative to sphere
+                const entityRadius = isTablet ? 85 : 55; // Larger distance on tablets by default
                 const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
                 
-                const x = spherePositions.career.x + Math.cos(angle) * radius;
-                const y = spherePositions.career.y + Math.sin(angle) * radius;
+                // Calculate static position for initial render (FloatingEntity needs it)
+                const x = spherePositions.career.x + Math.cos(entityAngle) * entityRadius;
+                const y = spherePositions.career.y + Math.sin(entityAngle) * entityRadius;
                 
                 return (
-                  <FloatingEntity
+                  <RotatableFloatingEntityWrapper
                     key={`floating-job-${job.id}`}
-                    entity={job}
-                    position={{ x, y }}
-                    colorScheme={colorScheme ?? 'dark'}
-                    colors={colors}
-                    delay={index * 200}
-                    entityType="job"
-                    memories={memories}
-                    selectedSphere={selectedSphere}
-                    zoomProgress={sphereZoomProgress}
-                  />
+                    sphereIndex={1} // career
+                    rotation={wheelRotation}
+                    centerX={sphereCircle.centerX}
+                    centerY={sphereCircle.centerY}
+                    sphereRadius={sphereCircle.radius}
+                    angleStep={sphereCircle.angleStep}
+                    startAngle={sphereCircle.startAngle}
+                    entityAngle={entityAngle}
+                    entityRadius={entityRadius}
+                  >
+                    <FloatingEntity
+                      entity={job}
+                      position={{ x, y }}
+                      colorScheme={colorScheme ?? 'dark'}
+                      colors={colors}
+                      delay={index * 200}
+                      entityType="job"
+                      memories={memories}
+                      selectedSphere={selectedSphere}
+                      zoomProgress={sphereZoomProgress}
+                      isWrapped={true}
+                    />
+                  </RotatableFloatingEntityWrapper>
                 );
               })}
               
               {/* Floating Family Members around Family Sphere */}
               {familyMembers.slice(0, Math.min(familyMembers.length, 5)).map((member, index) => {
                 const totalMembers = Math.min(familyMembers.length, 5);
-                const angle = (index * 2 * Math.PI) / totalMembers;
-                const radius = isTablet ? 85 : 55; // Larger distance on tablets by default
+                const entityAngle = (index * 2 * Math.PI) / totalMembers; // Angle relative to sphere
+                const entityRadius = isTablet ? 85 : 55; // Larger distance on tablets by default
                 const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
                 
-                const x = spherePositions.family.x + Math.cos(angle) * radius;
-                const y = spherePositions.family.y + Math.sin(angle) * radius;
+                // Calculate static position for initial render (FloatingEntity needs it)
+                const x = spherePositions.family.x + Math.cos(entityAngle) * entityRadius;
+                const y = spherePositions.family.y + Math.sin(entityAngle) * entityRadius;
                 
                 return (
-                  <FloatingEntity
+                  <RotatableFloatingEntityWrapper
                     key={`floating-member-${member.id}`}
-                    entity={member}
-                    position={{ x, y }}
-                    colorScheme={colorScheme ?? 'dark'}
-                    colors={colors}
-                    delay={index * 200}
-                    entityType="family"
-                    memories={memories}
-                    selectedSphere={selectedSphere}
-                    zoomProgress={sphereZoomProgress}
-                  />
+                    sphereIndex={2} // family
+                    rotation={wheelRotation}
+                    centerX={sphereCircle.centerX}
+                    centerY={sphereCircle.centerY}
+                    sphereRadius={sphereCircle.radius}
+                    angleStep={sphereCircle.angleStep}
+                    startAngle={sphereCircle.startAngle}
+                    entityAngle={entityAngle}
+                    entityRadius={entityRadius}
+                  >
+                    <FloatingEntity
+                      entity={member}
+                      position={{ x, y }}
+                      colorScheme={colorScheme ?? 'dark'}
+                      colors={colors}
+                      delay={index * 200}
+                      entityType="family"
+                      memories={memories}
+                      selectedSphere={selectedSphere}
+                      zoomProgress={sphereZoomProgress}
+                      isWrapped={true}
+                    />
+                  </RotatableFloatingEntityWrapper>
                 );
               })}
               
               {/* Floating Friends around Friends Sphere */}
               {friends.slice(0, Math.min(friends.length, 5)).map((friend, index) => {
                 const totalFriends = Math.min(friends.length, 5);
-                const angle = (index * 2 * Math.PI) / totalFriends;
-                const radius = isTablet ? 85 : 55; // Larger distance on tablets by default
+                const entityAngle = (index * 2 * Math.PI) / totalFriends; // Angle relative to sphere
+                const entityRadius = isTablet ? 85 : 55; // Larger distance on tablets by default
                 const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
                 
-                const x = spherePositions.friends.x + Math.cos(angle) * radius;
-                const y = spherePositions.friends.y + Math.sin(angle) * radius;
+                // Calculate static position for initial render (FloatingEntity needs it)
+                const x = spherePositions.friends.x + Math.cos(entityAngle) * entityRadius;
+                const y = spherePositions.friends.y + Math.sin(entityAngle) * entityRadius;
                 
                 return (
-                  <FloatingEntity
+                  <RotatableFloatingEntityWrapper
                     key={`floating-friend-${friend.id}`}
-                    entity={friend}
-                    position={{ x, y }}
-                    colorScheme={colorScheme ?? 'dark'}
-                    colors={colors}
-                    delay={index * 200}
-                    entityType="friend"
-                    memories={memories}
-                    selectedSphere={selectedSphere}
-                    zoomProgress={sphereZoomProgress}
-                  />
+                    sphereIndex={3} // friends
+                    rotation={wheelRotation}
+                    centerX={sphereCircle.centerX}
+                    centerY={sphereCircle.centerY}
+                    sphereRadius={sphereCircle.radius}
+                    angleStep={sphereCircle.angleStep}
+                    startAngle={sphereCircle.startAngle}
+                    entityAngle={entityAngle}
+                    entityRadius={entityRadius}
+                  >
+                    <FloatingEntity
+                      entity={friend}
+                      position={{ x, y }}
+                      colorScheme={colorScheme ?? 'dark'}
+                      colors={colors}
+                      delay={index * 200}
+                      entityType="friend"
+                      memories={memories}
+                      selectedSphere={selectedSphere}
+                      zoomProgress={sphereZoomProgress}
+                      isWrapped={true}
+                    />
+                  </RotatableFloatingEntityWrapper>
                 );
               })}
               
               {/* Floating Hobbies around Hobbies Sphere */}
               {hobbies.slice(0, Math.min(hobbies.length, 5)).map((hobby, index) => {
                 const totalHobbies = Math.min(hobbies.length, 5);
-                const angle = (index * 2 * Math.PI) / totalHobbies;
-                const radius = isTablet ? 85 : 55; // Larger distance on tablets by default
+                const entityAngle = (index * 2 * Math.PI) / totalHobbies; // Angle relative to sphere
+                const entityRadius = isTablet ? 85 : 55; // Larger distance on tablets by default
                 const memories = getIdealizedMemoriesByEntityId(hobby.id, 'hobbies');
                 
-                const x = spherePositions.hobbies.x + Math.cos(angle) * radius;
-                const y = spherePositions.hobbies.y + Math.sin(angle) * radius;
+                // Calculate static position for initial render (FloatingEntity needs it)
+                const x = spherePositions.hobbies.x + Math.cos(entityAngle) * entityRadius;
+                const y = spherePositions.hobbies.y + Math.sin(entityAngle) * entityRadius;
                 
                 return (
-                  <FloatingEntity
+                  <RotatableFloatingEntityWrapper
                     key={`floating-hobby-${hobby.id}`}
-                    entity={hobby}
-                    position={{ x, y }}
-                    colorScheme={colorScheme ?? 'dark'}
-                    colors={colors}
-                    delay={index * 200}
-                    entityType="hobby"
-                    memories={memories}
-                    selectedSphere={selectedSphere}
-                    zoomProgress={sphereZoomProgress}
-                  />
+                    sphereIndex={4} // hobbies
+                    rotation={wheelRotation}
+                    centerX={sphereCircle.centerX}
+                    centerY={sphereCircle.centerY}
+                    sphereRadius={sphereCircle.radius}
+                    angleStep={sphereCircle.angleStep}
+                    startAngle={sphereCircle.startAngle}
+                    entityAngle={entityAngle}
+                    entityRadius={entityRadius}
+                  >
+                    <FloatingEntity
+                      entity={hobby}
+                      position={{ x, y }}
+                      colorScheme={colorScheme ?? 'dark'}
+                      colors={colors}
+                      delay={index * 200}
+                      entityType="hobby"
+                      memories={memories}
+                      selectedSphere={selectedSphere}
+                      zoomProgress={sphereZoomProgress}
+                      isWrapped={true}
+                    />
+                  </RotatableFloatingEntityWrapper>
                 );
               })}
             </>
