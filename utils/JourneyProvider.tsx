@@ -134,6 +134,12 @@ export type IdealizedMemory = {
     x?: number; // Sun position X
     y?: number; // Sun position Y
   }[];
+  lessonsLearned?: {
+    id: string;
+    text: string;
+    x?: number; // Lightbulb position X
+    y?: number; // Lightbulb position Y
+  }[];
   createdAt: string;
   updatedAt: string;
 };
@@ -888,6 +894,16 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
           if (newCount > previousCount) {
             // New sun(s) added
             await logMomentCreated(sphere, 'sun');
+          }
+        }
+
+        // Check if lessons learned (lightbulbs) were added
+        if (updates.lessonsLearned && Array.isArray(updates.lessonsLearned)) {
+          const previousCount = memory.lessonsLearned?.length || 0;
+          const newCount = updates.lessonsLearned.length;
+          if (newCount > previousCount) {
+            // New lesson(s) added
+            await logMomentCreated(sphere, 'lesson');
           }
         }
       }

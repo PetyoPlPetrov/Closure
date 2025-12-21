@@ -421,6 +421,7 @@ export interface Translations {
   'memory.goodFact.none': string;
   'memory.goodFact.add': string;
   'memory.goodFact.placeholder': string;
+  'memory.lesson.placeholder': string;
   'memory.sunnyMoment': string;
   'memory.fillAllClouds': string;
   'memory.fillAllSuns': string;
@@ -437,6 +438,7 @@ export interface Translations {
   'memory.error.atLeastOneMomentRequired': string;
   'memory.error.fillAllCloudsBeforeAdding': string;
   'memory.error.fillAllSunsBeforeAdding': string;
+  'memory.error.fillAllLessonsBeforeAdding': string;
   'memory.actionSheet.edit': string;
   'memory.actionSheet.delete': string;
   'memory.remindWhy': string;
@@ -912,6 +914,7 @@ const translations: Record<Language, Translations> = {
     'memory.goodFact.none': 'No Good Facts yet',
     'memory.goodFact.add': 'Add Good Fact',
     'memory.goodFact.placeholder': 'Enter good fact...',
+    'memory.lesson.placeholder': 'Enter lesson learned...',
     'memory.sunnyMoment': 'Sunny Moment',
     'memory.fillAllClouds': 'Please fill all available clouds with text before continuing.',
     'memory.fillAllSuns': 'Please fill all available suns with text before continuing.',
@@ -928,6 +931,7 @@ const translations: Record<Language, Translations> = {
     'memory.error.atLeastOneMomentRequired': 'Please add at least one moment (cloud or sun) to the memory.',
     'memory.error.fillAllCloudsBeforeAdding': 'Please fill all existing clouds with text before adding a new one.',
     'memory.error.fillAllSunsBeforeAdding': 'Please fill all existing suns with text before adding a new one.',
+    'memory.error.fillAllLessonsBeforeAdding': 'Please fill all existing lessons with text before adding a new one.',
     'memory.actionSheet.edit': 'Edit',
     'memory.actionSheet.delete': 'Delete',
     'memory.remindWhy': 'Remind Why',
@@ -1402,6 +1406,7 @@ const translations: Record<Language, Translations> = {
     'memory.goodFact.none': 'Все още няма добри факти',
     'memory.goodFact.add': 'Добър Факт',
     'memory.goodFact.placeholder': ' добър момент...',
+    'memory.lesson.placeholder': 'Въведете научен урок...',
     'memory.sunnyMoment': 'Слънчев Момент',
     'memory.fillAllClouds': 'Моля, попълнете всички облаци с текст, преди да продължите.',
     'memory.fillAllSuns': 'Моля, попълнете всички слънца с текст, преди да продължите.',
@@ -1418,6 +1423,7 @@ const translations: Record<Language, Translations> = {
     'memory.error.atLeastOneMomentRequired': 'Моля, добавете поне един момент (облак или слънце) към спомена.',
     'memory.error.fillAllCloudsBeforeAdding': 'Моля, попълнете всички съществуващи облаци с текст, преди да добавите нов.',
     'memory.error.fillAllSunsBeforeAdding': 'Моля, попълнете всички съществуващи слънца с текст, преди да добавите ново.',
+    'memory.error.fillAllLessonsBeforeAdding': 'Моля, попълнете всички съществуващи уроци с текст, преди да добавите нов.',
     'memory.actionSheet.edit': 'Редактирай',
     'memory.actionSheet.delete': 'Изтрий',
     'memory.remindWhy': 'Напомни защо',

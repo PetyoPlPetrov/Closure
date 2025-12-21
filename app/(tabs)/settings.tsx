@@ -385,6 +385,24 @@ export default function SettingsScreen() {
         'Taught me about myself',
       ];
 
+      const lessonTexts = [
+        'I learned to set better boundaries',
+        'Communication is key in relationships',
+        'Trust must be earned and maintained',
+        'Self-love comes before everything',
+        'Red flags should never be ignored',
+        'I deserve someone who values me',
+        'Honesty is non-negotiable',
+        'I grew stronger through this',
+        'Time reveals true character',
+        'My needs matter just as much',
+        'Compatibility goes beyond attraction',
+        'Actions speak louder than words',
+        'I learned what I truly need',
+        'Healing takes time and patience',
+        'I am worthy of genuine love',
+      ];
+
       // Career-specific cloud and sun texts
       const careerCloudTexts = [
         'Poor work-life balance',
@@ -420,6 +438,24 @@ export default function SettingsScreen() {
         'Recognition for achievements',
         'Work-life balance',
         'Learning new technologies',
+      ];
+
+      const careerLessonTexts = [
+        'Work-life balance is essential',
+        'Value yourself and your skills',
+        'Company culture matters more than perks',
+        'Growth opportunities are crucial',
+        'Know when to move on',
+        'Build relationships, not just skills',
+        'Stand up for your worth',
+        'Continuous learning is key',
+        'Choose alignment over prestige',
+        'Your career, your rules',
+        'Feedback helps you grow',
+        'Mentorship is invaluable',
+        'Take calculated risks',
+        'Celebrate your achievements',
+        'Find work that fulfills you',
       ];
 
       const careerMemoryTitles = [
@@ -469,6 +505,24 @@ export default function SettingsScreen() {
         'Was always there for celebrations',
       ];
 
+      const familyLessonTexts = [
+        'Family bonds can withstand challenges',
+        'Setting boundaries is healthy',
+        'Communication is essential',
+        'Accept differences with love',
+        'Family shapes who we become',
+        'Forgiveness brings peace',
+        'Quality time matters most',
+        'Express love and appreciation',
+        'Everyone shows love differently',
+        'Create your own traditions',
+        'Respect goes both ways',
+        'Be present for each other',
+        'Cherish the moments together',
+        'Family is chosen too',
+        'Growth requires understanding',
+      ];
+
       const familyMemoryTitles = [
         'Family Dinner', 'Birthday Celebration', 'Holiday Gathering', 'Summer Vacation',
         'Weekend Visit', 'Family Reunion', 'Graduation Day', 'Wedding Day',
@@ -516,6 +570,24 @@ export default function SettingsScreen() {
         'Was a true friend',
       ];
 
+      const friendsLessonTexts = [
+        'True friends show up when it matters',
+        'Quality over quantity in friendships',
+        'Communication keeps friendships strong',
+        'Mutual respect is essential',
+        'Friendships require effort from both sides',
+        'Be the friend you want to have',
+        'Some friendships are for a season',
+        'Vulnerability deepens connection',
+        'Celebrate your friends\' successes',
+        'Forgiveness strengthens bonds',
+        'Make time for important people',
+        'Authenticity attracts real friends',
+        'Distance tests true friendship',
+        'Choose friends who lift you up',
+        'Friendship is a two-way street',
+      ];
+
       const friendsMemoryTitles = [
         'Coffee Meetup', 'Birthday Party', 'Weekend Hangout', 'Concert Night',
         'Road Trip', 'Movie Night', 'Dinner Out', 'Game Night',
@@ -561,6 +633,24 @@ export default function SettingsScreen() {
         'Had moments of clarity',
         'Felt like I was expressing myself',
         'Found it fulfilling',
+      ];
+
+      const hobbiesLessonTexts = [
+        'Progress matters more than perfection',
+        'Enjoy the journey, not just results',
+        'Make time for what brings joy',
+        'Creativity requires practice',
+        'It\'s okay to be a beginner',
+        'Hobbies recharge your soul',
+        'Growth happens gradually',
+        'Passion fuels persistence',
+        'Self-expression is valuable',
+        'Challenge yourself regularly',
+        'Find balance in life',
+        'Celebrate small wins',
+        'Learning never stops',
+        'Enjoy the process',
+        'Hobbies define who you are',
       ];
 
       const hobbiesMemoryTitles = [
@@ -681,6 +771,18 @@ export default function SettingsScreen() {
                 });
               }
 
+              // Add 1-3 lessons learned per memory
+              const numLessons = Math.floor(Math.random() * 3) + 1; // 1-3 lessons
+              const lessonsLearned = [];
+              for (let j = 0; j < numLessons; j++) {
+                lessonsLearned.push({
+                  id: `lesson_${profileData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                  text: lessonTexts[Math.floor(Math.random() * lessonTexts.length)],
+                  x: Math.random() * 300 + 50,
+                  y: Math.random() * 400 + 50,
+                });
+              }
+
               // Use different memory titles for variety
               const memoryTitle = memoryTitles[i % memoryTitles.length] + ` (${i + 1})`;
 
@@ -690,6 +792,7 @@ export default function SettingsScreen() {
                 imageUri: maldivesImageUri,
                 hardTruths,
                 goodFacts,
+                lessonsLearned,
               });
               
               createdMemories++;
@@ -803,12 +906,25 @@ export default function SettingsScreen() {
               // Use different memory titles for variety
               const memoryTitle = careerMemoryTitles[i % careerMemoryTitles.length] + ` (${i + 1})`;
 
+              // Add 1-3 lessons learned per memory
+              const numLessons = Math.floor(Math.random() * 3) + 1;
+              const lessonsLearned = [];
+              for (let j = 0; j < numLessons; j++) {
+                lessonsLearned.push({
+                  id: `lesson_${memberData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                  text: careerLessonTexts[Math.floor(Math.random() * careerLessonTexts.length)],
+                  x: Math.random() * 300 + 50,
+                  y: Math.random() * 400 + 50,
+                });
+              }
+
               // Use new signature for career sphere: (entityId, sphere, memoryData)
               await addIdealizedMemory(jobId, 'career', {
                 title: memoryTitle,
                 imageUri: maldivesImageUri,
                 hardTruths,
                 goodFacts,
+                lessonsLearned,
               });
               
               createdMemories++;
@@ -921,11 +1037,24 @@ export default function SettingsScreen() {
 
                 const memoryTitle = familyMemoryTitles[i % familyMemoryTitles.length] + ` (${i + 1})`;
 
+                // Add 1-3 lessons learned per memory
+                const numLessons = Math.floor(Math.random() * 3) + 1;
+                const lessonsLearned = [];
+                for (let j = 0; j < numLessons; j++) {
+                  lessonsLearned.push({
+                    id: `lesson_${memberData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                    text: familyLessonTexts[Math.floor(Math.random() * familyLessonTexts.length)],
+                    x: Math.random() * 300 + 50,
+                    y: Math.random() * 400 + 50,
+                  });
+                }
+
                 await addIdealizedMemory(memberId, 'family', {
                   title: memoryTitle,
                   imageUri: maldivesImageUri,
                   hardTruths,
                   goodFacts,
+                  lessonsLearned,
                 });
                 
                 createdMemories++;
@@ -1015,11 +1144,24 @@ export default function SettingsScreen() {
 
                 const memoryTitle = friendsMemoryTitles[i % friendsMemoryTitles.length] + ` (${i + 1})`;
 
+                // Add 1-3 lessons learned per memory
+                const numLessons = Math.floor(Math.random() * 3) + 1;
+                const lessonsLearned = [];
+                for (let j = 0; j < numLessons; j++) {
+                  lessonsLearned.push({
+                    id: `lesson_${friendData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                    text: friendsLessonTexts[Math.floor(Math.random() * friendsLessonTexts.length)],
+                    x: Math.random() * 300 + 50,
+                    y: Math.random() * 400 + 50,
+                  });
+                }
+
                 await addIdealizedMemory(friendId, 'friends', {
                   title: memoryTitle,
                   imageUri: maldivesImageUri,
                   hardTruths,
                   goodFacts,
+                  lessonsLearned,
                 });
 
                 createdMemories++;
@@ -1107,11 +1249,24 @@ export default function SettingsScreen() {
 
                 const memoryTitle = hobbiesMemoryTitles[i % hobbiesMemoryTitles.length] + ` (${i + 1})`;
 
+                // Add 1-3 lessons learned per memory
+                const numLessons = Math.floor(Math.random() * 3) + 1;
+                const lessonsLearned = [];
+                for (let j = 0; j < numLessons; j++) {
+                  lessonsLearned.push({
+                    id: `lesson_${hobbyData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                    text: hobbiesLessonTexts[Math.floor(Math.random() * hobbiesLessonTexts.length)],
+                    x: Math.random() * 300 + 50,
+                    y: Math.random() * 400 + 50,
+                  });
+                }
+
                 await addIdealizedMemory(hobbyId, 'hobbies', {
                   title: memoryTitle,
                   imageUri: maldivesImageUri,
                   hardTruths,
                   goodFacts,
+                  lessonsLearned,
                 });
 
                 createdMemories++;

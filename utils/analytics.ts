@@ -94,7 +94,7 @@ export const logMemoryDeleted = async (sphere: string) => {
 /**
  * Log when a moment is created
  */
-export const logMomentCreated = async (sphere: string, momentType: 'cloud' | 'sun') => {
+export const logMomentCreated = async (sphere: string, momentType: 'cloud' | 'sun' | 'lesson') => {
   await logEvent('moment_created', {
     sphere,
     moment_type: momentType,

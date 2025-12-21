@@ -24,7 +24,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
@@ -307,7 +307,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     : (isTablet ? 90 : 60); // Base radius for floating memories around spheres (reverted to original)
   // On tablets, position memories much further from avatar when focused (3x distance for better spacing)
   const memoryRadius = isTablet && isFocused ? baseMemoryRadius * 3 : baseMemoryRadius;
-  const exZoneRadius = isFocused ? 180 : 120; // Adjusted zone when memories are closer
   
   // Calculate sunny moments percentage for progress bar
   const sunnyPercentage = useMemo(() => {
@@ -316,9 +315,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     
     memories.forEach((memory) => {
       totalClouds += (memory.hardTruths || []).length;
-      totalSuns += (memory.goodFacts || []).length;
+      totalSuns += (memory.goodFacts || []).length + (memory.lessonsLearned || []).length; // Lessons count as positive moments
     });
-    
+
     const total = totalClouds + totalSuns;
     if (total === 0) return 0; // No progress if no moments
     
@@ -865,10 +864,10 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const memoryPositions = useMemo(() => {
     // Calculate max moments count to normalize distances
     const maxMomentsCount = Math.max(...memories.map(m => 
-      ((m.hardTruths || []).length + (m.goodFacts || []).length)
+      ((m.hardTruths || []).length + (m.goodFacts || []).length + (m.lessonsLearned || []).length)
     ), 1);
     const minMomentsCount = Math.min(...memories.map(m => 
-      ((m.hardTruths || []).length + (m.goodFacts || []).length)
+      ((m.hardTruths || []).length + (m.goodFacts || []).length + (m.lessonsLearned || []).length)
     ), 0);
     
     // Pre-calculate all angles to identify the top 2 elements (only if more than 5 elements)
@@ -930,7 +929,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     
     return memories.map((memory, memIndex) => {
       // Calculate moment count for this memory
-      const momentCount = (memory.hardTruths || []).length + (memory.goodFacts || []).length;
+      const momentCount = (memory.hardTruths || []).length + (memory.goodFacts || []).length + (memory.lessonsLearned || []).length;
       
       // Calculate distance multiplier based on moments (more moments = further)
       let momentsDistanceMultiplier = 1.0;
@@ -1258,11 +1257,11 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         const calculatedMaxMemorySize = Math.max(20, Math.min(availableSpace * 2, maxAllowedSize));
         
         // Calculate moment count for this memory to scale size
-        const momentCount = (memory.hardTruths || []).length + (memory.goodFacts || []).length;
+        const momentCount = (memory.hardTruths || []).length + (memory.goodFacts || []).length + (memory.lessonsLearned || []).length;
         
         // Calculate min and max moment counts across all memories for scaling
         const allMomentCounts = memories.map(m => 
-          ((m.hardTruths || []).length + (m.goodFacts || []).length)
+          ((m.hardTruths || []).length + (m.goodFacts || []).length + (m.lessonsLearned || []).length)
         );
         const minMomentsCount = Math.min(...allMomentCounts, 0);
         const maxMomentsCount = Math.max(...allMomentCounts, 1);
@@ -1345,6 +1344,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   clouds,
   suns,
+  lessons,
   isFocused,
   isMemoryFocused,
   visibleMomentIds,
@@ -1366,6 +1366,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   offsetY,
   cloudZIndex,
   sunZIndex,
+  lessonZIndex,
   colorScheme,
   onDoubleTap,
   onUpdateMemory,
@@ -1374,6 +1375,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
 }: {
   clouds: any[];
   suns: any[];
+  lessons: any[];
   isFocused: boolean;
   isMemoryFocused: boolean;
   visibleMomentIds: Set<string>;
@@ -1395,6 +1397,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   offsetY: number;
   cloudZIndex: number;
   sunZIndex: number;
+  lessonZIndex: number;
   colorScheme: 'light' | 'dark';
   onDoubleTap?: () => void;
   onUpdateMemory?: (updates: Partial<any>) => Promise<void>;
@@ -1799,25 +1802,148 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
         );
     });
   }, [isFocused, filteredSuns, isMemoryFocused, suns.length, calculateClampedPosition, sunWidth, sunHeight, memorySize, sunPositions, position, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, sunZIndex, colorScheme, onDoubleTap, onUpdateMemory, newlyCreatedMoments, memory, clouds.length]);
-  
+
+  // Memoize filtered lessons - must be called unconditionally
+  const filteredLessons = useMemo(() => {
+    if (!isFocused) return [];
+    return lessons.filter((lesson: any) => {
+      // When memory is focused, only show visible moments
+      if (isMemoryFocused) {
+        return lesson?.id && visibleMomentIds.has(lesson.id);
+      }
+      return true;
+    });
+  }, [isFocused, lessons, isMemoryFocused, visibleMomentIds]);
+
+  // Memoize lesson elements - render using the same AnimatedLesson component from add-idealized-memory
+  const lessonElements = useMemo(() => {
+    if (!isFocused) return null;
+
+    // For now, render lessons as lightbulb icons similar to suns but with different styling
+    return filteredLessons.map((lesson: any, lessonIndex: number) => {
+      // When memory is focused, use saved positions from memory data
+      if (isMemoryFocused) {
+        const startPos = newlyCreatedMoments.get(lesson.id);
+        const clampedPos = calculateClampedPosition(
+          lesson.x,
+          lesson.y,
+          sunWidth, // Use sun dimensions for lessons
+          sunHeight,
+          lessonIndex,
+          lessons.length,
+          memorySize,
+          'sun'
+        );
+        const lessonX = clampedPos.x;
+        const lessonY = clampedPos.y;
+
+        const handlePositionChange = async (x: number, y: number) => {
+          if (onUpdateMemory) {
+            const updatedLessons = (memory.lessonsLearned || []).map((l: any) =>
+              l.id === lesson.id ? { ...l, x, y } : l
+            );
+            await onUpdateMemory({ lessonsLearned: updatedLessons });
+          }
+        };
+
+        // Log lesson data for debugging
+        console.log('[Lesson Render]', {
+          id: lesson.id,
+          text: lesson.text,
+          x: lesson.x,
+          y: lesson.y,
+          clampedX: lessonX,
+          clampedY: lessonY,
+          hasText: !!lesson.text,
+          textLength: lesson.text?.length
+        });
+
+        // Use DraggableMoment for lessons when memory is focused (same as suns)
+        return (
+          <DraggableMoment
+            key={`lesson-${lesson.id}-${lessonIndex}`}
+            initialX={lessonX}
+            initialY={lessonY}
+            width={sunWidth}
+            height={sunHeight}
+            zIndex={lessonZIndex}
+            onPositionChange={handlePositionChange}
+            onPress={onDoubleTap}
+            entranceDelay={startPos ? 0 : lessonIndex * 100}
+            startX={startPos?.startX}
+            startY={startPos?.startY}
+          >
+            {/* Render lightbulb with text for lessons */}
+            <View
+              style={{
+                width: sunWidth,
+                height: sunHeight,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: 'rgba(255, 215, 0, 0.15)',
+                borderRadius: sunWidth / 2,
+                // Golden glow for lessons
+                shadowColor: '#FFD700',
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.8,
+                shadowRadius: isTablet ? 12 : 8,
+                elevation: 8,
+                padding: 8,
+              }}
+            >
+              <MaterialIcons
+                name="lightbulb"
+                size={sunWidth * 0.4}
+                color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'}
+                style={{ marginBottom: 4 }}
+              />
+              {lesson.text && (
+                <ThemedText
+                  style={{
+                    color: colorScheme === 'dark' ? '#000000' : '#1A1A1A',
+                    fontSize: 10 * fontScale,
+                    textAlign: 'center',
+                    fontWeight: '700',
+                    maxWidth: sunWidth * 0.8,
+                  }}
+                  numberOfLines={2}
+                >
+                  {lesson.text}
+                </ThemedText>
+              )}
+            </View>
+          </DraggableMoment>
+        );
+      }
+
+      // Not focused - lessons don't need to be rendered when memory is not focused
+      // (they're only interactive when memory is focused)
+      return null;
+    });
+  }, [isFocused, filteredLessons, isMemoryFocused, lessons.length, calculateClampedPosition, sunWidth, sunHeight, memorySize, lessonZIndex, colorScheme, onDoubleTap, onUpdateMemory, newlyCreatedMoments, memory, isTablet]);
+
   // Skip rendering moments for unfocused partners (not visible in viewport)
   if (!isFocused) {
     return null;
   }
-  
+
   return (
     <>
       {/* Floating Clouds around Memory - only show when profile is focused */}
       {cloudElements}
-      
+
       {/* Floating Suns around Memory - only show when profile is focused */}
       {sunElements}
+
+      {/* Floating Lessons around Memory - only show when memory is focused */}
+      {lessonElements}
     </>
   );
 }, (prevProps, nextProps) => {
   return (
     prevProps.clouds.length === nextProps.clouds.length &&
     prevProps.suns.length === nextProps.suns.length &&
+    prevProps.lessons.length === nextProps.lessons.length &&
     prevProps.isFocused === nextProps.isFocused &&
     prevProps.isMemoryFocused === nextProps.isMemoryFocused &&
     prevProps.visibleMomentIds.size === nextProps.visibleMomentIds.size &&
@@ -1843,10 +1969,13 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
   colorScheme,
   cloudButtonRef,
   sunButtonRef,
+  lessonButtonRef,
   setCloudButtonPos,
   setSunButtonPos,
+  setLessonButtonPos,
   handleAddCloud,
   handleAddSun,
+  handleAddLesson,
 }: {
   isMemoryFocused: boolean;
   memory: any;
@@ -1856,24 +1985,31 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
   colorScheme: 'light' | 'dark';
   cloudButtonRef: React.RefObject<View | null>;
   sunButtonRef: React.RefObject<View | null>;
+  lessonButtonRef?: React.RefObject<View | null>;
   setCloudButtonPos: (pos: { x: number; y: number } | null) => void;
   setSunButtonPos: (pos: { x: number; y: number } | null) => void;
+  setLessonButtonPos?: (pos: { x: number; y: number } | null) => void;
   handleAddCloud: () => void;
   handleAddSun: () => void;
+  handleAddLesson?: () => void;
 }) {
   const t = useTranslate();
   // Memoize these calculations - must be called unconditionally
   const allClouds = useMemo(() => (memory.hardTruths || []).filter((truth: any) => truth && typeof truth === 'object' && !Array.isArray(truth)), [memory.hardTruths]);
   const allSuns = useMemo(() => (memory.goodFacts || []).filter((fact: any) => fact && typeof fact === 'object'), [memory.goodFacts]);
+  const allLessons = useMemo(() => (memory.lessonsLearned || []).filter((lesson: any) => lesson && typeof lesson === 'object'), [memory.lessonsLearned]);
   const visibleCloudsCount = useMemo(() => allClouds.filter((c: any) => c?.id && visibleMomentIds.has(c.id)).length, [allClouds, visibleMomentIds]);
   const visibleSunsCount = useMemo(() => allSuns.filter((s: any) => s?.id && visibleMomentIds.has(s.id)).length, [allSuns, visibleMomentIds]);
-  
+  const visibleLessonsCount = useMemo(() => allLessons.filter((l: any) => l?.id && visibleMomentIds.has(l.id)).length, [allLessons, visibleMomentIds]);
+
   if (!isMemoryFocused) return null;
   const totalCloudsCount = allClouds.length;
   const totalSunsCount = allSuns.length;
+  const totalLessonsCount = allLessons.length;
   const allCloudsVisible = totalCloudsCount > 0 && visibleCloudsCount >= totalCloudsCount;
   const allSunsVisible = totalSunsCount > 0 && visibleSunsCount >= totalSunsCount;
-  
+  const allLessonsVisible = totalLessonsCount > 0 && visibleLessonsCount >= totalLessonsCount;
+
   // Calculate position below memory image (moved higher to match memory)
   const offsetY = 120;
   const memoryCenterY = SCREEN_HEIGHT / 2 - offsetY;
@@ -1881,8 +2017,9 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
   const buttonSpacing = isLargeDevice ? 12 : 10;
   const buttonSize = isLargeDevice ? 96 : 88;
   const labelWidth = 100;
-  const totalWidth = buttonSize + buttonSpacing + labelWidth + buttonSpacing + buttonSize;
-  const containerTop = memoryBottom + 140; // 140px spacing below memory (moved lower)
+  const bottomRowWidth = buttonSize + buttonSpacing + labelWidth + buttonSpacing + buttonSize; // Cloud + text + Sun
+  const totalWidth = Math.max(buttonSize, bottomRowWidth); // Use the wider of the two rows
+  const containerTop = memoryBottom + 80; // Reduced from 140 to 80 to move badges up
   const colors = Colors[colorScheme ?? 'dark'];
   
   return (
@@ -1893,11 +2030,128 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
           position: 'absolute',
           top: containerTop,
           left: SCREEN_WIDTH / 2 - totalWidth / 2,
-          flexDirection: 'row',
+          flexDirection: 'column',
           alignItems: 'center',
           zIndex: 2000,
         }}
       >
+        {/* Lesson Button - positioned above cloud and sun */}
+        {lessonButtonRef && setLessonButtonPos && handleAddLesson && (
+        <View
+          ref={lessonButtonRef}
+          onLayout={() => {
+            lessonButtonRef.current?.measure((fx: number, fy: number, width: number, height: number, px: number, py: number) => {
+              const buttonCenterX = px + width / 2;
+              const buttonCenterY = py + height / 2;
+              setLessonButtonPos({ x: buttonCenterX, y: buttonCenterY });
+            });
+          }}
+          style={{ marginBottom: 16 }}
+        >
+          <Pressable
+            onPress={handleAddLesson}
+            disabled={allLessonsVisible || totalLessonsCount === 0}
+          >
+          <View
+            style={{
+              width: isLargeDevice ? 96 : 88,
+              height: isLargeDevice ? 96 : 88,
+              borderRadius: isLargeDevice ? 48 : 44,
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: colorScheme === 'dark'
+                ? 'rgba(255, 255, 255, 0.08)'
+                : 'rgba(255, 255, 255, 0.9)',
+              shadowColor: colorScheme === 'dark' ? '#FFA000' : '#FFA000',
+              shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
+              shadowOpacity: colorScheme === 'dark' ? 0.9 : 0.7,
+              shadowRadius: colorScheme === 'dark' ? 24 : 20,
+              elevation: colorScheme === 'dark' ? 18 : 15,
+              overflow: 'visible',
+              borderWidth: colorScheme === 'dark' ? 2 : 1.5,
+              borderColor: colorScheme === 'dark'
+                ? '#FFA000'
+                : '#FFA000',
+              opacity: (allLessonsVisible || totalLessonsCount === 0) ? 0.4 : 1,
+            }}
+          >
+            <LinearGradient
+              colors={
+                colorScheme === 'dark'
+                  ? ['rgba(255, 249, 196, 0.9)', 'rgba(255, 213, 79, 0.75)', 'rgba(255, 160, 0, 0.9)']
+                  : ['rgba(255, 253, 231, 1)', 'rgba(255, 245, 157, 0.95)', 'rgba(255, 213, 79, 1)']
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: isLargeDevice ? 48 : 44,
+                justifyContent: 'center',
+                alignItems: 'center',
+                position: 'relative',
+              }}
+            >
+              <View
+                style={{
+                  position: 'absolute',
+                  top: isLargeDevice ? 14 : 12,
+                  left: 0,
+                  right: 0,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <MaterialIcons
+                  name="lightbulb"
+                  size={isLargeDevice ? 44 : 40}
+                  color={colorScheme === 'dark' ? '#FFD700' : '#555'}
+                />
+              </View>
+              {/* Count badge - horizontal bar at bottom of circle */}
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 2,
+                  right: 2,
+                  height: 28,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#000000',
+                  borderBottomLeftRadius: isLargeDevice ? 48 : 44,
+                  borderBottomRightRadius: isLargeDevice ? 48 : 44,
+                  borderTopLeftRadius: 6,
+                  borderTopRightRadius: 6,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                }}
+              >
+                <ThemedText
+                  style={{
+                    fontSize: isLargeDevice ? 12 : 11,
+                    fontWeight: '600',
+                    color: '#FFFFFF',
+                    textAlign: 'center',
+                  }}
+                >
+                  {visibleLessonsCount}/{totalLessonsCount}
+                </ThemedText>
+              </View>
+            </LinearGradient>
+          </View>
+        </Pressable>
+      </View>
+        )}
+
+        {/* Bottom row: Cloud, Text, Sun */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
         {/* Cloud Button */}
         <View
           ref={cloudButtonRef}
@@ -2132,7 +2386,9 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
         </View>
       </Pressable>
     </View>
-    </View>
+
+        </View>
+      </View>
     </>
   );
 }, (prevProps, nextProps) => {
@@ -2199,7 +2455,6 @@ const FloatingMemory = React.memo(function FloatingMemory({
   focusedMemory?: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null;
 }) {
   const { isLargeDevice, isTablet } = useLargeDevice();
-  const colors = Colors[colorScheme ?? 'dark'];
   
   // Track which moments are visible (initially none when memory is focused)
   const [visibleMomentIds, setVisibleMomentIds] = React.useState<Set<string>>(new Set());
@@ -2210,8 +2465,10 @@ const FloatingMemory = React.memo(function FloatingMemory({
   // Track button positions for animation
   const cloudButtonRef = React.useRef<View>(null);
   const sunButtonRef = React.useRef<View>(null);
+  const lessonButtonRef = React.useRef<View>(null);
   const [cloudButtonPos, setCloudButtonPos] = React.useState<{ x: number; y: number } | null>(null);
   const [sunButtonPos, setSunButtonPos] = React.useState<{ x: number; y: number } | null>(null);
+  const [lessonButtonPos, setLessonButtonPos] = React.useState<{ x: number; y: number } | null>(null);
   
   // Reset visible moments when memory focus changes
   React.useEffect(() => {
@@ -2264,7 +2521,6 @@ const FloatingMemory = React.memo(function FloatingMemory({
   // Distributes moments evenly across the entire screen for better visibility
   const calculateClampedPosition = useMemo(() => {
     return (savedX: number | undefined, savedY: number | undefined, momentWidth: number, momentHeight: number, index: number, totalCount: number, memorySize: number, momentType: 'cloud' | 'sun' = 'sun') => {
-      const memoryCenterX = SCREEN_WIDTH / 2;
       const memoryCenterY = SCREEN_HEIGHT / 2 - 120; // Moved higher to match memory position
       const padding = 20; // Padding from edges
       const headerSafeZone = 120; // Safe zone from top to avoid header and back button
@@ -2509,6 +2765,76 @@ const FloatingMemory = React.memo(function FloatingMemory({
     }
   }, [memory.goodFacts, visibleMomentIds, onUpdateMemory, calculateClampedPosition, sunWidth, sunHeight, memorySize, sunButtonPos]);
 
+  // Handler to create a new lesson moment
+  const handleAddLesson = React.useCallback(async () => {
+    if (!onUpdateMemory) return;
+
+    const allLessons = (memory.lessonsLearned || []).filter((lesson: any) => lesson && typeof lesson === 'object');
+    // Find first lesson that's not visible yet
+    const nextLesson = allLessons.find((lesson: any) => lesson?.id && !visibleMomentIds.has(lesson.id));
+    if (!nextLesson) return;
+
+    // Calculate final position (lessons use same dimensions as suns for now)
+    const visibleLessons = allLessons.filter((l: any) => visibleMomentIds.has(l.id));
+    const clampedPos = calculateClampedPosition(
+      nextLesson.x,
+      nextLesson.y,
+      sunWidth, // Use sunWidth for lessons
+      sunHeight, // Use sunHeight for lessons
+      visibleLessons.length,
+      allLessons.length,
+      memorySize,
+      'sun' // Use 'sun' type for lessons
+    );
+
+    // Store start position for animation
+    const storeStartPosition = (buttonPos: { x: number; y: number } | null) => {
+      if (buttonPos) {
+        setNewlyCreatedMoments(prev => {
+          const next = new Map(prev);
+          next.set(nextLesson.id, {
+            startX: buttonPos.x,
+            startY: buttonPos.y,
+          });
+          return next;
+        });
+      }
+    };
+
+    if (lessonButtonPos) {
+      storeStartPosition(lessonButtonPos);
+    } else if (lessonButtonRef.current) {
+      requestAnimationFrame(() => {
+        lessonButtonRef.current?.measure((fx: number, fy: number, width: number, height: number, px: number, py: number) => {
+          const buttonCenterX = px + width / 2;
+          const buttonCenterY = py + height / 2;
+          const measuredPos = { x: buttonCenterX, y: buttonCenterY };
+          setLessonButtonPos(measuredPos);
+          storeStartPosition(measuredPos);
+        });
+      });
+    }
+
+    // Update memory with new position
+    const updatedLessonsLearned = (memory.lessonsLearned || []).map((lesson: any) =>
+      lesson.id === nextLesson.id ? { ...lesson, x: clampedPos.x, y: clampedPos.y } : lesson
+    );
+    await onUpdateMemory({ lessonsLearned: updatedLessonsLearned });
+
+    // Mark as visible AFTER start position is set
+    const markVisible = () => {
+      setTimeout(() => {
+        setVisibleMomentIds(prev => new Set([...prev, nextLesson.id]));
+      }, 50);
+    };
+
+    if (lessonButtonPos) {
+      markVisible();
+    } else {
+      setTimeout(markVisible, 100);
+    }
+  }, [memory.lessonsLearned, visibleMomentIds, onUpdateMemory, calculateClampedPosition, sunWidth, sunHeight, memorySize, lessonButtonPos]);
+
   const floatAnimation = useSharedValue(0);
   
   // Scale animation for focused state - memories scale to 2x (bigger than avatar for visibility)
@@ -2662,6 +2988,11 @@ const FloatingMemory = React.memo(function FloatingMemory({
     // Filter out any invalid entries (must be objects)
     return facts.filter((fact: any) => fact && typeof fact === 'object');
   }, [memory.goodFacts]);
+  const lessons = useMemo(() => {
+    const lessonsData = memory.lessonsLearned || [];
+    // Filter out any invalid entries (must be objects)
+    return lessonsData.filter((lesson: any) => lesson && typeof lesson === 'object');
+  }, [memory.lessonsLearned]);
 
   // Calculate sunny percentage for gradient overlay
   const sunnyPercentage = useMemo(() => {
@@ -2673,8 +3004,6 @@ const FloatingMemory = React.memo(function FloatingMemory({
   }, [clouds.length, suns.length]);
   
   // Determine if memory is "sunny" (more good facts than hard truths) or "cloudy" (more hard truths than good facts)
-  const isSunny = suns.length > clouds.length;
-  const isCloudy = clouds.length > suns.length;
   const hasMoments = clouds.length + suns.length > 0;
 
   // Calculate cloud and sun positions relative to memory
@@ -2937,18 +3266,21 @@ const FloatingMemory = React.memo(function FloatingMemory({
       {(() => {
         const cloudCount = clouds.length;
         const sunCount = suns.length;
+        const lessonCount = lessons.length;
         const cloudsOnTop = cloudCount > sunCount;
         // Moments should be on top of memories
         // When memory is focused, use much higher z-index to be above the memory (which has zIndex 1000)
         const baseZIndex = isMemoryFocused ? 1001 : 20;
         const cloudZIndex = cloudsOnTop ? baseZIndex + 5 : baseZIndex + 4; // Higher than memories so moments are visible on top
         const sunZIndex = cloudsOnTop ? baseZIndex + 4 : baseZIndex + 5; // Higher than memories so moments are visible on top
-        
-        
+        const lessonZIndex = baseZIndex + 3; // Lessons always below suns and clouds (z-index: 9997)
+
+
         return (
           <MemoryMomentsRenderer
             clouds={clouds}
             suns={suns}
+            lessons={lessons}
             isFocused={isFocused}
             isMemoryFocused={isMemoryFocused ?? false}
             visibleMomentIds={visibleMomentIds}
@@ -2970,6 +3302,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
             offsetY={offsetY}
             cloudZIndex={cloudZIndex}
             sunZIndex={sunZIndex}
+            lessonZIndex={lessonZIndex}
             colorScheme={colorScheme}
             onDoubleTap={onDoubleTap}
             onUpdateMemory={onUpdateMemory}
@@ -2989,10 +3322,13 @@ const FloatingMemory = React.memo(function FloatingMemory({
         colorScheme={colorScheme}
         cloudButtonRef={cloudButtonRef}
         sunButtonRef={sunButtonRef}
+        lessonButtonRef={lessonButtonRef}
         setCloudButtonPos={setCloudButtonPos}
         setSunButtonPos={setSunButtonPos}
+        setLessonButtonPos={setLessonButtonPos}
         handleAddCloud={handleAddCloud}
         handleAddSun={handleAddSun}
+        handleAddLesson={handleAddLesson}
       />
     </>
   );
@@ -3157,7 +3493,7 @@ const FloatingCloud = React.memo(function FloatingCloud({
           if (onPress) {
             try {
               onPress();
-            } catch (error) {
+            } catch {
               // Error in onPress
             }
           }
@@ -3309,7 +3645,7 @@ const FloatingSun = React.memo(function FloatingSun({
           if (onPress) {
             try {
               onPress();
-            } catch (error) {
+            } catch {
               // Error in onPress
             }
           }
@@ -3594,13 +3930,6 @@ const SparkledDots = React.memo(function SparkledDots({
 }) {
   const { isTablet } = useLargeDevice();
 
-  // Check if we're using animated values
-  const isAnimated = typeof avatarCenterX === 'object' && 'value' in avatarCenterX;
-  
-  // Extract static values for initial calculation (or use directly if not animated)
-  const staticCenterX = isAnimated ? (avatarCenterX as ReturnType<typeof useSharedValue<number>>).value : avatarCenterX;
-  const staticCenterY = isAnimated ? (avatarCenterY as ReturnType<typeof useSharedValue<number>>).value : avatarCenterY;
-
   // Generate random positions for dots around the avatar
   // Create more dots with better visibility
   const dots = React.useMemo(() => {
@@ -3859,9 +4188,9 @@ const FloatingEntity = React.memo(function FloatingEntity({
     
     memories.forEach((memory) => {
       totalClouds += (memory.hardTruths || []).length;
-      totalSuns += (memory.goodFacts || []).length;
+      totalSuns += (memory.goodFacts || []).length + (memory.lessonsLearned || []).length; // Lessons count as positive moments
     });
-    
+
     const total = totalClouds + totalSuns;
     if (total === 0) return 50; // Default to neutral if no moments
     
@@ -4485,10 +4814,9 @@ export default function HomeScreen() {
     hobbies,
     idealizedMemories,
     isLoading,
-    getIdealizedMemoriesByProfileId, 
+    getIdealizedMemoriesByProfileId,
     getIdealizedMemoriesByEntityId,
     updateIdealizedMemory,
-    getEntitiesBySphere,
     getOverallSunnyPercentage,
     reloadIdealizedMemories,
     reloadProfiles,
@@ -4537,10 +4865,7 @@ export default function HomeScreen() {
   useEffect(() => {
     // Only check once after data has loaded
     if (isLoading || hasRedirectedRef.current) return;
-    
-    const totalEntities = profiles.length + jobs.length + familyMembers.length + friends.length + hobbies.length;
-    const totalMemories = idealizedMemories.length;
-    
+
     // If there's no data, the walkthrough will appear automatically
     // when the user navigates to the spheres tab (handled in spheres.tsx)
     // No need to redirect here - let the user navigate naturally
@@ -5092,7 +5417,7 @@ export default function HomeScreen() {
         }
         const year = endDate.getFullYear();
         return year.toString();
-      } catch (e) {
+      } catch {
         return 'ongoing'; // Fallback to ongoing on error
       }
     }
@@ -5308,7 +5633,7 @@ export default function HomeScreen() {
           });
           setSavedPositions(positionsMap);
         }
-      } catch (error) {
+      } catch {
         // Error loading avatar positions
       } finally {
         setPositionsLoaded(true);
@@ -6052,8 +6377,7 @@ export default function HomeScreen() {
         return a.index - b.index;
       });
     });
-    
-    const totalProfilesInSections = Array.from(grouped.values()).flat().length;
+
     return grouped;
   }, [visibleProfiles, sortedProfiles, getProfileSectionKey, yearSections, focusedProfileId, focusedMemory, selectedSphere]);
 
@@ -7578,7 +7902,7 @@ export default function HomeScreen() {
             ]}
           >
             {/* Render year sections with jobs inside */}
-            {animationsReady && !focusedMemory && (
+            {animationsReady && !focusedJobId && !focusedMemory && (
               <>
                 {/* Year titles below back arrow - shown for each year section in listing view */}
                 {!focusedJobId && Array.from(jobYearSections.entries()).map(([key, section]) => {
@@ -8025,7 +8349,7 @@ export default function HomeScreen() {
             ]}
           >
             {/* Render family members with year section backgrounds (titles hidden) */}
-            {animationsReady && !focusedMemory && (
+            {animationsReady && !focusedFamilyMemberId && !focusedMemory && (
               <>
                 {/* Year section backgrounds - titles are hidden */}
                 {Array.from(familyYearSections.entries()).map(([key, section]) => (
@@ -8414,7 +8738,7 @@ export default function HomeScreen() {
             ]}
           >
             {/* Render friends with year section backgrounds (titles hidden) */}
-            {animationsReady && !focusedMemory && (
+            {animationsReady && !focusedFriendId && !focusedMemory && (
               <>
                 {/* Year section backgrounds - titles are hidden */}
                 {Array.from(friendsYearSections.entries()).map(([key, section]) => (
@@ -8802,7 +9126,7 @@ export default function HomeScreen() {
             ]}
           >
             {/* Render hobbies with year section backgrounds (titles hidden) */}
-            {animationsReady && !focusedMemory && (
+            {animationsReady && !focusedHobbyId && !focusedMemory && (
               <>
                 {/* Year section backgrounds - titles are hidden */}
                 {Array.from(hobbiesYearSections.entries()).map(([key, section]) => (
