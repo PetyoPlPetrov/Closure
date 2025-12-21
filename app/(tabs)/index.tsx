@@ -11,9 +11,9 @@ import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import {
-  getCurrentBadge,
-  getNextBadge,
-  recalculateStreak
+    getCurrentBadge,
+    getNextBadge,
+    recalculateStreak
 } from '@/utils/streak-manager';
 import { refreshStreakNotifications } from '@/utils/streak-notifications';
 import type { StreakBadge, StreakData } from '@/utils/streak-types';
@@ -26,15 +26,15 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
-  Easing,
-  runOnJS,
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSpring,
-  withTiming
+    Easing,
+    runOnJS,
+    useAnimatedReaction,
+    useAnimatedStyle,
+    useSharedValue,
+    withDelay,
+    withRepeat,
+    withSpring,
+    withTiming
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, FeColorMatrix, FeGaussianBlur, FeMerge, FeMergeNode, Filter, Path, RadialGradient, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -4287,6 +4287,7 @@ const FloatingEntity = React.memo(function FloatingEntity({
 const RotatableSphereWrapper = React.memo(function RotatableSphereWrapper({
   sphereIndex,
   rotation,
+  hintRotation,
   centerX,
   centerY,
   radius,
@@ -4296,6 +4297,7 @@ const RotatableSphereWrapper = React.memo(function RotatableSphereWrapper({
 }: {
   sphereIndex: number;
   rotation: ReturnType<typeof useSharedValue<number>>;
+  hintRotation?: ReturnType<typeof useSharedValue<number>>;
   centerX: number;
   centerY: number;
   radius: number;
@@ -4307,10 +4309,11 @@ const RotatableSphereWrapper = React.memo(function RotatableSphereWrapper({
   const sphereSize = isTablet ? 120 : 80; // Match SphereAvatar size
   const offset = -sphereSize / 2; // Center the sphere
 
-  // Calculate animated position based on rotation
+  // Calculate animated position based on rotation (including hint rotation)
   const animatedStyle = useAnimatedStyle(() => {
     const baseAngle = startAngle + sphereIndex * angleStep;
-    const currentAngle = baseAngle + rotation.value;
+    const hintRot = hintRotation?.value ?? 0;
+    const currentAngle = baseAngle + rotation.value + hintRot;
     const x = centerX + radius * Math.cos(currentAngle);
     const y = centerY + radius * Math.sin(currentAngle);
 
@@ -4333,6 +4336,7 @@ const RotatableSphereWrapper = React.memo(function RotatableSphereWrapper({
 const RotatableFloatingEntityWrapper = React.memo(function RotatableFloatingEntityWrapper({
   sphereIndex,
   rotation,
+  hintRotation,
   centerX,
   centerY,
   sphereRadius,
@@ -4344,6 +4348,7 @@ const RotatableFloatingEntityWrapper = React.memo(function RotatableFloatingEnti
 }: {
   sphereIndex: number;
   rotation: ReturnType<typeof useSharedValue<number>>;
+  hintRotation?: ReturnType<typeof useSharedValue<number>>;
   centerX: number;
   centerY: number;
   sphereRadius: number;
@@ -4357,11 +4362,12 @@ const RotatableFloatingEntityWrapper = React.memo(function RotatableFloatingEnti
   const entitySize = isTablet ? 36 : 24; // Match FloatingEntity size
   const offset = -entitySize / 2; // Center the entity
   
-  // Calculate animated position based on rotation
+  // Calculate animated position based on rotation (including hint rotation)
   const animatedStyle = useAnimatedStyle(() => {
     // Calculate rotated sphere position
     const baseSphereAngle = startAngle + sphereIndex * angleStep;
-    const currentSphereAngle = baseSphereAngle + rotation.value;
+    const hintRot = hintRotation?.value ?? 0;
+    const currentSphereAngle = baseSphereAngle + rotation.value + hintRot;
     const sphereX = centerX + sphereRadius * Math.cos(currentSphereAngle);
     const sphereY = centerY + sphereRadius * Math.sin(currentSphereAngle);
     
@@ -5034,9 +5040,23 @@ export default function HomeScreen() {
     return idealizedMemories && idealizedMemories.length > 0;
   }, [idealizedMemories]);
   
-  // State to track if encouragement message is visible (toggled by clicking avatar)
+  // State to track if encouragement message is visible (shown automatically on tab open)
   const [isEncouragementVisible, setIsEncouragementVisible] = useState(false);
-  const hasAutoShownRef = useRef(false); // Track if we've auto-shown the message on initial load
+  
+  // Show encouragement message automatically when home tab is opened
+  useFocusEffect(
+    React.useCallback(() => {
+      // Show encouragement message when tab is focused and there are moments
+      if (hasAnyMoments) {
+        setIsEncouragementVisible(true);
+      }
+      
+      return () => {
+        // Hide message when leaving tab
+        setIsEncouragementVisible(false);
+      };
+    }, [hasAnyMoments])
+  );
   
   // Message position constants
   const messageTop = 100;
@@ -5150,6 +5170,8 @@ export default function HomeScreen() {
   const wheelVelocity = useSharedValue(0); // Rotation velocity
   const isWheelSpinning = useSharedValue(false); // Is wheel currently spinning
   const previousIsWheelSpinning = useSharedValue(false); // Track previous spinning state
+  const hintRotation = useSharedValue(0); // Gentle continuous rotation hint (in radians)
+  const isHintAnimating = useSharedValue(false); // Track if hint animation is active
   const [selectedLesson, setSelectedLesson] = useState<{ text: string; entityId: string; memoryId: string; sphere: LifeSphere } | null>(null);
   const [showLesson, setShowLesson] = useState(false);
   
@@ -5323,6 +5345,27 @@ export default function HomeScreen() {
       lessonTranslateY.value = withSpring(0, { damping: 20, stiffness: 200 });
     }
   }, [getAllLessons, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY]);
+
+  // Function to programmatically spin the wheel (called when avatar is pressed)
+  const spinWheel = useCallback(() => {
+    // Stop hint animation if active
+    if (isHintAnimating.value) {
+      isHintAnimating.value = false;
+      hintRotation.value = hintRotation.value; // Cancel animation
+    }
+    
+    // Stop any current spinning
+    isWheelSpinning.value = false;
+    wheelVelocity.value = 0;
+    
+    // Set initial velocity for a nice spin (counter-clockwise)
+    // Random velocity between 0.15 and 0.25 radians per frame (at 60fps, positive for counter-clockwise)
+    const randomSpeed = 0.15 + Math.random() * 0.1; // 0.15 to 0.25
+    wheelVelocity.value = randomSpeed; // Positive for counter-clockwise rotation
+    
+    // Start spinning
+    isWheelSpinning.value = true;
+  }, [isHintAnimating, hintRotation, isWheelSpinning, wheelVelocity]);
   
   // Animate lesson notification when manually closed
   useEffect(() => {
@@ -5368,6 +5411,38 @@ export default function HomeScreen() {
       ],
     };
   });
+
+  // Gentle continuous rotation hint animation
+  useEffect(() => {
+    // Start hint animation when wheel is idle (not spinning, not dragging)
+    const checkIdleState = () => {
+      const isIdle = !isWheelSpinning.value && !isDragging.value;
+      
+      if (isIdle && !isHintAnimating.value) {
+        // Start gentle continuous rotation hint (counter-clockwise)
+        // Rotate 2π radians (full circle counter-clockwise) over 120 seconds = ~0.75 degrees per second
+        isHintAnimating.value = true;
+        hintRotation.value = withRepeat(
+          withTiming(2 * Math.PI, {
+            duration: 120000, // 120 seconds for one full rotation
+            easing: Easing.linear,
+          }),
+          -1, // Infinite repeat
+          false // Don't reverse, just keep going
+        );
+      } else if (!isIdle && isHintAnimating.value) {
+        // Stop hint animation when user interacts
+        isHintAnimating.value = false;
+        // Cancel the animation by setting to current value
+        hintRotation.value = hintRotation.value;
+      }
+    };
+
+    // Check idle state periodically
+    const interval = setInterval(checkIdleState, 100); // Check every 100ms
+
+    return () => clearInterval(interval);
+  }, []); // Empty deps - shared values are accessed via .value inside the function
 
   // Wheel rotation animation with deceleration
   useEffect(() => {
@@ -5417,6 +5492,11 @@ export default function HomeScreen() {
           wheelVelocity.value = 0;
           isDragging.value = true;
           dragFrameCount.value = 0;
+          // Stop hint animation when user starts dragging
+          if (isHintAnimating.value) {
+            isHintAnimating.value = false;
+            hintRotation.value = hintRotation.value; // Cancel animation
+          }
         },
         onPanResponderMove: (evt, gestureState) => {
           const touch = evt.nativeEvent;
@@ -5803,24 +5883,6 @@ export default function HomeScreen() {
     }
   }, [isSplashVisible]);
   
-  // Auto-show encouragement message when splash animation completes and home screen is ready
-  React.useEffect(() => {
-    if (
-      !hasAutoShownRef.current &&
-      !isSplashVisible &&
-      isSplashAnimationComplete &&
-      animationsReady &&
-      hasAnyMoments &&
-      !selectedSphere // Only show on main home screen, not when a sphere is selected
-    ) {
-      // Small delay after splash completes to let everything settle
-      const timer = setTimeout(() => {
-        setIsEncouragementVisible(true);
-        hasAutoShownRef.current = true;
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isSplashVisible, isSplashAnimationComplete, animationsReady, hasAnyMoments, selectedSphere]);
   
   // Track positions for each avatar (for dragging)
   const [avatarPositionsState, setAvatarPositionsState] = React.useState<Map<string, { x: number; y: number }>>(new Map());
@@ -7380,8 +7442,9 @@ export default function HomeScreen() {
               >
                 <Pressable
                   onPress={() => {
-                    if (hasAnyMoments) {
-                      setIsEncouragementVisible(!isEncouragementVisible);
+                    // Spin the wheel of life when avatar is pressed
+                    if (!isWheelSpinning.value) {
+                      spinWheel();
                     }
                   }}
                   style={{
@@ -7416,6 +7479,7 @@ export default function HomeScreen() {
               <RotatableSphereWrapper
                 sphereIndex={0}
                 rotation={wheelRotation}
+                hintRotation={hintRotation}
                 centerX={sphereCircle.centerX}
                 centerY={sphereCircle.centerY}
                 radius={sphereCircle.radius}
@@ -7450,6 +7514,7 @@ export default function HomeScreen() {
               <RotatableSphereWrapper
                 sphereIndex={1}
                 rotation={wheelRotation}
+                hintRotation={hintRotation}
                 centerX={sphereCircle.centerX}
                 centerY={sphereCircle.centerY}
                 radius={sphereCircle.radius}
@@ -7484,6 +7549,7 @@ export default function HomeScreen() {
               <RotatableSphereWrapper
                 sphereIndex={2}
                 rotation={wheelRotation}
+                hintRotation={hintRotation}
                 centerX={sphereCircle.centerX}
                 centerY={sphereCircle.centerY}
                 radius={sphereCircle.radius}
@@ -7518,6 +7584,7 @@ export default function HomeScreen() {
               <RotatableSphereWrapper
                 sphereIndex={3}
                 rotation={wheelRotation}
+                hintRotation={hintRotation}
                 centerX={sphereCircle.centerX}
                 centerY={sphereCircle.centerY}
                 radius={sphereCircle.radius}
@@ -7552,6 +7619,7 @@ export default function HomeScreen() {
               <RotatableSphereWrapper
                 sphereIndex={4}
                 rotation={wheelRotation}
+                hintRotation={hintRotation}
                 centerX={sphereCircle.centerX}
                 centerY={sphereCircle.centerY}
                 radius={sphereCircle.radius}
@@ -7604,6 +7672,7 @@ export default function HomeScreen() {
                     key={`floating-partner-${profile.id}`}
                     sphereIndex={0} // relationships
                     rotation={wheelRotation}
+                    hintRotation={hintRotation}
                     centerX={sphereCircle.centerX}
                     centerY={sphereCircle.centerY}
                     sphereRadius={sphereCircle.radius}
@@ -7644,6 +7713,7 @@ export default function HomeScreen() {
                     key={`floating-job-${job.id}`}
                     sphereIndex={1} // career
                     rotation={wheelRotation}
+                    hintRotation={hintRotation}
                     centerX={sphereCircle.centerX}
                     centerY={sphereCircle.centerY}
                     sphereRadius={sphereCircle.radius}
@@ -7684,6 +7754,7 @@ export default function HomeScreen() {
                     key={`floating-member-${member.id}`}
                     sphereIndex={2} // family
                     rotation={wheelRotation}
+                    hintRotation={hintRotation}
                     centerX={sphereCircle.centerX}
                     centerY={sphereCircle.centerY}
                     sphereRadius={sphereCircle.radius}
@@ -7724,6 +7795,7 @@ export default function HomeScreen() {
                     key={`floating-friend-${friend.id}`}
                     sphereIndex={3} // friends
                     rotation={wheelRotation}
+                    hintRotation={hintRotation}
                     centerX={sphereCircle.centerX}
                     centerY={sphereCircle.centerY}
                     sphereRadius={sphereCircle.radius}
@@ -7764,6 +7836,7 @@ export default function HomeScreen() {
                     key={`floating-hobby-${hobby.id}`}
                     sphereIndex={4} // hobbies
                     rotation={wheelRotation}
+                    hintRotation={hintRotation}
                     centerX={sphereCircle.centerX}
                     centerY={sphereCircle.centerY}
                     sphereRadius={sphereCircle.radius}

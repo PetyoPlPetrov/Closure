@@ -911,7 +911,7 @@ export default function SettingsScreen() {
               const lessonsLearned = [];
               for (let j = 0; j < numLessons; j++) {
                 lessonsLearned.push({
-                  id: `lesson_${memberData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
+                  id: `lesson_${jobData.name}_${i}_${j}_${Date.now()}_${Math.random()}`,
                   text: careerLessonTexts[Math.floor(Math.random() * careerLessonTexts.length)],
                   x: Math.random() * 300 + 50,
                   y: Math.random() * 400 + 50,
