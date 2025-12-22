@@ -84,9 +84,4 @@ export async function cancelAllNotifications() {
 if (__DEV__) {
   (global as any).testNotification = scheduleTestNotification;
   (global as any).listNotifications = listScheduledNotifications;
-  (global as any).cancelAllNotifications = cancelAllNotifications;
-  console.log('[Test] Notification test functions loaded:');
-  console.log('  - testNotification(seconds) - Schedule a test notification');
-  console.log('  - listNotifications() - List all scheduled notifications');
-  console.log('  - cancelAllNotifications() - Cancel all notifications');
-}
+  (global as any).cancelAllNotifications = cancelAllNotifications;}

@@ -12,6 +12,7 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { LifeSphere, useJourney } from '@/utils/JourneyProvider';
 import { NotificationTemplate, useNotificationsManager } from '@/utils/NotificationsProvider';
+import { useSubscription } from '@/utils/SubscriptionProvider';
 
 export const options = {
   headerShown: true,
@@ -44,6 +45,7 @@ export default function NotificationDetailScreen() {
 
   const { friends, familyMembers, profiles } = useJourney();
   const { assignments, setOverride, checkCondition, getNextTriggerDate, getScheduledNotifications } = useNotificationsManager();
+  const { isSubscribed } = useSubscription();
   
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -119,6 +121,12 @@ export default function NotificationDetailScreen() {
       // Turn off notifications
       await setOverride(sphere, entityId, { kind: 'none' });
     } else {
+      // Turn on notifications - check subscription first
+      if (!isSubscribed) {
+        // Show custom paywall screen first
+        router.push('/paywall');
+        return; // Don't enable notifications until user subscribes
+      }
       // Turn on notifications with current draft settings
       await setOverride(sphere, entityId, {
         kind: 'custom',
@@ -248,10 +256,10 @@ export default function NotificationDetailScreen() {
               Notification settings
             </ThemedText>
             <TouchableOpacity
-              style={[styles.chip, currentOverride?.kind === 'custom' && styles.chipActive]}
+              style={[styles.toggleButton, currentOverride?.kind === 'custom' && styles.toggleButtonActive]}
               onPress={handleToggleNotifications}
             >
-              <ThemedText size="xs" weight="medium" style={{ color: currentOverride?.kind === 'custom' ? palette.background : palette.text }}>
+              <ThemedText size="sm" weight="bold" style={{ color: currentOverride?.kind === 'custom' ? palette.background : palette.text }}>
                 {currentOverride?.kind === 'custom' ? 'On' : 'Off'}
               </ThemedText>
             </TouchableOpacity>
@@ -575,6 +583,21 @@ const createStyles = (
       borderColor: palette.border,
     },
     chipActive: {
+      backgroundColor: palette.primary,
+      borderColor: palette.primary,
+    },
+    toggleButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 20 * fontScale,
+      paddingVertical: 12 * fontScale,
+      borderRadius: 24 * fontScale,
+      borderWidth: 2,
+      borderColor: palette.border,
+      minWidth: 80 * fontScale,
+    },
+    toggleButtonActive: {
       backgroundColor: palette.primary,
       borderColor: palette.primary,
     },

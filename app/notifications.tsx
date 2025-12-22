@@ -42,6 +42,7 @@ export default function NotificationsScreen() {
 
         <View style={{ marginTop: 12, gap: 10 }}>
           {entityNames.map((entity) => {
+            // Check if notification is enabled: must have override with kind 'custom'
             const override = assignment?.overrides?.[entity.id];
             const notifOn = override?.kind === 'custom';
 

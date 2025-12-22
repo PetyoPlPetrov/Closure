@@ -1931,18 +1931,8 @@ export default function SpheresScreen() {
                     >
                       <TouchableOpacity
                         style={{ width: '100%', height: '100%' }}
-                        onPress={async () => {
-                          // If RevenueCat is disabled, go straight to insights
-                          if (!ENABLE_REVENUECAT) {
-                            router.push('/insights');
-                            return;
-                          }
-
-                          // Otherwise, check entitlement via paywall
-                          const hasAccess = await presentPaywallIfNeeded('Sfera Premium', offerings || undefined);
-                          if (hasAccess) {
-                            router.push('/insights');
-                          }
+                        onPress={() => {
+                          router.push('/insights');
                         }}
                         activeOpacity={0.9}
                       >

@@ -6,6 +6,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import type { LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { useSubscription } from '@/utils/SubscriptionProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -648,17 +649,25 @@ export default function InsightsScreen() {
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const { profiles, jobs, familyMembers, getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
+  const { isSubscribed } = useSubscription();
   const t = useTranslate();
 
   // Temporary flag to hide the list view
   const HIDE_LIST_VIEW = true;
 
-  // Handler for pie chart slice clicks
-  const handleSlicePress = (sphere: LifeSphere) => {
+  // Handler for pie chart slice clicks - requires subscription
+  const handleSlicePress = async (sphere: LifeSphere) => {
     const entities = getEntitiesBySphere(sphere);
     const hasEntities = entities.length > 0;
 
     if (!hasEntities) return;
+
+    // Check subscription before navigating to comparison screens
+    if (!isSubscribed) {
+      // Show custom paywall screen first
+      router.push('/paywall');
+      return; // Don't navigate to comparison until user subscribes
+    }
 
     switch (sphere) {
       case 'relationships':
@@ -1005,16 +1014,25 @@ export default function InsightsScreen() {
                 <TouchableOpacity
                   key={sphere.type}
                   style={styles.scoreItem}
-                  onPress={() => {
-                    if (sphere.type === 'relationships' && hasEntities) {
+                  onPress={async () => {
+                    if (!hasEntities) return;
+
+                    // Check subscription before navigating to comparison screens
+                    if (!isSubscribed) {
+                      // Show custom paywall screen first
+                      router.push('/paywall');
+                      return; // Don't navigate to comparison until user subscribes
+                    }
+
+                    if (sphere.type === 'relationships') {
                       router.push('/relationships-comparison');
-                    } else if (sphere.type === 'career' && hasEntities) {
+                    } else if (sphere.type === 'career') {
                       router.push('/career-comparison');
-                    } else if (sphere.type === 'family' && hasEntities) {
+                    } else if (sphere.type === 'family') {
                       router.push('/family-comparison');
-                    } else if (sphere.type === 'friends' && hasEntities) {
+                    } else if (sphere.type === 'friends') {
                       router.push('/friends-comparison');
-                    } else if (sphere.type === 'hobbies' && hasEntities) {
+                    } else if (sphere.type === 'hobbies') {
                       router.push('/hobbies-comparison');
                     }
                   }}

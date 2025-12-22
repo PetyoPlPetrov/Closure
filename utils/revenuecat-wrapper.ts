@@ -5,7 +5,7 @@
 
 // Feature flag to enable/disable RevenueCat initialization
 // Set to false to disable RevenueCat (useful when using test keys in production)
-export const ENABLE_REVENUECAT = false;
+export const ENABLE_REVENUECAT = true;
 
 // Check if native modules are available
 let Purchases: any = null;
@@ -31,9 +31,10 @@ if (ENABLE_REVENUECAT) {
       isNativeModuleAvailable = true;
     }
   } catch (error) {
+    console.error('Error importing RevenueCat native modules:', error);
     // Native module not available - this is OK in development
   }
 }
 
-export { LOG_LEVEL, PAYWALL_RESULT, Purchases, RevenueCatUI, isNativeModuleAvailable };
+export { isNativeModuleAvailable, LOG_LEVEL, PAYWALL_RESULT, Purchases, RevenueCatUI };
 

@@ -202,7 +202,7 @@ export default function PaywallScreen() {
         },
         featureRow: {
           flexDirection: 'row',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           gap: 12 * fontScale,
         },
         featureIcon: {
@@ -287,13 +287,6 @@ export default function PaywallScreen() {
           fontSize: 14 * fontScale,
           color: colors.primary,
         },
-        revenuecatButton: {
-          backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(255, 255, 255, 0.1)' 
-            : 'rgba(0, 0, 0, 0.1)',
-          borderWidth: 2,
-          borderColor: colors.primary,
-        },
       }),
     [fontScale, maxContentWidth, colorScheme, colors]
   );
@@ -322,12 +315,6 @@ export default function PaywallScreen() {
             color={colors.text}
           />
         </TouchableOpacity>
-        <View style={styles.headerTitle}>
-          <MaterialIcons name="star" size={20 * fontScale} color={colors.primary} />
-          <ThemedText size="l" weight="bold" letterSpacing="s">
-            {t('subscription.title') || 'Unlock Premium'}
-          </ThemedText>
-        </View>
         <View style={styles.headerButton} />
       </View>
       <View style={styles.container}>
@@ -337,9 +324,12 @@ export default function PaywallScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <ThemedText size="xl" weight="bold" style={styles.title}>
-              {t('subscription.title') || 'Unlock Premium'}
-            </ThemedText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 * fontScale, marginBottom: 8 * fontScale }}>
+              <MaterialIcons name="star" size={24 * fontScale} color={colors.primary} />
+              <ThemedText size="xl" weight="bold" style={styles.title}>
+                {t('subscription.title') || 'Unlock Premium'}
+              </ThemedText>
+            </View>
             <ThemedText size="m" style={styles.subtitle}>
               {t('subscription.subtitle') || 'Get unlimited access to all features'}
             </ThemedText>
@@ -351,7 +341,7 @@ export default function PaywallScreen() {
               <View style={styles.featureIcon}>
                 <MaterialIcons name="check" size={16 * fontScale} color="#ffffff" />
               </View>
-              <ThemedText size="m">
+              <ThemedText size="m" style={{ flex: 1 }}>
                 {t('subscription.feature.unlimited') || 'Unlimited partners, jobs, friends, family members, and hobbies'}
               </ThemedText>
             </View>
@@ -359,7 +349,7 @@ export default function PaywallScreen() {
               <View style={styles.featureIcon}>
                 <MaterialIcons name="check" size={16 * fontScale} color="#ffffff" />
               </View>
-              <ThemedText size="m">
+              <ThemedText size="m" style={{ flex: 1 }}>
                 {t('subscription.feature.insights') || 'Access to premium insights and analytics'}
               </ThemedText>
             </View>
@@ -367,7 +357,7 @@ export default function PaywallScreen() {
               <View style={styles.featureIcon}>
                 <MaterialIcons name="check" size={16 * fontScale} color="#ffffff" />
               </View>
-              <ThemedText size="m">
+              <ThemedText size="m" style={{ flex: 1 }}>
                 {t('subscription.feature.support') || 'Priority support and updates'}
               </ThemedText>
             </View>
@@ -438,33 +428,14 @@ export default function PaywallScreen() {
             )}
           </View>
 
-          {/* RevenueCat UI Paywall Button (Alternative) */}
+          {/* Subscribe Button - Uses RevenueCat Paywall */}
           <TouchableOpacity
             style={[
               styles.primaryButton,
-              styles.revenuecatButton,
               isPurchasing && styles.primaryButtonDisabled,
             ]}
             onPress={handlePresentRevenueCatPaywall}
             disabled={isPurchasing}
-          >
-            {isPurchasing ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <ThemedText style={styles.primaryButtonText}>
-                {t('subscription.presentPaywall') || 'View Subscription Options'}
-              </ThemedText>
-            )}
-          </TouchableOpacity>
-
-          {/* Purchase Button (Custom UI) */}
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              (!selectedPackage || isPurchasing) && styles.primaryButtonDisabled,
-            ]}
-            onPress={() => selectedPackage && handlePurchase(selectedPackage)}
-            disabled={!selectedPackage || isPurchasing}
           >
             {isPurchasing ? (
               <ActivityIndicator color="#ffffff" />

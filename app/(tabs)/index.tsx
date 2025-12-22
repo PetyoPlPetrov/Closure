@@ -11,9 +11,9 @@ import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import {
-    getCurrentBadge,
-    getNextBadge,
-    recalculateStreak
+  getCurrentBadge,
+  getNextBadge,
+  recalculateStreak
 } from '@/utils/streak-manager';
 import { refreshStreakNotifications } from '@/utils/streak-notifications';
 import type { StreakBadge, StreakData } from '@/utils/streak-types';
@@ -26,15 +26,15 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
-    Easing,
-    runOnJS,
-    useAnimatedReaction,
-    useAnimatedStyle,
-    useSharedValue,
-    withDelay,
-    withRepeat,
-    withSpring,
-    withTiming
+  Easing,
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSpring,
+  withTiming
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, FeColorMatrix, FeGaussianBlur, FeMerge, FeMergeNode, Filter, Path, RadialGradient, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -5338,13 +5338,32 @@ export default function HomeScreen() {
       setSelectedLesson(randomLesson);
       setShowLesson(true);
 
-      // Animate lesson notification appearance (same as encouragement message)
-      lessonOpacity.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) });
-      lessonScale.value = withSpring(1, { damping: 20, stiffness: 200 });
-      lessonTranslateX.value = withSpring(0, { damping: 20, stiffness: 200 });
-      lessonTranslateY.value = withSpring(0, { damping: 20, stiffness: 200 });
+      // Calculate lesson dimensions (same as in render)
+      const lessonSunHeight = isTablet ? 240 : (isLargeDevice ? 200 : 160);
+
+      // Calculate positions: start from avatar center, end at messageTop
+      const avatarCenterX = sphereCircle.centerX;
+      const avatarCenterY = sphereCircle.centerY;
+      const finalX = SCREEN_WIDTH / 2;
+      const finalY = messageTop + (lessonSunHeight / 2); // Center of lesson notification
+      
+      // Calculate translation needed: from avatar to final position
+      const startTranslateX = avatarCenterX - finalX;
+      const startTranslateY = avatarCenterY - finalY;
+
+      // Start from avatar position (small scale, at avatar)
+      lessonOpacity.value = 0;
+      lessonScale.value = 0.3;
+      lessonTranslateX.value = startTranslateX;
+      lessonTranslateY.value = startTranslateY;
+
+      // Animate to final position (full scale, at top)
+      lessonOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) });
+      lessonScale.value = withSpring(1, { damping: 15, stiffness: 150 });
+      lessonTranslateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+      lessonTranslateY.value = withSpring(0, { damping: 15, stiffness: 150 });
     }
-  }, [getAllLessons, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY]);
+  }, [getAllLessons, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY, sphereCircle, messageTop, isTablet, isLargeDevice]);
 
   // Function to programmatically spin the wheel (called when avatar is pressed)
   const spinWheel = useCallback(() => {

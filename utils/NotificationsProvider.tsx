@@ -244,8 +244,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         const triggerDate = new Date(Math.max(trigger.getTime(), Date.now() + minDelay));
 
         // Create explicit trigger object with type field
-        const triggerInput = {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
+        const triggerInput: Notifications.DateTriggerInput = {
+          type: Notifications.SchedulableTriggerInputTypes.DATE as Notifications.SchedulableTriggerInputTypes.DATE,
           date: triggerDate,
         };
 
