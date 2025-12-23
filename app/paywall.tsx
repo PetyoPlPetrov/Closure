@@ -7,7 +7,6 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -19,9 +18,10 @@ export default function PaywallScreen() {
   const fontScale = useFontScale();
   const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
-  const { offerings, purchasePackage, restorePurchases, subscriptionStatus, presentPaywall } = useSubscription();
+  const { offerings, purchasePackage, restorePurchases, subscriptionStatus, presentPaywall, grantPremiumAccess } = useSubscription();
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PurchasesPackage | null>(null);
+
 
   const monthlyPackage = useMemo(() => {
     return offerings?.availablePackages.find(pkg => 
@@ -94,6 +94,57 @@ export default function PaywallScreen() {
   }, [restorePurchases, t]);
 
   const handlePresentRevenueCatPaywall = useCallback(async () => {
+    if (isPurchasing) return;
+    
+    try {
+      setIsPurchasing(true);
+      
+      // In dev mode, grant premium access directly
+      if (__DEV__) {
+        await grantPremiumAccess();
+        Alert.alert(
+          t('subscription.success.title') || 'Success!',
+          t('subscription.success.message') || 'Your subscription is now active!',
+          [
+            {
+              text: t('common.ok') || 'OK',
+              onPress: () => router.back(),
+            },
+          ]
+        );
+        return;
+      }
+      
+      // In production, use RevenueCat paywall
+      const success = await presentPaywall();
+      
+      if (success) {
+        // User purchased or restored through RevenueCat UI
+        Alert.alert(
+          t('subscription.success.title') || 'Success!',
+          t('subscription.success.message') || 'Your subscription is now active!',
+          [
+            {
+              text: t('common.ok') || 'OK',
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      }
+      // If cancelled or error, just return without showing alert
+    } catch (error: any) {
+      Alert.alert(
+        t('subscription.error.title') || 'Error',
+        error.message || t('subscription.error.message') || 'Something went wrong. Please try again.',
+        [{ text: t('common.ok') || 'OK' }]
+      );
+    } finally {
+      setIsPurchasing(false);
+    }
+  }, [isPurchasing, presentPaywall, grantPremiumAccess, t]);
+
+  // Handler for testing RevenueCat paywall directly (dev mode only)
+  const handleTestRevenueCatPaywall = useCallback(async () => {
     if (isPurchasing) return;
     
     try {
@@ -330,7 +381,7 @@ export default function PaywallScreen() {
                 {t('subscription.title') || 'Unlock Premium'}
               </ThemedText>
             </View>
-            <ThemedText size="m" style={styles.subtitle}>
+            <ThemedText size="l" style={styles.subtitle}>
               {t('subscription.subtitle') || 'Get unlimited access to all features'}
             </ThemedText>
           </View>
@@ -341,7 +392,7 @@ export default function PaywallScreen() {
               <View style={styles.featureIcon}>
                 <MaterialIcons name="check" size={16 * fontScale} color="#ffffff" />
               </View>
-              <ThemedText size="m" style={{ flex: 1 }}>
+              <ThemedText size="l" style={{ flex: 1 }}>
                 {t('subscription.feature.unlimited') || 'Unlimited partners, jobs, friends, family members, and hobbies'}
               </ThemedText>
             </View>
@@ -349,18 +400,11 @@ export default function PaywallScreen() {
               <View style={styles.featureIcon}>
                 <MaterialIcons name="check" size={16 * fontScale} color="#ffffff" />
               </View>
-              <ThemedText size="m" style={{ flex: 1 }}>
+              <ThemedText size="l" style={{ flex: 1 }}>
                 {t('subscription.feature.insights') || 'Access to premium insights and analytics'}
               </ThemedText>
             </View>
-            <View style={styles.featureRow}>
-              <View style={styles.featureIcon}>
-                <MaterialIcons name="check" size={16 * fontScale} color="#ffffff" />
-              </View>
-              <ThemedText size="m" style={{ flex: 1 }}>
-                {t('subscription.feature.support') || 'Priority support and updates'}
-              </ThemedText>
-            </View>
+           
           </View>
 
           {/* Packages */}
@@ -380,7 +424,7 @@ export default function PaywallScreen() {
                       <ThemedText size="l" weight="bold" style={styles.packageTitle}>
                         {t('subscription.yearly.title') || 'Yearly'}
                       </ThemedText>
-                      <ThemedText size="m" style={styles.packagePrice}>
+                      <ThemedText size="l" style={styles.packagePrice}>
                         {formatPrice(yearlyPackage)}
                       </ThemedText>
                       <ThemedText size="sm" style={styles.packagePeriod}>
@@ -415,7 +459,7 @@ export default function PaywallScreen() {
                       <ThemedText size="l" weight="bold" style={styles.packageTitle}>
                         {t('subscription.monthly.title') || 'Monthly'}
                       </ThemedText>
-                      <ThemedText size="m" style={styles.packagePrice}>
+                      <ThemedText size="l" style={styles.packagePrice}>
                         {formatPrice(monthlyPackage)}
                       </ThemedText>
                       <ThemedText size="sm" style={styles.packagePeriod}>
@@ -428,7 +472,7 @@ export default function PaywallScreen() {
             )}
           </View>
 
-          {/* Subscribe Button - Uses RevenueCat Paywall */}
+          {/* Subscribe Button - Grants access in dev, uses RevenueCat in prod */}
           <TouchableOpacity
             style={[
               styles.primaryButton,
@@ -445,6 +489,27 @@ export default function PaywallScreen() {
               </ThemedText>
             )}
           </TouchableOpacity>
+
+          {/* Dev-only: Test RevenueCat Paywall Button */}
+          {__DEV__ && (
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                { backgroundColor: colors.primaryLight, marginTop: 12 * fontScale },
+                isPurchasing && styles.primaryButtonDisabled,
+              ]}
+              onPress={handleTestRevenueCatPaywall}
+              disabled={isPurchasing}
+            >
+              {isPurchasing ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <ThemedText style={styles.primaryButtonText}>
+                  Test RevenueCat Paywall
+                </ThemedText>
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Restore Button */}
           <TouchableOpacity

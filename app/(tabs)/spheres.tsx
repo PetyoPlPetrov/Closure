@@ -10,7 +10,7 @@ import { WalkthroughModal } from '@/library/components/walkthrough-modal';
 import type { ExProfile, FamilyMember, Friend, Hobby, Job, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
-import { ENABLE_REVENUECAT } from '@/utils/revenuecat-wrapper';
+import { showPaywallForPremiumAccess } from '@/utils/premium-access';
 import { onSpheresTabPress } from '@/utils/spheres-tab-press';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import { useSubscription } from '@/utils/SubscriptionProvider';
@@ -168,9 +168,9 @@ export default function SpheresScreen() {
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const iconScale = useIconScale();
-  const { maxContentWidth, isLargeDevice } = useLargeDevice();
+  const { maxContentWidth, isLargeDevice, isTablet } = useLargeDevice();
   const { profiles, jobs, familyMembers, friends, hobbies, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, reloadIdealizedMemories, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories } = useJourney();
-  const { isSubscribed, presentPaywallIfNeeded, offerings } = useSubscription();
+  const { isSubscribed, offerings } = useSubscription();
   const { isAnimationComplete, isVisible: isSplashVisible } = useSplash();
   const t = useTranslate();
   
@@ -217,9 +217,9 @@ export default function SpheresScreen() {
     }
   };
 
-  const showSubscriptionPrompt = (sphere: LifeSphere) => {
-    // Directly navigate to paywall without showing alert
-    router.push('/paywall');
+  const showSubscriptionPrompt = async (sphere: LifeSphere) => {
+    // Show paywall (custom in dev, RevenueCat in prod)
+    await showPaywallForPremiumAccess();
   };
   
   // Reload memories when screen comes into focus (e.g., after running mock data script)
@@ -1883,13 +1883,18 @@ export default function SpheresScreen() {
                 // Calculate center based on the actual visual space
                 // The center should be in the middle of the circle formed by the boxes
                 const centerX = containerLayout.width / 2;
-                
+
                 // Pre-calculate values used by both button and cards
-                const radius = 140 * fontScale;
+                // Use larger radius for tablets to spread spheres out more
+                const radius = isTablet ? 200 * fontScale : 140 * fontScale;
                 const screenWidth = Dimensions.get('window').width;
-                // Calculate card width with smaller max size
-                const calculatedCardWidth = (screenWidth - 48 * fontScale - 32 * fontScale) / 2;
-                const cardWidth = Math.min(calculatedCardWidth, 140 * fontScale);
+                // Calculate card width - larger on tablets for better visibility
+                const calculatedCardWidth = isTablet
+                  ? Math.min((screenWidth - 64 * fontScale) / 3, 180 * fontScale) // 3 columns on tablets
+                  : (screenWidth - 48 * fontScale - 32 * fontScale) / 2; // 2 columns on phones
+                const cardWidth = isTablet
+                  ? Math.max(calculatedCardWidth, 160 * fontScale) // Minimum 160 on tablets
+                  : Math.min(calculatedCardWidth, 120 * fontScale); // Maximum 120 on phones (smaller for better fit)
                 const cardHalfWidth = cardWidth / 2;
                 const cardHalfHeight = cardWidth / 2; // Cards are square (aspectRatio: 1)
                 
@@ -1969,9 +1974,9 @@ export default function SpheresScreen() {
                         // Move hobbies and career boxes to middle position to overlap both upper and bottom boxes
                         // Career is index 1 (top-right at 18°), Hobbies is index 4 (bottom-left at -126°)
                         if (sphere.type === 'career') {
-                          // Move career to middle-right position (around 0° to -20°)
-                          // This positions it between top-right and bottom, overlapping both
-                          angle = 10 * (Math.PI / 180); // Middle-right position
+                          // Move career to higher position (more towards top-right)
+                          // Increase angle to move it higher up
+                          angle = 5 * (Math.PI / 150); // Higher position, more towards top
                         } else if (sphere.type === 'hobbies') {
                           // Move hobbies to middle-left position, slightly down (around 175°)
                           // This positions it between top-left and bottom, overlapping both
@@ -1987,7 +1992,7 @@ export default function SpheresScreen() {
                           // To move up towards top (90°), we need to increase the angle
                           // Calculate default and then adjust
                           const defaultAngleDeg = 85 - (index * 65);
-                          angle = (defaultAngleDeg - 25) * (Math.PI / 180); // Move up by 15 degrees
+                          angle = (defaultAngleDeg - 25) * (Math.PI / 190); // Move up by 15 degrees
                         }
                         
                         // Position cards around the center point (same as Insights button)
@@ -2049,6 +2054,8 @@ export default function SpheresScreen() {
                         {
                           left: x,
                           top: y,
+                          width: cardWidth,
+                          height: cardWidth,
                         },
                       ]}
                       onPress={() => handleSpherePress(sphere.type)}

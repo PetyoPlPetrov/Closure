@@ -13,6 +13,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { LifeSphere, useJourney } from '@/utils/JourneyProvider';
 import { NotificationTemplate, useNotificationsManager } from '@/utils/NotificationsProvider';
 import { useSubscription } from '@/utils/SubscriptionProvider';
+import { showPaywallForPremiumAccess } from '@/utils/premium-access';
 
 export const options = {
   headerShown: true,
@@ -123,9 +124,10 @@ export default function NotificationDetailScreen() {
     } else {
       // Turn on notifications - check subscription first
       if (!isSubscribed) {
-        // Show custom paywall screen first
-        router.push('/paywall');
-        return; // Don't enable notifications until user subscribes
+        // Show paywall (custom in dev, RevenueCat in prod)
+        const subscribed = await showPaywallForPremiumAccess();
+        if (!subscribed) return; // User cancelled or didn't subscribe
+        // User subscribed, continue to enable notifications
       }
       // Turn on notifications with current draft settings
       await setOverride(sphere, entityId, {
@@ -431,26 +433,73 @@ export default function NotificationDetailScreen() {
             <View style={styles.chipRow}>
               {(sphere === 'relationships'
                 ? [
-                    { label: 'Less than job', value: 'relationshipLessThanJob' },
-                    { label: 'Less than friends avg', value: 'relationshipLessThanFriendsAvg' },
-                    { label: 'No recent', value: 'noRecent' },
+                    {
+                      label: 'Less than job',
+                      value: 'relationshipLessThanJob',
+                      info: {
+                        title: 'Less than job',
+                        body: 'Notify when this relationship has fewer moments (memories, insights) than your current job. This helps ensure you\'re giving enough attention to your relationships.'
+                      }
+                    },
+                    {
+                      label: 'Less than friends avg',
+                      value: 'relationshipLessThanFriendsAvg',
+                      info: {
+                        title: 'Less than friends avg',
+                        body: 'Notify when this relationship has fewer moments than the average of your friendships. This helps maintain balance between romantic relationships and friendships.'
+                      }
+                    },
+                    {
+                      label: 'No recent',
+                      value: 'noRecent',
+                      info: {
+                        title: 'No recent moments',
+                        body: 'Notify when you haven\'t added any moments for this relationship in the specified number of days. Helps you stay connected and reflect regularly.'
+                      }
+                    },
                   ]
                 : [
-                    { label: 'Below avg', value: 'belowAvgMoments' },
-                    { label: 'No recent', value: 'noRecent' },
+                    {
+                      label: 'Below avg',
+                      value: 'belowAvgMoments',
+                      info: {
+                        title: 'Below average',
+                        body: 'Notify when this entity has fewer moments than the average across all entities in this sphere. Helps identify relationships that might need more attention.'
+                      }
+                    },
+                    {
+                      label: 'No recent',
+                      value: 'noRecent',
+                      info: {
+                        title: 'No recent moments',
+                        body: 'Notify when you haven\'t added any moments for this entity in the specified number of days. Helps you maintain regular reflection and connection.'
+                      }
+                    },
                   ]
               ).map((opt) => {
                 const active = customDraft.condition === opt.value;
                 return (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[styles.chip, active && styles.chipActive]}
-                    onPress={() => updateCustomDraft({ condition: opt.value as NotificationTemplate['condition'] })}
-                  >
-                    <ThemedText size="xs" weight="medium" style={{ color: active ? palette.background : palette.text }}>
-                      {opt.label}
-                    </ThemedText>
-                  </TouchableOpacity>
+                  <View key={opt.value} style={styles.chipWithInfo}>
+                    <TouchableOpacity
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => updateCustomDraft({ condition: opt.value as NotificationTemplate['condition'] })}
+                    >
+                      <ThemedText size="xs" weight="medium" style={{ color: active ? palette.background : palette.text }}>
+                        {opt.label}
+                      </ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.infoIcon}
+                      onPress={() => setInfoModal(opt.info)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <MaterialIcons
+                        name="info-outline"
+                        size={18 * fontScale}
+                        color={palette.muted}
+                      />
+                    </TouchableOpacity>
+                  </View>
                 );
               })}
             </View>
@@ -648,5 +697,14 @@ const createStyles = (
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4 * fontScale,
+    },
+    chipWithInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4 * fontScale,
+    },
+    infoIcon: {
+      padding: 4 * fontScale,
+      marginLeft: -4 * fontScale,
     },
   });

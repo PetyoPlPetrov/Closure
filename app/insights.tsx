@@ -7,6 +7,7 @@ import type { LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useSubscription } from '@/utils/SubscriptionProvider';
+import { showPaywallForPremiumAccess } from '@/utils/premium-access';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -664,9 +665,10 @@ export default function InsightsScreen() {
 
     // Check subscription before navigating to comparison screens
     if (!isSubscribed) {
-      // Show custom paywall screen first
-      router.push('/paywall');
-      return; // Don't navigate to comparison until user subscribes
+      // Show paywall (custom in dev, RevenueCat in prod)
+      const subscribed = await showPaywallForPremiumAccess();
+      if (!subscribed) return; // User cancelled or didn't subscribe
+      // User subscribed, continue to navigation
     }
 
     switch (sphere) {
@@ -1019,9 +1021,10 @@ export default function InsightsScreen() {
 
                     // Check subscription before navigating to comparison screens
                     if (!isSubscribed) {
-                      // Show custom paywall screen first
-                      router.push('/paywall');
-                      return; // Don't navigate to comparison until user subscribes
+                      // Show paywall (custom in dev, RevenueCat in prod)
+                      const subscribed = await showPaywallForPremiumAccess();
+                      if (!subscribed) return; // User cancelled or didn't subscribe
+                      // User subscribed, continue to navigation
                     }
 
                     if (sphere.type === 'relationships') {

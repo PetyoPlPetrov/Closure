@@ -7383,8 +7383,8 @@ export default function HomeScreen() {
                   />
                   <ThemedText
                     style={{
-                      color: colorScheme === 'dark' ? '#000000' : '#1A1A1A',
-                      fontSize: 10 * fontScale,
+                      color: colorScheme === 'dark' ? '#1A1A1A' : '#000000',
+                      fontSize: 12 * fontScale,
                       textAlign: 'center',
                       fontWeight: '700',
                       maxWidth: lessonSunWidth * 0.8,

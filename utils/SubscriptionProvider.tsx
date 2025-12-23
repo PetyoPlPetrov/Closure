@@ -16,6 +16,7 @@ interface SubscriptionContextType {
   restorePurchases: () => Promise<void>;
   presentPaywall: () => Promise<boolean>;
   presentPaywallIfNeeded: (requiredEntitlementIdentifier: string, offering?: PurchasesOffering) => Promise<boolean>;
+  grantPremiumAccess: () => Promise<void>; // Dev-only: Grant premium access without purchase
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -158,6 +159,15 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     return result;
   }, [checkSubscription, offerings]);
 
+  // Dev-only: Grant premium access without purchase
+  const grantPremiumAccess = useCallback(async () => {
+    if (!__DEV__) {
+      throw new Error('grantPremiumAccess is only available in development mode');
+    }
+    setIsSubscribed(true);
+    setSubscriptionStatus('subscribed');
+  }, []);
+
   const value: SubscriptionContextType = {
     isSubscribed,
     subscriptionStatus,
@@ -168,6 +178,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     restorePurchases,
     presentPaywall: handlePresentPaywall,
     presentPaywallIfNeeded: handlePresentPaywallIfNeeded,
+    grantPremiumAccess,
   };
 
   return <SubscriptionContext.Provider value={value}>{children}</SubscriptionContext.Provider>;

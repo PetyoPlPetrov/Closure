@@ -9,6 +9,7 @@ import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useSubscription } from '@/utils/SubscriptionProvider';
+import { showPaywallForPremiumAccess } from '@/utils/premium-access';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -225,8 +226,10 @@ export default function AddJobScreen() {
     // Check subscription limit for new jobs (not edits)
     // Only check if user already had 1+ jobs when they entered this screen
     if (!isEditMode && !isSubscribed && initialJobCount.current !== null && initialJobCount.current >= 1) {
-      router.replace('/paywall');
-      return;
+      // Show paywall (custom in dev, RevenueCat in prod)
+      const subscribed = await showPaywallForPremiumAccess();
+      if (!subscribed) return; // User cancelled or didn't subscribe
+      // User subscribed, continue to save
     }
 
     // Mark as saving to prevent useEffect redirect

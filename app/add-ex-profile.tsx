@@ -9,6 +9,7 @@ import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
 import { useJourney, type ExProfile } from '@/utils/JourneyProvider';
 import { useSubscription } from '@/utils/SubscriptionProvider';
+import { showPaywallForPremiumAccess } from '@/utils/premium-access';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -373,8 +374,10 @@ export default function AddExProfileScreen() {
     // Only check if profiles have loaded (to avoid false positives)
     if (!isEditMode && !isSubscribed && !isLoading && profiles.length >= 1) {
       isSaving.current = false;
-      router.replace('/paywall');
-      return;
+      // Show paywall (custom in dev, RevenueCat in prod)
+      const subscribed = await showPaywallForPremiumAccess();
+      if (!subscribed) return; // User cancelled or didn't subscribe
+      // User subscribed, continue to save
     }
 
     // Validate: prevent setting as ongoing if there's already an ongoing partner

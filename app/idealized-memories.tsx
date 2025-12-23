@@ -271,7 +271,7 @@ export default function IdealizedMemoriesScreen() {
                 <View key={memory.id} style={index < memories.length - 1 ? styles.memoryCardSpacing : undefined}>
                   <MemoryCard
                     memory={memory}
-                    onPress={() => handleMemoryPress(memory.id)}
+                    onPress={() => handleMorePress(memory)}
                     onMorePress={() => handleMorePress(memory)}
                   />
                 </View>

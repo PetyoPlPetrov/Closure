@@ -7,6 +7,11 @@
 // Set to false to disable RevenueCat (useful when using test keys in production)
 export const ENABLE_REVENUECAT = true;
 
+// Flag to control whether custom paywall is shown or RevenueCat paywall is shown directly
+// When false, users will directly see RevenueCat paywall when accessing premium content
+// When true, users will see the custom paywall screen (for testing)
+export const DEV_PAYWALL = true;
+
 // Check if native modules are available
 let Purchases: any = null;
 let RevenueCatUI: any = null;

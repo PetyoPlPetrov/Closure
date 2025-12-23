@@ -7,7 +7,9 @@ import { FloatingActionButton } from '@/library/components/floating-action-butto
 import { logMomentCreated } from '@/utils/analytics';
 import { useInAppNotification } from '@/utils/InAppNotificationProvider';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
+import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { getLifeLessonPlaceholder } from '@/utils/life-lessons';
 import { updateStreakOnMemoryCreation } from '@/utils/streak-manager';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -567,72 +569,74 @@ function AnimatedLesson({
         animatedStyle,
       ]}
     >
-      <View style={[styles.lessonContentContainer, { width: lessonWidth, height: lessonHeight }]}>
-        {/* Lightbulb SVG Icon - larger and centered */}
-        <View style={styles.lessonBulbContainer}>
-          <Svg width={lessonWidth} height={lessonHeight} viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet">
-            <Defs>
-              <RadialGradient id={`bulbGradient_${lesson.id}`} cx="50%" cy="30%">
-                <Stop offset="0%" stopColor="#FFF9C4" stopOpacity="1" />
-                <Stop offset="70%" stopColor="#FFD54F" stopOpacity="1" />
-                <Stop offset="100%" stopColor="#FFA000" stopOpacity="1" />
-              </RadialGradient>
-            </Defs>
-            {/* Background circle inside bulb for text area */}
-            <Ellipse
-              cx="12"
-              cy="10.5"
-              rx="6.5"
-              ry="7"
-              fill={colorScheme === 'dark' 
-                ? 'rgba(26, 35, 50, 0.85)' 
-                : 'rgba(255, 255, 255, 0.9)'}
-            />
-            {/* Lightbulb shape */}
-            <Path
-              d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7zm3 13.7V17h-6v-1.3C7.48 14.63 6 12 6 9c0-3.31 2.69-6 6-6s6 2.69 6 6c0 3-1.48 5.63-3 6.7z"
-              fill={`url(#bulbGradient_${lesson.id})`}
-            />
-            {/* Base */}
-            <Path
-              d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1z"
-              fill="#9E9E9E"
-            />
-            <Path
-              d="M9 18h6v1H9z"
-              fill="#757575"
-            />
-            {/* Light rays */}
-            <Path
-              d="M12 0L11 4h2L12 0z M3.5 3.5l2.83 2.83L7.76 4.9 4.93 2.07 3.5 3.5z M0 12l4-1v2L0 12z M3.5 20.5l1.43-1.43 2.83 2.83-1.43 1.43L3.5 20.5z M20.5 20.5l-2.83-2.83 1.43-1.43 2.83 2.83-1.43 1.43z M24 12l-4 1v-2l4 1z M20.5 3.5l-1.43 1.43-2.83-2.83 1.43-1.43L20.5 3.5z"
-              fill="#FFE082"
-              opacity="0.6"
-            />
-          </Svg>
-        </View>
-
-        {/* Text input - positioned inside the bulb */}
+      <LinearGradient
+        colors={
+          colorScheme === 'dark'
+            ? ['#FFD700', '#FFA000']  // Gold gradient
+            : ['#FFE082', '#FFB300']  // Lighter gold gradient
+        }
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{
+          width: lessonWidth,
+          height: lessonWidth, // Square
+          borderRadius: lessonWidth / 2, // Perfect circle
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 8,
+          padding: 8,
+        }}
+      >
+        <MaterialIcons
+          name="lightbulb"
+          size={lessonWidth * 0.4}
+          color={colorScheme === 'dark' ? '#000000' : '#1A1A1A'}
+          style={{ marginBottom: 4 }}
+        />
         <TextInput
           ref={inputRef}
-          style={[styles.lessonInput, { color: colors.text }]}
+          style={{
+            color: colorScheme === 'dark' ? '#000000' : '#1A1A1A',
+            fontSize: 10,
+            textAlign: 'center',
+            fontWeight: '700',
+            maxWidth: lessonWidth * 0.8,
+            minHeight: 20,
+          }}
           value={lesson.text}
           onChangeText={(text) => onTextChange(lesson.id, text)}
           placeholder={placeholder}
-          placeholderTextColor={colors.text + '80'}
+          placeholderTextColor={(colorScheme === 'dark' ? '#000000' : '#1A1A1A') + '80'}
           multiline
+          numberOfLines={2}
           editable={!viewOnly}
         />
+      </LinearGradient>
 
-        {/* Delete button */}
-        {!viewOnly && (
-          <TouchableOpacity
-            style={styles.deleteLessonButton}
-            onPress={() => onDelete(lesson.id)}
-          >
-            <MaterialIcons name="close" size={16} color={colors.text} />
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* Delete button - positioned outside the circle */}
+      {!viewOnly && (
+        <TouchableOpacity
+          style={{
+            position: 'absolute',
+            top: -8,
+            right: -8,
+            backgroundColor: colors.error,
+            borderRadius: 12,
+            width: 24,
+            height: 24,
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1001,
+          }}
+          onPress={() => onDelete(lesson.id)}
+        >
+          <MaterialIcons name="close" size={16} color="#ffffff" />
+        </TouchableOpacity>
+      )}
     </Animated.View>
   );
 }
@@ -653,6 +657,7 @@ export default function AddIdealizedMemoryScreen() {
   const params = useLocalSearchParams();
   const { addIdealizedMemory, updateIdealizedMemory, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
   const t = useTranslate();
+  const { language } = useLanguage();
   const { showNotification } = useInAppNotification();
   
   // Support both old (profileId) and new (entityId + sphere) parameters
@@ -726,6 +731,7 @@ export default function AddIdealizedMemoryScreen() {
     y: number;
     startX?: number;
     startY?: number;
+    placeholder?: string;
   }[]>([]);
 
   const initialClouds = useRef<typeof clouds>([]);
@@ -946,9 +952,9 @@ export default function AddIdealizedMemoryScreen() {
     const screenH = Dimensions.get('window').height;
     const padding = 20;
 
-    // Lesson dimensions (same as defined in initialization) - larger for bigger bulb
-    const lessonWidth = isLargeDevice ? 140 : 120;
-    const lessonHeight = isLargeDevice ? 180 : 150;
+    // Lesson dimensions - same as sun (circular)
+    const lessonWidth = isLargeDevice ? 150 : 100;
+    const lessonHeight = isLargeDevice ? 150 : 100;
 
     // Center vertically on screen
     const centerY = (screenH / 2) - (lessonHeight / 2);
@@ -1068,8 +1074,8 @@ export default function AddIdealizedMemoryScreen() {
         const screenW = Dimensions.get('window').width;
         const screenH = Dimensions.get('window').height;
         const padding = 20;
-        const lessonWidth = isLargeDevice ? 140 : 120;
-        const lessonHeight = isLargeDevice ? 180 : 150;
+        const lessonWidth = isLargeDevice ? 150 : 100;
+        const lessonHeight = isLargeDevice ? 150 : 100;
         const minX = padding;
         const maxX = screenW - lessonWidth - padding;
         const minY = padding;
@@ -1489,8 +1495,8 @@ export default function AddIdealizedMemoryScreen() {
       startPos = { x: buttonX, y: buttonY };
     }
 
-    const lessonWidth = isLargeDevice ? 140 : 120;
-    const lessonHeight = isLargeDevice ? 180 : 150;
+    const lessonWidth = isLargeDevice ? 150 : 100;
+    const lessonHeight = isLargeDevice ? 150 : 100;
 
     const newLesson = {
       id: Date.now().toString() + Math.random().toString(),
@@ -1500,6 +1506,7 @@ export default function AddIdealizedMemoryScreen() {
       // Start position: center lesson on the lightbulb button
       startX: startPos.x - (lessonWidth / 2), // Center lesson horizontally
       startY: startPos.y - (lessonHeight / 2), // Center lesson vertically
+      placeholder: getLifeLessonPlaceholder(language), // Generate random life lesson placeholder
     };
     setLessons((prev) => [...prev, newLesson]);
     // Set the newly created lesson ID to trigger auto-focus
@@ -1655,8 +1662,8 @@ export default function AddIdealizedMemoryScreen() {
     const lessonKey = `lesson_${lessonId}`;
     if (panResponders.current[lessonKey]) return panResponders.current[lessonKey];
 
-    const lessonWidth = isLargeDevice ? 140 : 120;
-    const lessonHeight = isLargeDevice ? 180 : 150;
+    const lessonWidth = isLargeDevice ? 150 : 100;
+    const lessonHeight = isLargeDevice ? 150 : 100;
 
     panResponders.current[lessonKey] = PanResponder.create({
       onStartShouldSetPanResponder: (evt, gestureState) => {
@@ -2046,8 +2053,8 @@ export default function AddIdealizedMemoryScreen() {
         lessonContainer: {
           position: 'absolute',
           zIndex: 9997, // Lower than suns
-          width: isLargeDevice ? 140 : 120,
-          height: isLargeDevice ? 180 : 150,
+          width: isLargeDevice ? 150 : 100,
+          height: isLargeDevice ? 150 : 100,
           justifyContent: 'center',
           alignItems: 'center',
           overflow: 'visible',
@@ -2620,8 +2627,8 @@ export default function AddIdealizedMemoryScreen() {
         const inputRef = lessonInputRefs.current[lesson.id]!;
         const shouldAutoFocus = newlyCreatedLessonId === lesson.id;
 
-        const lessonWidth = isLargeDevice ? 140 : 120;
-        const lessonHeight = isLargeDevice ? 180 : 150;
+        const lessonWidth = isLargeDevice ? 150 : 100;
+        const lessonHeight = isLargeDevice ? 150 : 100;
 
         return (
           <AnimatedLesson
@@ -2633,7 +2640,7 @@ export default function AddIdealizedMemoryScreen() {
             colorScheme={colorScheme}
             lessonWidth={lessonWidth}
             lessonHeight={lessonHeight}
-            placeholder={t('memory.lesson.placeholder')}
+            placeholder={lesson.placeholder || t('memory.lesson.placeholder')}
             onTextChange={(id, text) => {
               setLessons((prev) =>
                 prev.map((l) => (l.id === id ? { ...l, text } : l))
