@@ -12,6 +12,10 @@ export const ENABLE_REVENUECAT = true;
 // When true, users will see the custom paywall screen (for testing)
 export const DEV_PAYWALL = true;
 
+// Flag to completely bypass subscription checks and allow premium content
+// When true, users get premium access without paywall
+export const FORCE_PREMIUM_UNLOCK = true;
+
 // Check if native modules are available
 let Purchases: any = null;
 let RevenueCatUI: any = null;

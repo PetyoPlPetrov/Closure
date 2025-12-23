@@ -6,6 +6,7 @@ import { useLargeDevice } from '@/hooks/use-large-device';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { DEV_PAYWALL, FORCE_PREMIUM_UNLOCK } from '@/utils/revenuecat-wrapper';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -99,8 +100,8 @@ export default function PaywallScreen() {
     try {
       setIsPurchasing(true);
       
-      // In dev mode, grant premium access directly
-      if (__DEV__) {
+      // If forced unlock or DEV paywall is enabled, grant access immediately
+      if (FORCE_PREMIUM_UNLOCK || DEV_PAYWALL) {
         await grantPremiumAccess();
         Alert.alert(
           t('subscription.success.title') || 'Success!',
@@ -115,7 +116,7 @@ export default function PaywallScreen() {
         return;
       }
       
-      // In production, use RevenueCat paywall
+      // If DEV_PAYWALL is off, show RevenueCat paywall
       const success = await presentPaywall();
       
       if (success) {
@@ -490,26 +491,24 @@ export default function PaywallScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Dev-only: Test RevenueCat Paywall Button */}
-          {__DEV__ && (
-            <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                { backgroundColor: colors.primaryLight, marginTop: 12 * fontScale },
-                isPurchasing && styles.primaryButtonDisabled,
-              ]}
-              onPress={handleTestRevenueCatPaywall}
-              disabled={isPurchasing}
-            >
-              {isPurchasing ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <ThemedText style={styles.primaryButtonText}>
-                  Test RevenueCat Paywall
-                </ThemedText>
-              )}
-            </TouchableOpacity>
-          )}
+          {/* Test RevenueCat Paywall Button (always visible for testing) */}
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              { backgroundColor: colors.primaryLight, marginTop: 12 * fontScale },
+              isPurchasing && styles.primaryButtonDisabled,
+            ]}
+            onPress={handleTestRevenueCatPaywall}
+            disabled={isPurchasing}
+          >
+            {isPurchasing ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <ThemedText style={styles.primaryButtonText}>
+                Test RevenueCat Paywall
+              </ThemedText>
+            )}
+          </TouchableOpacity>
 
           {/* Restore Button */}
           <TouchableOpacity

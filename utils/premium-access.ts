@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { presentPaywall } from './revenuecat-paywall';
-import { DEV_PAYWALL } from './revenuecat-wrapper';
+import { DEV_PAYWALL, FORCE_PREMIUM_UNLOCK } from './revenuecat-wrapper';
 
 /**
  * Shows paywall based on DEV_PAYWALL flag:
@@ -9,6 +9,11 @@ import { DEV_PAYWALL } from './revenuecat-wrapper';
  * @returns Promise<boolean> - Returns true if user has access (subscribed in dev, or purchased/restored in prod)
  */
 export async function showPaywallForPremiumAccess(): Promise<boolean> {
+  // If force unlock is enabled, allow access immediately
+  if (FORCE_PREMIUM_UNLOCK) {
+    return true;
+  }
+
   if (DEV_PAYWALL) {
     // Show custom paywall screen (for testing)
     router.push('/paywall');

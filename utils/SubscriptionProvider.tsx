@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
-import { Purchases, isNativeModuleAvailable } from './revenuecat-wrapper';
+import { Purchases, isNativeModuleAvailable, DEV_PAYWALL, FORCE_PREMIUM_UNLOCK } from './revenuecat-wrapper';
 import type { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
 import { presentPaywall, presentPaywallIfNeeded } from './revenuecat-paywall';
 import { handleDevError } from './dev-error-handler';
@@ -32,6 +32,14 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
 
   const checkSubscription = useCallback(async () => {
+    // If force unlock is enabled, mark as subscribed and skip checks
+    if (FORCE_PREMIUM_UNLOCK) {
+      setSubscriptionStatus('subscribed');
+      setIsSubscribed(true);
+      setCustomerInfo(null);
+      return;
+    }
+
     if (!isNativeModuleAvailable || !Purchases) {
       setSubscriptionStatus('not_subscribed');
       setIsSubscribed(false);
@@ -104,6 +112,14 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   }, []);
 
   useEffect(() => {
+    // If force unlock is enabled, set subscribed immediately
+    if (FORCE_PREMIUM_UNLOCK) {
+      setSubscriptionStatus('subscribed');
+      setIsSubscribed(true);
+      setCustomerInfo(null);
+      return;
+    }
+
     // Initialize RevenueCat subscription system
     const initializeSubscription = async () => {
       if (!isNativeModuleAvailable || !Purchases) {
@@ -159,10 +175,10 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     return result;
   }, [checkSubscription, offerings]);
 
-  // Dev-only: Grant premium access without purchase
+  // Grant premium access without purchase when DEV_PAYWALL is enabled (for testing)
   const grantPremiumAccess = useCallback(async () => {
-    if (!__DEV__) {
-      throw new Error('grantPremiumAccess is only available in development mode');
+    if (!(DEV_PAYWALL || FORCE_PREMIUM_UNLOCK)) {
+      throw new Error('grantPremiumAccess is only available when DEV_PAYWALL or FORCE_PREMIUM_UNLOCK is enabled');
     }
     setIsSubscribed(true);
     setSubscriptionStatus('subscribed');
