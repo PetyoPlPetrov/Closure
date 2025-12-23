@@ -26,6 +26,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
+  cancelAnimation,
   Easing,
   runOnJS,
   useAnimatedReaction,
@@ -5089,7 +5090,7 @@ export default function HomeScreen() {
   );
   
   // Message position constants
-  const messageTop = 150; // Lowered to avoid overlap with streak badge
+  const messageTop = 100; // Position for encouragement message and lesson notification
   const messageLeft = 20;
   const messageRight = 20;
   
@@ -7517,6 +7518,22 @@ export default function HomeScreen() {
               >
                 <Pressable
                   onPress={() => {
+                    // Trigger pulse animation when avatar is pressed
+                    // Cancel any ongoing animation and reset to 1 first
+                    cancelAnimation(avatarPulseScale);
+                    avatarPulseScale.value = 1;
+                    // Then start new pulse animation
+                    avatarPulseScale.value = withSequence(
+                      withSpring(1.15, {
+                        damping: 8,
+                        stiffness: 120,
+                      }),
+                      withSpring(1, {
+                        damping: 10,
+                        stiffness: 150,
+                      })
+                    );
+
                     // Spin the wheel of life when avatar is pressed
                     if (!isWheelSpinning.value) {
                       spinWheel();
