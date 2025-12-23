@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +23,10 @@ export type IdealizedMemory = {
     id: string;
     text: string;
   }[];
+  lessonsLearned?: {
+    id: string;
+    text: string;
+  }[];
   createdAt: string;
 };
 
@@ -38,6 +43,7 @@ export function MemoryCard({
   onMorePress,
   containerStyle,
 }: MemoryCardProps) {
+  const t = useTranslate();
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
   const colors = Colors[colorScheme ?? 'dark'];
@@ -46,6 +52,8 @@ export function MemoryCard({
   const hasHardTruths = hardTruthCount > 0;
   const goodFactCount = memory.goodFacts?.length || 0;
   const hasGoodFacts = goodFactCount > 0;
+  const lessonCount = memory.lessonsLearned?.length || 0;
+  const hasLessons = lessonCount > 0;
   
   // Determine if memory is "sunny" (more good facts than hard truths) or "cloudy" (more hard truths than good facts)
   const isSunny = goodFactCount > hardTruthCount;
@@ -177,6 +185,17 @@ export function MemoryCard({
             : '#D97706', // Darker amber/yellow for light mode (good contrast)
         },
         goodFactTextEmpty: {
+          color:
+            colorScheme === 'dark'
+              ? 'rgba(226, 232, 240, 0.5)'
+              : 'rgba(148, 163, 184, 0.8)',
+        },
+        lessonText: {
+          color: colorScheme === 'dark' 
+            ? '#FFD700' // Yellow/gold for dark mode (same as good facts)
+            : '#D97706', // Darker amber/yellow for light mode
+        },
+        lessonTextEmpty: {
           color:
             colorScheme === 'dark'
               ? 'rgba(226, 232, 240, 0.5)'
@@ -352,9 +371,7 @@ export function MemoryCard({
                       : styles.hardTruthTextEmpty
                   }
                 >
-                  {hasHardTruths
-                    ? `${hardTruthCount} Hard Truth${hardTruthCount !== 1 ? 's' : ''}`
-                    : 'No Hard Truths yet'}
+                  {hardTruthCount}
                 </ThemedText>
               </View>
               <View style={styles.footerItem}>
@@ -374,9 +391,27 @@ export function MemoryCard({
                       : styles.goodFactTextEmpty
                   }
                 >
-                  {hasGoodFacts
-                    ? `${goodFactCount} Good Fact${goodFactCount !== 1 ? 's' : ''}`
-                    : 'No Good Facts yet'}
+                  {goodFactCount}
+                </ThemedText>
+              </View>
+              <View style={styles.footerItem}>
+                <MaterialIcons
+                  name="lightbulb"
+                  size={16 * fontScale}
+                  color={hasLessons 
+                    ? (colorScheme === 'dark' ? '#FFD700' : '#D97706') // Yellow to match lessons
+                    : 'rgba(148, 163, 184, 0.5)'}
+                />
+                <ThemedText
+                  size="xs"
+                  weight="medium"
+                  style={
+                    hasLessons
+                      ? styles.lessonText
+                      : styles.lessonTextEmpty
+                  }
+                >
+                  {lessonCount}
                 </ThemedText>
               </View>
             </View>

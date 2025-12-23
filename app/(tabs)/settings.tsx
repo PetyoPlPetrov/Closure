@@ -1527,7 +1527,7 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            Notifications
+            {t('settings.notifications.title')}
           </ThemedText>
 
           <TouchableOpacity
@@ -1546,7 +1546,7 @@ export default function SettingsScreen() {
                 weight="medium"
                 style={styles.dropdownText}
               >
-                Manage notifications
+                {t('settings.notifications.manage')}
               </ThemedText>
             </View>
             <MaterialIcons
@@ -1560,7 +1560,7 @@ export default function SettingsScreen() {
         {/* Temporary: Generate Fake Data Button */}
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            Development Tools
+            {t('settings.devTools.title')}
           </ThemedText>
           <TouchableOpacity
             style={[styles.dropdown, isGeneratingFakeData && { opacity: 0.5 }]}
@@ -1579,7 +1579,7 @@ export default function SettingsScreen() {
                 weight="medium"
                 style={styles.dropdownText}
               >
-                {isGeneratingFakeData ? 'Generating...' : 'Generate Fake Data (Profiles & Jobs)'}
+                {isGeneratingFakeData ? t('settings.devTools.generateData.generating') : t('settings.devTools.generateData.button')}
               </ThemedText>
             </View>
             {isGeneratingFakeData && (
@@ -1612,7 +1612,7 @@ export default function SettingsScreen() {
                 weight="medium"
                 style={[styles.dropdownText, { color: colors.error || '#ff4444' }]}
               >
-                {isDeletingData ? 'Deleting...' : 'Clear All App Data'}
+                {isDeletingData ? t('settings.devTools.clearData.deleting') : t('settings.devTools.clearData.button')}
               </ThemedText>
             </View>
             {isDeletingData && (

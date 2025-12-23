@@ -33,6 +33,7 @@ import Animated, {
   useSharedValue,
   withDelay,
   withRepeat,
+  withSequence,
   withSpring,
   withTiming
 } from 'react-native-reanimated';
@@ -4892,6 +4893,28 @@ export default function HomeScreen() {
     // No need to redirect here - let the user navigate naturally
   }, [isLoading, profiles.length, jobs.length, familyMembers.length, friends.length, hobbies.length, idealizedMemories.length]);
 
+  // Avatar pulse animation - triggers when tab is focused
+  const avatarPulseScale = useSharedValue(1);
+
+  // Pulse animation - separate useFocusEffect to ensure it always runs
+  useFocusEffect(
+    useCallback(() => {
+      // Reset scale to 1 first, then trigger avatar pulse animation - pulse to 1.1 then back to 1
+      // This ensures the animation always runs from a known state
+      avatarPulseScale.value = 1;
+      avatarPulseScale.value = withSequence(
+        withSpring(1.1, {
+          damping: 8,
+          stiffness: 100,
+        }),
+        withSpring(1, {
+          damping: 10,
+          stiffness: 150,
+        })
+      );
+    }, [avatarPulseScale])
+  );
+
   // Reload all data from AsyncStorage when screen comes into focus
   // This ensures data is always fresh and not stale from React state
   // This is especially important after running the mock data script or after app restart
@@ -4923,6 +4946,13 @@ export default function HomeScreen() {
       };
     }, [reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies, loadStreakData])
   );
+
+  // Animated style for avatar pulse
+  const avatarPulseStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: avatarPulseScale.value }],
+    };
+  });
   
   // Track selected sphere (null = showing all spheres, otherwise showing focused sphere)
   // Initialize from URL params if present
@@ -5172,7 +5202,7 @@ export default function HomeScreen() {
   const previousIsWheelSpinning = useSharedValue(false); // Track previous spinning state
   const hintRotation = useSharedValue(0); // Gentle continuous rotation hint (in radians)
   const isHintAnimating = useSharedValue(false); // Track if hint animation is active
-  const [selectedLesson, setSelectedLesson] = useState<{ text: string; entityId: string; memoryId: string; sphere: LifeSphere } | null>(null);
+  const [selectedLesson, setSelectedLesson] = useState<{ text: string; entityId: string; memoryId: string; sphere: LifeSphere; isMock?: boolean } | null>(null);
   const [showLesson, setShowLesson] = useState(false);
   
   // Animation values for lesson notification (same style as encouragement message)
@@ -5332,38 +5362,50 @@ export default function HomeScreen() {
   // Handle wheel spin completion
   const onWheelSpinComplete = useCallback(() => {
     const lessons = getAllLessons();
+    let lessonToShow: { text: string; entityId: string; memoryId: string; sphere: LifeSphere; isMock?: boolean };
+    
     if (lessons.length > 0) {
       const randomIndex = Math.floor(Math.random() * lessons.length);
-      const randomLesson = lessons[randomIndex];
-      setSelectedLesson(randomLesson);
-      setShowLesson(true);
-
-      // Calculate lesson dimensions (same as in render)
-      const lessonSunHeight = isTablet ? 240 : (isLargeDevice ? 200 : 160);
-
-      // Calculate positions: start from avatar center, end at messageTop
-      const avatarCenterX = sphereCircle.centerX;
-      const avatarCenterY = sphereCircle.centerY;
-      const finalX = SCREEN_WIDTH / 2;
-      const finalY = messageTop + (lessonSunHeight / 2); // Center of lesson notification
-      
-      // Calculate translation needed: from avatar to final position
-      const startTranslateX = avatarCenterX - finalX;
-      const startTranslateY = avatarCenterY - finalY;
-
-      // Start from avatar position (small scale, at avatar)
-      lessonOpacity.value = 0;
-      lessonScale.value = 0.3;
-      lessonTranslateX.value = startTranslateX;
-      lessonTranslateY.value = startTranslateY;
-
-      // Animate to final position (full scale, at top)
-      lessonOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) });
-      lessonScale.value = withSpring(1, { damping: 15, stiffness: 150 });
-      lessonTranslateX.value = withSpring(0, { damping: 15, stiffness: 150 });
-      lessonTranslateY.value = withSpring(0, { damping: 15, stiffness: 150 });
+      lessonToShow = lessons[randomIndex];
+    } else {
+      // Show mock lesson when no lessons are available
+      lessonToShow = {
+        text: t('wheel.noLessons.message'),
+        entityId: '',
+        memoryId: '',
+        sphere: 'relationships' as LifeSphere,
+        isMock: true,
+      };
     }
-  }, [getAllLessons, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY, sphereCircle, messageTop, isTablet, isLargeDevice]);
+    
+    setSelectedLesson(lessonToShow);
+    setShowLesson(true);
+
+    // Calculate lesson dimensions (same as in render)
+    const lessonSunHeight = isTablet ? 240 : (isLargeDevice ? 200 : 160);
+
+    // Calculate positions: start from avatar center, end at messageTop
+    const avatarCenterX = sphereCircle.centerX;
+    const avatarCenterY = sphereCircle.centerY;
+    const finalX = SCREEN_WIDTH / 2;
+    const finalY = messageTop + (lessonSunHeight / 2); // Center of lesson notification
+    
+    // Calculate translation needed: from avatar to final position
+    const startTranslateX = avatarCenterX - finalX;
+    const startTranslateY = avatarCenterY - finalY;
+
+    // Start from avatar position (small scale, at avatar)
+    lessonOpacity.value = 0;
+    lessonScale.value = 0.3;
+    lessonTranslateX.value = startTranslateX;
+    lessonTranslateY.value = startTranslateY;
+
+    // Animate to final position (full scale, at top)
+    lessonOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) });
+    lessonScale.value = withSpring(1, { damping: 15, stiffness: 150 });
+    lessonTranslateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+    lessonTranslateY.value = withSpring(0, { damping: 15, stiffness: 150 });
+  }, [getAllLessons, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY, sphereCircle, messageTop, isTablet, isLargeDevice, t]);
 
   // Function to programmatically spin the wheel (called when avatar is pressed)
   const spinWheel = useCallback(() => {
@@ -5384,6 +5426,12 @@ export default function HomeScreen() {
     
     // Start spinning
     isWheelSpinning.value = true;
+    
+    // Log analytics event
+    const { logWheelSpin } = require('@/utils/analytics');
+    logWheelSpin().catch(() => {
+      // Failed to log event
+    });
   }, [isHintAnimating, hintRotation, isWheelSpinning, wheelVelocity]);
   
   // Animate lesson notification when manually closed
@@ -7290,9 +7338,9 @@ export default function HomeScreen() {
 
           {/* Random Lesson from Wheel of Life Spin - matches focused memory view style */}
           {showLesson && selectedLesson && (() => {
-            // Calculate sun dimensions to match MemoryMomentsRenderer
-            const lessonSunWidth = isTablet ? 240 : (isLargeDevice ? 200 : 160);
-            const lessonSunHeight = isTablet ? 240 : (isLargeDevice ? 200 : 160);
+            // Calculate sun dimensions to match MemoryMomentsRenderer - increased for better text display
+            const lessonSunWidth = isTablet ? 300 : (isLargeDevice ? 250 : 220);
+            const lessonSunHeight = isTablet ? 300 : (isLargeDevice ? 250 : 220);
             
             return (
             <Animated.View
@@ -7309,6 +7357,12 @@ export default function HomeScreen() {
                 {/* Simple circular view matching focused memory view - same style as lesson in MemoryMomentsRenderer */}
               <Pressable
                   onPress={() => {
+                    // If it's a mock lesson, just close it (don't navigate)
+                    if (selectedLesson.isMock) {
+                      setShowLesson(false);
+                      return;
+                    }
+                    
                     // Navigate to the memory this lesson belongs to
                     const sphere = selectedLesson.sphere;
                     const entityId = selectedLesson.entityId;
@@ -7377,19 +7431,20 @@ export default function HomeScreen() {
               >
                 <MaterialIcons
                     name="lightbulb"
-                    size={lessonSunWidth * 0.4}
+                    size={lessonSunWidth * 0.25}
                     color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'}
-                    style={{ marginBottom: 4 }}
+                    style={{ marginBottom: 8 }}
                   />
                   <ThemedText
                     style={{
                       color: colorScheme === 'dark' ? '#1A1A1A' : '#000000',
-                      fontSize: 12 * fontScale,
+                      fontSize: 11 * fontScale,
                       textAlign: 'center',
                       fontWeight: '700',
-                      maxWidth: lessonSunWidth * 0.8,
+                      maxWidth: lessonSunWidth * 0.85,
+                      lineHeight: 15 * fontScale,
                     }}
-                    numberOfLines={4}
+                    numberOfLines={8}
                   >
                     {selectedLesson.text}
                   </ThemedText>
@@ -7457,6 +7512,7 @@ export default function HomeScreen() {
                     height: avatarSize,
                     zIndex: 100,
                   },
+                  avatarPulseStyle,
                 ]}
               >
                 <Pressable

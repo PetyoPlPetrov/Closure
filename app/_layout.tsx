@@ -170,7 +170,7 @@ function AppContent() {
           name="notifications"
           options={{
             headerShown: true,
-            title: 'Notifications',
+            // Title will be set dynamically in the screen component
             headerBackTitle: '', // Remove "(tabs)" text from back button
             headerLeft: (props) => (
               <HeaderBackButton

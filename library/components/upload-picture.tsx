@@ -139,7 +139,7 @@ export function UploadPicture({
           {isLoading ? (
             <View style={{ alignItems: 'center', justifyContent: 'center', gap: 12 * fontScale }}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <ThemedText size="sm" weight="medium" style={styles.uploadText}>
+              <ThemedText size="sm" weight="medium" style={[styles.uploadText, { textAlign: 'center' }]}>
                 {t('profile.openingGallery')}
               </ThemedText>
             </View>

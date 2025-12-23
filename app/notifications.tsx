@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { router, useNavigation } from 'expo-router';
+import { useLayoutEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -10,8 +10,10 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useNotificationsManager } from '@/utils/NotificationsProvider';
+import { useTranslate } from '@/utils/languages/use-translate';
 
 export default function NotificationsScreen() {
+  const t = useTranslate();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const palette = useMemo(
@@ -31,6 +33,13 @@ export default function NotificationsScreen() {
 
   const { friends, familyMembers, profiles } = useJourney();
   const { assignments } = useNotificationsManager();
+  const navigation = useNavigation();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: t('notifications.title'),
+    });
+  }, [navigation, t]);
 
   const renderSphereBlock = (sphere: 'friends' | 'family' | 'relationships', title: string, entityNames: { id: string; name: string }[]) => {
     const assignment = assignments[sphere];
@@ -66,7 +75,7 @@ export default function NotificationsScreen() {
                       color={notifOn ? palette.background : palette.text}
                     />
                     <ThemedText size="xs" weight="bold" style={{ color: notifOn ? palette.background : palette.text }}>
-                      {notifOn ? 'On' : 'Off'}
+                      {notifOn ? t('notifications.status.on') : t('notifications.status.off')}
                     </ThemedText>
                   </View>
                   <MaterialIcons name="chevron-right" size={20 * fontScale} color={palette.text} />
@@ -83,17 +92,17 @@ export default function NotificationsScreen() {
     <ScrollView contentContainerStyle={styles.content}>
       {renderSphereBlock(
         'friends',
-        'Friends',
+        t('notifications.sphere.friends'),
         friends.map((f) => ({ id: f.id, name: f.name }))
       )}
       {renderSphereBlock(
         'family',
-        'Family',
+        t('notifications.sphere.family'),
         familyMembers.map((f) => ({ id: f.id, name: f.name }))
       )}
       {renderSphereBlock(
         'relationships',
-        'Relationships',
+        t('notifications.sphere.relationships'),
         profiles.filter((p) => !p.relationshipEndDate).map((p) => ({ id: p.id, name: p.name }))
       )}
     </ScrollView>

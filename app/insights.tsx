@@ -671,6 +671,12 @@ export default function InsightsScreen() {
       // User subscribed, continue to navigation
     }
 
+    // Log analytics event
+    const { logInsightsSphereOpened } = require('@/utils/analytics');
+    logInsightsSphereOpened(sphere).catch(() => {
+      // Failed to log event
+    });
+
     switch (sphere) {
       case 'relationships':
         router.push('/relationships-comparison');

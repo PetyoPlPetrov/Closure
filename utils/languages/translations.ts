@@ -35,6 +35,16 @@ export interface Translations {
   'settings.devTools.cleanupMemories.success.withCount': string;
   'settings.devTools.cleanupMemories.success.noOrphans': string;
   'settings.devTools.cleanupMemories.error': string;
+  'settings.notifications.title': string;
+  'settings.notifications.manage': string;
+  'settings.devTools.title': string;
+  'settings.devTools.generateData.button': string;
+  'settings.devTools.generateData.generating': string;
+  'settings.devTools.clearData.button': string;
+  'settings.devTools.clearData.deleting': string;
+  
+  // Wheel of Life
+  'wheel.noLessons.message': string;
   
   // Streak Rules Modal
   'streakRules.title': string;
@@ -63,6 +73,22 @@ export interface Translations {
   'streakRules.badge.titan.description': string;
   'streakRules.badge.immortal.name': string;
   'streakRules.badge.immortal.description': string;
+  'streak.badge.day': string;
+  'streak.badge.days': string;
+  'streak.modal.title': string;
+  'streak.modal.currentStreak': string;
+  'streak.modal.longestStreak': string;
+  'streak.modal.totalDays': string;
+  'streak.modal.badgesEarned': string;
+  'streak.modal.nextBadge': string;
+  'streak.modal.daysToGo': string;
+  'streak.modal.badgeCollection': string;
+  'streak.modal.startJourney': string;
+  'streak.modal.motivation.start': string;
+  'streak.modal.motivation.building': string;
+  'streak.modal.motivation.progress': string;
+  'streak.modal.motivation.consistency': string;
+  'streak.modal.motivation.legend': string;
   
   // Common
   'common.back': string;
@@ -427,6 +453,9 @@ export interface Translations {
   'memory.goodFact.none': string;
   'memory.goodFact.add': string;
   'memory.goodFact.placeholder': string;
+  'memory.lesson': string;
+  'memory.lesson.plural': string;
+  'memory.lesson.none': string;
   'memory.lesson.placeholder': string;
   'memory.sunnyMoment': string;
   'memory.fillAllClouds': string;
@@ -503,6 +532,48 @@ export interface Translations {
   'subscription.limit.friend': string;
   'subscription.limit.family': string;
   'subscription.limit.hobby': string;
+  
+  // Notifications
+  'notifications.title': string;
+  'notifications.sphere.friends': string;
+  'notifications.sphere.family': string;
+  'notifications.sphere.relationships': string;
+  'notifications.status.on': string;
+  'notifications.status.off': string;
+  'notifications.settings.title': string;
+  'notifications.settings.turnOn': string;
+  'notifications.settings.turnOnDescription': string;
+  'notifications.settings.message': string;
+  'notifications.settings.messagePlaceholder': string;
+  'notifications.settings.frequency': string;
+  'notifications.settings.frequency.daily': string;
+  'notifications.settings.frequency.weekly': string;
+  'notifications.settings.dayOfWeek': string;
+  'notifications.settings.dayOfWeek.sun': string;
+  'notifications.settings.dayOfWeek.mon': string;
+  'notifications.settings.dayOfWeek.tue': string;
+  'notifications.settings.dayOfWeek.wed': string;
+  'notifications.settings.dayOfWeek.thu': string;
+  'notifications.settings.dayOfWeek.fri': string;
+  'notifications.settings.dayOfWeek.sat': string;
+  'notifications.settings.time': string;
+  'notifications.settings.done': string;
+  'notifications.settings.condition': string;
+  'notifications.settings.condition.met': string;
+  'notifications.settings.condition.belowAvg': string;
+  'notifications.settings.condition.noRecent': string;
+  'notifications.settings.condition.lessThanJob': string;
+  'notifications.settings.condition.lessThanFriendsAvg': string;
+  'notifications.settings.condition.noRecentDaysPlaceholder': string;
+  'notifications.settings.condition.belowAvg.title': string;
+  'notifications.settings.condition.belowAvg.body': string;
+  'notifications.settings.condition.noRecent.title': string;
+  'notifications.settings.condition.noRecent.body': string;
+  'notifications.settings.condition.lessThanJob.title': string;
+  'notifications.settings.condition.lessThanJob.body': string;
+  'notifications.settings.condition.lessThanFriendsAvg.title': string;
+  'notifications.settings.condition.lessThanFriendsAvg.body': string;
+  'notifications.settings.sphere': string;
 }
 
 const translations: Record<Language, Translations> = {
@@ -510,7 +581,7 @@ const translations: Record<Language, Translations> = {
     // Tab labels
     'tab.home': 'Home',
     'tab.exProfiles': 'Ex Profiles',
-    'tab.spheres': 'Spheres',
+    'tab.spheres': 'Sferas',
     'tab.settings': 'Settings',
     'home.emptyState': 'No profiles yet. Add your first ex-profile to get started.',
     
@@ -536,6 +607,14 @@ const translations: Record<Language, Translations> = {
     'settings.devTools.cleanupMemories.success.withCount': 'Cleaned up {count} orphaned memories.',
     'settings.devTools.cleanupMemories.success.noOrphans': 'No orphaned memories found. All memories are valid.',
     'settings.devTools.cleanupMemories.error': 'Failed to clean up orphaned memories. Please try again.',
+    'settings.notifications.title': 'Notifications',
+    'settings.notifications.manage': 'Manage notifications',
+    'settings.devTools.title': 'Development Tools',
+    'settings.devTools.generateData.button': 'Generate Fake Data (Profiles & Jobs)',
+    'settings.devTools.generateData.generating': 'Generating...',
+    'settings.devTools.clearData.button': 'Clear All App Data',
+    'settings.devTools.clearData.deleting': 'Deleting...',
+    'wheel.noLessons.message': 'Add lessons to your memories to see them here and practice them!',
     
     // Streak Rules Modal
     'streakRules.title': 'How Streaks Work',
@@ -564,6 +643,22 @@ const translations: Record<Language, Translations> = {
     'streakRules.badge.titan.description': '100-day milestone',
     'streakRules.badge.immortal.name': 'Immortal',
     'streakRules.badge.immortal.description': '1 year champion',
+    'streak.badge.day': 'day',
+    'streak.badge.days': 'days',
+    'streak.modal.title': 'Your Streak 🔥',
+    'streak.modal.currentStreak': 'Current Streak',
+    'streak.modal.longestStreak': 'Longest Streak',
+    'streak.modal.totalDays': 'Total Days',
+    'streak.modal.badgesEarned': 'Badges Earned',
+    'streak.modal.nextBadge': 'Next Badge',
+    'streak.modal.daysToGo': 'to go!',
+    'streak.modal.badgeCollection': 'Badge Collection',
+    'streak.modal.startJourney': 'Start your journey',
+    'streak.modal.motivation.start': 'Start your journey today! Log a moment to begin your streak 🌱',
+    'streak.modal.motivation.building': 'You\'re building a habit! Keep it going 💪',
+    'streak.modal.motivation.progress': 'Great progress! You\'re forming a powerful routine ⭐',
+    'streak.modal.motivation.consistency': 'Amazing consistency! You\'re mastering self-reflection 🔥',
+    'streak.modal.motivation.legend': 'You\'re a legend! Your dedication is inspiring 👑',
     
     // Common
     'common.back': 'Back',
@@ -926,6 +1021,9 @@ const translations: Record<Language, Translations> = {
     'memory.goodFact.none': 'No Good Facts yet',
     'memory.goodFact.add': 'Add Good Fact',
     'memory.goodFact.placeholder': 'Enter good fact...',
+    'memory.lesson': 'Lesson',
+    'memory.lesson.plural': 'Lessons',
+    'memory.lesson.none': 'No Lessons yet',
     'memory.lesson.placeholder': 'Enter lesson learned...',
     'memory.sunnyMoment': 'Sunny Moment',
     'memory.fillAllClouds': 'Please fill all available clouds with text before continuing.',
@@ -1002,12 +1100,54 @@ const translations: Record<Language, Translations> = {
     'subscription.limit.friend': 'You can create one friend for free. Subscribe to create more friends.',
     'subscription.limit.family': 'You can create one family member for free. Subscribe to create more family members.',
     'subscription.limit.hobby': 'You can create one hobby for free. Subscribe to create more hobbies.',
+    
+    // Notifications
+    'notifications.title': 'Notifications',
+    'notifications.sphere.friends': 'Friends',
+    'notifications.sphere.family': 'Family',
+    'notifications.sphere.relationships': 'Relationships',
+    'notifications.status.on': 'On',
+    'notifications.status.off': 'Off',
+    'notifications.settings.title': 'Notification settings',
+    'notifications.settings.turnOn': 'Turn on',
+    'notifications.settings.turnOnDescription': 'Turn on to enable notifications.',
+    'notifications.settings.message': 'Message',
+    'notifications.settings.messagePlaceholder': 'Check in with {name} today',
+    'notifications.settings.frequency': 'Frequency',
+    'notifications.settings.frequency.daily': 'Daily',
+    'notifications.settings.frequency.weekly': 'Weekly',
+    'notifications.settings.dayOfWeek': 'Day of week',
+    'notifications.settings.dayOfWeek.sun': 'Sun',
+    'notifications.settings.dayOfWeek.mon': 'Mon',
+    'notifications.settings.dayOfWeek.tue': 'Tue',
+    'notifications.settings.dayOfWeek.wed': 'Wed',
+    'notifications.settings.dayOfWeek.thu': 'Thu',
+    'notifications.settings.dayOfWeek.fri': 'Fri',
+    'notifications.settings.dayOfWeek.sat': 'Sat',
+    'notifications.settings.time': 'Time',
+    'notifications.settings.done': 'Done',
+    'notifications.settings.condition': 'Condition',
+    'notifications.settings.condition.met': 'Met',
+    'notifications.settings.condition.belowAvg': 'Below avg',
+    'notifications.settings.condition.noRecent': 'No recent',
+    'notifications.settings.condition.lessThanJob': 'Less than job',
+    'notifications.settings.condition.lessThanFriendsAvg': 'Less than friends avg',
+    'notifications.settings.condition.noRecentDaysPlaceholder': 'No recent days (e.g., 7)',
+    'notifications.settings.condition.belowAvg.title': 'Below average',
+    'notifications.settings.condition.belowAvg.body': 'Notify when this entity has fewer moments than the average across all entities in this sphere. Helps identify relationships that might need more attention.',
+    'notifications.settings.condition.noRecent.title': 'No recent moments',
+    'notifications.settings.condition.noRecent.body': 'Notify when you haven\'t added any moments for this entity in the specified number of days. Helps you maintain regular reflection and connection.',
+    'notifications.settings.condition.lessThanJob.title': 'Less than job',
+    'notifications.settings.condition.lessThanJob.body': 'Notify when this relationship has fewer moments (memories, insights) than your current job. This helps ensure you\'re giving enough attention to your relationships.',
+    'notifications.settings.condition.lessThanFriendsAvg.title': 'Less than friends avg',
+    'notifications.settings.condition.lessThanFriendsAvg.body': 'Notify when this relationship has fewer moments than the average of your friendships. This helps maintain balance between romantic relationships and friendships.',
+    'notifications.settings.sphere': 'Sphere',
   },
   bg: {
     // Tab labels
     'tab.home': 'Начало',
     'tab.exProfiles': 'Партньори',
-    'tab.spheres': 'Сфери',
+    'tab.spheres': 'Sferas',
     'tab.settings': 'Настройки',
     'home.emptyState': 'Няма профили все още. Добавете първи партньор, за да започнете.',
     
@@ -1033,6 +1173,14 @@ const translations: Record<Language, Translations> = {
     'settings.devTools.cleanupMemories.success.withCount': 'Изчистени са {count} изолирани спомена.',
     'settings.devTools.cleanupMemories.success.noOrphans': 'Не са намерени изолирани спомени. Всички спомени са валидни.',
     'settings.devTools.cleanupMemories.error': 'Неуспешно изчистване на изолираните спомени. Моля, опитайте отново.',
+    'settings.notifications.title': 'Известия',
+    'settings.notifications.manage': 'Управление на известия',
+    'settings.devTools.title': 'Инструменти за Разработка',
+    'settings.devTools.generateData.button': 'Генериране на Фалшиви Данни (Профили и Работи)',
+    'settings.devTools.generateData.generating': 'Генериране...',
+    'settings.devTools.clearData.button': 'Изтриване на Всички Данни',
+    'settings.devTools.clearData.deleting': 'Изтриване...',
+    'wheel.noLessons.message': 'Добавете уроци към вашите спомени, за да ги видите тук и да ги практикувате!',
     
     // Streak Rules Modal
     'streakRules.title': 'Как Работят Поредиците',
@@ -1061,6 +1209,22 @@ const translations: Record<Language, Translations> = {
     'streakRules.badge.titan.description': '100-дневна постижение',
     'streakRules.badge.immortal.name': 'Безсмъртен',
     'streakRules.badge.immortal.description': '1 година шампион',
+    'streak.badge.day': 'ден',
+    'streak.badge.days': 'дни',
+    'streak.modal.title': 'Вашата Поредица 🔥',
+    'streak.modal.currentStreak': 'Текуща Поредица',
+    'streak.modal.longestStreak': 'Най-дълга Поредица',
+    'streak.modal.totalDays': 'Общо Дни',
+    'streak.modal.badgesEarned': 'Получени Значки',
+    'streak.modal.nextBadge': 'Следваща Значка',
+    'streak.modal.daysToGo': 'остават!',
+    'streak.modal.badgeCollection': 'Колекция от Значки',
+    'streak.modal.startJourney': 'Започнете вашето пътешествие',
+    'streak.modal.motivation.start': 'Започнете вашето пътешествие днес! Запишете момент, за да започнете поредицата си 🌱',
+    'streak.modal.motivation.building': 'Изграждате навик! Продължете 💪',
+    'streak.modal.motivation.progress': 'Отличен прогрес! Формирате мощен навик ⭐',
+    'streak.modal.motivation.consistency': 'Невероятна последователност! Овладявате саморефлексията 🔥',
+    'streak.modal.motivation.legend': 'Вие сте легенда! Вашата отдаденост е вдъхновяваща 👑',
     
     // Common
     'common.back': 'Назад',
@@ -1424,6 +1588,9 @@ const translations: Record<Language, Translations> = {
     'memory.goodFact.none': 'Все още няма добри факти',
     'memory.goodFact.add': 'Добър Факт',
     'memory.goodFact.placeholder': ' добър момент...',
+    'memory.lesson': 'Урок',
+    'memory.lesson.plural': 'Уроци',
+    'memory.lesson.none': 'Все още няма уроци',
     'memory.lesson.placeholder': 'Въведете научен урок...',
     'memory.sunnyMoment': 'Слънчев Момент',
     'memory.fillAllClouds': 'Моля, попълнете всички облаци с текст, преди да продължите.',
@@ -1500,6 +1667,48 @@ const translations: Record<Language, Translations> = {
     'subscription.limit.friend': 'Можете да създадете един приятел безплатно. Абонирайте се, за да създавате повече приятели.',
     'subscription.limit.family': 'Можете да създадете един член на семейството безплатно. Абонирайте се, за да създавате повече членове на семейството.',
     'subscription.limit.hobby': 'Можете да създадете едно хоби безплатно. Абонирайте се, за да създавате повече хобита.',
+    
+    // Notifications
+    'notifications.title': 'Известия',
+    'notifications.sphere.friends': 'Приятели',
+    'notifications.sphere.family': 'Семейство',
+    'notifications.sphere.relationships': 'Връзки',
+    'notifications.status.on': 'Вкл',
+    'notifications.status.off': 'Изкл',
+    'notifications.settings.title': 'Настройки за известия',
+    'notifications.settings.turnOn': 'Включи',
+    'notifications.settings.turnOnDescription': 'Включете, за да активирате известията.',
+    'notifications.settings.message': 'Съобщение',
+    'notifications.settings.messagePlaceholder': 'Свържете се с {name} днес',
+    'notifications.settings.frequency': 'Честота',
+    'notifications.settings.frequency.daily': 'Ежедневно',
+    'notifications.settings.frequency.weekly': 'Седмично',
+    'notifications.settings.dayOfWeek': 'Ден от седмицата',
+    'notifications.settings.dayOfWeek.sun': 'Нед',
+    'notifications.settings.dayOfWeek.mon': 'Пон',
+    'notifications.settings.dayOfWeek.tue': 'Вто',
+    'notifications.settings.dayOfWeek.wed': 'Сря',
+    'notifications.settings.dayOfWeek.thu': 'Чет',
+    'notifications.settings.dayOfWeek.fri': 'Пет',
+    'notifications.settings.dayOfWeek.sat': 'Съб',
+    'notifications.settings.time': 'Час',
+    'notifications.settings.done': 'Готово',
+    'notifications.settings.condition': 'Условие',
+    'notifications.settings.condition.met': 'Изпълнено',
+    'notifications.settings.condition.belowAvg': 'Под средното',
+    'notifications.settings.condition.noRecent': 'Без скорошни',
+    'notifications.settings.condition.lessThanJob': 'По-малко от работата',
+    'notifications.settings.condition.lessThanFriendsAvg': 'По-малко от средното на приятелите',
+    'notifications.settings.condition.noRecentDaysPlaceholder': 'Дни без скорошни (напр., 7)',
+    'notifications.settings.condition.belowAvg.title': 'Под средното',
+    'notifications.settings.condition.belowAvg.body': 'Известява, когато този обект има по-малко моменти от средното за всички обекти в тази сфера. Помага да се идентифицират връзки, които може да се нуждаят от повече внимание.',
+    'notifications.settings.condition.noRecent.title': 'Няма скорошни моменти',
+    'notifications.settings.condition.noRecent.body': 'Известява, когато не сте добавили моменти за този обект през определен брой дни. Помага да поддържате редовна рефлексия и връзка.',
+    'notifications.settings.condition.lessThanJob.title': 'По-малко от работата',
+    'notifications.settings.condition.lessThanJob.body': 'Известява, когато тази връзка има по-малко моменти (спомени, анализи) от текущата ви работа. Това помага да се гарантира, че отделяте достатъчно внимание на връзките си.',
+    'notifications.settings.condition.lessThanFriendsAvg.title': 'По-малко от средното на приятелите',
+    'notifications.settings.condition.lessThanFriendsAvg.body': 'Известява, когато тази връзка има по-малко моменти от средното на вашите приятелства. Това помага да се поддържа баланс между романтични връзки и приятелства.',
+    'notifications.settings.sphere': 'Сфера',
   },
 };
 

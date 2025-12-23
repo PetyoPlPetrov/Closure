@@ -14,13 +14,15 @@ import { LifeSphere, useJourney } from '@/utils/JourneyProvider';
 import { NotificationTemplate, useNotificationsManager } from '@/utils/NotificationsProvider';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 import { showPaywallForPremiumAccess } from '@/utils/premium-access';
+import { useTranslate } from '@/utils/languages/use-translate';
 
+// Note: Header title is set in _layout.tsx
 export const options = {
   headerShown: true,
-  title: 'Notifications',
 };
 
 export default function NotificationDetailScreen() {
+  const t = useTranslate();
   const params = useLocalSearchParams<{ sphere: LifeSphere; entityId: string }>();
   const sphere = params.sphere;
   const entityId = params.entityId;
@@ -133,6 +135,19 @@ export default function NotificationDetailScreen() {
       await setOverride(sphere, entityId, {
         kind: 'custom',
         template: { ...customDraft, id: `custom_${entityId}` },
+      });
+      
+      // Log analytics event
+      const { logNotificationTurnedOn } = require('@/utils/analytics');
+      // Determine entity type based on sphere
+      const entityType = sphere === 'relationships' ? 'profile' 
+        : sphere === 'career' ? 'job'
+        : sphere === 'family' ? 'familyMember'
+        : sphere === 'friends' ? 'friend'
+        : sphere === 'hobbies' ? 'hobby'
+        : 'unknown';
+      logNotificationTurnedOn(sphere, entityType).catch(() => {
+        // Failed to log event
       });
     }
   };
@@ -249,36 +264,36 @@ export default function NotificationDetailScreen() {
           )}
         </View>
         <ThemedText size="s" style={{ color: palette.muted }}>
-          Sphere: {sphere}
+          {t('notifications.settings.sphere')}: {sphere}
         </ThemedText>
 
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <ThemedText size="m" weight="bold">
-              Notification settings
+              {t('notifications.settings.title')}
             </ThemedText>
             <TouchableOpacity
               style={[styles.toggleButton, currentOverride?.kind === 'custom' && styles.toggleButtonActive]}
               onPress={handleToggleNotifications}
             >
               <ThemedText size="sm" weight="bold" style={{ color: currentOverride?.kind === 'custom' ? palette.background : palette.text }}>
-                {currentOverride?.kind === 'custom' ? 'On' : 'Off'}
+                {currentOverride?.kind === 'custom' ? t('notifications.status.on') : t('notifications.status.off')}
               </ThemedText>
             </TouchableOpacity>
           </View>
           {currentOverride?.kind !== 'custom' && (
             <ThemedText size="xs" style={{ color: palette.muted, marginTop: -4 }}>
-              Turn on to enable notifications.
+              {t('notifications.settings.turnOnDescription')}
             </ThemedText>
           )}
           <View style={styles.fieldGroup}>
             <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
-              Message
+              {t('notifications.settings.message')}
             </ThemedText>
             <TextInput
-              placeholder="Check in with Alex today"
+              placeholder={t('notifications.settings.messagePlaceholder').replace('{name}', entityName || 'them')}
               placeholderTextColor={palette.muted}
-              value={customDraft.message || `Check in with ${entityName || 'them'} today`}
+              value={customDraft.message || t('notifications.settings.messagePlaceholder').replace('{name}', entityName || 'them')}
               onChangeText={(text) => updateCustomDraft({ message: text })}
               style={[styles.input, styles.inputBox]}
               multiline
@@ -287,12 +302,12 @@ export default function NotificationDetailScreen() {
 
           <View style={styles.fieldGroup}>
             <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
-              Frequency
+              {t('notifications.settings.frequency')}
             </ThemedText>
             <View style={styles.chipRow}>
               {[
-                { label: 'Daily', value: 1 },
-                { label: 'Weekly', value: 7 },
+                { label: t('notifications.settings.frequency.daily'), value: 1 },
+                { label: t('notifications.settings.frequency.weekly'), value: 7 },
               ].map((opt) => {
                 const active = customDraft.frequencyDays === opt.value;
                 return (
@@ -313,17 +328,17 @@ export default function NotificationDetailScreen() {
           {customDraft.frequencyDays === 7 && (
             <View style={styles.fieldGroup}>
               <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
-                Day of week
+                {t('notifications.settings.dayOfWeek')}
               </ThemedText>
               <View style={styles.chipRow}>
                 {[
-                  { label: 'Sun', value: 0 },
-                  { label: 'Mon', value: 1 },
-                  { label: 'Tue', value: 2 },
-                  { label: 'Wed', value: 3 },
-                  { label: 'Thu', value: 4 },
-                  { label: 'Fri', value: 5 },
-                  { label: 'Sat', value: 6 },
+                  { label: t('notifications.settings.dayOfWeek.sun'), value: 0 },
+                  { label: t('notifications.settings.dayOfWeek.mon'), value: 1 },
+                  { label: t('notifications.settings.dayOfWeek.tue'), value: 2 },
+                  { label: t('notifications.settings.dayOfWeek.wed'), value: 3 },
+                  { label: t('notifications.settings.dayOfWeek.thu'), value: 4 },
+                  { label: t('notifications.settings.dayOfWeek.fri'), value: 5 },
+                  { label: t('notifications.settings.dayOfWeek.sat'), value: 6 },
                 ].map((day) => {
                   const active = customDraft.weekDay === day.value;
                   return (
@@ -344,7 +359,7 @@ export default function NotificationDetailScreen() {
 
           <View style={styles.fieldGroup}>
             <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
-              Time
+              {t('notifications.settings.time')}
             </ThemedText>
             <TouchableOpacity
               style={[styles.input, styles.inputBox, styles.timePickerButton]}
@@ -370,7 +385,7 @@ export default function NotificationDetailScreen() {
                             setShowTimePicker(false);
                           }}>
                             <ThemedText size="s" weight="medium" style={{ color: palette.primary }}>
-                              Done
+                              {t('notifications.settings.done')}
                             </ThemedText>
                           </TouchableOpacity>
                         </View>
@@ -414,13 +429,13 @@ export default function NotificationDetailScreen() {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabelRow}>
               <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
-                Condition
+                {t('notifications.settings.condition')}
               </ThemedText>
               {currentOverride?.kind === 'custom' && isConditionMet && (
                 <View style={styles.conditionBadgeInline}>
                   <MaterialIcons name="check-circle" size={16 * fontScale} color={palette.primary} />
                   <ThemedText size="xs" weight="medium" style={{ color: palette.primary, marginLeft: 4 * fontScale }}>
-                    Met
+                    {t('notifications.settings.condition.met')}
                   </ThemedText>
                   {countdown !== null && (
                     <ThemedText size="xs" weight="medium" style={{ color: palette.muted, marginLeft: 8 * fontScale }}>
@@ -434,45 +449,45 @@ export default function NotificationDetailScreen() {
               {(sphere === 'relationships'
                 ? [
                     {
-                      label: 'Less than job',
+                      label: t('notifications.settings.condition.lessThanJob'),
                       value: 'relationshipLessThanJob',
                       info: {
-                        title: 'Less than job',
-                        body: 'Notify when this relationship has fewer moments (memories, insights) than your current job. This helps ensure you\'re giving enough attention to your relationships.'
+                        title: t('notifications.settings.condition.lessThanJob.title'),
+                        body: t('notifications.settings.condition.lessThanJob.body')
                       }
                     },
                     {
-                      label: 'Less than friends avg',
+                      label: t('notifications.settings.condition.lessThanFriendsAvg'),
                       value: 'relationshipLessThanFriendsAvg',
                       info: {
-                        title: 'Less than friends avg',
-                        body: 'Notify when this relationship has fewer moments than the average of your friendships. This helps maintain balance between romantic relationships and friendships.'
+                        title: t('notifications.settings.condition.lessThanFriendsAvg.title'),
+                        body: t('notifications.settings.condition.lessThanFriendsAvg.body')
                       }
                     },
                     {
-                      label: 'No recent',
+                      label: t('notifications.settings.condition.noRecent'),
                       value: 'noRecent',
                       info: {
-                        title: 'No recent moments',
-                        body: 'Notify when you haven\'t added any moments for this relationship in the specified number of days. Helps you stay connected and reflect regularly.'
+                        title: t('notifications.settings.condition.noRecent.title'),
+                        body: t('notifications.settings.condition.noRecent.body')
                       }
                     },
                   ]
                 : [
                     {
-                      label: 'Below avg',
+                      label: t('notifications.settings.condition.belowAvg'),
                       value: 'belowAvgMoments',
                       info: {
-                        title: 'Below average',
-                        body: 'Notify when this entity has fewer moments than the average across all entities in this sphere. Helps identify relationships that might need more attention.'
+                        title: t('notifications.settings.condition.belowAvg.title'),
+                        body: t('notifications.settings.condition.belowAvg.body')
                       }
                     },
                     {
-                      label: 'No recent',
+                      label: t('notifications.settings.condition.noRecent'),
                       value: 'noRecent',
                       info: {
-                        title: 'No recent moments',
-                        body: 'Notify when you haven\'t added any moments for this entity in the specified number of days. Helps you maintain regular reflection and connection.'
+                        title: t('notifications.settings.condition.noRecent.title'),
+                        body: t('notifications.settings.condition.noRecent.body')
                       }
                     },
                   ]
@@ -505,7 +520,7 @@ export default function NotificationDetailScreen() {
             </View>
             {customDraft.condition === 'noRecent' && (
               <TextInput
-                placeholder="No recent days (e.g., 7)"
+                placeholder={t('notifications.settings.condition.noRecentDaysPlaceholder')}
                 placeholderTextColor={palette.muted}
                 keyboardType="numeric"
                 value={String(customDraft.noRecentDays ?? 7)}

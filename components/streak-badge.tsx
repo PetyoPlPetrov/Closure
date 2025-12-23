@@ -4,6 +4,7 @@
 
 import { ThemedText } from '@/components/themed-text';
 import { useFontScale } from '@/hooks/use-device-size';
+import { useTranslate } from '@/utils/languages/use-translate';
 import type { StreakBadge } from '@/utils/streak-types';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect } from 'react';
@@ -31,6 +32,7 @@ export const StreakBadgeComponent = React.memo(function StreakBadgeComponent({
   onLongPress,
 }: StreakBadgeProps) {
   const fontScale = useFontScale();
+  const t = useTranslate();
 
   // Animation values
   const scale = useSharedValue(0);
@@ -66,7 +68,7 @@ export const StreakBadgeComponent = React.memo(function StreakBadgeComponent({
 
   const isActiveStreak = currentStreak > 0;
   const displayEmoji = currentBadge?.emoji || (isActiveStreak ? '🔥' : '💫');
-  const displayText = `${currentStreak} day${currentStreak === 1 ? '' : 's'}`;
+  const displayText = `${currentStreak} ${currentStreak === 1 ? t('streak.badge.day') : t('streak.badge.days')}`;
 
   // Colors based on badge or default
   const gradientColors = currentBadge?.colorGradient || (

@@ -2234,7 +2234,7 @@ export default function AddIdealizedMemoryScreen() {
               {isLoadingImage ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="large" color={colors.primaryLight} />
-                  <ThemedText style={{ marginTop: 12, opacity: 0.75 }}>
+                  <ThemedText style={{ marginTop: 12, opacity: 0.75, textAlign: 'center' }}>
                     {t('profile.openingGallery')}
                   </ThemedText>
                 </View>

@@ -101,11 +101,40 @@ export const logMomentCreated = async (sphere: string, momentType: 'cloud' | 'su
   });
 };
 
+/**
+ * Log when the wheel of life is spun
+ */
+export const logWheelSpin = async () => {
+  await logEvent('wheel_spin', {});
+};
+
+/**
+ * Log when an insights sphere is opened
+ */
+export const logInsightsSphereOpened = async (sphere: string) => {
+  await logEvent('insights_sphere_opened', {
+    sphere,
+  });
+};
+
+/**
+ * Log when notifications are turned on
+ */
+export const logNotificationTurnedOn = async (sphere: string, entityType: string) => {
+  await logEvent('notification_turned_on', {
+    sphere,
+    entity_type: entityType,
+  });
+};
+
 export default {
   logEvent,
   logEntityCreated,
   logMemoryCreated,
   logMemoryDeleted,
   logMomentCreated,
+  logWheelSpin,
+  logInsightsSphereOpened,
+  logNotificationTurnedOn,
 };
 

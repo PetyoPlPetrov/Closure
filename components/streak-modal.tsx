@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import { useTranslate } from '@/utils/languages/use-translate';
 import type { StreakBadge, StreakData } from '@/utils/streak-types';
 import { STREAK_BADGES } from '@/utils/streak-types';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -31,6 +32,7 @@ export const StreakModal = React.memo(function StreakModal({
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
+  const t = useTranslate();
 
   const daysToNext = nextBadge ? nextBadge.daysRequired - streakData.currentStreak : 0;
 
@@ -47,7 +49,7 @@ export const StreakModal = React.memo(function StreakModal({
             {/* Header */}
             <View style={styles.header}>
               <ThemedText size="xl" weight="bold">
-                Your Streak 🔥
+                {t('streak.modal.title')}
               </ThemedText>
               <Pressable onPress={onClose} style={styles.closeButton}>
                 <MaterialIcons name="close" size={24 * fontScale} color={colors.text} />
@@ -71,7 +73,7 @@ export const StreakModal = React.memo(function StreakModal({
                       {currentBadge.emoji}
                     </ThemedText>
                     <ThemedText size="xl" weight="bold" style={{ marginTop: 8 }}>
-                      {streakData.currentStreak} days
+                      {streakData.currentStreak} {streakData.currentStreak === 1 ? t('streak.badge.day') : t('streak.badge.days')}
                     </ThemedText>
                     <ThemedText size="sm" style={{ opacity: 0.7, marginTop: 4 }}>
                       {currentBadge.name}
@@ -85,10 +87,10 @@ export const StreakModal = React.memo(function StreakModal({
                       💫
                     </ThemedText>
                     <ThemedText size="xl" weight="bold" style={{ marginTop: 8 }}>
-                      0 days
+                      0 {t('streak.badge.days')}
                     </ThemedText>
                     <ThemedText size="sm" style={{ opacity: 0.7, marginTop: 4 }}>
-                      Start your journey
+                      {t('streak.modal.startJourney')}
                     </ThemedText>
                   </View>
                 )}
@@ -98,25 +100,25 @@ export const StreakModal = React.memo(function StreakModal({
               <View style={styles.statsGrid}>
                 <View style={[styles.statCard, { backgroundColor: colors.card }]}>
                   <ThemedText size="sm" style={{ opacity: 0.7 }}>
-                    Current Streak
+                    {t('streak.modal.currentStreak')}
                   </ThemedText>
                   <ThemedText size="xl" weight="bold" style={{ marginTop: 4 }}>
-                    {streakData.currentStreak} days
+                    {streakData.currentStreak} {streakData.currentStreak === 1 ? t('streak.badge.day') : t('streak.badge.days')}
                   </ThemedText>
                 </View>
 
                 <View style={[styles.statCard, { backgroundColor: colors.card }]}>
                   <ThemedText size="sm" style={{ opacity: 0.7 }}>
-                    Longest Streak
+                    {t('streak.modal.longestStreak')}
                   </ThemedText>
                   <ThemedText size="xl" weight="bold" style={{ marginTop: 4, color: '#FFD700' }}>
-                    {streakData.longestStreak} days
+                    {streakData.longestStreak} {streakData.longestStreak === 1 ? t('streak.badge.day') : t('streak.badge.days')}
                   </ThemedText>
                 </View>
 
                 <View style={[styles.statCard, { backgroundColor: colors.card }]}>
                   <ThemedText size="sm" style={{ opacity: 0.7 }}>
-                    Total Days
+                    {t('streak.modal.totalDays')}
                   </ThemedText>
                   <ThemedText size="xl" weight="bold" style={{ marginTop: 4 }}>
                     {streakData.totalDaysLogged}
@@ -125,7 +127,7 @@ export const StreakModal = React.memo(function StreakModal({
 
                 <View style={[styles.statCard, { backgroundColor: colors.card }]}>
                   <ThemedText size="sm" style={{ opacity: 0.7 }}>
-                    Badges Earned
+                    {t('streak.modal.badgesEarned')}
                   </ThemedText>
                   <ThemedText size="xl" weight="bold" style={{ marginTop: 4, color: colors.primary }}>
                     {streakData.earnedBadges?.length || 0}
@@ -137,7 +139,7 @@ export const StreakModal = React.memo(function StreakModal({
               {nextBadge && (
                 <View style={[styles.nextBadgeContainer, { backgroundColor: colors.card }]}>
                   <ThemedText size="m" weight="bold" style={{ marginBottom: 8 }}>
-                    Next Badge: {nextBadge.name}
+                    {t('streak.modal.nextBadge')}: {nextBadge.name}
                   </ThemedText>
                   <View style={styles.nextBadgeContent}>
                     <ThemedText size="xxxl" style={{ fontSize: 40 }}>
@@ -148,7 +150,7 @@ export const StreakModal = React.memo(function StreakModal({
                         {nextBadge.description}
                       </ThemedText>
                       <ThemedText size="m" weight="bold" style={{ marginTop: 4, color: colors.primary }}>
-                        {daysToNext} {daysToNext === 1 ? 'day' : 'days'} to go!
+                        {daysToNext} {daysToNext === 1 ? t('streak.badge.day') : t('streak.badge.days')} {t('streak.modal.daysToGo')}
                       </ThemedText>
                     </View>
                   </View>
@@ -158,7 +160,7 @@ export const StreakModal = React.memo(function StreakModal({
               {/* Earned Badges Collection */}
               <View style={styles.badgesSection}>
                 <ThemedText size="l" weight="bold" style={{ marginBottom: 12 }}>
-                  Badge Collection
+                  {t('streak.modal.badgeCollection')}
                 </ThemedText>
                 <View style={styles.badgesGrid}>
                   {STREAK_BADGES.map((badge) => {
@@ -185,7 +187,7 @@ export const StreakModal = React.memo(function StreakModal({
                           {badge.name}
                         </ThemedText>
                         <ThemedText size="xxs" style={{ opacity: 0.6, marginTop: 2 }}>
-                          {badge.daysRequired} days
+                          {badge.daysRequired} {badge.daysRequired === 1 ? t('streak.badge.day') : t('streak.badge.days')}
                         </ThemedText>
                         {isEarned && (
                           <View style={styles.checkmark}>
@@ -202,14 +204,14 @@ export const StreakModal = React.memo(function StreakModal({
               <View style={[styles.motivationContainer, { backgroundColor: colors.card }]}>
                 <ThemedText size="m" style={{ textAlign: 'center', opacity: 0.8 }}>
                   {streakData.currentStreak === 0
-                    ? "Start your journey today! Log a moment to begin your streak 🌱"
+                    ? t('streak.modal.motivation.start')
                     : streakData.currentStreak < 3
-                    ? "You're building a habit! Keep it going 💪"
+                    ? t('streak.modal.motivation.building')
                     : streakData.currentStreak < 7
-                    ? "Great progress! You're forming a powerful routine ⭐"
+                    ? t('streak.modal.motivation.progress')
                     : streakData.currentStreak < 30
-                    ? "Amazing consistency! You're mastering self-reflection 🔥"
-                    : "You're a legend! Your dedication is inspiring 👑"}
+                    ? t('streak.modal.motivation.consistency')
+                    : t('streak.modal.motivation.legend')}
                 </ThemedText>
               </View>
             </ScrollView>
