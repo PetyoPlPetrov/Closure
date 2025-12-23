@@ -458,9 +458,26 @@ export default function HobbiesComparisonScreen() {
             <View style={styles.headerButton} />
           </View>
 
-          <View style={styles.content}>
-            <ThemedText size="sm" style={styles.subtitle}>
-              {t('insights.comparison.requiresEntities')}
+          <View style={[styles.content, { justifyContent: 'center', alignItems: 'center', flex: 1 }]}>
+            <View style={{
+              width: 100 * fontScale,
+              height: 100 * fontScale,
+              borderRadius: 50 * fontScale,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 24 * fontScale,
+              backgroundColor: colorScheme === 'dark' 
+                ? 'rgba(245, 124, 0, 0.2)' 
+                : 'rgba(245, 124, 0, 0.1)',
+            }}>
+              <MaterialIcons
+                name="sports-esports"
+                size={50 * fontScale}
+                color={colorScheme === 'dark' ? '#F57C00' : '#E65100'}
+              />
+            </View>
+            <ThemedText size="l" style={{ textAlign: 'center', opacity: 0.7, paddingHorizontal: 32 * fontScale }}>
+              {t('insights.comparison.hobbies.requiresEntities')}
             </ThemedText>
           </View>
         </View>
@@ -488,8 +505,25 @@ export default function HobbiesComparisonScreen() {
             <View style={styles.headerButton} />
           </View>
 
-          <View style={styles.content}>
-            <ThemedText size="sm" style={styles.subtitle}>
+          <View style={[styles.content, { justifyContent: 'center', alignItems: 'center', flex: 1 }]}>
+            <View style={{
+              width: 100 * fontScale,
+              height: 100 * fontScale,
+              borderRadius: 50 * fontScale,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 24 * fontScale,
+              backgroundColor: colorScheme === 'dark' 
+                ? 'rgba(245, 124, 0, 0.2)' 
+                : 'rgba(245, 124, 0, 0.1)',
+            }}>
+              <MaterialIcons
+                name="sports-esports"
+                size={50 * fontScale}
+                color={colorScheme === 'dark' ? '#F57C00' : '#E65100'}
+              />
+            </View>
+            <ThemedText size="l" style={{ textAlign: 'center', opacity: 0.7, paddingHorizontal: 32 * fontScale }}>
               {t('insights.comparison.hobbies.noData')}
             </ThemedText>
           </View>

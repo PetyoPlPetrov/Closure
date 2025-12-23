@@ -488,9 +488,26 @@ export default function FriendsComparisonScreen() {
             <View style={styles.headerButton} />
           </View>
 
-          <View style={styles.content}>
-            <ThemedText size="sm" style={styles.subtitle}>
-              {t('insights.comparison.requiresEntities')}
+          <View style={[styles.content, { justifyContent: 'center', alignItems: 'center', flex: 1 }]}>
+            <View style={{
+              width: 100 * fontScale,
+              height: 100 * fontScale,
+              borderRadius: 50 * fontScale,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 24 * fontScale,
+              backgroundColor: colorScheme === 'dark' 
+                ? 'rgba(123, 31, 162, 0.2)' 
+                : 'rgba(123, 31, 162, 0.1)',
+            }}>
+              <MaterialIcons
+                name="people"
+                size={50 * fontScale}
+                color={colorScheme === 'dark' ? '#7B1FA2' : '#6A1B9A'}
+              />
+            </View>
+            <ThemedText size="l" style={{ textAlign: 'center', opacity: 0.7, paddingHorizontal: 32 * fontScale }}>
+              {t('insights.comparison.friends.requiresEntities')}
             </ThemedText>
           </View>
         </View>
@@ -518,8 +535,25 @@ export default function FriendsComparisonScreen() {
             <View style={styles.headerButton} />
           </View>
 
-          <View style={styles.content}>
-            <ThemedText size="sm" style={styles.subtitle}>
+          <View style={[styles.content, { justifyContent: 'center', alignItems: 'center', flex: 1 }]}>
+            <View style={{
+              width: 100 * fontScale,
+              height: 100 * fontScale,
+              borderRadius: 50 * fontScale,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 24 * fontScale,
+              backgroundColor: colorScheme === 'dark' 
+                ? 'rgba(123, 31, 162, 0.2)' 
+                : 'rgba(123, 31, 162, 0.1)',
+            }}>
+              <MaterialIcons
+                name="people"
+                size={50 * fontScale}
+                color={colorScheme === 'dark' ? '#7B1FA2' : '#6A1B9A'}
+              />
+            </View>
+            <ThemedText size="l" style={{ textAlign: 'center', opacity: 0.7, paddingHorizontal: 32 * fontScale }}>
               {t('insights.comparison.friends.noData')}
             </ThemedText>
           </View>

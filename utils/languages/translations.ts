@@ -246,6 +246,7 @@ export interface Translations {
   'insights.comparison.relationships.title': string;
   'insights.comparison.relationships.chartTitle': string;
   'insights.comparison.relationships.subtitle': string;
+  'insights.comparison.relationships.requiresEntities': string;
   'insights.comparison.relationships.goodMoments': string;
   'insights.comparison.relationships.badMoments': string;
   'insights.comparison.relationships.you': string;
@@ -268,6 +269,7 @@ export interface Translations {
   'insights.comparison.career.title': string;
   'insights.comparison.career.chartTitle': string;
   'insights.comparison.career.subtitle': string;
+  'insights.comparison.career.requiresEntities': string;
   'insights.comparison.career.goodMoments': string;
   'insights.comparison.career.badMoments': string;
   'insights.comparison.career.warning.lower': string;
@@ -289,6 +291,7 @@ export interface Translations {
   'insights.comparison.family.sunny': string;
   'insights.comparison.family.cloudy': string;
   'insights.comparison.family.noData': string;
+  'insights.comparison.family.requiresEntities': string;
   'insights.comparison.family.insight.moreFamilyTime': string;
   'insights.comparison.family.insight.moreCareerTime': string;
   'insights.comparison.family.insight.balancedTime': string;
@@ -303,6 +306,7 @@ export interface Translations {
   'insights.comparison.friends.title': string;
   'insights.comparison.friends.subtitle': string;
   'insights.comparison.friends.noData': string;
+  'insights.comparison.friends.requiresEntities': string;
   'insights.comparison.friends.otherSpheres': string;
   'insights.comparison.friends.insight.moreFriendsTime': string;
   'insights.comparison.friends.insight.moreOtherSpheresTime': string;
@@ -316,6 +320,7 @@ export interface Translations {
   'insights.comparison.hobbies.title': string;
   'insights.comparison.hobbies.subtitle': string;
   'insights.comparison.hobbies.noData': string;
+  'insights.comparison.hobbies.requiresEntities': string;
   'insights.comparison.hobbies.otherSpheres': string;
   'insights.comparison.hobbies.insight.moreHobbiesTime': string;
   'insights.comparison.hobbies.insight.moreOtherSpheresTime': string;
@@ -753,6 +758,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.relationships.percentageExplanation': 'The {percentage}% represents the proportion of sunny (positive) moments versus cloudy (difficult) moments. A higher percentage means more positive experiences recorded.',
     'insights.comparison.relationships.totalMoments': 'Total Moments',
     'insights.comparison.relationships.quality': 'sunny',
+    'insights.comparison.relationships.requiresEntities': 'To view relationships comparison, you need at least one partner and one job. Add a partner or job to get started.',
     'insights.comparison.relationships.sphereComparison.moreRelationshipTime': 'Relationships prevail in your life, with significantly more moments recorded compared to career. Your personal connections are a priority.',
     'insights.comparison.relationships.sphereComparison.moreCareerTime': 'Career prevails in your life, with significantly more moments recorded compared to relationships. Consider balancing your focus between work and personal connections.',
     'insights.comparison.relationships.sphereComparison.balancedTime': 'You have an approximately balanced work-life distribution between relationships and career.',
@@ -762,6 +768,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.career.title': 'Career Comparison',
     'insights.comparison.career.chartTitle': 'How Sunny and Cloudy Moments Change Across Jobs',
     'insights.comparison.career.subtitle': 'Overall amount of moments',
+    'insights.comparison.career.requiresEntities': 'To view career comparison, you need at least one job and one relationship. Add a job or relationship to get started.',
     'insights.comparison.career.goodMoments': 'Sunny Facts',
     'insights.comparison.career.badMoments': 'Cloudy Moments',
     'insights.comparison.career.warning.lower': 'Your current job has a lower proportion of sunny moments compared to your past jobs. Consider what might be causing this difference.',
@@ -783,6 +790,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.family.sunny': 'Sunny',
     'insights.comparison.family.cloudy': 'Cloudy',
     'insights.comparison.family.noData': 'No data available for comparison',
+    'insights.comparison.family.requiresEntities': 'To view family comparison, you need at least one family member and one job. Add a family member or job to get started.',
     'insights.comparison.family.insight.moreFamilyTime': 'You spend more time with family than on your career.',
     'insights.comparison.family.insight.moreCareerTime': 'You spend more time on your career than with family. Consider finding more time for family moments.',
     'insights.comparison.family.insight.balancedTime': 'You have a well-balanced distribution of time between family and career.',
@@ -797,6 +805,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.friends.title': 'Friends Comparison',
     'insights.comparison.friends.subtitle': 'Overall amount of moments',
     'insights.comparison.friends.noData': 'No data available for comparison',
+    'insights.comparison.friends.requiresEntities': 'To view friends comparison, you need at least one friend and data from other spheres. Add a friend or create memories in other spheres to get started.',
     'insights.comparison.friends.otherSpheres': 'Other Spheres',
     'insights.comparison.friends.insight.moreFriendsTime': 'You spend more time with friends than on average with other spheres.',
     'insights.comparison.friends.insight.moreOtherSpheresTime': 'You spend less time with friends compared to other spheres. Consider finding more time for friendships.',
@@ -810,6 +819,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.hobbies.title': 'Hobbies Comparison',
     'insights.comparison.hobbies.subtitle': 'Overall amount of moments',
     'insights.comparison.hobbies.noData': 'No data available for comparison',
+    'insights.comparison.hobbies.requiresEntities': 'To view hobbies comparison, you need at least one hobby and data from other spheres. Add a hobby or create memories in other spheres to get started.',
     'insights.comparison.hobbies.otherSpheres': 'Other Spheres',
     'insights.comparison.hobbies.insight.moreHobbiesTime': 'You spend more time on hobbies than on average with other spheres.',
     'insights.comparison.hobbies.insight.moreOtherSpheresTime': 'You spend less time on hobbies compared to other spheres. Consider finding more time for your interests.',
@@ -969,6 +979,7 @@ const translations: Record<Language, Translations> = {
     'subscription.subtitle': 'Get unlimited access to all features',
     'subscription.feature.unlimited': 'Unlimited partners, jobs, friends, family members, and hobbies',
     'subscription.feature.insights': 'Access to premium insights and analytics',
+    'subscription.feature.support': 'Priority support',
     'subscription.monthly.title': 'Monthly',
     'subscription.monthly.period': 'per month',
     'subscription.yearly.title': 'Yearly',
@@ -1244,6 +1255,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.relationships.percentageExplanation': 'Процентът от {percentage}% представлява пропорцията на слънчеви (позитивни) моменти спрямо облачни (трудни) моменти. По-висок процент означава повече записани позитивни преживявания.',
     'insights.comparison.relationships.totalMoments': 'Общо Моменти',
     'insights.comparison.relationships.quality': 'слънчеви',
+    'insights.comparison.relationships.requiresEntities': 'За да видите сравнение на връзките, трябва поне един партньор и една работа. Добавете партньор или работа, за да започнете.',
     'insights.comparison.relationships.sphereComparison.moreRelationshipTime': 'Връзките преобладават в живота ви, с значително повече записани моменти в сравнение с кариерата. Личните ви връзки са приоритет.',
     'insights.comparison.relationships.sphereComparison.moreCareerTime': 'Кариерата преобладава в живота ви, с значително повече записани моменти в сравнение с връзките. Помислете за балансиране на фокуса между работа и лични връзки.',
     'insights.comparison.relationships.sphereComparison.balancedTime': 'Имате приблизително балансирано разпределение на работа и личен живот между връзки и кариера.',
@@ -1262,6 +1274,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.career.percentageExplanation': 'Процентът от {percentage}% представлява пропорцията на слънчеви (позитивни) моменти спрямо облачни (трудни) моменти във всички ваши кариерни преживявания. По-висок процент означава повече записани позитивни преживявания.',
     'insights.comparison.career.totalMoments': 'Общо Моменти',
     'insights.comparison.career.quality': 'слънчеви',
+    'insights.comparison.career.requiresEntities': 'За да видите сравнение на кариерата, трябва поне една работа и една връзка. Добавете работа или връзка, за да започнете.',
     'insights.comparison.career.sphereComparison.moreCareerTime': 'Кариерата преобладава в живота ви, с значително повече записани моменти в сравнение с връзките. Помислете за балансиране на фокуса между работа и лични връзки.',
     'insights.comparison.career.sphereComparison.moreRelationshipTime': 'Връзките преобладават в живота ви, с значително повече записани моменти в сравнение с кариерата. Личните ви връзки са приоритет.',
     'insights.comparison.career.sphereComparison.balancedTime': 'Имате приблизително балансирано разпределение на работа и личен живот между кариера и връзки.',
@@ -1274,6 +1287,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.family.sunny': 'Слънчеви',
     'insights.comparison.family.cloudy': 'Облачни',
     'insights.comparison.family.noData': 'Няма налични данни за сравнение',
+    'insights.comparison.family.requiresEntities': 'За да видите сравнение на семейството, трябва поне един семейен член и една работа. Добавете семейен член или работа, за да започнете.',
     'insights.comparison.family.insight.moreFamilyTime': 'Отделяте повече време за семейството, отколкото за кариерата.',
     'insights.comparison.family.insight.moreCareerTime': 'Отделяте повече време за кариерата, отколкото за семейството. Помислете да намерите повече време за семейни моменти.',
     'insights.comparison.family.insight.balancedTime': 'Имате добре балансирано разпределение на времето между семейство и кариера.',
@@ -1288,6 +1302,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.friends.title': 'Сравнение на Приятели',
     'insights.comparison.friends.subtitle': 'Общо количество моменти',
     'insights.comparison.friends.noData': 'Няма налични данни за сравнение',
+    'insights.comparison.friends.requiresEntities': 'За да видите сравнение на приятелите, трябва поне един приятел и данни от други сфери. Добавете приятел или създайте спомени в други сфери, за да започнете.',
     'insights.comparison.friends.otherSpheres': 'Други Сфери',
     'insights.comparison.friends.insight.moreFriendsTime': 'Отделяте повече време за приятели, отколкото средно за други сфери.',
     'insights.comparison.friends.insight.moreOtherSpheresTime': 'Отделяте по-малко време за приятели в сравнение с други сфери. Помислете да намерите повече време за приятелства.',
@@ -1301,6 +1316,7 @@ const translations: Record<Language, Translations> = {
     'insights.comparison.hobbies.title': 'Сравнение на Хобита',
     'insights.comparison.hobbies.subtitle': 'Общо количество моменти',
     'insights.comparison.hobbies.noData': 'Няма налични данни за сравнение',
+    'insights.comparison.hobbies.requiresEntities': 'За да видите сравнение на хобитата, трябва поне едно хоби и данни от други сфери. Добавете хоби или създайте спомени в други сфери, за да започнете.',
     'insights.comparison.hobbies.otherSpheres': 'Други Сфери',
     'insights.comparison.hobbies.insight.moreHobbiesTime': 'Отделяте повече време за хобита, отколкото средно за други сфери.',
     'insights.comparison.hobbies.insight.moreOtherSpheresTime': 'Отделяте по-малко време за хобита в сравнение с други сфери. Помислете да намерите повече време за вашите интереси.',
@@ -1461,6 +1477,7 @@ const translations: Record<Language, Translations> = {
     'subscription.subtitle': 'Получи неограничен достъп до всички функции',
     'subscription.feature.unlimited': 'Неограничени партньори, работни места, приятели, членове на семейството и хобита',
     'subscription.feature.insights': 'Достъп до премиум анализи и статистики',
+    'subscription.feature.support': 'Приоритетна поддръжка',
     'subscription.monthly.title': 'Месечно',
     'subscription.monthly.period': 'на месец',
     'subscription.yearly.title': 'Годишно',

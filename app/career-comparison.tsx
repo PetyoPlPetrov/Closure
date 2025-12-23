@@ -577,9 +577,26 @@ export default function CareerComparisonScreen() {
             </ThemedText>
             <View style={styles.headerButton} />
           </View>
-          <ScrollView style={styles.content} contentContainerStyle={{ paddingTop: 40 * fontScale, alignItems: 'center' }}>
-            <ThemedText size="l" style={{ textAlign: 'center', opacity: 0.7 }}>
-              {t('insights.comparison.requiresEntities')}
+          <ScrollView style={styles.content} contentContainerStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 40 * fontScale }}>
+            <View style={{
+              width: 100 * fontScale,
+              height: 100 * fontScale,
+              borderRadius: 50 * fontScale,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 24 * fontScale,
+              backgroundColor: colorScheme === 'dark' 
+                ? 'rgba(33, 150, 243, 0.2)' 
+                : 'rgba(33, 150, 243, 0.1)',
+            }}>
+              <MaterialIcons
+                name="work"
+                size={50 * fontScale}
+                color={colorScheme === 'dark' ? '#2196F3' : '#1976D2'}
+              />
+            </View>
+            <ThemedText size="l" style={{ textAlign: 'center', opacity: 0.7, paddingHorizontal: 32 * fontScale }}>
+              {t('insights.comparison.career.requiresEntities')}
             </ThemedText>
           </ScrollView>
         </View>

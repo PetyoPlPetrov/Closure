@@ -539,9 +539,26 @@ export default function RelationshipsComparisonScreen() {
             </ThemedText>
             <View style={styles.headerButton} />
           </View>
-          <ScrollView style={styles.content} contentContainerStyle={{ paddingTop: 40 * fontScale, alignItems: 'center' }}>
-            <ThemedText size="l" style={{ textAlign: 'center', opacity: 0.7 }}>
-              {t('insights.comparison.requiresEntities')}
+          <ScrollView style={styles.content} contentContainerStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 40 * fontScale }}>
+            <View style={{
+              width: 100 * fontScale,
+              height: 100 * fontScale,
+              borderRadius: 50 * fontScale,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 24 * fontScale,
+              backgroundColor: colorScheme === 'dark' 
+                ? 'rgba(233, 30, 99, 0.2)' 
+                : 'rgba(233, 30, 99, 0.1)',
+            }}>
+              <MaterialIcons
+                name="favorite"
+                size={50 * fontScale}
+                color={colorScheme === 'dark' ? '#E91E63' : '#C2185B'}
+              />
+            </View>
+            <ThemedText size="l" style={{ textAlign: 'center', opacity: 0.7, paddingHorizontal: 32 * fontScale }}>
+              {t('insights.comparison.relationships.requiresEntities')}
             </ThemedText>
           </ScrollView>
         </View>
