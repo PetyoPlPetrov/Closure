@@ -73,6 +73,7 @@ export default function NotificationDetailScreen() {
     noRecentDays: 7,
     defaultForSpheres: [],
     message: '',
+    soundEnabled: true, // Default to sound enabled
   });
   const [infoModal, setInfoModal] = useState<{ title: string; body: string } | null>(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -105,6 +106,7 @@ export default function NotificationDetailScreen() {
         noRecentDays: template.noRecentDays,
         defaultForSpheres: template.defaultForSpheres || [],
         message: (template as any).message || '',
+        soundEnabled: template.soundEnabled !== false, // Default to true if not specified
       });
       isInitializing.current = false;
     } else {
@@ -429,20 +431,50 @@ export default function NotificationDetailScreen() {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabelRow}>
               <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
+                {t('notifications.settings.sound')}
+              </ThemedText>
+              <TouchableOpacity
+                style={[styles.toggleButton, styles.toggleButtonSmall, customDraft.soundEnabled && styles.toggleButtonActive]}
+                onPress={() => updateCustomDraft({ soundEnabled: !customDraft.soundEnabled })}
+              >
+                <MaterialIcons
+                  name={customDraft.soundEnabled ? 'volume-up' : 'volume-off'}
+                  size={18 * fontScale}
+                  color={customDraft.soundEnabled ? palette.background : palette.text}
+                />
+                <ThemedText size="xs" weight="bold" style={{ color: customDraft.soundEnabled ? palette.background : palette.text }}>
+                  {customDraft.soundEnabled ? t('notifications.settings.sound.on') : t('notifications.settings.sound.off')}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <View style={styles.fieldLabelRow}>
+              <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
                 {t('notifications.settings.condition')}
               </ThemedText>
-              {currentOverride?.kind === 'custom' && isConditionMet && (
-                <View style={styles.conditionBadgeInline}>
-                  <MaterialIcons name="check-circle" size={16 * fontScale} color={palette.primary} />
-                  <ThemedText size="xs" weight="medium" style={{ color: palette.primary, marginLeft: 4 * fontScale }}>
-                    {t('notifications.settings.condition.met')}
-                  </ThemedText>
-                  {countdown !== null && (
-                    <ThemedText size="xs" weight="medium" style={{ color: palette.muted, marginLeft: 8 * fontScale }}>
-                      ({formatCountdown(countdown)})
+              {currentOverride?.kind === 'custom' && (
+                isConditionMet ? (
+                  <View style={styles.conditionBadgeInline}>
+                    <MaterialIcons name="check-circle" size={16 * fontScale} color={palette.primary} />
+                    <ThemedText size="xs" weight="medium" style={{ color: palette.primary, marginLeft: 4 * fontScale }}>
+                      {t('notifications.settings.condition.met')}
                     </ThemedText>
-                  )}
-                </View>
+                    {countdown !== null && (
+                      <ThemedText size="xs" weight="medium" style={{ color: palette.muted, marginLeft: 8 * fontScale }}>
+                        ({formatCountdown(countdown)})
+                      </ThemedText>
+                    )}
+                  </View>
+                ) : (
+                  <View style={styles.conditionBadgeInline}>
+                    <MaterialIcons name="cancel" size={16 * fontScale} color={palette.error} />
+                    <ThemedText size="xs" weight="medium" style={{ color: palette.error, marginLeft: 4 * fontScale }}>
+                      {t('notifications.settings.condition.notMet')}
+                    </ThemedText>
+                  </View>
+                )
               )}
             </View>
             <View style={styles.chipRow}>
@@ -664,6 +696,11 @@ const createStyles = (
     toggleButtonActive: {
       backgroundColor: palette.primary,
       borderColor: palette.primary,
+    },
+    toggleButtonSmall: {
+      paddingHorizontal: 12 * fontScale,
+      paddingVertical: 8 * fontScale,
+      minWidth: 60 * fontScale,
     },
     chipSmall: {
       paddingHorizontal: 8 * fontScale,

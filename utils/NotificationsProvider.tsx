@@ -31,6 +31,7 @@ export type NotificationTemplate = {
   noRecentDays?: number;
   defaultForSpheres?: LifeSphere[];
   message?: string;
+  soundEnabled?: boolean; // Whether to play sound with notification
 };
 
 type EntityNotificationChoice =
@@ -261,6 +262,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             title: entityName,
             body: message,
             data: { entityId, sphere, type: 'entity_reminder', scheduledAt: Date.now() },
+            sound: template.soundEnabled !== false ? 'default' : undefined, // Play sound unless explicitly disabled
           },
           trigger: triggerInput, // Use explicit DateTriggerInput format
         });

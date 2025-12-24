@@ -559,8 +559,12 @@ export interface Translations {
   'notifications.settings.dayOfWeek.sat': string;
   'notifications.settings.time': string;
   'notifications.settings.done': string;
+  'notifications.settings.sound': string;
+  'notifications.settings.sound.on': string;
+  'notifications.settings.sound.off': string;
   'notifications.settings.condition': string;
   'notifications.settings.condition.met': string;
+  'notifications.settings.condition.notMet': string;
   'notifications.settings.condition.belowAvg': string;
   'notifications.settings.condition.noRecent': string;
   'notifications.settings.condition.lessThanJob': string;
@@ -1128,8 +1132,12 @@ const translations: Record<Language, Translations> = {
     'notifications.settings.dayOfWeek.sat': 'Sat',
     'notifications.settings.time': 'Time',
     'notifications.settings.done': 'Done',
+    'notifications.settings.sound': 'Sound',
+    'notifications.settings.sound.on': 'On',
+    'notifications.settings.sound.off': 'Off',
     'notifications.settings.condition': 'Condition',
     'notifications.settings.condition.met': 'Met',
+    'notifications.settings.condition.notMet': 'Not Met',
     'notifications.settings.condition.belowAvg': 'Below avg',
     'notifications.settings.condition.noRecent': 'No recent',
     'notifications.settings.condition.lessThanJob': 'Less than job',
@@ -1696,8 +1704,12 @@ const translations: Record<Language, Translations> = {
     'notifications.settings.dayOfWeek.sat': 'Съб',
     'notifications.settings.time': 'Час',
     'notifications.settings.done': 'Готово',
+    'notifications.settings.sound': 'Звук',
+    'notifications.settings.sound.on': 'Вкл',
+    'notifications.settings.sound.off': 'Изкл',
     'notifications.settings.condition': 'Условие',
     'notifications.settings.condition.met': 'Изпълнено',
+    'notifications.settings.condition.notMet': 'Не е изпълнено',
     'notifications.settings.condition.belowAvg': 'Под средното',
     'notifications.settings.condition.noRecent': 'Без скорошни',
     'notifications.settings.condition.lessThanJob': 'По-малко от работата',

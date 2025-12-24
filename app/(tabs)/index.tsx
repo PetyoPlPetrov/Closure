@@ -5286,7 +5286,8 @@ export default function HomeScreen() {
   );
   
   // Message position constants
-  const messageTop = 100; // Position for encouragement message and lesson notification
+  // Badge is at top: 80, badge height ~40px, so position message slightly below badge
+  const messageTop = 130; // Position for encouragement message and lesson notification (below streak badge)
   const messageLeft = 20;
   const messageRight = 20;
   
