@@ -341,11 +341,15 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     .slice(0, 2);
 
   const floatAnimation = useSharedValue(0);
-  const panX = useSharedValue(position.x);
-  const panY = useSharedValue(position.y);
+  // Clamp position to ensure avatar is entirely visible in viewport
+  const padding = avatarSize / 2;
+  const clampedPositionX = Math.max(padding, Math.min(SCREEN_WIDTH - padding, position.x));
+  const clampedPositionY = Math.max(padding, Math.min(SCREEN_HEIGHT - padding, position.y));
+  const panX = useSharedValue(clampedPositionX);
+  const panY = useSharedValue(clampedPositionY);
   const isDragging = useSharedValue(false);
-  const dragStartX = useSharedValue(position.x);
-  const dragStartY = useSharedValue(position.y);
+  const dragStartX = useSharedValue(clampedPositionX);
+  const dragStartY = useSharedValue(clampedPositionY);
   const dragStartedRef = useRef(false); // Track if a drag gesture started
   const dragHandlePulse = useSharedValue(0); // Animation for drag handle pulse
   
@@ -375,8 +379,12 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               const newX = dragStartX.value + gestureState.dx;
               const newY = dragStartY.value + gestureState.dy;
 
-              // Clamp to viewport bounds
-              const padding = avatarSize / 2 + 20;
+              // Clamp to viewport bounds - ensure entire avatar stays visible
+              // Container is positioned at (position.x - SCREEN_WIDTH, position.y - SCREEN_HEIGHT)
+              // Avatar center is at (SCREEN_WIDTH, SCREEN_HEIGHT) within container
+              // So avatar center on screen = container.left + SCREEN_WIDTH = position.x
+              // We need avatarSize/2 padding on all sides to keep entire avatar visible
+              const padding = avatarSize / 2;
               const minX = padding;
               const maxX = SCREEN_WIDTH - padding;
               const minY = padding;
@@ -409,8 +417,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                 const newX = dragStartX.value + gestureState.dx;
                 const newY = dragStartY.value + gestureState.dy;
 
-                // Clamp to viewport bounds
-                const padding = avatarSize / 2 + 20;
+                // Clamp to viewport bounds - ensure entire avatar stays visible
+                const padding = avatarSize / 2;
                 const minX = padding;
                 const maxX = SCREEN_WIDTH - padding;
                 const minY = padding;
@@ -531,16 +539,33 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   }, [memoryPanX0, memoryPanX1, memoryPanX2, memoryPanX3, memoryPanX4, memoryPanX5, memoryPanX6, memoryPanX7, memoryPanX8, memoryPanX9, memoryPanX10, memoryPanX11, memoryPanX12, memoryPanX13, memoryPanX14, memoryPanX15, memoryPanX16, memoryPanX17, memoryPanX18, memoryPanX19, memoryPanX20, memoryPanX21, memoryPanX22, memoryPanX23, memoryPanX24, memoryPanY0, memoryPanY1, memoryPanY2, memoryPanY3, memoryPanY4, memoryPanY5, memoryPanY6, memoryPanY7, memoryPanY8, memoryPanY9, memoryPanY10, memoryPanY11, memoryPanY12, memoryPanY13, memoryPanY14, memoryPanY15, memoryPanY16, memoryPanY17, memoryPanY18, memoryPanY19, memoryPanY20, memoryPanY21, memoryPanY22, memoryPanY23, memoryPanY24]);
   
   // Update pan values when position prop changes (but not while dragging)
+  // Also clamp position to ensure avatar stays within viewport
   React.useEffect(() => {
     if (!isDragging.value) {
-      panX.value = position.x;
-      panY.value = position.y;
+      // Clamp position to viewport bounds to ensure entire avatar is visible
+      const padding = avatarSize / 2;
+      const clampedX = Math.max(padding, Math.min(SCREEN_WIDTH - padding, position.x));
+      const clampedY = Math.max(padding, Math.min(SCREEN_HEIGHT - padding, position.y));
+      
+      panX.value = clampedX;
+      panY.value = clampedY;
+      dragStartX.value = clampedX;
+      dragStartY.value = clampedY;
       memoryAnimatedValues.forEach((mem) => {
-        mem.panX.value = position.x;
-        mem.panY.value = position.y;
+        mem.panX.value = clampedX;
+        mem.panY.value = clampedY;
       });
+      
+      // Update focusedX/Y to match clamped position
+      focusedX.value = clampedX;
+      focusedY.value = clampedY;
+      
+      // Notify parent if position was clamped (to persist corrected position)
+      if (clampedX !== position.x || clampedY !== position.y) {
+        onPositionChange?.(clampedX, clampedY);
+      }
     }
-  }, [position.x, position.y, panX, panY, memoryAnimatedValues, isDragging]);
+  }, [position.x, position.y, panX, panY, dragStartX, dragStartY, memoryAnimatedValues, isDragging, avatarSize, focusedX, focusedY, onPositionChange]);
   
   React.useEffect(() => {
     if (!isFocused) {
@@ -625,6 +650,21 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   );
 
 
+  // Animated style for container position - uses panX/panY to stay in sync with drag
+  // Also clamp to ensure avatar stays fully visible
+  const avatarSizeForClamp = avatarSize; // Capture for worklet
+  const containerAnimatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    // Ensure panX/panY are within bounds (double-check in case they weren't clamped)
+    const padding = avatarSizeForClamp / 2;
+    const clampedX = Math.max(padding, Math.min(SCREEN_WIDTH - padding, panX.value));
+    const clampedY = Math.max(padding, Math.min(SCREEN_HEIGHT - padding, panY.value));
+    return {
+      left: clampedX - SCREEN_WIDTH,
+      top: clampedY - SCREEN_HEIGHT,
+    };
+  });
+
   // Zoom animation for focused state - smooth zoom-in/zoom-out effect
   // Calculate the scale factor: focused size (100px) / base size (80px) = 1.25
   const baseScale = 1;
@@ -635,16 +675,17 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const zoomProgress = useSharedValue(0);
   
   // Store the starting position when focusing begins (State A position)
-  const startX = useSharedValue(position.x);
-  const startY = useSharedValue(position.y);
+  // Use clamped position to ensure avatar is visible
+  const startX = useSharedValue(clampedPositionX);
+  const startY = useSharedValue(clampedPositionY);
   
   // Target position for focused state (State B - centered in visible viewport)
   const targetX = SCREEN_WIDTH / 2;
   const targetY = SCREEN_HEIGHT / 2;
   
   // Shared values for focused position (used by memories)
-  const focusedX = useSharedValue(position.x);
-  const focusedY = useSharedValue(position.y);
+  const focusedX = useSharedValue(clampedPositionX);
+  const focusedY = useSharedValue(clampedPositionY);
   
   // Use a ref to track previous isFocused state to detect transitions
   // CRITICAL: Don't initialize with current value - track the actual previous value from last effect run
@@ -1038,135 +1079,149 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
   return (
     <>
+      {/* Draggable container wrapping avatar and memories */}
       <Animated.View
-        {...(panResponder?.panHandlers || {})}
         style={[
           {
             position: 'absolute',
-            left: position.x - avatarSize / 2,
-            top: position.y - avatarSize / 2,
             zIndex: 100, // Much higher z-index to ensure avatars are always on top and interactive
-            pointerEvents: enableDragging && !isFocused ? 'auto' : 'box-none', // Allow touches when dragging enabled
+            pointerEvents: 'box-none', // Container doesn't block touches - children handle them
+            width: SCREEN_WIDTH * 2, // Large enough to contain all memories
+            height: SCREEN_HEIGHT * 2, // Large enough to contain all memories
           },
+          containerAnimatedStyle, // Use animated style for container position
           animatedStyle,
         ]}
       >
-        <Pressable
-          style={{ pointerEvents: 'auto' }} // Always allow press events
-          onPress={() => {
-            // Only trigger onPress if we didn't drag
-            // Use a small delay to check if drag started (PanResponder needs time to set the flag)
-            const checkDrag = () => {
-              if (!dragStartedRef.current && !isDragging.value) {
-                onPress();
-              }
-            };
-            // Check immediately and after a short delay to catch drags that start quickly
-            checkDrag();
-            setTimeout(checkDrag, 100);
-          }}
+        {/* Avatar - centered in container at (SCREEN_WIDTH, SCREEN_HEIGHT) */}
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              left: SCREEN_WIDTH - avatarSize / 2,
+              top: SCREEN_HEIGHT - avatarSize / 2,
+              zIndex: 100,
+              pointerEvents: 'auto', // Avatar can receive touches
+            },
+          ]}
+          {...(panResponder?.panHandlers || {})} // Attach panResponder to avatar, not container
         >
-          {/* Circular progress bar border */}
-          <View
-            style={{
-              width: avatarSize + borderWidth * 2,
-              height: avatarSize + borderWidth * 2,
-              justifyContent: 'center',
-              alignItems: 'center',
-              position: 'relative',
+          <Pressable
+            style={{ pointerEvents: 'auto' }} // Always allow press events
+            onPress={() => {
+              // Only trigger onPress if we didn't drag
+              // Use a small delay to check if drag started (PanResponder needs time to set the flag)
+              const checkDrag = () => {
+                if (!dragStartedRef.current && !isDragging.value) {
+                  onPress();
+                }
+              };
+              // Check immediately and after a short delay to catch drags that start quickly
+              checkDrag();
+              setTimeout(checkDrag, 100);
             }}
           >
-            {/* SVG Progress Bar */}
-            <Svg
-              width={avatarSize + borderWidth * 2}
-              height={avatarSize + borderWidth * 2}
-              style={{ position: 'absolute' }}
-            >
-              {/* Background circle (cloudy/dark) - thicker */}
-              <Circle
-                cx={(avatarSize + borderWidth * 2) / 2}
-                cy={(avatarSize + borderWidth * 2) / 2}
-                r={radius}
-                stroke="#000000" // Black for cloudy moments
-                strokeWidth={borderWidth + 2} // Thicker black border
-                fill="none"
-              />
-              {/* Progress circle (sunny/yellow) */}
-              <Circle
-                cx={(avatarSize + borderWidth * 2) / 2}
-                cy={(avatarSize + borderWidth * 2) / 2}
-                r={radius}
-                stroke="#FFD700" // Yellow for sunny moments
-                strokeWidth={borderWidth}
-                fill="none"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                transform={`rotate(-90 ${(avatarSize + borderWidth * 2) / 2} ${(avatarSize + borderWidth * 2) / 2})`}
-              />
-            </Svg>
-            {/* Avatar content */}
+            {/* Circular progress bar border */}
             <View
               style={{
-                width: avatarSize,
-                height: avatarSize,
-                borderRadius: avatarSize / 2,
-                backgroundColor: colors.primary,
+                width: avatarSize + borderWidth * 2,
+                height: avatarSize + borderWidth * 2,
                 justifyContent: 'center',
                 alignItems: 'center',
-                overflow: 'hidden',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 8,
+                position: 'relative',
               }}
             >
-              {profile.imageUri ? (
-                <Image
-                  source={{ uri: profile.imageUri }}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: avatarSize / 2,
-                  }}
-                  contentFit="cover"
+              {/* SVG Progress Bar */}
+              <Svg
+                width={avatarSize + borderWidth * 2}
+                height={avatarSize + borderWidth * 2}
+                style={{ position: 'absolute' }}
+              >
+                {/* Background circle (cloudy/dark) - thicker */}
+                <Circle
+                  cx={(avatarSize + borderWidth * 2) / 2}
+                  cy={(avatarSize + borderWidth * 2) / 2}
+                  r={radius}
+                  stroke="#000000" // Black for cloudy moments
+                  strokeWidth={borderWidth + 2} // Thicker black border
+                  fill="none"
                 />
-              ) : (
-                <ThemedText weight="bold" style={{ color: '#fff', fontSize: 24 }}>
-                  {initials}
-                </ThemedText>
+                {/* Progress circle (sunny/yellow) */}
+                <Circle
+                  cx={(avatarSize + borderWidth * 2) / 2}
+                  cy={(avatarSize + borderWidth * 2) / 2}
+                  r={radius}
+                  stroke="#FFD700" // Yellow for sunny moments
+                  strokeWidth={borderWidth}
+                  fill="none"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                  transform={`rotate(-90 ${(avatarSize + borderWidth * 2) / 2} ${(avatarSize + borderWidth * 2) / 2})`}
+                />
+              </Svg>
+              {/* Avatar content */}
+              <View
+                style={{
+                  width: avatarSize,
+                  height: avatarSize,
+                  borderRadius: avatarSize / 2,
+                  backgroundColor: colors.primary,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  overflow: 'hidden',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 8,
+                }}
+              >
+                {profile.imageUri ? (
+                  <Image
+                    source={{ uri: profile.imageUri }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: avatarSize / 2,
+                    }}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <ThemedText weight="bold" style={{ color: '#fff', fontSize: 24 }}>
+                    {initials}
+                  </ThemedText>
+                )}
+              </View>
+              
+              {/* Drag handle icon overlay - shown when dragging is enabled and not focused */}
+              {enableDragging && !isFocused && (
+                <Animated.View
+                  style={[
+                    {
+                      position: 'absolute',
+                      top: -6,
+                      right: -6,
+                      backgroundColor: colors.primary,
+                      borderRadius: 10,
+                      padding: 4,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 4,
+                      elevation: 5,
+                    },
+                    dragHandleAnimatedStyle,
+                  ]}
+                >
+                  <MaterialIcons name="drag-indicator" size={16} color="#fff" />
+                </Animated.View>
               )}
             </View>
-            
-            {/* Drag handle icon overlay - shown when dragging is enabled and not focused */}
-            {enableDragging && !isFocused && (
-              <Animated.View
-                style={[
-                  {
-                    position: 'absolute',
-                    top: -6,
-                    right: -6,
-                    backgroundColor: colors.primary,
-                    borderRadius: 10,
-                    padding: 4,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 4,
-                    elevation: 5,
-                  },
-                  dragHandleAnimatedStyle,
-                ]}
-              >
-                <MaterialIcons name="drag-indicator" size={16} color="#fff" />
-              </Animated.View>
-            )}
-          </View>
-        </Pressable>
-      </Animated.View>
+          </Pressable>
+        </Animated.View>
 
-      {/* Floating Memories around Avatar - rendered separately for proper z-index */}
+        {/* Floating Memories around Avatar - now inside the draggable container */}
       {useMemo(() => {
         // Always show all memories - they should be visible around profiles at all times
         const filteredMemories = memories.filter((memory) => {
@@ -1195,16 +1250,15 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         // Safety check: if we have more memories than animated values, use the last available one
         const memAnimatedValues = memoryAnimatedValues[originalIndex] || memoryAnimatedValues[memoryAnimatedValues.length - 1];
         
-        // When focused, use the position prop which should be the animated position
-        // The position prop is updated to center when focused, so use it directly
-        // This ensures memories follow the avatar smoothly during animation
-        const avatarCenterX = positionX;
-        const avatarCenterY = positionY;
-        
-        // Initial position for first render - position prop already contains animated position
+        // Memories are now positioned relative to the draggable container
+        // The container is positioned at (position.x - avatarSize/2, position.y - avatarSize/2)
+        // Container size is SCREEN_WIDTH * 2 x SCREEN_HEIGHT * 2
+        // Container center is at (SCREEN_WIDTH, SCREEN_HEIGHT) within the container
+        // Avatar is centered at (SCREEN_WIDTH, SCREEN_HEIGHT)
+        // So memories should be positioned relative to the container center
         const initialMemPos = {
-          x: avatarCenterX + memPosData.offsetX,
-          y: avatarCenterY + memPosData.offsetY,
+          x: SCREEN_WIDTH + memPosData.offsetX,
+          y: SCREEN_HEIGHT + memPosData.offsetY,
         };
         
         // Calculate maximum memory size based on viewport constraints
@@ -1236,11 +1290,14 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           : (isTablet ? 33 : 22);
         const maxMomentRadius = Math.max(cloudRadius, sunRadius);
         
-        // Calculate distances from memory center (avatar + offset) to nearest viewport edges
+        // Calculate distances from memory center to nearest viewport edges
         // This ensures each memory fits within the viewport
-        // When focused, use centered avatar position
-        const memoryCenterX = avatarCenterX + memPosData.offsetX;
-        const memoryCenterY = avatarCenterY + memPosData.offsetY;
+        // Memories are positioned relative to container center (avatarSize/2, avatarSize/2)
+        // But we need to calculate distances in screen coordinates
+        // Container is at (position.x - avatarSize/2, position.y - avatarSize/2)
+        // Memory center in screen coordinates = container position + memory position relative to container
+        const memoryCenterX = positionX + memPosData.offsetX;
+        const memoryCenterY = positionY + memPosData.offsetY;
         const distanceToLeft = memoryCenterX;
         const distanceToRight = SCREEN_WIDTH - memoryCenterX;
         const distanceToTop = memoryCenterY;
@@ -1322,7 +1379,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         
         return renderedMemories;
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, [memories, focusedMemory, profile.id, isFocused, memoryPositions, memoryAnimatedValues, position.x, position.y, focusedX, focusedY, startX, startY, targetX, targetY, zoomProgress, colorScheme, memorySlideOffset, onPress, onMemoryFocus])}
+      }, [memories, focusedMemory, profile.id, isFocused, memoryPositions, memoryAnimatedValues, position.x, position.y, startX, startY, targetX, targetY, zoomProgress, colorScheme, memorySlideOffset, onPress, onMemoryFocus])}
+      </Animated.View>
     </>
   );
 }, (prevProps, nextProps) => {
@@ -2853,8 +2911,9 @@ const FloatingMemory = React.memo(function FloatingMemory({
     }
   }, [floatAnimation, isMemoryFocused]);
 
-  // Calculate memory position relative to avatar or center when memory is focused
-  // Use the same interpolation logic as the avatar for smooth zoom transitions
+  // Calculate memory position relative to container center
+  // Memories are now inside a draggable container, so they use static positioning
+  // relative to the container. The position prop is already relative to container center.
   const memoryAnimatedPosition = useAnimatedStyle(() => {
     'worklet';
     if (isMemoryFocused) {
@@ -2867,47 +2926,14 @@ const FloatingMemory = React.memo(function FloatingMemory({
       };
     }
 
-    // Use zoom interpolation if available (for smooth zoom-in/out transitions)
-    if (zoomProgress && avatarStartX && avatarStartY && avatarTargetX !== undefined && avatarTargetY !== undefined && avatarPosition) {
-      let avatarCurrentX: number;
-      let avatarCurrentY: number;
-
-      if (isFocused) {
-        // Zoom-in: interpolate from start position to center
-        avatarCurrentX = avatarStartX.value + (avatarTargetX - avatarStartX.value) * zoomProgress.value;
-        avatarCurrentY = avatarStartY.value + (avatarTargetY - avatarStartY.value) * zoomProgress.value;
-      } else {
-        // Zoom-out: interpolate from center back to original position
-        avatarCurrentX = avatarTargetX + (avatarPosition.x - avatarTargetX) * (1 - zoomProgress.value);
-        avatarCurrentY = avatarTargetY + (avatarPosition.y - avatarTargetY) * (1 - zoomProgress.value);
-      }
-
-      // Position memory relative to interpolated avatar position
-      return {
-        left: avatarCurrentX + offsetX - memorySize / 2,
-        top: avatarCurrentY + offsetY - memorySize / 2,
-      };
-    }
-
-    // Primary source: use focusedX/focusedY when available (they animate during zoom-in/out and drag)
-    // This ensures a single source of truth for position
-    if (focusedX && focusedY) {
-      return {
-        left: focusedX.value + offsetX - memorySize / 2,
-        top: focusedY.value + offsetY - memorySize / 2,
-      };
-    }
-
-    // Fallback to pan position only if focusedX/focusedY are not available
-    if (avatarPanX && avatarPanY) {
-      return {
-        left: avatarPanX.value + offsetX - memorySize / 2,
-        top: avatarPanY.value + offsetY - memorySize / 2,
-      };
-    }
-
-    return {};
-  }, [isMemoryFocused, memorySize, zoomProgress, avatarStartX, avatarStartY, avatarTargetX, avatarTargetY, avatarPosition, isFocused, focusedX, focusedY, offsetX, offsetY, avatarPanX, avatarPanY]);
+    // Memories are now inside a draggable container
+    // The position prop is relative to container center (SCREEN_WIDTH, SCREEN_HEIGHT)
+    // So we position the memory at that location
+    return {
+      left: position.x - memorySize / 2,
+      top: position.y - memorySize / 2,
+    };
+  }, [isMemoryFocused, memorySize, position.x, position.y]);
   
   // Slide out animation for non-focused memories
   const slideOutStyle = useAnimatedStyle(() => {
@@ -6075,6 +6101,19 @@ export default function HomeScreen() {
   }, []);
 
   // Calculate initial positions for avatars within their year sections
+  // Helper function to generate consistent random offset from entity ID
+  const getRandomOffset = (id: string, range: number) => {
+    // Simple hash function to convert ID to a number
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = ((hash << 5) - hash) + id.charCodeAt(i);
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    // Normalize to -1 to 1 range
+    const normalized = (hash % 1000) / 1000;
+    return normalized * range;
+  };
+
   const initialAvatarPositions = useMemo(() => {
     if (!positionsLoaded) return []; // Wait for saved positions to load
     
@@ -6123,20 +6162,29 @@ export default function HomeScreen() {
         });
         const indexInSection = profilesInSection.findIndex(p => p.id === profile.id);
         
-        // Distribute avatars evenly within the year section
+        // Distribute avatars evenly within the year section, with random offset near center
         const sectionCenterY = yearSection.top + (yearSection.height / 2);
         const spacing = profilesInSection.length > 1 ? Math.min(yearSection.height * 0.6, 200) : 0;
         const startY = sectionCenterY - ((profilesInSection.length - 1) * spacing / 2);
         
+        // Add consistent random offset near center based on profile ID (within 30% of screen width/height from center)
+        const centerOffsetX = getRandomOffset(profile.id, SCREEN_WIDTH * 0.3); // ±15% of screen width
+        const centerOffsetY = getRandomOffset(profile.id + '_y', SCREEN_HEIGHT * 0.3); // ±15% of screen height
+        
         let position = {
-          x: centerX,
-          y: startY + (indexInSection * spacing),
+          x: centerX + centerOffsetX,
+          y: startY + (indexInSection * spacing) + centerOffsetY,
         };
         
-        // Clamp to year section bounds
+        // Clamp to year section bounds and ensure avatar stays in central area
         const avatarHalfSize = 40;
         const minMargin = 20; // Minimum margin from section edges
-        position.x = Math.max(avatarHalfSize + minMargin, Math.min(SCREEN_WIDTH - avatarHalfSize - minMargin, position.x));
+        const centerAreaMinX = SCREEN_WIDTH * 0.2; // 20% from left
+        const centerAreaMaxX = SCREEN_WIDTH * 0.8; // 80% from left
+        position.x = Math.max(
+          Math.max(avatarHalfSize + minMargin, centerAreaMinX),
+          Math.min(SCREEN_WIDTH - avatarHalfSize - minMargin, Math.min(centerAreaMaxX, position.x))
+        );
         position.y = Math.max(
           yearSection.top + avatarHalfSize + minMargin,
           Math.min(yearSection.bottom - avatarHalfSize - minMargin, position.y)
@@ -8737,13 +8785,34 @@ export default function HomeScreen() {
                       ? Math.min(section.height / (totalJobsInSection + 1), 150) // Space between jobs
                       : 0;
                     
-                    // Position jobs from top to bottom (most recent first)
-                    const position = {
-                      x: SCREEN_WIDTH / 2,
-                      y: totalJobsInSection === 1
-                        ? sectionCenterY
-                        : section.top + verticalSpacing * (jobIndexInSection + 1)
+                    // Position jobs from top to bottom (most recent first), with consistent random offset near center
+                    const getJobOffset = (jobId: string, range: number) => {
+                      let hash = 0;
+                      for (let i = 0; i < jobId.length; i++) {
+                        hash = ((hash << 5) - hash) + jobId.charCodeAt(i);
+                        hash = hash & hash;
+                      }
+                      return ((hash % 1000) / 1000) * range;
                     };
+                    const centerOffsetX = getJobOffset(job.id, SCREEN_WIDTH * 0.3); // ±15% of screen width
+                    const centerOffsetY = getJobOffset(job.id + '_y', SCREEN_HEIGHT * 0.2); // ±10% of screen height
+                    const baseY = totalJobsInSection === 1
+                      ? sectionCenterY
+                      : section.top + verticalSpacing * (jobIndexInSection + 1);
+                    
+                    const position = {
+                      x: SCREEN_WIDTH / 2 + centerOffsetX,
+                      y: baseY + centerOffsetY
+                    };
+                    
+                    // Clamp to ensure avatar stays in central area
+                    const centerAreaMinX = SCREEN_WIDTH * 0.2;
+                    const centerAreaMaxX = SCREEN_WIDTH * 0.8;
+                    position.x = Math.max(centerAreaMinX, Math.min(centerAreaMaxX, position.x));
+                    position.y = Math.max(
+                      section.top + 50,
+                      Math.min(section.bottom - 50, position.y)
+                    );
                     
                     const isFocused = focusedJobId === job.id;
                     const wasJustFocused = previousFocusedJobIdRef.current === job.id && !focusedJobId;
@@ -9125,12 +9194,34 @@ export default function HomeScreen() {
                     ? Math.max(minSpacing, Math.min((section?.height || SCREEN_HEIGHT) / (totalMembers + 1), 250))
                     : 0;
                   
-                  const position = {
-                    x: SCREEN_WIDTH / 2,
-                    y: totalMembers === 1
-                      ? sectionCenterY
-                      : (section?.top || 150) + verticalSpacing * (index + 1)
+                  // Add consistent random offset near center based on member ID (within 30% of screen width/height from center)
+                  const getMemberOffset = (memberId: string, range: number) => {
+                    let hash = 0;
+                    for (let i = 0; i < memberId.length; i++) {
+                      hash = ((hash << 5) - hash) + memberId.charCodeAt(i);
+                      hash = hash & hash;
+                    }
+                    return ((hash % 1000) / 1000) * range;
                   };
+                  const centerOffsetX = getMemberOffset(member.id, SCREEN_WIDTH * 0.3); // ±15% of screen width
+                  const centerOffsetY = getMemberOffset(member.id + '_y', SCREEN_HEIGHT * 0.2); // ±10% of screen height
+                  const baseY = totalMembers === 1
+                    ? sectionCenterY
+                    : (section?.top || 150) + verticalSpacing * (index + 1);
+                  
+                  const position = {
+                    x: SCREEN_WIDTH / 2 + centerOffsetX,
+                    y: baseY + centerOffsetY
+                  };
+                  
+                  // Clamp to ensure avatar stays in central area
+                  const centerAreaMinX = SCREEN_WIDTH * 0.2;
+                  const centerAreaMaxX = SCREEN_WIDTH * 0.8;
+                  position.x = Math.max(centerAreaMinX, Math.min(centerAreaMaxX, position.x));
+                  position.y = Math.max(
+                    (section?.top || 150) + 50,
+                    Math.min((section?.bottom || SCREEN_HEIGHT) - 50, position.y)
+                  );
                   
                   const isFocused = focusedFamilyMemberId === member.id;
                   const wasJustFocused = previousFocusedFamilyMemberIdRef.current === member.id && !focusedFamilyMemberId;
@@ -9513,12 +9604,34 @@ export default function HomeScreen() {
                     ? Math.max(minSpacing, Math.min((section?.height || SCREEN_HEIGHT) / (totalFriends + 1), 250))
                     : 0;
                   
-                  const position = {
-                    x: SCREEN_WIDTH / 2,
-                    y: totalFriends === 1
-                      ? sectionCenterY
-                      : (section?.top || 150) + verticalSpacing * (index + 1)
+                  // Add consistent random offset near center based on friend ID (within 30% of screen width/height from center)
+                  const getFriendOffset = (friendId: string, range: number) => {
+                    let hash = 0;
+                    for (let i = 0; i < friendId.length; i++) {
+                      hash = ((hash << 5) - hash) + friendId.charCodeAt(i);
+                      hash = hash & hash;
+                    }
+                    return ((hash % 1000) / 1000) * range;
                   };
+                  const centerOffsetX = getFriendOffset(friend.id, SCREEN_WIDTH * 0.3); // ±15% of screen width
+                  const centerOffsetY = getFriendOffset(friend.id + '_y', SCREEN_HEIGHT * 0.2); // ±10% of screen height
+                  const baseY = totalFriends === 1
+                    ? sectionCenterY
+                    : (section?.top || 150) + verticalSpacing * (index + 1);
+                  
+                  const position = {
+                    x: SCREEN_WIDTH / 2 + centerOffsetX,
+                    y: baseY + centerOffsetY
+                  };
+                  
+                  // Clamp to ensure avatar stays in central area
+                  const centerAreaMinX = SCREEN_WIDTH * 0.2;
+                  const centerAreaMaxX = SCREEN_WIDTH * 0.8;
+                  position.x = Math.max(centerAreaMinX, Math.min(centerAreaMaxX, position.x));
+                  position.y = Math.max(
+                    (section?.top || 150) + 50,
+                    Math.min((section?.bottom || SCREEN_HEIGHT) - 50, position.y)
+                  );
                   
                   const isFocused = focusedFriendId === friend.id;
                   const wasJustFocused = previousFocusedFriendIdRef.current === friend.id && !focusedFriendId;
@@ -9901,12 +10014,34 @@ export default function HomeScreen() {
                     ? Math.max(minSpacing, Math.min((section?.height || SCREEN_HEIGHT) / (totalHobbies + 1), 250))
                     : 0;
                   
-                  const position = {
-                    x: SCREEN_WIDTH / 2,
-                    y: totalHobbies === 1
-                      ? sectionCenterY
-                      : (section?.top || 150) + verticalSpacing * (index + 1)
+                  // Add consistent random offset near center based on hobby ID (within 30% of screen width/height from center)
+                  const getHobbyOffset = (hobbyId: string, range: number) => {
+                    let hash = 0;
+                    for (let i = 0; i < hobbyId.length; i++) {
+                      hash = ((hash << 5) - hash) + hobbyId.charCodeAt(i);
+                      hash = hash & hash;
+                    }
+                    return ((hash % 1000) / 1000) * range;
                   };
+                  const centerOffsetX = getHobbyOffset(hobby.id, SCREEN_WIDTH * 0.3); // ±15% of screen width
+                  const centerOffsetY = getHobbyOffset(hobby.id + '_y', SCREEN_HEIGHT * 0.2); // ±10% of screen height
+                  const baseY = totalHobbies === 1
+                    ? sectionCenterY
+                    : (section?.top || 150) + verticalSpacing * (index + 1);
+                  
+                  const position = {
+                    x: SCREEN_WIDTH / 2 + centerOffsetX,
+                    y: baseY + centerOffsetY
+                  };
+                  
+                  // Clamp to ensure avatar stays in central area
+                  const centerAreaMinX = SCREEN_WIDTH * 0.2;
+                  const centerAreaMaxX = SCREEN_WIDTH * 0.8;
+                  position.x = Math.max(centerAreaMinX, Math.min(centerAreaMaxX, position.x));
+                  position.y = Math.max(
+                    (section?.top || 150) + 50,
+                    Math.min((section?.bottom || SCREEN_HEIGHT) - 50, position.y)
+                  );
                   
                   const isFocused = focusedHobbyId === hobby.id;
                   const wasJustFocused = previousFocusedHobbyIdRef.current === hobby.id && !focusedHobbyId;
