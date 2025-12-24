@@ -46,7 +46,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      initialRouteName="spheres"
+      initialRouteName="index"
       screenOptions={{
         tabBarActiveTintColor: colorScheme === 'dark' ? colors.primaryLight : '#1976D2', // Darker blue for better contrast on white
         tabBarInactiveTintColor: colorScheme === 'dark' ? '#ffffff' : '#666666', // Darker grey for better contrast on white

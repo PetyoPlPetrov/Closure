@@ -7,8 +7,10 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS, TabScreenContainer } from '@/library/components/tab-screen-container';
+import { WalkthroughModal } from '@/library/components/walkthrough-modal';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { requestSpheresTabPulse, stopSpheresTabPulse } from '@/utils/spheres-tab-pulse';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import {
   getCurrentBadge,
@@ -993,20 +995,20 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       
       // Adjust radius based on number of floating elements
       if (memories.length < 5) {
-        // When there are less than 5 elements, position them further from avatar
-        // But ensure single memory stays fully visible in viewport
+        // When there are less than 5 elements, position them CLOSER to avatar
+        // to ensure they stay fully visible in viewport
         if (memories.length === 1) {
-          // For single memory, keep it closer to ensure it's fully visible
-          const closerMultiplier = isFocused ? 0.9 : 0.95; // Slightly closer to ensure visibility
+          // For single memory, keep it much closer to ensure it's fully visible
+          const closerMultiplier = isFocused ? 0.5 : 0.6; // Much closer to ensure visibility
           variedRadius = variedRadius * closerMultiplier;
         } else if (memories.length === 2) {
-          // For 2 memories, position them further to ensure clear separation
-          const furtherMultiplier = isFocused ? 1.25 : 1.15; // 25% further when focused, 15% further when unfocused
-          variedRadius = variedRadius * furtherMultiplier;
+          // For 2 memories, position them closer to keep them in viewport
+          const closerMultiplier = isFocused ? 0.6 : 0.7; // Closer when focused
+          variedRadius = variedRadius * closerMultiplier;
         } else {
-          // For 3-4 memories, position them further
-          const furtherMultiplier = isFocused ? 1.2 : 1.1; // 20% further when focused, 10% further when unfocused
-          variedRadius = variedRadius * furtherMultiplier;
+          // For 3-4 memories, position them closer
+          const closerMultiplier = isFocused ? 0.7 : 0.8; // Closer to keep in viewport
+          variedRadius = variedRadius * closerMultiplier;
         }
       } else if (isFocused && memories.length > 5 && topTwoIndices.includes(memIndex)) {
         // When focused and there are more than 5 elements, push top 2 elements further away
@@ -1468,20 +1470,30 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   
   // Memoize filtered clouds - must be called unconditionally
   const filteredClouds = useMemo(() => {
-    if (!isFocused) return [];
-    return clouds.filter((cloud: any) => {
-      // When memory is focused, only show visible moments
+    // Only show moments when entity is focused (isFocused is true)
+    if (!isFocused) {
+      return [];
+    }
+
+    const filtered = clouds.filter((cloud: any) => {
+      // When specific memory is focused, only show visible moments
       if (isMemoryFocused) {
-        return cloud?.id && visibleMomentIds.has(cloud.id);
+        const isVisible = cloud?.id && visibleMomentIds.has(cloud.id);
+        return isVisible;
       }
+      // When entity is focused but not specific memory, show all moments
       return true;
     });
+
+    return filtered;
   }, [isFocused, clouds, isMemoryFocused, visibleMomentIds]);
   
   // Memoize cloud elements
   const cloudElements = useMemo(() => {
-    if (!isFocused) return null;
-    
+    if (!isFocused) {
+      return null;
+    }
+
     return filteredClouds.map((cloud: any, cloudIndex: number) => {
         // Additional safety check
         if (!cloud || typeof cloud !== 'object') {
@@ -1512,6 +1524,13 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
           );
           const cloudX = clampedPos.x;
           const cloudY = clampedPos.y;
+
+          console.log(`☁️ [Cloud ${cloudIndex}] Rendering at position:`, {
+            cloudX,
+            cloudY,
+            savedPosition: { x: cloud.x, y: cloud.y },
+            text: cloud.text?.substring(0, 30)
+          });
           
           const handlePositionChange = async (x: number, y: number) => {
             if (onUpdateMemory) {
@@ -1624,14 +1643,14 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
         if (!cloudPosData) {
           return null;
         }
-        
+
         const memoryCenterX = position.x;
         const memoryCenterY = position.y;
         const initialCloudPos = {
           x: memoryCenterX + cloudPosData.offsetX,
           y: memoryCenterY + cloudPosData.offsetY,
         };
-        
+
         return (
           <FloatingCloud
             key={`cloud-${cloud?.id || cloudIndex}-${cloudIndex}`}
@@ -1658,13 +1677,25 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   // Memoize filtered suns - must be called unconditionally
   const filteredSuns = useMemo(() => {
     if (!isFocused) return [];
-    return suns.filter((sun: any) => {
+    const filtered = suns.filter((sun: any) => {
       // When memory is focused, only show visible moments
       if (isMemoryFocused) {
-        return sun?.id && visibleMomentIds.has(sun.id);
+        const isVisible = sun?.id && visibleMomentIds.has(sun.id);
+        return isVisible;
       }
       return true;
     });
+
+    if (isMemoryFocused) {
+      console.log('☀️ [MemoryMomentsRenderer] Filtered suns:', {
+        totalSuns: suns.length,
+        filteredCount: filtered.length,
+        visibleIds: Array.from(visibleMomentIds),
+        sunIds: suns.map((s: any) => s?.id)
+      });
+    }
+
+    return filtered;
   }, [isFocused, suns, isMemoryFocused, visibleMomentIds]);
   
   // Memoize sun elements
@@ -1692,7 +1723,14 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
           );
           const sunX = clampedPos.x;
           const sunY = clampedPos.y;
-          
+
+          console.log(`☀️ [Sun ${sunIndex}] Rendering at position:`, {
+            sunX,
+            sunY,
+            savedPosition: { x: sun.x, y: sun.y },
+            text: sun.text?.substring(0, 30)
+          });
+
           const handlePositionChange = async (x: number, y: number) => {
             if (onUpdateMemory) {
               // Update the sun's position in memory
@@ -1851,7 +1889,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
           x: memoryCenterX + sunPosData.offsetX,
           y: memoryCenterY + sunPosData.offsetY,
         };
-        
+
         return (
           <FloatingSun
             key={`sun-${sun.id}-${sunIndex}`}
@@ -2507,7 +2545,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
   focusedMemory?: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null;
 }) {
   const { isLargeDevice, isTablet } = useLargeDevice();
-  
+
   // Track which moments are visible (initially none when memory is focused)
   const [visibleMomentIds, setVisibleMomentIds] = React.useState<Set<string>>(new Set());
   
@@ -2525,16 +2563,18 @@ const FloatingMemory = React.memo(function FloatingMemory({
   // Reset visible moments when memory focus changes
   React.useEffect(() => {
     if (isMemoryFocused) {
-      // When memory becomes focused, hide all moments initially
+      // When a specific memory is focused, hide all moments initially
+      // (they can be shown one by one with buttons)
       setVisibleMomentIds(new Set());
     } else {
-      // When memory loses focus, show all moments again
+      // When memory is not focused (just entity is focused), show all moments
       const allIds = new Set<string>();
       (memory.hardTruths || []).forEach((truth: any) => truth?.id && allIds.add(truth.id));
       (memory.goodFacts || []).forEach((fact: any) => fact?.id && allIds.add(fact.id));
+      (memory.lessonsLearned || []).forEach((lesson: any) => lesson?.id && allIds.add(lesson.id));
       setVisibleMomentIds(allIds);
     }
-  }, [isMemoryFocused, memory.hardTruths, memory.goodFacts]);
+  }, [isMemoryFocused, memory.hardTruths, memory.goodFacts, memory.lessonsLearned]);
   
   // When memory is focused, use smaller size like in creation screen (250px)
   // Otherwise use calculated size or default (scale for tablets)
@@ -2573,7 +2613,12 @@ const FloatingMemory = React.memo(function FloatingMemory({
   // Distributes moments evenly across the entire screen for better visibility
   const calculateClampedPosition = useMemo(() => {
     return (savedX: number | undefined, savedY: number | undefined, momentWidth: number, momentHeight: number, index: number, totalCount: number, memorySize: number, momentType: 'cloud' | 'sun' = 'sun') => {
-      const memoryCenterY = SCREEN_HEIGHT / 2 - 120; // Moved higher to match memory position
+      const memoryCenterX = position.x;
+      const memoryCenterY = position.y;
+
+      console.log('🔍 [calculateClampedPosition] Memory position:', { memoryCenterX, memoryCenterY, memorySize });
+      console.log('🔍 [calculateClampedPosition] Screen dimensions:', { SCREEN_WIDTH, SCREEN_HEIGHT });
+
       const padding = 20; // Padding from edges
       const headerSafeZone = 120; // Safe zone from top to avoid header and back button
       const minX = padding + momentWidth / 2;
@@ -2656,10 +2701,19 @@ const FloatingMemory = React.memo(function FloatingMemory({
         momentX = savedX !== undefined ? Math.max(minX, Math.min(maxX, savedX)) : targetX;
         momentY = savedY !== undefined ? Math.max(minY, Math.min(maxY, savedY)) : targetY;
       }
-      
+
+      console.log(`🎯 [calculateClampedPosition] ${momentType} ${index}/${totalCount}:`, {
+        savedX,
+        savedY,
+        calculatedX: momentX,
+        calculatedY: momentY,
+        momentWidth,
+        momentHeight
+      });
+
       return { x: momentX, y: momentY };
     };
-  }, []);
+  }, [position.x, position.y]);
   
   // Handler to create a new cloud moment
   const handleAddCloud = React.useCallback(async () => {
@@ -3439,43 +3493,13 @@ const FloatingCloud = React.memo(function FloatingCloud({
   }));
 
   const cloudAnimatedPosition = useAnimatedStyle(() => {
-    // When focused, use focusedX/focusedY; when dragging, use avatarPanX/avatarPanY
-    if (isFocused && focusedX && focusedY) {
-      // Calculate from focused avatar position: focused + memory offset + cloud offset
-      const cloudX = focusedX.value + memoryOffsetX + offsetX;
-      const cloudY = focusedY.value + memoryOffsetY + offsetY;
-      // Check for valid numbers
-      if (isNaN(cloudX) || isNaN(cloudY)) {
-        // Fallback to position if calculation results in NaN
-      } else {
-        return {
-          left: cloudX - cloudSize / 2,
-          top: cloudY - cloudSize / 2,
-        };
-      }
-    }
-    if (avatarPanX && avatarPanY) {
-      // Calculate from avatar position: avatar + memory offset + cloud offset
-      const cloudX = avatarPanX.value + memoryOffsetX + offsetX;
-      const cloudY = avatarPanY.value + memoryOffsetY + offsetY;
-      // Check for valid numbers
-      if (isNaN(cloudX) || isNaN(cloudY)) {
-        // Fallback to position if calculation results in NaN
-      } else {
-        return {
-          left: cloudX - cloudSize / 2,
-          top: cloudY - cloudSize / 2,
-        };
-      }
-    }
-    // When memory is focused but no avatar position, use the position prop directly
-    // This handles the case when memory is focused independently
-    // Position is already relative to screen center, so use it directly
-    // For focused memory, position is already at screen center, so we use it as-is
+    // Default: use the position prop directly (memory's absolute screen position)
+    // This is the cloud's final absolute position on screen
     const safeX = typeof position?.x === 'number' && !isNaN(position.x) ? position.x : 0;
     const safeY = typeof position?.y === 'number' && !isNaN(position.y) ? position.y : 0;
     const finalX = safeX - cloudSize / 2;
     const finalY = safeY - cloudSize / 2;
+
     return {
       left: finalX,
       top: finalY,
@@ -3608,37 +3632,8 @@ const FloatingSun = React.memo(function FloatingSun({
   }));
 
   const sunAnimatedPosition = useAnimatedStyle(() => {
-    // When focused, use focusedX/focusedY; when dragging, use avatarPanX/avatarPanY
-    if (isFocused && focusedX && focusedY) {
-      // Calculate from focused avatar position: focused + memory offset + sun offset
-      const sunX = focusedX.value + memoryOffsetX + offsetX;
-      const sunY = focusedY.value + memoryOffsetY + offsetY;
-      // Check for valid numbers
-      if (isNaN(sunX) || isNaN(sunY)) {
-        // Fallback to position if calculation results in NaN
-      } else {
-        return {
-          left: sunX - sunSize / 2,
-          top: sunY - sunSize / 2,
-        };
-      }
-    }
-    if (avatarPanX && avatarPanY) {
-      // Calculate from avatar position: avatar + memory offset + sun offset
-      const sunX = avatarPanX.value + memoryOffsetX + offsetX;
-      const sunY = avatarPanY.value + memoryOffsetY + offsetY;
-      // Check for valid numbers
-      if (isNaN(sunX) || isNaN(sunY)) {
-        // Fallback to position if calculation results in NaN
-      } else {
-        return {
-          left: sunX - sunSize / 2,
-          top: sunY - sunSize / 2,
-        };
-      }
-    }
-    // When memory is focused but no avatar position, use the position prop directly
-    // This handles the case when memory is focused independently
+    // Default: use the position prop directly (memory's absolute screen position)
+    // This is the sun's final absolute position on screen
     const safeX = typeof position?.x === 'number' && !isNaN(position.x) ? position.x : 0;
     const safeY = typeof position?.y === 'number' && !isNaN(position.y) ? position.y : 0;
     return {
@@ -4971,6 +4966,11 @@ export default function HomeScreen() {
   const [streakModalVisible, setStreakModalVisible] = useState(false);
   const [streakRulesModalVisible, setStreakRulesModalVisible] = useState(false);
 
+  // Walkthrough modal state
+  const [walkthroughVisible, setWalkthroughVisible] = useState(false);
+  const walkthroughCheckedRef = useRef(false);
+  const { isAnimationComplete, isVisible: isSplashVisible } = useSplash();
+
   // Load streak data on mount and when screen focuses
   const loadStreakData = useCallback(async () => {
     try {
@@ -4997,16 +4997,98 @@ export default function HomeScreen() {
   }, [loadStreakData]);
 
 
-  // Redirect to spheres tab if there's no data (first time user)
-  const hasRedirectedRef = useRef(false);
-  useEffect(() => {
-    // Only check once after data has loaded
-    if (isLoading || hasRedirectedRef.current) return;
+  // Track if this is the first app launch (splash screen shown)
+  const isFirstLaunchRef = useRef(true);
 
-    // If there's no data, the walkthrough will appear automatically
-    // when the user navigates to the spheres tab (handled in spheres.tsx)
-    // No need to redirect here - let the user navigate naturally
-  }, [isLoading, profiles.length, jobs.length, familyMembers.length, friends.length, hobbies.length, idealizedMemories.length]);
+  // Check for first launch and show walkthrough if no data exists
+  // This runs whenever the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[HomeScreen] useFocusEffect - Checking walkthrough on focus');
+
+      // Reset the check when screen comes into focus
+      walkthroughCheckedRef.current = false;
+
+      // Function to check and show walkthrough
+      const checkWalkthrough = () => {
+        console.log('[HomeScreen] checkWalkthrough called', {
+          walkthroughChecked: walkthroughCheckedRef.current,
+          isLoading,
+          isFirstLaunch: isFirstLaunchRef.current,
+          isSplashVisible,
+          isAnimationComplete,
+        });
+
+        // Only check once per focus
+        if (walkthroughCheckedRef.current) {
+          console.log('[HomeScreen] Already checked, skipping');
+          return;
+        }
+
+        // On first launch, wait for splash to complete
+        // On subsequent navigations, only wait for loading to complete
+        const shouldWaitForSplash = isFirstLaunchRef.current;
+        const splashConditionsMet = shouldWaitForSplash ? (!isSplashVisible && isAnimationComplete) : true;
+
+        console.log('[HomeScreen] Conditions check', {
+          shouldWaitForSplash,
+          splashConditionsMet,
+          isLoading,
+        });
+
+        if (!isLoading && splashConditionsMet) {
+          // Mark as checked FIRST to prevent re-runs
+          walkthroughCheckedRef.current = true;
+
+          // After first check, we don't need to wait for splash anymore
+          if (isFirstLaunchRef.current && splashConditionsMet) {
+            console.log('[HomeScreen] Marking as not first launch anymore');
+            isFirstLaunchRef.current = false;
+          }
+
+          // Check if there are any entities or memories
+          const totalEntities = profiles.length + jobs.length + familyMembers.length + friends.length + hobbies.length;
+          const totalMemories = idealizedMemories.length;
+
+          console.log('[HomeScreen] Data check', { totalEntities, totalMemories });
+
+          // If no entities and no memories, show walkthrough
+          if (totalEntities === 0 && totalMemories === 0) {
+            console.log('[HomeScreen] Showing walkthrough modal and starting infinite pulse');
+            setWalkthroughVisible(true);
+            // Request infinite pulse animation on spheres tab
+            requestSpheresTabPulse(false); // false = pulse infinitely
+          } else {
+            console.log('[HomeScreen] App has data, not showing walkthrough');
+          }
+        }
+      };
+
+      // Check immediately on focus
+      checkWalkthrough();
+
+      return () => {
+        console.log('[HomeScreen] useFocusEffect cleanup - Stopping pulse');
+        // Cleanup: stop pulse when leaving the screen
+        stopSpheresTabPulse();
+      };
+    }, [isLoading, isAnimationComplete, isSplashVisible, profiles.length, jobs.length, familyMembers.length, friends.length, hobbies.length, idealizedMemories.length])
+  );
+
+  const handleWalkthroughDismiss = useCallback(async () => {
+    try {
+      console.log('[HomeScreen] Dismissing walkthrough modal');
+      // Don't save to AsyncStorage - we want modal to reappear if user navigates back
+      setWalkthroughVisible(false);
+
+      console.log('[HomeScreen] Requesting single pulse');
+      // Pulse ONCE to remind the user to go to spheres tab
+      // Don't stop first - just request a single pulse which will replace the infinite one
+      requestSpheresTabPulse(true); // true = pulse only once
+    } catch (_error) {
+      setWalkthroughVisible(false);
+    }
+  }, []);
 
   // Avatar pulse animation - triggers when tab is focused
   const avatarPulseScale = useSharedValue(1);
@@ -6049,9 +6131,9 @@ export default function HomeScreen() {
     
     return sections;
   }, [hobbies]);
-  
+
   // Check if splash is still visible - delay heavy animations until splash is done
-  const { isVisible: isSplashVisible, isAnimationComplete: isSplashAnimationComplete } = useSplash();
+  // Note: useSplash() already called above for walkthrough - reuse those values
   const [animationsReady, setAnimationsReady] = useState(false);
   
   React.useEffect(() => {
@@ -8091,6 +8173,12 @@ export default function HomeScreen() {
             </>
           )}
         </View>
+
+      {/* Walkthrough Modal */}
+      <WalkthroughModal
+        visible={walkthroughVisible}
+        onDismiss={handleWalkthroughDismiss}
+      />
     </TabScreenContainer>
   );
 }
@@ -10188,6 +10276,12 @@ export default function HomeScreen() {
           )}
         </View>
       </View>
+
+      {/* Walkthrough Modal */}
+      <WalkthroughModal
+        visible={walkthroughVisible}
+        onDismiss={handleWalkthroughDismiss}
+      />
     </TabScreenContainer>
   );
 }

@@ -103,6 +103,8 @@ export function WalkthroughModal({
       transparent
       animationType="fade"
       onRequestClose={onDismiss}
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
     >
       <TouchableWithoutFeedback onPress={onDismiss}>
         <View style={styles.overlay}>
