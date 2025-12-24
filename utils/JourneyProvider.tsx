@@ -872,6 +872,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         return mem;
       });
       await saveIdealizedMemoriesToStorage(updatedMemories);
+      setIdealizedMemories(updatedMemories); // Update state so UI reflects changes immediately
       
       // Log analytics events for moment creation
       if (memory && updates) {

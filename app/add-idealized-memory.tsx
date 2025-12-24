@@ -38,7 +38,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { Defs, Ellipse, Path, RadialGradient, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
+import { Circle, Defs, Ellipse, Path, RadialGradient, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
 // Animated Cloud Component
 function AnimatedCloud({
@@ -373,32 +373,87 @@ function AnimatedSun({
         animatedStyle,
       ]}
     >
-      <LinearGradient
-        colors={['#FFD700', '#FFA500', '#FF8C00']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+      <View
         style={{
           position: 'absolute',
+          top: 0,
+          left: 0,
           width: sunWidth,
           height: sunHeight,
-          borderRadius: sunWidth / 2,
-          justifyContent: 'center',
-          alignItems: 'center',
+          // Golden glow for suns (positive moments)
+          shadowColor: '#FFD700',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.8,
+          shadowRadius: 12,
+          elevation: 10,
         }}
       >
-        <View style={{
-          position: 'absolute',
-          top: sunHeight * 0.2,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}>
-          <MaterialIcons 
-            name="wb-sunny" 
-            size={sunWidth * 0.5} 
-            color="#FFFFFF" 
+        <Svg
+          width={sunWidth}
+          height={sunHeight}
+          viewBox="0 0 160 160"
+          preserveAspectRatio="xMidYMid meet"
+          style={{ position: 'absolute', top: 0, left: 0 }}
+        >
+          <Defs>
+            <RadialGradient
+              id={`sunGradient-${sun.id}`}
+              cx="80"
+              cy="80"
+              rx="48"
+              ry="48"
+              fx="80"
+              fy="80"
+              gradientUnits="userSpaceOnUse"
+            >
+              <Stop offset="0%" stopColor="#FFEB3B" stopOpacity="1" />
+              <Stop offset="30%" stopColor="#FFEB3B" stopOpacity="1" />
+              <Stop offset="60%" stopColor="#FFD700" stopOpacity="1" />
+              <Stop offset="100%" stopColor="#FFC107" stopOpacity="1" />
+            </RadialGradient>
+          </Defs>
+          {/* Sun rays - triangular rays */}
+          {Array.from({ length: 12 }).map((_, i) => {
+            const angle = (i * 360) / 12;
+            const radian = (angle * Math.PI) / 180;
+            const centerX = 80;
+            const centerY = 80;
+            const innerRadius = 48;
+            const outerRadius = 72;
+            const rayWidth = 3;
+
+            // Calculate triangle points
+            const innerX = centerX + Math.cos(radian) * innerRadius;
+            const innerY = centerY + Math.sin(radian) * innerRadius;
+
+            const outerX = centerX + Math.cos(radian) * outerRadius;
+            const outerY = centerY + Math.sin(radian) * outerRadius;
+
+            // Perpendicular vector for triangle width
+            const perpAngle = radian + Math.PI / 2;
+            const halfWidth = rayWidth / 2;
+            const leftX = outerX + Math.cos(perpAngle) * halfWidth;
+            const leftY = outerY + Math.sin(perpAngle) * halfWidth;
+            const rightX = outerX + Math.cos(perpAngle + Math.PI) * halfWidth;
+            const rightY = outerY + Math.sin(perpAngle + Math.PI) * halfWidth;
+
+            return (
+              <Path
+                key={`ray-${i}`}
+                d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
+                fill="#FFD700"
+              />
+            );
+          })}
+          {/* Central circle */}
+          <Circle
+            cx="80"
+            cy="80"
+            r="48"
+            fill={`url(#sunGradient-${sun.id})`}
           />
-        </View>
-      </LinearGradient>
+        </Svg>
+      </View>
       {/* Delete button - top right corner - hidden in view-only mode */}
       {!viewOnly && (
         <TouchableOpacity
@@ -416,27 +471,44 @@ function AnimatedSun({
 
       <View
         style={{
-          width: '100%',
-          height: '100%',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: sunWidth,
+          height: sunHeight,
           justifyContent: 'center',
           alignItems: 'center',
-          paddingHorizontal: 12,
-          paddingTop: sunHeight * 0.45,
         }}
       >
         <TextInput
           ref={inputRef}
           value={sun.text}
           onChangeText={(text) => {
-            if (!viewOnly && text.length <= 50) {
+            if (!viewOnly && text.length <= 80) {
               onTextChange(sun.id, text);
             }
           }}
-          style={styles.sunTextInput}
+          style={[styles.sunTextInput, {
+            fontSize: 12,
+            fontWeight: '700',
+            textAlign: 'center',
+            textAlignVertical: 'center',
+            // Calculate width to fit within the inner circle (radius 48 in viewBox 160)
+            // Inner circle diameter = (sunWidth / 160) * 96
+            // Use 80% of diameter for safe text area
+            width: (sunWidth / 160) * 96 * 0.8,
+            // Use maxHeight instead of height to allow text to size naturally
+            // Container's justifyContent: 'center' will handle vertical centering
+            maxHeight: (sunHeight / 160) * 96 * 0.8,
+            padding: 0,
+            margin: 0,
+          }]}
+          includeFontPadding={false}
           placeholder={placeholder}
           placeholderTextColor="rgba(0,0,0,0.5)"
           multiline
-          maxLength={50}
+          numberOfLines={4}
+          maxLength={80}
           editable={!viewOnly}
           autoFocus={shouldAutoFocus}
         />
@@ -593,7 +665,7 @@ function AnimatedLesson({
       >
         <MaterialIcons
           name="lightbulb"
-          size={lessonWidth * 0.4}
+          size={lessonWidth * 0.35}
           color={colorScheme === 'dark' ? '#000000' : '#1A1A1A'}
           style={{ marginBottom: 4 }}
         />
@@ -601,18 +673,19 @@ function AnimatedLesson({
           ref={inputRef}
           style={{
             color: colorScheme === 'dark' ? '#000000' : '#1A1A1A',
-            fontSize: 10,
+            fontSize: 11,
             textAlign: 'center',
             fontWeight: '700',
-            maxWidth: lessonWidth * 0.8,
-            minHeight: 20,
+            maxWidth: lessonWidth * 0.85,
+            minHeight: 30,
+            lineHeight: 14,
           }}
           value={lesson.text}
           onChangeText={(text) => onTextChange(lesson.id, text)}
           placeholder={placeholder}
           placeholderTextColor={(colorScheme === 'dark' ? '#000000' : '#1A1A1A') + '80'}
           multiline
-          numberOfLines={2}
+          numberOfLines={5}
           editable={!viewOnly}
         />
       </LinearGradient>
@@ -952,9 +1025,9 @@ export default function AddIdealizedMemoryScreen() {
     const screenH = Dimensions.get('window').height;
     const padding = 20;
 
-    // Lesson dimensions - same as sun (circular)
-    const lessonWidth = isLargeDevice ? 150 : 100;
-    const lessonHeight = isLargeDevice ? 150 : 100;
+    // Lesson dimensions - larger to accommodate template text
+    const lessonWidth = isLargeDevice ? 180 : 130;
+    const lessonHeight = isLargeDevice ? 180 : 130;
 
     // Center vertically on screen
     const centerY = (screenH / 2) - (lessonHeight / 2);
@@ -1074,8 +1147,8 @@ export default function AddIdealizedMemoryScreen() {
         const screenW = Dimensions.get('window').width;
         const screenH = Dimensions.get('window').height;
         const padding = 20;
-        const lessonWidth = isLargeDevice ? 150 : 100;
-        const lessonHeight = isLargeDevice ? 150 : 100;
+        const lessonWidth = isLargeDevice ? 180 : 130;
+        const lessonHeight = isLargeDevice ? 180 : 130;
         const minX = padding;
         const maxX = screenW - lessonWidth - padding;
         const minY = padding;
@@ -1264,8 +1337,8 @@ export default function AddIdealizedMemoryScreen() {
           title: memoryLabel.trim(),
           imageUri: selectedImage || undefined,
           hardTruths,
-          goodFacts: goodFacts.length > 0 ? goodFacts : undefined,
-          lessonsLearned: lessonsLearned.length > 0 ? lessonsLearned : undefined,
+          goodFacts,
+          lessonsLearned,
         });
       } else {
         // Create new memory - support both old (profileId) and new (entityId + sphere) signatures
@@ -1276,8 +1349,8 @@ export default function AddIdealizedMemoryScreen() {
             title: memoryLabel.trim(),
             imageUri: selectedImage || undefined,
             hardTruths,
-            goodFacts: goodFacts.length > 0 ? goodFacts : undefined,
-            lessonsLearned: lessonsLearned.length > 0 ? lessonsLearned : undefined,
+            goodFacts,
+            lessonsLearned,
           });
         } else if (profileId) {
           // Old signature: (profileId, memoryData) - backward compatibility
@@ -1285,8 +1358,8 @@ export default function AddIdealizedMemoryScreen() {
             title: memoryLabel.trim(),
             imageUri: selectedImage || undefined,
             hardTruths,
-            goodFacts: goodFacts.length > 0 ? goodFacts : undefined,
-            lessonsLearned: lessonsLearned.length > 0 ? lessonsLearned : undefined,
+            goodFacts,
+            lessonsLearned,
           });
         } else {
           throw new Error('Missing required parameters to save memory');
@@ -1354,7 +1427,8 @@ export default function AddIdealizedMemoryScreen() {
       initialSelectedImage.current = selectedImage;
       initialClouds.current = clouds.map(c => ({ ...c }));
       initialSuns.current = suns.map(s => ({ ...s }));
-      
+      initialLessons.current = lessons.map(l => ({ ...l }));
+
       // Navigate back after saving
       isNavigatingAway.current = true;
       router.back();
@@ -1495,8 +1569,8 @@ export default function AddIdealizedMemoryScreen() {
       startPos = { x: buttonX, y: buttonY };
     }
 
-    const lessonWidth = isLargeDevice ? 150 : 100;
-    const lessonHeight = isLargeDevice ? 150 : 100;
+    const lessonWidth = isLargeDevice ? 180 : 130;
+    const lessonHeight = isLargeDevice ? 180 : 130;
 
     const newLesson = {
       id: Date.now().toString() + Math.random().toString(),
@@ -1564,17 +1638,26 @@ export default function AddIdealizedMemoryScreen() {
         const screenW = Dimensions.get('window').width;
         const screenH = Dimensions.get('window').height;
         const padding = 20;
-        
+
+        // Calculate dynamic cloud size for current cloud
+        const currentCloud = clouds.find((c) => c.id === cloudId);
+        const textLength = currentCloud?.text?.length || 0;
+        const baseCloudWidth = isLargeDevice ? 480 : 320;
+        const baseCloudHeight = isLargeDevice ? 150 : 100;
+        const estimatedLines = Math.ceil(textLength / 30);
+        const dynamicCloudHeight = Math.min(250, Math.max(baseCloudHeight, baseCloudHeight + (estimatedLines - 1) * 25));
+        const dynamicCloudWidth = Math.min(600, Math.max(baseCloudWidth, baseCloudWidth + Math.floor(textLength * 0.5)));
+
         // Calculate new position
         let newX = start.x + gesture.dx;
         let newY = start.y + gesture.dy;
-        
+
         // Clamp to viewport bounds
         const minX = padding;
-        const maxX = screenW - cloudWidth - padding;
+        const maxX = screenW - dynamicCloudWidth - padding;
         const minY = padding;
-        const maxY = screenH - cloudHeight - padding;
-        
+        const maxY = screenH - dynamicCloudHeight - padding;
+
         newX = Math.max(minX, Math.min(maxX, newX));
         newY = Math.max(minY, Math.min(maxY, newY));
 
@@ -1628,17 +1711,23 @@ export default function AddIdealizedMemoryScreen() {
         const screenW = Dimensions.get('window').width;
         const screenH = Dimensions.get('window').height;
         const padding = 20;
-        
+
+        // Calculate dynamic sun size for current sun
+        const currentSun = suns.find((s) => s.id === sunId);
+        const textLength = currentSun?.text?.length || 0;
+        const baseSunSize = isLargeDevice ? 200 : 160;
+        const dynamicSunSize = Math.min(350, Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 1.2)));
+
         // Calculate new position
         let newX = start.x + gesture.dx;
         let newY = start.y + gesture.dy;
-        
+
         // Clamp to viewport bounds
         const minX = padding;
-        const maxX = screenW - sunWidth - padding;
+        const maxX = screenW - dynamicSunSize - padding;
         const minY = padding;
-        const maxY = screenH - sunHeight - padding;
-        
+        const maxY = screenH - dynamicSunSize - padding;
+
         newX = Math.max(minX, Math.min(maxX, newX));
         newY = Math.max(minY, Math.min(maxY, newY));
 
@@ -1661,9 +1750,6 @@ export default function AddIdealizedMemoryScreen() {
   const createLessonPanResponder = (lessonId: string) => {
     const lessonKey = `lesson_${lessonId}`;
     if (panResponders.current[lessonKey]) return panResponders.current[lessonKey];
-
-    const lessonWidth = isLargeDevice ? 150 : 100;
-    const lessonHeight = isLargeDevice ? 150 : 100;
 
     panResponders.current[lessonKey] = PanResponder.create({
       onStartShouldSetPanResponder: (evt, gestureState) => {
@@ -1694,6 +1780,14 @@ export default function AddIdealizedMemoryScreen() {
         const screenW = Dimensions.get('window').width;
         const screenH = Dimensions.get('window').height;
         const padding = 20;
+
+        // Calculate dynamic lesson size based on current lesson's text
+        const currentLesson = lessons.find((l) => l.id === lessonId);
+        const textToMeasure = currentLesson?.text || currentLesson?.placeholder || '';
+        const baseSize = isLargeDevice ? 180 : 130;
+        const dynamicSize = Math.min(300, Math.max(baseSize, baseSize + Math.floor(textToMeasure.length * 1.2)));
+        const lessonWidth = dynamicSize;
+        const lessonHeight = dynamicSize;
 
         // Calculate new position
         let newX = start.x + gesture.dx;
@@ -1838,7 +1932,7 @@ export default function AddIdealizedMemoryScreen() {
           flexDirection: 'row',
           justifyContent: 'center',
           alignItems: 'center',
-          marginTop: 40,
+          marginTop: 60,
           paddingHorizontal: 16 * fontScale,
           width: '100%',
           gap: 16 * fontScale,
@@ -2035,12 +2129,12 @@ export default function AddIdealizedMemoryScreen() {
         },
 
         sunTextInput: {
-          fontSize: isLargeDevice ? 16 : 14,
           color: '#000000', // Dark text on bright sun
           textAlign: 'center',
-          width: '100%',
           backgroundColor: 'transparent',
           fontWeight: '600',
+          // Adjust lineHeight to better match fontSize for visual centering
+          lineHeight: 16,
         },
 
         sunDeleteButton: {
@@ -2519,7 +2613,16 @@ export default function AddIdealizedMemoryScreen() {
         }
         const inputRef = cloudInputRefs.current[cloud.id]!;
         const shouldAutoFocus = newlyCreatedCloudId === cloud.id;
-        
+
+        // Calculate dynamic cloud size based on text length
+        const baseCloudWidth = isLargeDevice ? 480 : 320;
+        const baseCloudHeight = isLargeDevice ? 150 : 100;
+        // Increase height based on text length (approximate lines)
+        const textLength = cloud.text?.length || 0;
+        const estimatedLines = Math.ceil(textLength / 30); // Roughly 30 chars per line
+        const dynamicCloudHeight = Math.min(250, Math.max(baseCloudHeight, baseCloudHeight + (estimatedLines - 1) * 25));
+        const dynamicCloudWidth = Math.min(600, Math.max(baseCloudWidth, baseCloudWidth + Math.floor(textLength * 0.5)));
+
         return (
           <AnimatedCloud
             key={cloud.id}
@@ -2527,8 +2630,8 @@ export default function AddIdealizedMemoryScreen() {
             panHandlers={pan.panHandlers}
             styles={styles}
             colors={colors}
-            cloudWidth={cloudWidth}
-            cloudHeight={cloudHeight}
+            cloudWidth={dynamicCloudWidth}
+            cloudHeight={dynamicCloudHeight}
             placeholder={t('memory.hardTruth.placeholder')}
             onTextChange={(id, text) => {
               setClouds((prev) =>
@@ -2574,7 +2677,14 @@ export default function AddIdealizedMemoryScreen() {
         }
         const inputRef = sunInputRefs.current[sun.id]!;
         const shouldAutoFocus = newlyCreatedSunId === sun.id;
-        
+
+        // Calculate dynamic sun size based on text length
+        const baseSunSize = isLargeDevice ? 200 : 160;
+        const textLength = sun.text?.length || 0;
+        // Suns grow in a circular fashion - both width and height increase equally
+        // Increase growth rate to 1.2px per character for more noticeable scaling
+        const dynamicSunSize = Math.min(350, Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 1.2)));
+
         return (
           <AnimatedSun
             key={sun.id}
@@ -2582,8 +2692,8 @@ export default function AddIdealizedMemoryScreen() {
             panHandlers={pan.panHandlers}
             styles={styles}
             colors={colors}
-            sunWidth={sunWidth}
-            sunHeight={sunHeight}
+            sunWidth={dynamicSunSize}
+            sunHeight={dynamicSunSize}
             placeholder={t('memory.goodFact.placeholder')}
             onTextChange={(id, text) => {
               setSuns((prev) =>
@@ -2627,8 +2737,13 @@ export default function AddIdealizedMemoryScreen() {
         const inputRef = lessonInputRefs.current[lesson.id]!;
         const shouldAutoFocus = newlyCreatedLessonId === lesson.id;
 
-        const lessonWidth = isLargeDevice ? 150 : 100;
-        const lessonHeight = isLargeDevice ? 150 : 100;
+        // Calculate dynamic lesson size based on text or placeholder length
+        const textToMeasure = lesson.text || lesson.placeholder || '';
+        const baseSize = isLargeDevice ? 180 : 130;
+        // Increase size based on text length - increased to 1.2px per character for better visibility
+        const dynamicSize = Math.min(300, Math.max(baseSize, baseSize + Math.floor(textToMeasure.length * 1.2)));
+        const lessonWidth = dynamicSize;
+        const lessonHeight = dynamicSize;
 
         return (
           <AnimatedLesson

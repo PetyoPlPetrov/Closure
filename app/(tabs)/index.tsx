@@ -1406,7 +1406,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   memory: any;
 }) {
   const fontScale = useFontScale();
-  const { isTablet } = useLargeDevice();
+  const { isTablet, isLargeDevice } = useLargeDevice();
   
   // Memoize filtered clouds - must be called unconditionally
   const filteredClouds = useMemo(() => {
@@ -1433,12 +1433,20 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
         // When memory is focused, use saved positions from memory data
         // Otherwise use calculated positions
         if (isMemoryFocused) {
+          // Calculate dynamic cloud size based on text length
+          const textLength = cloud.text?.length || 0;
+          const baseCloudWidth = isTablet ? 720 : (isLargeDevice ? 480 : 320);
+          const baseCloudHeight = isTablet ? 225 : (isLargeDevice ? 150 : 100);
+          const estimatedLines = Math.ceil(textLength / 30);
+          const dynamicCloudHeight = Math.min(300, Math.max(baseCloudHeight, baseCloudHeight + (estimatedLines - 1) * 25));
+          const dynamicCloudWidth = Math.min(800, Math.max(baseCloudWidth, baseCloudWidth + Math.floor(textLength * 0.5)));
+
           // Calculate and clamp position to ensure it's within viewport and well distributed
           const clampedPos = calculateClampedPosition(
             cloud.x,
             cloud.y,
-            cloudWidth,
-            cloudHeight,
+            dynamicCloudWidth,
+            dynamicCloudHeight,
             cloudIndex,
             clouds.length,
             memorySize,
@@ -1463,8 +1471,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
               key={`cloud-focused-${cloud?.id || cloudIndex}`}
               initialX={cloudX}
               initialY={cloudY}
-              width={cloudWidth}
-              height={cloudHeight}
+              width={dynamicCloudWidth}
+              height={dynamicCloudHeight}
               zIndex={cloudZIndex}
               onPositionChange={handlePositionChange}
               onPress={onDoubleTap}
@@ -1474,8 +1482,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             >
               <View
                 style={{
-                  width: cloudWidth,
-                  height: cloudHeight,
+                  width: dynamicCloudWidth,
+                  height: dynamicCloudHeight,
                   // Dark glow for clouds (negative moments)
                   shadowColor: '#4A5568',
                   shadowOffset: { width: 0, height: 0 },
@@ -1485,8 +1493,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
                 }}
               >
               <Svg
-                width={cloudWidth}
-                height={cloudHeight}
+                width={dynamicCloudWidth}
+                height={dynamicCloudHeight}
                 viewBox="0 0 320 100"
                 preserveAspectRatio="xMidYMid meet"
                 style={{ position: 'absolute', top: 0, left: 0 }}
@@ -1530,8 +1538,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
                   position: 'absolute',
                   top: 0,
                   left: 0,
-                  width: cloudWidth,
-                  height: cloudHeight,
+                  width: dynamicCloudWidth,
+                  height: dynamicCloudHeight,
                   justifyContent: 'center',
                   alignItems: 'center',
                   paddingHorizontal: 20,
@@ -1608,12 +1616,17 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
     return filteredSuns.map((sun: any, sunIndex: number) => {
         // When memory is focused, use saved positions from memory data
         if (isMemoryFocused) {
+          // Calculate dynamic sun size based on text length
+          const textLength = sun.text?.length || 0;
+          const baseSunSize = isTablet ? 240 : (isLargeDevice ? 200 : 160);
+          const dynamicSunSize = Math.min(350, Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 1.2)));
+
           // Calculate and clamp position to ensure it's within viewport and well distributed
           const clampedPos = calculateClampedPosition(
             sun.x,
             sun.y,
-            sunWidth,
-            sunHeight,
+            dynamicSunSize,
+            dynamicSunSize,
             sunIndex,
             suns.length,
             memorySize,
@@ -1638,8 +1651,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
               key={`sun-focused-${sun.id}`}
               initialX={sunX}
               initialY={sunY}
-              width={sunWidth}
-              height={sunHeight}
+              width={dynamicSunSize}
+              height={dynamicSunSize}
               zIndex={sunZIndex}
               onPositionChange={handlePositionChange}
               onPress={onDoubleTap}
@@ -1649,8 +1662,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             >
               <View
                 style={{
-                  width: sunWidth,
-                  height: sunHeight,
+                  width: dynamicSunSize,
+                  height: dynamicSunSize,
                   // Golden glow for suns (positive moments)
                   shadowColor: '#FFD700',
                   shadowOffset: { width: 0, height: 0 },
@@ -1660,8 +1673,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
                 }}
               >
               <Svg
-                width={sunWidth}
-                height={sunHeight}
+                width={dynamicSunSize}
+                height={dynamicSunSize}
                 viewBox="0 0 160 160"
                 preserveAspectRatio="xMidYMid meet"
                 style={{ position: 'absolute', top: 0, left: 0 }}
@@ -1729,14 +1742,14 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
                   position: 'absolute',
                   top: 0,
                   left: 0,
-                  width: sunWidth,
-                  height: sunHeight,
+                  width: dynamicSunSize,
+                  height: dynamicSunSize,
                   justifyContent: 'center',
                   alignItems: 'center',
                   // Calculate padding based on sun circle radius to ensure text fits inside
-                  // Sun radius in viewBox is 48, viewBox is 160, so actual radius = (sunWidth / 160) * 48
-                  paddingHorizontal: (sunWidth / 160) * 48 * 0.6, // 60% of radius for safe padding
-                  paddingVertical: (sunHeight / 160) * 48 * 0.4, // 40% of radius for vertical padding
+                  // Sun radius in viewBox is 48, viewBox is 160, so actual radius = (dynamicSunSize / 160) * 48
+                  paddingHorizontal: (dynamicSunSize / 160) * 48 * 0.6, // 60% of radius for safe padding
+                  paddingVertical: (dynamicSunSize / 160) * 48 * 0.4, // 40% of radius for vertical padding
                 }}
               >
                 <ThemedText
@@ -1746,9 +1759,9 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
                     textAlign: 'center',
                     fontWeight: '700',
                     // Max width should be less than circle diameter minus padding
-                    //maxWidth: (sunWidth / 160) * 48 * 1.6, // 80% of diameter to ensure text fits
+                    //maxWidth: (dynamicSunSize / 160) * 48 * 1.6, // 80% of diameter to ensure text fits
                   }}
-                  numberOfLines={2}
+                  numberOfLines={3}
                 >
                   {sun.text?.split('\n')[0] || sun.text}
                 </ThemedText>
@@ -1759,9 +1772,9 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
                       fontSize: 7 * fontScale, // Smaller font size for second line
                       textAlign: 'center',
                       fontWeight: '600',
-                      maxWidth: (sunWidth / 160) * 48 * 1.6, // Same max width
+                      maxWidth: (dynamicSunSize / 160) * 48 * 1.6, // Same max width
                     }}
-                    numberOfLines={1}
+                    numberOfLines={2}
                   >
                     {sun.text.split('\n')[1]}
                   </ThemedText>
@@ -1802,7 +1815,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
           />
         );
     });
-  }, [isFocused, filteredSuns, isMemoryFocused, sunPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, sunZIndex, colorScheme, onDoubleTap, calculateClampedPosition, sunWidth, sunHeight, suns.length, memorySize, newlyCreatedMoments, isTablet, fontScale, onUpdateMemory, memory.goodFacts]);
+  }, [isFocused, filteredSuns, isMemoryFocused, sunPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, sunZIndex, colorScheme, onDoubleTap, calculateClampedPosition, sunWidth, sunHeight, suns.length, memorySize, newlyCreatedMoments, isTablet, isLargeDevice, fontScale, onUpdateMemory, memory.goodFacts]);
 
   // Memoize filtered lessons - must be called unconditionally
   const filteredLessons = useMemo(() => {
@@ -1824,12 +1837,17 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
     return filteredLessons.map((lesson: any, lessonIndex: number) => {
       // When memory is focused, use saved positions from memory data
       if (isMemoryFocused) {
+        // Calculate dynamic lesson size based on text length
+        const textToMeasure = lesson.text || '';
+        const baseLessonSize = isTablet ? 240 : (isLargeDevice ? 200 : 160);
+        const dynamicLessonSize = Math.min(350, Math.max(baseLessonSize, baseLessonSize + Math.floor(textToMeasure.length * 1.2)));
+
         const startPos = newlyCreatedMoments.get(lesson.id);
         const clampedPos = calculateClampedPosition(
           lesson.x,
           lesson.y,
-          sunWidth, // Use sun dimensions for lessons
-          sunHeight,
+          dynamicLessonSize,
+          dynamicLessonSize,
           lessonIndex,
           lessons.length,
           memorySize,
@@ -1853,8 +1871,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             key={`lesson-${lesson.id}-${lessonIndex}`}
             initialX={lessonX}
             initialY={lessonY}
-            width={sunWidth}
-            height={sunHeight}
+            width={dynamicLessonSize}
+            height={dynamicLessonSize}
             zIndex={lessonZIndex}
             onPositionChange={handlePositionChange}
             onPress={onDoubleTap}
@@ -1865,12 +1883,12 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             {/* Render lightbulb with text for lessons */}
             <View
               style={{
-                width: sunWidth,
-                height: sunHeight,
+                width: dynamicLessonSize,
+                height: dynamicLessonSize,
                 justifyContent: 'center',
                 alignItems: 'center',
                 backgroundColor: 'rgba(255, 215, 0, 0.15)',
-                borderRadius: sunWidth / 2,
+                borderRadius: dynamicLessonSize / 2,
                 // Golden glow for lessons
                 shadowColor: '#FFD700',
                 shadowOffset: { width: 0, height: 0 },
@@ -1882,7 +1900,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             >
               <MaterialIcons
                 name="lightbulb"
-                size={sunWidth * 0.4}
+                size={dynamicLessonSize * 0.35}
                 color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'}
                 style={{ marginBottom: 4 }}
               />
@@ -1890,12 +1908,13 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
                 <ThemedText
                   style={{
                     color: colorScheme === 'dark' ? '#000000' : '#1A1A1A',
-                    fontSize: 10 * fontScale,
+                    fontSize: 11 * fontScale,
                     textAlign: 'center',
                     fontWeight: '700',
-                    maxWidth: sunWidth * 0.8,
+                    maxWidth: dynamicLessonSize * 0.85,
+                    lineHeight: 14 * fontScale,
                   }}
-                  numberOfLines={2}
+                  numberOfLines={5}
                 >
                   {lesson.text}
                 </ThemedText>
@@ -2097,7 +2116,30 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
                   color={colorScheme === 'dark' ? '#FFD700' : '#555'}
                 />
               </View>
-              {/* Count badge - REMOVED */}
+              {/* Count badge */}
+              {totalLessonsCount > 0 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    bottom: isLargeDevice ? 8 : 6,
+                    left: 0,
+                    right: 0,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <ThemedText
+                    style={{
+                      fontSize: isLargeDevice ? 14 : 12,
+                      fontWeight: '700',
+                      color: colorScheme === 'dark' ? '#FFD700' : '#555',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {visibleLessonsCount}/{totalLessonsCount}
+                  </ThemedText>
+                </View>
+              )}
             </LinearGradient>
           </View>
         </Pressable>
@@ -2187,7 +2229,30 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
                 color={colorScheme === 'dark' ? '#FFFFFF' : '#555'} 
               />
             </View>
-            {/* Count badge - REMOVED */}
+            {/* Count badge */}
+            {totalCloudsCount > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: isLargeDevice ? 8 : 6,
+                  left: 0,
+                  right: 0,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ThemedText
+                  style={{
+                    fontSize: isLargeDevice ? 14 : 12,
+                    fontWeight: '700',
+                    color: colorScheme === 'dark' ? '#FFFFFF' : '#555',
+                    textAlign: 'center',
+                  }}
+                >
+                  {visibleCloudsCount}/{totalCloudsCount}
+                </ThemedText>
+              </View>
+            )}
           </LinearGradient>
         </View>
       </Pressable>
@@ -2288,7 +2353,30 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
                 color={colorScheme === 'dark' ? '#FFFFFF' : '#555'} 
               />
             </View>
-            {/* Count badge - REMOVED */}
+            {/* Count badge */}
+            {totalSunsCount > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: isLargeDevice ? 8 : 6,
+                  left: 0,
+                  right: 0,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ThemedText
+                  style={{
+                    fontSize: isLargeDevice ? 14 : 12,
+                    fontWeight: '700',
+                    color: colorScheme === 'dark' ? '#FFFFFF' : '#555',
+                    textAlign: 'center',
+                  }}
+                >
+                  {visibleSunsCount}/{totalSunsCount}
+                </ThemedText>
+              </View>
+            )}
           </LinearGradient>
         </View>
       </Pressable>
@@ -7339,9 +7427,9 @@ export default function HomeScreen() {
 
           {/* Random Lesson from Wheel of Life Spin - matches focused memory view style */}
           {showLesson && selectedLesson && (() => {
-            // Calculate sun dimensions to match MemoryMomentsRenderer - increased for better text display
-            const lessonSunWidth = isTablet ? 300 : (isLargeDevice ? 250 : 220);
-            const lessonSunHeight = isTablet ? 300 : (isLargeDevice ? 250 : 220);
+            // Calculate sun dimensions to match MemoryMomentsRenderer - slightly smaller for compact display
+            const lessonSunWidth = isTablet ? 260 : (isLargeDevice ? 210 : 190);
+            const lessonSunHeight = isTablet ? 260 : (isLargeDevice ? 210 : 190);
             
             return (
             <Animated.View
