@@ -43,12 +43,13 @@ function WheelOfLifeVisualization({
 
   // Normalize distribution percentages
   const totalDistribution = distribution.relationships + distribution.career + distribution.family + distribution.friends + distribution.hobbies;
+  const hasNoData = totalDistribution === 0;
   const normalizedDist = {
-    relationships: totalDistribution > 0 ? (distribution.relationships / totalDistribution) * 100 : 20,
-    career: totalDistribution > 0 ? (distribution.career / totalDistribution) * 100 : 20,
-    family: totalDistribution > 0 ? (distribution.family / totalDistribution) * 100 : 20,
-    friends: totalDistribution > 0 ? (distribution.friends / totalDistribution) * 100 : 20,
-    hobbies: totalDistribution > 0 ? (distribution.hobbies / totalDistribution) * 100 : 20,
+    relationships: totalDistribution > 0 ? (distribution.relationships / totalDistribution) * 100 : 0,
+    career: totalDistribution > 0 ? (distribution.career / totalDistribution) * 100 : 0,
+    family: totalDistribution > 0 ? (distribution.family / totalDistribution) * 100 : 0,
+    friends: totalDistribution > 0 ? (distribution.friends / totalDistribution) * 100 : 0,
+    hobbies: totalDistribution > 0 ? (distribution.hobbies / totalDistribution) * 100 : 0,
   };
 
   // Calculate available angle (360 minus gaps between 5 slices)
@@ -320,6 +321,37 @@ function WheelOfLifeVisualization({
       { translateY: -center },
     ],
   }));
+
+  // Show empty state when there's no data
+  if (hasNoData) {
+    return (
+      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          {/* Background circle */}
+          <Circle cx={center} cy={center} r={radius} fill="none" stroke={colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth={2} />
+        </Svg>
+        <View style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 * fontScale }}>
+          <MaterialIcons
+            name="insights"
+            size={48 * fontScale}
+            color={colorScheme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
+            style={{ marginBottom: 16 * fontScale }}
+          />
+          <ThemedText
+            style={{
+              fontSize: 16 * fontScale,
+              fontWeight: '600',
+              textAlign: 'center',
+              opacity: 0.7,
+              color: colors.text,
+            }}
+          >
+            Add memories and moments on other sferas to see data insights
+          </ThemedText>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
@@ -746,11 +778,11 @@ export default function InsightsScreen() {
 
     if (totalAllMoments === 0) {
       return {
-        relationships: 20,
-        career: 20,
-        family: 20,
-        friends: 20,
-        hobbies: 20,
+        relationships: 0,
+        career: 0,
+        family: 0,
+        friends: 0,
+        hobbies: 0,
       };
     }
 
