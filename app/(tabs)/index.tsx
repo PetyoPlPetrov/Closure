@@ -40,9 +40,15 @@ import Animated, {
   withSpring,
   withTiming
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, FeColorMatrix, FeGaussianBlur, FeMerge, FeMergeNode, Filter, Path, RadialGradient, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Constants for LinearGradient and Pressable props (avoid recreating objects on every render)
+const LINEAR_GRADIENT_START = { x: 0, y: 0 };
+const LINEAR_GRADIENT_END = { x: 1, y: 1 };
+const CLOSE_BUTTON_HITSLOP = { top: 8, bottom: 8, left: 8, right: 8 };
 
 // Draggable Moment Component (for focused memory view)
 const DraggableMoment = React.memo(function DraggableMoment({
@@ -289,6 +295,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   externalPositionY?: ReturnType<typeof useSharedValue<number>>;
 }) {
   const { isTablet } = useLargeDevice();
+  const insets = useSafeAreaInsets();
+  const fontScale = useFontScale();
   const baseAvatarSize = isTablet ? 120 : 100; // 50% larger on tablets, increased from 80 to 100
   const focusedAvatarSize = isTablet ? 150 : 120; // 50% larger on tablets, increased from 100 to 120
   const avatarSize = isFocused ? focusedAvatarSize : baseAvatarSize;
@@ -343,10 +351,13 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     .slice(0, 2);
 
   const floatAnimation = useSharedValue(0);
-  // Clamp position to ensure avatar is entirely visible in viewport
+  // Clamp position to ensure avatar is entirely visible in viewport (accounting for safe area insets and tab bar)
   const padding = avatarSize / 2;
+  const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+  const visibleAreaTop = insets.top;
+  const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight; // Account for tab bar, not just safe area
   const clampedPositionX = Math.max(padding, Math.min(SCREEN_WIDTH - padding, position.x));
-  const clampedPositionY = Math.max(padding, Math.min(SCREEN_HEIGHT - padding, position.y));
+  const clampedPositionY = Math.max(visibleAreaTop + padding, Math.min(visibleAreaBottom - padding, position.y));
   const panX = useSharedValue(clampedPositionX);
   const panY = useSharedValue(clampedPositionY);
   const isDragging = useSharedValue(false);
@@ -381,16 +392,19 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               const newX = dragStartX.value + gestureState.dx;
               const newY = dragStartY.value + gestureState.dy;
 
-              // Clamp to viewport bounds - ensure entire avatar stays visible
+              // Clamp to viewport bounds - ensure entire avatar stays visible (accounting for safe area insets and tab bar)
               // Container is positioned at (position.x - SCREEN_WIDTH, position.y - SCREEN_HEIGHT)
               // Avatar center is at (SCREEN_WIDTH, SCREEN_HEIGHT) within container
               // So avatar center on screen = container.left + SCREEN_WIDTH = position.x
               // We need avatarSize/2 padding on all sides to keep entire avatar visible
               const padding = avatarSize / 2;
+              const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+              const visibleAreaTop = insets.top;
+              const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight; // Account for tab bar, not just safe area
               const minX = padding;
               const maxX = SCREEN_WIDTH - padding;
-              const minY = padding;
-              const maxY = SCREEN_HEIGHT - padding;
+              const minY = visibleAreaTop + padding;
+              const maxY = visibleAreaBottom - padding;
 
               const clampedX = Math.max(minX, Math.min(maxX, newX));
               const clampedY = Math.max(minY, Math.min(maxY, newY));
@@ -419,12 +433,15 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                 const newX = dragStartX.value + gestureState.dx;
                 const newY = dragStartY.value + gestureState.dy;
 
-                // Clamp to viewport bounds - ensure entire avatar stays visible
-                const padding = avatarSize / 2;
+                // Clamp to viewport bounds - ensure entire avatar stays visible (accounting for safe area insets and tab bar)
+      const padding = avatarSize / 2;
+      const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+      const visibleAreaTop = insets.top;
+      const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight; // Account for tab bar, not just safe area
                 const minX = padding;
                 const maxX = SCREEN_WIDTH - padding;
-                const minY = padding;
-                const maxY = SCREEN_HEIGHT - padding;
+                const minY = visibleAreaTop + padding;
+                const maxY = visibleAreaBottom - padding;
 
                 const finalX = Math.max(minX, Math.min(maxX, newX));
                 const finalY = Math.max(minY, Math.min(maxY, newY));
@@ -653,14 +670,17 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
 
   // Animated style for container position - uses panX/panY to stay in sync with drag
-  // Also clamp to ensure avatar stays fully visible
+  // Also clamp to ensure avatar stays fully visible (accounting for safe area insets and tab bar)
   const avatarSizeForClamp = avatarSize; // Capture for worklet
+  const visibleAreaTopForClamp = insets.top; // Capture for worklet
+  const tabBarHeightForClamp = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale); // Capture for worklet
+  const visibleAreaBottomForClamp = SCREEN_HEIGHT - tabBarHeightForClamp; // Capture for worklet
   const containerAnimatedStyle = useAnimatedStyle(() => {
     'worklet';
     // Ensure panX/panY are within bounds (double-check in case they weren't clamped)
     const padding = avatarSizeForClamp / 2;
     const clampedX = Math.max(padding, Math.min(SCREEN_WIDTH - padding, panX.value));
-    const clampedY = Math.max(padding, Math.min(SCREEN_HEIGHT - padding, panY.value));
+    const clampedY = Math.max(visibleAreaTopForClamp + padding, Math.min(visibleAreaBottomForClamp - padding, panY.value));
     return {
       left: clampedX - SCREEN_WIDTH,
       top: clampedY - SCREEN_HEIGHT,
@@ -1525,13 +1545,6 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
           const cloudX = clampedPos.x;
           const cloudY = clampedPos.y;
 
-          console.log(`☁️ [Cloud ${cloudIndex}] Rendering at position:`, {
-            cloudX,
-            cloudY,
-            savedPosition: { x: cloud.x, y: cloud.y },
-            text: cloud.text?.substring(0, 30)
-          });
-          
           const handlePositionChange = async (x: number, y: number) => {
             if (onUpdateMemory) {
               // Update the cloud's position in memory
@@ -1687,12 +1700,6 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
     });
 
     if (isMemoryFocused) {
-      console.log('☀️ [MemoryMomentsRenderer] Filtered suns:', {
-        totalSuns: suns.length,
-        filteredCount: filtered.length,
-        visibleIds: Array.from(visibleMomentIds),
-        sunIds: suns.map((s: any) => s?.id)
-      });
     }
 
     return filtered;
@@ -1723,13 +1730,6 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
           );
           const sunX = clampedPos.x;
           const sunY = clampedPos.y;
-
-          console.log(`☀️ [Sun ${sunIndex}] Rendering at position:`, {
-            sunX,
-            sunY,
-            savedPosition: { x: sun.x, y: sun.y },
-            text: sun.text?.substring(0, 30)
-          });
 
           const handlePositionChange = async (x: number, y: number) => {
             if (onUpdateMemory) {
@@ -2616,9 +2616,6 @@ const FloatingMemory = React.memo(function FloatingMemory({
       const memoryCenterX = position.x;
       const memoryCenterY = position.y;
 
-      console.log('🔍 [calculateClampedPosition] Memory position:', { memoryCenterX, memoryCenterY, memorySize });
-      console.log('🔍 [calculateClampedPosition] Screen dimensions:', { SCREEN_WIDTH, SCREEN_HEIGHT });
-
       const padding = 20; // Padding from edges
       const headerSafeZone = 120; // Safe zone from top to avoid header and back button
       const minX = padding + momentWidth / 2;
@@ -2701,15 +2698,6 @@ const FloatingMemory = React.memo(function FloatingMemory({
         momentX = savedX !== undefined ? Math.max(minX, Math.min(maxX, savedX)) : targetX;
         momentY = savedY !== undefined ? Math.max(minY, Math.min(maxY, savedY)) : targetY;
       }
-
-      console.log(`🎯 [calculateClampedPosition] ${momentType} ${index}/${totalCount}:`, {
-        savedX,
-        savedY,
-        calculatedX: momentX,
-        calculatedY: momentY,
-        momentWidth,
-        momentHeight
-      });
 
       return { x: momentX, y: momentY };
     };
@@ -4937,6 +4925,7 @@ export default function HomeScreen() {
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const { isTablet, isLargeDevice } = useLargeDevice();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { 
     profiles, 
@@ -5004,24 +4993,13 @@ export default function HomeScreen() {
   // This runs whenever the screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('[HomeScreen] useFocusEffect - Checking walkthrough on focus');
-
       // Reset the check when screen comes into focus
       walkthroughCheckedRef.current = false;
 
       // Function to check and show walkthrough
       const checkWalkthrough = () => {
-        console.log('[HomeScreen] checkWalkthrough called', {
-          walkthroughChecked: walkthroughCheckedRef.current,
-          isLoading,
-          isFirstLaunch: isFirstLaunchRef.current,
-          isSplashVisible,
-          isAnimationComplete,
-        });
-
         // Only check once per focus
         if (walkthroughCheckedRef.current) {
-          console.log('[HomeScreen] Already checked, skipping');
           return;
         }
 
@@ -5030,19 +5008,12 @@ export default function HomeScreen() {
         const shouldWaitForSplash = isFirstLaunchRef.current;
         const splashConditionsMet = shouldWaitForSplash ? (!isSplashVisible && isAnimationComplete) : true;
 
-        console.log('[HomeScreen] Conditions check', {
-          shouldWaitForSplash,
-          splashConditionsMet,
-          isLoading,
-        });
-
         if (!isLoading && splashConditionsMet) {
           // Mark as checked FIRST to prevent re-runs
           walkthroughCheckedRef.current = true;
 
           // After first check, we don't need to wait for splash anymore
           if (isFirstLaunchRef.current && splashConditionsMet) {
-            console.log('[HomeScreen] Marking as not first launch anymore');
             isFirstLaunchRef.current = false;
           }
 
@@ -5050,16 +5021,11 @@ export default function HomeScreen() {
           const totalEntities = profiles.length + jobs.length + familyMembers.length + friends.length + hobbies.length;
           const totalMemories = idealizedMemories.length;
 
-          console.log('[HomeScreen] Data check', { totalEntities, totalMemories });
-
           // If no entities and no memories, show walkthrough
           if (totalEntities === 0 && totalMemories === 0) {
-            console.log('[HomeScreen] Showing walkthrough modal and starting infinite pulse');
             setWalkthroughVisible(true);
             // Request infinite pulse animation on spheres tab
             requestSpheresTabPulse(false); // false = pulse infinitely
-          } else {
-            console.log('[HomeScreen] App has data, not showing walkthrough');
           }
         }
       };
@@ -5068,7 +5034,6 @@ export default function HomeScreen() {
       checkWalkthrough();
 
       return () => {
-        console.log('[HomeScreen] useFocusEffect cleanup - Stopping pulse');
         // Cleanup: stop pulse when leaving the screen
         stopSpheresTabPulse();
       };
@@ -5077,11 +5042,9 @@ export default function HomeScreen() {
 
   const handleWalkthroughDismiss = useCallback(async () => {
     try {
-      console.log('[HomeScreen] Dismissing walkthrough modal');
       // Don't save to AsyncStorage - we want modal to reappear if user navigates back
       setWalkthroughVisible(false);
 
-      console.log('[HomeScreen] Requesting single pulse');
       // Pulse ONCE to remind the user to go to spheres tab
       // Don't stop first - just request a single pulse which will replace the infinite one
       requestSpheresTabPulse(true); // true = pulse only once
@@ -5296,6 +5259,107 @@ export default function HomeScreen() {
     opacity: (isEncouragementVisible && hasAnyMoments) ? 1 : 0,
   };
   
+  // Memoized styles for encouragement message section to avoid recreating on every render
+  const encouragementContainerStyle = useMemo(() => ({
+    position: 'absolute' as const,
+    top: messageTop,
+    left: messageLeft,
+    right: messageRight,
+    zIndex: 200,
+    paddingLeft: 24 * fontScale,
+    paddingRight: 42 * fontScale, // Extra padding for close button (28px button + 12px margin + 12px spacing)
+    paddingVertical: 18 * fontScale,
+    borderRadius: 16 * fontScale,
+    backgroundColor: colorScheme === 'dark'
+      ? 'rgba(26, 35, 50, 0.95)' // Semi-transparent dark background
+      : 'rgba(255, 255, 255, 0.95)', // Semi-transparent light background
+    // Moderate shadow effect
+    shadowColor: colorScheme === 'dark' ? '#64B5F6' : '#000',
+    shadowOffset: { width: 0, height: isTablet ? 4 : 3 },
+    shadowOpacity: colorScheme === 'dark' ? 0.5 : 0.2,
+    shadowRadius: isTablet ? 12 : 8,
+    elevation: 6, // For Android - moderate elevation
+  }), [messageTop, messageLeft, messageRight, fontScale, colorScheme, isTablet]);
+
+  const closeButtonStyle = useMemo(() => ({
+    position: 'absolute' as const,
+    top: 12 * fontScale,
+    right: 12 * fontScale,
+    width: 28 * fontScale,
+    height: 28 * fontScale,
+    borderRadius: 14 * fontScale,
+    backgroundColor: colorScheme === 'dark' 
+      ? 'rgba(255, 255, 255, 0.1)' 
+      : 'rgba(0, 0, 0, 0.08)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    zIndex: 10,
+  }), [fontScale, colorScheme]);
+
+  const gradientColors = useMemo((): [string, string, string] => 
+    overallSunnyPercentage > 50
+      ? colorScheme === 'dark'
+        ? ['rgba(100, 150, 255, 0.15)', 'rgba(100, 150, 255, 0.08)', 'rgba(100, 150, 255, 0.12)'] as [string, string, string]
+        : ['rgba(100, 150, 255, 0.12)', 'rgba(100, 150, 255, 0.06)', 'rgba(100, 150, 255, 0.1)'] as [string, string, string]
+      : colorScheme === 'dark'
+        ? ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.06)'] as [string, string, string]
+        : ['rgba(0, 0, 0, 0.05)', 'rgba(0, 0, 0, 0.02)', 'rgba(0, 0, 0, 0.04)'] as [string, string, string]
+  , [overallSunnyPercentage, colorScheme]);
+
+  const gradientStyle = useMemo(() => ({
+    position: 'absolute' as const,
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 16 * fontScale,
+    overflow: 'hidden' as const, // Ensure gradient respects border radius
+  }), [fontScale]);
+
+  const borderStyle = useMemo(() => ({
+    position: 'absolute' as const,
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 16 * fontScale,
+    borderWidth: 1.5,
+    borderColor: overallSunnyPercentage > 50
+      ? colorScheme === 'dark'
+        ? 'rgba(100, 150, 255, 0.4)'
+        : 'rgba(100, 150, 255, 0.3)'
+      : colorScheme === 'dark'
+        ? 'rgba(255, 255, 255, 0.15)'
+        : 'rgba(0, 0, 0, 0.12)',
+  }), [fontScale, overallSunnyPercentage, colorScheme]);
+
+  const shadowGlowStyle = useMemo(() => ({
+    position: 'absolute' as const,
+    left: -10,
+    right: -10,
+    top: -10,
+    bottom: -10,
+    borderRadius: 20 * fontScale,
+    backgroundColor: colorScheme === 'dark'
+      ? 'rgba(100, 150, 255, 0.2)'
+      : 'rgba(100, 150, 255, 0.15)',
+    opacity: 0.3,
+    zIndex: -1,
+  }), [fontScale, colorScheme]);
+
+  const encouragementTextStyle = useMemo(() => ({
+    textAlign: 'center' as const,
+    lineHeight: 22 * fontScale,
+    fontWeight: (overallSunnyPercentage > 50 ? '600' : '500') as '600' | '500',
+    color: overallSunnyPercentage > 50
+      ? colors.primaryLight
+      : colors.text,
+    textShadowColor: overallSunnyPercentage > 50 && colorScheme === 'dark'
+      ? 'rgba(100, 150, 255, 0.25)'
+      : 'transparent',
+    textShadowOffset: overallSunnyPercentage > 50 ? { width: 0, height: 1 } : { width: 0, height: 0 },
+    textShadowRadius: overallSunnyPercentage > 50 ? 3 : 0,
+  }), [fontScale, overallSunnyPercentage, colorScheme, colors.primaryLight, colors.text]);
   
   // Calculate sunny percentage for relationships sphere (all profiles)
   const relationshipsSunnyPercentage = useMemo(() => {
@@ -6353,11 +6417,58 @@ export default function HomeScreen() {
   const [friendPositionsState, setFriendPositionsState] = React.useState<Map<string, { x: number; y: number }>>(new Map());
   const [hobbyPositionsState, setHobbyPositionsState] = React.useState<Map<string, { x: number; y: number }>>(new Map());
   
+  // Helper function to clamp position to ensure avatar is fully visible in viewport
+  // Accounts for safe area insets (status bar at top) and tab bar at bottom
+  const clampPositionToViewport = React.useCallback((position: { x: number; y: number }, avatarSize: number, entityId?: string): { x: number; y: number } => {
+    const padding = avatarSize / 2;
+    // Account for safe area insets at top and tab bar at bottom
+    // Tab bar height: Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale)
+    const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+    const visibleAreaTop = insets.top;
+    const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight; // Account for tab bar, not just safe area
+    const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
+    
+    const minX = padding;
+    const maxX = SCREEN_WIDTH - padding;
+    const minY = visibleAreaTop + padding; // Top of visible area + avatar radius
+    const maxY = visibleAreaBottom - padding; // Bottom of visible area - avatar radius
+    
+    const clamped = {
+      x: Math.max(minX, Math.min(maxX, position.x)),
+      y: Math.max(minY, Math.min(maxY, position.y)),
+    };
+    
+    if (entityId && (clamped.x !== position.x || clamped.y !== position.y)) {
+      console.log(`[clampPositionToViewport] ${entityId} clamped:`, {
+        'original': position,
+        'clamped': clamped,
+        'avatarSize': avatarSize,
+        'padding': padding,
+        'insets': { top: insets.top, bottom: insets.bottom },
+        'visibleArea': { 
+          top: visibleAreaTop,
+          bottom: visibleAreaBottom,
+          height: visibleAreaHeight,
+          width: SCREEN_WIDTH,
+          tabBarHeight: tabBarHeight
+        },
+        'bounds': { minX, maxX, minY, maxY },
+        'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
+      });
+    }
+    
+    return clamped;
+  }, [insets.top, insets.bottom, fontScale]);
+
   // Update position for a profile and save to storage
   const updateAvatarPosition = React.useCallback(async (profileId: string, newPosition: { x: number; y: number }) => {
+    // Clamp position to ensure avatar is fully visible (use base avatar size for clamping)
+    const baseAvatarSize = isTablet ? 120 : 100;
+    const clampedPosition = clampPositionToViewport(newPosition, baseAvatarSize);
+    
     setAvatarPositionsState((prev) => {
       const next = new Map(prev);
-      next.set(profileId, newPosition);
+      next.set(profileId, clampedPosition);
       
       // Save to AsyncStorage asynchronously
       const positionsObj: Record<string, { x: number; y: number }> = {};
@@ -6370,13 +6481,24 @@ export default function HomeScreen() {
       
       return next;
     });
-  }, []);
+  }, [isTablet, clampPositionToViewport]);
   
   // Update position for a family member and save to storage
   const updateFamilyMemberPosition = React.useCallback(async (memberId: string, newPosition: { x: number; y: number }) => {
+    // Clamp position to ensure avatar is fully visible (use base avatar size for clamping)
+    const baseAvatarSize = isTablet ? 120 : 100;
+    const clampedPosition = clampPositionToViewport(newPosition, baseAvatarSize, `FamilyMember-${memberId}`);
+    
+    console.log(`[updateFamilyMemberPosition] FamilyMember ${memberId}:`, {
+      'newPosition': newPosition,
+      'clampedPosition': clampedPosition,
+      'avatarSize': baseAvatarSize,
+      'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
+    });
+    
     setFamilyPositionsState((prev) => {
       const next = new Map(prev);
-      next.set(memberId, newPosition);
+      next.set(memberId, clampedPosition);
       
       // Save to AsyncStorage asynchronously
       const positionsObj: Record<string, { x: number; y: number }> = {};
@@ -6389,13 +6511,24 @@ export default function HomeScreen() {
       
       return next;
     });
-  }, []);
+  }, [isTablet, clampPositionToViewport]);
   
   // Update position for a friend and save to storage
   const updateFriendPosition = React.useCallback(async (friendId: string, newPosition: { x: number; y: number }) => {
+    // Clamp position to ensure avatar is fully visible (use base avatar size for clamping)
+    const baseAvatarSize = isTablet ? 120 : 100;
+    const clampedPosition = clampPositionToViewport(newPosition, baseAvatarSize, `Friend-${friendId}`);
+    
+    console.log(`[updateFriendPosition] Friend ${friendId}:`, {
+      'newPosition': newPosition,
+      'clampedPosition': clampedPosition,
+      'avatarSize': baseAvatarSize,
+      'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
+    });
+    
     setFriendPositionsState((prev) => {
       const next = new Map(prev);
-      next.set(friendId, newPosition);
+      next.set(friendId, clampedPosition);
       
       // Save to AsyncStorage asynchronously
       const positionsObj: Record<string, { x: number; y: number }> = {};
@@ -6408,13 +6541,24 @@ export default function HomeScreen() {
       
       return next;
     });
-  }, []);
+  }, [isTablet, clampPositionToViewport]);
   
   // Update position for a hobby and save to storage
   const updateHobbyPosition = React.useCallback(async (hobbyId: string, newPosition: { x: number; y: number }) => {
+    // Clamp position to ensure avatar is fully visible (use base avatar size for clamping)
+    const baseAvatarSize = isTablet ? 120 : 100;
+    const clampedPosition = clampPositionToViewport(newPosition, baseAvatarSize, `Hobby-${hobbyId}`);
+    
+    console.log(`[updateHobbyPosition] Hobby ${hobbyId}:`, {
+      'newPosition': newPosition,
+      'clampedPosition': clampedPosition,
+      'avatarSize': baseAvatarSize,
+      'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
+    });
+    
     setHobbyPositionsState((prev) => {
       const next = new Map(prev);
-      next.set(hobbyId, newPosition);
+      next.set(hobbyId, clampedPosition);
       
       // Save to AsyncStorage asynchronously
       const positionsObj: Record<string, { x: number; y: number }> = {};
@@ -6427,7 +6571,7 @@ export default function HomeScreen() {
       
       return next;
     });
-  }, []);
+  }, [isTablet, clampPositionToViewport]);
 
   // No need for minHeight calculation since we're fitting within viewport
   const minHeight = SCREEN_HEIGHT;
@@ -7185,7 +7329,7 @@ export default function HomeScreen() {
         />
       );
     });
-  }, [animationsReady, focusedFamilyMemberId, focusedMemory, familyMembers, getIdealizedMemoriesByEntityId, familyYearSections, previousFocusedFamilyMemberIdRef, setFocusedFamilyMemberId, setFocusedMemory, colors, colorScheme, focusedFamilyMemberPositionX, focusedFamilyMemberPositionY]);
+  }, [animationsReady, focusedFamilyMemberId, focusedMemory, familyMembers, getIdealizedMemoriesByEntityId, familyYearSections, previousFocusedFamilyMemberIdRef, setFocusedFamilyMemberId, setFocusedMemory, colors, colorScheme, focusedFamilyMemberPositionX, focusedFamilyMemberPositionY, updateFamilyMemberPosition]);
 
   // Memoize focused friends render - must be called unconditionally
   // This renders friends when they're focused, and also handles the unfocus animation
@@ -7268,7 +7412,7 @@ export default function HomeScreen() {
         />
       );
     });
-  }, [animationsReady, focusedFriendId, focusedMemory, friends, getIdealizedMemoriesByEntityId, friendsYearSections, previousFocusedFriendIdRef, setFocusedFriendId, setFocusedMemory, colors, colorScheme, focusedFriendPositionX, focusedFriendPositionY]);
+  }, [animationsReady, focusedFriendId, focusedMemory, friends, getIdealizedMemoriesByEntityId, friendsYearSections, previousFocusedFriendIdRef, setFocusedFriendId, setFocusedMemory, colors, colorScheme, focusedFriendPositionX, focusedFriendPositionY, updateFriendPosition]);
 
   // Memoize focused hobbies render - must be called unconditionally
   // This renders hobbies when they're focused, and also handles the unfocus animation
@@ -7351,7 +7495,7 @@ export default function HomeScreen() {
         />
       );
     });
-  }, [animationsReady, focusedHobbyId, focusedMemory, hobbies, getIdealizedMemoriesByEntityId, hobbiesYearSections, previousFocusedHobbyIdRef, setFocusedHobbyId, setFocusedMemory, colors, colorScheme, focusedHobbyPositionX, focusedHobbyPositionY]);
+  }, [animationsReady, focusedHobbyId, focusedMemory, hobbies, getIdealizedMemoriesByEntityId, hobbiesYearSections, previousFocusedHobbyIdRef, setFocusedHobbyId, setFocusedMemory, colors, colorScheme, focusedHobbyPositionX, focusedHobbyPositionY, updateHobbyPosition]);
 
   // Render sphere view - show all 3 spheres with memories floating around, center shows overall percentage
   // When a sphere is selected, show the entities for that sphere (like year sections for relationships)
@@ -7418,47 +7562,15 @@ export default function HomeScreen() {
           {hasAnyMoments && (
             <View
               style={[
-                {
-                  position: 'absolute',
-                  top: messageTop,
-                  left: messageLeft,
-                  right: messageRight,
-                  zIndex: 200,
-                  paddingLeft: 24 * fontScale,
-                  paddingRight: 42 * fontScale, // Extra padding for close button (28px button + 12px margin + 12px spacing)
-                  paddingVertical: 18 * fontScale,
-                  borderRadius: 16 * fontScale,
-                  backgroundColor: colorScheme === 'dark'
-                    ? 'rgba(26, 35, 50, 0.95)' // Semi-transparent dark background
-                    : 'rgba(255, 255, 255, 0.95)', // Semi-transparent light background
-                  // Moderate shadow effect
-                  shadowColor: colorScheme === 'dark' ? '#64B5F6' : '#000',
-                  shadowOffset: { width: 0, height: isTablet ? 4 : 3 },
-                  shadowOpacity: colorScheme === 'dark' ? 0.5 : 0.2,
-                  shadowRadius: isTablet ? 12 : 8,
-                  elevation: 6, // For Android - moderate elevation
-                },
+                encouragementContainerStyle,
                 encouragementStaticStyle,
               ]}
             >
               {/* Close button */}
               <Pressable
                 onPress={() => setIsEncouragementVisible(false)}
-                style={{
-                  position: 'absolute',
-                  top: 12 * fontScale,
-                  right: 12 * fontScale,
-                  width: 28 * fontScale,
-                  height: 28 * fontScale,
-                  borderRadius: 14 * fontScale,
-                  backgroundColor: colorScheme === 'dark' 
-                    ? 'rgba(255, 255, 255, 0.1)' 
-                    : 'rgba(0, 0, 0, 0.08)',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  zIndex: 10,
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={closeButtonStyle}
+                hitSlop={CLOSE_BUTTON_HITSLOP}
               >
                 <MaterialIcons 
                   name="close" 
@@ -7470,83 +7582,24 @@ export default function HomeScreen() {
               
               {/* Gradient background */}
               <LinearGradient
-                colors={
-                  overallSunnyPercentage > 50
-                    ? colorScheme === 'dark'
-                      ? ['rgba(100, 150, 255, 0.15)', 'rgba(100, 150, 255, 0.08)', 'rgba(100, 150, 255, 0.12)']
-                      : ['rgba(100, 150, 255, 0.12)', 'rgba(100, 150, 255, 0.06)', 'rgba(100, 150, 255, 0.1)']
-                    : colorScheme === 'dark'
-                      ? ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.06)']
-                      : ['rgba(0, 0, 0, 0.05)', 'rgba(0, 0, 0, 0.02)', 'rgba(0, 0, 0, 0.04)']
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  borderRadius: 16 * fontScale,
-                  overflow: 'hidden', // Ensure gradient respects border radius
-                }}
+                colors={gradientColors}
+                start={LINEAR_GRADIENT_START}
+                end={LINEAR_GRADIENT_END}
+                style={gradientStyle}
               />
               
               {/* Border */}
-              <View
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  borderRadius: 16 * fontScale,
-                  borderWidth: 1.5,
-                  borderColor: overallSunnyPercentage > 50
-                    ? colorScheme === 'dark'
-                      ? 'rgba(100, 150, 255, 0.4)'
-                      : 'rgba(100, 150, 255, 0.3)'
-                    : colorScheme === 'dark'
-                      ? 'rgba(255, 255, 255, 0.15)'
-                      : 'rgba(0, 0, 0, 0.12)',
-                }}
-              />
+              <View style={borderStyle} />
               
               {/* Shadow/Glow effect */}
               {overallSunnyPercentage > 50 && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    left: -10,
-                    right: -10,
-                    top: -10,
-                    bottom: -10,
-                    borderRadius: 20 * fontScale,
-                    backgroundColor: colorScheme === 'dark'
-                      ? 'rgba(100, 150, 255, 0.2)'
-                      : 'rgba(100, 150, 255, 0.15)',
-                    opacity: 0.3,
-                    zIndex: -1,
-                  }}
-                />
+                <View style={shadowGlowStyle} />
               )}
               
               {/* Content */}
               <ThemedText
                 size="sm"
-                style={{
-                  textAlign: 'center',
-                  lineHeight: 22 * fontScale,
-                  fontWeight: overallSunnyPercentage > 50 ? '600' : '500',
-                  color: overallSunnyPercentage > 50
-                    ? colors.primaryLight
-                    : colors.text,
-                  textShadowColor: overallSunnyPercentage > 50 && colorScheme === 'dark'
-                    ? 'rgba(100, 150, 255, 0.25)'
-                    : 'transparent',
-                  textShadowOffset: overallSunnyPercentage > 50 ? { width: 0, height: 1 } : { width: 0, height: 0 },
-                  textShadowRadius: overallSunnyPercentage > 50 ? 3 : 0,
-                }}
+                style={encouragementTextStyle}
               >
                 {overallSunnyPercentage > 50
                   ? t('spheres.encouragement.goodMomentsPrevail')
@@ -9272,18 +9325,28 @@ export default function HomeScreen() {
                   // Get the section for family members
                   const section = familyYearSections.get('all');
                   
-                  // Distribute family members vertically within the section
+                  // Distribute family members vertically within the visible center area
                   const totalMembers = familyMembers.length;
-                  const sectionCenterY = section ? section.top + section.height / 2 : SCREEN_HEIGHT / 2;
+                  
+                  // Calculate visible area bounds (accounting for safe area insets and tab bar)
+                  const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+                  const visibleAreaTop = insets.top;
+                  const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight;
+                  const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
+                  const visibleAreaCenterY = visibleAreaTop + visibleAreaHeight / 2;
+                  
+                  // Distribute members evenly in the center 60% of visible area (avoiding edges)
+                  const centerAreaTop = visibleAreaTop + visibleAreaHeight * 0.2; // Start at 20% from top
+                  const centerAreaBottom = visibleAreaBottom - visibleAreaHeight * 0.2; // End at 20% from bottom
+                  const centerAreaHeight = centerAreaBottom - centerAreaTop;
                   
                   // Increased spacing between family members for better visual separation
-                  // Minimum spacing of 200px between family members
-                  const minSpacing = 200;
+                  const minSpacing = 150;
                   const verticalSpacing = totalMembers > 1 
-                    ? Math.max(minSpacing, Math.min((section?.height || SCREEN_HEIGHT) / (totalMembers + 1), 250))
+                    ? Math.max(minSpacing, Math.min(centerAreaHeight / (totalMembers + 1), 200))
                     : 0;
                   
-                  // Add consistent random offset near center based on member ID (within 30% of screen width/height from center)
+                  // Add consistent random offset near center based on member ID (within 25% of screen width/height from center)
                   const getMemberOffset = (memberId: string, range: number) => {
                     let hash = 0;
                     for (let i = 0; i < memberId.length; i++) {
@@ -9292,11 +9355,13 @@ export default function HomeScreen() {
                     }
                     return ((hash % 1000) / 1000) * range;
                   };
-                  const centerOffsetX = getMemberOffset(member.id, SCREEN_WIDTH * 0.3); // ±15% of screen width
-                  const centerOffsetY = getMemberOffset(member.id + '_y', SCREEN_HEIGHT * 0.2); // ±10% of screen height
+                  const centerOffsetX = getMemberOffset(member.id, SCREEN_WIDTH * 0.25); // ±12.5% of screen width
+                  const centerOffsetY = getMemberOffset(member.id + '_y', centerAreaHeight * 0.15); // ±7.5% of center area height
+                  
+                  // Calculate base Y position in center area
                   const baseY = totalMembers === 1
-                    ? sectionCenterY
-                    : (section?.top || 150) + verticalSpacing * (index + 1);
+                    ? visibleAreaCenterY
+                    : centerAreaTop + verticalSpacing * (index + 1);
                   
                   const position = {
                     x: SCREEN_WIDTH / 2 + centerOffsetX,
@@ -9308,9 +9373,13 @@ export default function HomeScreen() {
                   const centerAreaMaxX = SCREEN_WIDTH * 0.8;
                   position.x = Math.max(centerAreaMinX, Math.min(centerAreaMaxX, position.x));
                   position.y = Math.max(
-                    (section?.top || 150) + 50,
-                    Math.min((section?.bottom || SCREEN_HEIGHT) - 50, position.y)
+                    centerAreaTop + 50,
+                    Math.min(centerAreaBottom - 50, position.y)
                   );
+                  
+                  // Clamp position to ensure avatar is fully visible in viewport
+                  const baseAvatarSize = isTablet ? 120 : 100;
+                  const clampedCalculatedPosition = clampPositionToViewport(position, baseAvatarSize);
                   
                   const isFocused = focusedFamilyMemberId === member.id;
                   const wasJustFocused = previousFocusedFamilyMemberIdRef.current === member.id && !focusedFamilyMemberId;
@@ -9321,9 +9390,38 @@ export default function HomeScreen() {
                     return null;
                   }
                   
-                  // Get saved position or use calculated position
+                  // Get saved position or use calculated position - clamp saved position if it exists
                   const savedPosition = familyPositionsState.get(member.id);
-                  const finalPosition = savedPosition || position;
+                  const clampedSavedPosition = savedPosition ? clampPositionToViewport(savedPosition, baseAvatarSize) : null;
+                  const finalPosition = clampedSavedPosition || clampedCalculatedPosition;
+                  
+                  // Log position for debugging
+                  const minX = baseAvatarSize / 2;
+                  const maxX = SCREEN_WIDTH - baseAvatarSize / 2;
+                  const minY = baseAvatarSize / 2 + insets.top;
+                  const maxY = SCREEN_HEIGHT - baseAvatarSize / 2 - insets.bottom;
+                  console.log(`[FamilyMember ${member.id}] Position:`, {
+                    'calculated': position,
+                    'clampedCalculated': clampedCalculatedPosition,
+                    'saved': savedPosition,
+                    'clampedSaved': clampedSavedPosition,
+                    'final': finalPosition,
+                    'avatarSize': baseAvatarSize,
+                    'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
+                    'insets': { top: insets.top, bottom: insets.bottom },
+                    'visibleArea': { 
+                      width: SCREEN_WIDTH, 
+                      height: SCREEN_HEIGHT - insets.top - insets.bottom 
+                    },
+                    'minX': minX,
+                    'maxX': maxX,
+                    'minY': minY,
+                    'maxY': maxY,
+                    'isWithinBounds': finalPosition.x >= minX && 
+                                     finalPosition.x <= maxX &&
+                                     finalPosition.y >= minY && 
+                                     finalPosition.y <= maxY,
+                  });
                   
                   // Calculate slide direction for slide-in animation
                   const centerX = SCREEN_WIDTH / 2;
@@ -9683,17 +9781,28 @@ export default function HomeScreen() {
                   // Get the section for friends
                   const section = friendsYearSections.get('all');
                   
-                  // Distribute friends vertically within the section
+                  // Distribute friends vertically within the visible center area
                   const totalFriends = friends.length;
-                  const sectionCenterY = section ? section.top + section.height / 2 : SCREEN_HEIGHT / 2;
+                  
+                  // Calculate visible area bounds (accounting for safe area insets and tab bar)
+                  const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+                  const visibleAreaTop = insets.top;
+                  const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight;
+                  const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
+                  const visibleAreaCenterY = visibleAreaTop + visibleAreaHeight / 2;
+                  
+                  // Distribute friends evenly in the center 60% of visible area (avoiding edges)
+                  const centerAreaTop = visibleAreaTop + visibleAreaHeight * 0.2; // Start at 20% from top
+                  const centerAreaBottom = visibleAreaBottom - visibleAreaHeight * 0.2; // End at 20% from bottom
+                  const centerAreaHeight = centerAreaBottom - centerAreaTop;
                   
                   // Increased spacing between friends for better visual separation
-                  const minSpacing = 200;
+                  const minSpacing = 150;
                   const verticalSpacing = totalFriends > 1 
-                    ? Math.max(minSpacing, Math.min((section?.height || SCREEN_HEIGHT) / (totalFriends + 1), 250))
+                    ? Math.max(minSpacing, Math.min(centerAreaHeight / (totalFriends + 1), 200))
                     : 0;
                   
-                  // Add consistent random offset near center based on friend ID (within 30% of screen width/height from center)
+                  // Add consistent random offset near center based on friend ID (within 25% of screen width/height from center)
                   const getFriendOffset = (friendId: string, range: number) => {
                     let hash = 0;
                     for (let i = 0; i < friendId.length; i++) {
@@ -9702,11 +9811,13 @@ export default function HomeScreen() {
                     }
                     return ((hash % 1000) / 1000) * range;
                   };
-                  const centerOffsetX = getFriendOffset(friend.id, SCREEN_WIDTH * 0.3); // ±15% of screen width
-                  const centerOffsetY = getFriendOffset(friend.id + '_y', SCREEN_HEIGHT * 0.2); // ±10% of screen height
+                  const centerOffsetX = getFriendOffset(friend.id, SCREEN_WIDTH * 0.25); // ±12.5% of screen width
+                  const centerOffsetY = getFriendOffset(friend.id + '_y', centerAreaHeight * 0.15); // ±7.5% of center area height
+                  
+                  // Calculate base Y position in center area
                   const baseY = totalFriends === 1
-                    ? sectionCenterY
-                    : (section?.top || 150) + verticalSpacing * (index + 1);
+                    ? visibleAreaCenterY
+                    : centerAreaTop + verticalSpacing * (index + 1);
                   
                   const position = {
                     x: SCREEN_WIDTH / 2 + centerOffsetX,
@@ -9718,9 +9829,13 @@ export default function HomeScreen() {
                   const centerAreaMaxX = SCREEN_WIDTH * 0.8;
                   position.x = Math.max(centerAreaMinX, Math.min(centerAreaMaxX, position.x));
                   position.y = Math.max(
-                    (section?.top || 150) + 50,
-                    Math.min((section?.bottom || SCREEN_HEIGHT) - 50, position.y)
+                    centerAreaTop + 50,
+                    Math.min(centerAreaBottom - 50, position.y)
                   );
+                  
+                  // Clamp position to ensure avatar is fully visible in viewport
+                  const baseAvatarSize = isTablet ? 120 : 100;
+                  const clampedCalculatedPosition = clampPositionToViewport(position, baseAvatarSize);
                   
                   const isFocused = focusedFriendId === friend.id;
                   const wasJustFocused = previousFocusedFriendIdRef.current === friend.id && !focusedFriendId;
@@ -9731,9 +9846,38 @@ export default function HomeScreen() {
                     return null;
                   }
                   
-                  // Get saved position or use calculated position
+                  // Get saved position or use calculated position - clamp saved position if it exists
                   const savedPosition = friendPositionsState.get(friend.id);
-                  const finalPosition = savedPosition || position;
+                  const clampedSavedPosition = savedPosition ? clampPositionToViewport(savedPosition, baseAvatarSize) : null;
+                  const finalPosition = clampedSavedPosition || clampedCalculatedPosition;
+                  
+                  // Log position for debugging
+                  const minX = baseAvatarSize / 2;
+                  const maxX = SCREEN_WIDTH - baseAvatarSize / 2;
+                  const minY = baseAvatarSize / 2 + insets.top;
+                  const maxY = SCREEN_HEIGHT - baseAvatarSize / 2 - insets.bottom;
+                  console.log(`[Friend ${friend.id}] Position:`, {
+                    'calculated': position,
+                    'clampedCalculated': clampedCalculatedPosition,
+                    'saved': savedPosition,
+                    'clampedSaved': clampedSavedPosition,
+                    'final': finalPosition,
+                    'avatarSize': baseAvatarSize,
+                    'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
+                    'insets': { top: insets.top, bottom: insets.bottom },
+                    'visibleArea': { 
+                      width: SCREEN_WIDTH, 
+                      height: SCREEN_HEIGHT - insets.top - insets.bottom 
+                    },
+                    'minX': minX,
+                    'maxX': maxX,
+                    'minY': minY,
+                    'maxY': maxY,
+                    'isWithinBounds': finalPosition.x >= minX && 
+                                     finalPosition.x <= maxX &&
+                                     finalPosition.y >= minY && 
+                                     finalPosition.y <= maxY,
+                  });
                   
                   // Calculate slide direction for slide-in animation
                   const centerX = SCREEN_WIDTH / 2;
@@ -10093,17 +10237,28 @@ export default function HomeScreen() {
                   // Get the section for hobbies
                   const section = hobbiesYearSections.get('all');
                   
-                  // Distribute hobbies vertically within the section
+                  // Distribute hobbies vertically within the visible center area
                   const totalHobbies = hobbies.length;
-                  const sectionCenterY = section ? section.top + section.height / 2 : SCREEN_HEIGHT / 2;
+                  
+                  // Calculate visible area bounds (accounting for safe area insets and tab bar)
+                  const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+                  const visibleAreaTop = insets.top;
+                  const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight;
+                  const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
+                  const visibleAreaCenterY = visibleAreaTop + visibleAreaHeight / 2;
+                  
+                  // Distribute hobbies evenly in the center 60% of visible area (avoiding edges)
+                  const centerAreaTop = visibleAreaTop + visibleAreaHeight * 0.2; // Start at 20% from top
+                  const centerAreaBottom = visibleAreaBottom - visibleAreaHeight * 0.2; // End at 20% from bottom
+                  const centerAreaHeight = centerAreaBottom - centerAreaTop;
                   
                   // Increased spacing between hobbies for better visual separation
-                  const minSpacing = 200;
+                  const minSpacing = 150;
                   const verticalSpacing = totalHobbies > 1 
-                    ? Math.max(minSpacing, Math.min((section?.height || SCREEN_HEIGHT) / (totalHobbies + 1), 250))
+                    ? Math.max(minSpacing, Math.min(centerAreaHeight / (totalHobbies + 1), 200))
                     : 0;
                   
-                  // Add consistent random offset near center based on hobby ID (within 30% of screen width/height from center)
+                  // Add consistent random offset near center based on hobby ID (within 25% of screen width/height from center)
                   const getHobbyOffset = (hobbyId: string, range: number) => {
                     let hash = 0;
                     for (let i = 0; i < hobbyId.length; i++) {
@@ -10112,11 +10267,13 @@ export default function HomeScreen() {
                     }
                     return ((hash % 1000) / 1000) * range;
                   };
-                  const centerOffsetX = getHobbyOffset(hobby.id, SCREEN_WIDTH * 0.3); // ±15% of screen width
-                  const centerOffsetY = getHobbyOffset(hobby.id + '_y', SCREEN_HEIGHT * 0.2); // ±10% of screen height
+                  const centerOffsetX = getHobbyOffset(hobby.id, SCREEN_WIDTH * 0.25); // ±12.5% of screen width
+                  const centerOffsetY = getHobbyOffset(hobby.id + '_y', centerAreaHeight * 0.15); // ±7.5% of center area height
+                  
+                  // Calculate base Y position in center area
                   const baseY = totalHobbies === 1
-                    ? sectionCenterY
-                    : (section?.top || 150) + verticalSpacing * (index + 1);
+                    ? visibleAreaCenterY
+                    : centerAreaTop + verticalSpacing * (index + 1);
                   
                   const position = {
                     x: SCREEN_WIDTH / 2 + centerOffsetX,
@@ -10128,9 +10285,13 @@ export default function HomeScreen() {
                   const centerAreaMaxX = SCREEN_WIDTH * 0.8;
                   position.x = Math.max(centerAreaMinX, Math.min(centerAreaMaxX, position.x));
                   position.y = Math.max(
-                    (section?.top || 150) + 50,
-                    Math.min((section?.bottom || SCREEN_HEIGHT) - 50, position.y)
+                    centerAreaTop + 50,
+                    Math.min(centerAreaBottom - 50, position.y)
                   );
+                  
+                  // Clamp position to ensure avatar is fully visible in viewport
+                  const baseAvatarSize = isTablet ? 120 : 100;
+                  const clampedCalculatedPosition = clampPositionToViewport(position, baseAvatarSize);
                   
                   const isFocused = focusedHobbyId === hobby.id;
                   const wasJustFocused = previousFocusedHobbyIdRef.current === hobby.id && !focusedHobbyId;
@@ -10141,9 +10302,38 @@ export default function HomeScreen() {
                     return null;
                   }
                   
-                  // Get saved position or use calculated position
+                  // Get saved position or use calculated position - clamp saved position if it exists
                   const savedPosition = hobbyPositionsState.get(hobby.id);
-                  const finalPosition = savedPosition || position;
+                  const clampedSavedPosition = savedPosition ? clampPositionToViewport(savedPosition, baseAvatarSize) : null;
+                  const finalPosition = clampedSavedPosition || clampedCalculatedPosition;
+                  
+                  // Log position for debugging
+                  const minX = baseAvatarSize / 2;
+                  const maxX = SCREEN_WIDTH - baseAvatarSize / 2;
+                  const minY = baseAvatarSize / 2 + insets.top;
+                  const maxY = SCREEN_HEIGHT - baseAvatarSize / 2 - insets.bottom;
+                  console.log(`[Hobby ${hobby.id}] Position:`, {
+                    'calculated': position,
+                    'clampedCalculated': clampedCalculatedPosition,
+                    'saved': savedPosition,
+                    'clampedSaved': clampedSavedPosition,
+                    'final': finalPosition,
+                    'avatarSize': baseAvatarSize,
+                    'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
+                    'insets': { top: insets.top, bottom: insets.bottom },
+                    'visibleArea': { 
+                      width: SCREEN_WIDTH, 
+                      height: SCREEN_HEIGHT - insets.top - insets.bottom 
+                    },
+                    'minX': minX,
+                    'maxX': maxX,
+                    'minY': minY,
+                    'maxY': maxY,
+                    'isWithinBounds': finalPosition.x >= minX && 
+                                     finalPosition.x <= maxX &&
+                                     finalPosition.y >= minY && 
+                                     finalPosition.y <= maxY,
+                  });
                   
                   // Calculate slide direction for slide-in animation
                   const centerX = SCREEN_WIDTH / 2;
@@ -10288,8 +10478,7 @@ export default function HomeScreen() {
 }
 
 // Year Sections Renderer Component
-// NOTE: Removed React.memo temporarily to debug rendering issues after sphere changes
-const YearSectionsRenderer = function YearSectionsRenderer({
+const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
   yearSections,
   profilesBySection,
   colorScheme,
@@ -10472,7 +10661,7 @@ const YearSectionsRenderer = function YearSectionsRenderer({
       })()}
     </>
   );
-};
+});
 
 // Year Section Background Component (just the visual container)
 const YearSectionBackground = React.memo(function YearSectionBackground({
