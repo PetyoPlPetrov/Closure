@@ -26,7 +26,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Dimensions, PanResponder, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -1275,6 +1275,77 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               )}
             </View>
           </Pressable>
+
+          {/* Share button - positioned outside the Pressable, shown when entity is focused and has memories */}
+          {isFocused && memories.length > 0 && (
+            <Pressable
+              onPress={async () => {
+                try {
+                  // Format all memories for this entity as text
+                  const entityName = profile.name || 'Entity';
+                  let message = `${entityName}\n\n`;
+
+                  memories.forEach((memory, index) => {
+                    message += `${index + 1}. ${memory.title || 'Memory'}\n`;
+
+                    if (memory.goodFacts && memory.goodFacts.length > 0) {
+                      message += '   ☀️ Sunny Moments:\n';
+                      memory.goodFacts.forEach((fact: any, factIndex: number) => {
+                        const text = typeof fact === 'string' ? fact : fact.text || fact.content || String(fact);
+                        message += `   ${factIndex + 1}. ${text}\n`;
+                      });
+                    }
+
+                    if (memory.hardTruths && memory.hardTruths.length > 0) {
+                      message += '   ☁️ Hard Truths:\n';
+                      memory.hardTruths.forEach((truth: any, truthIndex: number) => {
+                        const text = typeof truth === 'string' ? truth : truth.text || truth.content || String(truth);
+                        message += `   ${truthIndex + 1}. ${text}\n`;
+                      });
+                    }
+
+                    if (memory.lessonsLearned && memory.lessonsLearned.length > 0) {
+                      message += '   💡 Lessons Learned:\n';
+                      memory.lessonsLearned.forEach((lesson: any, lessonIndex: number) => {
+                        const text = typeof lesson === 'string' ? lesson : lesson.text || lesson.content || String(lesson);
+                        message += `   ${lessonIndex + 1}. ${text}\n`;
+                      });
+                    }
+
+                    message += '\n';
+                  });
+
+                  await Share.share({
+                    message: message.trim(),
+                    title: entityName,
+                  });
+                } catch (error) {
+                  console.error('Error sharing entity memories:', error);
+                }
+              }}
+              style={{
+                position: 'absolute',
+                top: 8, // Position at top-right corner, very close to avatar
+                left: avatarSize + borderWidth * 2 - 24, // Position very close to avatar's right edge
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.5)',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 20,
+                borderWidth: 2,
+                borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.8)',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 5,
+              }}
+            >
+              <MaterialIcons name="share" size={24} color="#fff" />
+            </Pressable>
+          )}
         </Animated.View>
 
         {/* Floating Memories around Avatar - now inside the draggable container */}
@@ -3314,6 +3385,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
                   }}
                   contentFit="cover"
                 />
+
                 {/* Gradient overlay based on sunny/cloudy ratio - show always except when memory itself is focused */}
                 {!isMemoryFocused && (
                   <LinearGradient
@@ -3355,6 +3427,73 @@ const FloatingMemory = React.memo(function FloatingMemory({
               <MaterialIcons name="auto-stories" size={24} color="#fff" />
             )}
           </View>
+
+          {/* Share button - positioned outside the View with overflow:hidden so it won't be clipped */}
+          {isMemoryFocused && memory.imageUri && (
+            <Pressable
+              onPress={async () => {
+                try {
+                  // Format memory data as text
+                  const title = memory.title || 'Memory';
+                  let message = `${title}\n\n`;
+
+                  if (memory.goodFacts && memory.goodFacts.length > 0) {
+                    message += '☀️ Sunny Moments:\n';
+                    memory.goodFacts.forEach((fact: any, index: number) => {
+                      const text = typeof fact === 'string' ? fact : fact.text || fact.content || String(fact);
+                      message += `${index + 1}. ${text}\n`;
+                    });
+                    message += '\n';
+                  }
+
+                  if (memory.hardTruths && memory.hardTruths.length > 0) {
+                    message += '☁️ Hard Truths:\n';
+                    memory.hardTruths.forEach((truth: any, index: number) => {
+                      const text = typeof truth === 'string' ? truth : truth.text || truth.content || String(truth);
+                      message += `${index + 1}. ${text}\n`;
+                    });
+                    message += '\n';
+                  }
+
+                  if (memory.lessonsLearned && memory.lessonsLearned.length > 0) {
+                    message += '💡 Lessons Learned:\n';
+                    memory.lessonsLearned.forEach((lesson: any, index: number) => {
+                      const text = typeof lesson === 'string' ? lesson : lesson.text || lesson.content || String(lesson);
+                      message += `${index + 1}. ${text}\n`;
+                    });
+                  }
+
+                  await Share.share({
+                    message: message.trim(),
+                    title: title,
+                  });
+                } catch (error) {
+                  console.error('Error sharing memory:', error);
+                }
+              }}
+              style={{
+                position: 'absolute',
+                top: -8,
+                right: -8,
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.5)',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 20,
+                borderWidth: 2,
+                borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.8)',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 5,
+              }}
+            >
+              <MaterialIcons name="share" size={24} color="#fff" />
+            </Pressable>
+          )}
         </Pressable>
       </Animated.View>
 
@@ -4416,6 +4555,118 @@ const FloatingEntity = React.memo(function FloatingEntity({
   );
 });
 
+// Floating moment icon component - shows small icons (sun, cloud, lightbulb) around entities
+const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
+  position,
+  delay = 0,
+  momentType,
+  colorScheme,
+  index,
+  total,
+  isWrapped = false,
+}: {
+  position: { x: number; y: number };
+  delay?: number;
+  momentType: 'lessons' | 'hardTruths' | 'sunnyMoments';
+  colorScheme: 'light' | 'dark';
+  index: number;
+  total: number;
+  isWrapped?: boolean;
+}) {
+  const floatOffset = useSharedValue(0);
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0);
+
+  const { isTablet } = useLargeDevice();
+  const iconSize = isTablet ? 16 : 12;
+
+  // Start animation with delay
+  React.useEffect(() => {
+    const startAnimation = () => {
+      // Fade in
+      opacity.value = withTiming(1, { duration: 300 });
+      scale.value = withSpring(1, { damping: 12, stiffness: 150 });
+
+      // Start floating animation
+      floatOffset.value = withRepeat(
+        withTiming(1, {
+          duration: 2000 + index * 100, // Slightly different durations for variety
+          easing: Easing.inOut(Easing.ease),
+        }),
+        -1,
+        true
+      );
+    };
+
+    if (delay > 0) {
+      const timer = setTimeout(startAnimation, delay);
+      return () => clearTimeout(timer);
+    } else {
+      startAnimation();
+    }
+  }, [floatOffset, opacity, scale, delay, index]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const floatY = floatOffset.value * 6; // 6px floating range
+
+    return {
+      transform: [
+        { translateY: floatY },
+        { scale: scale.value },
+      ],
+      opacity: opacity.value,
+    };
+  });
+
+  // Icon properties based on moment type
+  const iconProps = React.useMemo(() => {
+    switch (momentType) {
+      case 'sunnyMoments':
+        return {
+          name: 'wb-sunny' as const,
+          color: colorScheme === 'dark' ? '#FFC832' : '#FF9800',
+        };
+      case 'hardTruths':
+        return {
+          name: 'cloud' as const,
+          color: colorScheme === 'dark' ? '#B0B0C8' : '#7878A0',
+        };
+      case 'lessons':
+      default:
+        return {
+          name: 'lightbulb' as const,
+          color: colorScheme === 'dark' ? '#FFD700' : '#FFA000',
+        };
+    }
+  }, [momentType, colorScheme]);
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: isWrapped ? ('relative' as const) : ('absolute' as const),
+          ...(!isWrapped && {
+            left: position.x - iconSize / 2,
+            top: position.y - iconSize / 2,
+          }),
+          width: iconSize,
+          height: iconSize,
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 35, // Below entities (40) but above spheres
+        },
+        animatedStyle,
+      ]}
+    >
+      <MaterialIcons
+        name={iconProps.name}
+        size={iconSize}
+        color={iconProps.color}
+      />
+    </Animated.View>
+  );
+});
+
 // Rotatable wrapper for spheres - applies rotation animation
 const RotatableSphereWrapper = React.memo(function RotatableSphereWrapper({
   sphereIndex,
@@ -4426,6 +4677,7 @@ const RotatableSphereWrapper = React.memo(function RotatableSphereWrapper({
   radius,
   angleStep,
   startAngle,
+  scale,
   children,
 }: {
   sphereIndex: number;
@@ -4436,6 +4688,7 @@ const RotatableSphereWrapper = React.memo(function RotatableSphereWrapper({
   radius: number;
   angleStep: number;
   startAngle: number;
+  scale?: ReturnType<typeof useSharedValue<number>>;
   children: React.ReactNode;
 }) {
   const { isTablet } = useLargeDevice();
@@ -4449,12 +4702,13 @@ const RotatableSphereWrapper = React.memo(function RotatableSphereWrapper({
     const currentAngle = baseAngle + rotation.value + hintRot;
     const x = centerX + radius * Math.cos(currentAngle);
     const y = centerY + radius * Math.sin(currentAngle);
+    const scaleValue = scale?.value ?? 1;
 
     return {
       position: 'absolute' as const,
       left: x,
       top: y,
-      transform: [{ translateX: offset }, { translateY: offset }],
+      transform: [{ translateX: offset }, { translateY: offset }, { scale: scaleValue }],
     };
   });
 
@@ -4477,6 +4731,7 @@ const RotatableFloatingEntityWrapper = React.memo(function RotatableFloatingEnti
   startAngle,
   entityAngle,
   entityRadius,
+  scale,
   children,
 }: {
   sphereIndex: number;
@@ -4489,12 +4744,13 @@ const RotatableFloatingEntityWrapper = React.memo(function RotatableFloatingEnti
   startAngle: number;
   entityAngle: number; // Base angle of entity relative to sphere (0 to 2π)
   entityRadius: number; // Distance of entity from sphere center
+  scale?: ReturnType<typeof useSharedValue<number>>;
   children: React.ReactNode;
 }) {
   const { isTablet } = useLargeDevice();
   const entitySize = isTablet ? 36 : 24; // Match FloatingEntity size
   const offset = -entitySize / 2; // Center the entity
-  
+
   // Calculate animated position based on rotation (including hint rotation)
   const animatedStyle = useAnimatedStyle(() => {
     // Calculate rotated sphere position
@@ -4503,23 +4759,96 @@ const RotatableFloatingEntityWrapper = React.memo(function RotatableFloatingEnti
     const currentSphereAngle = baseSphereAngle + rotation.value + hintRot;
     const sphereX = centerX + sphereRadius * Math.cos(currentSphereAngle);
     const sphereY = centerY + sphereRadius * Math.sin(currentSphereAngle);
-    
+
     // Calculate entity position relative to rotated sphere
     // entityAngle is relative to the sphere, so we add it to the sphere's current angle
     const entityWorldAngle = currentSphereAngle + entityAngle;
     const entityX = sphereX + entityRadius * Math.cos(entityWorldAngle);
     const entityY = sphereY + entityRadius * Math.sin(entityWorldAngle);
-    
+    const scaleValue = scale?.value ?? 1;
+
     return {
       position: 'absolute' as const,
       left: entityX,
       top: entityY,
-      transform: [{ translateX: offset }, { translateY: offset }],
+      transform: [{ translateX: offset }, { translateY: offset }, { scale: scaleValue }],
     };
   });
 
   return (
     <Animated.View style={animatedStyle} pointerEvents="box-none">
+      {children}
+    </Animated.View>
+  );
+});
+
+// Rotatable wrapper for floating moment icons - applies rotation and positions around entities
+const RotatableFloatingMomentIconWrapper = React.memo(function RotatableFloatingMomentIconWrapper({
+  sphereIndex,
+  rotation,
+  hintRotation,
+  centerX,
+  centerY,
+  sphereRadius,
+  angleStep,
+  startAngle,
+  entityAngle,
+  entityRadius,
+  momentIconAngle,
+  momentIconRadius,
+  scale,
+  children,
+}: {
+  sphereIndex: number;
+  rotation: ReturnType<typeof useSharedValue<number>>;
+  hintRotation?: ReturnType<typeof useSharedValue<number>>;
+  centerX: number;
+  centerY: number;
+  sphereRadius: number;
+  angleStep: number;
+  startAngle: number;
+  entityAngle: number; // Base angle of entity relative to sphere (0 to 2π)
+  entityRadius: number; // Distance of entity from sphere center
+  momentIconAngle: number; // Angle of icon around the entity (0 to 2π)
+  momentIconRadius: number; // Distance of icon from entity center
+  scale?: ReturnType<typeof useSharedValue<number>>;
+  children: React.ReactNode;
+}) {
+  const { isTablet } = useLargeDevice();
+  const iconSize = isTablet ? 16 : 12;
+  const offset = -iconSize / 2; // Center the icon
+
+  // Calculate animated position based on rotation (including hint rotation)
+  const animatedStyle = useAnimatedStyle(() => {
+    // Calculate rotated sphere position
+    const baseSphereAngle = startAngle + sphereIndex * angleStep;
+    const hintRot = hintRotation?.value ?? 0;
+    const currentSphereAngle = baseSphereAngle + rotation.value + hintRot;
+    const sphereX = centerX + sphereRadius * Math.cos(currentSphereAngle);
+    const sphereY = centerY + sphereRadius * Math.sin(currentSphereAngle);
+
+    // Calculate entity position relative to rotated sphere
+    const entityWorldAngle = currentSphereAngle + entityAngle;
+    const entityX = sphereX + entityRadius * Math.cos(entityWorldAngle);
+    const entityY = sphereY + entityRadius * Math.sin(entityWorldAngle);
+
+    // Calculate icon position relative to entity
+    const iconWorldAngle = entityWorldAngle + momentIconAngle;
+    const iconX = entityX + momentIconRadius * Math.cos(iconWorldAngle);
+    const iconY = entityY + momentIconRadius * Math.sin(iconWorldAngle);
+
+    const scaleValue = scale?.value ?? 1;
+
+    return {
+      position: 'absolute' as const,
+      left: iconX,
+      top: iconY,
+      transform: [{ translateX: offset }, { translateY: offset }, { scale: scaleValue }],
+    };
+  });
+
+  return (
+    <Animated.View style={animatedStyle} pointerEvents="none">
       {children}
     </Animated.View>
   );
@@ -5498,9 +5827,15 @@ export default function HomeScreen() {
   const previousIsWheelSpinning = useSharedValue(false); // Track previous spinning state
   const hintRotation = useSharedValue(0); // Gentle continuous rotation hint (in radians)
   const isHintAnimating = useSharedValue(false); // Track if hint animation is active
-  const [selectedLesson, setSelectedLesson] = useState<{ text: string; entityId: string; memoryId: string; sphere: LifeSphere; isMock?: boolean } | null>(null);
+  const spheresScale = useSharedValue(1); // Scale for floating spheres (shrink when selector is shown)
+
+  // State for selected moment type when spinning the wheel
+  type MomentType = 'lessons' | 'hardTruths' | 'sunnyMoments';
+  const [selectedMomentType, setSelectedMomentType] = useState<MomentType>('lessons');
+  const [selectedLesson, setSelectedLesson] = useState<{ text: string; entityId: string; memoryId: string; sphere: LifeSphere; isMock?: boolean; momentType?: MomentType } | null>(null);
   const [showLesson, setShowLesson] = useState(false);
-  
+  const [showMomentTypeSelector, setShowMomentTypeSelector] = useState(false);
+
   // Animation values for lesson notification (same style as encouragement message)
   const lessonOpacity = useSharedValue(0);
   const lessonScale = useSharedValue(0);
@@ -5553,19 +5888,23 @@ export default function HomeScreen() {
     };
   }, [sphereCircle]);
 
-  // Collect all lessons from all memories across all spheres
-  const getAllLessons = useCallback(() => {
-    const lessons: { text: string; entityId: string; memoryId: string; sphere: LifeSphere }[] = [];
+  // Collect all moments by type from all memories across all spheres
+  const getAllMomentsByType = useCallback((momentType: MomentType) => {
+    const moments: { text: string; entityId: string; memoryId: string; sphere: LifeSphere }[] = [];
+
+    // Determine which property to access based on moment type
+    const propertyName = momentType === 'lessons' ? 'lessonsLearned' : momentType === 'hardTruths' ? 'hardTruths' : 'goodFacts';
 
     // Collect from relationships
     profiles.forEach(profile => {
       const memories = getIdealizedMemoriesByProfileId(profile.id);
       memories.forEach(memory => {
-        if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
-          memory.lessonsLearned.forEach(lesson => {
-            if (lesson.text && lesson.text.trim()) {
-              lessons.push({
-                text: lesson.text,
+        const items = memory[propertyName];
+        if (items && Array.isArray(items)) {
+          items.forEach((item: { text: string }) => {
+            if (item.text && item.text.trim()) {
+              moments.push({
+                text: item.text,
                 entityId: profile.id,
                 memoryId: memory.id,
                 sphere: 'relationships' as LifeSphere,
@@ -5580,11 +5919,12 @@ export default function HomeScreen() {
     jobs.forEach(job => {
       const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
       memories.forEach(memory => {
-        if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
-          memory.lessonsLearned.forEach(lesson => {
-            if (lesson.text && lesson.text.trim()) {
-              lessons.push({
-                text: lesson.text,
+        const items = memory[propertyName];
+        if (items && Array.isArray(items)) {
+          items.forEach((item: { text: string }) => {
+            if (item.text && item.text.trim()) {
+              moments.push({
+                text: item.text,
                 entityId: job.id,
                 memoryId: memory.id,
                 sphere: 'career' as LifeSphere,
@@ -5599,11 +5939,12 @@ export default function HomeScreen() {
     familyMembers.forEach(member => {
       const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
       memories.forEach(memory => {
-        if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
-          memory.lessonsLearned.forEach(lesson => {
-            if (lesson.text && lesson.text.trim()) {
-              lessons.push({
-                text: lesson.text,
+        const items = memory[propertyName];
+        if (items && Array.isArray(items)) {
+          items.forEach((item: { text: string }) => {
+            if (item.text && item.text.trim()) {
+              moments.push({
+                text: item.text,
                 entityId: member.id,
                 memoryId: memory.id,
                 sphere: 'family' as LifeSphere,
@@ -5618,11 +5959,12 @@ export default function HomeScreen() {
     friends.forEach(friend => {
       const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
       memories.forEach(memory => {
-        if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
-          memory.lessonsLearned.forEach(lesson => {
-            if (lesson.text && lesson.text.trim()) {
-              lessons.push({
-                text: lesson.text,
+        const items = memory[propertyName];
+        if (items && Array.isArray(items)) {
+          items.forEach((item: { text: string }) => {
+            if (item.text && item.text.trim()) {
+              moments.push({
+                text: item.text,
                 entityId: friend.id,
                 memoryId: memory.id,
                 sphere: 'friends' as LifeSphere,
@@ -5637,11 +5979,12 @@ export default function HomeScreen() {
     hobbies.forEach(hobby => {
       const memories = getIdealizedMemoriesByEntityId(hobby.id, 'hobbies');
       memories.forEach(memory => {
-        if (memory.lessonsLearned && Array.isArray(memory.lessonsLearned)) {
-          memory.lessonsLearned.forEach(lesson => {
-            if (lesson.text && lesson.text.trim()) {
-              lessons.push({
-                text: lesson.text,
+        const items = memory[propertyName];
+        if (items && Array.isArray(items)) {
+          items.forEach((item: { text: string }) => {
+            if (item.text && item.text.trim()) {
+              moments.push({
+                text: item.text,
                 entityId: hobby.id,
                 memoryId: memory.id,
                 sphere: 'hobbies' as LifeSphere,
@@ -5652,29 +5995,63 @@ export default function HomeScreen() {
       });
     });
 
-    return lessons;
+    return moments;
   }, [profiles, jobs, familyMembers, friends, hobbies, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
+
+  // Keep the old function for backward compatibility (now uses the new function)
+  const getAllLessons = useCallback(() => {
+    return getAllMomentsByType('lessons');
+  }, [getAllMomentsByType]);
+
+  // Get count of moments for a specific entity
+  const getMomentCountForEntity = useCallback((entityId: string, sphere: LifeSphere, momentType: MomentType) => {
+    const memories = sphere === 'relationships'
+      ? getIdealizedMemoriesByProfileId(entityId)
+      : getIdealizedMemoriesByEntityId(entityId, sphere);
+
+    const propertyName = momentType === 'lessons'
+      ? 'lessonsLearned'
+      : momentType === 'hardTruths'
+      ? 'hardTruths'
+      : 'goodFacts';
+
+    let count = 0;
+    memories.forEach((memory) => {
+      count += (memory[propertyName] || []).length;
+    });
+
+    return count;
+  }, [getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
 
   // Handle wheel spin completion
   const onWheelSpinComplete = useCallback(() => {
-    const lessons = getAllLessons();
-    let lessonToShow: { text: string; entityId: string; memoryId: string; sphere: LifeSphere; isMock?: boolean };
-    
-    if (lessons.length > 0) {
-      const randomIndex = Math.floor(Math.random() * lessons.length);
-      lessonToShow = lessons[randomIndex];
+    const moments = getAllMomentsByType(selectedMomentType);
+    let momentToShow: { text: string; entityId: string; memoryId: string; sphere: LifeSphere; isMock?: boolean; momentType: MomentType };
+
+    if (moments.length > 0) {
+      const randomIndex = Math.floor(Math.random() * moments.length);
+      momentToShow = {
+        ...moments[randomIndex],
+        momentType: selectedMomentType, // Capture the type at selection time
+      };
     } else {
-      // Show mock lesson when no lessons are available
-      lessonToShow = {
-        text: t('wheel.noLessons.message'),
+      // Show mock moment when no moments are available - use different message based on type
+      const mockMessages: Record<MomentType, string> = {
+        lessons: t('wheel.noLessons.message'),
+        hardTruths: t('wheel.noHardTruths.message'),
+        sunnyMoments: t('wheel.noSunnyMoments.message'),
+      };
+      momentToShow = {
+        text: mockMessages[selectedMomentType],
         entityId: '',
         memoryId: '',
         sphere: 'relationships' as LifeSphere,
         isMock: true,
+        momentType: selectedMomentType, // Capture the type at selection time
       };
     }
-    
-    setSelectedLesson(lessonToShow);
+
+    setSelectedLesson(momentToShow);
     setShowLesson(true);
 
     // Calculate lesson dimensions (same as in render)
@@ -5685,7 +6062,7 @@ export default function HomeScreen() {
     const avatarCenterY = sphereCircle.centerY;
     const finalX = SCREEN_WIDTH / 2;
     const finalY = messageTop + (lessonSunHeight / 2); // Center of lesson notification
-    
+
     // Calculate translation needed: from avatar to final position
     const startTranslateX = avatarCenterX - finalX;
     const startTranslateY = avatarCenterY - finalY;
@@ -5701,7 +6078,24 @@ export default function HomeScreen() {
     lessonScale.value = withSpring(1, { damping: 15, stiffness: 150 });
     lessonTranslateX.value = withSpring(0, { damping: 15, stiffness: 150 });
     lessonTranslateY.value = withSpring(0, { damping: 15, stiffness: 150 });
-  }, [getAllLessons, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY, sphereCircle, messageTop, isTablet, isLargeDevice, t]);
+  }, [getAllMomentsByType, selectedMomentType, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY, sphereCircle, messageTop, isTablet, isLargeDevice, t]);
+
+  // Animate spheres scale when moment type selector is shown/hidden
+  useEffect(() => {
+    if (showMomentTypeSelector) {
+      // Shrink spheres to 0.6 scale
+      spheresScale.value = withSpring(0.6, {
+        damping: 15,
+        stiffness: 150,
+      });
+    } else {
+      // Return to normal size
+      spheresScale.value = withSpring(1, {
+        damping: 15,
+        stiffness: 150,
+      });
+    }
+  }, [showMomentTypeSelector, spheresScale]);
 
   // Function to programmatically spin the wheel (called when avatar is pressed)
   const spinWheel = useCallback(() => {
@@ -7650,19 +8044,43 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Random Lesson from Wheel of Life Spin - matches focused memory view style */}
+          {/* Random Moment from Wheel of Life Spin - matches focused memory view style */}
           {showLesson && selectedLesson && (() => {
-            // Calculate sun dimensions to match MemoryMomentsRenderer - slightly smaller for compact display
-            const lessonSunWidth = isTablet ? 260 : (isLargeDevice ? 210 : 190);
-            const lessonSunHeight = isTablet ? 260 : (isLargeDevice ? 210 : 190);
-            
+            // Calculate dimensions to match MemoryMomentsRenderer - slightly smaller for compact display
+            const momentWidth = isTablet ? 260 : (isLargeDevice ? 210 : 190);
+            const momentHeight = isTablet ? 260 : (isLargeDevice ? 210 : 190);
+
+            // Get visual properties based on moment type
+            const momentVisuals = {
+              lessons: {
+                icon: 'lightbulb' as const,
+                backgroundColor: 'rgba(255, 215, 0, 0.15)',
+                shadowColor: '#FFD700',
+                iconColor: colorScheme === 'dark' ? '#FFD700' : '#FFA000',
+              },
+              hardTruths: {
+                icon: 'cloud' as const,
+                backgroundColor: 'rgba(150, 150, 180, 0.15)',
+                shadowColor: '#9696B4',
+                iconColor: colorScheme === 'dark' ? '#B0B0C8' : '#7878A0',
+              },
+              sunnyMoments: {
+                icon: 'wb-sunny' as const,
+                backgroundColor: 'rgba(255, 200, 50, 0.15)',
+                shadowColor: '#FFC832',
+                iconColor: colorScheme === 'dark' ? '#FFC832' : '#FF9800',
+              },
+            };
+
+            const visuals = momentVisuals[selectedLesson.momentType || 'lessons'];
+
             return (
             <Animated.View
               style={[
                 {
                   position: 'absolute',
                     top: messageTop,
-                    left: SCREEN_WIDTH / 2 - (lessonSunWidth / 2), // Center horizontally
+                    left: SCREEN_WIDTH / 2 - (momentWidth / 2), // Center horizontally
                   zIndex: 300, // Higher than encouragement message
                   },
                   lessonAnimatedStyle,
@@ -7727,14 +8145,13 @@ export default function HomeScreen() {
                     setShowLesson(false);
                   }}
                 style={{
-                    width: lessonSunWidth,
-                    height: lessonSunHeight,
+                    width: momentWidth,
+                    height: momentHeight,
                   justifyContent: 'center',
                   alignItems: 'center',
-                    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-                    borderRadius: lessonSunWidth / 2,
-                    // Golden glow for lessons
-                    shadowColor: '#FFD700',
+                    backgroundColor: visuals.backgroundColor,
+                    borderRadius: momentWidth / 2,
+                    shadowColor: visuals.shadowColor,
                     shadowOffset: { width: 0, height: 0 },
                     shadowOpacity: 0.8,
                     shadowRadius: isTablet ? 12 : 8,
@@ -7744,9 +8161,9 @@ export default function HomeScreen() {
                   }}
               >
                 <MaterialIcons
-                    name="lightbulb"
-                    size={lessonSunWidth * 0.25}
-                    color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'}
+                    name={visuals.icon}
+                    size={momentWidth * 0.25}
+                    color={visuals.iconColor}
                     style={{ marginBottom: 8 }}
                   />
                   <ThemedText
@@ -7755,7 +8172,7 @@ export default function HomeScreen() {
                       fontSize: 11 * fontScale,
                       textAlign: 'center',
                       fontWeight: '700',
-                      maxWidth: lessonSunWidth * 0.85,
+                      maxWidth: momentWidth * 0.85,
                       lineHeight: 15 * fontScale,
                     }}
                     numberOfLines={8}
@@ -7847,9 +8264,9 @@ export default function HomeScreen() {
                       })
                     );
 
-                    // Spin the wheel of life when avatar is pressed
+                    // Toggle moment type selector when avatar is pressed
                     if (!isWheelSpinning.value) {
-                      spinWheel();
+                      setShowMomentTypeSelector(!showMomentTypeSelector);
                     }
                   }}
                   style={{
@@ -7890,6 +8307,7 @@ export default function HomeScreen() {
                 radius={sphereCircle.radius}
                 angleStep={sphereCircle.angleStep}
                 startAngle={sphereCircle.startAngle}
+                scale={spheresScale}
               >
                 <SphereAvatar
                   sphere="relationships"
@@ -7925,6 +8343,7 @@ export default function HomeScreen() {
                 radius={sphereCircle.radius}
                 angleStep={sphereCircle.angleStep}
                 startAngle={sphereCircle.startAngle}
+                scale={spheresScale}
               >
                 <SphereAvatar
                   sphere="career"
@@ -7960,6 +8379,7 @@ export default function HomeScreen() {
                 radius={sphereCircle.radius}
                 angleStep={sphereCircle.angleStep}
                 startAngle={sphereCircle.startAngle}
+                scale={spheresScale}
               >
                 <SphereAvatar
                   sphere="family"
@@ -7995,6 +8415,7 @@ export default function HomeScreen() {
                 radius={sphereCircle.radius}
                 angleStep={sphereCircle.angleStep}
                 startAngle={sphereCircle.startAngle}
+                scale={spheresScale}
               >
                 <SphereAvatar
                   sphere="friends"
@@ -8030,6 +8451,7 @@ export default function HomeScreen() {
                 radius={sphereCircle.radius}
                 angleStep={sphereCircle.angleStep}
                 startAngle={sphereCircle.startAngle}
+                scale={spheresScale}
               >
                 <SphereAvatar
                   sphere="hobbies"
@@ -8085,6 +8507,7 @@ export default function HomeScreen() {
                     startAngle={sphereCircle.startAngle}
                     entityAngle={entityAngle}
                     entityRadius={entityRadius}
+                    scale={spheresScale}
                   >
                     <FloatingEntity
                     entity={profile}
@@ -8126,6 +8549,7 @@ export default function HomeScreen() {
                     startAngle={sphereCircle.startAngle}
                     entityAngle={entityAngle}
                     entityRadius={entityRadius}
+                    scale={spheresScale}
                   >
                     <FloatingEntity
                     entity={job}
@@ -8167,6 +8591,7 @@ export default function HomeScreen() {
                     startAngle={sphereCircle.startAngle}
                     entityAngle={entityAngle}
                     entityRadius={entityRadius}
+                    scale={spheresScale}
                   >
                     <FloatingEntity
                     entity={member}
@@ -8208,6 +8633,7 @@ export default function HomeScreen() {
                     startAngle={sphereCircle.startAngle}
                     entityAngle={entityAngle}
                     entityRadius={entityRadius}
+                    scale={spheresScale}
                   >
                     <FloatingEntity
                     entity={friend}
@@ -8249,6 +8675,7 @@ export default function HomeScreen() {
                     startAngle={sphereCircle.startAngle}
                     entityAngle={entityAngle}
                     entityRadius={entityRadius}
+                    scale={spheresScale}
                   >
                     <FloatingEntity
                     entity={hobby}
@@ -8267,6 +8694,355 @@ export default function HomeScreen() {
               })}
             </>
           )}
+
+          {/* Floating moment icons - show around entities when moment type selector is visible */}
+          {animationsReady && showMomentTypeSelector && (() => {
+            const momentIconRadius = isTablet ? 28 : 20; // Distance from entity center
+            const icons: React.ReactElement[] = [];
+
+            // For each relationships entity
+            sortedProfiles.slice(0, Math.min(sortedProfiles.length, 5)).forEach((profile, entityIndex) => {
+              const totalPartners = Math.min(sortedProfiles.length, 5);
+              const entityAngle = (entityIndex * 2 * Math.PI) / totalPartners;
+              const momentCount = getMomentCountForEntity(profile.id, 'relationships', selectedMomentType);
+              const numIcons = Math.min(momentCount, 3); // Max 3 icons per entity
+
+              // Create icons around this entity
+              for (let i = 0; i < numIcons; i++) {
+                const iconAngle = (i * 2 * Math.PI) / Math.max(numIcons, 3); // Distribute evenly
+                const x = spherePositions.relationships.x + Math.cos(entityAngle) * (isTablet ? 85 : 55) + Math.cos(iconAngle) * momentIconRadius;
+                const y = spherePositions.relationships.y + Math.sin(entityAngle) * (isTablet ? 85 : 55) + Math.sin(iconAngle) * momentIconRadius;
+
+                icons.push(
+                  <RotatableFloatingMomentIconWrapper
+                    key={`moment-icon-relationships-${profile.id}-${i}`}
+                    sphereIndex={0}
+                    rotation={wheelRotation}
+                    hintRotation={hintRotation}
+                    centerX={sphereCircle.centerX}
+                    centerY={sphereCircle.centerY}
+                    sphereRadius={sphereCircle.radius}
+                    angleStep={sphereCircle.angleStep}
+                    startAngle={sphereCircle.startAngle}
+                    entityAngle={entityAngle}
+                    entityRadius={isTablet ? 85 : 55}
+                    momentIconAngle={iconAngle}
+                    momentIconRadius={momentIconRadius}
+                    scale={spheresScale}
+                  >
+                    <FloatingMomentIcon
+                      position={{ x, y }}
+                      delay={entityIndex * 50 + i * 100}
+                      momentType={selectedMomentType}
+                      colorScheme={colorScheme ?? 'dark'}
+                      index={i}
+                      total={numIcons}
+                      isWrapped={true}
+                    />
+                  </RotatableFloatingMomentIconWrapper>
+                );
+              }
+            });
+
+            // For each career entity
+            sortedJobs.slice(0, Math.min(sortedJobs.length, 5)).forEach((job, entityIndex) => {
+              const totalJobs = Math.min(sortedJobs.length, 5);
+              const entityAngle = (entityIndex * 2 * Math.PI) / totalJobs;
+              const momentCount = getMomentCountForEntity(job.id, 'career', selectedMomentType);
+              const numIcons = Math.min(momentCount, 3);
+
+              for (let i = 0; i < numIcons; i++) {
+                const iconAngle = (i * 2 * Math.PI) / Math.max(numIcons, 3);
+                const x = spherePositions.career.x + Math.cos(entityAngle) * (isTablet ? 85 : 55) + Math.cos(iconAngle) * momentIconRadius;
+                const y = spherePositions.career.y + Math.sin(entityAngle) * (isTablet ? 85 : 55) + Math.sin(iconAngle) * momentIconRadius;
+
+                icons.push(
+                  <RotatableFloatingMomentIconWrapper
+                    key={`moment-icon-career-${job.id}-${i}`}
+                    sphereIndex={1}
+                    rotation={wheelRotation}
+                    hintRotation={hintRotation}
+                    centerX={sphereCircle.centerX}
+                    centerY={sphereCircle.centerY}
+                    sphereRadius={sphereCircle.radius}
+                    angleStep={sphereCircle.angleStep}
+                    startAngle={sphereCircle.startAngle}
+                    entityAngle={entityAngle}
+                    entityRadius={isTablet ? 85 : 55}
+                    momentIconAngle={iconAngle}
+                    momentIconRadius={momentIconRadius}
+                    scale={spheresScale}
+                  >
+                    <FloatingMomentIcon
+                      position={{ x, y }}
+                      delay={entityIndex * 50 + i * 100}
+                      momentType={selectedMomentType}
+                      colorScheme={colorScheme ?? 'dark'}
+                      index={i}
+                      total={numIcons}
+                      isWrapped={true}
+                    />
+                  </RotatableFloatingMomentIconWrapper>
+                );
+              }
+            });
+
+            // For each family entity
+            familyMembers.slice(0, Math.min(familyMembers.length, 5)).forEach((member, entityIndex) => {
+              const totalMembers = Math.min(familyMembers.length, 5);
+              const entityAngle = (entityIndex * 2 * Math.PI) / totalMembers;
+              const momentCount = getMomentCountForEntity(member.id, 'family', selectedMomentType);
+              const numIcons = Math.min(momentCount, 3);
+
+              for (let i = 0; i < numIcons; i++) {
+                const iconAngle = (i * 2 * Math.PI) / Math.max(numIcons, 3);
+                const x = spherePositions.family.x + Math.cos(entityAngle) * (isTablet ? 85 : 55) + Math.cos(iconAngle) * momentIconRadius;
+                const y = spherePositions.family.y + Math.sin(entityAngle) * (isTablet ? 85 : 55) + Math.sin(iconAngle) * momentIconRadius;
+
+                icons.push(
+                  <RotatableFloatingMomentIconWrapper
+                    key={`moment-icon-family-${member.id}-${i}`}
+                    sphereIndex={2}
+                    rotation={wheelRotation}
+                    hintRotation={hintRotation}
+                    centerX={sphereCircle.centerX}
+                    centerY={sphereCircle.centerY}
+                    sphereRadius={sphereCircle.radius}
+                    angleStep={sphereCircle.angleStep}
+                    startAngle={sphereCircle.startAngle}
+                    entityAngle={entityAngle}
+                    entityRadius={isTablet ? 85 : 55}
+                    momentIconAngle={iconAngle}
+                    momentIconRadius={momentIconRadius}
+                    scale={spheresScale}
+                  >
+                    <FloatingMomentIcon
+                      position={{ x, y }}
+                      delay={entityIndex * 50 + i * 100}
+                      momentType={selectedMomentType}
+                      colorScheme={colorScheme ?? 'dark'}
+                      index={i}
+                      total={numIcons}
+                      isWrapped={true}
+                    />
+                  </RotatableFloatingMomentIconWrapper>
+                );
+              }
+            });
+
+            // For each friend entity
+            friends.slice(0, Math.min(friends.length, 5)).forEach((friend, entityIndex) => {
+              const totalFriends = Math.min(friends.length, 5);
+              const entityAngle = (entityIndex * 2 * Math.PI) / totalFriends;
+              const momentCount = getMomentCountForEntity(friend.id, 'friends', selectedMomentType);
+              const numIcons = Math.min(momentCount, 3);
+
+              for (let i = 0; i < numIcons; i++) {
+                const iconAngle = (i * 2 * Math.PI) / Math.max(numIcons, 3);
+                const x = spherePositions.friends.x + Math.cos(entityAngle) * (isTablet ? 85 : 55) + Math.cos(iconAngle) * momentIconRadius;
+                const y = spherePositions.friends.y + Math.sin(entityAngle) * (isTablet ? 85 : 55) + Math.sin(iconAngle) * momentIconRadius;
+
+                icons.push(
+                  <RotatableFloatingMomentIconWrapper
+                    key={`moment-icon-friends-${friend.id}-${i}`}
+                    sphereIndex={3}
+                    rotation={wheelRotation}
+                    hintRotation={hintRotation}
+                    centerX={sphereCircle.centerX}
+                    centerY={sphereCircle.centerY}
+                    sphereRadius={sphereCircle.radius}
+                    angleStep={sphereCircle.angleStep}
+                    startAngle={sphereCircle.startAngle}
+                    entityAngle={entityAngle}
+                    entityRadius={isTablet ? 85 : 55}
+                    momentIconAngle={iconAngle}
+                    momentIconRadius={momentIconRadius}
+                    scale={spheresScale}
+                  >
+                    <FloatingMomentIcon
+                      position={{ x, y }}
+                      delay={entityIndex * 50 + i * 100}
+                      momentType={selectedMomentType}
+                      colorScheme={colorScheme ?? 'dark'}
+                      index={i}
+                      total={numIcons}
+                      isWrapped={true}
+                    />
+                  </RotatableFloatingMomentIconWrapper>
+                );
+              }
+            });
+
+            // For each hobby entity
+            hobbies.slice(0, Math.min(hobbies.length, 5)).forEach((hobby, entityIndex) => {
+              const totalHobbies = Math.min(hobbies.length, 5);
+              const entityAngle = (entityIndex * 2 * Math.PI) / totalHobbies;
+              const momentCount = getMomentCountForEntity(hobby.id, 'hobbies', selectedMomentType);
+              const numIcons = Math.min(momentCount, 3);
+
+              for (let i = 0; i < numIcons; i++) {
+                const iconAngle = (i * 2 * Math.PI) / Math.max(numIcons, 3);
+                const x = spherePositions.hobbies.x + Math.cos(entityAngle) * (isTablet ? 85 : 55) + Math.cos(iconAngle) * momentIconRadius;
+                const y = spherePositions.hobbies.y + Math.sin(entityAngle) * (isTablet ? 85 : 55) + Math.sin(iconAngle) * momentIconRadius;
+
+                icons.push(
+                  <RotatableFloatingMomentIconWrapper
+                    key={`moment-icon-hobbies-${hobby.id}-${i}`}
+                    sphereIndex={4}
+                    rotation={wheelRotation}
+                    hintRotation={hintRotation}
+                    centerX={sphereCircle.centerX}
+                    centerY={sphereCircle.centerY}
+                    sphereRadius={sphereCircle.radius}
+                    angleStep={sphereCircle.angleStep}
+                    startAngle={sphereCircle.startAngle}
+                    entityAngle={entityAngle}
+                    entityRadius={isTablet ? 85 : 55}
+                    momentIconAngle={iconAngle}
+                    momentIconRadius={momentIconRadius}
+                    scale={spheresScale}
+                  >
+                    <FloatingMomentIcon
+                      position={{ x, y }}
+                      delay={entityIndex * 50 + i * 100}
+                      momentType={selectedMomentType}
+                      colorScheme={colorScheme ?? 'dark'}
+                      index={i}
+                      total={numIcons}
+                      isWrapped={true}
+                    />
+                  </RotatableFloatingMomentIconWrapper>
+                );
+              }
+            });
+
+            return <>{icons}</>;
+          })()}
+
+          {/* Moment Type Selector - Below the wheel */}
+          {animationsReady && showMomentTypeSelector && (() => {
+            // Calculate position below the wheel
+            const wheelCenterY = SCREEN_HEIGHT / 2 + 60;
+            const wheelRadius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3;
+            const avatarSize = isTablet ? 180 : 140;
+            const avatarRadius = avatarSize / 2;
+
+            // Position below the wheel: wheel center + avatar radius + small spacing
+            // This places it just below the central avatar
+            const topPosition = wheelCenterY + avatarRadius + 60;
+
+            return (
+              <View style={{
+                position: 'absolute',
+                top: topPosition,
+                left: 0,
+                right: 0,
+                alignItems: 'center',
+                zIndex: 200,
+              }}>
+              {/* "Spin the wheel" text */}
+              <ThemedText size="sm" weight="bold" style={{
+                marginBottom: 12,
+                opacity: 0.7,
+                textAlign: 'center',
+              }}>
+                {t('wheel.spinForRandom')}
+              </ThemedText>
+
+              {/* Icon buttons row */}
+              <View style={{
+                flexDirection: 'row',
+                gap: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                {/* Lessons button */}
+                <Pressable
+                  onPress={() => setSelectedMomentType('lessons')}
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 30,
+                    backgroundColor: selectedMomentType === 'lessons'
+                      ? colors.primary
+                      : (colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'),
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: selectedMomentType === 'lessons' ? 2 : 0,
+                    borderColor: colors.primary,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: selectedMomentType === 'lessons' ? 0.3 : 0.1,
+                    shadowRadius: 4,
+                    elevation: selectedMomentType === 'lessons' ? 5 : 2,
+                  }}
+                >
+                  <MaterialIcons
+                    name="lightbulb"
+                    size={28}
+                    color={selectedMomentType === 'lessons' ? '#fff' : colors.text}
+                  />
+                </Pressable>
+
+                {/* Hard truths button */}
+                <Pressable
+                  onPress={() => setSelectedMomentType('hardTruths')}
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 30,
+                    backgroundColor: selectedMomentType === 'hardTruths'
+                      ? colors.primary
+                      : (colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'),
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: selectedMomentType === 'hardTruths' ? 2 : 0,
+                    borderColor: colors.primary,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: selectedMomentType === 'hardTruths' ? 0.3 : 0.1,
+                    shadowRadius: 4,
+                    elevation: selectedMomentType === 'hardTruths' ? 5 : 2,
+                  }}
+                >
+                  <MaterialIcons
+                    name="cloud"
+                    size={28}
+                    color={selectedMomentType === 'hardTruths' ? '#fff' : colors.text}
+                  />
+                </Pressable>
+
+                {/* Sunny moments button */}
+                <Pressable
+                  onPress={() => setSelectedMomentType('sunnyMoments')}
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 30,
+                    backgroundColor: selectedMomentType === 'sunnyMoments'
+                      ? colors.primary
+                      : (colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'),
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: selectedMomentType === 'sunnyMoments' ? 2 : 0,
+                    borderColor: colors.primary,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: selectedMomentType === 'sunnyMoments' ? 0.3 : 0.1,
+                    shadowRadius: 4,
+                    elevation: selectedMomentType === 'sunnyMoments' ? 5 : 2,
+                  }}
+                >
+                  <MaterialIcons
+                    name="wb-sunny"
+                    size={28}
+                    color={selectedMomentType === 'sunnyMoments' ? '#fff' : colors.text}
+                  />
+                </Pressable>
+              </View>
+            </View>
+            );
+          })()}
         </View>
 
       {/* Walkthrough Modal */}

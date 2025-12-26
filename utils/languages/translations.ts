@@ -42,10 +42,13 @@ export interface Translations {
   'settings.devTools.generateData.generating': string;
   'settings.devTools.clearData.button': string;
   'settings.devTools.clearData.deleting': string;
-  
+
   // Wheel of Life
   'wheel.noLessons.message': string;
-  
+  'wheel.noHardTruths.message': string;
+  'wheel.noSunnyMoments.message': string;
+  'wheel.spinForRandom': string;
+
   // Streak Rules Modal
   'streakRules.title': string;
   'streakRules.badges.title': string;
@@ -620,7 +623,10 @@ const translations: Record<Language, Translations> = {
     'settings.devTools.clearData.button': 'Clear All App Data',
     'settings.devTools.clearData.deleting': 'Deleting...',
     'wheel.noLessons.message': 'Add lessons to your memories to see them here and practice them!',
-    
+    'wheel.noHardTruths.message': 'Add hard truths to your memories to see them here!',
+    'wheel.noSunnyMoments.message': 'Add sunny moments to your memories to see them here!',
+    'wheel.spinForRandom': 'Spin the wheel',
+
     // Streak Rules Modal
     'streakRules.title': 'How Streaks Work',
     'streakRules.badges.title': 'Streak Badges',
@@ -1191,7 +1197,10 @@ const translations: Record<Language, Translations> = {
     'settings.devTools.clearData.button': 'Изтриване на Всички Данни',
     'settings.devTools.clearData.deleting': 'Изтриване...',
     'wheel.noLessons.message': 'Добавете уроци към вашите спомени, за да ги видите тук и да ги практикувате!',
-    
+    'wheel.noHardTruths.message': 'Добавете трудни истини към вашите спомени, за да ги видите тук!',
+    'wheel.noSunnyMoments.message': 'Добавете слънчеви моменти към вашите спомени, за да ги видите тук!',
+    'wheel.spinForRandom': 'Завъртете колелото',
+
     // Streak Rules Modal
     'streakRules.title': 'Как Работят Поредиците',
     'streakRules.badges.title': 'Значки за Поредица',
