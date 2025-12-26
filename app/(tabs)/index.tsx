@@ -1,3 +1,4 @@
+import ShareModal from '@/components/ShareModal';
 import { StreakBadgeComponent } from '@/components/streak-badge';
 import { StreakModal } from '@/components/streak-modal';
 import { StreakRulesModal } from '@/components/streak-rules-modal';
@@ -297,6 +298,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const { isTablet } = useLargeDevice();
   const insets = useSafeAreaInsets();
   const fontScale = useFontScale();
+  const [shareModalVisible, setShareModalVisible] = React.useState(false);
+  const [shareModalContent, setShareModalContent] = React.useState({ title: '', message: '' });
   const baseAvatarSize = isTablet ? 120 : 100; // 50% larger on tablets, increased from 80 to 100
   const focusedAvatarSize = isTablet ? 150 : 120; // 50% larger on tablets, increased from 100 to 120
   const avatarSize = isFocused ? focusedAvatarSize : baseAvatarSize;
@@ -1279,7 +1282,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           {/* Share button - positioned outside the Pressable, shown when entity is focused and has memories */}
           {isFocused && memories.length > 0 && (
             <Pressable
-              onPress={async () => {
+              onPress={() => {
                 try {
                   // Format all memories for this entity as text
                   const entityName = profile.name || 'Entity';
@@ -1315,12 +1318,14 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                     message += '\n';
                   });
 
-                  await Share.share({
-                    message: message.trim(),
+                  // Open modal with content
+                  setShareModalContent({
                     title: entityName,
+                    message: message.trim(),
                   });
+                  setShareModalVisible(true);
                 } catch (error) {
-                  console.error('Error sharing entity memories:', error);
+                  console.error('Error preparing share content:', error);
                 }
               }}
               style={{
@@ -1508,6 +1513,14 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [memories, focusedMemory, profile.id, isFocused, memoryPositions, memoryAnimatedValues, position.x, position.y, startX, startY, targetX, targetY, zoomProgress, colorScheme, memorySlideOffset, onPress, onMemoryFocus])}
       </Animated.View>
+
+      {/* Share Modal */}
+      <ShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        title={shareModalContent.title}
+        content={shareModalContent.message}
+      />
     </>
   );
 }, (prevProps, nextProps) => {
@@ -2651,6 +2664,10 @@ const FloatingMemory = React.memo(function FloatingMemory({
 }) {
   const { isLargeDevice, isTablet } = useLargeDevice();
 
+  // Share modal state
+  const [shareModalVisible, setShareModalVisible] = React.useState(false);
+  const [shareModalContent, setShareModalContent] = React.useState({ title: '', message: '' });
+
   // Track which moments are visible (initially none when memory is focused)
   const [visibleMomentIds, setVisibleMomentIds] = React.useState<Set<string>>(new Set());
   
@@ -3431,7 +3448,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
           {/* Share button - positioned outside the View with overflow:hidden so it won't be clipped */}
           {isMemoryFocused && memory.imageUri && (
             <Pressable
-              onPress={async () => {
+              onPress={() => {
                 try {
                   // Format memory data as text
                   const title = memory.title || 'Memory';
@@ -3463,12 +3480,14 @@ const FloatingMemory = React.memo(function FloatingMemory({
                     });
                   }
 
-                  await Share.share({
-                    message: message.trim(),
+                  // Open modal with content
+                  setShareModalContent({
                     title: title,
+                    message: message.trim(),
                   });
+                  setShareModalVisible(true);
                 } catch (error) {
-                  console.error('Error sharing memory:', error);
+                  console.error('Error preparing share content:', error);
                 }
               }}
               style={{
@@ -3564,6 +3583,14 @@ const FloatingMemory = React.memo(function FloatingMemory({
         handleAddCloud={handleAddCloud}
         handleAddSun={handleAddSun}
         handleAddLesson={handleAddLesson}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        title={shareModalContent.title}
+        content={shareModalContent.message}
       />
     </>
   );
@@ -3912,7 +3939,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   // Where spherePosition is at distance Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3 from center
   // And entityRadius is isTablet ? 85 : 55 (larger on tablets by default)
   // Floating entity size is isTablet ? 36 : 24, so radius is isTablet ? 18 : 12
-  const sphereDistanceFromCenter = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3;
+  const sphereDistanceFromCenter = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35;
   const floatingEntityRadius = isTablet ? 85 : 55;
   const floatingEntitySize = isTablet ? 36 : 20; // Decreased from 24 to 20 for smaller floating elements
   const floatingEntityRadiusSize = floatingEntitySize / 2;
@@ -3922,17 +3949,17 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   const minDistanceToFloatingEntity = sphereDistanceFromCenter - floatingEntityRadius - floatingEntityRadiusSize;
   
   // Base avatar size
-  const baseAvatarSize = isTablet ? 180 : 140; // Increased from 120 to 140
+  const baseAvatarSize = isTablet ? 160 : 100; // Reduced - smaller central avatar
   const baseAvatarRadius = baseAvatarSize / 2;
-  
+
   // Check if main circle (with some padding) would intersect floating entities
   // Add 5px padding to ensure clear separation
   const padding = 5;
   const maxSafeAvatarRadius = minDistanceToFloatingEntity - padding;
-  
+
   // Use smaller size if intersection detected, otherwise use base size
-  const avatarSize = maxSafeAvatarRadius < baseAvatarRadius 
-    ? Math.max(maxSafeAvatarRadius * 2, isTablet ? 140 : 90) // Minimum size to ensure readability
+  const avatarSize = maxSafeAvatarRadius < baseAvatarRadius
+    ? Math.max(maxSafeAvatarRadius * 2, isTablet ? 140 : 80) // Minimum size to ensure readability
     : baseAvatarSize;
   
   const borderWidth = isTablet ? 12 : 8; // Scale border width proportionally
@@ -3946,15 +3973,22 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   return (
     <View
       style={{
+        position: 'relative',
         width: avatarSize,
         height: avatarSize,
-        borderRadius: avatarSize / 2,
-        justifyContent: 'center',
-        alignItems: 'center',
-        position: 'relative',
-        overflow: 'hidden', // Ensure perfect circle clipping
       }}
     >
+      <View
+        style={{
+          width: avatarSize,
+          height: avatarSize,
+          borderRadius: avatarSize / 2,
+          justifyContent: 'center',
+          alignItems: 'center',
+          position: 'relative',
+          overflow: 'hidden', // Ensure perfect circle clipping
+        }}
+      >
       <LinearGradient
         colors={gradientColors}
         start={{ x: 0, y: 0 }}
@@ -4083,9 +4117,97 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
           transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
         />
       </Svg>
+
       <ThemedText size="xl" weight="bold" style={{ color: colors.primaryLight, fontSize: 32 }}>
         {Math.round(percentage)}%
       </ThemedText>
+      </View>
+
+      {/* Sun icon - positioned in the middle of the yellow (sunny) arc */}
+      {percentage > 0 && (() => {
+        // Calculate angle for middle of sunny arc
+        // Arc starts at -90° (top) and goes clockwise by percentage
+        // Middle of sunny arc is at: -90° + (percentage/100 * 360°) / 2
+        const sunnyArcAngle = -90 + (percentage / 100 * 360) / 2;
+        const sunnyAngleRad = (sunnyArcAngle * Math.PI) / 180;
+        const iconRadius = avatarSize / 2; // Position on the circle edge
+
+        // Calculate position
+        const sunX = avatarSize / 2 + iconRadius * Math.cos(sunnyAngleRad) - 12;
+        const sunY = avatarSize / 2 + iconRadius * Math.sin(sunnyAngleRad) - 12;
+
+        return (
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: sunY,
+              left: sunX,
+              width: 24,
+              height: 24,
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: '#FFD700',
+              borderRadius: 12,
+              borderWidth: 2,
+              borderColor: '#FFA500',
+              zIndex: 999,
+              elevation: 30,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.6,
+              shadowRadius: 4,
+            }}
+          >
+            <MaterialIcons name="wb-sunny" size={14} color="#FFFFFF" />
+          </View>
+        );
+      })()}
+
+      {/* Cloud icon - positioned in the middle of the black (cloudy) arc */}
+      {percentage < 100 && (() => {
+        // Calculate angle for middle of cloudy arc
+        // Cloudy arc starts where sunny arc ends and goes to complete the circle
+        // Start angle: -90° + (percentage/100 * 360°)
+        // End angle: -90° + 360° (back to top)
+        // Middle: start + (remaining arc / 2)
+        const cloudyStartAngle = -90 + (percentage / 100 * 360);
+        const cloudyArcLength = 360 - (percentage / 100 * 360);
+        const cloudyArcAngle = cloudyStartAngle + cloudyArcLength / 2;
+        const cloudyAngleRad = (cloudyArcAngle * Math.PI) / 180;
+        const iconRadius = avatarSize / 2; // Position on the circle edge
+
+        // Calculate position
+        const cloudX = avatarSize / 2 + iconRadius * Math.cos(cloudyAngleRad) - 12;
+        const cloudY = avatarSize / 2 + iconRadius * Math.sin(cloudyAngleRad) - 12;
+
+        return (
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: cloudY,
+              left: cloudX,
+              width: 24,
+              height: 24,
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: '#555555',
+              borderRadius: 12,
+              borderWidth: 2,
+              borderColor: '#222222',
+              zIndex: 999,
+              elevation: 30,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.6,
+              shadowRadius: 4,
+            }}
+          >
+            <MaterialIcons name="cloud" size={14} color="#FFFFFF" />
+          </View>
+        );
+      })()}
     </View>
   );
 });
@@ -6008,7 +6130,7 @@ export default function HomeScreen() {
   const sphereCircle = useMemo(() => {
     const centerX = SCREEN_WIDTH / 2;
     const centerY = SCREEN_HEIGHT / 2 + 60; // Lower the main circle and floating elements by 60px
-    const radius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3; // Distance from center
+    const radius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35; // Distance from center - increased from 0.3 to 0.35
     const numSpheres = 5;
     const angleStep = (2 * Math.PI) / numSpheres; // 72 degrees in radians
     const startAngle = -Math.PI / 2; // Start from top (-90 degrees)
@@ -8452,17 +8574,17 @@ export default function HomeScreen() {
           {/* Center - Overall Percentage Avatar with Sparkled Dots */}
           {(() => {
             // Calculate avatar size considering floating entities intersection
-            const sphereDistanceFromCenter = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3;
+            const sphereDistanceFromCenter = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35;
             const floatingEntityRadius = isTablet ? 85 : 55; // Larger on tablets by default
             const floatingEntitySize = isTablet ? 36 : 20; // Decreased from 24 to 20 for smaller floating elements
             const floatingEntityRadiusSize = floatingEntitySize / 2;
             const minDistanceToFloatingEntity = sphereDistanceFromCenter - floatingEntityRadius - floatingEntityRadiusSize;
-            const baseAvatarSize = isTablet ? 180 : 140; // Increased from 120 to 140
+            const baseAvatarSize = isTablet ? 160 : 100; // Reduced - smaller central avatar
             const baseAvatarRadius = baseAvatarSize / 2;
             const padding = 5;
             const maxSafeAvatarRadius = minDistanceToFloatingEntity - padding;
-            const avatarSize = maxSafeAvatarRadius < baseAvatarRadius 
-              ? Math.max(maxSafeAvatarRadius * 2, isTablet ? 140 : 90)
+            const avatarSize = maxSafeAvatarRadius < baseAvatarRadius
+              ? Math.max(maxSafeAvatarRadius * 2, isTablet ? 140 : 80)
               : baseAvatarSize;
             const avatarCenterX = SCREEN_WIDTH / 2;
             const avatarCenterY = SCREEN_HEIGHT / 2 + 60; // Lower the main circle by 60px
