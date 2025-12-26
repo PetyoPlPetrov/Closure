@@ -732,7 +732,7 @@ export default function AddIdealizedMemoryScreen() {
   const t = useTranslate();
   const { language } = useLanguage();
   const { showNotification } = useInAppNotification();
-  
+
   // Support both old (profileId) and new (entityId + sphere) parameters
   // Handle params that might be strings or arrays (expo-router can return arrays)
   const profileId = Array.isArray(params.profileId) ? params.profileId[0] : (params.profileId as string | undefined);
@@ -2256,7 +2256,7 @@ export default function AddIdealizedMemoryScreen() {
               router.back();
               return;
             }
-            
+
             // Check for unsaved changes before navigating
             if (hasUnsavedChanges() && !isSaving) {
               Alert.alert(

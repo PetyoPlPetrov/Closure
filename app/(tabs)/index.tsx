@@ -26,7 +26,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -351,13 +351,26 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     .slice(0, 2);
 
   const floatAnimation = useSharedValue(0);
-  // Clamp position to ensure avatar is entirely visible in viewport (accounting for safe area insets and tab bar)
+  // Clamp position to ensure avatar is entirely visible in viewport (only for draggable entities)
+  // Non-draggable entities (profiles, jobs) are positioned in year sections and should not be clamped to visible area
   const padding = avatarSize / 2;
-  const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
-  const visibleAreaTop = insets.top;
-  const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight; // Account for tab bar, not just safe area
-  const clampedPositionX = Math.max(padding, Math.min(SCREEN_WIDTH - padding, position.x));
-  const clampedPositionY = Math.max(visibleAreaTop + padding, Math.min(visibleAreaBottom - padding, position.y));
+  let clampedPositionX = position.x;
+  let clampedPositionY = position.y;
+  
+  if (enableDragging) {
+    // Only clamp draggable entities to visible area bounds (accounting for safe area insets and tab bar)
+    const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+    const visibleAreaTop = insets.top;
+    const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight; // Account for tab bar, not just safe area
+    clampedPositionX = Math.max(padding, Math.min(SCREEN_WIDTH - padding, position.x));
+    clampedPositionY = Math.max(visibleAreaTop + padding, Math.min(visibleAreaBottom - padding, position.y));
+  } else {
+    // For non-draggable entities, only ensure they're not outside screen bounds (basic safety check)
+    // The position should already be validated within year section bounds
+    clampedPositionX = Math.max(padding, Math.min(SCREEN_WIDTH - padding, position.x));
+    clampedPositionY = Math.max(padding, Math.min(SCREEN_HEIGHT - padding, position.y));
+  }
+  
   const panX = useSharedValue(clampedPositionX);
   const panY = useSharedValue(clampedPositionY);
   const isDragging = useSharedValue(false);
@@ -558,13 +571,25 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   }, [memoryPanX0, memoryPanX1, memoryPanX2, memoryPanX3, memoryPanX4, memoryPanX5, memoryPanX6, memoryPanX7, memoryPanX8, memoryPanX9, memoryPanX10, memoryPanX11, memoryPanX12, memoryPanX13, memoryPanX14, memoryPanX15, memoryPanX16, memoryPanX17, memoryPanX18, memoryPanX19, memoryPanX20, memoryPanX21, memoryPanX22, memoryPanX23, memoryPanX24, memoryPanY0, memoryPanY1, memoryPanY2, memoryPanY3, memoryPanY4, memoryPanY5, memoryPanY6, memoryPanY7, memoryPanY8, memoryPanY9, memoryPanY10, memoryPanY11, memoryPanY12, memoryPanY13, memoryPanY14, memoryPanY15, memoryPanY16, memoryPanY17, memoryPanY18, memoryPanY19, memoryPanY20, memoryPanY21, memoryPanY22, memoryPanY23, memoryPanY24]);
   
   // Update pan values when position prop changes (but not while dragging)
-  // Also clamp position to ensure avatar stays within viewport
+  // Also clamp position to ensure avatar stays within viewport (only for draggable entities)
   React.useEffect(() => {
     if (!isDragging.value) {
-      // Clamp position to viewport bounds to ensure entire avatar is visible
       const padding = avatarSize / 2;
-      const clampedX = Math.max(padding, Math.min(SCREEN_WIDTH - padding, position.x));
-      const clampedY = Math.max(padding, Math.min(SCREEN_HEIGHT - padding, position.y));
+      let clampedX = position.x;
+      let clampedY = position.y;
+      
+      if (enableDragging) {
+        // Only clamp draggable entities to visible area bounds (accounting for safe area insets and tab bar)
+        const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+        const visibleAreaTop = insets.top;
+        const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight; // Account for tab bar, not just safe area
+        clampedX = Math.max(padding, Math.min(SCREEN_WIDTH - padding, position.x));
+        clampedY = Math.max(visibleAreaTop + padding, Math.min(visibleAreaBottom - padding, position.y));
+      } else {
+        // For non-draggable entities, only ensure they're not outside screen bounds (basic safety check)
+        clampedX = Math.max(padding, Math.min(SCREEN_WIDTH - padding, position.x));
+        clampedY = Math.max(padding, Math.min(SCREEN_HEIGHT - padding, position.y));
+      }
       
       panX.value = clampedX;
       panY.value = clampedY;
@@ -584,7 +609,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         onPositionChange?.(clampedX, clampedY);
       }
     }
-  }, [position.x, position.y, panX, panY, dragStartX, dragStartY, memoryAnimatedValues, isDragging, avatarSize, focusedX, focusedY, onPositionChange]);
+  }, [position.x, position.y, panX, panY, dragStartX, dragStartY, memoryAnimatedValues, isDragging, avatarSize, focusedX, focusedY, onPositionChange, enableDragging, fontScale, insets.top, insets.bottom]);
   
   React.useEffect(() => {
     if (!isFocused) {
@@ -670,8 +695,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
 
   // Animated style for container position - uses panX/panY to stay in sync with drag
-  // Also clamp to ensure avatar stays fully visible (accounting for safe area insets and tab bar)
+  // Also clamp to ensure avatar stays fully visible (only for draggable entities)
   const avatarSizeForClamp = avatarSize; // Capture for worklet
+  const enableDraggingForClamp = enableDragging; // Capture for worklet
   const visibleAreaTopForClamp = insets.top; // Capture for worklet
   const tabBarHeightForClamp = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale); // Capture for worklet
   const visibleAreaBottomForClamp = SCREEN_HEIGHT - tabBarHeightForClamp; // Capture for worklet
@@ -680,7 +706,15 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     // Ensure panX/panY are within bounds (double-check in case they weren't clamped)
     const padding = avatarSizeForClamp / 2;
     const clampedX = Math.max(padding, Math.min(SCREEN_WIDTH - padding, panX.value));
-    const clampedY = Math.max(visibleAreaTopForClamp + padding, Math.min(visibleAreaBottomForClamp - padding, panY.value));
+    let clampedY: number;
+    
+    if (enableDraggingForClamp) {
+      // Only clamp draggable entities to visible area bounds
+      clampedY = Math.max(visibleAreaTopForClamp + padding, Math.min(visibleAreaBottomForClamp - padding, panY.value));
+    } else {
+      // For non-draggable entities, only ensure they're not outside screen bounds
+      clampedY = Math.max(padding, Math.min(SCREEN_HEIGHT - padding, panY.value));
+    }
     return {
       left: clampedX - SCREEN_WIDTH,
       top: clampedY - SCREEN_HEIGHT,
@@ -6309,17 +6343,22 @@ export default function HomeScreen() {
         });
         const indexInSection = profilesInSection.findIndex(p => p.id === profile.id);
         
-        // Distribute avatars evenly within the year section, with random offset near center
+        // Distribute avatars evenly within the year section, centered both horizontally and vertically
         const sectionCenterY = yearSection.top + (yearSection.height / 2);
         const spacing = profilesInSection.length > 1 ? Math.min(yearSection.height * 0.6, 200) : 0;
         const startY = sectionCenterY - ((profilesInSection.length - 1) * spacing / 2);
         
-        // Add consistent random offset near center based on profile ID (within 30% of screen width/height from center)
-        const centerOffsetX = getRandomOffset(profile.id, SCREEN_WIDTH * 0.3); // ±15% of screen width
-        const centerOffsetY = getRandomOffset(profile.id + '_y', SCREEN_HEIGHT * 0.3); // ±15% of screen height
+        // For profiles in year sections, center them horizontally (no random X offset)
+        // Only add small Y offset for multiple profiles to avoid perfect vertical alignment
+        const centerOffsetX = 0; // Always center horizontally in year sections
+        // For single profiles, place them exactly at center (no Y offset)
+        // For multiple profiles, add small random offset to avoid perfect alignment
+        const centerOffsetY = profilesInSection.length === 1 
+          ? 0 // Exact center for single profiles
+          : getRandomOffset(profile.id + '_y', yearSection.height * 0.1); // ±5% of section height for multiple profiles
         
         let position = {
-          x: centerX + centerOffsetX,
+          x: centerX + centerOffsetX, // Always use screen center for X
           y: startY + (indexInSection * spacing) + centerOffsetY,
         };
         
@@ -6328,6 +6367,7 @@ export default function HomeScreen() {
         const minMargin = 20; // Minimum margin from section edges
         const centerAreaMinX = SCREEN_WIDTH * 0.2; // 20% from left
         const centerAreaMaxX = SCREEN_WIDTH * 0.8; // 80% from left
+        const beforeClamp = { ...position };
         position.x = Math.max(
           Math.max(avatarHalfSize + minMargin, centerAreaMinX),
           Math.min(SCREEN_WIDTH - avatarHalfSize - minMargin, Math.min(centerAreaMaxX, position.x))
@@ -6336,7 +6376,7 @@ export default function HomeScreen() {
           yearSection.top + avatarHalfSize + minMargin,
           Math.min(yearSection.bottom - avatarHalfSize - minMargin, position.y)
         );
-        
+
         positions.push(position);
       } else {
         // Fallback: center of screen
@@ -6373,6 +6413,7 @@ export default function HomeScreen() {
           const margin = 20;
           const minY = yearSection.top + avatarHalfSize + margin;
           const maxY = yearSection.bottom - avatarHalfSize - margin;
+          const sectionCenterY = yearSection.top + yearSection.height / 2;
           
           if (statePosition.y >= minY && statePosition.y <= maxY) {
             positions.set(profile.id, statePosition);
@@ -6395,10 +6436,11 @@ export default function HomeScreen() {
       
       // Final fallback: center of screen or section
       if (yearSection) {
-        positions.set(profile.id, {
+        const fallbackPosition = {
           x: SCREEN_WIDTH / 2,
           y: yearSection.top + yearSection.height / 2,
-        });
+        };
+        positions.set(profile.id, fallbackPosition);
         return;
       }
       
@@ -6587,7 +6629,6 @@ export default function HomeScreen() {
           width: SCREEN_WIDTH,
           minHeight,
           position: 'relative',
-          justifyContent: 'flex-start'
         },
       }),
     [colors.background, minHeight]
@@ -8502,16 +8543,20 @@ export default function HomeScreen() {
             );
           })()}
 
-          <View
+          <ScrollView
             style={[
               styles.content,
               {
                 flex: 1,
-                height: SCREEN_HEIGHT,
-                justifyContent: 'flex-start',
-                alignItems: 'flex-start',
               },
             ]}
+            contentContainerStyle={{
+              minHeight: SCREEN_HEIGHT,
+              paddingBottom: 100, // Extra padding at bottom for scrolling
+              justifyContent: 'flex-start',
+              alignItems: 'flex-start',
+            }}
+            showsVerticalScrollIndicator={false}
           >
             {/* Render year sections with profiles inside - hidden when focused */}
             {(() => {
@@ -8566,7 +8611,7 @@ export default function HomeScreen() {
                 setFocusedMemory={setFocusedMemory}
               />
             )}
-          </View>
+          </ScrollView>
         </View>
       </TabScreenContainer>
     );
@@ -8826,16 +8871,20 @@ export default function HomeScreen() {
             );
           })()}
 
-          <View
+          <ScrollView
             style={[
               styles.content,
               {
                 flex: 1,
-                height: SCREEN_HEIGHT,
-                justifyContent: 'flex-start',
-                alignItems: 'flex-start',
               },
             ]}
+            contentContainerStyle={{
+              minHeight: SCREEN_HEIGHT,
+              paddingBottom: 100, // Extra padding at bottom for scrolling
+              justifyContent: 'flex-start',
+              alignItems: 'flex-start',
+            }}
+            showsVerticalScrollIndicator={false}
           >
             {/* Render year sections with jobs inside */}
             {animationsReady && !focusedJobId && !focusedMemory && (
@@ -8927,7 +8976,9 @@ export default function HomeScreen() {
                       ? Math.min(section.height / (totalJobsInSection + 1), 150) // Space between jobs
                       : 0;
                     
-                    // Position jobs from top to bottom (most recent first), with consistent random offset near center
+                    // Position jobs from top to bottom (most recent first), centered horizontally
+                    // For jobs in year sections, center them horizontally (no random X offset)
+                    // Only add small Y offset for multiple jobs to avoid perfect vertical alignment
                     const getJobOffset = (jobId: string, range: number) => {
                       let hash = 0;
                       for (let i = 0; i < jobId.length; i++) {
@@ -8936,14 +8987,18 @@ export default function HomeScreen() {
                       }
                       return ((hash % 1000) / 1000) * range;
                     };
-                    const centerOffsetX = getJobOffset(job.id, SCREEN_WIDTH * 0.3); // ±15% of screen width
-                    const centerOffsetY = getJobOffset(job.id + '_y', SCREEN_HEIGHT * 0.2); // ±10% of screen height
+                    const centerOffsetX = 0; // Always center horizontally in year sections
+                    // For single jobs, place them exactly at center (no Y offset)
+                    // For multiple jobs, add small random offset to avoid perfect alignment
+                    const centerOffsetY = totalJobsInSection === 1
+                      ? 0 // Exact center for single jobs
+                      : getJobOffset(job.id + '_y', section.height * 0.1); // ±5% of section height for multiple jobs
                     const baseY = totalJobsInSection === 1
                       ? sectionCenterY
                       : section.top + verticalSpacing * (jobIndexInSection + 1);
                     
                     const position = {
-                      x: SCREEN_WIDTH / 2 + centerOffsetX,
+                      x: SCREEN_WIDTH / 2 + centerOffsetX, // Always use screen center for X
                       y: baseY + centerOffsetY
                     };
                     
@@ -9032,7 +9087,7 @@ export default function HomeScreen() {
                 setFocusedMemory={setFocusedMemory}
               />
             )}
-          </View>
+          </ScrollView>
         </View>
       </TabScreenContainer>
     );
@@ -10414,17 +10469,21 @@ export default function HomeScreen() {
   return (
     <TabScreenContainer>
       <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
-
-        <View
+        
+        <ScrollView
           style={[
             styles.content,
             {
               flex: 1,
-              height: SCREEN_HEIGHT,
-              justifyContent: 'flex-start',
-              alignItems: 'flex-start',
             },
           ]}
+          contentContainerStyle={{
+            minHeight: SCREEN_HEIGHT,
+            paddingBottom: 100, // Extra padding at bottom for scrolling
+            justifyContent: 'flex-start',
+            alignItems: 'flex-start',
+          }}
+          showsVerticalScrollIndicator={false}
         >
           {/* Render year sections with profiles inside - hidden when focused */}
           {animationsReady && !focusedProfileId && !focusedMemory && (
@@ -10465,7 +10524,7 @@ export default function HomeScreen() {
               setFocusedMemory={setFocusedMemory}
             />
           )}
-        </View>
+        </ScrollView>
       </View>
 
       {/* Walkthrough Modal */}

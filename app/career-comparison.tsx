@@ -19,7 +19,10 @@ export default function CareerComparisonScreen() {
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const t = useTranslate();
-  
+
+  // Log when screen is mounted/rendered
+  console.log('[Nav] career-comparison screen rendered');
+
   const { jobs, profiles, getIdealizedMemoriesByEntityId, getEntitiesBySphere, getIdealizedMemoriesByProfileId } = useJourney();
 
   // Statistics should only be enabled when there's at least 1 entity per sphere being compared
@@ -611,7 +614,10 @@ export default function CareerComparisonScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => router.back()}
+            onPress={() => {
+              console.log('[Nav] career-comparison back button pressed → router.back()');
+              router.back();
+            }}
             activeOpacity={0.7}
           >
             <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
@@ -744,10 +750,13 @@ export default function CareerComparisonScreen() {
               const sunPercentage = data.total > 0 ? (data.totalSuns / data.total) * 100 : 0;
               
               return (
-                <TouchableOpacity 
-                  key={data.job.id} 
+                <TouchableOpacity
+                  key={data.job.id}
                   style={styles.barContainer}
-                  onPress={() => router.push(`/job-detail?id=${data.job.id}`)}
+                  onPress={() => {
+                    console.log('[Nav] career-comparison → job-detail with returnTo=career-comparison');
+                    router.push(`/job-detail?id=${data.job.id}&returnTo=career-comparison`);
+                  }}
                   activeOpacity={0.7}
                 >
                   <View style={styles.barRow}>

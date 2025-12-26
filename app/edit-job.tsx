@@ -91,7 +91,7 @@ export default function EditJobScreen() {
     if (jobId) {
       router.push({
         pathname: '/idealized-memories',
-        params: { sphere: 'career', entityId: jobId },
+        params: { sphere: 'career', entityId: jobId, returnTo: 'edit-job', returnToJobId: jobId },
       });
     }
   };
@@ -132,7 +132,19 @@ export default function EditJobScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            const returnTo = params.returnTo as string | undefined;
+            const returnSphere = params.returnSphere as string | undefined;
+
+            if (returnTo === 'spheres' && returnSphere) {
+              // Navigate back to spheres screen - just use router.back() since we came from there
+              router.back();
+            } else if (returnTo === 'career-comparison') {
+              router.replace('/career-comparison');
+            } else {
+              router.back();
+            }
+          }}
           activeOpacity={0.7}
         >
           <MaterialIcons

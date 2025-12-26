@@ -15,7 +15,7 @@ import { useSubscription } from '@/utils/SubscriptionProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
@@ -224,7 +224,15 @@ export default function SpheresScreen() {
     }, [reloadIdealizedMemories])
   );
 
-  const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(null);
+  const params = useLocalSearchParams();
+  const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>((params.selectedSphere as LifeSphere) || null);
+  
+  // Update selectedSphere when params change (e.g., when navigating back from edit screen)
+  React.useEffect(() => {
+    if (params.selectedSphere) {
+      setSelectedSphere(params.selectedSphere as LifeSphere);
+    }
+  }, [params.selectedSphere]);
   
   // Use a ref to always get the current selectedSphere value in the callback
   const selectedSphereRef = React.useRef<LifeSphere | null>(null);
@@ -1235,7 +1243,11 @@ export default function SpheresScreen() {
   const handleJobMorePress = (job: Job) => {
       router.push({
         pathname: '/edit-job',
-      params: { jobId: job.id },
+      params: { 
+        jobId: job.id,
+        returnTo: 'spheres',
+        returnSphere: 'career', // Preserve the selected sphere
+      },
     });
   };
   

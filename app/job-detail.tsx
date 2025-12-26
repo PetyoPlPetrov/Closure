@@ -17,7 +17,11 @@ export default function JobDetailScreen() {
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const t = useTranslate();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; returnTo?: string }>();
+  const { id, returnTo } = params;
+
+  // Log params on mount
+  console.log('[Nav] job-detail opened with params:', { id, returnTo });
   
   const { jobs, getIdealizedMemoriesByEntityId } = useJourney();
 
@@ -232,7 +236,16 @@ export default function JobDetailScreen() {
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() => router.back()}
+              onPress={() => {
+                console.log('[Nav] job-detail back button pressed, returnTo:', returnTo);
+                if (returnTo === 'career-comparison') {
+                  console.log('[Nav] job-detail → career-comparison (replace)');
+                  router.replace('/career-comparison');
+                } else {
+                  console.log('[Nav] job-detail → router.back()');
+                  router.back();
+                }
+              }}
               activeOpacity={0.7}
             >
               <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
@@ -262,7 +275,16 @@ export default function JobDetailScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => router.back()}
+            onPress={() => {
+              console.log('[Nav] job-detail back button pressed (404 case), returnTo:', returnTo);
+              if (returnTo === 'career-comparison') {
+                console.log('[Nav] job-detail (404) → career-comparison (replace)');
+                router.replace('/career-comparison');
+              } else {
+                console.log('[Nav] job-detail (404) → router.back()');
+                router.back();
+              }
+            }}
             activeOpacity={0.7}
           >
             <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
