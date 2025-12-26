@@ -4667,6 +4667,155 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
   );
 });
 
+// Pulsing Floating Moment Icon - appears randomly around center avatar during moment type selection
+const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon({
+  centerX,
+  centerY,
+  angle,
+  radius,
+  momentType,
+  colorScheme,
+  delay = 0,
+  onComplete,
+}: {
+  centerX: number;
+  centerY: number;
+  angle: number; // Angle around the center avatar (0 to 2π)
+  radius: number; // Distance from center avatar
+  momentType: 'lessons' | 'hardTruths' | 'sunnyMoments';
+  colorScheme: 'light' | 'dark';
+  delay?: number;
+  onComplete?: () => void;
+}) {
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0);
+  const pulseScale = useSharedValue(1);
+  const floatOffset = useSharedValue(0);
+
+  const { isTablet } = useLargeDevice();
+  const iconSize = isTablet ? 20 : 16; // Slightly larger than regular floating icons
+
+  // Calculate position around center
+  const x = centerX + radius * Math.cos(angle);
+  const y = centerY + radius * Math.sin(angle);
+
+  // Start entrance animation with delay, then fade out after a duration
+  React.useEffect(() => {
+    const startAnimation = () => {
+      // Fade in and scale up
+      opacity.value = withTiming(1, { duration: 400 });
+      scale.value = withSpring(1, { damping: 10, stiffness: 150 });
+
+      // Start pulsing animation (scale between 1 and 1.3 for more prominent effect)
+      // Pulse completes (up + down), then 2 second delay, then next pulse
+      pulseScale.value = withRepeat(
+        withSequence(
+          // Pulse up
+          withTiming(1.3, {
+            duration: 600,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          // Pulse down
+          withTiming(1, {
+            duration: 600,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          // 2 second pause - stay at scale 1 for 2 seconds
+          withTiming(1, { duration: 2000 })
+        ),
+        3, // Pulse 3 times with pauses
+        false
+      );
+
+      // Start floating animation (gentle vertical movement)
+      floatOffset.value = withRepeat(
+        withTiming(1, {
+          duration: 1500,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        -1, // Infinite floating
+        true // Reverse on each repeat
+      );
+
+      // Fade out after total duration: 3 pulses × (600ms up + 600ms down + 2000ms delay) = ~9.6 seconds
+      setTimeout(() => {
+        opacity.value = withTiming(0, { duration: 500 }, () => {
+          if (onComplete) {
+            runOnJS(onComplete)();
+          }
+        });
+        scale.value = withTiming(0.8, { duration: 500 });
+      }, 9600);
+    };
+
+    if (delay > 0) {
+      const timer = setTimeout(startAnimation, delay);
+      return () => clearTimeout(timer);
+    } else {
+      startAnimation();
+    }
+  }, [opacity, scale, pulseScale, floatOffset, delay, onComplete]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const floatY = (floatOffset.value - 0.5) * 10; // -5px to +5px floating range
+
+    return {
+      transform: [
+        { translateY: floatY },
+        { scale: scale.value * pulseScale.value },
+      ],
+      opacity: opacity.value,
+    };
+  });
+
+  // Icon properties based on moment type
+  const iconProps = React.useMemo(() => {
+    switch (momentType) {
+      case 'sunnyMoments':
+        return {
+          name: 'wb-sunny' as const,
+          color: colorScheme === 'dark' ? '#FFC832' : '#FF9800',
+        };
+      case 'hardTruths':
+        return {
+          name: 'cloud' as const,
+          color: colorScheme === 'dark' ? '#B0B0C8' : '#7878A0',
+        };
+      case 'lessons':
+      default:
+        return {
+          name: 'lightbulb' as const,
+          color: colorScheme === 'dark' ? '#FFD700' : '#FFA000',
+        };
+    }
+  }, [momentType, colorScheme]);
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          left: x - iconSize / 2,
+          top: y - iconSize / 2,
+          width: iconSize,
+          height: iconSize,
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 55, // Above spheres but below moment type selector
+        },
+        animatedStyle,
+      ]}
+      pointerEvents="none"
+    >
+      <MaterialIcons
+        name={iconProps.name}
+        size={iconSize}
+        color={iconProps.color}
+      />
+    </Animated.View>
+  );
+});
+
 // Rotatable wrapper for spheres - applies rotation animation
 const RotatableSphereWrapper = React.memo(function RotatableSphereWrapper({
   sphereIndex,
@@ -5835,12 +5984,25 @@ export default function HomeScreen() {
   const [selectedLesson, setSelectedLesson] = useState<{ text: string; entityId: string; memoryId: string; sphere: LifeSphere; isMock?: boolean; momentType?: MomentType } | null>(null);
   const [showLesson, setShowLesson] = useState(false);
   const [showMomentTypeSelector, setShowMomentTypeSelector] = useState(false);
+  const [momentTypeSelectorDismissed, setMomentTypeSelectorDismissed] = useState(false); // Track if user dismissed selector
+
+  // State for random pulsing moments around center avatar
+  const [randomMoments, setRandomMoments] = useState<Array<{
+    id: number;
+    angle: number;
+    radius: number;
+    momentType: 'lessons' | 'hardTruths' | 'sunnyMoments';
+  }>>([]);
+  const momentIdCounter = useRef(0);
 
   // Animation values for lesson notification (same style as encouragement message)
   const lessonOpacity = useSharedValue(0);
   const lessonScale = useSharedValue(0);
   const lessonTranslateX = useSharedValue(0);
   const lessonTranslateY = useSharedValue(0);
+
+  // Animation values for moment type selector icon buttons
+  const iconButtonScale = useSharedValue(0);
 
   // Constants for sphere circle
   const sphereCircle = useMemo(() => {
@@ -6080,7 +6242,7 @@ export default function HomeScreen() {
     lessonTranslateY.value = withSpring(0, { damping: 15, stiffness: 150 });
   }, [getAllMomentsByType, selectedMomentType, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY, sphereCircle, messageTop, isTablet, isLargeDevice, t]);
 
-  // Animate spheres scale when moment type selector is shown/hidden
+  // Animate spheres scale and icon buttons when moment type selector is shown/hidden
   useEffect(() => {
     if (showMomentTypeSelector) {
       // Shrink spheres to 0.6 scale
@@ -6088,14 +6250,78 @@ export default function HomeScreen() {
         damping: 15,
         stiffness: 150,
       });
+      // Animate icon buttons from 0 to 1
+      iconButtonScale.value = withSpring(1, {
+        damping: 12,
+        stiffness: 150,
+        mass: 0.8,
+      });
     } else {
       // Return to normal size
       spheresScale.value = withSpring(1, {
         damping: 15,
         stiffness: 150,
       });
+      // Scale buttons back to 0
+      iconButtonScale.value = withTiming(0, { duration: 200 });
     }
-  }, [showMomentTypeSelector, spheresScale]);
+  }, [showMomentTypeSelector, spheresScale, iconButtonScale]);
+
+  // Spawn random pulsing moments at 1-2 second intervals when moment type selector is shown
+  useEffect(() => {
+    if (!showMomentTypeSelector) {
+      setRandomMoments([]);
+      return;
+    }
+
+    const avatarSize = isTablet ? 180 : 140;
+    const avatarRadius = avatarSize / 2;
+    const momentRadius = avatarRadius + (isTablet ? 120 : 80);
+
+    const spawnMoment = () => {
+      // Random angle around the circle
+      const angle = Math.random() * 2 * Math.PI;
+
+      // Random radius variation for organic feel
+      const radiusVariation = (Math.random() - 0.5) * (isTablet ? 40 : 25);
+      const radius = momentRadius + radiusVariation;
+
+      // Use only the selected moment type (lessons, hardTruths, or sunnyMoments)
+      const newMoment = {
+        id: momentIdCounter.current++,
+        angle,
+        radius,
+        momentType: selectedMomentType,
+      };
+
+      setRandomMoments(prev => [...prev, newMoment]);
+    };
+
+    // Spawn first moment immediately
+    spawnMoment();
+
+    // Then spawn at random intervals (3-5 seconds for better spacing)
+    const scheduleNext = (): number => {
+      const delay = 3000 + Math.random() * 2000; // 3-5 seconds
+      return setTimeout(() => {
+        spawnMoment();
+        intervalRef.current = scheduleNext();
+      }, delay) as unknown as number;
+    };
+
+    const intervalRef = { current: scheduleNext() };
+
+    return () => {
+      if (intervalRef.current) {
+        clearTimeout(intervalRef.current);
+      }
+    };
+  }, [showMomentTypeSelector, selectedMomentType, isTablet]);
+
+  // Handle moment completion (remove from array)
+  const handleMomentComplete = useCallback((id: number) => {
+    setRandomMoments(prev => prev.filter(m => m.id !== id));
+  }, []);
 
   // Function to programmatically spin the wheel (called when avatar is pressed)
   const spinWheel = useCallback(() => {
@@ -6169,6 +6395,11 @@ export default function HomeScreen() {
     };
   });
 
+  // Animated style for icon buttons
+  const iconButtonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconButtonScale.value }],
+  }));
+
   // Gentle continuous rotation hint animation
   useEffect(() => {
     // Start hint animation when wheel is idle (not spinning, not dragging)
@@ -6235,6 +6466,10 @@ export default function HomeScreen() {
       PanResponder.create({
         onStartShouldSetPanResponder: () => false, // Don't capture immediately - let children handle taps
         onMoveShouldSetPanResponder: (evt, gestureState) => {
+          // Only allow wheel spin if moment type selector is shown
+          if (!showMomentTypeSelector) {
+            return false;
+          }
           // Only capture if there's significant movement (it's a drag, not a tap)
           return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
         },
@@ -6300,7 +6535,7 @@ export default function HomeScreen() {
           }
         },
       }),
-    [sphereCircle.centerX, sphereCircle.centerY, wheelRotation, wheelVelocity, isWheelSpinning, lastAngle, startAngle, dragFrameCount, isDragging]
+    [sphereCircle.centerX, sphereCircle.centerY, wheelRotation, wheelVelocity, isWheelSpinning, lastAngle, startAngle, dragFrameCount, isDragging, showMomentTypeSelector]
   );
 
   // Sort profiles: current partners (ongoing) first, then by relationship start year (earliest first)
@@ -8919,16 +9154,28 @@ export default function HomeScreen() {
             return <>{icons}</>;
           })()}
 
-          {/* Moment Type Selector - Below the wheel */}
-          {animationsReady && showMomentTypeSelector && (() => {
+          {/* Pulsing Floating Moments - Randomly spawn around center avatar during moment type selection */}
+          {animationsReady && showMomentTypeSelector && randomMoments.map((moment) => (
+            <PulsingFloatingMomentIcon
+              key={`pulsing-moment-${moment.id}`}
+              centerX={sphereCircle.centerX}
+              centerY={sphereCircle.centerY}
+              angle={moment.angle}
+              radius={moment.radius}
+              momentType={moment.momentType}
+              colorScheme={colorScheme ?? 'dark'}
+              onComplete={() => handleMomentComplete(moment.id)}
+            />
+          ))}
+
+          {/* Moment Type Selector Label - Below the wheel */}
+          {animationsReady && showMomentTypeSelector && !momentTypeSelectorDismissed && (() => {
             // Calculate position below the wheel
             const wheelCenterY = SCREEN_HEIGHT / 2 + 60;
-            const wheelRadius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.3;
             const avatarSize = isTablet ? 180 : 140;
             const avatarRadius = avatarSize / 2;
 
-            // Position below the wheel: wheel center + avatar radius + small spacing
-            // This places it just below the central avatar
+            // Position below the wheel: wheel center + avatar radius + spacing
             const topPosition = wheelCenterY + avatarRadius + 60;
 
             return (
@@ -8940,22 +9187,71 @@ export default function HomeScreen() {
                 alignItems: 'center',
                 zIndex: 200,
               }}>
-              {/* "Spin the wheel" text */}
-              <ThemedText size="sm" weight="bold" style={{
-                marginBottom: 12,
-                opacity: 0.7,
-                textAlign: 'center',
-              }}>
-                {t('wheel.spinForRandom')}
-              </ThemedText>
+                {/* "Spin the wheel" text with dismiss button */}
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}>
+                  <ThemedText size="sm" weight="bold" style={{
+                    opacity: 0.7,
+                    textAlign: 'center',
+                  }}>
+                    {t('wheel.spinForRandom')}
+                  </ThemedText>
+                  <Pressable
+                    onPress={() => {
+                      setMomentTypeSelectorDismissed(true);
+                    }}
+                    hitSlop={CLOSE_BUTTON_HITSLOP}
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <MaterialIcons
+                      name="close"
+                      size={16}
+                      color={colors.text}
+                      style={{ opacity: 0.7 }}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })()}
 
-              {/* Icon buttons row */}
-              <View style={{
-                flexDirection: 'row',
-                gap: 16,
+          {/* Moment Type Selector Icon Buttons - Fixed position, animated scale */}
+          {animationsReady && showMomentTypeSelector && (() => {
+            // Calculate fixed position below the wheel
+            const wheelCenterY = SCREEN_HEIGHT / 2 + 60;
+            const avatarSize = isTablet ? 180 : 140;
+            const avatarRadius = avatarSize / 2;
+
+            // Position buttons a bit lower, with extra spacing for the label
+            const topPosition = wheelCenterY + avatarRadius + 95;
+
+            return (
+              <Animated.View style={[{
+                position: 'absolute',
+                top: topPosition,
+                left: 0,
+                right: 0,
                 alignItems: 'center',
-                justifyContent: 'center',
-              }}>
+                zIndex: 200,
+              }, iconButtonAnimatedStyle]}>
+                {/* Icon buttons row */}
+                <View style={{
+                  flexDirection: 'row',
+                  gap: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
                 {/* Lessons button */}
                 <Pressable
                   onPress={() => setSelectedMomentType('lessons')}
@@ -9040,7 +9336,7 @@ export default function HomeScreen() {
                   />
                 </Pressable>
               </View>
-            </View>
+            </Animated.View>
             );
           })()}
         </View>

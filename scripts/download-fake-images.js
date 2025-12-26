@@ -22,28 +22,38 @@ const entityImages = {
   'Mark Johnson': { category: 'couple,romance,people', filename: 'fake-profile-mark.jpg' },
   'Emma Williams': { category: 'couple,romance,people', filename: 'fake-profile-emma.jpg' },
   'Olivia Brown': { category: 'couple,romance,people', filename: 'fake-profile-olivia.jpg' },
+  'Sophia Martinez': { category: 'couple,romance,people', filename: 'fake-profile-sophia.jpg' },
+  'James Wilson': { category: 'couple,romance,people', filename: 'fake-profile-james.jpg' },
   
   // Jobs (Career)
   'Software Developer at TechCorp': { category: 'office,business,workplace', filename: 'fake-job-techcorp.jpg' },
   'Senior Developer at StartupXYZ': { category: 'office,business,workplace', filename: 'fake-job-startup.jpg' },
   'Lead Engineer at CurrentCompany': { category: 'office,business,workplace', filename: 'fake-job-current.jpg' },
+  'Junior Developer at WebSolutions': { category: 'office,business,workplace', filename: 'fake-job-websolutions.jpg' },
+  'Full Stack Developer at DigitalAgency': { category: 'office,business,workplace', filename: 'fake-job-digitalagency.jpg' },
   
   // Family Members
   'Sarah Johnson': { category: 'family,people,portrait', filename: 'fake-family-sarah.jpg' },
   'Michael Johnson': { category: 'family,people,portrait', filename: 'fake-family-michael.jpg' },
   'Maria Johnson': { category: 'family,people,portrait', filename: 'fake-family-maria.jpg' },
+  'Robert Johnson': { category: 'family,people,portrait', filename: 'fake-family-robert.jpg' },
+  'Emily Johnson': { category: 'family,people,portrait', filename: 'fake-family-emily.jpg' },
   
   // Friends
   'Alex Thompson': { category: 'friends,people,group', filename: 'fake-friend-alex.jpg' },
   'Jessica Martinez': { category: 'friends,people,group', filename: 'fake-friend-jessica.jpg' },
   'David Chen': { category: 'friends,people,group', filename: 'fake-friend-david.jpg' },
   'Sophie Anderson': { category: 'friends,people,group', filename: 'fake-friend-sophie.jpg' },
+  'Ryan Taylor': { category: 'friends,people,group', filename: 'fake-friend-ryan.jpg' },
+  'Maya Patel': { category: 'friends,people,group', filename: 'fake-friend-maya.jpg' },
   
   // Hobbies
   'Photography': { category: 'hobby,activity,creative', filename: 'fake-hobby-photography.jpg' },
   'Reading': { category: 'hobby,activity,creative', filename: 'fake-hobby-reading.jpg' },
   'Cooking': { category: 'hobby,activity,creative', filename: 'fake-hobby-cooking.jpg' },
   'Hiking': { category: 'hobby,activity,creative', filename: 'fake-hobby-hiking.jpg' },
+  'Yoga': { category: 'hobby,activity,creative', filename: 'fake-hobby-yoga.jpg' },
+  'Painting': { category: 'hobby,activity,creative', filename: 'fake-hobby-painting.jpg' },
 };
 
 /**

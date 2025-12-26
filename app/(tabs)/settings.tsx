@@ -204,28 +204,38 @@ export default function SettingsScreen() {
                 'Mark Johnson': require('@/assets/images/fake-profile-mark.jpg'),
                 'Emma Williams': require('@/assets/images/fake-profile-emma.jpg'),
                 'Olivia Brown': require('@/assets/images/fake-profile-olivia.jpg'),
+                'Sophia Martinez': require('@/assets/images/fake-profile-mark.jpg'), // Fallback to existing image
+                'James Wilson': require('@/assets/images/fake-profile-emma.jpg'), // Fallback to existing image
                 
                 // Jobs (Career)
                 'Software Developer at TechCorp': require('@/assets/images/fake-job-techcorp.jpg'),
                 'Senior Developer at StartupXYZ': require('@/assets/images/fake-job-startup.jpg'),
                 'Lead Engineer at CurrentCompany': require('@/assets/images/fake-job-current.jpg'),
+                'Junior Developer at WebSolutions': require('@/assets/images/fake-job-techcorp.jpg'), // Fallback to existing image
+                'Full Stack Developer at DigitalAgency': require('@/assets/images/fake-job-startup.jpg'), // Fallback to existing image
                 
                 // Family Members
                 'Sarah Johnson': require('@/assets/images/fake-family-sarah.jpg'),
                 'Michael Johnson': require('@/assets/images/fake-family-michael.jpg'),
                 'Maria Johnson': require('@/assets/images/fake-family-maria.jpg'),
+                'Robert Johnson': require('@/assets/images/fake-family-michael.jpg'), // Fallback to existing image
+                'Emily Johnson': require('@/assets/images/fake-family-sarah.jpg'), // Fallback to existing image
                 
                 // Friends
                 'Alex Thompson': require('@/assets/images/fake-friend-alex.jpg'),
                 'Jessica Martinez': require('@/assets/images/fake-friend-jessica.jpg'),
                 'David Chen': require('@/assets/images/fake-friend-david.jpg'),
                 'Sophie Anderson': require('@/assets/images/fake-friend-sophie.jpg'),
+                'Ryan Taylor': require('@/assets/images/fake-friend-alex.jpg'), // Fallback to existing image
+                'Maya Patel': require('@/assets/images/fake-friend-jessica.jpg'), // Fallback to existing image
                 
                 // Hobbies
                 'Photography': require('@/assets/images/fake-hobby-photography.jpg'),
                 'Reading': require('@/assets/images/fake-hobby-reading.jpg'),
                 'Cooking': require('@/assets/images/fake-hobby-cooking.jpg'),
                 'Hiking': require('@/assets/images/fake-hobby-hiking.jpg'),
+                'Yoga': require('@/assets/images/fake-hobby-photography.jpg'), // Fallback to existing image
+                'Painting': require('@/assets/images/fake-hobby-reading.jpg'), // Fallback to existing image
               };
               
               return imageMap[entityName] || null;
@@ -261,6 +271,8 @@ export default function SettingsScreen() {
         { name: 'Mark Johnson', description: 'College sweetheart, first love', startDate: '2020-01-15', endDate: '2021-12-31' },
         { name: 'Emma Williams', description: 'High school romance', startDate: '2021-01-01', endDate: '2022-12-31' },
         { name: 'Olivia Brown', description: 'Long distance relationship', startDate: '2023-01-01', endDate: null, ongoing: true },
+        { name: 'Sophia Martinez', description: 'Met at a coffee shop, instant connection', startDate: '2019-06-01', endDate: '2020-05-31' },
+        { name: 'James Wilson', description: 'University classmate, shared interests', startDate: '2022-03-15', endDate: '2023-08-30' },
       ];
 
       // Define multiple fake jobs with different characteristics
@@ -269,6 +281,8 @@ export default function SettingsScreen() {
         { name: 'Software Developer at TechCorp', description: 'My first job in tech', startDate: '2020-03-01', endDate: '2022-06-30' },
         { name: 'Senior Developer at StartupXYZ', description: 'Fast-paced startup environment', startDate: '2022-07-01', endDate: '2023-12-31' },
         { name: 'Lead Engineer at CurrentCompany', description: 'Current role, growing my career', startDate: '2024-01-01', endDate: null, ongoing: true },
+        { name: 'Junior Developer at WebSolutions', description: 'Started my career journey here', startDate: '2019-01-15', endDate: '2020-02-28' },
+        { name: 'Full Stack Developer at DigitalAgency', description: 'Creative projects and diverse clients', startDate: '2021-09-01', endDate: '2022-06-15' },
       ];
 
       // Define multiple fake family members with different characteristics
@@ -277,6 +291,8 @@ export default function SettingsScreen() {
         { name: 'Sarah Johnson', relationship: 'Sister', description: 'My older sister and best friend' },
         { name: 'Michael Johnson', relationship: 'Brother', description: 'My younger brother' },
         { name: 'Maria Johnson', relationship: 'Mother', description: 'My loving mother' },
+        { name: 'Robert Johnson', relationship: 'Father', description: 'My supportive father' },
+        { name: 'Emily Johnson', relationship: 'Sister', description: 'My youngest sister' },
       ];
 
       // Define multiple fake friends with different characteristics
@@ -286,6 +302,8 @@ export default function SettingsScreen() {
         { name: 'Jessica Martinez', description: 'Childhood friend, always there for me' },
         { name: 'David Chen', description: 'Work friend turned close friend' },
         { name: 'Sophie Anderson', description: 'Gym buddy and confidant' },
+        { name: 'Ryan Taylor', description: 'High school friend, shared many adventures' },
+        { name: 'Maya Patel', description: 'Book club friend, deep conversations' },
       ];
 
       // Define multiple fake hobbies with different characteristics
@@ -295,6 +313,8 @@ export default function SettingsScreen() {
         { name: 'Reading', description: 'Exploring new worlds through books' },
         { name: 'Cooking', description: 'Creating delicious meals' },
         { name: 'Hiking', description: 'Exploring nature trails' },
+        { name: 'Yoga', description: 'Finding peace and balance' },
+        { name: 'Painting', description: 'Expressing creativity through art' },
       ];
 
       // Prefetch all entity images before creating entities
