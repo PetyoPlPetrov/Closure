@@ -4809,6 +4809,9 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
   delay?: number;
   onComplete?: () => void;
 }) {
+  const componentMountTime = Date.now();
+  console.log(`[TIMING] PulsingFloatingMomentIcon component rendered at: ${componentMountTime}`);
+
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0);
   const pulseScale = useSharedValue(1);
@@ -4823,10 +4826,18 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
 
   // Start entrance animation with delay, then fade out after a duration
   React.useEffect(() => {
+    const effectTime = Date.now();
+    console.log(`[TIMING] PulsingFloatingMomentIcon useEffect triggered at: ${effectTime}`);
+
     const startAnimation = () => {
+      const animStartTime = Date.now();
+      console.log(`[TIMING] PulsingFloatingMomentIcon animation starting at: ${animStartTime}`);
+
       // Fade in and scale up
       opacity.value = withTiming(1, { duration: 400 });
       scale.value = withSpring(1, { damping: 10, stiffness: 150 });
+
+      console.log(`[TIMING] PulsingFloatingMomentIcon animations initiated at: ${Date.now()}`);
 
       // Start pulsing animation (scale between 1 and 1.3 for more prominent effect)
       // Pulse completes (up + down), then 2 second delay, then next pulse
@@ -6366,7 +6377,11 @@ export default function HomeScreen() {
 
   // Animate spheres scale and icon buttons when moment type selector is shown/hidden
   useEffect(() => {
+    const effectTime = Date.now();
+    console.log(`[TIMING] Sphere scale animation useEffect triggered at: ${effectTime}, showMomentTypeSelector: ${showMomentTypeSelector}`);
+
     if (showMomentTypeSelector) {
+      console.log(`[TIMING] Starting sphere shrink and icon button appearance at: ${Date.now()}`);
       // Shrink spheres to 0.6 scale
       spheresScale.value = withSpring(0.6, {
         damping: 15,
@@ -6378,7 +6393,9 @@ export default function HomeScreen() {
         stiffness: 150,
         mass: 0.8,
       });
+      console.log(`[TIMING] Sphere/icon animations initiated at: ${Date.now()}`);
     } else {
+      console.log(`[TIMING] Returning spheres to normal and hiding buttons at: ${Date.now()}`);
       // Return to normal size
       spheresScale.value = withSpring(1, {
         damping: 15,
@@ -6391,16 +6408,24 @@ export default function HomeScreen() {
 
   // Spawn random pulsing moments at 1-2 second intervals when moment type selector is shown
   useEffect(() => {
+    const effectStartTime = Date.now();
+    console.log(`[TIMING] Moment spawner useEffect triggered at: ${effectStartTime}`);
+
     if (!showMomentTypeSelector) {
+      console.log(`[TIMING] Clearing moments (selector hidden)`);
       setRandomMoments([]);
       return;
     }
 
+    console.log(`[TIMING] Starting moment spawn logic at: ${Date.now()}`);
     const avatarSize = isTablet ? 180 : 140;
     const avatarRadius = avatarSize / 2;
     const momentRadius = avatarRadius + (isTablet ? 120 : 80);
 
     const spawnMoment = () => {
+      const spawnTime = Date.now();
+      console.log(`[TIMING] Spawning moment at: ${spawnTime}`);
+
       // Random angle around the circle
       const angle = Math.random() * 2 * Math.PI;
 
@@ -6416,10 +6441,14 @@ export default function HomeScreen() {
         momentType: selectedMomentType,
       };
 
-      setRandomMoments(prev => [...prev, newMoment]);
+      setRandomMoments(prev => {
+        console.log(`[TIMING] Adding moment to array at: ${Date.now()}`);
+        return [...prev, newMoment];
+      });
     };
 
     // Spawn first moment immediately
+    console.log(`[TIMING] About to spawn first moment at: ${Date.now()}`);
     spawnMoment();
 
     // Then spawn at random intervals (3-5 seconds for better spacing)
@@ -8623,6 +8652,8 @@ export default function HomeScreen() {
 
                     // Toggle moment type selector when avatar is pressed
                     if (!isWheelSpinning.value) {
+                      const pressTime = Date.now();
+                      console.log(`[TIMING] Avatar pressed at: ${pressTime}`);
                       setShowMomentTypeSelector(!showMomentTypeSelector);
                     }
                   }}
