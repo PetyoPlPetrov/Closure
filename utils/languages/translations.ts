@@ -582,6 +582,32 @@ export interface Translations {
   'notifications.settings.condition.lessThanFriendsAvg.title': string;
   'notifications.settings.condition.lessThanFriendsAvg.body': string;
   'notifications.settings.sphere': string;
+
+  // Onboarding
+  'onboarding.skip': string;
+  'onboarding.next': string;
+  'onboarding.back': string;
+  'onboarding.finish': string;
+  'onboarding.demo': string;
+  'onboarding.of': string;
+  'onboarding.intro.title': string;
+  'onboarding.intro.message': string;
+  'onboarding.welcome.title': string;
+  'onboarding.welcome.message': string;
+  'onboarding.moments.title': string;
+  'onboarding.moments.message': string;
+  'onboarding.lessons.title': string;
+  'onboarding.lessons.message': string;
+  'onboarding.insights.title': string;
+  'onboarding.insights.message': string;
+  'onboarding.notifications.title': string;
+  'onboarding.notifications.message': string;
+  'onboarding.getStarted.title': string;
+  'onboarding.getStarted.message': string;
+
+  // Settings - Help Section
+  'settings.help.title': string;
+  'settings.help.viewGuide': string;
 }
 
 const translations: Record<Language, Translations> = {
@@ -1158,6 +1184,32 @@ const translations: Record<Language, Translations> = {
     'notifications.settings.condition.lessThanFriendsAvg.title': 'Less than friends avg',
     'notifications.settings.condition.lessThanFriendsAvg.body': 'Notify when this relationship has fewer moments than the average of your friendships. This helps maintain balance between romantic relationships and friendships.',
     'notifications.settings.sphere': 'Sphere',
+
+    // Onboarding
+    'onboarding.skip': 'Skip',
+    'onboarding.next': 'Next',
+    'onboarding.back': 'Back',
+    'onboarding.finish': 'Get Started',
+    'onboarding.demo': 'Try Demo',
+    'onboarding.of': 'of',
+    'onboarding.intro.title': 'Welcome to Sferas!',
+    'onboarding.intro.message': 'Sferas helps you appreciate and track the total amount of sunny vs cloudy moments in your life, measured as percentages in the main avatar. See at a glance how balanced each sphere of your life is.',
+    'onboarding.welcome.title': 'Reflect on Your Journey',
+    'onboarding.welcome.message': 'Revisit your life\'s moments and lessons to remember your past and shape your future. Take control of your journey by reflecting on what matters most across all areas of your life.',
+    'onboarding.moments.title': 'Track Your Moments',
+    'onboarding.moments.message': 'Capture both sunny and cloudy moments from your life. Record memories, reflect on experiences, and revisit them anytime to gain perspective and understanding.',
+    'onboarding.lessons.title': 'Learn & Grow',
+    'onboarding.lessons.message': 'Extract valuable lessons from your experiences. Document what you\'ve learned from both positive and challenging moments to foster personal growth and avoid repeating patterns.',
+    'onboarding.insights.title': 'Visualize Your Journey',
+    'onboarding.insights.message': 'View your life through the Wheel of Life chart. Get insights into how your time and energy are distributed across different spheres and identify areas that need attention.',
+    'onboarding.notifications.title': 'Stay Connected',
+    'onboarding.notifications.message': 'Set reminders to keep in touch with important people or catch up on different life spheres. Never lose track of what matters most to you.',
+    'onboarding.getStarted.title': 'Ready to Begin?',
+    'onboarding.getStarted.message': 'Start by creating records in each sphere. Add partners, jobs, family members, friends, or hobbies to begin tracking your life\'s moments and discovering meaningful insights.',
+
+    // Settings - Help Section
+    'settings.help.title': 'Help',
+    'settings.help.viewGuide': 'View Guide',
   },
   bg: {
     // Tab labels
@@ -1733,6 +1785,32 @@ const translations: Record<Language, Translations> = {
     'notifications.settings.condition.lessThanFriendsAvg.title': 'По-малко от средното на приятелите',
     'notifications.settings.condition.lessThanFriendsAvg.body': 'Известява, когато тази връзка има по-малко моменти от средното на вашите приятелства. Това помага да се поддържа баланс между романтични връзки и приятелства.',
     'notifications.settings.sphere': 'Сфера',
+
+    // Onboarding
+    'onboarding.skip': 'Пропусни',
+    'onboarding.next': 'Напред',
+    'onboarding.back': 'Назад',
+    'onboarding.finish': 'Започни',
+    'onboarding.demo': 'Пробно Демо',
+    'onboarding.of': 'от',
+    'onboarding.intro.title': 'Добре дошли в Sferas!',
+    'onboarding.intro.message': 'Sferas ви помага да оцените и проследите общото количество слънчеви и облачни моменти във вашия живот, измерени като проценти в главния аватар. Вижте с един поглед колко балансирана е всяка сфера от живота ви.',
+    'onboarding.welcome.title': 'Размислете върху пътуването си',
+    'onboarding.welcome.message': 'Преразгледайте моментите и уроците от живота си, за да помните миналото си и да оформите бъдещето си. Поемете контрол над пътуването си, като размишлявате върху това, което е най-важно във всички области на живота ви.',
+    'onboarding.moments.title': 'Проследете моментите си',
+    'onboarding.moments.message': 'Уловете слънчевите и облачните моменти от живота си. Записвайте спомени, размишлявайте върху преживявания и ги преразглеждайте, за да получите перспектива и разбиране.',
+    'onboarding.lessons.title': 'Научете и растете',
+    'onboarding.lessons.message': 'Извлечете ценни уроци от вашите преживявания. Документирайте какво сте научили от положителните и предизвикателните моменти, за да насърчите личностния растеж и да избегнете повтарящи се модели.',
+    'onboarding.insights.title': 'Визуализирайте пътуването си',
+    'onboarding.insights.message': 'Разгледайте живота си чрез диаграмата Колело на живота. Получете информация за това как времето и енергията ви се разпределят в различните сфери и идентифицирайте области, които се нуждаят от внимание.',
+    'onboarding.notifications.title': 'Оставайте свързани',
+    'onboarding.notifications.message': 'Задайте напомняния, за да поддържате връзка с важни хора или да наваксате с различни житейски сфери. Никога не губете от поглед това, което е най-важно за вас.',
+    'onboarding.getStarted.title': 'Готови ли сте да започнете?',
+    'onboarding.getStarted.message': 'Започнете, като създадете записи във всяка сфера. Добавете партньори, работа, членове на семейството, приятели или хобита, за да започнете да проследявате житейските си моменти и да откривате смислени прозрения.',
+
+    // Settings - Help Section
+    'settings.help.title': 'Помощ',
+    'settings.help.viewGuide': 'Преглед на ръководството',
   },
 };
 

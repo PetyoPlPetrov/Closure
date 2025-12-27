@@ -4,6 +4,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
+import { OnboardingStepper } from '@/library/components/onboarding-stepper';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
@@ -28,6 +29,7 @@ export default function SettingsScreen() {
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [isCleaningMemories, setIsCleaningMemories] = useState(false);
+  const [onboardingVisible, setOnboardingVisible] = useState(false);
 
   const styles = useMemo(
     () =>
@@ -190,10 +192,35 @@ export default function SettingsScreen() {
     
     setIsGeneratingFakeData(true);
         try {
-          // Get image URIs using expo-asset for memory images
-          const maldivesAsset = Asset.fromModule(require('@/assets/images/maldives.jpg'));
-          await maldivesAsset.downloadAsync();
-          const maldivesImageUri = maldivesAsset.localUri || maldivesAsset.uri;
+          // Load memory/moment images
+          const memoryImages = [
+            require('@/assets/images/fake-memory-1.jpg'),
+            require('@/assets/images/fake-memory-2.jpg'),
+            require('@/assets/images/fake-memory-3.jpg'),
+            require('@/assets/images/fake-memory-4.jpg'),
+            require('@/assets/images/fake-memory-5.jpg'),
+            require('@/assets/images/fake-memory-6.jpg'),
+            require('@/assets/images/fake-memory-7.jpg'),
+            require('@/assets/images/fake-memory-8.jpg'),
+            require('@/assets/images/fake-memory-9.jpg'),
+            require('@/assets/images/fake-memory-10.jpg'),
+            require('@/assets/images/fake-memory-11.jpg'),
+            require('@/assets/images/fake-memory-12.jpg'),
+          ];
+
+          // Preload all memory images
+          const memoryImageUris: string[] = [];
+          for (const memoryImg of memoryImages) {
+            const asset = Asset.fromModule(memoryImg);
+            await asset.downloadAsync();
+            memoryImageUris.push(asset.localUri || asset.uri);
+          }
+
+          // Helper to get a random memory image
+          const getRandomMemoryImage = () => {
+            const randomIndex = Math.floor(Math.random() * memoryImageUris.length);
+            return memoryImageUris[randomIndex];
+          };
 
           // Map entity names to their local asset images
           // Using try-catch for each require to handle missing images gracefully
@@ -204,38 +231,38 @@ export default function SettingsScreen() {
                 'Mark Johnson': require('@/assets/images/fake-profile-mark.jpg'),
                 'Emma Williams': require('@/assets/images/fake-profile-emma.jpg'),
                 'Olivia Brown': require('@/assets/images/fake-profile-olivia.jpg'),
-                'Sophia Martinez': require('@/assets/images/fake-profile-mark.jpg'), // Fallback to existing image
-                'James Wilson': require('@/assets/images/fake-profile-emma.jpg'), // Fallback to existing image
-                
+                'Sophia Martinez': require('@/assets/images/fake-profile-sophia.jpg'),
+                'James Wilson': require('@/assets/images/fake-profile-james.jpg'),
+
                 // Jobs (Career)
                 'Software Developer at TechCorp': require('@/assets/images/fake-job-techcorp.jpg'),
                 'Senior Developer at StartupXYZ': require('@/assets/images/fake-job-startup.jpg'),
                 'Lead Engineer at CurrentCompany': require('@/assets/images/fake-job-current.jpg'),
-                'Junior Developer at WebSolutions': require('@/assets/images/fake-job-techcorp.jpg'), // Fallback to existing image
-                'Full Stack Developer at DigitalAgency': require('@/assets/images/fake-job-startup.jpg'), // Fallback to existing image
-                
+                'Junior Developer at WebSolutions': require('@/assets/images/fake-job-websolutions.jpg'),
+                'Full Stack Developer at DigitalAgency': require('@/assets/images/fake-job-digitalagency.jpg'),
+
                 // Family Members
                 'Sarah Johnson': require('@/assets/images/fake-family-sarah.jpg'),
                 'Michael Johnson': require('@/assets/images/fake-family-michael.jpg'),
                 'Maria Johnson': require('@/assets/images/fake-family-maria.jpg'),
-                'Robert Johnson': require('@/assets/images/fake-family-michael.jpg'), // Fallback to existing image
-                'Emily Johnson': require('@/assets/images/fake-family-sarah.jpg'), // Fallback to existing image
-                
+                'Robert Johnson': require('@/assets/images/fake-family-robert.jpg'),
+                'Emily Johnson': require('@/assets/images/fake-family-emily.jpg'),
+
                 // Friends
                 'Alex Thompson': require('@/assets/images/fake-friend-alex.jpg'),
                 'Jessica Martinez': require('@/assets/images/fake-friend-jessica.jpg'),
                 'David Chen': require('@/assets/images/fake-friend-david.jpg'),
                 'Sophie Anderson': require('@/assets/images/fake-friend-sophie.jpg'),
-                'Ryan Taylor': require('@/assets/images/fake-friend-alex.jpg'), // Fallback to existing image
-                'Maya Patel': require('@/assets/images/fake-friend-jessica.jpg'), // Fallback to existing image
-                
+                'Ryan Taylor': require('@/assets/images/fake-friend-ryan.jpg'),
+                'Maya Patel': require('@/assets/images/fake-friend-maya.jpg'),
+
                 // Hobbies
                 'Photography': require('@/assets/images/fake-hobby-photography.jpg'),
                 'Reading': require('@/assets/images/fake-hobby-reading.jpg'),
                 'Cooking': require('@/assets/images/fake-hobby-cooking.jpg'),
                 'Hiking': require('@/assets/images/fake-hobby-hiking.jpg'),
-                'Yoga': require('@/assets/images/fake-hobby-photography.jpg'), // Fallback to existing image
-                'Painting': require('@/assets/images/fake-hobby-reading.jpg'), // Fallback to existing image
+                'Yoga': require('@/assets/images/fake-hobby-yoga.jpg'),
+                'Painting': require('@/assets/images/fake-hobby-painting.jpg'),
               };
               
               return imageMap[entityName] || null;
@@ -809,7 +836,7 @@ export default function SettingsScreen() {
                 // Use explicit sphere parameter to ensure memories are created for relationships
                 await addIdealizedMemory(profileId, 'relationships', {
                 title: memoryTitle,
-                imageUri: maldivesImageUri,
+                imageUri: getRandomMemoryImage(),
                 hardTruths,
                 goodFacts,
                 lessonsLearned,
@@ -941,7 +968,7 @@ export default function SettingsScreen() {
               // Use new signature for career sphere: (entityId, sphere, memoryData)
               await addIdealizedMemory(jobId, 'career', {
                 title: memoryTitle,
-                imageUri: maldivesImageUri,
+                imageUri: getRandomMemoryImage(),
                 hardTruths,
                 goodFacts,
                 lessonsLearned,
@@ -1071,7 +1098,7 @@ export default function SettingsScreen() {
 
                 await addIdealizedMemory(memberId, 'family', {
                   title: memoryTitle,
-                  imageUri: maldivesImageUri,
+                  imageUri: getRandomMemoryImage(),
                   hardTruths,
                   goodFacts,
                   lessonsLearned,
@@ -1178,7 +1205,7 @@ export default function SettingsScreen() {
 
                 await addIdealizedMemory(friendId, 'friends', {
                   title: memoryTitle,
-                  imageUri: maldivesImageUri,
+                  imageUri: getRandomMemoryImage(),
                   hardTruths,
                   goodFacts,
                   lessonsLearned,
@@ -1283,7 +1310,7 @@ export default function SettingsScreen() {
 
                 await addIdealizedMemory(hobbyId, 'hobbies', {
                   title: memoryTitle,
-                  imageUri: maldivesImageUri,
+                  imageUri: getRandomMemoryImage(),
                   hardTruths,
                   goodFacts,
                   lessonsLearned,
@@ -1577,8 +1604,40 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Temporary: Generate Fake Data Button */}
         <View style={styles.section}>
+          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            {t('settings.help.title')}
+          </ThemedText>
+
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={() => setOnboardingVisible(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.dropdownContent}>
+              <MaterialIcons
+                name="help-outline"
+                size={24 * fontScale}
+                color={colors.primary}
+              />
+              <ThemedText
+                size="l"
+                weight="medium"
+                style={styles.dropdownText}
+              >
+                {t('settings.help.viewGuide')}
+              </ThemedText>
+            </View>
+            <MaterialIcons
+              name="arrow-forward-ios"
+              size={20 * fontScale}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Temporary: Generate Fake Data Button */}
+        {/* <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
             {t('settings.devTools.title')}
           </ThemedText>
@@ -1610,7 +1669,7 @@ export default function SettingsScreen() {
               />
             )}
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[
               styles.dropdown,
@@ -1643,8 +1702,13 @@ export default function SettingsScreen() {
               />
             )}
           </TouchableOpacity>
-        </View>
+        </View> */}
       </ScrollView>
+
+      <OnboardingStepper
+        visible={onboardingVisible}
+        onDismiss={() => setOnboardingVisible(false)}
+      />
     </TabScreenContainer>
   );
 }

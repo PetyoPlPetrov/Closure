@@ -7,8 +7,8 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
+import { OnboardingStepper } from '@/library/components/onboarding-stepper';
 import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS, TabScreenContainer } from '@/library/components/tab-screen-container';
-import { WalkthroughModal } from '@/library/components/walkthrough-modal';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { requestSpheresTabPulse, stopSpheresTabPulse } from '@/utils/spheres-tab-pulse';
@@ -27,7 +27,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, PanResponder, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -737,10 +737,10 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   // Use clamped position to ensure avatar is visible
   const startX = useSharedValue(clampedPositionX);
   const startY = useSharedValue(clampedPositionY);
-  
+
   // Target position for focused state (State B - centered in visible viewport)
   const targetX = SCREEN_WIDTH / 2;
-  const targetY = SCREEN_HEIGHT / 2;
+  const targetY = SCREEN_HEIGHT / 2 + 80; // Lower the focused avatar by 80px
   
   // Shared values for focused position (used by memories)
   const focusedX = useSharedValue(clampedPositionX);
@@ -2243,7 +2243,50 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
   const bottomPadding = 60; // Padding from bottom - increased to move buttons up
   const containerBottom = bottomNavBarHeight + bottomPadding; // Position above navigation bar
   const colors = Colors[colorScheme ?? 'dark'];
-  
+
+  // Pulse animation scales
+  const lessonButtonScale = useSharedValue(1);
+  const cloudButtonScale = useSharedValue(1);
+  const sunButtonScale = useSharedValue(1);
+
+  // Animated styles for pulse effect
+  const lessonButtonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: lessonButtonScale.value }],
+  }));
+
+  const cloudButtonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: cloudButtonScale.value }],
+  }));
+
+  const sunButtonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: sunButtonScale.value }],
+  }));
+
+  // Pulse animation handlers
+  const handleLessonPress = () => {
+    lessonButtonScale.value = withSequence(
+      withSpring(0.85, { damping: 10, stiffness: 400 }),
+      withSpring(1, { damping: 10, stiffness: 200 })
+    );
+    handleAddLesson?.();
+  };
+
+  const handleCloudPress = () => {
+    cloudButtonScale.value = withSequence(
+      withSpring(0.85, { damping: 10, stiffness: 400 }),
+      withSpring(1, { damping: 10, stiffness: 200 })
+    );
+    handleAddCloud();
+  };
+
+  const handleSunPress = () => {
+    sunButtonScale.value = withSequence(
+      withSpring(0.85, { damping: 10, stiffness: 400 }),
+      withSpring(1, { damping: 10, stiffness: 200 })
+    );
+    handleAddSun();
+  };
+
   return (
     <>
       {/* All action buttons container - positioned at bottom */}
@@ -2271,31 +2314,34 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
           style={{ marginBottom: 16 }}
         >
           <Pressable
-            onPress={handleAddLesson}
+            onPress={handleLessonPress}
             disabled={allLessonsVisible || totalLessonsCount === 0}
           >
-          <View
-            style={{
-              width: isLargeDevice ? 96 : 88,
-              height: isLargeDevice ? 96 : 88,
-              borderRadius: isLargeDevice ? 48 : 44,
-              justifyContent: 'center',
-              alignItems: 'center',
-              backgroundColor: colorScheme === 'dark'
-                ? 'rgba(255, 255, 255, 0.08)'
-                : 'rgba(255, 255, 255, 0.9)',
-              shadowColor: colorScheme === 'dark' ? '#FFA000' : '#FFA000',
-              shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
-              shadowOpacity: colorScheme === 'dark' ? 0.9 : 0.7,
-              shadowRadius: colorScheme === 'dark' ? 24 : 20,
-              elevation: colorScheme === 'dark' ? 18 : 15,
-              overflow: 'visible',
-              borderWidth: colorScheme === 'dark' ? 2 : 1.5,
-              borderColor: colorScheme === 'dark'
-                ? '#FFA000'
-                : '#FFA000',
-              opacity: (allLessonsVisible || totalLessonsCount === 0) ? 0.4 : 1,
-            }}
+          <Animated.View
+            style={[
+              {
+                width: isLargeDevice ? 96 : 88,
+                height: isLargeDevice ? 96 : 88,
+                borderRadius: isLargeDevice ? 48 : 44,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: colorScheme === 'dark'
+                  ? 'rgba(255, 255, 255, 0.08)'
+                  : 'rgba(255, 255, 255, 0.9)',
+                shadowColor: colorScheme === 'dark' ? '#FFA000' : '#FFA000',
+                shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
+                shadowOpacity: colorScheme === 'dark' ? 0.9 : 0.7,
+                shadowRadius: colorScheme === 'dark' ? 24 : 20,
+                elevation: colorScheme === 'dark' ? 18 : 15,
+                overflow: 'visible',
+                borderWidth: colorScheme === 'dark' ? 2 : 1.5,
+                borderColor: colorScheme === 'dark'
+                  ? '#FFA000'
+                  : '#FFA000',
+                opacity: (allLessonsVisible || totalLessonsCount === 0) ? 0.4 : 1,
+              },
+              lessonButtonAnimatedStyle,
+            ]}
           >
             <LinearGradient
               colors={
@@ -2355,7 +2401,7 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
                 </View>
               )}
             </LinearGradient>
-          </View>
+          </Animated.View>
         </Pressable>
       </View>
         )}
@@ -2384,31 +2430,34 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
           }}
         >
         <Pressable
-          onPress={handleAddCloud}
+          onPress={handleCloudPress}
           disabled={allCloudsVisible}
         >
-        <View
-          style={{
-            width: isLargeDevice ? 96 : 88,
-            height: isLargeDevice ? 96 : 88,
-            borderRadius: isLargeDevice ? 48 : 44,
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: colorScheme === 'dark' 
-              ? 'rgba(255, 255, 255, 0.08)' 
-              : 'rgba(255, 255, 255, 0.9)',
-            shadowColor: colorScheme === 'dark' ? '#000' : '#000',
-            shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
-            shadowOpacity: colorScheme === 'dark' ? 0.8 : 0.6,
-            shadowRadius: colorScheme === 'dark' ? 24 : 20,
-            elevation: colorScheme === 'dark' ? 18 : 15,
-            overflow: 'visible', // Allow count text to be visible
-            borderWidth: colorScheme === 'dark' ? 2 : 1.5,
-            borderColor: colorScheme === 'dark' 
-              ? 'rgba(255, 255, 255, 0.3)' 
-              : 'rgba(255, 255, 255, 0.6)',
-            opacity: allCloudsVisible ? 0.4 : 1,
-          }}
+        <Animated.View
+          style={[
+            {
+              width: isLargeDevice ? 96 : 88,
+              height: isLargeDevice ? 96 : 88,
+              borderRadius: isLargeDevice ? 48 : 44,
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: colorScheme === 'dark'
+                ? 'rgba(255, 255, 255, 0.08)'
+                : 'rgba(255, 255, 255, 0.9)',
+              shadowColor: colorScheme === 'dark' ? '#000' : '#000',
+              shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
+              shadowOpacity: colorScheme === 'dark' ? 0.8 : 0.6,
+              shadowRadius: colorScheme === 'dark' ? 24 : 20,
+              elevation: colorScheme === 'dark' ? 18 : 15,
+              overflow: 'visible', // Allow count text to be visible
+              borderWidth: colorScheme === 'dark' ? 2 : 1.5,
+              borderColor: colorScheme === 'dark'
+                ? 'rgba(255, 255, 255, 0.3)'
+                : 'rgba(255, 255, 255, 0.6)',
+              opacity: allCloudsVisible ? 0.4 : 1,
+            },
+            cloudButtonAnimatedStyle,
+          ]}
         >
           <LinearGradient
             colors={
@@ -2468,10 +2517,10 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
               </View>
             )}
           </LinearGradient>
-        </View>
+        </Animated.View>
       </Pressable>
     </View>
-    
+
     {/* RemindWhy Label */}
     <View
       style={{
@@ -2508,31 +2557,34 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
       }}
     >
         <Pressable
-          onPress={handleAddSun}
+          onPress={handleSunPress}
           disabled={allSunsVisible}
         >
-        <View
-          style={{
-            width: isLargeDevice ? 96 : 88,
-            height: isLargeDevice ? 96 : 88,
-            borderRadius: isLargeDevice ? 48 : 44,
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: colorScheme === 'dark' 
-              ? 'rgba(255, 255, 255, 0.08)' 
-              : 'rgba(255, 255, 255, 0.9)',
-            shadowColor: colorScheme === 'dark' ? '#FFD700' : '#FFD700',
-            shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
-            shadowOpacity: colorScheme === 'dark' ? 0.9 : 0.7,
-            shadowRadius: colorScheme === 'dark' ? 24 : 20,
-            elevation: colorScheme === 'dark' ? 18 : 15,
-            overflow: 'visible', // Allow count text to be visible
-            borderWidth: colorScheme === 'dark' ? 2 : 1.5,
-            borderColor: colorScheme === 'dark' 
-              ? '#FFD700' 
-              : '#FFD700',
-            opacity: allSunsVisible ? 0.4 : 1,
-          }}
+        <Animated.View
+          style={[
+            {
+              width: isLargeDevice ? 96 : 88,
+              height: isLargeDevice ? 96 : 88,
+              borderRadius: isLargeDevice ? 48 : 44,
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: colorScheme === 'dark'
+                ? 'rgba(255, 255, 255, 0.08)'
+                : 'rgba(255, 255, 255, 0.9)',
+              shadowColor: colorScheme === 'dark' ? '#FFD700' : '#FFD700',
+              shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
+              shadowOpacity: colorScheme === 'dark' ? 0.9 : 0.7,
+              shadowRadius: colorScheme === 'dark' ? 24 : 20,
+              elevation: colorScheme === 'dark' ? 18 : 15,
+              overflow: 'visible', // Allow count text to be visible
+              borderWidth: colorScheme === 'dark' ? 2 : 1.5,
+              borderColor: colorScheme === 'dark'
+                ? '#FFD700'
+                : '#FFD700',
+              opacity: allSunsVisible ? 0.4 : 1,
+            },
+            sunButtonAnimatedStyle,
+          ]}
         >
           <LinearGradient
             colors={
@@ -2592,7 +2644,7 @@ const MemoryActionButtons = React.memo(function MemoryActionButtons({
               </View>
             )}
           </LinearGradient>
-        </View>
+        </Animated.View>
       </Pressable>
     </View>
         </View>
@@ -4165,7 +4217,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
       })()}
 
       {/* Cloud icon - positioned in the middle of the black (cloudy) arc */}
-      {percentage < 100 && (() => {
+      {percentage < 100 && percentage > 0 && (() => {
         // Calculate angle for middle of cloudy arc
         // Cloudy arc starts where sunny arc ends and goes to complete the circle
         // Start angle: -90° + (percentage/100 * 360°)
@@ -4809,9 +4861,6 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
   delay?: number;
   onComplete?: () => void;
 }) {
-  const componentMountTime = Date.now();
-  console.log(`[TIMING] PulsingFloatingMomentIcon component rendered at: ${componentMountTime}`);
-
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0);
   const pulseScale = useSharedValue(1);
@@ -4826,18 +4875,10 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
 
   // Start entrance animation with delay, then fade out after a duration
   React.useEffect(() => {
-    const effectTime = Date.now();
-    console.log(`[TIMING] PulsingFloatingMomentIcon useEffect triggered at: ${effectTime}`);
-
     const startAnimation = () => {
-      const animStartTime = Date.now();
-      console.log(`[TIMING] PulsingFloatingMomentIcon animation starting at: ${animStartTime}`);
-
       // Fade in and scale up
       opacity.value = withTiming(1, { duration: 400 });
       scale.value = withSpring(1, { damping: 10, stiffness: 150 });
-
-      console.log(`[TIMING] PulsingFloatingMomentIcon animations initiated at: ${Date.now()}`);
 
       // Start pulsing animation (scale between 1 and 1.3 for more prominent effect)
       // Pulse completes (up + down), then 2 second delay, then next pulse
@@ -4887,7 +4928,7 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
     } else {
       startAnimation();
     }
-  }, [opacity, scale, pulseScale, floatOffset, delay, onComplete]);
+  }, [delay, onComplete]); // Removed shared values from deps - they don't change and cause infinite loops
 
   const animatedStyle = useAnimatedStyle(() => {
     const floatY = (floatOffset.value - 0.5) * 10; // -5px to +5px floating range
@@ -5698,6 +5739,11 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const handleOnboardingDemo = useCallback(() => {
+    // Navigate to settings to trigger demo data generation
+    router.push('/(tabs)/settings');
+  }, []);
+
   // Avatar pulse animation - triggers when tab is focused
   const avatarPulseScale = useSharedValue(1);
 
@@ -6120,12 +6166,12 @@ export default function HomeScreen() {
   const [momentTypeSelectorDismissed, setMomentTypeSelectorDismissed] = useState(false); // Track if user dismissed selector
 
   // State for random pulsing moments around center avatar
-  const [randomMoments, setRandomMoments] = useState<Array<{
+  const [randomMoments, setRandomMoments] = useState<{
     id: number;
     angle: number;
     radius: number;
     momentType: 'lessons' | 'hardTruths' | 'sunnyMoments';
-  }>>([]);
+  }[]>([]);
   const momentIdCounter = useRef(0);
 
   // Animation values for lesson notification (same style as encouragement message)
@@ -6140,7 +6186,7 @@ export default function HomeScreen() {
   // Constants for sphere circle
   const sphereCircle = useMemo(() => {
     const centerX = SCREEN_WIDTH / 2;
-    const centerY = SCREEN_HEIGHT / 2 + 60; // Lower the main circle and floating elements by 60px
+    const centerY = SCREEN_HEIGHT / 2 + 40; // Lower the main circle and floating elements by 60px
     const radius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35; // Distance from center - increased from 0.3 to 0.35
     const numSpheres = 5;
     const angleStep = (2 * Math.PI) / numSpheres; // 72 degrees in radians
@@ -6377,11 +6423,7 @@ export default function HomeScreen() {
 
   // Animate spheres scale and icon buttons when moment type selector is shown/hidden
   useEffect(() => {
-    const effectTime = Date.now();
-    console.log(`[TIMING] Sphere scale animation useEffect triggered at: ${effectTime}, showMomentTypeSelector: ${showMomentTypeSelector}`);
-
     if (showMomentTypeSelector) {
-      console.log(`[TIMING] Starting sphere shrink and icon button appearance at: ${Date.now()}`);
       // Shrink spheres to 0.6 scale
       spheresScale.value = withSpring(0.6, {
         damping: 15,
@@ -6393,9 +6435,7 @@ export default function HomeScreen() {
         stiffness: 150,
         mass: 0.8,
       });
-      console.log(`[TIMING] Sphere/icon animations initiated at: ${Date.now()}`);
     } else {
-      console.log(`[TIMING] Returning spheres to normal and hiding buttons at: ${Date.now()}`);
       // Return to normal size
       spheresScale.value = withSpring(1, {
         damping: 15,
@@ -6408,24 +6448,16 @@ export default function HomeScreen() {
 
   // Spawn random pulsing moments at 1-2 second intervals when moment type selector is shown
   useEffect(() => {
-    const effectStartTime = Date.now();
-    console.log(`[TIMING] Moment spawner useEffect triggered at: ${effectStartTime}`);
-
     if (!showMomentTypeSelector) {
-      console.log(`[TIMING] Clearing moments (selector hidden)`);
       setRandomMoments([]);
       return;
     }
 
-    console.log(`[TIMING] Starting moment spawn logic at: ${Date.now()}`);
     const avatarSize = isTablet ? 180 : 140;
     const avatarRadius = avatarSize / 2;
     const momentRadius = avatarRadius + (isTablet ? 120 : 80);
 
     const spawnMoment = () => {
-      const spawnTime = Date.now();
-      console.log(`[TIMING] Spawning moment at: ${spawnTime}`);
-
       // Random angle around the circle
       const angle = Math.random() * 2 * Math.PI;
 
@@ -6441,14 +6473,10 @@ export default function HomeScreen() {
         momentType: selectedMomentType,
       };
 
-      setRandomMoments(prev => {
-        console.log(`[TIMING] Adding moment to array at: ${Date.now()}`);
-        return [...prev, newMoment];
-      });
+      setRandomMoments(prev => [...prev, newMoment]);
     };
 
     // Spawn first moment immediately
-    console.log(`[TIMING] About to spawn first moment at: ${Date.now()}`);
     spawnMoment();
 
     // Then spawn at random intervals (3-5 seconds for better spacing)
@@ -7416,11 +7444,11 @@ export default function HomeScreen() {
   
   // Shared values to track focused avatar positions for SparkledDots
   const focusedFamilyMemberPositionX = useSharedValue(SCREEN_WIDTH / 2);
-  const focusedFamilyMemberPositionY = useSharedValue(SCREEN_HEIGHT / 2 + 60);
+  const focusedFamilyMemberPositionY = useSharedValue(SCREEN_HEIGHT / 2 + 80);
   const focusedFriendPositionX = useSharedValue(SCREEN_WIDTH / 2);
-  const focusedFriendPositionY = useSharedValue(SCREEN_HEIGHT / 2 + 60);
+  const focusedFriendPositionY = useSharedValue(SCREEN_HEIGHT / 2 + 80);
   const focusedHobbyPositionX = useSharedValue(SCREEN_WIDTH / 2);
-  const focusedHobbyPositionY = useSharedValue(SCREEN_HEIGHT / 2 + 60);
+  const focusedHobbyPositionY = useSharedValue(SCREEN_HEIGHT / 2 + 80);
   
   // Helper: Get focusedMemory only if it matches the current selectedSphere
   // This ensures cross-sphere focusedMemory is ignored everywhere
@@ -8652,8 +8680,6 @@ export default function HomeScreen() {
 
                     // Toggle moment type selector when avatar is pressed
                     if (!isWheelSpinning.value) {
-                      const pressTime = Date.now();
-                      console.log(`[TIMING] Avatar pressed at: ${pressTime}`);
                       setShowMomentTypeSelector(!showMomentTypeSelector);
                     }
                   }}
@@ -9494,10 +9520,11 @@ export default function HomeScreen() {
           })()}
         </View>
 
-      {/* Walkthrough Modal */}
-      <WalkthroughModal
+      {/* Onboarding Stepper */}
+      <OnboardingStepper
         visible={walkthroughVisible}
         onDismiss={handleWalkthroughDismiss}
+        onDemo={handleOnboardingDemo}
       />
     </TabScreenContainer>
   );
@@ -11752,10 +11779,11 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Walkthrough Modal */}
-      <WalkthroughModal
+      {/* Onboarding Stepper */}
+      <OnboardingStepper
         visible={walkthroughVisible}
         onDismiss={handleWalkthroughDismiss}
+        onDemo={handleOnboardingDemo}
       />
     </TabScreenContainer>
   );
