@@ -27,7 +27,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppState, Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -629,6 +629,11 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       // Stop floating when focused
       floatAnimation.value = 0;
     }
+
+    return () => {
+      // Cancel infinite float animation on cleanup
+      cancelAnimation(floatAnimation);
+    };
   }, [floatAnimation, isFocused]);
   
   // Pulse drag handle icon twice when dragging is enabled and avatar is not focused
@@ -3125,6 +3130,11 @@ const FloatingMemory = React.memo(function FloatingMemory({
         true
       );
     }
+
+    return () => {
+      // Cancel infinite float animation on cleanup
+      cancelAnimation(floatAnimation);
+    };
   }, [floatAnimation, isMemoryFocused]);
 
   // Calculate memory position relative to container center
@@ -3707,13 +3717,13 @@ const FloatingCloud = React.memo(function FloatingCloud({
   const cloudSize = isFocused ? 18 : 24; // Smaller when focused, but not too small
 
   const floatAnimation = useSharedValue(0);
-  
+
   // No scale animation when focused - use proper base size instead
   const scale = useSharedValue(1);
   React.useEffect(() => {
     scale.value = 1; // Keep at 1 to maintain proportions
   }, [isFocused, scale]);
-  
+
   React.useEffect(() => {
     floatAnimation.value = withRepeat(
       withTiming(1, {
@@ -3723,6 +3733,11 @@ const FloatingCloud = React.memo(function FloatingCloud({
       -1,
       true
     );
+
+    return () => {
+      // Cancel infinite float animation on cleanup
+      cancelAnimation(floatAnimation);
+    };
   }, [floatAnimation]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -3846,13 +3861,13 @@ const FloatingSun = React.memo(function FloatingSun({
   const sunSize = isFocused ? 16 : 22; // Smaller when focused, but not too small
 
   const floatAnimation = useSharedValue(0);
-  
+
   // No scale animation when focused - use proper base size instead
   const scale = useSharedValue(1);
   React.useEffect(() => {
     scale.value = 1; // Keep at 1 to maintain proportions
   }, [isFocused, scale]);
-  
+
   React.useEffect(() => {
     floatAnimation.value = withRepeat(
       withTiming(1, {
@@ -3862,6 +3877,11 @@ const FloatingSun = React.memo(function FloatingSun({
       -1,
       true
     );
+
+    return () => {
+      // Cancel infinite float animation on cleanup
+      cancelAnimation(floatAnimation);
+    };
   }, [floatAnimation]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -4426,6 +4446,12 @@ const SparkledDot = React.memo(function SparkledDot({
         }
       })
     );
+
+    return () => {
+      // Cancel infinite opacity pulse animation on cleanup
+      cancelAnimation(opacity);
+      cancelAnimation(scale);
+    };
   }, [delay, duration, opacity, scale]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -4563,13 +4589,20 @@ const FloatingEntity = React.memo(function FloatingEntity({
         true
       );
     };
-    
+
+    let timer: NodeJS.Timeout | null = null;
+
     if (delay > 0) {
-      const timer = setTimeout(startAnimation, delay);
-      return () => clearTimeout(timer);
+      timer = setTimeout(startAnimation, delay);
     } else {
       startAnimation();
     }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      // Cancel infinite float animation on cleanup
+      cancelAnimation(floatOffset);
+    };
   }, [floatOffset, delay]);
   
   // Track if this floating entity should be hidden during zoom
@@ -4772,12 +4805,21 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
       );
     };
 
+    let timer: NodeJS.Timeout | null = null;
+
     if (delay > 0) {
-      const timer = setTimeout(startAnimation, delay);
-      return () => clearTimeout(timer);
+      timer = setTimeout(startAnimation, delay);
     } else {
       startAnimation();
     }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      // Cancel infinite float animation on cleanup
+      cancelAnimation(floatOffset);
+      cancelAnimation(opacity);
+      cancelAnimation(scale);
+    };
   }, [floatOffset, opacity, scale, delay, index]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -4865,6 +4907,7 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
   const scale = useSharedValue(0);
   const pulseScale = useSharedValue(1);
   const floatOffset = useSharedValue(0);
+  const fadeOutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const { isTablet } = useLargeDevice();
   const iconSize = isTablet ? 20 : 16; // Slightly larger than regular floating icons
@@ -4912,22 +4955,34 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
       );
 
       // Fade out after total duration: 3 pulses × (600ms up + 600ms down + 2000ms delay) = ~9.6 seconds
-      setTimeout(() => {
+      fadeOutTimerRef.current = setTimeout(() => {
         opacity.value = withTiming(0, { duration: 500 }, () => {
           if (onComplete) {
             runOnJS(onComplete)();
           }
         });
         scale.value = withTiming(0.8, { duration: 500 });
+        fadeOutTimerRef.current = null;
       }, 9600);
     };
 
+    let delayTimer: NodeJS.Timeout | null = null;
+
     if (delay > 0) {
-      const timer = setTimeout(startAnimation, delay);
-      return () => clearTimeout(timer);
+      delayTimer = setTimeout(startAnimation, delay);
     } else {
       startAnimation();
     }
+
+    // Cleanup function - runs when component unmounts or dependencies change
+    return () => {
+      if (delayTimer) clearTimeout(delayTimer);
+      if (fadeOutTimerRef.current) clearTimeout(fadeOutTimerRef.current);
+      cancelAnimation(pulseScale);
+      cancelAnimation(floatOffset);
+      cancelAnimation(opacity);
+      cancelAnimation(scale);
+    };
   }, [delay, onComplete]); // Removed shared values from deps - they don't change and cause infinite loops
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -5440,14 +5495,21 @@ const SphereAvatar = React.memo(function SphereAvatar({
         true
       );
     };
-    
+
+    let timer: NodeJS.Timeout | null = null;
+
     // Start animation with delay
     if (delay > 0) {
-      const timer = setTimeout(startAnimation, delay);
-      return () => clearTimeout(timer);
+      timer = setTimeout(startAnimation, delay);
     } else {
       startAnimation();
     }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      // Cancel infinite float animation on cleanup
+      cancelAnimation(floatAnimation);
+    };
   }, [sphere, floatAnimation, animationDelays, animationDurations, selectedSphere]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -5671,6 +5733,18 @@ export default function HomeScreen() {
     loadStreakData();
   }, [loadStreakData]);
 
+  // Track app state to pause/resume intervals when app backgrounds/foregrounds
+  const [isAppActive, setIsAppActive] = useState(true);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      setIsAppActive(nextAppState === 'active');
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   // Track if this is the first app launch (splash screen shown)
   const isFirstLaunchRef = useRef(true);
@@ -6458,7 +6532,7 @@ export default function HomeScreen() {
 
   // Spawn random pulsing moments at 1-2 second intervals when moment type selector is shown
   useEffect(() => {
-    if (!showMomentTypeSelector) {
+    if (!showMomentTypeSelector || !isAppActive) {
       setRandomMoments([]);
       return;
     }
@@ -6505,7 +6579,7 @@ export default function HomeScreen() {
         clearTimeout(intervalRef.current);
       }
     };
-  }, [showMomentTypeSelector, selectedMomentType, isTablet]);
+  }, [showMomentTypeSelector, selectedMomentType, isTablet, isAppActive]);
 
   // Handle moment completion (remove from array)
   const handleMomentComplete = useCallback((id: number) => {
@@ -6591,10 +6665,15 @@ export default function HomeScreen() {
 
   // Gentle continuous rotation hint animation
   useEffect(() => {
+    // Don't run interval when app is backgrounded
+    if (!isAppActive) {
+      return;
+    }
+
     // Start hint animation when wheel is idle (not spinning, not dragging)
     const checkIdleState = () => {
       const isIdle = !isWheelSpinning.value && !isDragging.value;
-      
+
       if (isIdle && !isHintAnimating.value) {
         // Start gentle continuous rotation hint (counter-clockwise)
         // Rotate 2π radians (full circle counter-clockwise) over 120 seconds = ~0.75 degrees per second
@@ -6618,11 +6697,23 @@ export default function HomeScreen() {
     // Check idle state periodically
     const interval = setInterval(checkIdleState, 100); // Check every 100ms
 
-    return () => clearInterval(interval);
-  }, []); // Empty deps - shared values are accessed via .value inside the function
+    return () => {
+      clearInterval(interval);
+      // Cancel the infinite rotation animation on cleanup
+      cancelAnimation(hintRotation);
+      isHintAnimating.value = false;
+    };
+  }, [isAppActive]); // Re-run when app state changes
 
   // Wheel rotation animation with deceleration
   useEffect(() => {
+    // Don't run interval when app is backgrounded
+    if (!isAppActive) {
+      return;
+    }
+
+    let completionTimer: NodeJS.Timeout | null = null;
+
     const interval = setInterval(() => {
       if (isWheelSpinning.value && Math.abs(wheelVelocity.value) > 0.005) {
         // Apply deceleration with exponential decay for natural slowdown
@@ -6635,14 +6726,18 @@ export default function HomeScreen() {
         isWheelSpinning.value = false;
         wheelVelocity.value = 0;
         // Small delay to ensure visual stop before showing lesson
-        setTimeout(() => {
-        onWheelSpinComplete();
+        completionTimer = setTimeout(() => {
+          onWheelSpinComplete();
+          completionTimer = null;
         }, 100);
       }
     }, 16); // ~60fps
 
-    return () => clearInterval(interval);
-  }, [isWheelSpinning, wheelRotation, wheelVelocity, onWheelSpinComplete]);
+    return () => {
+      clearInterval(interval);
+      if (completionTimer) clearTimeout(completionTimer);
+    };
+  }, [isAppActive, isWheelSpinning, wheelRotation, wheelVelocity, onWheelSpinComplete]);
 
   // Pan gesture handling for wheel rotation
   const lastAngle = useSharedValue(0);
@@ -8739,7 +8834,7 @@ export default function HomeScreen() {
                   colorScheme={colorScheme ?? 'dark'}
                   colors={colors}
                   onPress={() => {
-                    if (!isWheelSpinning.value) {
+                    if (!isWheelSpinning.value && !showMomentTypeSelector) {
                       setFocusedMemory(null);
                       setFocusedProfileId(null);
                       setFocusedJobId(null);
@@ -8775,7 +8870,7 @@ export default function HomeScreen() {
                   colorScheme={colorScheme ?? 'dark'}
                   colors={colors}
                   onPress={() => {
-                    if (!isWheelSpinning.value) {
+                    if (!isWheelSpinning.value && !showMomentTypeSelector) {
                       setFocusedMemory(null);
                       setFocusedProfileId(null);
                       setFocusedJobId(null);
@@ -8811,7 +8906,7 @@ export default function HomeScreen() {
                   colorScheme={colorScheme ?? 'dark'}
                   colors={colors}
                   onPress={() => {
-                    if (!isWheelSpinning.value) {
+                    if (!isWheelSpinning.value && !showMomentTypeSelector) {
                       setFocusedMemory(null);
                       setFocusedProfileId(null);
                       setFocusedJobId(null);
@@ -8847,7 +8942,7 @@ export default function HomeScreen() {
                   colorScheme={colorScheme ?? 'dark'}
                   colors={colors}
                   onPress={() => {
-                    if (!isWheelSpinning.value) {
+                    if (!isWheelSpinning.value && !showMomentTypeSelector) {
                       setFocusedMemory(null);
                       setFocusedProfileId(null);
                       setFocusedJobId(null);
@@ -8883,7 +8978,7 @@ export default function HomeScreen() {
                   colorScheme={colorScheme ?? 'dark'}
                   colors={colors}
                   onPress={() => {
-                    if (!isWheelSpinning.value) {
+                    if (!isWheelSpinning.value && !showMomentTypeSelector) {
                       setFocusedMemory(null);
                       setFocusedProfileId(null);
                       setFocusedJobId(null);
@@ -9422,13 +9517,13 @@ export default function HomeScreen() {
             const avatarSize = isTablet ? 180 : 140;
             const avatarRadius = avatarSize / 2;
 
-            // Position buttons lower below the wheel
-            const topPosition = wheelCenterY + avatarRadius + 120;
+            // Position buttons at fixed distance from bottom of screen
+            const bottomGap = 20; // Fixed gap from bottom
 
             return (
               <Animated.View style={[{
                 position: 'absolute',
-                top: topPosition,
+                bottom: bottomGap,
                 left: 0,
                 right: 0,
                 alignItems: 'center',
