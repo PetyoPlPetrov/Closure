@@ -5744,25 +5744,35 @@ export default function HomeScreen() {
     router.push('/(tabs)/settings');
   }, []);
 
-  // Avatar pulse animation - triggers when tab is focused
+  // Avatar pulse animation - continuously pulses every 3 seconds
   const avatarPulseScale = useSharedValue(1);
 
-  // Pulse animation - separate useFocusEffect to ensure it always runs
+  // Continuous pulse animation - pulses every 3 seconds
   useFocusEffect(
     useCallback(() => {
-      // Reset scale to 1 first, then trigger avatar pulse animation - pulse to 1.1 then back to 1
-      // This ensures the animation always runs from a known state
+      // Start continuous pulse animation - pulse to 1.1 then back to 1, repeat with 3 second intervals
       avatarPulseScale.value = 1;
-      avatarPulseScale.value = withSequence(
-        withSpring(1.1, {
-          damping: 8,
-          stiffness: 100,
-        }),
-        withSpring(1, {
-          damping: 10,
-          stiffness: 150,
-        })
+      avatarPulseScale.value = withRepeat(
+        withSequence(
+          withSpring(1.1, {
+            damping: 8,
+            stiffness: 100,
+          }),
+          withSpring(1, {
+            damping: 10,
+            stiffness: 150,
+          }),
+          withDelay(3000, withTiming(1, { duration: 0 })) // 3 second delay before next pulse
+        ),
+        -1, // Repeat infinitely
+        false // Don't reverse
       );
+
+      // Cleanup: cancel animation when leaving the screen
+      return () => {
+        cancelAnimation(avatarPulseScale);
+        avatarPulseScale.value = 1;
+      };
     }, [avatarPulseScale])
   );
 
@@ -9412,8 +9422,8 @@ export default function HomeScreen() {
             const avatarSize = isTablet ? 180 : 140;
             const avatarRadius = avatarSize / 2;
 
-            // Position buttons a bit lower, with extra spacing for the label
-            const topPosition = wheelCenterY + avatarRadius + 95;
+            // Position buttons lower below the wheel
+            const topPosition = wheelCenterY + avatarRadius + 120;
 
             return (
               <Animated.View style={[{
@@ -10653,31 +10663,32 @@ export default function HomeScreen() {
                     ? Math.max(minSpacing, Math.min(centerAreaHeight / (totalMembers + 1), 200))
                     : 0;
                   
-                  // Add consistent random offset near center based on member ID (within 25% of screen width/height from center)
-                  const getMemberOffset = (memberId: string, range: number) => {
+                  // Distribute family members in a circular/scattered pattern around the center
+                  const getMemberHash = (memberId: string, seed: string = '') => {
                     let hash = 0;
-                    for (let i = 0; i < memberId.length; i++) {
-                      hash = ((hash << 5) - hash) + memberId.charCodeAt(i);
+                    const str = memberId + seed;
+                    for (let i = 0; i < str.length; i++) {
+                      hash = ((hash << 5) - hash) + str.charCodeAt(i);
                       hash = hash & hash;
                     }
-                    return ((hash % 1000) / 1000) * range;
+                    return Math.abs(hash % 10000) / 10000; // 0 to 1
                   };
-                  const centerOffsetX = getMemberOffset(member.id, SCREEN_WIDTH * 0.25); // ±12.5% of screen width
-                  const centerOffsetY = getMemberOffset(member.id + '_y', centerAreaHeight * 0.15); // ±7.5% of center area height
-                  
-                  // Calculate base Y position in center area
-                  const baseY = totalMembers === 1
-                    ? visibleAreaCenterY
-                    : centerAreaTop + verticalSpacing * (index + 1);
-                  
+
+                  // Use circular distribution: place family members at various angles and distances from center
+                  const angle = getMemberHash(member.id, 'angle') * 2 * Math.PI; // Random angle 0-360°
+                  const maxRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.35; // Max distance from center
+                  const minRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.1; // Min distance from center
+                  const radiusFactor = getMemberHash(member.id, 'radius'); // 0 to 1
+                  const radius = minRadius + radiusFactor * (maxRadius - minRadius); // Varied distance from center
+
                   const position = {
-                    x: SCREEN_WIDTH / 2 + centerOffsetX,
-                    y: baseY + centerOffsetY
+                    x: SCREEN_WIDTH / 2 + Math.cos(angle) * radius,
+                    y: visibleAreaCenterY + Math.sin(angle) * radius
                   };
-                  
-                  // Clamp to ensure avatar stays in central area
-                  const centerAreaMinX = SCREEN_WIDTH * 0.2;
-                  const centerAreaMaxX = SCREEN_WIDTH * 0.8;
+
+                  // Clamp to ensure avatar stays visible (15%-85% for more breathing room)
+                  const centerAreaMinX = SCREEN_WIDTH * 0.15;
+                  const centerAreaMaxX = SCREEN_WIDTH * 0.85;
                   position.x = Math.max(centerAreaMinX, Math.min(centerAreaMaxX, position.x));
                   position.y = Math.max(
                     centerAreaTop + 50,
@@ -11109,31 +11120,32 @@ export default function HomeScreen() {
                     ? Math.max(minSpacing, Math.min(centerAreaHeight / (totalFriends + 1), 200))
                     : 0;
                   
-                  // Add consistent random offset near center based on friend ID (within 25% of screen width/height from center)
-                  const getFriendOffset = (friendId: string, range: number) => {
+                  // Distribute friends in a circular/scattered pattern around the center
+                  const getFriendHash = (friendId: string, seed: string = '') => {
                     let hash = 0;
-                    for (let i = 0; i < friendId.length; i++) {
-                      hash = ((hash << 5) - hash) + friendId.charCodeAt(i);
+                    const str = friendId + seed;
+                    for (let i = 0; i < str.length; i++) {
+                      hash = ((hash << 5) - hash) + str.charCodeAt(i);
                       hash = hash & hash;
                     }
-                    return ((hash % 1000) / 1000) * range;
+                    return Math.abs(hash % 10000) / 10000; // 0 to 1
                   };
-                  const centerOffsetX = getFriendOffset(friend.id, SCREEN_WIDTH * 0.25); // ±12.5% of screen width
-                  const centerOffsetY = getFriendOffset(friend.id + '_y', centerAreaHeight * 0.15); // ±7.5% of center area height
-                  
-                  // Calculate base Y position in center area
-                  const baseY = totalFriends === 1
-                    ? visibleAreaCenterY
-                    : centerAreaTop + verticalSpacing * (index + 1);
-                  
+
+                  // Use circular distribution: place friends at various angles and distances from center
+                  const angle = getFriendHash(friend.id, 'angle') * 2 * Math.PI; // Random angle 0-360°
+                  const maxRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.35; // Max distance from center
+                  const minRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.1; // Min distance from center
+                  const radiusFactor = getFriendHash(friend.id, 'radius'); // 0 to 1
+                  const radius = minRadius + radiusFactor * (maxRadius - minRadius); // Varied distance from center
+
                   const position = {
-                    x: SCREEN_WIDTH / 2 + centerOffsetX,
-                    y: baseY + centerOffsetY
+                    x: SCREEN_WIDTH / 2 + Math.cos(angle) * radius,
+                    y: visibleAreaCenterY + Math.sin(angle) * radius
                   };
-                  
-                  // Clamp to ensure avatar stays in central area
-                  const centerAreaMinX = SCREEN_WIDTH * 0.2;
-                  const centerAreaMaxX = SCREEN_WIDTH * 0.8;
+
+                  // Clamp to ensure avatar stays visible (15%-85% for more breathing room)
+                  const centerAreaMinX = SCREEN_WIDTH * 0.15;
+                  const centerAreaMaxX = SCREEN_WIDTH * 0.85;
                   position.x = Math.max(centerAreaMinX, Math.min(centerAreaMaxX, position.x));
                   position.y = Math.max(
                     centerAreaTop + 50,
@@ -11565,31 +11577,32 @@ export default function HomeScreen() {
                     ? Math.max(minSpacing, Math.min(centerAreaHeight / (totalHobbies + 1), 200))
                     : 0;
                   
-                  // Add consistent random offset near center based on hobby ID (within 25% of screen width/height from center)
-                  const getHobbyOffset = (hobbyId: string, range: number) => {
+                  // Distribute hobbies in a circular/scattered pattern around the center
+                  const getHobbyHash = (hobbyId: string, seed: string = '') => {
                     let hash = 0;
-                    for (let i = 0; i < hobbyId.length; i++) {
-                      hash = ((hash << 5) - hash) + hobbyId.charCodeAt(i);
+                    const str = hobbyId + seed;
+                    for (let i = 0; i < str.length; i++) {
+                      hash = ((hash << 5) - hash) + str.charCodeAt(i);
                       hash = hash & hash;
                     }
-                    return ((hash % 1000) / 1000) * range;
+                    return Math.abs(hash % 10000) / 10000; // 0 to 1
                   };
-                  const centerOffsetX = getHobbyOffset(hobby.id, SCREEN_WIDTH * 0.25); // ±12.5% of screen width
-                  const centerOffsetY = getHobbyOffset(hobby.id + '_y', centerAreaHeight * 0.15); // ±7.5% of center area height
-                  
-                  // Calculate base Y position in center area
-                  const baseY = totalHobbies === 1
-                    ? visibleAreaCenterY
-                    : centerAreaTop + verticalSpacing * (index + 1);
-                  
+
+                  // Use circular distribution: place hobbies at various angles and distances from center
+                  const angle = getHobbyHash(hobby.id, 'angle') * 2 * Math.PI; // Random angle 0-360°
+                  const maxRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.35; // Max distance from center
+                  const minRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.1; // Min distance from center
+                  const radiusFactor = getHobbyHash(hobby.id, 'radius'); // 0 to 1
+                  const radius = minRadius + radiusFactor * (maxRadius - minRadius); // Varied distance from center
+
                   const position = {
-                    x: SCREEN_WIDTH / 2 + centerOffsetX,
-                    y: baseY + centerOffsetY
+                    x: SCREEN_WIDTH / 2 + Math.cos(angle) * radius,
+                    y: visibleAreaCenterY + Math.sin(angle) * radius
                   };
-                  
-                  // Clamp to ensure avatar stays in central area
-                  const centerAreaMinX = SCREEN_WIDTH * 0.2;
-                  const centerAreaMaxX = SCREEN_WIDTH * 0.8;
+
+                  // Clamp to ensure avatar stays visible (15%-85% for more breathing room)
+                  const centerAreaMinX = SCREEN_WIDTH * 0.15;
+                  const centerAreaMaxX = SCREEN_WIDTH * 0.85;
                   position.x = Math.max(centerAreaMinX, Math.min(centerAreaMaxX, position.x));
                   position.y = Math.max(
                     centerAreaTop + 50,

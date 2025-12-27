@@ -1637,7 +1637,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* Temporary: Generate Fake Data Button */}
-        {/* <View style={styles.section}>
+        <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
             {t('settings.devTools.title')}
           </ThemedText>
@@ -1702,7 +1702,7 @@ export default function SettingsScreen() {
               />
             )}
           </TouchableOpacity>
-        </View> */}
+        </View>
       </ScrollView>
 
       <OnboardingStepper

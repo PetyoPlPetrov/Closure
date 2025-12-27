@@ -588,6 +588,7 @@ export interface Translations {
   'onboarding.next': string;
   'onboarding.back': string;
   'onboarding.finish': string;
+  'onboarding.done': string;
   'onboarding.demo': string;
   'onboarding.of': string;
   'onboarding.intro.title': string;
@@ -1190,10 +1191,11 @@ const translations: Record<Language, Translations> = {
     'onboarding.next': 'Next',
     'onboarding.back': 'Back',
     'onboarding.finish': 'Get Started',
+    'onboarding.done': 'Done',
     'onboarding.demo': 'Try Demo',
     'onboarding.of': 'of',
     'onboarding.intro.title': 'Welcome to Sferas!',
-    'onboarding.intro.message': 'Sferas helps you appreciate and track the total amount of sunny vs cloudy moments in your life, measured as percentages in the main avatar. See at a glance how balanced each sphere of your life is.',
+    'onboarding.intro.message': 'Sferas helps you appreciate and track the total amount of sunny vs cloudy moments in your life, measured as % in the main avatar. See at a glance how balanced each sphere of your life is.',
     'onboarding.welcome.title': 'Reflect on Your Journey',
     'onboarding.welcome.message': 'Revisit your life\'s moments and lessons to remember your past and shape your future. Take control of your journey by reflecting on what matters most across all areas of your life.',
     'onboarding.moments.title': 'Track Your Moments',
@@ -1791,10 +1793,11 @@ const translations: Record<Language, Translations> = {
     'onboarding.next': 'Напред',
     'onboarding.back': 'Назад',
     'onboarding.finish': 'Започни',
+    'onboarding.done': 'Готово',
     'onboarding.demo': 'Пробно Демо',
     'onboarding.of': 'от',
     'onboarding.intro.title': 'Добре дошли в Sferas!',
-    'onboarding.intro.message': 'Sferas ви помага да оцените и проследите общото количество слънчеви и облачни моменти във вашия живот, измерени като проценти в главния аватар. Вижте с един поглед колко балансирана е всяка сфера от живота ви.',
+    'onboarding.intro.message': 'Sferas ви помага да оцените и проследите общото количество слънчеви и облачни моменти във вашия живот, измерени като % в главния аватар. Вижте с един поглед колко балансирана е всяка сфера от живота ви.',
     'onboarding.welcome.title': 'Размислете върху пътуването си',
     'onboarding.welcome.message': 'Преразгледайте моментите и уроците от живота си, за да помните миналото си и да оформите бъдещето си. Поемете контрол над пътуването си, като размишлявате върху това, което е най-важно във всички области на живота ви.',
     'onboarding.moments.title': 'Проследете моментите си',
