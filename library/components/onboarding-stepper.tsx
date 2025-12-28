@@ -8,7 +8,6 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useState } from 'react';
 import {
-  Dimensions,
   Modal,
   Pressable,
   ScrollView,
@@ -28,7 +27,7 @@ import Animated, {
 
 import type { Translations } from '@/utils/languages/translations';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+// Removed unused SCREEN_WIDTH - was not being used in the component
 
 type OnboardingStep = {
   icon?: keyof typeof MaterialIcons.glyphMap;
@@ -103,7 +102,7 @@ export function OnboardingStepper({
   const step = STEPS[currentStep];
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === STEPS.length - 1;
-  const progress = ((currentStep + 1) / STEPS.length) * 100;
+  // Removed unused progress variable - not being displayed in the component
 
   // Animated styles
   const gifAnimatedStyle = useAnimatedStyle(() => ({
@@ -168,6 +167,7 @@ export function OnboardingStepper({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDemo = () => {
     onDemo?.();
     onDismiss();

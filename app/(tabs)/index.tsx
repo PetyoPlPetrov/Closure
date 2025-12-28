@@ -359,7 +359,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const padding = avatarSize / 2;
   let clampedPositionX = position.x;
   let clampedPositionY = position.y;
-  
+
   if (enableDragging) {
     // Only clamp draggable entities to visible area bounds (accounting for safe area insets and tab bar)
     const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
@@ -373,6 +373,10 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     clampedPositionX = Math.max(padding, Math.min(SCREEN_WIDTH - padding, position.x));
     clampedPositionY = Math.max(padding, Math.min(SCREEN_HEIGHT - padding, position.y));
   }
+
+  // Shared values for focused position (used by memories) - declared early to avoid hoisting issues
+  const focusedX = useSharedValue(clampedPositionX);
+  const focusedY = useSharedValue(clampedPositionY);
   
   const panX = useSharedValue(clampedPositionX);
   const panY = useSharedValue(clampedPositionY);
@@ -746,11 +750,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   // Target position for focused state (State B - centered in visible viewport)
   const targetX = SCREEN_WIDTH / 2;
   const targetY = SCREEN_HEIGHT / 2 + 80; // Lower the focused avatar by 80px
-  
-  // Shared values for focused position (used by memories)
-  const focusedX = useSharedValue(clampedPositionX);
-  const focusedY = useSharedValue(clampedPositionY);
-  
+
   // Use a ref to track previous isFocused state to detect transitions
   // CRITICAL: Don't initialize with current value - track the actual previous value from last effect run
   const prevIsFocusedRef = useRef<boolean | undefined>(undefined);
@@ -4593,7 +4593,7 @@ const FloatingEntity = React.memo(function FloatingEntity({
     let timer: NodeJS.Timeout | null = null;
 
     if (delay > 0) {
-      timer = setTimeout(startAnimation, delay);
+      timer = setTimeout(startAnimation, delay) as unknown as NodeJS.Timeout;
     } else {
       startAnimation();
     }
@@ -4808,7 +4808,7 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
     let timer: NodeJS.Timeout | null = null;
 
     if (delay > 0) {
-      timer = setTimeout(startAnimation, delay);
+      timer = setTimeout(startAnimation, delay) as unknown as NodeJS.Timeout;
     } else {
       startAnimation();
     }
@@ -4963,13 +4963,13 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
         });
         scale.value = withTiming(0.8, { duration: 500 });
         fadeOutTimerRef.current = null;
-      }, 9600);
+      }, 9600) as unknown as NodeJS.Timeout;
     };
 
     let delayTimer: NodeJS.Timeout | null = null;
 
     if (delay > 0) {
-      delayTimer = setTimeout(startAnimation, delay);
+      delayTimer = setTimeout(startAnimation, delay) as unknown as NodeJS.Timeout;
     } else {
       startAnimation();
     }
@@ -5500,7 +5500,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
 
     // Start animation with delay
     if (delay > 0) {
-      timer = setTimeout(startAnimation, delay);
+      timer = setTimeout(startAnimation, delay) as unknown as NodeJS.Timeout;
     } else {
       startAnimation();
     }
@@ -6706,6 +6706,12 @@ export default function HomeScreen() {
   }, [isAppActive]); // Re-run when app state changes
 
   // Wheel rotation animation with deceleration
+  // Use ref to store latest callback to avoid recreating interval when callback changes
+  const onWheelSpinCompleteRef = useRef(onWheelSpinComplete);
+  useLayoutEffect(() => {
+    onWheelSpinCompleteRef.current = onWheelSpinComplete;
+  }, [onWheelSpinComplete]);
+
   useEffect(() => {
     // Don't run interval when app is backgrounded
     if (!isAppActive) {
@@ -6713,7 +6719,6 @@ export default function HomeScreen() {
     }
 
     let completionTimer: NodeJS.Timeout | null = null;
-
     const interval = setInterval(() => {
       if (isWheelSpinning.value && Math.abs(wheelVelocity.value) > 0.005) {
         // Apply deceleration with exponential decay for natural slowdown
@@ -6727,9 +6732,9 @@ export default function HomeScreen() {
         wheelVelocity.value = 0;
         // Small delay to ensure visual stop before showing lesson
         completionTimer = setTimeout(() => {
-          onWheelSpinComplete();
+          onWheelSpinCompleteRef.current();
           completionTimer = null;
-        }, 100);
+        }, 100) as unknown as NodeJS.Timeout;
       }
     }, 16); // ~60fps
 
@@ -6737,7 +6742,7 @@ export default function HomeScreen() {
       clearInterval(interval);
       if (completionTimer) clearTimeout(completionTimer);
     };
-  }, [isAppActive, isWheelSpinning, wheelRotation, wheelVelocity, onWheelSpinComplete]);
+  }, [isAppActive]); // Only depend on isAppActive - shared values and callback don't need to trigger re-creation
 
   // Pan gesture handling for wheel rotation
   const lastAngle = useSharedValue(0);
