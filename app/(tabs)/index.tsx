@@ -30,7 +30,9 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { AppState, Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   cancelAnimation,
+  createAnimatedComponent,
   Easing,
+  interpolateColor,
   runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -45,6 +47,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, FeColorMatrix, FeGaussianBlur, FeMerge, FeMergeNode, Filter, Path, RadialGradient, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Create animated Pressable component for shadow animations
+const AnimatedPressable = createAnimatedComponent(Pressable);
 
 // Constants for LinearGradient and Pressable props (avoid recreating objects on every render)
 const LINEAR_GRADIENT_START = { x: 0, y: 0 };
@@ -6263,9 +6268,17 @@ export default function HomeScreen() {
   const lessonScale = useSharedValue(0);
   const lessonTranslateX = useSharedValue(0);
   const lessonTranslateY = useSharedValue(0);
+  const lessonShadowPulse = useSharedValue(1); // For pulsing shadow effect
 
   // Animation values for moment type selector icon buttons
   const iconButtonScale = useSharedValue(0);
+  const lessonsButtonPressScale = useSharedValue(1);
+  const hardTruthsButtonPressScale = useSharedValue(1);
+  const sunnyMomentsButtonPressScale = useSharedValue(1);
+  // Selection animation progress (0 = unselected, 1 = selected)
+  const lessonsButtonSelection = useSharedValue(selectedMomentType === 'lessons' ? 1 : 0);
+  const hardTruthsButtonSelection = useSharedValue(selectedMomentType === 'hardTruths' ? 1 : 0);
+  const sunnyMomentsButtonSelection = useSharedValue(selectedMomentType === 'sunnyMoments' ? 1 : 0);
 
   // Constants for sphere circle
   const sphereCircle = useMemo(() => {
@@ -6503,7 +6516,17 @@ export default function HomeScreen() {
     lessonScale.value = withSpring(1, { damping: 15, stiffness: 150 });
     lessonTranslateX.value = withSpring(0, { damping: 15, stiffness: 150 });
     lessonTranslateY.value = withSpring(0, { damping: 15, stiffness: 150 });
-  }, [getAllMomentsByType, selectedMomentType, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY, sphereCircle, messageTop, isTablet, isLargeDevice, t]);
+
+    // Start pulsing shadow animation after entrance completes
+    lessonShadowPulse.value = withRepeat(
+      withSequence(
+        withTiming(1.4, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1, // Infinite repeat
+      false
+    );
+  }, [getAllMomentsByType, selectedMomentType, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY, lessonShadowPulse, sphereCircle, messageTop, isTablet, isLargeDevice, t]);
 
   // Animate spheres scale and icon buttons when moment type selector is shown/hidden
   useEffect(() => {
@@ -6635,8 +6658,10 @@ export default function HomeScreen() {
       lessonScale.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.cubic) });
       lessonTranslateX.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.cubic) });
       lessonTranslateY.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.cubic) });
+      cancelAnimation(lessonShadowPulse); // Stop pulsing when closed
+      lessonShadowPulse.value = 1; // Reset to default
     }
-  }, [showLesson, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY]);
+  }, [showLesson, lessonOpacity, lessonScale, lessonTranslateX, lessonTranslateY, lessonShadowPulse]);
 
   // Fade out lesson notification when wheel starts spinning
   const fadeOutLesson = useCallback(() => {
@@ -6649,6 +6674,63 @@ export default function HomeScreen() {
         setShowLesson(false);
     }, 300);
   }, [lessonOpacity, lessonScale, lessonTranslateY]);
+
+  // Reset button press scales when selection changes to prevent stuck animations
+  useEffect(() => {
+    lessonsButtonPressScale.value = withTiming(1, { duration: 150 });
+    hardTruthsButtonPressScale.value = withTiming(1, { duration: 150 });
+    sunnyMomentsButtonPressScale.value = withTiming(1, { duration: 150 });
+  }, [selectedMomentType, lessonsButtonPressScale, hardTruthsButtonPressScale, sunnyMomentsButtonPressScale]);
+
+  // Animate selection state when selectedMomentType changes
+  useEffect(() => {
+    // Animate lessons button
+    lessonsButtonSelection.value = withTiming(
+      selectedMomentType === 'lessons' ? 1 : 0,
+      { duration: 300, easing: Easing.inOut(Easing.ease) }
+    );
+    // Animate hard truths button
+    hardTruthsButtonSelection.value = withTiming(
+      selectedMomentType === 'hardTruths' ? 1 : 0,
+      { duration: 300, easing: Easing.inOut(Easing.ease) }
+    );
+    // Animate sunny moments button
+    sunnyMomentsButtonSelection.value = withTiming(
+      selectedMomentType === 'sunnyMoments' ? 1 : 0,
+      { duration: 300, easing: Easing.inOut(Easing.ease) }
+    );
+  }, [selectedMomentType, lessonsButtonSelection, hardTruthsButtonSelection, sunnyMomentsButtonSelection]);
+
+  // Press handlers for moment type selector icon buttons
+  const handleLessonsButtonPressIn = useCallback(() => {
+    'worklet';
+    lessonsButtonPressScale.value = withTiming(0.88, { duration: 100, easing: Easing.out(Easing.ease) });
+  }, [lessonsButtonPressScale]);
+
+  const handleLessonsButtonPressOut = useCallback(() => {
+    'worklet';
+    lessonsButtonPressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
+  }, [lessonsButtonPressScale]);
+
+  const handleHardTruthsButtonPressIn = useCallback(() => {
+    'worklet';
+    hardTruthsButtonPressScale.value = withTiming(0.88, { duration: 100, easing: Easing.out(Easing.ease) });
+  }, [hardTruthsButtonPressScale]);
+
+  const handleHardTruthsButtonPressOut = useCallback(() => {
+    'worklet';
+    hardTruthsButtonPressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
+  }, [hardTruthsButtonPressScale]);
+
+  const handleSunnyMomentsButtonPressIn = useCallback(() => {
+    'worklet';
+    sunnyMomentsButtonPressScale.value = withTiming(0.88, { duration: 100, easing: Easing.out(Easing.ease) });
+  }, [sunnyMomentsButtonPressScale]);
+
+  const handleSunnyMomentsButtonPressOut = useCallback(() => {
+    'worklet';
+    sunnyMomentsButtonPressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
+  }, [sunnyMomentsButtonPressScale]);
 
   useAnimatedReaction(
     () => isWheelSpinning.value,
@@ -6673,10 +6755,86 @@ export default function HomeScreen() {
     };
   });
 
+  // Animated style for pulsing shadow on lesson
+  const lessonShadowAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      shadowOpacity: 0.8 * lessonShadowPulse.value,
+      shadowRadius: (isTablet ? 12 : 8) * lessonShadowPulse.value,
+    };
+  });
+
   // Animated style for icon buttons
   const iconButtonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: iconButtonScale.value }],
   }));
+
+  // Animated styles for individual button press effects with color transitions
+  const lessonsButtonAnimatedStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolateColor(
+      lessonsButtonSelection.value,
+      [0, 1],
+      [
+        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        colors.primary
+      ]
+    );
+    const borderWidth = lessonsButtonSelection.value * 2; // Animate from 0 to 2
+
+    return {
+      transform: [{ scale: lessonsButtonPressScale.value }],
+      backgroundColor,
+      borderWidth,
+      borderColor: colors.primary,
+      borderRadius: 30,
+      width: 60,
+      height: 60,
+    };
+  });
+
+  const hardTruthsButtonAnimatedStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolateColor(
+      hardTruthsButtonSelection.value,
+      [0, 1],
+      [
+        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        colors.primary
+      ]
+    );
+    const borderWidth = hardTruthsButtonSelection.value * 2; // Animate from 0 to 2
+
+    return {
+      transform: [{ scale: hardTruthsButtonPressScale.value }],
+      backgroundColor,
+      borderWidth,
+      borderColor: colors.primary,
+      borderRadius: 30,
+      width: 60,
+      height: 60,
+    };
+  });
+
+  const sunnyMomentsButtonAnimatedStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolateColor(
+      sunnyMomentsButtonSelection.value,
+      [0, 1],
+      [
+        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        colors.primary
+      ]
+    );
+    const borderWidth = sunnyMomentsButtonSelection.value * 2; // Animate from 0 to 2
+
+    return {
+      transform: [{ scale: sunnyMomentsButtonPressScale.value }],
+      backgroundColor,
+      borderWidth,
+      borderColor: colors.primary,
+      borderRadius: 30,
+      width: 60,
+      height: 60,
+    };
+  });
+
 
   // Gentle continuous rotation hint animation
   useEffect(() => {
@@ -8626,14 +8784,14 @@ export default function HomeScreen() {
                 ]}
               >
                 {/* Simple circular view matching focused memory view - same style as lesson in MemoryMomentsRenderer */}
-              <Pressable
+              <AnimatedPressable
                   onPress={() => {
                     // If it's a mock lesson, just close it (don't navigate)
                     if (selectedLesson.isMock) {
                       setShowLesson(false);
                       return;
                     }
-                    
+
                     // Navigate to the memory this lesson belongs to
                     const sphere = selectedLesson.sphere;
                     const entityId = selectedLesson.entityId;
@@ -8683,11 +8841,12 @@ export default function HomeScreen() {
                     // Close the lesson display
                     setShowLesson(false);
                   }}
-                style={{
+                style={[
+                  {
                     width: momentWidth,
                     height: momentHeight,
-                  justifyContent: 'center',
-                  alignItems: 'center',
+                    justifyContent: 'center',
+                    alignItems: 'center',
                     backgroundColor: visuals.backgroundColor,
                     borderRadius: momentWidth / 2,
                     shadowColor: visuals.shadowColor,
@@ -8697,7 +8856,9 @@ export default function HomeScreen() {
                     elevation: 8,
                     padding: 8,
                     position: 'relative',
-                  }}
+                  },
+                  lessonShadowAnimatedStyle,
+                ]}
               >
                 <MaterialIcons
                     name={visuals.icon}
@@ -8748,7 +8909,7 @@ export default function HomeScreen() {
                       style={{ opacity: 0.8 }}
                     />
                   </Pressable>
-                </Pressable>
+                </AnimatedPressable>
             </Animated.View>
             );
           })()}
@@ -9557,88 +9718,82 @@ export default function HomeScreen() {
                   justifyContent: 'center',
                 }}>
                 {/* Lessons button */}
-                <Pressable
-                  onPress={() => setSelectedMomentType('lessons')}
-                  style={{
-                    width: 60,
-                    height: 60,
-                    borderRadius: 30,
-                    backgroundColor: selectedMomentType === 'lessons'
-                      ? colors.primary
-                      : (colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'),
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: selectedMomentType === 'lessons' ? 2 : 0,
-                    borderColor: colors.primary,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: selectedMomentType === 'lessons' ? 0.3 : 0.1,
-                    shadowRadius: 4,
-                    elevation: selectedMomentType === 'lessons' ? 5 : 2,
-                  }}
-                >
-                  <MaterialIcons
-                    name="lightbulb"
-                    size={28}
-                    color={selectedMomentType === 'lessons' ? '#fff' : colors.text}
-                  />
-                </Pressable>
+                <Animated.View style={lessonsButtonAnimatedStyle}>
+                  <Pressable
+                    onPress={() => setSelectedMomentType('lessons')}
+                    onPressIn={handleLessonsButtonPressIn}
+                    onPressOut={handleLessonsButtonPressOut}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: selectedMomentType === 'lessons' ? 0.3 : 0.1,
+                      shadowRadius: 4,
+                      elevation: selectedMomentType === 'lessons' ? 5 : 2,
+                    }}
+                  >
+                    <MaterialIcons
+                      name="lightbulb"
+                      size={28}
+                      color={selectedMomentType === 'lessons' ? '#fff' : colors.text}
+                    />
+                  </Pressable>
+                </Animated.View>
 
                 {/* Hard truths button */}
-                <Pressable
-                  onPress={() => setSelectedMomentType('hardTruths')}
-                  style={{
-                    width: 60,
-                    height: 60,
-                    borderRadius: 30,
-                    backgroundColor: selectedMomentType === 'hardTruths'
-                      ? colors.primary
-                      : (colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'),
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: selectedMomentType === 'hardTruths' ? 2 : 0,
-                    borderColor: colors.primary,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: selectedMomentType === 'hardTruths' ? 0.3 : 0.1,
-                    shadowRadius: 4,
-                    elevation: selectedMomentType === 'hardTruths' ? 5 : 2,
-                  }}
-                >
-                  <MaterialIcons
-                    name="cloud"
-                    size={28}
-                    color={selectedMomentType === 'hardTruths' ? '#fff' : colors.text}
-                  />
-                </Pressable>
+                <Animated.View style={hardTruthsButtonAnimatedStyle}>
+                  <Pressable
+                    onPress={() => setSelectedMomentType('hardTruths')}
+                    onPressIn={handleHardTruthsButtonPressIn}
+                    onPressOut={handleHardTruthsButtonPressOut}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: selectedMomentType === 'hardTruths' ? 0.3 : 0.1,
+                      shadowRadius: 4,
+                      elevation: selectedMomentType === 'hardTruths' ? 5 : 2,
+                    }}
+                  >
+                    <MaterialIcons
+                      name="cloud"
+                      size={28}
+                      color={selectedMomentType === 'hardTruths' ? '#fff' : colors.text}
+                    />
+                  </Pressable>
+                </Animated.View>
 
                 {/* Sunny moments button */}
-                <Pressable
-                  onPress={() => setSelectedMomentType('sunnyMoments')}
-                  style={{
-                    width: 60,
-                    height: 60,
-                    borderRadius: 30,
-                    backgroundColor: selectedMomentType === 'sunnyMoments'
-                      ? colors.primary
-                      : (colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'),
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: selectedMomentType === 'sunnyMoments' ? 2 : 0,
-                    borderColor: colors.primary,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: selectedMomentType === 'sunnyMoments' ? 0.3 : 0.1,
-                    shadowRadius: 4,
-                    elevation: selectedMomentType === 'sunnyMoments' ? 5 : 2,
-                  }}
-                >
-                  <MaterialIcons
-                    name="wb-sunny"
-                    size={28}
-                    color={selectedMomentType === 'sunnyMoments' ? '#fff' : colors.text}
-                  />
-                </Pressable>
+                <Animated.View style={sunnyMomentsButtonAnimatedStyle}>
+                  <Pressable
+                    onPress={() => setSelectedMomentType('sunnyMoments')}
+                    onPressIn={handleSunnyMomentsButtonPressIn}
+                    onPressOut={handleSunnyMomentsButtonPressOut}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: selectedMomentType === 'sunnyMoments' ? 0.3 : 0.1,
+                      shadowRadius: 4,
+                      elevation: selectedMomentType === 'sunnyMoments' ? 5 : 2,
+                    }}
+                  >
+                    <MaterialIcons
+                      name="wb-sunny"
+                      size={28}
+                      color={selectedMomentType === 'sunnyMoments' ? '#fff' : colors.text}
+                    />
+                  </Pressable>
+                </Animated.View>
               </View>
             </Animated.View>
             );

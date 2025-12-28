@@ -37,6 +37,7 @@ export const StreakBadgeComponent = React.memo(function StreakBadgeComponent({
   // Animation values
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
+  const pressScale = useSharedValue(1); // For press animation
 
   // Entry animation on mount
   useEffect(() => {
@@ -61,9 +62,18 @@ export const StreakBadgeComponent = React.memo(function StreakBadgeComponent({
     }
   }, [currentStreak]);
 
+  // Handlers for press animation
+  const handlePressIn = () => {
+    pressScale.value = withTiming(0.92, { duration: 100, easing: Easing.out(Easing.ease) });
+  };
+
+  const handlePressOut = () => {
+    pressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
+  };
+
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: scale.value * pressScale.value }],
   }));
 
   const isActiveStreak = currentStreak > 0;
@@ -92,6 +102,8 @@ export const StreakBadgeComponent = React.memo(function StreakBadgeComponent({
       <Pressable
         onPress={onPress}
         onLongPress={onLongPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         style={styles.pressable}
       >
         <LinearGradient

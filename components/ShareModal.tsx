@@ -9,6 +9,13 @@ import {
   useColorScheme,
   Share,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  Easing,
+} from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
 
 interface ShareModalProps {
@@ -22,6 +29,10 @@ export default function ShareModal({ visible, onClose, title, content }: ShareMo
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+  // Animation for share button press
+  const shareButtonPressScale = useSharedValue(1);
+  const closeButtonPressScale = useSharedValue(1);
+
   const handleShare = async () => {
     try {
       await Share.share({
@@ -32,6 +43,34 @@ export default function ShareModal({ visible, onClose, title, content }: ShareMo
       console.error('Error sharing:', error);
     }
   };
+
+  // Press handlers for share button
+  const handleShareButtonPressIn = () => {
+    shareButtonPressScale.value = withTiming(0.92, { duration: 100, easing: Easing.out(Easing.ease) });
+  };
+
+  const handleShareButtonPressOut = () => {
+    shareButtonPressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
+  };
+
+  // Press handlers for close button
+  const handleCloseButtonPressIn = () => {
+    closeButtonPressScale.value = withTiming(0.88, { duration: 100, easing: Easing.out(Easing.ease) });
+  };
+
+  const handleCloseButtonPressOut = () => {
+    closeButtonPressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
+  };
+
+  // Animated style for share button
+  const shareButtonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: shareButtonPressScale.value }],
+  }));
+
+  // Animated style for close button
+  const closeButtonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: closeButtonPressScale.value }],
+  }));
 
   // Debug: Log when modal opens
   React.useEffect(() => {
@@ -78,13 +117,20 @@ export default function ShareModal({ visible, onClose, title, content }: ShareMo
             >
               {title}
             </Text>
-            <Pressable onPress={onClose} style={styles.closeButton}>
-              <MaterialIcons
-                name="close"
-                size={24}
-                color={isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)'}
-              />
-            </Pressable>
+            <Animated.View style={closeButtonAnimatedStyle}>
+              <Pressable
+                onPress={onClose}
+                onPressIn={handleCloseButtonPressIn}
+                onPressOut={handleCloseButtonPressOut}
+                style={styles.closeButton}
+              >
+                <MaterialIcons
+                  name="close"
+                  size={24}
+                  color={isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)'}
+                />
+              </Pressable>
+            </Animated.View>
           </View>
 
           {/* Content in ScrollView */}
@@ -107,19 +153,22 @@ export default function ShareModal({ visible, onClose, title, content }: ShareMo
           </ScrollView>
 
           {/* Share Button at Bottom */}
-          <Pressable
-            onPress={handleShare}
-            style={({ pressed }) => [
-              styles.shareButton,
-              {
-                backgroundColor: isDark ? '#64B5F6' : '#1976D2',
-                opacity: pressed ? 0.8 : 1,
-              },
-            ]}
-          >
-            <MaterialIcons name="share" size={20} color="#FFFFFF" />
-            <Text style={styles.shareButtonText}>Share</Text>
-          </Pressable>
+          <Animated.View style={shareButtonAnimatedStyle}>
+            <Pressable
+              onPress={handleShare}
+              onPressIn={handleShareButtonPressIn}
+              onPressOut={handleShareButtonPressOut}
+              style={[
+                styles.shareButton,
+                {
+                  backgroundColor: isDark ? '#64B5F6' : '#1976D2',
+                },
+              ]}
+            >
+              <MaterialIcons name="share" size={20} color="#FFFFFF" />
+              <Text style={styles.shareButtonText}>Share</Text>
+            </Pressable>
+          </Animated.View>
         </View>
       </View>
     </Modal>
