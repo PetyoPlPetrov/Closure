@@ -492,7 +492,7 @@ export function OnboardingStepper({
                                     : step.gifSource === 'notifications'
                                     ? require('@/assets/images/reminders.gif')
                                     : step.gifSource === 'creating'
-                                    ? require('@/assets/images/create.gif')
+                                    ? require('@/family.gif')
                                     : require('@/assets/images/output.gif')
                                 }
                                 style={styles.gif}

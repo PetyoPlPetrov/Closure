@@ -10,6 +10,11 @@ import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { getLifeLessonPlaceholder } from '@/utils/life-lessons';
+import {
+  getHardTruthSuggestion,
+  getGoodFactSuggestion,
+  getLessonSuggestion
+} from '@/utils/moment-suggestions';
 import { updateStreakOnMemoryCreation } from '@/utils/streak-manager';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -25,6 +30,7 @@ import {
   KeyboardAvoidingView,
   PanResponder,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -32,17 +38,19 @@ import {
   View,
 } from 'react-native';
 import Animated, {
+  cancelAnimation,
+  Easing,
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
-  withTiming,
   withRepeat,
   withSequence,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
+import { Circle, Defs, Path, RadialGradient, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
-import { Circle, Defs, Ellipse, Path, RadialGradient, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
 // Blinking cursor indicator component
 function CursorBlinkIndicator({ style, opacity }: { style: any; opacity: any }) {
@@ -53,28 +61,39 @@ function CursorBlinkIndicator({ style, opacity }: { style: any; opacity: any }) 
   return <Animated.View style={[style, animatedStyle]} />;
 }
 
-// Animated TextInput wrapper that animates border width
+// Animated TextInput wrapper that animates border width and scale
 function AnimatedTitleInput({ 
   borderWidth, 
   isFocused,
+  pulseScale,
   ...props 
 }: { 
   borderWidth: any; 
   isFocused: boolean;
+  pulseScale?: any;
   [key: string]: any;
 }) {
   const animatedBorderStyle = useAnimatedStyle(() => ({
     borderWidth: isFocused ? borderWidth.value : 1,
   }));
+  
+  const animatedScaleStyle = useAnimatedStyle(() => {
+    return {
+      transform: pulseScale ? [{ scale: pulseScale.value }] : [],
+    };
+  });
+  
 
   return (
-    <AnimatedTextInput
-      {...props}
-      style={[
-        props.style,
-        isFocused && animatedBorderStyle,
-      ]}
-    />
+    <Animated.View style={animatedScaleStyle}>
+      <AnimatedTextInput
+        {...props}
+        style={[
+          props.style,
+          isFocused && animatedBorderStyle,
+        ]}
+      />
+    </Animated.View>
   );
 }
 
@@ -95,7 +114,7 @@ function AnimatedCloud({
   inputRef,
   shouldAutoFocus = false,
 }: {
-  cloud: { id: string; text: string; x: number; y: number; startX?: number; startY?: number };
+  cloud: { id: string; text: string; x: number; y: number; startX?: number; startY?: number; placeholder?: string };
   panHandlers: any;
   styles: any;
   onTextChange: (id: string, text: string) => void;
@@ -116,6 +135,20 @@ function AnimatedCloud({
   const opacity = useSharedValue(cloud.startX !== undefined ? 0 : 1);
   const scale = useSharedValue(cloud.startX !== undefined ? 0.3 : 1);
   const isAnimating = useRef(false);
+
+  // Apply placeholder handler
+  const handleApplyPlaceholder = () => {
+    if (cloud.placeholder) {
+      onTextChange(cloud.id, cloud.placeholder);
+    }
+    // Blur the input after applying placeholder
+    if (inputRef?.current) {
+      inputRef.current.blur();
+    }
+  };
+
+  // Show icon immediately when cloud is empty and has placeholder (no delay)
+  const showApplyIcon = !cloud.text && cloud.placeholder && !viewOnly;
 
   // Register animated values so PanResponder can access current position
   useEffect(() => {
@@ -284,6 +317,32 @@ function AnimatedCloud({
           editable={!viewOnly}
           autoFocus={shouldAutoFocus}
         />
+        {/* Apply icon - shown in top right when placeholder is visible */}
+        {showApplyIcon && (
+          <TouchableOpacity
+            onPress={handleApplyPlaceholder}
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 20,
+              backgroundColor: colors.primary,
+              borderRadius: 12,
+              width: 24,
+              height: 24,
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1001,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 4,
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialIcons name="check" size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </View>
     </Animated.View>
   );
@@ -306,7 +365,7 @@ function AnimatedSun({
   inputRef,
   shouldAutoFocus = false,
 }: {
-  sun: { id: string; text: string; x: number; y: number; startX?: number; startY?: number };
+  sun: { id: string; text: string; x: number; y: number; startX?: number; startY?: number; placeholder?: string };
   panHandlers: any;
   styles: any;
   onTextChange: (id: string, text: string) => void;
@@ -327,6 +386,20 @@ function AnimatedSun({
   const opacity = useSharedValue(sun.startX !== undefined ? 0 : 1);
   const scale = useSharedValue(sun.startX !== undefined ? 0.3 : 1);
   const isAnimating = useRef(false);
+
+  // Apply placeholder handler
+  const handleApplyPlaceholder = () => {
+    if (sun.placeholder) {
+      onTextChange(sun.id, sun.placeholder);
+    }
+    // Blur the input after applying placeholder
+    if (inputRef?.current) {
+      inputRef.current.blur();
+    }
+  };
+
+  // Show icon immediately when sun is empty and has placeholder (no delay)
+  const showApplyIcon = !sun.text && sun.placeholder && !viewOnly;
 
   // Register animated values so PanResponder can access current position
   useEffect(() => {
@@ -550,6 +623,32 @@ function AnimatedSun({
           editable={!viewOnly}
           autoFocus={shouldAutoFocus}
         />
+        {/* Apply icon - shown in top right when placeholder is visible */}
+        {showApplyIcon && (
+          <TouchableOpacity
+            onPress={handleApplyPlaceholder}
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              backgroundColor: colors.primary,
+              borderRadius: 12,
+              width: 24,
+              height: 24,
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1001,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 4,
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialIcons name="check" size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </View>
     </Animated.View>
   );
@@ -595,6 +694,26 @@ function AnimatedLesson({
   const opacity = useSharedValue(lesson.startX !== undefined ? 0 : 1);
   const scale = useSharedValue(lesson.startX !== undefined ? 0.3 : 1);
   const isAnimating = useRef(false);
+  
+  // Extract the actual lesson text from placeholder (remove "Ex.: " prefix)
+  const getPlaceholderText = () => {
+    if (placeholder.startsWith('Ex.: ')) {
+      return placeholder.substring(5); // Remove "Ex.: " prefix
+    }
+    return placeholder;
+  };
+
+  const handleApplyPlaceholder = () => {
+    const actualText = getPlaceholderText();
+    onTextChange(lesson.id, actualText);
+    // Blur the input after applying
+    if (inputRef?.current) {
+      inputRef.current.blur();
+    }
+  };
+
+  // Show icon immediately when lesson is empty and has placeholder (no delay)
+  const showApplyIcon = !lesson.text && placeholder && !viewOnly;
 
   // Register animated values so PanResponder can access current position
   useEffect(() => {
@@ -707,25 +826,53 @@ function AnimatedLesson({
           color={colorScheme === 'dark' ? '#000000' : '#1A1A1A'}
           style={{ marginBottom: 4 }}
         />
-        <TextInput
-          ref={inputRef}
-          style={{
-            color: colorScheme === 'dark' ? '#000000' : '#1A1A1A',
-            fontSize: 11,
-            textAlign: 'center',
-            fontWeight: '700',
-            maxWidth: lessonWidth * 0.85,
-            minHeight: 30,
-            lineHeight: 14,
-          }}
-          value={lesson.text}
-          onChangeText={(text) => onTextChange(lesson.id, text)}
-          placeholder={placeholder}
-          placeholderTextColor={(colorScheme === 'dark' ? '#000000' : '#1A1A1A') + '80'}
-          multiline
-          numberOfLines={5}
-          editable={!viewOnly}
-        />
+        <View style={{ position: 'relative', width: '100%', alignItems: 'center' }}>
+          <TextInput
+            ref={inputRef}
+            style={{
+              color: colorScheme === 'dark' ? '#000000' : '#1A1A1A',
+              fontSize: 11,
+              textAlign: 'center',
+              fontWeight: '700',
+              maxWidth: lessonWidth * 0.85,
+              minHeight: 30,
+              lineHeight: 14,
+            }}
+            value={lesson.text}
+            onChangeText={(text) => onTextChange(lesson.id, text)}
+            placeholder={placeholder}
+            placeholderTextColor={(colorScheme === 'dark' ? '#000000' : '#1A1A1A') + '80'}
+            multiline
+            numberOfLines={5}
+            editable={!viewOnly}
+          />
+          {/* Apply icon - shown in top right when placeholder is visible and focused */}
+          {showApplyIcon && (
+            <TouchableOpacity
+              onPress={handleApplyPlaceholder}
+              style={{
+                position: 'absolute',
+                top: -8,
+                right: lessonWidth * 0.05,
+                backgroundColor: colors.primary,
+                borderRadius: 12,
+                width: 24,
+                height: 24,
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 1001,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 4,
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MaterialIcons name="check" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
+        </View>
       </LinearGradient>
 
       {/* Delete button - positioned outside the circle */}
@@ -753,6 +900,7 @@ function AnimatedLesson({
 }
 
 export default function AddIdealizedMemoryScreen() {
+  
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
@@ -818,7 +966,23 @@ export default function AddIdealizedMemoryScreen() {
   // Pulse animation for border width
   const borderWidth = useSharedValue(1);
   
-  // Start blinking animation when focused
+  // Pulse animation for title field when user tries to add moment without title
+  const titlePulseScale = useSharedValue(1);
+
+  // Button press animations for moment type buttons
+  const cloudButtonPressScale = useSharedValue(1);
+  const sunButtonPressScale = useSharedValue(1);
+  const lightbulbButtonPressScale = useSharedValue(1);
+
+  // Cancel animation on unmount
+  useEffect(() => {
+    return () => {
+      cancelAnimation(titlePulseScale);
+      titlePulseScale.value = 1;
+    };
+  }, [titlePulseScale]);
+  
+  // Start blinking cursor animation when focused
   useEffect(() => {
     if (isTitleFocused) {
       cursorOpacity.value = withRepeat(
@@ -826,15 +990,7 @@ export default function AddIdealizedMemoryScreen() {
         -1,
         true
       );
-      // Pulse border 2-3 times when focused - quick pulses
-      borderWidth.value = withSequence(
-        withSpring(2.5, { damping: 15, stiffness: 400 }),
-        withSpring(1, { damping: 15, stiffness: 400 }),
-        withSpring(2.5, { damping: 15, stiffness: 400 }),
-        withSpring(1, { damping: 15, stiffness: 400 }),
-        withSpring(2.5, { damping: 15, stiffness: 400 }),
-        withSpring(1, { damping: 15, stiffness: 400 }),
-      );
+      borderWidth.value = 2.5; // Static border width when focused
     } else {
       cursorOpacity.value = withTiming(0, { duration: 200 });
       borderWidth.value = 1;
@@ -852,6 +1008,7 @@ export default function AddIdealizedMemoryScreen() {
     y: number;
     startX?: number;
     startY?: number;
+    placeholder?: string;
   }[]>([]);
 
   // Sun elements state - array of suns with position and animation (for good facts)
@@ -862,6 +1019,7 @@ export default function AddIdealizedMemoryScreen() {
     y: number;
     startX?: number;
     startY?: number;
+    placeholder?: string;
   }[]>([]);
 
   // Lessons learned state - array of lightbulbs with position and animation
@@ -1518,8 +1676,54 @@ export default function AddIdealizedMemoryScreen() {
     }
   };
 
+  // Press handlers for moment type buttons with scale animations
+  const handleCloudButtonPressIn = useCallback(() => {
+    'worklet';
+    cloudButtonPressScale.value = withTiming(0.88, { duration: 100, easing: Easing.out(Easing.ease) });
+  }, [cloudButtonPressScale]);
+
+  const handleCloudButtonPressOut = useCallback(() => {
+    'worklet';
+    cloudButtonPressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
+  }, [cloudButtonPressScale]);
+
+  const handleSunButtonPressIn = useCallback(() => {
+    'worklet';
+    sunButtonPressScale.value = withTiming(0.88, { duration: 100, easing: Easing.out(Easing.ease) });
+  }, [sunButtonPressScale]);
+
+  const handleSunButtonPressOut = useCallback(() => {
+    'worklet';
+    sunButtonPressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
+  }, [sunButtonPressScale]);
+
+  const handleLightbulbButtonPressIn = useCallback(() => {
+    'worklet';
+    lightbulbButtonPressScale.value = withTiming(0.88, { duration: 100, easing: Easing.out(Easing.ease) });
+  }, [lightbulbButtonPressScale]);
+
+  const handleLightbulbButtonPressOut = useCallback(() => {
+    'worklet';
+    lightbulbButtonPressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
+  }, [lightbulbButtonPressScale]);
+
   // Function to add a new cloud
   const addNewCloud = () => {
+    // Check if memory title is filled
+    if (!memoryLabel.trim()) {
+      // Pulse the title field to draw attention
+      // Cancel any existing animation and reset before starting new pulse
+      cancelAnimation(titlePulseScale);
+      titlePulseScale.value = 1;
+      titlePulseScale.value = withSequence(
+        withSpring(1.05, { damping: 10, stiffness: 300 }),
+        withSpring(1, { damping: 10, stiffness: 300 }),
+        withSpring(1.05, { damping: 10, stiffness: 300 }),
+        withSpring(1, { damping: 10, stiffness: 300 }),
+      );
+      return;
+    }
+    
     // Check if all existing clouds have text
     const allCloudsHaveText = clouds.length === 0 || clouds.every((cloud) => cloud.text.trim().length > 0);
     
@@ -1558,6 +1762,7 @@ export default function AddIdealizedMemoryScreen() {
       // Start position: center cloud on the plus button
       startX: startPos.x - (cloudWidth / 2), // Center cloud horizontally
       startY: startPos.y - (cloudHeight / 2), // Center cloud vertically
+      placeholder: getHardTruthSuggestion(memoryLabel, language), // Smart suggestion based on memory title
     };
     setClouds((prev) => [...prev, newCloud]);
     // Set the newly created cloud ID to trigger auto-focus
@@ -1571,6 +1776,21 @@ export default function AddIdealizedMemoryScreen() {
 
   // Function to add a new sun
   const addNewSun = () => {
+    // Check if memory title is filled
+    if (!memoryLabel.trim()) {
+      // Pulse the title field to draw attention
+      // Cancel any existing animation and reset before starting new pulse
+      cancelAnimation(titlePulseScale);
+      titlePulseScale.value = 1;
+      titlePulseScale.value = withSequence(
+        withSpring(1.05, { damping: 10, stiffness: 300 }),
+        withSpring(1, { damping: 10, stiffness: 300 }),
+        withSpring(1.05, { damping: 10, stiffness: 300 }),
+        withSpring(1, { damping: 10, stiffness: 300 }),
+      );
+      return;
+    }
+    
     // Check if all existing suns have text
     const allSunsHaveText = suns.length === 0 || suns.every((sun) => sun.text.trim().length > 0);
     
@@ -1607,6 +1827,7 @@ export default function AddIdealizedMemoryScreen() {
       // Start position: center sun on the plus button
       startX: startPos.x - (sunWidth / 2), // Center sun horizontally
       startY: startPos.y - (sunHeight / 2), // Center sun vertically
+      placeholder: getGoodFactSuggestion(memoryLabel, language), // Smart suggestion based on memory title
     };
     setSuns((prev) => [...prev, newSun]);
     // Set the newly created sun ID to trigger auto-focus
@@ -1620,6 +1841,21 @@ export default function AddIdealizedMemoryScreen() {
 
   // Function to add a new lesson learned
   const addNewLesson = () => {
+    // Check if memory title is filled
+    if (!memoryLabel.trim()) {
+      // Pulse the title field to draw attention
+      // Cancel any existing animation and reset before starting new pulse
+      cancelAnimation(titlePulseScale);
+      titlePulseScale.value = 1;
+      titlePulseScale.value = withSequence(
+        withSpring(1.05, { damping: 10, stiffness: 300 }),
+        withSpring(1, { damping: 10, stiffness: 300 }),
+        withSpring(1.05, { damping: 10, stiffness: 300 }),
+        withSpring(1, { damping: 10, stiffness: 300 }),
+      );
+      return;
+    }
+    
     // Check if all existing lessons have text
     const allLessonsHaveText = lessons.length === 0 || lessons.every((lesson) => lesson.text.trim().length > 0);
 
@@ -1659,7 +1895,7 @@ export default function AddIdealizedMemoryScreen() {
       // Start position: center lesson on the lightbulb button
       startX: startPos.x - (lessonWidth / 2), // Center lesson horizontally
       startY: startPos.y - (lessonHeight / 2), // Center lesson vertically
-      placeholder: getLifeLessonPlaceholder(language), // Generate random life lesson placeholder
+      placeholder: getLessonSuggestion(memoryLabel, language), // Smart suggestion based on memory title
     };
     setLessons((prev) => [...prev, newLesson]);
     // Set the newly created lesson ID to trigger auto-focus
@@ -2359,6 +2595,19 @@ export default function AddIdealizedMemoryScreen() {
     [colors, fontScale, colorScheme, maxContentWidth, cloudWidth, cloudHeight, sunWidth, sunHeight, isLargeDevice]
   );
 
+  // Animated styles for moment type buttons
+  const cloudButtonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: cloudButtonPressScale.value }],
+  }));
+
+  const sunButtonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: sunButtonPressScale.value }],
+  }));
+
+  const lightbulbButtonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: lightbulbButtonPressScale.value }],
+  }));
+
   return (
     <View style={styles.root}>
       {/* Header */}
@@ -2489,6 +2738,7 @@ export default function AddIdealizedMemoryScreen() {
                 onChangeText={setMemoryLabel}
                 borderWidth={borderWidth}
                 isFocused={isTitleFocused}
+                pulseScale={titlePulseScale}
                 style={[
                   styles.memoryLabelInput,
                   isTitleFocused && styles.memoryLabelInputFocused,
@@ -2533,14 +2783,8 @@ export default function AddIdealizedMemoryScreen() {
           {/* Add Hard Truth and Good Fact - Same Row - hidden in view-only mode */}
           {!viewOnly && (
           <View style={styles.buttonsRow}>
-            <TouchableOpacity
+            <Pressable
               ref={plusButtonRef}
-              style={[
-                styles.addHardTruthButton,
-                clouds.length > 0 && !clouds.every((cloud) => cloud.text.trim().length > 0)
-                  ? styles.addHardTruthButtonDisabled
-                  : undefined,
-              ]}
               onLayout={() => {
                 plusButtonRef.current?.measure((fx, fy, width, height, px, py) => {
                   // px, py are relative to window, which matches root View coordinate system
@@ -2550,8 +2794,17 @@ export default function AddIdealizedMemoryScreen() {
                 });
               }}
               onPress={addNewCloud}
+              onPressIn={handleCloudButtonPressIn}
+              onPressOut={handleCloudButtonPressOut}
               disabled={clouds.length > 0 && !clouds.every((cloud) => cloud.text.trim().length > 0)}
             >
+              <Animated.View style={[
+                styles.addHardTruthButton,
+                clouds.length > 0 && !clouds.every((cloud) => cloud.text.trim().length > 0)
+                  ? styles.addHardTruthButtonDisabled
+                  : undefined,
+                cloudButtonAnimatedStyle,
+              ]}>
               <View style={{
                 width: isLargeDevice ? 64 : 56,
                 height: isLargeDevice ? 64 : 56,
@@ -2595,23 +2848,18 @@ export default function AddIdealizedMemoryScreen() {
                       : 'rgba(200, 200, 200, 0.8)',
                   }}
                 >
-                  <MaterialIcons 
-                    name="cloud" 
-                    size={isLargeDevice ? 32 : 28} 
-                    color={colorScheme === 'dark' ? '#FFFFFF' : '#555'} 
+                  <MaterialIcons
+                    name="cloud"
+                    size={isLargeDevice ? 32 : 28}
+                    color={colorScheme === 'dark' ? '#FFFFFF' : '#555'}
                   />
                 </LinearGradient>
               </View>
-            </TouchableOpacity>
+              </Animated.View>
+            </Pressable>
 
-            <TouchableOpacity
+            <Pressable
               ref={sunButtonRef}
-              style={[
-                styles.addGoodFactButton,
-                suns.length > 0 && !suns.every((sun) => sun.text.trim().length > 0)
-                  ? styles.addGoodFactButtonDisabled
-                  : undefined,
-              ]}
               onLayout={() => {
                 sunButtonRef.current?.measure((fx, fy, width, height, px, py) => {
                   const buttonCenterX = px + width / 2;
@@ -2620,8 +2868,17 @@ export default function AddIdealizedMemoryScreen() {
                 });
               }}
               onPress={addNewSun}
+              onPressIn={handleSunButtonPressIn}
+              onPressOut={handleSunButtonPressOut}
               disabled={suns.length > 0 && !suns.every((sun) => sun.text.trim().length > 0)}
             >
+              <Animated.View style={[
+                styles.addGoodFactButton,
+                suns.length > 0 && !suns.every((sun) => sun.text.trim().length > 0)
+                  ? styles.addGoodFactButtonDisabled
+                  : undefined,
+                sunButtonAnimatedStyle,
+              ]}>
               <View style={{
                 width: isLargeDevice ? 64 : 56,
                 height: isLargeDevice ? 64 : 56,
@@ -2665,24 +2922,19 @@ export default function AddIdealizedMemoryScreen() {
                       : 'rgba(255, 210, 60, 0.9)',
                   }}
                 >
-                  <MaterialIcons 
-                    name="wb-sunny" 
-                    size={isLargeDevice ? 32 : 28} 
-                    color={colorScheme === 'dark' ? '#FFD700' : '#FFA500'} 
+                  <MaterialIcons
+                    name="wb-sunny"
+                    size={isLargeDevice ? 32 : 28}
+                    color={colorScheme === 'dark' ? '#FFD700' : '#FFA500'}
                   />
                 </LinearGradient>
-          </View>
-            </TouchableOpacity>
+              </View>
+              </Animated.View>
+            </Pressable>
 
             {/* Add Lesson Learned Button (Lightbulb) */}
-            <TouchableOpacity
+            <Pressable
               ref={lightbulbButtonRef}
-              style={[
-                styles.addGoodFactButton,
-                lessons.length > 0 && !lessons.every((lesson) => lesson.text.trim().length > 0)
-                  ? styles.addGoodFactButtonDisabled
-                  : undefined,
-              ]}
               onLayout={() => {
                 lightbulbButtonRef.current?.measure((fx, fy, width, height, px, py) => {
                   const buttonCenterX = px + width / 2;
@@ -2691,8 +2943,17 @@ export default function AddIdealizedMemoryScreen() {
                 });
               }}
               onPress={addNewLesson}
+              onPressIn={handleLightbulbButtonPressIn}
+              onPressOut={handleLightbulbButtonPressOut}
               disabled={lessons.length > 0 && !lessons.every((lesson) => lesson.text.trim().length > 0)}
             >
+              <Animated.View style={[
+                styles.addGoodFactButton,
+                lessons.length > 0 && !lessons.every((lesson) => lesson.text.trim().length > 0)
+                  ? styles.addGoodFactButtonDisabled
+                  : undefined,
+                lightbulbButtonAnimatedStyle,
+              ]}>
               <View style={{
                 width: isLargeDevice ? 64 : 56,
                 height: isLargeDevice ? 64 : 56,
@@ -2742,8 +3003,9 @@ export default function AddIdealizedMemoryScreen() {
                     color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'}
                   />
                 </LinearGradient>
-          </View>
-            </TouchableOpacity>
+              </View>
+              </Animated.View>
+            </Pressable>
           </View>
           )}
         </View>
@@ -2778,7 +3040,7 @@ export default function AddIdealizedMemoryScreen() {
             colors={colors}
             cloudWidth={dynamicCloudWidth}
             cloudHeight={dynamicCloudHeight}
-            placeholder={t('memory.hardTruth.placeholder')}
+            placeholder={cloud.placeholder || t('memory.hardTruth.placeholder')}
             onTextChange={(id, text) => {
               setClouds((prev) =>
                 prev.map((c) => (c.id === id ? { ...c, text } : c))
@@ -2840,7 +3102,7 @@ export default function AddIdealizedMemoryScreen() {
             colors={colors}
             sunWidth={dynamicSunSize}
             sunHeight={dynamicSunSize}
-            placeholder={t('memory.goodFact.placeholder')}
+            placeholder={sun.placeholder || t('memory.goodFact.placeholder')}
             onTextChange={(id, text) => {
               setSuns((prev) =>
                 prev.map((s) => (s.id === id ? { ...s, text } : s))
