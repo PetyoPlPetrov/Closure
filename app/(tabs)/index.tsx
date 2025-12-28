@@ -6530,6 +6530,13 @@ export default function HomeScreen() {
     }
   }, [showMomentTypeSelector, spheresScale, iconButtonScale]);
 
+  // Clear all moments when selected moment type changes to ensure only the new type is shown
+  useEffect(() => {
+    if (showMomentTypeSelector) {
+      setRandomMoments([]);
+    }
+  }, [selectedMomentType, showMomentTypeSelector]);
+
   // Spawn random pulsing moments at 1-2 second intervals when moment type selector is shown
   useEffect(() => {
     if (!showMomentTypeSelector || !isAppActive) {
@@ -6540,24 +6547,32 @@ export default function HomeScreen() {
     const avatarSize = isTablet ? 180 : 140;
     const avatarRadius = avatarSize / 2;
     const momentRadius = avatarRadius + (isTablet ? 120 : 80);
+    const MAX_MOMENTS = 5; // Limit concurrent pulsing moments to prevent overcrowding
 
     const spawnMoment = () => {
-      // Random angle around the circle
-      const angle = Math.random() * 2 * Math.PI;
+      setRandomMoments(prev => {
+        // Don't spawn if we've hit the limit
+        if (prev.length >= MAX_MOMENTS) {
+          return prev;
+        }
 
-      // Random radius variation for organic feel
-      const radiusVariation = (Math.random() - 0.5) * (isTablet ? 40 : 25);
-      const radius = momentRadius + radiusVariation;
+        // Random angle around the circle
+        const angle = Math.random() * 2 * Math.PI;
 
-      // Use only the selected moment type (lessons, hardTruths, or sunnyMoments)
-      const newMoment = {
-        id: momentIdCounter.current++,
-        angle,
-        radius,
-        momentType: selectedMomentType,
-      };
+        // Random radius variation for organic feel
+        const radiusVariation = (Math.random() - 0.5) * (isTablet ? 40 : 25);
+        const radius = momentRadius + radiusVariation;
 
-      setRandomMoments(prev => [...prev, newMoment]);
+        // Use only the selected moment type (lessons, hardTruths, or sunnyMoments)
+        const newMoment = {
+          id: momentIdCounter.current++,
+          angle,
+          radius,
+          momentType: selectedMomentType,
+        };
+
+        return [...prev, newMoment];
+      });
     };
 
     // Spawn first moment immediately
