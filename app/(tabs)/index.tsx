@@ -6279,6 +6279,10 @@ export default function HomeScreen() {
   const lessonsButtonSelection = useSharedValue(selectedMomentType === 'lessons' ? 1 : 0);
   const hardTruthsButtonSelection = useSharedValue(selectedMomentType === 'hardTruths' ? 1 : 0);
   const sunnyMomentsButtonSelection = useSharedValue(selectedMomentType === 'sunnyMoments' ? 1 : 0);
+  // Liquid glass specular highlight (0 = no highlight, 1 = full highlight)
+  const lessonsButtonHighlight = useSharedValue(0);
+  const hardTruthsButtonHighlight = useSharedValue(0);
+  const sunnyMomentsButtonHighlight = useSharedValue(0);
 
   // Constants for sphere circle
   const sphereCircle = useMemo(() => {
@@ -6701,36 +6705,42 @@ export default function HomeScreen() {
     );
   }, [selectedMomentType, lessonsButtonSelection, hardTruthsButtonSelection, sunnyMomentsButtonSelection]);
 
-  // Press handlers for moment type selector icon buttons
+  // Press handlers for moment type selector icon buttons with liquid glass highlight
   const handleLessonsButtonPressIn = useCallback(() => {
     'worklet';
     lessonsButtonPressScale.value = withTiming(0.88, { duration: 100, easing: Easing.out(Easing.ease) });
-  }, [lessonsButtonPressScale]);
+    lessonsButtonHighlight.value = withTiming(1, { duration: 150, easing: Easing.out(Easing.ease) });
+  }, [lessonsButtonPressScale, lessonsButtonHighlight]);
 
   const handleLessonsButtonPressOut = useCallback(() => {
     'worklet';
     lessonsButtonPressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
-  }, [lessonsButtonPressScale]);
+    lessonsButtonHighlight.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
+  }, [lessonsButtonPressScale, lessonsButtonHighlight]);
 
   const handleHardTruthsButtonPressIn = useCallback(() => {
     'worklet';
     hardTruthsButtonPressScale.value = withTiming(0.88, { duration: 100, easing: Easing.out(Easing.ease) });
-  }, [hardTruthsButtonPressScale]);
+    hardTruthsButtonHighlight.value = withTiming(1, { duration: 150, easing: Easing.out(Easing.ease) });
+  }, [hardTruthsButtonPressScale, hardTruthsButtonHighlight]);
 
   const handleHardTruthsButtonPressOut = useCallback(() => {
     'worklet';
     hardTruthsButtonPressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
-  }, [hardTruthsButtonPressScale]);
+    hardTruthsButtonHighlight.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
+  }, [hardTruthsButtonPressScale, hardTruthsButtonHighlight]);
 
   const handleSunnyMomentsButtonPressIn = useCallback(() => {
     'worklet';
     sunnyMomentsButtonPressScale.value = withTiming(0.88, { duration: 100, easing: Easing.out(Easing.ease) });
-  }, [sunnyMomentsButtonPressScale]);
+    sunnyMomentsButtonHighlight.value = withTiming(1, { duration: 150, easing: Easing.out(Easing.ease) });
+  }, [sunnyMomentsButtonPressScale, sunnyMomentsButtonHighlight]);
 
   const handleSunnyMomentsButtonPressOut = useCallback(() => {
     'worklet';
     sunnyMomentsButtonPressScale.value = withSpring(1, { damping: 10, stiffness: 300 });
-  }, [sunnyMomentsButtonPressScale]);
+    sunnyMomentsButtonHighlight.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
+  }, [sunnyMomentsButtonPressScale, sunnyMomentsButtonHighlight]);
 
   useAnimatedReaction(
     () => isWheelSpinning.value,
@@ -6768,7 +6778,7 @@ export default function HomeScreen() {
     transform: [{ scale: iconButtonScale.value }],
   }));
 
-  // Animated styles for individual button press effects with color transitions
+  // Animated styles for individual button press effects with liquid glass
   const lessonsButtonAnimatedStyle = useAnimatedStyle(() => {
     const backgroundColor = interpolateColor(
       lessonsButtonSelection.value,
@@ -6788,6 +6798,14 @@ export default function HomeScreen() {
       borderRadius: 30,
       width: 60,
       height: 60,
+      overflow: 'hidden', // For blur effect
+    };
+  });
+
+  // Specular highlight overlay for lessons button (liquid glass shine)
+  const lessonsHighlightStyle = useAnimatedStyle(() => {
+    return {
+      opacity: lessonsButtonHighlight.value * 0.4, // Max 40% opacity
     };
   });
 
@@ -6810,6 +6828,14 @@ export default function HomeScreen() {
       borderRadius: 30,
       width: 60,
       height: 60,
+      overflow: 'hidden', // For blur effect
+    };
+  });
+
+  // Specular highlight overlay for hard truths button (liquid glass shine)
+  const hardTruthsHighlightStyle = useAnimatedStyle(() => {
+    return {
+      opacity: hardTruthsButtonHighlight.value * 0.4, // Max 40% opacity
     };
   });
 
@@ -6832,6 +6858,14 @@ export default function HomeScreen() {
       borderRadius: 30,
       width: 60,
       height: 60,
+      overflow: 'hidden', // For blur effect
+    };
+  });
+
+  // Specular highlight overlay for sunny moments button (liquid glass shine)
+  const sunnyMomentsHighlightStyle = useAnimatedStyle(() => {
+    return {
+      opacity: sunnyMomentsButtonHighlight.value * 0.4, // Max 40% opacity
     };
   });
 
@@ -9717,8 +9751,37 @@ export default function HomeScreen() {
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                {/* Lessons button */}
+                {/* Lessons button - Liquid Glass Effect */}
                 <Animated.View style={lessonsButtonAnimatedStyle}>
+                  {/* Frosted glass base layer */}
+                  <View style={StyleSheet.absoluteFillObject}>
+                    <LinearGradient
+                      colors={[
+                        'rgba(255, 255, 255, 0.15)',
+                        'rgba(255, 255, 255, 0.05)',
+                        'rgba(255, 255, 255, 0.1)'
+                      ]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </View>
+
+                  {/* Specular highlight overlay */}
+                  <Animated.View
+                    style={[
+                      StyleSheet.absoluteFillObject,
+                      lessonsHighlightStyle,
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.6)', 'rgba(255,255,255,0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </Animated.View>
+
                   <Pressable
                     onPress={() => setSelectedMomentType('lessons')}
                     onPressIn={handleLessonsButtonPressIn}
@@ -9743,8 +9806,37 @@ export default function HomeScreen() {
                   </Pressable>
                 </Animated.View>
 
-                {/* Hard truths button */}
+                {/* Hard truths button - Liquid Glass Effect */}
                 <Animated.View style={hardTruthsButtonAnimatedStyle}>
+                  {/* Frosted glass base layer */}
+                  <View style={StyleSheet.absoluteFillObject}>
+                    <LinearGradient
+                      colors={[
+                        'rgba(255, 255, 255, 0.15)',
+                        'rgba(255, 255, 255, 0.05)',
+                        'rgba(255, 255, 255, 0.1)'
+                      ]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </View>
+
+                  {/* Specular highlight overlay */}
+                  <Animated.View
+                    style={[
+                      StyleSheet.absoluteFillObject,
+                      hardTruthsHighlightStyle,
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.6)', 'rgba(255,255,255,0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </Animated.View>
+
                   <Pressable
                     onPress={() => setSelectedMomentType('hardTruths')}
                     onPressIn={handleHardTruthsButtonPressIn}
@@ -9769,8 +9861,37 @@ export default function HomeScreen() {
                   </Pressable>
                 </Animated.View>
 
-                {/* Sunny moments button */}
+                {/* Sunny moments button - Liquid Glass Effect */}
                 <Animated.View style={sunnyMomentsButtonAnimatedStyle}>
+                  {/* Frosted glass base layer */}
+                  <View style={StyleSheet.absoluteFillObject}>
+                    <LinearGradient
+                      colors={[
+                        'rgba(255, 255, 255, 0.15)',
+                        'rgba(255, 255, 255, 0.05)',
+                        'rgba(255, 255, 255, 0.1)'
+                      ]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </View>
+
+                  {/* Specular highlight overlay */}
+                  <Animated.View
+                    style={[
+                      StyleSheet.absoluteFillObject,
+                      sunnyMomentsHighlightStyle,
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.6)', 'rgba(255,255,255,0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </Animated.View>
+
                   <Pressable
                     onPress={() => setSelectedMomentType('sunnyMoments')}
                     onPressIn={handleSunnyMomentsButtonPressIn}

@@ -37,8 +37,46 @@ import Animated, {
   useSharedValue,
   withSpring,
   withTiming,
+  withRepeat,
+  withSequence,
 } from 'react-native-reanimated';
+
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 import { Circle, Defs, Ellipse, Path, RadialGradient, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
+
+// Blinking cursor indicator component
+function CursorBlinkIndicator({ style, opacity }: { style: any; opacity: any }) {
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return <Animated.View style={[style, animatedStyle]} />;
+}
+
+// Animated TextInput wrapper that animates border width
+function AnimatedTitleInput({ 
+  borderWidth, 
+  isFocused,
+  ...props 
+}: { 
+  borderWidth: any; 
+  isFocused: boolean;
+  [key: string]: any;
+}) {
+  const animatedBorderStyle = useAnimatedStyle(() => ({
+    borderWidth: isFocused ? borderWidth.value : 1,
+  }));
+
+  return (
+    <AnimatedTextInput
+      {...props}
+      style={[
+        props.style,
+        isFocused && animatedBorderStyle,
+      ]}
+    />
+  );
+}
 
 // Animated Cloud Component
 function AnimatedCloud({
@@ -772,6 +810,36 @@ export default function AddIdealizedMemoryScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(existingMemory?.imageUri || null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTitleFocused, setIsTitleFocused] = useState(false);
+  
+  // Animated cursor opacity for blinking effect
+  const cursorOpacity = useSharedValue(1);
+  
+  // Pulse animation for border width
+  const borderWidth = useSharedValue(1);
+  
+  // Start blinking animation when focused
+  useEffect(() => {
+    if (isTitleFocused) {
+      cursorOpacity.value = withRepeat(
+        withTiming(0, { duration: 500 }),
+        -1,
+        true
+      );
+      // Pulse border 2-3 times when focused - quick pulses
+      borderWidth.value = withSequence(
+        withSpring(2.5, { damping: 15, stiffness: 400 }),
+        withSpring(1, { damping: 15, stiffness: 400 }),
+        withSpring(2.5, { damping: 15, stiffness: 400 }),
+        withSpring(1, { damping: 15, stiffness: 400 }),
+        withSpring(2.5, { damping: 15, stiffness: 400 }),
+        withSpring(1, { damping: 15, stiffness: 400 }),
+      );
+    } else {
+      cursorOpacity.value = withTiming(0, { duration: 200 });
+      borderWidth.value = 1;
+    }
+  }, [isTitleFocused, cursorOpacity, borderWidth]);
   
   // Track initial state for unsaved changes detection
   const initialMemoryLabel = useRef(existingMemory?.title || '');
@@ -1206,6 +1274,17 @@ export default function AddIdealizedMemoryScreen() {
   const cloudInputRefs = useRef<Record<string, React.RefObject<TextInput | null>>>({});
   const sunInputRefs = useRef<Record<string, React.RefObject<TextInput | null>>>({});
   const lessonInputRefs = useRef<Record<string, React.RefObject<TextInput | null>>>({});
+  
+  // Auto-focus title input when screen opens (only for new memories, not view-only)
+  useEffect(() => {
+    if (!viewOnly && !isEditMode && titleInputRef.current) {
+      // Small delay to ensure screen is fully rendered
+      const timer = setTimeout(() => {
+        titleInputRef.current?.focus();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [viewOnly, isEditMode]);
   
   // Track the ID of the newly created moment that should be focused
   const [newlyCreatedCloudId, setNewlyCreatedCloudId] = useState<string | null>(null);
@@ -1923,9 +2002,46 @@ export default function AddIdealizedMemoryScreen() {
           color: colors.text,
           textAlign: 'center',
           backgroundColor: 'transparent',
-          borderWidth: 0,
-          padding: 0,
+          borderWidth: 1,
+          borderColor: colorScheme === 'dark' 
+            ? 'rgba(59, 175, 251, 0.3)' 
+            : 'rgba(59, 175, 251, 0.25)',
+          borderRadius: 12,
+          paddingHorizontal: 16,
+          paddingVertical: 8,
           minHeight: 24,
+        },
+
+        memoryLabelInputFocused: {
+          backgroundColor: colorScheme === 'dark' 
+            ? 'rgba(59, 175, 251, 0.06)' 
+            : 'rgba(59, 175, 251, 0.03)',
+          borderRadius: 12,
+          paddingHorizontal: 16,
+          paddingVertical: 8,
+          borderWidth: 1,
+          borderColor: colorScheme === 'dark' 
+            ? 'rgba(59, 175, 251, 0.3)' 
+            : 'rgba(59, 175, 251, 0.25)',
+          shadowColor: colorScheme === 'dark' ? '#3BAFFB' : '#3BAFFB',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: colorScheme === 'dark' ? 0.15 : 0.1,
+          shadowRadius: 6,
+          elevation: 2,
+        },
+
+        memoryLabelInputFocusedBorder: {
+          borderColor: colorScheme === 'dark' 
+            ? 'rgba(59, 175, 251, 0.3)' 
+            : 'rgba(59, 175, 251, 0.25)',
+        },
+
+        cursorIndicator: {
+          position: 'absolute',
+          width: 2,
+          height: isLargeDevice ? 22 : 17,
+          backgroundColor: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
+          alignSelf: 'center',
         },
 
         buttonsRow: {
@@ -2366,22 +2482,52 @@ export default function AddIdealizedMemoryScreen() {
 
           {/* Editable memory label */}
           <View style={styles.memoryLabelContainer}>
-            <TextInput
-              ref={titleInputRef}
-              value={memoryLabel}
-              onChangeText={setMemoryLabel}
-              style={styles.memoryLabelInput}
-              placeholder={t('memory.title.placeholder')}
-              placeholderTextColor={colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'}
-              textAlign="center"
-              editable={!viewOnly}
-              onFocus={() => {
-                // Scroll to title input when focused to ensure it's visible above keyboard
-                setTimeout(() => {
-                  scrollViewRef.current?.scrollTo({ y: 150, animated: true });
-                }, 300);
-              }}
-            />
+            <View style={{ position: 'relative', width: '100%', alignItems: 'center' }}>
+              <AnimatedTitleInput
+                ref={titleInputRef}
+                value={memoryLabel}
+                onChangeText={setMemoryLabel}
+                borderWidth={borderWidth}
+                isFocused={isTitleFocused}
+                style={[
+                  styles.memoryLabelInput,
+                  isTitleFocused && styles.memoryLabelInputFocused,
+                ]}
+                placeholder={t('memory.title.placeholder')}
+                placeholderTextColor={colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'}
+                textAlign="center"
+                editable={!viewOnly}
+                autoFocus={!viewOnly && !isEditMode}
+                maxLength={24}
+                selectionColor={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                caretHidden={true}
+                showSoftInputOnFocus={true}
+                onFocus={(e) => {
+                  setIsTitleFocused(true);
+                  // Set selection to end of text to ensure cursor is visible
+                  if (titleInputRef.current) {
+                    const length = memoryLabel.length;
+                    titleInputRef.current.setNativeProps({
+                      selection: { start: length, end: length },
+                    });
+                  }
+                  // Scroll to title input when focused to ensure it's visible above keyboard
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollTo({ y: 150, animated: true });
+                  }, 300);
+                }}
+                onBlur={() => {
+                  setIsTitleFocused(false);
+                }}
+              />
+              {/* Custom blinking cursor indicator - only show when focused and empty */}
+              {isTitleFocused && memoryLabel.length === 0 && !viewOnly && (
+                <CursorBlinkIndicator
+                  style={styles.cursorIndicator}
+                  opacity={cursorOpacity}
+                />
+              )}
+            </View>
           </View>
 
           {/* Add Hard Truth and Good Fact - Same Row - hidden in view-only mode */}
