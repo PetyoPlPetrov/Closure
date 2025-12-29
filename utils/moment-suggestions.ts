@@ -3,7 +3,19 @@
  * Provides contextual placeholders that match the content of memories
  */
 
+import { getTranslation, Language } from './languages/translations';
+
 export interface MomentSuggestions {
+  hardTruths: string[];
+  goodFacts: string[];
+  lessons: string[];
+}
+
+/**
+ * Translation key structure for suggestions
+ * Maps keywords to translation key arrays
+ */
+interface SuggestionKeys {
   hardTruths: string[];
   goodFacts: string[];
   lessons: string[];
@@ -13,1933 +25,1624 @@ export interface MomentSuggestions {
  * Keyword-based suggestions database
  * Each key represents words that might appear in a memory title
  */
-const suggestionsByKeyword: Record<string, MomentSuggestions> = {
+const suggestionsByKeyword: Record<string, SuggestionKeys> = {
+
   // Birthday related
+
   birthday: {
     hardTruths: [
-      "They didn't remember my birthday",
-      "I was left alone on my special day",
-      "The celebration felt forced and uncomfortable",
+      'suggestions.birthday.hardTruths.0',
+      'suggestions.birthday.hardTruths.1',
+
+        'suggestions.birthday.hardTruths.2',
+      'suggestions.birthday.hardTruths.3',
+
+        'suggestions.birthday.hardTruths.4',
     ],
     goodFacts: [
-      "I learned who really cares about me",
-      "I can create my own joy without validation",
-      "Some friends showed up when it mattered",
+      'suggestions.birthday.goodFacts.0',
+      'suggestions.birthday.goodFacts.1',
+
+        'suggestions.birthday.goodFacts.2',
+      'suggestions.birthday.goodFacts.3',
+
+        'suggestions.birthday.goodFacts.4',
     ],
     lessons: [
-      "Birthdays don't define my worth",
-      "True friends show up without reminders",
-      "I can celebrate myself first",
+      'suggestions.birthday.lessons.0',
+      'suggestions.birthday.lessons.1',
+
+        'suggestions.birthday.lessons.2',
+      'suggestions.birthday.lessons.3',
+
+        'suggestions.birthday.lessons.4',
     ],
   },
 
   // Anniversary related
+
   anniversary: {
     hardTruths: [
-      "They forgot our anniversary",
-      "The day meant more to me than to them",
-      "I felt alone even when we were together",
+      'suggestions.anniversary.hardTruths.0',
+      'suggestions.anniversary.hardTruths.1',
+
+        'suggestions.anniversary.hardTruths.2',
+      'suggestions.anniversary.hardTruths.3',
+
+        'suggestions.anniversary.hardTruths.4',
     ],
     goodFacts: [
-      "I remember the good times we had",
-      "I honored our history even if they didn't",
-      "I learned what I truly value in relationships",
+      'suggestions.anniversary.goodFacts.0',
+      'suggestions.anniversary.goodFacts.1',
+
+        'suggestions.anniversary.goodFacts.2',
+      'suggestions.anniversary.goodFacts.3',
+
+        'suggestions.anniversary.goodFacts.4',
     ],
     lessons: [
-      "Equal investment matters in relationships",
-      "I deserve someone who remembers what's important",
-      "Memory and effort show true care",
+      'suggestions.anniversary.lessons.0',
+      'suggestions.anniversary.lessons.1',
+
+        'suggestions.anniversary.lessons.2',
+      'suggestions.anniversary.lessons.3',
+
+        'suggestions.anniversary.lessons.4',
     ],
   },
 
   // Breakup related
+
   breakup: {
     hardTruths: [
-      "The relationship was over long before we ended it",
-      "I ignored the red flags for too long",
-      "We wanted different things but neither admitted it",
+      'suggestions.breakup.hardTruths.0',
+      'suggestions.breakup.hardTruths.1',
+
+        'suggestions.breakup.hardTruths.2',
+      'suggestions.breakup.hardTruths.3',
+
+        'suggestions.breakup.hardTruths.4',
     ],
     goodFacts: [
-      "I finally found the courage to let go",
-      "I'm free to find someone who truly values me",
-      "I learned what I don't want in a partner",
+      'suggestions.breakup.goodFacts.0',
+      'suggestions.breakup.goodFacts.1',
+
+        'suggestions.breakup.goodFacts.2',
+      'suggestions.breakup.goodFacts.3',
+
+        'suggestions.breakup.goodFacts.4',
     ],
     lessons: [
-      "Staying for comfort isn't the same as love",
-      "I deserve someone who fights for us",
-      "Endings can be new beginnings",
+      'suggestions.breakup.lessons.0',
+      'suggestions.breakup.lessons.1',
+
+        'suggestions.breakup.lessons.2',
+      'suggestions.breakup.lessons.3',
+
+        'suggestions.breakup.lessons.4',
     ],
   },
 
   // Wedding related
+
   wedding: {
     hardTruths: [
-      "I felt invisible at their wedding",
-      "Watching them move on was harder than expected",
-      "I realized what we could have had",
+      'suggestions.wedding.hardTruths.0',
+      'suggestions.wedding.hardTruths.1',
+
+        'suggestions.wedding.hardTruths.2',
+      'suggestions.wedding.hardTruths.3',
+
+        'suggestions.wedding.hardTruths.4',
     ],
     goodFacts: [
-      "I showed strength by attending",
-      "I can be happy for them despite my pain",
-      "I handled it with grace and dignity",
+      'suggestions.wedding.goodFacts.0',
+      'suggestions.wedding.goodFacts.1',
+
+        'suggestions.wedding.goodFacts.2',
+      'suggestions.wedding.goodFacts.3',
+
+        'suggestions.wedding.goodFacts.4',
     ],
     lessons: [
-      "Their happiness doesn't diminish mine",
-      "Closure comes from within, not from events",
-      "I'm capable of moving forward",
+      'suggestions.wedding.lessons.0',
+      'suggestions.wedding.lessons.1',
+
+        'suggestions.wedding.lessons.2',
+      'suggestions.wedding.lessons.3',
+
+        'suggestions.wedding.lessons.4',
     ],
   },
 
   // Holiday related
+
   holiday: {
     hardTruths: [
-      "The holidays felt empty without them",
-      "Family gatherings highlighted what I lost",
-      "I felt like an outsider in familiar places",
+      'suggestions.holiday.hardTruths.0',
+      'suggestions.holiday.hardTruths.1',
+
+        'suggestions.holiday.hardTruths.2',
+      'suggestions.holiday.hardTruths.3',
+
+        'suggestions.holiday.hardTruths.4',
     ],
     goodFacts: [
-      "I created new traditions for myself",
-      "I found joy in unexpected places",
-      "Some family members really showed up for me",
+      'suggestions.holiday.goodFacts.0',
+      'suggestions.holiday.goodFacts.1',
+
+        'suggestions.holiday.goodFacts.2',
+      'suggestions.holiday.goodFacts.3',
+
+        'suggestions.holiday.goodFacts.4',
     ],
     lessons: [
-      "Holidays can be redefined and reclaimed",
-      "Traditions evolve and that's okay",
-      "I can create joy independently",
+      'suggestions.holiday.lessons.0',
+      'suggestions.holiday.lessons.1',
+
+        'suggestions.holiday.lessons.2',
+      'suggestions.holiday.lessons.3',
+
+        'suggestions.holiday.lessons.4',
     ],
   },
 
   // Christmas related
+
   christmas: {
     hardTruths: [
-      "Christmas reminded me of what I lost",
-      "The empty seat at the table hurt more than expected",
-      "Everyone else seemed happy while I struggled",
+      'suggestions.christmas.hardTruths.0',
+      'suggestions.christmas.hardTruths.1',
+
+        'suggestions.christmas.hardTruths.2',
+      'suggestions.christmas.hardTruths.3',
+
+        'suggestions.christmas.hardTruths.4',
     ],
     goodFacts: [
-      "I survived the hardest holiday season",
-      "I found moments of peace and gratitude",
-      "I learned I'm stronger than I thought",
+      'suggestions.christmas.goodFacts.0',
+      'suggestions.christmas.goodFacts.1',
+
+        'suggestions.christmas.goodFacts.2',
+      'suggestions.christmas.goodFacts.3',
+
+        'suggestions.christmas.goodFacts.4',
     ],
     lessons: [
-      "Grief and joy can coexist",
-      "It's okay to feel differently than others",
-      "Next year will be easier",
+      'suggestions.christmas.lessons.0',
+      'suggestions.christmas.lessons.1',
+
+        'suggestions.christmas.lessons.2',
+      'suggestions.christmas.lessons.3',
+
+        'suggestions.christmas.lessons.4',
     ],
   },
 
-  // Vacation/trip related
+  // Vacation related
+
   vacation: {
     hardTruths: [
-      "The trip we planned together never happened",
-      "I saw them vacation with someone new",
-      "Our travel dreams died with the relationship",
+      'suggestions.vacation.hardTruths.0',
+      'suggestions.vacation.hardTruths.1',
+
+        'suggestions.vacation.hardTruths.2',
+      'suggestions.vacation.hardTruths.3',
+
+        'suggestions.vacation.hardTruths.4',
     ],
     goodFacts: [
-      "I took that trip solo and loved it",
-      "I discovered new places on my own terms",
-      "I proved I don't need a partner to explore",
+      'suggestions.vacation.goodFacts.0',
+      'suggestions.vacation.goodFacts.1',
+
+        'suggestions.vacation.goodFacts.2',
+      'suggestions.vacation.goodFacts.3',
+
+        'suggestions.vacation.goodFacts.4',
     ],
     lessons: [
-      "Independence can be liberating",
-      "Solo adventures are just as meaningful",
-      "I can create memories without them",
+      'suggestions.vacation.lessons.0',
+      'suggestions.vacation.lessons.1',
+
+        'suggestions.vacation.lessons.2',
+      'suggestions.vacation.lessons.3',
+
+        'suggestions.vacation.lessons.4',
     ],
   },
 
   // Trip related
+
   trip: {
     hardTruths: [
-      "Our planned trips together never materialized",
-      "They took trips without me that we'd dreamed of",
-      "Traveling together revealed our incompatibility",
+      'suggestions.trip.hardTruths.0',
+      'suggestions.trip.hardTruths.1',
+
+        'suggestions.trip.hardTruths.2',
+      'suggestions.trip.hardTruths.3',
+
+        'suggestions.trip.hardTruths.4',
     ],
     goodFacts: [
-      "I'm planning trips that excite me",
-      "I can travel anywhere I want now",
-      "Solo trips taught me independence",
+      'suggestions.trip.goodFacts.0',
+      'suggestions.trip.goodFacts.1',
+
+        'suggestions.trip.goodFacts.2',
+      'suggestions.trip.goodFacts.3',
+
+        'suggestions.trip.goodFacts.4',
     ],
     lessons: [
-      "Adventure doesn't require a partner",
-      "I can explore the world on my own terms",
-      "Travel plans should align with my desires, not compromise",
+      'suggestions.trip.lessons.0',
+      'suggestions.trip.lessons.1',
+
+        'suggestions.trip.lessons.2',
+      'suggestions.trip.lessons.3',
+
+        'suggestions.trip.lessons.4',
     ],
   },
 
   // Walk related
+
   walk: {
     hardTruths: [
-      "Our walks together became silent and uncomfortable",
-      "They never wanted to walk with me",
-      "Walking alone reminded me of what I lost",
+      'suggestions.walk.hardTruths.0',
+      'suggestions.walk.hardTruths.1',
+
+        'suggestions.walk.hardTruths.2',
+      'suggestions.walk.hardTruths.3',
+
+        'suggestions.walk.hardTruths.4',
     ],
     goodFacts: [
-      "Walking alone is peaceful and meditative",
-      "I can walk wherever I want, at my own pace",
-      "Walks help me process and heal",
+      'suggestions.walk.goodFacts.0',
+      'suggestions.walk.goodFacts.1',
+
+        'suggestions.walk.goodFacts.2',
+      'suggestions.walk.goodFacts.3',
+
+        'suggestions.walk.goodFacts.4',
     ],
     lessons: [
-      "Solitude in nature is healing",
-      "Moving forward literally helps me move forward emotionally",
-      "I can find peace in simple moments alone",
+      'suggestions.walk.lessons.0',
+      'suggestions.walk.lessons.1',
+
+        'suggestions.walk.lessons.2',
+      'suggestions.walk.lessons.3',
+
+        'suggestions.walk.lessons.4',
     ],
   },
 
   // Mountain related
+
   mountain: {
     hardTruths: [
-      "The mountains we planned to climb together remain unclimbed",
-      "They reached peaks without me",
-      "Mountain adventures we dreamed of never happened",
+      'suggestions.mountain.hardTruths.0',
+      'suggestions.mountain.hardTruths.1',
+
+        'suggestions.mountain.hardTruths.2',
+      'suggestions.mountain.hardTruths.3',
+
+        'suggestions.mountain.hardTruths.4',
     ],
     goodFacts: [
-      "I'm conquering my own mountains now",
-      "Mountain views remind me of life's bigger picture",
-      "Climbing teaches me I can overcome anything",
+      'suggestions.mountain.goodFacts.0',
+      'suggestions.mountain.goodFacts.1',
+
+        'suggestions.mountain.goodFacts.2',
+      'suggestions.mountain.goodFacts.3',
+
+        'suggestions.mountain.goodFacts.4',
     ],
     lessons: [
-      "I can reach peaks on my own",
-      "The journey up is just as important as the view",
-      "Every summit proves my strength",
+      'suggestions.mountain.lessons.0',
+      'suggestions.mountain.lessons.1',
+
+        'suggestions.mountain.lessons.2',
+      'suggestions.mountain.lessons.3',
+
+        'suggestions.mountain.lessons.4',
     ],
   },
 
   // Lake related
+
   lake: {
     hardTruths: [
-      "Lakeside memories we shared are now bittersweet",
-      "They enjoyed the water without me",
-      "Our peaceful moments by the lake are gone",
+      'suggestions.lake.hardTruths.0',
+      'suggestions.lake.hardTruths.1',
+
+        'suggestions.lake.hardTruths.2',
+      'suggestions.lake.hardTruths.3',
+
+        'suggestions.lake.hardTruths.4',
     ],
     goodFacts: [
-      "Lakes still bring me peace and tranquility",
-      "Water has a calming, healing effect",
-      "I can find serenity by the water alone",
+      'suggestions.lake.goodFacts.0',
+      'suggestions.lake.goodFacts.1',
+
+        'suggestions.lake.goodFacts.2',
+      'suggestions.lake.goodFacts.3',
+
+        'suggestions.lake.goodFacts.4',
     ],
     lessons: [
-      "Nature's peace belongs to everyone",
-      "Still waters reflect my inner calm",
-      "I can reclaim peaceful places for myself",
+      'suggestions.lake.lessons.0',
+      'suggestions.lake.lessons.1',
+
+        'suggestions.lake.lessons.2',
+      'suggestions.lake.lessons.3',
+
+        'suggestions.lake.lessons.4',
     ],
   },
 
-  // Sand/beach related
+  // Sand related
+
   sand: {
     hardTruths: [
-      "Walking on sand together felt like walking on broken promises",
-      "The beach reminds me of plans that washed away",
-      "Our footprints in the sand were temporary, like our relationship",
+      'suggestions.sand.hardTruths.0',
+      'suggestions.sand.hardTruths.1',
+
+        'suggestions.sand.hardTruths.2',
+      'suggestions.sand.hardTruths.3',
+
+        'suggestions.sand.hardTruths.4',
     ],
     goodFacts: [
-      "Sand between my toes still feels grounding",
-      "Beaches are places of renewal and letting go",
-      "Every wave washes away a little more pain",
+      'suggestions.sand.goodFacts.0',
+      'suggestions.sand.goodFacts.1',
+
+        'suggestions.sand.goodFacts.2',
+      'suggestions.sand.goodFacts.3',
+
+        'suggestions.sand.goodFacts.4',
     ],
     lessons: [
-      "Like sand, I can reshape myself",
-      "The tide always comes in fresh and new",
-      "Beach memories can be reclaimed for new beginnings",
+      'suggestions.sand.lessons.0',
+      'suggestions.sand.lessons.1',
+
+        'suggestions.sand.lessons.2',
+      'suggestions.sand.lessons.3',
+
+        'suggestions.sand.lessons.4',
     ],
   },
 
-  // Work/job related
+  // Work related
+
   work: {
     hardTruths: [
-      "My career stress contributed to our problems",
-      "I prioritized work over the relationship",
-      "They never understood my professional ambitions",
+      'suggestions.work.hardTruths.0',
+      'suggestions.work.hardTruths.1',
+
+        'suggestions.work.hardTruths.2',
+      'suggestions.work.hardTruths.3',
+
+        'suggestions.work.hardTruths.4',
     ],
     goodFacts: [
-      "I achieved professional growth during hard times",
-      "Work provided stability when life was chaotic",
-      "I proved I can succeed independently",
+      'suggestions.work.goodFacts.0',
+      'suggestions.work.goodFacts.1',
+
+        'suggestions.work.goodFacts.2',
+      'suggestions.work.goodFacts.3',
+
+        'suggestions.work.goodFacts.4',
     ],
     lessons: [
-      "Balance between work and life is crucial",
-      "A partner should support my ambitions",
-      "Success means nothing without fulfillment",
+      'suggestions.work.lessons.0',
+      'suggestions.work.lessons.1',
+
+        'suggestions.work.lessons.2',
+      'suggestions.work.lessons.3',
+
+        'suggestions.work.lessons.4',
     ],
   },
 
   // Family related
+
   family: {
     hardTruths: [
-      "My family never really accepted them",
-      "Family events became awkward and painful",
-      "I lost some family connections in the breakup",
+      'suggestions.family.hardTruths.0',
+      'suggestions.family.hardTruths.1',
+
+        'suggestions.family.hardTruths.2',
+      'suggestions.family.hardTruths.3',
+
+        'suggestions.family.hardTruths.4',
     ],
     goodFacts: [
-      "My family supported me through it all",
-      "I strengthened bonds with siblings",
-      "Family helped me see my worth",
+      'suggestions.family.goodFacts.0',
+      'suggestions.family.goodFacts.1',
+
+        'suggestions.family.goodFacts.2',
+      'suggestions.family.goodFacts.3',
+
+        'suggestions.family.goodFacts.4',
     ],
     lessons: [
-      "Family wisdom often sees what we can't",
-      "Blood is thicker than broken promises",
-      "True family shows up in crisis",
+      'suggestions.family.lessons.0',
+      'suggestions.family.lessons.1',
+
+        'suggestions.family.lessons.2',
+      'suggestions.family.lessons.3',
+
+        'suggestions.family.lessons.4',
     ],
   },
 
-  // Moving/relocation related
+  // Move related
+
   move: {
     hardTruths: [
-      "They chose a place over our relationship",
-      "The distance revealed our true commitment",
-      "I sacrificed my location for nothing",
+      'suggestions.move.hardTruths.0',
+      'suggestions.move.hardTruths.1',
+
+        'suggestions.move.hardTruths.2',
+      'suggestions.move.hardTruths.3',
+
+        'suggestions.move.hardTruths.4',
     ],
     goodFacts: [
-      "I found a new home and new beginnings",
-      "The move gave me space to heal",
-      "I built a life that's truly mine",
+      'suggestions.move.goodFacts.0',
+      'suggestions.move.goodFacts.1',
+
+        'suggestions.move.goodFacts.2',
+      'suggestions.move.goodFacts.3',
+
+        'suggestions.move.goodFacts.4',
     ],
     lessons: [
-      "Home is where I make it, not where they are",
-      "Geography can't fix relationship problems",
-      "I'm capable of starting over anywhere",
+      'suggestions.move.lessons.0',
+      'suggestions.move.lessons.1',
+
+        'suggestions.move.lessons.2',
+      'suggestions.move.lessons.3',
+
+        'suggestions.move.lessons.4',
     ],
   },
 
-  // Fight/argument related
+  // Fight related
+
   fight: {
     hardTruths: [
-      "We fought about the same things repeatedly",
-      "The arguments became more important than solutions",
-      "I said things I can't take back",
+      'suggestions.fight.hardTruths.0',
+      'suggestions.fight.hardTruths.1',
+
+        'suggestions.fight.hardTruths.2',
+      'suggestions.fight.hardTruths.3',
+
+        'suggestions.fight.hardTruths.4',
     ],
     goodFacts: [
-      "I learned to communicate my needs clearly",
-      "I discovered my boundaries through conflict",
-      "Some fights revealed incompatibilities early",
+      'suggestions.fight.goodFacts.0',
+      'suggestions.fight.goodFacts.1',
+
+        'suggestions.fight.goodFacts.2',
+      'suggestions.fight.goodFacts.3',
+
+        'suggestions.fight.goodFacts.4',
     ],
     lessons: [
-      "How we fight matters more than what we fight about",
-      "Respect must remain even in disagreement",
-      "Some patterns can't be changed",
+      'suggestions.fight.lessons.0',
+      'suggestions.fight.lessons.1',
+
+        'suggestions.fight.lessons.2',
+      'suggestions.fight.lessons.3',
+
+        'suggestions.fight.lessons.4',
     ],
   },
 
-  // Trust/cheating related
+  // Trust related
+
   trust: {
     hardTruths: [
-      "The trust was broken and never fully restored",
-      "I stayed despite knowing the truth",
-      "My intuition was right all along",
+      'suggestions.trust.hardTruths.0',
+      'suggestions.trust.hardTruths.1',
+
+        'suggestions.trust.hardTruths.2',
+      'suggestions.trust.hardTruths.3',
+
+        'suggestions.trust.hardTruths.4',
     ],
     goodFacts: [
-      "I'm learning to trust myself again",
-      "I didn't compromise my values in the end",
-      "I chose self-respect over comfort",
+      'suggestions.trust.goodFacts.0',
+      'suggestions.trust.goodFacts.1',
+
+        'suggestions.trust.goodFacts.2',
+      'suggestions.trust.goodFacts.3',
+
+        'suggestions.trust.goodFacts.4',
     ],
     lessons: [
-      "Trust is the foundation of everything",
-      "Once broken, it's rarely the same",
-      "I must trust myself first",
+      'suggestions.trust.lessons.0',
+      'suggestions.trust.lessons.1',
+
+        'suggestions.trust.lessons.2',
+      'suggestions.trust.lessons.3',
+
+        'suggestions.trust.lessons.4',
     ],
   },
+
+  // Cheat related
 
   cheat: {
     hardTruths: [
-      "They chose someone else while with me",
-      "I was never enough for them",
-      "The betrayal cut deeper than I admitted",
+      'suggestions.cheat.hardTruths.0',
+      'suggestions.cheat.hardTruths.1',
+
+        'suggestions.cheat.hardTruths.2',
+      'suggestions.cheat.hardTruths.3',
+
+        'suggestions.cheat.hardTruths.4',
     ],
     goodFacts: [
-      "I discovered my strength through betrayal",
-      "I learned I deserve complete loyalty",
-      "I found self-worth beyond their validation",
+      'suggestions.cheat.goodFacts.0',
+      'suggestions.cheat.goodFacts.1',
+
+        'suggestions.cheat.goodFacts.2',
+      'suggestions.cheat.goodFacts.3',
+
+        'suggestions.cheat.goodFacts.4',
     ],
     lessons: [
-      "Cheating is about their character, not my worth",
-      "I deserve unwavering faithfulness",
-      "Betrayal teaches who people really are",
+      'suggestions.cheat.lessons.0',
+      'suggestions.cheat.lessons.1',
+
+        'suggestions.cheat.lessons.2',
+      'suggestions.cheat.lessons.3',
+
+        'suggestions.cheat.lessons.4',
     ],
   },
 
-  // Lie/dishonesty related
+  // Lie related
+
   lie: {
     hardTruths: [
-      "They lied about important things",
-      "I accepted half-truths for too long",
-      "The foundation was built on deception",
+      'suggestions.lie.hardTruths.0',
+      'suggestions.lie.hardTruths.1',
+
+        'suggestions.lie.hardTruths.2',
+      'suggestions.lie.hardTruths.3',
+
+        'suggestions.lie.hardTruths.4',
     ],
     goodFacts: [
-      "I eventually saw through the lies",
-      "I learned to recognize dishonesty",
-      "I value authenticity more than ever",
+      'suggestions.lie.goodFacts.0',
+      'suggestions.lie.goodFacts.1',
+
+        'suggestions.lie.goodFacts.2',
+      'suggestions.lie.goodFacts.3',
+
+        'suggestions.lie.goodFacts.4',
     ],
     lessons: [
-      "Honesty is non-negotiable",
-      "Small lies reveal bigger character flaws",
-      "Truth is the only foundation for love",
+      'suggestions.lie.lessons.0',
+      'suggestions.lie.lessons.1',
+
+        'suggestions.lie.lessons.2',
+      'suggestions.lie.lessons.3',
+
+        'suggestions.lie.lessons.4',
     ],
   },
 
-  // Friends related
+  // Friend related
+
   friend: {
     hardTruths: [
-      "Some friends took their side",
-      "I lost mutual friends in the breakup",
-      "Friends saw problems I couldn't see",
+      'suggestions.friend.hardTruths.0',
+      'suggestions.friend.hardTruths.1',
+
+        'suggestions.friend.hardTruths.2',
+      'suggestions.friend.hardTruths.3',
+
+        'suggestions.friend.hardTruths.4',
     ],
     goodFacts: [
-      "True friends stayed by my side",
-      "I made new, deeper friendships",
-      "Friends helped me rediscover myself",
+      'suggestions.friend.goodFacts.0',
+      'suggestions.friend.goodFacts.1',
+
+        'suggestions.friend.goodFacts.2',
+      'suggestions.friend.goodFacts.3',
+
+        'suggestions.friend.goodFacts.4',
     ],
     lessons: [
-      "Real friends are revealed in hardship",
-      "Quality matters more than quantity",
-      "Friendship is a choice, not an obligation",
+      'suggestions.friend.lessons.0',
+      'suggestions.friend.lessons.1',
+
+        'suggestions.friend.lessons.2',
+      'suggestions.friend.lessons.3',
+
+        'suggestions.friend.lessons.4',
     ],
   },
 
   // Pet related
+
   pet: {
     hardTruths: [
-      "We had to decide who keeps our pet",
-      "The pet misses them too",
-      "Shared pet custody is heartbreaking",
+      'suggestions.pet.hardTruths.0',
+      'suggestions.pet.hardTruths.1',
+
+        'suggestions.pet.hardTruths.2',
+      'suggestions.pet.hardTruths.3',
+
+        'suggestions.pet.hardTruths.4',
     ],
     goodFacts: [
-      "Our pet gives unconditional love",
-      "I have a loyal companion through this",
-      "The pet brought us joy even in hard times",
+      'suggestions.pet.goodFacts.0',
+      'suggestions.pet.goodFacts.1',
+
+        'suggestions.pet.goodFacts.2',
+      'suggestions.pet.goodFacts.3',
+
+        'suggestions.pet.goodFacts.4',
     ],
     lessons: [
-      "Pets love us through everything",
-      "Simple companionship can heal",
-      "Unconditional love still exists",
+      'suggestions.pet.lessons.0',
+      'suggestions.pet.lessons.1',
+
+        'suggestions.pet.lessons.2',
+      'suggestions.pet.lessons.3',
+
+        'suggestions.pet.lessons.4',
     ],
   },
 
-  // Home/house related
+  // Home related
+
   home: {
     hardTruths: [
-      "The home we built together is just a place now",
-      "Every corner holds painful memories",
-      "I had to leave the home I loved",
+      'suggestions.home.hardTruths.0',
+      'suggestions.home.hardTruths.1',
+
+        'suggestions.home.hardTruths.2',
+      'suggestions.home.hardTruths.3',
+
+        'suggestions.home.hardTruths.4',
     ],
     goodFacts: [
-      "I'm creating a new space that's truly mine",
-      "The house was never what made it home",
-      "I can start fresh without those memories",
+      'suggestions.home.goodFacts.0',
+      'suggestions.home.goodFacts.1',
+
+        'suggestions.home.goodFacts.2',
+      'suggestions.home.goodFacts.3',
+
+        'suggestions.home.goodFacts.4',
     ],
     lessons: [
-      "Home is a feeling, not a place",
-      "I can create sanctuary anywhere",
-      "Spaces can be reclaimed and redefined",
+      'suggestions.home.lessons.0',
+      'suggestions.home.lessons.1',
+
+        'suggestions.home.lessons.2',
+      'suggestions.home.lessons.3',
+
+        'suggestions.home.lessons.4',
     ],
   },
 
-  // Money/financial related
+  // Money related
+
   money: {
     hardTruths: [
-      "Financial stress revealed our incompatibility",
-      "They valued money over our relationship",
-      "I was used financially",
+      'suggestions.money.hardTruths.0',
+      'suggestions.money.hardTruths.1',
+
+        'suggestions.money.hardTruths.2',
+      'suggestions.money.hardTruths.3',
+
+        'suggestions.money.hardTruths.4',
     ],
     goodFacts: [
-      "I'm financially independent now",
-      "I learned to manage money on my own",
-      "Financial freedom is empowering",
+      'suggestions.money.goodFacts.0',
+      'suggestions.money.goodFacts.1',
+
+        'suggestions.money.goodFacts.2',
+      'suggestions.money.goodFacts.3',
+
+        'suggestions.money.goodFacts.4',
     ],
     lessons: [
-      "Financial values must align in relationships",
-      "Independence is invaluable",
-      "Money reveals character",
+      'suggestions.money.lessons.0',
+      'suggestions.money.lessons.1',
+
+        'suggestions.money.lessons.2',
+      'suggestions.money.lessons.3',
+
+        'suggestions.money.lessons.4',
     ],
   },
 
   // Apology related
+
   apology: {
     hardTruths: [
-      "The apology came too late",
-      "Words without actions are meaningless",
-      "I deserved an apology that never came",
+      'suggestions.apology.hardTruths.0',
+      'suggestions.apology.hardTruths.1',
+
+        'suggestions.apology.hardTruths.2',
+      'suggestions.apology.hardTruths.3',
+
+        'suggestions.apology.hardTruths.4',
     ],
     goodFacts: [
-      "I learned to apologize to myself",
-      "I don't need their apology to heal",
-      "I can forgive without accepting excuses",
+      'suggestions.apology.goodFacts.0',
+      'suggestions.apology.goodFacts.1',
+
+        'suggestions.apology.goodFacts.2',
+      'suggestions.apology.goodFacts.3',
+
+        'suggestions.apology.goodFacts.4',
     ],
     lessons: [
-      "Closure doesn't require their participation",
-      "Actions speak louder than apologies",
-      "I can move on without their sorry",
+      'suggestions.apology.lessons.0',
+      'suggestions.apology.lessons.1',
+
+        'suggestions.apology.lessons.2',
+      'suggestions.apology.lessons.3',
+
+        'suggestions.apology.lessons.4',
     ],
   },
 
-  // Promise/commitment related
+  // Promise related
+
   promise: {
     hardTruths: [
-      "Promises were broken without a second thought",
-      "Words were cheap, commitment was cheaper",
-      "I believed promises I shouldn't have",
+      'suggestions.promise.hardTruths.0',
+      'suggestions.promise.hardTruths.1',
+
+        'suggestions.promise.hardTruths.2',
+      'suggestions.promise.hardTruths.3',
+
+        'suggestions.promise.hardTruths.4',
     ],
     goodFacts: [
-      "I learned the value of my own word",
-      "I keep promises to myself now",
-      "I recognize empty promises quickly now",
+      'suggestions.promise.goodFacts.0',
+      'suggestions.promise.goodFacts.1',
+
+        'suggestions.promise.goodFacts.2',
+      'suggestions.promise.goodFacts.3',
+
+        'suggestions.promise.goodFacts.4',
     ],
     lessons: [
-      "Watch actions, not words",
-      "Keep promises to yourself first",
-      "Commitment shows in behavior, not speech",
+      'suggestions.promise.lessons.0',
+      'suggestions.promise.lessons.1',
+
+        'suggestions.promise.lessons.2',
+      'suggestions.promise.lessons.3',
+
+        'suggestions.promise.lessons.4',
     ],
   },
 
   // Graduation related
+
   graduation: {
     hardTruths: [
-      "They weren't there for my big achievement",
-      "I celebrated alone what should have been shared",
-      "Their absence tarnished a moment I worked hard for",
+      'suggestions.graduation.hardTruths.0',
+      'suggestions.graduation.hardTruths.1',
+
+        'suggestions.graduation.hardTruths.2',
+      'suggestions.graduation.hardTruths.3',
+
+        'suggestions.graduation.hardTruths.4',
     ],
     goodFacts: [
-      "I accomplished this milestone on my own",
-      "My achievement doesn't depend on their presence",
-      "I proved I can succeed independently",
+      'suggestions.graduation.goodFacts.0',
+      'suggestions.graduation.goodFacts.1',
+
+        'suggestions.graduation.goodFacts.2',
+      'suggestions.graduation.goodFacts.3',
+
+        'suggestions.graduation.goodFacts.4',
     ],
     lessons: [
-      "I celebrate my wins with or without them",
-      "Achievements belong to me alone",
-      "Success is sweeter when it's truly mine",
+      'suggestions.graduation.lessons.0',
+      'suggestions.graduation.lessons.1',
+
+        'suggestions.graduation.lessons.2',
+      'suggestions.graduation.lessons.3',
+
+        'suggestions.graduation.lessons.4',
     ],
   },
 
-  // Promotion/job success related
+  // Promotion related
+
   promotion: {
     hardTruths: [
-      "They didn't celebrate my professional success",
-      "My achievements meant nothing to them",
-      "I worked hard but felt unsupported",
+      'suggestions.promotion.hardTruths.0',
+      'suggestions.promotion.hardTruths.1',
+
+        'suggestions.promotion.hardTruths.2',
+      'suggestions.promotion.hardTruths.3',
+
+        'suggestions.promotion.hardTruths.4',
     ],
     goodFacts: [
-      "I earned this through my own effort",
-      "My career growth shows my resilience",
-      "I'm building a life that's truly mine",
+      'suggestions.promotion.goodFacts.0',
+      'suggestions.promotion.goodFacts.1',
+
+        'suggestions.promotion.goodFacts.2',
+      'suggestions.promotion.goodFacts.3',
+
+        'suggestions.promotion.goodFacts.4',
     ],
     lessons: [
-      "I don't need their validation to succeed",
-      "Professional growth happens with or without them",
-      "My worth isn't measured by their acknowledgment",
+      'suggestions.promotion.lessons.0',
+      'suggestions.promotion.lessons.1',
+
+        'suggestions.promotion.lessons.2',
+      'suggestions.promotion.lessons.3',
+
+        'suggestions.promotion.lessons.4',
     ],
   },
 
-  // Illness/health related
+  // Illness related
+
   illness: {
     hardTruths: [
-      "They weren't there when I was sick",
-      "I felt alone during my most vulnerable moments",
-      "My health struggles didn't matter to them",
+      'suggestions.illness.hardTruths.0',
+      'suggestions.illness.hardTruths.1',
+
+        'suggestions.illness.hardTruths.2',
+      'suggestions.illness.hardTruths.3',
+
+        'suggestions.illness.hardTruths.4',
     ],
     goodFacts: [
-      "I learned to care for myself",
-      "I found strength I didn't know I had",
-      "I survived without their support",
+      'suggestions.illness.goodFacts.0',
+      'suggestions.illness.goodFacts.1',
+
+        'suggestions.illness.goodFacts.2',
+      'suggestions.illness.goodFacts.3',
+
+        'suggestions.illness.goodFacts.4',
     ],
     lessons: [
-      "I must prioritize my own health",
-      "Self-care isn't selfish, it's necessary",
-      "I can rely on myself in sickness",
+      'suggestions.illness.lessons.0',
+      'suggestions.illness.lessons.1',
+
+        'suggestions.illness.lessons.2',
+      'suggestions.illness.lessons.3',
+
+        'suggestions.illness.lessons.4',
     ],
   },
 
-  // Hospital/medical related
+  // Hospital related
+
   hospital: {
     hardTruths: [
-      "They never visited me in the hospital",
-      "I faced my fear alone when I needed support",
-      "Medical emergencies revealed their true priorities",
+      'suggestions.hospital.hardTruths.0',
+      'suggestions.hospital.hardTruths.1',
+
+        'suggestions.hospital.hardTruths.2',
+      'suggestions.hospital.hardTruths.3',
+
+        'suggestions.hospital.hardTruths.4',
     ],
     goodFacts: [
-      "I handled medical challenges with courage",
-      "I learned I'm stronger than I thought",
-      "I have people who truly care about my health",
+      'suggestions.hospital.goodFacts.0',
+      'suggestions.hospital.goodFacts.1',
+
+        'suggestions.hospital.goodFacts.2',
+      'suggestions.hospital.goodFacts.3',
+
+        'suggestions.hospital.goodFacts.4',
     ],
     lessons: [
-      "True care shows up in crisis",
-      "Health emergencies reveal character",
-      "I deserve support in my hardest moments",
+      'suggestions.hospital.lessons.0',
+      'suggestions.hospital.lessons.1',
+
+        'suggestions.hospital.lessons.2',
+      'suggestions.hospital.lessons.3',
+
+        'suggestions.hospital.lessons.4',
     ],
   },
 
-  // Concert/music event related
+  // Concert related
+
   concert: {
     hardTruths: [
-      "We planned to go together but they went with someone else",
-      "I attended alone, remembering our plans",
-      "The music reminded me of what we shared",
+      'suggestions.concert.hardTruths.0',
+      'suggestions.concert.hardTruths.1',
+
+        'suggestions.concert.hardTruths.2',
+      'suggestions.concert.hardTruths.3',
+
+        'suggestions.concert.hardTruths.4',
     ],
     goodFacts: [
-      "I enjoyed the music on my own terms",
-      "I discovered I can have fun alone",
-      "Music still brings me joy without them",
+      'suggestions.concert.goodFacts.0',
+      'suggestions.concert.goodFacts.1',
+
+        'suggestions.concert.goodFacts.2',
+      'suggestions.concert.goodFacts.3',
+
+        'suggestions.concert.goodFacts.4',
     ],
     lessons: [
-      "I don't need a date to enjoy life",
-      "Shared interests don't require shared experiences",
-      "I can create new memories alone",
+      'suggestions.concert.lessons.0',
+      'suggestions.concert.lessons.1',
+
+        'suggestions.concert.lessons.2',
+      'suggestions.concert.lessons.3',
+
+        'suggestions.concert.lessons.4',
     ],
   },
 
-  // Restaurant/dinner related
+  // Restaurant related
+
   restaurant: {
     hardTruths: [
-      "Our favorite restaurant holds too many memories",
-      "I ate alone at places we discovered together",
-      "Every meal reminded me of our conversations",
+      'suggestions.restaurant.hardTruths.0',
+      'suggestions.restaurant.hardTruths.1',
+
+        'suggestions.restaurant.hardTruths.2',
+      'suggestions.restaurant.hardTruths.3',
+
+        'suggestions.restaurant.hardTruths.4',
     ],
     goodFacts: [
-      "I can enjoy dining solo now",
-      "I'm discovering new favorite places",
-      "Food still brings me comfort and joy",
+      'suggestions.restaurant.goodFacts.0',
+      'suggestions.restaurant.goodFacts.1',
+
+        'suggestions.restaurant.goodFacts.2',
+      'suggestions.restaurant.goodFacts.3',
+
+        'suggestions.restaurant.goodFacts.4',
     ],
     lessons: [
-      "Places can be reclaimed and redefined",
-      "I can find joy in simple pleasures alone",
-      "New memories can overwrite old ones",
+      'suggestions.restaurant.lessons.0',
+      'suggestions.restaurant.lessons.1',
+
+        'suggestions.restaurant.lessons.2',
+      'suggestions.restaurant.lessons.3',
+
+        'suggestions.restaurant.lessons.4',
     ],
   },
 
   // Date related
+
   date: {
     hardTruths: [
-      "They canceled our plans last minute repeatedly",
-      "Our dates became obligations, not joys",
-      "I put more effort into dates than they did",
+      'suggestions.date.hardTruths.0',
+      'suggestions.date.hardTruths.1',
+
+        'suggestions.date.hardTruths.2',
+      'suggestions.date.hardTruths.3',
+
+        'suggestions.date.hardTruths.4',
     ],
     goodFacts: [
-      "I learned what makes a good date",
-      "I know what I want in future dates",
-      "I'm ready for someone who values our time together",
+      'suggestions.date.goodFacts.0',
+      'suggestions.date.goodFacts.1',
+
+        'suggestions.date.goodFacts.2',
+      'suggestions.date.goodFacts.3',
+
+        'suggestions.date.goodFacts.4',
     ],
     lessons: [
-      "Dates should be wanted, not forced",
-      "Effort in planning shows care",
-      "I deserve someone excited to spend time with me",
+      'suggestions.date.lessons.0',
+      'suggestions.date.lessons.1',
+
+        'suggestions.date.lessons.2',
+      'suggestions.date.lessons.3',
+
+        'suggestions.date.lessons.4',
     ],
   },
 
   // Gift related
+
   gift: {
     hardTruths: [
-      "They never put thought into gifts for me",
-      "My gifts to them were more meaningful than theirs to me",
-      "Gift-giving became one-sided",
+      'suggestions.gift.hardTruths.0',
+      'suggestions.gift.hardTruths.1',
+
+        'suggestions.gift.hardTruths.2',
+      'suggestions.gift.hardTruths.3',
+
+        'suggestions.gift.hardTruths.4',
     ],
     goodFacts: [
-      "I learned the joy of giving without expectation",
-      "I appreciate people who remember special occasions",
-      "I can give myself meaningful gifts now",
+      'suggestions.gift.goodFacts.0',
+      'suggestions.gift.goodFacts.1',
+
+        'suggestions.gift.goodFacts.2',
+      'suggestions.gift.goodFacts.3',
+
+        'suggestions.gift.goodFacts.4',
     ],
     lessons: [
-      "Gifts reflect thoughtfulness and care",
-      "I deserve someone who puts effort into making me happy",
-      "Material things matter less than the gesture",
+      'suggestions.gift.lessons.0',
+      'suggestions.gift.lessons.1',
+
+        'suggestions.gift.lessons.2',
+      'suggestions.gift.lessons.3',
+
+        'suggestions.gift.lessons.4',
     ],
   },
 
-  // Text/message related
+  // Text related
+
   text: {
     hardTruths: [
-      "They left my messages on read for days",
-      "One-word replies showed their disinterest",
-      "I always initiated conversations",
+      'suggestions.text.hardTruths.0',
+      'suggestions.text.hardTruths.1',
+
+        'suggestions.text.hardTruths.2',
+      'suggestions.text.hardTruths.3',
+
+        'suggestions.text.hardTruths.4',
     ],
     goodFacts: [
-      "I stopped waiting for replies that never came",
-      "I learned my worth isn't measured by response time",
-      "I found people who actually want to talk to me",
+      'suggestions.text.goodFacts.0',
+      'suggestions.text.goodFacts.1',
+
+        'suggestions.text.goodFacts.2',
+      'suggestions.text.goodFacts.3',
+
+        'suggestions.text.goodFacts.4',
     ],
     lessons: [
-      "Communication should be two-way",
-      "If they wanted to, they would",
-      "I deserve enthusiastic conversation partners",
+      'suggestions.text.lessons.0',
+      'suggestions.text.lessons.1',
+
+        'suggestions.text.lessons.2',
+      'suggestions.text.lessons.3',
+
+        'suggestions.text.lessons.4',
     ],
   },
 
-  // Phone call related
+  // Call related
+
   call: {
     hardTruths: [
-      "They never answered when I needed them",
-      "Phone calls became one-sided monologues",
-      "I stopped calling because they never called back",
+      'suggestions.call.hardTruths.0',
+      'suggestions.call.hardTruths.1',
+
+        'suggestions.call.hardTruths.2',
+      'suggestions.call.hardTruths.3',
+
+        'suggestions.call.hardTruths.4',
     ],
     goodFacts: [
-      "I found people who answer when I call",
-      "I learned to rely on myself more",
-      "I don't wait for calls that won't come",
+      'suggestions.call.goodFacts.0',
+      'suggestions.call.goodFacts.1',
+
+        'suggestions.call.goodFacts.2',
+      'suggestions.call.goodFacts.3',
+
+        'suggestions.call.goodFacts.4',
     ],
     lessons: [
-      "Availability matters in relationships",
-      "I deserve people who want to hear from me",
-      "Phone calls should be wanted, not avoided",
+      'suggestions.call.lessons.0',
+      'suggestions.call.lessons.1',
+
+        'suggestions.call.lessons.2',
+      'suggestions.call.lessons.3',
+
+        'suggestions.call.lessons.4',
     ],
   },
 
-  // Party/social event related
+  // Party related
+
   party: {
     hardTruths: [
-      "They ignored me at parties we attended together",
-      "I felt like a stranger at our own events",
-      "They socialized while I felt invisible",
+      'suggestions.party.hardTruths.0',
+      'suggestions.party.hardTruths.1',
+
+        'suggestions.party.hardTruths.2',
+      'suggestions.party.hardTruths.3',
+
+        'suggestions.party.hardTruths.4',
     ],
     goodFacts: [
-      "I learned to enjoy parties independently",
-      "I can have fun without their validation",
-      "I discovered I'm actually good at socializing alone",
+      'suggestions.party.goodFacts.0',
+      'suggestions.party.goodFacts.1',
+
+        'suggestions.party.goodFacts.2',
+      'suggestions.party.goodFacts.3',
+
+        'suggestions.party.goodFacts.4',
     ],
     lessons: [
-      "Partners should make each other feel included",
-      "I can thrive in social situations independently",
-      "I deserve someone who wants me by their side",
+      'suggestions.party.lessons.0',
+      'suggestions.party.lessons.1',
+
+        'suggestions.party.lessons.2',
+      'suggestions.party.lessons.3',
+
+        'suggestions.party.lessons.4',
     ],
   },
 
-  // Coffee/cafe related
+  // Coffee related
+
   coffee: {
     hardTruths: [
-      "Our coffee dates became awkward silences",
-      "They always seemed distracted during our conversations",
-      "I noticed they'd rather be anywhere else",
+      'suggestions.coffee.hardTruths.0',
+      'suggestions.coffee.hardTruths.1',
+
+        'suggestions.coffee.hardTruths.2',
+      'suggestions.coffee.hardTruths.3',
+
+        'suggestions.coffee.hardTruths.4',
     ],
     goodFacts: [
-      "I learned to enjoy coffee alone",
-      "Cafes became my peaceful space",
-      "I can have meaningful conversations with myself",
+      'suggestions.coffee.goodFacts.0',
+      'suggestions.coffee.goodFacts.1',
+
+        'suggestions.coffee.goodFacts.2',
+      'suggestions.coffee.goodFacts.3',
+
+        'suggestions.coffee.goodFacts.4',
     ],
     lessons: [
-      "Simple moments should feel comfortable",
-      "Presence matters more than the place",
-      "I deserve engaging conversations over coffee",
+      'suggestions.coffee.lessons.0',
+      'suggestions.coffee.lessons.1',
+
+        'suggestions.coffee.lessons.2',
+      'suggestions.coffee.lessons.3',
+
+        'suggestions.coffee.lessons.4',
     ],
   },
 
-  // School/education related
+  // School related
+
   school: {
     hardTruths: [
-      "They didn't support my educational goals",
-      "My studies became a source of conflict",
-      "They saw my ambitions as a threat",
+      'suggestions.school.hardTruths.0',
+      'suggestions.school.hardTruths.1',
+
+        'suggestions.school.hardTruths.2',
+      'suggestions.school.hardTruths.3',
+
+        'suggestions.school.hardTruths.4',
     ],
     goodFacts: [
-      "I pursued education for myself",
-      "Learning gives me purpose and growth",
-      "Education is an investment in my future",
+      'suggestions.school.goodFacts.0',
+      'suggestions.school.goodFacts.1',
+
+        'suggestions.school.goodFacts.2',
+      'suggestions.school.goodFacts.3',
+
+        'suggestions.school.goodFacts.4',
     ],
     lessons: [
-      "A partner should support my growth",
-      "Education is non-negotiable",
-      "I'm building a better future for myself",
+      'suggestions.school.lessons.0',
+      'suggestions.school.lessons.1',
+
+        'suggestions.school.lessons.2',
+      'suggestions.school.lessons.3',
+
+        'suggestions.school.lessons.4',
     ],
   },
 
-  // Gym/exercise related
+  // Gym related
+
   gym: {
     hardTruths: [
-      "They criticized my fitness goals",
-      "Working out became something I hid from them",
-      "They made me feel self-conscious about my body",
+      'suggestions.gym.hardTruths.0',
+      'suggestions.gym.hardTruths.1',
+
+        'suggestions.gym.hardTruths.2',
+      'suggestions.gym.hardTruths.3',
+
+        'suggestions.gym.hardTruths.4',
     ],
     goodFacts: [
-      "I exercise for my mental and physical health",
-      "The gym became my sanctuary",
-      "I'm building strength inside and out",
+      'suggestions.gym.goodFacts.0',
+      'suggestions.gym.goodFacts.1',
+
+        'suggestions.gym.goodFacts.2',
+      'suggestions.gym.goodFacts.3',
+
+        'suggestions.gym.goodFacts.4',
     ],
     lessons: [
-      "Self-improvement should be encouraged",
-      "My body goals are my own",
-      "A partner should lift me up, not bring me down",
+      'suggestions.gym.lessons.0',
+      'suggestions.gym.lessons.1',
+
+        'suggestions.gym.lessons.2',
+      'suggestions.gym.lessons.3',
+
+        'suggestions.gym.lessons.4',
     ],
   },
 
-  // Music/song related
+  // Music related
+
   music: {
     hardTruths: [
-      "Our songs became too painful to hear",
-      "Music we discovered together now triggers sadness",
-      "They ruined artists I once loved",
+      'suggestions.music.hardTruths.0',
+      'suggestions.music.hardTruths.1',
+
+        'suggestions.music.hardTruths.2',
+      'suggestions.music.hardTruths.3',
+
+        'suggestions.music.hardTruths.4',
     ],
     goodFacts: [
-      "I'm discovering new music that's just mine",
-      "Music still moves me deeply",
-      "I can find new meaning in old songs",
+      'suggestions.music.goodFacts.0',
+      'suggestions.music.goodFacts.1',
+
+        'suggestions.music.goodFacts.2',
+      'suggestions.music.goodFacts.3',
+
+        'suggestions.music.goodFacts.4',
     ],
     lessons: [
-      "Music can be reclaimed and redefined",
-      "Art belongs to me, not our memories",
-      "New songs can create new associations",
+      'suggestions.music.lessons.0',
+      'suggestions.music.lessons.1',
+
+        'suggestions.music.lessons.2',
+      'suggestions.music.lessons.3',
+
+        'suggestions.music.lessons.4',
     ],
   },
 
-  // Movie/film related
+  // Movie related
+
   movie: {
     hardTruths: [
-      "Movie nights became lonely experiences",
-      "They'd rather watch alone than with me",
-      "Our shared interests didn't translate to quality time",
+      'suggestions.movie.hardTruths.0',
+      'suggestions.movie.hardTruths.1',
+
+        'suggestions.movie.hardTruths.2',
+      'suggestions.movie.hardTruths.3',
+
+        'suggestions.movie.hardTruths.4',
     ],
     goodFacts: [
-      "I can enjoy films on my own",
-      "Movie theaters became my escape",
-      "I'm discovering new favorites independently",
+      'suggestions.movie.goodFacts.0',
+      'suggestions.movie.goodFacts.1',
+
+        'suggestions.movie.goodFacts.2',
+      'suggestions.movie.goodFacts.3',
+
+        'suggestions.movie.goodFacts.4',
     ],
     lessons: [
-      "Shared interests need shared effort",
-      "I can find joy in solo entertainment",
-      "Quality time matters more than the activity",
+      'suggestions.movie.lessons.0',
+      'suggestions.movie.lessons.1',
+
+        'suggestions.movie.lessons.2',
+      'suggestions.movie.lessons.3',
+
+        'suggestions.movie.lessons.4',
     ],
   },
 
-  // Photo/picture related
+  // Photo related
+
   photo: {
     hardTruths: [
-      "Looking at old photos brings more pain than joy",
-      "They deleted our memories without hesitation",
-      "Pictures revealed truths I couldn't see before",
+      'suggestions.photo.hardTruths.0',
+      'suggestions.photo.hardTruths.1',
+
+        'suggestions.photo.hardTruths.2',
+      'suggestions.photo.hardTruths.3',
+
+        'suggestions.photo.hardTruths.4',
     ],
     goodFacts: [
-      "I'm taking new photos of my life now",
-      "Photos document my growth and healing",
-      "I can look back with clarity instead of pain",
+      'suggestions.photo.goodFacts.0',
+      'suggestions.photo.goodFacts.1',
+
+        'suggestions.photo.goodFacts.2',
+      'suggestions.photo.goodFacts.3',
+
+        'suggestions.photo.goodFacts.4',
     ],
     lessons: [
-      "Photos capture moments, not permanence",
-      "I'm creating new memories worth photographing",
-      "The past is over, but I have a future",
+      'suggestions.photo.lessons.0',
+      'suggestions.photo.lessons.1',
+
+        'suggestions.photo.lessons.2',
+      'suggestions.photo.lessons.3',
+
+        'suggestions.photo.lessons.4',
     ],
   },
 
-  // Travel/journey related
+  // Travel related
+
   travel: {
     hardTruths: [
-      "The trip we dreamed of will never happen",
-      "Travel plans died with the relationship",
-      "They went on adventures I was excluded from",
+      'suggestions.travel.hardTruths.0',
+      'suggestions.travel.hardTruths.1',
+
+        'suggestions.travel.hardTruths.2',
+      'suggestions.travel.hardTruths.3',
+
+        'suggestions.travel.hardTruths.4',
     ],
     goodFacts: [
-      "I'm planning trips just for me",
-      "Traveling solo is liberating",
-      "The world is still full of places to discover",
+      'suggestions.travel.goodFacts.0',
+      'suggestions.travel.goodFacts.1',
+
+        'suggestions.travel.goodFacts.2',
+      'suggestions.travel.goodFacts.3',
+
+        'suggestions.travel.goodFacts.4',
     ],
     lessons: [
-      "I can explore the world alone",
-      "Adventure doesn't require a partner",
-      "Travel heals and expands perspectives",
+      'suggestions.travel.lessons.0',
+      'suggestions.travel.lessons.1',
+
+        'suggestions.travel.lessons.2',
+      'suggestions.travel.lessons.3',
+
+        'suggestions.travel.lessons.4',
     ],
   },
 
   // Airport related
+
   airport: {
     hardTruths: [
-      "They never came to pick me up",
-      "Airport goodbyes revealed their true feelings",
-      "Traveling to see them was always one-way effort",
+      'suggestions.airport.hardTruths.0',
+      'suggestions.airport.hardTruths.1',
+
+        'suggestions.airport.hardTruths.2',
+      'suggestions.airport.hardTruths.3',
+
+        'suggestions.airport.hardTruths.4',
     ],
     goodFacts: [
-      "I learned to navigate airports independently",
-      "Airports symbolize my freedom now",
-      "I can travel wherever I want, whenever I want",
+      'suggestions.airport.goodFacts.0',
+      'suggestions.airport.goodFacts.1',
+
+        'suggestions.airport.goodFacts.2',
+      'suggestions.airport.goodFacts.3',
+
+        'suggestions.airport.goodFacts.4',
     ],
     lessons: [
-      "Effort should be mutual in long-distance",
-      "I'm free to go anywhere without permission",
-      "Travel represents my independence",
+      'suggestions.airport.lessons.0',
+      'suggestions.airport.lessons.1',
+
+        'suggestions.airport.lessons.2',
+      'suggestions.airport.lessons.3',
+
+        'suggestions.airport.lessons.4',
     ],
   },
 
-  // Beach/water related
+  // Beach related
+
   beach: {
     hardTruths: [
-      "Our beach memories are now bittersweet",
-      "The ocean reminds me of promises that washed away",
-      "They loved the beach more than they loved me",
+      'suggestions.beach.hardTruths.0',
+      'suggestions.beach.hardTruths.1',
+
+        'suggestions.beach.hardTruths.2',
+      'suggestions.beach.hardTruths.3',
+
+        'suggestions.beach.hardTruths.4',
     ],
     goodFacts: [
-      "The ocean still brings me peace",
-      "Beaches are places of renewal and healing",
-      "Water has a way of washing away pain",
+      'suggestions.beach.goodFacts.0',
+      'suggestions.beach.goodFacts.1',
+
+        'suggestions.beach.goodFacts.2',
+      'suggestions.beach.goodFacts.3',
+
+        'suggestions.beach.goodFacts.4',
     ],
     lessons: [
-      "Nature heals regardless of who's beside me",
-      "The ocean's vastness puts things in perspective",
-      "I can find peace in the same places again",
+      'suggestions.beach.lessons.0',
+      'suggestions.beach.lessons.1',
+
+        'suggestions.beach.lessons.2',
+      'suggestions.beach.lessons.3',
+
+        'suggestions.beach.lessons.4',
     ],
   },
 
-  // Park/nature related
+  // Park related
+
   park: {
     hardTruths: [
-      "Walking in parks reminded me of what we lost",
-      "Nature felt empty without them",
-      "Our favorite spots became places to avoid",
+      'suggestions.park.hardTruths.0',
+      'suggestions.park.hardTruths.1',
+
+        'suggestions.park.hardTruths.2',
+      'suggestions.park.hardTruths.3',
+
+        'suggestions.park.hardTruths.4',
     ],
     goodFacts: [
-      "Nature still brings me peace and clarity",
-      "Parks are places of healing and reflection",
-      "I'm finding new favorite spots",
+      'suggestions.park.goodFacts.0',
+      'suggestions.park.goodFacts.1',
+
+        'suggestions.park.goodFacts.2',
+      'suggestions.park.goodFacts.3',
+
+        'suggestions.park.goodFacts.4',
     ],
     lessons: [
-      "Nature belongs to everyone",
-      "The outdoors can be reclaimed for myself",
-      "Peace comes from within, not from company",
+      'suggestions.park.lessons.0',
+      'suggestions.park.lessons.1',
+
+        'suggestions.park.lessons.2',
+      'suggestions.park.lessons.3',
+
+        'suggestions.park.lessons.4',
     ],
   },
 
   // Shopping related
+
   shopping: {
     hardTruths: [
-      "Shopping together became a chore for them",
-      "They criticized my choices and preferences",
-      "Our styles reflected our incompatibility",
+      'suggestions.shopping.hardTruths.0',
+      'suggestions.shopping.hardTruths.1',
+
+        'suggestions.shopping.hardTruths.2',
+      'suggestions.shopping.hardTruths.3',
+
+        'suggestions.shopping.hardTruths.4',
     ],
     goodFacts: [
-      "I'm developing my own unique style",
-      "Shopping is now a form of self-expression",
-      "I can buy what makes me happy without judgment",
+      'suggestions.shopping.goodFacts.0',
+      'suggestions.shopping.goodFacts.1',
+
+        'suggestions.shopping.goodFacts.2',
+      'suggestions.shopping.goodFacts.3',
+
+        'suggestions.shopping.goodFacts.4',
     ],
     lessons: [
-      "Personal style is about self-expression",
-      "I don't need approval for my choices",
-      "Shopping alone can be empowering",
+      'suggestions.shopping.lessons.0',
+      'suggestions.shopping.lessons.1',
+
+        'suggestions.shopping.lessons.2',
+      'suggestions.shopping.lessons.3',
+
+        'suggestions.shopping.lessons.4',
     ],
   },
 
-  // Car/driving related
+  // Car related
+
   car: {
     hardTruths: [
-      "They never wanted to drive to see me",
-      "Car rides became silent and tense",
-      "The car we shared now holds painful memories",
+      'suggestions.car.hardTruths.0',
+      'suggestions.car.hardTruths.1',
+
+        'suggestions.car.hardTruths.2',
+      'suggestions.car.hardTruths.3',
+
+        'suggestions.car.hardTruths.4',
     ],
     goodFacts: [
-      "I have freedom to go anywhere",
-      "Driving alone is peaceful and liberating",
-      "The road ahead is mine to choose",
+      'suggestions.car.goodFacts.0',
+      'suggestions.car.goodFacts.1',
+
+        'suggestions.car.goodFacts.2',
+      'suggestions.car.goodFacts.3',
+
+        'suggestions.car.goodFacts.4',
     ],
     lessons: [
-      "Independence means going my own way",
-      "I control where I'm headed",
-      "The journey matters more than who's in the passenger seat",
+      'suggestions.car.lessons.0',
+      'suggestions.car.lessons.1',
+
+        'suggestions.car.lessons.2',
+      'suggestions.car.lessons.3',
+
+        'suggestions.car.lessons.4',
     ],
   },
 
-  // Game/gaming related
+  // Game related
+
   game: {
     hardTruths: [
-      "They never wanted to play with me",
-      "Gaming became a way to avoid me",
-      "Our interests diverged completely",
+      'suggestions.game.hardTruths.0',
+      'suggestions.game.hardTruths.1',
+
+        'suggestions.game.hardTruths.2',
+      'suggestions.game.hardTruths.3',
+
+        'suggestions.game.hardTruths.4',
     ],
     goodFacts: [
-      "I enjoy games on my own terms",
-      "Gaming is a healthy escape and fun",
-      "I can find communities that share my interests",
+      'suggestions.game.goodFacts.0',
+      'suggestions.game.goodFacts.1',
+
+        'suggestions.game.goodFacts.2',
+      'suggestions.game.goodFacts.3',
+
+        'suggestions.game.goodFacts.4',
     ],
     lessons: [
-      "Hobbies don't require partner participation",
-      "I can enjoy my interests independently",
-      "Shared interests aren't necessary for compatibility",
+      'suggestions.game.lessons.0',
+      'suggestions.game.lessons.1',
+
+        'suggestions.game.lessons.2',
+      'suggestions.game.lessons.3',
+
+        'suggestions.game.lessons.4',
     ],
   },
 
   // Generic/fallback suggestions
   default: {
     hardTruths: [
-      "I ignored the signs that were always there",
-      "I stayed longer than I should have",
-      "I compromised too much of myself",
+      'suggestions.default.hardTruths.0',
+      'suggestions.default.hardTruths.1',
+      'suggestions.default.hardTruths.2',
+      'suggestions.default.hardTruths.3',
+      'suggestions.default.hardTruths.4',
     ],
     goodFacts: [
-      "I learned what I truly need in a relationship",
-      "I grew stronger through this experience",
-      "I'm one step closer to the right person",
+      'suggestions.default.goodFacts.0',
+      'suggestions.default.goodFacts.1',
+      'suggestions.default.goodFacts.2',
+      'suggestions.default.goodFacts.3',
+      'suggestions.default.goodFacts.4',
     ],
     lessons: [
-      "Growth comes from the hardest experiences",
-      "I deserve better than I accepted",
-      "Healing is a journey, not a destination",
+      'suggestions.default.lessons.0',
+      'suggestions.default.lessons.1',
+      'suggestions.default.lessons.2',
+      'suggestions.default.lessons.3',
+      'suggestions.default.lessons.4',
     ],
   },
 };
 
-/**
- * Bulgarian translations for the suggestions
- */
-const suggestionsByKeywordBg: Record<string, MomentSuggestions> = {
-  // Birthday related
-  birthday: {
-    hardTruths: [
-      "Не си спомниха рожденния ми ден",
-      "Останах сам в специалния си ден",
-      "Празненството се усеща наложено и неудобно",
-    ],
-    goodFacts: [
-      "Научих кой наистина се грижи за мен",
-      "Мога да създам собствена радост без одобрение",
-      "Някои приятели се появиха, когато беше важно",
-    ],
-    lessons: [
-      "Рождените дни не определят стойността ми",
-      "Истинските приятели се появяват без напомняния",
-      "Мога да празнувам себе си на първо място",
-    ],
-  },
-
-  // Anniversary related
-  anniversary: {
-    hardTruths: [
-      "Забравиха годишнината ни",
-      "Денят значеше повече за мен, отколкото за тях",
-      "Усетих се сам, дори когато бяхме заедно",
-    ],
-    goodFacts: [
-      "Помня хубавите времена, които имахме",
-      "Почетох историята ни, дори ако те не го направиха",
-      "Научих какво наистина ценя във взаимоотношенията",
-    ],
-    lessons: [
-      "Равната инвестиция има значение във взаимоотношенията",
-      "Заслужавам някой, който помни важното",
-      "Паметта и усилията показват истинска грижа",
-    ],
-  },
-
-  // Breakup related
-  breakup: {
-    hardTruths: [
-      "Връзката приключи много преди да я прекратим",
-      "Игнорирах червените знамена твърде дълго",
-      "Искахме различни неща, но никой не го призна",
-    ],
-    goodFacts: [
-      "Накрая намерих смелостта да пусна",
-      "Свободен съм да намеря някой, който наистина ме цени",
-      "Научих какво не искам в партньор",
-    ],
-    lessons: [
-      "Оставането заради комфорт не е същото като любов",
-      "Заслужавам някой, който се бори за нас",
-      "Краищата могат да бъдат нови начала",
-    ],
-  },
-
-  // Wedding related
-  wedding: {
-    hardTruths: [
-      "Усетих се невидим на тяхната сватба",
-      "Гледането как продължават напред беше по-трудно от очакваното",
-      "Осъзнах какво можехме да имаме",
-    ],
-    goodFacts: [
-      "Показах сила, като присъствах",
-      "Мога да бъда щастлив за тях въпреки болката си",
-      "Справих се с грация и достойнство",
-    ],
-    lessons: [
-      "Тяхното щастие не намалява моето",
-      "Приключването идва отвътре, не от събития",
-      "Способен съм да продължа напред",
-    ],
-  },
-
-  // Holiday related
-  holiday: {
-    hardTruths: [
-      "Празниците се усещаха празни без тях",
-      "Семейните събирания подчертаха какво загубих",
-      "Усетих се като чужденец на познати места",
-    ],
-    goodFacts: [
-      "Създадох нови традиции за себе си",
-      "Намерих радост на неочаквани места",
-      "Някои членове на семейството наистина се появиха за мен",
-    ],
-    lessons: [
-      "Празниците могат да бъдат предефинирани и възвърнати",
-      "Традициите се развиват и това е нормално",
-      "Мога да създам радост независимо",
-    ],
-  },
-
-  // Christmas related
-  christmas: {
-    hardTruths: [
-      "Коледа ми напомни какво загубих",
-      "Празното място на масата боля повече от очакваното",
-      "Всички други изглеждаха щастливи, докато аз се борех",
-    ],
-    goodFacts: [
-      "Преживях най-трудния празничен сезон",
-      "Намерих моменти на мир и благодарност",
-      "Научих, че съм по-силен, отколкото мислех",
-    ],
-    lessons: [
-      "Скръбта и радостта могат да съществуват заедно",
-      "Добре е да се чувствам различно от другите",
-      "Следващата година ще бъде по-лесна",
-    ],
-  },
-
-  // Vacation/trip related
-  vacation: {
-    hardTruths: [
-      "Пътуването, което планирахме заедно, никога не се случи",
-      "Видях ги на ваканция с някой нов",
-      "Нашите мечти за пътуване умряха с връзката",
-    ],
-    goodFacts: [
-      "Направих това пътуване сам и го обичах",
-      "Открих нови места на собствените си условия",
-      "Доказах, че не ми трябва партньор за да изследвам",
-    ],
-    lessons: [
-      "Независимостта може да бъде освобождаваща",
-      "Самостоятелните приключения са също толкова значими",
-      "Мога да създам спомени без тях",
-    ],
-  },
-
-  // Trip related
-  trip: {
-    hardTruths: [
-      "Нашите планирани пътувания заедно никога не се реализираха",
-      "Пътуваха без мен до места, за които мечтаехме",
-      "Пътуването заедно разкри нашата несъвместимост",
-    ],
-    goodFacts: [
-      "Планирам пътувания, които ме вълнуват",
-      "Сега мога да пътувам където искам",
-      "Самостоятелните пътувания ме научиха на независимост",
-    ],
-    lessons: [
-      "Приключението не изисква партньор",
-      "Мога да изследвам света на собствените си условия",
-      "Плановете за пътуване трябва да съответстват на желанията ми, а не на компромиси",
-    ],
-  },
-
-  // Walk related
-  walk: {
-    hardTruths: [
-      "Нашите разходки заедно станаха мълчаливи и неудобни",
-      "Никога не искаха да ходят с мен",
-      "Ходенето сам ми напомняше какво загубих",
-    ],
-    goodFacts: [
-      "Ходенето сам е мирно и медитативно",
-      "Мога да ходя където искам, в моето собствено темпо",
-      "Разходките ми помагат да обработвам и да се изцелявам",
-    ],
-    lessons: [
-      "Усамотението в природата е изцеляващо",
-      "Придвижването напред буквално ми помага да се придвижа емоционално",
-      "Мога да намеря мир в простите моменти сам",
-    ],
-  },
-
-  // Mountain related
-  mountain: {
-    hardTruths: [
-      "Планините, които планирахме да изкачим заедно, остават неизкачени",
-      "Достигнаха върхове без мен",
-      "Планинските приключения, за които мечтаехме, никога не се случиха",
-    ],
-    goodFacts: [
-      "Сега покорявам собствените си планини",
-      "Планинските гледки ми напомнят за по-голямата картина на живота",
-      "Катеренето ме учи, че мога да надвия всичко",
-    ],
-    lessons: [
-      "Мога да достигна върхове сам",
-      "Пътят нагоре е също толкова важен, колкото и гледката",
-      "Всеки връх доказва моята сила",
-    ],
-  },
-
-  // Lake related
-  lake: {
-    hardTruths: [
-      "Спомените край езерото, които споделяхме, сега са горчиво-сладки",
-      "Наслаждаваха се на водата без мен",
-      "Нашите мирни моменти край езерото са изчезнали",
-    ],
-    goodFacts: [
-      "Езерата все още ми носят мир и спокойствие",
-      "Водата има успокояващ, изцеляващ ефект",
-      "Мога да намеря спокойствие край водата сам",
-    ],
-    lessons: [
-      "Мирът на природата принадлежи на всички",
-      "Спокойните води отразяват моята вътрешна спокойност",
-      "Мога да възвърна мирните места за себе си",
-    ],
-  },
-
-  // Sand/beach related
-  sand: {
-    hardTruths: [
-      "Ходенето по пясъка заедно се усещаше като ходене върху счупени обещания",
-      "Плажът ми напомня за планове, които се измиха",
-      "Нашите следи в пясъка бяха временни, като нашата връзка",
-    ],
-    goodFacts: [
-      "Пясъкът между пръстите ми все още се усеща заземяващ",
-      "Плажовете са места за обновление и пускане",
-      "Всяка вълна измива малко повече болка",
-    ],
-    lessons: [
-      "Като пясъка, мога да се преоформя",
-      "Приливът винаги идва свеж и нов",
-      "Плажните спомени могат да бъдат върнати за нови начала",
-    ],
-  },
-
-  // Work/job related
-  work: {
-    hardTruths: [
-      "Стресът от кариерата ми допринесе за нашите проблеми",
-      "Приоритизирах работата пред връзката",
-      "Те никога не разбраха професионалните ми амбиции",
-    ],
-    goodFacts: [
-      "Постигнах професионален растеж по време на трудни времена",
-      "Работата осигури стабилност, когато животът беше хаотичен",
-      "Доказах, че мога да успея независимо",
-    ],
-    lessons: [
-      "Балансът между работа и живот е от решаващо значение",
-      "Партньорът трябва да подкрепя амбициите ми",
-      "Успехът не означава нищо без удовлетвореност",
-    ],
-  },
-
-  // Family related
-  family: {
-    hardTruths: [
-      "Семейството ми никога наистина не ги прие",
-      "Семейните събития станаха неудобни и болезнени",
-      "Загубих някои семейни връзки при раздялата",
-    ],
-    goodFacts: [
-      "Семейството ми ме подкрепи през всичко това",
-      "Засилих връзките със сестри и братя",
-      "Семейството ми помогна да видя стойността си",
-    ],
-    lessons: [
-      "Семейната мъдрост често вижда това, което ние не можем",
-      "Кръвта е по-гъста от счупените обещания",
-      "Истинското семейство се появява в криза",
-    ],
-  },
-
-  // Moving/relocation related
-  move: {
-    hardTruths: [
-      "Избраха място пред нашата връзка",
-      "Разстоянието разкри истинската ни ангажираност",
-      "Жертвах местоположението си за нищо",
-    ],
-    goodFacts: [
-      "Намерих нов дом и нови начала",
-      "Преместването ми даде пространство за изцеление",
-      "Изградих живот, който е наистина мой",
-    ],
-    lessons: [
-      "Домът е там, където го създам, не там където са те",
-      "Географията не може да оправи проблеми във връзката",
-      "Способен съм да започна отново навсякъде",
-    ],
-  },
-
-  // Fight/argument related
-  fight: {
-    hardTruths: [
-      "Карахме се за едни и същи неща многократно",
-      "Спорове��е станаха по-важни от решенията",
-      "Казах неща, които не мога да оттегля",
-    ],
-    goodFacts: [
-      "Научих се да комуникирам нуждите си ясно",
-      "Открих границите си чрез конфликт",
-      "Някои спорове разкриха несъвместимости рано",
-    ],
-    lessons: [
-      "Как се караме е по-важно от това за какво се караме",
-      "Уважението трябва да остане дори в несъгласие",
-      "Някои модели не могат да бъдат променени",
-    ],
-  },
-
-  // Trust/cheating related
-  trust: {
-    hardTruths: [
-      "Доверието беше нарушено и никога не беше напълно възстановено",
-      "Останах въпреки че знаех истината",
-      "Интуицията ми беше права през цялото време",
-    ],
-    goodFacts: [
-      "Уча се да се доверявам на себе си отново",
-      "Не компрометирах ценностите си в края",
-      "Избрах самоуважение вместо комфорт",
-    ],
-    lessons: [
-      "Доверието е основата на всичко",
-      "След като се счупи, рядко е същото",
-      "Трябва да се доверявам на себе си първо",
-    ],
-  },
-
-  cheat: {
-    hardTruths: [
-      "Избраха някой друг, докато бяха с мен",
-      "Никога не бях достатъчен за тях",
-      "Предателството реже по-дълбоко, отколкото признах",
-    ],
-    goodFacts: [
-      "Открих силата си чрез предателството",
-      "Научих, че заслужавам пълна лоялност",
-      "Намерих самочувствие отвъд тяхното одобрение",
-    ],
-    lessons: [
-      "Изневярата е за техния характер, не за моята стойност",
-      "Заслужавам непоколебима вярност",
-      "Предателството учи кои са хората наистина",
-    ],
-  },
-
-  // Lie/dishonesty related
-  lie: {
-    hardTruths: [
-      "Лъгаха за важни неща",
-      "Приемах полуистини твърде дълго",
-      "Основата беше изградена на измама",
-    ],
-    goodFacts: [
-      "В крайна сметка видях през лъжите",
-      "Научих се да разпознавам нечестността",
-      "Ценя автентичността повече от всякога",
-    ],
-    lessons: [
-      "Честността е ненадминаема",
-      "Малките лъжи разкриват по-големи недостатъци в характера",
-      "Истината е единствената основа за любов",
-    ],
-  },
-
-  // Friends related
-  friend: {
-    hardTruths: [
-      "Някои приятели застанаха от тяхната страна",
-      "Загубих взаимни приятели при раздялата",
-      "Приятелите виждаха проблеми, които не можех да видя",
-    ],
-    goodFacts: [
-      "Истинските приятели останаха до мен",
-      "Създадох нови, по-дълбоки приятелства",
-      "Приятелите ми помогнаха да се преоткрия",
-    ],
-    lessons: [
-      "Истинските приятели се разкриват в трудностите",
-      "Качеството има значение повече от количеството",
-      "Приятелството е избор, не задължение",
-    ],
-  },
-
-  // Pet related
-  pet: {
-    hardTruths: [
-      "Трябваше да решим кой ще запази домашния любимец",
-      "Домашният любимец също ги липсва",
-      "Споделената грижа за домашен любимец е разбиваща сърцето",
-    ],
-    goodFacts: [
-      "Нашият домашен любимец дава безусловна любов",
-      "Имам верен спътник през това",
-      "Домашният любимец ни донесе радост дори в трудни времена",
-    ],
-    lessons: [
-      "Домашните любимци ни обичат през всичко",
-      "Простата компания може да изцели",
-      "Безусловната любов все още съществува",
-    ],
-  },
-
-  // Home/house related
-  home: {
-    hardTruths: [
-      "Домът, който изградихме заедно, сега е просто място",
-      "Всеки ъгъл крие болезнени спомени",
-      "Трябваше да напусна дома, който обичах",
-    ],
-    goodFacts: [
-      "Създавам ново пространство, което е наистина мое",
-      "Къщата никога не беше това, което го правеше дом",
-      "Мога да започна отначало без тези спомени",
-    ],
-    lessons: [
-      "Домът е чувство, не място",
-      "Мога да създам убежище навсякъде",
-      "Пространствата могат да бъдат върнати и предефинирани",
-    ],
-  },
-
-  // Money/financial related
-  money: {
-    hardTruths: [
-      "Финансовият стрес разкри нашата несъвместимост",
-      "Ценяха парите повече от връзката ни",
-      "Бях използван финансово",
-    ],
-    goodFacts: [
-      "Сега съм финансово независим",
-      "Научих се да управлявам парите сам",
-      "Финансовата свобода е овластяваща",
-    ],
-    lessons: [
-      "Финансовите ценности трябва да се съвпадат във взаимоотношенията",
-      "Независимостта е безценна",
-      "Парите разкриват характер",
-    ],
-  },
-
-  // Apology related
-  apology: {
-    hardTruths: [
-      "Извинението дойде твърде късно",
-      "Думите без действия са безсмислени",
-      "Заслужавах извинение, което никога не дойде",
-    ],
-    goodFacts: [
-      "Научих се да се извинявам на себе си",
-      "Не ми трябва тяхното извинение, за да се изцеля",
-      "Мога да простя, без да приемам извинения",
-    ],
-    lessons: [
-      "Приключването не изисква тяхното участие",
-      "Действията говорят по-силно от извиненията",
-      "Мога да продължа напред без тяхното съжаление",
-    ],
-  },
-
-  // Promise/commitment related
-  promise: {
-    hardTruths: [
-      "Обещанията бяха нарушени без втора мисъл",
-      "Думите бяха евтини, ангажираността беше по-евтина",
-      "Вярвах на обещания, на които не трябваше да вярвам",
-    ],
-    goodFacts: [
-      "Научих стойността на собствената си дума",
-      "Спазвам обещанията към себе си сега",
-      "Разпознавам празните обещания бързо сега",
-    ],
-    lessons: [
-      "Наблюдавайте действията, не думите",
-      "Спазвайте обещанията към себе си на първо място",
-      "Ангажираността се показва в поведението, не в речта",
-    ],
-  },
-
-  // Graduation related
-  graduation: {
-    hardTruths: [
-      "Не бяха там за моето голямо постижение",
-      "Празнувах сам това, което трябваше да бъде споделено",
-      "Тяхното отсъствие омърси момент, за който работех усилено",
-    ],
-    goodFacts: [
-      "Постигнах тази граница сам",
-      "Моето постижение не зависи от тяхното присъствие",
-      "Доказах, че мога да успея независимо",
-    ],
-    lessons: [
-      "Празнувам успехите си с тях или без тях",
-      "Постиженията са само мои",
-      "Успехът е по-сладък, когато е наистина мой",
-    ],
-  },
-
-  // Promotion/job success related
-  promotion: {
-    hardTruths: [
-      "Не празнуваха моя професионален успех",
-      "Моите постижения не означаваха нищо за тях",
-      "Работех усилено, но се чувствах неподкрепен",
-    ],
-    goodFacts: [
-      "Заработих това чрез собствените си усилия",
-      "Моят професионален растеж показва моята устойчивост",
-      "Изграждам живот, който е наистина мой",
-    ],
-    lessons: [
-      "Не ми трябва тяхното одобрение, за да успея",
-      "Професионалният растеж се случва с тях или без тях",
-      "Моята стойност не се измерва от тяхното признание",
-    ],
-  },
-
-  // Illness/health related
-  illness: {
-    hardTruths: [
-      "Не бяха там, когато бях болен",
-      "Усетих се сам по време на най-уязвимите ми моменти",
-      "Моите здравословни проблеми не имаха значение за тях",
-    ],
-    goodFacts: [
-      "Научих се да се грижа за себе си",
-      "Открих сила, която не знаех, че имам",
-      "Преживях без тяхната подкрепа",
-    ],
-    lessons: [
-      "Трябва да приоритизирам собственото си здраве",
-      "Самообгрижването не е егоистично, то е необходимо",
-      "Мога да разчитам на себе си в болест",
-    ],
-  },
-
-  // Hospital/medical related
-  hospital: {
-    hardTruths: [
-      "Никога не ме посетиха в болницата",
-      "Изправих се срещу страха си сам, когато се нуждаех от подкрепа",
-      "Медицинските спешни случаи разкриха техните истински приоритети",
-    ],
-    goodFacts: [
-      "Справих се с медицинските предизвикателства със смелост",
-      "Научих, че съм по-силен, отколкото мислех",
-      "Имам хора, които наистина се грижат за моето здраве",
-    ],
-    lessons: [
-      "Истинската грижа се появява в криза",
-      "Здравословните спешни случаи разкриват характера",
-      "Заслужавам подкрепа в най-трудните ми моменти",
-    ],
-  },
-
-  // Concert/music event related
-  concert: {
-    hardTruths: [
-      "Планирахме да отидем заедно, но те отидоха с някой друг",
-      "Присъствах сам, помнейки нашите планове",
-      "Музиката ми напомни какво споделяхме",
-    ],
-    goodFacts: [
-      "Насладих се на музиката на собствените си условия",
-      "Открих, че мога да се забавлявам сам",
-      "Музиката все още ми носи радост без тях",
-    ],
-    lessons: [
-      "Не ми трябва спътник, за да се наслаждавам на живота",
-      "Споделените интереси не изискват споделени преживявания",
-      "Мога да създам нови спомени сам",
-    ],
-  },
-
-  // Restaurant/dinner related
-  restaurant: {
-    hardTruths: [
-      "Нашият любим ресторант крие твърде много спомени",
-      "Ядох сам на места, които открихме заедно",
-      "Всяко ядене ми напомняше за нашите разговори",
-    ],
-    goodFacts: [
-      "Сега мога да се наслаждавам на хранене сам",
-      "Откривам нови любими места",
-      "Храната все още ми носи комфорт и радост",
-    ],
-    lessons: [
-      "Местата могат да бъдат върнати и предефинирани",
-      "Мога да намеря радост в простите удоволствия сам",
-      "Новите спомени могат да презапишат старите",
-    ],
-  },
-
-  // Date related
-  date: {
-    hardTruths: [
-      "Отменяха плановете ни в последния момент многократно",
-      "Нашите срещи станаха задължения, а не радости",
-      "Влагах повече усилия в срещите, отколкото те",
-    ],
-    goodFacts: [
-      "Научих какво прави една добра среща",
-      "Знам какво искам в бъдещи срещи",
-      "Готов съм за някой, който цени времето ни заедно",
-    ],
-    lessons: [
-      "Срещите трябва да бъдат желани, а не налагани",
-      "Усилията в планирането показват грижа",
-      "Заслужавам някой, който е въодушевен да прекарва време с мен",
-    ],
-  },
-
-  // Gift related
-  gift: {
-    hardTruths: [
-      "Никога не влагаха мисъл в подаръците си към мен",
-      "Моите подаръци към тях бяха по-значими от техните към мен",
-      "Даряването на подаръци стана едностранно",
-    ],
-    goodFacts: [
-      "Научих радостта от даряването без очаквания",
-      "Оценявам хора, които помнят специални случаи",
-      "Сега мога да си правя значими подаръци",
-    ],
-    lessons: [
-      "Подаръците отразяват замисленост и грижа",
-      "Заслужавам някой, който влага усилия да ме направи щастлив",
-      "Материалните неща имат по-малко значение от жеста",
-    ],
-  },
-
-  // Text/message related
-  text: {
-    hardTruths: [
-      "Оставяха съобщенията ми непрочетени в продължение на дни",
-      "Едносричните отговори показваха тяхното незаинтересованост",
-      "Винаги аз започвах разговорите",
-    ],
-    goodFacts: [
-      "Спрях да чакам отговори, които никога не дойдоха",
-      "Научих, че моята стойност не се измерва от времето за отговор",
-      "Намерих хора, които наистина искат да разговарят с мен",
-    ],
-    lessons: [
-      "Комуникацията трябва да бъде двупосочна",
-      "Ако искаха, щяха да го направят",
-      "Заслужавам ентусиазирани партньори за разговор",
-    ],
-  },
-
-  // Phone call related
-  call: {
-    hardTruths: [
-      "Никога не отговаряха, когато се нуждаех от тях",
-      "Телефонните разговори станаха едностранни монолози",
-      "Спрях да звъня, защото те никога не звъняха обратно",
-    ],
-    goodFacts: [
-      "Намерих хора, които отговарят, когато звъня",
-      "Научих се да разчитам повече на себе си",
-      "Не чакам обаждания, които няма да дойдат",
-    ],
-    lessons: [
-      "Достъпността има значение във взаимоотношенията",
-      "Заслужавам хора, които искат да чуят от мен",
-      "Телефонните обаждания трябва да бъдат желани, а не избягвани",
-    ],
-  },
-
-  // Party/social event related
-  party: {
-    hardTruths: [
-      "Игнорираха ме на партита, на които присъствахме заедно",
-      "Усетих се като непознат на собствените ни събития",
-      "Те общуваха, докато аз се чувствах невидим",
-    ],
-    goodFacts: [
-      "Научих се да се наслаждавам на партита независимо",
-      "Мога да се забавлявам без тяхното одобрение",
-      "Открих, че всъщност съм добър в общуването сам",
-    ],
-    lessons: [
-      "Партньорите трябва да правят един друг да се чувстват включени",
-      "Мога да процъфтявам в социални ситуации независимо",
-      "Заслужавам някой, който иска да бъда до него",
-    ],
-  },
-
-  // Coffee/cafe related
-  coffee: {
-    hardTruths: [
-      "Нашите кафе срещи станаха неудобни мълчания",
-      "Винаги изглеждаха разсеяни по време на нашите разговори",
-      "Забелязах, че предпочитат да бъдат навсякъде другаде",
-    ],
-    goodFacts: [
-      "Научих се да се наслаждавам на кафе сам",
-      "Кафенетата станаха моето спокойно пространство",
-      "Мога да водя значими разговори със себе си",
-    ],
-    lessons: [
-      "Простите моменти трябва да се усещат удобни",
-      "Присъствието е по-важно от мястото",
-      "Заслужавам завладяващи разговори над кафе",
-    ],
-  },
-
-  // School/education related
-  school: {
-    hardTruths: [
-      "Не подкрепяха моите образователни цели",
-      "Ученето ми стана източник на конфликт",
-      "Виждаха амбициите ми като заплаха",
-    ],
-    goodFacts: [
-      "Продължих образованието си за себе си",
-      "Ученето ми дава смисъл и растеж",
-      "Образованието е инвестиция в бъдещето ми",
-    ],
-    lessons: [
-      "Партньорът трябва да подкрепя моя растеж",
-      "Образованието е ненадминаемо",
-      "Изграждам по-добро бъдеще за себе си",
-    ],
-  },
-
-  // Gym/exercise related
-  gym: {
-    hardTruths: [
-      "Критикуваха целите ми за фитнес",
-      "Тренировките станаха нещо, което криех от тях",
-      "Накараха ме да се чувствам самосъзнателно за тялото си",
-    ],
-    goodFacts: [
-      "Тренирам за менталното и физическото си здраве",
-      "Фитнесът стана моето убежище",
-      "Изграждам сила отвътре и отвън",
-    ],
-    lessons: [
-      "Самоусъвършенстването трябва да бъде насърчавано",
-      "Моите цели за тялото са само мои",
-      "Партньорът трябва да ме издига, а не да ме сваля",
-    ],
-  },
-
-  // Music/song related
-  music: {
-    hardTruths: [
-      "Нашите песни станаха твърде болезнени за слушане",
-      "Музиката, която открихме заедно, сега предизвиква тъга",
-      "Развалиха изпълнители, които веднъж обичах",
-    ],
-    goodFacts: [
-      "Откривам нова музика, която е само моя",
-      "Музиката все още ме вълнува дълбоко",
-      "Мога да намеря нов смисъл в стари песни",
-    ],
-    lessons: [
-      "Музиката може да бъде върната и предефинирана",
-      "Изкуството е мое, а не нашите спомени",
-      "Новите песни могат да създават нови асоциации",
-    ],
-  },
-
-  // Movie/film related
-  movie: {
-    hardTruths: [
-      "Вечерите с филми станаха самотни преживявания",
-      "Предпочитаха да гледат сам, отколкото с мен",
-      "Нашите споделени интереси не се превърнаха в качествено време",
-    ],
-    goodFacts: [
-      "Мога да се наслаждавам на филми сам",
-      "Киносалоните станаха моето бягство",
-      "Откривам нови любими независимо",
-    ],
-    lessons: [
-      "Споделените интереси се нуждаят от споделени усилия",
-      "Мога да намеря радост в самостоятелно забавление",
-      "Качественото време е по-важно от дейността",
-    ],
-  },
-
-  // Photo/picture related
-  photo: {
-    hardTruths: [
-      "Гледането на стари снимки носи повече болка, отколкото радост",
-      "Изтриха нашите спомени без колебание",
-      "Снимките разкриха истини, които не можех да видя преди",
-    ],
-    goodFacts: [
-      "Правя нови снимки на живота си сега",
-      "Снимките документират моя растеж и изцеление",
-      "Мога да гледам назад с яснота вместо болка",
-    ],
-    lessons: [
-      "Снимките улавят моменти, не постоянство",
-      "Създавам нови спомени, които заслужават да бъдат снимани",
-      "Миналото е свършено, но имам бъдеще",
-    ],
-  },
-
-  // Travel/journey related
-  travel: {
-    hardTruths: [
-      "Пътуването, за което мечтаехме, никога няма да се случи",
-      "Плановете за пътуване умряха с връзката",
-      "Отидоха на приключения, от които бях изключен",
-    ],
-    goodFacts: [
-      "Планирам пътувания само за мен",
-      "Пътуването сам е освобождаващо",
-      "Светът все още е пълен с места за откриване",
-    ],
-    lessons: [
-      "Мога да изследвам света сам",
-      "Приключението не изисква партньор",
-      "Пътуването лекува и разширява перспективите",
-    ],
-  },
-
-  // Airport related
-  airport: {
-    hardTruths: [
-      "Никога не дойдоха да ме вземат",
-      "Сбогуванията на летището разкриха техните истински чувства",
-      "Пътуването да ги видя винаги беше едностранно усилие",
-    ],
-    goodFacts: [
-      "Научих се да се ориентирам на летищата независимо",
-      "Летищата символизират моята свобода сега",
-      "Мога да пътувам където искам, когато искам",
-    ],
-    lessons: [
-      "Усилията трябва да бъдат взаимни в дългите разстояния",
-      "Свободен съм да отида навсякъде без разрешение",
-      "Пътуването представлява моята независимост",
-    ],
-  },
-
-  // Beach/water related
-  beach: {
-    hardTruths: [
-      "Нашите плажни спомени сега са горчиво-сладки",
-      "Океанът ми напомня за обещания, които се измиха",
-      "Обичаха плажа повече, отколкото обичаха мен",
-    ],
-    goodFacts: [
-      "Океанът все още ми носи мир",
-      "Плажовете са места на обновление и изцеление",
-      "Водата има начин да измие болката",
-    ],
-    lessons: [
-      "Природата лекува независимо от кой е до мен",
-      "Необятността на океана поставя нещата в перспектива",
-      "Мога да намеря мир на същите места отново",
-    ],
-  },
-
-  // Park/nature related
-  park: {
-    hardTruths: [
-      "Разходките в парковете ми напомняха какво загубих",
-      "Природата се усещаше празна без тях",
-      "Нашите любими места станаха места за избягване",
-    ],
-    goodFacts: [
-      "Природата все още ми носи мир и яснота",
-      "Парковете са места на изцеление и размисъл",
-      "Намирам нови любими места",
-    ],
-    lessons: [
-      "Природата принадлежи на всички",
-      "На открито мога да бъде върнат за себе си",
-      "Мирът идва отвътре, не от компанията",
-    ],
-  },
-
-  // Shopping related
-  shopping: {
-    hardTruths: [
-      "Пазаруването заедно стана задача за тях",
-      "Критикуваха моите избори и предпочитания",
-      "Нашите стилове отразяваха нашата несъвместимост",
-    ],
-    goodFacts: [
-      "Развивам собствен уникален стил",
-      "Пазаруването сега е форма на самовыражение",
-      "Мога да купувам това, което ме прави щастлив, без осъждане",
-    ],
-    lessons: [
-      "Личният стил е за самовыражение",
-      "Не ми трябва одобрение за моите избори",
-      "Пазаруването сам може да бъде овластяващо",
-    ],
-  },
-
-  // Car/driving related
-  car: {
-    hardTruths: [
-      "Никога не искаха да карат да ме видят",
-      "Пътуванията с кола станаха мълчаливи и напрегнати",
-      "Колата, която споделяхме, сега крие болезнени спомени",
-    ],
-    goodFacts: [
-      "Имам свобода да отида навсякъде",
-      "Шофирането сам е мирно и освобождаващо",
-      "Пътят напред е мой за избор",
-    ],
-    lessons: [
-      "Независимостта означава да вървя по собствения си път",
-      "Аз контролирам накъде се насочвам",
-      "Пътуването е по-важно от това кой е на седалката на пътника",
-    ],
-  },
-
-  // Game/gaming related
-  game: {
-    hardTruths: [
-      "Никога не искаха да играят с мен",
-      "Игрите станаха начин да ме избягват",
-      "Нашите интереси се разминаха напълно",
-    ],
-    goodFacts: [
-      "Наслаждавам се на игрите на собствените си условия",
-      "Игрите са здравословно бягство и забавление",
-      "Мога да намеря общности, които споделят моите интереси",
-    ],
-    lessons: [
-      "Хобитата не изискват участие на партньор",
-      "Мога да се наслаждавам на интересите си независимо",
-      "Споделените интереси не са необходими за съвместимост",
-    ],
-  },
-
-  // Generic/fallback suggestions
-  default: {
-    hardTruths: [
-      "Игнорирах знаците, които винаги са били там",
-      "Останах по-дълго, отколкото трябваше",
-      "Компрометирах твърде много от себе си",
-    ],
-    goodFacts: [
-      "Научих какво наистина ми трябва във връзка",
-      "Станах по-силен чрез този опит",
-      "На една стъпка съм по-близо до правилния човек",
-    ],
-    lessons: [
-      "Растежът идва от най-трудните преживявания",
-      "Заслужавам по-добро от това, което приех",
-      "Изцелението е пътуване, не дестинация",
-    ],
-  },
-};
-
-/**
- * Get suggestions based on memory title keywords
- * @param memoryTitle - The title of the memory
- * @param language - 'en' or 'bg'
- * @returns Contextual suggestions for moments
- */
 export function getSuggestionsForMemory(
   memoryTitle: string,
-  language: 'en' | 'bg' = 'en'
+  language: Language = 'en'
 ): MomentSuggestions {
-  const suggestions = language === 'bg' ? suggestionsByKeywordBg : suggestionsByKeyword;
   const normalizedTitle = memoryTitle.toLowerCase();
 
-  // Find matching keyword in the title
-  for (const keyword in suggestions) {
+  let matchedKeyword: string | null = null;
+  for (const keyword in suggestionsByKeyword) {
     if (keyword !== 'default' && normalizedTitle.includes(keyword)) {
-      return suggestions[keyword];
+      matchedKeyword = keyword;
+      break;
     }
   }
 
-  // Return default suggestions if no match found
-  return suggestions.default;
+  const keyword = matchedKeyword || 'default';
+  const suggestionKeys = suggestionsByKeyword[keyword];
+
+  return {
+    hardTruths: suggestionKeys.hardTruths.map(key => getTranslation(key as any, language)),
+    goodFacts: suggestionKeys.goodFacts.map(key => getTranslation(key as any, language)),
+    lessons: suggestionKeys.lessons.map(key => getTranslation(key as any, language)),
+  };
 }
 
 /**
@@ -1948,7 +1651,7 @@ export function getSuggestionsForMemory(
  * @param language - 'en' or 'bg'
  * @returns A random hard truth suggestion
  */
-export function getHardTruthSuggestion(memoryTitle: string, language: 'en' | 'bg' = 'en'): string {
+export function getHardTruthSuggestion(memoryTitle: string, language: Language = 'en'): string {
   const suggestions = getSuggestionsForMemory(memoryTitle, language);
   const randomIndex = Math.floor(Math.random() * suggestions.hardTruths.length);
   return suggestions.hardTruths[randomIndex];
@@ -1960,7 +1663,7 @@ export function getHardTruthSuggestion(memoryTitle: string, language: 'en' | 'bg
  * @param language - 'en' or 'bg'
  * @returns A random good fact suggestion
  */
-export function getGoodFactSuggestion(memoryTitle: string, language: 'en' | 'bg' = 'en'): string {
+export function getGoodFactSuggestion(memoryTitle: string, language: Language = 'en'): string {
   const suggestions = getSuggestionsForMemory(memoryTitle, language);
   const randomIndex = Math.floor(Math.random() * suggestions.goodFacts.length);
   return suggestions.goodFacts[randomIndex];
@@ -1972,7 +1675,7 @@ export function getGoodFactSuggestion(memoryTitle: string, language: 'en' | 'bg'
  * @param language - 'en' or 'bg'
  * @returns A random lesson suggestion
  */
-export function getLessonSuggestion(memoryTitle: string, language: 'en' | 'bg' = 'en'): string {
+export function getLessonSuggestion(memoryTitle: string, language: Language = 'en'): string {
   const suggestions = getSuggestionsForMemory(memoryTitle, language);
   const randomIndex = Math.floor(Math.random() * suggestions.lessons.length);
   return suggestions.lessons[randomIndex];
