@@ -9,6 +9,7 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { OnboardingStepper } from '@/library/components/onboarding-stepper';
 import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS, TabScreenContainer } from '@/library/components/tab-screen-container';
+import { logError } from '@/utils/error-logger';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { requestSpheresTabPulse, stopSpheresTabPulse } from '@/utils/spheres-tab-pulse';
@@ -1335,7 +1336,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                   });
                   setShareModalVisible(true);
                 } catch (error) {
-                  // Error preparing share content
+                  logError('HomeScreen:ShareContent', error);
                 }
               }}
               style={{
@@ -3554,7 +3555,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
                   });
                   setShareModalVisible(true);
                 } catch (error) {
-                  // Error preparing share content
+                  logError('HomeScreen:ShareContent', error);
                 }
               }}
               style={{
@@ -5729,7 +5730,7 @@ export default function HomeScreen() {
       // Refresh notifications based on current streak status
       await refreshStreakNotifications();
     } catch (error) {
-      // Error loading streak data
+      logError('HomeScreen:LoadStreakData', error);
     }
   }, []);
 
@@ -7629,8 +7630,8 @@ export default function HomeScreen() {
       next.forEach((pos, id) => {
         positionsObj[id] = pos;
       });
-      AsyncStorage.setItem(AVATAR_POSITIONS_KEY, JSON.stringify(positionsObj)).catch(() => {
-        // Error saving avatar positions
+      AsyncStorage.setItem(AVATAR_POSITIONS_KEY, JSON.stringify(positionsObj)).catch((error) => {
+        logError('HomeScreen:SaveAvatarPositions', error);
       });
       
       return next;
@@ -7652,8 +7653,8 @@ export default function HomeScreen() {
       next.forEach((pos, id) => {
         positionsObj[id] = pos;
       });
-      AsyncStorage.setItem(FAMILY_POSITIONS_KEY, JSON.stringify(positionsObj)).catch(() => {
-        // Error saving family positions
+      AsyncStorage.setItem(FAMILY_POSITIONS_KEY, JSON.stringify(positionsObj)).catch((error) => {
+        logError('HomeScreen:SaveFamilyPositions', error);
       });
       
       return next;
@@ -7675,8 +7676,8 @@ export default function HomeScreen() {
       next.forEach((pos, id) => {
         positionsObj[id] = pos;
       });
-      AsyncStorage.setItem(FRIEND_POSITIONS_KEY, JSON.stringify(positionsObj)).catch(() => {
-        // Error saving friend positions
+      AsyncStorage.setItem(FRIEND_POSITIONS_KEY, JSON.stringify(positionsObj)).catch((error) => {
+        logError('HomeScreen:SaveFriendPositions', error);
       });
       
       return next;
@@ -7698,8 +7699,8 @@ export default function HomeScreen() {
       next.forEach((pos, id) => {
         positionsObj[id] = pos;
       });
-      AsyncStorage.setItem(HOBBY_POSITIONS_KEY, JSON.stringify(positionsObj)).catch(() => {
-        // Error saving hobby positions
+      AsyncStorage.setItem(HOBBY_POSITIONS_KEY, JSON.stringify(positionsObj)).catch((error) => {
+        logError('HomeScreen:SaveHobbyPositions', error);
       });
       
       return next;
