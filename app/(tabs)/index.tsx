@@ -5263,7 +5263,23 @@ const SphereAvatar = React.memo(function SphereAvatar({
 }) {
   const { isTablet } = useLargeDevice();
   const sphereSize = isTablet ? 120 : 80; // 50% larger on tablets
-  
+
+  // Pulse animation for button press feedback
+  const pulseScale = useSharedValue(1);
+
+  const handlePress = () => {
+    if (disabled) return;
+
+    // Trigger slower, more gradual pulse animation
+    pulseScale.value = withSequence(
+      withTiming(0.85, { duration: 250, easing: Easing.inOut(Easing.ease) }),
+      withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) })
+    );
+
+    // Call the original onPress handler
+    onPress();
+  };
+
   const sphereIcons = {
     relationships: 'favorite',
     career: 'work',
@@ -5568,10 +5584,13 @@ const SphereAvatar = React.memo(function SphereAvatar({
     
     // Add floating animation only when fully unfocused and no sphere is selected
     const floatY = (!isOtherSelected && !isSelected && currentZoom === 0) ? floatAnimation.value * 3 : 0;
-    
+
+    // Combine scale with pulse animation
+    const finalScale = scale * pulseScale.value;
+
     return {
       transform: [
-        { scale },
+        { scale: finalScale },
         { translateY: floatY },
       ],
       opacity,
@@ -5598,7 +5617,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
 
   return (
     <Pressable
-      onPress={disabled ? undefined : onPress}
+      onPress={handlePress}
       disabled={disabled}
       style={{
         ...(isWrapped ? {} : {
@@ -7423,6 +7442,61 @@ export default function HomeScreen() {
     return normalized * range;
   };
 
+  // Helper function to check if two positions overlap
+  const checkPositionOverlap = (pos1: { x: number; y: number }, pos2: { x: number; y: number }, minDistance: number) => {
+    const dx = pos1.x - pos2.x;
+    const dy = pos1.y - pos2.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance < minDistance;
+  };
+
+  // Helper function to find non-overlapping position using spiral search
+  const findNonOverlappingPosition = (
+    initialPos: { x: number; y: number },
+    existingPositions: { x: number; y: number }[],
+    minDistance: number,
+    bounds: { minX: number; maxX: number; minY: number; maxY: number }
+  ): { x: number; y: number } => {
+    // First check if initial position is valid
+    const hasOverlap = existingPositions.some(pos => checkPositionOverlap(initialPos, pos, minDistance));
+    if (!hasOverlap) {
+      return initialPos;
+    }
+
+    // If there's overlap, search in a spiral pattern for a free spot
+    const maxAttempts = 100;
+    const angleStep = Math.PI / 6; // 30 degrees
+    const radiusStep = minDistance * 0.5;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const spiralIndex = Math.floor(attempt / 12); // 12 angles per spiral
+      const angleIndex = attempt % 12;
+      const angle = angleIndex * angleStep;
+      const radius = radiusStep * (spiralIndex + 1);
+
+      const newPos = {
+        x: initialPos.x + Math.cos(angle) * radius,
+        y: initialPos.y + Math.sin(angle) * radius
+      };
+
+      // Check if position is within bounds
+      if (newPos.x < bounds.minX || newPos.x > bounds.maxX ||
+          newPos.y < bounds.minY || newPos.y > bounds.maxY) {
+        continue;
+      }
+
+      // Check if this position overlaps with any existing position
+      const overlaps = existingPositions.some(pos => checkPositionOverlap(newPos, pos, minDistance));
+      if (!overlaps) {
+        return newPos;
+      }
+    }
+
+    // If we couldn't find a non-overlapping position, return the initial position
+    // (this means we're out of space)
+    return initialPos;
+  };
+
   const initialAvatarPositions = useMemo(() => {
     if (!positionsLoaded) return []; // Wait for saved positions to load
     
@@ -8397,26 +8471,26 @@ export default function HomeScreen() {
       // Render focused family member OR family member that was just unfocused (for animation)
       if (!isFocused && !wasJustFocused) return null;
       
-      // Get the family member's section to calculate original position
+      // Get the family member's section and position
       const section = familyYearSections.get('all');
       let currentPosition: { x: number; y: number };
-      
-      if (isFocused || wasJustFocused) {
-        // Calculate original position from section
-        if (section) {
-          const totalMembers = familyMembers.length;
-          const sectionCenterY = section.top + section.height / 2;
-          const minSpacing = 200;
-          const verticalSpacing = totalMembers > 1 
-            ? Math.max(minSpacing, Math.min(section.height / (totalMembers + 1), 250))
-            : 0;
-          currentPosition = {
-            x: SCREEN_WIDTH / 2,
-            y: totalMembers === 1
-              ? sectionCenterY
-              : section.top + verticalSpacing * (index + 1)
-          };
+
+      // Check if we have a saved position
+      const savedPosition = familyPositionsState.get(member.id);
+
+      if (wasJustFocused && savedPosition) {
+        // When unfocusing, use the saved position so it animates from where it was last placed
+        currentPosition = savedPosition;
+      } else if (isFocused || wasJustFocused) {
+        // When focusing or no saved position, use the pre-calculated collision-free position
+        const calculatedPosition = familyMemberPositions && familyMemberPositions[index];
+        if (calculatedPosition) {
+          currentPosition = calculatedPosition;
+        } else if (savedPosition) {
+          // Fallback to saved position if no calculated position
+          currentPosition = savedPosition;
         } else {
+          // Final fallback to center
           currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
         }
       } else {
@@ -8462,7 +8536,7 @@ export default function HomeScreen() {
         />
       );
     });
-  }, [animationsReady, focusedFamilyMemberId, focusedMemory, familyMembers, getIdealizedMemoriesByEntityId, familyYearSections, previousFocusedFamilyMemberIdRef, setFocusedFamilyMemberId, setFocusedMemory, colors, colorScheme, focusedFamilyMemberPositionX, focusedFamilyMemberPositionY, updateFamilyMemberPosition]);
+  }, [animationsReady, focusedFamilyMemberId, focusedMemory, familyMembers, getIdealizedMemoriesByEntityId, familyYearSections, previousFocusedFamilyMemberIdRef.current, setFocusedFamilyMemberId, setFocusedMemory, colors, colorScheme, focusedFamilyMemberPositionX, focusedFamilyMemberPositionY, updateFamilyMemberPosition]);
 
   // Memoize focused friends render - must be called unconditionally
   // This renders friends when they're focused, and also handles the unfocus animation
@@ -8476,30 +8550,32 @@ export default function HomeScreen() {
       const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
       const isFocused = focusedFriendId === friend.id;
       const wasJustFocused = previousFocusedFriendIdRef.current === friend.id && !focusedFriendId;
-      
+
       // Render focused friend OR friend that was just unfocused (for animation)
-      if (!isFocused && !wasJustFocused) return null;
+      if (!isFocused && !wasJustFocused) {
+        return null;
+      }
       
-      // Get the friend's section to calculate original position
+      // Get the friend's section and position
       const section = friendsYearSections.get('all');
       let currentPosition: { x: number; y: number };
-      
-      if (isFocused || wasJustFocused) {
-        // Calculate original position from section
-        if (section) {
-          const totalFriends = friends.length;
-          const sectionCenterY = section.top + section.height / 2;
-          const minSpacing = 200;
-          const verticalSpacing = totalFriends > 1 
-            ? Math.max(minSpacing, Math.min(section.height / (totalFriends + 1), 250))
-            : 0;
-          currentPosition = {
-            x: SCREEN_WIDTH / 2,
-            y: totalFriends === 1
-              ? sectionCenterY
-              : section.top + verticalSpacing * (index + 1)
-          };
+
+      // Check if we have a saved position
+      const savedPosition = friendPositionsState.get(friend.id);
+
+      if (wasJustFocused && savedPosition) {
+        // When unfocusing, use the saved position so it animates from where it was last placed
+        currentPosition = savedPosition;
+      } else if (isFocused || wasJustFocused) {
+        // When focusing or no saved position, use the pre-calculated collision-free position
+        const calculatedPosition = friendPositions && friendPositions[index];
+        if (calculatedPosition) {
+          currentPosition = calculatedPosition;
+        } else if (savedPosition) {
+          // Fallback to saved position if no calculated position
+          currentPosition = savedPosition;
         } else {
+          // Final fallback to center
           currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
         }
       } else {
@@ -8545,7 +8621,7 @@ export default function HomeScreen() {
         />
       );
     });
-  }, [animationsReady, focusedFriendId, focusedMemory, friends, getIdealizedMemoriesByEntityId, friendsYearSections, previousFocusedFriendIdRef, setFocusedFriendId, setFocusedMemory, colors, colorScheme, focusedFriendPositionX, focusedFriendPositionY, updateFriendPosition]);
+  }, [animationsReady, focusedFriendId, focusedMemory, friends, getIdealizedMemoriesByEntityId, friendsYearSections, previousFocusedFriendIdRef.current, setFocusedFriendId, setFocusedMemory, colors, colorScheme, focusedFriendPositionX, focusedFriendPositionY, updateFriendPosition]);
 
   // Memoize focused hobbies render - must be called unconditionally
   // This renders hobbies when they're focused, and also handles the unfocus animation
@@ -8563,26 +8639,26 @@ export default function HomeScreen() {
       // Render focused hobby OR hobby that was just unfocused (for animation)
       if (!isFocused && !wasJustFocused) return null;
       
-      // Get the hobby's section to calculate original position
+      // Get the hobby's section and position
       const section = hobbiesYearSections.get('all');
       let currentPosition: { x: number; y: number };
-      
-      if (isFocused || wasJustFocused) {
-        // Calculate original position from section
-        if (section) {
-          const totalHobbies = hobbies.length;
-          const sectionCenterY = section.top + section.height / 2;
-          const minSpacing = 200;
-          const verticalSpacing = totalHobbies > 1 
-            ? Math.max(minSpacing, Math.min(section.height / (totalHobbies + 1), 250))
-            : 0;
-          currentPosition = {
-            x: SCREEN_WIDTH / 2,
-            y: totalHobbies === 1
-              ? sectionCenterY
-              : section.top + verticalSpacing * (index + 1)
-          };
+
+      // Check if we have a saved position
+      const savedPosition = hobbyPositionsState.get(hobby.id);
+
+      if (wasJustFocused && savedPosition) {
+        // When unfocusing, use the saved position so it animates from where it was last placed
+        currentPosition = savedPosition;
+      } else if (isFocused || wasJustFocused) {
+        // When focusing or no saved position, use the pre-calculated collision-free position
+        const calculatedPosition = hobbyPositions && hobbyPositions[index];
+        if (calculatedPosition) {
+          currentPosition = calculatedPosition;
+        } else if (savedPosition) {
+          // Fallback to saved position if no calculated position
+          currentPosition = savedPosition;
         } else {
+          // Final fallback to center
           currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
         }
       } else {
@@ -8628,7 +8704,175 @@ export default function HomeScreen() {
         />
       );
     });
-  }, [animationsReady, focusedHobbyId, focusedMemory, hobbies, getIdealizedMemoriesByEntityId, hobbiesYearSections, previousFocusedHobbyIdRef, setFocusedHobbyId, setFocusedMemory, colors, colorScheme, focusedHobbyPositionX, focusedHobbyPositionY, updateHobbyPosition]);
+  }, [animationsReady, focusedHobbyId, focusedMemory, hobbies, getIdealizedMemoriesByEntityId, hobbiesYearSections, previousFocusedHobbyIdRef.current, setFocusedHobbyId, setFocusedMemory, colors, colorScheme, focusedHobbyPositionX, focusedHobbyPositionY, updateHobbyPosition]);
+
+  // Memoize calculated positions for family members with collision detection
+  const familyMemberPositions = useMemo(() => {
+    const baseAvatarSize = isTablet ? 120 : 100;
+    const minDistance = baseAvatarSize * 1.3;
+    const calculatedPositions: { x: number; y: number }[] = [];
+
+    const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+    const visibleAreaTop = insets.top;
+    const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight;
+    const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
+    const visibleAreaCenterY = visibleAreaTop + visibleAreaHeight / 2;
+
+    const centerAreaTop = visibleAreaTop + visibleAreaHeight * 0.2;
+    const centerAreaBottom = visibleAreaBottom - visibleAreaHeight * 0.2;
+    const centerAreaMinX = SCREEN_WIDTH * 0.15;
+    const centerAreaMaxX = SCREEN_WIDTH * 0.85;
+
+    const bounds = {
+      minX: centerAreaMinX,
+      maxX: centerAreaMaxX,
+      minY: centerAreaTop + 50,
+      maxY: centerAreaBottom - 50
+    };
+
+    const getMemberHash = (memberId: string, seed: string = '') => {
+      let hash = 0;
+      const str = memberId + seed;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash = hash & hash;
+      }
+      return Math.abs(hash % 10000) / 10000;
+    };
+
+    familyMembers.forEach((member) => {
+      const angle = getMemberHash(member.id, 'angle') * 2 * Math.PI;
+      const maxRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.35;
+      const minRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.1;
+      const radiusFactor = getMemberHash(member.id, 'radius');
+      const radius = minRadius + radiusFactor * (maxRadius - minRadius);
+
+      const initialPosition = {
+        x: SCREEN_WIDTH / 2 + Math.cos(angle) * radius,
+        y: visibleAreaCenterY + Math.sin(angle) * radius
+      };
+
+      initialPosition.x = Math.max(bounds.minX, Math.min(bounds.maxX, initialPosition.x));
+      initialPosition.y = Math.max(bounds.minY, Math.min(bounds.maxY, initialPosition.y));
+
+      const finalPosition = findNonOverlappingPosition(initialPosition, calculatedPositions, minDistance, bounds);
+      calculatedPositions.push(finalPosition);
+    });
+
+    return calculatedPositions;
+  }, [familyMembers, isTablet, fontScale, insets.top, insets.bottom, findNonOverlappingPosition]);
+
+  // Memoize calculated positions for friends with collision detection
+  const friendPositions = useMemo(() => {
+    const baseAvatarSize = isTablet ? 120 : 100;
+    const minDistance = baseAvatarSize * 1.3;
+    const calculatedPositions: { x: number; y: number }[] = [];
+
+    const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+    const visibleAreaTop = insets.top;
+    const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight;
+    const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
+    const visibleAreaCenterY = visibleAreaTop + visibleAreaHeight / 2;
+
+    const centerAreaTop = visibleAreaTop + visibleAreaHeight * 0.2;
+    const centerAreaBottom = visibleAreaBottom - visibleAreaHeight * 0.2;
+    const centerAreaMinX = SCREEN_WIDTH * 0.15;
+    const centerAreaMaxX = SCREEN_WIDTH * 0.85;
+
+    const bounds = {
+      minX: centerAreaMinX,
+      maxX: centerAreaMaxX,
+      minY: centerAreaTop + 50,
+      maxY: centerAreaBottom - 50
+    };
+
+    const getFriendHash = (friendId: string, seed: string = '') => {
+      let hash = 0;
+      const str = friendId + seed;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash = hash & hash;
+      }
+      return Math.abs(hash % 10000) / 10000;
+    };
+
+    friends.forEach((friend) => {
+      const angle = getFriendHash(friend.id, 'angle') * 2 * Math.PI;
+      const maxRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.35;
+      const minRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.1;
+      const radiusFactor = getFriendHash(friend.id, 'radius');
+      const radius = minRadius + radiusFactor * (maxRadius - minRadius);
+
+      const initialPosition = {
+        x: SCREEN_WIDTH / 2 + Math.cos(angle) * radius,
+        y: visibleAreaCenterY + Math.sin(angle) * radius
+      };
+
+      initialPosition.x = Math.max(bounds.minX, Math.min(bounds.maxX, initialPosition.x));
+      initialPosition.y = Math.max(bounds.minY, Math.min(bounds.maxY, initialPosition.y));
+
+      const finalPosition = findNonOverlappingPosition(initialPosition, calculatedPositions, minDistance, bounds);
+      calculatedPositions.push(finalPosition);
+    });
+
+    return calculatedPositions;
+  }, [friends, isTablet, fontScale, insets.top, insets.bottom, findNonOverlappingPosition]);
+
+  // Memoize calculated positions for hobbies with collision detection
+  const hobbyPositions = useMemo(() => {
+    const baseAvatarSize = isTablet ? 120 : 100;
+    const minDistance = baseAvatarSize * 1.3;
+    const calculatedPositions: { x: number; y: number }[] = [];
+
+    const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+    const visibleAreaTop = insets.top;
+    const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight;
+    const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
+    const visibleAreaCenterY = visibleAreaTop + visibleAreaHeight / 2;
+
+    const centerAreaTop = visibleAreaTop + visibleAreaHeight * 0.2;
+    const centerAreaBottom = visibleAreaBottom - visibleAreaHeight * 0.2;
+    const centerAreaMinX = SCREEN_WIDTH * 0.15;
+    const centerAreaMaxX = SCREEN_WIDTH * 0.85;
+
+    const bounds = {
+      minX: centerAreaMinX,
+      maxX: centerAreaMaxX,
+      minY: centerAreaTop + 50,
+      maxY: centerAreaBottom - 50
+    };
+
+    const getHobbyHash = (hobbyId: string, seed: string = '') => {
+      let hash = 0;
+      const str = hobbyId + seed;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash = hash & hash;
+      }
+      return Math.abs(hash % 10000) / 10000;
+    };
+
+    hobbies.forEach((hobby) => {
+      const angle = getHobbyHash(hobby.id, 'angle') * 2 * Math.PI;
+      const maxRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.35;
+      const minRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.1;
+      const radiusFactor = getHobbyHash(hobby.id, 'radius');
+      const radius = minRadius + radiusFactor * (maxRadius - minRadius);
+
+      const initialPosition = {
+        x: SCREEN_WIDTH / 2 + Math.cos(angle) * radius,
+        y: visibleAreaCenterY + Math.sin(angle) * radius
+      };
+
+      initialPosition.x = Math.max(bounds.minX, Math.min(bounds.maxX, initialPosition.x));
+      initialPosition.y = Math.max(bounds.minY, Math.min(bounds.maxY, initialPosition.y));
+
+      const finalPosition = findNonOverlappingPosition(initialPosition, calculatedPositions, minDistance, bounds);
+      calculatedPositions.push(finalPosition);
+    });
+
+    return calculatedPositions;
+  }, [hobbies, isTablet, fontScale, insets.top, insets.bottom, findNonOverlappingPosition]);
 
   // Render sphere view - show all 3 spheres with memories floating around, center shows overall percentage
   // When a sphere is selected, show the entities for that sphere (like year sections for relationships)
@@ -10992,74 +11236,24 @@ export default function HomeScreen() {
                     hideTitle={true}
                   />
                 ))}
-                
+
                 {/* Show family members distributed within the section */}
                 {familyMembers.map((member, index) => {
                   const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
-                  
+
                   // Get the section for family members
                   const section = familyYearSections.get('all');
-                  
-                  // Distribute family members vertically within the visible center area
-                  const totalMembers = familyMembers.length;
-                  
-                  // Calculate visible area bounds (accounting for safe area insets and tab bar)
-                  const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
-                  const visibleAreaTop = insets.top;
-                  const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight;
-                  const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
-                  const visibleAreaCenterY = visibleAreaTop + visibleAreaHeight / 2;
-                  
-                  // Distribute members evenly in the center 60% of visible area (avoiding edges)
-                  const centerAreaTop = visibleAreaTop + visibleAreaHeight * 0.2; // Start at 20% from top
-                  const centerAreaBottom = visibleAreaBottom - visibleAreaHeight * 0.2; // End at 20% from bottom
-                  const centerAreaHeight = centerAreaBottom - centerAreaTop;
-                  
-                  // Increased spacing between family members for better visual separation
-                  const minSpacing = 150;
-                  const verticalSpacing = totalMembers > 1 
-                    ? Math.max(minSpacing, Math.min(centerAreaHeight / (totalMembers + 1), 200))
-                    : 0;
-                  
-                  // Distribute family members in a circular/scattered pattern around the center
-                  const getMemberHash = (memberId: string, seed: string = '') => {
-                    let hash = 0;
-                    const str = memberId + seed;
-                    for (let i = 0; i < str.length; i++) {
-                      hash = ((hash << 5) - hash) + str.charCodeAt(i);
-                      hash = hash & hash;
-                    }
-                    return Math.abs(hash % 10000) / 10000; // 0 to 1
-                  };
 
-                  // Use circular distribution: place family members at various angles and distances from center
-                  const angle = getMemberHash(member.id, 'angle') * 2 * Math.PI; // Random angle 0-360°
-                  const maxRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.35; // Max distance from center
-                  const minRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.1; // Min distance from center
-                  const radiusFactor = getMemberHash(member.id, 'radius'); // 0 to 1
-                  const radius = minRadius + radiusFactor * (maxRadius - minRadius); // Varied distance from center
+                  // Use the pre-calculated position with collision detection
+                  const position = familyMemberPositions[index];
 
-                  const position = {
-                    x: SCREEN_WIDTH / 2 + Math.cos(angle) * radius,
-                    y: visibleAreaCenterY + Math.sin(angle) * radius
-                  };
-
-                  // Clamp to ensure avatar stays visible (15%-85% for more breathing room)
-                  const centerAreaMinX = SCREEN_WIDTH * 0.15;
-                  const centerAreaMaxX = SCREEN_WIDTH * 0.85;
-                  position.x = Math.max(centerAreaMinX, Math.min(centerAreaMaxX, position.x));
-                  position.y = Math.max(
-                    centerAreaTop + 50,
-                    Math.min(centerAreaBottom - 50, position.y)
-                  );
-                  
                   // Clamp position to ensure avatar is fully visible in viewport
                   const baseAvatarSize = isTablet ? 120 : 100;
                   const clampedCalculatedPosition = clampPositionToViewport(position, baseAvatarSize);
-                  
+
                   const isFocused = focusedFamilyMemberId === member.id;
                   const wasJustFocused = previousFocusedFamilyMemberIdRef.current === member.id && !focusedFamilyMemberId;
-                  
+
                   // Hide unfocused family members when a family member is focused
                   // Also hide family member that was just unfocused (it's being animated in focusedFamilyMembersRender)
                   if ((focusedFamilyMemberId && !isFocused) || wasJustFocused) {
@@ -11123,7 +11317,7 @@ export default function HomeScreen() {
                 })}
               </>
             )}
-            
+
             {/* Render focused family members separately when focused (but hide family member when memory is focused) */}
             {focusedFamilyMembersRender}
             
@@ -11421,66 +11615,16 @@ export default function HomeScreen() {
                     hideTitle={true}
                   />
                 ))}
-                
+
                 {/* Show friends distributed within the section */}
                 {friends.map((friend, index) => {
                   const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
-                  
+
                   // Get the section for friends
                   const section = friendsYearSections.get('all');
-                  
-                  // Distribute friends vertically within the visible center area
-                  const totalFriends = friends.length;
-                  
-                  // Calculate visible area bounds (accounting for safe area insets and tab bar)
-                  const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
-                  const visibleAreaTop = insets.top;
-                  const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight;
-                  const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
-                  const visibleAreaCenterY = visibleAreaTop + visibleAreaHeight / 2;
-                  
-                  // Distribute friends evenly in the center 60% of visible area (avoiding edges)
-                  const centerAreaTop = visibleAreaTop + visibleAreaHeight * 0.2; // Start at 20% from top
-                  const centerAreaBottom = visibleAreaBottom - visibleAreaHeight * 0.2; // End at 20% from bottom
-                  const centerAreaHeight = centerAreaBottom - centerAreaTop;
-                  
-                  // Increased spacing between friends for better visual separation
-                  const minSpacing = 150;
-                  const verticalSpacing = totalFriends > 1 
-                    ? Math.max(minSpacing, Math.min(centerAreaHeight / (totalFriends + 1), 200))
-                    : 0;
-                  
-                  // Distribute friends in a circular/scattered pattern around the center
-                  const getFriendHash = (friendId: string, seed: string = '') => {
-                    let hash = 0;
-                    const str = friendId + seed;
-                    for (let i = 0; i < str.length; i++) {
-                      hash = ((hash << 5) - hash) + str.charCodeAt(i);
-                      hash = hash & hash;
-                    }
-                    return Math.abs(hash % 10000) / 10000; // 0 to 1
-                  };
 
-                  // Use circular distribution: place friends at various angles and distances from center
-                  const angle = getFriendHash(friend.id, 'angle') * 2 * Math.PI; // Random angle 0-360°
-                  const maxRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.35; // Max distance from center
-                  const minRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.1; // Min distance from center
-                  const radiusFactor = getFriendHash(friend.id, 'radius'); // 0 to 1
-                  const radius = minRadius + radiusFactor * (maxRadius - minRadius); // Varied distance from center
-
-                  const position = {
-                    x: SCREEN_WIDTH / 2 + Math.cos(angle) * radius,
-                    y: visibleAreaCenterY + Math.sin(angle) * radius
-                  };
-
-                  // Clamp to ensure avatar stays visible (15%-85% for more breathing room)
-                  const centerAreaMinX = SCREEN_WIDTH * 0.15;
-                  const centerAreaMaxX = SCREEN_WIDTH * 0.85;
-                  position.x = Math.max(centerAreaMinX, Math.min(centerAreaMaxX, position.x));
-                  position.y = Math.max(
-                    centerAreaTop + 50,
-                    Math.min(centerAreaBottom - 50, position.y)
-                  );
+                  // Use the pre-calculated position with collision detection
+                  const position = friendPositions[index];
                   
                   // Clamp position to ensure avatar is fully visible in viewport
                   const baseAvatarSize = isTablet ? 120 : 100;
@@ -11488,13 +11632,13 @@ export default function HomeScreen() {
                   
                   const isFocused = focusedFriendId === friend.id;
                   const wasJustFocused = previousFocusedFriendIdRef.current === friend.id && !focusedFriendId;
-                  
+
                   // Hide unfocused friends when a friend is focused
                   // Also hide friend that was just unfocused (it's being animated in focusedFriendsRender)
                   if ((focusedFriendId && !isFocused) || wasJustFocused) {
                     return null;
                   }
-                  
+
                   // Get saved position or use calculated position - clamp saved position if it exists
                   const savedPosition = friendPositionsState.get(friend.id);
                   const clampedSavedPosition = savedPosition ? clampPositionToViewport(savedPosition, baseAvatarSize) : null;
@@ -11552,7 +11696,7 @@ export default function HomeScreen() {
                 })}
               </>
             )}
-            
+
             {/* Render focused friends separately when focused (but hide friend when memory is focused) */}
             {focusedFriendsRender}
             
@@ -11850,74 +11994,24 @@ export default function HomeScreen() {
                     hideTitle={true}
                   />
                 ))}
-                
+
                 {/* Show hobbies distributed within the section */}
                 {hobbies.map((hobby, index) => {
                   const memories = getIdealizedMemoriesByEntityId(hobby.id, 'hobbies');
-                  
+
                   // Get the section for hobbies
                   const section = hobbiesYearSections.get('all');
-                  
-                  // Distribute hobbies vertically within the visible center area
-                  const totalHobbies = hobbies.length;
-                  
-                  // Calculate visible area bounds (accounting for safe area insets and tab bar)
-                  const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
-                  const visibleAreaTop = insets.top;
-                  const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight;
-                  const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
-                  const visibleAreaCenterY = visibleAreaTop + visibleAreaHeight / 2;
-                  
-                  // Distribute hobbies evenly in the center 60% of visible area (avoiding edges)
-                  const centerAreaTop = visibleAreaTop + visibleAreaHeight * 0.2; // Start at 20% from top
-                  const centerAreaBottom = visibleAreaBottom - visibleAreaHeight * 0.2; // End at 20% from bottom
-                  const centerAreaHeight = centerAreaBottom - centerAreaTop;
-                  
-                  // Increased spacing between hobbies for better visual separation
-                  const minSpacing = 150;
-                  const verticalSpacing = totalHobbies > 1 
-                    ? Math.max(minSpacing, Math.min(centerAreaHeight / (totalHobbies + 1), 200))
-                    : 0;
-                  
-                  // Distribute hobbies in a circular/scattered pattern around the center
-                  const getHobbyHash = (hobbyId: string, seed: string = '') => {
-                    let hash = 0;
-                    const str = hobbyId + seed;
-                    for (let i = 0; i < str.length; i++) {
-                      hash = ((hash << 5) - hash) + str.charCodeAt(i);
-                      hash = hash & hash;
-                    }
-                    return Math.abs(hash % 10000) / 10000; // 0 to 1
-                  };
 
-                  // Use circular distribution: place hobbies at various angles and distances from center
-                  const angle = getHobbyHash(hobby.id, 'angle') * 2 * Math.PI; // Random angle 0-360°
-                  const maxRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.35; // Max distance from center
-                  const minRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.1; // Min distance from center
-                  const radiusFactor = getHobbyHash(hobby.id, 'radius'); // 0 to 1
-                  const radius = minRadius + radiusFactor * (maxRadius - minRadius); // Varied distance from center
+                  // Use the pre-calculated position with collision detection
+                  const position = hobbyPositions[index];
 
-                  const position = {
-                    x: SCREEN_WIDTH / 2 + Math.cos(angle) * radius,
-                    y: visibleAreaCenterY + Math.sin(angle) * radius
-                  };
-
-                  // Clamp to ensure avatar stays visible (15%-85% for more breathing room)
-                  const centerAreaMinX = SCREEN_WIDTH * 0.15;
-                  const centerAreaMaxX = SCREEN_WIDTH * 0.85;
-                  position.x = Math.max(centerAreaMinX, Math.min(centerAreaMaxX, position.x));
-                  position.y = Math.max(
-                    centerAreaTop + 50,
-                    Math.min(centerAreaBottom - 50, position.y)
-                  );
-                  
                   // Clamp position to ensure avatar is fully visible in viewport
                   const baseAvatarSize = isTablet ? 120 : 100;
                   const clampedCalculatedPosition = clampPositionToViewport(position, baseAvatarSize);
-                  
+
                   const isFocused = focusedHobbyId === hobby.id;
                   const wasJustFocused = previousFocusedHobbyIdRef.current === hobby.id && !focusedHobbyId;
-                  
+
                   // Hide unfocused hobbies when a hobby is focused
                   // Also hide hobby that was just unfocused (it's being animated in focusedHobbiesRender)
                   if ((focusedHobbyId && !isFocused) || wasJustFocused) {
@@ -11981,7 +12075,7 @@ export default function HomeScreen() {
                 })}
               </>
             )}
-            
+
             {/* Render focused hobbies separately when focused (but hide hobby when memory is focused) */}
             {focusedHobbiesRender}
             

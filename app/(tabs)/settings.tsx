@@ -1638,10 +1638,6 @@ export default function SettingsScreen() {
 
         {/* Development Tools Section */}
         <View style={styles.section}>
-          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            {t('settings.devTools.title')}
-          </ThemedText>
-
           {/* Generate Fake Data Button - Only visible in development */}
           {__DEV__ && (
             <TouchableOpacity
