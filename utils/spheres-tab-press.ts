@@ -15,7 +15,7 @@ export function emitSpheresTabPress() {
     try {
       callback();
     } catch (error) {
-      console.error('[Spheres Tab Press] Error in callback:', error);
+      // Error in callback
     }
   });
 }

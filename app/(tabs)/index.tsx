@@ -1335,7 +1335,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                   });
                   setShareModalVisible(true);
                 } catch (error) {
-                  console.error('Error preparing share content:', error);
+                  // Error preparing share content
                 }
               }}
               style={{
@@ -3554,7 +3554,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
                   });
                   setShareModalVisible(true);
                 } catch (error) {
-                  console.error('Error preparing share content:', error);
+                  // Error preparing share content
                 }
               }}
               style={{
@@ -5729,7 +5729,7 @@ export default function HomeScreen() {
       // Refresh notifications based on current streak status
       await refreshStreakNotifications();
     } catch (error) {
-      console.error('[HomeScreen] Error loading streak data:', error);
+      // Error loading streak data
     }
   }, []);
 
@@ -7608,22 +7608,7 @@ export default function HomeScreen() {
     };
     
     if (entityId && (clamped.x !== position.x || clamped.y !== position.y)) {
-      console.log(`[clampPositionToViewport] ${entityId} clamped:`, {
-        'original': position,
-        'clamped': clamped,
-        'avatarSize': avatarSize,
-        'padding': padding,
-        'insets': { top: insets.top, bottom: insets.bottom },
-        'visibleArea': { 
-          top: visibleAreaTop,
-          bottom: visibleAreaBottom,
-          height: visibleAreaHeight,
-          width: SCREEN_WIDTH,
-          tabBarHeight: tabBarHeight
-        },
-        'bounds': { minX, maxX, minY, maxY },
-        'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
-      });
+      // Position clamped to viewport
     }
     
     return clamped;
@@ -7657,14 +7642,7 @@ export default function HomeScreen() {
     // Clamp position to ensure avatar is fully visible (use base avatar size for clamping)
     const baseAvatarSize = isTablet ? 120 : 100;
     const clampedPosition = clampPositionToViewport(newPosition, baseAvatarSize, `FamilyMember-${memberId}`);
-    
-    console.log(`[updateFamilyMemberPosition] FamilyMember ${memberId}:`, {
-      'newPosition': newPosition,
-      'clampedPosition': clampedPosition,
-      'avatarSize': baseAvatarSize,
-      'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
-    });
-    
+
     setFamilyPositionsState((prev) => {
       const next = new Map(prev);
       next.set(memberId, clampedPosition);
@@ -7687,14 +7665,7 @@ export default function HomeScreen() {
     // Clamp position to ensure avatar is fully visible (use base avatar size for clamping)
     const baseAvatarSize = isTablet ? 120 : 100;
     const clampedPosition = clampPositionToViewport(newPosition, baseAvatarSize, `Friend-${friendId}`);
-    
-    console.log(`[updateFriendPosition] Friend ${friendId}:`, {
-      'newPosition': newPosition,
-      'clampedPosition': clampedPosition,
-      'avatarSize': baseAvatarSize,
-      'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
-    });
-    
+
     setFriendPositionsState((prev) => {
       const next = new Map(prev);
       next.set(friendId, clampedPosition);
@@ -7717,14 +7688,7 @@ export default function HomeScreen() {
     // Clamp position to ensure avatar is fully visible (use base avatar size for clamping)
     const baseAvatarSize = isTablet ? 120 : 100;
     const clampedPosition = clampPositionToViewport(newPosition, baseAvatarSize, `Hobby-${hobbyId}`);
-    
-    console.log(`[updateHobbyPosition] Hobby ${hobbyId}:`, {
-      'newPosition': newPosition,
-      'clampedPosition': clampedPosition,
-      'avatarSize': baseAvatarSize,
-      'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
-    });
-    
+
     setHobbyPositionsState((prev) => {
       const next = new Map(prev);
       next.set(hobbyId, clampedPosition);
@@ -11106,34 +11070,6 @@ export default function HomeScreen() {
                   const clampedSavedPosition = savedPosition ? clampPositionToViewport(savedPosition, baseAvatarSize) : null;
                   const finalPosition = clampedSavedPosition || clampedCalculatedPosition;
                   
-                  // Log position for debugging
-                  const minX = baseAvatarSize / 2;
-                  const maxX = SCREEN_WIDTH - baseAvatarSize / 2;
-                  const minY = baseAvatarSize / 2 + insets.top;
-                  const maxY = SCREEN_HEIGHT - baseAvatarSize / 2 - insets.bottom;
-                  console.log(`[FamilyMember ${member.id}] Position:`, {
-                    'calculated': position,
-                    'clampedCalculated': clampedCalculatedPosition,
-                    'saved': savedPosition,
-                    'clampedSaved': clampedSavedPosition,
-                    'final': finalPosition,
-                    'avatarSize': baseAvatarSize,
-                    'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
-                    'insets': { top: insets.top, bottom: insets.bottom },
-                    'visibleArea': { 
-                      width: SCREEN_WIDTH, 
-                      height: SCREEN_HEIGHT - insets.top - insets.bottom 
-                    },
-                    'minX': minX,
-                    'maxX': maxX,
-                    'minY': minY,
-                    'maxY': maxY,
-                    'isWithinBounds': finalPosition.x >= minX && 
-                                     finalPosition.x <= maxX &&
-                                     finalPosition.y >= minY && 
-                                     finalPosition.y <= maxY,
-                  });
-                  
                   // Calculate slide direction for slide-in animation
                   const centerX = SCREEN_WIDTH / 2;
                   const centerY = SCREEN_HEIGHT / 2;
@@ -11563,34 +11499,6 @@ export default function HomeScreen() {
                   const clampedSavedPosition = savedPosition ? clampPositionToViewport(savedPosition, baseAvatarSize) : null;
                   const finalPosition = clampedSavedPosition || clampedCalculatedPosition;
                   
-                  // Log position for debugging
-                  const minX = baseAvatarSize / 2;
-                  const maxX = SCREEN_WIDTH - baseAvatarSize / 2;
-                  const minY = baseAvatarSize / 2 + insets.top;
-                  const maxY = SCREEN_HEIGHT - baseAvatarSize / 2 - insets.bottom;
-                  console.log(`[Friend ${friend.id}] Position:`, {
-                    'calculated': position,
-                    'clampedCalculated': clampedCalculatedPosition,
-                    'saved': savedPosition,
-                    'clampedSaved': clampedSavedPosition,
-                    'final': finalPosition,
-                    'avatarSize': baseAvatarSize,
-                    'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
-                    'insets': { top: insets.top, bottom: insets.bottom },
-                    'visibleArea': { 
-                      width: SCREEN_WIDTH, 
-                      height: SCREEN_HEIGHT - insets.top - insets.bottom 
-                    },
-                    'minX': minX,
-                    'maxX': maxX,
-                    'minY': minY,
-                    'maxY': maxY,
-                    'isWithinBounds': finalPosition.x >= minX && 
-                                     finalPosition.x <= maxX &&
-                                     finalPosition.y >= minY && 
-                                     finalPosition.y <= maxY,
-                  });
-                  
                   // Calculate slide direction for slide-in animation
                   const centerX = SCREEN_WIDTH / 2;
                   const centerY = SCREEN_HEIGHT / 2;
@@ -12019,34 +11927,6 @@ export default function HomeScreen() {
                   const savedPosition = hobbyPositionsState.get(hobby.id);
                   const clampedSavedPosition = savedPosition ? clampPositionToViewport(savedPosition, baseAvatarSize) : null;
                   const finalPosition = clampedSavedPosition || clampedCalculatedPosition;
-                  
-                  // Log position for debugging
-                  const minX = baseAvatarSize / 2;
-                  const maxX = SCREEN_WIDTH - baseAvatarSize / 2;
-                  const minY = baseAvatarSize / 2 + insets.top;
-                  const maxY = SCREEN_HEIGHT - baseAvatarSize / 2 - insets.bottom;
-                  console.log(`[Hobby ${hobby.id}] Position:`, {
-                    'calculated': position,
-                    'clampedCalculated': clampedCalculatedPosition,
-                    'saved': savedPosition,
-                    'clampedSaved': clampedSavedPosition,
-                    'final': finalPosition,
-                    'avatarSize': baseAvatarSize,
-                    'viewport': { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
-                    'insets': { top: insets.top, bottom: insets.bottom },
-                    'visibleArea': { 
-                      width: SCREEN_WIDTH, 
-                      height: SCREEN_HEIGHT - insets.top - insets.bottom 
-                    },
-                    'minX': minX,
-                    'maxX': maxX,
-                    'minY': minY,
-                    'maxY': maxY,
-                    'isWithinBounds': finalPosition.x >= minX && 
-                                     finalPosition.x <= maxX &&
-                                     finalPosition.y >= minY && 
-                                     finalPosition.y <= maxY,
-                  });
                   
                   // Calculate slide direction for slide-in animation
                   const centerX = SCREEN_WIDTH / 2;

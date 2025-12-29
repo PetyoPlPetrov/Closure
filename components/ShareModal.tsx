@@ -40,7 +40,7 @@ export default function ShareModal({ visible, onClose, title, content }: ShareMo
         title: title,
       });
     } catch (error) {
-      console.error('Error sharing:', error);
+      // Error sharing content
     }
   };
 
@@ -72,14 +72,6 @@ export default function ShareModal({ visible, onClose, title, content }: ShareMo
     transform: [{ scale: closeButtonPressScale.value }],
   }));
 
-  // Debug: Log when modal opens
-  React.useEffect(() => {
-    if (visible) {
-      console.log('ShareModal opened with title:', title);
-      console.log('ShareModal content length:', content?.length || 0);
-      console.log('ShareModal content preview:', content?.substring(0, 100));
-    }
-  }, [visible, title, content]);
 
   return (
     <Modal

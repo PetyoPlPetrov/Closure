@@ -182,23 +182,7 @@ export default function NotificationDetailScreen() {
     if (!__DEV__) return;
 
     const scheduled = await getScheduledNotifications();
-    console.log('=== Scheduled Notifications ===');
-    console.log(`Total: ${scheduled.length}`);
-
-    scheduled.forEach((notification, index) => {
-      const trigger = notification.trigger as any;
-      const triggerDate = trigger.type === 'date' ? new Date(trigger.value) : null;
-      const secondsUntil = triggerDate ? Math.floor((triggerDate.getTime() - Date.now()) / 1000) : null;
-
-      console.log(`\n[${index + 1}] ${notification.content.title}`);
-      console.log(`  ID: ${notification.identifier}`);
-      console.log(`  Body: ${notification.content.body}`);
-      console.log(`  Trigger: ${triggerDate ? triggerDate.toLocaleString() : 'N/A'}`);
-      console.log(`  In: ${secondsUntil !== null ? `${secondsUntil}s` : 'N/A'}`);
-      console.log(`  Data:`, notification.content.data);
-    });
-
-    console.log('==============================');
+    // Debug: Scheduled notifications available for inspection
   }, [getScheduledNotifications]);
 
   // Check if condition is met for the current entity

@@ -38,7 +38,7 @@ export async function getStreakData(): Promise<StreakData> {
       return parsedData;
     }
   } catch (error) {
-    console.error('[StreakManager] Error reading streak data:', error);
+    // Error reading streak data
   }
 
   // Return default data
@@ -62,7 +62,7 @@ export async function saveStreakData(data: StreakData): Promise<void> {
   try {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (error) {
-    console.error('[StreakManager] Error saving streak data:', error);
+    // Error saving streak data
   }
 }
 

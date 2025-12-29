@@ -97,14 +97,7 @@ function AppContent() {
   useEffect(() => {
     // This listener is fired whenever a notification is received while the app is foregrounded
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      // Check if this is an immediate fire or scheduled
-      const scheduledAt = (notification.request.content.data as any)?.scheduledAt;
-      if (scheduledAt) {
-        const timeSinceScheduled = Date.now() - scheduledAt;
-        if (timeSinceScheduled < 5000) {
-          console.error('[NotificationReceived] ⚠️ FIRED IMMEDIATELY! This notification was scheduled less than 5 seconds ago!');
-        }
-      }
+      // Notification received while app is foregrounded
       // We don't need to do anything here, just showing the notification is enough
     });
 

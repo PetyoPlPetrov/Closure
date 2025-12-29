@@ -15,7 +15,7 @@ export function requestSpheresTabPulse(pulseOnce: boolean = false) {
     try {
       callback({ shouldPulse: true, pulseOnce }); // Start pulsing
     } catch (error) {
-      console.error('[Spheres Tab Pulse] Error in callback:', error);
+      // Error in callback
     }
   });
 }
@@ -25,7 +25,7 @@ export function stopSpheresTabPulse() {
     try {
       callback({ shouldPulse: false }); // Stop pulsing
     } catch (error) {
-      console.error('[Spheres Tab Pulse] Error in callback:', error);
+      // Error in callback
     }
   });
 }

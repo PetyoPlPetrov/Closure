@@ -20,9 +20,6 @@ export default function JobDetailScreen() {
   const params = useLocalSearchParams<{ id: string; returnTo?: string }>();
   const { id, returnTo } = params;
 
-  // Log params on mount
-  console.log('[Nav] job-detail opened with params:', { id, returnTo });
-  
   const { jobs, getIdealizedMemoriesByEntityId } = useJourney();
 
   const job = useMemo(() => {
@@ -237,12 +234,9 @@ export default function JobDetailScreen() {
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => {
-                console.log('[Nav] job-detail back button pressed, returnTo:', returnTo);
                 if (returnTo === 'career-comparison') {
-                  console.log('[Nav] job-detail → career-comparison (replace)');
                   router.replace('/career-comparison');
                 } else {
-                  console.log('[Nav] job-detail → router.back()');
                   router.back();
                 }
               }}
@@ -276,12 +270,9 @@ export default function JobDetailScreen() {
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => {
-              console.log('[Nav] job-detail back button pressed (404 case), returnTo:', returnTo);
               if (returnTo === 'career-comparison') {
-                console.log('[Nav] job-detail (404) → career-comparison (replace)');
                 router.replace('/career-comparison');
               } else {
-                console.log('[Nav] job-detail (404) → router.back()');
                 router.back();
               }
             }}

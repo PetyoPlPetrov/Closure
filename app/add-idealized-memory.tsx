@@ -1654,7 +1654,6 @@ export default function AddIdealizedMemoryScreen() {
             });
           }
         } catch (error) {
-          console.error('[AddMemory] Error updating streak:', error);
           // Don't block memory creation if streak update fails
         }
       }

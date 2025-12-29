@@ -267,11 +267,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           trigger: triggerInput, // Use explicit DateTriggerInput format
         });
 
-        if (__DEV__) {
-          const secondsUntil = Math.floor((triggerDate.getTime() - Date.now()) / 1000);
-          console.log(`[Notification] Scheduled for ${entityName} in ${secondsUntil}s at ${triggerDate.toLocaleTimeString()}`);
-        }
-
         return notificationId;
       } catch (error) {
         return null;
@@ -284,9 +279,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const refreshSchedules = useCallback(async () => {
     setIsScheduling(true);
     try {
-      if (__DEV__) {
-        console.log('[Notification] Refreshing all schedules...');
-      }
       // Cancel all existing notifications
       await Notifications.cancelAllScheduledNotificationsAsync();
 

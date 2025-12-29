@@ -20,9 +20,6 @@ export default function CareerComparisonScreen() {
   const fontScale = useFontScale();
   const t = useTranslate();
 
-  // Log when screen is mounted/rendered
-  console.log('[Nav] career-comparison screen rendered');
-
   const { jobs, profiles, getIdealizedMemoriesByEntityId, getEntitiesBySphere, getIdealizedMemoriesByProfileId } = useJourney();
 
   // Statistics should only be enabled when there's at least 1 entity per sphere being compared
@@ -615,7 +612,6 @@ export default function CareerComparisonScreen() {
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => {
-              console.log('[Nav] career-comparison back button pressed → router.back()');
               router.back();
             }}
             activeOpacity={0.7}
@@ -754,7 +750,6 @@ export default function CareerComparisonScreen() {
                   key={data.job.id}
                   style={styles.barContainer}
                   onPress={() => {
-                    console.log('[Nav] career-comparison → job-detail with returnTo=career-comparison');
                     router.push(`/job-detail?id=${data.job.id}&returnTo=career-comparison`);
                   }}
                   activeOpacity={0.7}

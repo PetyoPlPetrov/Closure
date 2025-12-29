@@ -54,7 +54,7 @@ export async function scheduleStreakReminder(): Promise<void> {
       trigger,
     });
   } catch (error) {
-    console.error('[StreakNotifications] Error scheduling reminder:', error);
+    // Error scheduling reminder
   }
 }
 
@@ -103,7 +103,7 @@ export async function scheduleStreakWarning(): Promise<void> {
       trigger,
     });
   } catch (error) {
-    console.error('[StreakNotifications] Error scheduling warning:', error);
+    // Error scheduling warning
   }
 }
 
@@ -150,7 +150,7 @@ export async function sendMilestoneNotification(
       trigger: null, // Send immediately
     });
   } catch (error) {
-    console.error('[StreakNotifications] ❌ Error sending milestone notification:', error);
+    // Error sending milestone notification
   }
 }
 
@@ -197,7 +197,7 @@ export async function sendStreakIncrementNotification(currentStreak: number): Pr
       trigger: null, // Send immediately
     });
   } catch (error) {
-    console.error('[StreakNotifications] ❌ Error sending streak increment notification:', error);
+    // Error sending streak increment notification
   }
 }
 
@@ -226,7 +226,7 @@ export async function sendStreakLostNotification(lostStreak: number): Promise<vo
       },
     });
   } catch (error) {
-    console.error('[StreakNotifications] Error sending streak lost notification:', error);
+    // Error sending streak lost notification
   }
 }
 
@@ -238,7 +238,7 @@ export async function cancelAllStreakNotifications(): Promise<void> {
     await Notifications.cancelScheduledNotificationAsync(STREAK_REMINDER_ID);
     await Notifications.cancelScheduledNotificationAsync(STREAK_WARNING_ID);
   } catch (error) {
-    console.error('[StreakNotifications] Error cancelling notifications:', error);
+    // Error cancelling notifications
   }
 }
 

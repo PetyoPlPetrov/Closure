@@ -31,7 +31,6 @@ if (ENABLE_REVENUECAT) {
       isNativeModuleAvailable = true;
     }
   } catch (error) {
-    console.error('Error importing RevenueCat native modules:', error);
     // Native module not available - this is OK in development
   }
 }

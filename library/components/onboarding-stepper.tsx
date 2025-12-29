@@ -148,18 +148,10 @@ export function OnboardingStepper({
       const targetGifScale = 1.35;
       const targetTranslateY = 20 * fontScale; // Move down to prevent top clipping
 
-      console.log('📝 COLLAPSING TEXT, EXPANDING GIF');
-      console.log(`  GIF scale: 0.85 → ${targetGifScale}`);
-      console.log(`  GIF translateY: 0 → ${targetTranslateY} (move down to prevent clipping)`);
-
       gifScale.value = withTiming(targetGifScale, animationConfig);
       gifTranslateY.value = withTiming(targetTranslateY, animationConfig);
     } else {
       // Expand text, shrink GIF
-      console.log('📝 EXPANDING TEXT, SHRINKING GIF');
-      console.log('  GIF scale: 1.35 → 0.85');
-      console.log('  GIF translateY: → 0');
-
       gifScale.value = withTiming(0.85, animationConfig);
       gifTranslateY.value = withTiming(0, animationConfig);
     }
