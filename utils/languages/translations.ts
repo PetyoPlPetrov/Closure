@@ -2141,6 +2141,1146 @@ export interface Translations {
   'suggestions.writing.goodFacts.4': string;
   'suggestions.writing.lessons.3': string;
   'suggestions.writing.lessons.4': string;
+  'suggestions.friends.hardTruths.0': string;
+  'suggestions.friends.hardTruths.1': string;
+  'suggestions.friends.hardTruths.2': string;
+  'suggestions.friends.hardTruths.3': string;
+  'suggestions.friends.hardTruths.4': string;
+  'suggestions.friends.goodFacts.0': string;
+  'suggestions.friends.goodFacts.1': string;
+  'suggestions.friends.goodFacts.2': string;
+  'suggestions.friends.goodFacts.3': string;
+  'suggestions.friends.goodFacts.4': string;
+  'suggestions.friends.lessons.0': string;
+  'suggestions.friends.lessons.1': string;
+  'suggestions.friends.lessons.2': string;
+  'suggestions.friends.lessons.3': string;
+  'suggestions.friends.lessons.4': string;
+  'suggestions.shower.hardTruths.0': string;
+  'suggestions.shower.hardTruths.1': string;
+  'suggestions.shower.hardTruths.2': string;
+  'suggestions.shower.hardTruths.3': string;
+  'suggestions.shower.hardTruths.4': string;
+  'suggestions.shower.goodFacts.0': string;
+  'suggestions.shower.goodFacts.1': string;
+  'suggestions.shower.goodFacts.2': string;
+  'suggestions.shower.goodFacts.3': string;
+  'suggestions.shower.goodFacts.4': string;
+  'suggestions.shower.lessons.0': string;
+  'suggestions.shower.lessons.1': string;
+  'suggestions.shower.lessons.2': string;
+  'suggestions.shower.lessons.3': string;
+  'suggestions.shower.lessons.4': string;
+  'suggestions.bed.hardTruths.0': string;
+  'suggestions.bed.hardTruths.1': string;
+  'suggestions.bed.hardTruths.2': string;
+  'suggestions.bed.hardTruths.3': string;
+  'suggestions.bed.hardTruths.4': string;
+  'suggestions.bed.goodFacts.0': string;
+  'suggestions.bed.goodFacts.1': string;
+  'suggestions.bed.goodFacts.2': string;
+  'suggestions.bed.goodFacts.3': string;
+  'suggestions.bed.goodFacts.4': string;
+  'suggestions.bed.lessons.0': string;
+  'suggestions.bed.lessons.1': string;
+  'suggestions.bed.lessons.2': string;
+  'suggestions.bed.lessons.3': string;
+  'suggestions.bed.lessons.4': string;
+  'suggestions.sleep.hardTruths.0': string;
+  'suggestions.sleep.hardTruths.1': string;
+  'suggestions.sleep.hardTruths.2': string;
+  'suggestions.sleep.hardTruths.3': string;
+  'suggestions.sleep.hardTruths.4': string;
+  'suggestions.sleep.goodFacts.0': string;
+  'suggestions.sleep.goodFacts.1': string;
+  'suggestions.sleep.goodFacts.2': string;
+  'suggestions.sleep.goodFacts.3': string;
+  'suggestions.sleep.goodFacts.4': string;
+  'suggestions.sleep.lessons.0': string;
+  'suggestions.sleep.lessons.1': string;
+  'suggestions.sleep.lessons.2': string;
+  'suggestions.sleep.lessons.3': string;
+  'suggestions.sleep.lessons.4': string;
+  'suggestions.grocery.hardTruths.0': string;
+  'suggestions.grocery.hardTruths.1': string;
+  'suggestions.grocery.hardTruths.2': string;
+  'suggestions.grocery.hardTruths.3': string;
+  'suggestions.grocery.hardTruths.4': string;
+  'suggestions.grocery.goodFacts.0': string;
+  'suggestions.grocery.goodFacts.1': string;
+  'suggestions.grocery.goodFacts.2': string;
+  'suggestions.grocery.goodFacts.3': string;
+  'suggestions.grocery.goodFacts.4': string;
+  'suggestions.grocery.lessons.0': string;
+  'suggestions.grocery.lessons.1': string;
+  'suggestions.grocery.lessons.2': string;
+  'suggestions.grocery.lessons.3': string;
+  'suggestions.grocery.lessons.4': string;
+  'suggestions.laundry.hardTruths.0': string;
+  'suggestions.laundry.hardTruths.1': string;
+  'suggestions.laundry.hardTruths.2': string;
+  'suggestions.laundry.hardTruths.3': string;
+  'suggestions.laundry.hardTruths.4': string;
+  'suggestions.laundry.goodFacts.0': string;
+  'suggestions.laundry.goodFacts.1': string;
+  'suggestions.laundry.goodFacts.2': string;
+  'suggestions.laundry.goodFacts.3': string;
+  'suggestions.laundry.goodFacts.4': string;
+  'suggestions.laundry.lessons.0': string;
+  'suggestions.laundry.lessons.1': string;
+  'suggestions.laundry.lessons.2': string;
+  'suggestions.laundry.lessons.3': string;
+  'suggestions.laundry.lessons.4': string;
+  'suggestions.walk.hardTruths.0': string;
+  'suggestions.walk.hardTruths.1': string;
+  'suggestions.walk.hardTruths.2': string;
+  'suggestions.walk.hardTruths.3': string;
+  'suggestions.walk.hardTruths.4': string;
+  'suggestions.walk.goodFacts.0': string;
+  'suggestions.walk.goodFacts.1': string;
+  'suggestions.walk.goodFacts.2': string;
+  'suggestions.walk.goodFacts.3': string;
+  'suggestions.walk.goodFacts.4': string;
+  'suggestions.walk.lessons.0': string;
+  'suggestions.walk.lessons.1': string;
+  'suggestions.walk.lessons.2': string;
+  'suggestions.walk.lessons.3': string;
+  'suggestions.walk.lessons.4': string;
+  'suggestions.drive.hardTruths.0': string;
+  'suggestions.drive.hardTruths.1': string;
+  'suggestions.drive.hardTruths.2': string;
+  'suggestions.drive.hardTruths.3': string;
+  'suggestions.drive.hardTruths.4': string;
+  'suggestions.drive.goodFacts.0': string;
+  'suggestions.drive.goodFacts.1': string;
+  'suggestions.drive.goodFacts.2': string;
+  'suggestions.drive.goodFacts.3': string;
+  'suggestions.drive.goodFacts.4': string;
+  'suggestions.drive.lessons.0': string;
+  'suggestions.drive.lessons.1': string;
+  'suggestions.drive.lessons.2': string;
+  'suggestions.drive.lessons.3': string;
+  'suggestions.drive.lessons.4': string;
+  'suggestions.commute.hardTruths.0': string;
+  'suggestions.commute.hardTruths.1': string;
+  'suggestions.commute.hardTruths.2': string;
+  'suggestions.commute.hardTruths.3': string;
+  'suggestions.commute.hardTruths.4': string;
+  'suggestions.commute.goodFacts.0': string;
+  'suggestions.commute.goodFacts.1': string;
+  'suggestions.commute.goodFacts.2': string;
+  'suggestions.commute.goodFacts.3': string;
+  'suggestions.commute.goodFacts.4': string;
+  'suggestions.commute.lessons.0': string;
+  'suggestions.commute.lessons.1': string;
+  'suggestions.commute.lessons.2': string;
+  'suggestions.commute.lessons.3': string;
+  'suggestions.commute.lessons.4': string;
+  'suggestions.exercise.hardTruths.0': string;
+  'suggestions.exercise.hardTruths.1': string;
+  'suggestions.exercise.hardTruths.2': string;
+  'suggestions.exercise.hardTruths.3': string;
+  'suggestions.exercise.hardTruths.4': string;
+  'suggestions.exercise.goodFacts.0': string;
+  'suggestions.exercise.goodFacts.1': string;
+  'suggestions.exercise.goodFacts.2': string;
+  'suggestions.exercise.goodFacts.3': string;
+  'suggestions.exercise.goodFacts.4': string;
+  'suggestions.exercise.lessons.0': string;
+  'suggestions.exercise.lessons.1': string;
+  'suggestions.exercise.lessons.2': string;
+  'suggestions.exercise.lessons.3': string;
+  'suggestions.exercise.lessons.4': string;
+  'suggestions.workout.hardTruths.0': string;
+  'suggestions.workout.hardTruths.1': string;
+  'suggestions.workout.hardTruths.2': string;
+  'suggestions.workout.hardTruths.3': string;
+  'suggestions.workout.hardTruths.4': string;
+  'suggestions.workout.goodFacts.0': string;
+  'suggestions.workout.goodFacts.1': string;
+  'suggestions.workout.goodFacts.2': string;
+  'suggestions.workout.goodFacts.3': string;
+  'suggestions.workout.goodFacts.4': string;
+  'suggestions.workout.lessons.0': string;
+  'suggestions.workout.lessons.1': string;
+  'suggestions.workout.lessons.2': string;
+  'suggestions.workout.lessons.3': string;
+  'suggestions.workout.lessons.4': string;
+  'suggestions.study.hardTruths.0': string;
+  'suggestions.study.hardTruths.1': string;
+  'suggestions.study.hardTruths.2': string;
+  'suggestions.study.hardTruths.3': string;
+  'suggestions.study.hardTruths.4': string;
+  'suggestions.study.goodFacts.0': string;
+  'suggestions.study.goodFacts.1': string;
+  'suggestions.study.goodFacts.2': string;
+  'suggestions.study.goodFacts.3': string;
+  'suggestions.study.goodFacts.4': string;
+  'suggestions.study.lessons.0': string;
+  'suggestions.study.lessons.1': string;
+  'suggestions.study.lessons.2': string;
+  'suggestions.study.lessons.3': string;
+  'suggestions.study.lessons.4': string;
+  'suggestions.work.hardTruths.0': string;
+  'suggestions.work.hardTruths.1': string;
+  'suggestions.work.hardTruths.2': string;
+  'suggestions.work.hardTruths.3': string;
+  'suggestions.work.hardTruths.4': string;
+  'suggestions.work.goodFacts.0': string;
+  'suggestions.work.goodFacts.1': string;
+  'suggestions.work.goodFacts.2': string;
+  'suggestions.work.goodFacts.3': string;
+  'suggestions.work.goodFacts.4': string;
+  'suggestions.work.lessons.0': string;
+  'suggestions.work.lessons.1': string;
+  'suggestions.work.lessons.2': string;
+  'suggestions.work.lessons.3': string;
+  'suggestions.work.lessons.4': string;
+  'suggestions.lunch.hardTruths.0': string;
+  'suggestions.lunch.hardTruths.1': string;
+  'suggestions.lunch.hardTruths.2': string;
+  'suggestions.lunch.hardTruths.3': string;
+  'suggestions.lunch.hardTruths.4': string;
+  'suggestions.lunch.goodFacts.0': string;
+  'suggestions.lunch.goodFacts.1': string;
+  'suggestions.lunch.goodFacts.2': string;
+  'suggestions.lunch.goodFacts.3': string;
+  'suggestions.lunch.goodFacts.4': string;
+  'suggestions.lunch.lessons.0': string;
+  'suggestions.lunch.lessons.1': string;
+  'suggestions.lunch.lessons.2': string;
+  'suggestions.lunch.lessons.3': string;
+  'suggestions.lunch.lessons.4': string;
+  'suggestions.snack.hardTruths.0': string;
+  'suggestions.snack.hardTruths.1': string;
+  'suggestions.snack.hardTruths.2': string;
+  'suggestions.snack.hardTruths.3': string;
+  'suggestions.snack.hardTruths.4': string;
+  'suggestions.snack.goodFacts.0': string;
+  'suggestions.snack.goodFacts.1': string;
+  'suggestions.snack.goodFacts.2': string;
+  'suggestions.snack.goodFacts.3': string;
+  'suggestions.snack.goodFacts.4': string;
+  'suggestions.snack.lessons.0': string;
+  'suggestions.snack.lessons.1': string;
+  'suggestions.snack.lessons.2': string;
+  'suggestions.snack.lessons.3': string;
+  'suggestions.snack.lessons.4': string;
+  'suggestions.tea.hardTruths.0': string;
+  'suggestions.tea.hardTruths.1': string;
+  'suggestions.tea.hardTruths.2': string;
+  'suggestions.tea.hardTruths.3': string;
+  'suggestions.tea.hardTruths.4': string;
+  'suggestions.tea.goodFacts.0': string;
+  'suggestions.tea.goodFacts.1': string;
+  'suggestions.tea.goodFacts.2': string;
+  'suggestions.tea.goodFacts.3': string;
+  'suggestions.tea.goodFacts.4': string;
+  'suggestions.tea.lessons.0': string;
+  'suggestions.tea.lessons.1': string;
+  'suggestions.tea.lessons.2': string;
+  'suggestions.tea.lessons.3': string;
+  'suggestions.tea.lessons.4': string;
+  'suggestions.reunion.hardTruths.0': string;
+  'suggestions.reunion.hardTruths.1': string;
+  'suggestions.reunion.hardTruths.2': string;
+  'suggestions.reunion.hardTruths.3': string;
+  'suggestions.reunion.hardTruths.4': string;
+  'suggestions.reunion.goodFacts.0': string;
+  'suggestions.reunion.goodFacts.1': string;
+  'suggestions.reunion.goodFacts.2': string;
+  'suggestions.reunion.goodFacts.3': string;
+  'suggestions.reunion.goodFacts.4': string;
+  'suggestions.reunion.lessons.0': string;
+  'suggestions.reunion.lessons.1': string;
+  'suggestions.reunion.lessons.2': string;
+  'suggestions.reunion.lessons.3': string;
+  'suggestions.reunion.lessons.4': string;
+  'suggestions.cleaning.hardTruths.0': string;
+  'suggestions.cleaning.hardTruths.1': string;
+  'suggestions.cleaning.hardTruths.2': string;
+  'suggestions.cleaning.hardTruths.3': string;
+  'suggestions.cleaning.hardTruths.4': string;
+  'suggestions.cleaning.goodFacts.0': string;
+  'suggestions.cleaning.goodFacts.1': string;
+  'suggestions.cleaning.goodFacts.2': string;
+  'suggestions.cleaning.goodFacts.3': string;
+  'suggestions.cleaning.goodFacts.4': string;
+  'suggestions.cleaning.lessons.0': string;
+  'suggestions.cleaning.lessons.1': string;
+  'suggestions.cleaning.lessons.2': string;
+  'suggestions.cleaning.lessons.3': string;
+  'suggestions.cleaning.lessons.4': string;
+  'suggestions.dishes.hardTruths.0': string;
+  'suggestions.dishes.hardTruths.1': string;
+  'suggestions.dishes.hardTruths.2': string;
+  'suggestions.dishes.hardTruths.3': string;
+  'suggestions.dishes.hardTruths.4': string;
+  'suggestions.dishes.goodFacts.0': string;
+  'suggestions.dishes.goodFacts.1': string;
+  'suggestions.dishes.goodFacts.2': string;
+  'suggestions.dishes.goodFacts.3': string;
+  'suggestions.dishes.goodFacts.4': string;
+  'suggestions.dishes.lessons.0': string;
+  'suggestions.dishes.lessons.1': string;
+  'suggestions.dishes.lessons.2': string;
+  'suggestions.dishes.lessons.3': string;
+  'suggestions.dishes.lessons.4': string;
+  'suggestions.errands.hardTruths.0': string;
+  'suggestions.errands.hardTruths.1': string;
+  'suggestions.errands.hardTruths.2': string;
+  'suggestions.errands.hardTruths.3': string;
+  'suggestions.errands.hardTruths.4': string;
+  'suggestions.errands.goodFacts.0': string;
+  'suggestions.errands.goodFacts.1': string;
+  'suggestions.errands.goodFacts.2': string;
+  'suggestions.errands.goodFacts.3': string;
+  'suggestions.errands.goodFacts.4': string;
+  'suggestions.errands.lessons.0': string;
+  'suggestions.errands.lessons.1': string;
+  'suggestions.errands.lessons.2': string;
+  'suggestions.errands.lessons.3': string;
+  'suggestions.errands.lessons.4': string;
+  'suggestions.chores.hardTruths.0': string;
+  'suggestions.chores.hardTruths.1': string;
+  'suggestions.chores.hardTruths.2': string;
+  'suggestions.chores.hardTruths.3': string;
+  'suggestions.chores.hardTruths.4': string;
+  'suggestions.chores.goodFacts.0': string;
+  'suggestions.chores.goodFacts.1': string;
+  'suggestions.chores.goodFacts.2': string;
+  'suggestions.chores.goodFacts.3': string;
+  'suggestions.chores.goodFacts.4': string;
+  'suggestions.chores.lessons.0': string;
+  'suggestions.chores.lessons.1': string;
+  'suggestions.chores.lessons.2': string;
+  'suggestions.chores.lessons.3': string;
+  'suggestions.chores.lessons.4': string;
+  'suggestions.neighborhood.hardTruths.0': string;
+  'suggestions.neighborhood.hardTruths.1': string;
+  'suggestions.neighborhood.hardTruths.2': string;
+  'suggestions.neighborhood.hardTruths.3': string;
+  'suggestions.neighborhood.hardTruths.4': string;
+  'suggestions.neighborhood.goodFacts.0': string;
+  'suggestions.neighborhood.goodFacts.1': string;
+  'suggestions.neighborhood.goodFacts.2': string;
+  'suggestions.neighborhood.goodFacts.3': string;
+  'suggestions.neighborhood.goodFacts.4': string;
+  'suggestions.neighborhood.lessons.0': string;
+  'suggestions.neighborhood.lessons.1': string;
+  'suggestions.neighborhood.lessons.2': string;
+  'suggestions.neighborhood.lessons.3': string;
+  'suggestions.neighborhood.lessons.4': string;
+  'suggestions.street.hardTruths.0': string;
+  'suggestions.street.hardTruths.1': string;
+  'suggestions.street.hardTruths.2': string;
+  'suggestions.street.hardTruths.3': string;
+  'suggestions.street.hardTruths.4': string;
+  'suggestions.street.goodFacts.0': string;
+  'suggestions.street.goodFacts.1': string;
+  'suggestions.street.goodFacts.2': string;
+  'suggestions.street.goodFacts.3': string;
+  'suggestions.street.goodFacts.4': string;
+  'suggestions.street.lessons.0': string;
+  'suggestions.street.lessons.1': string;
+  'suggestions.street.lessons.2': string;
+  'suggestions.street.lessons.3': string;
+  'suggestions.street.lessons.4': string;
+  'suggestions.store.hardTruths.0': string;
+  'suggestions.store.hardTruths.1': string;
+  'suggestions.store.hardTruths.2': string;
+  'suggestions.store.hardTruths.3': string;
+  'suggestions.store.hardTruths.4': string;
+  'suggestions.store.goodFacts.0': string;
+  'suggestions.store.goodFacts.1': string;
+  'suggestions.store.goodFacts.2': string;
+  'suggestions.store.goodFacts.3': string;
+  'suggestions.store.goodFacts.4': string;
+  'suggestions.store.lessons.0': string;
+  'suggestions.store.lessons.1': string;
+  'suggestions.store.lessons.2': string;
+  'suggestions.store.lessons.3': string;
+  'suggestions.store.lessons.4': string;
+  'suggestions.bank.hardTruths.0': string;
+  'suggestions.bank.hardTruths.1': string;
+  'suggestions.bank.hardTruths.2': string;
+  'suggestions.bank.hardTruths.3': string;
+  'suggestions.bank.hardTruths.4': string;
+  'suggestions.bank.goodFacts.0': string;
+  'suggestions.bank.goodFacts.1': string;
+  'suggestions.bank.goodFacts.2': string;
+  'suggestions.bank.goodFacts.3': string;
+  'suggestions.bank.goodFacts.4': string;
+  'suggestions.bank.lessons.0': string;
+  'suggestions.bank.lessons.1': string;
+  'suggestions.bank.lessons.2': string;
+  'suggestions.bank.lessons.3': string;
+  'suggestions.bank.lessons.4': string;
+  'suggestions.pharmacy.hardTruths.0': string;
+  'suggestions.pharmacy.hardTruths.1': string;
+  'suggestions.pharmacy.hardTruths.2': string;
+  'suggestions.pharmacy.hardTruths.3': string;
+  'suggestions.pharmacy.hardTruths.4': string;
+  'suggestions.pharmacy.goodFacts.0': string;
+  'suggestions.pharmacy.goodFacts.1': string;
+  'suggestions.pharmacy.goodFacts.2': string;
+  'suggestions.pharmacy.goodFacts.3': string;
+  'suggestions.pharmacy.goodFacts.4': string;
+  'suggestions.pharmacy.lessons.0': string;
+  'suggestions.pharmacy.lessons.1': string;
+  'suggestions.pharmacy.lessons.2': string;
+  'suggestions.pharmacy.lessons.3': string;
+  'suggestions.pharmacy.lessons.4': string;
+  'suggestions.doctor.hardTruths.0': string;
+  'suggestions.doctor.hardTruths.1': string;
+  'suggestions.doctor.hardTruths.2': string;
+  'suggestions.doctor.hardTruths.3': string;
+  'suggestions.doctor.hardTruths.4': string;
+  'suggestions.doctor.goodFacts.0': string;
+  'suggestions.doctor.goodFacts.1': string;
+  'suggestions.doctor.goodFacts.2': string;
+  'suggestions.doctor.goodFacts.3': string;
+  'suggestions.doctor.goodFacts.4': string;
+  'suggestions.doctor.lessons.0': string;
+  'suggestions.doctor.lessons.1': string;
+  'suggestions.doctor.lessons.2': string;
+  'suggestions.doctor.lessons.3': string;
+  'suggestions.doctor.lessons.4': string;
+  'suggestions.appointment.hardTruths.0': string;
+  'suggestions.appointment.hardTruths.1': string;
+  'suggestions.appointment.hardTruths.2': string;
+  'suggestions.appointment.hardTruths.3': string;
+  'suggestions.appointment.hardTruths.4': string;
+  'suggestions.appointment.goodFacts.0': string;
+  'suggestions.appointment.goodFacts.1': string;
+  'suggestions.appointment.goodFacts.2': string;
+  'suggestions.appointment.goodFacts.3': string;
+  'suggestions.appointment.goodFacts.4': string;
+  'suggestions.appointment.lessons.0': string;
+  'suggestions.appointment.lessons.1': string;
+  'suggestions.appointment.lessons.2': string;
+  'suggestions.appointment.lessons.3': string;
+  'suggestions.appointment.lessons.4': string;
+  'suggestions.breakfast.hardTruths.0': string;
+  'suggestions.breakfast.hardTruths.1': string;
+  'suggestions.breakfast.hardTruths.2': string;
+  'suggestions.breakfast.hardTruths.3': string;
+  'suggestions.breakfast.hardTruths.4': string;
+  'suggestions.breakfast.goodFacts.0': string;
+  'suggestions.breakfast.goodFacts.1': string;
+  'suggestions.breakfast.goodFacts.2': string;
+  'suggestions.breakfast.goodFacts.3': string;
+  'suggestions.breakfast.goodFacts.4': string;
+  'suggestions.breakfast.lessons.0': string;
+  'suggestions.breakfast.lessons.1': string;
+  'suggestions.breakfast.lessons.2': string;
+  'suggestions.breakfast.lessons.3': string;
+  'suggestions.breakfast.lessons.4': string;
+  'suggestions.dinner.hardTruths.0': string;
+  'suggestions.dinner.hardTruths.1': string;
+  'suggestions.dinner.hardTruths.2': string;
+  'suggestions.dinner.hardTruths.3': string;
+  'suggestions.dinner.hardTruths.4': string;
+  'suggestions.dinner.goodFacts.0': string;
+  'suggestions.dinner.goodFacts.1': string;
+  'suggestions.dinner.goodFacts.2': string;
+  'suggestions.dinner.goodFacts.3': string;
+  'suggestions.dinner.goodFacts.4': string;
+  'suggestions.dinner.lessons.0': string;
+  'suggestions.dinner.lessons.1': string;
+  'suggestions.dinner.lessons.2': string;
+  'suggestions.dinner.lessons.3': string;
+  'suggestions.dinner.lessons.4': string;
+  'suggestions.cooking.hardTruths.0': string;
+  'suggestions.cooking.hardTruths.1': string;
+  'suggestions.cooking.hardTruths.2': string;
+  'suggestions.cooking.hardTruths.3': string;
+  'suggestions.cooking.hardTruths.4': string;
+  'suggestions.cooking.goodFacts.0': string;
+  'suggestions.cooking.goodFacts.1': string;
+  'suggestions.cooking.goodFacts.2': string;
+  'suggestions.cooking.goodFacts.3': string;
+  'suggestions.cooking.goodFacts.4': string;
+  'suggestions.cooking.lessons.0': string;
+  'suggestions.cooking.lessons.1': string;
+  'suggestions.cooking.lessons.2': string;
+  'suggestions.cooking.lessons.3': string;
+  'suggestions.cooking.lessons.4': string;
+  'suggestions.morning.hardTruths.0': string;
+  'suggestions.morning.hardTruths.1': string;
+  'suggestions.morning.hardTruths.2': string;
+  'suggestions.morning.hardTruths.3': string;
+  'suggestions.morning.hardTruths.4': string;
+  'suggestions.morning.goodFacts.0': string;
+  'suggestions.morning.goodFacts.1': string;
+  'suggestions.morning.goodFacts.2': string;
+  'suggestions.morning.goodFacts.3': string;
+  'suggestions.morning.goodFacts.4': string;
+  'suggestions.morning.lessons.0': string;
+  'suggestions.morning.lessons.1': string;
+  'suggestions.morning.lessons.2': string;
+  'suggestions.morning.lessons.3': string;
+  'suggestions.morning.lessons.4': string;
+  'suggestions.evening.hardTruths.0': string;
+  'suggestions.evening.hardTruths.1': string;
+  'suggestions.evening.hardTruths.2': string;
+  'suggestions.evening.hardTruths.3': string;
+  'suggestions.evening.hardTruths.4': string;
+  'suggestions.evening.goodFacts.0': string;
+  'suggestions.evening.goodFacts.1': string;
+  'suggestions.evening.goodFacts.2': string;
+  'suggestions.evening.goodFacts.3': string;
+  'suggestions.evening.goodFacts.4': string;
+  'suggestions.evening.lessons.0': string;
+  'suggestions.evening.lessons.1': string;
+  'suggestions.evening.lessons.2': string;
+  'suggestions.evening.lessons.3': string;
+  'suggestions.evening.lessons.4': string;
+  'suggestions.night.hardTruths.0': string;
+  'suggestions.night.hardTruths.1': string;
+  'suggestions.night.hardTruths.2': string;
+  'suggestions.night.hardTruths.3': string;
+  'suggestions.night.hardTruths.4': string;
+  'suggestions.night.goodFacts.0': string;
+  'suggestions.night.goodFacts.1': string;
+  'suggestions.night.goodFacts.2': string;
+  'suggestions.night.goodFacts.3': string;
+  'suggestions.night.goodFacts.4': string;
+  'suggestions.night.lessons.0': string;
+  'suggestions.night.lessons.1': string;
+  'suggestions.night.lessons.2': string;
+  'suggestions.night.lessons.3': string;
+  'suggestions.night.lessons.4': string;
+  'suggestions.kitchen.hardTruths.0': string;
+  'suggestions.kitchen.hardTruths.1': string;
+  'suggestions.kitchen.hardTruths.2': string;
+  'suggestions.kitchen.hardTruths.3': string;
+  'suggestions.kitchen.hardTruths.4': string;
+  'suggestions.kitchen.goodFacts.0': string;
+  'suggestions.kitchen.goodFacts.1': string;
+  'suggestions.kitchen.goodFacts.2': string;
+  'suggestions.kitchen.goodFacts.3': string;
+  'suggestions.kitchen.goodFacts.4': string;
+  'suggestions.kitchen.lessons.0': string;
+  'suggestions.kitchen.lessons.1': string;
+  'suggestions.kitchen.lessons.2': string;
+  'suggestions.kitchen.lessons.3': string;
+  'suggestions.kitchen.lessons.4': string;
+  'suggestions.bathroom.hardTruths.0': string;
+  'suggestions.bathroom.hardTruths.1': string;
+  'suggestions.bathroom.hardTruths.2': string;
+  'suggestions.bathroom.hardTruths.3': string;
+  'suggestions.bathroom.hardTruths.4': string;
+  'suggestions.bathroom.goodFacts.0': string;
+  'suggestions.bathroom.goodFacts.1': string;
+  'suggestions.bathroom.goodFacts.2': string;
+  'suggestions.bathroom.goodFacts.3': string;
+  'suggestions.bathroom.goodFacts.4': string;
+  'suggestions.bathroom.lessons.0': string;
+  'suggestions.bathroom.lessons.1': string;
+  'suggestions.bathroom.lessons.2': string;
+  'suggestions.bathroom.lessons.3': string;
+  'suggestions.bathroom.lessons.4': string;
+  'suggestions.office.hardTruths.0': string;
+  'suggestions.office.hardTruths.1': string;
+  'suggestions.office.hardTruths.2': string;
+  'suggestions.office.hardTruths.3': string;
+  'suggestions.office.hardTruths.4': string;
+  'suggestions.office.goodFacts.0': string;
+  'suggestions.office.goodFacts.1': string;
+  'suggestions.office.goodFacts.2': string;
+  'suggestions.office.goodFacts.3': string;
+  'suggestions.office.goodFacts.4': string;
+  'suggestions.office.lessons.0': string;
+  'suggestions.office.lessons.1': string;
+  'suggestions.office.lessons.2': string;
+  'suggestions.office.lessons.3': string;
+  'suggestions.office.lessons.4': string;
+  'suggestions.library.hardTruths.0': string;
+  'suggestions.library.hardTruths.1': string;
+  'suggestions.library.hardTruths.2': string;
+  'suggestions.library.hardTruths.3': string;
+  'suggestions.library.hardTruths.4': string;
+  'suggestions.library.goodFacts.0': string;
+  'suggestions.library.goodFacts.1': string;
+  'suggestions.library.goodFacts.2': string;
+  'suggestions.library.goodFacts.3': string;
+  'suggestions.library.goodFacts.4': string;
+  'suggestions.library.lessons.0': string;
+  'suggestions.library.lessons.1': string;
+  'suggestions.library.lessons.2': string;
+  'suggestions.library.lessons.3': string;
+  'suggestions.library.lessons.4': string;
+  'suggestions.cafe.hardTruths.0': string;
+  'suggestions.cafe.hardTruths.1': string;
+  'suggestions.cafe.hardTruths.2': string;
+  'suggestions.cafe.hardTruths.3': string;
+  'suggestions.cafe.hardTruths.4': string;
+  'suggestions.cafe.goodFacts.0': string;
+  'suggestions.cafe.goodFacts.1': string;
+  'suggestions.cafe.goodFacts.2': string;
+  'suggestions.cafe.goodFacts.3': string;
+  'suggestions.cafe.goodFacts.4': string;
+  'suggestions.cafe.lessons.0': string;
+  'suggestions.cafe.lessons.1': string;
+  'suggestions.cafe.lessons.2': string;
+  'suggestions.cafe.lessons.3': string;
+  'suggestions.cafe.lessons.4': string;
+  'suggestions.reading.hardTruths.0': string;
+  'suggestions.reading.hardTruths.1': string;
+  'suggestions.reading.hardTruths.2': string;
+  'suggestions.reading.hardTruths.3': string;
+  'suggestions.reading.hardTruths.4': string;
+  'suggestions.reading.goodFacts.0': string;
+  'suggestions.reading.goodFacts.1': string;
+  'suggestions.reading.goodFacts.2': string;
+  'suggestions.reading.goodFacts.3': string;
+  'suggestions.reading.goodFacts.4': string;
+  'suggestions.reading.lessons.0': string;
+  'suggestions.reading.lessons.1': string;
+  'suggestions.reading.lessons.2': string;
+  'suggestions.reading.lessons.3': string;
+  'suggestions.reading.lessons.4': string;
+  'suggestions.watching.hardTruths.0': string;
+  'suggestions.watching.hardTruths.1': string;
+  'suggestions.watching.hardTruths.2': string;
+  'suggestions.watching.hardTruths.3': string;
+  'suggestions.watching.hardTruths.4': string;
+  'suggestions.watching.goodFacts.0': string;
+  'suggestions.watching.goodFacts.1': string;
+  'suggestions.watching.goodFacts.2': string;
+  'suggestions.watching.goodFacts.3': string;
+  'suggestions.watching.goodFacts.4': string;
+  'suggestions.watching.lessons.0': string;
+  'suggestions.watching.lessons.1': string;
+  'suggestions.watching.lessons.2': string;
+  'suggestions.watching.lessons.3': string;
+  'suggestions.watching.lessons.4': string;
+  'suggestions.listening.hardTruths.0': string;
+  'suggestions.listening.hardTruths.1': string;
+  'suggestions.listening.hardTruths.2': string;
+  'suggestions.listening.hardTruths.3': string;
+  'suggestions.listening.hardTruths.4': string;
+  'suggestions.listening.goodFacts.0': string;
+  'suggestions.listening.goodFacts.1': string;
+  'suggestions.listening.goodFacts.2': string;
+  'suggestions.listening.goodFacts.3': string;
+  'suggestions.listening.goodFacts.4': string;
+  'suggestions.listening.lessons.0': string;
+  'suggestions.listening.lessons.1': string;
+  'suggestions.listening.lessons.2': string;
+  'suggestions.listening.lessons.3': string;
+  'suggestions.listening.lessons.4': string;
+  'suggestions.conversation.hardTruths.0': string;
+  'suggestions.conversation.hardTruths.1': string;
+  'suggestions.conversation.hardTruths.2': string;
+  'suggestions.conversation.hardTruths.3': string;
+  'suggestions.conversation.hardTruths.4': string;
+  'suggestions.conversation.goodFacts.0': string;
+  'suggestions.conversation.goodFacts.1': string;
+  'suggestions.conversation.goodFacts.2': string;
+  'suggestions.conversation.goodFacts.3': string;
+  'suggestions.conversation.goodFacts.4': string;
+  'suggestions.conversation.lessons.0': string;
+  'suggestions.conversation.lessons.1': string;
+  'suggestions.conversation.lessons.2': string;
+  'suggestions.conversation.lessons.3': string;
+  'suggestions.conversation.lessons.4': string;
+  'suggestions.meeting.hardTruths.0': string;
+  'suggestions.meeting.hardTruths.1': string;
+  'suggestions.meeting.hardTruths.2': string;
+  'suggestions.meeting.hardTruths.3': string;
+  'suggestions.meeting.hardTruths.4': string;
+  'suggestions.meeting.goodFacts.0': string;
+  'suggestions.meeting.goodFacts.1': string;
+  'suggestions.meeting.goodFacts.2': string;
+  'suggestions.meeting.goodFacts.3': string;
+  'suggestions.meeting.goodFacts.4': string;
+  'suggestions.meeting.lessons.0': string;
+  'suggestions.meeting.lessons.1': string;
+  'suggestions.meeting.lessons.2': string;
+  'suggestions.meeting.lessons.3': string;
+  'suggestions.meeting.lessons.4': string;
+  'suggestions.bus.hardTruths.0': string;
+  'suggestions.bus.hardTruths.1': string;
+  'suggestions.bus.hardTruths.2': string;
+  'suggestions.bus.hardTruths.3': string;
+  'suggestions.bus.hardTruths.4': string;
+  'suggestions.bus.goodFacts.0': string;
+  'suggestions.bus.goodFacts.1': string;
+  'suggestions.bus.goodFacts.2': string;
+  'suggestions.bus.goodFacts.3': string;
+  'suggestions.bus.goodFacts.4': string;
+  'suggestions.bus.lessons.0': string;
+  'suggestions.bus.lessons.1': string;
+  'suggestions.bus.lessons.2': string;
+  'suggestions.bus.lessons.3': string;
+  'suggestions.bus.lessons.4': string;
+  'suggestions.train.hardTruths.0': string;
+  'suggestions.train.hardTruths.1': string;
+  'suggestions.train.hardTruths.2': string;
+  'suggestions.train.hardTruths.3': string;
+  'suggestions.train.hardTruths.4': string;
+  'suggestions.train.goodFacts.0': string;
+  'suggestions.train.goodFacts.1': string;
+  'suggestions.train.goodFacts.2': string;
+  'suggestions.train.goodFacts.3': string;
+  'suggestions.train.goodFacts.4': string;
+  'suggestions.train.lessons.0': string;
+  'suggestions.train.lessons.1': string;
+  'suggestions.train.lessons.2': string;
+  'suggestions.train.lessons.3': string;
+  'suggestions.train.lessons.4': string;
+  'suggestions.bike.hardTruths.0': string;
+  'suggestions.bike.hardTruths.1': string;
+  'suggestions.bike.hardTruths.2': string;
+  'suggestions.bike.hardTruths.3': string;
+  'suggestions.bike.hardTruths.4': string;
+  'suggestions.bike.goodFacts.0': string;
+  'suggestions.bike.goodFacts.1': string;
+  'suggestions.bike.goodFacts.2': string;
+  'suggestions.bike.goodFacts.3': string;
+  'suggestions.bike.goodFacts.4': string;
+  'suggestions.bike.lessons.0': string;
+  'suggestions.bike.lessons.1': string;
+  'suggestions.bike.lessons.2': string;
+  'suggestions.bike.lessons.3': string;
+  'suggestions.bike.lessons.4': string;
+  'suggestions.painting.hardTruths.0': string;
+  'suggestions.painting.hardTruths.1': string;
+  'suggestions.painting.hardTruths.2': string;
+  'suggestions.painting.hardTruths.3': string;
+  'suggestions.painting.hardTruths.4': string;
+  'suggestions.painting.goodFacts.0': string;
+  'suggestions.painting.goodFacts.1': string;
+  'suggestions.painting.goodFacts.2': string;
+  'suggestions.painting.goodFacts.3': string;
+  'suggestions.painting.goodFacts.4': string;
+  'suggestions.painting.lessons.0': string;
+  'suggestions.painting.lessons.1': string;
+  'suggestions.painting.lessons.2': string;
+  'suggestions.painting.lessons.3': string;
+  'suggestions.painting.lessons.4': string;
+  'suggestions.drawing.hardTruths.0': string;
+  'suggestions.drawing.hardTruths.1': string;
+  'suggestions.drawing.hardTruths.2': string;
+  'suggestions.drawing.hardTruths.3': string;
+  'suggestions.drawing.hardTruths.4': string;
+  'suggestions.drawing.goodFacts.0': string;
+  'suggestions.drawing.goodFacts.1': string;
+  'suggestions.drawing.goodFacts.2': string;
+  'suggestions.drawing.goodFacts.3': string;
+  'suggestions.drawing.goodFacts.4': string;
+  'suggestions.drawing.lessons.0': string;
+  'suggestions.drawing.lessons.1': string;
+  'suggestions.drawing.lessons.2': string;
+  'suggestions.drawing.lessons.3': string;
+  'suggestions.drawing.lessons.4': string;
+  'suggestions.dancing.hardTruths.0': string;
+  'suggestions.dancing.hardTruths.1': string;
+  'suggestions.dancing.hardTruths.2': string;
+  'suggestions.dancing.hardTruths.3': string;
+  'suggestions.dancing.hardTruths.4': string;
+  'suggestions.dancing.goodFacts.0': string;
+  'suggestions.dancing.goodFacts.1': string;
+  'suggestions.dancing.goodFacts.2': string;
+  'suggestions.dancing.goodFacts.3': string;
+  'suggestions.dancing.goodFacts.4': string;
+  'suggestions.dancing.lessons.0': string;
+  'suggestions.dancing.lessons.1': string;
+  'suggestions.dancing.lessons.2': string;
+  'suggestions.dancing.lessons.3': string;
+  'suggestions.dancing.lessons.4': string;
+  'suggestions.singing.hardTruths.0': string;
+  'suggestions.singing.hardTruths.1': string;
+  'suggestions.singing.hardTruths.2': string;
+  'suggestions.singing.hardTruths.3': string;
+  'suggestions.singing.hardTruths.4': string;
+  'suggestions.singing.goodFacts.0': string;
+  'suggestions.singing.goodFacts.1': string;
+  'suggestions.singing.goodFacts.2': string;
+  'suggestions.singing.goodFacts.3': string;
+  'suggestions.singing.goodFacts.4': string;
+  'suggestions.singing.lessons.0': string;
+  'suggestions.singing.lessons.1': string;
+  'suggestions.singing.lessons.2': string;
+  'suggestions.singing.lessons.3': string;
+  'suggestions.singing.lessons.4': string;
+  'suggestions.baking.hardTruths.0': string;
+  'suggestions.baking.hardTruths.1': string;
+  'suggestions.baking.hardTruths.2': string;
+  'suggestions.baking.hardTruths.3': string;
+  'suggestions.baking.hardTruths.4': string;
+  'suggestions.baking.goodFacts.0': string;
+  'suggestions.baking.goodFacts.1': string;
+  'suggestions.baking.goodFacts.2': string;
+  'suggestions.baking.goodFacts.3': string;
+  'suggestions.baking.goodFacts.4': string;
+  'suggestions.baking.lessons.0': string;
+  'suggestions.baking.lessons.1': string;
+  'suggestions.baking.lessons.2': string;
+  'suggestions.baking.lessons.3': string;
+  'suggestions.baking.lessons.4': string;
+  'suggestions.manipulation.hardTruths.0': string;
+  'suggestions.manipulation.hardTruths.1': string;
+  'suggestions.manipulation.hardTruths.2': string;
+  'suggestions.manipulation.hardTruths.3': string;
+  'suggestions.manipulation.hardTruths.4': string;
+  'suggestions.manipulation.goodFacts.0': string;
+  'suggestions.manipulation.goodFacts.1': string;
+  'suggestions.manipulation.goodFacts.2': string;
+  'suggestions.manipulation.goodFacts.3': string;
+  'suggestions.manipulation.goodFacts.4': string;
+  'suggestions.manipulation.lessons.0': string;
+  'suggestions.manipulation.lessons.1': string;
+  'suggestions.manipulation.lessons.2': string;
+  'suggestions.manipulation.lessons.3': string;
+  'suggestions.manipulation.lessons.4': string;
+  'suggestions.gaslighting.hardTruths.0': string;
+  'suggestions.gaslighting.hardTruths.1': string;
+  'suggestions.gaslighting.hardTruths.2': string;
+  'suggestions.gaslighting.hardTruths.3': string;
+  'suggestions.gaslighting.hardTruths.4': string;
+  'suggestions.gaslighting.goodFacts.0': string;
+  'suggestions.gaslighting.goodFacts.1': string;
+  'suggestions.gaslighting.goodFacts.2': string;
+  'suggestions.gaslighting.goodFacts.3': string;
+  'suggestions.gaslighting.goodFacts.4': string;
+  'suggestions.gaslighting.lessons.0': string;
+  'suggestions.gaslighting.lessons.1': string;
+  'suggestions.gaslighting.lessons.2': string;
+  'suggestions.gaslighting.lessons.3': string;
+  'suggestions.gaslighting.lessons.4': string;
+  'suggestions.control.hardTruths.0': string;
+  'suggestions.control.hardTruths.1': string;
+  'suggestions.control.hardTruths.2': string;
+  'suggestions.control.hardTruths.3': string;
+  'suggestions.control.hardTruths.4': string;
+  'suggestions.control.goodFacts.0': string;
+  'suggestions.control.goodFacts.1': string;
+  'suggestions.control.goodFacts.2': string;
+  'suggestions.control.goodFacts.3': string;
+  'suggestions.control.goodFacts.4': string;
+  'suggestions.control.lessons.0': string;
+  'suggestions.control.lessons.1': string;
+  'suggestions.control.lessons.2': string;
+  'suggestions.control.lessons.3': string;
+  'suggestions.control.lessons.4': string;
+  'suggestions.boundaries.hardTruths.0': string;
+  'suggestions.boundaries.hardTruths.1': string;
+  'suggestions.boundaries.hardTruths.2': string;
+  'suggestions.boundaries.hardTruths.3': string;
+  'suggestions.boundaries.hardTruths.4': string;
+  'suggestions.boundaries.goodFacts.0': string;
+  'suggestions.boundaries.goodFacts.1': string;
+  'suggestions.boundaries.goodFacts.2': string;
+  'suggestions.boundaries.goodFacts.3': string;
+  'suggestions.boundaries.goodFacts.4': string;
+  'suggestions.boundaries.lessons.0': string;
+  'suggestions.boundaries.lessons.1': string;
+  'suggestions.boundaries.lessons.2': string;
+  'suggestions.boundaries.lessons.3': string;
+  'suggestions.boundaries.lessons.4': string;
+  'suggestions.guilt.hardTruths.0': string;
+  'suggestions.guilt.hardTruths.1': string;
+  'suggestions.guilt.hardTruths.2': string;
+  'suggestions.guilt.hardTruths.3': string;
+  'suggestions.guilt.hardTruths.4': string;
+  'suggestions.guilt.goodFacts.0': string;
+  'suggestions.guilt.goodFacts.1': string;
+  'suggestions.guilt.goodFacts.2': string;
+  'suggestions.guilt.goodFacts.3': string;
+  'suggestions.guilt.goodFacts.4': string;
+  'suggestions.guilt.lessons.0': string;
+  'suggestions.guilt.lessons.1': string;
+  'suggestions.guilt.lessons.2': string;
+  'suggestions.guilt.lessons.3': string;
+  'suggestions.guilt.lessons.4': string;
+  'suggestions.blame.hardTruths.0': string;
+  'suggestions.blame.hardTruths.1': string;
+  'suggestions.blame.hardTruths.2': string;
+  'suggestions.blame.hardTruths.3': string;
+  'suggestions.blame.hardTruths.4': string;
+  'suggestions.blame.goodFacts.0': string;
+  'suggestions.blame.goodFacts.1': string;
+  'suggestions.blame.goodFacts.2': string;
+  'suggestions.blame.goodFacts.3': string;
+  'suggestions.blame.goodFacts.4': string;
+  'suggestions.blame.lessons.0': string;
+  'suggestions.blame.lessons.1': string;
+  'suggestions.blame.lessons.2': string;
+  'suggestions.blame.lessons.3': string;
+  'suggestions.blame.lessons.4': string;
+  'suggestions.criticism.hardTruths.0': string;
+  'suggestions.criticism.hardTruths.1': string;
+  'suggestions.criticism.hardTruths.2': string;
+  'suggestions.criticism.hardTruths.3': string;
+  'suggestions.criticism.hardTruths.4': string;
+  'suggestions.criticism.goodFacts.0': string;
+  'suggestions.criticism.goodFacts.1': string;
+  'suggestions.criticism.goodFacts.2': string;
+  'suggestions.criticism.goodFacts.3': string;
+  'suggestions.criticism.goodFacts.4': string;
+  'suggestions.criticism.lessons.0': string;
+  'suggestions.criticism.lessons.1': string;
+  'suggestions.criticism.lessons.2': string;
+  'suggestions.criticism.lessons.3': string;
+  'suggestions.criticism.lessons.4': string;
+  'suggestions.isolation.hardTruths.0': string;
+  'suggestions.isolation.hardTruths.1': string;
+  'suggestions.isolation.hardTruths.2': string;
+  'suggestions.isolation.hardTruths.3': string;
+  'suggestions.isolation.hardTruths.4': string;
+  'suggestions.isolation.goodFacts.0': string;
+  'suggestions.isolation.goodFacts.1': string;
+  'suggestions.isolation.goodFacts.2': string;
+  'suggestions.isolation.goodFacts.3': string;
+  'suggestions.isolation.goodFacts.4': string;
+  'suggestions.isolation.lessons.0': string;
+  'suggestions.isolation.lessons.1': string;
+  'suggestions.isolation.lessons.2': string;
+  'suggestions.isolation.lessons.3': string;
+  'suggestions.isolation.lessons.4': string;
+  'suggestions.jealousy.hardTruths.0': string;
+  'suggestions.jealousy.hardTruths.1': string;
+  'suggestions.jealousy.hardTruths.2': string;
+  'suggestions.jealousy.hardTruths.3': string;
+  'suggestions.jealousy.hardTruths.4': string;
+  'suggestions.jealousy.goodFacts.0': string;
+  'suggestions.jealousy.goodFacts.1': string;
+  'suggestions.jealousy.goodFacts.2': string;
+  'suggestions.jealousy.goodFacts.3': string;
+  'suggestions.jealousy.goodFacts.4': string;
+  'suggestions.jealousy.lessons.0': string;
+  'suggestions.jealousy.lessons.1': string;
+  'suggestions.jealousy.lessons.2': string;
+  'suggestions.jealousy.lessons.3': string;
+  'suggestions.jealousy.lessons.4': string;
+  'suggestions.possessiveness.hardTruths.0': string;
+  'suggestions.possessiveness.hardTruths.1': string;
+  'suggestions.possessiveness.hardTruths.2': string;
+  'suggestions.possessiveness.hardTruths.3': string;
+  'suggestions.possessiveness.hardTruths.4': string;
+  'suggestions.possessiveness.goodFacts.0': string;
+  'suggestions.possessiveness.goodFacts.1': string;
+  'suggestions.possessiveness.goodFacts.2': string;
+  'suggestions.possessiveness.goodFacts.3': string;
+  'suggestions.possessiveness.goodFacts.4': string;
+  'suggestions.possessiveness.lessons.0': string;
+  'suggestions.possessiveness.lessons.1': string;
+  'suggestions.possessiveness.lessons.2': string;
+  'suggestions.possessiveness.lessons.3': string;
+  'suggestions.possessiveness.lessons.4': string;
+  'suggestions.disrespect.hardTruths.0': string;
+  'suggestions.disrespect.hardTruths.1': string;
+  'suggestions.disrespect.hardTruths.2': string;
+  'suggestions.disrespect.hardTruths.3': string;
+  'suggestions.disrespect.hardTruths.4': string;
+  'suggestions.disrespect.goodFacts.0': string;
+  'suggestions.disrespect.goodFacts.1': string;
+  'suggestions.disrespect.goodFacts.2': string;
+  'suggestions.disrespect.goodFacts.3': string;
+  'suggestions.disrespect.goodFacts.4': string;
+  'suggestions.disrespect.lessons.0': string;
+  'suggestions.disrespect.lessons.1': string;
+  'suggestions.disrespect.lessons.2': string;
+  'suggestions.disrespect.lessons.3': string;
+  'suggestions.disrespect.lessons.4': string;
+  'suggestions.narcissism.hardTruths.0': string;
+  'suggestions.narcissism.hardTruths.1': string;
+  'suggestions.narcissism.hardTruths.2': string;
+  'suggestions.narcissism.hardTruths.3': string;
+  'suggestions.narcissism.hardTruths.4': string;
+  'suggestions.narcissism.goodFacts.0': string;
+  'suggestions.narcissism.goodFacts.1': string;
+  'suggestions.narcissism.goodFacts.2': string;
+  'suggestions.narcissism.goodFacts.3': string;
+  'suggestions.narcissism.goodFacts.4': string;
+  'suggestions.narcissism.lessons.0': string;
+  'suggestions.narcissism.lessons.1': string;
+  'suggestions.narcissism.lessons.2': string;
+  'suggestions.narcissism.lessons.3': string;
+  'suggestions.narcissism.lessons.4': string;
+  'suggestions.abuse.hardTruths.0': string;
+  'suggestions.abuse.hardTruths.1': string;
+  'suggestions.abuse.hardTruths.2': string;
+  'suggestions.abuse.hardTruths.3': string;
+  'suggestions.abuse.hardTruths.4': string;
+  'suggestions.abuse.goodFacts.0': string;
+  'suggestions.abuse.goodFacts.1': string;
+  'suggestions.abuse.goodFacts.2': string;
+  'suggestions.abuse.goodFacts.3': string;
+  'suggestions.abuse.goodFacts.4': string;
+  'suggestions.abuse.lessons.0': string;
+  'suggestions.abuse.lessons.1': string;
+  'suggestions.abuse.lessons.2': string;
+  'suggestions.abuse.lessons.3': string;
+  'suggestions.abuse.lessons.4': string;
+  'suggestions.trauma.hardTruths.0': string;
+  'suggestions.trauma.hardTruths.1': string;
+  'suggestions.trauma.hardTruths.2': string;
+  'suggestions.trauma.hardTruths.3': string;
+  'suggestions.trauma.hardTruths.4': string;
+  'suggestions.trauma.goodFacts.0': string;
+  'suggestions.trauma.goodFacts.1': string;
+  'suggestions.trauma.goodFacts.2': string;
+  'suggestions.trauma.goodFacts.3': string;
+  'suggestions.trauma.goodFacts.4': string;
+  'suggestions.trauma.lessons.0': string;
+  'suggestions.trauma.lessons.1': string;
+  'suggestions.trauma.lessons.2': string;
+  'suggestions.trauma.lessons.3': string;
+  'suggestions.trauma.lessons.4': string;
+  'suggestions.healing.hardTruths.0': string;
+  'suggestions.healing.hardTruths.1': string;
+  'suggestions.healing.hardTruths.2': string;
+  'suggestions.healing.hardTruths.3': string;
+  'suggestions.healing.hardTruths.4': string;
+  'suggestions.healing.goodFacts.0': string;
+  'suggestions.healing.goodFacts.1': string;
+  'suggestions.healing.goodFacts.2': string;
+  'suggestions.healing.goodFacts.3': string;
+  'suggestions.healing.goodFacts.4': string;
+  'suggestions.healing.lessons.0': string;
+  'suggestions.healing.lessons.1': string;
+  'suggestions.healing.lessons.2': string;
+  'suggestions.healing.lessons.3': string;
+  'suggestions.healing.lessons.4': string;
+  'suggestions.recovery.hardTruths.0': string;
+  'suggestions.recovery.hardTruths.1': string;
+  'suggestions.recovery.hardTruths.2': string;
+  'suggestions.recovery.hardTruths.3': string;
+  'suggestions.recovery.hardTruths.4': string;
+  'suggestions.recovery.goodFacts.0': string;
+  'suggestions.recovery.goodFacts.1': string;
+  'suggestions.recovery.goodFacts.2': string;
+  'suggestions.recovery.goodFacts.3': string;
+  'suggestions.recovery.goodFacts.4': string;
+  'suggestions.recovery.lessons.0': string;
+  'suggestions.recovery.lessons.1': string;
+  'suggestions.recovery.lessons.2': string;
+  'suggestions.recovery.lessons.3': string;
+  'suggestions.recovery.lessons.4': string;
+  'suggestions.selfworth.hardTruths.0': string;
+  'suggestions.selfworth.hardTruths.1': string;
+  'suggestions.selfworth.hardTruths.2': string;
+  'suggestions.selfworth.hardTruths.3': string;
+  'suggestions.selfworth.hardTruths.4': string;
+  'suggestions.selfworth.goodFacts.0': string;
+  'suggestions.selfworth.goodFacts.1': string;
+  'suggestions.selfworth.goodFacts.2': string;
+  'suggestions.selfworth.goodFacts.3': string;
+  'suggestions.selfworth.goodFacts.4': string;
+  'suggestions.selfworth.lessons.0': string;
+  'suggestions.selfworth.lessons.1': string;
+  'suggestions.selfworth.lessons.2': string;
+  'suggestions.selfworth.lessons.3': string;
+  'suggestions.selfworth.lessons.4': string;
+  'suggestions.validation.hardTruths.0': string;
+  'suggestions.validation.hardTruths.1': string;
+  'suggestions.validation.hardTruths.2': string;
+  'suggestions.validation.hardTruths.3': string;
+  'suggestions.validation.hardTruths.4': string;
+  'suggestions.validation.goodFacts.0': string;
+  'suggestions.validation.goodFacts.1': string;
+  'suggestions.validation.goodFacts.2': string;
+  'suggestions.validation.goodFacts.3': string;
+  'suggestions.validation.goodFacts.4': string;
+  'suggestions.validation.lessons.0': string;
+  'suggestions.validation.lessons.1': string;
+  'suggestions.validation.lessons.2': string;
+  'suggestions.validation.lessons.3': string;
+  'suggestions.validation.lessons.4': string;
+  'suggestions.codependency.hardTruths.0': string;
+  'suggestions.codependency.hardTruths.1': string;
+  'suggestions.codependency.hardTruths.2': string;
+  'suggestions.codependency.hardTruths.3': string;
+  'suggestions.codependency.hardTruths.4': string;
+  'suggestions.codependency.goodFacts.0': string;
+  'suggestions.codependency.goodFacts.1': string;
+  'suggestions.codependency.goodFacts.2': string;
+  'suggestions.codependency.goodFacts.3': string;
+  'suggestions.codependency.goodFacts.4': string;
+  'suggestions.codependency.lessons.0': string;
+  'suggestions.codependency.lessons.1': string;
+  'suggestions.codependency.lessons.2': string;
+  'suggestions.codependency.lessons.3': string;
+  'suggestions.codependency.lessons.4': string;
+  'suggestions.toxic.hardTruths.0': string;
+  'suggestions.toxic.hardTruths.1': string;
+  'suggestions.toxic.hardTruths.2': string;
+  'suggestions.toxic.hardTruths.3': string;
+  'suggestions.toxic.hardTruths.4': string;
+  'suggestions.toxic.goodFacts.0': string;
+  'suggestions.toxic.goodFacts.1': string;
+  'suggestions.toxic.goodFacts.2': string;
+  'suggestions.toxic.goodFacts.3': string;
+  'suggestions.toxic.goodFacts.4': string;
+  'suggestions.toxic.lessons.0': string;
+  'suggestions.toxic.lessons.1': string;
+  'suggestions.toxic.lessons.2': string;
+  'suggestions.toxic.lessons.3': string;
+  'suggestions.toxic.lessons.4': string;
+  'suggestions.redflags.hardTruths.0': string;
+  'suggestions.redflags.hardTruths.1': string;
+  'suggestions.redflags.hardTruths.2': string;
+  'suggestions.redflags.hardTruths.3': string;
+  'suggestions.redflags.hardTruths.4': string;
+  'suggestions.redflags.goodFacts.0': string;
+  'suggestions.redflags.goodFacts.1': string;
+  'suggestions.redflags.goodFacts.2': string;
+  'suggestions.redflags.goodFacts.3': string;
+  'suggestions.redflags.goodFacts.4': string;
+  'suggestions.redflags.lessons.0': string;
+  'suggestions.redflags.lessons.1': string;
+  'suggestions.redflags.lessons.2': string;
+  'suggestions.redflags.lessons.3': string;
+  'suggestions.redflags.lessons.4': string;
+  'suggestions.escape.hardTruths.0': string;
+  'suggestions.escape.hardTruths.1': string;
+  'suggestions.escape.hardTruths.2': string;
+  'suggestions.escape.hardTruths.3': string;
+  'suggestions.escape.hardTruths.4': string;
+  'suggestions.escape.goodFacts.0': string;
+  'suggestions.escape.goodFacts.1': string;
+  'suggestions.escape.goodFacts.2': string;
+  'suggestions.escape.goodFacts.3': string;
+  'suggestions.escape.goodFacts.4': string;
+  'suggestions.escape.lessons.0': string;
+  'suggestions.escape.lessons.1': string;
+  'suggestions.escape.lessons.2': string;
+  'suggestions.escape.lessons.3': string;
+  'suggestions.escape.lessons.4': string;
+  'suggestions.freedom.hardTruths.0': string;
+  'suggestions.freedom.hardTruths.1': string;
+  'suggestions.freedom.hardTruths.2': string;
+  'suggestions.freedom.hardTruths.3': string;
+  'suggestions.freedom.hardTruths.4': string;
+  'suggestions.freedom.goodFacts.0': string;
+  'suggestions.freedom.goodFacts.1': string;
+  'suggestions.freedom.goodFacts.2': string;
+  'suggestions.freedom.goodFacts.3': string;
+  'suggestions.freedom.goodFacts.4': string;
+  'suggestions.freedom.lessons.0': string;
+  'suggestions.freedom.lessons.1': string;
+  'suggestions.freedom.lessons.2': string;
+  'suggestions.freedom.lessons.3': string;
+  'suggestions.freedom.lessons.4': string;
+  'suggestions.liberation.hardTruths.0': string;
+  'suggestions.liberation.hardTruths.1': string;
+  'suggestions.liberation.hardTruths.2': string;
+  'suggestions.liberation.hardTruths.3': string;
+  'suggestions.liberation.hardTruths.4': string;
+  'suggestions.liberation.goodFacts.0': string;
+  'suggestions.liberation.goodFacts.1': string;
+  'suggestions.liberation.goodFacts.2': string;
+  'suggestions.liberation.goodFacts.3': string;
+  'suggestions.liberation.goodFacts.4': string;
+  'suggestions.liberation.lessons.0': string;
+  'suggestions.liberation.lessons.1': string;
+  'suggestions.liberation.lessons.2': string;
+  'suggestions.liberation.lessons.3': string;
+  'suggestions.liberation.lessons.4': string;
 }
 
 const translations: Record<Language, Translations> = {
@@ -4276,6 +5416,728 @@ const translations: Record<Language, Translations> = {
     'suggestions.writing.goodFacts.4': "This experience taught me valuable lessons about myself",
     'suggestions.writing.lessons.3': "Growth comes from facing difficult truths",
     'suggestions.writing.lessons.4': "I'm stronger and wiser because of this experience",
+
+    'suggestions.breakfast.hardTruths.0': "Eating breakfast alone felt empty",
+    'suggestions.breakfast.hardTruths.1': "Morning routines reminded me of shared moments",
+    'suggestions.breakfast.hardTruths.2': "I had to learn to start my day alone",
+    'suggestions.breakfast.hardTruths.3': "Breakfast without them felt incomplete",
+    'suggestions.breakfast.hardTruths.4': "Morning coffee brought back memories",
+    'suggestions.breakfast.goodFacts.0': "I'm creating my own peaceful morning routine",
+    'suggestions.breakfast.goodFacts.1': "Breakfast alone is now a peaceful start to my day",
+    'suggestions.breakfast.goodFacts.2': "I can eat what I want, when I want",
+    'suggestions.breakfast.goodFacts.3': "Morning routines are now mine to design",
+    'suggestions.breakfast.goodFacts.4': "I'm learning to enjoy solo mornings",
+    'suggestions.breakfast.lessons.0': "I can start my day well on my own",
+    'suggestions.breakfast.lessons.1': "Morning routines can be peaceful solo activities",
+    'suggestions.breakfast.lessons.2': "I don't need company for every meal",
+    'suggestions.breakfast.lessons.3': "My day starts when I choose to start it",
+    'suggestions.breakfast.lessons.4': "Simple morning rituals can be healing",
+    'suggestions.dinner.hardTruths.0': "Dinner alone felt lonely",
+    'suggestions.dinner.hardTruths.1': "I missed shared evening meals",
+    'suggestions.dinner.hardTruths.2': "Evening meals reminded me of togetherness",
+    'suggestions.dinner.hardTruths.3': "Dining alone became a symbol of change",
+    'suggestions.dinner.hardTruths.4': "I had to learn to enjoy solo dinners",
+    'suggestions.dinner.goodFacts.0': "I'm creating peaceful dinner routines",
+    'suggestions.dinner.goodFacts.1': "Dinner alone is now my time",
+    'suggestions.dinner.goodFacts.2': "I can cook and eat what I truly enjoy",
+    'suggestions.dinner.goodFacts.3': "Evening meals are moments of self-care",
+    'suggestions.dinner.goodFacts.4': "I'm learning to savor solo dining",
+    'suggestions.dinner.lessons.0': "I can enjoy meals alone",
+    'suggestions.dinner.lessons.1': "Solo dining can be peaceful and satisfying",
+    'suggestions.dinner.lessons.2': "I don't need company for every meal",
+    'suggestions.dinner.lessons.3': "Evening routines are mine to design",
+    'suggestions.dinner.lessons.4': "Dinner time is my personal time",
+    'suggestions.cooking.hardTruths.0': "Cooking for one felt pointless",
+    'suggestions.cooking.hardTruths.1': "I missed cooking together",
+    'suggestions.cooking.hardTruths.2': "Kitchen became a lonely place",
+    'suggestions.cooking.hardTruths.3': "Recipes reminded me of shared meals",
+    'suggestions.cooking.hardTruths.4': "I had to relearn to cook for myself",
+    'suggestions.cooking.goodFacts.0': "I'm discovering recipes I actually enjoy",
+    'suggestions.cooking.goodFacts.1': "Cooking is now a creative outlet",
+    'suggestions.cooking.goodFacts.2': "I can experiment with flavors freely",
+    'suggestions.cooking.goodFacts.3': "Kitchen time is now peaceful",
+    'suggestions.cooking.goodFacts.4': "I'm building cooking confidence",
+    'suggestions.cooking.lessons.0': "I can enjoy cooking alone",
+    'suggestions.cooking.lessons.1': "Cooking is self-care and creativity",
+    'suggestions.cooking.lessons.2': "I don't need someone to cook for",
+    'suggestions.cooking.lessons.3': "Kitchen creativity is all mine",
+    'suggestions.cooking.lessons.4': "Cooking brings me joy and peace",
+    'suggestions.morning.hardTruths.0': "Mornings felt empty without them",
+    'suggestions.morning.hardTruths.1': "Waking up alone was hard",
+    'suggestions.morning.hardTruths.2': "Morning routines reminded me of loss",
+    'suggestions.morning.hardTruths.3': "I struggled to start my day",
+    'suggestions.morning.hardTruths.4': "Mornings brought back painful memories",
+    'suggestions.morning.goodFacts.0': "I'm creating peaceful morning rituals",
+    'suggestions.morning.goodFacts.1': "Mornings are now mine to design",
+    'suggestions.morning.goodFacts.2': "I can start my day at my own pace",
+    'suggestions.morning.goodFacts.3': "Morning time is now for self-care",
+    'suggestions.morning.goodFacts.4': "I'm learning to enjoy quiet mornings",
+    'suggestions.morning.lessons.0': "I can create my own morning routine",
+    'suggestions.morning.lessons.1': "Mornings can be peaceful and productive",
+    'suggestions.morning.lessons.2': "I don't need someone to start my day",
+    'suggestions.morning.lessons.3': "My morning is mine to enjoy",
+    'suggestions.morning.lessons.4': "Simple morning rituals heal",
+    'suggestions.evening.hardTruths.0': "Evenings felt long and lonely",
+    'suggestions.evening.hardTruths.1': "I missed shared evening routines",
+    'suggestions.evening.hardTruths.2': "Sunset reminded me of togetherness",
+    'suggestions.evening.hardTruths.3': "Evening time felt empty",
+    'suggestions.evening.hardTruths.4': "I struggled with evening loneliness",
+    'suggestions.evening.goodFacts.0': "I'm creating peaceful evening routines",
+    'suggestions.evening.goodFacts.1': "Evenings are now my time to relax",
+    'suggestions.evening.goodFacts.2': "I can enjoy quiet evenings alone",
+    'suggestions.evening.goodFacts.3': "Evening time is for self-reflection",
+    'suggestions.evening.goodFacts.4': "I'm learning to find peace in evenings",
+    'suggestions.evening.lessons.0': "I can enjoy solo evenings",
+    'suggestions.evening.lessons.1': "Evenings can be peaceful and restorative",
+    'suggestions.evening.lessons.2': "I don't need company for every evening",
+    'suggestions.evening.lessons.3': "My evenings are mine to design",
+    'suggestions.evening.lessons.4': "Evening routines bring peace",
+    'suggestions.night.hardTruths.0': "Nights were the hardest",
+    'suggestions.night.hardTruths.1': "I struggled to sleep alone",
+    'suggestions.night.hardTruths.2': "Nighttime brought anxiety",
+    'suggestions.night.hardTruths.3': "Dark hours felt endless",
+    'suggestions.night.hardTruths.4': "I missed nighttime conversations",
+    'suggestions.night.goodFacts.0': "I'm learning to find peace at night",
+    'suggestions.night.goodFacts.1': "Nights are becoming more peaceful",
+    'suggestions.night.goodFacts.2': "I can enjoy quiet nights",
+    'suggestions.night.goodFacts.3': "Nighttime is now for rest and reflection",
+    'suggestions.night.goodFacts.4': "I'm building better sleep habits",
+    'suggestions.night.lessons.0': "I can find peace in darkness",
+    'suggestions.night.lessons.1': "Nights can be restorative",
+    'suggestions.night.lessons.2': "I don't need someone to sleep well",
+    'suggestions.night.lessons.3': "My nights are mine to rest",
+    'suggestions.night.lessons.4': "Peace comes with time",
+    'suggestions.kitchen.hardTruths.0': "Kitchen felt empty without them",
+    'suggestions.kitchen.hardTruths.1': "Cooking spaces reminded me of loss",
+    'suggestions.kitchen.hardTruths.2': "Kitchen was a place of loneliness",
+    'suggestions.kitchen.hardTruths.3': "I avoided the kitchen sometimes",
+    'suggestions.kitchen.hardTruths.4': "Shared recipes brought back memories",
+    'suggestions.kitchen.goodFacts.0': "I'm reclaiming my kitchen space",
+    'suggestions.kitchen.goodFacts.1': "Kitchen is now my creative space",
+    'suggestions.kitchen.goodFacts.2': "I can cook whatever I want",
+    'suggestions.kitchen.goodFacts.3': "Kitchen time is peaceful",
+    'suggestions.kitchen.goodFacts.4': "I'm building confidence in cooking",
+    'suggestions.kitchen.lessons.0': "I can enjoy time in the kitchen",
+    'suggestions.kitchen.lessons.1': "Kitchen can be a place of creativity",
+    'suggestions.kitchen.lessons.2': "I don't need someone in the kitchen",
+    'suggestions.kitchen.lessons.3': "My kitchen, my rules",
+    'suggestions.kitchen.lessons.4': "Cooking brings me joy",
+    'suggestions.bathroom.hardTruths.0': "Bathroom routines felt different alone",
+    'suggestions.bathroom.hardTruths.1': "Personal care reminded me of change",
+    'suggestions.bathroom.hardTruths.2': "I had to adjust to solo routines",
+    'suggestions.bathroom.hardTruths.3': "Self-care felt incomplete",
+    'suggestions.bathroom.hardTruths.4': "Bathroom time was a reminder of aloneness",
+    'suggestions.bathroom.goodFacts.0': "I'm creating better self-care routines",
+    'suggestions.bathroom.goodFacts.1': "Bathroom time is now peaceful",
+    'suggestions.bathroom.goodFacts.2': "I can take my time with self-care",
+    'suggestions.bathroom.goodFacts.3': "Personal care is self-respect",
+    'suggestions.bathroom.goodFacts.4': "I'm learning to care for myself well",
+    'suggestions.bathroom.lessons.0': "I can take care of myself",
+    'suggestions.bathroom.lessons.1': "Self-care routines are important",
+    'suggestions.bathroom.lessons.2': "I don't need help for basic care",
+    'suggestions.bathroom.lessons.3': "My self-care is my priority",
+    'suggestions.bathroom.lessons.4': "Taking care of myself is healing",
+    'suggestions.office.hardTruths.0': "Office felt different after the breakup",
+    'suggestions.office.hardTruths.1': "Work environment reminded me of stress",
+    'suggestions.office.hardTruths.2': "I had to focus despite emotional pain",
+    'suggestions.office.hardTruths.3': "Work became an escape and a burden",
+    'suggestions.office.hardTruths.4': "Office space felt empty",
+    'suggestions.office.goodFacts.0': "I'm building a better work-life balance",
+    'suggestions.office.goodFacts.1': "Office is now just for work",
+    'suggestions.office.goodFacts.2': "I can focus on my career",
+    'suggestions.office.goodFacts.3': "Work provides stability",
+    'suggestions.office.goodFacts.4': "I'm achieving professional goals",
+    'suggestions.office.lessons.0': "I can succeed at work independently",
+    'suggestions.office.lessons.1': "Work and personal life can be separate",
+    'suggestions.office.lessons.2': "My career doesn't depend on them",
+    'suggestions.office.lessons.3': "Professional growth is mine",
+    'suggestions.office.lessons.4': "Work success is my own achievement",
+    'suggestions.library.hardTruths.0': "Library visits felt lonely",
+    'suggestions.library.hardTruths.1': "Studying alone was hard",
+    'suggestions.library.hardTruths.2': "Quiet spaces reminded me of isolation",
+    'suggestions.library.hardTruths.3': "I missed study partners",
+    'suggestions.library.hardTruths.4': "Library atmosphere felt different",
+    'suggestions.library.goodFacts.0': "I'm finding peace in quiet spaces",
+    'suggestions.library.goodFacts.1': "Library is now my peaceful study space",
+    'suggestions.library.goodFacts.2': "I can focus better alone",
+    'suggestions.library.goodFacts.3': "Quiet time helps me think",
+    'suggestions.library.goodFacts.4': "I'm learning to enjoy solo study",
+    'suggestions.library.lessons.0': "I can study independently",
+    'suggestions.library.lessons.1': "Quiet spaces can be healing",
+    'suggestions.library.lessons.2': "I don't need study partners",
+    'suggestions.library.lessons.3': "Learning is my personal journey",
+    'suggestions.library.lessons.4': "Knowledge is power I build alone",
+    'suggestions.cafe.hardTruths.0': "Cafe visits felt lonely",
+    'suggestions.cafe.hardTruths.1': "I missed coffee dates",
+    'suggestions.cafe.hardTruths.2': "Public spaces felt awkward alone",
+    'suggestions.cafe.hardTruths.3': "I felt self-conscious sitting alone",
+    'suggestions.cafe.hardTruths.4': "Cafe atmosphere reminded me of dates",
+    'suggestions.cafe.goodFacts.0': "I'm learning to enjoy cafes alone",
+    'suggestions.cafe.goodFacts.1': "Cafes are now my peaceful workspace",
+    'suggestions.cafe.goodFacts.2': "I can enjoy coffee in peace",
+    'suggestions.cafe.goodFacts.3': "Solo cafe time is relaxing",
+    'suggestions.cafe.goodFacts.4': "I'm comfortable being alone in public",
+    'suggestions.cafe.lessons.0': "I can enjoy cafes independently",
+    'suggestions.cafe.lessons.1': "Solo cafe time can be peaceful",
+    'suggestions.cafe.lessons.2': "I don't need company for coffee",
+    'suggestions.cafe.lessons.3': "My cafe time is mine",
+    'suggestions.cafe.lessons.4': "Public solitude is empowering",
+    'suggestions.reading.hardTruths.0': "Reading alone felt different",
+    'suggestions.reading.hardTruths.1': "I missed shared reading moments",
+    'suggestions.reading.hardTruths.2': "Books reminded me of conversations",
+    'suggestions.reading.hardTruths.3': "Reading lost its joy temporarily",
+    'suggestions.reading.hardTruths.4': "I struggled to focus on books",
+    'suggestions.reading.goodFacts.0': "I'm rediscovering my love of reading",
+    'suggestions.reading.goodFacts.1': "Reading is now peaceful and personal",
+    'suggestions.reading.goodFacts.2': "I can read whatever I want",
+    'suggestions.reading.goodFacts.3': "Books are my companions",
+    'suggestions.reading.goodFacts.4': "I'm finding new favorite authors",
+    'suggestions.reading.lessons.0': "I can enjoy reading alone",
+    'suggestions.reading.lessons.1': "Reading is a personal journey",
+    'suggestions.reading.lessons.2': "Books don't require company",
+    'suggestions.reading.lessons.3': "My reading time is sacred",
+    'suggestions.reading.lessons.4': "Stories help me heal",
+    'suggestions.watching.hardTruths.0': "Watching shows alone felt empty",
+    'suggestions.watching.hardTruths.1': "I missed shared viewing experiences",
+    'suggestions.watching.hardTruths.2': "Movies reminded me of date nights",
+    'suggestions.watching.hardTruths.3': "Entertainment felt different alone",
+    'suggestions.watching.hardTruths.4': "I struggled to enjoy shows",
+    'suggestions.watching.goodFacts.0': "I'm discovering shows I actually like",
+    'suggestions.watching.goodFacts.1': "Watching is now my personal entertainment",
+    'suggestions.watching.goodFacts.2': "I can watch whatever I want",
+    'suggestions.watching.goodFacts.3': "Entertainment time is peaceful",
+    'suggestions.watching.goodFacts.4': "I'm building my own watchlist",
+    'suggestions.watching.lessons.0': "I can enjoy shows independently",
+    'suggestions.watching.lessons.1': "Entertainment doesn't require company",
+    'suggestions.watching.lessons.2': "My viewing preferences matter",
+    'suggestions.watching.lessons.3': "Shows are my escape and joy",
+    'suggestions.watching.lessons.4': "I can enjoy media alone",
+    'suggestions.listening.hardTruths.0': "Music reminded me of them",
+    'suggestions.listening.hardTruths.1': "Songs brought back painful memories",
+    'suggestions.listening.hardTruths.2': "I avoided certain playlists",
+    'suggestions.listening.hardTruths.3': "Listening felt incomplete alone",
+    'suggestions.listening.hardTruths.4': "Music was too emotional",
+    'suggestions.listening.goodFacts.0': "I'm discovering new music I love",
+    'suggestions.listening.goodFacts.1': "Music is now healing",
+    'suggestions.listening.goodFacts.2': "I can listen to what moves me",
+    'suggestions.listening.goodFacts.3': "Playlists are mine to create",
+    'suggestions.listening.goodFacts.4': "I'm building new musical associations",
+    'suggestions.listening.lessons.0': "I can enjoy music independently",
+    'suggestions.listening.lessons.1': "Music doesn't belong to memories",
+    'suggestions.listening.lessons.2': "My music taste is evolving",
+    'suggestions.listening.lessons.3': "Songs can heal and inspire",
+    'suggestions.listening.lessons.4': "I create my own soundtracks",
+    'suggestions.conversation.hardTruths.0': "Conversations felt forced",
+    'suggestions.conversation.hardTruths.1': "I missed deep talks",
+    'suggestions.conversation.hardTruths.2': "Communication was difficult",
+    'suggestions.conversation.hardTruths.3': "I struggled to express myself",
+    'suggestions.conversation.hardTruths.4': "Talking reminded me of what I lost",
+    'suggestions.conversation.goodFacts.0': "I'm learning to communicate better",
+    'suggestions.conversation.goodFacts.1': "Conversations are more authentic now",
+    'suggestions.conversation.goodFacts.2': "I can express my needs clearly",
+    'suggestions.conversation.goodFacts.3': "Good talks help me heal",
+    'suggestions.conversation.goodFacts.4': "I'm building better communication skills",
+    'suggestions.conversation.lessons.0': "I can have meaningful conversations",
+    'suggestions.conversation.lessons.1': "Communication is a skill I'm building",
+    'suggestions.conversation.lessons.2': "I don't need them to talk",
+    'suggestions.conversation.lessons.3': "My voice matters",
+    'suggestions.conversation.lessons.4': "Honest conversations heal",
+    'suggestions.meeting.hardTruths.0': "Meetings felt awkward",
+    'suggestions.meeting.hardTruths.1': "Social gatherings were hard",
+    'suggestions.meeting.hardTruths.2': "I felt out of place",
+    'suggestions.meeting.hardTruths.3': "Group settings highlighted my aloneness",
+    'suggestions.meeting.hardTruths.4': "I missed having a plus-one",
+    'suggestions.meeting.goodFacts.0': "I'm becoming more comfortable in groups",
+    'suggestions.meeting.goodFacts.1': "Meetings are less stressful now",
+    'suggestions.meeting.goodFacts.2': "I can navigate social situations",
+    'suggestions.meeting.goodFacts.3': "I'm building social confidence",
+    'suggestions.meeting.goodFacts.4': "Group settings are manageable",
+    'suggestions.meeting.lessons.0': "I can handle meetings independently",
+    'suggestions.meeting.lessons.1': "Social confidence is growing",
+    'suggestions.meeting.lessons.2': "I don't need a partner for events",
+    'suggestions.meeting.lessons.3': "My presence is enough",
+    'suggestions.meeting.lessons.4': "I'm learning to enjoy social time",
+    'suggestions.bus.hardTruths.0': "Bus rides felt lonely",
+    'suggestions.bus.hardTruths.1': "Public transport reminded me of commute together",
+    'suggestions.bus.hardTruths.2': "I missed travel companions",
+    'suggestions.bus.hardTruths.3': "Bus journeys felt long",
+    'suggestions.bus.hardTruths.4': "I felt self-conscious traveling alone",
+    'suggestions.bus.goodFacts.0': "I'm comfortable using public transport",
+    'suggestions.bus.goodFacts.1': "Bus rides are now peaceful",
+    'suggestions.bus.goodFacts.2': "I can travel independently",
+    'suggestions.bus.goodFacts.3': "Public transport is liberating",
+    'suggestions.bus.goodFacts.4': "I'm building travel confidence",
+    'suggestions.bus.lessons.0': "I can navigate transport alone",
+    'suggestions.bus.lessons.1': "Public transport doesn't require company",
+    'suggestions.bus.lessons.2': "My commute is mine",
+    'suggestions.bus.lessons.3': "Travel independence is empowering",
+    'suggestions.bus.lessons.4': "I can get anywhere on my own",
+    'suggestions.train.hardTruths.0': "Train journeys felt long alone",
+    'suggestions.train.hardTruths.1': "I missed travel companions",
+    'suggestions.train.hardTruths.2': "Train rides reminded me of trips together",
+    'suggestions.train.hardTruths.3': "Long journeys felt lonely",
+    'suggestions.train.hardTruths.4': "I struggled with solo travel",
+    'suggestions.train.goodFacts.0': "I'm enjoying train journeys alone",
+    'suggestions.train.goodFacts.1': "Train rides are now peaceful",
+    'suggestions.train.goodFacts.2': "I can travel anywhere independently",
+    'suggestions.train.goodFacts.3': "Train travel is liberating",
+    'suggestions.train.goodFacts.4': "I'm discovering new places solo",
+    'suggestions.train.lessons.0': "I can enjoy train journeys alone",
+    'suggestions.train.lessons.1': "Solo travel is empowering",
+    'suggestions.train.lessons.2': "I don't need travel companions",
+    'suggestions.train.lessons.3': "My journeys are mine",
+    'suggestions.train.lessons.4': "Train travel brings freedom",
+    'suggestions.bike.hardTruths.0': "Biking alone felt different",
+    'suggestions.bike.hardTruths.1': "I missed cycling together",
+    'suggestions.bike.hardTruths.2': "Bike rides reminded me of shared adventures",
+    'suggestions.bike.hardTruths.3': "Solo cycling felt incomplete",
+    'suggestions.bike.hardTruths.4': "I avoided favorite bike routes",
+    'suggestions.bike.goodFacts.0': "I'm rediscovering my love of cycling",
+    'suggestions.bike.goodFacts.1': "Biking is now my peaceful exercise",
+    'suggestions.bike.goodFacts.2': "I can cycle wherever I want",
+    'suggestions.bike.goodFacts.3': "Bike rides are liberating",
+    'suggestions.bike.goodFacts.4': "I'm exploring new routes",
+    'suggestions.bike.lessons.0': "I can enjoy biking independently",
+    'suggestions.bike.lessons.1': "Cycling doesn't require company",
+    'suggestions.bike.lessons.2': "My bike routes are mine",
+    'suggestions.bike.lessons.3': "Solo cycling is freeing",
+    'suggestions.bike.lessons.4': "I can explore on two wheels",
+    'suggestions.painting.hardTruths.0': "Painting felt less inspired",
+    'suggestions.painting.hardTruths.1': "I missed sharing creative work",
+    'suggestions.painting.hardTruths.2': "Art reminded me of shared hobbies",
+    'suggestions.painting.hardTruths.3': "Creativity felt blocked",
+    'suggestions.painting.hardTruths.4': "I struggled to find inspiration",
+    'suggestions.painting.goodFacts.0': "I'm rediscovering my creative voice",
+    'suggestions.painting.goodFacts.1': "Painting is now purely for me",
+    'suggestions.painting.goodFacts.2': "I can create without judgment",
+    'suggestions.painting.goodFacts.3': "Art is healing",
+    'suggestions.painting.goodFacts.4': "I'm exploring new styles",
+    'suggestions.painting.lessons.0': "I can enjoy painting independently",
+    'suggestions.painting.lessons.1': "Creativity doesn't require sharing",
+    'suggestions.painting.lessons.2': "My art is my expression",
+    'suggestions.painting.lessons.3': "Painting brings peace",
+    'suggestions.painting.lessons.4': "I create for myself",
+    'suggestions.drawing.hardTruths.0': "Drawing felt incomplete",
+    'suggestions.drawing.hardTruths.1': "I missed showing sketches",
+    'suggestions.drawing.hardTruths.2': "Art supplies reminded me of shared interests",
+    'suggestions.drawing.hardTruths.3': "Creative time felt different",
+    'suggestions.drawing.hardTruths.4': "I lost inspiration temporarily",
+    'suggestions.drawing.goodFacts.0': "I'm finding my artistic voice again",
+    'suggestions.drawing.goodFacts.1': "Drawing is now peaceful",
+    'suggestions.drawing.goodFacts.2': "I can draw whatever inspires me",
+    'suggestions.drawing.goodFacts.3': "Art is personal expression",
+    'suggestions.drawing.goodFacts.4': "I'm improving my skills",
+    'suggestions.drawing.lessons.0': "I can enjoy drawing alone",
+    'suggestions.drawing.lessons.1': "Art doesn't need an audience",
+    'suggestions.drawing.lessons.2': "My sketches are mine",
+    'suggestions.drawing.lessons.3': "Drawing is meditative",
+    'suggestions.drawing.lessons.4': "Creativity heals",
+    'suggestions.dancing.hardTruths.0': "Dancing alone felt awkward",
+    'suggestions.dancing.hardTruths.1': "I missed dance partners",
+    'suggestions.dancing.hardTruths.2': "Music reminded me of shared moves",
+    'suggestions.dancing.hardTruths.3': "I felt self-conscious dancing solo",
+    'suggestions.dancing.hardTruths.4': "Dance felt incomplete alone",
+    'suggestions.dancing.goodFacts.0': "I'm learning to dance for myself",
+    'suggestions.dancing.goodFacts.1': "Dancing is now freeing",
+    'suggestions.dancing.goodFacts.2': "I can move however I want",
+    'suggestions.dancing.goodFacts.3': "Dance is self-expression",
+    'suggestions.dancing.goodFacts.4': "I'm building confidence in movement",
+    'suggestions.dancing.lessons.0': "I can enjoy dancing alone",
+    'suggestions.dancing.lessons.1': "Dance doesn't require a partner",
+    'suggestions.dancing.lessons.2': "My moves are mine",
+    'suggestions.dancing.lessons.3': "Dancing brings joy",
+    'suggestions.dancing.lessons.4': "I dance for me",
+    'suggestions.singing.hardTruths.0': "Singing alone felt different",
+    'suggestions.singing.hardTruths.1': "I missed harmonizing",
+    'suggestions.singing.hardTruths.2': "Songs reminded me of duets",
+    'suggestions.singing.hardTruths.3': "Music felt incomplete alone",
+    'suggestions.singing.hardTruths.4': "I was hesitant to sing",
+    'suggestions.singing.goodFacts.0': "I'm rediscovering my voice",
+    'suggestions.singing.goodFacts.1': "Singing is now liberating",
+    'suggestions.singing.goodFacts.2': "I can sing whatever moves me",
+    'suggestions.singing.goodFacts.3': "Music is personal expression",
+    'suggestions.singing.goodFacts.4': "I'm building vocal confidence",
+    'suggestions.singing.lessons.0': "I can enjoy singing alone",
+    'suggestions.singing.lessons.1': "Singing doesn't need an audience",
+    'suggestions.singing.lessons.2': "My voice is mine",
+    'suggestions.singing.lessons.3': "Singing brings joy",
+    'suggestions.singing.lessons.4': "I sing for myself",
+    'suggestions.baking.hardTruths.0': "Baking for one felt pointless",
+    'suggestions.baking.hardTruths.1': "I missed baking together",
+    'suggestions.baking.hardTruths.2': "Recipes reminded me of shared treats",
+    'suggestions.baking.hardTruths.3': "Kitchen smelled of memories",
+    'suggestions.baking.hardTruths.4': "I avoided favorite recipes",
+    'suggestions.baking.goodFacts.0': "I'm rediscovering my love of baking",
+    'suggestions.baking.goodFacts.1': "Baking is now creative and peaceful",
+    'suggestions.baking.goodFacts.2': "I can bake whatever I want",
+    'suggestions.baking.goodFacts.3': "Baking brings me joy",
+    'suggestions.baking.goodFacts.4': "I'm trying new recipes",
+    'suggestions.baking.lessons.0': "I can enjoy baking alone",
+    'suggestions.baking.lessons.1': "Baking doesn't require sharing",
+    'suggestions.baking.lessons.2': "My treats are mine",
+    'suggestions.baking.lessons.3': "Baking is therapeutic",
+    'suggestions.baking.lessons.4': "I bake for myself",
+
+    'suggestions.manipulation.hardTruths.0': "They manipulated my emotions to get what they wanted",
+    'suggestions.manipulation.hardTruths.1': "I fell for their manipulation tactics repeatedly",
+    'suggestions.manipulation.hardTruths.2': "Manipulation made me question my own reality",
+    'suggestions.manipulation.hardTruths.3': "I was used as a tool in their games",
+    'suggestions.manipulation.hardTruths.4': "Their manipulation eroded my self-trust",
+    'suggestions.manipulation.goodFacts.0': "I can now recognize manipulation when I see it",
+    'suggestions.manipulation.goodFacts.1': "I'm learning to trust my instincts again",
+    'suggestions.manipulation.goodFacts.2': "I won't be manipulated anymore",
+    'suggestions.manipulation.goodFacts.3': "I see through their tactics now",
+    'suggestions.manipulation.goodFacts.4': "My boundaries protect me from manipulation",
+    'suggestions.manipulation.lessons.0': "Manipulation is never acceptable in relationships",
+    'suggestions.manipulation.lessons.1': "I deserve honest, direct communication",
+    'suggestions.manipulation.lessons.2': "I can recognize and reject manipulation",
+    'suggestions.manipulation.lessons.3': "My instincts were right all along",
+    'suggestions.manipulation.lessons.4': "Healthy relationships don't involve manipulation",
+    'suggestions.gaslighting.hardTruths.0': "They made me question my own memory and sanity",
+    'suggestions.gaslighting.hardTruths.1': "I was told I was crazy or overreacting",
+    'suggestions.gaslighting.hardTruths.2': "Gaslighting made me doubt my own perceptions",
+    'suggestions.gaslighting.hardTruths.3': "They twisted reality to make me feel wrong",
+    'suggestions.gaslighting.hardTruths.4': "I lost confidence in my own judgment",
+    'suggestions.gaslighting.goodFacts.0': "I'm reclaiming my reality and truth",
+    'suggestions.gaslighting.goodFacts.1': "My perceptions were always valid",
+    'suggestions.gaslighting.goodFacts.2': "I trust my memory and judgment again",
+    'suggestions.gaslighting.goodFacts.3': "I can see through gaslighting now",
+    'suggestions.gaslighting.goodFacts.4': "I'm rebuilding confidence in myself",
+    'suggestions.gaslighting.lessons.0': "Gaslighting is emotional abuse",
+    'suggestions.gaslighting.lessons.1': "My reality is valid and real",
+    'suggestions.gaslighting.lessons.2': "I don't need their validation of my truth",
+    'suggestions.gaslighting.lessons.3': "I trust my own perceptions",
+    'suggestions.gaslighting.lessons.4': "Healthy partners validate, not invalidate",
+    'suggestions.control.hardTruths.0': "They controlled every aspect of my life",
+    'suggestions.control.hardTruths.1': "I lost my autonomy and independence",
+    'suggestions.control.hardTruths.2': "Control was disguised as care",
+    'suggestions.control.hardTruths.3': "I had to ask permission for everything",
+    'suggestions.control.hardTruths.4': "My choices were constantly questioned",
+    'suggestions.control.goodFacts.0': "I'm reclaiming my autonomy",
+    'suggestions.control.goodFacts.1': "I can make my own decisions now",
+    'suggestions.control.goodFacts.2': "Freedom feels liberating",
+    'suggestions.control.goodFacts.3': "I'm building independence",
+    'suggestions.control.goodFacts.4': "My life is mine to control",
+    'suggestions.control.lessons.0': "Control is not love, it's abuse",
+    'suggestions.control.lessons.1': "I deserve autonomy and freedom",
+    'suggestions.control.lessons.2': "I can make my own choices",
+    'suggestions.control.lessons.3': "My decisions are valid",
+    'suggestions.control.lessons.4': "Healthy relationships respect autonomy",
+    'suggestions.boundaries.hardTruths.0': "My boundaries were constantly violated",
+    'suggestions.boundaries.hardTruths.1': "They didn't respect my limits",
+    'suggestions.boundaries.hardTruths.2': "I was made to feel guilty for setting boundaries",
+    'suggestions.boundaries.hardTruths.3': "My needs were dismissed as unreasonable",
+    'suggestions.boundaries.hardTruths.4': "I learned to ignore my own boundaries",
+    'suggestions.boundaries.goodFacts.0': "I'm learning to set healthy boundaries",
+    'suggestions.boundaries.goodFacts.1': "My boundaries are valid and necessary",
+    'suggestions.boundaries.goodFacts.2': "I can say no without guilt",
+    'suggestions.boundaries.goodFacts.3': "I'm protecting myself with boundaries",
+    'suggestions.boundaries.goodFacts.4': "Boundaries are an act of self-love",
+    'suggestions.boundaries.lessons.0': "Boundaries are essential for healthy relationships",
+    'suggestions.boundaries.lessons.1': "I have the right to set limits",
+    'suggestions.boundaries.lessons.2': "Saying no is not selfish, it's self-care",
+    'suggestions.boundaries.lessons.3': "My needs matter",
+    'suggestions.boundaries.lessons.4': "Healthy partners respect boundaries",
+    'suggestions.guilt.hardTruths.0': "I was made to feel guilty for everything",
+    'suggestions.guilt.hardTruths.1': "Guilt was used as a weapon against me",
+    'suggestions.guilt.hardTruths.2': "I felt responsible for their emotions",
+    'suggestions.guilt.hardTruths.3': "I carried guilt that wasn't mine",
+    'suggestions.guilt.hardTruths.4': "I was manipulated through guilt",
+    'suggestions.guilt.goodFacts.0': "I'm releasing guilt that wasn't mine",
+    'suggestions.guilt.goodFacts.1': "I'm not responsible for their emotions",
+    'suggestions.guilt.goodFacts.2': "I can let go of misplaced guilt",
+    'suggestions.guilt.goodFacts.3': "I'm learning to distinguish my guilt from theirs",
+    'suggestions.guilt.goodFacts.4': "I'm free from their guilt trips",
+    'suggestions.guilt.lessons.0': "I'm not responsible for their feelings",
+    'suggestions.guilt.lessons.1': "Guilt should not be used as control",
+    'suggestions.guilt.lessons.2': "I can feel my own emotions without guilt",
+    'suggestions.guilt.lessons.3': "Their guilt is not mine to carry",
+    'suggestions.guilt.lessons.4': "Healthy relationships don't use guilt",
+    'suggestions.blame.hardTruths.0': "Everything was always my fault",
+    'suggestions.blame.hardTruths.1': "I was blamed for their actions",
+    'suggestions.blame.hardTruths.2': "I took responsibility for things I didn't do",
+    'suggestions.blame.hardTruths.3': "Blame was constantly shifted to me",
+    'suggestions.blame.hardTruths.4': "I internalized blame that wasn't mine",
+    'suggestions.blame.goodFacts.0': "I'm releasing blame that wasn't mine",
+    'suggestions.blame.goodFacts.1': "I'm not responsible for their actions",
+    'suggestions.blame.goodFacts.2': "I can see clearly who was at fault",
+    'suggestions.blame.goodFacts.3': "I'm learning to reject false blame",
+    'suggestions.blame.goodFacts.4': "I'm free from their blame game",
+    'suggestions.blame.lessons.0': "I'm not responsible for their behavior",
+    'suggestions.blame.lessons.1': "Blame should be accurate, not shifted",
+    'suggestions.blame.lessons.2': "I can see the truth now",
+    'suggestions.blame.lessons.3': "Their actions were their choice",
+    'suggestions.blame.lessons.4': "Healthy relationships take mutual responsibility",
+    'suggestions.criticism.hardTruths.0': "I was criticized constantly",
+    'suggestions.criticism.hardTruths.1': "Nothing I did was ever good enough",
+    'suggestions.criticism.hardTruths.2': "Criticism destroyed my self-esteem",
+    'suggestions.criticism.hardTruths.3': "I was made to feel inadequate",
+    'suggestions.criticism.hardTruths.4': "Every flaw was pointed out and magnified",
+    'suggestions.criticism.goodFacts.0': "I'm rebuilding my self-esteem",
+    'suggestions.criticism.goodFacts.1': "I'm learning to value myself",
+    'suggestions.criticism.goodFacts.2': "I can recognize constructive vs destructive criticism",
+    'suggestions.criticism.goodFacts.3': "I'm free from constant judgment",
+    'suggestions.criticism.goodFacts.4': "I'm learning to accept myself",
+    'suggestions.criticism.lessons.0': "Constant criticism is emotional abuse",
+    'suggestions.criticism.lessons.1': "I am enough, just as I am",
+    'suggestions.criticism.lessons.2': "I don't need their approval",
+    'suggestions.criticism.lessons.3': "My worth isn't determined by their opinion",
+    'suggestions.criticism.lessons.4': "Healthy relationships build up, not tear down",
+    'suggestions.isolation.hardTruths.0': "They isolated me from friends and family",
+    'suggestions.isolation.hardTruths.1': "I lost connections because of them",
+    'suggestions.isolation.hardTruths.2': "Isolation made me dependent on them",
+    'suggestions.isolation.hardTruths.3': "I was cut off from my support system",
+    'suggestions.isolation.hardTruths.4': "They made me feel like I only had them",
+    'suggestions.isolation.goodFacts.0': "I'm rebuilding my support network",
+    'suggestions.isolation.goodFacts.1': "I'm reconnecting with loved ones",
+    'suggestions.isolation.goodFacts.2': "I have people who truly care about me",
+    'suggestions.isolation.goodFacts.3': "I'm no longer isolated",
+    'suggestions.isolation.goodFacts.4': "I'm building healthy connections",
+    'suggestions.isolation.lessons.0': "Isolation is a form of control",
+    'suggestions.isolation.lessons.1': "I deserve a support system",
+    'suggestions.isolation.lessons.2': "I can have relationships outside of them",
+    'suggestions.isolation.lessons.3': "My connections are valuable",
+    'suggestions.isolation.lessons.4': "Healthy relationships encourage outside connections",
+    'suggestions.jealousy.hardTruths.0': "Their jealousy was suffocating",
+    'suggestions.jealousy.hardTruths.1': "I was accused of things I didn't do",
+    'suggestions.jealousy.hardTruths.2': "Jealousy controlled my every move",
+    'suggestions.jealousy.hardTruths.3': "I had to prove my loyalty constantly",
+    'suggestions.jealousy.hardTruths.4': "Their jealousy was unreasonable and controlling",
+    'suggestions.jealousy.goodFacts.0': "I'm free from unreasonable jealousy",
+    'suggestions.jealousy.goodFacts.1': "I can have friendships without suspicion",
+    'suggestions.jealousy.goodFacts.2': "I don't need to prove my loyalty",
+    'suggestions.jealousy.goodFacts.3': "I'm building trust in healthy relationships",
+    'suggestions.jealousy.goodFacts.4': "I'm learning what healthy jealousy looks like",
+    'suggestions.jealousy.lessons.0': "Unreasonable jealousy is a red flag",
+    'suggestions.jealousy.lessons.1': "I deserve trust in relationships",
+    'suggestions.jealousy.lessons.2': "I don't need to prove my innocence",
+    'suggestions.jealousy.lessons.3': "Healthy relationships involve trust",
+    'suggestions.jealousy.lessons.4': "Jealousy shouldn't control my life",
+    'suggestions.possessiveness.hardTruths.0': "They treated me like property",
+    'suggestions.possessiveness.hardTruths.1': "I wasn't allowed to have my own life",
+    'suggestions.possessiveness.hardTruths.2': "Possessiveness felt like being owned",
+    'suggestions.possessiveness.hardTruths.3': "I lost my sense of self",
+    'suggestions.possessiveness.hardTruths.4': "They claimed ownership over me",
+    'suggestions.possessiveness.goodFacts.0': "I'm reclaiming my independence",
+    'suggestions.possessiveness.goodFacts.1': "I belong to myself, not anyone else",
+    'suggestions.possessiveness.goodFacts.2': "I can have my own life and interests",
+    'suggestions.possessiveness.goodFacts.3': "I'm free from their possession",
+    'suggestions.possessiveness.goodFacts.4': "I'm building my own identity",
+    'suggestions.possessiveness.lessons.0': "Possessiveness is not love, it's control",
+    'suggestions.possessiveness.lessons.1': "I am my own person",
+    'suggestions.possessiveness.lessons.2': "I don't belong to anyone",
+    'suggestions.possessiveness.lessons.3': "My life is mine to live",
+    'suggestions.possessiveness.lessons.4': "Healthy relationships respect individuality",
+    'suggestions.disrespect.hardTruths.0': "I was constantly disrespected",
+    'suggestions.disrespect.hardTruths.1': "My opinions were dismissed",
+    'suggestions.disrespect.hardTruths.2': "I was treated as less than",
+    'suggestions.disrespect.hardTruths.3': "Disrespect became normalized",
+    'suggestions.disrespect.hardTruths.4': "I lost respect for myself",
+    'suggestions.disrespect.goodFacts.0': "I'm learning to demand respect",
+    'suggestions.disrespect.goodFacts.1': "I deserve to be treated with dignity",
+    'suggestions.disrespect.goodFacts.2': "I'm rebuilding self-respect",
+    'suggestions.disrespect.goodFacts.3': "I can recognize and reject disrespect",
+    'suggestions.disrespect.goodFacts.4': "I'm surrounding myself with respectful people",
+    'suggestions.disrespect.lessons.0': "I deserve respect in all relationships",
+    'suggestions.disrespect.lessons.1': "Disrespect is never acceptable",
+    'suggestions.disrespect.lessons.2': "My opinions and feelings matter",
+    'suggestions.disrespect.lessons.3': "I can walk away from disrespect",
+    'suggestions.disrespect.lessons.4': "Healthy relationships are built on respect",
+    'suggestions.narcissism.hardTruths.0': "Everything was always about them",
+    'suggestions.narcissism.hardTruths.1': "I was just a prop in their story",
+    'suggestions.narcissism.hardTruths.2': "My needs were never important",
+    'suggestions.narcissism.hardTruths.3': "They couldn't see beyond themselves",
+    'suggestions.narcissism.hardTruths.4': "I was used to feed their ego",
+    'suggestions.narcissism.goodFacts.0': "I'm learning to prioritize myself",
+    'suggestions.narcissism.goodFacts.1': "My needs are valid and important",
+    'suggestions.narcissism.goodFacts.2': "I'm free from their self-centeredness",
+    'suggestions.narcissism.goodFacts.3': "I can have relationships with people who care about me",
+    'suggestions.narcissism.goodFacts.4': "I'm building self-worth outside of them",
+    'suggestions.narcissism.lessons.0': "I deserve relationships where I matter",
+    'suggestions.narcissism.lessons.1': "My needs are just as important",
+    'suggestions.narcissism.lessons.2': "I don't exist to serve their ego",
+    'suggestions.narcissism.lessons.3': "I can have mutual relationships",
+    'suggestions.narcissism.lessons.4': "Healthy relationships involve give and take",
+    'suggestions.abuse.hardTruths.0': "I endured abuse for too long",
+    'suggestions.abuse.hardTruths.1': "Abuse was normalized in our relationship",
+    'suggestions.abuse.hardTruths.2': "I made excuses for their abuse",
+    'suggestions.abuse.hardTruths.3': "I thought I deserved the abuse",
+    'suggestions.abuse.hardTruths.4': "Abuse destroyed my sense of self",
+    'suggestions.abuse.goodFacts.0': "I'm healing from the abuse",
+    'suggestions.abuse.goodFacts.1': "I'm learning that abuse is never my fault",
+    'suggestions.abuse.goodFacts.2': "I'm building a life free from abuse",
+    'suggestions.abuse.goodFacts.3': "I can recognize abuse and leave",
+    'suggestions.abuse.goodFacts.4': "I'm stronger than the abuse",
+    'suggestions.abuse.lessons.0': "Abuse is never acceptable",
+    'suggestions.abuse.lessons.1': "I didn't deserve what happened to me",
+    'suggestions.abuse.lessons.2': "I can heal and recover",
+    'suggestions.abuse.lessons.3': "My safety matters",
+    'suggestions.abuse.lessons.4': "I deserve relationships free from abuse",
+    'suggestions.trauma.hardTruths.0': "The relationship left me traumatized",
+    'suggestions.trauma.hardTruths.1': "I'm dealing with trauma from what happened",
+    'suggestions.trauma.hardTruths.2': "Trauma affects my daily life",
+    'suggestions.trauma.hardTruths.3': "I have triggers from the relationship",
+    'suggestions.trauma.hardTruths.4': "The trauma feels overwhelming sometimes",
+    'suggestions.trauma.goodFacts.0': "I'm healing from the trauma",
+    'suggestions.trauma.goodFacts.1': "I'm learning to manage triggers",
+    'suggestions.trauma.goodFacts.2': "I'm building resilience",
+    'suggestions.trauma.goodFacts.3': "I can heal from trauma",
+    'suggestions.trauma.goodFacts.4': "I'm stronger than my trauma",
+    'suggestions.trauma.lessons.0': "Trauma is real and valid",
+    'suggestions.trauma.lessons.1': "I can heal at my own pace",
+    'suggestions.trauma.lessons.2': "My trauma doesn't define me",
+    'suggestions.trauma.lessons.3': "I'm learning healthy coping mechanisms",
+    'suggestions.trauma.lessons.4': "Healing from trauma is possible",
+    'suggestions.healing.hardTruths.0': "Healing is harder than I expected",
+    'suggestions.healing.hardTruths.1': "I have good days and bad days",
+    'suggestions.healing.hardTruths.2': "Healing isn't linear",
+    'suggestions.healing.hardTruths.3': "I still struggle sometimes",
+    'suggestions.healing.hardTruths.4': "The pain doesn't disappear overnight",
+    'suggestions.healing.goodFacts.0': "I'm making progress in my healing",
+    'suggestions.healing.goodFacts.1': "I'm learning to be patient with myself",
+    'suggestions.healing.goodFacts.2': "I'm building healthier patterns",
+    'suggestions.healing.goodFacts.3': "I'm discovering my strength",
+    'suggestions.healing.goodFacts.4': "I'm growing through this experience",
+    'suggestions.healing.lessons.0': "Healing takes time and that's okay",
+    'suggestions.healing.lessons.1': "I'm allowed to heal at my own pace",
+    'suggestions.healing.lessons.2': "Every small step forward matters",
+    'suggestions.healing.lessons.3': "I'm becoming stronger",
+    'suggestions.healing.lessons.4': "Healing is a journey, not a destination",
+    'suggestions.recovery.hardTruths.0': "Recovery feels slow and difficult",
+    'suggestions.recovery.hardTruths.1': "I have setbacks in my recovery",
+    'suggestions.recovery.hardTruths.2': "Recovery requires constant work",
+    'suggestions.recovery.hardTruths.3': "I'm still processing what happened",
+    'suggestions.recovery.hardTruths.4': "Recovery feels overwhelming sometimes",
+    'suggestions.recovery.goodFacts.0': "I'm making progress in recovery",
+    'suggestions.recovery.goodFacts.1': "I'm learning new healthy patterns",
+    'suggestions.recovery.goodFacts.2': "I'm building a better life",
+    'suggestions.recovery.goodFacts.3': "I'm stronger than I thought",
+    'suggestions.recovery.goodFacts.4': "I'm creating a new normal",
+    'suggestions.recovery.lessons.0': "Recovery is possible",
+    'suggestions.recovery.lessons.1': "I can rebuild my life",
+    'suggestions.recovery.lessons.2': "Every day of recovery is a victory",
+    'suggestions.recovery.lessons.3': "I'm learning to thrive, not just survive",
+    'suggestions.recovery.lessons.4': "Recovery is worth the effort",
+    'suggestions.selfworth.hardTruths.0': "They destroyed my self-worth",
+    'suggestions.selfworth.hardTruths.1': "I believed I was worthless",
+    'suggestions.selfworth.hardTruths.2': "My value was tied to their approval",
+    'suggestions.selfworth.hardTruths.3': "I lost sight of my own worth",
+    'suggestions.selfworth.hardTruths.4': "I felt unworthy of love and respect",
+    'suggestions.selfworth.goodFacts.0': "I'm rebuilding my self-worth",
+    'suggestions.selfworth.goodFacts.1': "I'm learning my true value",
+    'suggestions.selfworth.goodFacts.2': "My worth isn't determined by them",
+    'suggestions.selfworth.goodFacts.3': "I'm discovering my strengths",
+    'suggestions.selfworth.goodFacts.4': "I'm worthy of love and respect",
+    'suggestions.selfworth.lessons.0': "My self-worth comes from within",
+    'suggestions.selfworth.lessons.1': "I am valuable, regardless of their opinion",
+    'suggestions.selfworth.lessons.2': "I don't need their validation",
+    'suggestions.selfworth.lessons.3': "I'm learning to love myself",
+    'suggestions.selfworth.lessons.4': "I deserve good things in life",
+    'suggestions.validation.hardTruths.0': "I sought validation from them constantly",
+    'suggestions.validation.hardTruths.1': "I needed their approval to feel okay",
+    'suggestions.validation.hardTruths.2': "My self-worth depended on their validation",
+    'suggestions.validation.hardTruths.3': "I was addicted to their approval",
+    'suggestions.validation.hardTruths.4': "I felt empty without their validation",
+    'suggestions.validation.goodFacts.0': "I'm learning to validate myself",
+    'suggestions.validation.goodFacts.1': "I don't need their approval anymore",
+    'suggestions.validation.goodFacts.2': "I can find validation within",
+    'suggestions.validation.goodFacts.3': "I'm building self-confidence",
+    'suggestions.validation.goodFacts.4': "I'm free from seeking their validation",
+    'suggestions.validation.lessons.0': "I can validate myself",
+    'suggestions.validation.lessons.1': "My worth doesn't depend on their opinion",
+    'suggestions.validation.lessons.2': "I'm learning to be my own source of validation",
+    'suggestions.validation.lessons.3': "I don't need external validation",
+    'suggestions.validation.lessons.4': "Healthy self-worth comes from within",
+    'suggestions.codependency.hardTruths.0': "I lost myself in the relationship",
+    'suggestions.codependency.hardTruths.1': "I couldn't function without them",
+    'suggestions.codependency.hardTruths.2': "My identity was tied to them",
+    'suggestions.codependency.hardTruths.3': "I enabled their toxic behavior",
+    'suggestions.codependency.hardTruths.4': "I sacrificed myself for the relationship",
+    'suggestions.codependency.goodFacts.0': "I'm learning to be independent",
+    'suggestions.codependency.goodFacts.1': "I'm rediscovering who I am",
+    'suggestions.codependency.goodFacts.2': "I can function on my own",
+    'suggestions.codependency.goodFacts.3': "I'm building healthy boundaries",
+    'suggestions.codependency.goodFacts.4': "I'm learning to prioritize myself",
+    'suggestions.codependency.lessons.0': "I can have healthy relationships",
+    'suggestions.codependency.lessons.1': "My identity is separate from relationships",
+    'suggestions.codependency.lessons.2': "I don't need to lose myself to love",
+    'suggestions.codependency.lessons.3': "I can be independent and in a relationship",
+    'suggestions.codependency.lessons.4': "Healthy relationships involve two whole people",
+    'suggestions.toxic.hardTruths.0': "The relationship was toxic and harmful",
+    'suggestions.toxic.hardTruths.1': "I stayed in toxicity too long",
+    'suggestions.toxic.hardTruths.2': "Toxicity became normal to me",
+    'suggestions.toxic.hardTruths.3': "I didn't recognize how toxic it was",
+    'suggestions.toxic.hardTruths.4': "Toxicity damaged my mental health",
+    'suggestions.toxic.goodFacts.0': "I'm free from the toxicity",
+    'suggestions.toxic.goodFacts.1': "I can recognize toxic patterns now",
+    'suggestions.toxic.goodFacts.2': "I'm building healthy relationships",
+    'suggestions.toxic.goodFacts.3': "I'm healing from the toxicity",
+    'suggestions.toxic.goodFacts.4': "I'm creating a toxic-free life",
+    'suggestions.toxic.lessons.0': "I deserve healthy, non-toxic relationships",
+    'suggestions.toxic.lessons.1': "Toxicity is not normal or acceptable",
+    'suggestions.toxic.lessons.2': "I can leave toxic situations",
+    'suggestions.toxic.lessons.3': "My mental health matters",
+    'suggestions.toxic.lessons.4': "Healthy relationships don't feel toxic",
+    'suggestions.redflags.hardTruths.0': "I ignored red flags early on",
+    'suggestions.redflags.hardTruths.1': "I made excuses for warning signs",
+    'suggestions.redflags.hardTruths.2': "Red flags were obvious but I ignored them",
+    'suggestions.redflags.hardTruths.3': "I thought I could change them",
+    'suggestions.redflags.hardTruths.4': "I didn't trust my instincts about red flags",
+    'suggestions.redflags.goodFacts.0': "I can recognize red flags now",
+    'suggestions.redflags.goodFacts.1': "I trust my instincts",
+    'suggestions.redflags.goodFacts.2': "I won't ignore warning signs again",
+    'suggestions.redflags.goodFacts.3': "I'm learning to listen to red flags",
+    'suggestions.redflags.goodFacts.4': "I can protect myself by recognizing red flags",
+    'suggestions.redflags.lessons.0': "Red flags are warnings to be heeded",
+    'suggestions.redflags.lessons.1': "I deserve to trust my instincts",
+    'suggestions.redflags.lessons.2': "I can leave at the first red flag",
+    'suggestions.redflags.lessons.3': "My safety comes first",
+    'suggestions.redflags.lessons.4': "Healthy relationships don't have major red flags",
+    'suggestions.escape.hardTruths.0': "Leaving felt impossible",
+    'suggestions.escape.hardTruths.1': "I was trapped in the relationship",
+    'suggestions.escape.hardTruths.2': "Escape seemed too difficult",
+    'suggestions.escape.hardTruths.3': "I was afraid to leave",
+    'suggestions.escape.hardTruths.4': "I didn't know how to escape",
+    'suggestions.escape.goodFacts.0': "I found the strength to escape",
+    'suggestions.escape.goodFacts.1': "I'm free from that situation",
+    'suggestions.escape.goodFacts.2': "Escape was the best decision",
+    'suggestions.escape.goodFacts.3': "I'm building a new life",
+    'suggestions.escape.goodFacts.4': "I'm safe now",
+    'suggestions.escape.lessons.0': "I had the courage to leave",
+    'suggestions.escape.lessons.1': "Escape was necessary for my wellbeing",
+    'suggestions.escape.lessons.2': "I can create a better life",
+    'suggestions.escape.lessons.3': "Leaving toxic situations is brave",
+    'suggestions.escape.lessons.4': "I deserve freedom and safety",
+    'suggestions.freedom.hardTruths.0': "I didn't realize how trapped I was",
+    'suggestions.freedom.hardTruths.1': "Freedom felt scary at first",
+    'suggestions.freedom.hardTruths.2': "I had to learn to be free again",
+    'suggestions.freedom.hardTruths.3': "Freedom came with responsibility",
+    'suggestions.freedom.hardTruths.4': "I was afraid of my own freedom",
+    'suggestions.freedom.goodFacts.0': "I'm embracing my freedom",
+    'suggestions.freedom.goodFacts.1': "Freedom feels liberating",
+    'suggestions.freedom.goodFacts.2': "I can make my own choices now",
+    'suggestions.freedom.goodFacts.3': "I'm learning to enjoy independence",
+    'suggestions.freedom.goodFacts.4': "Freedom is a gift I'm giving myself",
+    'suggestions.freedom.lessons.0': "I deserve freedom in my life",
+    'suggestions.freedom.lessons.1': "Freedom allows me to be myself",
+    'suggestions.freedom.lessons.2': "I can live life on my terms",
+    'suggestions.freedom.lessons.3': "My freedom is precious",
+    'suggestions.freedom.lessons.4': "Healthy relationships respect freedom",
+    'suggestions.liberation.hardTruths.0': "Liberation felt overwhelming",
+    'suggestions.liberation.hardTruths.1': "I had to learn to be independent",
+    'suggestions.liberation.hardTruths.2': "Liberation came with challenges",
+    'suggestions.liberation.hardTruths.3': "I was afraid of being alone",
+    'suggestions.liberation.hardTruths.4': "Liberation felt lonely at first",
+    'suggestions.liberation.goodFacts.0': "I'm experiencing true liberation",
+    'suggestions.liberation.goodFacts.1': "Liberation is empowering",
+    'suggestions.liberation.goodFacts.2': "I'm free to be myself",
+    'suggestions.liberation.goodFacts.3': "I'm building a liberated life",
+    'suggestions.liberation.goodFacts.4': "I'm discovering who I am without them",
+    'suggestions.liberation.lessons.0': "Liberation is my right",
+    'suggestions.liberation.lessons.1': "I can live authentically now",
+    'suggestions.liberation.lessons.2': "I'm free from their control",
+    'suggestions.liberation.lessons.3': "Liberation brings peace",
+    'suggestions.liberation.lessons.4': "I deserve to live a liberated life",
   },
   bg: {
     // Tab labels
@@ -6410,6 +8272,728 @@ const translations: Record<Language, Translations> = {
     'suggestions.writing.goodFacts.4': 'Това преживяване ме научи на ценни уроци за себе си',
     'suggestions.writing.lessons.3': 'Растежът идва от изправянето срещу трудни истини',
     'suggestions.writing.lessons.4': 'По-силен и по-мъдър съм заради това преживяване',
+
+    'suggestions.breakfast.hardTruths.0': 'Яденето на закуска сам се усещаше празно',
+    'suggestions.breakfast.hardTruths.1': 'Сутрешните рутини ми напомняха за споделени моменти',
+    'suggestions.breakfast.hardTruths.2': 'Трябваше да се науча да започвам деня сам',
+    'suggestions.breakfast.hardTruths.3': 'Закуската без тях се усещаше непълна',
+    'suggestions.breakfast.hardTruths.4': 'Сутрешното кафе върна спомени',
+    'suggestions.breakfast.goodFacts.0': 'Създавам собствена мирна сутрешна рутина',
+    'suggestions.breakfast.goodFacts.1': 'Закуската сам сега е мирен старт на деня ми',
+    'suggestions.breakfast.goodFacts.2': 'Мога да ям каквото искам, когато искам',
+    'suggestions.breakfast.goodFacts.3': 'Сутрешните рутини сега са мои да проектирам',
+    'suggestions.breakfast.goodFacts.4': 'Уча се да се наслаждавам на самостоятелни сутрини',
+    'suggestions.breakfast.lessons.0': 'Мога да започна деня си добре сам',
+    'suggestions.breakfast.lessons.1': 'Сутрешните рутини могат да бъдат мирни самостоятелни дейности',
+    'suggestions.breakfast.lessons.2': 'Не ми трябва компания за всяко хранене',
+    'suggestions.breakfast.lessons.3': 'Моят ден започва, когато избера да го започна',
+    'suggestions.breakfast.lessons.4': 'Простите сутрешни ритуали могат да бъдат изцеляващи',
+    'suggestions.dinner.hardTruths.0': 'Вечерята сам се усещаше самотно',
+    'suggestions.dinner.hardTruths.1': 'Липсваше ми споделените вечерни хранения',
+    'suggestions.dinner.hardTruths.2': 'Вечерните хранения ми напомняха за заедно',
+    'suggestions.dinner.hardTruths.3': 'Яденето сам стана символ на промяната',
+    'suggestions.dinner.hardTruths.4': 'Трябваше да се науча да се наслаждавам на самостоятелни вечери',
+    'suggestions.dinner.goodFacts.0': 'Създавам мирни рутини за вечеря',
+    'suggestions.dinner.goodFacts.1': 'Вечерята сам сега е мое време',
+    'suggestions.dinner.goodFacts.2': 'Мога да готвя и да ям каквото наистина харесвам',
+    'suggestions.dinner.goodFacts.3': 'Вечерните хранения са моменти на самообгрижаване',
+    'suggestions.dinner.goodFacts.4': 'Уча се да се наслаждавам на самостоятелно хранене',
+    'suggestions.dinner.lessons.0': 'Мога да се наслаждавам на хранения сам',
+    'suggestions.dinner.lessons.1': 'Самостоятелното хранене може да бъде мирно и удовлетворяващо',
+    'suggestions.dinner.lessons.2': 'Не ми трябва компания за всяко хранене',
+    'suggestions.dinner.lessons.3': 'Вечерните рутини са мои да проектирам',
+    'suggestions.dinner.lessons.4': 'Времето за вечеря е мое лично време',
+    'suggestions.cooking.hardTruths.0': 'Готвенето за един се усещаше безсмислено',
+    'suggestions.cooking.hardTruths.1': 'Липсваше ми да готвя заедно',
+    'suggestions.cooking.hardTruths.2': 'Кухнята стана самотно място',
+    'suggestions.cooking.hardTruths.3': 'Рецептите ми напомняха за споделени хранения',
+    'suggestions.cooking.hardTruths.4': 'Трябваше отново да се науча да готвя за себе си',
+    'suggestions.cooking.goodFacts.0': 'Откривам рецепти, които наистина харесвам',
+    'suggestions.cooking.goodFacts.1': 'Готвенето сега е творческо изражение',
+    'suggestions.cooking.goodFacts.2': 'Мога да експериментирам със вкусове свободно',
+    'suggestions.cooking.goodFacts.3': 'Времето в кухнята сега е мирно',
+    'suggestions.cooking.goodFacts.4': 'Изграждам увереност в готвенето',
+    'suggestions.cooking.lessons.0': 'Мога да се наслаждавам на готвене сам',
+    'suggestions.cooking.lessons.1': 'Готвенето е самообгрижаване и творчество',
+    'suggestions.cooking.lessons.2': 'Не ми трябва някой да готви за',
+    'suggestions.cooking.lessons.3': 'Кухненското творчество е изцяло мое',
+    'suggestions.cooking.lessons.4': 'Готвенето ми носи радост и мир',
+    'suggestions.morning.hardTruths.0': 'Сутрините се усещаха празни без тях',
+    'suggestions.morning.hardTruths.1': 'Събуждането сам беше трудно',
+    'suggestions.morning.hardTruths.2': 'Сутрешните рутини ми напомняха за загуба',
+    'suggestions.morning.hardTruths.3': 'Борех се да започна деня',
+    'suggestions.morning.hardTruths.4': 'Сутрините върнаха болезнени спомени',
+    'suggestions.morning.goodFacts.0': 'Създавам мирни сутрешни ритуали',
+    'suggestions.morning.goodFacts.1': 'Сутрините сега са мои да проектирам',
+    'suggestions.morning.goodFacts.2': 'Мога да започна деня в собственото си темпо',
+    'suggestions.morning.goodFacts.3': 'Сутрешното време сега е за самообгрижаване',
+    'suggestions.morning.goodFacts.4': 'Уча се да се наслаждавам на тихи сутрини',
+    'suggestions.morning.lessons.0': 'Мога да създам собствена сутрешна рутина',
+    'suggestions.morning.lessons.1': 'Сутрините могат да бъдат мирни и продуктивни',
+    'suggestions.morning.lessons.2': 'Не ми трябва някой да започва деня',
+    'suggestions.morning.lessons.3': 'Моята сутрин е моя да се наслаждавам',
+    'suggestions.morning.lessons.4': 'Простите сутрешни ритуали изцеляват',
+    'suggestions.evening.hardTruths.0': 'Вечерите се усещаха дълги и самотни',
+    'suggestions.evening.hardTruths.1': 'Липсваше ми споделената вечерна рутина',
+    'suggestions.evening.hardTruths.2': 'Залезът ми напомни за заедно',
+    'suggestions.evening.hardTruths.3': 'Вечерното време се усещаше празно',
+    'suggestions.evening.hardTruths.4': 'Борех се с вечерната самота',
+    'suggestions.evening.goodFacts.0': 'Създавам мирни вечерни рутини',
+    'suggestions.evening.goodFacts.1': 'Вечерите сега са мое време за релакс',
+    'suggestions.evening.goodFacts.2': 'Мога да се наслаждавам на тихи вечери сам',
+    'suggestions.evening.goodFacts.3': 'Вечерното време е за саморефлексия',
+    'suggestions.evening.goodFacts.4': 'Уча се да намеря мир във вечерите',
+    'suggestions.evening.lessons.0': 'Мога да се наслаждавам на самостоятелни вечери',
+    'suggestions.evening.lessons.1': 'Вечерите могат да бъдат мирни и възстановяващи',
+    'suggestions.evening.lessons.2': 'Не ми трябва компания за всяка вечер',
+    'suggestions.evening.lessons.3': 'Моите вечери са мои да проектирам',
+    'suggestions.evening.lessons.4': 'Вечерните рутини носят мир',
+    'suggestions.night.hardTruths.0': 'Нощите бяха най-трудните',
+    'suggestions.night.hardTruths.1': 'Борех се да спя сам',
+    'suggestions.night.hardTruths.2': 'Нощното време донесе тревожност',
+    'suggestions.night.hardTruths.3': 'Тъмните часове се усещаха безкрайни',
+    'suggestions.night.hardTruths.4': 'Липсваше ми нощният разговор',
+    'suggestions.night.goodFacts.0': 'Уча се да намеря мир през нощта',
+    'suggestions.night.goodFacts.1': 'Нощите стават все по-мирни',
+    'suggestions.night.goodFacts.2': 'Мога да се наслаждавам на тихи нощи',
+    'suggestions.night.goodFacts.3': 'Нощното време сега е за почивка и размисъл',
+    'suggestions.night.goodFacts.4': 'Изграждам по-добри навици за сън',
+    'suggestions.night.lessons.0': 'Мога да намеря мир в тъмнината',
+    'suggestions.night.lessons.1': 'Нощите могат да бъдат възстановяващи',
+    'suggestions.night.lessons.2': 'Не ми трябва някой да спя добре',
+    'suggestions.night.lessons.3': 'Моите нощи са мои да почивам',
+    'suggestions.night.lessons.4': 'Мирът идва с времето',
+    'suggestions.kitchen.hardTruths.0': 'Кухнята се усещаше празна без тях',
+    'suggestions.kitchen.hardTruths.1': 'Готварските пространства ми напомняха за загуба',
+    'suggestions.kitchen.hardTruths.2': 'Кухнята беше място на самота',
+    'suggestions.kitchen.hardTruths.3': 'Избягвах кухнята понякога',
+    'suggestions.kitchen.hardTruths.4': 'Споделените рецепти върнаха спомени',
+    'suggestions.kitchen.goodFacts.0': 'Възвърнах пространството си в кухнята',
+    'suggestions.kitchen.goodFacts.1': 'Кухнята сега е моето творческо пространство',
+    'suggestions.kitchen.goodFacts.2': 'Мога да готвя каквото искам',
+    'suggestions.kitchen.goodFacts.3': 'Времето в кухнята е мирно',
+    'suggestions.kitchen.goodFacts.4': 'Изграждам увереност в готвенето',
+    'suggestions.kitchen.lessons.0': 'Мога да се наслаждавам на време в кухнята',
+    'suggestions.kitchen.lessons.1': 'Кухнята може да бъде място на творчество',
+    'suggestions.kitchen.lessons.2': 'Не ми трябва някой в кухнята',
+    'suggestions.kitchen.lessons.3': 'Моята кухня, моите правила',
+    'suggestions.kitchen.lessons.4': 'Готвенето ми носи радост',
+    'suggestions.bathroom.hardTruths.0': 'Рутините в банята се усещаха различни сам',
+    'suggestions.bathroom.hardTruths.1': 'Личната грижа ми напомни за промяната',
+    'suggestions.bathroom.hardTruths.2': 'Трябваше да се адаптирам към самостоятелни рутини',
+    'suggestions.bathroom.hardTruths.3': 'Самообгрижването се усещаше непълно',
+    'suggestions.bathroom.hardTruths.4': 'Времето в банята беше напомняне за самотата',
+    'suggestions.bathroom.goodFacts.0': 'Създавам по-добри рутини за самообгрижаване',
+    'suggestions.bathroom.goodFacts.1': 'Времето в банята сега е мирно',
+    'suggestions.bathroom.goodFacts.2': 'Мога да отделя време за самообгрижаване',
+    'suggestions.bathroom.goodFacts.3': 'Личната грижа е самоуважение',
+    'suggestions.bathroom.goodFacts.4': 'Уча се да се грижа добре за себе си',
+    'suggestions.bathroom.lessons.0': 'Мога да се грижа за себе си',
+    'suggestions.bathroom.lessons.1': 'Рутините за самообгрижаване са важни',
+    'suggestions.bathroom.lessons.2': 'Не ми трябва помощ за основна грижа',
+    'suggestions.bathroom.lessons.3': 'Моето самообгрижаване е мой приоритет',
+    'suggestions.bathroom.lessons.4': 'Грижането за себе си е изцеляващо',
+    'suggestions.office.hardTruths.0': 'Офисът се усещаше различен след раздялата',
+    'suggestions.office.hardTruths.1': 'Работната среда ми напомни за стреса',
+    'suggestions.office.hardTruths.2': 'Трябваше да се концентрирам въпреки емоционалната болка',
+    'suggestions.office.hardTruths.3': 'Работата стана бягство и бреме',
+    'suggestions.office.hardTruths.4': 'Офисното пространство се усещаше празно',
+    'suggestions.office.goodFacts.0': 'Изграждам по-добър баланс между работа и живот',
+    'suggestions.office.goodFacts.1': 'Офисът сега е само за работа',
+    'suggestions.office.goodFacts.2': 'Мога да се фокусирам върху кариерата си',
+    'suggestions.office.goodFacts.3': 'Работата осигурява стабилност',
+    'suggestions.office.goodFacts.4': 'Постигам професионални цели',
+    'suggestions.office.lessons.0': 'Мога да успея на работа независимо',
+    'suggestions.office.lessons.1': 'Работата и личният живот могат да бъдат отделени',
+    'suggestions.office.lessons.2': 'Кариерата ми не зависи от тях',
+    'suggestions.office.lessons.3': 'Професионалният растеж е мой',
+    'suggestions.office.lessons.4': 'Работният успех е мое постижение',
+    'suggestions.library.hardTruths.0': 'Посещенията в библиотеката се усещаха самотни',
+    'suggestions.library.hardTruths.1': 'Ученето сам беше трудно',
+    'suggestions.library.hardTruths.2': 'Тихите пространства ми напомняха за изолация',
+    'suggestions.library.hardTruths.3': 'Липсваше ми партньори за учене',
+    'suggestions.library.hardTruths.4': 'Атмосферата в библиотеката се усещаше различна',
+    'suggestions.library.goodFacts.0': 'Намирам мир в тихите пространства',
+    'suggestions.library.goodFacts.1': 'Библиотеката сега е моето мирно учебно пространство',
+    'suggestions.library.goodFacts.2': 'Мога да се концентрирам по-добре сам',
+    'suggestions.library.goodFacts.3': 'Тихото време ми помага да мисля',
+    'suggestions.library.goodFacts.4': 'Уча се да се наслаждавам на самостоятелно учене',
+    'suggestions.library.lessons.0': 'Мога да уча независимо',
+    'suggestions.library.lessons.1': 'Тихите пространства могат да бъдат изцеляващи',
+    'suggestions.library.lessons.2': 'Не ми трябват партньори за учене',
+    'suggestions.library.lessons.3': 'Ученето е мое лично пътуване',
+    'suggestions.library.lessons.4': 'Знанието е сила, която изграждам сам',
+    'suggestions.cafe.hardTruths.0': 'Посещенията в кафенето се усещаха самотни',
+    'suggestions.cafe.hardTruths.1': 'Липсваше ми кафе срещи',
+    'suggestions.cafe.hardTruths.2': 'Обществените пространства се усещаха неудобни сам',
+    'suggestions.cafe.hardTruths.3': 'Усетих се самосъзнателен, сейдейки сам',
+    'suggestions.cafe.hardTruths.4': 'Атмосферата в кафенето ми напомни за срещи',
+    'suggestions.cafe.goodFacts.0': 'Уча се да се наслаждавам на кафенета сам',
+    'suggestions.cafe.goodFacts.1': 'Кафенетата сега са моето мирно работно пространство',
+    'suggestions.cafe.goodFacts.2': 'Мога да се наслаждавам на кафе в мир',
+    'suggestions.cafe.goodFacts.3': 'Самостоятелното време в кафене е релаксиращо',
+    'suggestions.cafe.goodFacts.4': 'Удобно се чувствам да бъда сам на публично място',
+    'suggestions.cafe.lessons.0': 'Мога да се наслаждавам на кафенета независимо',
+    'suggestions.cafe.lessons.1': 'Самостоятелното време в кафене може да бъде мирно',
+    'suggestions.cafe.lessons.2': 'Не ми трябва компания за кафе',
+    'suggestions.cafe.lessons.3': 'Моето време в кафене е мое',
+    'suggestions.cafe.lessons.4': 'Общественото усамотение е овластяващо',
+    'suggestions.reading.hardTruths.0': 'Четенето сам се усещаше различно',
+    'suggestions.reading.hardTruths.1': 'Липсваше ми споделените моменти на четене',
+    'suggestions.reading.hardTruths.2': 'Книгите ми напомняха за разговори',
+    'suggestions.reading.hardTruths.3': 'Четенето загуби радостта си временно',
+    'suggestions.reading.hardTruths.4': 'Борех се да се концентрирам върху книгите',
+    'suggestions.reading.goodFacts.0': 'Преоткривам любовта си към четенето',
+    'suggestions.reading.goodFacts.1': 'Четенето сега е мирно и лично',
+    'suggestions.reading.goodFacts.2': 'Мога да чета каквото искам',
+    'suggestions.reading.goodFacts.3': 'Книгите са моите спътници',
+    'suggestions.reading.goodFacts.4': 'Намирам нови любими автори',
+    'suggestions.reading.lessons.0': 'Мога да се наслаждавам на четене сам',
+    'suggestions.reading.lessons.1': 'Четенето е лично пътуване',
+    'suggestions.reading.lessons.2': 'Книгите не изискват компания',
+    'suggestions.reading.lessons.3': 'Времето ми за четене е свещено',
+    'suggestions.reading.lessons.4': 'Историите ми помагат да се изцелявам',
+    'suggestions.watching.hardTruths.0': 'Гледането на предавания сам се усещаше празно',
+    'suggestions.watching.hardTruths.1': 'Липсваше ми споделеното гледане',
+    'suggestions.watching.hardTruths.2': 'Филмите ми напомняха за срещи',
+    'suggestions.watching.hardTruths.3': 'Развлечението се усещаше различно сам',
+    'suggestions.watching.hardTruths.4': 'Борех се да се наслаждавам на предавания',
+    'suggestions.watching.goodFacts.0': 'Откривам предавания, които наистина харесвам',
+    'suggestions.watching.goodFacts.1': 'Гледането сега е моето лично развлечение',
+    'suggestions.watching.goodFacts.2': 'Мога да гледам каквото искам',
+    'suggestions.watching.goodFacts.3': 'Времето за развлечение е мирно',
+    'suggestions.watching.goodFacts.4': 'Изграждам собствен списък за гледане',
+    'suggestions.watching.lessons.0': 'Мога да се наслаждавам на предавания независимо',
+    'suggestions.watching.lessons.1': 'Развлечението не изисква компания',
+    'suggestions.watching.lessons.2': 'Моите предпочитания за гледане имат значение',
+    'suggestions.watching.lessons.3': 'Предаванията са моето бягство и радост',
+    'suggestions.watching.lessons.4': 'Мога да се наслаждавам на медии сам',
+    'suggestions.listening.hardTruths.0': 'Музиката ми напомни за тях',
+    'suggestions.listening.hardTruths.1': 'Песните върнаха болезнени спомени',
+    'suggestions.listening.hardTruths.2': 'Избягвах определени плейлисти',
+    'suggestions.listening.hardTruths.3': 'Слушането се усещаше непълно сам',
+    'suggestions.listening.hardTruths.4': 'Музиката беше твърде емоционална',
+    'suggestions.listening.goodFacts.0': 'Откривам нова музика, която обичам',
+    'suggestions.listening.goodFacts.1': 'Музиката сега е изцеляваща',
+    'suggestions.listening.goodFacts.2': 'Мога да слушам каквото ме движи',
+    'suggestions.listening.goodFacts.3': 'Плейлистите са мои да създавам',
+    'suggestions.listening.goodFacts.4': 'Изграждам нови музикални асоциации',
+    'suggestions.listening.lessons.0': 'Мога да се наслаждавам на музика независимо',
+    'suggestions.listening.lessons.1': 'Музиката не принадлежи на спомените',
+    'suggestions.listening.lessons.2': 'Моят музикален вкус се развива',
+    'suggestions.listening.lessons.3': 'Песните могат да изцеляват и вдъхновяват',
+    'suggestions.listening.lessons.4': 'Създавам собствени саундтраци',
+    'suggestions.conversation.hardTruths.0': 'Разговорите се усещаха наложени',
+    'suggestions.conversation.hardTruths.1': 'Липсваше ми дълбокият разговор',
+    'suggestions.conversation.hardTruths.2': 'Комуникацията беше трудна',
+    'suggestions.conversation.hardTruths.3': 'Борех се да изразя себе си',
+    'suggestions.conversation.hardTruths.4': 'Говоренето ми напомни за това, което загубих',
+    'suggestions.conversation.goodFacts.0': 'Уча се да комуникирам по-добре',
+    'suggestions.conversation.goodFacts.1': 'Разговорите са по-автентични сега',
+    'suggestions.conversation.goodFacts.2': 'Мога да изразя нуждите си ясно',
+    'suggestions.conversation.goodFacts.3': 'Добрият разговор ми помага да се изцелявам',
+    'suggestions.conversation.goodFacts.4': 'Изграждам по-добри комуникативни умения',
+    'suggestions.conversation.lessons.0': 'Мога да водя значими разговори',
+    'suggestions.conversation.lessons.1': 'Комуникацията е умение, което изграждам',
+    'suggestions.conversation.lessons.2': 'Не ми трябват те, за да разговарям',
+    'suggestions.conversation.lessons.3': 'Моят глас има значение',
+    'suggestions.conversation.lessons.4': 'Честните разговори изцеляват',
+    'suggestions.meeting.hardTruths.0': 'Срещите се усещаха неудобни',
+    'suggestions.meeting.hardTruths.1': 'Обществените събирания бяха трудни',
+    'suggestions.meeting.hardTruths.2': 'Усетих се извън място',
+    'suggestions.meeting.hardTruths.3': 'Груповите настройки подчертаха моето самота',
+    'suggestions.meeting.hardTruths.4': 'Липсваше ми да имам спътник',
+    'suggestions.meeting.goodFacts.0': 'Ставам по-удобен в групи',
+    'suggestions.meeting.goodFacts.1': 'Срещите са по-малко стресиращи сега',
+    'suggestions.meeting.goodFacts.2': 'Мога да навигирам социални ситуации',
+    'suggestions.meeting.goodFacts.3': 'Изграждам социална увереност',
+    'suggestions.meeting.goodFacts.4': 'Груповите настройки са управляеми',
+    'suggestions.meeting.lessons.0': 'Мога да се справям със срещи независимо',
+    'suggestions.meeting.lessons.1': 'Социалната увереност расте',
+    'suggestions.meeting.lessons.2': 'Не ми трябва партньор за събития',
+    'suggestions.meeting.lessons.3': 'Моето присъствие е достатъчно',
+    'suggestions.meeting.lessons.4': 'Уча се да се наслаждавам на социално време',
+    'suggestions.bus.hardTruths.0': 'Пътуванията с автобус се усещаха самотни',
+    'suggestions.bus.hardTruths.1': 'Общественият транспорт ми напомни за пътуването заедно',
+    'suggestions.bus.hardTruths.2': 'Липсваше ми пътнически спътници',
+    'suggestions.bus.hardTruths.3': 'Пътуванията с автобус се усещаха дълги',
+    'suggestions.bus.hardTruths.4': 'Усетих се самосъзнателен, пътувайки сам',
+    'suggestions.bus.goodFacts.0': 'Удобно се чувствам да използвам обществен транспорт',
+    'suggestions.bus.goodFacts.1': 'Пътуванията с автобус сега са мирни',
+    'suggestions.bus.goodFacts.2': 'Мога да пътувам независимо',
+    'suggestions.bus.goodFacts.3': 'Общественият транспорт е освобождаващ',
+    'suggestions.bus.goodFacts.4': 'Изграждам увереност в пътуването',
+    'suggestions.bus.lessons.0': 'Мога да навигирам транспорта сам',
+    'suggestions.bus.lessons.1': 'Общественият транспорт не изисква компания',
+    'suggestions.bus.lessons.2': 'Моето пътуване е мое',
+    'suggestions.bus.lessons.3': 'Пътувателната независимост е овластяваща',
+    'suggestions.bus.lessons.4': 'Мога да стигна навсякъде сам',
+    'suggestions.train.hardTruths.0': 'Пътуванията с влак се усещаха дълги сам',
+    'suggestions.train.hardTruths.1': 'Липсваше ми пътнически спътници',
+    'suggestions.train.hardTruths.2': 'Пътуванията с влак ми напомняха за пътувания заедно',
+    'suggestions.train.hardTruths.3': 'Дългите пътувания се усещаха самотни',
+    'suggestions.train.hardTruths.4': 'Борех се със самостоятелно пътуване',
+    'suggestions.train.goodFacts.0': 'Наслаждавам се на пътувания с влак сам',
+    'suggestions.train.goodFacts.1': 'Пътуванията с влак сега са мирни',
+    'suggestions.train.goodFacts.2': 'Мога да пътувам навсякъде независимо',
+    'suggestions.train.goodFacts.3': 'Пътуването с влак е освобождаващо',
+    'suggestions.train.goodFacts.4': 'Откривам нови места сам',
+    'suggestions.train.lessons.0': 'Мога да се наслаждавам на пътувания с влак сам',
+    'suggestions.train.lessons.1': 'Самостоятелното пътуване е овластяващо',
+    'suggestions.train.lessons.2': 'Не ми трябват пътнически спътници',
+    'suggestions.train.lessons.3': 'Моите пътувания са мои',
+    'suggestions.train.lessons.4': 'Пътуването с влак носи свобода',
+    'suggestions.bike.hardTruths.0': 'Колоезденето сам се усещаше различно',
+    'suggestions.bike.hardTruths.1': 'Липсваше ми да карам заедно',
+    'suggestions.bike.hardTruths.2': 'Разходките с колело ми напомняха за споделени приключения',
+    'suggestions.bike.hardTruths.3': 'Самостоятелното колоездене се усещаше непълно',
+    'suggestions.bike.hardTruths.4': 'Избягвах любимите маршрути с колело',
+    'suggestions.bike.goodFacts.0': 'Преоткривам любовта си към колоезденето',
+    'suggestions.bike.goodFacts.1': 'Колоезденето сега е моето мирно упражнение',
+    'suggestions.bike.goodFacts.2': 'Мога да карам навсякъде, където искам',
+    'suggestions.bike.goodFacts.3': 'Разходките с колело са освобождаващи',
+    'suggestions.bike.goodFacts.4': 'Изследвам нови маршрути',
+    'suggestions.bike.lessons.0': 'Мога да се наслаждавам на колоездене независимо',
+    'suggestions.bike.lessons.1': 'Колоезденето не изисква компания',
+    'suggestions.bike.lessons.2': 'Моите маршрути с колело са мои',
+    'suggestions.bike.lessons.3': 'Самостоятелното колоездене е освобождаващо',
+    'suggestions.bike.lessons.4': 'Мога да изследвам на две колела',
+    'suggestions.painting.hardTruths.0': 'Рисуването се усещаше по-малко вдъхновено',
+    'suggestions.painting.hardTruths.1': 'Липсваше ми да споделям творческата работа',
+    'suggestions.painting.hardTruths.2': 'Изкуството ми напомни за споделени хобита',
+    'suggestions.painting.hardTruths.3': 'Творчеството се усещаше блокирано',
+    'suggestions.painting.hardTruths.4': 'Борех се да намеря вдъхновение',
+    'suggestions.painting.goodFacts.0': 'Преоткривам творческия си глас',
+    'suggestions.painting.goodFacts.1': 'Рисуването сега е изцяло за мен',
+    'suggestions.painting.goodFacts.2': 'Мога да създавам без осъждане',
+    'suggestions.painting.goodFacts.3': 'Изкуството е изцеляващо',
+    'suggestions.painting.goodFacts.4': 'Изследвам нови стилове',
+    'suggestions.painting.lessons.0': 'Мога да се наслаждавам на рисуване независимо',
+    'suggestions.painting.lessons.1': 'Творчеството не изисква споделяне',
+    'suggestions.painting.lessons.2': 'Моето изкуство е моето изражение',
+    'suggestions.painting.lessons.3': 'Рисуването носи мир',
+    'suggestions.painting.lessons.4': 'Създавам за себе си',
+    'suggestions.drawing.hardTruths.0': 'Рисуването се усещаше непълно',
+    'suggestions.drawing.hardTruths.1': 'Липсваше ми да показвам скици',
+    'suggestions.drawing.hardTruths.2': 'Художествените материали ми напомняха за споделени интереси',
+    'suggestions.drawing.hardTruths.3': 'Творческото време се усещаше различно',
+    'suggestions.drawing.hardTruths.4': 'Загубих вдъхновението временно',
+    'suggestions.drawing.goodFacts.0': 'Намирам художествения си глас отново',
+    'suggestions.drawing.goodFacts.1': 'Рисуването сега е мирно',
+    'suggestions.drawing.goodFacts.2': 'Мога да рисувам каквото ме вдъхновява',
+    'suggestions.drawing.goodFacts.3': 'Изкуството е лично изражение',
+    'suggestions.drawing.goodFacts.4': 'Подобрявам уменията си',
+    'suggestions.drawing.lessons.0': 'Мога да се наслаждавам на рисуване сам',
+    'suggestions.drawing.lessons.1': 'Изкуството не се нуждае от публика',
+    'suggestions.drawing.lessons.2': 'Моите скици са мои',
+    'suggestions.drawing.lessons.3': 'Рисуването е медитативно',
+    'suggestions.drawing.lessons.4': 'Творчеството изцелява',
+    'suggestions.dancing.hardTruths.0': 'Танцуването сам се усещаше неудобно',
+    'suggestions.dancing.hardTruths.1': 'Липсваше ми танцови партньори',
+    'suggestions.dancing.hardTruths.2': 'Музиката ми напомни за споделени движения',
+    'suggestions.dancing.hardTruths.3': 'Усетих се самосъзнателен, танцувайки сам',
+    'suggestions.dancing.hardTruths.4': 'Танцът се усещаше непълно сам',
+    'suggestions.dancing.goodFacts.0': 'Уча се да танцувам за себе си',
+    'suggestions.dancing.goodFacts.1': 'Танцуването сега е освобождаващо',
+    'suggestions.dancing.goodFacts.2': 'Мога да се движа както искам',
+    'suggestions.dancing.goodFacts.3': 'Танцът е самоизражение',
+    'suggestions.dancing.goodFacts.4': 'Изграждам увереност в движението',
+    'suggestions.dancing.lessons.0': 'Мога да се наслаждавам на танцуване сам',
+    'suggestions.dancing.lessons.1': 'Танцът не изисква партньор',
+    'suggestions.dancing.lessons.2': 'Моите движения са мои',
+    'suggestions.dancing.lessons.3': 'Танцуването носи радост',
+    'suggestions.dancing.lessons.4': 'Танцувам за себе си',
+    'suggestions.singing.hardTruths.0': 'Пеенето сам се усещаше различно',
+    'suggestions.singing.hardTruths.1': 'Липсваше ми да хармонизирам',
+    'suggestions.singing.hardTruths.2': 'Песните ми напомняха за дуети',
+    'suggestions.singing.hardTruths.3': 'Музиката се усещаше непълна сам',
+    'suggestions.singing.hardTruths.4': 'Бях колеблив да пея',
+    'suggestions.singing.goodFacts.0': 'Преоткривам гласа си',
+    'suggestions.singing.goodFacts.1': 'Пеенето сега е освобождаващо',
+    'suggestions.singing.goodFacts.2': 'Мога да пея каквото ме движи',
+    'suggestions.singing.goodFacts.3': 'Музиката е лично изражение',
+    'suggestions.singing.goodFacts.4': 'Изграждам вокална увереност',
+    'suggestions.singing.lessons.0': 'Мога да се наслаждавам на пеене сам',
+    'suggestions.singing.lessons.1': 'Пеенето не се нуждае от публика',
+    'suggestions.singing.lessons.2': 'Моят глас е мой',
+    'suggestions.singing.lessons.3': 'Пеенето носи радост',
+    'suggestions.singing.lessons.4': 'Пея за себе си',
+    'suggestions.baking.hardTruths.0': 'Печенето за един се усещаше безсмислено',
+    'suggestions.baking.hardTruths.1': 'Липсваше ми да пека заедно',
+    'suggestions.baking.hardTruths.2': 'Рецептите ми напомняха за споделени сладкиши',
+    'suggestions.baking.hardTruths.3': 'Кухнята миришеше на спомени',
+    'suggestions.baking.hardTruths.4': 'Избягвах любимите рецепти',
+    'suggestions.baking.goodFacts.0': 'Преоткривам любовта си към печенето',
+    'suggestions.baking.goodFacts.1': 'Печенето сега е творческо и мирно',
+    'suggestions.baking.goodFacts.2': 'Мога да пека каквото искам',
+    'suggestions.baking.goodFacts.3': 'Печенето ми носи радост',
+    'suggestions.baking.goodFacts.4': 'Опитвам нови рецепти',
+    'suggestions.baking.lessons.0': 'Мога да се наслаждавам на печене сам',
+    'suggestions.baking.lessons.1': 'Печенето не изисква споделяне',
+    'suggestions.baking.lessons.2': 'Моите сладкиши са мои',
+    'suggestions.baking.lessons.3': 'Печенето е терапевтично',
+    'suggestions.baking.lessons.4': 'Пека за себе си',
+
+    'suggestions.manipulation.hardTruths.0': 'Те манипулираха емоциите ми, за да получат каквото искат',
+    'suggestions.manipulation.hardTruths.1': 'Попаднах в техните манипулативни тактики многократно',
+    'suggestions.manipulation.hardTruths.2': 'Манипулацията ме накара да се съмнявам в собствената си реалност',
+    'suggestions.manipulation.hardTruths.3': 'Бях използван като инструмент в техните игри',
+    'suggestions.manipulation.hardTruths.4': 'Тяхната манипулация разяде моето самочувствие',
+    'suggestions.manipulation.goodFacts.0': 'Сега мога да разпознавам манипулация, когато я видя',
+    'suggestions.manipulation.goodFacts.1': 'Уча се отново да се доверявам на инстинктите си',
+    'suggestions.manipulation.goodFacts.2': 'Няма да бъда манипулиран повече',
+    'suggestions.manipulation.goodFacts.3': 'Виждам през техните тактики сега',
+    'suggestions.manipulation.goodFacts.4': 'Моите граници ме защитават от манипулация',
+    'suggestions.manipulation.lessons.0': 'Манипулацията никога не е приемлива във взаимоотношенията',
+    'suggestions.manipulation.lessons.1': 'Заслужавам честна, пряка комуникация',
+    'suggestions.manipulation.lessons.2': 'Мога да разпознавам и отхвърлям манипулация',
+    'suggestions.manipulation.lessons.3': 'Инстинктите ми бяха прави през цялото време',
+    'suggestions.manipulation.lessons.4': 'Здравите взаимоотношения не включват манипулация',
+    'suggestions.gaslighting.hardTruths.0': 'Те ме накараха да се съмнявам в собствената си памет и разум',
+    'suggestions.gaslighting.hardTruths.1': 'Бях казано, че съм луд или прекалено реагирам',
+    'suggestions.gaslighting.hardTruths.2': 'Газлайтингът ме накара да се съмнявам в собствените си възприятия',
+    'suggestions.gaslighting.hardTruths.3': 'Те изкривиха реалността, за да ме накарат да се чувствам грешен',
+    'suggestions.gaslighting.hardTruths.4': 'Загубих увереност в собственото си преценяване',
+    'suggestions.gaslighting.goodFacts.0': 'Възвърнах реалността и истината си',
+    'suggestions.gaslighting.goodFacts.1': 'Моите възприятия винаги бяха валидни',
+    'suggestions.gaslighting.goodFacts.2': 'Отново се доверявам на паметта и преценката си',
+    'suggestions.gaslighting.goodFacts.3': 'Сега виждам през газлайтинга',
+    'suggestions.gaslighting.goodFacts.4': 'Възстановявам увереността в себе си',
+    'suggestions.gaslighting.lessons.0': 'Газлайтингът е емоционално насилие',
+    'suggestions.gaslighting.lessons.1': 'Моята реалност е валидна и реална',
+    'suggestions.gaslighting.lessons.2': 'Не се нуждая от тяхното потвърждение на моята истина',
+    'suggestions.gaslighting.lessons.3': 'Доверявам се на собствените си възприятия',
+    'suggestions.gaslighting.lessons.4': 'Здравите партньори потвърждават, а не отричат',
+    'suggestions.control.hardTruths.0': 'Те контролираха всеки аспект от живота ми',
+    'suggestions.control.hardTruths.1': 'Загубих автономията и независимостта си',
+    'suggestions.control.hardTruths.2': 'Контролът беше прикрит като грижа',
+    'suggestions.control.hardTruths.3': 'Трябваше да питам разрешение за всичко',
+    'suggestions.control.hardTruths.4': 'Изборите ми бяха постоянно под въпрос',
+    'suggestions.control.goodFacts.0': 'Възвърнах автономията си',
+    'suggestions.control.goodFacts.1': 'Сега мога да взимам собствени решения',
+    'suggestions.control.goodFacts.2': 'Свободата се усеща освобождаваща',
+    'suggestions.control.goodFacts.3': 'Изграждам независимост',
+    'suggestions.control.goodFacts.4': 'Животът ми е мой да контролирам',
+    'suggestions.control.lessons.0': 'Контролът не е любов, а насилие',
+    'suggestions.control.lessons.1': 'Заслужавам автономия и свобода',
+    'suggestions.control.lessons.2': 'Мога да взимам собствени избори',
+    'suggestions.control.lessons.3': 'Моите решения са валидни',
+    'suggestions.control.lessons.4': 'Здравите взаимоотношения уважават автономията',
+    'suggestions.boundaries.hardTruths.0': 'Моите граници бяха постоянно нарушавани',
+    'suggestions.boundaries.hardTruths.1': 'Те не уважаваха моите граници',
+    'suggestions.boundaries.hardTruths.2': 'Бях накаран да се чувствам виновен за поставянето на граници',
+    'suggestions.boundaries.hardTruths.3': 'Моите нужди бяха отхвърлени като неразумни',
+    'suggestions.boundaries.hardTruths.4': 'Научих се да игнорирам собствените си граници',
+    'suggestions.boundaries.goodFacts.0': 'Уча се да поставям здрави граници',
+    'suggestions.boundaries.goodFacts.1': 'Моите граници са валидни и необходими',
+    'suggestions.boundaries.goodFacts.2': 'Мога да кажа не без вина',
+    'suggestions.boundaries.goodFacts.3': 'Защитавам се с граници',
+    'suggestions.boundaries.goodFacts.4': 'Границите са акт на самолюбие',
+    'suggestions.boundaries.lessons.0': 'Границите са от съществено значение за здрави взаимоотношения',
+    'suggestions.boundaries.lessons.1': 'Имам правото да поставям граници',
+    'suggestions.boundaries.lessons.2': 'Да кажа не не е егоистично, а самообгрижаване',
+    'suggestions.boundaries.lessons.3': 'Моите нужди имат значение',
+    'suggestions.boundaries.lessons.4': 'Здравите партньори уважават границите',
+    'suggestions.guilt.hardTruths.0': 'Бях накаран да се чувствам виновен за всичко',
+    'suggestions.guilt.hardTruths.1': 'Вината беше използвана като оръжие срещу мен',
+    'suggestions.guilt.hardTruths.2': 'Усетих се отговорен за техните емоции',
+    'suggestions.guilt.hardTruths.3': 'Носех вина, която не беше моя',
+    'suggestions.guilt.hardTruths.4': 'Бях манипулиран чрез вина',
+    'suggestions.guilt.goodFacts.0': 'Освобождавам вина, която не беше моя',
+    'suggestions.guilt.goodFacts.1': 'Не съм отговорен за техните емоции',
+    'suggestions.guilt.goodFacts.2': 'Мога да пусна неправилно поставена вина',
+    'suggestions.guilt.goodFacts.3': 'Уча се да различавам моята вина от тяхната',
+    'suggestions.guilt.goodFacts.4': 'Свободен съм от техните виновни пътувания',
+    'suggestions.guilt.lessons.0': 'Не съм отговорен за техните чувства',
+    'suggestions.guilt.lessons.1': 'Вината не трябва да се използва като контрол',
+    'suggestions.guilt.lessons.2': 'Мога да чувствам собствените си емоции без вина',
+    'suggestions.guilt.lessons.3': 'Тяхната вина не е моя да нося',
+    'suggestions.guilt.lessons.4': 'Здравите взаимоотношения не използват вина',
+    'suggestions.blame.hardTruths.0': 'Всичко винаги беше моята вина',
+    'suggestions.blame.hardTruths.1': 'Бях обвинен за техните действия',
+    'suggestions.blame.hardTruths.2': 'Поемах отговорност за неща, които не направих',
+    'suggestions.blame.hardTruths.3': 'Вината беше постоянно прехвърляна върху мен',
+    'suggestions.blame.hardTruths.4': 'Интернализирах вина, която не беше моя',
+    'suggestions.blame.goodFacts.0': 'Освобождавам вина, която не беше моя',
+    'suggestions.blame.goodFacts.1': 'Не съм отговорен за техните действия',
+    'suggestions.blame.goodFacts.2': 'Мога ясно да видя кой беше виновен',
+    'suggestions.blame.goodFacts.3': 'Уча се да отхвърлям фалшива вина',
+    'suggestions.blame.goodFacts.4': 'Свободен съм от тяхната игра на вина',
+    'suggestions.blame.lessons.0': 'Не съм отговорен за тяхното поведение',
+    'suggestions.blame.lessons.1': 'Вината трябва да бъде точна, а не прехвърляна',
+    'suggestions.blame.lessons.2': 'Мога да видя истината сега',
+    'suggestions.blame.lessons.3': 'Техните действия бяха техен избор',
+    'suggestions.blame.lessons.4': 'Здравите взаимоотношения поемат взаимна отговорност',
+    'suggestions.criticism.hardTruths.0': 'Бях постоянно критикуван',
+    'suggestions.criticism.hardTruths.1': 'Нищо, което направих, никога не беше достатъчно',
+    'suggestions.criticism.hardTruths.2': 'Критиката унищожи самочувствието ми',
+    'suggestions.criticism.hardTruths.3': 'Бях накаран да се чувствам неадекватен',
+    'suggestions.criticism.hardTruths.4': 'Всеки недостатък беше посочен и увеличен',
+    'suggestions.criticism.goodFacts.0': 'Възстановявам самочувствието си',
+    'suggestions.criticism.goodFacts.1': 'Уча се да ценя себе си',
+    'suggestions.criticism.goodFacts.2': 'Мога да разпознавам конструктивна срещу разрушителна критика',
+    'suggestions.criticism.goodFacts.3': 'Свободен съм от постоянното осъждане',
+    'suggestions.criticism.goodFacts.4': 'Уча се да приемам себе си',
+    'suggestions.criticism.lessons.0': 'Постоянната критика е емоционално насилие',
+    'suggestions.criticism.lessons.1': 'Достатъчен съм, точно както съм',
+    'suggestions.criticism.lessons.2': 'Не се нуждая от тяхното одобрение',
+    'suggestions.criticism.lessons.3': 'Моята стойност не се определя от тяхното мнение',
+    'suggestions.criticism.lessons.4': 'Здравите взаимоотношения изграждат, а не разрушават',
+    'suggestions.isolation.hardTruths.0': 'Те ме изолираха от приятели и семейство',
+    'suggestions.isolation.hardTruths.1': 'Загубих връзки заради тях',
+    'suggestions.isolation.hardTruths.2': 'Изолацията ме направи зависим от тях',
+    'suggestions.isolation.hardTruths.3': 'Бях отрязан от подкрепащата ми система',
+    'suggestions.isolation.hardTruths.4': 'Те ме накараха да се чувствам, че имам само тях',
+    'suggestions.isolation.goodFacts.0': 'Възстановявам подкрепащата си мрежа',
+    'suggestions.isolation.goodFacts.1': 'Възстановявам връзките с близките',
+    'suggestions.isolation.goodFacts.2': 'Имам хора, които наистина се грижат за мен',
+    'suggestions.isolation.goodFacts.3': 'Вече не съм изолиран',
+    'suggestions.isolation.goodFacts.4': 'Изграждам здрави връзки',
+    'suggestions.isolation.lessons.0': 'Изолацията е форма на контрол',
+    'suggestions.isolation.lessons.1': 'Заслужавам подкрепаща система',
+    'suggestions.isolation.lessons.2': 'Мога да имам взаимоотношения извън тях',
+    'suggestions.isolation.lessons.3': 'Моите връзки са ценни',
+    'suggestions.isolation.lessons.4': 'Здравите взаимоотношения насърчават външни връзки',
+    'suggestions.jealousy.hardTruths.0': 'Тяхната ревност беше задушаваща',
+    'suggestions.jealousy.hardTruths.1': 'Бях обвинен в неща, които не направих',
+    'suggestions.jealousy.hardTruths.2': 'Ревността контролираше всяко мое движение',
+    'suggestions.jealousy.hardTruths.3': 'Трябваше постоянно да доказвам лоялността си',
+    'suggestions.jealousy.hardTruths.4': 'Тяхната ревност беше неразумна и контролираща',
+    'suggestions.jealousy.goodFacts.0': 'Свободен съм от неразумна ревност',
+    'suggestions.jealousy.goodFacts.1': 'Мога да имам приятелства без подозрение',
+    'suggestions.jealousy.goodFacts.2': 'Не се нуждая да доказвам лоялността си',
+    'suggestions.jealousy.goodFacts.3': 'Изграждам доверие в здрави взаимоотношения',
+    'suggestions.jealousy.goodFacts.4': 'Уча се как изглежда здравата ревност',
+    'suggestions.jealousy.lessons.0': 'Неразумната ревност е червен флаг',
+    'suggestions.jealousy.lessons.1': 'Заслужавам доверие във взаимоотношенията',
+    'suggestions.jealousy.lessons.2': 'Не се нуждая да доказвам невинността си',
+    'suggestions.jealousy.lessons.3': 'Здравите взаимоотношения включват доверие',
+    'suggestions.jealousy.lessons.4': 'Ревността не трябва да контролира живота ми',
+    'suggestions.possessiveness.hardTruths.0': 'Те ме третираха като собственост',
+    'suggestions.possessiveness.hardTruths.1': 'Не ми беше позволено да имам собствен живот',
+    'suggestions.possessiveness.hardTruths.2': 'Притежателността се усещаше като да бъда притежаван',
+    'suggestions.possessiveness.hardTruths.3': 'Загубих усещането за себе си',
+    'suggestions.possessiveness.hardTruths.4': 'Те претендираха собственост върху мен',
+    'suggestions.possessiveness.goodFacts.0': 'Възвърнах независимостта си',
+    'suggestions.possessiveness.goodFacts.1': 'Принадлежа на себе си, а не на никой друг',
+    'suggestions.possessiveness.goodFacts.2': 'Мога да имам собствен живот и интереси',
+    'suggestions.possessiveness.goodFacts.3': 'Свободен съм от тяхното притежание',
+    'suggestions.possessiveness.goodFacts.4': 'Изграждам собствена идентичност',
+    'suggestions.possessiveness.lessons.0': 'Притежателността не е любов, а контрол',
+    'suggestions.possessiveness.lessons.1': 'Аз съм собствен човек',
+    'suggestions.possessiveness.lessons.2': 'Не принадлежа на никого',
+    'suggestions.possessiveness.lessons.3': 'Животът ми е мой да живея',
+    'suggestions.possessiveness.lessons.4': 'Здравите взаимоотношения уважават индивидуалността',
+    'suggestions.disrespect.hardTruths.0': 'Бях постоянно неуважаван',
+    'suggestions.disrespect.hardTruths.1': 'Моите мнения бяха отхвърлени',
+    'suggestions.disrespect.hardTruths.2': 'Бях третиран като по-малко от',
+    'suggestions.disrespect.hardTruths.3': 'Неуважението стана нормализирано',
+    'suggestions.disrespect.hardTruths.4': 'Загубих уважение към себе си',
+    'suggestions.disrespect.goodFacts.0': 'Уча се да изисквам уважение',
+    'suggestions.disrespect.goodFacts.1': 'Заслужавам да бъда третиран с достойнство',
+    'suggestions.disrespect.goodFacts.2': 'Възстановявам самоуважението',
+    'suggestions.disrespect.goodFacts.3': 'Мога да разпознавам и отхвърлям неуважение',
+    'suggestions.disrespect.goodFacts.4': 'Ограждам се с уважаващи хора',
+    'suggestions.disrespect.lessons.0': 'Заслужавам уважение във всички взаимоотношения',
+    'suggestions.disrespect.lessons.1': 'Неуважението никога не е приемливо',
+    'suggestions.disrespect.lessons.2': 'Моите мнения и чувства имат значение',
+    'suggestions.disrespect.lessons.3': 'Мога да се оттегля от неуважение',
+    'suggestions.disrespect.lessons.4': 'Здравите взаимоотношения се изграждат върху уважение',
+    'suggestions.narcissism.hardTruths.0': 'Всичко винаги беше за тях',
+    'suggestions.narcissism.hardTruths.1': 'Бях просто реквизит в тяхната история',
+    'suggestions.narcissism.hardTruths.2': 'Моите нужди никога не бяха важни',
+    'suggestions.narcissism.hardTruths.3': 'Те не можеха да видят отвъд себе си',
+    'suggestions.narcissism.hardTruths.4': 'Бях използван, за да храня тяхното его',
+    'suggestions.narcissism.goodFacts.0': 'Уча се да приоритизирам себе си',
+    'suggestions.narcissism.goodFacts.1': 'Моите нужди са валидни и важни',
+    'suggestions.narcissism.goodFacts.2': 'Свободен съм от тяхната самоцентрираност',
+    'suggestions.narcissism.goodFacts.3': 'Мога да имам взаимоотношения с хора, които се грижат за мен',
+    'suggestions.narcissism.goodFacts.4': 'Изграждам самооценка извън тях',
+    'suggestions.narcissism.lessons.0': 'Заслужавам взаимоотношения, където имам значение',
+    'suggestions.narcissism.lessons.1': 'Моите нужди са също толкова важни',
+    'suggestions.narcissism.lessons.2': 'Не съществувам, за да служа на тяхното его',
+    'suggestions.narcissism.lessons.3': 'Мога да имам взаимни взаимоотношения',
+    'suggestions.narcissism.lessons.4': 'Здравите взаимоотношения включват даване и взимане',
+    'suggestions.abuse.hardTruths.0': 'Търпях насилие твърде дълго',
+    'suggestions.abuse.hardTruths.1': 'Насилието беше нормализирано в нашето взаимоотношение',
+    'suggestions.abuse.hardTruths.2': 'Правях извинения за тяхното насилие',
+    'suggestions.abuse.hardTruths.3': 'Мислех, че заслужавам насилието',
+    'suggestions.abuse.hardTruths.4': 'Насилието унищожи усещането ми за себе си',
+    'suggestions.abuse.goodFacts.0': 'Изцелявам от насилието',
+    'suggestions.abuse.goodFacts.1': 'Уча се, че насилието никога не е моя вина',
+    'suggestions.abuse.goodFacts.2': 'Изграждам живот свободен от насилие',
+    'suggestions.abuse.goodFacts.3': 'Мога да разпознавам насилие и да напусна',
+    'suggestions.abuse.goodFacts.4': 'По-силен съм от насилието',
+    'suggestions.abuse.lessons.0': 'Насилието никога не е приемливо',
+    'suggestions.abuse.lessons.1': 'Не заслужавах това, което ми се случи',
+    'suggestions.abuse.lessons.2': 'Мога да се изцеля и да се възстановя',
+    'suggestions.abuse.lessons.3': 'Безопасността ми има значение',
+    'suggestions.abuse.lessons.4': 'Заслужавам взаимоотношения свободни от насилие',
+    'suggestions.trauma.hardTruths.0': 'Взаимоотношението ме остави травматизиран',
+    'suggestions.trauma.hardTruths.1': 'Справям се с травма от това, което се случи',
+    'suggestions.trauma.hardTruths.2': 'Травмата влияе на ежедневния ми живот',
+    'suggestions.trauma.hardTruths.3': 'Имам тригери от взаимоотношението',
+    'suggestions.trauma.hardTruths.4': 'Травмата се усеща претоварваща понякога',
+    'suggestions.trauma.goodFacts.0': 'Изцелявам от травмата',
+    'suggestions.trauma.goodFacts.1': 'Уча се да управлявам тригерите',
+    'suggestions.trauma.goodFacts.2': 'Изграждам устойчивост',
+    'suggestions.trauma.goodFacts.3': 'Мога да се изцеля от травма',
+    'suggestions.trauma.goodFacts.4': 'По-силен съм от травмата си',
+    'suggestions.trauma.lessons.0': 'Травмата е реална и валидна',
+    'suggestions.trauma.lessons.1': 'Мога да се изцелявам в собственото си темпо',
+    'suggestions.trauma.lessons.2': 'Травмата ми не ме определя',
+    'suggestions.trauma.lessons.3': 'Уча се на здрави механизми за справяне',
+    'suggestions.trauma.lessons.4': 'Изцелението от травма е възможно',
+    'suggestions.healing.hardTruths.0': 'Изцелението е по-трудно, отколкото очаквах',
+    'suggestions.healing.hardTruths.1': 'Имам добри дни и лоши дни',
+    'suggestions.healing.hardTruths.2': 'Изцелението не е линейно',
+    'suggestions.healing.hardTruths.3': 'Все още се боря понякога',
+    'suggestions.healing.hardTruths.4': 'Болката не изчезва за една нощ',
+    'suggestions.healing.goodFacts.0': 'Правя напредък в изцелението си',
+    'suggestions.healing.goodFacts.1': 'Уча се да бъда търпелив със себе си',
+    'suggestions.healing.goodFacts.2': 'Изграждам по-здрави модели',
+    'suggestions.healing.goodFacts.3': 'Откривам силата си',
+    'suggestions.healing.goodFacts.4': 'Растя чрез това преживяване',
+    'suggestions.healing.lessons.0': 'Изцелението отнема време и това е добре',
+    'suggestions.healing.lessons.1': 'Имам право да се изцелявам в собственото си темпо',
+    'suggestions.healing.lessons.2': 'Всяка малка стъпка напред има значение',
+    'suggestions.healing.lessons.3': 'Ставам по-силен',
+    'suggestions.healing.lessons.4': 'Изцелението е пътуване, а не дестинация',
+    'suggestions.recovery.hardTruths.0': 'Възстановяването се усеща бавно и трудно',
+    'suggestions.recovery.hardTruths.1': 'Имам отстъпления във възстановяването си',
+    'suggestions.recovery.hardTruths.2': 'Възстановяването изисква постоянна работа',
+    'suggestions.recovery.hardTruths.3': 'Все още обработвам това, което се случи',
+    'suggestions.recovery.hardTruths.4': 'Възстановяването се усеща претоварващо понякога',
+    'suggestions.recovery.goodFacts.0': 'Правя напредък във възстановяването',
+    'suggestions.recovery.goodFacts.1': 'Уча се на нови здрави модели',
+    'suggestions.recovery.goodFacts.2': 'Изграждам по-добър живот',
+    'suggestions.recovery.goodFacts.3': 'По-силен съм, отколкото мислех',
+    'suggestions.recovery.goodFacts.4': 'Създавам нова нормалност',
+    'suggestions.recovery.lessons.0': 'Възстановяването е възможно',
+    'suggestions.recovery.lessons.1': 'Мога да изградя живота си отново',
+    'suggestions.recovery.lessons.2': 'Всеки ден на възстановяване е победа',
+    'suggestions.recovery.lessons.3': 'Уча се да процъфтявам, а не само да оцелявам',
+    'suggestions.recovery.lessons.4': 'Възстановяването си струва усилията',
+    'suggestions.selfworth.hardTruths.0': 'Те унищожиха самооценката ми',
+    'suggestions.selfworth.hardTruths.1': 'Вярвах, че съм без стойност',
+    'suggestions.selfworth.hardTruths.2': 'Моята стойност беше свързана с тяхното одобрение',
+    'suggestions.selfworth.hardTruths.3': 'Загубих представа за собствената си стойност',
+    'suggestions.selfworth.hardTruths.4': 'Усетих се недостоен за любов и уважение',
+    'suggestions.selfworth.goodFacts.0': 'Възстановявам самооценката си',
+    'suggestions.selfworth.goodFacts.1': 'Уча се истинската си стойност',
+    'suggestions.selfworth.goodFacts.2': 'Моята стойност не се определя от тях',
+    'suggestions.selfworth.goodFacts.3': 'Откривам силните си страни',
+    'suggestions.selfworth.goodFacts.4': 'Достоен съм за любов и уважение',
+    'suggestions.selfworth.lessons.0': 'Самооценката ми идва отвътре',
+    'suggestions.selfworth.lessons.1': 'Аз съм ценен, независимо от тяхното мнение',
+    'suggestions.selfworth.lessons.2': 'Не се нуждая от тяхното потвърждение',
+    'suggestions.selfworth.lessons.3': 'Уча се да обичам себе си',
+    'suggestions.selfworth.lessons.4': 'Заслужавам добри неща в живота',
+    'suggestions.validation.hardTruths.0': 'Търсех потвърждение от тях постоянно',
+    'suggestions.validation.hardTruths.1': 'Имах нужда от тяхното одобрение, за да се чувствам добре',
+    'suggestions.validation.hardTruths.2': 'Самооценката ми зависи от тяхното потвърждение',
+    'suggestions.validation.hardTruths.3': 'Бях пристрастен към тяхното одобрение',
+    'suggestions.validation.hardTruths.4': 'Усетих се празен без тяхното потвърждение',
+    'suggestions.validation.goodFacts.0': 'Уча се да потвърждавам себе си',
+    'suggestions.validation.goodFacts.1': 'Вече не се нуждая от тяхното одобрение',
+    'suggestions.validation.goodFacts.2': 'Мога да намеря потвърждение отвътре',
+    'suggestions.validation.goodFacts.3': 'Изграждам самоувереност',
+    'suggestions.validation.goodFacts.4': 'Свободен съм от търсенето на тяхното потвърждение',
+    'suggestions.validation.lessons.0': 'Мога да потвърждавам себе си',
+    'suggestions.validation.lessons.1': 'Моята стойност не зависи от тяхното мнение',
+    'suggestions.validation.lessons.2': 'Уча се да бъда собствен източник на потвърждение',
+    'suggestions.validation.lessons.3': 'Не се нуждая от външно потвърждение',
+    'suggestions.validation.lessons.4': 'Здравата самооценка идва отвътре',
+    'suggestions.codependency.hardTruths.0': 'Загубих себе си във взаимоотношението',
+    'suggestions.codependency.hardTruths.1': 'Не можех да функционирам без тях',
+    'suggestions.codependency.hardTruths.2': 'Идентичността ми беше свързана с тях',
+    'suggestions.codependency.hardTruths.3': 'Осигурявах тяхното токсично поведение',
+    'suggestions.codependency.hardTruths.4': 'Жертвах себе си за взаимоотношението',
+    'suggestions.codependency.goodFacts.0': 'Уча се да бъда независим',
+    'suggestions.codependency.goodFacts.1': 'Преоткривам кой съм',
+    'suggestions.codependency.goodFacts.2': 'Мога да функционирам сам',
+    'suggestions.codependency.goodFacts.3': 'Изграждам здрави граници',
+    'suggestions.codependency.goodFacts.4': 'Уча се да приоритизирам себе си',
+    'suggestions.codependency.lessons.0': 'Мога да имам здрави взаимоотношения',
+    'suggestions.codependency.lessons.1': 'Идентичността ми е отделна от взаимоотношенията',
+    'suggestions.codependency.lessons.2': 'Не трябва да губя себе си, за да обичам',
+    'suggestions.codependency.lessons.3': 'Мога да бъда независим и във взаимоотношение',
+    'suggestions.codependency.lessons.4': 'Здравите взаимоотношения включват два цели човека',
+    'suggestions.toxic.hardTruths.0': 'Взаимоотношението беше токсично и вредно',
+    'suggestions.toxic.hardTruths.1': 'Останах в токсичността твърде дълго',
+    'suggestions.toxic.hardTruths.2': 'Токсичността стана нормална за мен',
+    'suggestions.toxic.hardTruths.3': 'Не разпознах колко токсично беше',
+    'suggestions.toxic.hardTruths.4': 'Токсичността увреди психическото ми здраве',
+    'suggestions.toxic.goodFacts.0': 'Свободен съм от токсичността',
+    'suggestions.toxic.goodFacts.1': 'Сега мога да разпознавам токсични модели',
+    'suggestions.toxic.goodFacts.2': 'Изграждам здрави взаимоотношения',
+    'suggestions.toxic.goodFacts.3': 'Изцелявам от токсичността',
+    'suggestions.toxic.goodFacts.4': 'Създавам живот без токсичност',
+    'suggestions.toxic.lessons.0': 'Заслужавам здрави, нетоксични взаимоотношения',
+    'suggestions.toxic.lessons.1': 'Токсичността не е нормална или приемлива',
+    'suggestions.toxic.lessons.2': 'Мога да напусна токсични ситуации',
+    'suggestions.toxic.lessons.3': 'Психическото ми здраве има значение',
+    'suggestions.toxic.lessons.4': 'Здравите взаимоотношения не се усещат токсични',
+    'suggestions.redflags.hardTruths.0': 'Игнорирах червените знамена рано',
+    'suggestions.redflags.hardTruths.1': 'Правях извинения за предупредителните знаци',
+    'suggestions.redflags.hardTruths.2': 'Червените знамена бяха очевидни, но ги игнорирах',
+    'suggestions.redflags.hardTruths.3': 'Мислех, че мога да ги променя',
+    'suggestions.redflags.hardTruths.4': 'Не се доверявах на инстинктите си за червените знамена',
+    'suggestions.redflags.goodFacts.0': 'Сега мога да разпознавам червените знамена',
+    'suggestions.redflags.goodFacts.1': 'Доверявам се на инстинктите си',
+    'suggestions.redflags.goodFacts.2': 'Няма да игнорирам предупредителните знаци отново',
+    'suggestions.redflags.goodFacts.3': 'Уча се да слушам червените знамена',
+    'suggestions.redflags.goodFacts.4': 'Мога да се защитя, като разпознавам червените знамена',
+    'suggestions.redflags.lessons.0': 'Червените знамена са предупреждения, които трябва да се зачитат',
+    'suggestions.redflags.lessons.1': 'Заслужавам да се доверявам на инстинктите си',
+    'suggestions.redflags.lessons.2': 'Мога да напусна при първия червен флаг',
+    'suggestions.redflags.lessons.3': 'Безопасността ми е на първо място',
+    'suggestions.redflags.lessons.4': 'Здравите взаимоотношения нямат големи червени знамена',
+    'suggestions.escape.hardTruths.0': 'Напускането изглеждаше невъзможно',
+    'suggestions.escape.hardTruths.1': 'Бях вкапан във взаимоотношението',
+    'suggestions.escape.hardTruths.2': 'Бягството изглеждаше твърде трудно',
+    'suggestions.escape.hardTruths.3': 'Страхувах се да напусна',
+    'suggestions.escape.hardTruths.4': 'Не знаех как да избягам',
+    'suggestions.escape.goodFacts.0': 'Намерих силата да избягам',
+    'suggestions.escape.goodFacts.1': 'Свободен съм от тази ситуация',
+    'suggestions.escape.goodFacts.2': 'Бягството беше най-доброто решение',
+    'suggestions.escape.goodFacts.3': 'Изграждам нов живот',
+    'suggestions.escape.goodFacts.4': 'В безопасност съм сега',
+    'suggestions.escape.lessons.0': 'Имах смелостта да напусна',
+    'suggestions.escape.lessons.1': 'Бягството беше необходимо за моето благополучие',
+    'suggestions.escape.lessons.2': 'Мога да създам по-добър живот',
+    'suggestions.escape.lessons.3': 'Напускането на токсични ситуации е смело',
+    'suggestions.escape.lessons.4': 'Заслужавам свобода и безопасност',
+    'suggestions.freedom.hardTruths.0': 'Не осъзнах колко вкапан бях',
+    'suggestions.freedom.hardTruths.1': 'Свободата се усещаше страшно в началото',
+    'suggestions.freedom.hardTruths.2': 'Трябваше да се науча да бъда свободен отново',
+    'suggestions.freedom.hardTruths.3': 'Свободата дойде с отговорност',
+    'suggestions.freedom.hardTruths.4': 'Страхувах се от собствената си свобода',
+    'suggestions.freedom.goodFacts.0': 'Приемам свободата си',
+    'suggestions.freedom.goodFacts.1': 'Свободата се усеща освобождаваща',
+    'suggestions.freedom.goodFacts.2': 'Сега мога да взимам собствени избори',
+    'suggestions.freedom.goodFacts.3': 'Уча се да се наслаждавам на независимост',
+    'suggestions.freedom.goodFacts.4': 'Свободата е подарък, който давам на себе си',
+    'suggestions.freedom.lessons.0': 'Заслужавам свобода в живота си',
+    'suggestions.freedom.lessons.1': 'Свободата ми позволява да бъда себе си',
+    'suggestions.freedom.lessons.2': 'Мога да живея живота на собствените си условия',
+    'suggestions.freedom.lessons.3': 'Свободата ми е ценна',
+    'suggestions.freedom.lessons.4': 'Здравите взаимоотношения уважават свободата',
+    'suggestions.liberation.hardTruths.0': 'Освобождението се усещаше претоварващо',
+    'suggestions.liberation.hardTruths.1': 'Трябваше да се науча да бъда независим',
+    'suggestions.liberation.hardTruths.2': 'Освобождението дойде с предизвикателства',
+    'suggestions.liberation.hardTruths.3': 'Страхувах се да бъда сам',
+    'suggestions.liberation.hardTruths.4': 'Освобождението се усещаше самотно в началото',
+    'suggestions.liberation.goodFacts.0': 'Изживявам истинско освобождение',
+    'suggestions.liberation.goodFacts.1': 'Освобождението е овластяващо',
+    'suggestions.liberation.goodFacts.2': 'Свободен съм да бъда себе си',
+    'suggestions.liberation.goodFacts.3': 'Изграждам освободен живот',
+    'suggestions.liberation.goodFacts.4': 'Откривам кой съм без тях',
+    'suggestions.liberation.lessons.0': 'Освобождението е моето право',
+    'suggestions.liberation.lessons.1': 'Мога да живея автентично сега',
+    'suggestions.liberation.lessons.2': 'Свободен съм от техния контрол',
+    'suggestions.liberation.lessons.3': 'Освобождението носи мир',
+    'suggestions.liberation.lessons.4': 'Заслужавам да живея освободен живот',
   },
 };
 

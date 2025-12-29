@@ -1595,6 +1595,1792 @@ const suggestionsByKeyword: Record<string, SuggestionKeys> = {
     ],
   },
 
+  // Friends and social connections
+  friends: {
+    hardTruths: [
+      'suggestions.friends.hardTruths.0',
+      'suggestions.friends.hardTruths.1',
+      'suggestions.friends.hardTruths.2',
+      'suggestions.friends.hardTruths.3',
+      'suggestions.friends.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.friends.goodFacts.0',
+      'suggestions.friends.goodFacts.1',
+      'suggestions.friends.goodFacts.2',
+      'suggestions.friends.goodFacts.3',
+      'suggestions.friends.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.friends.lessons.0',
+      'suggestions.friends.lessons.1',
+      'suggestions.friends.lessons.2',
+      'suggestions.friends.lessons.3',
+      'suggestions.friends.lessons.4',
+    ],
+  },
+
+  // Daily life activities
+  shower: {
+    hardTruths: [
+      'suggestions.shower.hardTruths.0',
+      'suggestions.shower.hardTruths.1',
+      'suggestions.shower.hardTruths.2',
+      'suggestions.shower.hardTruths.3',
+      'suggestions.shower.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.shower.goodFacts.0',
+      'suggestions.shower.goodFacts.1',
+      'suggestions.shower.goodFacts.2',
+      'suggestions.shower.goodFacts.3',
+      'suggestions.shower.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.shower.lessons.0',
+      'suggestions.shower.lessons.1',
+      'suggestions.shower.lessons.2',
+      'suggestions.shower.lessons.3',
+      'suggestions.shower.lessons.4',
+    ],
+  },
+
+  bed: {
+    hardTruths: [
+      'suggestions.bed.hardTruths.0',
+      'suggestions.bed.hardTruths.1',
+      'suggestions.bed.hardTruths.2',
+      'suggestions.bed.hardTruths.3',
+      'suggestions.bed.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.bed.goodFacts.0',
+      'suggestions.bed.goodFacts.1',
+      'suggestions.bed.goodFacts.2',
+      'suggestions.bed.goodFacts.3',
+      'suggestions.bed.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.bed.lessons.0',
+      'suggestions.bed.lessons.1',
+      'suggestions.bed.lessons.2',
+      'suggestions.bed.lessons.3',
+      'suggestions.bed.lessons.4',
+    ],
+  },
+
+  sleep: {
+    hardTruths: [
+      'suggestions.sleep.hardTruths.0',
+      'suggestions.sleep.hardTruths.1',
+      'suggestions.sleep.hardTruths.2',
+      'suggestions.sleep.hardTruths.3',
+      'suggestions.sleep.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.sleep.goodFacts.0',
+      'suggestions.sleep.goodFacts.1',
+      'suggestions.sleep.goodFacts.2',
+      'suggestions.sleep.goodFacts.3',
+      'suggestions.sleep.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.sleep.lessons.0',
+      'suggestions.sleep.lessons.1',
+      'suggestions.sleep.lessons.2',
+      'suggestions.sleep.lessons.3',
+      'suggestions.sleep.lessons.4',
+    ],
+  },
+
+  grocery: {
+    hardTruths: [
+      'suggestions.grocery.hardTruths.0',
+      'suggestions.grocery.hardTruths.1',
+      'suggestions.grocery.hardTruths.2',
+      'suggestions.grocery.hardTruths.3',
+      'suggestions.grocery.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.grocery.goodFacts.0',
+      'suggestions.grocery.goodFacts.1',
+      'suggestions.grocery.goodFacts.2',
+      'suggestions.grocery.goodFacts.3',
+      'suggestions.grocery.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.grocery.lessons.0',
+      'suggestions.grocery.lessons.1',
+      'suggestions.grocery.lessons.2',
+      'suggestions.grocery.lessons.3',
+      'suggestions.grocery.lessons.4',
+    ],
+  },
+
+  laundry: {
+    hardTruths: [
+      'suggestions.laundry.hardTruths.0',
+      'suggestions.laundry.hardTruths.1',
+      'suggestions.laundry.hardTruths.2',
+      'suggestions.laundry.hardTruths.3',
+      'suggestions.laundry.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.laundry.goodFacts.0',
+      'suggestions.laundry.goodFacts.1',
+      'suggestions.laundry.goodFacts.2',
+      'suggestions.laundry.goodFacts.3',
+      'suggestions.laundry.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.laundry.lessons.0',
+      'suggestions.laundry.lessons.1',
+      'suggestions.laundry.lessons.2',
+      'suggestions.laundry.lessons.3',
+      'suggestions.laundry.lessons.4',
+    ],
+  },
+
+  drive: {
+    hardTruths: [
+      'suggestions.drive.hardTruths.0',
+      'suggestions.drive.hardTruths.1',
+      'suggestions.drive.hardTruths.2',
+      'suggestions.drive.hardTruths.3',
+      'suggestions.drive.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.drive.goodFacts.0',
+      'suggestions.drive.goodFacts.1',
+      'suggestions.drive.goodFacts.2',
+      'suggestions.drive.goodFacts.3',
+      'suggestions.drive.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.drive.lessons.0',
+      'suggestions.drive.lessons.1',
+      'suggestions.drive.lessons.2',
+      'suggestions.drive.lessons.3',
+      'suggestions.drive.lessons.4',
+    ],
+  },
+
+  commute: {
+    hardTruths: [
+      'suggestions.commute.hardTruths.0',
+      'suggestions.commute.hardTruths.1',
+      'suggestions.commute.hardTruths.2',
+      'suggestions.commute.hardTruths.3',
+      'suggestions.commute.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.commute.goodFacts.0',
+      'suggestions.commute.goodFacts.1',
+      'suggestions.commute.goodFacts.2',
+      'suggestions.commute.goodFacts.3',
+      'suggestions.commute.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.commute.lessons.0',
+      'suggestions.commute.lessons.1',
+      'suggestions.commute.lessons.2',
+      'suggestions.commute.lessons.3',
+      'suggestions.commute.lessons.4',
+    ],
+  },
+
+  exercise: {
+    hardTruths: [
+      'suggestions.exercise.hardTruths.0',
+      'suggestions.exercise.hardTruths.1',
+      'suggestions.exercise.hardTruths.2',
+      'suggestions.exercise.hardTruths.3',
+      'suggestions.exercise.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.exercise.goodFacts.0',
+      'suggestions.exercise.goodFacts.1',
+      'suggestions.exercise.goodFacts.2',
+      'suggestions.exercise.goodFacts.3',
+      'suggestions.exercise.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.exercise.lessons.0',
+      'suggestions.exercise.lessons.1',
+      'suggestions.exercise.lessons.2',
+      'suggestions.exercise.lessons.3',
+      'suggestions.exercise.lessons.4',
+    ],
+  },
+
+  workout: {
+    hardTruths: [
+      'suggestions.workout.hardTruths.0',
+      'suggestions.workout.hardTruths.1',
+      'suggestions.workout.hardTruths.2',
+      'suggestions.workout.hardTruths.3',
+      'suggestions.workout.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.workout.goodFacts.0',
+      'suggestions.workout.goodFacts.1',
+      'suggestions.workout.goodFacts.2',
+      'suggestions.workout.goodFacts.3',
+      'suggestions.workout.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.workout.lessons.0',
+      'suggestions.workout.lessons.1',
+      'suggestions.workout.lessons.2',
+      'suggestions.workout.lessons.3',
+      'suggestions.workout.lessons.4',
+    ],
+  },
+
+  study: {
+    hardTruths: [
+      'suggestions.study.hardTruths.0',
+      'suggestions.study.hardTruths.1',
+      'suggestions.study.hardTruths.2',
+      'suggestions.study.hardTruths.3',
+      'suggestions.study.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.study.goodFacts.0',
+      'suggestions.study.goodFacts.1',
+      'suggestions.study.goodFacts.2',
+      'suggestions.study.goodFacts.3',
+      'suggestions.study.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.study.lessons.0',
+      'suggestions.study.lessons.1',
+      'suggestions.study.lessons.2',
+      'suggestions.study.lessons.3',
+      'suggestions.study.lessons.4',
+    ],
+  },
+
+  lunch: {
+    hardTruths: [
+      'suggestions.lunch.hardTruths.0',
+      'suggestions.lunch.hardTruths.1',
+      'suggestions.lunch.hardTruths.2',
+      'suggestions.lunch.hardTruths.3',
+      'suggestions.lunch.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.lunch.goodFacts.0',
+      'suggestions.lunch.goodFacts.1',
+      'suggestions.lunch.goodFacts.2',
+      'suggestions.lunch.goodFacts.3',
+      'suggestions.lunch.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.lunch.lessons.0',
+      'suggestions.lunch.lessons.1',
+      'suggestions.lunch.lessons.2',
+      'suggestions.lunch.lessons.3',
+      'suggestions.lunch.lessons.4',
+    ],
+  },
+
+  snack: {
+    hardTruths: [
+      'suggestions.snack.hardTruths.0',
+      'suggestions.snack.hardTruths.1',
+      'suggestions.snack.hardTruths.2',
+      'suggestions.snack.hardTruths.3',
+      'suggestions.snack.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.snack.goodFacts.0',
+      'suggestions.snack.goodFacts.1',
+      'suggestions.snack.goodFacts.2',
+      'suggestions.snack.goodFacts.3',
+      'suggestions.snack.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.snack.lessons.0',
+      'suggestions.snack.lessons.1',
+      'suggestions.snack.lessons.2',
+      'suggestions.snack.lessons.3',
+      'suggestions.snack.lessons.4',
+    ],
+  },
+
+  tea: {
+    hardTruths: [
+      'suggestions.tea.hardTruths.0',
+      'suggestions.tea.hardTruths.1',
+      'suggestions.tea.hardTruths.2',
+      'suggestions.tea.hardTruths.3',
+      'suggestions.tea.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.tea.goodFacts.0',
+      'suggestions.tea.goodFacts.1',
+      'suggestions.tea.goodFacts.2',
+      'suggestions.tea.goodFacts.3',
+      'suggestions.tea.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.tea.lessons.0',
+      'suggestions.tea.lessons.1',
+      'suggestions.tea.lessons.2',
+      'suggestions.tea.lessons.3',
+      'suggestions.tea.lessons.4',
+    ],
+  },
+
+  // Reunion and gatherings
+  reunion: {
+    hardTruths: [
+      'suggestions.reunion.hardTruths.0',
+      'suggestions.reunion.hardTruths.1',
+      'suggestions.reunion.hardTruths.2',
+      'suggestions.reunion.hardTruths.3',
+      'suggestions.reunion.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.reunion.goodFacts.0',
+      'suggestions.reunion.goodFacts.1',
+      'suggestions.reunion.goodFacts.2',
+      'suggestions.reunion.goodFacts.3',
+      'suggestions.reunion.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.reunion.lessons.0',
+      'suggestions.reunion.lessons.1',
+      'suggestions.reunion.lessons.2',
+      'suggestions.reunion.lessons.3',
+      'suggestions.reunion.lessons.4',
+    ],
+  },
+
+  // More daily life activities
+  cleaning: {
+    hardTruths: [
+      'suggestions.cleaning.hardTruths.0',
+      'suggestions.cleaning.hardTruths.1',
+      'suggestions.cleaning.hardTruths.2',
+      'suggestions.cleaning.hardTruths.3',
+      'suggestions.cleaning.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.cleaning.goodFacts.0',
+      'suggestions.cleaning.goodFacts.1',
+      'suggestions.cleaning.goodFacts.2',
+      'suggestions.cleaning.goodFacts.3',
+      'suggestions.cleaning.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.cleaning.lessons.0',
+      'suggestions.cleaning.lessons.1',
+      'suggestions.cleaning.lessons.2',
+      'suggestions.cleaning.lessons.3',
+      'suggestions.cleaning.lessons.4',
+    ],
+  },
+
+  dishes: {
+    hardTruths: [
+      'suggestions.dishes.hardTruths.0',
+      'suggestions.dishes.hardTruths.1',
+      'suggestions.dishes.hardTruths.2',
+      'suggestions.dishes.hardTruths.3',
+      'suggestions.dishes.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.dishes.goodFacts.0',
+      'suggestions.dishes.goodFacts.1',
+      'suggestions.dishes.goodFacts.2',
+      'suggestions.dishes.goodFacts.3',
+      'suggestions.dishes.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.dishes.lessons.0',
+      'suggestions.dishes.lessons.1',
+      'suggestions.dishes.lessons.2',
+      'suggestions.dishes.lessons.3',
+      'suggestions.dishes.lessons.4',
+    ],
+  },
+
+  errands: {
+    hardTruths: [
+      'suggestions.errands.hardTruths.0',
+      'suggestions.errands.hardTruths.1',
+      'suggestions.errands.hardTruths.2',
+      'suggestions.errands.hardTruths.3',
+      'suggestions.errands.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.errands.goodFacts.0',
+      'suggestions.errands.goodFacts.1',
+      'suggestions.errands.goodFacts.2',
+      'suggestions.errands.goodFacts.3',
+      'suggestions.errands.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.errands.lessons.0',
+      'suggestions.errands.lessons.1',
+      'suggestions.errands.lessons.2',
+      'suggestions.errands.lessons.3',
+      'suggestions.errands.lessons.4',
+    ],
+  },
+
+  chores: {
+    hardTruths: [
+      'suggestions.chores.hardTruths.0',
+      'suggestions.chores.hardTruths.1',
+      'suggestions.chores.hardTruths.2',
+      'suggestions.chores.hardTruths.3',
+      'suggestions.chores.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.chores.goodFacts.0',
+      'suggestions.chores.goodFacts.1',
+      'suggestions.chores.goodFacts.2',
+      'suggestions.chores.goodFacts.3',
+      'suggestions.chores.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.chores.lessons.0',
+      'suggestions.chores.lessons.1',
+      'suggestions.chores.lessons.2',
+      'suggestions.chores.lessons.3',
+      'suggestions.chores.lessons.4',
+    ],
+  },
+
+  neighborhood: {
+    hardTruths: [
+      'suggestions.neighborhood.hardTruths.0',
+      'suggestions.neighborhood.hardTruths.1',
+      'suggestions.neighborhood.hardTruths.2',
+      'suggestions.neighborhood.hardTruths.3',
+      'suggestions.neighborhood.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.neighborhood.goodFacts.0',
+      'suggestions.neighborhood.goodFacts.1',
+      'suggestions.neighborhood.goodFacts.2',
+      'suggestions.neighborhood.goodFacts.3',
+      'suggestions.neighborhood.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.neighborhood.lessons.0',
+      'suggestions.neighborhood.lessons.1',
+      'suggestions.neighborhood.lessons.2',
+      'suggestions.neighborhood.lessons.3',
+      'suggestions.neighborhood.lessons.4',
+    ],
+  },
+
+  street: {
+    hardTruths: [
+      'suggestions.street.hardTruths.0',
+      'suggestions.street.hardTruths.1',
+      'suggestions.street.hardTruths.2',
+      'suggestions.street.hardTruths.3',
+      'suggestions.street.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.street.goodFacts.0',
+      'suggestions.street.goodFacts.1',
+      'suggestions.street.goodFacts.2',
+      'suggestions.street.goodFacts.3',
+      'suggestions.street.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.street.lessons.0',
+      'suggestions.street.lessons.1',
+      'suggestions.street.lessons.2',
+      'suggestions.street.lessons.3',
+      'suggestions.street.lessons.4',
+    ],
+  },
+
+  store: {
+    hardTruths: [
+      'suggestions.store.hardTruths.0',
+      'suggestions.store.hardTruths.1',
+      'suggestions.store.hardTruths.2',
+      'suggestions.store.hardTruths.3',
+      'suggestions.store.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.store.goodFacts.0',
+      'suggestions.store.goodFacts.1',
+      'suggestions.store.goodFacts.2',
+      'suggestions.store.goodFacts.3',
+      'suggestions.store.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.store.lessons.0',
+      'suggestions.store.lessons.1',
+      'suggestions.store.lessons.2',
+      'suggestions.store.lessons.3',
+      'suggestions.store.lessons.4',
+    ],
+  },
+
+  bank: {
+    hardTruths: [
+      'suggestions.bank.hardTruths.0',
+      'suggestions.bank.hardTruths.1',
+      'suggestions.bank.hardTruths.2',
+      'suggestions.bank.hardTruths.3',
+      'suggestions.bank.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.bank.goodFacts.0',
+      'suggestions.bank.goodFacts.1',
+      'suggestions.bank.goodFacts.2',
+      'suggestions.bank.goodFacts.3',
+      'suggestions.bank.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.bank.lessons.0',
+      'suggestions.bank.lessons.1',
+      'suggestions.bank.lessons.2',
+      'suggestions.bank.lessons.3',
+      'suggestions.bank.lessons.4',
+    ],
+  },
+
+  pharmacy: {
+    hardTruths: [
+      'suggestions.pharmacy.hardTruths.0',
+      'suggestions.pharmacy.hardTruths.1',
+      'suggestions.pharmacy.hardTruths.2',
+      'suggestions.pharmacy.hardTruths.3',
+      'suggestions.pharmacy.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.pharmacy.goodFacts.0',
+      'suggestions.pharmacy.goodFacts.1',
+      'suggestions.pharmacy.goodFacts.2',
+      'suggestions.pharmacy.goodFacts.3',
+      'suggestions.pharmacy.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.pharmacy.lessons.0',
+      'suggestions.pharmacy.lessons.1',
+      'suggestions.pharmacy.lessons.2',
+      'suggestions.pharmacy.lessons.3',
+      'suggestions.pharmacy.lessons.4',
+    ],
+  },
+
+  doctor: {
+    hardTruths: [
+      'suggestions.doctor.hardTruths.0',
+      'suggestions.doctor.hardTruths.1',
+      'suggestions.doctor.hardTruths.2',
+      'suggestions.doctor.hardTruths.3',
+      'suggestions.doctor.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.doctor.goodFacts.0',
+      'suggestions.doctor.goodFacts.1',
+      'suggestions.doctor.goodFacts.2',
+      'suggestions.doctor.goodFacts.3',
+      'suggestions.doctor.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.doctor.lessons.0',
+      'suggestions.doctor.lessons.1',
+      'suggestions.doctor.lessons.2',
+      'suggestions.doctor.lessons.3',
+      'suggestions.doctor.lessons.4',
+    ],
+  },
+
+  appointment: {
+    hardTruths: [
+      'suggestions.appointment.hardTruths.0',
+      'suggestions.appointment.hardTruths.1',
+      'suggestions.appointment.hardTruths.2',
+      'suggestions.appointment.hardTruths.3',
+      'suggestions.appointment.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.appointment.goodFacts.0',
+      'suggestions.appointment.goodFacts.1',
+      'suggestions.appointment.goodFacts.2',
+      'suggestions.appointment.goodFacts.3',
+      'suggestions.appointment.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.appointment.lessons.0',
+      'suggestions.appointment.lessons.1',
+      'suggestions.appointment.lessons.2',
+      'suggestions.appointment.lessons.3',
+      'suggestions.appointment.lessons.4',
+    ],
+  },
+
+  // More daily life - meals and routines
+  breakfast: {
+    hardTruths: [
+      'suggestions.breakfast.hardTruths.0',
+      'suggestions.breakfast.hardTruths.1',
+      'suggestions.breakfast.hardTruths.2',
+      'suggestions.breakfast.hardTruths.3',
+      'suggestions.breakfast.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.breakfast.goodFacts.0',
+      'suggestions.breakfast.goodFacts.1',
+      'suggestions.breakfast.goodFacts.2',
+      'suggestions.breakfast.goodFacts.3',
+      'suggestions.breakfast.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.breakfast.lessons.0',
+      'suggestions.breakfast.lessons.1',
+      'suggestions.breakfast.lessons.2',
+      'suggestions.breakfast.lessons.3',
+      'suggestions.breakfast.lessons.4',
+    ],
+  },
+
+  dinner: {
+    hardTruths: [
+      'suggestions.dinner.hardTruths.0',
+      'suggestions.dinner.hardTruths.1',
+      'suggestions.dinner.hardTruths.2',
+      'suggestions.dinner.hardTruths.3',
+      'suggestions.dinner.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.dinner.goodFacts.0',
+      'suggestions.dinner.goodFacts.1',
+      'suggestions.dinner.goodFacts.2',
+      'suggestions.dinner.goodFacts.3',
+      'suggestions.dinner.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.dinner.lessons.0',
+      'suggestions.dinner.lessons.1',
+      'suggestions.dinner.lessons.2',
+      'suggestions.dinner.lessons.3',
+      'suggestions.dinner.lessons.4',
+    ],
+  },
+
+  cooking: {
+    hardTruths: [
+      'suggestions.cooking.hardTruths.0',
+      'suggestions.cooking.hardTruths.1',
+      'suggestions.cooking.hardTruths.2',
+      'suggestions.cooking.hardTruths.3',
+      'suggestions.cooking.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.cooking.goodFacts.0',
+      'suggestions.cooking.goodFacts.1',
+      'suggestions.cooking.goodFacts.2',
+      'suggestions.cooking.goodFacts.3',
+      'suggestions.cooking.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.cooking.lessons.0',
+      'suggestions.cooking.lessons.1',
+      'suggestions.cooking.lessons.2',
+      'suggestions.cooking.lessons.3',
+      'suggestions.cooking.lessons.4',
+    ],
+  },
+
+  morning: {
+    hardTruths: [
+      'suggestions.morning.hardTruths.0',
+      'suggestions.morning.hardTruths.1',
+      'suggestions.morning.hardTruths.2',
+      'suggestions.morning.hardTruths.3',
+      'suggestions.morning.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.morning.goodFacts.0',
+      'suggestions.morning.goodFacts.1',
+      'suggestions.morning.goodFacts.2',
+      'suggestions.morning.goodFacts.3',
+      'suggestions.morning.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.morning.lessons.0',
+      'suggestions.morning.lessons.1',
+      'suggestions.morning.lessons.2',
+      'suggestions.morning.lessons.3',
+      'suggestions.morning.lessons.4',
+    ],
+  },
+
+  evening: {
+    hardTruths: [
+      'suggestions.evening.hardTruths.0',
+      'suggestions.evening.hardTruths.1',
+      'suggestions.evening.hardTruths.2',
+      'suggestions.evening.hardTruths.3',
+      'suggestions.evening.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.evening.goodFacts.0',
+      'suggestions.evening.goodFacts.1',
+      'suggestions.evening.goodFacts.2',
+      'suggestions.evening.goodFacts.3',
+      'suggestions.evening.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.evening.lessons.0',
+      'suggestions.evening.lessons.1',
+      'suggestions.evening.lessons.2',
+      'suggestions.evening.lessons.3',
+      'suggestions.evening.lessons.4',
+    ],
+  },
+
+  night: {
+    hardTruths: [
+      'suggestions.night.hardTruths.0',
+      'suggestions.night.hardTruths.1',
+      'suggestions.night.hardTruths.2',
+      'suggestions.night.hardTruths.3',
+      'suggestions.night.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.night.goodFacts.0',
+      'suggestions.night.goodFacts.1',
+      'suggestions.night.goodFacts.2',
+      'suggestions.night.goodFacts.3',
+      'suggestions.night.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.night.lessons.0',
+      'suggestions.night.lessons.1',
+      'suggestions.night.lessons.2',
+      'suggestions.night.lessons.3',
+      'suggestions.night.lessons.4',
+    ],
+  },
+
+  // Places and spaces
+  kitchen: {
+    hardTruths: [
+      'suggestions.kitchen.hardTruths.0',
+      'suggestions.kitchen.hardTruths.1',
+      'suggestions.kitchen.hardTruths.2',
+      'suggestions.kitchen.hardTruths.3',
+      'suggestions.kitchen.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.kitchen.goodFacts.0',
+      'suggestions.kitchen.goodFacts.1',
+      'suggestions.kitchen.goodFacts.2',
+      'suggestions.kitchen.goodFacts.3',
+      'suggestions.kitchen.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.kitchen.lessons.0',
+      'suggestions.kitchen.lessons.1',
+      'suggestions.kitchen.lessons.2',
+      'suggestions.kitchen.lessons.3',
+      'suggestions.kitchen.lessons.4',
+    ],
+  },
+
+  bathroom: {
+    hardTruths: [
+      'suggestions.bathroom.hardTruths.0',
+      'suggestions.bathroom.hardTruths.1',
+      'suggestions.bathroom.hardTruths.2',
+      'suggestions.bathroom.hardTruths.3',
+      'suggestions.bathroom.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.bathroom.goodFacts.0',
+      'suggestions.bathroom.goodFacts.1',
+      'suggestions.bathroom.goodFacts.2',
+      'suggestions.bathroom.goodFacts.3',
+      'suggestions.bathroom.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.bathroom.lessons.0',
+      'suggestions.bathroom.lessons.1',
+      'suggestions.bathroom.lessons.2',
+      'suggestions.bathroom.lessons.3',
+      'suggestions.bathroom.lessons.4',
+    ],
+  },
+
+  office: {
+    hardTruths: [
+      'suggestions.office.hardTruths.0',
+      'suggestions.office.hardTruths.1',
+      'suggestions.office.hardTruths.2',
+      'suggestions.office.hardTruths.3',
+      'suggestions.office.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.office.goodFacts.0',
+      'suggestions.office.goodFacts.1',
+      'suggestions.office.goodFacts.2',
+      'suggestions.office.goodFacts.3',
+      'suggestions.office.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.office.lessons.0',
+      'suggestions.office.lessons.1',
+      'suggestions.office.lessons.2',
+      'suggestions.office.lessons.3',
+      'suggestions.office.lessons.4',
+    ],
+  },
+
+  library: {
+    hardTruths: [
+      'suggestions.library.hardTruths.0',
+      'suggestions.library.hardTruths.1',
+      'suggestions.library.hardTruths.2',
+      'suggestions.library.hardTruths.3',
+      'suggestions.library.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.library.goodFacts.0',
+      'suggestions.library.goodFacts.1',
+      'suggestions.library.goodFacts.2',
+      'suggestions.library.goodFacts.3',
+      'suggestions.library.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.library.lessons.0',
+      'suggestions.library.lessons.1',
+      'suggestions.library.lessons.2',
+      'suggestions.library.lessons.3',
+      'suggestions.library.lessons.4',
+    ],
+  },
+
+  cafe: {
+    hardTruths: [
+      'suggestions.cafe.hardTruths.0',
+      'suggestions.cafe.hardTruths.1',
+      'suggestions.cafe.hardTruths.2',
+      'suggestions.cafe.hardTruths.3',
+      'suggestions.cafe.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.cafe.goodFacts.0',
+      'suggestions.cafe.goodFacts.1',
+      'suggestions.cafe.goodFacts.2',
+      'suggestions.cafe.goodFacts.3',
+      'suggestions.cafe.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.cafe.lessons.0',
+      'suggestions.cafe.lessons.1',
+      'suggestions.cafe.lessons.2',
+      'suggestions.cafe.lessons.3',
+      'suggestions.cafe.lessons.4',
+    ],
+  },
+
+  // More activities
+  reading: {
+    hardTruths: [
+      'suggestions.reading.hardTruths.0',
+      'suggestions.reading.hardTruths.1',
+      'suggestions.reading.hardTruths.2',
+      'suggestions.reading.hardTruths.3',
+      'suggestions.reading.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.reading.goodFacts.0',
+      'suggestions.reading.goodFacts.1',
+      'suggestions.reading.goodFacts.2',
+      'suggestions.reading.goodFacts.3',
+      'suggestions.reading.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.reading.lessons.0',
+      'suggestions.reading.lessons.1',
+      'suggestions.reading.lessons.2',
+      'suggestions.reading.lessons.3',
+      'suggestions.reading.lessons.4',
+    ],
+  },
+
+  watching: {
+    hardTruths: [
+      'suggestions.watching.hardTruths.0',
+      'suggestions.watching.hardTruths.1',
+      'suggestions.watching.hardTruths.2',
+      'suggestions.watching.hardTruths.3',
+      'suggestions.watching.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.watching.goodFacts.0',
+      'suggestions.watching.goodFacts.1',
+      'suggestions.watching.goodFacts.2',
+      'suggestions.watching.goodFacts.3',
+      'suggestions.watching.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.watching.lessons.0',
+      'suggestions.watching.lessons.1',
+      'suggestions.watching.lessons.2',
+      'suggestions.watching.lessons.3',
+      'suggestions.watching.lessons.4',
+    ],
+  },
+
+  listening: {
+    hardTruths: [
+      'suggestions.listening.hardTruths.0',
+      'suggestions.listening.hardTruths.1',
+      'suggestions.listening.hardTruths.2',
+      'suggestions.listening.hardTruths.3',
+      'suggestions.listening.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.listening.goodFacts.0',
+      'suggestions.listening.goodFacts.1',
+      'suggestions.listening.goodFacts.2',
+      'suggestions.listening.goodFacts.3',
+      'suggestions.listening.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.listening.lessons.0',
+      'suggestions.listening.lessons.1',
+      'suggestions.listening.lessons.2',
+      'suggestions.listening.lessons.3',
+      'suggestions.listening.lessons.4',
+    ],
+  },
+
+  conversation: {
+    hardTruths: [
+      'suggestions.conversation.hardTruths.0',
+      'suggestions.conversation.hardTruths.1',
+      'suggestions.conversation.hardTruths.2',
+      'suggestions.conversation.hardTruths.3',
+      'suggestions.conversation.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.conversation.goodFacts.0',
+      'suggestions.conversation.goodFacts.1',
+      'suggestions.conversation.goodFacts.2',
+      'suggestions.conversation.goodFacts.3',
+      'suggestions.conversation.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.conversation.lessons.0',
+      'suggestions.conversation.lessons.1',
+      'suggestions.conversation.lessons.2',
+      'suggestions.conversation.lessons.3',
+      'suggestions.conversation.lessons.4',
+    ],
+  },
+
+  meeting: {
+    hardTruths: [
+      'suggestions.meeting.hardTruths.0',
+      'suggestions.meeting.hardTruths.1',
+      'suggestions.meeting.hardTruths.2',
+      'suggestions.meeting.hardTruths.3',
+      'suggestions.meeting.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.meeting.goodFacts.0',
+      'suggestions.meeting.goodFacts.1',
+      'suggestions.meeting.goodFacts.2',
+      'suggestions.meeting.goodFacts.3',
+      'suggestions.meeting.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.meeting.lessons.0',
+      'suggestions.meeting.lessons.1',
+      'suggestions.meeting.lessons.2',
+      'suggestions.meeting.lessons.3',
+      'suggestions.meeting.lessons.4',
+    ],
+  },
+
+  // Transportation
+  bus: {
+    hardTruths: [
+      'suggestions.bus.hardTruths.0',
+      'suggestions.bus.hardTruths.1',
+      'suggestions.bus.hardTruths.2',
+      'suggestions.bus.hardTruths.3',
+      'suggestions.bus.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.bus.goodFacts.0',
+      'suggestions.bus.goodFacts.1',
+      'suggestions.bus.goodFacts.2',
+      'suggestions.bus.goodFacts.3',
+      'suggestions.bus.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.bus.lessons.0',
+      'suggestions.bus.lessons.1',
+      'suggestions.bus.lessons.2',
+      'suggestions.bus.lessons.3',
+      'suggestions.bus.lessons.4',
+    ],
+  },
+
+  train: {
+    hardTruths: [
+      'suggestions.train.hardTruths.0',
+      'suggestions.train.hardTruths.1',
+      'suggestions.train.hardTruths.2',
+      'suggestions.train.hardTruths.3',
+      'suggestions.train.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.train.goodFacts.0',
+      'suggestions.train.goodFacts.1',
+      'suggestions.train.goodFacts.2',
+      'suggestions.train.goodFacts.3',
+      'suggestions.train.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.train.lessons.0',
+      'suggestions.train.lessons.1',
+      'suggestions.train.lessons.2',
+      'suggestions.train.lessons.3',
+      'suggestions.train.lessons.4',
+    ],
+  },
+
+  bike: {
+    hardTruths: [
+      'suggestions.bike.hardTruths.0',
+      'suggestions.bike.hardTruths.1',
+      'suggestions.bike.hardTruths.2',
+      'suggestions.bike.hardTruths.3',
+      'suggestions.bike.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.bike.goodFacts.0',
+      'suggestions.bike.goodFacts.1',
+      'suggestions.bike.goodFacts.2',
+      'suggestions.bike.goodFacts.3',
+      'suggestions.bike.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.bike.lessons.0',
+      'suggestions.bike.lessons.1',
+      'suggestions.bike.lessons.2',
+      'suggestions.bike.lessons.3',
+      'suggestions.bike.lessons.4',
+    ],
+  },
+
+  // More hobbies and activities
+  painting: {
+    hardTruths: [
+      'suggestions.painting.hardTruths.0',
+      'suggestions.painting.hardTruths.1',
+      'suggestions.painting.hardTruths.2',
+      'suggestions.painting.hardTruths.3',
+      'suggestions.painting.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.painting.goodFacts.0',
+      'suggestions.painting.goodFacts.1',
+      'suggestions.painting.goodFacts.2',
+      'suggestions.painting.goodFacts.3',
+      'suggestions.painting.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.painting.lessons.0',
+      'suggestions.painting.lessons.1',
+      'suggestions.painting.lessons.2',
+      'suggestions.painting.lessons.3',
+      'suggestions.painting.lessons.4',
+    ],
+  },
+
+  drawing: {
+    hardTruths: [
+      'suggestions.drawing.hardTruths.0',
+      'suggestions.drawing.hardTruths.1',
+      'suggestions.drawing.hardTruths.2',
+      'suggestions.drawing.hardTruths.3',
+      'suggestions.drawing.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.drawing.goodFacts.0',
+      'suggestions.drawing.goodFacts.1',
+      'suggestions.drawing.goodFacts.2',
+      'suggestions.drawing.goodFacts.3',
+      'suggestions.drawing.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.drawing.lessons.0',
+      'suggestions.drawing.lessons.1',
+      'suggestions.drawing.lessons.2',
+      'suggestions.drawing.lessons.3',
+      'suggestions.drawing.lessons.4',
+    ],
+  },
+
+  dancing: {
+    hardTruths: [
+      'suggestions.dancing.hardTruths.0',
+      'suggestions.dancing.hardTruths.1',
+      'suggestions.dancing.hardTruths.2',
+      'suggestions.dancing.hardTruths.3',
+      'suggestions.dancing.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.dancing.goodFacts.0',
+      'suggestions.dancing.goodFacts.1',
+      'suggestions.dancing.goodFacts.2',
+      'suggestions.dancing.goodFacts.3',
+      'suggestions.dancing.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.dancing.lessons.0',
+      'suggestions.dancing.lessons.1',
+      'suggestions.dancing.lessons.2',
+      'suggestions.dancing.lessons.3',
+      'suggestions.dancing.lessons.4',
+    ],
+  },
+
+  singing: {
+    hardTruths: [
+      'suggestions.singing.hardTruths.0',
+      'suggestions.singing.hardTruths.1',
+      'suggestions.singing.hardTruths.2',
+      'suggestions.singing.hardTruths.3',
+      'suggestions.singing.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.singing.goodFacts.0',
+      'suggestions.singing.goodFacts.1',
+      'suggestions.singing.goodFacts.2',
+      'suggestions.singing.goodFacts.3',
+      'suggestions.singing.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.singing.lessons.0',
+      'suggestions.singing.lessons.1',
+      'suggestions.singing.lessons.2',
+      'suggestions.singing.lessons.3',
+      'suggestions.singing.lessons.4',
+    ],
+  },
+
+  baking: {
+    hardTruths: [
+      'suggestions.baking.hardTruths.0',
+      'suggestions.baking.hardTruths.1',
+      'suggestions.baking.hardTruths.2',
+      'suggestions.baking.hardTruths.3',
+      'suggestions.baking.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.baking.goodFacts.0',
+      'suggestions.baking.goodFacts.1',
+      'suggestions.baking.goodFacts.2',
+      'suggestions.baking.goodFacts.3',
+      'suggestions.baking.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.baking.lessons.0',
+      'suggestions.baking.lessons.1',
+      'suggestions.baking.lessons.2',
+      'suggestions.baking.lessons.3',
+      'suggestions.baking.lessons.4',
+    ],
+  },
+
+  // Toxic relationship patterns and experiences
+  manipulation: {
+    hardTruths: [
+      'suggestions.manipulation.hardTruths.0',
+      'suggestions.manipulation.hardTruths.1',
+      'suggestions.manipulation.hardTruths.2',
+      'suggestions.manipulation.hardTruths.3',
+      'suggestions.manipulation.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.manipulation.goodFacts.0',
+      'suggestions.manipulation.goodFacts.1',
+      'suggestions.manipulation.goodFacts.2',
+      'suggestions.manipulation.goodFacts.3',
+      'suggestions.manipulation.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.manipulation.lessons.0',
+      'suggestions.manipulation.lessons.1',
+      'suggestions.manipulation.lessons.2',
+      'suggestions.manipulation.lessons.3',
+      'suggestions.manipulation.lessons.4',
+    ],
+  },
+
+  gaslighting: {
+    hardTruths: [
+      'suggestions.gaslighting.hardTruths.0',
+      'suggestions.gaslighting.hardTruths.1',
+      'suggestions.gaslighting.hardTruths.2',
+      'suggestions.gaslighting.hardTruths.3',
+      'suggestions.gaslighting.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.gaslighting.goodFacts.0',
+      'suggestions.gaslighting.goodFacts.1',
+      'suggestions.gaslighting.goodFacts.2',
+      'suggestions.gaslighting.goodFacts.3',
+      'suggestions.gaslighting.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.gaslighting.lessons.0',
+      'suggestions.gaslighting.lessons.1',
+      'suggestions.gaslighting.lessons.2',
+      'suggestions.gaslighting.lessons.3',
+      'suggestions.gaslighting.lessons.4',
+    ],
+  },
+
+  control: {
+    hardTruths: [
+      'suggestions.control.hardTruths.0',
+      'suggestions.control.hardTruths.1',
+      'suggestions.control.hardTruths.2',
+      'suggestions.control.hardTruths.3',
+      'suggestions.control.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.control.goodFacts.0',
+      'suggestions.control.goodFacts.1',
+      'suggestions.control.goodFacts.2',
+      'suggestions.control.goodFacts.3',
+      'suggestions.control.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.control.lessons.0',
+      'suggestions.control.lessons.1',
+      'suggestions.control.lessons.2',
+      'suggestions.control.lessons.3',
+      'suggestions.control.lessons.4',
+    ],
+  },
+
+  boundaries: {
+    hardTruths: [
+      'suggestions.boundaries.hardTruths.0',
+      'suggestions.boundaries.hardTruths.1',
+      'suggestions.boundaries.hardTruths.2',
+      'suggestions.boundaries.hardTruths.3',
+      'suggestions.boundaries.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.boundaries.goodFacts.0',
+      'suggestions.boundaries.goodFacts.1',
+      'suggestions.boundaries.goodFacts.2',
+      'suggestions.boundaries.goodFacts.3',
+      'suggestions.boundaries.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.boundaries.lessons.0',
+      'suggestions.boundaries.lessons.1',
+      'suggestions.boundaries.lessons.2',
+      'suggestions.boundaries.lessons.3',
+      'suggestions.boundaries.lessons.4',
+    ],
+  },
+
+  guilt: {
+    hardTruths: [
+      'suggestions.guilt.hardTruths.0',
+      'suggestions.guilt.hardTruths.1',
+      'suggestions.guilt.hardTruths.2',
+      'suggestions.guilt.hardTruths.3',
+      'suggestions.guilt.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.guilt.goodFacts.0',
+      'suggestions.guilt.goodFacts.1',
+      'suggestions.guilt.goodFacts.2',
+      'suggestions.guilt.goodFacts.3',
+      'suggestions.guilt.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.guilt.lessons.0',
+      'suggestions.guilt.lessons.1',
+      'suggestions.guilt.lessons.2',
+      'suggestions.guilt.lessons.3',
+      'suggestions.guilt.lessons.4',
+    ],
+  },
+
+  blame: {
+    hardTruths: [
+      'suggestions.blame.hardTruths.0',
+      'suggestions.blame.hardTruths.1',
+      'suggestions.blame.hardTruths.2',
+      'suggestions.blame.hardTruths.3',
+      'suggestions.blame.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.blame.goodFacts.0',
+      'suggestions.blame.goodFacts.1',
+      'suggestions.blame.goodFacts.2',
+      'suggestions.blame.goodFacts.3',
+      'suggestions.blame.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.blame.lessons.0',
+      'suggestions.blame.lessons.1',
+      'suggestions.blame.lessons.2',
+      'suggestions.blame.lessons.3',
+      'suggestions.blame.lessons.4',
+    ],
+  },
+
+  criticism: {
+    hardTruths: [
+      'suggestions.criticism.hardTruths.0',
+      'suggestions.criticism.hardTruths.1',
+      'suggestions.criticism.hardTruths.2',
+      'suggestions.criticism.hardTruths.3',
+      'suggestions.criticism.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.criticism.goodFacts.0',
+      'suggestions.criticism.goodFacts.1',
+      'suggestions.criticism.goodFacts.2',
+      'suggestions.criticism.goodFacts.3',
+      'suggestions.criticism.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.criticism.lessons.0',
+      'suggestions.criticism.lessons.1',
+      'suggestions.criticism.lessons.2',
+      'suggestions.criticism.lessons.3',
+      'suggestions.criticism.lessons.4',
+    ],
+  },
+
+  isolation: {
+    hardTruths: [
+      'suggestions.isolation.hardTruths.0',
+      'suggestions.isolation.hardTruths.1',
+      'suggestions.isolation.hardTruths.2',
+      'suggestions.isolation.hardTruths.3',
+      'suggestions.isolation.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.isolation.goodFacts.0',
+      'suggestions.isolation.goodFacts.1',
+      'suggestions.isolation.goodFacts.2',
+      'suggestions.isolation.goodFacts.3',
+      'suggestions.isolation.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.isolation.lessons.0',
+      'suggestions.isolation.lessons.1',
+      'suggestions.isolation.lessons.2',
+      'suggestions.isolation.lessons.3',
+      'suggestions.isolation.lessons.4',
+    ],
+  },
+
+  jealousy: {
+    hardTruths: [
+      'suggestions.jealousy.hardTruths.0',
+      'suggestions.jealousy.hardTruths.1',
+      'suggestions.jealousy.hardTruths.2',
+      'suggestions.jealousy.hardTruths.3',
+      'suggestions.jealousy.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.jealousy.goodFacts.0',
+      'suggestions.jealousy.goodFacts.1',
+      'suggestions.jealousy.goodFacts.2',
+      'suggestions.jealousy.goodFacts.3',
+      'suggestions.jealousy.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.jealousy.lessons.0',
+      'suggestions.jealousy.lessons.1',
+      'suggestions.jealousy.lessons.2',
+      'suggestions.jealousy.lessons.3',
+      'suggestions.jealousy.lessons.4',
+    ],
+  },
+
+  possessiveness: {
+    hardTruths: [
+      'suggestions.possessiveness.hardTruths.0',
+      'suggestions.possessiveness.hardTruths.1',
+      'suggestions.possessiveness.hardTruths.2',
+      'suggestions.possessiveness.hardTruths.3',
+      'suggestions.possessiveness.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.possessiveness.goodFacts.0',
+      'suggestions.possessiveness.goodFacts.1',
+      'suggestions.possessiveness.goodFacts.2',
+      'suggestions.possessiveness.goodFacts.3',
+      'suggestions.possessiveness.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.possessiveness.lessons.0',
+      'suggestions.possessiveness.lessons.1',
+      'suggestions.possessiveness.lessons.2',
+      'suggestions.possessiveness.lessons.3',
+      'suggestions.possessiveness.lessons.4',
+    ],
+  },
+
+  disrespect: {
+    hardTruths: [
+      'suggestions.disrespect.hardTruths.0',
+      'suggestions.disrespect.hardTruths.1',
+      'suggestions.disrespect.hardTruths.2',
+      'suggestions.disrespect.hardTruths.3',
+      'suggestions.disrespect.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.disrespect.goodFacts.0',
+      'suggestions.disrespect.goodFacts.1',
+      'suggestions.disrespect.goodFacts.2',
+      'suggestions.disrespect.goodFacts.3',
+      'suggestions.disrespect.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.disrespect.lessons.0',
+      'suggestions.disrespect.lessons.1',
+      'suggestions.disrespect.lessons.2',
+      'suggestions.disrespect.lessons.3',
+      'suggestions.disrespect.lessons.4',
+    ],
+  },
+
+  narcissism: {
+    hardTruths: [
+      'suggestions.narcissism.hardTruths.0',
+      'suggestions.narcissism.hardTruths.1',
+      'suggestions.narcissism.hardTruths.2',
+      'suggestions.narcissism.hardTruths.3',
+      'suggestions.narcissism.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.narcissism.goodFacts.0',
+      'suggestions.narcissism.goodFacts.1',
+      'suggestions.narcissism.goodFacts.2',
+      'suggestions.narcissism.goodFacts.3',
+      'suggestions.narcissism.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.narcissism.lessons.0',
+      'suggestions.narcissism.lessons.1',
+      'suggestions.narcissism.lessons.2',
+      'suggestions.narcissism.lessons.3',
+      'suggestions.narcissism.lessons.4',
+    ],
+  },
+
+  abuse: {
+    hardTruths: [
+      'suggestions.abuse.hardTruths.0',
+      'suggestions.abuse.hardTruths.1',
+      'suggestions.abuse.hardTruths.2',
+      'suggestions.abuse.hardTruths.3',
+      'suggestions.abuse.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.abuse.goodFacts.0',
+      'suggestions.abuse.goodFacts.1',
+      'suggestions.abuse.goodFacts.2',
+      'suggestions.abuse.goodFacts.3',
+      'suggestions.abuse.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.abuse.lessons.0',
+      'suggestions.abuse.lessons.1',
+      'suggestions.abuse.lessons.2',
+      'suggestions.abuse.lessons.3',
+      'suggestions.abuse.lessons.4',
+    ],
+  },
+
+  trauma: {
+    hardTruths: [
+      'suggestions.trauma.hardTruths.0',
+      'suggestions.trauma.hardTruths.1',
+      'suggestions.trauma.hardTruths.2',
+      'suggestions.trauma.hardTruths.3',
+      'suggestions.trauma.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.trauma.goodFacts.0',
+      'suggestions.trauma.goodFacts.1',
+      'suggestions.trauma.goodFacts.2',
+      'suggestions.trauma.goodFacts.3',
+      'suggestions.trauma.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.trauma.lessons.0',
+      'suggestions.trauma.lessons.1',
+      'suggestions.trauma.lessons.2',
+      'suggestions.trauma.lessons.3',
+      'suggestions.trauma.lessons.4',
+    ],
+  },
+
+  healing: {
+    hardTruths: [
+      'suggestions.healing.hardTruths.0',
+      'suggestions.healing.hardTruths.1',
+      'suggestions.healing.hardTruths.2',
+      'suggestions.healing.hardTruths.3',
+      'suggestions.healing.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.healing.goodFacts.0',
+      'suggestions.healing.goodFacts.1',
+      'suggestions.healing.goodFacts.2',
+      'suggestions.healing.goodFacts.3',
+      'suggestions.healing.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.healing.lessons.0',
+      'suggestions.healing.lessons.1',
+      'suggestions.healing.lessons.2',
+      'suggestions.healing.lessons.3',
+      'suggestions.healing.lessons.4',
+    ],
+  },
+
+  recovery: {
+    hardTruths: [
+      'suggestions.recovery.hardTruths.0',
+      'suggestions.recovery.hardTruths.1',
+      'suggestions.recovery.hardTruths.2',
+      'suggestions.recovery.hardTruths.3',
+      'suggestions.recovery.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.recovery.goodFacts.0',
+      'suggestions.recovery.goodFacts.1',
+      'suggestions.recovery.goodFacts.2',
+      'suggestions.recovery.goodFacts.3',
+      'suggestions.recovery.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.recovery.lessons.0',
+      'suggestions.recovery.lessons.1',
+      'suggestions.recovery.lessons.2',
+      'suggestions.recovery.lessons.3',
+      'suggestions.recovery.lessons.4',
+    ],
+  },
+
+  selfworth: {
+    hardTruths: [
+      'suggestions.selfworth.hardTruths.0',
+      'suggestions.selfworth.hardTruths.1',
+      'suggestions.selfworth.hardTruths.2',
+      'suggestions.selfworth.hardTruths.3',
+      'suggestions.selfworth.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.selfworth.goodFacts.0',
+      'suggestions.selfworth.goodFacts.1',
+      'suggestions.selfworth.goodFacts.2',
+      'suggestions.selfworth.goodFacts.3',
+      'suggestions.selfworth.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.selfworth.lessons.0',
+      'suggestions.selfworth.lessons.1',
+      'suggestions.selfworth.lessons.2',
+      'suggestions.selfworth.lessons.3',
+      'suggestions.selfworth.lessons.4',
+    ],
+  },
+
+  validation: {
+    hardTruths: [
+      'suggestions.validation.hardTruths.0',
+      'suggestions.validation.hardTruths.1',
+      'suggestions.validation.hardTruths.2',
+      'suggestions.validation.hardTruths.3',
+      'suggestions.validation.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.validation.goodFacts.0',
+      'suggestions.validation.goodFacts.1',
+      'suggestions.validation.goodFacts.2',
+      'suggestions.validation.goodFacts.3',
+      'suggestions.validation.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.validation.lessons.0',
+      'suggestions.validation.lessons.1',
+      'suggestions.validation.lessons.2',
+      'suggestions.validation.lessons.3',
+      'suggestions.validation.lessons.4',
+    ],
+  },
+
+  codependency: {
+    hardTruths: [
+      'suggestions.codependency.hardTruths.0',
+      'suggestions.codependency.hardTruths.1',
+      'suggestions.codependency.hardTruths.2',
+      'suggestions.codependency.hardTruths.3',
+      'suggestions.codependency.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.codependency.goodFacts.0',
+      'suggestions.codependency.goodFacts.1',
+      'suggestions.codependency.goodFacts.2',
+      'suggestions.codependency.goodFacts.3',
+      'suggestions.codependency.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.codependency.lessons.0',
+      'suggestions.codependency.lessons.1',
+      'suggestions.codependency.lessons.2',
+      'suggestions.codependency.lessons.3',
+      'suggestions.codependency.lessons.4',
+    ],
+  },
+
+  toxic: {
+    hardTruths: [
+      'suggestions.toxic.hardTruths.0',
+      'suggestions.toxic.hardTruths.1',
+      'suggestions.toxic.hardTruths.2',
+      'suggestions.toxic.hardTruths.3',
+      'suggestions.toxic.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.toxic.goodFacts.0',
+      'suggestions.toxic.goodFacts.1',
+      'suggestions.toxic.goodFacts.2',
+      'suggestions.toxic.goodFacts.3',
+      'suggestions.toxic.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.toxic.lessons.0',
+      'suggestions.toxic.lessons.1',
+      'suggestions.toxic.lessons.2',
+      'suggestions.toxic.lessons.3',
+      'suggestions.toxic.lessons.4',
+    ],
+  },
+
+  redflags: {
+    hardTruths: [
+      'suggestions.redflags.hardTruths.0',
+      'suggestions.redflags.hardTruths.1',
+      'suggestions.redflags.hardTruths.2',
+      'suggestions.redflags.hardTruths.3',
+      'suggestions.redflags.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.redflags.goodFacts.0',
+      'suggestions.redflags.goodFacts.1',
+      'suggestions.redflags.goodFacts.2',
+      'suggestions.redflags.goodFacts.3',
+      'suggestions.redflags.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.redflags.lessons.0',
+      'suggestions.redflags.lessons.1',
+      'suggestions.redflags.lessons.2',
+      'suggestions.redflags.lessons.3',
+      'suggestions.redflags.lessons.4',
+    ],
+  },
+
+  escape: {
+    hardTruths: [
+      'suggestions.escape.hardTruths.0',
+      'suggestions.escape.hardTruths.1',
+      'suggestions.escape.hardTruths.2',
+      'suggestions.escape.hardTruths.3',
+      'suggestions.escape.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.escape.goodFacts.0',
+      'suggestions.escape.goodFacts.1',
+      'suggestions.escape.goodFacts.2',
+      'suggestions.escape.goodFacts.3',
+      'suggestions.escape.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.escape.lessons.0',
+      'suggestions.escape.lessons.1',
+      'suggestions.escape.lessons.2',
+      'suggestions.escape.lessons.3',
+      'suggestions.escape.lessons.4',
+    ],
+  },
+
+  freedom: {
+    hardTruths: [
+      'suggestions.freedom.hardTruths.0',
+      'suggestions.freedom.hardTruths.1',
+      'suggestions.freedom.hardTruths.2',
+      'suggestions.freedom.hardTruths.3',
+      'suggestions.freedom.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.freedom.goodFacts.0',
+      'suggestions.freedom.goodFacts.1',
+      'suggestions.freedom.goodFacts.2',
+      'suggestions.freedom.goodFacts.3',
+      'suggestions.freedom.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.freedom.lessons.0',
+      'suggestions.freedom.lessons.1',
+      'suggestions.freedom.lessons.2',
+      'suggestions.freedom.lessons.3',
+      'suggestions.freedom.lessons.4',
+    ],
+  },
+
+  liberation: {
+    hardTruths: [
+      'suggestions.liberation.hardTruths.0',
+      'suggestions.liberation.hardTruths.1',
+      'suggestions.liberation.hardTruths.2',
+      'suggestions.liberation.hardTruths.3',
+      'suggestions.liberation.hardTruths.4',
+    ],
+    goodFacts: [
+      'suggestions.liberation.goodFacts.0',
+      'suggestions.liberation.goodFacts.1',
+      'suggestions.liberation.goodFacts.2',
+      'suggestions.liberation.goodFacts.3',
+      'suggestions.liberation.goodFacts.4',
+    ],
+    lessons: [
+      'suggestions.liberation.lessons.0',
+      'suggestions.liberation.lessons.1',
+      'suggestions.liberation.lessons.2',
+      'suggestions.liberation.lessons.3',
+      'suggestions.liberation.lessons.4',
+    ],
+  },
+
   // Generic/fallback suggestions
   default: {
     hardTruths: [
