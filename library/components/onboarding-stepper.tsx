@@ -6,7 +6,7 @@ import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -22,6 +22,7 @@ import Animated, {
   SlideOutLeft,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withTiming
 } from 'react-native-reanimated';
 
@@ -98,6 +99,7 @@ export function OnboardingStepper({
   // Animated values for smooth expansion
   const gifScale = useSharedValue(0.85); // Start smaller
   const gifTranslateY = useSharedValue(0);
+  const collapseIconScale = useSharedValue(1); // For pulse animation
 
   const step = STEPS[currentStep];
   const isFirstStep = currentStep === 0;
@@ -111,6 +113,26 @@ export function OnboardingStepper({
       { translateY: gifTranslateY.value },
     ],
   }));
+
+  const collapseIconAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: collapseIconScale.value }],
+  }));
+
+  // Pulse the collapse icon twice when modal opens
+  useEffect(() => {
+    if (visible && !isTextCollapsed) {
+      // Delay the pulse slightly to ensure modal is fully visible
+      const timer = setTimeout(() => {
+        collapseIconScale.value = withSequence(
+          withTiming(1.2, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.2, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) })
+        );
+      }, 600); // Start pulse 600ms after modal opens
+      return () => clearTimeout(timer);
+    }
+  }, [visible, collapseIconScale, isTextCollapsed]);
 
   const handleToggleText = () => {
     const newCollapsedState = !isTextCollapsed;
@@ -465,7 +487,7 @@ export function OnboardingStepper({
                 <View style={styles.scrollContainer}>
                   <ScrollView
                     contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
+                    showsVerticalScrollIndicator={true}
                     bounces={true}
                     alwaysBounceVertical={true}
                   >
@@ -528,13 +550,13 @@ export function OnboardingStepper({
                         // Expanded state - show full text container
                         <Pressable onPress={handleToggleText} style={styles.textContainer}>
                           {/* Collapse icon in top-right corner */}
-                          <View style={styles.textCollapseIcon}>
+                          <Animated.View style={[styles.textCollapseIcon, collapseIconAnimatedStyle]}>
                             <MaterialIcons
                               name="expand-less"
                               size={18 * fontScale}
                               color={colors.primary}
                             />
-                          </View>
+                          </Animated.View>
 
                           <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.title}>
                             {t(step.titleKey)}

@@ -1636,45 +1636,49 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Temporary: Generate Fake Data Button */}
+        {/* Development Tools Section */}
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
             {t('settings.devTools.title')}
           </ThemedText>
-          <TouchableOpacity
-            style={[styles.dropdown, isGeneratingFakeData && { opacity: 0.5 }]}
-            onPress={generateFakeData}
-            activeOpacity={0.7}
-            disabled={isGeneratingFakeData}
-          >
-            <View style={styles.dropdownContent}>
-              <MaterialIcons
-                name="bug-report"
-                size={24 * fontScale}
-                color={colors.primary}
-              />
-              <ThemedText
-                size="l"
-                weight="medium"
-                style={styles.dropdownText}
-              >
-                {isGeneratingFakeData ? t('settings.devTools.generateData.generating') : t('settings.devTools.generateData.button')}
-              </ThemedText>
-            </View>
-            {isGeneratingFakeData && (
-              <MaterialIcons
-                name="hourglass-empty"
-                size={24 * fontScale}
-                color={colors.text}
-              />
-            )}
-          </TouchableOpacity>
+
+          {/* Generate Fake Data Button - Only visible in development */}
+          {__DEV__ && (
+            <TouchableOpacity
+              style={[styles.dropdown, isGeneratingFakeData && { opacity: 0.5 }]}
+              onPress={generateFakeData}
+              activeOpacity={0.7}
+              disabled={isGeneratingFakeData}
+            >
+              <View style={styles.dropdownContent}>
+                <MaterialIcons
+                  name="bug-report"
+                  size={24 * fontScale}
+                  color={colors.primary}
+                />
+                <ThemedText
+                  size="l"
+                  weight="medium"
+                  style={styles.dropdownText}
+                >
+                  {isGeneratingFakeData ? t('settings.devTools.generateData.generating') : t('settings.devTools.generateData.button')}
+                </ThemedText>
+              </View>
+              {isGeneratingFakeData && (
+                <MaterialIcons
+                  name="hourglass-empty"
+                  size={24 * fontScale}
+                  color={colors.text}
+                />
+              )}
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={[
               styles.dropdown,
               isDeletingData && { opacity: 0.5 },
-              { borderColor: colors.error || '#ff4444', borderWidth: 1, marginTop: 12 * fontScale }
+              { borderColor: colors.error || '#ff4444', borderWidth: 1, marginTop: __DEV__ ? 12 * fontScale : 0 }
             ]}
             onPress={clearAllMockData}
             activeOpacity={0.7}

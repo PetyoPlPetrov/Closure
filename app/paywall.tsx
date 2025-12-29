@@ -6,7 +6,6 @@ import { useLargeDevice } from '@/hooks/use-large-device';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
-import { DEV_PAYWALL, FORCE_PREMIUM_UNLOCK } from '@/utils/revenuecat-wrapper';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -19,7 +18,7 @@ export default function PaywallScreen() {
   const fontScale = useFontScale();
   const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
-  const { offerings, purchasePackage, restorePurchases, subscriptionStatus, presentPaywall, grantPremiumAccess } = useSubscription();
+  const { offerings, purchasePackage, restorePurchases, subscriptionStatus, presentPaywall } = useSubscription();
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PurchasesPackage | null>(null);
 
@@ -96,29 +95,13 @@ export default function PaywallScreen() {
 
   const handlePresentRevenueCatPaywall = useCallback(async () => {
     if (isPurchasing) return;
-    
+
     try {
       setIsPurchasing(true);
-      
-      // If forced unlock or DEV paywall is enabled, grant access immediately
-      if (FORCE_PREMIUM_UNLOCK || DEV_PAYWALL) {
-        await grantPremiumAccess();
-        Alert.alert(
-          t('subscription.success.title') || 'Success!',
-          t('subscription.success.message') || 'Your subscription is now active!',
-          [
-            {
-              text: t('common.ok') || 'OK',
-              onPress: () => router.back(),
-            },
-          ]
-        );
-        return;
-      }
-      
-      // If DEV_PAYWALL is off, show RevenueCat paywall
+
+      // Show RevenueCat paywall
       const success = await presentPaywall();
-      
+
       if (success) {
         // User purchased or restored through RevenueCat UI
         Alert.alert(
@@ -142,7 +125,7 @@ export default function PaywallScreen() {
     } finally {
       setIsPurchasing(false);
     }
-  }, [isPurchasing, presentPaywall, grantPremiumAccess, t]);
+  }, [isPurchasing, presentPaywall, t]);
 
   // Handler for testing RevenueCat paywall directly (dev mode only)
   const handleTestRevenueCatPaywall = useCallback(async () => {

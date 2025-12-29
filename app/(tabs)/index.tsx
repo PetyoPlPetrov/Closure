@@ -6288,13 +6288,15 @@ export default function HomeScreen() {
   const sphereCircle = useMemo(() => {
     const centerX = SCREEN_WIDTH / 2;
     const centerY = SCREEN_HEIGHT / 2 + 40; // Lower the main circle and floating elements by 60px
-    const radius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35; // Distance from center - increased from 0.3 to 0.35
+    // On tablets, use smaller radius multiplier to keep spheres closer to the center
+    const radiusMultiplier = isTablet ? 0.25 : 0.35; // Reduced from 0.35 to 0.25 on tablets
+    const radius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * radiusMultiplier;
     const numSpheres = 5;
     const angleStep = (2 * Math.PI) / numSpheres; // 72 degrees in radians
     const startAngle = -Math.PI / 2; // Start from top (-90 degrees)
 
     return { centerX, centerY, radius, angleStep, startAngle };
-  }, []);
+  }, [isTablet]);
 
   // Calculate static sphere positions (for when not spinning)
   const spherePositions = useMemo(() => {
