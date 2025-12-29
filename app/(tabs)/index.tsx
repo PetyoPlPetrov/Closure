@@ -35,6 +35,7 @@ import Animated, {
   Easing,
   interpolateColor,
   runOnJS,
+  useAnimatedProps,
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
@@ -51,6 +52,9 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Create animated Pressable component for shadow animations
 const AnimatedPressable = createAnimatedComponent(Pressable);
+
+// Create animated Circle component for loading progress
+const AnimatedCircle = createAnimatedComponent(Circle);
 
 // Constants for LinearGradient and Pressable props (avoid recreating objects on every render)
 const LINEAR_GRADIENT_START = { x: 0, y: 0 };
@@ -5267,6 +5271,17 @@ const SphereAvatar = React.memo(function SphereAvatar({
   // Pulse animation for button press feedback
   const pulseScale = useSharedValue(1);
 
+  // Loading progress animation (0 to 1)
+  const loadingProgress = useSharedValue(0);
+
+  // Track disabled state in shared value for worklet access
+  const isDisabled = useSharedValue(disabled);
+
+  // Update disabled state when prop changes
+  React.useEffect(() => {
+    isDisabled.value = disabled;
+  }, [disabled, isDisabled]);
+
   const handlePress = () => {
     if (disabled) return;
 
@@ -5275,6 +5290,13 @@ const SphereAvatar = React.memo(function SphereAvatar({
       withTiming(0.85, { duration: 250, easing: Easing.inOut(Easing.ease) }),
       withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) })
     );
+
+    // Start loading progress animation
+    loadingProgress.value = 0;
+    loadingProgress.value = withTiming(1, {
+      duration: 650, // Match the total zoom animation duration
+      easing: Easing.out(Easing.ease),
+    });
 
     // Call the original onPress handler
     onPress();
@@ -5534,6 +5556,13 @@ const SphereAvatar = React.memo(function SphereAvatar({
     };
   }, [sphere, floatAnimation, animationDelays, animationDurations, selectedSphere]);
 
+  // Reset loading progress when sphere is deselected
+  React.useEffect(() => {
+    if (selectedSphere !== sphere) {
+      loadingProgress.value = withTiming(0, { duration: 200 });
+    }
+  }, [selectedSphere, sphere, loadingProgress]);
+
   const animatedStyle = useAnimatedStyle(() => {
     'worklet';
     // Read all shared values to ensure reactivity
@@ -5597,23 +5626,68 @@ const SphereAvatar = React.memo(function SphereAvatar({
     };
   });
 
-  // Get glow color based on sphere type
-  const glowColor = React.useMemo(() => {
-    switch (sphere) {
-      case 'relationships':
-        return '#ff6b6b'; // Red glow for relationships
-      case 'career':
-        return '#4dabf7'; // Blue glow for career
-      case 'family':
-        return '#51cf66'; // Green glow for family
-      case 'friends':
-        return '#9775fa'; // Purple glow for friends
-      case 'hobbies':
-        return '#ff922b'; // Orange glow for hobbies
-      default:
-        return '#4dabf7';
+  // Animated style for loading progress ring visibility
+  const loadingRingStyle = useAnimatedStyle(() => {
+    const progress = loadingProgress.value;
+    // Don't show loading ring if sphere is disabled
+    if (isDisabled.value) {
+      return { opacity: 0 };
     }
-  }, [sphere]);
+    return {
+      opacity: progress > 0 && progress < 1 ? 1 : 0,
+    };
+  });
+
+  // Animated props for the progress circle
+  const circleRadius = sphereSize / 2 - 2;
+  const circumference = 2 * Math.PI * circleRadius;
+
+  const animatedCircleProps = useAnimatedProps(() => {
+    const progress = loadingProgress.value;
+    const strokeDashoffset = circumference * (1 - progress);
+
+    return {
+      strokeDashoffset,
+    };
+  });
+
+  // Get loading border color based on sphere type and theme
+  // Colors match the sphere's gradient for better visual cohesion
+  const loadingBorderColor = React.useMemo(() => {
+    if (colorScheme === 'light') {
+      // Light mode: Use vibrant colors that stand out against grey spheres
+      switch (sphere) {
+        case 'relationships':
+          return '#D32F2F'; // Red
+        case 'career':
+          return '#1976D2'; // Blue
+        case 'family':
+          return '#388E3C'; // Green
+        case 'friends':
+          return '#7B1FA2'; // Purple
+        case 'hobbies':
+          return '#F57C00'; // Orange
+        default:
+          return '#1976D2';
+      }
+    } else {
+      // Dark mode: Use colors that match the sphere gradients
+      switch (sphere) {
+        case 'relationships':
+          return '#FF9696'; // Lighter pink/red to match sphere
+        case 'career':
+          return '#96CAFF'; // Lighter blue to match sphere
+        case 'family':
+          return '#C89CFF'; // Lighter purple to match family sphere
+        case 'friends':
+          return '#9B7AFF'; // Lighter purple to match friends sphere
+        case 'hobbies':
+          return '#FFAA5A'; // Lighter orange to match sphere
+        default:
+          return '#96CAFF';
+      }
+    }
+  }, [sphere, colorScheme]);
 
   return (
     <Pressable
@@ -5641,7 +5715,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
             justifyContent: 'center',
             alignItems: 'center',
             // Enhanced elevated shadow effect with glow
-            shadowColor: colorScheme === 'dark' ? glowColor : '#000',
+            shadowColor: colorScheme === 'dark' ? loadingBorderColor : '#000',
             shadowOffset: { width: 0, height: isTablet ? 4 : 3 },
             shadowOpacity: colorScheme === 'dark' ? 0.4 : 0.2,
             shadowRadius: isTablet ? 12 : 8,
@@ -5688,6 +5762,37 @@ const SphereAvatar = React.memo(function SphereAvatar({
             />
           </LinearGradient>
         )}
+
+        {/* Loading progress ring */}
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              width: sphereSize,
+              height: sphereSize,
+              justifyContent: 'center',
+              alignItems: 'center',
+              pointerEvents: 'none',
+            },
+            loadingRingStyle,
+          ]}
+        >
+          <Svg width={sphereSize} height={sphereSize}>
+            <AnimatedCircle
+              cx={sphereSize / 2}
+              cy={sphereSize / 2}
+              r={circleRadius}
+              stroke={loadingBorderColor}
+              strokeWidth={2}
+              fill="none"
+              strokeDasharray={circumference}
+              strokeLinecap="round"
+              transform={`rotate(-90 ${sphereSize / 2} ${sphereSize / 2})`}
+              opacity={0.9}
+              animatedProps={animatedCircleProps}
+            />
+          </Svg>
+        </Animated.View>
       </Animated.View>
     </Pressable>
   );
@@ -9274,7 +9379,7 @@ export default function HomeScreen() {
                   sunnyPercentage={relationshipsSunnyPercentage}
                   selectedSphere={selectedSphere}
                   zoomProgress={sphereZoomProgress}
-                  disabled={profiles.length === 0}
+                  disabled={profiles.length === 0 || showMomentTypeSelector}
                   isWrapped={true}
                 />
               </RotatableSphereWrapper>
@@ -9310,7 +9415,7 @@ export default function HomeScreen() {
                   sunnyPercentage={careerSunnyPercentage}
                   selectedSphere={selectedSphere}
                   zoomProgress={sphereZoomProgress}
-                  disabled={jobs.length === 0}
+                  disabled={jobs.length === 0 || showMomentTypeSelector}
                   isWrapped={true}
                 />
               </RotatableSphereWrapper>
@@ -9346,7 +9451,7 @@ export default function HomeScreen() {
                   sunnyPercentage={familySunnyPercentage}
                   selectedSphere={selectedSphere}
                   zoomProgress={sphereZoomProgress}
-                  disabled={familyMembers.length === 0}
+                  disabled={familyMembers.length === 0 || showMomentTypeSelector}
                   isWrapped={true}
                 />
               </RotatableSphereWrapper>
@@ -9382,7 +9487,7 @@ export default function HomeScreen() {
                   sunnyPercentage={friendsSunnyPercentage}
                   selectedSphere={selectedSphere}
                   zoomProgress={sphereZoomProgress}
-                  disabled={friends.length === 0}
+                  disabled={friends.length === 0 || showMomentTypeSelector}
                   isWrapped={true}
                 />
               </RotatableSphereWrapper>
@@ -9418,7 +9523,7 @@ export default function HomeScreen() {
                   sunnyPercentage={hobbiesSunnyPercentage}
                   selectedSphere={selectedSphere}
                   zoomProgress={sphereZoomProgress}
-                  disabled={hobbies.length === 0}
+                  disabled={hobbies.length === 0 || showMomentTypeSelector}
                   isWrapped={true}
                 />
               </RotatableSphereWrapper>
