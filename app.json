@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sferas",
     "slug": "sphere",
-    "version": "1.0.64",
+    "version": "1.0.65",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "sphere",
@@ -14,12 +14,12 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "1.0.64",
+      "buildNumber": "1.0.65",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#101A3D",
+        "backgroundColor": "#1A2332",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -37,7 +37,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 64,
+      "versionCode": 65,
       "googleServicesFile": "./google-services.json"
     },
     "web": {

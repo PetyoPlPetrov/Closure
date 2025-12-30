@@ -4781,6 +4781,7 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
   index,
   total,
   isWrapped = false,
+  selectedMomentType,
 }: {
   position: { x: number; y: number };
   delay?: number;
@@ -4789,19 +4790,23 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
   index: number;
   total: number;
   isWrapped?: boolean;
+  selectedMomentType?: 'lessons' | 'hardTruths' | 'sunnyMoments';
 }) {
   const floatOffset = useSharedValue(0);
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0);
+  const pulseScale = useSharedValue(1);
 
   const { isTablet } = useLargeDevice();
   const iconSize = isTablet ? 16 : 12;
+
+  const isSelected = selectedMomentType === momentType;
 
   // Start animation with delay
   React.useEffect(() => {
     const startAnimation = () => {
       // Fade in
-      opacity.value = withTiming(1, { duration: 300 });
+      opacity.value = withTiming(isSelected ? 1 : 0.4, { duration: 300 });
       scale.value = withSpring(1, { damping: 12, stiffness: 150 });
 
       // Start floating animation
@@ -4829,8 +4834,29 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
       cancelAnimation(floatOffset);
       cancelAnimation(opacity);
       cancelAnimation(scale);
+      cancelAnimation(pulseScale);
     };
-  }, [floatOffset, opacity, scale, delay, index]);
+  }, [floatOffset, opacity, scale, pulseScale, delay, index, isSelected]);
+
+  // Add pulsing animation only for selected moment type
+  React.useEffect(() => {
+    if (isSelected) {
+      // Start pulsing animation (scale between 1 and 1.4 for prominent effect)
+      pulseScale.value = withRepeat(
+        withSequence(
+          withTiming(1.4, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+          withDelay(1000, withTiming(1, { duration: 0 })) // 1 second pause between pulses
+        ),
+        -1,
+        false
+      );
+      opacity.value = withTiming(1, { duration: 300 });
+    } else {
+      pulseScale.value = 1;
+      opacity.value = withTiming(0.4, { duration: 300 });
+    }
+  }, [isSelected, pulseScale, opacity]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const floatY = floatOffset.value * 6; // 6px floating range
@@ -4838,7 +4864,7 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
     return {
       transform: [
         { translateY: floatY },
-        { scale: scale.value },
+        { scale: scale.value * pulseScale.value },
       ],
       opacity: opacity.value,
     };
@@ -4903,6 +4929,7 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
   colorScheme,
   delay = 0,
   onComplete,
+  selectedMomentType,
 }: {
   centerX: number;
   centerY: number;
@@ -4912,6 +4939,7 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
   colorScheme: 'light' | 'dark';
   delay?: number;
   onComplete?: () => void;
+  selectedMomentType?: 'lessons' | 'hardTruths' | 'sunnyMoments';
 }) {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0);
@@ -4922,6 +4950,8 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
   const { isTablet } = useLargeDevice();
   const iconSize = isTablet ? 20 : 16; // Slightly larger than regular floating icons
 
+  const isSelected = selectedMomentType === momentType;
+
   // Calculate position around center
   const x = centerX + radius * Math.cos(angle);
   const y = centerY + radius * Math.sin(angle);
@@ -4930,31 +4960,56 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
   React.useEffect(() => {
     const startAnimation = () => {
       // Fade in and scale up
-      opacity.value = withTiming(1, { duration: 400 });
+      opacity.value = withTiming(isSelected ? 1 : 0.4, { duration: 400 });
       scale.value = withSpring(1, { damping: 10, stiffness: 150 });
 
-      // Start pulsing animation (scale between 1 and 1.3 for more prominent effect)
-      // Pulse completes (up + down), then 2 second delay, then next pulse
-      pulseScale.value = withRepeat(
-        withSequence(
-          // Pulse up
-          withTiming(1.3, {
-            duration: 600,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          // Pulse down
-          withTiming(1, {
-            duration: 600,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          // 2 second pause - stay at scale 1 for 2 seconds
-          withTiming(1, { duration: 2000 })
-        ),
-        3, // Pulse 3 times with pauses
-        false
-      );
+      // Only start pulsing animation if this is the selected moment type
+      if (isSelected) {
+        // Start pulsing animation (scale between 1 and 1.3 for more prominent effect)
+        // Pulse completes (up + down), then 2 second delay, then next pulse
+        pulseScale.value = withRepeat(
+          withSequence(
+            // Pulse up
+            withTiming(1.3, {
+              duration: 600,
+              easing: Easing.inOut(Easing.ease),
+            }),
+            // Pulse down
+            withTiming(1, {
+              duration: 600,
+              easing: Easing.inOut(Easing.ease),
+            }),
+            // 2 second pause - stay at scale 1 for 2 seconds
+            withTiming(1, { duration: 2000 })
+          ),
+          3, // Pulse 3 times with pauses
+          false
+        );
 
-      // Start floating animation (gentle vertical movement)
+        // Fade out after total duration: 3 pulses × (600ms up + 600ms down + 2000ms delay) = ~9.6 seconds
+        fadeOutTimerRef.current = setTimeout(() => {
+          opacity.value = withTiming(0, { duration: 500 }, () => {
+            if (onComplete) {
+              runOnJS(onComplete)();
+            }
+          });
+          scale.value = withTiming(0.8, { duration: 500 });
+          fadeOutTimerRef.current = null;
+        }, 9600) as unknown as NodeJS.Timeout;
+      } else {
+        // Non-selected moments don't pulse and fade out faster
+        fadeOutTimerRef.current = setTimeout(() => {
+          opacity.value = withTiming(0, { duration: 500 }, () => {
+            if (onComplete) {
+              runOnJS(onComplete)();
+            }
+          });
+          scale.value = withTiming(0.8, { duration: 500 });
+          fadeOutTimerRef.current = null;
+        }, 9600) as unknown as NodeJS.Timeout;
+      }
+
+      // Start floating animation (gentle vertical movement) for all moments
       floatOffset.value = withRepeat(
         withTiming(1, {
           duration: 1500,
@@ -4963,17 +5018,6 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
         -1, // Infinite floating
         true // Reverse on each repeat
       );
-
-      // Fade out after total duration: 3 pulses × (600ms up + 600ms down + 2000ms delay) = ~9.6 seconds
-      fadeOutTimerRef.current = setTimeout(() => {
-        opacity.value = withTiming(0, { duration: 500 }, () => {
-          if (onComplete) {
-            runOnJS(onComplete)();
-          }
-        });
-        scale.value = withTiming(0.8, { duration: 500 });
-        fadeOutTimerRef.current = null;
-      }, 9600) as unknown as NodeJS.Timeout;
     };
 
     let delayTimer: NodeJS.Timeout | null = null;
@@ -4993,7 +5037,29 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
       cancelAnimation(opacity);
       cancelAnimation(scale);
     };
-  }, [delay, onComplete]); // Removed shared values from deps - they don't change and cause infinite loops
+  }, [delay, onComplete, isSelected]); // Added isSelected to deps
+
+  // Update opacity and pulse animation when selectedMomentType changes
+  React.useEffect(() => {
+    if (isSelected) {
+      opacity.value = withTiming(1, { duration: 300 });
+      // Start pulsing
+      pulseScale.value = withRepeat(
+        withSequence(
+          withTiming(1.3, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 2000 })
+        ),
+        -1, // Infinite for already-visible moments
+        false
+      );
+    } else {
+      opacity.value = withTiming(0.4, { duration: 300 });
+      // Stop pulsing
+      cancelAnimation(pulseScale);
+      pulseScale.value = withTiming(1, { duration: 300 });
+    }
+  }, [isSelected, opacity, pulseScale]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const floatY = (floatOffset.value - 0.5) * 10; // -5px to +5px floating range
@@ -6592,6 +6658,29 @@ export default function HomeScreen() {
     return count;
   }, [getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
 
+  // Get counts for all moment types for a specific entity
+  const getAllMomentCountsForEntity = useCallback((entityId: string, sphere: LifeSphere) => {
+    const memories = sphere === 'relationships'
+      ? getIdealizedMemoriesByProfileId(entityId)
+      : getIdealizedMemoriesByEntityId(entityId, sphere);
+
+    let lessonsCount = 0;
+    let hardTruthsCount = 0;
+    let sunnyMomentsCount = 0;
+
+    memories.forEach((memory) => {
+      lessonsCount += (memory.lessonsLearned || []).length;
+      hardTruthsCount += (memory.hardTruths || []).length;
+      sunnyMomentsCount += (memory.goodFacts || []).length;
+    });
+
+    return {
+      lessons: lessonsCount,
+      hardTruths: hardTruthsCount,
+      sunnyMoments: sunnyMomentsCount,
+    };
+  }, [getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
+
   // Handle wheel spin completion
   const onWheelSpinComplete = useCallback(() => {
     const moments = getAllMomentsByType(selectedMomentType);
@@ -6684,12 +6773,8 @@ export default function HomeScreen() {
     }
   }, [showMomentTypeSelector, spheresScale, iconButtonScale]);
 
-  // Clear all moments when selected moment type changes to ensure only the new type is shown
-  useEffect(() => {
-    if (showMomentTypeSelector) {
-      setRandomMoments([]);
-    }
-  }, [selectedMomentType, showMomentTypeSelector]);
+  // Note: We no longer clear moments when selectedMomentType changes
+  // All moment types remain visible, but only the selected type will pulse
 
   // Spawn random pulsing moments at 1-2 second intervals when moment type selector is shown
   useEffect(() => {
@@ -6717,12 +6802,15 @@ export default function HomeScreen() {
         const radiusVariation = (Math.random() - 0.5) * (isTablet ? 40 : 25);
         const radius = momentRadius + radiusVariation;
 
-        // Use only the selected moment type (lessons, hardTruths, or sunnyMoments)
+        // Randomly select one of the three moment types
+        const momentTypes: MomentType[] = ['lessons', 'hardTruths', 'sunnyMoments'];
+        const randomMomentType = momentTypes[Math.floor(Math.random() * momentTypes.length)];
+
         const newMoment = {
           id: momentIdCounter.current++,
           angle,
           radius,
-          momentType: selectedMomentType,
+          momentType: randomMomentType,
         };
 
         return [...prev, newMoment];
@@ -6766,12 +6854,12 @@ export default function HomeScreen() {
     // Stop any current spinning
     isWheelSpinning.value = false;
     wheelVelocity.value = 0;
-    
-    // Set initial velocity for a nice spin (counter-clockwise)
-    // Random velocity between 0.15 and 0.25 radians per frame (at 60fps, positive for counter-clockwise)
+
+    // Set initial velocity for a nice spin (clockwise)
+    // Random velocity between 0.15 and 0.25 radians per frame (at 60fps, negative for clockwise)
     const randomSpeed = 0.15 + Math.random() * 0.1; // 0.15 to 0.25
-    wheelVelocity.value = randomSpeed; // Positive for counter-clockwise rotation
-    
+    wheelVelocity.value = -randomSpeed; // Negative for clockwise rotation
+
     // Start spinning
     isWheelSpinning.value = true;
     
@@ -7056,8 +7144,8 @@ export default function HomeScreen() {
     const interval = setInterval(() => {
       if (isWheelSpinning.value && Math.abs(wheelVelocity.value) > 0.005) {
         // Apply deceleration with exponential decay for natural slowdown
-        // Use a variable friction that increases as velocity decreases (more realistic)
-        const friction = 0.96 + (Math.abs(wheelVelocity.value) * 0.01); // Friction increases as speed decreases
+        // Use constant friction for smooth, predictable deceleration
+        const friction = 0.97; // Consistent friction factor (lower = faster slowdown)
         wheelVelocity.value *= friction;
         wheelRotation.value += wheelVelocity.value;
       } else if (isWheelSpinning.value && Math.abs(wheelVelocity.value) <= 0.005) {
@@ -9113,9 +9201,9 @@ export default function HomeScreen() {
               },
               sunnyMoments: {
                 icon: 'wb-sunny' as const,
-                backgroundColor: 'rgba(255, 200, 50, 0.15)',
-                shadowColor: '#FFC832',
-                iconColor: colorScheme === 'dark' ? '#FFC832' : '#FF9800',
+                backgroundColor: 'rgba(255, 215, 0, 0.25)',
+                shadowColor: '#FFD700',
+                iconColor: colorScheme === 'dark' ? '#FFD700' : '#FF9800',
               },
             };
 
@@ -9754,18 +9842,30 @@ export default function HomeScreen() {
             sortedProfiles.slice(0, Math.min(sortedProfiles.length, 5)).forEach((profile, entityIndex) => {
               const totalPartners = Math.min(sortedProfiles.length, 5);
               const entityAngle = (entityIndex * 2 * Math.PI) / totalPartners;
-              const momentCount = getMomentCountForEntity(profile.id, 'relationships', selectedMomentType);
-              const numIcons = Math.min(momentCount, 3); // Max 3 icons per entity
+              const momentCounts = getAllMomentCountsForEntity(profile.id, 'relationships');
 
-              // Create icons around this entity
-              for (let i = 0; i < numIcons; i++) {
-                const iconAngle = (i * 2 * Math.PI) / Math.max(numIcons, 3); // Distribute evenly
+              // Create array of all moment types with their counts
+              const momentTypes: Array<{ type: MomentType; count: number }> = ([
+                { type: 'lessons' as MomentType, count: momentCounts.lessons },
+                { type: 'hardTruths' as MomentType, count: momentCounts.hardTruths },
+                { type: 'sunnyMoments' as MomentType, count: momentCounts.sunnyMoments },
+              ] as Array<{ type: MomentType; count: number }>).filter(m => m.count > 0);
+
+              const totalMomentIcons = Math.min(
+                momentTypes.reduce((sum, m) => sum + Math.min(m.count, 1), 0), // Max 1 icon per type
+                3 // Max 3 icons total per entity
+              );
+
+              // Create icons around this entity for each moment type
+              let iconIndex = 0;
+              momentTypes.slice(0, 3).forEach((momentTypeData) => {
+                const iconAngle = (iconIndex * 2 * Math.PI) / Math.max(totalMomentIcons, 3); // Distribute evenly
                 const x = spherePositions.relationships.x + Math.cos(entityAngle) * (isTablet ? 85 : 55) + Math.cos(iconAngle) * momentIconRadius;
                 const y = spherePositions.relationships.y + Math.sin(entityAngle) * (isTablet ? 85 : 55) + Math.sin(iconAngle) * momentIconRadius;
 
                 icons.push(
                   <RotatableFloatingMomentIconWrapper
-                    key={`moment-icon-relationships-${profile.id}-${i}`}
+                    key={`moment-icon-relationships-${profile.id}-${momentTypeData.type}`}
                     sphereIndex={0}
                     rotation={wheelRotation}
                     hintRotation={hintRotation}
@@ -9782,33 +9882,48 @@ export default function HomeScreen() {
                   >
                     <FloatingMomentIcon
                       position={{ x, y }}
-                      delay={entityIndex * 50 + i * 100}
-                      momentType={selectedMomentType}
+                      delay={entityIndex * 50 + iconIndex * 100}
+                      momentType={momentTypeData.type}
                       colorScheme={colorScheme ?? 'dark'}
-                      index={i}
-                      total={numIcons}
+                      index={iconIndex}
+                      total={totalMomentIcons}
                       isWrapped={true}
+                      selectedMomentType={selectedMomentType}
                     />
                   </RotatableFloatingMomentIconWrapper>
                 );
-              }
+                iconIndex++;
+              });
             });
 
             // For each career entity
             sortedJobs.slice(0, Math.min(sortedJobs.length, 5)).forEach((job, entityIndex) => {
               const totalJobs = Math.min(sortedJobs.length, 5);
               const entityAngle = (entityIndex * 2 * Math.PI) / totalJobs;
-              const momentCount = getMomentCountForEntity(job.id, 'career', selectedMomentType);
-              const numIcons = Math.min(momentCount, 3);
+              const momentCounts = getAllMomentCountsForEntity(job.id, 'career');
 
-              for (let i = 0; i < numIcons; i++) {
-                const iconAngle = (i * 2 * Math.PI) / Math.max(numIcons, 3);
+              // Create array of all moment types with their counts
+              const momentTypes: Array<{ type: MomentType; count: number }> = ([
+                { type: 'lessons' as MomentType, count: momentCounts.lessons },
+                { type: 'hardTruths' as MomentType, count: momentCounts.hardTruths },
+                { type: 'sunnyMoments' as MomentType, count: momentCounts.sunnyMoments },
+              ] as Array<{ type: MomentType; count: number }>).filter(m => m.count > 0);
+
+              const totalMomentIcons = Math.min(
+                momentTypes.reduce((sum, m) => sum + Math.min(m.count, 1), 0),
+                3
+              );
+
+              // Create icons around this entity for each moment type
+              let iconIndex = 0;
+              momentTypes.slice(0, 3).forEach((momentTypeData) => {
+                const iconAngle = (iconIndex * 2 * Math.PI) / Math.max(totalMomentIcons, 3);
                 const x = spherePositions.career.x + Math.cos(entityAngle) * (isTablet ? 85 : 55) + Math.cos(iconAngle) * momentIconRadius;
                 const y = spherePositions.career.y + Math.sin(entityAngle) * (isTablet ? 85 : 55) + Math.sin(iconAngle) * momentIconRadius;
 
                 icons.push(
                   <RotatableFloatingMomentIconWrapper
-                    key={`moment-icon-career-${job.id}-${i}`}
+                    key={`moment-icon-career-${job.id}-${momentTypeData.type}`}
                     sphereIndex={1}
                     rotation={wheelRotation}
                     hintRotation={hintRotation}
@@ -9825,33 +9940,48 @@ export default function HomeScreen() {
                   >
                     <FloatingMomentIcon
                       position={{ x, y }}
-                      delay={entityIndex * 50 + i * 100}
-                      momentType={selectedMomentType}
+                      delay={entityIndex * 50 + iconIndex * 100}
+                      momentType={momentTypeData.type}
                       colorScheme={colorScheme ?? 'dark'}
-                      index={i}
-                      total={numIcons}
+                      index={iconIndex}
+                      total={totalMomentIcons}
                       isWrapped={true}
+                      selectedMomentType={selectedMomentType}
                     />
                   </RotatableFloatingMomentIconWrapper>
                 );
-              }
+                iconIndex++;
+              });
             });
 
             // For each family entity
             familyMembers.slice(0, Math.min(familyMembers.length, 5)).forEach((member, entityIndex) => {
               const totalMembers = Math.min(familyMembers.length, 5);
               const entityAngle = (entityIndex * 2 * Math.PI) / totalMembers;
-              const momentCount = getMomentCountForEntity(member.id, 'family', selectedMomentType);
-              const numIcons = Math.min(momentCount, 3);
+              const momentCounts = getAllMomentCountsForEntity(member.id, 'family');
 
-              for (let i = 0; i < numIcons; i++) {
-                const iconAngle = (i * 2 * Math.PI) / Math.max(numIcons, 3);
+              // Create array of all moment types with their counts
+              const momentTypes: Array<{ type: MomentType; count: number }> = ([
+                { type: 'lessons' as MomentType, count: momentCounts.lessons },
+                { type: 'hardTruths' as MomentType, count: momentCounts.hardTruths },
+                { type: 'sunnyMoments' as MomentType, count: momentCounts.sunnyMoments },
+              ] as Array<{ type: MomentType; count: number }>).filter(m => m.count > 0);
+
+              const totalMomentIcons = Math.min(
+                momentTypes.reduce((sum, m) => sum + Math.min(m.count, 1), 0),
+                3
+              );
+
+              // Create icons around this entity for each moment type
+              let iconIndex = 0;
+              momentTypes.slice(0, 3).forEach((momentTypeData) => {
+                const iconAngle = (iconIndex * 2 * Math.PI) / Math.max(totalMomentIcons, 3);
                 const x = spherePositions.family.x + Math.cos(entityAngle) * (isTablet ? 85 : 55) + Math.cos(iconAngle) * momentIconRadius;
                 const y = spherePositions.family.y + Math.sin(entityAngle) * (isTablet ? 85 : 55) + Math.sin(iconAngle) * momentIconRadius;
 
                 icons.push(
                   <RotatableFloatingMomentIconWrapper
-                    key={`moment-icon-family-${member.id}-${i}`}
+                    key={`moment-icon-family-${member.id}-${momentTypeData.type}`}
                     sphereIndex={2}
                     rotation={wheelRotation}
                     hintRotation={hintRotation}
@@ -9868,33 +9998,48 @@ export default function HomeScreen() {
                   >
                     <FloatingMomentIcon
                       position={{ x, y }}
-                      delay={entityIndex * 50 + i * 100}
-                      momentType={selectedMomentType}
+                      delay={entityIndex * 50 + iconIndex * 100}
+                      momentType={momentTypeData.type}
                       colorScheme={colorScheme ?? 'dark'}
-                      index={i}
-                      total={numIcons}
+                      index={iconIndex}
+                      total={totalMomentIcons}
                       isWrapped={true}
+                      selectedMomentType={selectedMomentType}
                     />
                   </RotatableFloatingMomentIconWrapper>
                 );
-              }
+                iconIndex++;
+              });
             });
 
             // For each friend entity
             friends.slice(0, Math.min(friends.length, 5)).forEach((friend, entityIndex) => {
               const totalFriends = Math.min(friends.length, 5);
               const entityAngle = (entityIndex * 2 * Math.PI) / totalFriends;
-              const momentCount = getMomentCountForEntity(friend.id, 'friends', selectedMomentType);
-              const numIcons = Math.min(momentCount, 3);
+              const momentCounts = getAllMomentCountsForEntity(friend.id, 'friends');
 
-              for (let i = 0; i < numIcons; i++) {
-                const iconAngle = (i * 2 * Math.PI) / Math.max(numIcons, 3);
+              // Create array of all moment types with their counts
+              const momentTypes: Array<{ type: MomentType; count: number }> = ([
+                { type: 'lessons' as MomentType, count: momentCounts.lessons },
+                { type: 'hardTruths' as MomentType, count: momentCounts.hardTruths },
+                { type: 'sunnyMoments' as MomentType, count: momentCounts.sunnyMoments },
+              ] as Array<{ type: MomentType; count: number }>).filter(m => m.count > 0);
+
+              const totalMomentIcons = Math.min(
+                momentTypes.reduce((sum, m) => sum + Math.min(m.count, 1), 0),
+                3
+              );
+
+              // Create icons around this entity for each moment type
+              let iconIndex = 0;
+              momentTypes.slice(0, 3).forEach((momentTypeData) => {
+                const iconAngle = (iconIndex * 2 * Math.PI) / Math.max(totalMomentIcons, 3);
                 const x = spherePositions.friends.x + Math.cos(entityAngle) * (isTablet ? 85 : 55) + Math.cos(iconAngle) * momentIconRadius;
                 const y = spherePositions.friends.y + Math.sin(entityAngle) * (isTablet ? 85 : 55) + Math.sin(iconAngle) * momentIconRadius;
 
                 icons.push(
                   <RotatableFloatingMomentIconWrapper
-                    key={`moment-icon-friends-${friend.id}-${i}`}
+                    key={`moment-icon-friends-${friend.id}-${momentTypeData.type}`}
                     sphereIndex={3}
                     rotation={wheelRotation}
                     hintRotation={hintRotation}
@@ -9911,33 +10056,48 @@ export default function HomeScreen() {
                   >
                     <FloatingMomentIcon
                       position={{ x, y }}
-                      delay={entityIndex * 50 + i * 100}
-                      momentType={selectedMomentType}
+                      delay={entityIndex * 50 + iconIndex * 100}
+                      momentType={momentTypeData.type}
                       colorScheme={colorScheme ?? 'dark'}
-                      index={i}
-                      total={numIcons}
+                      index={iconIndex}
+                      total={totalMomentIcons}
                       isWrapped={true}
+                      selectedMomentType={selectedMomentType}
                     />
                   </RotatableFloatingMomentIconWrapper>
                 );
-              }
+                iconIndex++;
+              });
             });
 
             // For each hobby entity
             hobbies.slice(0, Math.min(hobbies.length, 5)).forEach((hobby, entityIndex) => {
               const totalHobbies = Math.min(hobbies.length, 5);
               const entityAngle = (entityIndex * 2 * Math.PI) / totalHobbies;
-              const momentCount = getMomentCountForEntity(hobby.id, 'hobbies', selectedMomentType);
-              const numIcons = Math.min(momentCount, 3);
+              const momentCounts = getAllMomentCountsForEntity(hobby.id, 'hobbies');
 
-              for (let i = 0; i < numIcons; i++) {
-                const iconAngle = (i * 2 * Math.PI) / Math.max(numIcons, 3);
+              // Create array of all moment types with their counts
+              const momentTypes: Array<{ type: MomentType; count: number }> = ([
+                { type: 'lessons' as MomentType, count: momentCounts.lessons },
+                { type: 'hardTruths' as MomentType, count: momentCounts.hardTruths },
+                { type: 'sunnyMoments' as MomentType, count: momentCounts.sunnyMoments },
+              ] as Array<{ type: MomentType; count: number }>).filter(m => m.count > 0);
+
+              const totalMomentIcons = Math.min(
+                momentTypes.reduce((sum, m) => sum + Math.min(m.count, 1), 0),
+                3
+              );
+
+              // Create icons around this entity for each moment type
+              let iconIndex = 0;
+              momentTypes.slice(0, 3).forEach((momentTypeData) => {
+                const iconAngle = (iconIndex * 2 * Math.PI) / Math.max(totalMomentIcons, 3);
                 const x = spherePositions.hobbies.x + Math.cos(entityAngle) * (isTablet ? 85 : 55) + Math.cos(iconAngle) * momentIconRadius;
                 const y = spherePositions.hobbies.y + Math.sin(entityAngle) * (isTablet ? 85 : 55) + Math.sin(iconAngle) * momentIconRadius;
 
                 icons.push(
                   <RotatableFloatingMomentIconWrapper
-                    key={`moment-icon-hobbies-${hobby.id}-${i}`}
+                    key={`moment-icon-hobbies-${hobby.id}-${momentTypeData.type}`}
                     sphereIndex={4}
                     rotation={wheelRotation}
                     hintRotation={hintRotation}
@@ -9954,16 +10114,18 @@ export default function HomeScreen() {
                   >
                     <FloatingMomentIcon
                       position={{ x, y }}
-                      delay={entityIndex * 50 + i * 100}
-                      momentType={selectedMomentType}
+                      delay={entityIndex * 50 + iconIndex * 100}
+                      momentType={momentTypeData.type}
                       colorScheme={colorScheme ?? 'dark'}
-                      index={i}
-                      total={numIcons}
+                      index={iconIndex}
+                      total={totalMomentIcons}
                       isWrapped={true}
+                      selectedMomentType={selectedMomentType}
                     />
                   </RotatableFloatingMomentIconWrapper>
                 );
-              }
+                iconIndex++;
+              });
             });
 
             return <>{icons}</>;
@@ -9980,6 +10142,7 @@ export default function HomeScreen() {
               momentType={moment.momentType}
               colorScheme={colorScheme ?? 'dark'}
               onComplete={() => handleMomentComplete(moment.id)}
+              selectedMomentType={selectedMomentType}
             />
           ))}
 
