@@ -1620,7 +1620,16 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
 }) {
   const fontScale = useFontScale();
   const { isTablet, isLargeDevice } = useLargeDevice();
-  
+
+  // Calculate sunny percentage for this memory's moments
+  const sunnyPercentage = useMemo(() => {
+    const totalClouds = clouds.length;
+    const totalSuns = suns.length + lessons.length; // Include lessons as positive
+    const total = totalClouds + totalSuns;
+    if (total === 0) return 50; // Neutral if no moments
+    return (totalSuns / total) * 100;
+  }, [clouds.length, suns.length, lessons.length]);
+
   // Memoize filtered clouds - must be called unconditionally
   const filteredClouds = useMemo(() => {
     // Only show moments when entity is focused (isFocused is true)
@@ -1815,10 +1824,11 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             isFocused={!!isFocused}
             colorScheme={colorScheme}
             onPress={onDoubleTap}
+            sunnyPercentage={sunnyPercentage}
           />
         );
     });
-  }, [isFocused, filteredClouds, isMemoryFocused, cloudPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, cloudZIndex, colorScheme, onDoubleTap, calculateClampedPosition, cloudWidth, cloudHeight, clouds.length, memorySize, newlyCreatedMoments, isTablet, onUpdateMemory, memory.hardTruths]);
+  }, [isFocused, filteredClouds, isMemoryFocused, cloudPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, cloudZIndex, colorScheme, onDoubleTap, calculateClampedPosition, cloudWidth, cloudHeight, clouds.length, memorySize, newlyCreatedMoments, isTablet, onUpdateMemory, memory.hardTruths, sunnyPercentage]);
   
   // Memoize filtered suns - must be called unconditionally
   const filteredSuns = useMemo(() => {
@@ -2041,10 +2051,11 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             isFocused={!!isFocused}
             colorScheme={colorScheme}
             onPress={onDoubleTap}
+            sunnyPercentage={sunnyPercentage}
           />
         );
     });
-  }, [isFocused, filteredSuns, isMemoryFocused, sunPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, sunZIndex, colorScheme, onDoubleTap, calculateClampedPosition, sunWidth, sunHeight, suns.length, memorySize, newlyCreatedMoments, isTablet, isLargeDevice, fontScale, onUpdateMemory, memory.goodFacts]);
+  }, [isFocused, filteredSuns, isMemoryFocused, sunPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, sunZIndex, colorScheme, onDoubleTap, calculateClampedPosition, sunWidth, sunHeight, suns.length, memorySize, newlyCreatedMoments, isTablet, isLargeDevice, fontScale, onUpdateMemory, memory.goodFacts, sunnyPercentage]);
 
   // Memoize filtered lessons - must be called unconditionally
   const filteredLessons = useMemo(() => {
@@ -2116,7 +2127,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
                 height: dynamicLessonSize,
                 justifyContent: 'center',
                 alignItems: 'center',
-                backgroundColor: 'rgba(255, 215, 0, 0.15)',
+                backgroundColor: 'rgba(255, 215, 0, 0.25)',
                 borderRadius: dynamicLessonSize / 2,
                 // Golden glow for lessons
                 shadowColor: '#FFD700',
@@ -3376,8 +3387,32 @@ const FloatingMemory = React.memo(function FloatingMemory({
           focusedMemoryStyle,
         ]}
       >
+        <View
+          style={{
+            width: memorySize,
+            height: memorySize,
+            // Dynamic shadow color based on sunny/cloudy ratio - applied to outer container
+            shadowColor: (() => {
+              // Interpolate between dark gray (cloudy) and yellow (sunny)
+              const t = sunnyPercentage / 100; // 0 = all cloudy, 1 = all sunny
+              // Dark color: #2D3748 (darker gray)
+              const darkR = 45, darkG = 55, darkB = 72;
+              // Sunny color: #FFD700 (gold)
+              const sunnyR = 255, sunnyG = 215, sunnyB = 0;
+              // Interpolate
+              const r = Math.round(darkR + (sunnyR - darkR) * t);
+              const g = Math.round(darkG + (sunnyG - darkG) * t);
+              const b = Math.round(darkB + (sunnyB - darkB) * t);
+              return `rgb(${r}, ${g}, ${b})`;
+            })(),
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: isMemoryFocused ? 0.3 : 0.8,
+            shadowRadius: isMemoryFocused ? 10 : 20,
+            elevation: isMemoryFocused ? 6 : 12,
+          }}
+        >
         <Pressable
-          style={{ 
+          style={{
             pointerEvents: 'auto', // Ensure Pressable can receive touches
             width: memorySize,
             height: memorySize,
@@ -3454,11 +3489,6 @@ const FloatingMemory = React.memo(function FloatingMemory({
                 : 'rgba(150, 200, 255, 0.95)',
               justifyContent: 'center',
               alignItems: 'center',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 3 },
-              shadowOpacity: 0.25,
-              shadowRadius: 5,
-              elevation: 5,
               overflow: 'hidden',
               position: 'relative',
             }}
@@ -3586,6 +3616,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
             </Pressable>
           )}
         </Pressable>
+        </View>
       </Animated.View>
 
       {/* Calculate z-index based on which type has more moments */}
@@ -3597,9 +3628,9 @@ const FloatingMemory = React.memo(function FloatingMemory({
         // Moments should be on top of memories
         // When memory is focused, use much higher z-index to be above the memory (which has zIndex 1000)
         const baseZIndex = isMemoryFocused ? 1001 : 20;
-        const cloudZIndex = cloudsOnTop ? baseZIndex + 5 : baseZIndex + 4; // Higher than memories so moments are visible on top
-        const sunZIndex = cloudsOnTop ? baseZIndex + 4 : baseZIndex + 5; // Higher than memories so moments are visible on top
-        const lessonZIndex = baseZIndex + 3; // Lessons always below suns and clouds (z-index: 9997)
+        const cloudZIndex = cloudsOnTop ? baseZIndex + 4 : baseZIndex + 3; // Higher than memories so moments are visible on top
+        const sunZIndex = cloudsOnTop ? baseZIndex + 3 : baseZIndex + 4; // Higher than memories so moments are visible on top
+        const lessonZIndex = baseZIndex + 5; // Lessons always on top of suns and clouds
 
 
         return (
@@ -3705,6 +3736,7 @@ const FloatingCloud = React.memo(function FloatingCloud({
   isFocused,
   colorScheme,
   onPress,
+  sunnyPercentage = 50,
 }: {
   cloud: any;
   position: { x: number; y: number };
@@ -3721,6 +3753,7 @@ const FloatingCloud = React.memo(function FloatingCloud({
   isFocused: boolean;
   colorScheme: 'light' | 'dark';
   onPress?: () => void;
+  sunnyPercentage?: number;
 }) {
   // Make clouds smaller when focused, but maintain proper proportions
   // Use larger base size to avoid clipping and maintain aspect ratio
@@ -3818,11 +3851,24 @@ const FloatingCloud = React.memo(function FloatingCloud({
             alignItems: 'center',
             borderWidth: 1.5,
             borderColor: 'rgba(0,0,0,0.3)', // Dark border
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.4,
-            shadowRadius: 4,
-            elevation: 4,
+            // Dynamic shadow color based on sunny/cloudy ratio
+            shadowColor: (() => {
+              // Interpolate between dark gray (cloudy) and yellow (sunny)
+              const t = sunnyPercentage / 100; // 0 = all cloudy, 1 = all sunny
+              // Dark color: #2D3748 (darker gray)
+              const darkR = 45, darkG = 55, darkB = 72;
+              // Sunny color: #FFD700 (gold)
+              const sunnyR = 255, sunnyG = 215, sunnyB = 0;
+              // Interpolate
+              const r = Math.round(darkR + (sunnyR - darkR) * t);
+              const g = Math.round(darkG + (sunnyG - darkG) * t);
+              const b = Math.round(darkB + (sunnyB - darkB) * t);
+              return `rgb(${r}, ${g}, ${b})`;
+            })(),
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.55,
+            shadowRadius: 7,
+            elevation: 5,
           }}
         >
           <MaterialIcons name="cloud" size={safeCloudSize * 0.7} color="#000000" />
@@ -3849,6 +3895,7 @@ const FloatingSun = React.memo(function FloatingSun({
   isFocused,
   colorScheme,
   onPress,
+  sunnyPercentage = 50,
 }: {
   sun: any;
   position: { x: number; y: number };
@@ -3865,6 +3912,7 @@ const FloatingSun = React.memo(function FloatingSun({
   isFocused: boolean;
   colorScheme: 'light' | 'dark';
   onPress?: () => void;
+  sunnyPercentage?: number;
 }) {
   // Make suns smaller when focused, but maintain proper proportions
   // Use larger base size to avoid clipping and maintain aspect ratio
@@ -3936,6 +3984,30 @@ const FloatingSun = React.memo(function FloatingSun({
           }
         }}
       >
+        <View
+          style={{
+            width: sunSize,
+            height: sunSize,
+            // Dynamic shadow color based on sunny/cloudy ratio
+            shadowColor: (() => {
+              // Interpolate between dark gray (cloudy) and yellow (sunny)
+              const t = sunnyPercentage / 100; // 0 = all cloudy, 1 = all sunny
+              // Dark color: #2D3748 (darker gray)
+              const darkR = 45, darkG = 55, darkB = 72;
+              // Sunny color: #FFD700 (gold)
+              const sunnyR = 255, sunnyG = 215, sunnyB = 0;
+              // Interpolate
+              const r = Math.round(darkR + (sunnyR - darkR) * t);
+              const g = Math.round(darkG + (sunnyG - darkG) * t);
+              const b = Math.round(darkB + (sunnyB - darkB) * t);
+              return `rgb(${r}, ${g}, ${b})`;
+            })(),
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.55,
+            shadowRadius: 7,
+            elevation: 5,
+          }}
+        >
         <Svg
           width={sunSize}
           height={sunSize}
@@ -3999,6 +4071,7 @@ const FloatingSun = React.memo(function FloatingSun({
             fill={`url(#floatingSunGradient-${sun?.id || 'default'})`}
           />
         </Svg>
+        </View>
       </Pressable>
     </Animated.View>
   );
@@ -4314,7 +4387,7 @@ const SparkledDots = React.memo(function SparkledDots({
   // Create more dots with better visibility
   const dots = React.useMemo(() => {
     // Always generate center dots around avatar/spheres (main concentration)
-    const numDotsCenter = isTablet ? 35 : 25; // Main dots in center
+    const numDotsCenter = isTablet ? 60 : 45; // Main dots in center - increased for more density
     const minRadius = avatarSize / 2 + 20; // Start closer to avatar
     const maxRadius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.42; // Extend to near sphere positions
 
@@ -4340,9 +4413,9 @@ const SparkledDots = React.memo(function SparkledDots({
     });
 
     if (fullScreen) {
-      // Add just a few dots at top and bottom when fullScreen mode is enabled
-      const numDotsTop = isTablet ? 4 : 3; // Few dots at top
-      const numDotsBottom = isTablet ? 4 : 3; // Few dots at bottom
+      // Add dots at top and bottom when fullScreen mode is enabled
+      const numDotsTop = isTablet ? 8 : 6; // Dots at top - increased for more density
+      const numDotsBottom = isTablet ? 8 : 6; // Dots at bottom - increased for more density
       const topAreaHeight = SCREEN_HEIGHT * 0.15; // Top 15% of screen
       const bottomAreaHeight = SCREEN_HEIGHT * 0.15; // Bottom 15% of screen
 
@@ -6740,7 +6813,7 @@ export default function HomeScreen() {
     // Start pulsing shadow animation after entrance completes
     lessonShadowPulse.value = withRepeat(
       withSequence(
-        withTiming(1.4, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.8, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
         withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
       ),
       -1, // Infinite repeat
@@ -6983,8 +7056,8 @@ export default function HomeScreen() {
   // Animated style for pulsing shadow on lesson
   const lessonShadowAnimatedStyle = useAnimatedStyle(() => {
     return {
-      shadowOpacity: 0.8 * lessonShadowPulse.value,
-      shadowRadius: (isTablet ? 12 : 8) * lessonShadowPulse.value,
+      shadowOpacity: 0.95 * lessonShadowPulse.value,
+      shadowRadius: (isTablet ? 40 : 30) * lessonShadowPulse.value,
     };
   });
 
@@ -9189,19 +9262,19 @@ export default function HomeScreen() {
             const momentVisuals = {
               lessons: {
                 icon: 'lightbulb' as const,
-                backgroundColor: 'rgba(255, 215, 0, 0.15)',
+                backgroundColor: 'rgba(255, 215, 0, 0.45)',
                 shadowColor: '#FFD700',
                 iconColor: colorScheme === 'dark' ? '#FFD700' : '#FFA000',
               },
               hardTruths: {
                 icon: 'cloud' as const,
-                backgroundColor: 'rgba(150, 150, 180, 0.15)',
+                backgroundColor: 'rgba(150, 150, 180, 0.35)',
                 shadowColor: '#9696B4',
                 iconColor: colorScheme === 'dark' ? '#B0B0C8' : '#7878A0',
               },
               sunnyMoments: {
                 icon: 'wb-sunny' as const,
-                backgroundColor: 'rgba(255, 215, 0, 0.25)',
+                backgroundColor: 'rgba(255, 215, 0, 0.55)',
                 shadowColor: '#FFD700',
                 iconColor: colorScheme === 'dark' ? '#FFD700' : '#FF9800',
               },
@@ -9289,9 +9362,9 @@ export default function HomeScreen() {
                     borderRadius: momentWidth / 2,
                     shadowColor: visuals.shadowColor,
                     shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: 0.8,
-                    shadowRadius: isTablet ? 12 : 8,
-                    elevation: 8,
+                    shadowOpacity: 0.95,
+                    shadowRadius: isTablet ? 40 : 30,
+                    elevation: 24,
                     padding: 8,
                     position: 'relative',
                   },
@@ -9845,11 +9918,11 @@ export default function HomeScreen() {
               const momentCounts = getAllMomentCountsForEntity(profile.id, 'relationships');
 
               // Create array of all moment types with their counts
-              const momentTypes: Array<{ type: MomentType; count: number }> = ([
+              const momentTypes: { type: MomentType; count: number }[] = ([
                 { type: 'lessons' as MomentType, count: momentCounts.lessons },
                 { type: 'hardTruths' as MomentType, count: momentCounts.hardTruths },
                 { type: 'sunnyMoments' as MomentType, count: momentCounts.sunnyMoments },
-              ] as Array<{ type: MomentType; count: number }>).filter(m => m.count > 0);
+              ] as { type: MomentType; count: number }[]).filter(m => m.count > 0);
 
               const totalMomentIcons = Math.min(
                 momentTypes.reduce((sum, m) => sum + Math.min(m.count, 1), 0), // Max 1 icon per type
@@ -9903,11 +9976,11 @@ export default function HomeScreen() {
               const momentCounts = getAllMomentCountsForEntity(job.id, 'career');
 
               // Create array of all moment types with their counts
-              const momentTypes: Array<{ type: MomentType; count: number }> = ([
+              const momentTypes: { type: MomentType; count: number }[] = ([
                 { type: 'lessons' as MomentType, count: momentCounts.lessons },
                 { type: 'hardTruths' as MomentType, count: momentCounts.hardTruths },
                 { type: 'sunnyMoments' as MomentType, count: momentCounts.sunnyMoments },
-              ] as Array<{ type: MomentType; count: number }>).filter(m => m.count > 0);
+              ] as { type: MomentType; count: number }[]).filter(m => m.count > 0);
 
               const totalMomentIcons = Math.min(
                 momentTypes.reduce((sum, m) => sum + Math.min(m.count, 1), 0),
@@ -9961,11 +10034,11 @@ export default function HomeScreen() {
               const momentCounts = getAllMomentCountsForEntity(member.id, 'family');
 
               // Create array of all moment types with their counts
-              const momentTypes: Array<{ type: MomentType; count: number }> = ([
+              const momentTypes: { type: MomentType; count: number }[] = ([
                 { type: 'lessons' as MomentType, count: momentCounts.lessons },
                 { type: 'hardTruths' as MomentType, count: momentCounts.hardTruths },
                 { type: 'sunnyMoments' as MomentType, count: momentCounts.sunnyMoments },
-              ] as Array<{ type: MomentType; count: number }>).filter(m => m.count > 0);
+              ] as { type: MomentType; count: number }[]).filter(m => m.count > 0);
 
               const totalMomentIcons = Math.min(
                 momentTypes.reduce((sum, m) => sum + Math.min(m.count, 1), 0),
@@ -10019,11 +10092,11 @@ export default function HomeScreen() {
               const momentCounts = getAllMomentCountsForEntity(friend.id, 'friends');
 
               // Create array of all moment types with their counts
-              const momentTypes: Array<{ type: MomentType; count: number }> = ([
+              const momentTypes: { type: MomentType; count: number }[] = ([
                 { type: 'lessons' as MomentType, count: momentCounts.lessons },
                 { type: 'hardTruths' as MomentType, count: momentCounts.hardTruths },
                 { type: 'sunnyMoments' as MomentType, count: momentCounts.sunnyMoments },
-              ] as Array<{ type: MomentType; count: number }>).filter(m => m.count > 0);
+              ] as { type: MomentType; count: number }[]).filter(m => m.count > 0);
 
               const totalMomentIcons = Math.min(
                 momentTypes.reduce((sum, m) => sum + Math.min(m.count, 1), 0),
@@ -10077,11 +10150,11 @@ export default function HomeScreen() {
               const momentCounts = getAllMomentCountsForEntity(hobby.id, 'hobbies');
 
               // Create array of all moment types with their counts
-              const momentTypes: Array<{ type: MomentType; count: number }> = ([
+              const momentTypes: { type: MomentType; count: number }[] = ([
                 { type: 'lessons' as MomentType, count: momentCounts.lessons },
                 { type: 'hardTruths' as MomentType, count: momentCounts.hardTruths },
                 { type: 'sunnyMoments' as MomentType, count: momentCounts.sunnyMoments },
-              ] as Array<{ type: MomentType; count: number }>).filter(m => m.count > 0);
+              ] as { type: MomentType; count: number }[]).filter(m => m.count > 0);
 
               const totalMomentIcons = Math.min(
                 momentTypes.reduce((sum, m) => sum + Math.min(m.count, 1), 0),

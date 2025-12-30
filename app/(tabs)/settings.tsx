@@ -3,8 +3,8 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
-import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { OnboardingStepper } from '@/library/components/onboarding-stepper';
+import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
@@ -788,10 +788,10 @@ export default function SettingsScreen() {
                 numClouds = 1;
                 numSuns = 1 + remainingMoments; // All remaining go to suns
               } else {
-                // Ex partners: more clouds than suns
-                // Start with 1 cloud and 1 sun, then add more clouds
-                numClouds = 1 + remainingMoments; // All remaining go to clouds
-                numSuns = 1;
+                // Ex partners: sunny moments prevail (80% suns, 20% clouds)
+                const sunsFromRemaining = Math.floor(remainingMoments * 0.8);
+                numSuns = 1 + sunsFromRemaining;
+                numClouds = 1 + (remainingMoments - sunsFromRemaining);
               }
               
               // Verify we have at least 1 of each (should always be true with above logic)
@@ -920,10 +920,10 @@ export default function SettingsScreen() {
                 numClouds = 1;
                 numSuns = 1 + remainingMoments; // All remaining go to suns
               } else {
-                // Past jobs: more clouds than suns
-                // Start with 1 cloud and 1 sun, then add more clouds
-                numClouds = 1 + remainingMoments; // All remaining go to clouds
-                numSuns = 1;
+                // Past jobs: sunny moments prevail (80% suns, 20% clouds)
+                const sunsFromRemaining = Math.floor(remainingMoments * 0.8);
+                numSuns = 1 + sunsFromRemaining;
+                numClouds = 1 + (remainingMoments - sunsFromRemaining);
               }
               
               // Verify we have at least 1 of each (should always be true with above logic)
@@ -1050,9 +1050,8 @@ export default function SettingsScreen() {
                 // Distribute remaining moments randomly (slightly more suns for family)
                 const remainingMoments = totalMoments - 2; // Subtract the guaranteed 1 cloud + 1 sun
                 
-                // For family, mix of clouds and suns (slightly more suns)
-                // Start with 1 cloud and 1 sun, then distribute remaining 60/40 suns/clouds
-                const sunsFromRemaining = Math.floor(remainingMoments * 0.6);
+                // For family, sunny moments strongly prevail (85% suns, 15% clouds)
+                const sunsFromRemaining = Math.floor(remainingMoments * 0.85);
                 const cloudsFromRemaining = remainingMoments - sunsFromRemaining;
                 
                 numClouds = 1 + cloudsFromRemaining;
@@ -1160,7 +1159,8 @@ export default function SettingsScreen() {
               try {
                 const totalMoments = Math.floor(Math.random() * 7) + 2;
                 const remainingMoments = totalMoments - 2;
-                const sunsFromRemaining = Math.floor(remainingMoments * 0.6);
+                // For friends, sunny moments strongly prevail (85% suns, 15% clouds)
+                const sunsFromRemaining = Math.floor(remainingMoments * 0.85);
                 const cloudsFromRemaining = remainingMoments - sunsFromRemaining;
                 
                 let numClouds = 1 + cloudsFromRemaining;
@@ -1265,7 +1265,8 @@ export default function SettingsScreen() {
               try {
                 const totalMoments = Math.floor(Math.random() * 7) + 2;
                 const remainingMoments = totalMoments - 2;
-                const sunsFromRemaining = Math.floor(remainingMoments * 0.7);
+                // For hobbies, sunny moments very strongly prevail (90% suns, 10% clouds)
+                const sunsFromRemaining = Math.floor(remainingMoments * 0.9);
                 const cloudsFromRemaining = remainingMoments - sunsFromRemaining;
                 
                 let numClouds = 1 + cloudsFromRemaining;

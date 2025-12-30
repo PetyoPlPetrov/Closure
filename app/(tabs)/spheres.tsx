@@ -41,7 +41,7 @@ const SparkledDots = React.memo(function SparkledDots({
   // Generate random positions for dots around the avatar
   // Create more dots with better visibility
   const dots = React.useMemo(() => {
-    const numDots = isTablet ? 35 : 25; // Increased from 18/12 to 35/25 for more density
+    const numDots = isTablet ? 60 : 45; // Increased for more density
     const minRadius = avatarSize / 2 + 20; // Start closer to avatar
     const maxRadius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.42; // Extend to near sphere positions
     
@@ -175,17 +175,17 @@ export default function SpheresScreen() {
   
   // Pulse animation for Insights button
   const pulseScale = useSharedValue(1);
-  
+
   useEffect(() => {
     pulseScale.value = withRepeat(
-      withTiming(1.35, { // Increased for more prominent pulsing effect
+      withTiming(1.35, {
         duration: 2000,
         easing: Easing.inOut(Easing.ease),
       }),
-      -1, // Infinite repeat
-      true // Reverse animation
+      -1,
+      true
     );
-  }, [pulseScale]);
+  }, []);
   
   const pulseAnimatedStyle = useAnimatedStyle(() => {
     return {

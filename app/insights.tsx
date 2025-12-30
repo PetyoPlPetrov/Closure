@@ -12,11 +12,12 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import Animated, { Easing, useAnimatedProps, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedProps, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, ForeignObject, G, Path, Stop, LinearGradient as SvgLinearGradient, Text as SvgText } from 'react-native-svg';
 
 const AnimatedG = Animated.createAnimatedComponent(G);
 const AnimatedLinearGradient = Animated.createAnimatedComponent(SvgLinearGradient);
+const AnimatedView = Animated.View;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -176,6 +177,7 @@ function WheelOfLifeVisualization({
   const pulseScale = useSharedValue(1);
   const pulseRotation = useSharedValue(0);
   const gradientOffset = useSharedValue(-1);
+  const glowPulse = useSharedValue(1);
 
   useEffect(() => {
     // Pulse duration: 1200ms grow + 1200ms shrink = 2400ms total
@@ -207,6 +209,16 @@ function WheelOfLifeVisualization({
     // Start first animation immediately
     runPulseAnimation();
 
+    // Start continuous glow pulsing animation
+    glowPulse.value = withRepeat(
+      withSequence(
+        withTiming(1.2, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      false
+    );
+
     // Schedule slice changes: wait for animation to complete (2400ms) + pause (5000ms)
     const interval = setInterval(() => {
       // Move to next slice
@@ -218,7 +230,7 @@ function WheelOfLifeVisualization({
     }, 7400); // 2400ms animation + 5000ms pause
 
     return () => clearInterval(interval);
-  }, [pulseScale, pulseRotation, gradientOffset]);
+  }, [pulseScale, pulseRotation, gradientOffset, glowPulse]);
 
   // Helper to get gradient colors for pulsing effect
   const getGradientColor = (baseColor: string, isPulsing: boolean) => {
@@ -264,6 +276,12 @@ function WheelOfLifeVisualization({
   const hobbiesGradientProps = useAnimatedProps(() => ({
     x1: `${(gradientOffset.value - 0.3) * 100}%`,
     x2: `${(gradientOffset.value + 0.3) * 100}%`,
+  }));
+
+  // Animated style for glow pulsing
+  const glowAnimatedStyle = useAnimatedStyle(() => ({
+    shadowOpacity: 0.2 * glowPulse.value,
+    shadowRadius: 15 * glowPulse.value,
   }));
 
   // Animated style for each slice group - for scale and rotation transform
@@ -354,13 +372,27 @@ function WheelOfLifeVisualization({
   }
 
   return (
-    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <Defs>
-        {/* Subtle static gradients for each slice - radial from center */}
-        <SvgLinearGradient id="relationshipsStaticGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <Stop offset="0%" stopColor={relationshipsColor} stopOpacity="1" />
-          <Stop offset="100%" stopColor={relationshipsColor} stopOpacity="0.5" />
-        </SvgLinearGradient>
+    <AnimatedView
+      style={[
+        {
+          width: size,
+          height: size,
+          shadowColor: '#FFD700',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.2,
+          shadowRadius: 15,
+          elevation: 8,
+        },
+        glowAnimatedStyle,
+      ]}
+    >
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <Defs>
+          {/* Subtle static gradients for each slice - radial from center */}
+          <SvgLinearGradient id="relationshipsStaticGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={relationshipsColor} stopOpacity="1" />
+            <Stop offset="100%" stopColor={relationshipsColor} stopOpacity="0.5" />
+          </SvgLinearGradient>
 
         <SvgLinearGradient id="careerStaticGradient" x1="0%" y1="0%" x2="100%" y2="100%">
           <Stop offset="0%" stopColor={careerColor} stopOpacity="1" />
@@ -673,7 +705,8 @@ function WheelOfLifeVisualization({
           )}
         </AnimatedG>
       )}
-    </Svg>
+      </Svg>
+    </AnimatedView>
   );
 }
 
