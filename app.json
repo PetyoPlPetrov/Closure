@@ -2,20 +2,20 @@
   "expo": {
     "name": "Sferas",
     "slug": "sphere",
-    "version": "1.0.70",
+    "version": "1.0.71",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/app-icon-v2.png",
     "scheme": "sphere",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.petyoplpetrov.Sphere",
-      "icon": "./assets/images/icon.png",
+      "icon": "./assets/images/app-icon-v2.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "1.0.70",
+      "buildNumber": "1.0.71",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
@@ -38,7 +38,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 70,
+      "versionCode": 71,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
