@@ -35,7 +35,7 @@ type OnboardingStep = {
   titleKey: keyof Translations;
   messageKey: keyof Translations;
   showGif?: boolean;
-  gifSource?: 'welcome' | 'output' | 'memory' | 'insights' | 'notifications' | 'creating';
+  gifSource?: 'welcome' | 'output' | 'memory' | 'recap' | 'insights' | 'notifications' | 'creating';
   imageComponent?: React.ReactNode;
 };
 
@@ -63,6 +63,12 @@ const STEPS: OnboardingStep[] = [
     gifSource: 'memory',
     titleKey: 'onboarding.moments.title',
     messageKey: 'onboarding.moments.message',
+  },
+  {
+    showGif: true,
+    gifSource: 'recap',
+    titleKey: 'onboarding.recap.title',
+    messageKey: 'onboarding.recap.message',
   },
   {
     showGif: true,
@@ -501,6 +507,8 @@ export function OnboardingStepper({
                                     ? require('@/assets/images/output.gif')
                                     : step.gifSource === 'memory'
                                     ? require('@/assets/images/memories.gif')
+                                    : step.gifSource === 'recap'
+                                    ? require('@/assets/images/focusedFriend.gif')
                                     : step.gifSource === 'insights'
                                     ? require('@/assets/images/insights.gif')
                                     : step.gifSource === 'notifications'

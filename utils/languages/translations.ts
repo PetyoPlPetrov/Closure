@@ -597,6 +597,8 @@ export interface Translations {
   'onboarding.welcome.message': string;
   'onboarding.moments.title': string;
   'onboarding.moments.message': string;
+  'onboarding.recap.title': string;
+  'onboarding.recap.message': string;
   'onboarding.lessons.title': string;
   'onboarding.lessons.message': string;
   'onboarding.insights.title': string;
@@ -3872,6 +3874,8 @@ const translations: Record<Language, Translations> = {
     'onboarding.welcome.message': 'Revisit your life\'s moments and lessons to remember your past and shape your future. Take control of your journey by reflecting on what matters most across all areas of your life.',
     'onboarding.moments.title': 'Track Your Moments',
     'onboarding.moments.message': 'Capture both sunny and cloudy moments from your life. Record memories, reflect on experiences, and revisit them anytime to gain perspective and understanding.',
+    'onboarding.recap.title': 'Recap Lessons and Moments',
+    'onboarding.recap.message': 'Click on any focused entity to revisit all their moments and lessons anytime. Your memories and insights are always available to review, reflect upon, and learn from.',
     'onboarding.lessons.title': 'Learn & Grow',
     'onboarding.lessons.message': 'Extract valuable lessons from your experiences. Document what you\'ve learned from both positive and challenging moments to foster personal growth and avoid repeating patterns.',
     'onboarding.insights.title': 'Visualize Your Journey',
@@ -6728,6 +6732,8 @@ const translations: Record<Language, Translations> = {
     'onboarding.welcome.message': 'Преразгледайте моментите и уроците от живота си, за да помните миналото си и да оформите бъдещето си. Поемете контрол над пътуването си, като размишлявате върху това, което е най-важно във всички области на живота ви.',
     'onboarding.moments.title': 'Проследете моментите си',
     'onboarding.moments.message': 'Уловете слънчевите и облачните моменти от живота си. Записвайте спомени, размишлявайте върху преживявания и ги преразглеждайте, за да получите перспектива и разбиране.',
+    'onboarding.recap.title': 'Преглед на уроци и моменти',
+    'onboarding.recap.message': 'Кликнете върху всяка фокусирана личност, за да преразгледате всичките ѝ моменти и уроци по всяко време. Вашите спомени и прозрения са винаги достъпни за преглед, размисъл и учене.',
     'onboarding.lessons.title': 'Научете и растете',
     'onboarding.lessons.message': 'Извлечете ценни уроци от вашите преживявания. Документирайте какво сте научили от положителните и предизвикателните моменти, за да насърчите личностния растеж и да избегнете повтарящи се модели.',
     'onboarding.insights.title': 'Визуализирайте пътуването си',

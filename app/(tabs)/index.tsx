@@ -896,7 +896,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     // Detect transition from unfocused to focused (entering focused view)
     // OR first render when already focused (e.g., clicking friend from spheres view)
     if (isFocused && (!previousIsFocused.current || !hasInitialPulseRun.current)) {
-      console.log('[FloatingAvatar] Entering focused view - starting pulse animation. Previous:', previousIsFocused.current, 'HasRun:', hasInitialPulseRun.current);
       // Pulse 3 times: scale up slightly then back to normal
       avatarPulseScale.value = withSequence(
         withTiming(1.08, { duration: 300, easing: Easing.out(Easing.ease) }),
@@ -1117,12 +1116,25 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
   // Update entity wheel button selection states when selectedMomentType changes
   React.useEffect(() => {
-    console.log('[EntityWheel] Selection effect triggered. selectedMomentType:', selectedMomentType);
-    console.log('[EntityWheel] Setting selection values - lesson:', selectedMomentType === 'lesson' ? 1 : 0, 'sunny:', selectedMomentType === 'sunny' ? 1 : 0, 'cloudy:', selectedMomentType === 'cloudy' ? 1 : 0);
     entityLessonButtonSelection.value = withSpring(selectedMomentType === 'lesson' ? 1 : 0, { damping: 15, stiffness: 150 });
     entitySunnyButtonSelection.value = withSpring(selectedMomentType === 'sunny' ? 1 : 0, { damping: 15, stiffness: 150 });
     entityCloudyButtonSelection.value = withSpring(selectedMomentType === 'cloudy' ? 1 : 0, { damping: 15, stiffness: 150 });
-  }, [selectedMomentType, entityLessonButtonSelection, entitySunnyButtonSelection, entityCloudyButtonSelection]);
+
+    // Cancel any ongoing animations and reset all highlight and press scale values to prevent lingering press effects
+    cancelAnimation(entityLessonButtonHighlight);
+    cancelAnimation(entitySunnyButtonHighlight);
+    cancelAnimation(entityCloudyButtonHighlight);
+    cancelAnimation(entityLessonButtonPressScale);
+    cancelAnimation(entitySunnyButtonPressScale);
+    cancelAnimation(entityCloudyButtonPressScale);
+
+    entityLessonButtonHighlight.value = 0;
+    entitySunnyButtonHighlight.value = 0;
+    entityCloudyButtonHighlight.value = 0;
+    entityLessonButtonPressScale.value = 1;
+    entitySunnyButtonPressScale.value = 1;
+    entityCloudyButtonPressScale.value = 1;
+  }, [selectedMomentType, entityLessonButtonSelection, entitySunnyButtonSelection, entityCloudyButtonSelection, entityLessonButtonHighlight, entitySunnyButtonHighlight, entityCloudyButtonHighlight, entityLessonButtonPressScale, entitySunnyButtonPressScale, entityCloudyButtonPressScale]);
 
   // Avatar pulse animated style for indicating clickability
   const avatarPulseStyle = useAnimatedStyle(() => {
@@ -1238,8 +1250,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       { x: SCREEN_WIDTH / 2 + spacing, y: iconY }, // cloudy
     ];
 
-    console.log('[EntityWheel] Icon positions:', iconPositions, 'iconSize:', iconSize);
-
     const isTouchOnIcon = (x: number, y: number) => {
       return iconPositions.some(icon => {
         const dx = x - icon.x;
@@ -1253,14 +1263,11 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       onStartShouldSetPanResponder: (evt) => {
         // Use pageX/pageY for absolute screen coordinates
         const { pageX, pageY } = evt.nativeEvent;
-        console.log('[EntityWheel] Touch at screen coords:', pageX, pageY);
 
         // Don't capture if touch is on icon buttons
         if (isTouchOnIcon(pageX, pageY)) {
-          console.log('[EntityWheel] Touch on icon, not capturing for wheel drag');
           return false;
         }
-        console.log('[EntityWheel] Touch not on icon, capturing for wheel drag');
         return true;
       },
       onMoveShouldSetPanResponder: (evt) => {
@@ -1978,9 +1985,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         }
         
         const memorySize = Math.min(baseMemorySize, calculatedMaxMemorySize);
-        
-        // Log memory render
-        console.log('[FloatingAvatar] Rendering memory', memory.id, '- showEntityWheel:', showEntityWheel, 'passing onPress:', !showEntityWheel, 'onMemoryFocus:', !showEntityWheel);
 
         return (
           <FloatingMemory
@@ -2127,21 +2131,17 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
                   <Pressable
                     onPress={() => {
-                      console.log('[EntityWheel] Icon pressed:', item.type, 'isDisabled:', isDisabled, 'currentSelection:', selectedMomentType);
                       if (!isDisabled) {
-                        console.log('[EntityWheel] Setting moment type to:', item.type);
                         setSelectedMomentType(item.type);
                       }
                     }}
                     onPressIn={() => {
-                      console.log('[EntityWheel] Icon press in:', item.type, 'isDisabled:', isDisabled);
                       if (!isDisabled) {
                         getPressScaleValue(item.type).value = withTiming(0.88, { duration: 100, easing: Easing.out(Easing.ease) });
                         getHighlightValue(item.type).value = withTiming(1, { duration: 150, easing: Easing.out(Easing.ease) });
                       }
                     }}
                     onPressOut={() => {
-                      console.log('[EntityWheel] Icon press out:', item.type);
                       if (!isDisabled) {
                         getPressScaleValue(item.type).value = withSpring(1, { damping: 10, stiffness: 300 });
                         getHighlightValue(item.type).value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
@@ -4190,29 +4190,23 @@ const FloatingMemory = React.memo(function FloatingMemory({
 
   // Click on memory: focus the memory (and profile if not already focused)
   const handlePress = React.useCallback(() => {
-    console.log('[FloatingMemory] handlePress called at', Date.now(), '- onMemoryFocus:', !!onMemoryFocus, 'onPress:', !!onPress, 'memory:', memory.id);
-
     // Don't handle press if handlers are disabled (e.g., entity wheel is active)
     if (!onMemoryFocus && !onPress) {
-      console.log('[FloatingMemory] Press ignored - handlers disabled (entity wheel active)');
       return;
     }
 
     if (isMemoryFocused) {
       // Already focused, do nothing
-      console.log('[FloatingMemory] Press ignored - memory already focused');
       return;
     }
 
     // Always try to focus the memory
     if (onMemoryFocus) {
-      console.log('[FloatingMemory] Focusing memory:', memory.id);
       onMemoryFocus(memory.entityId || memory.profileId || '', memory.id, memory.sphere || 'relationships');
     }
 
     // If profile is not focused, also focus it
     if (!isFocused && onPress) {
-      console.log('[FloatingMemory] Focusing entity');
       onPress();
     }
   }, [onMemoryFocus, onPress, isMemoryFocused, isFocused, memory.id, memory.entityId, memory.profileId, memory.sphere]);
@@ -4252,11 +4246,6 @@ const FloatingMemory = React.memo(function FloatingMemory({
     zIndex: isMemoryFocused ? 1000 : 50, // Memory base layer - higher than avatars (100) so they appear in front
     pointerEvents: 'box-none' as const, // Allow touches to pass through to Pressable
   };
-
-  // Log render state
-  React.useEffect(() => {
-    console.log('[FloatingMemory] Render state for', memory.id, '- onMemoryFocus:', !!onMemoryFocus, 'onPress:', !!onPress, 'pointerEvents:', (!onMemoryFocus && !onPress) ? 'none' : 'auto');
-  }, [onMemoryFocus, onPress, memory.id]);
 
   return (
     <>
@@ -4302,15 +4291,12 @@ const FloatingMemory = React.memo(function FloatingMemory({
             height: memorySize,
           }}
           onPress={() => {
-            console.log('[FloatingMemory] Pressable onPress - showEntityWheel:', showEntityWheel, 'showEntityWheelRef.current:', showEntityWheelRef?.current, 'disabled:', (!onMemoryFocus && !onPress), 'pointerEvents:', (onMemoryFocus || onPress) ? 'auto' : 'none');
             // CRITICAL: Check ref FIRST for absolute latest value, bypassing React's prop system
             if (showEntityWheelRef?.current) {
-              console.log('[FloatingMemory] Press BLOCKED by REF - entity wheel is active (ref value:', showEntityWheelRef.current, ')');
               return;
             }
             // Fallback to prop check
             if (showEntityWheel) {
-              console.log('[FloatingMemory] Press BLOCKED by PROP - entity wheel is active');
               return;
             }
             handlePress();
@@ -4756,15 +4742,12 @@ const FloatingCloud = React.memo(function FloatingCloud({
           height: safeCloudSize,
         }}
         onPress={() => {
-          console.log('[FloatingCloud] Pressed - showEntityWheel:', showEntityWheel, 'showEntityWheelRef.current:', showEntityWheelRef?.current, 'onPress defined:', !!onPress);
           // CRITICAL: Check ref FIRST for absolute latest value, bypassing React's prop system
           if (showEntityWheelRef?.current) {
-            console.log('[FloatingCloud] Press BLOCKED by REF - entity wheel is active');
             return;
           }
           // Fallback to prop check
           if (showEntityWheel) {
-            console.log('[FloatingCloud] Press BLOCKED - entity wheel is active');
             return;
           }
           if (onPress) {
@@ -4935,15 +4918,12 @@ const FloatingSun = React.memo(function FloatingSun({
         disabled={showEntityWheel || !onPress} // Disable when entity wheel is active or no handler (use PROP for render-time check)
         style={{ pointerEvents: (showEntityWheel || !onPress) ? 'none' : 'auto' }} // Disable touches when entity wheel is active or no handler (use PROP for render-time check)
         onPress={() => {
-          console.log('[FloatingSun] Pressed - showEntityWheel:', showEntityWheel, 'showEntityWheelRef.current:', showEntityWheelRef?.current, 'onPress defined:', !!onPress);
           // CRITICAL: Check ref FIRST for absolute latest value, bypassing React's prop system
           if (showEntityWheelRef?.current) {
-            console.log('[FloatingSun] Press BLOCKED by REF - entity wheel is active');
             return;
           }
           // Fallback to prop check
           if (showEntityWheel) {
-            console.log('[FloatingSun] Press BLOCKED by PROP - entity wheel is active');
             return;
           }
           if (onPress) {
@@ -5160,15 +5140,12 @@ const FloatingLesson = React.memo(function FloatingLesson({
         disabled={showEntityWheel || !onPress} // Disable when entity wheel is active or no handler (use PROP for render-time check)
         style={{ pointerEvents: (showEntityWheel || !onPress) ? 'none' : 'auto' }} // Disable touches when entity wheel is active or no handler (use PROP for render-time check)
         onPress={() => {
-          console.log('[FloatingLesson] Pressed - showEntityWheel:', showEntityWheel, 'showEntityWheelRef.current:', showEntityWheelRef?.current, 'onPress defined:', !!onPress);
           // CRITICAL: Check ref FIRST for absolute latest value, bypassing React's prop system
           if (showEntityWheelRef?.current) {
-            console.log('[FloatingLesson] Press BLOCKED by REF - entity wheel is active');
             return;
           }
           // Fallback to prop check
           if (showEntityWheel) {
-            console.log('[FloatingLesson] Press BLOCKED by PROP - entity wheel is active');
             return;
           }
           if (onPress) {
@@ -6055,7 +6032,9 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
       );
       opacity.value = withTiming(1, { duration: 300 });
     } else {
-      pulseScale.value = 1;
+      // Stop pulsing animation when deselected
+      cancelAnimation(pulseScale);
+      pulseScale.value = withTiming(1, { duration: 300 });
       opacity.value = withTiming(0.4, { duration: 300 });
     }
   }, [isSelected, pulseScale, opacity]);
@@ -6161,55 +6140,23 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
   // Start entrance animation with delay, then fade out after a duration
   React.useEffect(() => {
     const startAnimation = () => {
-      // Fade in and scale up
+      // Fade in and scale up - initial opacity based on selection state
       opacity.value = withTiming(isSelected ? 1 : 0.4, { duration: 400 });
       scale.value = withSpring(1, { damping: 10, stiffness: 150 });
 
-      // Only start pulsing animation if this is the selected moment type
-      if (isSelected) {
-        // Start pulsing animation (scale between 1 and 1.3 for more prominent effect)
-        // Pulse completes (up + down), then 2 second delay, then next pulse
-        pulseScale.value = withRepeat(
-          withSequence(
-            // Pulse up
-            withTiming(1.3, {
-              duration: 600,
-              easing: Easing.inOut(Easing.ease),
-            }),
-            // Pulse down
-            withTiming(1, {
-              duration: 600,
-              easing: Easing.inOut(Easing.ease),
-            }),
-            // 2 second pause - stay at scale 1 for 2 seconds
-            withTiming(1, { duration: 2000 })
-          ),
-          3, // Pulse 3 times with pauses
-          false
-        );
+      // NOTE: Pulse animation is handled by separate effect below that responds to isSelected changes
+      // This prevents duplicate pulse animations when selection changes
 
-        // Fade out after total duration: 3 pulses × (600ms up + 600ms down + 2000ms delay) = ~9.6 seconds
-        fadeOutTimerRef.current = setTimeout(() => {
-          opacity.value = withTiming(0, { duration: 500 }, () => {
-            if (onComplete) {
-              runOnJS(onComplete)();
-            }
-          });
-          scale.value = withTiming(0.8, { duration: 500 });
-          fadeOutTimerRef.current = null;
-        }, 9600) as unknown as NodeJS.Timeout;
-      } else {
-        // Non-selected moments don't pulse and fade out faster
-        fadeOutTimerRef.current = setTimeout(() => {
-          opacity.value = withTiming(0, { duration: 500 }, () => {
-            if (onComplete) {
-              runOnJS(onComplete)();
-            }
-          });
-          scale.value = withTiming(0.8, { duration: 500 });
-          fadeOutTimerRef.current = null;
-        }, 9600) as unknown as NodeJS.Timeout;
-      }
+      // Fade out after duration (both selected and non-selected)
+      fadeOutTimerRef.current = setTimeout(() => {
+        opacity.value = withTiming(0, { duration: 500 }, () => {
+          if (onComplete) {
+            runOnJS(onComplete)();
+          }
+        });
+        scale.value = withTiming(0.8, { duration: 500 });
+        fadeOutTimerRef.current = null;
+      }, 9600) as unknown as NodeJS.Timeout;
 
       // Start floating animation (gentle vertical movement) for all moments
       floatOffset.value = withRepeat(
@@ -6239,7 +6186,7 @@ const PulsingFloatingMomentIcon = React.memo(function PulsingFloatingMomentIcon(
       cancelAnimation(opacity);
       cancelAnimation(scale);
     };
-  }, [delay, onComplete, isSelected]); // Added isSelected to deps
+  }, [delay, onComplete]); // Removed isSelected - pulse is handled by separate effect
 
   // Update opacity and pulse animation when selectedMomentType changes
   React.useEffect(() => {
