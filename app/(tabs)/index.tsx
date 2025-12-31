@@ -1231,8 +1231,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   });
 
   // Wheel drag tracking
-  const lastAngleRef = React.useRef(0);
-  const lastTimestampRef = React.useRef(0);
+  const wheelDragFrameCount = useSharedValue(0);
+  const wheelLastAngle = useSharedValue(0);
+  const wheelStartAngle = useSharedValue(0);
 
   // Create PanResponder for drag-to-spin in wheel mode
   const wheelPanResponder = React.useMemo(() => {
@@ -1280,59 +1281,84 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         }
         return true;
       },
-      onPanResponderGrant: () => {
+      onPanResponderGrant: (evt) => {
         // Stop the automatic rotation animation
         cancelAnimation(orbitAngle);
         isWheelSpinning.value = false;
         wheelVelocity.value = 0;
-        lastAngleRef.current = 0;
-        lastTimestampRef.current = Date.now();
+        wheelDragFrameCount.value = 0;
+
+        // Calculate initial angle from center
+        const touch = evt.nativeEvent;
+        const centerX = SCREEN_WIDTH / 2;
+        const centerY = wheelTargetY;
+        const dx = touch.pageX - centerX;
+        const dy = touch.pageY - centerY;
+        wheelStartAngle.value = Math.atan2(dy, dx);
+        wheelLastAngle.value = wheelStartAngle.value;
+
         // Clear any existing popup when starting a new spin
         setSelectedWheelMoment(null);
       },
-      onPanResponderMove: (_, gestureState) => {
+      onPanResponderMove: (evt, gestureState) => {
+        const touch = evt.nativeEvent;
         const centerX = SCREEN_WIDTH / 2;
         const centerY = wheelTargetY;
+        const dx = touch.pageX - centerX;
+        const dy = touch.pageY - centerY;
+        const currentAngle = Math.atan2(dy, dx);
 
-        // Calculate angle from center
-        const angle = Math.atan2(gestureState.moveY - centerY, gestureState.moveX - centerX);
-        const angleDeg = (angle * 180) / Math.PI;
+        // Calculate angle delta in radians
+        let deltaAngle = currentAngle - wheelLastAngle.value;
 
-        const currentTime = Date.now();
-        const deltaTime = (currentTime - lastTimestampRef.current) / 1000; // Convert to seconds
+        // Handle angle wrapping (when crossing -π/π boundary)
+        if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+        if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
 
-        if (lastTimestampRef.current > 0 && deltaTime > 0) {
-          let deltaAngle = angleDeg - lastAngleRef.current;
+        // Increment frame counter for acceleration
+        wheelDragFrameCount.value += 1;
 
-          // Handle wraparound
-          if (deltaAngle > 180) deltaAngle -= 360;
-          if (deltaAngle < -180) deltaAngle += 360;
+        // Acceleration curve: start slow, then speed up (same as main wheel)
+        // Use frame count to simulate time (assuming ~60fps, 30 frames = ~500ms)
+        const targetFrames = 30; // Frames to reach full speed
+        const accelerationFactor = Math.min(1, wheelDragFrameCount.value / targetFrames);
+        // Apply easing curve for smoother acceleration (ease-out cubic)
+        const easedAcceleration = 1 - Math.pow(1 - accelerationFactor, 3);
 
-          // Force clockwise direction (positive delta = clockwise in standard rotation)
-          // Always use positive angle change to rotate clockwise
-          const clockwiseDelta = Math.abs(deltaAngle);
+        // Apply acceleration to delta angle
+        // Start at 40% speed, gradually reach 100% over ~500ms
+        const acceleratedDelta = deltaAngle * (0.4 + easedAcceleration * 0.6);
 
-          orbitAngle.value = orbitAngle.value + clockwiseDelta;
-          wheelVelocity.value = clockwiseDelta / deltaTime; // degrees per second (always positive for clockwise)
-        }
+        // Convert to degrees for orbitAngle
+        const deltaDeg = (acceleratedDelta * 180) / Math.PI;
 
-        lastAngleRef.current = angleDeg;
-        lastTimestampRef.current = currentTime;
+        orbitAngle.value = orbitAngle.value + deltaDeg;
+        wheelVelocity.value = deltaDeg; // Track velocity for momentum in degrees
+        wheelLastAngle.value = currentAngle;
       },
       onPanResponderRelease: () => {
+        // Reset frame counter
+        wheelDragFrameCount.value = 0;
+
         // Apply decay animation based on velocity
         isWheelSpinning.value = true;
         const velocity = wheelVelocity.value;
 
-        if (Math.abs(velocity) > 50) { // Minimum velocity to trigger spin
-          // Increase the distance traveled (multiply by 1.5 instead of 0.5 for more rotation)
-          const targetAngle = orbitAngle.value + velocity * 1.5;
+        // Much stronger momentum multiplier (match main wheel behavior)
+        const velocityMagnitude = Math.abs(velocity);
+        // Scale from 20x to 60x based on velocity (much more aggressive)
+        const momentumMultiplier = 20.0 + Math.min(velocityMagnitude * 5, 40.0);
+        const amplifiedVelocity = velocity * momentumMultiplier;
+
+        if (Math.abs(velocity) > 0.5) { // Lower threshold - trigger on any movement
+          // Much longer travel distance with amplified velocity
+          const targetAngle = orbitAngle.value + amplifiedVelocity * 3;
 
           // Use a custom easing curve: slow start (ease in), fast middle, slow end (ease out)
           orbitAngle.value = withSequence(
             withTiming(targetAngle, {
-              duration: 2000, // Slightly longer duration for smoother effect
-              easing: Easing.inOut(Easing.cubic), // Accelerate then decelerate
+              duration: 3000, // Longer duration for more spinning
+              easing: Easing.out(Easing.cubic), // Decelerate smoothly
             }),
             withTiming(targetAngle, {
               duration: 0,
@@ -1372,7 +1398,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         wheelVelocity.value = 0;
       },
     });
-  }, [showEntityWheel, isFocused, wheelSpinRotation, wheelVelocity, isWheelSpinning, wheelTargetY, fontScale, insets.bottom, orbitAngle, selectRandomMoment]);
+  }, [showEntityWheel, isFocused, wheelVelocity, isWheelSpinning, wheelTargetY, fontScale, insets.bottom, orbitAngle, selectRandomMoment, wheelDragFrameCount, wheelLastAngle, wheelStartAngle]);
 
   // No container rotation - each memory will animate individually
   // This is now just a placeholder for potential future container-level styles
