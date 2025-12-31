@@ -1067,17 +1067,17 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     const allMoments: { type: 'lesson' | 'sunny' | 'cloudy'; text: string }[] = [];
 
     memories.forEach((memory) => {
-      if (memory.lessonsLearned) {
+      if (selectedMomentType === 'lesson' && memory.lessonsLearned) {
         memory.lessonsLearned.forEach((lesson: { id: string; text: string }) => {
           allMoments.push({ type: 'lesson', text: lesson.text });
         });
       }
-      if (memory.goodFacts) {
+      if (selectedMomentType === 'sunny' && memory.goodFacts) {
         memory.goodFacts.forEach((fact: { id: string; text: string }) => {
           allMoments.push({ type: 'sunny', text: fact.text });
         });
       }
-      if (memory.hardTruths) {
+      if (selectedMomentType === 'cloudy' && memory.hardTruths) {
         memory.hardTruths.forEach((truth: { id: string; text: string }) => {
           allMoments.push({ type: 'cloudy', text: truth.text });
         });
@@ -1088,7 +1088,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       const randomIndex = Math.floor(Math.random() * allMoments.length);
       setSelectedWheelMoment(allMoments[randomIndex]);
     }
-  }, [memories]);
+  }, [memories, selectedMomentType]);
 
   // Animate popup entrance when selectedWheelMoment appears
   React.useEffect(() => {
@@ -1287,6 +1287,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         wheelVelocity.value = 0;
         lastAngleRef.current = 0;
         lastTimestampRef.current = Date.now();
+        // Clear any existing popup when starting a new spin
+        setSelectedWheelMoment(null);
       },
       onPanResponderMove: (_, gestureState) => {
         const centerX = SCREEN_WIDTH / 2;
@@ -1306,8 +1308,12 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           if (deltaAngle > 180) deltaAngle -= 360;
           if (deltaAngle < -180) deltaAngle += 360;
 
-          orbitAngle.value = orbitAngle.value + deltaAngle;
-          wheelVelocity.value = deltaAngle / deltaTime; // degrees per second
+          // Force clockwise direction (positive delta = clockwise in standard rotation)
+          // Always use positive angle change to rotate clockwise
+          const clockwiseDelta = Math.abs(deltaAngle);
+
+          orbitAngle.value = orbitAngle.value + clockwiseDelta;
+          wheelVelocity.value = clockwiseDelta / deltaTime; // degrees per second (always positive for clockwise)
         }
 
         lastAngleRef.current = angleDeg;
@@ -1319,11 +1325,14 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         const velocity = wheelVelocity.value;
 
         if (Math.abs(velocity) > 50) { // Minimum velocity to trigger spin
-          const targetAngle = orbitAngle.value + velocity * 0.5;
+          // Increase the distance traveled (multiply by 1.5 instead of 0.5 for more rotation)
+          const targetAngle = orbitAngle.value + velocity * 1.5;
+
+          // Use a custom easing curve: slow start (ease in), fast middle, slow end (ease out)
           orbitAngle.value = withSequence(
             withTiming(targetAngle, {
-              duration: 1500,
-              easing: Easing.out(Easing.cubic),
+              duration: 2000, // Slightly longer duration for smoother effect
+              easing: Easing.inOut(Easing.cubic), // Accelerate then decelerate
             }),
             withTiming(targetAngle, {
               duration: 0,
