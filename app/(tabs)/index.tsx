@@ -288,6 +288,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   enableDragging = false,
   externalPositionX,
   externalPositionY,
+  onEntityWheelChange,
 }: {
   profile: any;
   position: { x: number; y: number };
@@ -304,12 +305,54 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   enableDragging?: boolean;
   externalPositionX?: ReturnType<typeof useSharedValue<number>>;
   externalPositionY?: ReturnType<typeof useSharedValue<number>>;
+  onEntityWheelChange?: (isActive: boolean) => void;
 }) {
   const { isTablet } = useLargeDevice();
   const insets = useSafeAreaInsets();
   const fontScale = useFontScale();
   const [shareModalVisible, setShareModalVisible] = React.useState(false);
   const [shareModalContent, setShareModalContent] = React.useState({ title: '', message: '' });
+  const [showEntityWheel, setShowEntityWheel] = React.useState(false);
+  const [selectedWheelMoment, setSelectedWheelMoment] = React.useState<{ type: 'lesson' | 'sunny' | 'cloudy'; text: string } | null>(null);
+  const [selectedMomentType, setSelectedMomentType] = React.useState<'lesson' | 'sunny' | 'cloudy'>('lesson');
+
+  // Create a ref to always have the latest showEntityWheel value
+  const showEntityWheelRef = React.useRef(showEntityWheel);
+  React.useEffect(() => {
+    showEntityWheelRef.current = showEntityWheel;
+  }, [showEntityWheel]);
+
+  // Track previous showEntityWheel state to detect transitions
+  const previousShowEntityWheel = React.useRef(showEntityWheel);
+
+
+  // Wheel mode animation values
+  const wheelModeProgress = useSharedValue(0);
+  const wheelSpinRotation = useSharedValue(0); // Orbit angle offset - all memories orbit with this offset
+  const wheelVelocity = useSharedValue(0);
+  const isWheelSpinning = useSharedValue(false);
+
+  // Popup animation values
+  const popupAnimProgress = useSharedValue(0);
+  const popupScale = useSharedValue(0.3);
+  const popupOpacity = useSharedValue(0);
+  const orbitAngle = useSharedValue(0); // Continuous orbit angle for automatic rotation
+  const showEntityWheelShared = useSharedValue(false); // Shared value for worklet reactivity
+
+  // Entity wheel moment type selector animation values (matching main wheel)
+  const entityLessonButtonPressScale = useSharedValue(1);
+  const entitySunnyButtonPressScale = useSharedValue(1);
+  const entityCloudyButtonPressScale = useSharedValue(1);
+  const entityLessonButtonSelection = useSharedValue(1); // Start with lesson selected
+  const entitySunnyButtonSelection = useSharedValue(0);
+  const entityCloudyButtonSelection = useSharedValue(0);
+  const entityLessonButtonHighlight = useSharedValue(0);
+  const entitySunnyButtonHighlight = useSharedValue(0);
+  const entityCloudyButtonHighlight = useSharedValue(0);
+
+  // Avatar pulse animation for indicating clickability when entering focused view
+  const avatarPulseScale = useSharedValue(1);
+
   const baseAvatarSize = isTablet ? 120 : 100; // 50% larger on tablets, increased from 80 to 100
   const focusedAvatarSize = isTablet ? 150 : 120; // 50% larger on tablets, increased from 100 to 120
   const avatarSize = isFocused ? focusedAvatarSize : baseAvatarSize;
@@ -332,21 +375,29 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   // On tablets, position memories much further from avatar when focused (3x distance for better spacing)
   const memoryRadius = isTablet && isFocused ? baseMemoryRadius * 3 : baseMemoryRadius;
   
-  // Calculate sunny moments percentage for progress bar
-  const sunnyPercentage = useMemo(() => {
+  // Calculate sunny moments percentage for progress bar and moment counts
+  const { sunnyPercentage, momentCounts } = useMemo(() => {
     let totalClouds = 0;
     let totalSuns = 0;
-    
+    let totalLessons = 0;
+
     memories.forEach((memory) => {
       totalClouds += (memory.hardTruths || []).length;
-      totalSuns += (memory.goodFacts || []).length + (memory.lessonsLearned || []).length; // Lessons count as positive moments
+      totalSuns += (memory.goodFacts || []).length;
+      totalLessons += (memory.lessonsLearned || []).length;
     });
 
-    const total = totalClouds + totalSuns;
-    if (total === 0) return 0; // No progress if no moments
-    
-    // Percentage of sunny moments (0-100)
-    return (totalSuns / total) * 100;
+    const total = totalClouds + totalSuns + totalLessons;
+    const percentage = total === 0 ? 0 : ((totalSuns + totalLessons) / total) * 100;
+
+    return {
+      sunnyPercentage: percentage,
+      momentCounts: {
+        lesson: totalLessons,
+        sunny: totalSuns,
+        cloudy: totalClouds,
+      },
+    };
   }, [memories]);
   
   // Calculate SVG circle parameters for progress bar
@@ -639,6 +690,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         -1,
         true
       );
+      // Reset entity wheel when unfocused
+      setShowEntityWheel(false);
     } else {
       // Stop floating when focused
       floatAnimation.value = 0;
@@ -649,7 +702,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       cancelAnimation(floatAnimation);
     };
   }, [floatAnimation, isFocused]);
-  
+
   // Pulse drag handle icon twice when dragging is enabled and avatar is not focused
   React.useEffect(() => {
     if (enableDragging && !isFocused) {
@@ -758,8 +811,111 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const startY = useSharedValue(clampedPositionY);
 
   // Target position for focused state (State B - centered in visible viewport)
+  const normalTargetY = SCREEN_HEIGHT / 2 + 80; // Lower the focused avatar by 80px
+  const wheelTargetY = SCREEN_HEIGHT / 2 - 120; // Higher position for wheel mode (moved up from -40 to -120)
   const targetX = SCREEN_WIDTH / 2;
-  const targetY = SCREEN_HEIGHT / 2 + 80; // Lower the focused avatar by 80px
+  const targetY = normalTargetY; // Will be animated based on wheelModeProgress
+
+  // Sync showEntityWheel state with shared value for worklet reactivity
+  React.useEffect(() => {
+    showEntityWheelShared.value = showEntityWheel;
+  }, [showEntityWheel, showEntityWheelShared]);
+
+  // Animate wheel mode
+  React.useEffect(() => {
+    if (showEntityWheel && isFocused) {
+      // Only set default moment type when first entering wheel mode (transitioning from false to true)
+      const wasWheelHidden = !previousShowEntityWheel.current;
+
+      wheelModeProgress.value = withSpring(1, {
+        damping: 15,
+        stiffness: 100,
+      });
+      // Animate to wheel mode position (more centered)
+      focusedY.value = withSpring(wheelTargetY, {
+        damping: 15,
+        stiffness: 100,
+      });
+
+      // Start continuous orbit animation - slow rotation around entity
+      // Each memory will use its base angle + this orbit angle to calculate position
+      orbitAngle.value = 0;
+      orbitAngle.value = withRepeat(
+        withTiming(360, {
+          duration: 60000, // 60 seconds (1 minute) for full rotation - slow and smooth
+          easing: Easing.linear,
+        }),
+        -1, // Infinite repeat
+        false // Don't reverse
+      );
+
+      // Only set default selected moment type when first entering wheel mode
+      if (wasWheelHidden) {
+        setSelectedMomentType('lesson');
+      }
+    } else {
+      wheelModeProgress.value = withSpring(0, {
+        damping: 15,
+        stiffness: 100,
+      });
+
+      // Stop orbit animation
+      cancelAnimation(orbitAngle);
+      orbitAngle.value = 0; // Reset orbit angle
+      cancelAnimation(wheelSpinRotation);
+      wheelSpinRotation.value = 0; // Reset rotation
+
+      setSelectedMomentType(null); // Reset selected icon
+      // Return to normal focused position
+      if (isFocused) {
+        focusedY.value = withSpring(normalTargetY, {
+          damping: 15,
+          stiffness: 100,
+        });
+      }
+    }
+
+    // Update the ref to track the current state for next render
+    previousShowEntityWheel.current = showEntityWheel;
+  }, [showEntityWheel, isFocused, wheelModeProgress, wheelSpinRotation, focusedY, wheelTargetY, normalTargetY, memoryPositions, position.x, position.y, orbitAngle]);
+  // Note: selectedMomentType is intentionally NOT in dependencies to avoid restarting animations when icon selection changes
+
+  // Notify parent when entity wheel state changes
+  React.useEffect(() => {
+    if (onEntityWheelChange) {
+      onEntityWheelChange(showEntityWheel && isFocused);
+    }
+  }, [showEntityWheel, isFocused, onEntityWheelChange]);
+
+  // Pulse animation when entering focused view to indicate avatar is clickable
+  // Initialize to false so we detect the first focused render as a transition
+  const previousIsFocused = React.useRef(false);
+  const hasInitialPulseRun = React.useRef(false);
+
+  React.useEffect(() => {
+    // Detect transition from unfocused to focused (entering focused view)
+    // OR first render when already focused (e.g., clicking friend from spheres view)
+    if (isFocused && (!previousIsFocused.current || !hasInitialPulseRun.current)) {
+      console.log('[FloatingAvatar] Entering focused view - starting pulse animation. Previous:', previousIsFocused.current, 'HasRun:', hasInitialPulseRun.current);
+      // Pulse 3 times: scale up slightly then back to normal
+      avatarPulseScale.value = withSequence(
+        withTiming(1.08, { duration: 300, easing: Easing.out(Easing.ease) }),
+        withTiming(1, { duration: 300, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.08, { duration: 300, easing: Easing.out(Easing.ease) }),
+        withTiming(1, { duration: 300, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.08, { duration: 300, easing: Easing.out(Easing.ease) }),
+        withTiming(1, { duration: 300, easing: Easing.inOut(Easing.ease) })
+      );
+      hasInitialPulseRun.current = true;
+    } else if (!isFocused) {
+      // Reset pulse when leaving focused view
+      avatarPulseScale.value = 1;
+      hasInitialPulseRun.current = false; // Reset so next focus triggers pulse
+    }
+
+    // Update ref for next render
+    previousIsFocused.current = isFocused;
+  }, [isFocused, avatarPulseScale]);
 
   // Use a ref to track previous isFocused state to detect transitions
   // CRITICAL: Don't initialize with current value - track the actual previous value from last effect run
@@ -907,6 +1063,309 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     }
   }, [isFocused, position.x, position.y, zoomProgress, zoomScale, startX, startY, focusedX, focusedY, focusedScale, baseScale, targetX, targetY]);
 
+  // Select random moment after wheel spin
+  const selectRandomMoment = React.useCallback(() => {
+    const allMoments: { type: 'lesson' | 'sunny' | 'cloudy'; text: string }[] = [];
+
+    memories.forEach((memory) => {
+      if (memory.lessonsLearned) {
+        memory.lessonsLearned.forEach((lesson: { id: string; text: string }) => {
+          allMoments.push({ type: 'lesson', text: lesson.text });
+        });
+      }
+      if (memory.goodFacts) {
+        memory.goodFacts.forEach((fact: { id: string; text: string }) => {
+          allMoments.push({ type: 'sunny', text: fact.text });
+        });
+      }
+      if (memory.hardTruths) {
+        memory.hardTruths.forEach((truth: { id: string; text: string }) => {
+          allMoments.push({ type: 'cloudy', text: truth.text });
+        });
+      }
+    });
+
+    if (allMoments.length > 0) {
+      const randomIndex = Math.floor(Math.random() * allMoments.length);
+      setSelectedWheelMoment(allMoments[randomIndex]);
+    }
+  }, [memories]);
+
+  // Animate popup entrance when selectedWheelMoment appears
+  React.useEffect(() => {
+    if (selectedWheelMoment) {
+      // Reset and animate from entity position to top
+      popupAnimProgress.value = 0;
+      popupScale.value = 0.3;
+      popupOpacity.value = 0;
+
+      popupAnimProgress.value = withSpring(1, {
+        damping: 15,
+        stiffness: 150,
+      });
+      popupScale.value = withSpring(1, {
+        damping: 12,
+        stiffness: 150,
+      });
+      popupOpacity.value = withTiming(1, { duration: 300 });
+    } else {
+      // Fade out when closing
+      popupOpacity.value = withTiming(0, { duration: 200 });
+      popupScale.value = withTiming(0.8, { duration: 200 });
+    }
+  }, [selectedWheelMoment, popupAnimProgress, popupScale, popupOpacity]);
+
+  // Update entity wheel button selection states when selectedMomentType changes
+  React.useEffect(() => {
+    console.log('[EntityWheel] Selection effect triggered. selectedMomentType:', selectedMomentType);
+    console.log('[EntityWheel] Setting selection values - lesson:', selectedMomentType === 'lesson' ? 1 : 0, 'sunny:', selectedMomentType === 'sunny' ? 1 : 0, 'cloudy:', selectedMomentType === 'cloudy' ? 1 : 0);
+    entityLessonButtonSelection.value = withSpring(selectedMomentType === 'lesson' ? 1 : 0, { damping: 15, stiffness: 150 });
+    entitySunnyButtonSelection.value = withSpring(selectedMomentType === 'sunny' ? 1 : 0, { damping: 15, stiffness: 150 });
+    entityCloudyButtonSelection.value = withSpring(selectedMomentType === 'cloudy' ? 1 : 0, { damping: 15, stiffness: 150 });
+  }, [selectedMomentType, entityLessonButtonSelection, entitySunnyButtonSelection, entityCloudyButtonSelection]);
+
+  // Avatar pulse animated style for indicating clickability
+  const avatarPulseStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: avatarPulseScale.value }],
+    };
+  });
+
+  // Entity wheel button animated styles (matching main wheel liquid glass effect)
+  const entityLessonButtonStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolateColor(
+      entityLessonButtonSelection.value,
+      [0, 1],
+      [
+        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        colors.primary
+      ]
+    );
+    const borderWidth = entityLessonButtonSelection.value * 2;
+
+    return {
+      transform: [{ scale: entityLessonButtonPressScale.value }],
+      backgroundColor,
+      borderWidth,
+      borderColor: colors.primary,
+    };
+  });
+
+  const entityLessonHighlightStyle = useAnimatedStyle(() => {
+    return { opacity: entityLessonButtonHighlight.value * 0.4 };
+  });
+
+  const entitySunnyButtonStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolateColor(
+      entitySunnyButtonSelection.value,
+      [0, 1],
+      [
+        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        colors.primary
+      ]
+    );
+    const borderWidth = entitySunnyButtonSelection.value * 2;
+
+    return {
+      transform: [{ scale: entitySunnyButtonPressScale.value }],
+      backgroundColor,
+      borderWidth,
+      borderColor: colors.primary,
+    };
+  });
+
+  const entitySunnyHighlightStyle = useAnimatedStyle(() => {
+    return { opacity: entitySunnyButtonHighlight.value * 0.4 };
+  });
+
+  const entityCloudyButtonStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolateColor(
+      entityCloudyButtonSelection.value,
+      [0, 1],
+      [
+        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        colors.primary
+      ]
+    );
+    const borderWidth = entityCloudyButtonSelection.value * 2;
+
+    return {
+      transform: [{ scale: entityCloudyButtonPressScale.value }],
+      backgroundColor,
+      borderWidth,
+      borderColor: colors.primary,
+    };
+  });
+
+  const entityCloudyHighlightStyle = useAnimatedStyle(() => {
+    return { opacity: entityCloudyButtonHighlight.value * 0.4 };
+  });
+
+  // Popup animated style - must be defined at top level, not inside conditional
+  const popupAnimatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    // Start from entity position (wheelTargetY) and animate to final position below entity name
+    // Position lower to avoid overlapping with entity name at top (give ~180px for name + padding)
+    const messageTop = 180;
+    const startY = wheelTargetY;
+    const endY = messageTop;
+    const currentY = startY + (endY - startY) * popupAnimProgress.value;
+
+    return {
+      transform: [{ scale: popupScale.value }],
+      opacity: popupOpacity.value,
+      top: currentY,
+    };
+  });
+
+  // Wheel drag tracking
+  const lastAngleRef = React.useRef(0);
+  const lastTimestampRef = React.useRef(0);
+
+  // Create PanResponder for drag-to-spin in wheel mode
+  const wheelPanResponder = React.useMemo(() => {
+    if (!showEntityWheel || !isFocused) return null;
+
+    // Calculate icon button exclusion zones
+    const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+    const iconY = SCREEN_HEIGHT - tabBarHeight - 60;
+    const iconSize = 60;
+    const spacing = 85;
+
+    const iconPositions = [
+      { x: SCREEN_WIDTH / 2 - spacing, y: iconY }, // lesson
+      { x: SCREEN_WIDTH / 2, y: iconY }, // sunny
+      { x: SCREEN_WIDTH / 2 + spacing, y: iconY }, // cloudy
+    ];
+
+    console.log('[EntityWheel] Icon positions:', iconPositions, 'iconSize:', iconSize);
+
+    const isTouchOnIcon = (x: number, y: number) => {
+      return iconPositions.some(icon => {
+        const dx = x - icon.x;
+        const dy = y - icon.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        return distance < iconSize / 2 + 10; // Add 10px padding for easier touch
+      });
+    };
+
+    return PanResponder.create({
+      onStartShouldSetPanResponder: (evt) => {
+        // Use pageX/pageY for absolute screen coordinates
+        const { pageX, pageY } = evt.nativeEvent;
+        console.log('[EntityWheel] Touch at screen coords:', pageX, pageY);
+
+        // Don't capture if touch is on icon buttons
+        if (isTouchOnIcon(pageX, pageY)) {
+          console.log('[EntityWheel] Touch on icon, not capturing for wheel drag');
+          return false;
+        }
+        console.log('[EntityWheel] Touch not on icon, capturing for wheel drag');
+        return true;
+      },
+      onMoveShouldSetPanResponder: (evt) => {
+        // Use pageX/pageY for absolute screen coordinates
+        const { pageX, pageY } = evt.nativeEvent;
+
+        // Don't capture if touch is on icon buttons
+        if (isTouchOnIcon(pageX, pageY)) {
+          return false;
+        }
+        return true;
+      },
+      onPanResponderGrant: () => {
+        // Stop the automatic rotation animation
+        cancelAnimation(orbitAngle);
+        isWheelSpinning.value = false;
+        wheelVelocity.value = 0;
+        lastAngleRef.current = 0;
+        lastTimestampRef.current = Date.now();
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const centerX = SCREEN_WIDTH / 2;
+        const centerY = wheelTargetY;
+
+        // Calculate angle from center
+        const angle = Math.atan2(gestureState.moveY - centerY, gestureState.moveX - centerX);
+        const angleDeg = (angle * 180) / Math.PI;
+
+        const currentTime = Date.now();
+        const deltaTime = (currentTime - lastTimestampRef.current) / 1000; // Convert to seconds
+
+        if (lastTimestampRef.current > 0 && deltaTime > 0) {
+          let deltaAngle = angleDeg - lastAngleRef.current;
+
+          // Handle wraparound
+          if (deltaAngle > 180) deltaAngle -= 360;
+          if (deltaAngle < -180) deltaAngle += 360;
+
+          orbitAngle.value = orbitAngle.value + deltaAngle;
+          wheelVelocity.value = deltaAngle / deltaTime; // degrees per second
+        }
+
+        lastAngleRef.current = angleDeg;
+        lastTimestampRef.current = currentTime;
+      },
+      onPanResponderRelease: () => {
+        // Apply decay animation based on velocity
+        isWheelSpinning.value = true;
+        const velocity = wheelVelocity.value;
+
+        if (Math.abs(velocity) > 50) { // Minimum velocity to trigger spin
+          const targetAngle = orbitAngle.value + velocity * 0.5;
+          orbitAngle.value = withSequence(
+            withTiming(targetAngle, {
+              duration: 1500,
+              easing: Easing.out(Easing.cubic),
+            }),
+            withTiming(targetAngle, {
+              duration: 0,
+            }, (finished) => {
+              'worklet';
+              if (finished) {
+                isWheelSpinning.value = false;
+                // Select random moment on JS thread
+                runOnJS(selectRandomMoment)();
+
+                // Restart automatic slow orbit from current position
+                orbitAngle.value = withRepeat(
+                  withTiming(orbitAngle.value + 360, {
+                    duration: 60000,
+                    easing: Easing.linear,
+                  }),
+                  -1,
+                  false
+                );
+              }
+            })
+          );
+        } else {
+          isWheelSpinning.value = false;
+
+          // Restart automatic slow orbit from current position
+          orbitAngle.value = withRepeat(
+            withTiming(orbitAngle.value + 360, {
+              duration: 60000,
+              easing: Easing.linear,
+            }),
+            -1,
+            false
+          );
+        }
+
+        wheelVelocity.value = 0;
+      },
+    });
+  }, [showEntityWheel, isFocused, wheelSpinRotation, wheelVelocity, isWheelSpinning, wheelTargetY, fontScale, insets.bottom, orbitAngle, selectRandomMoment]);
+
+  // No container rotation - each memory will animate individually
+  // This is now just a placeholder for potential future container-level styles
+  const memoriesOrbitRotation = useAnimatedStyle(() => {
+    'worklet';
+    // No transform - memories handle their own orbital movement
+    return {};
+  }, []);
+
   const animatedStyle = useAnimatedStyle(() => {
     'worklet';
     // When dragging is enabled and not focused, use panX/panY directly
@@ -950,7 +1409,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     
     if (isFocused) {
       // When focused, use interpolated position and scale (zoom-in effect)
-      const currentScale = zoomScale.value;
+      // Apply additional scaling for wheel mode (scale down further)
+      const wheelScale = 1 - wheelModeProgress.value * 0.4; // Scale down by 40% in wheel mode
+      const currentScale = zoomScale.value * wheelScale;
       // Use startPosX/Y instead of position.x/y to ensure we animate from the correct starting point
       return {
         transform: [
@@ -1185,25 +1646,30 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             onPress={() => {
               // Only trigger onPress if we didn't drag
               // Use a small delay to check if drag started (PanResponder needs time to set the flag)
-              const checkDrag = () => {
+              setTimeout(() => {
                 if (!dragStartedRef.current && !isDragging.value) {
-                  onPress();
+                  // If entity is focused, toggle entity wheel mode
+                  if (isFocused) {
+                    setShowEntityWheel(!showEntityWheel);
+                  } else {
+                    onPress();
+                  }
                 }
-              };
-              // Check immediately and after a short delay to catch drags that start quickly
-              checkDrag();
-              setTimeout(checkDrag, 100);
+              }, 50);
             }}
           >
-            {/* Circular progress bar border */}
-            <View
-              style={{
-                width: avatarSize + borderWidth * 2,
-                height: avatarSize + borderWidth * 2,
-                justifyContent: 'center',
-                alignItems: 'center',
-                position: 'relative',
-              }}
+            {/* Circular progress bar border - with pulse animation */}
+            <Animated.View
+              style={[
+                {
+                  width: avatarSize + borderWidth * 2,
+                  height: avatarSize + borderWidth * 2,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  position: 'relative',
+                },
+                avatarPulseStyle,
+              ]}
             >
               {/* SVG Progress Bar */}
               <Svg
@@ -1267,7 +1733,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                   </ThemedText>
                 )}
               </View>
-              
+
               {/* Drag handle icon overlay - shown when dragging is enabled and not focused */}
               {enableDragging && !isFocused && (
                 <Animated.View
@@ -1291,7 +1757,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                   <MaterialIcons name="drag-indicator" size={16} color="#fff" />
                 </Animated.View>
               )}
-            </View>
+            </Animated.View>
           </Pressable>
 
           {/* Share button - positioned outside the Pressable, shown when entity is focused and has memories */}
@@ -1368,7 +1834,24 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           )}
         </Animated.View>
 
-        {/* Floating Memories around Avatar - now inside the draggable container */}
+        {/* Floating Memories around Avatar */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: SCREEN_WIDTH * 2,
+            height: SCREEN_HEIGHT * 2,
+            pointerEvents: showEntityWheel && isFocused ? 'auto' : 'box-none',
+          },
+          memoriesOrbitRotation
+        ]}
+        {...(() => {
+          const handlers = showEntityWheel && isFocused && wheelPanResponder ? wheelPanResponder.panHandlers : {};
+          return handlers;
+        })()}
+      >
       {useMemo(() => {
         // Always show all memories - they should be visible around profiles at all times
         const filteredMemories = memories.filter((memory) => {
@@ -1385,7 +1868,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           // If nothing is focused, show all memories (they should always be visible)
           return true;
         });
-        
+
         // Memoize position objects to prevent unnecessary re-renders
         const positionX = position.x;
         const positionY = position.y;
@@ -1394,6 +1877,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         // Find the original index in the full memories array for position calculation
         const originalIndex = memories.findIndex(m => m.id === memory.id);
         const memPosData = memoryPositions[originalIndex];
+
         // Safety check: if we have more memories than animated values, use the last available one
         const memAnimatedValues = memoryAnimatedValues[originalIndex] || memoryAnimatedValues[memoryAnimatedValues.length - 1];
         
@@ -1495,6 +1979,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         
         const memorySize = Math.min(baseMemorySize, calculatedMaxMemorySize);
         
+        // Log memory render
+        console.log('[FloatingAvatar] Rendering memory', memory.id, '- showEntityWheel:', showEntityWheel, 'passing onPress:', !showEntityWheel, 'onMemoryFocus:', !showEntityWheel);
+
         return (
           <FloatingMemory
             key={`memory-${memory.id}-${memIndex}`}
@@ -1506,13 +1993,18 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             focusedY={focusedY}
             offsetX={memPosData.offsetX}
             offsetY={memPosData.offsetY}
+            baseOrbitAngle={memPosData.angle} // Base angle for this memory's orbit position
+            orbitAngle={orbitAngle} // Animated orbit angle shared by all memories
+            showEntityWheelShared={showEntityWheelShared}
             isFocused={isFocused}
             colorScheme={colorScheme}
             calculatedMemorySize={memorySize}
             isMemoryFocused={(focusedMemory?.profileId === profile.id || focusedMemory?.jobId === profile.id) && focusedMemory?.memoryId === memory.id}
             memorySlideOffset={memorySlideOffset}
-            onPress={onPress}
-            onMemoryFocus={onMemoryFocus}
+            showEntityWheel={showEntityWheel} // Pass showEntityWheel for synchronous checking
+            showEntityWheelRef={showEntityWheelRef} // Pass ref for absolute latest value
+            onPress={showEntityWheel ? undefined : onPress}
+            onMemoryFocus={showEntityWheel ? undefined : onMemoryFocus}
             zoomProgress={zoomProgress}
             avatarStartX={startX}
             avatarStartY={startY}
@@ -1526,7 +2018,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         
         return renderedMemories;
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, [memories, focusedMemory, profile.id, isFocused, memoryPositions, memoryAnimatedValues, position.x, position.y, startX, startY, targetX, targetY, zoomProgress, colorScheme, memorySlideOffset, onPress, onMemoryFocus])}
+      }, [memories, focusedMemory, profile.id, isFocused, showEntityWheel, memoryPositions, memoryAnimatedValues, position.x, position.y, startX, startY, targetX, targetY, zoomProgress, colorScheme, memorySlideOffset, onPress, onMemoryFocus])}
+      </Animated.View>
       </Animated.View>
 
       {/* Share Modal */}
@@ -1536,6 +2029,268 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         title={shareModalContent.title}
         content={shareModalContent.message}
       />
+
+      {/* Wheel Mode UI - moment type icons positioned around entity like wheel of life */}
+      {showEntityWheel && isFocused && (
+        <View style={{ position: 'absolute', width: SCREEN_WIDTH, height: SCREEN_HEIGHT, alignItems: 'center', pointerEvents: 'box-none', zIndex: 400 }}>
+          {/* 3 moment type icons at bottom - matching wheel of life liquid glass style */}
+          {(() => {
+            const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+            const iconY = SCREEN_HEIGHT - tabBarHeight - 60; // Moved up: 60px above tab bar (was 20px)
+            const iconSize = 60; // Match main wheel size
+            const spacing = 85; // Space between icons
+
+            // Get button styles based on type
+            const getButtonStyle = (type: 'lesson' | 'sunny' | 'cloudy') => {
+              if (type === 'lesson') return entityLessonButtonStyle;
+              if (type === 'sunny') return entitySunnyButtonStyle;
+              return entityCloudyButtonStyle;
+            };
+
+            const getHighlightStyle = (type: 'lesson' | 'sunny' | 'cloudy') => {
+              if (type === 'lesson') return entityLessonHighlightStyle;
+              if (type === 'sunny') return entitySunnyHighlightStyle;
+              return entityCloudyHighlightStyle;
+            };
+
+            const getPressScaleValue = (type: 'lesson' | 'sunny' | 'cloudy') => {
+              if (type === 'lesson') return entityLessonButtonPressScale;
+              if (type === 'sunny') return entitySunnyButtonPressScale;
+              return entityCloudyButtonPressScale;
+            };
+
+            const getHighlightValue = (type: 'lesson' | 'sunny' | 'cloudy') => {
+              if (type === 'lesson') return entityLessonButtonHighlight;
+              if (type === 'sunny') return entitySunnyButtonHighlight;
+              return entityCloudyButtonHighlight;
+            };
+
+            // Position icons horizontally at bottom
+            const icons = [
+              { type: 'lesson' as const, icon: 'lightbulb' as const, count: momentCounts.lesson },
+              { type: 'sunny' as const, icon: 'wb-sunny' as const, count: momentCounts.sunny },
+              { type: 'cloudy' as const, icon: 'cloud' as const, count: momentCounts.cloudy },
+            ];
+
+            return icons.map((item, index) => {
+              const x = SCREEN_WIDTH / 2 - spacing + (index * spacing);
+              const y = iconY;
+              const isDisabled = item.count === 0;
+
+              return (
+                <Animated.View
+                  key={item.type}
+                  pointerEvents="auto"
+                  style={[
+                    {
+                      position: 'absolute',
+                      left: x - iconSize / 2,
+                      top: y - iconSize / 2,
+                      width: iconSize,
+                      height: iconSize,
+                      borderRadius: iconSize / 2,
+                      overflow: 'hidden',
+                      opacity: isDisabled ? 0.3 : 1,
+                      zIndex: 500,
+                    },
+                    getButtonStyle(item.type),
+                  ]}
+                >
+                  {/* Frosted glass base layer */}
+                  <View style={StyleSheet.absoluteFillObject}>
+                    <LinearGradient
+                      colors={[
+                        'rgba(255, 255, 255, 0.15)',
+                        'rgba(255, 255, 255, 0.05)',
+                        'rgba(255, 255, 255, 0.1)'
+                      ]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </View>
+
+                  {/* Specular highlight overlay (liquid glass shine) */}
+                  <Animated.View
+                    style={[
+                      StyleSheet.absoluteFillObject,
+                      getHighlightStyle(item.type),
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.6)', 'rgba(255,255,255,0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </Animated.View>
+
+                  <Pressable
+                    onPress={() => {
+                      console.log('[EntityWheel] Icon pressed:', item.type, 'isDisabled:', isDisabled, 'currentSelection:', selectedMomentType);
+                      if (!isDisabled) {
+                        console.log('[EntityWheel] Setting moment type to:', item.type);
+                        setSelectedMomentType(item.type);
+                      }
+                    }}
+                    onPressIn={() => {
+                      console.log('[EntityWheel] Icon press in:', item.type, 'isDisabled:', isDisabled);
+                      if (!isDisabled) {
+                        getPressScaleValue(item.type).value = withTiming(0.88, { duration: 100, easing: Easing.out(Easing.ease) });
+                        getHighlightValue(item.type).value = withTiming(1, { duration: 150, easing: Easing.out(Easing.ease) });
+                      }
+                    }}
+                    onPressOut={() => {
+                      console.log('[EntityWheel] Icon press out:', item.type);
+                      if (!isDisabled) {
+                        getPressScaleValue(item.type).value = withSpring(1, { damping: 10, stiffness: 300 });
+                        getHighlightValue(item.type).value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
+                      }
+                    }}
+                    disabled={isDisabled}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: selectedMomentType === item.type ? 0.3 : 0.1,
+                      shadowRadius: 4,
+                      elevation: selectedMomentType === item.type ? 5 : 2,
+                    }}
+                  >
+                    <MaterialIcons
+                      name={item.icon}
+                      size={28}
+                      color={selectedMomentType === item.type ? '#fff' : colors.text}
+                    />
+                  </Pressable>
+                </Animated.View>
+              );
+            });
+          })()}
+
+          {/* Selected moment floating display - large circular popup matching main wheel of life */}
+          {selectedWheelMoment && (() => {
+            // Calculate dimensions to match main wheel popup
+            const momentWidth = isTablet ? 260 : 190;
+            const momentHeight = isTablet ? 260 : 190;
+            const messageTop = 180; // Final position below entity name (avoid overlap with name at top)
+
+            // Get visual properties based on moment type
+            const momentVisuals = {
+              lesson: {
+                icon: 'lightbulb' as const,
+                backgroundColor: 'rgba(255, 215, 0, 0.45)',
+                shadowColor: '#FFD700',
+                iconColor: colorScheme === 'dark' ? '#FFD700' : '#FFA000',
+              },
+              sunny: {
+                icon: 'wb-sunny' as const,
+                backgroundColor: 'rgba(255, 215, 0, 0.55)',
+                shadowColor: '#FFD700',
+                iconColor: colorScheme === 'dark' ? '#FFD700' : '#FF9800',
+              },
+              cloudy: {
+                icon: 'cloud' as const,
+                backgroundColor: 'rgba(150, 150, 180, 0.35)',
+                shadowColor: '#9696B4',
+                iconColor: colorScheme === 'dark' ? '#B0B0C8' : '#7878A0',
+              },
+            };
+
+            const visuals = momentVisuals[selectedWheelMoment.type];
+
+            return (
+              <Animated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    left: SCREEN_WIDTH / 2 - momentWidth / 2, // Center horizontally
+                    zIndex: 300,
+                  },
+                  popupAnimatedStyle,
+                ]}
+              >
+                <Pressable
+                  onPress={() => setSelectedWheelMoment(null)}
+                  style={{
+                    width: momentWidth,
+                    height: momentHeight,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: visuals.backgroundColor,
+                    borderRadius: momentWidth / 2,
+                    shadowColor: visuals.shadowColor,
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 0.95,
+                    shadowRadius: isTablet ? 40 : 30,
+                    elevation: 24,
+                    padding: 8,
+                    position: 'relative',
+                  }}
+                >
+                  <MaterialIcons
+                    name={visuals.icon}
+                    size={momentWidth * 0.25}
+                    color={visuals.iconColor}
+                    style={{ marginBottom: 8 }}
+                  />
+                  <ThemedText
+                    style={{
+                      color: colorScheme === 'dark' ? '#1A1A1A' : '#000000',
+                      fontSize: 11 * fontScale,
+                      textAlign: 'center',
+                      fontWeight: '700',
+                      maxWidth: momentWidth * 0.85,
+                      lineHeight: 15 * fontScale,
+                    }}
+                    numberOfLines={8}
+                  >
+                    {selectedWheelMoment.text}
+                  </ThemedText>
+
+                  {/* Close button - positioned at top right with larger touch area */}
+                  <Pressable
+                    onPress={(e) => {
+                      e?.stopPropagation?.();
+                      setSelectedWheelMoment(null);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      backgroundColor: colorScheme === 'dark'
+                        ? 'rgba(0, 0, 0, 0.6)'
+                        : 'rgba(255, 255, 255, 0.95)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      zIndex: 999,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 2,
+                      elevation: 5,
+                    }}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  >
+                    <MaterialIcons
+                      name="close"
+                      size={18}
+                      color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                      style={{ opacity: 0.9 }}
+                    />
+                  </Pressable>
+                </Pressable>
+              </Animated.View>
+            );
+          })()}
+        </View>
+      )}
     </>
   );
 }, (prevProps, nextProps) => {
@@ -1570,8 +2325,11 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   memorySize,
   cloudPositions,
   sunPositions,
+  lessonPositions,
   position,
   memoryAnimatedPosition,
+  memoryCenterX,
+  memoryCenterY,
   avatarPanX,
   avatarPanY,
   focusedX,
@@ -1586,6 +2344,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   onUpdateMemory,
   newlyCreatedMoments,
   memory,
+  showEntityWheel,
+  showEntityWheelRef,
 }: {
   clouds: any[];
   suns: any[];
@@ -1601,8 +2361,11 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   memorySize: number;
   cloudPositions: { angle: number; offsetX: number; offsetY: number }[];
   sunPositions: { angle: number; offsetX: number; offsetY: number }[];
+  lessonPositions: { angle: number; offsetX: number; offsetY: number }[];
   position: { x: number; y: number };
   memoryAnimatedPosition: any;
+  memoryCenterX?: ReturnType<typeof useSharedValue<number>>;
+  memoryCenterY?: ReturnType<typeof useSharedValue<number>>;
   avatarPanX?: any;
   avatarPanY?: any;
   focusedX?: any;
@@ -1617,6 +2380,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   onUpdateMemory?: (updates: Partial<any>) => Promise<void>;
   newlyCreatedMoments: Map<string, { startX: number; startY: number }>;
   memory: any;
+  showEntityWheel?: boolean;
+  showEntityWheelRef?: React.MutableRefObject<boolean>;
 }) {
   const fontScale = useFontScale();
   const { isTablet, isLargeDevice } = useLargeDevice();
@@ -1799,11 +2564,9 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
           return null;
         }
 
-        const memoryCenterX = position.x;
-        const memoryCenterY = position.y;
         const initialCloudPos = {
-          x: memoryCenterX + cloudPosData.offsetX,
-          y: memoryCenterY + cloudPosData.offsetY,
+          x: position.x + cloudPosData.offsetX,
+          y: position.y + cloudPosData.offsetY,
         };
 
         return (
@@ -1812,6 +2575,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             cloud={cloud}
             position={initialCloudPos}
             memoryAnimatedPosition={memoryAnimatedPosition}
+            memoryCenterX={memoryCenterX}
+            memoryCenterY={memoryCenterY}
             avatarPanX={avatarPanX}
             avatarPanY={avatarPanY}
             focusedX={focusedX}
@@ -1825,10 +2590,12 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             colorScheme={colorScheme}
             onPress={onDoubleTap}
             sunnyPercentage={sunnyPercentage}
+            showEntityWheel={showEntityWheel}
+            showEntityWheelRef={showEntityWheelRef}
           />
         );
     });
-  }, [isFocused, filteredClouds, isMemoryFocused, cloudPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, cloudZIndex, colorScheme, onDoubleTap, calculateClampedPosition, cloudWidth, cloudHeight, clouds.length, memorySize, newlyCreatedMoments, isTablet, onUpdateMemory, memory.hardTruths, sunnyPercentage]);
+  }, [isFocused, filteredClouds, isMemoryFocused, cloudPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, cloudZIndex, colorScheme, onDoubleTap, calculateClampedPosition, cloudWidth, cloudHeight, clouds.length, memorySize, newlyCreatedMoments, isTablet, onUpdateMemory, memory.hardTruths, sunnyPercentage, showEntityWheel, showEntityWheelRef]);
   
   // Memoize filtered suns - must be called unconditionally
   const filteredSuns = useMemo(() => {
@@ -2026,11 +2793,9 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
         
         // Not focused - use small circular sun
         const sunPosData = sunPositions[sunIndex];
-        const memoryCenterX = position.x;
-        const memoryCenterY = position.y;
         const initialSunPos = {
-          x: memoryCenterX + sunPosData.offsetX,
-          y: memoryCenterY + sunPosData.offsetY,
+          x: position.x + sunPosData.offsetX,
+          y: position.y + sunPosData.offsetY,
         };
 
         return (
@@ -2039,6 +2804,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             sun={sun}
             position={initialSunPos}
             memoryAnimatedPosition={memoryAnimatedPosition}
+            memoryCenterX={memoryCenterX}
+            memoryCenterY={memoryCenterY}
             avatarPanX={avatarPanX}
             avatarPanY={avatarPanY}
             focusedX={focusedX}
@@ -2052,10 +2819,12 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             colorScheme={colorScheme}
             onPress={onDoubleTap}
             sunnyPercentage={sunnyPercentage}
+            showEntityWheel={showEntityWheel}
+            showEntityWheelRef={showEntityWheelRef}
           />
         );
     });
-  }, [isFocused, filteredSuns, isMemoryFocused, sunPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, sunZIndex, colorScheme, onDoubleTap, calculateClampedPosition, sunWidth, sunHeight, suns.length, memorySize, newlyCreatedMoments, isTablet, isLargeDevice, fontScale, onUpdateMemory, memory.goodFacts, sunnyPercentage]);
+  }, [isFocused, filteredSuns, isMemoryFocused, sunPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, sunZIndex, colorScheme, onDoubleTap, calculateClampedPosition, sunWidth, sunHeight, suns.length, memorySize, newlyCreatedMoments, isTablet, isLargeDevice, fontScale, onUpdateMemory, memory.goodFacts, sunnyPercentage, showEntityWheel, showEntityWheelRef]);
 
   // Memoize filtered lessons - must be called unconditionally
   const filteredLessons = useMemo(() => {
@@ -2164,11 +2933,43 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
         );
       }
 
-      // Not focused - lessons don't need to be rendered when memory is not focused
-      // (they're only interactive when memory is focused)
-      return null;
+      // Not focused - use small circular lesson icon (floating around memory)
+      const lessonPosData = lessonPositions[lessonIndex];
+      if (!lessonPosData) {
+        return null;
+      }
+
+      const initialLessonPos = {
+        x: position.x + lessonPosData.offsetX,
+        y: position.y + lessonPosData.offsetY,
+      };
+
+      return (
+        <FloatingLesson
+          key={`lesson-${lesson.id}-${lessonIndex}`}
+          lesson={lesson}
+          position={initialLessonPos}
+          memoryAnimatedPosition={memoryAnimatedPosition}
+          memoryCenterX={memoryCenterX}
+          memoryCenterY={memoryCenterY}
+          avatarPanX={avatarPanX}
+          avatarPanY={avatarPanY}
+          focusedX={focusedX}
+          focusedY={focusedY}
+          memoryOffsetX={offsetX}
+          memoryOffsetY={offsetY}
+          offsetX={lessonPosData.offsetX}
+          offsetY={lessonPosData.offsetY}
+          zIndex={lessonZIndex}
+          isFocused={!!isFocused}
+          colorScheme={colorScheme}
+          onPress={onDoubleTap}
+          showEntityWheel={showEntityWheel}
+          showEntityWheelRef={showEntityWheelRef}
+        />
+      );
     });
-  }, [isFocused, filteredLessons, isMemoryFocused, lessons.length, calculateClampedPosition, sunWidth, sunHeight, memorySize, lessonZIndex, colorScheme, onDoubleTap, onUpdateMemory, newlyCreatedMoments, memory, isTablet]);
+  }, [isFocused, filteredLessons, isMemoryFocused, lessonPositions, lessons.length, calculateClampedPosition, sunWidth, sunHeight, memorySize, lessonZIndex, colorScheme, onDoubleTap, onUpdateMemory, newlyCreatedMoments, memory, isTablet, position.x, position.y, memoryAnimatedPosition, memoryCenterX, memoryCenterY, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, showEntityWheel, showEntityWheelRef]);
 
   // Skip rendering moments for unfocused partners (not visible in viewport)
   if (!isFocused) {
@@ -2698,6 +3499,11 @@ const FloatingMemory = React.memo(function FloatingMemory({
   focusedY,
   offsetX,
   offsetY,
+  baseOrbitAngle,
+  orbitAngle,
+  showEntityWheelShared,
+  showEntityWheel,
+  showEntityWheelRef,
   isFocused,
   colorScheme,
   calculatedMemorySize,
@@ -2723,6 +3529,11 @@ const FloatingMemory = React.memo(function FloatingMemory({
   focusedY?: any;
   offsetX: number;
   offsetY: number;
+  baseOrbitAngle?: number; // Base angle for this memory's orbit position
+  orbitAngle?: ReturnType<typeof useSharedValue<number>>; // Animated orbit angle
+  showEntityWheelShared?: ReturnType<typeof useSharedValue<boolean>>; // Shared value for worklet reactivity
+  showEntityWheel?: boolean; // Boolean state for synchronous checking
+  showEntityWheelRef?: React.MutableRefObject<boolean>; // Ref for absolute latest value
   isFocused: boolean;
   colorScheme: 'light' | 'dark';
   calculatedMemorySize?: number;
@@ -2808,7 +3619,13 @@ const FloatingMemory = React.memo(function FloatingMemory({
   
   const cloudRadius = isFocused ? baseCloudRadius + 15 : 25; // Further away when focused, with extra spacing
   const sunRadius = isFocused ? baseSunRadius + 13 : 22; // Further away when focused, with extra spacing
-  
+
+  // Calculate radius for lessons (similar to suns)
+  const lessonSize = isFocused ? 10 : 22;
+  const lessonMomentRadius = lessonSize / 2;
+  const baseLessonRadius = memoryRadius + lessonMomentRadius + momentPadding;
+  const lessonRadius = isFocused ? baseLessonRadius + 13 : 22;
+
   // Helper function to calculate and clamp moment position within viewport
   // Distributes moments evenly across the entire screen for better visibility
   const calculateClampedPosition = useMemo(() => {
@@ -3158,29 +3975,65 @@ const FloatingMemory = React.memo(function FloatingMemory({
     };
   }, [floatAnimation, isMemoryFocused]);
 
+  // Shared values for memory center position (used by moments to orbit with memory)
+  const memoryCenterX = useSharedValue(position.x);
+  const memoryCenterY = useSharedValue(position.y);
+
   // Calculate memory position relative to container center
-  // Memories are now inside a draggable container, so they use static positioning
-  // relative to the container. The position prop is already relative to container center.
+  // In wheel mode, each memory orbits individually around the entity
   const memoryAnimatedPosition = useAnimatedStyle(() => {
     'worklet';
+
+    const isWheelMode = showEntityWheelShared ? showEntityWheelShared.value : false;
+
+    let centerX = position.x;
+    let centerY = position.y;
+    let left = position.x - memorySize / 2;
+    let top = position.y - memorySize / 2;
+
     if (isMemoryFocused) {
       // When memory is focused, center it on screen (moved higher)
       // Positive offsetY moves UP (subtracted from center)
-      const offsetY = 120;
-      return {
-        left: SCREEN_WIDTH / 2 - memorySize / 2,
-        top: SCREEN_HEIGHT / 2 - memorySize / 2 - offsetY,
-      };
+      const offsetYValue = 120;
+      centerX = SCREEN_WIDTH / 2;
+      centerY = SCREEN_HEIGHT / 2 - offsetYValue;
+      left = centerX - memorySize / 2;
+      top = centerY - memorySize / 2;
+    } else if (isWheelMode && orbitAngle && baseOrbitAngle !== undefined) {
+      // In wheel mode with orbit animation, calculate position based on current orbit angle
+      // IMPORTANT: Access orbitAngle.value to make this worklet reactive to changes
+      const currentOrbitAngle = orbitAngle.value;
+
+      // Calculate the current angle for this memory
+      // baseOrbitAngle is this memory's starting position in radians
+      // currentOrbitAngle is the current rotation offset in degrees
+      const currentAngleRad = baseOrbitAngle + (currentOrbitAngle * Math.PI / 180);
+
+      // Calculate orbital radius (distance from entity center)
+      const radius = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
+
+      // Calculate new position in circular orbit
+      const newOffsetX = radius * Math.cos(currentAngleRad);
+      const newOffsetY = radius * Math.sin(currentAngleRad);
+
+      // Memory center position in screen coordinates
+      centerX = SCREEN_WIDTH + newOffsetX;
+      centerY = SCREEN_HEIGHT + newOffsetY;
+
+      // Position relative to container center (where avatar is at SCREEN_WIDTH, SCREEN_HEIGHT)
+      left = centerX - memorySize / 2;
+      top = centerY - memorySize / 2;
     }
 
-    // Memories are now inside a draggable container
-    // The position prop is relative to container center (SCREEN_WIDTH, SCREEN_HEIGHT)
-    // So we position the memory at that location
+    // Update shared values for moments to use
+    memoryCenterX.value = centerX;
+    memoryCenterY.value = centerY;
+
     return {
-      left: position.x - memorySize / 2,
-      top: position.y - memorySize / 2,
+      left,
+      top,
     };
-  }, [isMemoryFocused, memorySize, position.x, position.y]);
+  });
   
   // Slide out animation for non-focused memories
   const slideOutStyle = useAnimatedStyle(() => {
@@ -3275,30 +4128,34 @@ const FloatingMemory = React.memo(function FloatingMemory({
 
   // Calculate cloud and sun positions relative to memory
   // Distribute all moments evenly around the circle, interleaving clouds and suns
-  const { cloudPositions, sunPositions } = useMemo(() => {
-    const totalMoments = clouds.length + suns.length;
+  const { cloudPositions, sunPositions, lessonPositions } = useMemo(() => {
+    const totalMoments = clouds.length + suns.length + lessons.length;
     if (totalMoments === 0) {
-      return { cloudPositions: [], sunPositions: [] };
+      return { cloudPositions: [], sunPositions: [], lessonPositions: [] };
     }
-    
-    // Use Bresenham-like algorithm to distribute clouds and suns evenly
+
+    // Use Bresenham-like algorithm to distribute clouds, suns, and lessons evenly
     // This ensures they're interleaved proportionally without overlaps
     const cloudPositionsResult: { angle: number; offsetX: number; offsetY: number }[] = [];
     const sunPositionsResult: { angle: number; offsetX: number; offsetY: number }[] = [];
-    
+    const lessonPositionsResult: { angle: number; offsetX: number; offsetY: number }[] = [];
+
     let cloudError = 0;
     let sunError = 0;
+    let lessonError = 0;
     let cloudIndex = 0;
     let sunIndex = 0;
-    
+    let lessonIndex = 0;
+
     // Distribute positions using error accumulation (Bresenham-like)
     for (let position = 0; position < totalMoments; position++) {
-      // Calculate error for both types
+      // Calculate error for all types
       cloudError += clouds.length;
       sunError += suns.length;
-      
-      // Choose the one with higher error (needs placement more)
-      if (cloudIndex < clouds.length && (sunIndex >= suns.length || cloudError >= sunError)) {
+      lessonError += lessons.length;
+
+      // Choose the one with highest error (needs placement most)
+      if (cloudIndex < clouds.length && cloudError >= sunError && cloudError >= lessonError) {
         const angle = (position * 2 * Math.PI) / totalMoments;
         cloudPositionsResult.push({
           angle,
@@ -3307,6 +4164,15 @@ const FloatingMemory = React.memo(function FloatingMemory({
         });
         cloudIndex++;
         cloudError -= totalMoments;
+      } else if (lessonIndex < lessons.length && lessonError >= sunError) {
+        const angle = (position * 2 * Math.PI) / totalMoments;
+        lessonPositionsResult.push({
+          angle,
+          offsetX: lessonRadius * Math.cos(angle),
+          offsetY: lessonRadius * Math.sin(angle),
+        });
+        lessonIndex++;
+        lessonError -= totalMoments;
       } else if (sunIndex < suns.length) {
         const angle = (position * 2 * Math.PI) / totalMoments;
         sunPositionsResult.push({
@@ -3318,27 +4184,38 @@ const FloatingMemory = React.memo(function FloatingMemory({
         sunError -= totalMoments;
       }
     }
-    
-    return { cloudPositions: cloudPositionsResult, sunPositions: sunPositionsResult };
-  }, [clouds, suns, cloudRadius, sunRadius]);
+
+    return { cloudPositions: cloudPositionsResult, sunPositions: sunPositionsResult, lessonPositions: lessonPositionsResult };
+  }, [clouds, suns, lessons, cloudRadius, sunRadius, lessonRadius]);
 
   // Click on memory: focus the memory (and profile if not already focused)
-  const handlePress = () => {
-    if (isMemoryFocused) {
-      // Already focused, do nothing
+  const handlePress = React.useCallback(() => {
+    console.log('[FloatingMemory] handlePress called at', Date.now(), '- onMemoryFocus:', !!onMemoryFocus, 'onPress:', !!onPress, 'memory:', memory.id);
+
+    // Don't handle press if handlers are disabled (e.g., entity wheel is active)
+    if (!onMemoryFocus && !onPress) {
+      console.log('[FloatingMemory] Press ignored - handlers disabled (entity wheel active)');
       return;
     }
-    
+
+    if (isMemoryFocused) {
+      // Already focused, do nothing
+      console.log('[FloatingMemory] Press ignored - memory already focused');
+      return;
+    }
+
     // Always try to focus the memory
     if (onMemoryFocus) {
+      console.log('[FloatingMemory] Focusing memory:', memory.id);
       onMemoryFocus(memory.entityId || memory.profileId || '', memory.id, memory.sphere || 'relationships');
     }
-    
+
     // If profile is not focused, also focus it
     if (!isFocused && onPress) {
+      console.log('[FloatingMemory] Focusing entity');
       onPress();
     }
-  };
+  }, [onMemoryFocus, onPress, isMemoryFocused, isFocused, memory.id, memory.entityId, memory.profileId, memory.sphere]);
 
   // Skip rendering this memory if another memory from the same entity is focused and this one isn't
   // OR if THIS memory is focused (it will be rendered by FocusedMemoryRenderer instead)
@@ -3376,9 +4253,15 @@ const FloatingMemory = React.memo(function FloatingMemory({
     pointerEvents: 'box-none' as const, // Allow touches to pass through to Pressable
   };
 
+  // Log render state
+  React.useEffect(() => {
+    console.log('[FloatingMemory] Render state for', memory.id, '- onMemoryFocus:', !!onMemoryFocus, 'onPress:', !!onPress, 'pointerEvents:', (!onMemoryFocus && !onPress) ? 'none' : 'auto');
+  }, [onMemoryFocus, onPress, memory.id]);
+
   return (
     <>
       <Animated.View
+        pointerEvents={(showEntityWheel || (!onMemoryFocus && !onPress)) ? 'none' : 'auto'} // Disable all touches when entity wheel is active (use PROP not ref for render-time check)
         style={[
           baseStyle,
           memoryAnimatedPosition,
@@ -3412,12 +4295,26 @@ const FloatingMemory = React.memo(function FloatingMemory({
           }}
         >
         <Pressable
+          disabled={showEntityWheel || (!onMemoryFocus && !onPress)} // Disable when entity wheel is active (use PROP for render-time check)
           style={{
-            pointerEvents: 'auto', // Ensure Pressable can receive touches
+            pointerEvents: (showEntityWheel || (!onMemoryFocus && !onPress)) ? 'none' : 'auto', // Disable touches when entity wheel is active (use PROP for render-time check)
             width: memorySize,
             height: memorySize,
           }}
-          onPress={handlePress}
+          onPress={() => {
+            console.log('[FloatingMemory] Pressable onPress - showEntityWheel:', showEntityWheel, 'showEntityWheelRef.current:', showEntityWheelRef?.current, 'disabled:', (!onMemoryFocus && !onPress), 'pointerEvents:', (onMemoryFocus || onPress) ? 'auto' : 'none');
+            // CRITICAL: Check ref FIRST for absolute latest value, bypassing React's prop system
+            if (showEntityWheelRef?.current) {
+              console.log('[FloatingMemory] Press BLOCKED by REF - entity wheel is active (ref value:', showEntityWheelRef.current, ')');
+              return;
+            }
+            // Fallback to prop check
+            if (showEntityWheel) {
+              console.log('[FloatingMemory] Press BLOCKED by PROP - entity wheel is active');
+              return;
+            }
+            handlePress();
+          }}
         >
           {/* SVG Progress Bar Border - shows black and yellow proportionally - only show when not focused */}
           {hasMoments && !isMemoryFocused && (
@@ -3649,8 +4546,11 @@ const FloatingMemory = React.memo(function FloatingMemory({
             memorySize={memorySize}
             cloudPositions={cloudPositions}
             sunPositions={sunPositions}
+            lessonPositions={lessonPositions}
             position={position}
             memoryAnimatedPosition={memoryAnimatedPosition}
+            memoryCenterX={memoryCenterX}
+            memoryCenterY={memoryCenterY}
             avatarPanX={avatarPanX}
             avatarPanY={avatarPanY}
             focusedX={focusedX}
@@ -3665,6 +4565,8 @@ const FloatingMemory = React.memo(function FloatingMemory({
             onUpdateMemory={onUpdateMemory}
             newlyCreatedMoments={newlyCreatedMoments}
             memory={memory}
+            showEntityWheel={showEntityWheel}
+            showEntityWheelRef={showEntityWheelRef}
           />
         );
       })()}
@@ -3724,6 +4626,8 @@ const FloatingCloud = React.memo(function FloatingCloud({
   cloud,
   position,
   memoryAnimatedPosition,
+  memoryCenterX,
+  memoryCenterY,
   avatarPanX,
   avatarPanY,
   focusedX,
@@ -3737,10 +4641,14 @@ const FloatingCloud = React.memo(function FloatingCloud({
   colorScheme,
   onPress,
   sunnyPercentage = 50,
+  showEntityWheel,
+  showEntityWheelRef,
 }: {
   cloud: any;
   position: { x: number; y: number };
   memoryAnimatedPosition?: any;
+  memoryCenterX?: ReturnType<typeof useSharedValue<number>>;
+  memoryCenterY?: ReturnType<typeof useSharedValue<number>>;
   avatarPanX?: any;
   avatarPanY?: any;
   focusedX?: any;
@@ -3754,6 +4662,8 @@ const FloatingCloud = React.memo(function FloatingCloud({
   colorScheme: 'light' | 'dark';
   onPress?: () => void;
   sunnyPercentage?: number;
+  showEntityWheel?: boolean;
+  showEntityWheelRef?: React.MutableRefObject<boolean>;
 }) {
   // Make clouds smaller when focused, but maintain proper proportions
   // Use larger base size to avoid clipping and maintain aspect ratio
@@ -3791,12 +4701,25 @@ const FloatingCloud = React.memo(function FloatingCloud({
   }));
 
   const cloudAnimatedPosition = useAnimatedStyle(() => {
-    // Default: use the position prop directly (memory's absolute screen position)
-    // This is the cloud's final absolute position on screen
-    const safeX = typeof position?.x === 'number' && !isNaN(position.x) ? position.x : 0;
-    const safeY = typeof position?.y === 'number' && !isNaN(position.y) ? position.y : 0;
-    const finalX = safeX - cloudSize / 2;
-    const finalY = safeY - cloudSize / 2;
+    'worklet';
+
+    // If we have animated memory center shared values, use them (for orbit mode)
+    // Otherwise fall back to static position prop
+    let finalX, finalY;
+
+    if (memoryCenterX && memoryCenterY) {
+      // Use animated memory center + offset for orbit mode
+      const centerX = memoryCenterX.value;
+      const centerY = memoryCenterY.value;
+      finalX = centerX + offsetX - cloudSize / 2;
+      finalY = centerY + offsetY - cloudSize / 2;
+    } else {
+      // Default: use the position prop directly (memory's absolute screen position)
+      const safeX = typeof position?.x === 'number' && !isNaN(position.x) ? position.x : 0;
+      const safeY = typeof position?.y === 'number' && !isNaN(position.y) ? position.y : 0;
+      finalX = safeX - cloudSize / 2;
+      finalY = safeY - cloudSize / 2;
+    }
 
     return {
       left: finalX,
@@ -3815,23 +4738,35 @@ const FloatingCloud = React.memo(function FloatingCloud({
 
   return (
     <Animated.View
+      pointerEvents={(showEntityWheel || !onPress) ? 'none' : 'box-none'} // Disable all touches when entity wheel is active or no handler (use PROP for render-time check)
       style={[
         {
           position: 'absolute',
           zIndex: typeof zIndex === 'number' ? zIndex : 24, // Higher than memories (20) so moments are on top
-          pointerEvents: 'box-none', // Allow touches to pass through to Pressable
         },
         cloudAnimatedPosition,
         animatedStyle,
       ]}
     >
       <Pressable
-        style={{ 
-          pointerEvents: 'auto', // Ensure Pressable can receive touches
+        disabled={showEntityWheel || !onPress} // Disable when entity wheel is active or no handler (use PROP for render-time check)
+        style={{
+          pointerEvents: (showEntityWheel || !onPress) ? 'none' : 'auto', // Disable touches when entity wheel is active or no handler (use PROP for render-time check)
           width: safeCloudSize,
           height: safeCloudSize,
         }}
         onPress={() => {
+          console.log('[FloatingCloud] Pressed - showEntityWheel:', showEntityWheel, 'showEntityWheelRef.current:', showEntityWheelRef?.current, 'onPress defined:', !!onPress);
+          // CRITICAL: Check ref FIRST for absolute latest value, bypassing React's prop system
+          if (showEntityWheelRef?.current) {
+            console.log('[FloatingCloud] Press BLOCKED by REF - entity wheel is active');
+            return;
+          }
+          // Fallback to prop check
+          if (showEntityWheel) {
+            console.log('[FloatingCloud] Press BLOCKED - entity wheel is active');
+            return;
+          }
           if (onPress) {
             try {
               onPress();
@@ -3883,6 +4818,8 @@ const FloatingSun = React.memo(function FloatingSun({
   sun,
   position,
   memoryAnimatedPosition,
+  memoryCenterX,
+  memoryCenterY,
   avatarPanX,
   avatarPanY,
   focusedX,
@@ -3896,10 +4833,14 @@ const FloatingSun = React.memo(function FloatingSun({
   colorScheme,
   onPress,
   sunnyPercentage = 50,
+  showEntityWheel,
+  showEntityWheelRef,
 }: {
   sun: any;
   position: { x: number; y: number };
   memoryAnimatedPosition?: any;
+  memoryCenterX?: ReturnType<typeof useSharedValue<number>>;
+  memoryCenterY?: ReturnType<typeof useSharedValue<number>>;
   avatarPanX?: any;
   avatarPanY?: any;
   focusedX?: any;
@@ -3913,6 +4854,8 @@ const FloatingSun = React.memo(function FloatingSun({
   colorScheme: 'light' | 'dark';
   onPress?: () => void;
   sunnyPercentage?: number;
+  showEntityWheel?: boolean;
+  showEntityWheelRef?: React.MutableRefObject<boolean>;
 }) {
   // Make suns smaller when focused, but maintain proper proportions
   // Use larger base size to avoid clipping and maintain aspect ratio
@@ -3950,31 +4893,59 @@ const FloatingSun = React.memo(function FloatingSun({
   }));
 
   const sunAnimatedPosition = useAnimatedStyle(() => {
-    // Default: use the position prop directly (memory's absolute screen position)
-    // This is the sun's final absolute position on screen
-    const safeX = typeof position?.x === 'number' && !isNaN(position.x) ? position.x : 0;
-    const safeY = typeof position?.y === 'number' && !isNaN(position.y) ? position.y : 0;
+    'worklet';
+
+    // If we have animated memory center shared values, use them (for orbit mode)
+    // Otherwise fall back to static position prop
+    let finalX, finalY;
+
+    if (memoryCenterX && memoryCenterY) {
+      // Use animated memory center + offset for orbit mode
+      const centerX = memoryCenterX.value;
+      const centerY = memoryCenterY.value;
+      finalX = centerX + offsetX - sunSize / 2;
+      finalY = centerY + offsetY - sunSize / 2;
+    } else {
+      // Default: use the position prop directly (memory's absolute screen position)
+      const safeX = typeof position?.x === 'number' && !isNaN(position.x) ? position.x : 0;
+      const safeY = typeof position?.y === 'number' && !isNaN(position.y) ? position.y : 0;
+      finalX = safeX - sunSize / 2;
+      finalY = safeY - sunSize / 2;
+    }
+
     return {
-      left: safeX - sunSize / 2,
-      top: safeY - sunSize / 2,
+      left: finalX,
+      top: finalY,
     };
   });
 
   return (
     <Animated.View
+      pointerEvents={(showEntityWheel || !onPress) ? 'none' : 'box-none'} // Disable all touches when entity wheel is active or no handler (use PROP for render-time check)
       style={[
         {
           position: 'absolute',
           zIndex: typeof zIndex === 'number' ? zIndex : 24, // Higher than memories (20) so moments are on top
-          pointerEvents: 'box-none', // Allow touches to pass through to Pressable
         },
         sunAnimatedPosition,
         animatedStyle,
       ]}
     >
       <Pressable
-        style={{ pointerEvents: 'auto' }} // Ensure Pressable can receive touches
+        disabled={showEntityWheel || !onPress} // Disable when entity wheel is active or no handler (use PROP for render-time check)
+        style={{ pointerEvents: (showEntityWheel || !onPress) ? 'none' : 'auto' }} // Disable touches when entity wheel is active or no handler (use PROP for render-time check)
         onPress={() => {
+          console.log('[FloatingSun] Pressed - showEntityWheel:', showEntityWheel, 'showEntityWheelRef.current:', showEntityWheelRef?.current, 'onPress defined:', !!onPress);
+          // CRITICAL: Check ref FIRST for absolute latest value, bypassing React's prop system
+          if (showEntityWheelRef?.current) {
+            console.log('[FloatingSun] Press BLOCKED by REF - entity wheel is active');
+            return;
+          }
+          // Fallback to prop check
+          if (showEntityWheel) {
+            console.log('[FloatingSun] Press BLOCKED by PROP - entity wheel is active');
+            return;
+          }
           if (onPress) {
             try {
               onPress();
@@ -4071,6 +5042,164 @@ const FloatingSun = React.memo(function FloatingSun({
             fill={`url(#floatingSunGradient-${sun?.id || 'default'})`}
           />
         </Svg>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+});
+
+// Floating Lesson Component
+const FloatingLesson = React.memo(function FloatingLesson({
+  lesson,
+  position,
+  memoryAnimatedPosition,
+  memoryCenterX,
+  memoryCenterY,
+  avatarPanX,
+  avatarPanY,
+  focusedX,
+  focusedY,
+  memoryOffsetX,
+  memoryOffsetY,
+  offsetX,
+  offsetY,
+  zIndex,
+  isFocused,
+  colorScheme,
+  onPress,
+  showEntityWheel,
+  showEntityWheelRef,
+}: {
+  lesson: any;
+  position: { x: number; y: number };
+  memoryAnimatedPosition?: any;
+  memoryCenterX?: ReturnType<typeof useSharedValue<number>>;
+  memoryCenterY?: ReturnType<typeof useSharedValue<number>>;
+  avatarPanX?: any;
+  avatarPanY?: any;
+  focusedX?: any;
+  focusedY?: any;
+  memoryOffsetX: number;
+  memoryOffsetY: number;
+  offsetX: number;
+  offsetY: number;
+  zIndex: number;
+  isFocused: boolean;
+  colorScheme: 'light' | 'dark';
+  onPress?: () => void;
+  showEntityWheel?: boolean;
+  showEntityWheelRef?: React.MutableRefObject<boolean>;
+}) {
+  const lessonSize = isFocused ? 16 : 22;
+
+  const floatAnimation = useSharedValue(0);
+  const scale = useSharedValue(1);
+
+  React.useEffect(() => {
+    scale.value = 1;
+  }, [isFocused, scale]);
+
+  React.useEffect(() => {
+    floatAnimation.value = withRepeat(
+      withTiming(1, {
+        duration: 2000,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
+
+    return () => {
+      cancelAnimation(floatAnimation);
+    };
+  }, [floatAnimation]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: floatAnimation.value * 2 },
+      { scale: scale.value },
+    ],
+  }));
+
+  const lessonAnimatedPosition = useAnimatedStyle(() => {
+    'worklet';
+
+    let finalX, finalY;
+
+    if (memoryCenterX && memoryCenterY) {
+      const centerX = memoryCenterX.value;
+      const centerY = memoryCenterY.value;
+      finalX = centerX + offsetX - lessonSize / 2;
+      finalY = centerY + offsetY - lessonSize / 2;
+    } else {
+      const safeX = typeof position?.x === 'number' && !isNaN(position.x) ? position.x : 0;
+      const safeY = typeof position?.y === 'number' && !isNaN(position.y) ? position.y : 0;
+      finalX = safeX - lessonSize / 2;
+      finalY = safeY - lessonSize / 2;
+    }
+
+    return {
+      left: finalX,
+      top: finalY,
+    };
+  });
+
+  return (
+    <Animated.View
+      pointerEvents={(showEntityWheel || !onPress) ? 'none' : 'box-none'} // Disable all touches when entity wheel is active or no handler (use PROP for render-time check)
+      style={[
+        {
+          position: 'absolute',
+          zIndex: typeof zIndex === 'number' ? zIndex : 24,
+        },
+        lessonAnimatedPosition,
+        animatedStyle,
+      ]}
+    >
+      <Pressable
+        disabled={showEntityWheel || !onPress} // Disable when entity wheel is active or no handler (use PROP for render-time check)
+        style={{ pointerEvents: (showEntityWheel || !onPress) ? 'none' : 'auto' }} // Disable touches when entity wheel is active or no handler (use PROP for render-time check)
+        onPress={() => {
+          console.log('[FloatingLesson] Pressed - showEntityWheel:', showEntityWheel, 'showEntityWheelRef.current:', showEntityWheelRef?.current, 'onPress defined:', !!onPress);
+          // CRITICAL: Check ref FIRST for absolute latest value, bypassing React's prop system
+          if (showEntityWheelRef?.current) {
+            console.log('[FloatingLesson] Press BLOCKED by REF - entity wheel is active');
+            return;
+          }
+          // Fallback to prop check
+          if (showEntityWheel) {
+            console.log('[FloatingLesson] Press BLOCKED by PROP - entity wheel is active');
+            return;
+          }
+          if (onPress) {
+            try {
+              onPress();
+            } catch {
+              // Error in onPress
+            }
+          }
+        }}
+      >
+        <View
+          style={{
+            width: lessonSize,
+            height: lessonSize,
+            borderRadius: lessonSize / 2,
+            backgroundColor: colorScheme === 'dark' ? '#FFD700' : '#FFA000',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#FFD700',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.6,
+            shadowRadius: 6,
+            elevation: 5,
+          }}
+        >
+          <MaterialIcons
+            name="lightbulb"
+            size={lessonSize * 0.7}
+            color={colorScheme === 'dark' ? '#000000' : '#FFFFFF'}
+          />
         </View>
       </Pressable>
     </Animated.View>
@@ -6174,6 +7303,9 @@ export default function HomeScreen() {
   const [focusedFriendId, setFocusedFriendId] = useState<string | null>(null);
   const [focusedHobbyId, setFocusedHobbyId] = useState<string | null>(null);
   const [focusedMemory, setFocusedMemory] = useState<{ profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null>(null);
+
+  // Track if any entity wheel is active (to disable scrolling)
+  const [isAnyEntityWheelActive, setIsAnyEntityWheelActive] = useState<boolean>(false);
   
   // Track if home screen was already focused to detect when user presses home tab while already on home
   const isHomeFocusedRef = React.useRef<boolean>(false);
@@ -8612,6 +9744,7 @@ export default function HomeScreen() {
             setFocusedMemory({ profileId: entityId, memoryId, sphere });
           }}
           yearSection={yearSection}
+          onEntityWheelChange={(isActive) => setIsAnyEntityWheelActive(isActive)}
         />
       );
     });
@@ -10749,6 +11882,7 @@ export default function HomeScreen() {
           })()}
 
           <ScrollView
+            scrollEnabled={!isAnyEntityWheelActive}
             style={[
               styles.content,
               {
@@ -11077,6 +12211,7 @@ export default function HomeScreen() {
           })()}
 
           <ScrollView
+            scrollEnabled={!isAnyEntityWheelActive}
             style={[
               styles.content,
               {
@@ -12445,6 +13580,7 @@ export default function HomeScreen() {
       <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
         
         <ScrollView
+          scrollEnabled={!isAnyEntityWheelActive}
           style={[
             styles.content,
             {
