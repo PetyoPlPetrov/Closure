@@ -12,6 +12,7 @@ interface SubscriptionContextType {
   offerings: PurchasesOffering | null;
   customerInfo: CustomerInfo | null;
   checkSubscription: () => Promise<void>;
+  refreshCustomerInfo: () => Promise<void>;
   purchasePackage: (pkg: PurchasesPackage) => Promise<void>;
   restorePurchases: () => Promise<void>;
   presentPaywall: () => Promise<boolean>;
@@ -30,6 +31,21 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
 
+  // Helper function to update state from customerInfo
+  const updateSubscriptionState = useCallback((info: CustomerInfo) => {
+    // Check for "Sfera Premium" entitlement
+    const hasPremiumEntitlement = typeof info.entitlements.active['Sfera Premium'] !== 'undefined';
+
+    setIsSubscribed(hasPremiumEntitlement);
+    setSubscriptionStatus(hasPremiumEntitlement ? 'subscribed' : 'not_subscribed');
+    setCustomerInfo(info);
+
+    console.log('[SubscriptionProvider] Subscription state updated:', {
+      isSubscribed: hasPremiumEntitlement,
+      activeEntitlements: Object.keys(info.entitlements.active),
+    });
+  }, []);
+
   const checkSubscription = useCallback(async () => {
     if (!isNativeModuleAvailable || !Purchases) {
       setSubscriptionStatus('not_subscribed');
@@ -40,13 +56,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
 
     try {
       const customerInfo = await Purchases.getCustomerInfo();
-
-      // Check for "Sfera Premium" entitlement
-      const hasPremiumEntitlement = typeof customerInfo.entitlements.active['Sfera Premium'] !== 'undefined';
-
-      setIsSubscribed(hasPremiumEntitlement);
-      setSubscriptionStatus(hasPremiumEntitlement ? 'subscribed' : 'not_subscribed');
-      setCustomerInfo(customerInfo);
+      updateSubscriptionState(customerInfo);
     } catch (error) {
       // Error fetching customer info
       handleDevError(error, 'Check Subscription');
@@ -54,7 +64,13 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       setIsSubscribed(false);
       setCustomerInfo(null);
     }
-  }, []);
+  }, [updateSubscriptionState]);
+
+  // Refresh customer info - can be called by screens before accessing premium content
+  const refreshCustomerInfo = useCallback(async () => {
+    console.log('[SubscriptionProvider] Manually refreshing customer info...');
+    await checkSubscription();
+  }, [checkSubscription]);
 
   const purchasePackage = useCallback(async (pkg: PurchasesPackage) => {
     if (!isNativeModuleAvailable || !Purchases) {
@@ -63,13 +79,9 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
 
     try {
       const { customerInfo } = await Purchases.purchasePackage(pkg);
-      
-      // Check for "Sfera Premium" entitlement after purchase
-      const hasPremiumEntitlement = typeof customerInfo.entitlements.active['Sfera Premium'] !== 'undefined';
-      
-      setIsSubscribed(hasPremiumEntitlement);
-      setSubscriptionStatus(hasPremiumEntitlement ? 'subscribed' : 'not_subscribed');
-      setCustomerInfo(customerInfo);
+
+      // Update subscription state using helper function
+      updateSubscriptionState(customerInfo);
     } catch (error: any) {
       // Handle purchase errors
       if (error.userCancelled) {
@@ -79,7 +91,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       handleDevError(error, 'Purchase Package');
       throw error;
     }
-  }, []);
+  }, [updateSubscriptionState]);
 
   const restorePurchases = useCallback(async () => {
     if (!isNativeModuleAvailable || !Purchases) {
@@ -88,19 +100,15 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
 
     try {
       const customerInfo = await Purchases.restorePurchases();
-      
-      // Check for "Sfera Premium" entitlement after restore
-      const hasPremiumEntitlement = typeof customerInfo.entitlements.active['Sfera Premium'] !== 'undefined';
-      
-      setIsSubscribed(hasPremiumEntitlement);
-      setSubscriptionStatus(hasPremiumEntitlement ? 'subscribed' : 'not_subscribed');
-      setCustomerInfo(customerInfo);
+
+      // Update subscription state using helper function
+      updateSubscriptionState(customerInfo);
     } catch (error) {
       // Error restoring purchases
       handleDevError(error, 'Restore Purchases');
       throw error;
     }
-  }, []);
+  }, [updateSubscriptionState]);
 
   useEffect(() => {
     // Initialize RevenueCat subscription system
@@ -132,7 +140,31 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     };
 
     initializeSubscription();
-  }, [checkSubscription]);
+
+    // Add CustomerInfo update listener (RevenueCat best practice)
+    // This automatically updates subscription state when purchases/restores complete
+    let listener: any = null;
+
+    if (isNativeModuleAvailable && Purchases) {
+      try {
+        console.log('[SubscriptionProvider] Adding CustomerInfo update listener');
+        listener = Purchases.addCustomerInfoUpdateListener((info: CustomerInfo) => {
+          console.log('[SubscriptionProvider] CustomerInfo updated via listener');
+          updateSubscriptionState(info);
+        });
+      } catch (error) {
+        handleDevError(error, 'Add CustomerInfo Listener');
+      }
+    }
+
+    // Cleanup listener on unmount
+    return () => {
+      if (listener && typeof listener.remove === 'function') {
+        console.log('[SubscriptionProvider] Removing CustomerInfo update listener');
+        listener.remove();
+      }
+    };
+  }, [checkSubscription, updateSubscriptionState]);
 
   const handlePresentPaywall = useCallback(async (): Promise<boolean> => {
     const result = await presentPaywall();
@@ -164,6 +196,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     offerings,
     customerInfo,
     checkSubscription,
+    refreshCustomerInfo,
     purchasePackage,
     restorePurchases,
     presentPaywall: handlePresentPaywall,
