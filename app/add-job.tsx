@@ -62,9 +62,9 @@ export default function AddJobScreen() {
     // Don't check if we're saving (prevents redirect after saving first job)
     if (isSaving.current) return;
     
-    // Only redirect if user already had 1+ jobs when they entered this screen
-    // This prevents redirect after successfully saving the first job
-    if (!isEditMode && !isSubscribed && initialJobCount.current >= 1) {
+    // Only redirect if user already had 2+ jobs when they entered this screen
+    // This allows 2 free jobs per sphere before paywall
+    if (!isEditMode && !isSubscribed && initialJobCount.current >= 2) {
       router.replace('/paywall');
     }
   }, [isEditMode, isSubscribed, jobs.length]);
@@ -225,7 +225,7 @@ export default function AddJobScreen() {
 
     // Check subscription limit for new jobs (not edits)
     // Only check if user already had 1+ jobs when they entered this screen
-    if (!isEditMode && !isSubscribed && initialJobCount.current !== null && initialJobCount.current >= 1) {
+    if (!isEditMode && !isSubscribed && initialJobCount.current !== null && initialJobCount.current >= 2) {
       // Show paywall (custom in dev, RevenueCat in prod)
       const subscribed = await showPaywallForPremiumAccess();
       if (!subscribed) return; // User cancelled or didn't subscribe

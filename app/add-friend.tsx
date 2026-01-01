@@ -50,9 +50,9 @@ export default function AddFriendScreen() {
     // Don't check if we're saving (prevents redirect after saving first friend)
     if (isSaving) return;
     
-    // Only redirect if user already had 1+ friends when they entered this screen
-    // This prevents redirect after successfully saving the first friend
-    if (!isEditMode && !isSubscribed && initialFriendCount.current >= 1) {
+    // Only redirect if user already had 2+ friends when they entered this screen
+    // This allows 2 free friends per sphere before paywall
+    if (!isEditMode && !isSubscribed && initialFriendCount.current >= 2) {
       router.replace('/paywall');
     }
   }, [isEditMode, isSubscribed, friends.length, isSaving]);
@@ -107,7 +107,7 @@ export default function AddFriendScreen() {
 
     // Check subscription limit for new friends (not edits)
     // Only check if user already had 1+ friends when they entered this screen
-    if (!isEditMode && !isSubscribed && initialFriendCount.current !== null && initialFriendCount.current >= 1) {
+    if (!isEditMode && !isSubscribed && initialFriendCount.current !== null && initialFriendCount.current >= 2) {
       // Show paywall (custom in dev, RevenueCat in prod)
       const subscribed = await showPaywallForPremiumAccess();
       if (!subscribed) return; // User cancelled or didn't subscribe

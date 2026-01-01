@@ -51,9 +51,9 @@ export default function AddFamilyMemberScreen() {
     // Don't check if we're saving (prevents redirect after saving first member)
     if (isSaving) return;
     
-    // Only redirect if user already had 1+ family members when they entered this screen
-    // This prevents redirect after successfully saving the first member
-    if (!isEditMode && !isSubscribed && initialFamilyMemberCount.current >= 1) {
+    // Only redirect if user already had 2+ family members when they entered this screen
+    // This allows 2 free family members per sphere before paywall
+    if (!isEditMode && !isSubscribed && initialFamilyMemberCount.current >= 2) {
       router.replace('/paywall');
     }
   }, [isEditMode, isSubscribed, familyMembers.length, isSaving]);
@@ -109,7 +109,7 @@ export default function AddFamilyMemberScreen() {
 
     // Check subscription limit for new family members (not edits)
     // Only check if user already had 1+ family members when they entered this screen
-    if (!isEditMode && !isSubscribed && initialFamilyMemberCount.current !== null && initialFamilyMemberCount.current >= 1) {
+    if (!isEditMode && !isSubscribed && initialFamilyMemberCount.current !== null && initialFamilyMemberCount.current >= 2) {
       // Show paywall (custom in dev, RevenueCat in prod)
       const subscribed = await showPaywallForPremiumAccess();
       if (!subscribed) return; // User cancelled or didn't subscribe

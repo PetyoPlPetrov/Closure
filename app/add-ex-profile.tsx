@@ -78,9 +78,9 @@ export default function AddExProfileScreen() {
     // Don't check if we're saving or navigating away (prevents redirect after saving first profile)
     if (isSaving.current || isNavigatingAway.current) return;
     
-    // Only redirect if user already had 1+ profiles when they entered this screen
-    // This prevents redirect after successfully saving the first profile
-    if (!isEditMode && !isSubscribed && initialProfileCount.current >= 1) {
+    // Only redirect if user already had 2+ profiles when they entered this screen
+    // This allows 2 free profiles per sphere before paywall
+    if (!isEditMode && !isSubscribed && initialProfileCount.current >= 2) {
       router.replace('/paywall');
     }
   }, [isEditMode, isSubscribed, profiles.length, isLoading]);
@@ -372,7 +372,7 @@ export default function AddExProfileScreen() {
 
     // Check subscription limit for new profiles (not edits)
     // Only check if profiles have loaded (to avoid false positives)
-    if (!isEditMode && !isSubscribed && !isLoading && profiles.length >= 1) {
+    if (!isEditMode && !isSubscribed && !isLoading && profiles.length >= 2) {
       isSaving.current = false;
       // Show paywall (custom in dev, RevenueCat in prod)
       const subscribed = await showPaywallForPremiumAccess();
