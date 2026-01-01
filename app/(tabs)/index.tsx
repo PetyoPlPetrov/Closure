@@ -313,7 +313,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const [shareModalVisible, setShareModalVisible] = React.useState(false);
   const [shareModalContent, setShareModalContent] = React.useState({ title: '', message: '' });
   const [showEntityWheel, setShowEntityWheel] = React.useState(false);
-  const [selectedWheelMoment, setSelectedWheelMoment] = React.useState<{ type: 'lesson' | 'sunny' | 'cloudy'; text: string } | null>(null);
+  const [selectedWheelMoment, setSelectedWheelMoment] = React.useState<{ type: 'lesson' | 'sunny' | 'cloudy'; text: string; memoryId: string } | null>(null);
   const [selectedMomentType, setSelectedMomentType] = React.useState<'lesson' | 'sunny' | 'cloudy'>('lesson');
 
   // Create a ref to always have the latest showEntityWheel value
@@ -336,6 +336,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const popupAnimProgress = useSharedValue(0);
   const popupScale = useSharedValue(0.3);
   const popupOpacity = useSharedValue(0);
+  const popupPressScale = useSharedValue(1); // Press animation for entity wheel popup
   const orbitAngle = useSharedValue(0); // Continuous orbit angle for automatic rotation
   const showEntityWheelShared = useSharedValue(false); // Shared value for worklet reactivity
 
@@ -1064,22 +1065,22 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
   // Select random moment after wheel spin
   const selectRandomMoment = React.useCallback(() => {
-    const allMoments: { type: 'lesson' | 'sunny' | 'cloudy'; text: string }[] = [];
+    const allMoments: { type: 'lesson' | 'sunny' | 'cloudy'; text: string; memoryId: string }[] = [];
 
     memories.forEach((memory) => {
       if (selectedMomentType === 'lesson' && memory.lessonsLearned) {
         memory.lessonsLearned.forEach((lesson: { id: string; text: string }) => {
-          allMoments.push({ type: 'lesson', text: lesson.text });
+          allMoments.push({ type: 'lesson', text: lesson.text, memoryId: memory.id });
         });
       }
       if (selectedMomentType === 'sunny' && memory.goodFacts) {
         memory.goodFacts.forEach((fact: { id: string; text: string }) => {
-          allMoments.push({ type: 'sunny', text: fact.text });
+          allMoments.push({ type: 'sunny', text: fact.text, memoryId: memory.id });
         });
       }
       if (selectedMomentType === 'cloudy' && memory.hardTruths) {
         memory.hardTruths.forEach((truth: { id: string; text: string }) => {
-          allMoments.push({ type: 'cloudy', text: truth.text });
+          allMoments.push({ type: 'cloudy', text: truth.text, memoryId: memory.id });
         });
       }
     });
@@ -1224,7 +1225,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     const currentY = startY + (endY - startY) * popupAnimProgress.value;
 
     return {
-      transform: [{ scale: popupScale.value }],
+      transform: [{ scale: popupScale.value * popupPressScale.value }],
       opacity: popupOpacity.value,
       top: currentY,
     };
@@ -1319,15 +1320,15 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         wheelDragFrameCount.value += 1;
 
         // Acceleration curve: start slow, then speed up (same as main wheel)
-        // Use frame count to simulate time (assuming ~60fps, 30 frames = ~500ms)
-        const targetFrames = 30; // Frames to reach full speed
+        // Use frame count to simulate time (assuming ~60fps, 45 frames = ~750ms)
+        const targetFrames = 45; // Frames to reach full speed (slower acceleration)
         const accelerationFactor = Math.min(1, wheelDragFrameCount.value / targetFrames);
         // Apply easing curve for smoother acceleration (ease-out cubic)
         const easedAcceleration = 1 - Math.pow(1 - accelerationFactor, 3);
 
         // Apply acceleration to delta angle
-        // Start at 40% speed, gradually reach 100% over ~500ms
-        const acceleratedDelta = deltaAngle * (0.4 + easedAcceleration * 0.6);
+        // Start at 30% speed, gradually reach 80% over ~750ms (reduced max speed)
+        const acceleratedDelta = deltaAngle * (0.3 + easedAcceleration * 0.5);
 
         // Convert to degrees for orbitAngle
         const deltaDeg = (acceleratedDelta * 180) / Math.PI;
@@ -1344,15 +1345,15 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         isWheelSpinning.value = true;
         const velocity = wheelVelocity.value;
 
-        // Much stronger momentum multiplier (match main wheel behavior)
+        // Reduced momentum multiplier for slower peak speed
         const velocityMagnitude = Math.abs(velocity);
-        // Scale from 20x to 60x based on velocity (much more aggressive)
-        const momentumMultiplier = 20.0 + Math.min(velocityMagnitude * 5, 40.0);
+        // Scale from 12x to 38x based on velocity
+        const momentumMultiplier = 12.0 + Math.min(velocityMagnitude * 4, 26.0);
         const amplifiedVelocity = velocity * momentumMultiplier;
 
         if (Math.abs(velocity) > 0.5) { // Lower threshold - trigger on any movement
-          // Much longer travel distance with amplified velocity
-          const targetAngle = orbitAngle.value + amplifiedVelocity * 3;
+          // Moderate travel distance
+          const targetAngle = orbitAngle.value + amplifiedVelocity * 2.3;
 
           // Use a custom easing curve: slow start (ease in), fast middle, slow end (ease out)
           orbitAngle.value = withSequence(
@@ -2249,7 +2250,27 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                 ]}
               >
                 <Pressable
-                  onPress={() => setSelectedWheelMoment(null)}
+                  onPressIn={() => {
+                    popupPressScale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
+                  }}
+                  onPressOut={() => {
+                    popupPressScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+                  }}
+                  onPress={() => {
+                    // Wait for press animation to complete before navigating
+                    setTimeout(() => {
+                      // Navigate to the focused memory
+                      if (onMemoryFocus && selectedWheelMoment?.memoryId) {
+                        onMemoryFocus(profile.id, selectedWheelMoment.memoryId, profile.sphere);
+                        // Exit entity wheel mode
+                        setShowEntityWheel(false);
+                        if (onEntityWheelChange) {
+                          onEntityWheelChange(false);
+                        }
+                      }
+                      setSelectedWheelMoment(null);
+                    }, 200);
+                  }}
                   style={{
                     width: momentWidth,
                     height: momentHeight,
@@ -4014,6 +4035,9 @@ const FloatingMemory = React.memo(function FloatingMemory({
   const memoryCenterX = useSharedValue(position.x);
   const memoryCenterY = useSharedValue(position.y);
 
+  // Random radius offset for spinning animation (varies between -8 and +8 pixels)
+  const radiusOffset = useSharedValue(Math.random() * 16 - 8);
+
   // Calculate memory position relative to container center
   // In wheel mode, each memory orbits individually around the entity
   const memoryAnimatedPosition = useAnimatedStyle(() => {
@@ -4045,7 +4069,9 @@ const FloatingMemory = React.memo(function FloatingMemory({
       const currentAngleRad = baseOrbitAngle + (currentOrbitAngle * Math.PI / 180);
 
       // Calculate orbital radius (distance from entity center)
-      const radius = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
+      // Add random offset to create slight variation during spin
+      const baseRadius = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
+      const radius = baseRadius + radiusOffset.value;
 
       // Calculate new position in circular orbit
       const newOffsetX = radius * Math.cos(currentAngleRad);
@@ -4127,6 +4153,8 @@ const FloatingMemory = React.memo(function FloatingMemory({
       { translateY: floatAnimation.value * 4 },
       { scale: scale.value },
     ],
+    // Reduce opacity when entity wheel is active to indicate disabled state
+    opacity: showEntityWheelShared?.value ? 0.3 : 1,
   }));
 
   const clouds = useMemo(() => {
@@ -4719,6 +4747,8 @@ const FloatingCloud = React.memo(function FloatingCloud({
       { translateY: floatAnimation.value * 2 },
       { scale: scale.value },
     ],
+    // Reduce opacity when entity wheel is active (similar to how spheres are disabled)
+    opacity: showEntityWheel ? 0.3 : 1,
   }));
 
   const cloudAnimatedPosition = useAnimatedStyle(() => {
@@ -4908,6 +4938,8 @@ const FloatingSun = React.memo(function FloatingSun({
       { translateY: floatAnimation.value * 2 },
       { scale: scale.value },
     ],
+    // Reduce opacity when entity wheel is active (similar to how spheres are disabled)
+    opacity: showEntityWheel ? 0.3 : 1,
   }));
 
   const sunAnimatedPosition = useAnimatedStyle(() => {
@@ -5134,6 +5166,8 @@ const FloatingLesson = React.memo(function FloatingLesson({
       { translateY: floatAnimation.value * 2 },
       { scale: scale.value },
     ],
+    // Reduce opacity when entity wheel is active (similar to how spheres are disabled)
+    opacity: showEntityWheel ? 0.3 : 1,
   }));
 
   const lessonAnimatedPosition = useAnimatedStyle(() => {
@@ -6019,8 +6053,8 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
   // Start animation with delay
   React.useEffect(() => {
     const startAnimation = () => {
-      // Fade in
-      opacity.value = withTiming(isSelected ? 1 : 0.4, { duration: 300 });
+      // Fade in - reduce opacity for non-selected to indicate disabled state
+      opacity.value = withTiming(isSelected ? 1 : 0.2, { duration: 300 });
       scale.value = withSpring(1, { damping: 12, stiffness: 150 });
 
       // Start floating animation
@@ -6067,10 +6101,10 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
       );
       opacity.value = withTiming(1, { duration: 300 });
     } else {
-      // Stop pulsing animation when deselected
+      // Stop pulsing animation when deselected - reduce opacity to indicate disabled state
       cancelAnimation(pulseScale);
       pulseScale.value = withTiming(1, { duration: 300 });
-      opacity.value = withTiming(0.4, { duration: 300 });
+      opacity.value = withTiming(0.2, { duration: 300 });
     }
   }, [isSelected, pulseScale, opacity]);
 
@@ -7644,6 +7678,7 @@ export default function HomeScreen() {
   // Animation values for lesson notification (same style as encouragement message)
   const lessonOpacity = useSharedValue(0);
   const lessonScale = useSharedValue(0);
+  const lessonPressScale = useSharedValue(1); // Press animation for main wheel popup
   const lessonTranslateX = useSharedValue(0);
   const lessonTranslateY = useSharedValue(0);
   const lessonShadowPulse = useSharedValue(1); // For pulsing shadow effect
@@ -8162,7 +8197,7 @@ export default function HomeScreen() {
       transform: [
         { translateX: lessonTranslateX.value },
         { translateY: lessonTranslateY.value },
-        { scale: lessonScale.value }
+        { scale: lessonScale.value * lessonPressScale.value }
       ],
     };
   });
@@ -10411,61 +10446,70 @@ export default function HomeScreen() {
               >
                 {/* Simple circular view matching focused memory view - same style as lesson in MemoryMomentsRenderer */}
               <AnimatedPressable
+                  onPressIn={() => {
+                    lessonPressScale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
+                  }}
+                  onPressOut={() => {
+                    lessonPressScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+                  }}
                   onPress={() => {
-                    // If it's a mock lesson, just close it (don't navigate)
-                    if (selectedLesson.isMock) {
+                    // Wait for press animation to complete before navigating
+                    setTimeout(() => {
+                      // If it's a mock lesson, just close it (don't navigate)
+                      if (selectedLesson.isMock) {
+                        setShowLesson(false);
+                        return;
+                      }
+
+                      // Navigate to the memory this lesson belongs to
+                      const sphere = selectedLesson.sphere;
+                      const entityId = selectedLesson.entityId;
+                      const memoryId = selectedLesson.memoryId;
+
+                      // Set focused memory, focused entity, and selected sphere based on sphere type
+                      // We need to set the entity focus first, then the memory focus after a slight delay
+                      // to ensure the entity's FloatingAvatar component has rendered
+                      if (sphere === 'relationships') {
+                        const memoryData = { profileId: entityId, memoryId, sphere };
+                        setFocusedProfileId(entityId);
+                        setSelectedSphere('relationships');
+                        // Delay memory focus to ensure entity is rendered first
+                        setTimeout(() => {
+                          setFocusedMemory(memoryData);
+                        }, 100);
+                      } else if (sphere === 'career') {
+                        const memoryData = { jobId: entityId, memoryId, sphere };
+                        setFocusedJobId(entityId);
+                        setSelectedSphere('career');
+                        setTimeout(() => {
+                          setFocusedMemory(memoryData);
+                        }, 100);
+                      } else if (sphere === 'family') {
+                        const memoryData = { familyMemberId: entityId, memoryId, sphere };
+                        setFocusedFamilyMemberId(entityId);
+                        setSelectedSphere('family');
+                        setTimeout(() => {
+                          setFocusedMemory(memoryData);
+                        }, 100);
+                      } else if (sphere === 'friends') {
+                        const memoryData = { friendId: entityId, memoryId, sphere };
+                        setFocusedFriendId(entityId);
+                        setSelectedSphere('friends');
+                        setTimeout(() => {
+                          setFocusedMemory(memoryData);
+                        }, 100);
+                      } else if (sphere === 'hobbies') {
+                        const memoryData = { hobbyId: entityId, memoryId, sphere };
+                        setFocusedHobbyId(entityId);
+                        setSelectedSphere('hobbies');
+                        setTimeout(() => {
+                          setFocusedMemory(memoryData);
+                        }, 100);
+                      }
+
+                      // Close the lesson display
                       setShowLesson(false);
-                      return;
-                    }
-
-                    // Navigate to the memory this lesson belongs to
-                    const sphere = selectedLesson.sphere;
-                    const entityId = selectedLesson.entityId;
-                    const memoryId = selectedLesson.memoryId;
-
-                    // Set focused memory, focused entity, and selected sphere based on sphere type
-                    // We need to set the entity focus first, then the memory focus after a slight delay
-                    // to ensure the entity's FloatingAvatar component has rendered
-                    if (sphere === 'relationships') {
-                      const memoryData = { profileId: entityId, memoryId, sphere };
-                      setFocusedProfileId(entityId);
-                      setSelectedSphere('relationships');
-                      // Delay memory focus to ensure entity is rendered first
-                      setTimeout(() => {
-                        setFocusedMemory(memoryData);
-                      }, 100);
-                    } else if (sphere === 'career') {
-                      const memoryData = { jobId: entityId, memoryId, sphere };
-                      setFocusedJobId(entityId);
-                      setSelectedSphere('career');
-                      setTimeout(() => {
-                        setFocusedMemory(memoryData);
-                      }, 100);
-                    } else if (sphere === 'family') {
-                      const memoryData = { familyMemberId: entityId, memoryId, sphere };
-                      setFocusedFamilyMemberId(entityId);
-                      setSelectedSphere('family');
-                      setTimeout(() => {
-                        setFocusedMemory(memoryData);
-                      }, 100);
-                    } else if (sphere === 'friends') {
-                      const memoryData = { friendId: entityId, memoryId, sphere };
-                      setFocusedFriendId(entityId);
-                      setSelectedSphere('friends');
-                      setTimeout(() => {
-                        setFocusedMemory(memoryData);
-                      }, 100);
-                    } else if (sphere === 'hobbies') {
-                      const memoryData = { hobbyId: entityId, memoryId, sphere };
-                      setFocusedHobbyId(entityId);
-                      setSelectedSphere('hobbies');
-                      setTimeout(() => {
-                        setFocusedMemory(memoryData);
-                      }, 100);
-                    }
-
-                    // Close the lesson display
-                    setShowLesson(false);
+                    }, 75);
                   }}
                 style={[
                   {
