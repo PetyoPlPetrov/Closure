@@ -35,6 +35,7 @@ import Animated, {
   Easing,
   interpolateColor,
   runOnJS,
+  runOnUI,
   useAnimatedProps,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -74,6 +75,7 @@ const DraggableMoment = React.memo(function DraggableMoment({
   entranceDelay = 0,
   startX: propStartX,
   startY: propStartY,
+  isActive = true,
 }: {
   initialX: number;
   initialY: number;
@@ -86,6 +88,7 @@ const DraggableMoment = React.memo(function DraggableMoment({
   entranceDelay?: number;
   startX?: number;
   startY?: number;
+  isActive?: boolean;
 }) {
   const hasStartPosition = propStartX !== undefined && propStartY !== undefined;
   const animationStartedRef = React.useRef(false); // Track if animation has started to prevent reset
@@ -180,7 +183,17 @@ const DraggableMoment = React.memo(function DraggableMoment({
       startY.value = initialY;
     }
   }, [initialX, initialY, panX, panY, startX, startY, isDragging, hasStartPosition]);
-  
+
+  // Update scale based on active state (shrink inactive moments)
+  React.useEffect(() => {
+    if (animationStartedRef.current) {
+      scale.value = withSpring(isActive ? 1 : 0.4, {
+        damping: 15,
+        stiffness: 200,
+      });
+    }
+  }, [isActive, scale]);
+
   const panResponder = React.useMemo(
     () =>
       PanResponder.create({
@@ -210,31 +223,41 @@ const DraggableMoment = React.memo(function DraggableMoment({
         },
         onPanResponderRelease: (evt, gestureState) => {
           isDragging.value = false;
-          const newX = startX.value + gestureState.dx;
-          const newY = startY.value + gestureState.dy;
-          
-          // Clamp to viewport bounds
-          const padding = 20;
-          const minX = padding + hitAreaWidth / 2;
-          const maxX = SCREEN_WIDTH - padding - hitAreaWidth / 2;
-          const minY = padding + hitAreaHeight / 2;
-          const maxY = SCREEN_HEIGHT - padding - hitAreaHeight / 2;
-          
-          const finalX = Math.max(minX, Math.min(maxX, newX));
-          const finalY = Math.max(minY, Math.min(maxY, newY));
-          
-          // Update position
-          panX.value = finalX;
-          panY.value = finalY;
-          startX.value = finalX;
-          startY.value = finalY;
-          
-          // Notify parent of position change
-          onPositionChange?.(finalX, finalY);
+
+          // Check if this was a tap (minimal movement)
+          const isTap = Math.abs(gestureState.dx) < 5 && Math.abs(gestureState.dy) < 5;
+
+          if (isTap && onPress) {
+            // Call onPress for tap gestures
+            onPress();
+          } else {
+            // Handle drag release
+            const newX = startX.value + gestureState.dx;
+            const newY = startY.value + gestureState.dy;
+
+            // Clamp to viewport bounds
+            const padding = 20;
+            const minX = padding + hitAreaWidth / 2;
+            const maxX = SCREEN_WIDTH - padding - hitAreaWidth / 2;
+            const minY = padding + hitAreaHeight / 2;
+            const maxY = SCREEN_HEIGHT - padding - hitAreaHeight / 2;
+
+            const finalX = Math.max(minX, Math.min(maxX, newX));
+            const finalY = Math.max(minY, Math.min(maxY, newY));
+
+            // Update position
+            panX.value = finalX;
+            panY.value = finalY;
+            startX.value = finalX;
+            startY.value = finalY;
+
+            // Notify parent of position change
+            onPositionChange?.(finalX, finalY);
+          }
         },
         onPanResponderTerminationRequest: () => false, // Don't allow other responders to take over
       }),
-    [hitAreaWidth, hitAreaHeight, panX, panY, startX, startY, isDragging, onPositionChange]
+    [hitAreaWidth, hitAreaHeight, panX, panY, startX, startY, isDragging, onPositionChange, onPress]
   );
   
   const baseStyle = useAnimatedStyle(() => ({
@@ -331,6 +354,10 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const wheelSpinRotation = useSharedValue(0); // Orbit angle offset - all memories orbit with this offset
   const wheelVelocity = useSharedValue(0);
   const isWheelSpinning = useSharedValue(false);
+
+  // Star center position - tracks the actual visual position of the avatar
+  const starCenterX = useSharedValue(SCREEN_WIDTH / 2);
+  const starCenterY = useSharedValue(SCREEN_HEIGHT / 2);
 
   // Popup animation values
   const popupAnimProgress = useSharedValue(0);
@@ -817,13 +844,31 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const targetX = SCREEN_WIDTH / 2;
   const targetY = normalTargetY; // Will be animated based on wheelModeProgress
 
+  // Update star center to match avatar's actual visual position
+  useAnimatedReaction(
+    () => {
+      // Calculate the same interpolated position used in animatedStyle
+      if (isFocused) {
+        // Use focusedX/focusedY which represent the target position
+        const currentX = startX.value + (focusedX.value - startX.value) * zoomProgress.value;
+        const currentY = startY.value + (focusedY.value - startY.value) * zoomProgress.value;
+        return { x: currentX, y: currentY };
+      }
+      return { x: position.x, y: position.y };
+    },
+    (result) => {
+      starCenterX.value = result.x;
+      starCenterY.value = result.y;
+    }
+  );
+
   // Sync showEntityWheel state with shared value for worklet reactivity
   React.useEffect(() => {
     showEntityWheelShared.value = showEntityWheel;
   }, [showEntityWheel, showEntityWheelShared]);
 
-  // Animate wheel mode
-  React.useEffect(() => {
+  // Animate wheel mode - use useLayoutEffect to ensure star position is set before render
+  useLayoutEffect(() => {
     if (showEntityWheel && isFocused) {
       // Only set default moment type when first entering wheel mode (transitioning from false to true)
       const wasWheelHidden = !previousShowEntityWheel.current;
@@ -832,11 +877,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         damping: 15,
         stiffness: 100,
       });
-      // Animate to wheel mode position (more centered)
-      focusedY.value = withSpring(wheelTargetY, {
-        damping: 15,
-        stiffness: 100,
-      });
+      // Animate entity position to wheel target
+      focusedX.value = targetX;
+      focusedY.value = wheelTargetY;
 
       // Start continuous orbit animation - slow rotation around entity
       // Each memory will use its base angle + this orbit angle to calculate position
@@ -878,7 +921,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
     // Update the ref to track the current state for next render
     previousShowEntityWheel.current = showEntityWheel;
-  }, [showEntityWheel, isFocused, wheelModeProgress, wheelSpinRotation, focusedY, wheelTargetY, normalTargetY, memoryPositions, position.x, position.y, orbitAngle]);
+  }, [showEntityWheel, isFocused, wheelModeProgress, wheelSpinRotation, focusedY, wheelTargetY, normalTargetY, memoryPositions, position.x, position.y, orbitAngle, targetX, starCenterX, starCenterY]);
   // Note: selectedMomentType is intentionally NOT in dependencies to avoid restarting animations when icon selection changes
 
   // Notify parent when entity wheel state changes
@@ -2373,6 +2416,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   isFocused,
   isMemoryFocused,
   visibleMomentIds,
+  activeMomentId,
+  setActiveMomentId,
   calculateClampedPosition,
   cloudWidth,
   cloudHeight,
@@ -2409,6 +2454,8 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
   isFocused: boolean;
   isMemoryFocused: boolean;
   visibleMomentIds: Set<string>;
+  activeMomentId: string | null;
+  setActiveMomentId: (id: string | null) => void;
   calculateClampedPosition: (savedX: number | undefined, savedY: number | undefined, momentWidth: number, momentHeight: number, index: number, totalCount: number, memorySize: number, momentType: 'cloud' | 'sun') => { x: number; y: number };
   cloudWidth: number;
   cloudHeight: number;
@@ -2519,6 +2566,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
           };
           
           const startPos = newlyCreatedMoments.get(cloud.id);
+          const isActive = activeMomentId === cloud.id;
           return (
             <DraggableMoment
               key={`cloud-focused-${cloud?.id || cloudIndex}`}
@@ -2528,10 +2576,13 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
               height={dynamicCloudHeight}
               zIndex={cloudZIndex}
               onPositionChange={handlePositionChange}
-              onPress={onDoubleTap}
+              onPress={() => {
+                setActiveMomentId(cloud.id);
+              }}
               entranceDelay={startPos ? 0 : cloudIndex * 100} // No delay for newly created moments
               startX={startPos?.startX}
               startY={startPos?.startY}
+              isActive={isActive}
             >
               <View
                 style={{
@@ -2651,7 +2702,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
           />
         );
     });
-  }, [isFocused, filteredClouds, isMemoryFocused, cloudPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, cloudZIndex, colorScheme, onDoubleTap, calculateClampedPosition, cloudWidth, cloudHeight, clouds.length, memorySize, newlyCreatedMoments, isTablet, onUpdateMemory, memory.hardTruths, sunnyPercentage, showEntityWheel, showEntityWheelRef]);
+  }, [isFocused, filteredClouds, isMemoryFocused, cloudPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, cloudZIndex, colorScheme, onDoubleTap, calculateClampedPosition, cloudWidth, cloudHeight, clouds.length, memorySize, newlyCreatedMoments, isTablet, onUpdateMemory, memory.hardTruths, sunnyPercentage, showEntityWheel, showEntityWheelRef, activeMomentId, setActiveMomentId]);
   
   // Memoize filtered suns - must be called unconditionally
   const filteredSuns = useMemo(() => {
@@ -2708,6 +2759,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
           };
           
           const startPos = newlyCreatedMoments.get(sun.id);
+          const isActive = activeMomentId === sun.id;
           return (
             <DraggableMoment
               key={`sun-focused-${sun.id}`}
@@ -2717,10 +2769,13 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
               height={dynamicSunSize}
               zIndex={sunZIndex}
               onPositionChange={handlePositionChange}
-              onPress={onDoubleTap}
+              onPress={() => {
+                setActiveMomentId(sun.id);
+              }}
               entranceDelay={startPos ? 0 : sunIndex * 100} // No delay for newly created moments
               startX={startPos?.startX}
               startY={startPos?.startY}
+              isActive={isActive}
             >
               <View
                 style={{
@@ -2880,7 +2935,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
           />
         );
     });
-  }, [isFocused, filteredSuns, isMemoryFocused, sunPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, sunZIndex, colorScheme, onDoubleTap, calculateClampedPosition, sunWidth, sunHeight, suns.length, memorySize, newlyCreatedMoments, isTablet, isLargeDevice, fontScale, onUpdateMemory, memory.goodFacts, sunnyPercentage, showEntityWheel, showEntityWheelRef]);
+  }, [isFocused, filteredSuns, isMemoryFocused, sunPositions, position.x, position.y, memoryAnimatedPosition, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, sunZIndex, colorScheme, onDoubleTap, calculateClampedPosition, sunWidth, sunHeight, suns.length, memorySize, newlyCreatedMoments, isTablet, isLargeDevice, fontScale, onUpdateMemory, memory.goodFacts, sunnyPercentage, showEntityWheel, showEntityWheelRef, activeMomentId, setActiveMomentId]);
 
   // Memoize filtered lessons - must be called unconditionally
   const filteredLessons = useMemo(() => {
@@ -2931,6 +2986,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
         };
 
         // Use DraggableMoment for lessons when memory is focused (same as suns)
+        const isActive = activeMomentId === lesson.id;
         return (
           <DraggableMoment
             key={`lesson-${lesson.id}-${lessonIndex}`}
@@ -2940,10 +2996,13 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
             height={dynamicLessonSize}
             zIndex={lessonZIndex}
             onPositionChange={handlePositionChange}
-            onPress={onDoubleTap}
+            onPress={() => {
+              setActiveMomentId(lesson.id);
+            }}
             entranceDelay={startPos ? 0 : lessonIndex * 100}
             startX={startPos?.startX}
             startY={startPos?.startY}
+            isActive={isActive}
           >
             {/* Render lightbulb with text for lessons */}
             <View
@@ -3025,7 +3084,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
         />
       );
     });
-  }, [isFocused, filteredLessons, isMemoryFocused, lessonPositions, lessons.length, calculateClampedPosition, sunWidth, sunHeight, memorySize, lessonZIndex, colorScheme, onDoubleTap, onUpdateMemory, newlyCreatedMoments, memory, isTablet, position.x, position.y, memoryAnimatedPosition, memoryCenterX, memoryCenterY, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, showEntityWheel, showEntityWheelRef]);
+  }, [isFocused, filteredLessons, isMemoryFocused, lessonPositions, lessons.length, calculateClampedPosition, sunWidth, sunHeight, memorySize, lessonZIndex, colorScheme, onDoubleTap, onUpdateMemory, newlyCreatedMoments, memory, isTablet, position.x, position.y, memoryAnimatedPosition, memoryCenterX, memoryCenterY, avatarPanX, avatarPanY, focusedX, focusedY, offsetX, offsetY, showEntityWheel, showEntityWheelRef, activeMomentId, setActiveMomentId]);
 
   // Skip rendering moments for unfocused partners (not visible in viewport)
   if (!isFocused) {
@@ -3052,6 +3111,7 @@ const MemoryMomentsRenderer = React.memo(function MemoryMomentsRenderer({
     prevProps.isFocused === nextProps.isFocused &&
     prevProps.isMemoryFocused === nextProps.isMemoryFocused &&
     prevProps.visibleMomentIds.size === nextProps.visibleMomentIds.size &&
+    prevProps.activeMomentId === nextProps.activeMomentId &&
     prevProps.memorySize === nextProps.memorySize &&
     prevProps.position.x === nextProps.position.x &&
     prevProps.position.y === nextProps.position.y &&
@@ -3615,7 +3675,10 @@ const FloatingMemory = React.memo(function FloatingMemory({
 
   // Track which moments are visible (initially none when memory is focused)
   const [visibleMomentIds, setVisibleMomentIds] = React.useState<Set<string>>(new Set());
-  
+
+  // Track the actively focused moment (for shrink/grow animation)
+  const [activeMomentId, setActiveMomentId] = React.useState<string | null>(null);
+
   // Track newly created moments with their start positions
   const [newlyCreatedMoments, setNewlyCreatedMoments] = React.useState<Map<string, { startX: number; startY: number }>>(new Map());
   
@@ -3842,6 +3905,8 @@ const FloatingMemory = React.memo(function FloatingMemory({
     const markVisible = () => {
       setTimeout(() => {
         setVisibleMomentIds(prev => new Set([...prev, nextCloud.id]));
+        // Set this as the active moment when created
+        setActiveMomentId(nextCloud.id);
         // Don't clear start position - it's harmless to keep it and prevents re-render issues
       }, 50); // Small delay to ensure start position state is set
     };
@@ -3920,10 +3985,12 @@ const FloatingMemory = React.memo(function FloatingMemory({
     const markVisible = () => {
       setTimeout(() => {
         setVisibleMomentIds(prev => new Set([...prev, nextSun.id]));
+        // Set this as the active moment when created
+        setActiveMomentId(nextSun.id);
         // Don't clear start position - it's harmless to keep it and prevents re-render issues
       }, 50); // Small delay to ensure start position state is set
     };
-    
+
     if (sunButtonPos) {
       markVisible();
     } else {
@@ -3992,6 +4059,8 @@ const FloatingMemory = React.memo(function FloatingMemory({
     const markVisible = () => {
       setTimeout(() => {
         setVisibleMomentIds(prev => new Set([...prev, nextLesson.id]));
+        // Set this as the active moment when created
+        setActiveMomentId(nextLesson.id);
       }, 50);
     };
 
@@ -4492,76 +4561,77 @@ const FloatingMemory = React.memo(function FloatingMemory({
               <MaterialIcons name="auto-stories" size={24} color="#fff" />
             )}
           </View>
-
-          {/* Share button - positioned outside the View with overflow:hidden so it won't be clipped */}
-          {isMemoryFocused && memory.imageUri && (
-            <Pressable
-              onPress={() => {
-                try {
-                  // Format memory data as text
-                  const title = memory.title || 'Memory';
-                  let message = `${title}\n\n`;
-
-                  if (memory.goodFacts && memory.goodFacts.length > 0) {
-                    message += '☀️ Sunny Moments:\n';
-                    memory.goodFacts.forEach((fact: any, index: number) => {
-                      const text = typeof fact === 'string' ? fact : fact.text || fact.content || String(fact);
-                      message += `${index + 1}. ${text}\n`;
-                    });
-                    message += '\n';
-                  }
-
-                  if (memory.hardTruths && memory.hardTruths.length > 0) {
-                    message += '☁️ Hard Truths:\n';
-                    memory.hardTruths.forEach((truth: any, index: number) => {
-                      const text = typeof truth === 'string' ? truth : truth.text || truth.content || String(truth);
-                      message += `${index + 1}. ${text}\n`;
-                    });
-                    message += '\n';
-                  }
-
-                  if (memory.lessonsLearned && memory.lessonsLearned.length > 0) {
-                    message += '💡 Lessons Learned:\n';
-                    memory.lessonsLearned.forEach((lesson: any, index: number) => {
-                      const text = typeof lesson === 'string' ? lesson : lesson.text || lesson.content || String(lesson);
-                      message += `${index + 1}. ${text}\n`;
-                    });
-                  }
-
-                  // Open modal with content
-                  setShareModalContent({
-                    title: title,
-                    message: message.trim(),
-                  });
-                  setShareModalVisible(true);
-                } catch (error) {
-                  logError('HomeScreen:ShareContent', error);
-                }
-              }}
-              style={{
-                position: 'absolute',
-                top: -8,
-                right: -8,
-                width: 48,
-                height: 48,
-                borderRadius: 24,
-                backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.5)',
-                justifyContent: 'center',
-                alignItems: 'center',
-                zIndex: 20,
-                borderWidth: 2,
-                borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.8)',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 4,
-                elevation: 5,
-              }}
-            >
-              <MaterialIcons name="share" size={24} color="#fff" />
-            </Pressable>
-          )}
         </Pressable>
+
+        {/* Share button - moved outside parent Pressable to avoid nested Pressable issues */}
+        {isMemoryFocused && memory.imageUri && (
+          <Pressable
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            onPress={() => {
+              try {
+                // Format memory data as text
+                const title = memory.title || 'Memory';
+                let message = `${title}\n\n`;
+
+                if (memory.goodFacts && memory.goodFacts.length > 0) {
+                  message += '☀️ Sunny Moments:\n';
+                  memory.goodFacts.forEach((fact: any, index: number) => {
+                    const text = typeof fact === 'string' ? fact : fact.text || fact.content || String(fact);
+                    message += `${index + 1}. ${text}\n`;
+                  });
+                  message += '\n';
+                }
+
+                if (memory.hardTruths && memory.hardTruths.length > 0) {
+                  message += '☁️ Hard Truths:\n';
+                  memory.hardTruths.forEach((truth: any, index: number) => {
+                    const text = typeof truth === 'string' ? truth : truth.text || truth.content || String(truth);
+                    message += `${index + 1}. ${text}\n`;
+                  });
+                  message += '\n';
+                }
+
+                if (memory.lessonsLearned && memory.lessonsLearned.length > 0) {
+                  message += '💡 Lessons Learned:\n';
+                  memory.lessonsLearned.forEach((lesson: any, index: number) => {
+                    const text = typeof lesson === 'string' ? lesson : lesson.text || lesson.content || String(lesson);
+                    message += `${index + 1}. ${text}\n`;
+                  });
+                }
+
+                // Open modal with content
+                setShareModalContent({
+                  title: title,
+                  message: message.trim(),
+                });
+                setShareModalVisible(true);
+              } catch (error) {
+                logError('HomeScreen:ShareContent', error);
+              }
+            }}
+            style={{
+              position: 'absolute',
+              top: -8,
+              right: -8,
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.5)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 20,
+              borderWidth: 2,
+              borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.8)',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 5,
+            }}
+          >
+            <MaterialIcons name="share" size={24} color="#fff" />
+          </Pressable>
+        )}
         </View>
       </Animated.View>
 
@@ -4587,6 +4657,8 @@ const FloatingMemory = React.memo(function FloatingMemory({
             isFocused={isFocused}
             isMemoryFocused={isMemoryFocused ?? false}
             visibleMomentIds={visibleMomentIds}
+            activeMomentId={activeMomentId}
+            setActiveMomentId={setActiveMomentId}
             calculateClampedPosition={calculateClampedPosition}
             cloudWidth={cloudWidth}
             cloudHeight={cloudHeight}
@@ -5448,9 +5520,14 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
         />
       </Svg>
 
-      <ThemedText size="xl" weight="bold" style={{ color: colors.primaryLight, fontSize: 32 }}>
-        {Math.round(percentage)}%
-      </ThemedText>
+      <View style={{ alignItems: 'center', marginTop: -4 }}>
+        <ThemedText size="xl" weight="bold" style={{ color: '#FFD700', fontSize: 24 }}>
+          {Math.round(percentage)}%
+        </ThemedText>
+        <ThemedText size="sm" weight="medium" style={{ color: '#FFD700', fontSize: 12, marginTop: -2 }}>
+          Sunny Life
+        </ThemedText>
+      </View>
       </View>
 
       {/* Sun icon - positioned in the middle of the yellow (sunny) arc */}
@@ -5769,6 +5846,231 @@ const SparkledDot = React.memo(function SparkledDot({
         animatedStyle,
       ]}
     />
+  );
+});
+
+// Spiraling Icons Component - moment icons that flow out from avatar during wheel spin
+const SpiralingStars = React.memo(function SpiralingStars({
+  avatarCenterX,
+  avatarCenterY,
+  isSpinning,
+  colorScheme,
+  momentType = 'lessons',
+}: {
+  avatarCenterX: ReturnType<typeof useSharedValue<number>>;
+  avatarCenterY: ReturnType<typeof useSharedValue<number>>;
+  isSpinning: ReturnType<typeof useSharedValue<boolean>>;
+  colorScheme: 'light' | 'dark';
+  momentType?: 'lessons' | 'hardTruths' | 'sunnyMoments';
+}) {
+  const { isTablet } = useLargeDevice();
+
+  // Generate particles
+  const particles = React.useMemo(() => {
+    const numParticles = isTablet ? 30 : 20; // Number of particles to generate
+    return Array.from({ length: numParticles }, (_, i) => ({
+      id: `spiral-particle-${i}`,
+      // Particles start at different angles around a spiral
+      startAngle: (i / numParticles) * Math.PI * 2,
+      // Vary the spiral tightness
+      spiralOffset: (i / numParticles) * Math.PI * 4,
+      // Size based on moment type
+      size: isTablet ? 24 : 18,
+      // Stagger the animation start
+      delay: (i / numParticles) * 800,
+    }));
+  }, [isTablet]);
+
+  return (
+    <>
+      {particles.map((particle) => (
+        <SpirallingStar
+          key={particle.id}
+          avatarCenterX={avatarCenterX}
+          avatarCenterY={avatarCenterY}
+          startAngle={particle.startAngle}
+          spiralOffset={particle.spiralOffset}
+          size={particle.size}
+          delay={particle.delay}
+          isSpinning={isSpinning}
+          colorScheme={colorScheme}
+          momentType={momentType}
+        />
+      ))}
+    </>
+  );
+});
+
+// Individual Spiraling Icon Component
+const SpirallingStar = React.memo(function SpirallingStar({
+  avatarCenterX,
+  avatarCenterY,
+  startAngle,
+  spiralOffset,
+  size,
+  delay,
+  isSpinning,
+  colorScheme,
+  momentType = 'lessons',
+}: {
+  avatarCenterX: ReturnType<typeof useSharedValue<number>>;
+  avatarCenterY: ReturnType<typeof useSharedValue<number>>;
+  startAngle: number;
+  spiralOffset: number;
+  size: number;
+  delay: number;
+  isSpinning: ReturnType<typeof useSharedValue<boolean>>;
+  colorScheme: 'light' | 'dark';
+  momentType?: 'lessons' | 'hardTruths' | 'sunnyMoments';
+}) {
+  const progress = useSharedValue(0);
+  const opacity = useSharedValue(0);
+
+  // React to isSpinning changes using useAnimatedReaction
+  useAnimatedReaction(
+    () => isSpinning.value,
+    (spinning, previousSpinning) => {
+      'worklet';
+      if (spinning && !previousSpinning) {
+        // Just started spinning - start the animation
+        progress.value = 0;
+        opacity.value = 0;
+
+        // Animate outward with delay
+        progress.value = withDelay(
+          delay,
+          withRepeat(
+            withTiming(1, {
+              duration: 2500,
+              easing: Easing.out(Easing.ease),
+            }),
+            -1, // Infinite repeat
+            false // Don't reverse
+          )
+        );
+
+        // Fade in then fade out as star travels
+        opacity.value = withDelay(
+          delay,
+          withRepeat(
+            withSequence(
+              withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) }),
+              withTiming(0, { duration: 2000, easing: Easing.in(Easing.ease) })
+            ),
+            -1,
+            false
+          )
+        );
+      } else if (!spinning && previousSpinning) {
+        // Just stopped spinning - cancel animations
+        cancelAnimation(progress);
+        cancelAnimation(opacity);
+        progress.value = 0;
+        opacity.value = 0;
+      }
+    },
+    [delay]
+  );
+
+  const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
+
+    // Get current avatar center
+    const centerX = avatarCenterX.value;
+    const centerY = avatarCenterY.value;
+
+    // Calculate spiral position
+    // Radius grows as progress increases (outward motion)
+    const maxRadius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.5;
+    const radius = progress.value * maxRadius;
+
+    // Angle combines start angle with spiral offset based on progress
+    const angle = startAngle + spiralOffset * progress.value;
+
+    // Calculate position
+    const x = centerX + Math.cos(angle) * radius;
+    const y = centerY + Math.sin(angle) * radius;
+
+    // Add slight rotation to the star itself
+    const rotation = progress.value * 360;
+
+    return {
+      opacity: opacity.value,
+      transform: [
+        { translateX: x - size / 2 },
+        { translateY: y - size / 2 },
+        { rotate: `${rotation}deg` },
+        { scale: 1 - progress.value * 0.3 }, // Shrink slightly as it moves out
+      ],
+    };
+  });
+
+  // Icon and color based on moment type
+  const getIconConfig = () => {
+    switch (momentType) {
+      case 'lessons':
+        return {
+          icon: '💡',
+          color: 'rgba(255, 215, 0, 1)', // Bright yellow for bulbs
+        };
+      case 'sunnyMoments':
+        return {
+          icon: '☀️',
+          color: 'rgba(255, 193, 7, 1)', // Golden yellow for suns
+        };
+      case 'hardTruths':
+        return {
+          icon: '☁️',
+          color: 'rgba(140, 140, 140, 1)', // Grey for clouds
+        };
+      default:
+        return {
+          icon: '💡',
+          color: 'rgba(255, 215, 0, 1)', // Bright yellow for bulbs
+        };
+    }
+  };
+
+  const { icon, color } = getIconConfig();
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          width: size,
+          height: size,
+          left: 0,
+          top: 0,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        animatedStyle,
+      ]}
+    >
+      <View
+        style={{
+          width: size,
+          height: size,
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: color,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.6,
+          shadowRadius: size,
+          elevation: 8,
+        }}
+      >
+        <ThemedText
+          style={{
+            fontSize: size,
+            lineHeight: size,
+          }}
+        >
+          {icon}
+        </ThemedText>
+      </View>
+    </Animated.View>
   );
 });
 
@@ -7657,6 +7959,8 @@ export default function HomeScreen() {
   const hintRotation = useSharedValue(0); // Gentle continuous rotation hint (in radians)
   const isHintAnimating = useSharedValue(false); // Track if hint animation is active
   const spheresScale = useSharedValue(1); // Scale for floating spheres (shrink when selector is shown)
+  const wheelCenterX = useSharedValue(SCREEN_WIDTH / 2); // Center X for wheel (shared value for stars)
+  const wheelCenterY = useSharedValue(SCREEN_HEIGHT / 2 + 40); // Center Y for wheel (shared value for stars)
 
   // State for selected moment type when spinning the wheel
   type MomentType = 'lessons' | 'hardTruths' | 'sunnyMoments';
@@ -10653,6 +10957,15 @@ export default function HomeScreen() {
               </Animated.View>
             );
           })()}
+
+          {/* Spiraling Icons - appears during wheel spin */}
+          <SpiralingStars
+            avatarCenterX={wheelCenterX}
+            avatarCenterY={wheelCenterY}
+            isSpinning={isWheelSpinning}
+            colorScheme={colorScheme ?? 'dark'}
+            momentType={selectedMomentType}
+          />
 
           {/* Five Spheres - wrapped in rotatable container */}
           {animationsReady && (
