@@ -2150,9 +2150,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
             // Position icons horizontally at bottom
             const icons = [
-              { type: 'lesson' as const, icon: 'lightbulb' as const, count: momentCounts.lesson },
+              { type: 'lesson' as const, icon: 'emoji-objects' as const, count: momentCounts.lesson },
               { type: 'sunny' as const, icon: 'wb-sunny' as const, count: momentCounts.sunny },
-              { type: 'cloudy' as const, icon: 'cloud' as const, count: momentCounts.cloudy },
+              { type: 'cloudy' as const, icon: 'cloud-queue' as const, count: momentCounts.cloudy },
             ];
 
             return icons.map((item, index) => {
@@ -7968,6 +7968,43 @@ export default function HomeScreen() {
   const [selectedLesson, setSelectedLesson] = useState<{ text: string; entityId: string; memoryId: string; sphere: LifeSphere; isMock?: boolean; momentType?: MomentType } | null>(null);
   const [showLesson, setShowLesson] = useState(false);
   const [showMomentTypeSelector, setShowMomentTypeSelector] = useState(false);
+
+  // Viewport glow effect for moment type selection
+  const viewportGlowOpacity = useSharedValue(0);
+  const [cornerGlowOpacity, setCornerGlowOpacity] = useState(0);
+
+  // Track wheel spinning state for disabling icon buttons
+  const [isSpinning, setIsSpinning] = useState(false);
+
+  // Trigger glow effect when moment type changes
+  React.useEffect(() => {
+    if (showMomentTypeSelector) {
+      // Pulse the glow when a moment type is selected
+      viewportGlowOpacity.value = withSequence(
+        withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) }),
+        withTiming(0.6, { duration: 400, easing: Easing.inOut(Easing.ease) })
+      );
+    } else {
+      viewportGlowOpacity.value = withTiming(0, { duration: 300 });
+    }
+  }, [selectedMomentType, showMomentTypeSelector, viewportGlowOpacity]);
+
+  // Sync animated value to state for TabScreenContainer
+  useAnimatedReaction(
+    () => viewportGlowOpacity.value,
+    (value) => {
+      runOnJS(setCornerGlowOpacity)(value);
+    }
+  );
+
+  // Sync wheel spinning state to disable icon buttons during spin
+  useAnimatedReaction(
+    () => isWheelSpinning.value,
+    (spinning) => {
+      runOnJS(setIsSpinning)(spinning);
+    }
+  );
+
   const [momentTypeSelectorDismissed, setMomentTypeSelectorDismissed] = useState(false); // Track if user dismissed selector
 
   // State for random pulsing moments around center avatar
@@ -10605,7 +10642,10 @@ export default function HomeScreen() {
   
   if (!selectedSphere) {
   return (
-    <TabScreenContainer>
+    <TabScreenContainer
+      momentType={showMomentTypeSelector ? selectedMomentType : undefined}
+      momentTypeOpacity={cornerGlowOpacity}
+    >
         {/* Streak Badge - Top Right */}
         {streakData && (
           <StreakBadgeComponent
@@ -11776,7 +11816,7 @@ export default function HomeScreen() {
                   justifyContent: 'center',
                 }}>
                 {/* Lessons button - Liquid Glass Effect */}
-                <Animated.View style={lessonsButtonAnimatedStyle}>
+                <Animated.View style={[lessonsButtonAnimatedStyle, { opacity: isSpinning ? 0.3 : 1 }]}>
                   {/* Frosted glass base layer */}
                   <View style={StyleSheet.absoluteFillObject}>
                     <LinearGradient
@@ -11810,6 +11850,7 @@ export default function HomeScreen() {
                     onPress={() => setSelectedMomentType('lessons')}
                     onPressIn={handleLessonsButtonPressIn}
                     onPressOut={handleLessonsButtonPressOut}
+                    disabled={isSpinning}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -11817,21 +11858,21 @@ export default function HomeScreen() {
                       justifyContent: 'center',
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: selectedMomentType === 'lessons' ? 0.3 : 0.1,
+                      shadowOpacity: isSpinning ? 0 : (selectedMomentType === 'lessons' ? 0.3 : 0.1),
                       shadowRadius: 4,
-                      elevation: selectedMomentType === 'lessons' ? 5 : 2,
+                      elevation: isSpinning ? 0 : (selectedMomentType === 'lessons' ? 5 : 2),
                     }}
                   >
                     <MaterialIcons
-                      name="lightbulb"
+                      name="emoji-objects"
                       size={28}
-                      color={selectedMomentType === 'lessons' ? '#fff' : colors.text}
+                      color={isSpinning ? 'rgba(150, 150, 150, 0.5)' : (selectedMomentType === 'lessons' ? '#fff' : colors.text)}
                     />
                   </Pressable>
                 </Animated.View>
 
                 {/* Hard truths button - Liquid Glass Effect */}
-                <Animated.View style={hardTruthsButtonAnimatedStyle}>
+                <Animated.View style={[hardTruthsButtonAnimatedStyle, { opacity: isSpinning ? 0.3 : 1 }]}>
                   {/* Frosted glass base layer */}
                   <View style={StyleSheet.absoluteFillObject}>
                     <LinearGradient
@@ -11865,6 +11906,7 @@ export default function HomeScreen() {
                     onPress={() => setSelectedMomentType('hardTruths')}
                     onPressIn={handleHardTruthsButtonPressIn}
                     onPressOut={handleHardTruthsButtonPressOut}
+                    disabled={isSpinning}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -11872,21 +11914,21 @@ export default function HomeScreen() {
                       justifyContent: 'center',
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: selectedMomentType === 'hardTruths' ? 0.3 : 0.1,
+                      shadowOpacity: isSpinning ? 0 : (selectedMomentType === 'hardTruths' ? 0.3 : 0.1),
                       shadowRadius: 4,
-                      elevation: selectedMomentType === 'hardTruths' ? 5 : 2,
+                      elevation: isSpinning ? 0 : (selectedMomentType === 'hardTruths' ? 5 : 2),
                     }}
                   >
                     <MaterialIcons
-                      name="cloud"
+                      name="cloud-queue"
                       size={28}
-                      color={selectedMomentType === 'hardTruths' ? '#fff' : colors.text}
+                      color={isSpinning ? 'rgba(150, 150, 150, 0.5)' : (selectedMomentType === 'hardTruths' ? '#fff' : colors.text)}
                     />
                   </Pressable>
                 </Animated.View>
 
                 {/* Sunny moments button - Liquid Glass Effect */}
-                <Animated.View style={sunnyMomentsButtonAnimatedStyle}>
+                <Animated.View style={[sunnyMomentsButtonAnimatedStyle, { opacity: isSpinning ? 0.3 : 1 }]}>
                   {/* Frosted glass base layer */}
                   <View style={StyleSheet.absoluteFillObject}>
                     <LinearGradient
@@ -11920,6 +11962,7 @@ export default function HomeScreen() {
                     onPress={() => setSelectedMomentType('sunnyMoments')}
                     onPressIn={handleSunnyMomentsButtonPressIn}
                     onPressOut={handleSunnyMomentsButtonPressOut}
+                    disabled={isSpinning}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -11927,15 +11970,15 @@ export default function HomeScreen() {
                       justifyContent: 'center',
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: selectedMomentType === 'sunnyMoments' ? 0.3 : 0.1,
+                      shadowOpacity: isSpinning ? 0 : (selectedMomentType === 'sunnyMoments' ? 0.3 : 0.1),
                       shadowRadius: 4,
-                      elevation: selectedMomentType === 'sunnyMoments' ? 5 : 2,
+                      elevation: isSpinning ? 0 : (selectedMomentType === 'sunnyMoments' ? 5 : 2),
                     }}
                   >
                     <MaterialIcons
                       name="wb-sunny"
                       size={28}
-                      color={selectedMomentType === 'sunnyMoments' ? '#fff' : colors.text}
+                      color={isSpinning ? 'rgba(150, 150, 150, 0.5)' : (selectedMomentType === 'sunnyMoments' ? '#fff' : colors.text)}
                     />
                   </Pressable>
                 </Animated.View>
