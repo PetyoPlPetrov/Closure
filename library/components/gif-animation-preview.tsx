@@ -55,6 +55,7 @@ function FloatingMoment({
   memorySize,
   momentSize,
   isCurrentlyPoppedUp,
+  backgroundOpacity,
 }: {
   moment: Moment;
   momentIndex: number;
@@ -63,6 +64,7 @@ function FloatingMoment({
   memorySize: number;
   momentSize: number;
   isCurrentlyPoppedUp: boolean;
+  backgroundOpacity: number;
 }) {
   // Use derived value to convert boolean prop to worklet-safe value
   const isHidden = useDerivedValue(() => isCurrentlyPoppedUp ? 1 : 0, [isCurrentlyPoppedUp]);
@@ -81,7 +83,7 @@ function FloatingMoment({
         { translateY: posY },
         { scale: isHidden.value === 1 ? 0 : 1 }, // Hide when popped up
       ],
-      opacity: isHidden.value === 1 ? 0 : 1,
+      opacity: isHidden.value === 1 ? 0 : backgroundOpacity,
     };
   });
 
@@ -124,6 +126,7 @@ function FloatingMemory({
   momentRotation,
   memorySize,
   momentSize,
+  backgroundOpacity,
 }: {
   memory: IdealizedMemory;
   memoryIndex: number;
@@ -134,6 +137,7 @@ function FloatingMemory({
   momentRotation: Animated.SharedValue<number>;
   memorySize: number;
   momentSize: number;
+  backgroundOpacity: number;
 }) {
   const memoryAnimatedStyle = useAnimatedStyle(() => {
     'worklet';
@@ -148,6 +152,7 @@ function FloatingMemory({
         { translateX: x },
         { translateY: y },
       ],
+      opacity: backgroundOpacity,
     };
   });
 
@@ -187,6 +192,7 @@ function FloatingMemory({
           memorySize={memorySize}
           momentSize={momentSize}
           isCurrentlyPoppedUp={currentPopupMomentId?.includes(moment.id) || false}
+          backgroundOpacity={backgroundOpacity}
         />
       ))}
     </Animated.View>
@@ -712,6 +718,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
   const cancelCaptureRef = useRef(false);
   const [memoryRotationSpeed, setMemoryRotationSpeed] = React.useState(5); // 0-10 scale, default 5
   const [popupDisappearSpeed, setPopupDisappearSpeed] = React.useState(2); // 0-10 scale, default 2
+  const [backgroundBlur, setBackgroundBlur] = React.useState(0); // 0-10 scale, default 0 (no blur/dimming)
   const [isSettingsExpanded, setIsSettingsExpanded] = React.useState(false);
 
   // Moment type filters
@@ -1149,20 +1156,25 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
       </View>
 
       {/* Memories floating around avatar with their floating moments (always visible) */}
-      {memories.map((memory, index) => (
-        <FloatingMemory
-          key={memory.id}
-          memory={memory}
-          memoryIndex={index}
-          position={memoryPositions[index]}
-          allMomentsForMemory={momentsByMemory[index] || []}
-          currentPopupMomentId={activePopups.map(p => p.moment.id).join(',')}
-          memoryRotation={memoryRotation}
-          momentRotation={momentRotation}
-          memorySize={memorySize}
-          momentSize={momentSize}
-        />
-      ))}
+      {memories.map((memory, index) => {
+        // Calculate opacity: 0 = 1.0 (full opacity), 10 = 0.1 (very faded)
+        const calculatedOpacity = 1.0 - (backgroundBlur * 0.09);
+        return (
+          <FloatingMemory
+            key={memory.id}
+            memory={memory}
+            memoryIndex={index}
+            position={memoryPositions[index]}
+            allMomentsForMemory={momentsByMemory[index] || []}
+            currentPopupMomentId={activePopups.map(p => p.moment.id).join(',')}
+            memoryRotation={memoryRotation}
+            momentRotation={momentRotation}
+            memorySize={memorySize}
+            momentSize={momentSize}
+            backgroundOpacity={calculatedOpacity}
+          />
+        );
+      })}
 
       {/* Pop-up moments - multiple simultaneously at different positions */}
       {activePopups.map((popup) => {
@@ -1508,6 +1520,12 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
                 label="Popup Duration"
                 value={popupDisappearSpeed}
                 onValueChange={setPopupDisappearSpeed}
+                colorScheme={colorScheme}
+              />
+              <SpeedSlider
+                label="Background Blur"
+                value={backgroundBlur}
+                onValueChange={setBackgroundBlur}
                 colorScheme={colorScheme}
               />
             </View>
