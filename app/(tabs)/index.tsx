@@ -49,7 +49,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, FeColorMatrix, FeGaussianBlur, FeMerge, FeMergeNode, Filter, Path, RadialGradient, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
-import { captureRef } from 'react-native-view-shot';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -322,9 +321,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   colors: any;
   colorScheme: 'light' | 'dark';
   isFocused: boolean;
-  focusedMemory?: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null;
+  focusedMemory?: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere; momentToShowId?: string } | null;
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
-  onMemoryFocus?: (entityId: string, memoryId: string, sphere?: LifeSphere) => void;
+  onMemoryFocus?: (entityId: string, memoryId: string, sphere?: LifeSphere, momentId?: string) => void;
   yearSection?: { year: number | string; top: number; bottom: number; height: number };
   onPositionChange?: (x: number, y: number) => void;
   enableDragging?: boolean;
@@ -332,7 +331,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   externalPositionY?: ReturnType<typeof useSharedValue<number>>;
   onEntityWheelChange?: (isActive: boolean) => void;
 }) {
-  const { isTablet } = useLargeDevice();
+  const { isTablet, isLargeDevice } = useLargeDevice();
   const insets = useSafeAreaInsets();
   const fontScale = useFontScale();
   const [shareModalVisible, setShareModalVisible] = React.useState(false);
@@ -344,8 +343,9 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const [imagePreviewUri, setImagePreviewUri] = React.useState<string | null>(null);
   const [showGifAnimation, setShowGifAnimation] = React.useState(false);
   const [showEntityWheel, setShowEntityWheel] = React.useState(false);
-  const [selectedWheelMoment, setSelectedWheelMoment] = React.useState<{ type: 'lesson' | 'sunny' | 'cloudy'; text: string; memoryId: string } | null>(null);
+  const [selectedWheelMoment, setSelectedWheelMoment] = React.useState<{ type: 'lesson' | 'sunny' | 'cloudy'; text: string; memoryId: string; momentId?: string } | null>(null);
   const [selectedMomentType, setSelectedMomentType] = React.useState<'lesson' | 'sunny' | 'cloudy'>('lesson');
+  const [isWheelSpinningState, setIsWheelSpinningState] = React.useState(false);
 
   // Create refs
   const viewShotRef = React.useRef<View>(null);
@@ -1117,22 +1117,22 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
   // Select random moment after wheel spin
   const selectRandomMoment = React.useCallback(() => {
-    const allMoments: { type: 'lesson' | 'sunny' | 'cloudy'; text: string; memoryId: string }[] = [];
+    const allMoments: { type: 'lesson' | 'sunny' | 'cloudy'; text: string; memoryId: string; momentId?: string }[] = [];
 
     memories.forEach((memory) => {
       if (selectedMomentType === 'lesson' && memory.lessonsLearned) {
         memory.lessonsLearned.forEach((lesson: { id: string; text: string }) => {
-          allMoments.push({ type: 'lesson', text: lesson.text, memoryId: memory.id });
+          allMoments.push({ type: 'lesson', text: lesson.text, memoryId: memory.id, momentId: lesson.id });
         });
       }
       if (selectedMomentType === 'sunny' && memory.goodFacts) {
         memory.goodFacts.forEach((fact: { id: string; text: string }) => {
-          allMoments.push({ type: 'sunny', text: fact.text, memoryId: memory.id });
+          allMoments.push({ type: 'sunny', text: fact.text, memoryId: memory.id, momentId: fact.id });
         });
       }
       if (selectedMomentType === 'cloudy' && memory.hardTruths) {
         memory.hardTruths.forEach((truth: { id: string; text: string }) => {
-          allMoments.push({ type: 'cloudy', text: truth.text, memoryId: memory.id });
+          allMoments.push({ type: 'cloudy', text: truth.text, memoryId: memory.id, momentId: truth.id });
         });
       }
     });
@@ -1338,6 +1338,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         // Stop the automatic rotation animation
         cancelAnimation(orbitAngle);
         isWheelSpinning.value = false;
+        runOnJS(setIsWheelSpinningState)(false);
         wheelVelocity.value = 0;
         wheelDragFrameCount.value = 0;
 
@@ -1395,15 +1396,16 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
         // Apply decay animation based on velocity
         isWheelSpinning.value = true;
+        runOnJS(setIsWheelSpinningState)(true);
         const velocity = wheelVelocity.value;
 
         // Reduced momentum multiplier for slower peak speed
         const velocityMagnitude = Math.abs(velocity);
-        // Scale from 12x to 38x based on velocity
-        const momentumMultiplier = 12.0 + Math.min(velocityMagnitude * 4, 26.0);
+        // Scale from 15x to 45x based on velocity (increased for more responsive spinning)
+        const momentumMultiplier = 15.0 + Math.min(velocityMagnitude * 4, 30.0);
         const amplifiedVelocity = velocity * momentumMultiplier;
 
-        if (Math.abs(velocity) > 0.5) { // Lower threshold - trigger on any movement
+        if (Math.abs(velocity) > 0.05) { // Very low threshold - trigger on minimal movement
           // Moderate travel distance
           const targetAngle = orbitAngle.value + amplifiedVelocity * 2.3;
 
@@ -1419,6 +1421,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               'worklet';
               if (finished) {
                 isWheelSpinning.value = false;
+                runOnJS(setIsWheelSpinningState)(false);
                 // Select random moment on JS thread
                 runOnJS(selectRandomMoment)();
 
@@ -1436,6 +1439,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           );
         } else {
           isWheelSpinning.value = false;
+          runOnJS(setIsWheelSpinningState)(false);
 
           // Restart automatic slow orbit from current position
           orbitAngle.value = withRepeat(
@@ -2397,11 +2401,12 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               const x = SCREEN_WIDTH / 2 - spacing + (index * spacing);
               const y = iconY;
               const isDisabled = item.count === 0;
+              const isSpinningDisabled = isWheelSpinningState;
 
               return (
                 <Animated.View
                   key={item.type}
-                  pointerEvents="auto"
+                  pointerEvents={isSpinningDisabled ? "none" : "auto"}
                   style={[
                     {
                       position: 'absolute',
@@ -2411,7 +2416,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                       height: iconSize,
                       borderRadius: iconSize / 2,
                       overflow: 'hidden',
-                      opacity: isDisabled ? 0.3 : 1,
+                      opacity: isDisabled ? 0.3 : (isSpinningDisabled ? 0.4 : 1),
                       zIndex: 500,
                     },
                     getButtonStyle(item.type),
@@ -2448,23 +2453,23 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
                   <Pressable
                     onPress={() => {
-                      if (!isDisabled) {
+                      if (!isDisabled && !isSpinningDisabled) {
                         setSelectedMomentType(item.type);
                       }
                     }}
                     onPressIn={() => {
-                      if (!isDisabled) {
+                      if (!isDisabled && !isSpinningDisabled) {
                         getPressScaleValue(item.type).value = withTiming(0.88, { duration: 100, easing: Easing.out(Easing.ease) });
                         getHighlightValue(item.type).value = withTiming(1, { duration: 150, easing: Easing.out(Easing.ease) });
                       }
                     }}
                     onPressOut={() => {
-                      if (!isDisabled) {
+                      if (!isDisabled && !isSpinningDisabled) {
                         getPressScaleValue(item.type).value = withSpring(1, { damping: 10, stiffness: 300 });
                         getHighlightValue(item.type).value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
                       }
                     }}
-                    disabled={isDisabled}
+                    disabled={isDisabled || isSpinningDisabled}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -2490,9 +2495,12 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
 
           {/* Selected moment floating display - large circular popup matching main wheel of life */}
           {selectedWheelMoment && (() => {
-            // Calculate dimensions to match main wheel popup
-            const momentWidth = isTablet ? 260 : 190;
-            const momentHeight = isTablet ? 260 : 190;
+            // Calculate dimensions - for sunny moments, use dynamic size based on text length like in focused memory view
+            const textLength = selectedWheelMoment.text?.length || 0;
+            const baseSunSize = isTablet ? 240 : (isLargeDevice ? 200 : 160);
+            const dynamicSunSize = Math.min(350, Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 1.2)));
+            const momentWidth = selectedWheelMoment.type === 'sunny' ? dynamicSunSize : (isTablet ? 260 : 190);
+            const momentHeight = selectedWheelMoment.type === 'sunny' ? dynamicSunSize : (isTablet ? 260 : 190);
             const messageTop = 180; // Final position below entity name (avoid overlap with name at top)
 
             // Get visual properties based on moment type
@@ -2530,99 +2538,437 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                   popupAnimatedStyle,
                 ]}
               >
-                <Pressable
-                  onPressIn={() => {
-                    popupPressScale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
-                  }}
-                  onPressOut={() => {
-                    popupPressScale.value = withSpring(1, { damping: 15, stiffness: 300 });
-                  }}
-                  onPress={() => {
-                    // Wait for press animation to complete before navigating
-                    setTimeout(() => {
-                      // Navigate to the focused memory
-                      if (onMemoryFocus && selectedWheelMoment?.memoryId) {
-                        onMemoryFocus(profile.id, selectedWheelMoment.memoryId, profile.sphere);
-                        // Exit entity wheel mode
-                        setShowEntityWheel(false);
-                        if (onEntityWheelChange) {
-                          onEntityWheelChange(false);
-                        }
-                      }
-                      setSelectedWheelMoment(null);
-                    }, 200);
-                  }}
-                  style={{
-                    width: momentWidth,
-                    height: momentHeight,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    backgroundColor: visuals.backgroundColor,
-                    borderRadius: momentWidth / 2,
-                    shadowColor: visuals.shadowColor,
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: 0.95,
-                    shadowRadius: isTablet ? 40 : 30,
-                    elevation: 24,
-                    padding: 8,
-                    position: 'relative',
-                  }}
-                >
-                  <MaterialIcons
-                    name={visuals.icon}
-                    size={momentWidth * 0.25}
-                    color={visuals.iconColor}
-                    style={{ marginBottom: 8 }}
-                  />
-                  <ThemedText
-                    style={{
-                      color: colorScheme === 'dark' ? '#1A1A1A' : '#000000',
-                      fontSize: 11 * fontScale,
-                      textAlign: 'center',
-                      fontWeight: '700',
-                      maxWidth: momentWidth * 0.85,
-                      lineHeight: 15 * fontScale,
-                    }}
-                    numberOfLines={8}
-                  >
-                    {selectedWheelMoment.text}
-                  </ThemedText>
-
-                  {/* Close button - positioned at top right with larger touch area */}
+                {selectedWheelMoment.type === 'sunny' ? (
+                  /* For sunny moments, render the sun element directly (no Pressable wrapper with background) */
                   <Pressable
-                    onPress={(e) => {
-                      e?.stopPropagation?.();
-                      setSelectedWheelMoment(null);
+                    onPressIn={() => {
+                      popupPressScale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
+                    }}
+                    onPressOut={() => {
+                      popupPressScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+                    }}
+                    onPress={() => {
+                      // Wait for press animation to complete before navigating
+                      setTimeout(() => {
+                        // Navigate to the focused memory
+                        if (onMemoryFocus && selectedWheelMoment?.memoryId) {
+                          // If it's a sunny moment, pass the momentId so the draggable sun element appears automatically
+                          onMemoryFocus(profile.id, selectedWheelMoment.memoryId, profile.sphere, selectedWheelMoment.momentId);
+                          // Exit entity wheel mode
+                          setShowEntityWheel(false);
+                          if (onEntityWheelChange) {
+                            onEntityWheelChange(false);
+                          }
+                        }
+                        setSelectedWheelMoment(null);
+                      }, 200);
                     }}
                     style={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      width: 28,
-                      height: 28,
-                      borderRadius: 14,
-                      backgroundColor: colorScheme === 'dark'
-                        ? 'rgba(0, 0, 0, 0.6)'
-                        : 'rgba(255, 255, 255, 0.95)',
+                      width: dynamicSunSize,
+                      height: dynamicSunSize,
+                      backgroundColor: 'transparent',
                       justifyContent: 'center',
                       alignItems: 'center',
-                      zIndex: 999,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 2,
-                      elevation: 5,
+                      position: 'relative',
                     }}
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  >
+                    {/* EXACT COPY of sun element from focused memory view (lines 3155-3275) */}
+                    <View
+                      style={{
+                        width: dynamicSunSize,
+                        height: dynamicSunSize,
+                        // Golden glow for suns (positive moments)
+                        shadowColor: '#FFD700',
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.8,
+                        shadowRadius: isTablet ? 12 : 9,
+                        elevation: 10,
+                      }}
+                    >
+                      <Svg
+                        width={dynamicSunSize}
+                        height={dynamicSunSize}
+                        viewBox="0 0 160 160"
+                        preserveAspectRatio="xMidYMid meet"
+                        style={{ position: 'absolute', top: 0, left: 0 }}
+                      >
+                        <Defs>
+                          <RadialGradient 
+                            id={`wheelSunGradient-${selectedWheelMoment.momentId || 'default'}`} 
+                            cx="80" 
+                            cy="80" 
+                            rx="48" 
+                            ry="48"
+                            fx="80"
+                            fy="80"
+                            gradientUnits="userSpaceOnUse"
+                          >
+                            <Stop offset="0%" stopColor="#FFEB3B" stopOpacity="1" />
+                            <Stop offset="30%" stopColor="#FFEB3B" stopOpacity="1" />
+                            <Stop offset="60%" stopColor="#FFD700" stopOpacity="1" />
+                            <Stop offset="100%" stopColor="#FFC107" stopOpacity="1" />
+                          </RadialGradient>
+                        </Defs>
+                        {/* Sun rays - triangular rays */}
+                        {Array.from({ length: 12 }).map((_, i) => {
+                          const angle = (i * 360) / 12;
+                          const radian = (angle * Math.PI) / 180;
+                          const centerX = 80;
+                          const centerY = 80;
+                          const innerRadius = 48; // Adjusted for smaller sun
+                          const outerRadius = 72; // Longer rays
+                          const rayWidth = 3; // Width of triangle base at outer edge
+                          
+                          // Calculate triangle points
+                          const innerX = centerX + Math.cos(radian) * innerRadius;
+                          const innerY = centerY + Math.sin(radian) * innerRadius;
+                          
+                          const outerX = centerX + Math.cos(radian) * outerRadius;
+                          const outerY = centerY + Math.sin(radian) * outerRadius;
+                          
+                          // Perpendicular vector for triangle width
+                          const perpAngle = radian + Math.PI / 2;
+                          const halfWidth = rayWidth / 2;
+                          const leftX = outerX + Math.cos(perpAngle) * halfWidth;
+                          const leftY = outerY + Math.sin(perpAngle) * halfWidth;
+                          const rightX = outerX + Math.cos(perpAngle + Math.PI) * halfWidth;
+                          const rightY = outerY + Math.sin(perpAngle + Math.PI) * halfWidth;
+                          
+                          return (
+                            <Path
+                              key={`wheelRay-${i}`}
+                              d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
+                              fill="#FFD700"
+                            />
+                          );
+                        })}
+                        {/* Central circle - sized to fit text */}
+                        <Circle
+                          cx="80"
+                          cy="80"
+                          r="48" // Adjusted for smaller sun
+                          fill={`url(#wheelSunGradient-${selectedWheelMoment.momentId || 'default'})`}
+                        />
+                      </Svg>
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: dynamicSunSize,
+                          height: dynamicSunSize,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          // Calculate padding based on sun circle radius to ensure text fits inside
+                          // Sun radius in viewBox is 48, viewBox is 160, so actual radius = (dynamicSunSize / 160) * 48
+                          paddingHorizontal: (dynamicSunSize / 160) * 48 * 0.6, // 60% of radius for safe padding
+                          paddingVertical: (dynamicSunSize / 160) * 48 * 0.4, // 40% of radius for vertical padding
+                        }}
+                      >
+                        <ThemedText
+                          style={{
+                            color: 'black',
+                            fontSize: 12 * fontScale, // Smaller font size to ensure text fits inside
+                            textAlign: 'center',
+                            fontWeight: '700',
+                            // Max width should be less than circle diameter minus padding
+                            //maxWidth: (dynamicSunSize / 160) * 48 * 1.6, // 80% of diameter to ensure text fits
+                          }}
+                          numberOfLines={3}
+                        >
+                          {selectedWheelMoment.text?.split('\n')[0] || selectedWheelMoment.text}
+                        </ThemedText>
+                        {selectedWheelMoment.text?.includes('\n') && (
+                          <ThemedText
+                            style={{
+                              color: 'black',
+                              fontSize: 7 * fontScale, // Smaller font size for second line
+                              textAlign: 'center',
+                              fontWeight: '600',
+                              maxWidth: (dynamicSunSize / 160) * 48 * 1.6, // Same max width
+                            }}
+                            numberOfLines={2}
+                          >
+                            {selectedWheelMoment.text.split('\n')[1]}
+                          </ThemedText>
+                        )}
+                      </View>
+                    </View>
+                    {/* Close button for sunny moment - positioned at top right */}
+                    <Pressable
+                      onPress={(e) => {
+                        e?.stopPropagation?.();
+                        setSelectedWheelMoment(null);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
+                        backgroundColor: colorScheme === 'dark'
+                          ? 'rgba(0, 0, 0, 0.6)'
+                          : 'rgba(255, 255, 255, 0.95)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 999,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 2,
+                        elevation: 5,
+                      }}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                      <MaterialIcons
+                        name="close"
+                        size={18}
+                        color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                        style={{ opacity: 0.9 }}
+                      />
+                    </Pressable>
+                  </Pressable>
+                ) : selectedWheelMoment.type === 'cloudy' ? (
+                  // For cloudy moments, use SVG cloud (matching video preview component)
+                  <Pressable
+                    onPressIn={() => {
+                      popupPressScale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
+                    }}
+                    onPressOut={() => {
+                      popupPressScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+                    }}
+                    onPress={() => {
+                      // Wait for press animation to complete before navigating
+                      setTimeout(() => {
+                        // Navigate to the focused memory
+                        if (onMemoryFocus && selectedWheelMoment?.memoryId) {
+                          onMemoryFocus(profile.id, selectedWheelMoment.memoryId, profile.sphere, selectedWheelMoment.momentId);
+                          // Exit entity wheel mode
+                          setShowEntityWheel(false);
+                          if (onEntityWheelChange) {
+                            onEntityWheelChange(false);
+                          }
+                        }
+                        setSelectedWheelMoment(null);
+                      }, 200);
+                    }}
+                    style={{
+                      width: momentWidth * 1.6, // Clouds are wider
+                      height: momentHeight * 0.6, // But shorter
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      position: 'relative',
+                    }}
+                  >
+                    {/* SVG cloud (matching video preview component) */}
+                    <View
+                      style={{
+                        width: momentWidth * 1.6,
+                        height: momentHeight * 0.6,
+                        shadowColor: '#4A5568',
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.7,
+                        shadowRadius: 10,
+                        elevation: 8,
+                      }}
+                    >
+                      <Svg
+                        width={momentWidth * 1.6}
+                        height={momentHeight * 0.6}
+                        viewBox="0 0 320 100"
+                        preserveAspectRatio="xMidYMid meet"
+                        style={{ position: 'absolute', top: 0, left: 0 }}
+                      >
+                        <Defs>
+                          <SvgLinearGradient id={`wheelCloudGradient-${selectedWheelMoment.momentId || 'default'}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                            <Stop offset="0%" stopColor="#2C3E50" stopOpacity="0.95" />
+                            <Stop offset="50%" stopColor="#1A1A1A" stopOpacity="0.98" />
+                            <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
+                          </SvgLinearGradient>
+                        </Defs>
+                        <Path
+                          d="M50,50
+                             Q40,35 50,25
+                             Q60,15 75,20
+                             Q85,10 100,20
+                             Q115,10 130,20
+                             Q145,10 160,20
+                             Q175,10 190,20
+                             Q205,10 220,20
+                             Q235,10 250,20
+                             Q265,15 270,25
+                             Q280,35 270,50
+                             Q280,65 270,75
+                             Q260,85 245,80
+                             Q230,90 220,85
+                             Q205,95 190,85
+                             Q175,95 160,85
+                             Q145,95 130,85
+                             Q115,95 100,85
+                             Q85,90 75,80
+                             Q60,85 50,75
+                             Q40,65 50,50 Z"
+                          fill={`url(#wheelCloudGradient-${selectedWheelMoment.momentId || 'default'})`}
+                          stroke="rgba(0,0,0,0.7)"
+                          strokeWidth={1.5}
+                        />
+                      </Svg>
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: momentWidth * 1.6,
+                          height: momentHeight * 0.6,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          paddingHorizontal: 20,
+                        }}
+                      >
+                        <ThemedText
+                          style={{
+                            color: 'rgba(255,255,255,0.9)',
+                            fontSize: 14 * fontScale,
+                            textAlign: 'center',
+                            fontWeight: '500',
+                          }}
+                          numberOfLines={4}
+                        >
+                          {selectedWheelMoment.text}
+                        </ThemedText>
+                      </View>
+                    </View>
+                    {/* Close button for cloudy moment - positioned at top right */}
+                    <Pressable
+                      onPress={(e) => {
+                        e?.stopPropagation?.();
+                        setSelectedWheelMoment(null);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
+                        backgroundColor: colorScheme === 'dark'
+                          ? 'rgba(0, 0, 0, 0.6)'
+                          : 'rgba(255, 255, 255, 0.95)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 999,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 2,
+                        elevation: 5,
+                      }}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                      <MaterialIcons
+                        name="close"
+                        size={18}
+                        color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                        style={{ opacity: 0.9 }}
+                      />
+                    </Pressable>
+                  </Pressable>
+                ) : (
+                  // For lesson moments, use the original circle design with MaterialIcons
+                  <Pressable
+                    onPressIn={() => {
+                      popupPressScale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
+                    }}
+                    onPressOut={() => {
+                      popupPressScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+                    }}
+                    onPress={() => {
+                      // Wait for press animation to complete before navigating
+                      setTimeout(() => {
+                        // Navigate to the focused memory
+                        if (onMemoryFocus && selectedWheelMoment?.memoryId) {
+                          onMemoryFocus(profile.id, selectedWheelMoment.memoryId, profile.sphere, selectedWheelMoment.momentId);
+                          // Exit entity wheel mode
+                          setShowEntityWheel(false);
+                          if (onEntityWheelChange) {
+                            onEntityWheelChange(false);
+                          }
+                        }
+                        setSelectedWheelMoment(null);
+                      }, 200);
+                    }}
+                    style={{
+                      width: momentWidth,
+                      height: momentHeight,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      backgroundColor: visuals.backgroundColor,
+                      borderRadius: momentWidth / 2,
+                      shadowColor: visuals.shadowColor,
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.95,
+                      shadowRadius: isTablet ? 40 : 30,
+                      elevation: 24,
+                      padding: 8,
+                      position: 'relative',
+                    }}
                   >
                     <MaterialIcons
-                      name="close"
-                      size={18}
-                      color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
-                      style={{ opacity: 0.9 }}
+                      name={visuals.icon}
+                      size={momentWidth * 0.25}
+                      color={visuals.iconColor}
+                      style={{ marginBottom: 8 }}
                     />
+                    <ThemedText
+                      style={{
+                        color: colorScheme === 'dark' ? '#1A1A1A' : '#000000',
+                        fontSize: 11 * fontScale,
+                        textAlign: 'center',
+                        fontWeight: '700',
+                        maxWidth: momentWidth * 0.85,
+                        lineHeight: 15 * fontScale,
+                      }}
+                      numberOfLines={8}
+                    >
+                      {selectedWheelMoment.text}
+                    </ThemedText>
+                    {/* Close button for lesson - positioned at top right */}
+                    <Pressable
+                      onPress={(e) => {
+                        e?.stopPropagation?.();
+                        setSelectedWheelMoment(null);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
+                        backgroundColor: colorScheme === 'dark'
+                          ? 'rgba(0, 0, 0, 0.6)'
+                          : 'rgba(255, 255, 255, 0.95)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 999,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 2,
+                        elevation: 5,
+                      }}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                      <MaterialIcons
+                        name="close"
+                        size={18}
+                        color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                        style={{ opacity: 0.9 }}
+                      />
+                    </Pressable>
                   </Pressable>
-                </Pressable>
+                )}
               </Animated.View>
             );
           })()}
@@ -3896,14 +4242,14 @@ const FloatingMemory = React.memo(function FloatingMemory({
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
   onUpdateMemory?: (updates: Partial<any>) => Promise<void>;
   onPress?: () => void;
-  onMemoryFocus?: (entityId: string, memoryId: string, sphere?: LifeSphere) => void;
+  onMemoryFocus?: (entityId: string, memoryId: string, sphere?: LifeSphere, momentId?: string) => void;
   zoomProgress?: ReturnType<typeof useSharedValue<number>>;
   avatarStartX?: ReturnType<typeof useSharedValue<number>>;
   avatarStartY?: ReturnType<typeof useSharedValue<number>>;
   avatarTargetX?: number;
   avatarTargetY?: number;
   avatarPosition?: { x: number; y: number };
-  focusedMemory?: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null;
+  focusedMemory?: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere; momentToShowId?: string } | null;
 }) {
   const { isLargeDevice, isTablet } = useLargeDevice();
 
@@ -3933,7 +4279,14 @@ const FloatingMemory = React.memo(function FloatingMemory({
     if (isMemoryFocused) {
       // When a specific memory is focused, hide all moments initially
       // (they can be shown one by one with buttons)
-      setVisibleMomentIds(new Set());
+      // However, if there's a momentToShowId from wheel selection, show that one
+      if (focusedMemory?.momentToShowId) {
+        setVisibleMomentIds(new Set([focusedMemory.momentToShowId]));
+        // Set it as active moment
+        setActiveMomentId(focusedMemory.momentToShowId);
+      } else {
+        setVisibleMomentIds(new Set());
+      }
     } else {
       // When memory is not focused (just entity is focused), show all moments
       const allIds = new Set<string>();
@@ -3942,7 +4295,7 @@ const FloatingMemory = React.memo(function FloatingMemory({
       (memory.lessonsLearned || []).forEach((lesson: any) => lesson?.id && allIds.add(lesson.id));
       setVisibleMomentIds(allIds);
     }
-  }, [isMemoryFocused, memory.hardTruths, memory.goodFacts, memory.lessonsLearned]);
+  }, [isMemoryFocused, memory.hardTruths, memory.goodFacts, memory.lessonsLearned, focusedMemory?.momentToShowId]);
   
   // When memory is focused, use smaller size like in creation screen (250px)
   // Otherwise use calculated size or default (scale for tablets)
@@ -7858,7 +8211,7 @@ export default function HomeScreen() {
   const [focusedFamilyMemberId, setFocusedFamilyMemberId] = useState<string | null>(null);
   const [focusedFriendId, setFocusedFriendId] = useState<string | null>(null);
   const [focusedHobbyId, setFocusedHobbyId] = useState<string | null>(null);
-  const [focusedMemory, setFocusedMemory] = useState<{ profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null>(null);
+  const [focusedMemory, setFocusedMemory] = useState<{ profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere; momentToShowId?: string } | null>(null);
 
   // Track if any entity wheel is active (to disable scrolling)
   const [isAnyEntityWheelActive, setIsAnyEntityWheelActive] = useState<boolean>(false);
@@ -8513,8 +8866,9 @@ export default function HomeScreen() {
     setSelectedLesson(momentToShow);
     setShowLesson(true);
 
-    // Calculate lesson dimensions (same as in render)
-    const lessonSunHeight = isTablet ? 240 : (isLargeDevice ? 200 : 160);
+    // Calculate lesson dimensions (same as in render) - use base size for positioning calculations
+    const baseCircleSize = isTablet ? 260 : (isLargeDevice ? 210 : 190);
+    const lessonSunHeight = baseCircleSize; // Use base size for positioning
 
     // Calculate positions: start from avatar center, end at messageTop
     const avatarCenterX = sphereCircle.centerX;
@@ -10336,8 +10690,8 @@ export default function HomeScreen() {
             }
             return null;
           })()}
-          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'relationships') => {
-            setFocusedMemory({ profileId: entityId, memoryId, sphere });
+          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'relationships', momentId?: string) => {
+            setFocusedMemory({ profileId: entityId, memoryId, sphere, momentToShowId: momentId });
           }}
           yearSection={yearSection}
           onEntityWheelChange={(isActive) => setIsAnyEntityWheelActive(isActive)}
@@ -10441,8 +10795,8 @@ export default function HomeScreen() {
             }
             return null;
           })()}
-          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'career') => {
-            setFocusedMemory({ jobId: entityId, memoryId, sphere });
+          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'career', momentId?: string) => {
+            setFocusedMemory({ jobId: entityId, memoryId, sphere, momentToShowId: momentId });
           }}
           yearSection={yearSection}
         />
@@ -10514,8 +10868,8 @@ export default function HomeScreen() {
             }
             return null;
           })()}
-          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'family') => {
-            setFocusedMemory({ familyMemberId: entityId, memoryId, sphere });
+          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'family', momentId?: string) => {
+            setFocusedMemory({ familyMemberId: entityId, memoryId, sphere, momentToShowId: momentId });
           }}
           yearSection={section}
           enableDragging={true}
@@ -10599,8 +10953,8 @@ export default function HomeScreen() {
             }
             return null;
           })()}
-          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'friends') => {
-            setFocusedMemory({ friendId: entityId, memoryId, sphere });
+          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'friends', momentId?: string) => {
+            setFocusedMemory({ friendId: entityId, memoryId, sphere, momentToShowId: momentId });
           }}
           yearSection={section}
           enableDragging={true}
@@ -10682,8 +11036,8 @@ export default function HomeScreen() {
             }
             return null;
           })()}
-          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'hobbies') => {
-            setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
+          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'hobbies', momentId?: string) => {
+            setFocusedMemory({ hobbyId: entityId, memoryId, sphere, momentToShowId: momentId });
           }}
           yearSection={section}
           enableDragging={true}
@@ -10986,9 +11340,15 @@ export default function HomeScreen() {
 
           {/* Random Moment from Wheel of Life Spin - matches focused memory view style */}
           {showLesson && selectedLesson && (() => {
-            // Calculate dimensions to match MemoryMomentsRenderer - slightly smaller for compact display
-            const momentWidth = isTablet ? 260 : (isLargeDevice ? 210 : 190);
-            const momentHeight = isTablet ? 260 : (isLargeDevice ? 210 : 190);
+            const momentType = selectedLesson.momentType || 'lessons';
+            
+            // Calculate dimensions - for sunny moments, use dynamic size based on text length like in focused memory view
+            const textLength = selectedLesson.text?.length || 0;
+            const baseSunSize = isTablet ? 240 : (isLargeDevice ? 200 : 160);
+            const dynamicSunSize = Math.min(350, Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 1.2)));
+            const baseCircleSize = isTablet ? 260 : (isLargeDevice ? 210 : 190);
+            const momentWidth = momentType === 'sunnyMoments' ? dynamicSunSize : (momentType === 'hardTruths' ? baseCircleSize * 1.6 : baseCircleSize);
+            const momentHeight = momentType === 'sunnyMoments' ? dynamicSunSize : (momentType === 'hardTruths' ? baseCircleSize * 0.6 : baseCircleSize);
 
             // Get visual properties based on moment type
             const momentVisuals = {
@@ -11012,7 +11372,67 @@ export default function HomeScreen() {
               },
             };
 
-            const visuals = momentVisuals[selectedLesson.momentType || 'lessons'];
+            const visuals = momentVisuals[momentType];
+
+            const handlePress = () => {
+              // Wait for press animation to complete before navigating
+              setTimeout(() => {
+                // If it's a mock lesson, just close it (don't navigate)
+                if (selectedLesson.isMock) {
+                  setShowLesson(false);
+                  return;
+                }
+
+                // Navigate to the memory this lesson belongs to
+                const sphere = selectedLesson.sphere;
+                const entityId = selectedLesson.entityId;
+                const memoryId = selectedLesson.memoryId;
+
+                // Set focused memory, focused entity, and selected sphere based on sphere type
+                // We need to set the entity focus first, then the memory focus after a slight delay
+                // to ensure the entity's FloatingAvatar component has rendered
+                if (sphere === 'relationships') {
+                  const memoryData = { profileId: entityId, memoryId, sphere };
+                  setFocusedProfileId(entityId);
+                  setSelectedSphere('relationships');
+                  // Delay memory focus to ensure entity is rendered first
+                  setTimeout(() => {
+                    setFocusedMemory(memoryData);
+                  }, 100);
+                } else if (sphere === 'career') {
+                  const memoryData = { jobId: entityId, memoryId, sphere };
+                  setFocusedJobId(entityId);
+                  setSelectedSphere('career');
+                  setTimeout(() => {
+                    setFocusedMemory(memoryData);
+                  }, 100);
+                } else if (sphere === 'family') {
+                  const memoryData = { familyMemberId: entityId, memoryId, sphere };
+                  setFocusedFamilyMemberId(entityId);
+                  setSelectedSphere('family');
+                  setTimeout(() => {
+                    setFocusedMemory(memoryData);
+                  }, 100);
+                } else if (sphere === 'friends') {
+                  const memoryData = { friendId: entityId, memoryId, sphere };
+                  setFocusedFriendId(entityId);
+                  setSelectedSphere('friends');
+                  setTimeout(() => {
+                    setFocusedMemory(memoryData);
+                  }, 100);
+                } else if (sphere === 'hobbies') {
+                  const memoryData = { hobbyId: entityId, memoryId, sphere };
+                  setFocusedHobbyId(entityId);
+                  setSelectedSphere('hobbies');
+                  setTimeout(() => {
+                    setFocusedMemory(memoryData);
+                  }, 100);
+                }
+
+                // Close the lesson display
+                setShowLesson(false);
+              }, 75);
+            };
 
             return (
             <Animated.View
@@ -11026,142 +11446,364 @@ export default function HomeScreen() {
                   lessonAnimatedStyle,
                 ]}
               >
-                {/* Simple circular view matching focused memory view - same style as lesson in MemoryMomentsRenderer */}
-              <AnimatedPressable
-                  onPressIn={() => {
-                    lessonPressScale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
-                  }}
-                  onPressOut={() => {
-                    lessonPressScale.value = withSpring(1, { damping: 15, stiffness: 300 });
-                  }}
-                  onPress={() => {
-                    // Wait for press animation to complete before navigating
-                    setTimeout(() => {
-                      // If it's a mock lesson, just close it (don't navigate)
-                      if (selectedLesson.isMock) {
-                        setShowLesson(false);
-                        return;
-                      }
-
-                      // Navigate to the memory this lesson belongs to
-                      const sphere = selectedLesson.sphere;
-                      const entityId = selectedLesson.entityId;
-                      const memoryId = selectedLesson.memoryId;
-
-                      // Set focused memory, focused entity, and selected sphere based on sphere type
-                      // We need to set the entity focus first, then the memory focus after a slight delay
-                      // to ensure the entity's FloatingAvatar component has rendered
-                      if (sphere === 'relationships') {
-                        const memoryData = { profileId: entityId, memoryId, sphere };
-                        setFocusedProfileId(entityId);
-                        setSelectedSphere('relationships');
-                        // Delay memory focus to ensure entity is rendered first
-                        setTimeout(() => {
-                          setFocusedMemory(memoryData);
-                        }, 100);
-                      } else if (sphere === 'career') {
-                        const memoryData = { jobId: entityId, memoryId, sphere };
-                        setFocusedJobId(entityId);
-                        setSelectedSphere('career');
-                        setTimeout(() => {
-                          setFocusedMemory(memoryData);
-                        }, 100);
-                      } else if (sphere === 'family') {
-                        const memoryData = { familyMemberId: entityId, memoryId, sphere };
-                        setFocusedFamilyMemberId(entityId);
-                        setSelectedSphere('family');
-                        setTimeout(() => {
-                          setFocusedMemory(memoryData);
-                        }, 100);
-                      } else if (sphere === 'friends') {
-                        const memoryData = { friendId: entityId, memoryId, sphere };
-                        setFocusedFriendId(entityId);
-                        setSelectedSphere('friends');
-                        setTimeout(() => {
-                          setFocusedMemory(memoryData);
-                        }, 100);
-                      } else if (sphere === 'hobbies') {
-                        const memoryData = { hobbyId: entityId, memoryId, sphere };
-                        setFocusedHobbyId(entityId);
-                        setSelectedSphere('hobbies');
-                        setTimeout(() => {
-                          setFocusedMemory(memoryData);
-                        }, 100);
-                      }
-
-                      // Close the lesson display
-                      setShowLesson(false);
-                    }, 75);
-                  }}
-                style={[
-                  {
-                    width: momentWidth,
-                    height: momentHeight,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    backgroundColor: visuals.backgroundColor,
-                    borderRadius: momentWidth / 2,
-                    shadowColor: visuals.shadowColor,
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: 0.95,
-                    shadowRadius: isTablet ? 40 : 30,
-                    elevation: 24,
-                    padding: 8,
-                    position: 'relative',
-                  },
-                  lessonShadowAnimatedStyle,
-                ]}
-              >
-                <MaterialIcons
-                    name={visuals.icon}
-                    size={momentWidth * 0.25}
-                    color={visuals.iconColor}
-                    style={{ marginBottom: 8 }}
-                  />
-                  <ThemedText
-                    style={{
-                      color: colorScheme === 'dark' ? '#1A1A1A' : '#000000',
-                      fontSize: 11 * fontScale,
-                      textAlign: 'center',
-                      fontWeight: '700',
-                      maxWidth: momentWidth * 0.85,
-                      lineHeight: 15 * fontScale,
+                {momentType === 'sunnyMoments' ? (
+                  // SVG sun with rays (matching video preview component)
+                  <AnimatedPressable
+                    onPressIn={() => {
+                      lessonPressScale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
                     }}
-                    numberOfLines={8}
+                    onPressOut={() => {
+                      lessonPressScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+                    }}
+                    onPress={handlePress}
+                    style={[
+                      {
+                        width: dynamicSunSize,
+                        height: dynamicSunSize,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        position: 'relative',
+                      },
+                      lessonShadowAnimatedStyle,
+                    ]}
                   >
-                    {selectedLesson.text}
-                  </ThemedText>
+                    <View
+                      style={{
+                        width: dynamicSunSize,
+                        height: dynamicSunSize,
+                        shadowColor: '#FFD700',
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.8,
+                        shadowRadius: 12,
+                        elevation: 10,
+                      }}
+                    >
+                      <Svg
+                        width={dynamicSunSize}
+                        height={dynamicSunSize}
+                        viewBox="0 0 160 160"
+                        preserveAspectRatio="xMidYMid meet"
+                        style={{ position: 'absolute', top: 0, left: 0 }}
+                      >
+                        <Defs>
+                          <RadialGradient
+                            id={`mainSunGradient-${selectedLesson.entityId || 'default'}`}
+                            cx="80"
+                            cy="80"
+                            rx="48"
+                            ry="48"
+                            fx="80"
+                            fy="80"
+                            gradientUnits="userSpaceOnUse"
+                          >
+                            <Stop offset="0%" stopColor="#FFEB3B" stopOpacity="1" />
+                            <Stop offset="30%" stopColor="#FFEB3B" stopOpacity="1" />
+                            <Stop offset="60%" stopColor="#FFD700" stopOpacity="1" />
+                            <Stop offset="100%" stopColor="#FFC107" stopOpacity="1" />
+                          </RadialGradient>
+                        </Defs>
+                        {/* Sun rays */}
+                        {Array.from({ length: 12 }).map((_, i) => {
+                          const angle = (i * 360) / 12;
+                          const radian = (angle * Math.PI) / 180;
+                          const centerX = 80;
+                          const centerY = 80;
+                          const innerRadius = 48;
+                          const outerRadius = 72;
+                          const rayWidth = 3;
 
-                  {/* Close button - positioned at top right */}
-                  <Pressable
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      setShowLesson(false);
+                          const innerX = centerX + Math.cos(radian) * innerRadius;
+                          const innerY = centerY + Math.sin(radian) * innerRadius;
+                          const outerX = centerX + Math.cos(radian) * outerRadius;
+                          const outerY = centerY + Math.sin(radian) * outerRadius;
+
+                          const perpAngle = radian + Math.PI / 2;
+                          const halfWidth = rayWidth / 2;
+                          const leftX = outerX + Math.cos(perpAngle) * halfWidth;
+                          const leftY = outerY + Math.sin(perpAngle) * halfWidth;
+                          const rightX = outerX + Math.cos(perpAngle + Math.PI) * halfWidth;
+                          const rightY = outerY + Math.sin(perpAngle + Math.PI) * halfWidth;
+
+                          return (
+                            <Path
+                              key={`mainRay-${i}`}
+                              d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
+                              fill="#FFD700"
+                            />
+                          );
+                        })}
+                        {/* Central circle */}
+                        <Circle
+                          cx="80"
+                          cy="80"
+                          r="48"
+                          fill={`url(#mainSunGradient-${selectedLesson.entityId || 'default'})`}
+                        />
+                      </Svg>
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: dynamicSunSize,
+                          height: dynamicSunSize,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          paddingHorizontal: (dynamicSunSize / 160) * 48 * 0.6,
+                          paddingVertical: (dynamicSunSize / 160) * 48 * 0.4,
+                        }}
+                      >
+                        <ThemedText
+                          style={{
+                            color: 'black',
+                            fontSize: 12 * fontScale,
+                            textAlign: 'center',
+                            fontWeight: '700',
+                          }}
+                          numberOfLines={3}
+                        >
+                          {selectedLesson.text}
+                        </ThemedText>
+                      </View>
+                    </View>
+                    {/* Close button - positioned at top right */}
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setShowLesson(false);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: 4,
+                        right: 4,
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: colorScheme === 'dark'
+                          ? 'rgba(0, 0, 0, 0.4)'
+                          : 'rgba(255, 255, 255, 0.9)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 10,
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <MaterialIcons
+                        name="close"
+                        size={16}
+                        color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                        style={{ opacity: 0.8 }}
+                      />
+                    </Pressable>
+                  </AnimatedPressable>
+                ) : momentType === 'hardTruths' ? (
+                  // SVG cloud (matching video preview component)
+                  <AnimatedPressable
+                    onPressIn={() => {
+                      lessonPressScale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
                     }}
-                    style={{
-                      position: 'absolute',
-                      top: 4,
-                      right: 4,
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      backgroundColor: colorScheme === 'dark'
-                        ? 'rgba(0, 0, 0, 0.4)'
-                        : 'rgba(255, 255, 255, 0.9)',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      zIndex: 10,
+                    onPressOut={() => {
+                      lessonPressScale.value = withSpring(1, { damping: 15, stiffness: 300 });
                     }}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={handlePress}
+                    style={[
+                      {
+                        width: momentWidth,
+                        height: momentHeight,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        position: 'relative',
+                      },
+                      lessonShadowAnimatedStyle,
+                    ]}
+                  >
+                    <View
+                      style={{
+                        width: momentWidth,
+                        height: momentHeight,
+                        shadowColor: '#4A5568',
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.7,
+                        shadowRadius: 10,
+                        elevation: 8,
+                      }}
+                    >
+                      <Svg
+                        width={momentWidth}
+                        height={momentHeight}
+                        viewBox="0 0 320 100"
+                        preserveAspectRatio="xMidYMid meet"
+                        style={{ position: 'absolute', top: 0, left: 0 }}
+                      >
+                        <Defs>
+                          <SvgLinearGradient id={`mainCloudGradient-${selectedLesson.entityId || 'default'}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                            <Stop offset="0%" stopColor="#2C3E50" stopOpacity="0.95" />
+                            <Stop offset="50%" stopColor="#1A1A1A" stopOpacity="0.98" />
+                            <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
+                          </SvgLinearGradient>
+                        </Defs>
+                        <Path
+                          d="M50,50
+                             Q40,35 50,25
+                             Q60,15 75,20
+                             Q85,10 100,20
+                             Q115,10 130,20
+                             Q145,10 160,20
+                             Q175,10 190,20
+                             Q205,10 220,20
+                             Q235,10 250,20
+                             Q265,15 270,25
+                             Q280,35 270,50
+                             Q280,65 270,75
+                             Q260,85 245,80
+                             Q230,90 220,85
+                             Q205,95 190,85
+                             Q175,95 160,85
+                             Q145,95 130,85
+                             Q115,95 100,85
+                             Q85,90 75,80
+                             Q60,85 50,75
+                             Q40,65 50,50 Z"
+                          fill={`url(#mainCloudGradient-${selectedLesson.entityId || 'default'})`}
+                          stroke="rgba(0,0,0,0.7)"
+                          strokeWidth={1.5}
+                        />
+                      </Svg>
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: momentWidth,
+                          height: momentHeight,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          paddingHorizontal: 20,
+                        }}
+                      >
+                        <ThemedText
+                          style={{
+                            color: 'rgba(255,255,255,0.9)',
+                            fontSize: 14 * fontScale,
+                            textAlign: 'center',
+                            fontWeight: '500',
+                          }}
+                          numberOfLines={4}
+                        >
+                          {selectedLesson.text}
+                        </ThemedText>
+                      </View>
+                    </View>
+                    {/* Close button - positioned at top right */}
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setShowLesson(false);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: 4,
+                        right: 4,
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: colorScheme === 'dark'
+                          ? 'rgba(0, 0, 0, 0.4)'
+                          : 'rgba(255, 255, 255, 0.9)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 10,
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <MaterialIcons
+                        name="close"
+                        size={16}
+                        color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                        style={{ opacity: 0.8 }}
+                      />
+                    </Pressable>
+                  </AnimatedPressable>
+                ) : (
+                  // For lessons, use the original circle design with MaterialIcons
+                  <AnimatedPressable
+                    onPressIn={() => {
+                      lessonPressScale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
+                    }}
+                    onPressOut={() => {
+                      lessonPressScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+                    }}
+                    onPress={handlePress}
+                    style={[
+                      {
+                        width: momentWidth,
+                        height: momentHeight,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: visuals.backgroundColor,
+                        borderRadius: momentWidth / 2,
+                        shadowColor: visuals.shadowColor,
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.95,
+                        shadowRadius: isTablet ? 40 : 30,
+                        elevation: 24,
+                        padding: 8,
+                        position: 'relative',
+                      },
+                      lessonShadowAnimatedStyle,
+                    ]}
                   >
                     <MaterialIcons
-                      name="close"
-                      size={16}
-                      color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
-                      style={{ opacity: 0.8 }}
+                      name={visuals.icon}
+                      size={momentWidth * 0.25}
+                      color={visuals.iconColor}
+                      style={{ marginBottom: 8 }}
                     />
-                  </Pressable>
-                </AnimatedPressable>
+                    <ThemedText
+                      style={{
+                        color: colorScheme === 'dark' ? '#1A1A1A' : '#000000',
+                        fontSize: 11 * fontScale,
+                        textAlign: 'center',
+                        fontWeight: '700',
+                        maxWidth: momentWidth * 0.85,
+                        lineHeight: 15 * fontScale,
+                      }}
+                      numberOfLines={8}
+                    >
+                      {selectedLesson.text}
+                    </ThemedText>
+
+                    {/* Close button - positioned at top right */}
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setShowLesson(false);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: 4,
+                        right: 4,
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: colorScheme === 'dark'
+                          ? 'rgba(0, 0, 0, 0.4)'
+                          : 'rgba(255, 255, 255, 0.9)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 10,
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <MaterialIcons
+                        name="close"
+                        size={16}
+                        color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                        style={{ opacity: 0.8 }}
+                      />
+                    </Pressable>
+                  </AnimatedPressable>
+                )}
             </Animated.View>
             );
           })()}
@@ -13018,8 +13660,8 @@ export default function HomeScreen() {
                             }
                             return null;
                           })()}
-                          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'career') => {
-                            setFocusedMemory({ jobId: entityId, memoryId, sphere });
+                          onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'career', momentId?: string) => {
+                            setFocusedMemory({ jobId: entityId, memoryId, sphere, momentToShowId: momentId });
                           }}
                           yearSection={section}
                         />
@@ -13399,8 +14041,8 @@ export default function HomeScreen() {
                           }
                           return null;
                         })()}
-                        onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'family') => {
-                          setFocusedMemory({ familyMemberId: entityId, memoryId, sphere });
+                        onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'family', momentId?: string) => {
+                          setFocusedMemory({ familyMemberId: entityId, memoryId, sphere, momentToShowId: momentId });
                         }}
                         yearSection={section}
                         enableDragging={!isFocused}
@@ -13778,8 +14420,8 @@ export default function HomeScreen() {
                           }
                           return null;
                         })()}
-                        onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'friends') => {
-                          setFocusedMemory({ friendId: entityId, memoryId, sphere });
+                        onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'friends', momentId?: string) => {
+                          setFocusedMemory({ friendId: entityId, memoryId, sphere, momentToShowId: momentId });
                         }}
                         yearSection={section}
                         enableDragging={!isFocused}
@@ -14157,8 +14799,8 @@ export default function HomeScreen() {
                           }
                           return null;
                         })()}
-                        onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'hobbies') => {
-                          setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
+                        onMemoryFocus={(entityId: string, memoryId: string, sphere: LifeSphere = 'hobbies', momentId?: string) => {
+                          setFocusedMemory({ hobbyId: entityId, memoryId, sphere, momentToShowId: momentId });
                         }}
                         yearSection={section}
                         enableDragging={!isFocused}
@@ -14292,13 +14934,13 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
   getIdealizedMemoriesByProfileId: (profileId: string) => any[];
   getAvatarPosition: (profileId: string, index: number) => { x: number; y: number };
   focusedProfileId: string | null;
-  focusedMemory: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null;
+  focusedMemory: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere; momentToShowId?: string } | null;
   previousFocusedId: string | null;
   slideOffset: ReturnType<typeof useSharedValue<number>>;
   getProfileYearSection: (profile: any) => { year: number | string; top: number; bottom: number; height: number } | undefined;
   updateAvatarPosition: (profileId: string, newPosition: { x: number; y: number }) => void;
   setFocusedProfileId: (id: string | null) => void;
-  setFocusedMemory: (memory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null) => void;
+  setFocusedMemory: (memory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere; momentToShowId?: string } | null) => void;
   colors: any;
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
   animationsComplete: boolean;
@@ -14527,7 +15169,7 @@ const FocusedMemoryRenderer = React.memo(function FocusedMemoryRenderer({
   memorySlideOffset,
   setFocusedMemory,
 }: {
-  focusedMemory: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere };
+  focusedMemory: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere; momentToShowId?: string };
   sortedProfiles: any[];
   sortedJobs?: any[];
   getIdealizedMemoriesByProfileId: (profileId: string) => any[];
@@ -14535,7 +15177,7 @@ const FocusedMemoryRenderer = React.memo(function FocusedMemoryRenderer({
   updateIdealizedMemory: (memoryId: string, updates: Partial<any>) => Promise<void>;
   colorScheme: 'light' | 'dark';
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
-  setFocusedMemory: (memory: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null) => void;
+  setFocusedMemory: (memory: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere; momentToShowId?: string } | null) => void;
 }) {
   const entityId = focusedMemory.profileId || focusedMemory.jobId || focusedMemory.familyMemberId || focusedMemory.friendId || focusedMemory.hobbyId;
   const sphere = focusedMemory.sphere;
@@ -14616,12 +15258,12 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
   isFocused: boolean;
   isProfileFocusedForMemory: boolean;
   wasJustFocused: boolean;
-  focusedMemory: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere } | null;
+  focusedMemory: { profileId?: string; jobId?: string; familyMemberId?: string; friendId?: string; hobbyId?: string; memoryId: string; sphere: LifeSphere; momentToShowId?: string } | null;
   slideOffset: ReturnType<typeof useSharedValue<number>>;
   getProfileYearSection: (profile: any) => { year: number | string; top: number; bottom: number; height: number } | undefined;
   updateAvatarPosition: (profileId: string, newPosition: { x: number; y: number }) => void;
   setFocusedProfileId: (id: string | null) => void;
-  setFocusedMemory: (memory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere } | null) => void;
+  setFocusedMemory: (memory: { profileId?: string; jobId?: string; memoryId: string; sphere: LifeSphere; momentToShowId?: string } | null) => void;
   colors: any;
   colorScheme: 'light' | 'dark';
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
@@ -14645,13 +15287,13 @@ const ProfileRenderer = React.memo(function ProfileRenderer({
     setFocusedMemory(null);
   }, [profile.id, isFocused, setFocusedProfileId, setFocusedMemory]);
   
-  const handleMemoryFocus = useCallback((entityId: string, memoryId: string, sphere: LifeSphere = 'relationships') => {
+  const handleMemoryFocus = useCallback((entityId: string, memoryId: string, sphere: LifeSphere = 'relationships', momentId?: string) => {
     if (sphere === 'relationships') {
-      setFocusedMemory({ profileId: entityId, memoryId, sphere });
+      setFocusedMemory({ profileId: entityId, memoryId, sphere, momentToShowId: momentId });
     } else if (sphere === 'career') {
-      setFocusedMemory({ jobId: entityId, memoryId, sphere });
+      setFocusedMemory({ jobId: entityId, memoryId, sphere, momentToShowId: momentId });
     } else {
-      setFocusedMemory({ profileId: entityId, memoryId, sphere });
+      setFocusedMemory({ profileId: entityId, memoryId, sphere, momentToShowId: momentId });
     }
   }, [setFocusedMemory]);
   
