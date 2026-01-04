@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sferas",
     "slug": "sphere",
-    "version": "1.0.74",
+    "version": "1.0.76",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-v2.png",
     "scheme": "sphere",
@@ -15,7 +15,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "1.0.74",
+      "buildNumber": "1.0.76",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
@@ -38,7 +38,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 74,
+      "versionCode": 76,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -73,7 +73,8 @@
       "expo-notifications",
       "./plugins/with-transparent-splash-logo.js",
       "./plugins/with-firebase-appdelegate",
-      "./plugins/withAnalyticsSourcePatch.js"
+      "./plugins/withAnalyticsSourcePatch.js",
+      "./plugins/with-video-composer.js"
     ],
     "experiments": {
       "typedRoutes": true,

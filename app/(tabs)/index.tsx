@@ -7,6 +7,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
+import { GifAnimationPreview } from '@/library/components/gif-animation-preview';
 import { OnboardingStepper } from '@/library/components/onboarding-stepper';
 import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS, TabScreenContainer } from '@/library/components/tab-screen-container';
 import { logError } from '@/utils/error-logger';
@@ -27,15 +28,15 @@ import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppState, Dimensions, Modal, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   cancelAnimation,
   createAnimatedComponent,
   Easing,
   interpolateColor,
   runOnJS,
-  runOnUI,
   useAnimatedProps,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -48,6 +49,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, FeColorMatrix, FeGaussianBlur, FeMerge, FeMergeNode, Filter, Path, RadialGradient, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
+import { captureRef } from 'react-native-view-shot';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -335,11 +337,18 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const fontScale = useFontScale();
   const [shareModalVisible, setShareModalVisible] = React.useState(false);
   const [shareModalContent, setShareModalContent] = React.useState({ title: '', message: '' });
+  const [showShareMenu, setShowShareMenu] = React.useState(false);
+  const [isCapturingImage, setIsCapturingImage] = React.useState(false);
+  const [captureTransform, setCaptureTransform] = React.useState({ scale: 1, translateX: 0, translateY: 0 });
+  const [captureWrapperBounds, setCaptureWrapperBounds] = React.useState({ left: 0, top: 0, width: SCREEN_WIDTH, height: SCREEN_HEIGHT });
+  const [imagePreviewUri, setImagePreviewUri] = React.useState<string | null>(null);
+  const [showGifAnimation, setShowGifAnimation] = React.useState(false);
   const [showEntityWheel, setShowEntityWheel] = React.useState(false);
   const [selectedWheelMoment, setSelectedWheelMoment] = React.useState<{ type: 'lesson' | 'sunny' | 'cloudy'; text: string; memoryId: string } | null>(null);
   const [selectedMomentType, setSelectedMomentType] = React.useState<'lesson' | 'sunny' | 'cloudy'>('lesson');
 
-  // Create a ref to always have the latest showEntityWheel value
+  // Create refs
+  const viewShotRef = React.useRef<View>(null);
   const showEntityWheelRef = React.useRef(showEntityWheel);
   React.useEffect(() => {
     showEntityWheelRef.current = showEntityWheel;
@@ -1699,7 +1708,19 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   }, [memories, memoryRadius, isFocused, isTablet, position, profile.id, profile.name]);
 
   return (
-    <>
+    <View
+      ref={viewShotRef}
+      collapsable={false}
+      style={{
+        position: 'absolute',
+        left: captureWrapperBounds.left,
+        top: captureWrapperBounds.top,
+        width: captureWrapperBounds.width,
+        height: captureWrapperBounds.height,
+        pointerEvents: 'box-none',
+        backgroundColor: 'transparent',
+      }}
+    >
       {/* Draggable container wrapping avatar and memories */}
       <Animated.View
         style={[
@@ -1709,6 +1730,11 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             pointerEvents: 'box-none', // Container doesn't block touches - children handle them
             width: SCREEN_WIDTH * 2, // Large enough to contain all memories
             height: SCREEN_HEIGHT * 2, // Large enough to contain all memories
+            transform: [
+              { translateX: captureTransform.translateX },
+              { translateY: captureTransform.translateY },
+              { scale: captureTransform.scale },
+            ],
           },
           containerAnimatedStyle, // Use animated style for container position
           animatedStyle,
@@ -1847,76 +1873,172 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           </Pressable>
 
           {/* Share button - positioned outside the Pressable, shown when entity is focused and has memories */}
-          {isFocused && memories.length > 0 && (
-            <Pressable
-              onPress={() => {
-                try {
-                  // Format all memories for this entity as text
-                  const entityName = profile.name || 'Entity';
-                  let message = `${entityName}\n\n`;
+          {isFocused && memories.length > 0 && !isCapturingImage && (
+            <>
+              <Pressable
+                onPress={() => setShowShareMenu(!showShareMenu)}
+                style={{
+                  position: 'absolute',
+                  top: 8, // Position at top-right corner, very close to avatar
+                  left: avatarSize + borderWidth * 2 - 24, // Position very close to avatar's right edge
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.5)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  zIndex: 20,
+                  borderWidth: 2,
+                  borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.8)',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 4,
+                  elevation: 5,
+                }}
+              >
+                <MaterialIcons name="share" size={24} color="#fff" />
+              </Pressable>
 
-                  memories.forEach((memory, index) => {
-                    message += `${index + 1}. ${memory.title || 'Memory'}\n`;
+              {/* Share Menu */}
+              {showShareMenu && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 50, // Closer to share button
+                    right: -10, // Align right edge with share button
+                    backgroundColor: colorScheme === 'dark' ? 'rgba(26, 35, 50, 0.98)' : 'rgba(255, 255, 255, 0.98)',
+                    borderRadius: 16,
+                    padding: 4,
+                    zIndex: 21,
+                    borderWidth: 1,
+                    borderColor: colorScheme === 'dark' ? 'rgba(100, 181, 246, 0.3)' : 'rgba(100, 181, 246, 0.2)',
+                    shadowColor: colorScheme === 'dark' ? '#64B5F6' : '#000',
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: colorScheme === 'dark' ? 0.4 : 0.25,
+                    shadowRadius: 16,
+                    elevation: 12,
+                    width: 200,
+                  }}
+                >
+                  <Pressable
+                    onPress={async () => {
+                      try {
+                        // Format all memories for this entity as text
+                        const entityName = profile.name || 'Entity';
+                        let message = `${entityName}\n\n`;
 
-                    if (memory.goodFacts && memory.goodFacts.length > 0) {
-                      message += '   ☀️ Sunny Moments:\n';
-                      memory.goodFacts.forEach((fact: any, factIndex: number) => {
-                        const text = typeof fact === 'string' ? fact : fact.text || fact.content || String(fact);
-                        message += `   ${factIndex + 1}. ${text}\n`;
-                      });
-                    }
+                        memories.forEach((memory, index) => {
+                          message += `${index + 1}. ${memory.title || 'Memory'}\n`;
 
-                    if (memory.hardTruths && memory.hardTruths.length > 0) {
-                      message += '   ☁️ Hard Truths:\n';
-                      memory.hardTruths.forEach((truth: any, truthIndex: number) => {
-                        const text = typeof truth === 'string' ? truth : truth.text || truth.content || String(truth);
-                        message += `   ${truthIndex + 1}. ${text}\n`;
-                      });
-                    }
+                          if (memory.goodFacts && memory.goodFacts.length > 0) {
+                            message += '   ☀️ Sunny Moments:\n';
+                            memory.goodFacts.forEach((fact: any, factIndex: number) => {
+                              const text = typeof fact === 'string' ? fact : fact.text || fact.content || String(fact);
+                              message += `   ${factIndex + 1}. ${text}\n`;
+                            });
+                          }
 
-                    if (memory.lessonsLearned && memory.lessonsLearned.length > 0) {
-                      message += '   💡 Lessons Learned:\n';
-                      memory.lessonsLearned.forEach((lesson: any, lessonIndex: number) => {
-                        const text = typeof lesson === 'string' ? lesson : lesson.text || lesson.content || String(lesson);
-                        message += `   ${lessonIndex + 1}. ${text}\n`;
-                      });
-                    }
+                          if (memory.hardTruths && memory.hardTruths.length > 0) {
+                            message += '   ☁️ Hard Truths:\n';
+                            memory.hardTruths.forEach((truth: any, truthIndex: number) => {
+                              const text = typeof truth === 'string' ? truth : truth.text || truth.content || String(truth);
+                              message += `   ${truthIndex + 1}. ${text}\n`;
+                            });
+                          }
 
-                    message += '\n';
-                  });
+                          if (memory.lessonsLearned && memory.lessonsLearned.length > 0) {
+                            message += '   💡 Lessons Learned:\n';
+                            memory.lessonsLearned.forEach((lesson: any, lessonIndex: number) => {
+                              const text = typeof lesson === 'string' ? lesson : lesson.text || lesson.content || String(lesson);
+                              message += `   ${lessonIndex + 1}. ${text}\n`;
+                            });
+                          }
 
-                  // Open modal with content
-                  setShareModalContent({
-                    title: entityName,
-                    message: message.trim(),
-                  });
-                  setShareModalVisible(true);
-                } catch (error) {
-                  logError('HomeScreen:ShareContent', error);
-                }
-              }}
-              style={{
-                position: 'absolute',
-                top: 8, // Position at top-right corner, very close to avatar
-                left: avatarSize + borderWidth * 2 - 24, // Position very close to avatar's right edge
-                width: 48,
-                height: 48,
-                borderRadius: 24,
-                backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.5)',
-                justifyContent: 'center',
-                alignItems: 'center',
-                zIndex: 20,
-                borderWidth: 2,
-                borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.8)',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 4,
-                elevation: 5,
-              }}
-            >
-              <MaterialIcons name="share" size={24} color="#fff" />
-            </Pressable>
+                          message += '\n';
+                        });
+
+                        // Open modal with content
+                        setShareModalContent({
+                          title: entityName,
+                          message: message.trim(),
+                        });
+                        setShareModalVisible(true);
+                        setShowShareMenu(false);
+                      } catch (error) {
+                        logError('HomeScreen:ShareContentText', error);
+                      }
+                    }}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: 14,
+                      marginVertical: 2,
+                      marginHorizontal: 4,
+                      borderRadius: 12,
+                      backgroundColor: pressed
+                        ? (colorScheme === 'dark' ? 'rgba(100, 181, 246, 0.15)' : 'rgba(100, 181, 246, 0.1)')
+                        : 'transparent',
+                      transform: [{ scale: pressed ? 0.97 : 1 }],
+                    })}
+                  >
+                    <View style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      backgroundColor: colorScheme === 'dark' ? 'rgba(100, 181, 246, 0.15)' : 'rgba(100, 181, 246, 0.1)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <MaterialIcons name="text-fields" size={20} color="#64B5F6" />
+                    </View>
+                    <ThemedText size="sm" style={{ marginLeft: 12, fontWeight: '500' }}>Share as Text</ThemedText>
+                  </Pressable>
+
+                  <View style={{
+                    height: 1,
+                    backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+                    marginHorizontal: 8,
+                    marginVertical: 4,
+                  }} />
+
+                  <Pressable
+                    onPress={async () => {
+                      try {
+                        setShowShareMenu(false);
+                        setShowGifAnimation(true);
+                      } catch (error) {
+                        logError('HomeScreen:ShareAnimation', error);
+                      }
+                    }}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: 14,
+                      marginVertical: 2,
+                      marginHorizontal: 4,
+                      borderRadius: 12,
+                      backgroundColor: pressed
+                        ? (colorScheme === 'dark' ? 'rgba(100, 181, 246, 0.15)' : 'rgba(100, 181, 246, 0.1)')
+                        : 'transparent',
+                      transform: [{ scale: pressed ? 0.97 : 1 }],
+                    })}
+                  >
+                    <View style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      backgroundColor: colorScheme === 'dark' ? 'rgba(100, 181, 246, 0.15)' : 'rgba(100, 181, 246, 0.1)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <MaterialIcons name="videocam" size={20} color="#64B5F6" />
+                    </View>
+                    <ThemedText size="sm" style={{ marginLeft: 12, fontWeight: '500' }}>View Animation</ThemedText>
+                  </Pressable>
+                </View>
+              )}
+            </>
           )}
         </Animated.View>
 
@@ -2112,6 +2234,122 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         title={shareModalContent.title}
         content={shareModalContent.message}
       />
+
+      {/* Image Preview Modal */}
+      <Modal
+        visible={imagePreviewUri !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setImagePreviewUri(null)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          {imagePreviewUri && (
+            <>
+              <Image
+                source={{ uri: imagePreviewUri }}
+                style={{
+                  width: SCREEN_WIDTH * 0.9,
+                  height: SCREEN_HEIGHT * 0.7,
+                  borderRadius: 12,
+                }}
+                contentFit="contain"
+              />
+
+              <View
+                style={{
+                  flexDirection: 'row',
+                  marginTop: 24,
+                  gap: 16,
+                }}
+              >
+                <Pressable
+                  onPress={() => setImagePreviewUri(null)}
+                  style={{
+                    backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.3)',
+                    paddingHorizontal: 24,
+                    paddingVertical: 12,
+                    borderRadius: 24,
+                    borderWidth: 1,
+                    borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.5)',
+                  }}
+                >
+                  <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+                    Cancel
+                  </ThemedText>
+                </Pressable>
+
+                <Pressable
+                  onPress={async () => {
+                    try {
+                      if (imagePreviewUri) {
+                        await Sharing.shareAsync(imagePreviewUri, {
+                          mimeType: 'image/png',
+                          dialogTitle: 'Share image',
+                        });
+                        setImagePreviewUri(null);
+                      }
+                    } catch (error) {
+                      logError('HomeScreen:SharePreviewImage', error);
+                    }
+                  }}
+                  style={{
+                    backgroundColor: colors.primary,
+                    paddingHorizontal: 24,
+                    paddingVertical: 12,
+                    borderRadius: 24,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 4,
+                    elevation: 5,
+                  }}
+                >
+                  <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+                    Share
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </>
+          )}
+        </View>
+      </Modal>
+
+      {/* GIF Animation Preview Modal */}
+      <Modal
+        visible={showGifAnimation}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowGifAnimation(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.95)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          {profile && (
+            <GifAnimationPreview
+              entity={{
+                id: profile.id,
+                name: profile.name,
+                imageUri: profile.imageUri,
+                type: profile.type || 'relationship',
+              }}
+              memories={memories}
+              onClose={() => setShowGifAnimation(false)}
+            />
+          )}
+        </View>
+      </Modal>
 
       {/* Wheel Mode UI - moment type icons positioned around entity like wheel of life */}
       {showEntityWheel && isFocused && (
@@ -2390,7 +2628,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           })()}
         </View>
       )}
-    </>
+    </View>
   );
 }, (prevProps, nextProps) => {
   // Custom comparison function to prevent unnecessary re-renders
