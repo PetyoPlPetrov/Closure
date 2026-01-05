@@ -139,6 +139,11 @@ function FloatingMemory({
   momentSize: number;
   backgroundOpacity: number;
 }) {
+  // Track when memory is at the bottom for scale animation
+  const scale = useSharedValue(1);
+  const wasAtBottom = useSharedValue(false);
+  const scaleStartTime = useSharedValue(0);
+
   const memoryAnimatedStyle = useAnimatedStyle(() => {
     'worklet';
     const rotationOffset = (memoryRotation.value * Math.PI) / 180;
@@ -147,10 +152,35 @@ function FloatingMemory({
     const x = SCREEN_WIDTH / 2 + Math.cos(newAngle) * radius - memorySize / 2;
     const y = SCREEN_HEIGHT / 2 + Math.sin(newAngle) * radius - memorySize / 2;
 
+    // Calculate center position of the memory
+    const memoryCenterY = y + memorySize / 2;
+    const avatarCenterY = SCREEN_HEIGHT / 2;
+
+    // Check if memory is at the bottom (below avatar) - within a threshold
+    // Normalize angle to 0-2π range
+    const normalizedAngle = ((newAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    // Bottom position is around π/2 (90 degrees) - check if within ±30 degrees
+    const isAtBottom = normalizedAngle > Math.PI * 0.33 && normalizedAngle < Math.PI * 0.67 && memoryCenterY > avatarCenterY;
+
+    // Trigger scale animation when memory reaches bottom
+    if (isAtBottom && !wasAtBottom.value) {
+      wasAtBottom.value = true;
+      scaleStartTime.value = Date.now();
+      scale.value = withSequence(
+        withTiming(1.5, { duration: 500, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }), // Smooth ease-out
+        withTiming(1.5, { duration: 1000 }), // Hold for 1s (total 1.5s)
+        withTiming(1, { duration: 500, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }) // Smooth ease-in
+      );
+    } else if (!isAtBottom && wasAtBottom.value) {
+      // Reset when leaving bottom position
+      wasAtBottom.value = false;
+    }
+
     return {
       transform: [
         { translateX: x },
         { translateY: y },
+        { scale: scale.value },
       ],
       opacity: backgroundOpacity,
     };
@@ -718,7 +748,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
   const cancelCaptureRef = useRef(false);
   const [memoryRotationSpeed, setMemoryRotationSpeed] = React.useState(5); // 0-10 scale, default 5
   const [popupDisappearSpeed, setPopupDisappearSpeed] = React.useState(2); // 0-10 scale, default 2
-  const [backgroundBlur, setBackgroundBlur] = React.useState(0); // 0-10 scale, default 0 (no blur/dimming)
+  const [backgroundBlur, setBackgroundBlur] = React.useState(2); // 0-10 scale, default 2 (slight dimming)
   const [isSettingsExpanded, setIsSettingsExpanded] = React.useState(false);
 
   // Moment type filters
@@ -1070,7 +1100,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
         [{ text: 'OK' }]
       );
     }
-  }, [entity.name, memoryRotation, momentRotation, memoryRotationSpeed]);
+  }, [entity.name, memoryRotation, momentRotation, memoryRotationSpeed, popupDisappearSpeed, backgroundBlur]);
 
   // Handle cancellation
   const handleCancelCapture = React.useCallback(() => {
