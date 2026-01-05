@@ -8567,26 +8567,26 @@ export default function HomeScreen() {
   // Track wheel spinning state for disabling icon buttons
   const [isSpinning, setIsSpinning] = useState(false);
 
-  // Trigger glow effect when moment type changes
-  React.useEffect(() => {
-    if (showMomentTypeSelector) {
-      // Pulse the glow when a moment type is selected
-      viewportGlowOpacity.value = withSequence(
-        withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) }),
-        withTiming(0.6, { duration: 400, easing: Easing.inOut(Easing.ease) })
-      );
-    } else {
-      viewportGlowOpacity.value = withTiming(0, { duration: 300 });
-    }
-  }, [selectedMomentType, showMomentTypeSelector, viewportGlowOpacity]);
+  // Trigger glow effect when moment type changes - DISABLED
+  // React.useEffect(() => {
+  //   if (showMomentTypeSelector) {
+  //     // Pulse the glow when a moment type is selected
+  //     viewportGlowOpacity.value = withSequence(
+  //       withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) }),
+  //       withTiming(0.6, { duration: 400, easing: Easing.inOut(Easing.ease) })
+  //     );
+  //   } else {
+  //     viewportGlowOpacity.value = withTiming(0, { duration: 300 });
+  //   }
+  // }, [selectedMomentType, showMomentTypeSelector, viewportGlowOpacity]);
 
-  // Sync animated value to state for TabScreenContainer
-  useAnimatedReaction(
-    () => viewportGlowOpacity.value,
-    (value) => {
-      runOnJS(setCornerGlowOpacity)(value);
-    }
-  );
+  // Sync animated value to state for TabScreenContainer - DISABLED
+  // useAnimatedReaction(
+  //   () => viewportGlowOpacity.value,
+  //   (value) => {
+  //     runOnJS(setCornerGlowOpacity)(value);
+  //   }
+  // );
 
   // Sync wheel spinning state to disable icon buttons during spin
   useAnimatedReaction(
@@ -11235,8 +11235,9 @@ export default function HomeScreen() {
   if (!selectedSphere) {
   return (
     <TabScreenContainer
-      momentType={showMomentTypeSelector ? selectedMomentType : undefined}
-      momentTypeOpacity={cornerGlowOpacity}
+      // Glow effect disabled - no momentType or momentTypeOpacity
+      // momentType={showMomentTypeSelector ? selectedMomentType : undefined}
+      // momentTypeOpacity={cornerGlowOpacity}
     >
         {/* Streak Badge - Top Right */}
         {streakData && (
