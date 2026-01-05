@@ -746,7 +746,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
   const [isCapturing, setIsCapturing] = React.useState(false);
   const [captureProgress, setCaptureProgress] = React.useState(0);
   const cancelCaptureRef = useRef(false);
-  const [memoryRotationSpeed, setMemoryRotationSpeed] = React.useState(5); // 0-10 scale, default 5
+  const [memoryRotationSpeed, setMemoryRotationSpeed] = React.useState(3); // 0-10 scale, default 3 (slower, more relaxed)
   const [popupDisappearSpeed, setPopupDisappearSpeed] = React.useState(2); // 0-10 scale, default 2
   const [backgroundBlur, setBackgroundBlur] = React.useState(2); // 0-10 scale, default 2 (slight dimming)
   const [isSettingsExpanded, setIsSettingsExpanded] = React.useState(false);
@@ -856,7 +856,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
     memoryRotation.value = 0;
 
     // Map speed 0-10 to duration: 0 = 40000ms (slowest), 10 = 5000ms (fastest)
-    // Default 5 = 20000ms
+    // Default 3 = 29500ms (slower, more relaxed pace)
     const duration = 40000 - (memoryRotationSpeed * 3500);
     memoryRotation.value = withRepeat(
       withTiming(360, {
@@ -876,7 +876,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
     momentRotation.value = 0;
 
     // Map speed 0-10 to duration: 0 = 20000ms (slowest), 10 = 5000ms (fastest)
-    // Default 5 = 10000ms
+    // Default 3 = 15500ms (slower, more relaxed pace)
     const duration = 20000 - (memoryRotationSpeed * 1500);
     momentRotation.value = withRepeat(
       withTiming(360, {
@@ -971,9 +971,18 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
       setCaptureProgress(0);
       cancelCaptureRef.current = false;
 
-      // Capture 40 frames over 8 seconds (5 fps)
-      const frameCount = 40;
-      const frameDuration = 200; // 200ms between frames = 5 fps
+      // Calculate frame timing based on animation speed
+      // For smooth video, capture at 30 fps (33ms between frames) for at least 10 seconds
+      // 30 fps is the minimum for smooth playback, 60 fps is even better
+      // Reuse memoryDuration already calculated above (line 947)
+      const actualMemoryDuration = Math.max(5000, Math.min(40000, memoryDuration));
+
+      // Capture at 30 fps for smooth video (33ms between frames)
+      // Duration: Capture for at least 10 seconds, or half rotation (whichever is longer)
+      const minCaptureDuration = 10000; // 10 seconds minimum
+      const captureTime = Math.max(minCaptureDuration, actualMemoryDuration / 2);
+      const frameDuration = 33; // 30 fps capture rate (1000ms / 30 = 33.33ms)
+      const frameCount = Math.floor(captureTime / frameDuration); // Dynamic based on capture time (~300 frames for 10s)
       const frames: string[] = [];
 
       for (let i = 0; i < frameCount; i++) {
@@ -1046,10 +1055,20 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
 
       setCaptureProgress(75); // Video creation starts at 75%
 
+      // Calculate FPS to match real-time playback
+      // We capture at 30 fps (33ms between frames) in real-time
+      // Play back at 30 fps for smooth, professional-quality video
+      const videoFps = 30; // 30 fps is minimum for smooth playback
+
+      // Calculate actual video duration
+      const videoDuration = frameCount / videoFps;
+
+      console.log(`[GifAnimationPreview] Creating video with ${frameCount} frames at ${videoFps} fps (${videoDuration.toFixed(1)}s duration, ${(captureTime/1000).toFixed(1)}s capture time)`);
+
       const videoPath = await createVideoFromFrames({
         framePaths: absoluteFramePaths,
         outputPath: outputPath, // Use original path with file:// if present
-        fps: 5,
+        fps: videoFps,
         width: Math.floor(SCREEN_WIDTH),
         height: Math.floor(SCREEN_HEIGHT),
       });
@@ -1314,19 +1333,36 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
 
       {/* Settings Panel - OUTSIDE capture view so they won't appear in video */}
       {!isCapturing && (
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 140,
-            left: (SCREEN_WIDTH - 240) / 2,
-            backgroundColor: colorScheme === 'dark' ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.6)',
-            borderRadius: 12,
-            padding: isSettingsExpanded ? 12 : 8,
-            zIndex: 1000,
-            width: 240,
-            alignItems: 'center',
-          }}
-        >
+        <>
+          {/* Backdrop overlay - tap to collapse settings */}
+          {isSettingsExpanded && (
+            <Pressable
+              onPress={() => setIsSettingsExpanded(false)}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'transparent',
+                zIndex: 999, // Below settings panel (1000) but above everything else
+              }}
+            />
+          )}
+
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 140,
+              left: (SCREEN_WIDTH - 240) / 2,
+              backgroundColor: colorScheme === 'dark' ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.6)',
+              borderRadius: 12,
+              padding: isSettingsExpanded ? 12 : 8,
+              zIndex: 1000,
+              width: 240,
+              alignItems: 'center',
+            }}
+          >
           <Pressable
             onPress={() => setIsSettingsExpanded(!isSettingsExpanded)}
             style={{
@@ -1561,6 +1597,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
             </View>
           )}
         </View>
+        </>
       )}
     </View>
   );

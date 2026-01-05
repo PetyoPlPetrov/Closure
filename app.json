@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sferas",
     "slug": "sphere",
-    "version": "1.0.79",
+    "version": "1.0.80",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-v2.png",
     "scheme": "sphere",
@@ -15,7 +15,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "1.0.79",
+      "buildNumber": "1.0.80",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
@@ -38,7 +38,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 79,
+      "versionCode": 80,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
