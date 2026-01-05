@@ -1,6 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS } from '@/library/components/tab-screen-container';
 import { createVideoFromFrames } from '@/modules/video-composer';
 import type { IdealizedMemory } from '@/utils/JourneyProvider';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -139,11 +140,6 @@ function FloatingMemory({
   momentSize: number;
   backgroundOpacity: number;
 }) {
-  // Track when memory is at the bottom for scale animation
-  const scale = useSharedValue(1);
-  const wasAtBottom = useSharedValue(false);
-  const scaleStartTime = useSharedValue(0);
-
   const memoryAnimatedStyle = useAnimatedStyle(() => {
     'worklet';
     const rotationOffset = (memoryRotation.value * Math.PI) / 180;
@@ -152,35 +148,11 @@ function FloatingMemory({
     const x = SCREEN_WIDTH / 2 + Math.cos(newAngle) * radius - memorySize / 2;
     const y = SCREEN_HEIGHT / 2 + Math.sin(newAngle) * radius - memorySize / 2;
 
-    // Calculate center position of the memory
-    const memoryCenterY = y + memorySize / 2;
-    const avatarCenterY = SCREEN_HEIGHT / 2;
-
-    // Check if memory is at the bottom (below avatar) - within a threshold
-    // Normalize angle to 0-2π range
-    const normalizedAngle = ((newAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-    // Bottom position is around π/2 (90 degrees) - check if within ±30 degrees
-    const isAtBottom = normalizedAngle > Math.PI * 0.33 && normalizedAngle < Math.PI * 0.67 && memoryCenterY > avatarCenterY;
-
-    // Trigger scale animation when memory reaches bottom
-    if (isAtBottom && !wasAtBottom.value) {
-      wasAtBottom.value = true;
-      scaleStartTime.value = Date.now();
-      scale.value = withSequence(
-        withTiming(1.5, { duration: 500, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }), // Smooth ease-out
-        withTiming(1.5, { duration: 1000 }), // Hold for 1s (total 1.5s)
-        withTiming(1, { duration: 500, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }) // Smooth ease-in
-      );
-    } else if (!isAtBottom && wasAtBottom.value) {
-      // Reset when leaving bottom position
-      wasAtBottom.value = false;
-    }
-
     return {
       transform: [
         { translateX: x },
         { translateY: y },
-        { scale: scale.value },
+        { scale: 1 },
       ],
       opacity: backgroundOpacity,
     };
@@ -341,6 +313,134 @@ function SpeedSlider({
   );
 }
 
+// Loading overlay with splash animation during video export
+function LoadingOverlay({ progress, colorScheme }: { progress: number; colorScheme: 'light' | 'dark' }) {
+  const orbitRadius = 60;
+  const sphereSize = 40;
+  const avatarSize = 50;
+
+  // Orbit angles for 5 spheres
+  const orbit1 = useSharedValue(0);
+  const orbit2 = useSharedValue(0);
+  const orbit3 = useSharedValue(0);
+  const orbit4 = useSharedValue(0);
+  const orbit5 = useSharedValue(0);
+
+  useEffect(() => {
+    // All spheres orbit together
+    orbit1.value = withRepeat(withTiming(360, { duration: 3000, easing: Easing.linear }), -1, false);
+    orbit2.value = withRepeat(withTiming(360, { duration: 3000, easing: Easing.linear }), -1, false);
+    orbit3.value = withRepeat(withTiming(360, { duration: 3000, easing: Easing.linear }), -1, false);
+    orbit4.value = withRepeat(withTiming(360, { duration: 3000, easing: Easing.linear }), -1, false);
+    orbit5.value = withRepeat(withTiming(360, { duration: 3000, easing: Easing.linear }), -1, false);
+  }, []);
+
+  const createOrbitStyle = (orbitValue: Animated.SharedValue<number>, baseAngle: number) => {
+    return useAnimatedStyle(() => {
+      const angle = (baseAngle + orbitValue.value) * (Math.PI / 180);
+      const x = Math.sin(angle) * orbitRadius;
+      const y = -Math.cos(angle) * orbitRadius;
+      return {
+        transform: [{ translateX: x }, { translateY: y }],
+      };
+    });
+  };
+
+  const sphere1Style = createOrbitStyle(orbit1, 0);
+  const sphere2Style = createOrbitStyle(orbit2, 72);
+  const sphere3Style = createOrbitStyle(orbit3, 144);
+  const sphere4Style = createOrbitStyle(orbit4, 216);
+  const sphere5Style = createOrbitStyle(orbit5, 288);
+
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 500,
+      }}
+      pointerEvents="none"
+    >
+      {/* Orbiting animation */}
+      <View style={{ width: 200, height: 200, justifyContent: 'center', alignItems: 'center', marginBottom: 40 }}>
+        {/* Central avatar */}
+        <View
+          style={{
+            width: avatarSize,
+            height: avatarSize,
+            borderRadius: avatarSize / 2,
+            backgroundColor: 'rgba(100, 181, 246, 0.3)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <MaterialIcons name="person" size={30} color="rgba(255, 215, 0, 0.9)" />
+        </View>
+
+        {/* Sphere 1 - Relationships */}
+        <Animated.View style={[{ position: 'absolute', width: sphereSize, height: sphereSize }, sphere1Style]}>
+          <View style={{ width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2, backgroundColor: 'rgba(255, 150, 150, 0.4)', justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialIcons name="favorite" size={24} color="rgba(255, 180, 180, 0.9)" />
+          </View>
+        </Animated.View>
+
+        {/* Sphere 2 - Career */}
+        <Animated.View style={[{ position: 'absolute', width: sphereSize, height: sphereSize }, sphere2Style]}>
+          <View style={{ width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2, backgroundColor: 'rgba(150, 200, 255, 0.4)', justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialIcons name="work" size={24} color="rgba(180, 220, 255, 0.9)" />
+          </View>
+        </Animated.View>
+
+        {/* Sphere 3 - Family */}
+        <Animated.View style={[{ position: 'absolute', width: sphereSize, height: sphereSize }, sphere3Style]}>
+          <View style={{ width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2, backgroundColor: 'rgba(200, 150, 255, 0.4)', justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialIcons name="family-restroom" size={24} color="rgba(220, 180, 255, 0.9)" />
+          </View>
+        </Animated.View>
+
+        {/* Sphere 4 - Friends */}
+        <Animated.View style={[{ position: 'absolute', width: sphereSize, height: sphereSize }, sphere4Style]}>
+          <View style={{ width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2, backgroundColor: 'rgba(139, 92, 246, 0.4)', justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialIcons name="people" size={24} color="rgba(167, 139, 250, 0.9)" />
+          </View>
+        </Animated.View>
+
+        {/* Sphere 5 - Hobbies */}
+        <Animated.View style={[{ position: 'absolute', width: sphereSize, height: sphereSize }, sphere5Style]}>
+          <View style={{ width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2, backgroundColor: 'rgba(249, 115, 22, 0.4)', justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialIcons name="sports-esports" size={24} color="rgba(255, 157, 88, 0.9)" />
+          </View>
+        </Animated.View>
+      </View>
+
+      {/* Progress info */}
+      <View style={{ alignItems: 'center' }}>
+        <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 8 }}>
+          Creating Video...
+        </ThemedText>
+        <ThemedText style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 13, marginBottom: 16 }}>
+          {progress < 70 ? 'Recording frames' : progress < 90 ? 'Processing video' : 'Finalizing'}
+        </ThemedText>
+
+        {/* Progress bar */}
+        <View style={{ width: 200, height: 4, backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: 2, overflow: 'hidden', marginBottom: 8 }}>
+          <View style={{ width: `${progress}%`, height: '100%', backgroundColor: '#64B5F6', borderRadius: 2 }} />
+        </View>
+
+        <ThemedText style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: 12, fontWeight: '500' }}>
+          {Math.round(progress)}%
+        </ThemedText>
+      </View>
+    </View>
+  );
+}
+
 // Circular popup with MaterialIcons matching the entity wheel popup style
 // Manages its own animation lifecycle
 function PopUpMoment({
@@ -352,6 +452,7 @@ function PopUpMoment({
   momentRotation,
   onComplete,
   disappearSpeed = 5,
+  timeScaleFactor = 1,
 }: {
   moment: Moment;
   targetPosition: { x: number; y: number };
@@ -361,6 +462,7 @@ function PopUpMoment({
   momentRotation: Animated.SharedValue<number>;
   onComplete?: () => void;
   disappearSpeed?: number; // 0-10 scale
+  timeScaleFactor?: number; // Animation slowdown factor during capture
 }) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
@@ -418,7 +520,8 @@ function PopUpMoment({
       memCountParam: number,
       targetXParam: number,
       targetYParam: number,
-      momentIndexParam: number
+      momentIndexParam: number,
+      scaleFactorParam: number
     ) => {
       'worklet';
       // Calculate memory position using CURRENT rotation value
@@ -438,49 +541,94 @@ function PopUpMoment({
       sourceX.value = momentX;
       sourceY.value = momentY;
 
-      // Calculate translation needed from source to target
-      const deltaX = targetXParam - momentX;
-      const deltaY = targetYParam - momentY;
+      // Calculate target position - very close to the entity avatar center
+      const avatarCenterX = SCREEN_WIDTH / 2;
+      const avatarCenterY = SCREEN_HEIGHT / 2;
 
-      // Animate from source position to target with smooth easing
-      popupTranslateX.value = withTiming(deltaX, { duration: 1200, easing: Easing.out(Easing.cubic) });
-      popupTranslateY.value = withTiming(deltaY, { duration: 1200, easing: Easing.out(Easing.cubic) });
+      // Distance from avatar center (just outside the avatar edge)
+      const avatarRadius = 60; // Avatar size / 2
+      const offsetFromCenter = avatarRadius + 30; // 30px from avatar edge
 
-      // Grow from small (0.126) to slightly larger (1.15) then settle to normal (1)
-      popupScale.value = withSequence(
-        withTiming(1.15, { duration: 1200, easing: Easing.out(Easing.cubic) }),
-        withTiming(1, { duration: 200, easing: Easing.inOut(Easing.ease) })
+      // Calculate angle from memory to avatar
+      const angleToAvatar = Math.atan2(avatarCenterY - momentY, avatarCenterX - momentX);
+
+      // Target position is just outside the avatar
+      const targetX = avatarCenterX - Math.cos(angleToAvatar) * offsetFromCenter;
+      const targetY = avatarCenterY - Math.sin(angleToAvatar) * offsetFromCenter;
+
+      // Calculate deltas from source to target
+      const deltaX = targetX - momentX;
+      const deltaY = targetY - momentY;
+
+      // Animate movement: go to avatar, hold, return back
+      // Scale durations during capture to match slowed-down animations
+      const moveDuration = 600 * scaleFactorParam;
+      const holdDuration = 200 * scaleFactorParam;
+      const returnDuration = 600 * scaleFactorParam;
+
+      // Move to avatar
+      popupTranslateX.value = withSequence(
+        withTiming(deltaX, { duration: moveDuration, easing: Easing.out(Easing.cubic) }),
+        withTiming(deltaX, { duration: holdDuration }), // Hold near avatar
+        // Will return to 0 after visible duration (handled by timeout below)
       );
 
-      // Keep opacity at 1 since we start visible
+      popupTranslateY.value = withSequence(
+        withTiming(deltaY, { duration: moveDuration, easing: Easing.out(Easing.cubic) }),
+        withTiming(deltaY, { duration: holdDuration }), // Hold near avatar
+        // Will return to 0 after visible duration (handled by timeout below)
+      );
+
+      // Grow slightly as it moves toward avatar
+      popupScale.value = withSequence(
+        withTiming(1.1, { duration: moveDuration, easing: Easing.out(Easing.cubic) }),
+        withTiming(1.1, { duration: holdDuration }), // Hold at size
+        // Will shrink after visible duration (handled by timeout below)
+      );
+
+      // Start fully visible
       popupOpacity.value = 1;
     };
 
     // Run on UI thread to access shared values - this prevents warnings
-    runOnUI(calculateAndAnimate)(memAngle, memCount, targetX, targetY, momentIndexInMemory);
+    runOnUI(calculateAndAnimate)(memAngle, memCount, targetX, targetY, momentIndexInMemory, timeScaleFactor);
 
-    // Calculate when animations complete (use the longest animation duration)
-    const animationCompleteTime = 1400; // Scale + position animation (1200ms + 200ms settle)
-    // Map disappearSpeed 0-10 to visible duration: 0 = 500ms (fastest disappear), 10 = 10000ms (slowest disappear, longest visible)
-    // Default 2 = 2400ms
-    // Higher slider value = slower disappear = longer visible time
-    const fullyVisibleDuration = 500 + (disappearSpeed * 950);
-    const delayBeforeShrink = animationCompleteTime + Math.max(500, Math.min(10000, fullyVisibleDuration));
+    // Calculate total animation time (all scaled by timeScaleFactor)
+    // Grow: 600ms, Hold large: 200ms, Hold visible: based on disappearSpeed, Shrink: 600ms
+    const growDuration = 600 * timeScaleFactor;
+    const holdLargeDuration = 200 * timeScaleFactor;
 
-    // Wait for the moment to be fully visible, then start shrinking after delay
-    const timer = setTimeout(() => {
-      'worklet';
-      // Slowly shrink to zero (slower - 1200ms)
-      popupScale.value = withTiming(0, { duration: 1200, easing: Easing.in(Easing.ease) });
-      popupOpacity.value = withTiming(0, { duration: 1200, easing: Easing.in(Easing.ease) });
+    // Map disappearSpeed 0-10 to hold visible duration
+    // 0 = 500ms (shortest), 10 = 10000ms (longest)
+    const holdVisibleDuration = (500 + (disappearSpeed * 950)) * timeScaleFactor;
+    const shrinkDuration = 600 * timeScaleFactor;
 
+    const totalDuration = growDuration + holdLargeDuration + holdVisibleDuration + shrinkDuration;
+
+    // After move to avatar + hold, wait for visible duration, then return back
+    const timeBeforeReturn = growDuration + holdLargeDuration + holdVisibleDuration;
+    const returnTimer = setTimeout(() => {
+      // Return to original position (translate back to 0,0)
+      popupTranslateX.value = withTiming(0, { duration: shrinkDuration, easing: Easing.in(Easing.cubic) });
+      popupTranslateY.value = withTiming(0, { duration: shrinkDuration, easing: Easing.in(Easing.cubic) });
+      // Shrink back to normal size
+      popupScale.value = withTiming(1, { duration: shrinkDuration, easing: Easing.in(Easing.cubic) });
+      // Fade out
+      popupOpacity.value = withTiming(0, { duration: shrinkDuration, easing: Easing.in(Easing.ease) });
+    }, timeBeforeReturn);
+
+    // Trigger completion callback after animation finishes
+    const completeTimer = setTimeout(() => {
       if (onComplete) {
-        setTimeout(onComplete, 1200); // Wait for shrink animation to complete
+        onComplete();
       }
-    }, delayBeforeShrink); // Animation time + fully visible duration
+    }, totalDuration);
 
-    return () => clearTimeout(timer);
-  }, [moment.id, disappearSpeed]);
+    return () => {
+      clearTimeout(returnTimer);
+      clearTimeout(completeTimer);
+    };
+  }, [moment.id, disappearSpeed, timeScaleFactor]);
 
   const popupAnimatedStyle = useAnimatedStyle(() => {
     'worklet';
@@ -731,6 +879,7 @@ function PopUpMoment({
       style={[
         {
           position: 'absolute',
+          zIndex: 20, // Above avatar (which is zIndex: 10)
         },
         popupAnimatedStyle,
       ]}
@@ -746,7 +895,8 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
   const [isCapturing, setIsCapturing] = React.useState(false);
   const [captureProgress, setCaptureProgress] = React.useState(0);
   const cancelCaptureRef = useRef(false);
-  const [memoryRotationSpeed, setMemoryRotationSpeed] = React.useState(3); // 0-10 scale, default 3 (slower, more relaxed)
+  const timeScaleFactorRef = useRef(1); // Ref to track animation slowdown during capture
+  const [memoryRotationSpeed, setMemoryRotationSpeed] = React.useState(6); // 0-10 scale, default 6
   const [popupDisappearSpeed, setPopupDisappearSpeed] = React.useState(2); // 0-10 scale, default 2
   const [backgroundBlur, setBackgroundBlur] = React.useState(2); // 0-10 scale, default 2 (slight dimming)
   const [isSettingsExpanded, setIsSettingsExpanded] = React.useState(false);
@@ -893,6 +1043,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
   const nextMomentIndexRef = React.useRef(0);
   const popupKeyRef = React.useRef(0);
   const positionIndexRef = React.useRef(0);
+  const lastMemoryIndexRef = React.useRef<number | null>(null);
 
   // Animation trigger - adds new moments continuously
   useEffect(() => {
@@ -903,11 +1054,51 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
     nextMomentIndexRef.current = 0;
     popupKeyRef.current = 0;
     positionIndexRef.current = 0;
+    lastMemoryIndexRef.current = null;
 
-    // Add new moment every 1200ms for better visibility (slower)
+    // Calculate popup interval based on memory rotation speed
+    // Slower rotation = slower popup appearances for better pacing
+    // Speed 0 (slowest) = 1500ms interval, Speed 10 (fastest) = 500ms interval
+    // Default speed 3 = 1200ms interval
+    const baseInterval = 1500 - (memoryRotationSpeed * 100);
+    const popupInterval = Math.max(500, Math.min(1500, baseInterval));
+
+    // Scale interval during capture to match slowed-down animations
+    const scaledInterval = popupInterval * timeScaleFactorRef.current;
+
     const timer = setInterval(() => {
-      const nextMoment = allMoments[nextMomentIndexRef.current];
-      if (nextMoment) {
+      // Filter out moments from adjacent memories
+      const availableMoments = allMoments.filter((moment) => {
+        if (lastMemoryIndexRef.current === null) {
+          // First moment - allow any
+          return true;
+        }
+        
+        const lastMemoryIndex = lastMemoryIndexRef.current;
+        const currentMemoryIndex = moment.memoryIndex;
+        const totalMemories = memories.length;
+        
+        // Calculate adjacent indices (wrapping around the circle)
+        const prevIndex = (lastMemoryIndex - 1 + totalMemories) % totalMemories;
+        const nextIndex = (lastMemoryIndex + 1) % totalMemories;
+        
+        // Exclude moments from the same memory and adjacent memories
+        return currentMemoryIndex !== lastMemoryIndex &&
+               currentMemoryIndex !== prevIndex &&
+               currentMemoryIndex !== nextIndex;
+      });
+
+      // If no available moments (all are adjacent), allow any moment
+      const momentsToChooseFrom = availableMoments.length > 0 ? availableMoments : allMoments;
+      
+      // Randomly select from available moments
+      if (momentsToChooseFrom.length > 0) {
+        const randomIndex = Math.floor(Math.random() * momentsToChooseFrom.length);
+        const nextMoment = momentsToChooseFrom[randomIndex];
+        
+        // Update last memory index
+        lastMemoryIndexRef.current = nextMoment.memoryIndex;
+        
         // Assign a fixed position index that cycles through 6 positions
         const positionIndex = positionIndexRef.current % 6;
         setActivePopups((prev) => [...prev, {
@@ -915,13 +1106,12 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
           key: popupKeyRef.current++,
           positionIndex
         }]);
-        nextMomentIndexRef.current = (nextMomentIndexRef.current + 1) % allMoments.length;
         positionIndexRef.current++;
       }
-    }, 800); // Increased from 300ms to 800ms
+    }, scaledInterval);
 
     return () => clearInterval(timer);
-  }, [allMoments, memoryRotationSpeed, popupDisappearSpeed]);
+  }, [allMoments, memoryRotationSpeed, popupDisappearSpeed, isCapturing, memories.length]);
 
   // Remove completed popups
   const handlePopupComplete = React.useCallback((key: number) => {
@@ -938,26 +1128,49 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
       // Reset moment and position indices
       nextMomentIndexRef.current = 0;
       positionIndexRef.current = 0;
+      lastMemoryIndexRef.current = null;
       
       // Reset rotation values to 0 and restart animations
       memoryRotation.value = 0;
       momentRotation.value = 0;
-      
-      // Restart rotation animations
+
+      // Calculate base animation durations from slider speed
       const memoryDuration = 40000 - (memoryRotationSpeed * 3500);
+      const actualMemoryAnimDuration = Math.max(5000, Math.min(40000, memoryDuration));
+      const momentDuration = 20000 - (memoryRotationSpeed * 1500);
+      const actualMomentAnimDuration = Math.max(5000, Math.min(20000, momentDuration));
+
+      // CRITICAL: Slow down animations during capture to match capture speed
+      // Frame capture takes ~215ms per frame (not 33ms), so animations run 6.5x faster than video
+      // We need to slow animations by the same factor
+      // Estimate: captureRef takes ~200ms per frame on average
+      const estimatedCaptureTimePerFrame = 200; // ms (based on previous captures)
+      const targetFrameTime = 1000 / 30; // 33.33ms for 30fps
+      const timeScaleFactor = estimatedCaptureTimePerFrame / targetFrameTime; // ~6x slower
+
+      // Update the ref so popup interval also gets scaled
+      timeScaleFactorRef.current = timeScaleFactor;
+
+      const scaledMemoryDuration = actualMemoryAnimDuration * timeScaleFactor;
+      const scaledMomentDuration = actualMomentAnimDuration * timeScaleFactor;
+
+      console.log(`[GifAnimationPreview] Starting capture with memoryRotationSpeed=${memoryRotationSpeed}, memoryDuration=${actualMemoryAnimDuration}ms`);
+      console.log(`[GifAnimationPreview] popupDisappearSpeed=${popupDisappearSpeed}, backgroundBlur=${backgroundBlur}`);
+      console.log(`[GifAnimationPreview] Time scale factor: ${timeScaleFactor.toFixed(1)}x (slowing animations for capture)`);
+      console.log(`[GifAnimationPreview] Scaled memory duration: ${scaledMemoryDuration}ms, scaled moment duration: ${scaledMomentDuration}ms`);
+
       memoryRotation.value = withRepeat(
         withTiming(360, {
-          duration: Math.max(5000, Math.min(40000, memoryDuration)),
+          duration: scaledMemoryDuration,
           easing: Easing.linear,
         }),
         -1,
         false
       );
-      
-      const momentDuration = 20000 - (memoryRotationSpeed * 1500);
+
       momentRotation.value = withRepeat(
         withTiming(360, {
-          duration: Math.max(5000, Math.min(20000, momentDuration)),
+          duration: scaledMomentDuration,
           easing: Easing.linear,
         }),
         -1,
@@ -972,19 +1185,50 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
       cancelCaptureRef.current = false;
 
       // Calculate frame timing based on animation speed
-      // For smooth video, capture at 30 fps (33ms between frames) for at least 10 seconds
-      // 30 fps is the minimum for smooth playback, 60 fps is even better
-      // Reuse memoryDuration already calculated above (line 947)
-      const actualMemoryDuration = Math.max(5000, Math.min(40000, memoryDuration));
+      // For smooth video, capture at 30 fps (33ms between frames)
+      // Video should show ALL moments appearing and disappearing ONCE (not looping)
 
-      // Capture at 30 fps for smooth video (33ms between frames)
-      // Duration: Capture for at least 10 seconds, or half rotation (whichever is longer)
-      const minCaptureDuration = 10000; // 10 seconds minimum
-      const captureTime = Math.max(minCaptureDuration, actualMemoryDuration / 2);
-      const frameDuration = 33; // 30 fps capture rate (1000ms / 30 = 33.33ms)
-      const frameCount = Math.floor(captureTime / frameDuration); // Dynamic based on capture time (~300 frames for 10s)
+      // Calculate time needed for all moments to appear and disappear:
+      // - Moments appear based on rotation speed (slower rotation = slower popups)
+      // - Each moment takes: 1400ms (animation) + fullyVisibleDuration + 1200ms (shrink)
+      // - fullyVisibleDuration = 500 + (popupDisappearSpeed * 950)
+
+      // Calculate dynamic popup interval (same as in useEffect above)
+      const baseInterval = 1500 - (memoryRotationSpeed * 100);
+      const popupInterval = Math.max(500, Math.min(1500, baseInterval)); // Time between moment appearances
+
+      // Calculate moment lifecycle timing (matching PopUpMoment component)
+      const growDuration = 600;
+      const holdLargeDuration = 200;
+      const holdVisibleDuration = 500 + (popupDisappearSpeed * 950);
+      const shrinkDuration = 600;
+      const totalMomentDuration = growDuration + holdLargeDuration + holdVisibleDuration + shrinkDuration;
+
+      // Time for all moments to appear: (allMoments.length - 1) * popupInterval
+      const timeForAllToAppear = (allMoments.length - 1) * popupInterval;
+      // Time for all moments to complete their lifecycle
+      const timeForAllMomentsComplete = timeForAllToAppear + totalMomentDuration;
+
+      // BUT: Also ensure we capture at least one full memory rotation
+      // Otherwise the video looks sped up compared to the preview
+      const captureTime = Math.max(timeForAllMomentsComplete, actualMemoryAnimDuration);
+
+      // Capture frames in real-time matching the animation duration
+      // captureTime is the animation duration we want to capture
+      // We'll capture in real-time at the same pace as animations run
+      const videoFps = 30; // Final video playback speed
+      const frameDuration = 1000 / videoFps; // Time per frame in ms (33.33ms for 30fps)
+      const frameCount = Math.floor(captureTime / frameDuration);
       const frames: string[] = [];
 
+      console.log(`[GifAnimationPreview] Capture plan: ${allMoments.length} moments`);
+      console.log(`[GifAnimationPreview] Popup interval: ${popupInterval}ms (based on rotation speed ${memoryRotationSpeed})`);
+      console.log(`[GifAnimationPreview] Moments complete in: ${timeForAllMomentsComplete}ms (${(timeForAllMomentsComplete/1000).toFixed(1)}s)`);
+      console.log(`[GifAnimationPreview] Memory full rotation: ${actualMemoryAnimDuration}ms (${(actualMemoryAnimDuration/1000).toFixed(1)}s)`);
+      console.log(`[GifAnimationPreview] Capturing ${frameCount} frames over ${(captureTime/1000).toFixed(1)}s in real-time`);
+      console.log(`[GifAnimationPreview] Frame interval: ${frameDuration.toFixed(1)}ms, Video playback: ${videoFps}fps = ${(frameCount/videoFps).toFixed(1)}s duration`);
+
+      const captureStartTime = Date.now();
       for (let i = 0; i < frameCount; i++) {
         // Check for cancellation
         if (cancelCaptureRef.current) {
@@ -1005,12 +1249,21 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
           const frameProgress = ((i + 1) / frameCount) * 70;
           setCaptureProgress(frameProgress);
 
-          // Wait before capturing next frame
-          await new Promise(resolve => setTimeout(resolve, frameDuration));
+          // Use precise timing: calculate when next frame should be captured
+          const targetTime = captureStartTime + ((i + 1) * frameDuration);
+          const currentTime = Date.now();
+          const waitTime = Math.max(0, targetTime - currentTime);
+
+          if (i < frameCount - 1) { // Don't wait after last frame
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
         } catch (error) {
           console.error(`[GifAnimationPreview] Failed to capture frame ${i}:`, error);
         }
       }
+
+      const totalCaptureTime = Date.now() - captureStartTime;
+      console.log(`[GifAnimationPreview] Actual capture time: ${(totalCaptureTime/1000).toFixed(1)}s for ${frames.length} frames`);
 
       if (frames.length === 0) {
         throw new Error('Failed to capture any frames');
@@ -1055,15 +1308,10 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
 
       setCaptureProgress(75); // Video creation starts at 75%
 
-      // Calculate FPS to match real-time playback
-      // We capture at 30 fps (33ms between frames) in real-time
-      // Play back at 30 fps for smooth, professional-quality video
-      const videoFps = 30; // 30 fps is minimum for smooth playback
-
-      // Calculate actual video duration
-      const videoDuration = frameCount / videoFps;
-
-      console.log(`[GifAnimationPreview] Creating video with ${frameCount} frames at ${videoFps} fps (${videoDuration.toFixed(1)}s duration, ${(captureTime/1000).toFixed(1)}s capture time)`);
+      console.log(`[GifAnimationPreview] Creating video with ${frameCount} frames at ${videoFps} fps`);
+      console.log(`[GifAnimationPreview] Video will show all ${allMoments.length} moments appearing once`);
+      console.log(`[GifAnimationPreview] Expected video duration: ${(frameCount / videoFps).toFixed(1)}s`);
+      console.log(`[GifAnimationPreview] Each moment lifecycle: ${totalMomentDuration}ms (appear + visible + disappear)`);
 
       const videoPath = await createVideoFromFrames({
         framePaths: absoluteFramePaths,
@@ -1108,9 +1356,15 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
       setCaptureProgress(100);
       setIsCapturing(false);
       setCaptureProgress(0);
+
+      // Reset time scale factor back to normal speed
+      timeScaleFactorRef.current = 1;
     } catch (error: any) {
       setIsCapturing(false);
       setCaptureProgress(0);
+
+      // Reset time scale factor back to normal speed
+      timeScaleFactorRef.current = 1;
 
       const errorMessage = error?.message || error?.toString() || 'Unknown error';
       Alert.alert(
@@ -1126,6 +1380,8 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
     cancelCaptureRef.current = true;
     setIsCapturing(false);
     setCaptureProgress(0);
+    // Reset time scale factor back to normal speed
+    timeScaleFactorRef.current = 1;
   }, []);
 
   return (
@@ -1138,13 +1394,9 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
       >
         {/* Subtle gradient background */}
         <LinearGradient
-          colors={[
-            colorScheme === 'dark' ? '#0a0e1a' : '#1a1f2e',
-            colorScheme === 'dark' ? '#1a2332' : '#2a3342',
-            colorScheme === 'dark' ? '#0f1419' : '#1f242e',
-          ]}
+          colors={colorScheme === 'dark' ? DARK_GRADIENT_COLORS : LIGHT_GRADIENT_COLORS}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          end={{ x: 0, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
 
@@ -1152,12 +1404,12 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
         <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
           <Defs>
             <RadialGradient id="dotGradient" cx="50%" cy="50%">
-              <Stop offset="0%" stopColor="#64B5F6" stopOpacity="0.8" />
-              <Stop offset="100%" stopColor="#64B5F6" stopOpacity="0" />
+              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.8" />
+              <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
             </RadialGradient>
           </Defs>
           {/* Generate random sparkled dots */}
-          {Array.from({ length: 30 }).map((_, i) => {
+          {Array.from({ length: 60 }).map((_, i) => {
             const x = (Math.sin(i * 1.3) * 0.5 + 0.5) * SCREEN_WIDTH;
             const y = (Math.cos(i * 1.7) * 0.5 + 0.5) * SCREEN_HEIGHT;
             const radius = 1 + (i % 3);
@@ -1248,11 +1500,17 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
             momentRotation={momentRotation}
             onComplete={() => handlePopupComplete(popup.key)}
             disappearSpeed={popupDisappearSpeed}
+            timeScaleFactor={timeScaleFactorRef.current}
           />
         );
       })}
 
       </View>
+
+      {/* Semi-transparent overlay during capture to hide slow animations */}
+      {isCapturing && (
+        <LoadingOverlay progress={captureProgress} colorScheme={colorScheme} />
+      )}
 
       {/* Bottom buttons - OUTSIDE capture view so they won't appear in video */}
       <View
@@ -1268,66 +1526,61 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
           pointerEvents: 'box-none',
         }}
       >
-        <Pressable
-          onPress={() => {
-            if (isCapturing) {
-              // If video is being created, cancel it
-              handleCancelCapture();
-            } else {
-              // Otherwise, just close the preview
-              onClose();
-            }
-          }}
-          style={{
-            backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.3)',
-            paddingHorizontal: 24,
-            paddingVertical: 12,
-            borderRadius: 24,
-            borderWidth: 1,
-            borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.5)',
-          }}
-        >
-          <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-            {isCapturing ? 'Cancel' : 'Close'}
-          </ThemedText>
-        </Pressable>
-
-        {!isCapturing && (
+        {/* Only show Cancel button when capturing, otherwise show both Close and Share Video */}
+        {isCapturing ? (
           <Pressable
-            onPress={handleShare}
+            onPress={handleCancelCapture}
             style={{
-              backgroundColor: '#64B5F6',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
               paddingHorizontal: 24,
               paddingVertical: 12,
               borderRadius: 24,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.3,
-              shadowRadius: 4,
-              elevation: 5,
-              minWidth: 140,
+              borderWidth: 1,
+              borderColor: 'rgba(255, 255, 255, 0.3)',
             }}
           >
             <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-              Share Video
+              Cancel
             </ThemedText>
           </Pressable>
-        )}
+        ) : (
+          <>
+            <Pressable
+              onPress={onClose}
+              style={{
+                backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.3)',
+                paddingHorizontal: 24,
+                paddingVertical: 12,
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.5)',
+              }}
+            >
+              <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+                Close
+              </ThemedText>
+            </Pressable>
 
-        {isCapturing && (
-          <View
-            style={{
-              backgroundColor: colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-              paddingHorizontal: 20,
-              paddingVertical: 12,
-              borderRadius: 24,
-              minWidth: 140,
-            }}
-          >
-            <ThemedText style={{ color: colorScheme === 'dark' ? '#fff' : '#000', fontSize: 16, fontWeight: '600', textAlign: 'center' }}>
-              {Math.round(captureProgress)}%
-            </ThemedText>
-          </View>
+            <Pressable
+              onPress={handleShare}
+              style={{
+                backgroundColor: '#64B5F6',
+                paddingHorizontal: 24,
+                paddingVertical: 12,
+                borderRadius: 24,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 5,
+                minWidth: 140,
+              }}
+            >
+              <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+                Share Video
+              </ThemedText>
+            </Pressable>
+          </>
         )}
       </View>
 
