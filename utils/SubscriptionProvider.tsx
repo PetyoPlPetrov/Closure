@@ -1,4 +1,5 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { Purchases, isNativeModuleAvailable } from './revenuecat-wrapper';
 import type { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
 import { presentPaywall, presentPaywallIfNeeded } from './revenuecat-paywall';
@@ -30,23 +31,39 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>('loading');
   const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
+  const appState = useRef<AppStateStatus>(AppState.currentState);
 
   // Helper function to update state from customerInfo
+  // Improved to check expiration dates and handle grace periods (RevenueCat best practice)
   const updateSubscriptionState = useCallback((info: CustomerInfo) => {
     // Check for "Sfera Premium" entitlement
-    const hasPremiumEntitlement = typeof info.entitlements.active['Sfera Premium'] !== 'undefined';
+    const premiumEntitlement = info.entitlements.active['Sfera Premium'];
+    
+    // RevenueCat best practice: Trust the isActive flag from RevenueCat
+    // RevenueCat handles expiration dates, grace periods, and billing issues automatically
+    // The isActive flag is the source of truth - if it's true, the user has access
+    const hasPremiumEntitlement = premiumEntitlement !== undefined && premiumEntitlement.isActive === true;
 
     setIsSubscribed(hasPremiumEntitlement);
     setSubscriptionStatus(hasPremiumEntitlement ? 'subscribed' : 'not_subscribed');
     setCustomerInfo(info);
 
+    // Enhanced logging for debugging subscription issues
     console.log('[SubscriptionProvider] Subscription state updated:', {
       isSubscribed: hasPremiumEntitlement,
       activeEntitlements: Object.keys(info.entitlements.active),
+      allEntitlements: Object.keys(info.entitlements.all),
+      premiumEntitlement: premiumEntitlement ? {
+        isActive: premiumEntitlement.isActive,
+        expirationDate: premiumEntitlement.expirationDate,
+        willRenew: premiumEntitlement.willRenew,
+        periodType: premiumEntitlement.periodType,
+        productIdentifier: premiumEntitlement.productIdentifier,
+      } : null,
     });
   }, []);
 
-  const checkSubscription = useCallback(async () => {
+  const checkSubscription = useCallback(async (forceSync: boolean = false) => {
     if (!isNativeModuleAvailable || !Purchases) {
       setSubscriptionStatus('not_subscribed');
       setIsSubscribed(false);
@@ -55,6 +72,9 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     }
 
     try {
+      // RevenueCat best practice: getCustomerInfo() automatically syncs with the store
+      // This ensures we have the latest subscription status, including expirations
+      // The SDK handles caching, so this is safe to call frequently
       const customerInfo = await Purchases.getCustomerInfo();
       updateSubscriptionState(customerInfo);
     } catch (error) {
@@ -128,7 +148,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           setOfferings(offerings.current);
         }
 
-        // Check subscription status
+        // Check subscription status (this syncs with store automatically)
         await checkSubscription();
       } catch (error) {
         // Error initializing subscription system
@@ -165,6 +185,26 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       }
     };
   }, [checkSubscription, updateSubscriptionState]);
+
+  // RevenueCat best practice: Refresh subscription status when app comes to foreground
+  // This ensures we catch subscription expirations that occurred while the app was in background
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      // When app comes to foreground, refresh subscription status
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('[SubscriptionProvider] App came to foreground, refreshing subscription status...');
+        // Refresh subscription status to catch any expirations that occurred in background
+        checkSubscription();
+      }
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [checkSubscription]);
 
   const handlePresentPaywall = useCallback(async (): Promise<boolean> => {
     const result = await presentPaywall();
