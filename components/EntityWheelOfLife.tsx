@@ -63,7 +63,7 @@ export function EntityWheelOfLife({
   const spinRotation = useSharedValue(0);
   const selectedMomentScale = useSharedValue(0);
   const [isSpinning, setIsSpinning] = useState(false);
-  const [selectedMoment, setSelectedMoment] = useState<{ type: 'lesson' | 'sunny' | 'cloudy'; text: string } | null>(null);
+  const [selectedMoment, setSelectedMoment] = useState<{ type: 'lesson' | 'sunny' | 'cloudy'; text: string; memoryImageUri?: string } | null>(null);
 
   // Sizes
   const avatarSize = isTablet ? 100 : 80;
@@ -80,14 +80,20 @@ export function EntityWheelOfLife({
 
   // Collect all moments by type
   const momentsByType = useMemo(() => {
-    const lessons: { id: string; text: string }[] = [];
-    const sunny: { id: string; text: string }[] = [];
-    const cloudy: { id: string; text: string }[] = [];
+    const lessons: { id: string; text: string; memoryImageUri?: string }[] = [];
+    const sunny: { id: string; text: string; memoryImageUri?: string }[] = [];
+    const cloudy: { id: string; text: string; memoryImageUri?: string }[] = [];
 
     memories.forEach((memory) => {
-      if (memory.lessonsLearned) lessons.push(...memory.lessonsLearned);
-      if (memory.goodFacts) sunny.push(...memory.goodFacts);
-      if (memory.hardTruths) cloudy.push(...memory.hardTruths);
+      if (memory.lessonsLearned) {
+        lessons.push(...memory.lessonsLearned.map(l => ({ ...l, memoryImageUri: memory.imageUri })));
+      }
+      if (memory.goodFacts) {
+        sunny.push(...memory.goodFacts.map(gf => ({ ...gf, memoryImageUri: memory.imageUri })));
+      }
+      if (memory.hardTruths) {
+        cloudy.push(...memory.hardTruths.map(ht => ({ ...ht, memoryImageUri: memory.imageUri })));
+      }
     });
 
     return { lesson: lessons, sunny, cloudy };
@@ -131,7 +137,11 @@ export function EntityWheelOfLife({
         const moments = momentsByType[randomType.type];
         const randomMomentObj = moments[Math.floor(Math.random() * moments.length)];
 
-        setSelectedMoment({ type: randomType.type, text: randomMomentObj.text });
+        setSelectedMoment({
+          type: randomType.type,
+          text: randomMomentObj.text,
+          memoryImageUri: randomMomentObj.memoryImageUri
+        });
         selectedMomentScale.value = withSpring(1, {
           damping: 12,
           stiffness: 150,
@@ -392,6 +402,21 @@ export function EntityWheelOfLife({
           <ThemedText size="sm" style={{ marginTop: 8, textAlign: 'center', opacity: 0.9 }}>
             {selectedMoment.text}
           </ThemedText>
+
+          {/* Memory image */}
+          {selectedMoment.memoryImageUri && (
+            <Image
+              source={{ uri: selectedMoment.memoryImageUri }}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                marginTop: 12,
+                borderWidth: 2,
+                borderColor: momentTypes.find((mt) => mt.type === selectedMoment.type)?.color || colors.primary,
+              }}
+            />
+          )}
         </AnimatedView>
       )}
     </View>
