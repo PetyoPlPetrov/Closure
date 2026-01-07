@@ -2038,7 +2038,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                     }}>
                       <MaterialIcons name="videocam" size={20} color="#64B5F6" />
                     </View>
-                    <ThemedText size="sm" style={{ marginLeft: 12, fontWeight: '500' }}>View Animation</ThemedText>
+                    <ThemedText size="sm" style={{ marginLeft: 12, fontWeight: '500' }}>View {profile.name}'s Story</ThemedText>
                   </Pressable>
                 </View>
               )}
@@ -13351,21 +13351,6 @@ export default function HomeScreen() {
                     />
                   </View>
 
-                  {/* Specular highlight overlay */}
-                  <Animated.View
-                    style={[
-                      StyleSheet.absoluteFillObject,
-                      lessonsHighlightStyle,
-                    ]}
-                  >
-                    <LinearGradient
-                      colors={['rgba(255,255,255,0.6)', 'rgba(255,255,255,0)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFillObject}
-                    />
-                  </Animated.View>
-
                   <Pressable
                     onPress={() => setSelectedMomentType('lessons')}
                     onPressIn={handleLessonsButtonPressIn}
@@ -13407,21 +13392,6 @@ export default function HomeScreen() {
                     />
                   </View>
 
-                  {/* Specular highlight overlay */}
-                  <Animated.View
-                    style={[
-                      StyleSheet.absoluteFillObject,
-                      hardTruthsHighlightStyle,
-                    ]}
-                  >
-                    <LinearGradient
-                      colors={['rgba(255,255,255,0.6)', 'rgba(255,255,255,0)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFillObject}
-                    />
-                  </Animated.View>
-
                   <Pressable
                     onPress={() => setSelectedMomentType('hardTruths')}
                     onPressIn={handleHardTruthsButtonPressIn}
@@ -13462,21 +13432,6 @@ export default function HomeScreen() {
                       style={StyleSheet.absoluteFillObject}
                     />
                   </View>
-
-                  {/* Specular highlight overlay */}
-                  <Animated.View
-                    style={[
-                      StyleSheet.absoluteFillObject,
-                      sunnyMomentsHighlightStyle,
-                    ]}
-                  >
-                    <LinearGradient
-                      colors={['rgba(255,255,255,0.6)', 'rgba(255,255,255,0)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFillObject}
-                    />
-                  </Animated.View>
 
                   <Pressable
                     onPress={() => setSelectedMomentType('sunnyMoments')}
