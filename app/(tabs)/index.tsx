@@ -7154,8 +7154,6 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
     if (!shouldGrowToFull) return;
 
     // For grow-to-full moments: always start animation on mount
-    console.log('[Animation START]', momentType, 'isSelected:', isSelected);
-
     // Explicitly set starting values
     scale.value = 0;
     opacity.value = 0;
@@ -9382,14 +9380,11 @@ export default function HomeScreen() {
           text: momentData?.text || '',
         };
 
-        console.log('[Spawn] Adding moment', newMoment.id, 'type:', newMoment.momentType, 'at index:', momentIndex);
-
         // Add this moment to the array
         setRandomMoments(prev => [...prev, newMoment]);
 
         // Remove this moment after it completes its animation (add 100ms buffer to ensure animation finishes)
         const removeTimeout = setTimeout(() => {
-          console.log('[Remove] Removing moment', newMoment.id, 'after', MOMENT_DURATION + 100, 'ms');
           setRandomMoments(prev => prev.filter(m => m.id !== newMoment.id));
         }, MOMENT_DURATION + 100);
         timeouts.push(removeTimeout);
