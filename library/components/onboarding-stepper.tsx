@@ -508,7 +508,7 @@ export function OnboardingStepper({
                                     : step.gifSource === 'memory'
                                     ? require('@/assets/images/memories.gif')
                                     : step.gifSource === 'recap'
-                                    ? require('@/assets/images/focusedFriend.gif')
+                                    ? require('@/recapGiff.gif')
                                     : step.gifSource === 'insights'
                                     ? require('@/assets/images/insights.gif')
                                     : step.gifSource === 'notifications'
@@ -517,6 +517,7 @@ export function OnboardingStepper({
                                     ? require('@/family.gif')
                                     : require('@/assets/images/output.gif')
                                 }
+                                defaultSource={step.gifSource === 'recap' ? require('@/assets/images/focusedFriend.gif') : undefined}
                                 style={styles.gif}
                                 contentFit="contain"
                               />

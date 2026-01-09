@@ -466,11 +466,41 @@ function PopUpMoment({
 }) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
-  const momentWidth = 190;
-  const momentHeight = 190;
 
-  // Start with small size (matching the floating moment size: 24px / 190px ≈ 0.126)
-  const popupScale = useSharedValue(0.126);
+  // Calculate dynamic size based on text length and moment type
+  const textLength = moment.text.length;
+
+  let momentWidth: number;
+  let momentHeight: number;
+
+  if (moment.type === 'sunnyMoments') {
+    // Circular sunny moments - grow proportionally with text
+    const baseSunSize = 160;
+    const dynamicSunSize = Math.min(300, Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 1.2)));
+    momentWidth = dynamicSunSize;
+    momentHeight = dynamicSunSize;
+  } else if (moment.type === 'hardTruths') {
+    // Cloud moments - rectangular, wider than tall
+    // Note: The rendering code will apply 1.6x width and 0.6x height multipliers,
+    // so we set the base size that will be multiplied later
+    const baseCloudWidth = 190;
+    const baseCloudHeight = 120;
+    // More aggressive growth for clouds to fit text better
+    const widthMultiplier = Math.min(2.2, Math.max(1.0, 1.0 + (textLength / 50)));
+    const heightMultiplier = Math.min(2.0, Math.max(1.0, 1.0 + (textLength / 80)));
+    momentWidth = baseCloudWidth * widthMultiplier;
+    momentHeight = baseCloudHeight * heightMultiplier
+  } else {
+    // Lessons - circular with icon
+    const baseLessonSize = 160;
+    const sizeMultiplier = Math.min(1.4, Math.max(1.0, 1.0 + (textLength / 150)));
+    momentWidth = baseLessonSize * sizeMultiplier;
+    momentHeight = baseLessonSize * sizeMultiplier;
+  }
+
+  // Start with small size (matching the floating moment size: 24px / calculated size)
+  const initialScale = 24 / momentWidth;
+  const popupScale = useSharedValue(initialScale);
   const popupOpacity = useSharedValue(1); // Start fully visible
   const popupTranslateX = useSharedValue(0);
   const popupTranslateY = useSharedValue(0);
@@ -674,13 +704,13 @@ function PopUpMoment({
           <ThemedText
             style={{
               color: colorScheme === 'dark' ? '#000000' : '#1A1A1A',
-              fontSize: 11 * fontScale,
+              fontSize: Math.max(10, Math.min(14, 11 + (textLength / 80))) * fontScale,
               textAlign: 'center',
               fontWeight: '700',
               maxWidth: momentWidth * 0.85,
-              lineHeight: 14 * fontScale,
+              lineHeight: Math.max(13, Math.min(18, 14 + (textLength / 80))) * fontScale,
             }}
-            numberOfLines={5}
+            numberOfLines={10}
           >
             {moment.text}
           </ThemedText>
@@ -778,11 +808,12 @@ function PopUpMoment({
             <ThemedText
               style={{
                 color: 'black',
-                fontSize: 12 * fontScale,
+                fontSize: Math.max(11, Math.min(16, 12 + (textLength / 60))) * fontScale,
                 textAlign: 'center',
                 fontWeight: '700',
+                lineHeight: Math.max(14, Math.min(20, 15 + (textLength / 60))) * fontScale,
               }}
-              numberOfLines={3}
+              numberOfLines={6}
             >
               {moment.text}
             </ThemedText>
@@ -855,16 +886,20 @@ function PopUpMoment({
               height: cloudHeight,
               justifyContent: 'center',
               alignItems: 'center',
-              paddingHorizontal: 20,
+              paddingHorizontal: cloudWidth * 0.12,
+              paddingVertical: cloudHeight * 0.1,
             }}
           >
             <ThemedText
               style={{
                 color: 'rgba(255,255,255,0.9)',
-                fontSize: 14,
+                fontSize: Math.max(10, Math.min(14, 12 + (textLength / 120))) * fontScale,
                 textAlign: 'center',
                 fontWeight: '500',
+                lineHeight: Math.max(13, Math.min(18, 15 + (textLength / 120))) * fontScale,
+                maxWidth: cloudWidth * 0.76,
               }}
+              numberOfLines={12}
             >
               {moment.text}
             </ThemedText>

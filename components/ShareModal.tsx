@@ -178,8 +178,10 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modal: {
-    width: '100%',
-    height: '90%',
+    width: '90%',
+    maxWidth: 500,
+    height: '70%',
+    maxHeight: 600,
     borderRadius: 16,
     borderWidth: 1,
     shadowColor: '#000',

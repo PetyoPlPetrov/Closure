@@ -92,7 +92,7 @@ const DraggableMoment = React.memo(function DraggableMoment({
   isActive?: boolean;
 }) {
   const hasStartPosition = propStartX !== undefined && propStartY !== undefined;
-  const animationStartedRef = React.useRef(false); // Track if animation has started to prevent reset
+  const animationStartedRef = useRef(false); // Track if animation has started to prevent reset
   const panX = useSharedValue(hasStartPosition ? propStartX! : initialX);
   const panY = useSharedValue(hasStartPosition ? propStartY! : initialY);
   const startX = useSharedValue(hasStartPosition ? propStartX! : initialX);
@@ -159,6 +159,9 @@ const DraggableMoment = React.memo(function DraggableMoment({
           damping: 12,
           stiffness: 150,
           mass: 0.8,
+        }, () => {
+          // After growing completes, hold at full scale for 2.5 seconds
+          // This callback runs when the spring animation finishes
         });
       }, actualDelay);
       return () => clearTimeout(timer);
@@ -347,15 +350,34 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const [selectedMomentType, setSelectedMomentType] = React.useState<'lesson' | 'sunny' | 'cloudy'>('lesson');
   const [isWheelSpinningState, setIsWheelSpinningState] = React.useState(false);
 
+  // State for floating moments that grow from memories in entity wheel
+  const [floatingMoments, setFloatingMoments] = React.useState<{
+    id: number;
+    memoryId: string;
+    memoryIndex: number; // Index in memories array
+    momentIndex: number; // Index within the moment type array for this memory
+    momentType: 'lesson' | 'sunny' | 'cloudy';
+    text: string;
+    memoryImageUri?: string;
+    memoryOffsetX: number; // Memory's offsetX from memoryPositions
+    memoryOffsetY: number; // Memory's offsetY from memoryPositions
+    memoryBaseAngle: number; // Memory's base angle from memoryPositions
+  }[]>([]);
+  const momentIdCounter = useRef(0);
+  const floatingMomentsTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const nextMomentIndexRef = useRef<number>(0); // Track the next moment index to spawn
+  const isSpawningNextRef = useRef<boolean>(false); // Lock to prevent concurrent spawns
+  const cycleIdRef = useRef<number>(0); // Track cycle to prevent old completions from spawning
+
   // Create refs
-  const viewShotRef = React.useRef<View>(null);
-  const showEntityWheelRef = React.useRef(showEntityWheel);
+  const viewShotRef = useRef<View>(null);
+  const showEntityWheelRef = useRef(showEntityWheel);
   React.useEffect(() => {
     showEntityWheelRef.current = showEntityWheel;
   }, [showEntityWheel]);
 
   // Track previous showEntityWheel state to detect transitions
-  const previousShowEntityWheel = React.useRef(showEntityWheel);
+  const previousShowEntityWheel = useRef(showEntityWheel);
 
 
   // Wheel mode animation values
@@ -771,7 +793,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   // Animate each memory to follow avatar with different speeds
   // Use a single reaction that handles all memories
   // Store memoryAnimatedValues in a ref so it can be accessed in worklet
-  const memoryAnimatedValuesRef = React.useRef(memoryAnimatedValues);
+  const memoryAnimatedValuesRef = useRef(memoryAnimatedValues);
   React.useEffect(() => {
     memoryAnimatedValuesRef.current = memoryAnimatedValues;
   }, [memoryAnimatedValues]);
@@ -940,10 +962,248 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     }
   }, [showEntityWheel, isFocused, onEntityWheelChange]);
 
+  // Clear floating moments immediately when moment type changes
+  React.useEffect(() => {
+    setFloatingMoments([]);
+  }, [selectedMomentType]);
+
+  // Spawn floating moments that grow from memories in entity wheel mode
+  React.useEffect(() => {
+    // Only spawn when entity wheel is active and not spinning
+    // Also don't spawn if selectedWheelMoment popup is displayed
+    if (!showEntityWheel || !isFocused || isWheelSpinningState || selectedWheelMoment) {
+      setFloatingMoments([]);
+      return;
+    }
+
+    // Collect all moments of selected type with their memory/moment indices
+    const momentsWithPositions: Array<{
+      memoryId: string;
+      memoryIndex: number;
+      momentIndex: number;
+      momentType: 'lesson' | 'sunny' | 'cloudy';
+      text: string;
+      memoryImageUri?: string;
+      memoryOffsetX: number;
+      memoryOffsetY: number;
+      memoryBaseAngle: number;
+    }> = [];
+
+    memories.forEach((memory, memoryIndex) => {
+      // Get the memory's position data
+      const memPosData = memoryPositions[memoryIndex];
+      if (!memPosData) return;
+
+      // Add moments based on selected type
+      if (selectedMomentType === 'lesson' && memory.lessonsLearned) {
+        memory.lessonsLearned.forEach((lesson: any, lessonIndex: number) => {
+          momentsWithPositions.push({
+            memoryId: memory.id,
+            memoryIndex, // Store index to calculate position dynamically
+            momentIndex: lessonIndex,
+            momentType: 'lesson',
+            text: lesson.text,
+            memoryImageUri: memory.imageUri,
+            memoryOffsetX: memPosData.offsetX,
+            memoryOffsetY: memPosData.offsetY,
+            memoryBaseAngle: memPosData.angle,
+          });
+        });
+      } else if (selectedMomentType === 'sunny' && memory.goodFacts) {
+        memory.goodFacts.forEach((sunny: any, sunnyIndex: number) => {
+          momentsWithPositions.push({
+            memoryId: memory.id,
+            memoryIndex, // Store index to calculate position dynamically
+            momentIndex: sunnyIndex,
+            momentType: 'sunny',
+            text: sunny.text,
+            memoryImageUri: memory.imageUri,
+            memoryOffsetX: memPosData.offsetX,
+            memoryOffsetY: memPosData.offsetY,
+            memoryBaseAngle: memPosData.angle,
+          });
+        });
+      } else if (selectedMomentType === 'cloudy' && memory.hardTruths) {
+        memory.hardTruths.forEach((cloudy: any, cloudyIndex: number) => {
+          momentsWithPositions.push({
+            memoryId: memory.id,
+            memoryIndex, // Store index to calculate position dynamically
+            momentIndex: cloudyIndex,
+            momentType: 'cloudy',
+            text: cloudy.text,
+            memoryImageUri: memory.imageUri,
+            memoryOffsetX: memPosData.offsetX,
+            memoryOffsetY: memPosData.offsetY,
+            memoryBaseAngle: memPosData.angle,
+          });
+        });
+      }
+    });
+
+    if (momentsWithPositions.length === 0) {
+      setFloatingMoments([]);
+      return;
+    }
+
+    // Shuffle moments to randomize which memory they come from
+    // Fisher-Yates shuffle algorithm
+    for (let i = momentsWithPositions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [momentsWithPositions[i], momentsWithPositions[j]] = [momentsWithPositions[j], momentsWithPositions[i]];
+    }
+
+    // Clear any existing timeouts from previous runs
+    floatingMomentsTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+    floatingMomentsTimeoutsRef.current = [];
+    
+    // Reset next moment index to start from beginning
+    nextMomentIndexRef.current = 0;
+    isSpawningNextRef.current = false; // Reset lock
+    cycleIdRef.current++; // Increment cycle ID to invalidate old completions
+    
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+    // Initial concurrent moments: 3 for lessons, 4 for sunny, 2 for cloudy
+    const INITIAL_CONCURRENT_MOMENTS = selectedMomentType === 'lesson' ? 3 : selectedMomentType === 'sunny' ? 4 : 2;
+    const INITIAL_START_DELAY = 1000; // Wait 1 second after opening
+    const INITIAL_STAGGER_DELAY = 600; // 600ms between each initial moment
+    const GROW_DURATION = 800; // Time to grow
+    const HOLD_DURATION = 3000; // Hold for 3 seconds
+    const SHRINK_DURATION = 800; // Time to shrink back
+    const TOTAL_DURATION = GROW_DURATION + HOLD_DURATION + SHRINK_DURATION; // 4600ms total
+    const CLOUDY_SPAWN_DELAY = 500; // 500ms delay after previous cloud batch shrinks
+
+    // For cloudy moments, spawn 2 at a time with delay between batches
+    // For other moments, spawn concurrently (multiple at once)
+    const isCloudyMoment = selectedMomentType === 'cloudy';
+
+    const spawnSingleMoment = (momentIndex: number, delay: number = 0) => {
+      if (momentIndex >= momentsWithPositions.length) return;
+      
+      // Don't spawn if selectedWheelMoment popup is displayed
+      if (selectedWheelMoment) return;
+
+      const timeout = setTimeout(() => {
+        // Double-check selectedWheelMoment hasn't appeared during delay
+        if (selectedWheelMoment) return;
+        
+        const momentData = momentsWithPositions[momentIndex];
+        const currentCycleId = cycleIdRef.current; // Capture cycle ID when moment is spawned
+        const newMoment = {
+          id: momentIdCounter.current++,
+          ...momentData,
+        };
+
+        // Prevent duplicate moments - check if a moment with the same memoryIndex, momentIndex, and momentType already exists
+        setFloatingMoments(prev => {
+          const isDuplicate = prev.some(m => 
+            m.memoryIndex === newMoment.memoryIndex && 
+            m.momentIndex === newMoment.momentIndex && 
+            m.momentType === newMoment.momentType
+          );
+          if (isDuplicate) {
+            return prev; // Don't add duplicate
+          }
+          return [...prev, newMoment];
+        });
+
+        // Remove this moment after it completes
+        const removeTimeout = setTimeout(() => {
+          // Check if this completion is from the current cycle (prevent old completions from spawning)
+          if (cycleIdRef.current !== currentCycleId) {
+            setFloatingMoments(prev => prev.filter(m => m.id !== newMoment.id));
+            return;
+          }
+          
+          setFloatingMoments(prev => prev.filter(m => m.id !== newMoment.id));
+          
+          // As soon as this moment completes, spawn the next one to maintain constant count
+          // Use a lock to prevent multiple moments from spawning the next one simultaneously
+          if (isSpawningNextRef.current) {
+            // Another moment is already spawning the next one, skip
+            return;
+          }
+          
+          // Check if there are more moments to spawn
+          if (nextMomentIndexRef.current < momentsWithPositions.length) {
+            // Acquire lock
+            isSpawningNextRef.current = true;
+            const nextIndex = nextMomentIndexRef.current++;
+            
+            // Small delay before spawning next moment (for cloudy moments, use longer delay)
+            const delayAfterShrink = isCloudyMoment 
+              ? CLOUDY_SPAWN_DELAY  // 500ms delay for cloudy moments
+              : 0; // No delay for other moments
+            
+            const nextSpawnTimeout = setTimeout(() => {
+              // Check cycle again before spawning (cycle might have changed)
+              if (cycleIdRef.current !== currentCycleId) {
+                isSpawningNextRef.current = false;
+                return;
+              }
+              // Release lock
+              isSpawningNextRef.current = false;
+              // Check again before spawning next moment
+              if (!selectedWheelMoment) {
+                spawnSingleMoment(nextIndex, 0);
+              }
+            }, delayAfterShrink);
+            floatingMomentsTimeoutsRef.current.push(nextSpawnTimeout);
+          } else {
+            // All moments have been shown, restart from beginning
+            // Acquire lock
+            isSpawningNextRef.current = true;
+            const restartTimeout = setTimeout(() => {
+              // Release lock
+              isSpawningNextRef.current = false;
+              if (!selectedWheelMoment) {
+                // Reset index and restart with initial batch, increment cycle
+                cycleIdRef.current++;
+                nextMomentIndexRef.current = 0;
+                const momentsToSpawn = Math.min(INITIAL_CONCURRENT_MOMENTS, momentsWithPositions.length);
+                for (let i = 0; i < momentsToSpawn; i++) {
+                  spawnSingleMoment(i, INITIAL_START_DELAY + (i * INITIAL_STAGGER_DELAY));
+                  nextMomentIndexRef.current = i + 1; // Update ref as we spawn
+                }
+              }
+            }, isCloudyMoment ? CLOUDY_SPAWN_DELAY : 0);
+            floatingMomentsTimeoutsRef.current.push(restartTimeout);
+          }
+        }, TOTAL_DURATION + 100);
+        timeouts.push(removeTimeout);
+        floatingMomentsTimeoutsRef.current.push(removeTimeout);
+      }, delay);
+
+      timeouts.push(timeout);
+      floatingMomentsTimeoutsRef.current.push(timeout);
+    };
+
+    // Start spawning initial batch of moments
+    // For all moment types: spawn multiple at once (concurrent)
+    // Cloudy moments spawn 2 at a time with 500ms delay between batches
+    const momentsToSpawn = Math.min(INITIAL_CONCURRENT_MOMENTS, momentsWithPositions.length);
+    for (let i = 0; i < momentsToSpawn; i++) {
+      spawnSingleMoment(i, INITIAL_START_DELAY + (i * INITIAL_STAGGER_DELAY));
+      nextMomentIndexRef.current = i + 1; // Update ref as we spawn
+    }
+
+    return () => {
+      // Clear all timeouts to prevent moments from spawning after cleanup
+      timeouts.forEach(timeout => clearTimeout(timeout));
+      floatingMomentsTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      floatingMomentsTimeoutsRef.current = [];
+      // Reset next moment index and lock
+      nextMomentIndexRef.current = 0;
+      isSpawningNextRef.current = false;
+      cycleIdRef.current++; // Increment cycle to invalidate any pending completions
+      // Also clear floatingMoments to prevent stale moments from appearing
+      setFloatingMoments([]);
+    };
+  }, [showEntityWheel, isFocused, isWheelSpinningState, selectedMomentType, memories, memoryPositions, starCenterX, starCenterY, orbitAngle, isTablet, selectedWheelMoment]);
+
   // Pulse animation when entering focused view to indicate avatar is clickable
   // Initialize to false so we detect the first focused render as a transition
-  const previousIsFocused = React.useRef(false);
-  const hasInitialPulseRun = React.useRef(false);
+  const previousIsFocused = useRef(false);
+  const hasInitialPulseRun = useRef(false);
 
   React.useEffect(() => {
     // Detect transition from unfocused to focused (entering focused view)
@@ -1142,6 +1402,13 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       setSelectedWheelMoment(allMoments[randomIndex]);
     }
   }, [memories, selectedMomentType]);
+
+  // Clear floating moments when selectedWheelMoment popup appears
+  React.useEffect(() => {
+    if (selectedWheelMoment) {
+      setFloatingMoments([]);
+    }
+  }, [selectedWheelMoment]);
 
   // Animate popup entrance when selectedWheelMoment appears
   React.useEffect(() => {
@@ -1876,8 +2143,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             </Animated.View>
           </Pressable>
 
-          {/* Share button - positioned outside the Pressable, shown when entity is focused and has memories */}
-          {isFocused && memories.length > 0 && !isCapturingImage && (
+          {/* Share button - positioned outside the Pressable, shown when entity is focused and has memories (but not in entity wheel mode) */}
+          {isFocused && memories.length > 0 && !isCapturingImage && !showEntityWheel && (
             <>
               <Pressable
                 onPress={() => setShowShareMenu(!showShareMenu)}
@@ -2493,14 +2760,72 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             });
           })()}
 
+          {/* Floating moments that grow from memories */}
+          {floatingMoments.map((moment) => (
+            <FloatingMomentFromMemory
+              key={`floating-moment-${moment.id}`}
+              memoryIndex={moment.memoryIndex}
+              momentIndex={moment.momentIndex}
+              totalMoments={memories[moment.memoryIndex]?.[
+                moment.momentType === 'lesson' ? 'lessonsLearned' :
+                moment.momentType === 'sunny' ? 'goodFacts' : 'hardTruths'
+              ]?.length || 1}
+              momentType={moment.momentType}
+              colorScheme={colorScheme ?? 'dark'}
+              text={moment.text}
+              isTablet={isTablet}
+              isLargeDevice={isLargeDevice}
+              orbitAngle={orbitAngle}
+              starCenterX={starCenterX}
+              starCenterY={starCenterY}
+              focusedX={focusedX}
+              focusedY={focusedY}
+              panX={panX}
+              panY={panY}
+              memoriesCount={memories.length}
+              memoryOffsetX={moment.memoryOffsetX}
+              memoryOffsetY={moment.memoryOffsetY}
+              memoryBaseAngle={moment.memoryBaseAngle}
+              showEntityWheelShared={showEntityWheelShared}
+            />
+          ))}
+
           {/* Selected moment floating display - large circular popup matching main wheel of life */}
           {selectedWheelMoment && (() => {
-            // Calculate dimensions - for sunny moments, use dynamic size based on text length like in focused memory view
+            // Calculate dimensions dynamically based on text length for all moment types
             const textLength = selectedWheelMoment.text?.length || 0;
+
+            // Base sizes for different moment types
             const baseSunSize = isTablet ? 240 : (isLargeDevice ? 200 : 160);
-            const dynamicSunSize = Math.min(350, Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 1.2)));
-            const momentWidth = selectedWheelMoment.type === 'sunny' ? dynamicSunSize : (isTablet ? 260 : 190);
-            const momentHeight = selectedWheelMoment.type === 'sunny' ? dynamicSunSize : (isTablet ? 260 : 190);
+            const baseCloudWidth = isTablet ? 260 : 190;
+            const baseCloudHeight = isTablet ? 160 : 120;
+            const baseLessonSize = isTablet ? 200 : 145; // Reverted - this affects floating moments positioning
+
+            // Dynamic sizing based on text length
+            // For sunny moments: circular, so width = height
+            const dynamicSunSize = Math.min(400, Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 1.5)));
+
+            // For cloudy moments: wider and shorter, scale width more than height
+            const cloudWidthMultiplier = Math.min(2.0, Math.max(1.0, 1.0 + (textLength / 100)));
+            const cloudHeightMultiplier = Math.min(1.2, Math.max(1.0, 1.0 + (textLength / 200)));
+            const dynamicCloudWidth = baseCloudWidth * cloudWidthMultiplier;
+            const dynamicCloudHeight = baseCloudHeight * cloudHeightMultiplier;
+
+            // For lesson moments: circular, scale based on text length
+            const lessonSizeMultiplier = Math.min(1.4, Math.max(1.0, 1.0 + (textLength / 150)));
+            const dynamicLessonSize = baseLessonSize * lessonSizeMultiplier;
+
+            // Set moment dimensions based on type
+            const momentWidth = selectedWheelMoment.type === 'sunny' 
+              ? dynamicSunSize 
+              : selectedWheelMoment.type === 'cloudy'
+              ? dynamicCloudWidth
+              : dynamicLessonSize;
+            const momentHeight = selectedWheelMoment.type === 'sunny' 
+              ? dynamicSunSize 
+              : selectedWheelMoment.type === 'cloudy'
+              ? dynamicCloudHeight
+              : dynamicLessonSize;
             const messageTop = 180; // Final position below entity name (avoid overlap with name at top)
 
             // Get visual properties based on moment type
@@ -2661,20 +2986,21 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                           alignItems: 'center',
                           // Calculate padding based on sun circle radius to ensure text fits inside
                           // Sun radius in viewBox is 48, viewBox is 160, so actual radius = (dynamicSunSize / 160) * 48
-                          paddingHorizontal: (dynamicSunSize / 160) * 48 * 0.6, // 60% of radius for safe padding
-                          paddingVertical: (dynamicSunSize / 160) * 48 * 0.4, // 40% of radius for vertical padding
+                          paddingHorizontal: (dynamicSunSize / 160) * 48 * 0.7, // 70% of radius for safe padding
+                          paddingVertical: (dynamicSunSize / 160) * 48 * 0.5, // 50% of radius for vertical padding
                         }}
                       >
                         <ThemedText
                           style={{
                             color: 'black',
-                            fontSize: 12 * fontScale, // Smaller font size to ensure text fits inside
+                            fontSize: Math.max(11, Math.min(16, 12 + (textLength / 60))) * fontScale, // Scale font size with text length
                             textAlign: 'center',
                             fontWeight: '700',
-                            // Max width should be less than circle diameter minus padding
-                            //maxWidth: (dynamicSunSize / 160) * 48 * 1.6, // 80% of diameter to ensure text fits
+                            // Max width should be less than circle diameter minus padding to ensure text fits within circle
+                            // Circle diameter = (dynamicSunSize / 160) * 48 * 2, use 75% for safe margin
+                            maxWidth: (dynamicSunSize / 160) * 48 * 1.5, // 75% of diameter to ensure text fits within circle
                           }}
-                          numberOfLines={3}
+                          numberOfLines={Math.min(4, Math.max(2, Math.ceil(textLength / 25)))} // More lines for longer text
                         >
                           {selectedWheelMoment.text?.split('\n')[0] || selectedWheelMoment.text}
                         </ThemedText>
@@ -2682,12 +3008,12 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                           <ThemedText
                             style={{
                               color: 'black',
-                              fontSize: 7 * fontScale, // Smaller font size for second line
+                              fontSize: Math.max(7, Math.min(11, 7 + (textLength / 100))) * fontScale, // Scale font size for second line
                               textAlign: 'center',
                               fontWeight: '600',
-                              maxWidth: (dynamicSunSize / 160) * 48 * 1.6, // Same max width
+                              maxWidth: (dynamicSunSize / 160) * 48 * 1.5, // Same max width as first line to stay within circle
                             }}
-                            numberOfLines={2}
+                            numberOfLines={Math.min(3, Math.max(1, Math.ceil(textLength / 50)))}
                           >
                             {selectedWheelMoment.text.split('\n')[1]}
                           </ThemedText>
@@ -2768,8 +3094,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                       }, 200);
                     }}
                     style={{
-                      width: momentWidth * 1.6, // Clouds are wider
-                      height: momentHeight * 0.6, // But shorter
+                      width: dynamicCloudWidth,
+                      height: dynamicCloudHeight,
                       justifyContent: 'center',
                       alignItems: 'center',
                       position: 'relative',
@@ -2778,8 +3104,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                     {/* SVG cloud (matching video preview component) */}
                     <View
                       style={{
-                        width: momentWidth * 1.6,
-                        height: momentHeight * 0.6,
+                        width: dynamicCloudWidth,
+                        height: dynamicCloudHeight,
                         shadowColor: '#4A5568',
                         shadowOffset: { width: 0, height: 0 },
                         shadowOpacity: 0.7,
@@ -2788,8 +3114,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                       }}
                     >
                       <Svg
-                        width={momentWidth * 1.6}
-                        height={momentHeight * 0.6}
+                        width={dynamicCloudWidth}
+                        height={dynamicCloudHeight}
                         viewBox="0 0 320 100"
                         preserveAspectRatio="xMidYMid meet"
                         style={{ position: 'absolute', top: 0, left: 0 }}
@@ -2833,21 +3159,21 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                           position: 'absolute',
                           top: 0,
                           left: 0,
-                          width: momentWidth * 1.6,
-                          height: momentHeight * 0.6,
+                          width: dynamicCloudWidth,
+                          height: dynamicCloudHeight,
                           justifyContent: 'center',
                           alignItems: 'center',
-                          paddingHorizontal: 20,
+                          paddingHorizontal: Math.max(20, dynamicCloudWidth * 0.1), // Scale padding with size
                         }}
                       >
                         <ThemedText
                           style={{
                             color: 'rgba(255,255,255,0.9)',
-                            fontSize: 14 * fontScale,
+                            fontSize: Math.max(12, Math.min(16, 14 + (textLength / 80))) * fontScale, // Scale font size with text length
                             textAlign: 'center',
                             fontWeight: '500',
                           }}
-                          numberOfLines={4}
+                          numberOfLines={Math.min(6, Math.max(3, Math.ceil(textLength / 40)))} // More lines for longer text
                         >
                           {selectedWheelMoment.text}
                         </ThemedText>
@@ -2927,37 +3253,37 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                       }, 200);
                     }}
                     style={{
-                      width: momentWidth,
-                      height: momentHeight,
+                      width: dynamicLessonSize,
+                      height: dynamicLessonSize,
                       justifyContent: 'center',
                       alignItems: 'center',
                       backgroundColor: visuals.backgroundColor,
-                      borderRadius: momentWidth / 2,
+                      borderRadius: dynamicLessonSize / 2,
                       shadowColor: visuals.shadowColor,
                       shadowOffset: { width: 0, height: 0 },
                       shadowOpacity: 0.95,
                       shadowRadius: isTablet ? 40 : 30,
                       elevation: 24,
-                      padding: 8,
+                      padding: Math.max(8, dynamicLessonSize * 0.05), // Scale padding with size
                       position: 'relative',
                     }}
                   >
                     <MaterialIcons
                       name={visuals.icon}
-                      size={momentWidth * 0.25}
+                      size={dynamicLessonSize * 0.25}
                       color={visuals.iconColor}
                       style={{ marginBottom: 8 }}
                     />
                     <ThemedText
                       style={{
                         color: colorScheme === 'dark' ? '#1A1A1A' : '#000000',
-                        fontSize: 11 * fontScale,
+                        fontSize: Math.max(13, Math.min(16, 13 + (textLength / 60))) * fontScale, // Increased base from 11 to 13
                         textAlign: 'center',
                         fontWeight: '700',
-                        maxWidth: momentWidth * 0.85,
-                        lineHeight: 15 * fontScale,
+                        maxWidth: dynamicLessonSize * 0.75, // Reduced to 75% to ensure text stays within circular bounds
+                        lineHeight: Math.max(17, Math.min(20, 17 + (textLength / 60))) * fontScale, // Increased from 15 to 17
                       }}
-                      numberOfLines={8}
+                      numberOfLines={Math.min(10, Math.max(4, Math.ceil(textLength / 30)))} // More lines for longer text
                     >
                       {selectedWheelMoment.text}
                     </ThemedText>
@@ -4309,9 +4635,9 @@ const FloatingMemory = React.memo(function FloatingMemory({
   const [newlyCreatedMoments, setNewlyCreatedMoments] = React.useState<Map<string, { startX: number; startY: number }>>(new Map());
   
   // Track button positions for animation
-  const cloudButtonRef = React.useRef<View>(null);
-  const sunButtonRef = React.useRef<View>(null);
-  const lessonButtonRef = React.useRef<View>(null);
+  const cloudButtonRef = useRef<View>(null);
+  const sunButtonRef = useRef<View>(null);
+  const lessonButtonRef = useRef<View>(null);
   const [cloudButtonPos, setCloudButtonPos] = React.useState<{ x: number; y: number } | null>(null);
   const [sunButtonPos, setSunButtonPos] = React.useState<{ x: number; y: number } | null>(null);
   const [lessonButtonPos, setLessonButtonPos] = React.useState<{ x: number; y: number } | null>(null);
@@ -7104,6 +7430,451 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
   );
 });
 
+// Floating Moment From Memory - grows from memory position, dynamically following orbit
+const FloatingMomentFromMemory = function FloatingMomentFromMemory({
+  memoryIndex,
+  momentIndex,
+  totalMoments,
+  momentType,
+  colorScheme,
+  text = '',
+  isTablet,
+  isLargeDevice,
+  orbitAngle,
+  starCenterX,
+  starCenterY,
+  focusedX,
+  focusedY,
+  panX,
+  panY,
+  memoriesCount,
+  memoryOffsetX,
+  memoryOffsetY,
+  memoryBaseAngle,
+  showEntityWheelShared,
+}: {
+  memoryIndex: number;
+  momentIndex: number;
+  totalMoments: number;
+  momentType: 'lesson' | 'sunny' | 'cloudy';
+  colorScheme: 'light' | 'dark';
+  text?: string;
+  isTablet: boolean;
+  isLargeDevice: boolean;
+  orbitAngle: Animated.SharedValue<number>;
+  starCenterX: Animated.SharedValue<number>;
+  starCenterY: Animated.SharedValue<number>;
+  focusedX: Animated.SharedValue<number>;
+  focusedY: Animated.SharedValue<number>;
+  panX: Animated.SharedValue<number>;
+  panY: Animated.SharedValue<number>;
+  memoriesCount: number;
+  memoryOffsetX: number;
+  memoryOffsetY: number;
+  memoryBaseAngle: number;
+  showEntityWheelShared?: ReturnType<typeof useSharedValue<boolean>>;
+}) {
+  const fontScale = useFontScale();
+  const scale = useSharedValue(0);
+  const growPulseScale = useSharedValue(1);
+
+  // Calculate text length for dynamic sizing (matching selectedWheelMoment calculation)
+  const textLength = text?.length || 0;
+
+  // Base sizes for floating moments - matching selectedWheelMoment but scaled down proportionally
+  // selectedWheelMoment uses: baseSunSize = isTablet ? 240 : (isLargeDevice ? 200 : 160)
+  // We'll use about 70-80% of those sizes for floating moments to ensure text fits
+  const baseSunSize = isTablet ? 180 : (isLargeDevice ? 160 : 130);
+  const baseCloudWidth = isTablet ? 180 : 140;
+  const baseCloudHeight = isTablet ? 110 : 85;
+  const baseLessonSize = isTablet ? 180 : 140;
+
+  // Apply dynamic sizing rules (matching selectedWheelMoment calculation)
+  // For sunny moments: circular, so width = height
+  // Increase max size to ensure text fits - selectedWheelMoment uses max of 400
+  const dynamicSunSize = Math.min(isTablet ? 360 : 320, Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 1.5)));
+
+  // For cloudy moments: wider and shorter, scale width more than height
+  const cloudWidthMultiplier = Math.min(2.0, Math.max(1.0, 1.0 + (textLength / 100)));
+  const cloudHeightMultiplier = Math.min(1.2, Math.max(1.0, 1.0 + (textLength / 200)));
+  const dynamicCloudWidth = baseCloudWidth * cloudWidthMultiplier;
+  const dynamicCloudHeight = baseCloudHeight * cloudHeightMultiplier;
+
+  // For lesson moments: circular, scale based on text length
+  const lessonSizeMultiplier = Math.min(1.8, Math.max(1.0, 1.0 + (textLength / 120)));
+  const dynamicLessonSize = baseLessonSize * lessonSizeMultiplier;
+
+  // Get final size based on type
+  const finalWidth = momentType === 'sunny'
+    ? dynamicSunSize
+    : momentType === 'cloudy'
+    ? dynamicCloudWidth
+    : dynamicLessonSize;
+  const finalHeight = momentType === 'sunny'
+    ? dynamicSunSize
+    : momentType === 'cloudy'
+    ? dynamicCloudHeight
+    : dynamicLessonSize;
+
+  // Small icon size (the size of the orbiting moment icons around memories)
+  const smallIconSize = isTablet ? 14 : 12;
+
+  // Calculate scale ratios: start at small icon size, grow to full size
+  const initialScale = smallIconSize / Math.max(finalWidth, finalHeight); // e.g., 12/60 = 0.2
+  const finalScale = 1.0; // Full size
+
+  // Animation: grow from small icon size to big size, hold, then shrink back
+  React.useEffect(() => {
+    const GROW_DURATION = 800;
+    const HOLD_DURATION = 3000;
+    const SHRINK_DURATION = 800;
+
+    // Start at small icon size - set WITHOUT animation first
+    scale.value = initialScale;
+    growPulseScale.value = 1;
+
+    // Delay slightly then grow from small icon size to full size
+    setTimeout(() => {
+      scale.value = withTiming(finalScale, { duration: GROW_DURATION, easing: Easing.out(Easing.ease) });
+    }, 50);
+
+    // Start pulsing after growing
+    setTimeout(() => {
+      growPulseScale.value = withRepeat(
+        withSequence(
+          withTiming(1.08, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) })
+        ),
+        Math.floor(HOLD_DURATION / 1200),
+        false
+      );
+    }, 50 + GROW_DURATION);
+
+    // After hold, shrink back to small icon size
+    setTimeout(() => {
+      scale.value = withTiming(initialScale, { duration: SHRINK_DURATION, easing: Easing.in(Easing.ease) });
+    }, 50 + GROW_DURATION + HOLD_DURATION);
+  }, [initialScale, finalScale]);
+
+  // Calculate position dynamically based on current orbit angle
+  // This MUST be reactive to all changes: focusedX, focusedY, orbitAngle, showEntityWheelShared
+  const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
+
+    // Check if we're in wheel mode (matching line 4954)
+    const isWheelMode = showEntityWheelShared ? showEntityWheelShared.value : false;
+
+    // Only calculate orbital positions in wheel mode
+    // In non-wheel mode, moments should not appear (they only appear when wheel mode is active)
+    if (!isWheelMode) {
+      // Hide the moment when not in wheel mode
+      return {
+        position: 'absolute',
+        left: -10000, // Off-screen
+        top: -10000,
+        transform: [{ scale: 0 }],
+        zIndex: 1005,
+      };
+    }
+
+    // Calculate memory position on orbit (matching the EXACT memory orbit calculation from memoryAnimatedPosition)
+    // CRITICAL: All values must be read from shared values to ensure reactivity
+    
+    // Calculate the memory's current angle (matching line 4977)
+    // baseOrbitAngle (memoryBaseAngle) is this memory's starting position in radians
+    // currentOrbitAngle (orbitAngle.value) is the current rotation offset in degrees
+    const currentOrbitAngle = orbitAngle.value;
+    const currentAngleRad = memoryBaseAngle + (currentOrbitAngle * Math.PI / 180);
+
+    // Calculate orbital radius from the memory's offsetX and offsetY (matching line 4982)
+    // IMPORTANT: The memory uses baseRadius + radiusOffset.value, but radiusOffset is random per memory (-8 to +8)
+    // For floating moments, we use the base radius (without random offset) to match the memory's base position
+    // The memories don't reduce their orbital radius in wheel mode - they only scale down visually
+    const baseRadius = Math.sqrt(memoryOffsetX * memoryOffsetX + memoryOffsetY * memoryOffsetY);
+    // Use the same radius as the memory (without the random radiusOffset variation)
+    const radius = baseRadius;
+
+    // Calculate new position in circular orbit (matching lines 4985-4986)
+    const newOffsetX = radius * Math.cos(currentAngleRad);
+    const newOffsetY = radius * Math.sin(currentAngleRad);
+
+    // Memory center position calculation (matching lines 4989-4991 EXACTLY)
+    // In wheel mode, memories use container coordinates: centerX = SCREEN_WIDTH + newOffsetX, centerY = SCREEN_HEIGHT + newOffsetY
+    // The container is positioned at: left = clampedX - SCREEN_WIDTH, top = clampedY - SCREEN_HEIGHT
+    // where clampedX/clampedY come from panX/panY (the actual container position)
+    // CRITICAL: Use panX/panY directly - these are the actual values used by the container
+    // The container's position is calculated from panX/panY in containerAnimatedStyle
+    // panX/panY represent the actual entity position used by the container
+    // Convert container coordinates to screen coordinates:
+    // Screen X = Container Left + Memory X in Container = (panX.value - SCREEN_WIDTH) + (SCREEN_WIDTH + newOffsetX) = panX.value + newOffsetX
+    // Screen Y = Container Top + Memory Y in Container = (panY.value - SCREEN_HEIGHT) + (SCREEN_HEIGHT + newOffsetY) = panY.value + newOffsetY
+    const memoryX = panX.value + newOffsetX;
+    const memoryY = panY.value + newOffsetY;
+
+    // Calculate moment icon position around the memory (matching MemoryMomentsRenderer logic)
+    const momentIconOrbitRadius = isTablet ? 35 : 28;
+    const iconAngle = (momentIndex / totalMoments) * 2 * Math.PI;
+    const iconX = memoryX + Math.cos(iconAngle) * momentIconOrbitRadius;
+    const iconY = memoryY + Math.sin(iconAngle) * momentIconOrbitRadius;
+
+    return {
+      position: 'absolute',
+      left: iconX - finalWidth / 2,
+      top: iconY - finalHeight / 2,
+      transform: [{ scale: scale.value * growPulseScale.value }],
+      zIndex: 1005,
+    };
+  }, [focusedX, focusedY, orbitAngle, showEntityWheelShared, memoryBaseAngle, memoryOffsetX, memoryOffsetY, momentIndex, totalMoments, isTablet, finalWidth, finalHeight, scale, growPulseScale]);
+
+  // Render using the EXACT same visualization as selectedWheelMoment (post-spin moments)
+  // This matches the wheel of life moment display exactly
+  if (momentType === 'sunny') {
+    return (
+      <Animated.View style={animatedStyle}>
+        <View
+          style={{
+            width: finalWidth,
+            height: finalHeight,
+            shadowColor: '#FFD700',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.8,
+            shadowRadius: isTablet ? 12 : 9,
+            elevation: 10,
+          }}
+        >
+          <Svg
+            width={finalWidth}
+            height={finalHeight}
+            viewBox="0 0 160 160"
+            preserveAspectRatio="xMidYMid meet"
+            style={{ position: 'absolute', top: 0, left: 0 }}
+          >
+            <Defs>
+              <RadialGradient 
+                id={`floatingSunGradient-${memoryIndex}-${momentIndex}`} 
+                cx="80" 
+                cy="80" 
+                rx="48" 
+                ry="48"
+                fx="80"
+                fy="80"
+                gradientUnits="userSpaceOnUse"
+              >
+                <Stop offset="0%" stopColor="#FFEB3B" stopOpacity="1" />
+                <Stop offset="30%" stopColor="#FFEB3B" stopOpacity="1" />
+                <Stop offset="60%" stopColor="#FFD700" stopOpacity="1" />
+                <Stop offset="100%" stopColor="#FFC107" stopOpacity="1" />
+              </RadialGradient>
+            </Defs>
+            {/* Sun rays - triangular rays */}
+            {Array.from({ length: 12 }).map((_, i) => {
+              const angle = (i * 360) / 12;
+              const radian = (angle * Math.PI) / 180;
+              const centerX = 80;
+              const centerY = 80;
+              const innerRadius = 48;
+              const outerRadius = 72;
+              const rayWidth = 3;
+              
+              const innerX = centerX + Math.cos(radian) * innerRadius;
+              const innerY = centerY + Math.sin(radian) * innerRadius;
+              const outerX = centerX + Math.cos(radian) * outerRadius;
+              const outerY = centerY + Math.sin(radian) * outerRadius;
+              const perpAngle = radian + Math.PI / 2;
+              const halfWidth = rayWidth / 2;
+              const leftX = outerX + Math.cos(perpAngle) * halfWidth;
+              const leftY = outerY + Math.sin(perpAngle) * halfWidth;
+              const rightX = outerX + Math.cos(perpAngle + Math.PI) * halfWidth;
+              const rightY = outerY + Math.sin(perpAngle + Math.PI) * halfWidth;
+              
+              return (
+                <Path
+                  key={`floatingSunRay-${i}`}
+                  d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
+                  fill="#FFD700"
+                />
+              );
+            })}
+            {/* Central circle */}
+            <Circle
+              cx="80"
+              cy="80"
+              r="48"
+              fill={`url(#floatingSunGradient-${memoryIndex}-${momentIndex})`}
+            />
+          </Svg>
+          <View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: finalWidth,
+              height: finalHeight,
+              justifyContent: 'center',
+              alignItems: 'center',
+              paddingHorizontal: (finalWidth / 160) * 48 * 0.7,
+              paddingVertical: (finalWidth / 160) * 48 * 0.5,
+            }}
+          >
+            <ThemedText
+              style={{
+                color: 'black',
+                fontSize: Math.max(11, Math.min(16, 12 + (textLength / 60))) * fontScale,
+                textAlign: 'center',
+                fontWeight: '700',
+                maxWidth: (finalWidth / 160) * 48 * 1.5,
+              }}
+            >
+              {text?.split('\n')[0] || text}
+            </ThemedText>
+            {text?.includes('\n') && (
+              <ThemedText
+                style={{
+                  color: 'black',
+                  fontSize: Math.max(7, Math.min(11, 7 + (textLength / 100))) * fontScale,
+                  textAlign: 'center',
+                  fontWeight: '600',
+                  maxWidth: (finalWidth / 160) * 48 * 1.5,
+                }}
+              >
+                {text.split('\n')[1]}
+              </ThemedText>
+            )}
+          </View>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  if (momentType === 'cloudy') {
+    return (
+      <Animated.View style={animatedStyle}>
+        <View
+          style={{
+            width: finalWidth,
+            height: finalHeight,
+            shadowColor: '#4A5568',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.7,
+            shadowRadius: 10,
+            elevation: 8,
+          }}
+        >
+          <Svg
+            width={finalWidth}
+            height={finalHeight}
+            viewBox="0 0 320 100"
+            preserveAspectRatio="xMidYMid meet"
+            style={{ position: 'absolute', top: 0, left: 0 }}
+          >
+            <Defs>
+              <SvgLinearGradient id={`floatingCloudGradient-${memoryIndex}-${momentIndex}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <Stop offset="0%" stopColor="#2C3E50" stopOpacity="0.95" />
+                <Stop offset="50%" stopColor="#1A1A1A" stopOpacity="0.98" />
+                <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
+              </SvgLinearGradient>
+            </Defs>
+            <Path
+              d="M50,50
+                 Q40,35 50,25
+                 Q60,15 75,20
+                 Q85,10 100,20
+                 Q115,10 130,20
+                 Q145,10 160,20
+                 Q175,10 190,20
+                 Q205,10 220,20
+                 Q235,10 250,20
+                 Q265,15 270,25
+                 Q280,35 270,50
+                 Q280,65 270,75
+                 Q260,85 245,80
+                 Q230,90 220,85
+                 Q205,95 190,85
+                 Q175,95 160,85
+                 Q145,95 130,85
+                 Q115,95 100,85
+                 Q85,90 75,80
+                 Q60,85 50,75
+                 Q40,65 50,50 Z"
+              fill={`url(#floatingCloudGradient-${memoryIndex}-${momentIndex})`}
+              stroke="rgba(0,0,0,0.7)"
+              strokeWidth={1.5}
+            />
+          </Svg>
+          <View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: finalWidth,
+              height: finalHeight,
+              justifyContent: 'center',
+              alignItems: 'center',
+              paddingHorizontal: Math.max(20, finalWidth * 0.1),
+            }}
+          >
+            <ThemedText
+              style={{
+                color: 'rgba(255,255,255,0.9)',
+                fontSize: Math.max(12, Math.min(16, 14 + (textLength / 80))) * fontScale,
+                textAlign: 'center',
+                fontWeight: '500',
+              }}
+            >
+              {text}
+            </ThemedText>
+          </View>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Lesson - use simple bulb icon with text below (matching main wheel of life focused memory view)
+  return (
+    <Animated.View style={animatedStyle}>
+      <View
+        style={{
+          width: finalWidth,
+          height: finalHeight,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: 'rgba(255, 215, 0, 0.25)',
+          borderRadius: finalWidth / 2,
+          // Golden glow for lessons
+          shadowColor: '#FFD700',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.8,
+          shadowRadius: isTablet ? 12 : 8,
+          elevation: 8,
+          padding: 8,
+        }}
+      >
+        <MaterialIcons
+          name="lightbulb"
+          size={finalWidth * 0.35}
+          color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'}
+          style={{ marginBottom: 4 }}
+        />
+        {text && (
+          <ThemedText
+            style={{
+              color: colorScheme === 'dark' ? '#000000' : '#1A1A1A',
+              fontSize: 11 * fontScale,
+              textAlign: 'center',
+              fontWeight: '700',
+              maxWidth: finalWidth * 0.85,
+              lineHeight: 14 * fontScale,
+            }}
+            numberOfLines={5}
+          >
+            {text}
+          </ThemedText>
+        )}
+      </View>
+    </Animated.View>
+  );
+};
+
 // Pulsing Floating Moment Icon - appears randomly around center avatar during moment type selection
 const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
   centerX,
@@ -7134,10 +7905,11 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0);
   const pulseScale = useSharedValue(1);
+  const growPulseScale = useSharedValue(1); // Pulse animation when fully grown
   const floatOffset = useSharedValue(0);
-  const fadeOutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const textRef = React.useRef(text); // Store text in ref to avoid re-renders
-  const hasStartedGrowAnimation = React.useRef(false); // Track if grow animation has started
+  const fadeOutTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const textRef = useRef(text); // Store text in ref to avoid re-renders
+  const hasStartedGrowAnimation = useRef(false); // Track if grow animation has started
 
   const { isTablet } = useLargeDevice();
   const fontScale = useFontScale();
@@ -7157,19 +7929,35 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
     // Explicitly set starting values
     scale.value = 0;
     opacity.value = 0;
+    growPulseScale.value = 1;
+
+    const HOLD_DURATION = 4000; // Hold for 4 seconds while pulsing
 
     // Start the animation sequence
     scale.value = withSequence(
       withTiming(1, { duration: 800, easing: Easing.out(Easing.ease) }),
-      withDelay(2000, withTiming(0, { duration: 800, easing: Easing.in(Easing.ease) }))
+      withDelay(HOLD_DURATION, withTiming(0, { duration: 800, easing: Easing.in(Easing.ease) }))
     );
     opacity.value = withSequence(
       withTiming(1, { duration: 800 }),
-      withDelay(2000, withTiming(0, { duration: 800 }))
+      withDelay(HOLD_DURATION, withTiming(0, { duration: 800 }))
     );
 
+    // Start pulsing animation after growing completes (800ms delay)
+    // Pulse for the duration of the hold period
+    setTimeout(() => {
+      growPulseScale.value = withRepeat(
+        withSequence(
+          withTiming(1.08, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) })
+        ),
+        Math.floor(HOLD_DURATION / 1200), // Number of pulse cycles that fit in hold duration
+        false
+      );
+    }, 800);
+
     // No cleanup - let animation complete naturally
-  }, []); // Empty deps - run only once on mount
+  }, [shouldGrowToFull]); // Only depend on shouldGrowToFull to avoid re-animations
 
   // Animation effect for regular pulsing moments
   React.useEffect(() => {
@@ -7246,9 +8034,11 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
   const animatedStyle = useAnimatedStyle(() => {
     const floatY = (floatOffset.value - 0.5) * 10; // -5px to +5px floating range
 
-    // When shouldGrowToFull, use scale.value directly (no pulseScale)
+    // When shouldGrowToFull, apply growPulseScale for gentle pulsing while held
     // Otherwise use pulseScale for the pulsing effect
-    const finalScale = shouldGrowToFull ? scale.value : scale.value * pulseScale.value;
+    const finalScale = shouldGrowToFull
+      ? scale.value * growPulseScale.value
+      : scale.value * pulseScale.value;
 
     return {
       transform: [
@@ -7283,10 +8073,31 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
 
   // If shouldGrowToFull, render the full popup element, otherwise render icon
   if (shouldGrowToFull) {
-    // Calculate size based on moment type
-    const baseSunSize = isTablet ? 240 : 160;
-    const baseCloudWidth = isTablet ? 260 * 1.6 : 190 * 1.6;
-    const baseCloudHeight = isTablet ? 260 * 0.6 : 190 * 0.6;
+    // Calculate size based on text length for better fit
+    const textLength = text?.length || 0;
+
+    // For suns and lessons: scale based on text length
+    // Base size + additional size based on character count
+    const minSunSize = isTablet ? 200 : 140;
+    const maxSunSize = isTablet ? 320 : 220;
+    const sunSizeIncrement = isTablet ? 0.6 : 0.4; // px per character
+    const calculatedSunSize = Math.min(maxSunSize, minSunSize + (textLength * sunSizeIncrement));
+    const baseSunSize = calculatedSunSize;
+
+    // For clouds: scale width and height based on text length
+    const minCloudWidth = isTablet ? 300 : 220;
+    const maxCloudWidth = isTablet ? 500 : 360;
+    const cloudWidthIncrement = isTablet ? 1.2 : 0.8; // px per character
+    const calculatedCloudWidth = Math.min(maxCloudWidth, minCloudWidth + (textLength * cloudWidthIncrement));
+
+    const minCloudHeight = isTablet ? 120 : 90;
+    const maxCloudHeight = isTablet ? 200 : 140;
+    // Height scales more gradually
+    const cloudHeightIncrement = isTablet ? 0.4 : 0.3;
+    const calculatedCloudHeight = Math.min(maxCloudHeight, minCloudHeight + (textLength * cloudHeightIncrement));
+
+    const baseCloudWidth = calculatedCloudWidth;
+    const baseCloudHeight = calculatedCloudHeight;
 
     return (
       <Animated.View
@@ -7394,11 +8205,12 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               <ThemedText
                 style={{
                   color: 'black',
-                  fontSize: 12 * fontScale,
+                  fontSize: Math.max(10, Math.min(14, 12 - (textLength / 60))) * fontScale,
                   textAlign: 'center',
                   fontWeight: '700',
+                  lineHeight: Math.max(12, Math.min(16, 14 - (textLength / 60))) * fontScale,
                 }}
-                numberOfLines={3}
+                numberOfLines={textLength > 80 ? 4 : 3}
               >
                 {text?.split('\n')[0] || text}
               </ThemedText>
@@ -7406,7 +8218,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                 <ThemedText
                   style={{
                     color: 'black',
-                    fontSize: 7 * fontScale,
+                    fontSize: Math.max(6, Math.min(9, 7 - (textLength / 80))) * fontScale,
                     textAlign: 'center',
                     fontWeight: '600',
                   }}
@@ -7487,11 +8299,12 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               <ThemedText
                 style={{
                   color: 'rgba(255,255,255,0.9)',
-                  fontSize: 14 * fontScale,
+                  fontSize: Math.max(11, Math.min(16, 14 - (textLength / 50))) * fontScale,
                   textAlign: 'center',
                   fontWeight: '500',
+                  lineHeight: Math.max(13, Math.min(18, 16 - (textLength / 50))) * fontScale,
                 }}
-                numberOfLines={4}
+                numberOfLines={textLength > 100 ? 5 : 4}
               >
                 {text}
               </ThemedText>
@@ -7531,11 +8344,12 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               <ThemedText
                 style={{
                   color: colorScheme === 'dark' ? '#FFD700' : '#FFA000',
-                  fontSize: 11 * fontScale,
+                  fontSize: Math.max(9, Math.min(13, 11 - (textLength / 70))) * fontScale,
                   textAlign: 'center',
                   fontWeight: '600',
+                  lineHeight: Math.max(11, Math.min(15, 13 - (textLength / 70))) * fontScale,
                 }}
-                numberOfLines={3}
+                numberOfLines={textLength > 80 ? 4 : 3}
               >
                 {text}
               </ThemedText>
@@ -8543,8 +9357,8 @@ export default function HomeScreen() {
     ? (params.sphere as LifeSphere)
     : null;
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(sphereParam);
-  const previousSelectedSphereRef = React.useRef<LifeSphere | null>(null);
-  const sphereRenderKeyRef = React.useRef<number>(0);
+  const previousSelectedSphereRef = useRef<LifeSphere | null>(null);
+  const sphereRenderKeyRef = useRef<number>(0);
   
   // Focused state management - must be at top level (moved before useFocusEffect)
   const [focusedProfileId, setFocusedProfileId] = useState<string | null>(null);
@@ -8558,7 +9372,7 @@ export default function HomeScreen() {
   const [isAnyEntityWheelActive, setIsAnyEntityWheelActive] = useState<boolean>(false);
   
   // Track if home screen was already focused to detect when user presses home tab while already on home
-  const isHomeFocusedRef = React.useRef<boolean>(false);
+  const isHomeFocusedRef = useRef<boolean>(false);
   const navigation = useNavigation();
   
   // Listen for tab press events using navigation listeners
@@ -8629,7 +9443,7 @@ export default function HomeScreen() {
   
   // Clear focused states when selectedSphere changes to prevent stale state
   // This MUST run first to clear any cross-sphere state
-  const previousSphereForCleanup = React.useRef<LifeSphere | null>(null);
+  const previousSphereForCleanup = useRef<LifeSphere | null>(null);
   React.useEffect(() => {
     // Clear focus states when sphere changes (including when selecting a sphere for the first time)
     const sphereChanged = selectedSphere !== previousSphereForCleanup.current;
@@ -8960,6 +9774,7 @@ export default function HomeScreen() {
   // Track the previous selected moment type to detect changes
   const prevSelectedMomentType = useRef<MomentType | null>(null);
   const prevWasMomentsBlocked = useRef<boolean>(false); // Track if moments were previously blocked
+  const milestoneInProgress = useRef(false); // Track if milestone is currently being handled
 
   // Track if we should trigger "all at once" growth for a type
   const [growAllMomentsType, setGrowAllMomentsType] = useState<MomentType | null>(null);
@@ -9285,6 +10100,27 @@ export default function HomeScreen() {
     }
   }, [showMomentTypeSelector, spheresScale, iconButtonScale]);
 
+  // Auto-dismiss "Spin the wheel" label after 5 seconds
+  useEffect(() => {
+    if (!showMomentTypeSelector) {
+      // Reset dismissed state when selector is hidden
+      setMomentTypeSelectorDismissed(false);
+      return;
+    }
+
+    // Reset dismissed state when selector is shown
+    setMomentTypeSelectorDismissed(false);
+
+    // Auto-dismiss after 5 seconds
+    const autoDismissTimer = setTimeout(() => {
+      setMomentTypeSelectorDismissed(true);
+    }, 5000);
+
+    return () => {
+      clearTimeout(autoDismissTimer);
+    };
+  }, [showMomentTypeSelector]);
+
   // Note: We no longer clear moments when selectedMomentType changes
   // All moment types remain visible, but only the selected type will pulse
 
@@ -9353,14 +10189,17 @@ export default function HomeScreen() {
     const isCloudMoment = selectedMomentType === 'hardTruths';
     const INITIAL_CONCURRENT_MOMENTS = isCloudMoment ? 1 : 4; // Cloud: 1 at a time, Others: 4 concurrent
     const INITIAL_START_DELAY = 1000; // Wait 1 second after opening wheel before first moment
-    const INITIAL_STAGGER_DELAY = isCloudMoment ? 2500 : 800; // Cloud: 2.5s delay, Others: 800ms
-    const NEXT_MOMENT_DELAY = isCloudMoment ? 2500 : 400; // Cloud: 2.5s between each, Others: 400ms
-    const MOMENT_DURATION = 3600; // Total duration: 800ms grow + 2000ms hold + 800ms shrink
+    const INITIAL_STAGGER_DELAY = isCloudMoment ? 1500 : 800; // Cloud: 1.5s delay (reduced from 2.5s), Others: 800ms
+    const NEXT_MOMENT_DELAY = isCloudMoment ? 1500 : 400; // Cloud: 1.5s between each (reduced from 2.5s), Others: 400ms
+    const MOMENT_DURATION = 5600; // Total duration: 800ms grow + 4000ms hold + 800ms shrink
 
     const spawnSingleMoment = (momentIndex: number, delay: number = 0) => {
-      if (momentIndex >= totalCount) return;
+      // Safety check: don't spawn if index is out of bounds or already processed
+      if (momentIndex >= totalCount || momentIndex < 0) return;
 
       const timeout = setTimeout(() => {
+        // Double-check index is still valid (in case of race conditions)
+        if (momentIndex >= totalCount) return;
         // Random angle around the circle
         const angle = Math.random() * 2 * Math.PI;
 
@@ -9380,8 +10219,14 @@ export default function HomeScreen() {
           text: momentData?.text || '',
         };
 
-        // Add this moment to the array
-        setRandomMoments(prev => [...prev, newMoment]);
+        // Add this moment to the array (use functional update to avoid stale closures)
+        setRandomMoments(prev => {
+          // Check if moment already exists to prevent duplicates
+          if (prev.some(m => m.id === newMoment.id)) {
+            return prev;
+          }
+          return [...prev, newMoment];
+        });
 
         // Remove this moment after it completes its animation (add 100ms buffer to ensure animation finishes)
         const removeTimeout = setTimeout(() => {
@@ -9389,58 +10234,101 @@ export default function HomeScreen() {
         }, MOMENT_DURATION + 100);
         timeouts.push(removeTimeout);
 
-        // Increment the index
-        currentMomentIndices.current[selectedMomentType]++;
-
         // After this moment completes (finishes shrinking), spawn the next one
-        // But first check if we've hit a milestone
-        const nextIndex = currentMomentIndices.current[selectedMomentType];
-        const oneThirdPoint = Math.floor(totalCount / 3);
-        const twoThirdsPoint = Math.floor((totalCount * 2) / 3);
+        // To maintain 4 concurrent moments: when moment X finishes, spawn moment X + 4
+        const nextMomentIndex = momentIndex + INITIAL_CONCURRENT_MOMENTS;
+        
+        // Calculate milestone interval: if total moments < 40, use 20% intervals, otherwise use every 20 moments
+        const MILESTONE_INTERVAL = totalCount < 40 
+          ? Math.max(1, Math.floor(totalCount * 0.2)) // 20% of total, minimum 1
+          : 20; // Every 20 moments for 40+ total moments
 
-        const isAtOneThird = nextIndex === oneThirdPoint && oneThirdPoint > 0;
-        const isAtTwoThirds = nextIndex === twoThirdsPoint && twoThirdsPoint > oneThirdPoint;
-        const isAtEnd = nextIndex >= totalCount;
+        // Check if we've hit a milestone
+        // For < 40 moments: milestones at 20%, 40%, 60%, 80%, 100%
+        // For 40+ moments: milestones at 20, 40, 60, etc.
+        // Check if nextMomentIndex would cross a milestone threshold
+        // Calculate which milestone threshold we're approaching
+        const currentMilestone = Math.floor(momentIndex / MILESTONE_INTERVAL);
+        const nextMilestone = Math.floor(nextMomentIndex / MILESTONE_INTERVAL);
+        const wouldReachMilestone = nextMilestone > currentMilestone && nextMomentIndex < totalCount;
+        const isAtEnd = nextMomentIndex >= totalCount;
 
         const nextSpawnTimeout = setTimeout(() => {
-          if (isAtOneThird || isAtTwoThirds || isAtEnd) {
-            // Clear all currently displayed moments
-            setRandomMoments([]);
+          // Check milestone flag BEFORE processing to prevent race conditions
+          if (milestoneInProgress.current) {
+            return; // Milestone already being handled, don't spawn anything
+          }
+
+          // Update the highest index that has been spawned (atomic check)
+          const actualCurrentHighest = currentMomentIndices.current[selectedMomentType];
+          if (nextMomentIndex <= actualCurrentHighest) {
+            // Another moment already spawned this or a later moment, skip
+            return;
+          }
+          currentMomentIndices.current[selectedMomentType] = nextMomentIndex;
+
+          // Check if we need to handle milestone
+          if (wouldReachMilestone || isAtEnd) {
+            milestoneInProgress.current = true;
 
             // Grow all moments at once (except clouds)
             if (selectedMomentType !== 'hardTruths') {
               setGrowAllMomentsType(selectedMomentType);
-              // After 2 seconds, continue or restart
+              // Wait for complete animation cycle: 800ms grow + 4000ms hold (with pulsing) + 800ms shrink = 5600ms total
+              const GROW_ALL_DURATION = 5600;
               const growAllTimeout = setTimeout(() => {
                 setGrowAllMomentsType(null);
+
+                // Reset milestone flag AFTER the grow-all completes
+                milestoneInProgress.current = false;
 
                 if (isAtEnd) {
                   // At 100%, restart from beginning
                   currentMomentIndices.current[selectedMomentType] = 0;
-                }
 
-                // Wait 400ms before continuing with individual moments
-                const continueTimeout = setTimeout(() => {
-                  // Start the next batch of 4 moments
-                  startInitialBatch();
-                }, NEXT_MOMENT_DELAY);
-                timeouts.push(continueTimeout);
-              }, 2000);
+                  // Wait 400ms before restarting with initial batch
+                  const continueTimeout = setTimeout(() => {
+                    startInitialBatch();
+                  }, NEXT_MOMENT_DELAY);
+                  timeouts.push(continueTimeout);
+                } else {
+                  // At milestone (not at end), continue spawning from the next index
+                  // Spawn the initial batch starting from nextMomentIndex
+                  const continueTimeout = setTimeout(() => {
+                    const startIndex = currentMomentIndices.current[selectedMomentType];
+                    if (startIndex < totalCount) {
+                      // Spawn the initial batch of concurrent moments
+                      const momentsToSpawn = Math.min(INITIAL_CONCURRENT_MOMENTS, totalCount - startIndex);
+                      for (let i = 0; i < momentsToSpawn; i++) {
+                        const momentIndex = startIndex + i;
+                        if (momentIndex >= totalCount) break;
+                        spawnSingleMoment(momentIndex, i * INITIAL_STAGGER_DELAY);
+                      }
+                    }
+                  }, NEXT_MOMENT_DELAY);
+                  timeouts.push(continueTimeout);
+                }
+              }, GROW_ALL_DURATION);
               timeouts.push(growAllTimeout);
             } else {
               // For clouds, just continue without the "all at once" effect
+              // Reset milestone flag immediately for clouds (no grow-all animation)
+              milestoneInProgress.current = false;
+
               if (isAtEnd) {
                 currentMomentIndices.current[selectedMomentType] = 0;
               }
               // Continue spawning with 400ms delay
-              const continueIndex = currentMomentIndices.current[selectedMomentType];
-              if (continueIndex < totalCount) {
-                spawnSingleMoment(continueIndex, NEXT_MOMENT_DELAY);
+              if (nextMomentIndex < totalCount) {
+                spawnSingleMoment(nextMomentIndex, NEXT_MOMENT_DELAY);
               }
             }
           } else {
             // No milestone, spawn the next moment after 400ms delay
-            spawnSingleMoment(nextIndex, NEXT_MOMENT_DELAY);
+            // This maintains 4 concurrent moments: when moment X finishes, spawn moment X + 4
+            if (nextMomentIndex < totalCount) {
+              spawnSingleMoment(nextMomentIndex, NEXT_MOMENT_DELAY);
+            }
           }
         }, MOMENT_DURATION);
         timeouts.push(nextSpawnTimeout);
@@ -9454,11 +10342,18 @@ export default function HomeScreen() {
       const momentsToSpawn = Math.min(INITIAL_CONCURRENT_MOMENTS, totalCount - currentIndex);
 
       // Spawn the initial batch with stagger delay between each
+      // Each moment will spawn the next one when it finishes, maintaining 4 concurrent
       for (let i = 0; i < momentsToSpawn; i++) {
         const momentIndex = currentIndex + i;
         if (momentIndex >= totalCount) break;
         // Add INITIAL_START_DELAY to all moments, plus stagger for each subsequent moment
         spawnSingleMoment(momentIndex, INITIAL_START_DELAY + (i * INITIAL_STAGGER_DELAY));
+      }
+      
+      // Update the highest index that has been spawned
+      if (momentsToSpawn > 0) {
+        const lastSpawnedIndex = currentIndex + momentsToSpawn - 1;
+        currentMomentIndices.current[selectedMomentType] = lastSpawnedIndex;
       }
     };
 
@@ -11825,7 +12720,7 @@ export default function HomeScreen() {
 
             // Base sizes
             const baseSunSize = isTablet ? 280 : (isLargeDevice ? 240 : 200);
-            const baseCircleSize = isTablet ? 300 : (isLargeDevice ? 250 : 220);
+            const baseCircleSize = isTablet ? 220 : (isLargeDevice ? 190 : 165);
             const baseCloudWidth = isTablet ? 280 : (isLargeDevice ? 240 : 220);
 
             // Dynamic sizing based on text length
@@ -11843,8 +12738,9 @@ export default function HomeScreen() {
               momentWidth = dynamicCloudWidth;
               momentHeight = dynamicCloudHeight;
             } else {
-              // Lessons (lightbulb) - circle grows with text length
-              const dynamicCircleSize = Math.min(SCREEN_WIDTH * 0.85, Math.max(baseCircleSize, baseCircleSize + Math.floor(textLength * 1.6)));
+              // Lessons (lightbulb) - circle grows with text length (reduced growth rate)
+              const lessonSizeMultiplier = Math.min(1.4, Math.max(1.0, 1.0 + (textLength / 150)));
+              const dynamicCircleSize = baseCircleSize * lessonSizeMultiplier;
               momentWidth = dynamicCircleSize;
               momentHeight = dynamicCircleSize;
             }
@@ -12331,12 +13227,13 @@ export default function HomeScreen() {
                     <ThemedText
                       style={{
                         color: colorScheme === 'dark' ? '#1A1A1A' : '#000000',
-                        fontSize: 11 * fontScale,
+                        fontSize: Math.max(13, Math.min(16, 13 + (textLength / 60))) * fontScale,
                         textAlign: 'center',
                         fontWeight: '700',
                         maxWidth: momentWidth * 0.85,
-                        lineHeight: 15 * fontScale,
+                        lineHeight: Math.max(17, Math.min(20, 17 + (textLength / 60))) * fontScale,
                       }}
+                      numberOfLines={10}
                     >
                       {selectedLesson.text}
                     </ThemedText>
@@ -13376,47 +14273,6 @@ export default function HomeScreen() {
                   </Pressable>
                 </Animated.View>
 
-                {/* Hard truths button - Liquid Glass Effect */}
-                <Animated.View style={[hardTruthsButtonAnimatedStyle, { opacity: isSpinning ? 0.3 : 1 }]}>
-                  {/* Frosted glass base layer */}
-                  <View style={StyleSheet.absoluteFillObject}>
-                    <LinearGradient
-                      colors={[
-                        'rgba(255, 255, 255, 0.15)',
-                        'rgba(255, 255, 255, 0.05)',
-                        'rgba(255, 255, 255, 0.1)'
-                      ]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFillObject}
-                    />
-                  </View>
-
-                  <Pressable
-                    onPress={() => setSelectedMomentType('hardTruths')}
-                    onPressIn={handleHardTruthsButtonPressIn}
-                    onPressOut={handleHardTruthsButtonPressOut}
-                    disabled={isSpinning}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: isSpinning ? 0 : (selectedMomentType === 'hardTruths' ? 0.3 : 0.1),
-                      shadowRadius: 4,
-                      elevation: isSpinning ? 0 : (selectedMomentType === 'hardTruths' ? 5 : 2),
-                    }}
-                  >
-                    <MaterialIcons
-                      name="cloud-queue"
-                      size={28}
-                      color={isSpinning ? 'rgba(150, 150, 150, 0.5)' : (selectedMomentType === 'hardTruths' ? '#fff' : colors.text)}
-                    />
-                  </Pressable>
-                </Animated.View>
-
                 {/* Sunny moments button - Liquid Glass Effect */}
                 <Animated.View style={[sunnyMomentsButtonAnimatedStyle, { opacity: isSpinning ? 0.3 : 1 }]}>
                   {/* Frosted glass base layer */}
@@ -13454,6 +14310,47 @@ export default function HomeScreen() {
                       name="wb-sunny"
                       size={28}
                       color={isSpinning ? 'rgba(150, 150, 150, 0.5)' : (selectedMomentType === 'sunnyMoments' ? '#fff' : colors.text)}
+                    />
+                  </Pressable>
+                </Animated.View>
+
+                {/* Hard truths button - Liquid Glass Effect */}
+                <Animated.View style={[hardTruthsButtonAnimatedStyle, { opacity: isSpinning ? 0.3 : 1 }]}>
+                  {/* Frosted glass base layer */}
+                  <View style={StyleSheet.absoluteFillObject}>
+                    <LinearGradient
+                      colors={[
+                        'rgba(255, 255, 255, 0.15)',
+                        'rgba(255, 255, 255, 0.05)',
+                        'rgba(255, 255, 255, 0.1)'
+                      ]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </View>
+
+                  <Pressable
+                    onPress={() => setSelectedMomentType('hardTruths')}
+                    onPressIn={handleHardTruthsButtonPressIn}
+                    onPressOut={handleHardTruthsButtonPressOut}
+                    disabled={isSpinning}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: isSpinning ? 0 : (selectedMomentType === 'hardTruths' ? 0.3 : 0.1),
+                      shadowRadius: 4,
+                      elevation: isSpinning ? 0 : (selectedMomentType === 'hardTruths' ? 5 : 2),
+                    }}
+                  >
+                    <MaterialIcons
+                      name="cloud-queue"
+                      size={28}
+                      color={isSpinning ? 'rgba(150, 150, 150, 0.5)' : (selectedMomentType === 'hardTruths' ? '#fff' : colors.text)}
                     />
                   </Pressable>
                 </Animated.View>
@@ -15546,7 +16443,7 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
   
   // Memoize memories and positions for all profiles to prevent unnecessary re-renders
   // Reuse previous references when data hasn't changed to prevent cascading re-renders
-  const profileDataMapRef = React.useRef<Map<string, { memories: any[]; position: { x: number; y: number } }>>(new Map());
+  const profileDataMapRef = useRef<Map<string, { memories: any[]; position: { x: number; y: number } }>>(new Map());
   const profileDataMap = useMemo(() => {
     const dataMap = new Map<string, { memories: any[]; position: { x: number; y: number } }>();
     const allProfilesInSections = Array.from(profilesBySection.values()).flat();
