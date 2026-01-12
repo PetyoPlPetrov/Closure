@@ -43,3 +43,8 @@ app-example
 /android
 build-*.ipa
 recapGiff.gif
+
+# Backup files from optimization
+*_backup.gif
+*_optimized.gif
+*_palette.png

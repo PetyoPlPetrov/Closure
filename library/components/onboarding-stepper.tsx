@@ -5,6 +5,7 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
+import { Video, ResizeMode } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -499,28 +500,36 @@ export function OnboardingStepper({
                         <View style={styles.gifWrapper}>
                           <Animated.View style={gifAnimatedStyle}>
                             <View style={styles.gifContainer}>
-                              <Image
-                                source={
-                                  step.gifSource === 'welcome'
-                                    ? require('@/assets/images/home.gif')
-                                    : step.gifSource === 'wheel'
-                                    ? require('@/assets/images/wheel.gif')
-                                    : step.gifSource === 'memory'
-                                    ? require('@/assets/images/memories.gif')
-                                    : step.gifSource === 'recap'
-                                    ? require('@/recapGiff.gif')
-                                    : step.gifSource === 'insights'
-                                    ? require('@/assets/images/insights.gif')
-                                    : step.gifSource === 'notifications'
-                                    ? require('@/assets/images/reminders.gif')
-                                    : step.gifSource === 'creating'
-                                    ? require('@/family.gif')
-                                    : require('@/assets/images/output.gif')
-                                }
-                                defaultSource={step.gifSource === 'recap' ? require('@/assets/images/focusedFriend.gif') : undefined}
-                                style={styles.gif}
-                                contentFit="contain"
-                              />
+                              {step.gifSource === 'recap' ? (
+                                <Video
+                                  source={require('@/recapGiff.mp4')}
+                                  style={styles.gif}
+                                  resizeMode={ResizeMode.CONTAIN}
+                                  shouldPlay
+                                  isLooping
+                                  isMuted
+                                />
+                              ) : (
+                                <Image
+                                  source={
+                                    step.gifSource === 'welcome'
+                                      ? require('@/assets/images/home.gif')
+                                      : step.gifSource === 'wheel'
+                                      ? require('@/assets/images/wheel.gif')
+                                      : step.gifSource === 'memory'
+                                      ? require('@/assets/images/memories.gif')
+                                      : step.gifSource === 'insights'
+                                      ? require('@/assets/images/insights.gif')
+                                      : step.gifSource === 'notifications'
+                                      ? require('@/assets/images/reminders.gif')
+                                      : step.gifSource === 'creating'
+                                      ? require('@/family.gif')
+                                      : require('@/assets/images/output.gif')
+                                  }
+                                  style={styles.gif}
+                                  contentFit="contain"
+                                />
+                              )}
                             </View>
                           </Animated.View>
                         </View>
