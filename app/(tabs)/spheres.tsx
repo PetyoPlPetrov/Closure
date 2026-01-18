@@ -221,8 +221,11 @@ export default function SpheresScreen() {
   };
 
   const showSubscriptionPrompt = async (sphere: LifeSphere) => {
-    // Show paywall (custom in dev, RevenueCat in prod)
-    await showPaywallForPremiumAccess();
+    // Only show paywall if user is not subscribed
+    if (!isSubscribed) {
+      // Show paywall (custom in dev, RevenueCat in prod)
+      await showPaywallForPremiumAccess();
+    }
   };
   
   // Reload memories when screen comes into focus (e.g., after running mock data script)
