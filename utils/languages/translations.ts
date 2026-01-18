@@ -38,6 +38,8 @@ export interface Translations {
   'settings.devTools.cleanupMemories.error': string;
   'settings.notifications.title': string;
   'settings.notifications.manage': string;
+  'settings.subscriptions.title': string;
+  'settings.subscriptions.premium': string;
   'settings.devTools.title': string;
   'settings.devTools.generateData.button': string;
   'settings.devTools.generateData.generating': string;
@@ -3320,6 +3322,8 @@ const translations: Record<Language, Translations> = {
     'settings.devTools.cleanupMemories.error': 'Failed to clean up orphaned memories. Please try again.',
     'settings.notifications.title': 'Notifications',
     'settings.notifications.manage': 'Manage notifications',
+    'settings.subscriptions.title': 'Subscriptions',
+    'settings.subscriptions.premium': 'Sferas Premium',
     'settings.devTools.title': 'Development Tools',
     'settings.devTools.generateData.button': 'Generate Fake Data (Profiles & Jobs)',
     'settings.devTools.generateData.generating': 'Generating...',
@@ -6178,6 +6182,8 @@ const translations: Record<Language, Translations> = {
     'settings.devTools.cleanupMemories.error': 'Неуспешно изчистване на изолираните спомени. Моля, опитайте отново.',
     'settings.notifications.title': 'Известия',
     'settings.notifications.manage': 'Управление на известия',
+    'settings.subscriptions.title': 'Абонаменти',
+    'settings.subscriptions.premium': 'Sferas Premium',
     'settings.devTools.title': 'Инструменти за Разработка',
     'settings.devTools.generateData.button': 'Генериране на Фалшиви Данни (Профили и Работи)',
     'settings.devTools.generateData.generating': 'Генериране...',

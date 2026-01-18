@@ -9,12 +9,13 @@ import { useJourney } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { resetStreakData } from '@/utils/streak-manager';
+import { useSubscription } from '@/utils/SubscriptionProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Asset } from 'expo-asset';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, DimensionValue, Modal, Pressable, ScrollView, StyleSheet, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 
 export default function SettingsScreen() {
@@ -24,6 +25,7 @@ export default function SettingsScreen() {
   const { maxContentWidth } = useLargeDevice();
   const { language, setLanguage } = useLanguage();
   const { addProfile, addJob, addFamilyMember, addFriend, addHobby, addIdealizedMemory, profiles, jobs, familyMembers, friends, hobbies, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies, cleanupOrphanedMemories } = useJourney();
+  const { presentPaywall } = useSubscription();
   const t = useTranslate();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
@@ -186,6 +188,26 @@ export default function SettingsScreen() {
   const handleNotificationsPress = async () => {
     router.push('/notifications');
   };
+
+  const handlePresentPaywall = useCallback(async () => {
+    try {
+      const success = await presentPaywall();
+      if (success) {
+        Alert.alert(
+          t('subscription.success.title'),
+          t('subscription.success.message'),
+          [{ text: t('common.ok') }]
+        );
+      }
+      // If cancelled or error, just return without showing alert
+    } catch (error: any) {
+      Alert.alert(
+        t('subscription.error.title'),
+        error.message || t('subscription.error.message'),
+        [{ text: t('common.ok') }]
+      );
+    }
+  }, [presentPaywall, t]);
 
   const generateFakeData = async () => {
     if (isGeneratingFakeData) return;
@@ -1595,6 +1617,38 @@ export default function SettingsScreen() {
                 style={styles.dropdownText}
               >
                 {t('settings.notifications.manage')}
+              </ThemedText>
+            </View>
+            <MaterialIcons
+              name="arrow-forward-ios"
+              size={20 * fontScale}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            {t('settings.subscriptions.title')}
+          </ThemedText>
+
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={handlePresentPaywall}
+            activeOpacity={0.7}
+          >
+            <View style={styles.dropdownContent}>
+              <MaterialIcons
+                name="star"
+                size={24 * fontScale}
+                color={colors.primary}
+              />
+              <ThemedText
+                size="l"
+                weight="medium"
+                style={styles.dropdownText}
+              >
+                {t('settings.subscriptions.premium')}
               </ThemedText>
             </View>
             <MaterialIcons
