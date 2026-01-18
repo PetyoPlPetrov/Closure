@@ -158,7 +158,6 @@ function AppContent() {
         <Stack.Screen name="friend-detail" options={{ headerShown: false }} />
         <Stack.Screen name="hobby-detail" options={{ headerShown: false }} />
         <Stack.Screen name="insights" options={{ headerShown: false }} />
-        <Stack.Screen name="paywall" options={{ headerShown: false }} />
         <Stack.Screen
           name="notifications"
           options={{

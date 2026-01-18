@@ -53,7 +53,12 @@ export default function AddHobbyScreen() {
     // Only redirect if user already had 2+ hobbies when they entered this screen
     // This allows 2 free hobbies per sphere before paywall
     if (!isEditMode && !isSubscribed && initialHobbyCount.current >= 2) {
-      router.replace('/paywall');
+      (async () => {
+        const subscribed = await showPaywallForPremiumAccess();
+        if (!subscribed) {
+          router.back();
+        }
+      })();
     }
   }, [isEditMode, isSubscribed, hobbies.length, isSaving]);
 

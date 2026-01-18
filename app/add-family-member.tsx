@@ -54,7 +54,12 @@ export default function AddFamilyMemberScreen() {
     // Only redirect if user already had 2+ family members when they entered this screen
     // This allows 2 free family members per sphere before paywall
     if (!isEditMode && !isSubscribed && initialFamilyMemberCount.current >= 2) {
-      router.replace('/paywall');
+      (async () => {
+        const subscribed = await showPaywallForPremiumAccess();
+        if (!subscribed) {
+          router.back();
+        }
+      })();
     }
   }, [isEditMode, isSubscribed, familyMembers.length, isSaving]);
 

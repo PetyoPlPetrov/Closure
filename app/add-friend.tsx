@@ -53,7 +53,12 @@ export default function AddFriendScreen() {
     // Only redirect if user already had 2+ friends when they entered this screen
     // This allows 2 free friends per sphere before paywall
     if (!isEditMode && !isSubscribed && initialFriendCount.current >= 2) {
-      router.replace('/paywall');
+      (async () => {
+        const subscribed = await showPaywallForPremiumAccess();
+        if (!subscribed) {
+          router.back();
+        }
+      })();
     }
   }, [isEditMode, isSubscribed, friends.length, isSaving]);
 

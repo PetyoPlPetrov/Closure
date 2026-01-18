@@ -9,8 +9,8 @@ import { TextArea } from '@/library/components/text-area';
 import { UploadPicture } from '@/library/components/upload-picture';
 import { useJourney, type ExProfile } from '@/utils/JourneyProvider';
 import { useSubscription } from '@/utils/SubscriptionProvider';
-import { showPaywallForPremiumAccess } from '@/utils/premium-access';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { showPaywallForPremiumAccess } from '@/utils/premium-access';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
@@ -81,7 +81,12 @@ export default function AddExProfileScreen() {
     // Only redirect if user already had 2+ profiles when they entered this screen
     // This allows 2 free profiles per sphere before paywall
     if (!isEditMode && !isSubscribed && initialProfileCount.current >= 2) {
-      router.replace('/paywall');
+      (async () => {
+        const subscribed = await showPaywallForPremiumAccess();
+        if (!subscribed) {
+          router.back();
+        }
+      })();
     }
   }, [isEditMode, isSubscribed, profiles.length, isLoading]);
 

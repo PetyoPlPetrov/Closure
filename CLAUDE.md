@@ -111,7 +111,7 @@ Heavy use of `react-native-reanimated` for:
 - Controlled by `ENABLE_REVENUECAT` feature flag in `utils/revenuecat-wrapper.ts`
 - Gracefully handles missing native module (web/dev builds)
 - Platform-specific API keys in `app/_layout.tsx`
-- Paywall screen at `app/paywall.tsx` uses `react-native-purchases-ui`
+- RevenueCat paywall is used throughout the app via `showPaywallForPremiumAccess()` from `utils/premium-access.ts`
 
 ### Localization
 - Auto-detects Bulgarian (`bg`) or English (`en`) based on device locale
