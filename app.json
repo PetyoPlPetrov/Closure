@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sferas",
     "slug": "sphere",
-    "version": "1.0.90",
+    "version": "1.0.91",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-v2.png",
     "scheme": "sphere",
@@ -17,7 +17,7 @@
         "NSPhotoLibraryUsageDescription": "This app uses your photo library to let you select images for your relationships, hobbies, and career profiles. For example, you can pick a photo to represent a family member or add an image to a job entry.",
         "NSPhotoLibraryAddUsageDescription": "The app needs permission to save your exported video memories directly to your photo gallery. For example, you can save an animated recap of your memories to share with friends or keep as a memento."
       },
-      "buildNumber": "1.0.90",
+      "buildNumber": "1.0.91",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
@@ -40,7 +40,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 90,
+      "versionCode": 91,
       "googleServicesFile": "./google-services.json"
     },
     "web": {

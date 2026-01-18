@@ -12,6 +12,7 @@ export interface Translations {
   'tab.spheres': string;
   'tab.settings': string;
   'home.emptyState': string;
+  'avatar.sunnyLife': string;
   
   // Settings
   'settings.title': string;
@@ -3293,6 +3294,7 @@ const translations: Record<Language, Translations> = {
     'tab.spheres': 'Sferas',
     'tab.settings': 'Settings',
     'home.emptyState': 'No profiles yet. Add your first ex-profile to get started.',
+    'avatar.sunnyLife': 'Sunny Life',
     
     // Settings
     'settings.title': 'Settings',
@@ -6150,6 +6152,7 @@ const translations: Record<Language, Translations> = {
     'tab.spheres': 'Sferas',
     'tab.settings': 'Настройки',
     'home.emptyState': 'Няма профили все още. Добавете първи партньор, за да започнете.',
+    'avatar.sunnyLife': 'Слънчев живот',
     
     // Settings
     'settings.title': 'Настройки',

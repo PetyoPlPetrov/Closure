@@ -172,6 +172,14 @@ export default function SpheresScreen() {
 
   const containerRef = useRef<View>(null);
   const [containerLayout, setContainerLayout] = useState<{ width: number; height: number; x: number; y: number } | null>(null);
+  const [textWidths, setTextWidths] = useState<Record<LifeSphere, number>>({
+    relationships: 0,
+    career: 0,
+    family: 0,
+    friends: 0,
+    hobbies: 0,
+  });
+  const [sevenLetterWidth, setSevenLetterWidth] = useState<number>(0);
   
   // Pulse animation for Insights button
   const pulseScale = useSharedValue(1);
@@ -664,19 +672,18 @@ export default function SpheresScreen() {
       paddingBottom: 0, // Remove bottom padding to allow better centering
     },
     mainContentWrapper: {
-      flex: 1,
       width: '100%',
+      height: '100%',
       justifyContent: 'center',
       alignItems: 'center',
       position: 'relative',
+      marginBottom:'12%',
     },
     mainContentContainer: {
       width: '100%',
-      height: '100%',
       alignItems: 'center',
       justifyContent: 'center',
       position: 'relative',
-      flexShrink: 1,
     },
     sphereGrid: {
       width: '100%',
@@ -689,9 +696,7 @@ export default function SpheresScreen() {
       position: 'absolute',
     },
     sphereCard: {
-      width: (Dimensions.get('window').width - 48 * fontScale - 32 * fontScale) / 2, // Screen width minus padding and gap, divided by 2
       minWidth: 100 * fontScale,
-      maxWidth: 140 * fontScale,
       aspectRatio: 1,
       borderRadius: 12 * fontScale,
       overflow: 'hidden', // Required for gradient to respect borderRadius
@@ -708,7 +713,8 @@ export default function SpheresScreen() {
     },
     sphereCardContent: {
       flex: 1,
-      padding: 12 * fontScale,
+      paddingHorizontal: 8 * fontScale,
+      paddingVertical: 12 * fontScale,
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6 * fontScale,
@@ -1228,9 +1234,7 @@ export default function SpheresScreen() {
       <TabScreenContainer>
         <View style={styles.header}>
           <View style={styles.headerButton} />
-          <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-            {t('spheres.title')}
-          </ThemedText>
+          <View style={styles.headerTitle} />
           <View style={styles.headerButton} />
         </View>
         <View style={styles.loadingContainer}>
@@ -1809,9 +1813,7 @@ export default function SpheresScreen() {
     <TabScreenContainer>
       <View style={styles.header}>
         <View style={styles.headerButton} />
-        <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-          {t('spheres.title')}
-        </ThemedText>
+        <View style={styles.headerTitle} />
         <View style={styles.headerButton} />
       </View>
 
@@ -1838,16 +1840,40 @@ export default function SpheresScreen() {
                 // Pre-calculate values used by both button and cards
                 // Use larger radius for tablets to spread spheres out more
                 const radius = isTablet ? 200 * fontScale : 140 * fontScale;
-                const screenWidth = Dimensions.get('window').width;
-                // Calculate card width - larger on tablets for better visibility
-                const calculatedCardWidth = isTablet
-                  ? Math.min((screenWidth - 64 * fontScale) / 3, 180 * fontScale) // 3 columns on tablets
-                  : (screenWidth - 48 * fontScale - 32 * fontScale) / 2; // 2 columns on phones
-                const cardWidth = isTablet
-                  ? Math.max(calculatedCardWidth, 160 * fontScale) // Minimum 160 on tablets
-                  : Math.min(calculatedCardWidth, 120 * fontScale); // Maximum 120 on phones (smaller for better fit)
-                const cardHalfWidth = cardWidth / 2;
-                const cardHalfHeight = cardWidth / 2; // Cards are square (aspectRatio: 1)
+                
+                // Helper function to calculate card width based on text width
+                const calculateCardWidth = (sphereType: LifeSphere): number => {
+                  const textWidth = textWidths[sphereType];
+                  const iconSize = 32 * fontScale * iconScale;
+                  const horizontalPadding = 16 * fontScale; // 8 * 2 (left + right padding, reduced from 12)
+                  
+                  // Minimum width based on 7-letter word width, or fallback to fixed size
+                  const minWidthBasedOnText = sevenLetterWidth > 0 
+                    ? sevenLetterWidth + horizontalPadding + (16 * fontScale)
+                    : 100 * fontScale;
+                  
+                  // Remove maxWidth constraint - let card expand to fit text
+                  const screenWidth = Dimensions.get('window').width;
+                  const maxWidth = screenWidth * 0.5; // Allow up to 50% of screen width for very long text
+                  
+                  // If text hasn't been measured yet, use a default width
+                  if (textWidth === 0) {
+                    return Math.max(minWidthBasedOnText, isTablet ? 160 * fontScale : 120 * fontScale);
+                  }
+                  
+                  // Card width = text width + reduced padding to minimize empty space
+                  // Use text width directly (not max with icon) since text is the limiting factor
+                  // Add minimal padding (8px on each side) to ensure text doesn't get cut off
+                  const calculatedWidth = textWidth + horizontalPadding + (16 * fontScale); // Reduced extra padding
+                  
+                  // Ensure square aspect ratio - use the calculated width, respecting min/max
+                  // But ensure it's at least as wide as the icon requires AND at least as wide as 7-letter word
+                  const finalWidth = Math.max(
+                    iconSize + horizontalPadding, 
+                    Math.max(calculatedWidth, minWidthBasedOnText)
+                  );
+                  return Math.min(maxWidth, finalWidth);
+                };
                 
                 // Calculate the visual center Y by finding the midpoint between topmost and bottommost cards
                 // Top card is at angle 90° (top), bottom card is at angle -90° (bottom)
@@ -1915,9 +1941,61 @@ export default function SpheresScreen() {
                       </TouchableOpacity>
                     </AnimatedView>
 
+                    {/* Hidden text measurement component - positioned off-screen but visible for measurement */}
+                    <View style={{ position: 'absolute', left: -10000, top: -10000, opacity: 0 }}>
+                      {/* Measure 7-letter word width for minimum card size */}
+                      <View style={{ width: 10000 }}>
+                        <ThemedText
+                          size="xs"
+                          weight="bold"
+                          style={styles.sphereLabel}
+                          onTextLayout={(event) => {
+                            const lines = event.nativeEvent.lines;
+                            if (lines && lines.length > 0) {
+                              const measuredWidth = lines[0].width;
+                              if (measuredWidth > 0 && sevenLetterWidth !== measuredWidth) {
+                                setSevenLetterWidth(measuredWidth);
+                              }
+                            }
+                          }}
+                        >
+                          AAAAAAA
+                        </ThemedText>
+                      </View>
+                      {spheres.map((sphere) => (
+                        <View key={`measure-wrapper-${sphere.type}`} style={{ width: 10000 }}>
+                          <ThemedText
+                            key={`measure-${sphere.type}`}
+                            size="xs"
+                            weight="bold"
+                            style={styles.sphereLabel}
+                            onTextLayout={(event) => {
+                              // Get the full text width from the first (and only) line
+                              // The wrapper has enough width that text won't wrap
+                              const lines = event.nativeEvent.lines;
+                              if (lines && lines.length > 0) {
+                                // Use the width of the first line (should be the full text width)
+                                const measuredWidth = lines[0].width;
+                                if (measuredWidth > 0 && textWidths[sphere.type] !== measuredWidth) {
+                                  setTextWidths(prev => ({ ...prev, [sphere.type]: measuredWidth }));
+                                }
+                              }
+                            }}
+                          >
+                            {sphere.label}
+                          </ThemedText>
+                        </View>
+                      ))}
+                    </View>
+
                     {/* Sphere boxes arranged in a circle around the Insights button */}
               <View style={styles.sphereGrid}>
                       {spheres.map((sphere, index) => {
+                        // Calculate card width for this specific sphere based on its text width
+                        const cardWidth = calculateCardWidth(sphere.type);
+                        const cardHalfWidth = cardWidth / 2;
+                        const cardHalfHeight = cardWidth / 2; // Cards are square (aspectRatio: 1)
+                        
                         // Calculate circular positions for 5 spheres
                         // Start from top (90 degrees) and distribute evenly (360/5 = 72 degrees apart)
                         let angle = (90 - (index * 72)) * (Math.PI / 180); // Convert to radians, start from top
@@ -2028,7 +2106,12 @@ export default function SpheresScreen() {
                           color={sphereColor}
                           style={styles.sphereIcon}
                         />
-                        <ThemedText size="xs" weight="bold" style={styles.sphereLabel}>
+                        <ThemedText 
+                          size="xs" 
+                          weight="bold" 
+                          style={styles.sphereLabel}
+                          numberOfLines={1}
+                        >
                           {sphere.label}
                         </ThemedText>
                         <ThemedText size="xs" style={styles.sphereCount}>

@@ -13,6 +13,7 @@ import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS, TabScreenContainer } from 
 import { logError } from '@/utils/error-logger';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { useLanguage } from '@/utils/languages/language-context';
 import { requestSpheresTabPulse, stopSpheresTabPulse } from '@/utils/spheres-tab-pulse';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import {
@@ -6294,6 +6295,8 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   colors: any;
 }) {
   const { isTablet } = useLargeDevice();
+  const t = useTranslate();
+  const { language } = useLanguage();
   
   // Calculate if floating entities intersect with main circle and adjust size accordingly
   // Floating entities are positioned: spherePosition + (cos(angle) * entityRadius, sin(angle) * entityRadius)
@@ -6479,13 +6482,52 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
         />
       </Svg>
 
-      <View style={{ alignItems: 'center', marginTop: -4 }}>
+      <View style={{ alignItems: 'center', marginTop: -8 }}>
         <ThemedText size="xl" weight="bold" style={{ color: '#FFD700', fontSize: 24 }}>
           {Math.round(percentage)}%
         </ThemedText>
-        <ThemedText size="sm" weight="medium" style={{ color: '#FFD700', fontSize: 12, marginTop: -2 }}>
-          Sunny Life
-        </ThemedText>
+        {language === 'bg' ? (
+          <View style={{ alignItems: 'center' }}>
+            <ThemedText 
+              size="sm" 
+              weight="medium" 
+              style={{ 
+                color: '#FFD700', 
+                fontSize: 10,
+                marginTop: -2,
+                textAlign: 'center',
+                lineHeight: 10
+              }}
+            >
+              Слънчев
+            </ThemedText>
+            <ThemedText 
+              size="sm" 
+              weight="medium" 
+              style={{ 
+                color: '#FFD700', 
+                fontSize: 10,
+                textAlign: 'center',
+                lineHeight: 10,
+                marginTop: -1
+              }}
+            >
+              живот
+            </ThemedText>
+          </View>
+        ) : (
+          <ThemedText 
+            size="sm" 
+            weight="medium" 
+            style={{ 
+              color: '#FFD700', 
+              fontSize: 12,
+              marginTop: -2 
+            }}
+          >
+            {t('avatar.sunnyLife')}
+          </ThemedText>
+        )}
       </View>
       </View>
 
