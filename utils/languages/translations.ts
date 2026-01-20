@@ -615,6 +615,45 @@ export interface Translations {
   'settings.help.title': string;
   'settings.help.viewGuide': string;
 
+  // AI
+  'ai.title': string;
+  'ai.placeholder.input': string;
+  'ai.placeholder.recording': string;
+  'ai.listening': string;
+  'ai.processing': string;
+  'ai.send': string;
+  'ai.submit': string;
+  'ai.permission.title': string;
+  'ai.permission.message': string;
+  'ai.error.recording': string;
+  'ai.error.stopRecording': string;
+  'ai.error.empty': string;
+  'ai.error.send': string;
+  'ai.response.title': string;
+  'ai.loading.title': string;
+  'ai.loading.thinking': string;
+  'ai.loading.analyzing': string;
+  'ai.loading.processing': string;
+  'ai.loading.generating': string;
+  'ai.loading.uploadPrompt': string;
+  'ai.upload.image': string;
+  'ai.permission.image': string;
+  'ai.results.title': string;
+  'ai.results.sphere': string;
+  'ai.results.entity': string;
+  'ai.results.hardTruth': string;
+  'ai.results.goodFact': string;
+  'ai.results.lesson': string;
+  'ai.save': string;
+  'ai.saving': string;
+  'ai.save.success': string;
+  'ai.save.successMessage': string;
+    'ai.save.error': string;
+    'ai.openMemory': string;
+    'ai.closeConfirm.title': string;
+    'ai.closeConfirm.message': string;
+    'ai.closeConfirm.discard': string;
+
   // Moment Suggestions
   'suggestions.birthday.hardTruths.0': string;
   'suggestions.birthday.hardTruths.1': string;
@@ -3895,6 +3934,47 @@ const translations: Record<Language, Translations> = {
     'settings.help.title': 'Help',
     'settings.help.viewGuide': 'View Guide',
 
+    // AI
+    'ai.title': 'Share your thoughts...',
+    'ai.placeholder.input': 'Or type here at least 10 words',
+    'ai.placeholder.recording': '[Voice recording - speech-to-text integration needed]',
+    'ai.listening': 'Listening...',
+    'ai.processing': 'Processing...',
+    'ai.send': 'Send',
+    'ai.submit': 'Submit',
+    'ai.permission.title': 'Permission Required',
+    'ai.permission.message': 'Microphone permission is required for speech-to-text.',
+    'ai.error.recording': 'Failed to start recording',
+    'ai.error.stopRecording': 'Failed to stop recording',
+    'ai.error.empty': 'Please enter a message or use voice input',
+    'ai.error.send': 'Failed to send message',
+    'ai.error.notAvailable': 'Speech recognition is not available on this device',
+    'ai.error.image': 'Failed to pick image',
+    'ai.response.title': 'AI Response',
+    'ai.loading.title': 'AI is thinking...',
+    'ai.loading.thinking': 'AI is thinking...',
+    'ai.loading.analyzing': 'Analyzing your thoughts...',
+    'ai.loading.processing': 'Processing memories...',
+    'ai.loading.generating': 'Generating insights...',
+    'ai.loading.uploadPrompt': 'While AI is thinking, you can upload a photo for this memory',
+    'ai.upload.image': 'Add photo (optional)',
+    'ai.permission.image': 'Photo library permission is required to upload images.',
+    'ai.results.title': 'AI Suggestions',
+    'ai.results.sphere': 'Sphere',
+    'ai.results.entity': 'Entity',
+    'ai.results.hardTruth': 'Hard Truth',
+    'ai.results.goodFact': 'Good Fact',
+    'ai.results.lesson': 'Lesson',
+    'ai.save': 'Save',
+    'ai.saving': 'Saving...',
+    'ai.save.success': 'Memory saved successfully!',
+    'ai.save.successMessage': 'Your memory has been created with AI suggestions.',
+    'ai.save.error': 'Failed to save memory',
+    'ai.openMemory': 'Open memory',
+    'ai.closeConfirm.title': 'Discard changes?',
+    'ai.closeConfirm.message': 'Your progress will be lost if you close this modal.',
+    'ai.closeConfirm.discard': 'Discard',
+
     // Moment Suggestions
     'suggestions.birthday.hardTruths.0': "They didn't remember my birthday",
     'suggestions.birthday.hardTruths.1': "I was left alone on my special day",
@@ -6755,6 +6835,47 @@ const translations: Record<Language, Translations> = {
     // Settings - Help Section
     'settings.help.title': 'Помощ',
     'settings.help.viewGuide': 'Преглед на ръководството',
+
+    // AI
+    'ai.title': 'Споделете мислите си...',
+    'ai.placeholder.input': 'Или пишете тук поне 10 думи',
+    'ai.placeholder.recording': '[Гласов запис - необходима интеграция за реч към текст]',
+    'ai.listening': 'Слушам...',
+    'ai.processing': 'Обработвам...',
+    'ai.send': 'Изпрати',
+    'ai.submit': 'Изпрати',
+    'ai.permission.title': 'Необходимо разрешение',
+    'ai.permission.message': 'Необходимо е разрешение за микрофон за реч към текст.',
+    'ai.error.recording': 'Неуспешно започване на запис',
+    'ai.error.stopRecording': 'Неуспешно спиране на запис',
+    'ai.error.empty': 'Моля, въведете съобщение или използвайте глас',
+    'ai.error.send': 'Неуспешно изпращане на съобщение',
+    'ai.error.notAvailable': 'Распознаването на реч не е налично на това устройство',
+    'ai.error.image': 'Неуспешно избиране на изображение',
+    'ai.response.title': 'AI Отговор',
+    'ai.loading.title': 'AI мисли...',
+    'ai.loading.thinking': 'AI мисли...',
+    'ai.loading.analyzing': 'Анализиране на мислите ви...',
+    'ai.loading.processing': 'Обработване на спомени...',
+    'ai.loading.generating': 'Генериране на прозрения...',
+    'ai.loading.uploadPrompt': 'Докато AI мисли, можете да качите снимка за този спомен',
+    'ai.upload.image': 'Добави снимка (по избор)',
+    'ai.permission.image': 'Необходимо е разрешение за библиотека със снимки за качване на изображения.',
+    'ai.results.title': 'AI Предложения',
+    'ai.results.sphere': 'Сфера',
+    'ai.results.entity': 'Обект',
+    'ai.results.hardTruth': 'Трудна истина',
+    'ai.results.goodFact': 'Добър факт',
+    'ai.results.lesson': 'Урок',
+    'ai.save': 'Запази',
+    'ai.saving': 'Запазване...',
+    'ai.save.success': 'Споменът е запазен успешно!',
+    'ai.save.successMessage': 'Вашият спомен е създаден с AI предложения.',
+    'ai.save.error': 'Неуспешно запазване на спомен',
+    'ai.openMemory': 'Отвори спомен',
+    'ai.closeConfirm.title': 'Изхвърли промените?',
+    'ai.closeConfirm.message': 'Вашият напредък ще бъде загубен, ако затворите този модал.',
+    'ai.closeConfirm.discard': 'Изхвърли',
 
     // Moment Suggestions
     'suggestions.birthday.hardTruths.0': 'Не си спомниха рожденния ми ден',

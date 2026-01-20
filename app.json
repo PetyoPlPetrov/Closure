@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sferas",
     "slug": "sphere",
-    "version": "1.0.91",
+    "version": "1.0.92",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-v2.png",
     "scheme": "sphere",
@@ -15,9 +15,11 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "This app uses your photo library to let you select images for your relationships, hobbies, and career profiles. For example, you can pick a photo to represent a family member or add an image to a job entry.",
-        "NSPhotoLibraryAddUsageDescription": "The app needs permission to save your exported video memories directly to your photo gallery. For example, you can save an animated recap of your memories to share with friends or keep as a memento."
+        "NSPhotoLibraryAddUsageDescription": "The app needs permission to save your exported video memories directly to your photo gallery. For example, you can save an animated recap of your memories to share with friends or keep as a memento.",
+        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to convert your voice input into text for the AI assistant feature.",
+        "NSMicrophoneUsageDescription": "This app needs access to your microphone to record your voice for speech-to-text conversion in the AI assistant feature."
       },
-      "buildNumber": "1.0.91",
+      "buildNumber": "1.0.92",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
@@ -40,7 +42,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 91,
+      "versionCode": 92,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -76,7 +78,8 @@
       "./plugins/with-transparent-splash-logo.js",
       "./plugins/with-firebase-appdelegate",
       "./plugins/withAnalyticsSourcePatch.js",
-      "./plugins/with-video-composer.js"
+      "./plugins/with-video-composer.js",
+      "./plugins/with-voice.js"
     ],
     "experiments": {
       "typedRoutes": true,

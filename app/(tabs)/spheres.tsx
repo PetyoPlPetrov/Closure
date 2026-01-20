@@ -1,3 +1,4 @@
+import { AIModal } from '@/components/ai-modal';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -6,6 +7,7 @@ import { useLargeDevice } from '@/hooks/use-large-device';
 import { JobCard } from '@/library/components/job-card';
 import { ProfileCard } from '@/library/components/profile-card';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
+import { sendToAI } from '@/utils/ai-service';
 import type { ExProfile, FamilyMember, Friend, Hobby, Job, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
@@ -17,7 +19,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
 
 const AnimatedView = Animated.createAnimatedComponent(View);
@@ -237,6 +239,7 @@ export default function SpheresScreen() {
 
   const params = useLocalSearchParams();
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>((params.selectedSphere as LifeSphere) || null);
+  const [aiModalVisible, setAiModalVisible] = useState(false);
   
   // Update selectedSphere when params change (e.g., when navigating back from edit screen)
   React.useEffect(() => {
@@ -1991,6 +1994,69 @@ export default function SpheresScreen() {
                       ))}
                     </View>
 
+                    {/* AI Square - positioned in perfect orbit */}
+                    {(() => {
+                      // Use similar sizing logic as other spheres
+                      const aiCardWidth = isTablet ? 120 * fontScale : 100 * fontScale;
+                      const aiCardHalfWidth = aiCardWidth / 2;
+                      const aiCardHalfHeight = aiCardWidth / 2;
+                      // Position in perfect orbit: 90° (top) - 60° spacing from Relationships at -90°
+                      // Adjust radius smaller and add offset to ensure it's fully visible at the top
+                      const aiRadius = radius * 0.85; // Smaller radius to prevent cutoff
+                      const aiAngle = 90 * (Math.PI / 180); // 90 degrees (straight up)
+                      const aiX = centerX + aiRadius * Math.cos(aiAngle) - aiCardHalfWidth;
+                      // Add padding from top to ensure icon isn't cut off (account for header/status bar)
+                      const topPadding = 20 * fontScale;
+                      const aiY = centerY + aiRadius * Math.sin(aiAngle) - aiCardHalfHeight + topPadding;
+                      
+                      const darkGradientColors = ['#223041', '#243041', '#263041'] as const;
+                      const lightGradientColors = ['rgb(170, 170, 170)', 'rgb(180, 180, 180)', 'rgb(175, 175, 175)'] as const;
+                      
+                      return (
+                        <TouchableOpacity
+                          key="ai-square"
+                          style={[
+                            styles.sphereCard,
+                            styles.sphereCardPositioned,
+                            {
+                              left: aiX,
+                              top: aiY,
+                              width: aiCardWidth,
+                              height: aiCardWidth,
+                            },
+                          ]}
+                          onPress={() => {
+                            setAiModalVisible(true);
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <LinearGradient
+                            colors={
+                              colorScheme === 'dark'
+                                ? darkGradientColors
+                                : lightGradientColors
+                            }
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.sphereCardContent}
+                          >
+                            <View style={[styles.sphereIcon, { justifyContent: 'center', alignItems: 'center' }]}>
+                              <ThemedText
+                                style={{
+                                  fontSize: 40 * fontScale * iconScale,
+                                  color: colorScheme === 'dark' ? '#FFD700' : '#F57C00',
+                                  textAlign: 'center',
+                                  lineHeight: 40 * fontScale * iconScale,
+                                }}
+                              >
+                                ✨
+                              </ThemedText>
+                            </View>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      );
+                    })()}
+
                     {/* Sphere boxes arranged in a circle around the Insights button */}
               <View style={styles.sphereGrid}>
                       {spheres.map((sphere, index) => {
@@ -1999,32 +2065,31 @@ export default function SpheresScreen() {
                         const cardHalfWidth = cardWidth / 2;
                         const cardHalfHeight = cardWidth / 2; // Cards are square (aspectRatio: 1)
                         
-                        // Calculate circular positions for 5 spheres
-                        // Start from top (90 degrees) and distribute evenly (360/5 = 72 degrees apart)
-                        let angle = (90 - (index * 72)) * (Math.PI / 180); // Convert to radians, start from top
+                        // Calculate circular positions for spheres
+                        // Perfect orbit: 6 spheres evenly spaced at 60° intervals (360°/6 = 60°)
+                        // Starting from Relationships at bottom (-90°), going clockwise:
+                        // -90°, -30° (330°), 30°, 90° (AI), 150°, 210°
+                        let angle: number;
                         
-                        // Move hobbies and career boxes to middle position to overlap both upper and bottom boxes
-                        // Career is index 1 (top-right at 18°), Hobbies is index 4 (bottom-left at -126°)
-                        if (sphere.type === 'career') {
-                          // Move career to higher position (more towards top-right)
-                          // Increase angle to move it higher up
-                          angle = 5 * (Math.PI / 150); // Higher position, more towards top
-                        } else if (sphere.type === 'hobbies') {
-                          // Move hobbies to middle-left position, slightly down (around 175°)
-                          // This positions it between top-left and bottom, overlapping both
-                          angle = 145 * (Math.PI / 155); // Middle-left position, slightly down
-                        } else if (sphere.type === 'friends') {
-                          // Move friends box up to top-left position
-                          // Friends is at index 3, default angle would be (90 - 216) = -126° = 234° (bottom-left)
-                          // To move to top-left, set to around 135° (top-left)
-                          angle = 260 * (Math.PI / 200); // Position at top-left (135°)
+                        // Perfect orbit positioning - 60° spacing between each sphere
+                        if (sphere.type === 'relationships') {
+                          // Bottom position (-90°), directly under Analytics button
+                          angle = -90 * (Math.PI / 180);
+                        } else if (sphere.type === 'career') {
+                          // Bottom-right: -90° + 60° = -30° (or 330°)
+                          angle = 340 * (Math.PI / 180);
                         } else if (sphere.type === 'family') {
-                          // Move family box up (from default position)  
-                          // Family is at index 2, default angle would be (90 - 144) = -54° = 306°
-                          // To move up towards top (90°), we need to increase the angle
-                          // Calculate default and then adjust
-                          const defaultAngleDeg = 85 - (index * 65);
-                          angle = (defaultAngleDeg - 25) * (Math.PI / 190); // Move up by 15 degrees
+                          // Top-right: -30° + 60° = 30°
+                          angle = 40 * (Math.PI / 190);
+                        } else if (sphere.type === 'friends') {
+                          // Top-left: 90° + 60° = 150° (AI is at 90°)
+                          angle = 140 * (Math.PI / 180);
+                        } else if (sphere.type === 'hobbies') {
+                          // Bottom-left: 150° + 60° = 210°
+                          angle = 200 * (Math.PI / 180);
+                        } else {
+                          // Fallback: distribute evenly
+                          angle = (90 - (index * 72)) * (Math.PI / 180);
                         }
                         
                         // Position cards around the center point (same as Insights button)
@@ -2131,6 +2196,38 @@ export default function SpheresScreen() {
             </View>
           </View>
         )}
+
+        {/* AI Modal */}
+        <AIModal
+          key={aiModalVisible ? 'open' : 'closed'}
+          visible={aiModalVisible}
+          onClose={() => setAiModalVisible(false)}
+          onSend={async (message: string) => {
+            try {
+              const response = await sendToAI(message, {
+                spheres: spheres.map(s => s.type),
+              });
+              
+              if (response.error) {
+                Alert.alert(
+                  t('common.error') || 'Error',
+                  response.error
+                );
+              } else {
+                Alert.alert(
+                  t('ai.response.title') || 'AI Response',
+                  response.message,
+                  [{ text: t('common.ok') || 'OK' }]
+                );
+              }
+            } catch (error) {
+              Alert.alert(
+                t('common.error') || 'Error',
+                (error as Error).message || t('ai.error.send') || 'Failed to send message'
+              );
+            }
+          }}
+        />
       </View>
     </TabScreenContainer>
   );
