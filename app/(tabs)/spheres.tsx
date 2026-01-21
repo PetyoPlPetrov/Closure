@@ -7,6 +7,7 @@ import { useLargeDevice } from '@/hooks/use-large-device';
 import { JobCard } from '@/library/components/job-card';
 import { ProfileCard } from '@/library/components/profile-card';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
+import { getPendingAIRequest, getPendingAIResponse, isBackgroundTaskRunning } from '@/utils/ai-background-processor';
 import { sendToAI } from '@/utils/ai-service';
 import type { ExProfile, FamilyMember, Friend, Hobby, Job, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
@@ -19,7 +20,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, AppStateStatus, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
 
 const AnimatedView = Animated.createAnimatedComponent(View);
@@ -240,6 +241,137 @@ export default function SpheresScreen() {
   const params = useLocalSearchParams();
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>((params.selectedSphere as LifeSphere) || null);
   const [aiModalVisible, setAiModalVisible] = useState(false);
+  const [pendingAIResponse, setPendingAIResponse] = useState<any>(null);
+  
+  // Check for pending AI response when app becomes active or component mounts
+  // This ensures data persists even after app is killed
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        // Check for pending AI response
+        const pendingResponse = await getPendingAIResponse();
+        if (pendingResponse) {
+          setPendingAIResponse(pendingResponse);
+          // Auto-open modal if response is ready (user hasn't saved/discarded yet)
+          if (!aiModalVisible) {
+            setAiModalVisible(true);
+          }
+        }
+      }
+    });
+
+    // Also check immediately when component mounts (e.g., after app restart)
+    const checkPending = async () => {
+      const pendingResponse = await getPendingAIResponse();
+      if (pendingResponse) {
+        setPendingAIResponse(pendingResponse);
+        // Auto-open modal to show the pending response
+        if (!aiModalVisible) {
+          setAiModalVisible(true);
+        }
+      }
+    };
+    checkPending();
+
+    return () => {
+      subscription.remove();
+    };
+  }, [aiModalVisible]);
+
+  // Poll for pending AI response - updates pendingResponse prop whether modal is open or closed
+  // If modal is closed and response found, auto-opens modal
+  // If modal is open and response found, just updates the prop (modal will react to it)
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let isCleanedUp = false; // Flag to prevent state updates after cleanup
+
+    const checkForResponse = async () => {
+      // Don't run if already cleaned up
+      if (isCleanedUp) {
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+        return;
+      }
+
+      try {
+        // ALWAYS check for response first, even if request/task is cleared
+        // The response might have just been saved while we were polling
+        const pendingResponse = await getPendingAIResponse();
+        
+        if (pendingResponse && !isCleanedUp) {
+          // Update the prop (modal will react to it if open, or we'll open modal if closed)
+          setPendingAIResponse(pendingResponse);
+          
+          // If modal is closed, auto-open it
+          if (!aiModalVisible) {
+            setAiModalVisible(true);
+          }
+          
+          // Clear interval once response is found
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+          return; // Exit early if response found
+        }
+        
+        // If no response, check if there's still a pending request or task running
+        const pendingRequest = await getPendingAIRequest();
+        const isRunning = await isBackgroundTaskRunning();
+        
+        // If there's no pending request or task, stop polling
+        if (!pendingRequest && !isRunning) {
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+        }
+      } catch (error) {
+        console.error('Error checking for AI response:', error);
+        // On error, stop polling to prevent endless retries
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      }
+    };
+
+    // Check if there's a pending request or task running
+    const shouldPoll = async () => {
+      const pendingRequest = await getPendingAIRequest();
+      const isRunning = await isBackgroundTaskRunning();
+      return !!(pendingRequest || isRunning);
+    };
+
+    shouldPoll().then((poll) => {
+      if (poll) {
+        // Check immediately
+        checkForResponse();
+        // Then poll every 2 seconds
+        intervalId = setInterval(checkForResponse, 2000);
+      }
+    });
+
+    return () => {
+      isCleanedUp = true; // Mark as cleaned up to prevent state updates
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+  }, [aiModalVisible]);
+
+  // Check for pending response when modal opens manually
+  const handleAIModalOpen = async () => {
+    // Check for pending response or request
+    const pendingResponse = await getPendingAIResponse();
+    if (pendingResponse) {
+      setPendingAIResponse(pendingResponse);
+    }
+    setAiModalVisible(true);
+  };
   
   // Update selectedSphere when params change (e.g., when navigating back from edit screen)
   React.useEffect(() => {
@@ -2026,7 +2158,7 @@ export default function SpheresScreen() {
                             },
                           ]}
                           onPress={() => {
-                            setAiModalVisible(true);
+                            handleAIModalOpen();
                           }}
                           activeOpacity={0.8}
                         >
@@ -2201,7 +2333,17 @@ export default function SpheresScreen() {
         <AIModal
           key={aiModalVisible ? 'open' : 'closed'}
           visible={aiModalVisible}
-          onClose={() => setAiModalVisible(false)}
+          onClose={async () => {
+            // When closing (not minimizing), clear pending response
+            setAiModalVisible(false);
+            setPendingAIResponse(null);
+          }}
+          onMinimize={() => {
+            // When minimizing, keep processing running but close modal
+            setAiModalVisible(false);
+            // Don't clear pending response - it will be restored when modal reopens
+          }}
+          pendingResponse={pendingAIResponse}
           onSend={async (message: string) => {
             try {
               const response = await sendToAI(message, {

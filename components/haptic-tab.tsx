@@ -1,6 +1,7 @@
 import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { PlatformPressable } from '@react-navigation/elements';
 import * as Haptics from 'expo-haptics';
+import * as Device from 'expo-device';
 import { Platform, View } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -41,8 +42,11 @@ export function HapticTab(props: BottomTabBarButtonProps) {
       })
     );
 
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Only trigger haptics on real iOS devices (not simulator)
+    if (Platform.OS === 'ios' && Device.isDevice) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+        // Silently ignore haptic errors (e.g., on simulator)
+      });
     }
 
     // Call original onPress
@@ -91,8 +95,11 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
       })
     );
 
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Only trigger haptics on real iOS devices (not simulator)
+    if (Platform.OS === 'ios' && Device.isDevice) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+        // Silently ignore haptic errors (e.g., on simulator)
+      });
     }
 
     // Call original onPress
@@ -215,8 +222,11 @@ export function SpheresTabButton(props: BottomTabBarButtonProps) {
       })
     );
 
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Only trigger haptics on real iOS devices (not simulator)
+    if (Platform.OS === 'ios' && Device.isDevice) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+        // Silently ignore haptic errors (e.g., on simulator)
+      });
     }
 
     // Always emit the event - let the screen component decide if it should handle it

@@ -6,12 +6,23 @@ import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { processMemoryPrompt, type AIMemoryResponse } from '@/utils/ai-service';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
+import { 
+  startBackgroundAIProcessing, 
+  getPendingAIResponse, 
+  getPendingAIRequest,
+  clearPendingAIResponse,
+  clearPendingAIRequest,
+  stopBackgroundAIProcessing,
+  isBackgroundTaskRunning,
+  savePendingAIResponse,
+  type PendingAIResponse 
+} from '@/utils/ai-background-processor';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, Modal as RNModal } from 'react-native';
+import { ScrollView, Modal as RNModal, AppState, AppStateStatus } from 'react-native';
 
 // Conditionally import Voice to handle cases where native module isn't available
 let Voice: any = null;
@@ -46,7 +57,9 @@ type ModalView = 'input' | 'loading' | 'results';
 interface AIModalProps {
   visible: boolean;
   onClose: () => void;
+  onMinimize?: () => void;
   onSend: (message: string) => Promise<void>;
+  pendingResponse?: PendingAIResponse | null;
 }
 
 interface AIMemoryItem {
@@ -61,7 +74,7 @@ interface AIMemoryItem {
   text: string;
 }
 
-export function AIModal({ visible, onClose, onSend }: AIModalProps) {
+export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse }: AIModalProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
@@ -92,6 +105,19 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
   const [showEntityPicker, setShowEntityPicker] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [backgroundRequestId, setBackgroundRequestId] = useState<string | null>(null);
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+
+  // Monitor app state to detect when app goes to background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      setAppState(nextAppState);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   // Count words in input text
   const wordCount = useMemo(() => {
@@ -118,46 +144,259 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
   // Enhanced loading animations
   const sparkleScale = useSharedValue(1);
   const sparkleOpacity = useSharedValue(1);
-  const sparkleRotation = useSharedValue(0);
   const loadingPulseScale = useSharedValue(1);
   const dotsOpacity = useSharedValue([0.3, 0.3, 0.3]);
   
   const inputRef = useRef<TextInput>(null);
 
-  // Reset all state when modal closes
+  // Check for pending AI response when modal opens or when pendingResponse prop changes
   useEffect(() => {
-    if (!visible) {
-      // Close confirmation modal first if it's open
-      setShowCloseConfirm(false);
+    if (visible) {
+      // Reset minimizing flag when modal opens
+      isMinimizingRef.current = false;
       
-      // Reset all state to initial values
-      setInputText('');
-      setIsRecording(false);
-      setIsProcessing(false);
-      setIsListening(false);
-      setPartialResults('');
-      setCurrentView('input');
-      setSelectedImage(null);
-      setAiResponse(null);
-      setMemoryItems([]);
-      setSelectedSphere(null);
-      setSelectedEntityId(null);
-      setSelectedEntityName(null);
-      setShowSpherePicker(false);
-      setShowEntityPicker(false);
-      setLoadingMessageIndex(0);
+      // Always check for pending response when modal opens
+      // This handles cases where modal was minimized and response arrived
+      const checkAndRestore = async () => {
+        // First check prop (from parent component)
+        if (pendingResponse?.response) {
+          // Move to loading view first
+          setCurrentView('loading');
+          setIsProcessing(true);
+          // Restore image if it was saved with the response
+          if (pendingResponse.imageUri) {
+            setSelectedImage(pendingResponse.imageUri);
+          }
+          // Process pending response from prop
+          // Don't clear AsyncStorage here - keep it until user saves or discards
+          await processAIResponse(pendingResponse.response);
+        } else {
+          // Check storage for pending response (in case prop wasn't updated yet)
+          await checkPendingAIResponse();
+        }
+      };
       
-      // Stop any ongoing voice recognition
-      if (Voice && isListening) {
-        try {
-          Voice.stop();
-          Voice.cancel();
-        } catch (error) {
-          // Ignore errors when stopping
+      checkAndRestore();
+    }
+  }, [visible, pendingResponse]);
+
+  // Watch for pendingResponse prop changes while modal is open (for when background task completes)
+  useEffect(() => {
+    if (visible && isProcessing && !aiResponse && pendingResponse?.response) {
+      // Response arrived via prop update (from parent component detecting it)
+      setCurrentView('loading');
+      setIsProcessing(true);
+      if (pendingResponse.imageUri) {
+        setSelectedImage(pendingResponse.imageUri);
+      }
+      processAIResponse(pendingResponse.response);
+    }
+  }, [pendingResponse, visible, isProcessing, aiResponse]);
+
+  // Check if there's a pending request (processing in background)
+  const checkPendingRequest = async () => {
+    try {
+      const pendingRequest = await getPendingAIRequest();
+      const isRunning = await isBackgroundTaskRunning();
+      if (pendingRequest || isRunning) {
+        // There's a request being processed, show loading state
+        setCurrentView('loading');
+        setIsProcessing(true);
+        // Restore image if available
+        if (pendingRequest?.imageUri) {
+          setSelectedImage(pendingRequest.imageUri);
+        }
+        // Set background request ID if we have one
+        if (pendingRequest?.requestId) {
+          setBackgroundRequestId(pendingRequest.requestId);
         }
       }
+    } catch (error) {
+      console.error('Failed to check pending request:', error);
     }
-  }, [visible]);
+  };
+
+  // Check for pending AI response
+  const checkPendingAIResponse = async () => {
+    try {
+      const pendingResponse = await getPendingAIResponse();
+      if (pendingResponse) {
+        // Move to loading view first
+        setCurrentView('loading');
+        setIsProcessing(true);
+        // Restore image if it was saved with the response
+        if (pendingResponse.imageUri) {
+          setSelectedImage(pendingResponse.imageUri);
+        }
+        // If we have a pending response, process it
+        // Don't clear AsyncStorage here - keep it until user saves or discards
+        await processAIResponse(pendingResponse.response);
+        setBackgroundRequestId(null);
+      } else {
+        // Check if there's a pending request (still processing)
+        await checkPendingRequest();
+      }
+    } catch (error) {
+      console.error('Failed to check pending AI response:', error);
+    }
+  };
+
+  // Process AI response and update state
+  const processAIResponse = async (response: AIMemoryResponse) => {
+    try {
+      // Convert response to memory items
+      const items: AIMemoryItem[] = [
+        ...response.goodFacts.map((text, index) => ({
+          id: `goodFact-${index}`,
+          type: 'goodFact' as const,
+          text,
+        })),
+        ...response.hardTruths.map((text, index) => ({
+          id: `hardTruth-${index}`,
+          type: 'hardTruth' as const,
+          text,
+        })),
+        ...response.lessonsLearned.map((text, index) => ({
+          id: `lesson-${index}`,
+          type: 'lesson' as const,
+          text,
+        })),
+      ];
+
+      setAiResponse(response);
+      setMemoryItems(items);
+      
+      // Validate and set sphere and entity
+      const validSpheres: LifeSphere[] = ['relationships', 'career', 'family', 'friends', 'hobbies'];
+      let finalSphere: LifeSphere | null = null;
+      let finalEntityId: string | null = null;
+      let finalEntityName: string | null = null;
+
+      // Check if AI response sphere is valid
+      if (response.sphere && validSpheres.includes(response.sphere)) {
+        finalSphere = response.sphere;
+        
+        // Check if entity exists in the selected sphere
+        let entityFound = false;
+        if (response.entityName) {
+          // Find entity in the appropriate list
+          if (finalSphere === 'relationships') {
+            const entity = profiles.find(p => p.name === response.entityName);
+            if (entity) {
+              finalEntityId = entity.id;
+              finalEntityName = entity.name;
+              entityFound = true;
+            }
+          } else if (finalSphere === 'career') {
+            const entity = jobs.find(j => j.name === response.entityName);
+            if (entity) {
+              finalEntityId = entity.id;
+              finalEntityName = entity.name;
+              entityFound = true;
+            }
+          } else if (finalSphere === 'family') {
+            const entity = familyMembers.find(f => f.name === response.entityName);
+            if (entity) {
+              finalEntityId = entity.id;
+              finalEntityName = entity.name;
+              entityFound = true;
+            }
+          } else if (finalSphere === 'friends') {
+            const entity = friends.find(f => f.name === response.entityName);
+            if (entity) {
+              finalEntityId = entity.id;
+              finalEntityName = entity.name;
+              entityFound = true;
+            }
+          } else if (finalSphere === 'hobbies') {
+            const entity = hobbies.find(h => h.name === response.entityName);
+            if (entity) {
+              finalEntityId = entity.id;
+              finalEntityName = entity.name;
+              entityFound = true;
+            }
+          }
+        }
+        
+        // If entity not found, set sphere but let user select entity
+        if (!entityFound) {
+          setSelectedSphere(finalSphere);
+        } else {
+          setSelectedSphere(finalSphere);
+          setSelectedEntityId(finalEntityId);
+          setSelectedEntityName(finalEntityName);
+        }
+      }
+      
+      setIsProcessing(false);
+      // Keep loading view but show results
+    } catch (error) {
+      console.error('Error processing AI response:', error);
+      Alert.alert(
+        t('common.error') || 'Error',
+        (error as Error).message || t('ai.error.send') || 'Failed to process memory'
+      );
+      setIsProcessing(false);
+    }
+  };
+
+  // Track if we're minimizing vs closing
+  const isMinimizingRef = useRef(false);
+
+  // Reset all state when modal closes (but not when minimized)
+  useEffect(() => {
+    if (!visible) {
+      // Check if we're minimizing first (synchronous check)
+      if (isMinimizingRef.current) {
+        // Minimizing - preserve state, just reset the minimizing flag
+        isMinimizingRef.current = false;
+        return;
+      }
+      
+      // Check if we should preserve state (has pending request/response) vs actually closing
+      const shouldPreserveState = async () => {
+        const pendingRequest = await getPendingAIRequest();
+        const pendingResponse = await getPendingAIResponse();
+        const isRunning = await isBackgroundTaskRunning();
+        return !!(pendingRequest || pendingResponse || isRunning);
+      };
+
+      shouldPreserveState().then((preserve) => {
+        if (!preserve) {
+          // Actually closing (not minimizing) - reset all state
+          // Close confirmation modal first if it's open
+          setShowCloseConfirm(false);
+          
+          // Reset all state to initial values
+          setInputText('');
+          setIsRecording(false);
+          setIsProcessing(false);
+          setIsListening(false);
+          setPartialResults('');
+          setCurrentView('input');
+          setSelectedImage(null);
+          setAiResponse(null);
+          setMemoryItems([]);
+          setSelectedSphere(null);
+          setSelectedEntityId(null);
+          setSelectedEntityName(null);
+          setShowSpherePicker(false);
+          setShowEntityPicker(false);
+          setLoadingMessageIndex(0);
+          
+          // Stop any ongoing voice recognition
+          if (Voice && isListening) {
+            try {
+              Voice.stop();
+              Voice.cancel();
+            } catch (error) {
+              // Ignore errors when stopping
+            }
+          }
+        }
+      });
+    }
+  }, [visible, backgroundRequestId]);
 
   // Modal entrance animation
   useEffect(() => {
@@ -177,12 +416,6 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
         );
       }
 
-      // Sparkle rotation animation for loading view
-      sparkleRotation.value = withRepeat(
-        withTiming(360, { duration: 3000, easing: Easing.linear }),
-        -1,
-        false
-      );
       
       // Focus input after animation
       setTimeout(() => {
@@ -259,12 +492,6 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
         false
       );
 
-      // Sparkle rotation
-      sparkleRotation.value = withRepeat(
-        withTiming(360, { duration: 3000, easing: Easing.linear }),
-        -1,
-        false
-      );
 
       // Pulse animation for background glow
       loadingPulseScale.value = withRepeat(
@@ -291,11 +518,10 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
       // Reset animations when not loading
       sparkleScale.value = 1;
       sparkleOpacity.value = 1;
-      sparkleRotation.value = 0;
       loadingPulseScale.value = 1;
       dotsOpacity.value = [0.3, 0.3, 0.3];
     }
-  }, [currentView, aiResponse, sparkleScale, sparkleOpacity, sparkleRotation, loadingPulseScale, dotsOpacity]);
+  }, [currentView, aiResponse, sparkleScale, sparkleOpacity, loadingPulseScale, dotsOpacity]);
 
   // Voice recognition handlers
   useEffect(() => {
@@ -456,7 +682,24 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setSelectedImage(result.assets[0].uri);
+        const imageUri = result.assets[0].uri;
+        setSelectedImage(imageUri);
+        
+        // If AI response has already arrived, persist the image URI to AsyncStorage
+        if (aiResponse) {
+          try {
+            const pendingResponse = await getPendingAIResponse();
+            if (pendingResponse) {
+              // Update the pending response with the new image URI
+              await savePendingAIResponse({
+                ...pendingResponse,
+                imageUri,
+              });
+            }
+          } catch (error) {
+            console.error('Failed to save image URI to AsyncStorage:', error);
+          }
+        }
       }
     } catch (error) {
       Alert.alert(
@@ -485,158 +728,49 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
         hobbies: hobbies.length > 0 ? hobbies.map(h => h.name) : undefined,
       };
 
-      // Process the memory prompt with AI
-      const response = await processMemoryPrompt(
-        inputText.trim(), 
-        { sferas }
+      // Start background processing (include image URI if uploaded)
+      const requestId = await startBackgroundAIProcessing(
+        inputText.trim(),
+        { sferas },
+        selectedImage || undefined
       );
-      
-      // Convert response to memory items
-      // Create items with goodFacts first, then hardTruths, then lessons
-      const items: AIMemoryItem[] = [
-        ...response.goodFacts.map((text, index) => ({
-          id: `goodFact-${index}`,
-          type: 'goodFact' as const,
-          text,
-        })),
-        ...response.hardTruths.map((text, index) => ({
-          id: `hardTruth-${index}`,
-          type: 'hardTruth' as const,
-          text,
-        })),
-        ...response.lessonsLearned.map((text, index) => ({
-          id: `lesson-${index}`,
-          type: 'lesson' as const,
-          text,
-        })),
-      ];
+      setBackgroundRequestId(requestId);
 
-      setAiResponse(response);
-      setMemoryItems(items);
-      
-      // Validate and set sphere and entity
-      const validSpheres: LifeSphere[] = ['relationships', 'career', 'family', 'friends', 'hobbies'];
-      let finalSphere: LifeSphere | null = null;
-      let finalEntityId: string | null = null;
-      let finalEntityName: string | null = null;
-
-      // Check if AI response sphere is valid
-      if (response.sphere && validSpheres.includes(response.sphere)) {
-        finalSphere = response.sphere;
-        
-        // Check if entity exists in the selected sphere
-        let entityFound = false;
-        switch (finalSphere) {
-          case 'relationships':
-            const profileMatch = profiles.find(p => 
-              p.id === response.entityId || p.name === response.entityName
-            );
-            if (profileMatch) {
-              finalEntityId = profileMatch.id;
-              finalEntityName = profileMatch.name;
-              entityFound = true;
-            }
-            break;
-          case 'career':
-            const jobMatch = jobs.find(j => 
-              j.id === response.entityId || j.name === response.entityName
-            );
-            if (jobMatch) {
-              finalEntityId = jobMatch.id;
-              finalEntityName = jobMatch.name;
-              entityFound = true;
-            }
-            break;
-          case 'family':
-            const familyMatch = familyMembers.find(f => 
-              f.id === response.entityId || f.name === response.entityName
-            );
-            if (familyMatch) {
-              finalEntityId = familyMatch.id;
-              finalEntityName = familyMatch.name;
-              entityFound = true;
-            }
-            break;
-          case 'friends':
-            const friendMatch = friends.find(f => 
-              f.id === response.entityId || f.name === response.entityName
-            );
-            if (friendMatch) {
-              finalEntityId = friendMatch.id;
-              finalEntityName = friendMatch.name;
-              entityFound = true;
-            }
-            break;
-          case 'hobbies':
-            const hobbyMatch = hobbies.find(h => 
-              h.id === response.entityId || h.name === response.entityName
-            );
-            if (hobbyMatch) {
-              finalEntityId = hobbyMatch.id;
-              finalEntityName = hobbyMatch.name;
-              entityFound = true;
-            }
-            break;
-        }
-        
-        // If entity not found in the sphere, leave it empty (will be required)
-        if (!entityFound) {
-          finalEntityId = null;
-          finalEntityName = null;
+      // Only try foreground processing if app is currently active
+      // If app goes to background, background task will handle it
+      if (appState === 'active') {
+        try {
+          const response = await processMemoryPrompt(
+            inputText.trim(), 
+            { sferas }
+          );
+          
+          // Check if app is still active before stopping background task
+          // If app went to background, let background task handle it
+          const currentAppState = AppState.currentState;
+          if (currentAppState === 'active') {
+            // If we got a response while app is active, stop background task and process it
+            await stopBackgroundAIProcessing();
+            setBackgroundRequestId(null);
+            await processAIResponse(response);
+          } else {
+            // App went to background, let background task handle it
+            // The response will be saved by background task
+          }
+        } catch (error) {
+          // If foreground processing fails, background task will handle it
         }
       } else {
-        // Sphere is invalid, try to find sphere by entity name
-        let entityFound = false;
-        
-        // Search through all entities to find a match
-        const allEntities = [
-          ...profiles.map(p => ({ id: p.id, name: p.name, sphere: 'relationships' as LifeSphere })),
-          ...jobs.map(j => ({ id: j.id, name: j.name, sphere: 'career' as LifeSphere })),
-          ...familyMembers.map(f => ({ id: f.id, name: f.name, sphere: 'family' as LifeSphere })),
-          ...friends.map(f => ({ id: f.id, name: f.name, sphere: 'friends' as LifeSphere })),
-          ...hobbies.map(h => ({ id: h.id, name: h.name, sphere: 'hobbies' as LifeSphere })),
-        ];
-        
-        const matchedEntity = allEntities.find(e => 
-          e.id === response.entityId || e.name === response.entityName
-        );
-        
-        if (matchedEntity) {
-          finalSphere = matchedEntity.sphere;
-          finalEntityId = matchedEntity.id;
-          finalEntityName = matchedEntity.name;
-          entityFound = true;
-        }
-        
-        // If still not found, default to relationships if available
-        if (!entityFound && profiles.length > 0) {
-          finalSphere = 'relationships';
-          finalEntityId = null;
-          finalEntityName = null;
-        } else if (!entityFound) {
-          // No entities at all, set to first available sphere
-          if (jobs.length > 0) finalSphere = 'career';
-          else if (familyMembers.length > 0) finalSphere = 'family';
-          else if (friends.length > 0) finalSphere = 'friends';
-          else if (hobbies.length > 0) finalSphere = 'hobbies';
-          else finalSphere = 'relationships'; // Default fallback
-        }
+        // App is already in background, let background task handle it
       }
-      
-      // Set the validated values
-      setSelectedSphere(finalSphere);
-      setSelectedEntityId(finalEntityId);
-      setSelectedEntityName(finalEntityName);
-      
-      // Stay in loading view, results will be shown below loading indicator
     } catch (error) {
+      console.error('Failed to start AI processing:', error);
       Alert.alert(
         t('common.error') || 'Error',
-        (error as Error).message || t('ai.error.send') || 'Failed to process memory'
+        (error as Error).message || 'Failed to process AI request'
       );
-      setCurrentView('input');
-    } finally {
       setIsProcessing(false);
+      setCurrentView('input');
     }
   };
 
@@ -762,6 +896,11 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
         }
       );
 
+      // Clear AsyncStorage after successful save
+      await clearPendingAIResponse();
+      await clearPendingAIRequest();
+      await stopBackgroundAIProcessing();
+
       // Close the modal first
       onClose();
 
@@ -810,10 +949,11 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
 
   const animatedSparkleStyle = useAnimatedStyle(() => ({
     transform: [
-      { rotate: `${sparkleRotation.value}deg` },
       { scale: sparkleScale.value }
     ],
     opacity: sparkleOpacity.value,
+    alignItems: 'center',
+    justifyContent: 'center',
   }));
 
   const animatedPulseBgStyle = useAnimatedStyle(() => ({
@@ -886,6 +1026,16 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
     closeButton: {
       position: 'absolute',
       right: 0,
+      width: 32 * fontScale,
+      height: 32 * fontScale,
+      borderRadius: 16 * fontScale,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.05)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    minimizeButton: {
       width: 32 * fontScale,
       height: 32 * fontScale,
       borderRadius: 16 * fontScale,
@@ -1014,6 +1164,7 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
       backgroundColor: colorScheme === 'dark' 
         ? 'rgba(100, 181, 246, 0.1)' 
         : 'rgba(100, 181, 246, 0.05)',
+      marginBottom: 24 * fontScale,
     },
     imagePreview: {
       width: '100%',
@@ -1049,10 +1200,19 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
     },
     loadingIndicatorContainer: {
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent: 'flex-start',
       paddingVertical: 40 * fontScale,
+      paddingHorizontal: 20 * fontScale,
+      marginTop: 24 * fontScale,
+      overflow: 'visible',
+    },
+    animationCirclesContainer: {
       position: 'relative',
-      minHeight: 200 * fontScale,
+      width: 200 * fontScale,
+      height: 200 * fontScale,
+      marginBottom: 24 * fontScale,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     loadingGlow: {
       position: 'absolute',
@@ -1062,21 +1222,32 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
       backgroundColor: colorScheme === 'dark' 
         ? 'rgba(255, 215, 0, 0.15)' 
         : 'rgba(255, 215, 0, 0.25)',
-      top: '50%',
+      top: 0,
       left: '50%',
       marginLeft: -100 * fontScale,
-      marginTop: -100 * fontScale,
+    },
+    aiIconWrapper: {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      marginLeft: -70 * fontScale,
+      marginTop: -70 * fontScale,
+      width: 140 * fontScale,
+      height: 140 * fontScale,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     aiIconContainer: {
-      width: 120 * fontScale,
-      height: 120 * fontScale,
-      borderRadius: 60 * fontScale,
+      width: 140 * fontScale,
+      height: 140 * fontScale,
+      borderRadius: 70 * fontScale,
       backgroundColor: colorScheme === 'dark' 
         ? 'rgba(255, 215, 0, 0.15)' 
         : 'rgba(255, 215, 0, 0.25)',
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 24 * fontScale,
+      padding: 10 * fontScale,
+      overflow: 'visible',
       shadowColor: '#FFD700',
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 0.5,
@@ -1315,16 +1486,31 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
               </View>
             )}
             
-            {/* Close button for loading view */}
+            {/* Header for loading view with minimize button */}
             {currentView === 'loading' && (
               <View style={styles.header}>
                 <View style={{ flex: 1 }} />
-                <Pressable 
-                  onPress={() => setShowCloseConfirm(true)} 
-                  style={styles.closeButton}
-                >
-                  <MaterialIcons name="close" size={20 * fontScale} color={colors.text} />
-                </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * fontScale, position: 'absolute', right: 0 }}>
+                  {onMinimize && isProcessing && !aiResponse && (
+                    <Pressable 
+                      onPress={async () => {
+                        // Mark that we're minimizing (not closing) to preserve state
+                        isMinimizingRef.current = true;
+                        // Minimize the modal (keep processing in background)
+                        onMinimize();
+                      }} 
+                      style={styles.minimizeButton}
+                    >
+                      <MaterialIcons name="remove" size={20 * fontScale} color={colors.text} />
+                    </Pressable>
+                  )}
+                  <Pressable 
+                    onPress={() => setShowCloseConfirm(true)} 
+                    style={styles.minimizeButton}
+                  >
+                    <MaterialIcons name="close" size={20 * fontScale} color={colors.text} />
+                  </Pressable>
+                </View>
               </View>
             )}
 
@@ -1443,7 +1629,23 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
                     <Image source={{ uri: selectedImage }} style={styles.imagePreviewImage} />
                     <TouchableOpacity
                       style={styles.removeImageButton}
-                      onPress={() => setSelectedImage(null)}
+                      onPress={async () => {
+                        setSelectedImage(null);
+                        // If AI response exists, update AsyncStorage to remove image URI
+                        if (aiResponse) {
+                          try {
+                            const pendingResponse = await getPendingAIResponse();
+                            if (pendingResponse) {
+                              await savePendingAIResponse({
+                                ...pendingResponse,
+                                imageUri: undefined,
+                              });
+                            }
+                          } catch (error) {
+                            console.error('Failed to update image URI in AsyncStorage:', error);
+                          }
+                        }
+                      }}
                     >
                       <MaterialIcons name="close" size={16 * fontScale} color="#ffffff" />
                     </TouchableOpacity>
@@ -1453,17 +1655,27 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
                 {/* Loading Indicator */}
                 {!aiResponse && (
                   <View style={styles.loadingIndicatorContainer}>
-                    {/* Animated background glow */}
-                    <Animated.View style={[styles.loadingGlow, animatedPulseBgStyle]} />
-                    
-                    {/* Main sparkle icon with enhanced animation */}
-                    <Animated.View style={animatedSparkleStyle}>
-                      <View style={styles.aiIconContainer}>
-                        <ThemedText style={{ fontSize: 64 * fontScale }}>
-                          ✨
-                        </ThemedText>
+                    {/* Animation circles container */}
+                    <View style={styles.animationCirclesContainer}>
+                      {/* Animated background glow */}
+                      <Animated.View style={[styles.loadingGlow, animatedPulseBgStyle]} />
+                      
+                      {/* Main sparkle icon with enhanced animation - centered */}
+                      <View style={styles.aiIconWrapper}>
+                        <Animated.View style={animatedSparkleStyle}>
+                          <View style={styles.aiIconContainer}>
+                            <ThemedText style={{ 
+                              fontSize: 64 * fontScale,
+                              lineHeight: 64 * fontScale,
+                              textAlign: 'center',
+                              includeFontPadding: false,
+                            }}>
+                              ✨
+                            </ThemedText>
+                          </View>
+                        </Animated.View>
                       </View>
-                    </Animated.View>
+                    </View>
 
                     {/* Loading message with animated dots */}
                     <View style={styles.loadingMessageContainer}>
@@ -1750,8 +1962,12 @@ export function AIModal({ visible, onClose, onSend }: AIModalProps) {
                 </Pressable>
                 <Pressable
                   style={[styles.confirmButton, styles.discardButton]}
-                  onPress={() => {
+                  onPress={async () => {
                     setShowCloseConfirm(false);
+                    // Clear AsyncStorage when discarding
+                    await clearPendingAIResponse();
+                    await clearPendingAIRequest();
+                    await stopBackgroundAIProcessing();
                     // Use setTimeout to ensure confirmation modal closes first
                     setTimeout(() => {
                       onClose();

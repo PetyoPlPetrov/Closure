@@ -55,7 +55,7 @@ export async function processMemoryPrompt(
   context: AIRequestContext
 ): Promise<AIMemoryResponse> {
   // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 4000));
+  await new Promise(resolve => setTimeout(resolve, 10000));
 
   // Extract entities from context.sferas
   const relationships = context.sferas.relationships || [];
