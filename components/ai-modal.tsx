@@ -6,6 +6,7 @@ import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { processMemoryPrompt, type AIMemoryResponse } from '@/utils/ai-service';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
+import { logAIModalSubmit, logAIMemorySaved, logAIMemoryDiscarded } from '@/utils/analytics';
 import { 
   startBackgroundAIProcessing, 
   getPendingAIResponse, 
@@ -94,6 +95,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [partialResults, setPartialResults] = useState<string>('');
+  const baseTextRef = useRef<string>(''); // Track confirmed text (before partial results)
+  const hasReceivedFinalResultRef = useRef<boolean>(false); // Track if we've received final result for current session
   const [currentView, setCurrentView] = useState<ModalView>('input');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [aiResponse, setAiResponse] = useState<AIMemoryResponse | null>(null);
@@ -532,33 +535,50 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     // Set up Voice event handlers
     Voice.onSpeechStart = () => {
       setIsListening(true);
+      hasReceivedFinalResultRef.current = false; // Reset flag for new session
+      // Don't clear baseTextRef here - preserve existing text
     };
 
     Voice.onSpeechEnd = () => {
       setIsListening(false);
+      // Clear partial results when speech ends
+      setPartialResults('');
+      // If no final result was received, the partial might be all we have
+      // But don't commit it here - wait for onSpeechResults or let user continue
     };
 
     Voice.onSpeechResults = (e) => {
-      if (e.value && e.value.length > 0) {
-        const transcript = e.value[0];
-        setInputText(prev => {
-          // Remove partial results and add final transcript
-          const cleaned = prev.replace(partialResults, '').trim();
-          return cleaned ? `${cleaned} ${transcript}` : transcript;
-        });
-        setPartialResults('');
+      // Final results - this is the only place we should commit text
+      if (e.value && e.value.length > 0 && !hasReceivedFinalResultRef.current) {
+        const transcript = e.value[0].trim();
+        const currentBase = baseTextRef.current;
+        
+        // Only append if transcript is not empty and we haven't processed it yet
+        if (transcript) {
+          // Append final transcript to existing base text
+          const newBaseText = currentBase 
+            ? `${currentBase} ${transcript}`.trim()
+            : transcript;
+          
+          baseTextRef.current = newBaseText;
+          setInputText(newBaseText);
+          hasReceivedFinalResultRef.current = true; // Mark as processed
+        }
+        setPartialResults(''); // Clear partial results
       }
     };
 
     Voice.onSpeechPartialResults = (e) => {
+      // Partial results - ONLY for preview, don't commit to baseTextRef
       if (e.value && e.value.length > 0) {
-        const partial = e.value[0];
+        const partial = e.value[0].trim();
         setPartialResults(partial);
-        // Show partial results in real-time
-        setInputText(prev => {
-          const cleaned = prev.replace(partialResults, '').trim();
-          return cleaned ? `${cleaned} ${partial}` : partial;
-        });
+        // Show preview: baseTextRef + partial (temporary, not saved)
+        const currentBase = baseTextRef.current;
+        const previewText = currentBase 
+          ? `${currentBase} ${partial}`.trim()
+          : partial;
+        setInputText(previewText);
       }
     };
 
@@ -568,12 +588,22 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       setIsListening(false);
       setPartialResults('');
       
-      if (e.error?.code !== '7') { // Ignore "No speech input" errors
-        Alert.alert(
-          t('common.error') || 'Error',
-          e.error?.message || t('ai.error.recording') || 'Speech recognition failed'
-        );
+      // Ignore "No speech input" errors (code 7)
+      if (e.error?.code === '7') {
+        return;
       }
+      
+      // Handle specific error codes
+      let errorMessage = e.error?.message || t('ai.error.recording') || 'Speech recognition failed';
+      
+      if (e.error?.code === 'audio' || e.error?.message?.toLowerCase().includes('session activation')) {
+        errorMessage = 'Audio session failed. Please close other apps using the microphone and try again.';
+      }
+      
+      Alert.alert(
+        t('common.error') || 'Error',
+        errorMessage
+      );
     };
 
     // Cleanup on unmount
@@ -604,25 +634,63 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         return;
       }
 
-      // Request permissions (Voice handles this internally, but we can check)
-      const permissions = await Voice.requestSpeechRecognitionPermission();
-      if (permissions === false) {
-        Alert.alert(
-          t('ai.permission.title') || 'Permission Required',
-          t('ai.permission.message') || 'Microphone permission is required for speech-to-text.',
-          [{ text: t('common.ok') || 'OK' }]
-        );
-        return;
+      // Request permissions - check if method exists (may not be available on all platforms/versions)
+      if (Voice.requestSpeechRecognitionPermission) {
+        try {
+          const permissions = await Voice.requestSpeechRecognitionPermission();
+          if (permissions === false) {
+            Alert.alert(
+              t('ai.permission.title') || 'Permission Required',
+              t('ai.permission.message') || 'Microphone permission is required for speech-to-text.',
+              [{ text: t('common.ok') || 'OK' }]
+            );
+            return;
+          }
+        } catch (permError) {
+          // Permission request failed, but Voice.start() will handle it
+          console.warn('Permission request error:', permError);
+        }
       }
+      // Note: Voice.start() will automatically request permissions if needed
 
-      // Clear previous partial results
+      // Stop and destroy any existing session first to prevent conflicts
+      try {
+        await Voice.stop();
+      } catch (stopError) {
+        // Ignore errors when stopping (might not be running)
+      }
+      try {
+        await Voice.cancel();
+      } catch (cancelError) {
+        // Ignore errors when canceling
+      }
+      try {
+        await Voice.destroy();
+      } catch (destroyError) {
+        // Ignore errors when destroying
+      }
+      
+      // Small delay to ensure cleanup completes
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Clear previous partial results and save current text as base
       setPartialResults('');
+      hasReceivedFinalResultRef.current = false; // Reset flag
+      baseTextRef.current = inputText.trim(); // Save current text as base before starting new recognition
       
       // Determine language code for voice recognition
       const languageCode = language === 'bg' ? 'bg-BG' : 'en-US';
       
-      // Start voice recognition
-      await Voice.start(languageCode);
+      // Start voice recognition with extended silence timeout (Android)
+      // This prevents early stopping when user pauses briefly
+      const startOptions = Platform.OS === 'android' 
+        ? {
+            EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 5000, // 5 seconds of silence before stopping
+            EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000, // 3 seconds for partial completion
+          }
+        : undefined;
+      
+      await Voice.start(languageCode, startOptions);
       setIsRecording(true);
       
     } catch (error) {
@@ -713,6 +781,9 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     if (!inputText.trim() || !canSubmit) {
       return;
     }
+
+    // Log analytics event for AI modal submit
+    await logAIModalSubmit();
 
     // Move to loading view
     setCurrentView('loading');
@@ -896,6 +967,13 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         }
       );
 
+      // Log analytics event for AI memory saved
+      await logAIMemorySaved(
+        finalSphere,
+        !!selectedImage,
+        memoryItems.length
+      );
+
       // Clear AsyncStorage after successful save
       await clearPendingAIResponse();
       await clearPendingAIRequest();
@@ -952,8 +1030,6 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       { scale: sparkleScale.value }
     ],
     opacity: sparkleOpacity.value,
-    alignItems: 'center',
-    justifyContent: 'center',
   }));
 
   const animatedPulseBgStyle = useAnimatedStyle(() => ({
@@ -985,8 +1061,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       alignItems: 'center',
     },
     modalContainer: {
-      width: '90%',
-      maxWidth: 500,
+      width: '95%',
+      maxWidth: 600,
       borderRadius: 24 * fontScale,
     },
     modal: {
@@ -994,8 +1070,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       borderRadius: 24 * fontScale,
       paddingHorizontal: 24 * fontScale,
       paddingTop: 24 * fontScale,
-      paddingBottom: 32 * fontScale,
-      minHeight: 400 * fontScale,
+      paddingBottom: 16 * fontScale,
+      minHeight: 500 * fontScale,
       maxHeight: '85%',
     },
     modalContainerLarge: {
@@ -1014,18 +1090,26 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     },
     header: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'center',
       marginBottom: 32 * fontScale,
       position: 'relative',
+      paddingRight: 40 * fontScale, // Space for close button
     },
     headerTitle: {
-      flex: 1,
       textAlign: 'center',
+      marginBottom: 4 * fontScale,
+    },
+    headerSubtitle: {
+      textAlign: 'center',
+      opacity: 0.7,
+      marginTop: 0,
+      paddingHorizontal: 8 * fontScale, // Extra padding to prevent overlap
     },
     closeButton: {
       position: 'absolute',
       right: 0,
+      top: 0,
       width: 32 * fontScale,
       height: 32 * fontScale,
       borderRadius: 16 * fontScale,
@@ -1118,7 +1202,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       paddingVertical: 16 * fontScale,
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: 20 * fontScale,
+      marginTop: 48 * fontScale,
+      marginBottom: 0,
       flexDirection: 'row',
     },
     submitButtonDisabled: {
@@ -1246,7 +1331,6 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         : 'rgba(255, 215, 0, 0.25)',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 10 * fontScale,
       overflow: 'visible',
       shadowColor: '#FFD700',
       shadowOffset: { width: 0, height: 0 },
@@ -1467,9 +1551,14 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
             {/* Header */}
             {currentView !== 'loading' && (
               <View style={styles.header}>
-                <ThemedText size="l" weight="semibold" style={styles.headerTitle}>
-                  {t('ai.title') || 'Share your thoughts...'}
-                </ThemedText>
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                  <ThemedText size="l" weight="semibold" style={styles.headerTitle}>
+                    {t('ai.title') || 'Create Memory with AI'}
+                  </ThemedText>
+                  <ThemedText size="sm" style={styles.headerSubtitle}>
+                    {t('ai.subtitle') || 'Share your story and AI will form a memory with moments and lessons'}
+                  </ThemedText>
+                </View>
                 <Pressable 
                   onPress={() => {
                     // Check if there's any progress to lose
@@ -1964,6 +2053,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                   style={[styles.confirmButton, styles.discardButton]}
                   onPress={async () => {
                     setShowCloseConfirm(false);
+                    // Log analytics event for AI memory discarded
+                    await logAIMemoryDiscarded();
                     // Clear AsyncStorage when discarding
                     await clearPendingAIResponse();
                     await clearPendingAIRequest();

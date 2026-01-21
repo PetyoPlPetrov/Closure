@@ -617,6 +617,7 @@ export interface Translations {
 
   // AI
   'ai.title': string;
+  'ai.subtitle': string;
   'ai.placeholder.input': string;
   'ai.placeholder.recording': string;
   'ai.listening': string;
@@ -3935,7 +3936,8 @@ const translations: Record<Language, Translations> = {
     'settings.help.viewGuide': 'View Guide',
 
     // AI
-    'ai.title': 'Share your thoughts...',
+    'ai.title': 'Create Memory with AI',
+    'ai.subtitle': 'Share your story and AI will form a memory with moments and lessons',
     'ai.placeholder.input': 'Or type here at least 10 words',
     'ai.placeholder.recording': '[Voice recording - speech-to-text integration needed]',
     'ai.listening': 'Listening...',
@@ -6837,7 +6839,8 @@ const translations: Record<Language, Translations> = {
     'settings.help.viewGuide': 'Преглед на ръководството',
 
     // AI
-    'ai.title': 'Споделете мислите си...',
+    'ai.title': 'Създай спомен с AI',
+    'ai.subtitle': 'Сподели своята история и AI ще създаде спомен с моменти и уроци',
     'ai.placeholder.input': 'Или пишете тук поне 10 думи',
     'ai.placeholder.recording': '[Гласов запис - необходима интеграция за реч към текст]',
     'ai.listening': 'Слушам...',

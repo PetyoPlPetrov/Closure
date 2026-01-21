@@ -2172,13 +2172,14 @@ export default function SpheresScreen() {
                             end={{ x: 1, y: 1 }}
                             style={styles.sphereCardContent}
                           >
-                            <View style={[styles.sphereIcon, { justifyContent: 'center', alignItems: 'center' }]}>
+                            <View style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}>
                               <ThemedText
                                 style={{
                                   fontSize: 40 * fontScale * iconScale,
                                   color: colorScheme === 'dark' ? '#FFD700' : '#F57C00',
                                   textAlign: 'center',
                                   lineHeight: 40 * fontScale * iconScale,
+                                  includeFontPadding: false,
                                 }}
                               >
                                 ✨

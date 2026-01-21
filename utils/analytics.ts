@@ -127,6 +127,31 @@ export const logNotificationTurnedOn = async (sphere: string, entityType: string
   });
 };
 
+/**
+ * Log when user submits AI modal (presses submit button)
+ */
+export const logAIModalSubmit = async () => {
+  await logEvent('ai_modal_submit', {});
+};
+
+/**
+ * Log when user saves AI-generated memory
+ */
+export const logAIMemorySaved = async (sphere: string, hasImage: boolean, momentCount: number) => {
+  await logEvent('ai_memory_saved', {
+    sphere,
+    has_image: hasImage,
+    moment_count: momentCount,
+  });
+};
+
+/**
+ * Log when user discards AI-generated memory
+ */
+export const logAIMemoryDiscarded = async () => {
+  await logEvent('ai_memory_discarded', {});
+};
+
 export default {
   logEvent,
   logEntityCreated,
@@ -136,5 +161,8 @@ export default {
   logWheelSpin,
   logInsightsSphereOpened,
   logNotificationTurnedOn,
+  logAIModalSubmit,
+  logAIMemorySaved,
+  logAIMemoryDiscarded,
 };
 
