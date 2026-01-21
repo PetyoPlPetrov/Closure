@@ -4723,77 +4723,29 @@ const FloatingMemory = React.memo(function FloatingMemory({
       let momentX: number | undefined = undefined;
       let momentY: number | undefined = undefined;
       
-      // Special positioning for clouds: place them just above and just below the memory image
-      if (momentType === 'cloud') {
-        const memoryBottom = memoryCenterY + (memorySize / 2);
-        const memoryTop = memoryCenterY - (memorySize / 2);
-        const cloudSpacing = 60; // Distance from memory edge
-        const cloudYBelow = memoryBottom + cloudSpacing + momentHeight / 2;
-        
-        // Split clouds between above and below
-        const cloudsAbove = Math.ceil(totalCount / 2);
-        const cloudsBelow = totalCount - cloudsAbove;
-        
-        let targetX: number;
-        let targetY: number;
-        
-        if (index < cloudsAbove) {
-          // Place above memory, but ensure it's below header safe zone
-          const aboveIndex = index;
-          const spacing = availableWidth / Math.max(1, cloudsAbove - 1);
-          targetX = minX + (aboveIndex * spacing);
-          // Use a safe zone above memory, clamped to not go into header
-          const safeAboveZone = memoryTop - 40; // Safe distance above memory
-          targetY = Math.max(minY, safeAboveZone);
-        } else {
-          // Place below memory
-          const belowIndex = index - cloudsAbove;
-          const spacing = availableWidth / Math.max(1, cloudsBelow - 1);
-          targetX = minX + (belowIndex * spacing);
-          targetY = cloudYBelow;
-        }
-        
-        momentX = savedX !== undefined ? Math.max(minX, Math.min(maxX, savedX)) : targetX;
-        // Clamp Y to ensure it doesn't go into header area or below screen
-        momentY = savedY !== undefined 
-          ? Math.max(minY, Math.min(maxY, savedY))
-          : Math.max(minY, Math.min(maxY, targetY));
-      } else {
-        // Sun positioning: 70% below memory, 30% above
-        const memoryBottom = memoryCenterY + (memorySize / 2);
-        const memoryTop = memoryCenterY - (memorySize / 2);
-        const belowMemoryStart = memoryBottom + 40;
-        const belowMemoryEnd = maxY;
-        const aboveMemoryStart = minY; // Already respects header safe zone
-        const aboveMemoryEnd = Math.max(minY, memoryTop - 40); // Ensure it doesn't go into header area
-        
-        const sunsBelow = Math.floor(totalCount * 0.7);
-        const sunsAbove = totalCount - sunsBelow;
-        
-        let targetX: number;
-        let targetY: number;
-        
-        if (index < sunsBelow) {
-          // Place below memory (70%)
-          const belowIndex = index;
-          const spacing = availableWidth / Math.max(1, sunsBelow - 1);
-          targetX = minX + (belowIndex * spacing);
-          // Distribute evenly in the below region
-          const belowSpacing = (belowMemoryEnd - belowMemoryStart) / Math.max(1, sunsBelow - 1);
-          targetY = belowMemoryStart + (belowIndex * belowSpacing);
-        } else {
-          // Place above memory (30%)
-          const aboveIndex = index - sunsBelow;
-          const spacing = availableWidth / Math.max(1, sunsAbove - 1);
-          targetX = minX + (aboveIndex * spacing);
-          // Distribute evenly in the above region
-          const aboveSpacing = (aboveMemoryEnd - aboveMemoryStart) / Math.max(1, sunsAbove - 1);
-          targetY = aboveMemoryStart + (aboveIndex * aboveSpacing);
-        }
-        
-        momentX = savedX !== undefined ? Math.max(minX, Math.min(maxX, savedX)) : targetX;
-        momentY = savedY !== undefined ? Math.max(minY, Math.min(maxY, savedY)) : targetY;
-      }
+      // Position all moments in the upper part of the screen (above the middle)
+      // This ensures moments pop up above the middle when icon buttons are pressed
+      const screenMiddle = SCREEN_HEIGHT / 2;
+      const upperRegionStart = minY; // Start from header safe zone
+      const upperRegionEnd = screenMiddle - momentHeight / 2 - 20; // End just above middle with padding
+      
+      // Distribute horizontally across available width
+      const spacing = totalCount > 1 ? availableWidth / (totalCount - 1) : 0;
+      const targetX = totalCount === 1 
+        ? SCREEN_WIDTH / 2 // Center if only one moment
+        : minX + (index * spacing);
+      
+      // Distribute vertically in the upper region
+      const verticalSpacing = totalCount > 1 
+        ? (upperRegionEnd - upperRegionStart) / Math.max(1, totalCount - 1)
+        : 0;
+      const targetY = upperRegionStart + (index * verticalSpacing);
+      
+      momentX = savedX !== undefined ? Math.max(minX, Math.min(maxX, savedX)) : targetX;
+      // Clamp Y to upper region (above middle of screen)
+      momentY = savedY !== undefined 
+        ? Math.max(minY, Math.min(upperRegionEnd, savedY))
+        : Math.max(minY, Math.min(upperRegionEnd, targetY));
 
       return { x: momentX, y: momentY };
     };
