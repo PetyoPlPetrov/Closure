@@ -30,6 +30,7 @@ import { useSubscription } from '@/utils/SubscriptionProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -1393,7 +1394,6 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     },
     submitButton: {
       width: '100%',
-      backgroundColor: colors.primary,
       borderRadius: 16 * fontScale,
       paddingVertical: 16 * fontScale,
       alignItems: 'center',
@@ -1403,9 +1403,6 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       flexDirection: 'row',
     },
     submitButtonDisabled: {
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 255, 255, 0.1)' 
-        : 'rgba(0, 0, 0, 0.1)',
       opacity: 0.5,
     },
     backButton: {
@@ -1899,17 +1896,32 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
 
             {/* Submit Button */}
             <TouchableOpacity
-              style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
               onPress={handleSend}
               disabled={!canSubmit}
               activeOpacity={0.8}
+              style={!canSubmit && styles.submitButtonDisabled}
             >
-              <ThemedText style={{ fontSize: 20 * fontScale, marginRight: 8 * fontScale }}>
-                ✨
-              </ThemedText>
-              <ThemedText size="l" weight="bold" style={{ color: '#ffffff' }}>
-                {t('ai.submit') || 'Submit'}
-              </ThemedText>
+              <LinearGradient
+                colors={
+                  canSubmit
+                    ? colorScheme === 'dark'
+                      ? [colors.primary, colors.primaryLight, colors.primary]
+                      : [colors.primary, colors.primaryLight, colors.primary]
+                    : colorScheme === 'dark'
+                    ? ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)']
+                    : ['rgba(0, 0, 0, 0.1)', 'rgba(0, 0, 0, 0.1)']
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.submitButton}
+              >
+                <ThemedText style={{ fontSize: 20 * fontScale, marginRight: 8 * fontScale }}>
+                  ✨
+                </ThemedText>
+                <ThemedText size="l" weight="bold" style={{ color: '#ffffff' }}>
+                  {t('ai.submit') || 'Submit'}
+                </ThemedText>
+              </LinearGradient>
             </TouchableOpacity>
               </>
             )}
