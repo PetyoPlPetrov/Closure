@@ -17,6 +17,7 @@ export interface PendingAIRequest {
   timestamp: number;
   requestId: string;
   imageUri?: string; // Optional image URI if user uploaded an image
+  language?: 'en' | 'bg'; // Language code for AI prompt and response
 }
 
 export interface PendingAIResponse {
@@ -147,16 +148,17 @@ export async function clearPendingAIError(): Promise<void> {
 /**
  * Background task to process AI request
  */
-const backgroundTask = async (taskData: { requestId: string; prompt: string; context: AIRequestContext; imageUri?: string }) => {
+const backgroundTask = async (taskData: { requestId: string; prompt: string; context: AIRequestContext; imageUri?: string; language?: 'en' | 'bg' }) => {
   const { requestId, prompt, context } = taskData;
   
   try {
-    // Get the pending request to check for image URI
+    // Get the pending request to check for image URI and language
     const pendingRequest = await getPendingAIRequest();
     const savedImageUri = pendingRequest?.imageUri || taskData.imageUri;
+    const language = pendingRequest?.language || taskData.language || 'en';
     
-    // Process the AI request
-    const response = await processMemoryPrompt(prompt, context);
+    // Process the AI request with language
+    const response = await processMemoryPrompt(prompt, context, language);
     
     // Save response to storage with image URI if available
     await savePendingAIResponse({
@@ -199,17 +201,19 @@ const backgroundTask = async (taskData: { requestId: string; prompt: string; con
 export async function startBackgroundAIProcessing(
   prompt: string,
   context: AIRequestContext,
-  imageUri?: string
+  imageUri?: string,
+  language?: 'en' | 'bg'
 ): Promise<string> {
   const requestId = `ai_request_${Date.now()}`;
   
-  // Save pending request with image URI if available
+  // Save pending request with image URI and language if available
   await savePendingAIRequest({
     prompt,
     context,
     timestamp: Date.now(),
     requestId,
     imageUri,
+    language,
   });
   
   // Start background task
@@ -229,6 +233,7 @@ export async function startBackgroundAIProcessing(
       prompt,
       context,
       imageUri,
+      language,
     },
   };
   

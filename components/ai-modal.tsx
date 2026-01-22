@@ -956,11 +956,12 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         hobbies: hobbies.length > 0 ? hobbies.map(h => h.name) : undefined,
       };
 
-      // Start background processing (include image URI if uploaded)
+      // Start background processing (include image URI and language if available)
       const requestId = await startBackgroundAIProcessing(
         inputText.trim(),
         { sferas },
-        selectedImage || undefined
+        selectedImage || undefined,
+        language
       );
       setBackgroundRequestId(requestId);
 
@@ -970,7 +971,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         try {
           const response = await processMemoryPrompt(
             inputText.trim(), 
-            { sferas }
+            { sferas },
+            language
           );
           
           // Check if app is still active before stopping background task

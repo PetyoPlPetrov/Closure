@@ -40,10 +40,14 @@ export interface AIMemoryResponse {
 /**
  * Process memory prompt using Firebase AI (Gemini)
  * Analyzes the user's story and generates a memory with moments
+ * @param prompt - User's story/input text
+ * @param context - AI request context with entities
+ * @param language - Language code ('en' or 'bg') for prompt and response
  */
 export async function processMemoryPrompt(
   prompt: string,
-  context: AIRequestContext
+  context: AIRequestContext,
+  language: 'en' | 'bg' = 'en'
 ): Promise<AIMemoryResponse> {
   console.log('🤖 Processing AI memory prompt:', prompt.substring(0, 100) + '...');
   try {
@@ -100,9 +104,15 @@ export async function processMemoryPrompt(
     console.log('📋 Available entities (enriched):', JSON.stringify(enrichedEntities, null, 2));
     console.log('📋 Available entities (detailed):', JSON.stringify(availableEntities, null, 2));
 
+    // Determine language name for prompt
+    const languageName = language === 'bg' ? 'Bulgarian' : 'English';
+    const languageCode = language === 'bg' ? 'bg' : 'en';
+    
     // Create the AI prompt with enriched entity information
     const systemPrompt = `You are a helpful assistant for the Sferas app, which helps users process life experiences and memories. 
 Your task is to analyze a user's story and create a structured memory with moments.
+
+IMPORTANT: You must respond entirely in ${languageName} (${languageCode}). All text in your response including memory titles, moments, and lessons must be in ${languageName}.
 
 Available entities in each sphere (with relationship/role context):
 - Relationships: ${enrichedEntities.relationships.join(', ') || 'None'}
@@ -136,23 +146,23 @@ Based on the user's story, you must:
    - For Career: Match based on whether it's a current or past job mentioned in the story
    - For Relationships: Match based on whether it's a current or past relationship
    - The entityName must EXACTLY match the name (without the relationship/status suffix) from the available entities
-3. Generate a meaningful title for the memory
-4. Generate 2-4 "hardTruths" - difficult truths or challenging moments (clouds) if applicable
-5. Generate 2-4 "goodFacts" - positive aspects or happy moments (suns) if applicable
-6. Generate 1-3 "lessonsLearned" - insights or lessons from the experience (lightbulbs) if applicable
+3. Generate a meaningful title for the memory IN ${languageName.toUpperCase()}
+4. Generate 2-4 "hardTruths" - difficult truths or challenging moments (clouds) if applicable, ALL IN ${languageName.toUpperCase()}
+5. Generate 2-4 "goodFacts" - positive aspects or happy moments (suns) if applicable, ALL IN ${languageName.toUpperCase()}
+6. Generate 1-3 "lessonsLearned" - insights or lessons from the experience (lightbulbs) if applicable, ALL IN ${languageName.toUpperCase()}
 
 CRITICAL MATCHING RULES:
-- If the story mentions "father" or "dad", match to the Family entity with relationship "Father" or similar
-- If the story mentions "brother", match to the Family entity with relationship "Brother"
-- If the story mentions "mother" or "mom", match to the Family entity with relationship "Mother"
-- Pay close attention to relationship keywords in the story to select the correct entity
+- Match entities based on relationship keywords in the user's story (in ${languageName})
+- For Family: Match based on relationship type mentioned in the story (e.g., "father"/"баща", "mother"/"майка", "brother"/"брат", "sister"/"сестра", etc.)
+- For Career: Match based on whether it's a current or past job mentioned in the story
+- For Relationships: Match based on whether it's a current or past relationship
 - The entityName must be the EXACT name from the list (e.g., if available entity is "John Smith (Father)", use "John Smith" as entityName)
-- All arrays should contain meaningful, specific moments related to the story
+- All arrays should contain meaningful, specific moments related to the story, ALL IN ${languageName.toUpperCase()}
 - Be empathetic and thoughtful in your analysis`;
 
-    const userPrompt = `User's story: ${prompt}
+    const userPrompt = `User's story (in ${languageName}): ${prompt}
 
-Analyze this story and return the structured memory response.`;
+Analyze this story and return the structured memory response. Remember: ALL text in your response (title, hardTruths, goodFacts, lessonsLearned) must be in ${languageName}.`;
 
     // Log the full prompt being sent to AI
     const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
@@ -170,25 +180,25 @@ Analyze this story and return the structured memory response.`;
           description: 'The name of the entity this memory relates to. Must match one of the available entities in the selected sphere.',
         }),
         title: Schema.string({
-          description: 'A concise, meaningful title for the memory',
+          description: `A concise, meaningful title for the memory IN ${languageName.toUpperCase()}`,
         }),
         hardTruths: Schema.array({
           items: Schema.string({
-            description: 'A difficult truth or challenging moment (cloud)',
+            description: `A difficult truth or challenging moment (cloud) IN ${languageName.toUpperCase()}`,
           }),
-          description: 'Array of 2-4 difficult truths or challenging moments, if applicable',
+          description: `Array of 2-4 difficult truths or challenging moments, if applicable, ALL IN ${languageName.toUpperCase()}`,
         }),
         goodFacts: Schema.array({
           items: Schema.string({
-            description: 'A positive aspect or happy moment (sun)',
+            description: `A positive aspect or happy moment (sun) IN ${languageName.toUpperCase()}`,
           }),
-          description: 'Array of 2-4 positive aspects or happy moments, if applicable',
+          description: `Array of 2-4 positive aspects or happy moments, if applicable, ALL IN ${languageName.toUpperCase()}`,
         }),
         lessonsLearned: Schema.array({
           items: Schema.string({
-            description: 'An insight or lesson learned from the experience (lightbulb)',
+            description: `An insight or lesson learned from the experience (lightbulb) IN ${languageName.toUpperCase()}`,
           }),
-          description: 'Array of 1-3 insights or lessons learned, if applicable',
+          description: `Array of 1-3 insights or lessons learned, if applicable, ALL IN ${languageName.toUpperCase()}`,
         }),
       },
       required: ['sphere', 'entityName', 'title', 'hardTruths', 'goodFacts', 'lessonsLearned'],
