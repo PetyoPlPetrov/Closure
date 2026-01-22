@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sferas",
     "slug": "sphere",
-    "version": "1.0.97",
+    "version": "1.0.98",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-v2.png",
     "scheme": "sphere",
@@ -28,7 +28,7 @@
           "com.petyoplpetrov.Sphere.ai-processing"
         ]
       },
-      "buildNumber": "1.0.97",
+      "buildNumber": "1.0.98",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
@@ -51,7 +51,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 99,
+      "versionCode": 100,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -95,7 +95,13 @@
       "./plugins/with-firebase-appdelegate",
       "./plugins/withAnalyticsSourcePatch.js",
       "./plugins/with-video-composer.js",
-      "./plugins/with-voice.js"
+      [
+        "@react-native-voice/voice",
+        {
+          "microphonePermission": "This app needs access to your microphone to record your voice for speech-to-text conversion in the AI assistant feature. When you use the AI memory creation feature, you can speak your story instead of typing. For example, you can tell the app about a meaningful conversation with a friend, and the AI will help you create a structured memory with moments from that experience. Your voice recordings are processed locally and converted to text - we do not store or transmit your voice recordings.",
+          "speechRecognitionPermission": "This app uses speech recognition to convert your voice input into text for the AI assistant feature. When you use the AI memory creation feature, you can speak your story instead of typing. For example, you can tell the app about a meaningful conversation with a friend, and the AI will help you create a structured memory with moments from that experience."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

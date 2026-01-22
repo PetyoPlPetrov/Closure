@@ -60,6 +60,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 // Conditionally import Voice to handle cases where native module isn't available
+import type { SpeechErrorEvent, SpeechRecognizedEvent, SpeechResultsEvent } from '@react-native-voice/voice';
 let Voice: any = null;
 try {
   Voice = require('@react-native-voice/voice').default || require('@react-native-voice/voice');
@@ -658,6 +659,12 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       // Don't clear baseTextRef here - preserve existing text
     };
 
+    Voice.onSpeechRecognized = (e: SpeechRecognizedEvent) => {
+      // Speech was recognized (intermediate event, before final results)
+      // This is useful for UI feedback but we don't commit text here
+      // We wait for onSpeechResults for final transcript
+    };
+
     Voice.onSpeechEnd = () => {
       setIsListening(false);
       // Clear partial results when speech ends
@@ -666,7 +673,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       // But don't commit it here - wait for onSpeechResults or let user continue
     };
 
-    Voice.onSpeechResults = (e) => {
+    Voice.onSpeechResults = (e: SpeechResultsEvent) => {
       // Final results - this is the only place we should commit text
       if (e.value && e.value.length > 0 && !hasReceivedFinalResultRef.current) {
         const transcript = e.value[0].trim();
@@ -687,7 +694,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       }
     };
 
-    Voice.onSpeechPartialResults = (e) => {
+    Voice.onSpeechPartialResults = (e: SpeechResultsEvent) => {
       // Partial results - ONLY for preview, don't commit to baseTextRef
       if (e.value && e.value.length > 0) {
         const partial = e.value[0].trim();
@@ -701,7 +708,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       }
     };
 
-    Voice.onSpeechError = (e) => {
+    Voice.onSpeechError = (e: SpeechErrorEvent) => {
       console.error('Speech recognition error:', e);
       setIsRecording(false);
       setIsListening(false);
