@@ -92,23 +92,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     loadData();
   }, []);
 
-  // Request notification permissions on mount
-  useEffect(() => {
-    const requestPermissions = async () => {
-      // iOS Simulator detection disabled
-
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-    };
-
-    requestPermissions();
-  }, []);
+  // Note: Notification permissions are now requested only when user explicitly enables notifications
+  // from the notification settings screen, not automatically on app startup
 
   // Calculate if entity meets condition for notification
   const checkCondition = useCallback(

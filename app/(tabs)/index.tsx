@@ -9261,13 +9261,23 @@ export default function HomeScreen() {
       // Don't save to AsyncStorage - we want modal to reappear if user navigates back
       setWalkthroughVisible(false);
 
+      // Check if there are no entities - if so, redirect to spheres tab
+      const totalEntities = profiles.length + jobs.length + familyMembers.length + friends.length + hobbies.length;
+      if (totalEntities === 0) {
+        // Redirect to spheres tab after a small delay to ensure modal is closed
+        setTimeout(() => {
+          router.push('/(tabs)/spheres');
+        }, 300);
+        return;
+      }
+
       // Pulse ONCE to remind the user to go to spheres tab
       // Don't stop first - just request a single pulse which will replace the infinite one
       requestSpheresTabPulse(true); // true = pulse only once
     } catch (_error) {
       setWalkthroughVisible(false);
     }
-  }, []);
+  }, [profiles.length, jobs.length, familyMembers.length, friends.length, hobbies.length]);
 
   const handleOnboardingDemo = useCallback(() => {
     // Navigate to settings to trigger demo data generation

@@ -659,6 +659,8 @@ export interface Translations {
   'ai.rateLimit.upgrade': string;
   'ai.error.title': string;
   'ai.error.message': string;
+  'ai.noEntities.title': string;
+  'ai.noEntities.message': string;
 
   // Moment Suggestions
   'suggestions.birthday.hardTruths.0': string;
@@ -3986,6 +3988,8 @@ const translations: Record<Language, Translations> = {
     'ai.rateLimit.upgrade': 'Upgrade to Premium',
     'ai.error.title': 'AI Processing Failed',
     'ai.error.message': 'Failed to process your request: {error}. Please try again.',
+    'ai.noEntities.title': 'No Entities Found',
+    'ai.noEntities.message': 'Please create at least one entity (profile, job, family member, friend, or hobby) before using the AI feature.',
 
     // Moment Suggestions
     'suggestions.birthday.hardTruths.0': "They didn't remember my birthday",
@@ -6894,6 +6898,8 @@ const translations: Record<Language, Translations> = {
     'ai.rateLimit.upgrade': 'Надграждане до Premium',
     'ai.error.title': 'AI обработката неуспешна',
     'ai.error.message': 'Неуспешно обработване на заявката: {error}. Моля, опитайте отново.',
+    'ai.noEntities.title': 'Няма намерени обекти',
+    'ai.noEntities.message': 'Моля, създайте поне един обект (профил, работа, член на семейството, приятел или хоби) преди да използвате функцията AI.',
 
     // Moment Suggestions
     'suggestions.birthday.hardTruths.0': 'Не си спомниха рожденния ми ден',

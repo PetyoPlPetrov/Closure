@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Notifications from 'expo-notifications';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
@@ -134,6 +135,17 @@ export default function NotificationDetailScreen() {
         if (!subscribed) return; // User cancelled or didn't subscribe
         // User subscribed, continue to enable notifications
       }
+      
+      // Request notification permissions when user explicitly enables notifications
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status !== 'granted') {
+          // User denied permissions, don't enable notifications
+          return;
+        }
+      }
+      
       // Turn on notifications with current draft settings
       await setOverride(sphere, entityId, {
         kind: 'custom',
