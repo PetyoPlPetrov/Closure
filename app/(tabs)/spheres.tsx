@@ -205,6 +205,9 @@ export default function SpheresScreen() {
   });
 
   const checkSubscriptionLimit = (sphere: LifeSphere): boolean => {
+    // In development mode, bypass subscription limits
+    if (__DEV__) return true;
+    
     if (isSubscribed) return true; // Subscribed users can create unlimited
     
     switch (sphere) {
@@ -224,8 +227,9 @@ export default function SpheresScreen() {
   };
 
   const showSubscriptionPrompt = async (sphere: LifeSphere) => {
+    // In development mode, bypass subscription check
     // Only show paywall if user is not subscribed
-    if (!isSubscribed) {
+    if (!__DEV__ && !isSubscribed) {
       // Show paywall (custom in dev, RevenueCat in prod)
       await showPaywallForPremiumAccess();
     }

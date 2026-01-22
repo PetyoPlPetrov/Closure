@@ -50,9 +50,10 @@ export default function AddHobbyScreen() {
     // Don't check if we're saving (prevents redirect after saving first hobby)
     if (isSaving) return;
     
+    // In development mode, bypass subscription limits
     // Only redirect if user already had 2+ hobbies when they entered this screen
     // This allows 2 free hobbies per sphere before paywall
-    if (!isEditMode && !isSubscribed && initialHobbyCount.current >= 2) {
+    if (!__DEV__ && !isEditMode && !isSubscribed && initialHobbyCount.current >= 2) {
       (async () => {
         const subscribed = await showPaywallForPremiumAccess();
         if (!subscribed) {
@@ -110,9 +111,10 @@ export default function AddHobbyScreen() {
       return;
     }
 
+    // In development mode, bypass subscription limits
     // Check subscription limit for new hobbies (not edits)
     // Only check if user already had 1+ hobbies when they entered this screen
-    if (!isEditMode && !isSubscribed && initialHobbyCount.current !== null && initialHobbyCount.current >= 2) {
+    if (!__DEV__ && !isEditMode && !isSubscribed && initialHobbyCount.current !== null && initialHobbyCount.current >= 2) {
       // Show paywall (custom in dev, RevenueCat in prod)
       const subscribed = await showPaywallForPremiumAccess();
       if (!subscribed) return; // User cancelled or didn't subscribe

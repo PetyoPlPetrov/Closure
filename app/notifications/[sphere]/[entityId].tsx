@@ -127,7 +127,8 @@ export default function NotificationDetailScreen() {
       await setOverride(sphere, entityId, { kind: 'none' });
     } else {
       // Turn on notifications - check subscription first
-      if (!isSubscribed) {
+      // In development mode, bypass subscription check
+      if (!__DEV__ && !isSubscribed) {
         // Show paywall (custom in dev, RevenueCat in prod)
         const subscribed = await showPaywallForPremiumAccess();
         if (!subscribed) return; // User cancelled or didn't subscribe

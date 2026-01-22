@@ -78,9 +78,10 @@ export default function AddExProfileScreen() {
     // Don't check if we're saving or navigating away (prevents redirect after saving first profile)
     if (isSaving.current || isNavigatingAway.current) return;
     
+    // In development mode, bypass subscription limits
     // Only redirect if user already had 2+ profiles when they entered this screen
     // This allows 2 free profiles per sphere before paywall
-    if (!isEditMode && !isSubscribed && initialProfileCount.current >= 2) {
+    if (!__DEV__ && !isEditMode && !isSubscribed && initialProfileCount.current >= 2) {
       (async () => {
         const subscribed = await showPaywallForPremiumAccess();
         if (!subscribed) {
@@ -375,9 +376,10 @@ export default function AddExProfileScreen() {
     // Mark as saving to prevent unsaved changes dialog
     isSaving.current = true;
 
+    // In development mode, bypass subscription limits
     // Check subscription limit for new profiles (not edits)
     // Only check if profiles have loaded (to avoid false positives)
-    if (!isEditMode && !isSubscribed && !isLoading && profiles.length >= 2) {
+    if (!__DEV__ && !isEditMode && !isSubscribed && !isLoading && profiles.length >= 2) {
       isSaving.current = false;
       // Show paywall (custom in dev, RevenueCat in prod)
       const subscribed = await showPaywallForPremiumAccess();

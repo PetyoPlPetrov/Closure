@@ -728,8 +728,9 @@ export default function InsightsScreen() {
 
     if (!hasEntities) return;
 
+    // In development mode, bypass subscription check
     // Check subscription before navigating to comparison screens
-    if (!isSubscribed) {
+    if (!__DEV__ && !isSubscribed) {
       // Show paywall (custom in dev, RevenueCat in prod)
       const subscribed = await showPaywallForPremiumAccess();
       if (!subscribed) return; // User cancelled or didn't subscribe
@@ -1090,8 +1091,9 @@ export default function InsightsScreen() {
                   onPress={async () => {
                     if (!hasEntities) return;
 
+                    // In development mode, bypass subscription check
                     // Check subscription before navigating to comparison screens
-                    if (!isSubscribed) {
+                    if (!__DEV__ && !isSubscribed) {
                       // Show paywall (custom in dev, RevenueCat in prod)
                       const subscribed = await showPaywallForPremiumAccess();
                       if (!subscribed) return; // User cancelled or didn't subscribe

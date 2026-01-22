@@ -62,9 +62,10 @@ export default function AddJobScreen() {
     // Don't check if we're saving (prevents redirect after saving first job)
     if (isSaving.current) return;
     
+    // In development mode, bypass subscription limits
     // Only redirect if user already had 2+ jobs when they entered this screen
     // This allows 2 free jobs per sphere before paywall
-    if (!isEditMode && !isSubscribed && initialJobCount.current >= 2) {
+    if (!__DEV__ && !isEditMode && !isSubscribed && initialJobCount.current >= 2) {
       (async () => {
         const subscribed = await showPaywallForPremiumAccess();
         if (!subscribed) {
@@ -228,9 +229,10 @@ export default function AddJobScreen() {
   const handleSubmit = async () => {
     if (!isSaveEnabled) return;
 
+    // In development mode, bypass subscription limits
     // Check subscription limit for new jobs (not edits)
     // Only check if user already had 1+ jobs when they entered this screen
-    if (!isEditMode && !isSubscribed && initialJobCount.current !== null && initialJobCount.current >= 2) {
+    if (!__DEV__ && !isEditMode && !isSubscribed && initialJobCount.current !== null && initialJobCount.current >= 2) {
       // Show paywall (custom in dev, RevenueCat in prod)
       const subscribed = await showPaywallForPremiumAccess();
       if (!subscribed) return; // User cancelled or didn't subscribe
