@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sferas",
     "slug": "sphere",
-    "version": "1.0.92",
+    "version": "1.0.95",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-v2.png",
     "scheme": "sphere",
@@ -12,15 +12,23 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.petyoplpetrov.Sphere",
       "icon": "./assets/images/app-icon-v2.png",
+      "entitlements": {
+        "com.apple.developer.devicecheck.appattest-environment": "production"
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "This app uses your photo library to let you select images for your relationships, hobbies, and career profiles. For example, you can pick a photo to represent a family member or add an image to a job entry.",
         "NSPhotoLibraryAddUsageDescription": "The app needs permission to save your exported video memories directly to your photo gallery. For example, you can save an animated recap of your memories to share with friends or keep as a memento.",
-        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to convert your voice input into text for the AI assistant feature.",
-        "NSMicrophoneUsageDescription": "This app needs access to your microphone to record your voice for speech-to-text conversion in the AI assistant feature.",
-        "UIBackgroundModes": ["processing"]
+        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to convert your voice input into text for the AI assistant feature. When you use the AI memory creation feature, you can speak your story instead of typing. For example, you can tell the app about a meaningful conversation with a friend, and the AI will help you create a structured memory with moments from that experience.",
+        "NSMicrophoneUsageDescription": "This app needs access to your microphone to record your voice for speech-to-text conversion in the AI assistant feature. When you use the AI memory creation feature, you can speak your story instead of typing. For example, you can tell the app about a meaningful conversation with a friend, and the AI will help you create a structured memory with moments from that experience. Your voice recordings are processed locally and converted to text - we do not store or transmit your voice recordings.",
+        "UIBackgroundModes": [
+          "processing"
+        ],
+        "BGTaskSchedulerPermittedIdentifiers": [
+          "com.petyoplpetrov.Sphere.ai-processing"
+        ]
       },
-      "buildNumber": "1.0.92",
+      "buildNumber": "1.0.95",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
@@ -43,7 +51,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 92,
+      "versionCode": 97,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -52,6 +60,7 @@
     },
     "plugins": [
       "@react-native-firebase/app",
+      "@react-native-firebase/app-check",
       "expo-router",
       [
         "expo-build-properties",

@@ -2,28 +2,61 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
-import { useLanguage } from '@/utils/languages/language-context';
-import { useTranslate } from '@/utils/languages/use-translate';
-import { processMemoryPrompt, type AIMemoryResponse } from '@/utils/ai-service';
-import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
-import { logAIModalSubmit, logAIMemorySaved, logAIMemoryDiscarded } from '@/utils/analytics';
-import { 
-  startBackgroundAIProcessing, 
-  getPendingAIResponse, 
-  getPendingAIRequest,
-  clearPendingAIResponse,
+import {
+  clearPendingAIError,
   clearPendingAIRequest,
-  stopBackgroundAIProcessing,
+  clearPendingAIResponse,
+  getPendingAIError,
+  getPendingAIRequest,
+  getPendingAIResponse,
   isBackgroundTaskRunning,
   savePendingAIResponse,
-  type PendingAIResponse 
+  startBackgroundAIProcessing,
+  stopBackgroundAIProcessing,
+  type PendingAIResponse
 } from '@/utils/ai-background-processor';
-import { router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import { Image } from 'expo-image';
+import {
+  canMakeAIRequest,
+  recordAIRequest
+} from '@/utils/ai-rate-limiter';
+import { processMemoryPrompt, type AIMemoryResponse } from '@/utils/ai-service';
+import { logAIMemoryDiscarded, logAIMemorySaved, logAIModalSubmit } from '@/utils/analytics';
+import { ensureAppCheckToken, isAppCheckInitialized } from '@/utils/app-check';
+import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
+import { useLanguage } from '@/utils/languages/language-context';
+import { useTranslate } from '@/utils/languages/use-translate';
+import { showPaywallForPremiumAccess } from '@/utils/premium-access';
+import { useSubscription } from '@/utils/SubscriptionProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, Modal as RNModal, AppState, AppStateStatus } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  AppState, AppStateStatus,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  Modal as RNModal,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming
+} from 'react-native-reanimated';
 
 // Conditionally import Voice to handle cases where native module isn't available
 let Voice: any = null;
@@ -32,26 +65,6 @@ try {
 } catch (error) {
   console.warn('Voice module not available:', error);
 }
-import { 
-  ActivityIndicator, 
-  Alert, 
-  Modal, 
-  Platform, 
-  Pressable, 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
-  View 
-} from 'react-native';
-import Animated, { 
-  Easing, 
-  useAnimatedStyle, 
-  useSharedValue, 
-  withRepeat, 
-  withSequence, 
-  withSpring, 
-  withTiming 
-} from 'react-native-reanimated';
 
 type ModalView = 'input' | 'loading' | 'results';
 
@@ -81,6 +94,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
   const fontScale = useFontScale();
   const t = useTranslate();
   const { language } = useLanguage();
+  const { isSubscribed } = useSubscription();
   const { 
     profiles, 
     jobs, 
@@ -110,6 +124,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [backgroundRequestId, setBackgroundRequestId] = useState<string | null>(null);
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   // Monitor app state to detect when app goes to background
   useEffect(() => {
@@ -119,6 +134,48 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
 
     return () => {
       subscription.remove();
+    };
+  }, []);
+
+  // Monitor keyboard visibility to adjust mic button size
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        setIsKeyboardVisible(true);
+      }
+    );
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setIsKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
+
+  // Monitor keyboard visibility
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        setIsKeyboardVisible(true);
+      }
+    );
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setIsKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
     };
   }, []);
 
@@ -161,6 +218,13 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       // Always check for pending response when modal opens
       // This handles cases where modal was minimized and response arrived
       const checkAndRestore = async () => {
+        // Ensure App Check token is ready before user can submit
+        // iOS-friendly approach: Use getToken(true) to request a fresh token
+        // This ensures the token is available when the user presses submit
+        if (isAppCheckInitialized()) {
+          await ensureAppCheckToken();
+        }
+
         // First check prop (from parent component)
         if (pendingResponse?.response) {
           // Move to loading view first
@@ -219,9 +283,56 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     }
   };
 
-  // Check for pending AI response
+  // Check for pending AI response or error
   const checkPendingAIResponse = async () => {
     try {
+      // Ensure App Check is initialized before checking for errors/responses
+      // This prevents showing stale errors from before App Check was ready
+      if (!isAppCheckInitialized()) {
+        console.log('⏳ App Check not initialized yet, skipping pending response check');
+        return;
+      }
+
+      // First check for errors
+      const pendingError = await getPendingAIError();
+      if (pendingError) {
+        // Only show error if it's not an App Check token error (might be stale)
+        // If App Check is now initialized, clear old App Check errors
+        if (pendingError.error.includes('App Check token is invalid')) {
+          console.log('🧹 Clearing stale App Check error - App Check is now initialized');
+          await clearPendingAIError();
+          // Don't show the error, just clear it and let user try again
+          return;
+        }
+
+        // Clear the error from storage
+        await clearPendingAIError();
+        
+        // Restore image if it was saved with the error
+        if (pendingError.imageUri) {
+          setSelectedImage(pendingError.imageUri);
+        }
+        
+        // Show error to user and allow retry
+        setIsProcessing(false);
+        setCurrentView('input');
+        
+        Alert.alert(
+          t('ai.error.title') || 'AI Processing Failed',
+          (t('ai.error.message') || 'Failed to process your request: {error}. Please try again.').replace('{error}', pendingError.error),
+          [
+            {
+              text: t('common.ok') || 'OK',
+              style: 'default',
+            },
+          ]
+        );
+        
+        setBackgroundRequestId(null);
+        return;
+      }
+      
+      // Check for successful response
       const pendingResponse = await getPendingAIResponse();
       if (pendingResponse) {
         // Move to loading view first
@@ -233,6 +344,13 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         }
         // If we have a pending response, process it
         // Don't clear AsyncStorage here - keep it until user saves or discards
+        
+        // Record successful AI request for rate limiting (only for non-premium users)
+        // This handles the case where the response came from background processing
+        if (!isSubscribed) {
+          await recordAIRequest();
+        }
+        
         await processAIResponse(pendingResponse.response);
         setBackgroundRequestId(null);
       } else {
@@ -782,6 +900,30 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       return;
     }
 
+    // Ensure App Check is initialized before making AI requests
+    if (!isAppCheckInitialized()) {
+      Alert.alert(
+        t('common.error') || 'Error',
+        'App Check is not initialized. Please wait a moment and try again.'
+      );
+      return;
+    }
+
+    // Check rate limiting for non-premium users
+    if (!isSubscribed) {
+      const canMakeRequest = await canMakeAIRequest();
+      if (!canMakeRequest) {
+        // Show paywall directly when limit is reached
+        const userSubscribed = await showPaywallForPremiumAccess();
+        
+        // If user didn't subscribe, return early
+        if (!userSubscribed) {
+          return;
+        }
+        // If user subscribed, continue with the request (they now have premium)
+      }
+    }
+
     // Log analytics event for AI modal submit
     await logAIModalSubmit();
 
@@ -790,11 +932,25 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     setIsProcessing(true);
 
     try {
-      // Prepare sferas with entities for AI context
+      // Prepare sferas with enriched entities (including relationship/role metadata) for AI context
       const sferas = {
-        relationships: profiles.length > 0 ? profiles.map(p => p.name) : undefined,
-        career: jobs.length > 0 ? jobs.map(j => j.name) : undefined,
-        family: familyMembers.length > 0 ? familyMembers.map(f => f.name) : undefined,
+        relationships: profiles.length > 0 ? profiles.map(p => ({
+          name: p.name,
+          relationshipType: p.description, // Could be "ex-partner", "ex-boyfriend", etc.
+          isOngoing: p.relationshipEndDate === null || p.relationshipEndDate === undefined,
+          startDate: p.relationshipStartDate,
+          endDate: p.relationshipEndDate,
+        })) : undefined,
+        career: jobs.length > 0 ? jobs.map(j => ({
+          name: j.name,
+          isCurrent: j.endDate === null || j.endDate === undefined,
+          startDate: j.startDate,
+          endDate: j.endDate,
+        })) : undefined,
+        family: familyMembers.length > 0 ? familyMembers.map(f => ({
+          name: f.name,
+          relationship: f.relationship, // e.g., "Father", "Mother", "Brother", "Sister"
+        })) : undefined,
         friends: friends.length > 0 ? friends.map(f => f.name) : undefined,
         hobbies: hobbies.length > 0 ? hobbies.map(h => h.name) : undefined,
       };
@@ -823,6 +979,12 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
             // If we got a response while app is active, stop background task and process it
             await stopBackgroundAIProcessing();
             setBackgroundRequestId(null);
+            
+            // Record successful AI request for rate limiting (only for non-premium users)
+            if (!isSubscribed) {
+              await recordAIRequest();
+            }
+            
             await processAIResponse(response);
           } else {
             // App went to background, let background task handle it
@@ -830,6 +992,23 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
           }
         } catch (error) {
           // If foreground processing fails, background task will handle it
+          // But also show error immediately if we're still in foreground
+          const currentAppState = AppState.currentState;
+          if (currentAppState === 'active') {
+            setIsProcessing(false);
+            setCurrentView('input');
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            Alert.alert(
+              t('ai.error.title') || 'AI Processing Failed',
+              (t('ai.error.message') || 'Failed to process your request: {error}. Please try again.').replace('{error}', errorMessage),
+              [
+                {
+                  text: t('common.ok') || 'OK',
+                  style: 'default',
+                },
+              ]
+            );
+          }
         }
       } else {
         // App is already in background, let background task handle it
@@ -1133,6 +1312,9 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       alignItems: 'center',
       marginBottom: 24 * fontScale,
     },
+    micButtonContainerSmall: {
+      marginBottom: 12 * fontScale,
+    },
     largeMicButton: {
       width: 120 * fontScale,
       height: 120 * fontScale,
@@ -1145,6 +1327,13 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 8,
+    },
+    largeMicButtonSmall: {
+      width: 64 * fontScale,
+      height: 64 * fontScale,
+      borderRadius: 32 * fontScale,
+      shadowRadius: 4,
+      elevation: 4,
     },
     inputContainer: {
       marginBottom: 0,
@@ -1540,14 +1729,19 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable 
-          style={currentView === 'loading' ? styles.modalContainerLarge : styles.modalContainer} 
-          onPress={(e) => e.stopPropagation()}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' }}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          <Animated.View style={[
-            currentView === 'loading' ? styles.modalLarge : styles.modal, 
-            animatedModalStyle
-          ]}>
+          <Pressable 
+            style={currentView === 'loading' ? styles.modalContainerLarge : styles.modalContainer} 
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Animated.View style={[
+              currentView === 'loading' ? styles.modalLarge : styles.modal, 
+              animatedModalStyle
+            ]}>
             {/* Header */}
             {currentView !== 'loading' && (
               <View style={styles.header}>
@@ -1606,10 +1800,10 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
             {/* Input View */}
             {currentView === 'input' && (
               <>
-            {/* Large Microphone Button */}
-            <View style={styles.micButtonContainer}>
+            {/* Large Microphone Button - Smaller when keyboard is visible */}
+            <View style={[styles.micButtonContainer, isKeyboardVisible && styles.micButtonContainerSmall]}>
               <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
-                {isRecording && (
+                {isRecording && !isKeyboardVisible && (
                   <Animated.View 
                     style={[
                       styles.waveRing, 
@@ -1622,7 +1816,10 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                 )}
                 <Animated.View style={animatedMicStyle}>
                   <TouchableOpacity
-                    style={styles.largeMicButton}
+                    style={[
+                      styles.largeMicButton,
+                      isKeyboardVisible && styles.largeMicButtonSmall
+                    ]}
                     onPress={isRecording ? handleStopRecording : handleStartRecording}
                     disabled={isProcessing}
                     activeOpacity={0.8}
@@ -1630,13 +1827,13 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                     {isRecording ? (
                       <MaterialIcons 
                         name="stop" 
-                        size={48 * fontScale} 
+                        size={isKeyboardVisible ? 32 * fontScale : 48 * fontScale} 
                         color="#ffffff" 
                       />
                     ) : (
                       <MaterialIcons 
                         name="mic" 
-                        size={48 * fontScale} 
+                        size={isKeyboardVisible ? 32 * fontScale : 48 * fontScale} 
                         color="#ffffff" 
                       />
                     )}
@@ -1934,7 +2131,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
             )}
 
           </Animated.View>
-        </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
 
         {/* Sphere Picker Modal */}
         <RNModal

@@ -9,17 +9,26 @@ import { processMemoryPrompt, type AIMemoryResponse, type AIRequestContext } fro
 
 const PENDING_AI_REQUEST_KEY = '@sferas:pending_ai_request';
 const PENDING_AI_RESPONSE_KEY = '@sferas:pending_ai_response';
+const PENDING_AI_ERROR_KEY = '@sferas:pending_ai_error';
 
 export interface PendingAIRequest {
   prompt: string;
   context: AIRequestContext;
   timestamp: number;
   requestId: string;
+  imageUri?: string; // Optional image URI if user uploaded an image
 }
 
 export interface PendingAIResponse {
   requestId: string;
   response: AIMemoryResponse;
+  timestamp: number;
+  imageUri?: string; // Optional image URI if user uploaded an image
+}
+
+export interface PendingAIError {
+  requestId: string;
+  error: string;
   timestamp: number;
   imageUri?: string; // Optional image URI if user uploaded an image
 }
@@ -99,6 +108,43 @@ export async function clearPendingAIResponse(): Promise<void> {
 }
 
 /**
+ * Save AI error to storage
+ */
+export async function savePendingAIError(error: PendingAIError): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PENDING_AI_ERROR_KEY, JSON.stringify(error));
+  } catch (err) {
+    console.error('Failed to save pending AI error:', err);
+  }
+}
+
+/**
+ * Get pending AI error from storage
+ */
+export async function getPendingAIError(): Promise<PendingAIError | null> {
+  try {
+    const data = await AsyncStorage.getItem(PENDING_AI_ERROR_KEY);
+    if (data) {
+      return JSON.parse(data) as PendingAIError;
+    }
+  } catch (error) {
+    console.error('Failed to get pending AI error:', error);
+  }
+  return null;
+}
+
+/**
+ * Clear pending AI error from storage
+ */
+export async function clearPendingAIError(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(PENDING_AI_ERROR_KEY);
+  } catch (error) {
+    console.error('Failed to clear pending AI error:', error);
+  }
+}
+
+/**
  * Background task to process AI request
  */
 const backgroundTask = async (taskData: { requestId: string; prompt: string; context: AIRequestContext; imageUri?: string }) => {
@@ -127,6 +173,20 @@ const backgroundTask = async (taskData: { requestId: string; prompt: string; con
     await BackgroundJob.stop();
   } catch (error) {
     console.error('Background AI processing failed:', error);
+    
+    // Get the pending request to save image URI with error
+    const pendingRequest = await getPendingAIRequest();
+    const savedImageUri = pendingRequest?.imageUri || taskData.imageUri;
+    
+    // Save error to storage so user can be notified
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    await savePendingAIError({
+      requestId,
+      error: errorMessage,
+      timestamp: Date.now(),
+      imageUri: savedImageUri,
+    });
+    
     // Clear pending request on error
     await clearPendingAIRequest();
     await BackgroundJob.stop();

@@ -649,11 +649,16 @@ export interface Translations {
   'ai.saving': string;
   'ai.save.success': string;
   'ai.save.successMessage': string;
-    'ai.save.error': string;
-    'ai.openMemory': string;
-    'ai.closeConfirm.title': string;
-    'ai.closeConfirm.message': string;
-    'ai.closeConfirm.discard': string;
+  'ai.save.error': string;
+  'ai.openMemory': string;
+  'ai.closeConfirm.title': string;
+  'ai.closeConfirm.message': string;
+  'ai.closeConfirm.discard': string;
+  'ai.rateLimit.title': string;
+  'ai.rateLimit.message': string;
+  'ai.rateLimit.upgrade': string;
+  'ai.error.title': string;
+  'ai.error.message': string;
 
   // Moment Suggestions
   'suggestions.birthday.hardTruths.0': string;
@@ -3976,6 +3981,11 @@ const translations: Record<Language, Translations> = {
     'ai.closeConfirm.title': 'Discard changes?',
     'ai.closeConfirm.message': 'Your progress will be lost if you close this modal.',
     'ai.closeConfirm.discard': 'Discard',
+    'ai.rateLimit.title': 'AI Request Limit Reached',
+    'ai.rateLimit.message': "You've used all 3 free AI requests for today. Requests reset at midnight. Upgrade to Premium for unlimited AI requests.",
+    'ai.rateLimit.upgrade': 'Upgrade to Premium',
+    'ai.error.title': 'AI Processing Failed',
+    'ai.error.message': 'Failed to process your request: {error}. Please try again.',
 
     // Moment Suggestions
     'suggestions.birthday.hardTruths.0': "They didn't remember my birthday",
@@ -6879,6 +6889,11 @@ const translations: Record<Language, Translations> = {
     'ai.closeConfirm.title': 'Изхвърли промените?',
     'ai.closeConfirm.message': 'Вашият напредък ще бъде загубен, ако затворите този модал.',
     'ai.closeConfirm.discard': 'Изхвърли',
+    'ai.rateLimit.title': 'Достигнат лимит за AI заявки',
+    'ai.rateLimit.message': 'Използвахте всичките 3 безплатни AI заявки за днес. Заявките се нулират в полунощ. Надградете до Premium за неограничени AI заявки.',
+    'ai.rateLimit.upgrade': 'Надграждане до Premium',
+    'ai.error.title': 'AI обработката неуспешна',
+    'ai.error.message': 'Неуспешно обработване на заявката: {error}. Моля, опитайте отново.',
 
     // Moment Suggestions
     'suggestions.birthday.hardTruths.0': 'Не си спомниха рожденния ми ден',

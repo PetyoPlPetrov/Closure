@@ -17,8 +17,9 @@ import { NotificationsProvider } from '@/utils/NotificationsProvider';
 import { SplashAnimationProvider, useSplash } from '@/utils/SplashAnimationProvider';
 import { SubscriptionProvider } from '@/utils/SubscriptionProvider';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/utils/ThemeContext';
+import { initializeAppCheckService, verifyAppCheck } from '@/utils/app-check';
 // Firebase is automatically initialized via Expo plugin (@react-native-firebase/app)
-// No manual initialization needed
+// App Check is initialized in AppContent component
 
 // Load notification test utilities in dev mode
 if (__DEV__) {
@@ -39,7 +40,18 @@ function AppContent() {
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
-    const initializeRevenueCat = async () => {
+    const initializeServices = async () => {
+      // Initialize Firebase App Check first (required before other Firebase services)
+      try {
+        await initializeAppCheckService();
+        // Explicitly verify App Check after initialization
+        await verifyAppCheck();
+      } catch (error) {
+        // App Check errors are non-fatal - app can continue
+        handleDevError(error, 'App Check Initialization');
+      }
+
+      // Initialize RevenueCat
       // Skip initialization if RevenueCat is disabled via feature flag
       if (!ENABLE_REVENUECAT) {
         return;
@@ -71,7 +83,7 @@ function AppContent() {
       }
     };
 
-    initializeRevenueCat();
+    initializeServices();
   }, []);
 
   useEffect(() => {
