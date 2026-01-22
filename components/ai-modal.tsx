@@ -1285,6 +1285,13 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       marginTop: 0,
       paddingHorizontal: 8 * fontScale, // Extra padding to prevent overlap
     },
+    devBadge: {
+      paddingHorizontal: 6 * fontScale,
+      paddingVertical: 2 * fontScale,
+      borderRadius: 4 * fontScale,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     closeButton: {
       position: 'absolute',
       right: 0,
@@ -1746,9 +1753,18 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
             {currentView !== 'loading' && (
               <View style={styles.header}>
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-                  <ThemedText size="l" weight="semibold" style={styles.headerTitle}>
-                    {t('ai.title') || 'Create Memory with AI'}
-                  </ThemedText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * fontScale }}>
+                    <ThemedText size="l" weight="semibold" style={styles.headerTitle}>
+                      {t('ai.title') || 'Create Memory with AI'}
+                    </ThemedText>
+                    {__DEV__ && (
+                      <View style={[styles.devBadge, { backgroundColor: colors.primary }]}>
+                        <ThemedText size="xs" weight="bold" style={{ color: '#000', fontSize: 10 * fontScale }}>
+                          DEV
+                        </ThemedText>
+                      </View>
+                    )}
+                  </View>
                   <ThemedText size="sm" style={styles.headerSubtitle}>
                     {t('ai.subtitle') || 'Share your story and AI will form a memory with moments and lessons'}
                   </ThemedText>
@@ -1772,7 +1788,15 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
             {/* Header for loading view with minimize button */}
             {currentView === 'loading' && (
               <View style={styles.header}>
-                <View style={{ flex: 1 }} />
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                  {__DEV__ && (
+                    <View style={[styles.devBadge, { backgroundColor: colors.primary, position: 'absolute', left: 0 }]}>
+                      <ThemedText size="xs" weight="bold" style={{ color: '#000', fontSize: 10 * fontScale }}>
+                        DEV
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * fontScale, position: 'absolute', right: 0 }}>
                   {onMinimize && isProcessing && !aiResponse && (
                     <Pressable 

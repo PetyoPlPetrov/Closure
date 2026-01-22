@@ -3,6 +3,8 @@
  * Tracks AI requests per calendar day (timezone-based) for non-premium users
  * Limits: 3 requests per day
  * Resets at midnight in user's timezone
+ * 
+ * NOTE: Rate limiting is disabled on emulator/simulator for development
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -116,8 +118,14 @@ export async function getRemainingAIRequests(): Promise<number> {
 /**
  * Check if user can make an AI request
  * @returns true if user has remaining requests, false otherwise
+ * NOTE: Always returns true in development mode (unlimited requests)
  */
 export async function canMakeAIRequest(): Promise<boolean> {
+  // Skip rate limiting in development mode (unlimited requests)
+  if (__DEV__) {
+    return true;
+  }
+  
   const remaining = await getRemainingAIRequests();
   return remaining > 0;
 }

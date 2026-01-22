@@ -10,8 +10,35 @@
 
 import { firebase } from '@react-native-firebase/app-check';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 let isInitialized = false;
+
+/**
+ * Determine if we should use production App Check providers
+ * In production builds (TestFlight, App Store), we must use App Attest/DeviceCheck
+ * Debug tokens only work in development builds
+ * 
+ * IMPORTANT: For TestFlight and App Store builds, this MUST return true
+ * even if __DEV__ is true (which can happen in some build configurations)
+ */
+function shouldUseProductionProvider(): boolean {
+  // Check if running in Expo Go (always use debug)
+  if (Constants.executionEnvironment === 'storeClient') {
+    return false; // Expo Go = debug
+  }
+  
+  // For standalone builds (TestFlight, App Store), always use production provider
+  // This is critical - standalone builds MUST use App Attest/DeviceCheck
+  if (Constants.executionEnvironment === 'standalone') {
+    return true; // Standalone = production provider required
+  }
+  
+  // For bare workflow or development builds, use __DEV__ flag
+  // But note: some TestFlight builds might have __DEV__ = true
+  // So we prioritize executionEnvironment over __DEV__
+  return !__DEV__;
+}
 
 /**
  * Initialize Firebase App Check
@@ -39,19 +66,29 @@ export async function initializeAppCheckService(): Promise<void> {
 
     // 2. Configure it based on environment (Debug vs Production)
     // Only configure for the current platform to avoid web configuration issues
+    const useProduction = shouldUseProductionProvider();
     const config: any = {};
     
     if (Platform.OS === 'android') {
       config.android = {
-        provider: __DEV__ ? 'debug' : 'playIntegrity',
-        debugToken: __DEV__ ? DEBUG_TOKEN : undefined,
+        provider: useProduction ? 'playIntegrity' : 'debug',
+        debugToken: useProduction ? undefined : DEBUG_TOKEN,
       };
     } else if (Platform.OS === 'ios') {
       config.apple = {
         // In TestFlight/Production use combined method for better stability
-        provider: __DEV__ ? 'debug' : 'appAttestWithDeviceCheckFallback',
-        debugToken: __DEV__ ? DEBUG_TOKEN : undefined,
+        // appAttestWithDeviceCheckFallback: tries App Attest first, falls back to DeviceCheck
+        provider: useProduction ? 'appAttestWithDeviceCheckFallback' : 'debug',
+        debugToken: useProduction ? undefined : DEBUG_TOKEN,
       };
+    }
+    
+    // Log configuration for debugging (especially important for production builds)
+    if (Platform.OS === 'ios') {
+      console.log(`📱 App Check Configuration: ${useProduction ? 'PRODUCTION' : 'DEBUG'}`);
+      console.log(`   Provider: ${config.apple?.provider || 'none'}`);
+      console.log(`   Execution Environment: ${Constants.executionEnvironment}`);
+      console.log(`   __DEV__: ${__DEV__}`);
     }
     
     rnfbProvider.configure(config);
@@ -81,11 +118,24 @@ export async function initializeAppCheckService(): Promise<void> {
       // Verify App Check was initialized correctly
       if (token && token.length > 0) {
         console.log('✅ AppCheck verification passed');
+        console.log(`   Token length: ${token.length} characters`);
       } else {
         console.log('⚠️ AppCheck verification failed: token is empty');
+        if (useProduction && Platform.OS === 'ios') {
+          console.log('   ⚠️ CRITICAL: Production build but token is empty!');
+          console.log('   This usually means:');
+          console.log('   1. App Attest is not enabled in Firebase Console');
+          console.log('   2. App is not registered in Firebase App Check');
+          console.log('   3. Entitlement is missing or incorrect');
+        }
       }
     } catch (error) {
       console.log('❌ AppCheck verification failed:', error instanceof Error ? error.message : String(error));
+      if (useProduction && Platform.OS === 'ios') {
+        console.log('   ⚠️ CRITICAL: Production build failed to get token!');
+        console.log('   Check Firebase Console -> App Check -> Apps -> iOS');
+        console.log('   Ensure App Attest is enabled and app is registered');
+      }
     }
   } catch {
     // Don't throw - allow app to continue without App Check

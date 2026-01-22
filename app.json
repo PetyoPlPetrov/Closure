@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sferas",
     "slug": "sphere",
-    "version": "1.0.95",
+    "version": "1.0.96",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-v2.png",
     "scheme": "sphere",
@@ -28,7 +28,7 @@
           "com.petyoplpetrov.Sphere.ai-processing"
         ]
       },
-      "buildNumber": "1.0.95",
+      "buildNumber": "1.0.96",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
@@ -51,7 +51,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 97,
+      "versionCode": 98,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -85,6 +85,12 @@
         }
       ],
       "expo-notifications",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "This app needs access to your microphone to record your voice for speech-to-text conversion in the AI assistant feature. When you use the AI memory creation feature, you can speak your story instead of typing. For example, you can tell the app about a meaningful conversation with a friend, and the AI will help you create a structured memory with moments from that experience. Your voice recordings are processed locally and converted to text - we do not store or transmit your voice recordings."
+        }
+      ],
       "./plugins/with-transparent-splash-logo.js",
       "./plugins/with-firebase-appdelegate",
       "./plugins/withAnalyticsSourcePatch.js",
