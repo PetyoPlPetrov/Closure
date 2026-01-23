@@ -113,6 +113,15 @@ export interface Translations {
   'common.error': string;
   'common.optional': string;
   'common.discard': string;
+  'common.name': string;
+  'common.description': string;
+  'common.required': string;
+  'common.selectDate': string;
+  'common.confirmDelete': string;
+  'common.saving': string;
+  'common.photo': string;
+  'common.addPhoto': string;
+  'common.permissionRequired': string;
   'memory.unsavedChanges.title': string;
   'memory.unsavedChanges.message': string;
   
@@ -677,6 +686,12 @@ export interface Translations {
   'ai.entity.placeholder.friends': string;
   'ai.entity.placeholder.hobbies': string;
   'ai.entity.create': string;
+  'ai.entity.results': string;
+  'ai.entity.validationError': string;
+  'ai.entity.saveError': string;
+  'ai.entity.noEntities': string;
+  'ai.entity.openSfera': string;
+  'ai.entity.openSferaMessage': string;
 
   // Moment Suggestions
   'suggestions.birthday.hardTruths.0': string;
@@ -3456,6 +3471,15 @@ const translations: Record<Language, Translations> = {
     'common.ok': 'OK',
     'common.success': 'Success',
     'common.error': 'Error',
+    'common.name': 'Name',
+    'common.description': 'Description',
+    'common.required': 'Required',
+    'common.selectDate': 'Select date',
+    'common.confirmDelete': 'Are you sure you want to delete this?',
+    'common.saving': 'Saving...',
+    'common.photo': 'Photo',
+    'common.addPhoto': 'Add Photo',
+    'common.permissionRequired': 'Permission Required',
     'common.optional': 'Optional',
     'common.discard': 'Discard',
     'memory.unsavedChanges.title': 'Unsaved Changes',
@@ -3515,6 +3539,10 @@ const translations: Record<Language, Translations> = {
     'profile.familyMemberName.placeholder': 'Enter their name',
     'profile.relationshipType': 'Relationship Type',
     'profile.relationshipType.placeholder': 'e.g., Mother, Father, Sister...',
+    'profile.familyMember.relationship': 'Relationship',
+    'profile.relationship.status': 'Status',
+    'profile.relationship.current': 'Current',
+    'profile.relationship.past': 'Past',
     'profile.addFamilyMember': 'Add Family Member',
     'profile.editFamilyMember': 'Edit Family Member',
     'profile.editFamilyInfo': 'Edit Info',
@@ -4004,6 +4032,7 @@ const translations: Record<Language, Translations> = {
     'ai.rateLimit.upgrade': 'Upgrade to Premium',
     'ai.error.title': 'AI Processing Failed',
     'ai.error.message': 'Failed to process your request: {error}. Please try again.',
+    'ai.imagePermissionMessage': 'Permission to access camera roll is required to add photos.',
     'ai.action.title': 'What would you like to create?',
     'ai.action.message.withEntities': 'Choose to create a new memory or add a new entity to your life spheres.',
     'ai.action.message.noEntities': 'Let\'s start by creating your first entity. Tell us about someone or something important in your life.',
@@ -4014,12 +4043,20 @@ const translations: Record<Language, Translations> = {
     'ai.entity.selectSphere': 'Select Sphere',
     'ai.entity.tellStory': 'Tell us about this entity',
     'ai.entity.placeholder': 'Write or use the microphone to tell a story...',
-    'ai.entity.placeholder.relationship': 'Tell me about one relationship of yours. When it started, when it ended.',
-    'ai.entity.placeholder.career': 'Tell me about one job of yours. When it started, when it ended.',
+    'ai.entity.placeholder.relationship': 'Share a story about a relationship in your life, including when it began and when it ended (if it has).',
+    'ai.entity.placeholder.career': 'Share a story about a job or position you\'ve held, including when it started and when it ended (if it has).',
     'ai.entity.placeholder.family': 'Tell me about all of your family members.',
     'ai.entity.placeholder.friends': 'Tell me about all of your friends.',
     'ai.entity.placeholder.hobbies': 'Tell me about all of your hobbies.',
     'ai.entity.create': 'Create Entity',
+    'ai.entity.results': 'Review Entities',
+    'ai.entity.validationError': 'Please fill in all required fields for all entities.',
+    'ai.entity.saveError': 'Failed to save entities',
+    'ai.entity.noEntities': 'No entities found',
+    'ai.entity.openSfera': 'Отвори Сфера',
+    'ai.entity.openSferaMessage': 'Обектите са запазени успешно!',
+    'ai.entity.openSfera': 'Open Sfera',
+    'ai.entity.openSferaMessage': 'Entities have been saved successfully!',
     'ai.noEntities.title': 'No Entities Found',
     'ai.noEntities.message': 'Please create at least one entity (profile, job, family member, friend, or hobby) before using the AI feature.',
 
@@ -6381,6 +6418,9 @@ const translations: Record<Language, Translations> = {
     'common.success': 'Успех',
     'common.done': 'Готово',
     'common.error': 'Грешка',
+    'common.photo': 'Снимка',
+    'common.addPhoto': 'Добави снимка',
+    'common.permissionRequired': 'Необходимо разрешение',
     'common.optional': 'Незадължително',
     'common.discard': 'Отхвърли',
     'memory.unsavedChanges.title': 'Незапазени промени',
@@ -6440,6 +6480,12 @@ const translations: Record<Language, Translations> = {
     'profile.familyMemberName.placeholder': 'Въведете името им',
     'profile.relationshipType': 'Тип Връзка',
     'profile.relationshipType.placeholder': 'напр. Майка, Баща, Сестра...',
+    'profile.familyMember.relationship': 'Връзка',
+    'profile.relationship.status': 'Статус',
+    'profile.relationship.current': 'Текуща',
+    'profile.relationship.past': 'Минала',
+    'profile.relationship.startDate': 'Начална дата',
+    'profile.relationship.endDate': 'Крайна дата',
     'profile.addFamilyMember': 'Добави Член на Семейството',
     'profile.editFamilyMember': 'Редактирай Член на Семейството',
     'profile.editFamilyInfo': 'Редактирай Информация',
@@ -6925,6 +6971,7 @@ const translations: Record<Language, Translations> = {
     'ai.closeConfirm.title': 'Изхвърли промените?',
     'ai.closeConfirm.message': 'Вашият напредък ще бъде загубен, ако затворите този модал.',
     'ai.closeConfirm.discard': 'Изхвърли',
+    'ai.imagePermissionMessage': 'Необходимо е разрешение за достъп до галерията, за да добавите снимки.',
     'ai.rateLimit.title': 'Достигнат лимит за AI заявки',
     'ai.rateLimit.message': 'Използвахте всичките 3 безплатни AI заявки за днес. Заявките се нулират в полунощ. Надградете до Premium за неограничени AI заявки.',
     'ai.rateLimit.upgrade': 'Надграждане до Premium',
@@ -6940,8 +6987,8 @@ const translations: Record<Language, Translations> = {
     'ai.entity.selectSphere': 'Изберете сфера',
     'ai.entity.tellStory': 'Разкажете ни за този обект',
     'ai.entity.placeholder': 'Пишете или използвайте микрофона, за да разкажете история...',
-    'ai.entity.placeholder.relationship': 'Разкажете ми за една връзка от вашия живот. Кога започна, кога приключи.',
-    'ai.entity.placeholder.career': 'Разкажете ми за една работа от вашия живот. Кога започна, кога приключи.',
+    'ai.entity.placeholder.relationship': 'Споделете история за една връзка от вашия живот, включително кога започна и кога приключи (ако е приключила).',
+    'ai.entity.placeholder.career': 'Споделете история за една работа или позиция, която сте заемали, включително кога започна и кога приключи (ако е приключила).',
     'ai.entity.placeholder.family': 'Разкажете ми за всички членове на вашето семейство.',
     'ai.entity.placeholder.friends': 'Разкажете ми за всички ваши приятели.',
     'ai.entity.placeholder.hobbies': 'Разкажете ми за всички ваши хобита.',

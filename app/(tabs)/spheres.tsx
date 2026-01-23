@@ -10,6 +10,7 @@ import { JobCard } from '@/library/components/job-card';
 import { ProfileCard } from '@/library/components/profile-card';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { getPendingAIRequest, getPendingAIResponse, isBackgroundTaskRunning } from '@/utils/ai-background-processor';
+import { getPendingEntityRequest, getPendingEntityResponse, isBackgroundEntityTaskRunning } from '@/utils/ai-background-processor';
 import { sendToAI } from '@/utils/ai-service';
 import type { ExProfile, FamilyMember, Friend, Hobby, Job, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
@@ -250,6 +251,7 @@ export default function SpheresScreen() {
   const [aiActionModalVisible, setAiActionModalVisible] = useState(false);
   const [aiEntityCreationModalVisible, setAiEntityCreationModalVisible] = useState(false);
   const [pendingAIResponse, setPendingAIResponse] = useState<any>(null);
+  const [pendingEntityResponse, setPendingEntityResponse] = useState<any>(null);
   
   // Check for pending AI response when app becomes active or component mounts
   // This ensures data persists even after app is killed
@@ -370,6 +372,103 @@ export default function SpheresScreen() {
       }
     };
   }, [aiModalVisible]);
+
+  // Poll for pending entity creation response
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let isCleanedUp = false;
+
+    const checkForResponse = async () => {
+      if (isCleanedUp) {
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+        return;
+      }
+
+      try {
+        const pendingResponse = await getPendingEntityResponse();
+        if (pendingResponse && !isCleanedUp) {
+          setPendingEntityResponse(pendingResponse);
+          if (!aiEntityCreationModalVisible) {
+            setAiEntityCreationModalVisible(true);
+          }
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+          return;
+        }
+
+        const pendingRequest = await getPendingEntityRequest();
+        const isRunning = await isBackgroundEntityTaskRunning();
+        if (!pendingRequest && !isRunning) {
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+        }
+      } catch (error) {
+        console.error('Error checking for entity response:', error);
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      }
+    };
+
+    const shouldPoll = async () => {
+      const pendingRequest = await getPendingEntityRequest();
+      const isRunning = await isBackgroundEntityTaskRunning();
+      return !!(pendingRequest || isRunning);
+    };
+
+    shouldPoll().then((poll) => {
+      if (poll) {
+        checkForResponse();
+        intervalId = setInterval(checkForResponse, 2000);
+      }
+    });
+
+    return () => {
+      isCleanedUp = true;
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+  }, [aiEntityCreationModalVisible]);
+
+  // Check for pending entity response when app becomes active
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        const pendingResponse = await getPendingEntityResponse();
+        if (pendingResponse) {
+          setPendingEntityResponse(pendingResponse);
+          if (!aiEntityCreationModalVisible) {
+            setAiEntityCreationModalVisible(true);
+          }
+        }
+      }
+    });
+
+    const checkPending = async () => {
+      const pendingResponse = await getPendingEntityResponse();
+      if (pendingResponse) {
+        setPendingEntityResponse(pendingResponse);
+        if (!aiEntityCreationModalVisible) {
+          setAiEntityCreationModalVisible(true);
+        }
+      }
+    };
+    checkPending();
+
+    return () => {
+      subscription.remove();
+    };
+  }, [aiEntityCreationModalVisible]);
 
   // Check for pending response when modal opens manually
   const handleAIModalOpen = async () => {
@@ -2367,7 +2466,14 @@ export default function SpheresScreen() {
         {/* AI Entity Creation Modal */}
         <AIEntityCreationModal
           visible={aiEntityCreationModalVisible}
-          onClose={() => setAiEntityCreationModalVisible(false)}
+          onClose={() => {
+            setAiEntityCreationModalVisible(false);
+            setPendingEntityResponse(null);
+          }}
+          onMinimize={() => {
+            setAiEntityCreationModalVisible(false);
+          }}
+          pendingResponse={pendingEntityResponse}
           onEntityCreated={handleEntityCreated}
         />
 

@@ -5,8 +5,24 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { LifeSphere, useJourney } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { processEntityCreationPrompt, type AIEntityCreationResponse } from '@/utils/ai-service';
+import { AIEntityResultsView } from '@/components/ai-entity-results-view';
+import {
+  startBackgroundEntityProcessing,
+  stopBackgroundEntityProcessing,
+  isBackgroundEntityTaskRunning,
+  getPendingEntityRequest,
+  getPendingEntityResponse,
+  getPendingEntityError,
+  clearPendingEntityRequest,
+  clearPendingEntityResponse,
+  clearPendingEntityError,
+  type PendingEntityResponse,
+} from '@/utils/ai-background-processor';
+import { AppState } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { router } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
@@ -26,6 +42,9 @@ import Animated, {
   useSharedValue,
   withSpring,
   withTiming,
+  withRepeat,
+  withSequence,
+  Easing,
 } from 'react-native-reanimated';
 
 // Conditionally import Voice
@@ -40,7 +59,9 @@ try {
 type AIEntityCreationModalProps = {
   visible: boolean;
   onClose: () => void;
+  onMinimize?: () => void;
   onEntityCreated?: () => void;
+  pendingResponse?: PendingEntityResponse | null;
 };
 
 const SPHERES: { value: LifeSphere; label: string; icon: string }[] = [
@@ -54,7 +75,9 @@ const SPHERES: { value: LifeSphere; label: string; icon: string }[] = [
 export function AIEntityCreationModal({
   visible,
   onClose,
+  onMinimize,
   onEntityCreated,
+  pendingResponse,
 }: AIEntityCreationModalProps) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
@@ -70,11 +93,33 @@ export function AIEntityCreationModal({
   const [isListening, setIsListening] = useState(false);
   const [partialResults, setPartialResults] = useState('');
   const baseTextRef = useRef('');
+  const [aiResponse, setAiResponse] = useState<AIEntityCreationResponse | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [showOpenSferaModal, setShowOpenSferaModal] = useState(false);
+  const [savedSphere, setSavedSphere] = useState<LifeSphere | null>(null);
+  const [backgroundRequestId, setBackgroundRequestId] = useState<string | null>(null);
+  const [appState, setAppState] = useState(AppState.currentState);
+  const isMinimizingRef = useRef(false);
 
   // Keyboard visibility
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const micScale = useSharedValue(1);
   const micOpacity = useSharedValue(1);
+
+  // Loading messages that rotate
+  const loadingMessages = [
+    t('ai.loading.thinking') || 'AI is thinking...',
+    t('ai.loading.analyzing') || 'Analyzing your thoughts...',
+    t('ai.loading.processing') || 'Processing entities...',
+    t('ai.loading.generating') || 'Generating insights...',
+  ];
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+
+  // Enhanced loading animations
+  const sparkleScale = useSharedValue(1);
+  const sparkleOpacity = useSharedValue(1);
+  const loadingPulseScale = useSharedValue(1);
+  const dotsOpacity = useSharedValue([0.3, 0.3, 0.3]);
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
@@ -93,6 +138,159 @@ export function AIEntityCreationModal({
       hideSubscription.remove();
     };
   }, []);
+
+  // App state listener
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      setAppState(nextAppState);
+    });
+    return () => subscription.remove();
+  }, []);
+
+  // Rotate loading messages when processing
+  useEffect(() => {
+    if (isProcessing && !aiResponse) {
+      const interval = setInterval(() => {
+        setLoadingMessageIndex(prev => (prev + 1) % loadingMessages.length);
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [isProcessing, aiResponse, loadingMessages.length]);
+
+  // Enhanced loading animations
+  useEffect(() => {
+    if (isProcessing && !aiResponse) {
+      // Sparkle pulse animation
+      sparkleScale.value = withRepeat(
+        withSequence(
+          withTiming(1.2, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+
+      // Sparkle opacity fade
+      sparkleOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.6, { duration: 1000 }),
+          withTiming(1, { duration: 1000 })
+        ),
+        -1,
+        false
+      );
+
+      // Pulse animation for background glow
+      loadingPulseScale.value = withRepeat(
+        withSequence(
+          withTiming(1.15, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+
+      // Animated dots
+      dotsOpacity.value = withRepeat(
+        withSequence(
+          withTiming([1, 0.3, 0.3], { duration: 400 }),
+          withTiming([0.3, 1, 0.3], { duration: 400 }),
+          withTiming([0.3, 0.3, 1], { duration: 400 }),
+          withTiming([0.3, 0.3, 0.3], { duration: 400 })
+        ),
+        -1,
+        false
+      );
+    } else {
+      // Reset animations when not loading
+      sparkleScale.value = 1;
+      sparkleOpacity.value = 1;
+      loadingPulseScale.value = 1;
+      dotsOpacity.value = [0.3, 0.3, 0.3];
+    }
+  }, [isProcessing, aiResponse, sparkleScale, sparkleOpacity, loadingPulseScale, dotsOpacity]);
+
+  // Check if there's a pending request (processing in background)
+  const checkPendingRequest = async () => {
+    try {
+      const pendingRequest = await getPendingEntityRequest();
+      const isRunning = await isBackgroundEntityTaskRunning();
+      if (pendingRequest || isRunning) {
+        setIsProcessing(true);
+        if (pendingRequest?.requestId) {
+          setBackgroundRequestId(pendingRequest.requestId);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check pending request:', error);
+    }
+  };
+
+  // Check for pending entity creation response or error
+  const checkPendingEntityResponse = async () => {
+    try {
+      // First check for errors
+      const pendingError = await getPendingEntityError();
+      if (pendingError) {
+        await clearPendingEntityError();
+        setIsProcessing(false);
+        Alert.alert(
+          t('ai.error.title') || 'AI Processing Failed',
+          (t('ai.error.message') || 'Failed to process your request: {error}. Please try again.').replace('{error}', pendingError.error),
+          [{ text: t('common.ok') || 'OK' }]
+        );
+        setBackgroundRequestId(null);
+        return;
+      }
+      
+      // Check for successful response
+      const pendingResponse = await getPendingEntityResponse();
+      if (pendingResponse) {
+        setIsProcessing(true);
+        setAiResponse(pendingResponse.response);
+        setShowResults(true);
+        setIsProcessing(false);
+        await clearPendingEntityResponse();
+        await clearPendingEntityRequest();
+        await stopBackgroundEntityProcessing();
+        setBackgroundRequestId(null);
+      }
+    } catch (error) {
+      console.error('Failed to check pending entity response:', error);
+    }
+  };
+
+  // Check for pending response when modal opens
+  useEffect(() => {
+    if (visible) {
+      isMinimizingRef.current = false;
+      checkPendingEntityResponse();
+      checkPendingRequest();
+    } else {
+      // Reset state when modal closes (but not when minimized)
+      if (!isMinimizingRef.current) {
+        setIsProcessing(false);
+        setBackgroundRequestId(null);
+        setAiResponse(null);
+        setShowResults(false);
+      }
+      isMinimizingRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  // Watch for pendingResponse prop changes while modal is open
+  useEffect(() => {
+    if (visible && isProcessing && !aiResponse && pendingResponse?.response) {
+      setAiResponse(pendingResponse.response);
+      setShowResults(true);
+      setIsProcessing(false);
+      stopBackgroundEntityProcessing().then(() => {
+        setBackgroundRequestId(null);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingResponse, visible, isProcessing, aiResponse]);
 
   const micAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: micScale.value }],
@@ -243,95 +441,196 @@ export function AIEntityCreationModal({
   };
 
   const handleSubmit = async () => {
-    if (!selectedSphere) {
-      Alert.alert(t('common.error') || 'Error', 'Please select a sphere');
-      return;
-    }
-
     if (!inputText.trim() || inputText.trim().length < 10) {
       Alert.alert(t('common.error') || 'Error', t('ai.error.empty') || 'Please enter at least 10 words');
       return;
     }
 
-    setIsProcessing(true);
-    try {
-      // TODO: Call AI service to suggest entity
-      // For now, create a basic entity based on sphere
-      const trimmedText = inputText.trim();
-      
-      // Simple extraction - in real implementation, use AI
-      const nameMatch = trimmedText.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/);
-      const name = nameMatch ? nameMatch[1] : 'New Entity';
+    // Only process family, friends, hobbies, relationships, and career with AI
+    if (['family', 'friends', 'hobbies', 'relationships', 'career'].includes(selectedSphere)) {
+      setIsProcessing(true);
+      try {
+        // Start background processing
+        const requestId = await startBackgroundEntityProcessing(
+          inputText.trim(),
+          selectedSphere as 'family' | 'friends' | 'hobbies' | 'relationships' | 'career',
+          language
+        );
+        setBackgroundRequestId(requestId);
 
-      switch (selectedSphere) {
-        case 'relationships':
-          await addProfile({
-            name,
-            description: trimmedText.substring(0, 200),
-            sphere: 'relationships',
-            setupProgress: 0,
-            isCompleted: false,
-          });
-          break;
-        case 'career':
-          await addJob({
-            name,
-            description: trimmedText.substring(0, 200),
-            sphere: 'career',
-            setupProgress: 0,
-            isCompleted: false,
-            ongoing: true,
-          });
-          break;
-        case 'family':
-          await addFamilyMember({
-            name,
-            description: trimmedText.substring(0, 200),
-            relationship: 'Family Member',
-            sphere: 'family',
-            setupProgress: 0,
-            isCompleted: false,
-          });
-          break;
-        case 'friends':
-          await addFriend({
-            name,
-            description: trimmedText.substring(0, 200),
-            sphere: 'friends',
-            setupProgress: 0,
-            isCompleted: false,
-          });
-          break;
-        case 'hobbies':
-          await addHobby({
-            name,
-            description: trimmedText.substring(0, 200),
-            sphere: 'hobbies',
-            setupProgress: 0,
-            isCompleted: false,
-          });
-          break;
+        // Try foreground processing if app is active
+        if (appState === 'active') {
+          try {
+            const response = await processEntityCreationPrompt(
+              inputText.trim(),
+              selectedSphere as 'family' | 'friends' | 'hobbies' | 'relationships' | 'career',
+              language
+            );
+            
+            const currentAppState = AppState.currentState;
+            if (currentAppState === 'active') {
+              await stopBackgroundEntityProcessing();
+              setBackgroundRequestId(null);
+              setAiResponse(response);
+              setShowResults(true);
+              setIsProcessing(false);
+            }
+          } catch (error) {
+            const currentAppState = AppState.currentState;
+            if (currentAppState === 'active') {
+              setIsProcessing(false);
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              Alert.alert(
+                t('ai.error.title') || 'AI Processing Failed',
+                (t('ai.error.message') || 'Failed to process your request: {error}. Please try again.').replace('{error}', errorMessage),
+                [{ text: t('common.ok') || 'OK' }]
+              );
+            }
+          }
+        }
+      } catch (error: any) {
+        Alert.alert(
+          t('common.error') || 'Error',
+          error.message || t('ai.error.send') || 'Failed to process request'
+        );
+        setIsProcessing(false);
       }
+    } else {
+      // For career, use the old simple flow (can be enhanced later)
+      setIsProcessing(true);
+      try {
+        const trimmedText = inputText.trim();
+        const nameMatch = trimmedText.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/);
+        const name = nameMatch ? nameMatch[1] : 'New Entity';
 
-      Alert.alert(
-        t('common.success') || 'Success',
-        'Entity created successfully!',
-        [{ text: t('common.ok') || 'OK', onPress: () => {
-          onClose();
-          setInputText('');
-          setSelectedSphere('family');
-          if (onEntityCreated) onEntityCreated();
-        }}]
-      );
-    } catch (error: any) {
-      Alert.alert(
-        t('common.error') || 'Error',
-        error.message || 'Failed to create entity'
-      );
-    } finally {
-      setIsProcessing(false);
+        await addJob({
+          name,
+          description: trimmedText.substring(0, 200),
+          sphere: 'career',
+          setupProgress: 0,
+          isCompleted: false,
+          ongoing: true,
+        });
+
+        Alert.alert(
+          t('common.success') || 'Success',
+          'Entity created successfully!',
+          [{ text: t('common.ok') || 'OK', onPress: () => {
+            onClose();
+            setInputText('');
+            setSelectedSphere('family');
+            if (onEntityCreated) onEntityCreated();
+          }}]
+        );
+      } catch (error: any) {
+        Alert.alert(
+          t('common.error') || 'Error',
+          error.message || 'Failed to create entity'
+        );
+      } finally {
+        setIsProcessing(false);
+      }
     }
   };
+
+  const handleResultsSave = async () => {
+    // Store the sphere before clearing state
+    const sphereToOpen = aiResponse?.sphere || selectedSphere;
+    
+    await clearPendingEntityResponse();
+    await clearPendingEntityRequest();
+    await stopBackgroundEntityProcessing();
+    setBackgroundRequestId(null);
+    setInputText('');
+    setSelectedSphere('family');
+    setAiResponse(null);
+    setShowResults(false);
+    
+    // Show the "Open Sfera" modal
+    setSavedSphere(sphereToOpen);
+    setShowOpenSferaModal(true);
+    
+    if (onEntityCreated) onEntityCreated();
+  };
+
+  const handleOpenSfera = () => {
+    if (savedSphere) {
+      setShowOpenSferaModal(false);
+      onClose();
+      // Navigate to the spheres tab with the specific sphere
+      router.push({
+        pathname: '/(tabs)/spheres' as const,
+        params: { selectedSphere: savedSphere },
+      });
+      setSavedSphere(null);
+    }
+  };
+
+  const handleCancelOpenSfera = () => {
+    setShowOpenSferaModal(false);
+    onClose();
+    setSavedSphere(null);
+  };
+
+  const handleResultsCancel = () => {
+    Alert.alert(
+      t('ai.closeConfirm.title') || 'Discard changes?',
+      t('ai.closeConfirm.message') || 'Your progress will be lost if you close this modal.',
+      [
+        {
+          text: t('common.cancel') || 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: t('ai.closeConfirm.discard') || 'Discard',
+          style: 'destructive',
+          onPress: async () => {
+            // Clear all state and close modals
+            await clearPendingEntityResponse();
+            await clearPendingEntityRequest();
+            await stopBackgroundEntityProcessing();
+            setBackgroundRequestId(null);
+            setAiResponse(null);
+            setShowResults(false);
+            setInputText('');
+            setSelectedSphere('family');
+            onClose();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleMinimize = () => {
+    if (onMinimize && isProcessing && !aiResponse) {
+      isMinimizingRef.current = true;
+      onMinimize();
+    }
+  };
+
+  // Animated styles for loading
+  const animatedSparkleStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: sparkleScale.value }
+    ],
+    opacity: sparkleOpacity.value,
+  }));
+
+  const animatedPulseBgStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: loadingPulseScale.value }],
+  }));
+
+  const animatedDot1Style = useAnimatedStyle(() => ({
+    opacity: dotsOpacity.value[0],
+  }));
+
+  const animatedDot2Style = useAnimatedStyle(() => ({
+    opacity: dotsOpacity.value[1],
+  }));
+
+  const animatedDot3Style = useAnimatedStyle(() => ({
+    opacity: dotsOpacity.value[2],
+  }));
 
   const styles = useMemo(
     () =>
@@ -343,9 +642,17 @@ export function AIEntityCreationModal({
           alignItems: 'center',
         },
         container: {
-          width: '80%',
+          width: 360 * fontScale, // Fixed width
           maxWidth: 360 * fontScale,
           maxHeight: '75%',
+          backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
+          borderRadius: 20 * fontScale,
+          overflow: 'hidden',
+        },
+        containerLoading: {
+          width: 360 * fontScale, // Fixed width
+          maxWidth: 360 * fontScale,
+          height: 500 * fontScale, // Fixed height during loading
           backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
           borderRadius: 20 * fontScale,
           overflow: 'hidden',
@@ -364,10 +671,15 @@ export function AIEntityCreationModal({
         headerTitle: {
           marginBottom: 4 * fontScale,
         },
-        closeButton: {
+        headerButtons: {
           position: 'absolute',
           top: 12 * fontScale,
           right: 12 * fontScale,
+          flexDirection: 'row',
+          gap: 8 * fontScale,
+          zIndex: 10,
+        },
+        closeButton: {
           width: 32 * fontScale,
           height: 32 * fontScale,
           borderRadius: 16 * fontScale,
@@ -376,7 +688,120 @@ export function AIEntityCreationModal({
             : 'rgba(0, 0, 0, 0.08)',
           justifyContent: 'center',
           alignItems: 'center',
-          zIndex: 10,
+        },
+        minimizeButton: {
+          width: 32 * fontScale,
+          height: 32 * fontScale,
+          borderRadius: 16 * fontScale,
+          backgroundColor: colorScheme === 'dark' 
+            ? 'rgba(255, 255, 255, 0.15)' 
+            : 'rgba(0, 0, 0, 0.08)',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        loadingContainer: {
+          flex: 1,
+          paddingVertical: 20 * fontScale,
+          backgroundColor: 'transparent',
+        },
+        loadingIndicatorContainer: {
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          paddingVertical: 40 * fontScale,
+          paddingHorizontal: 20 * fontScale,
+          marginTop: 24 * fontScale,
+          overflow: 'visible',
+        },
+        animationCirclesContainer: {
+          position: 'relative',
+          width: 200 * fontScale,
+          height: 200 * fontScale,
+          marginBottom: 24 * fontScale,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        loadingGlow: {
+          position: 'absolute',
+          width: 200 * fontScale,
+          height: 200 * fontScale,
+          borderRadius: 100 * fontScale,
+          backgroundColor: colorScheme === 'dark' 
+            ? 'rgba(255, 215, 0, 0.15)' 
+            : 'rgba(255, 215, 0, 0.25)',
+          top: 0,
+          left: '50%',
+          marginLeft: -100 * fontScale,
+        },
+        aiIconWrapper: {
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          marginLeft: -70 * fontScale,
+          marginTop: -70 * fontScale,
+          width: 140 * fontScale,
+          height: 140 * fontScale,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        aiIconContainer: {
+          width: 140 * fontScale,
+          height: 140 * fontScale,
+          borderRadius: 70 * fontScale,
+          backgroundColor: colorScheme === 'dark' 
+            ? 'rgba(255, 215, 0, 0.15)' 
+            : 'rgba(255, 215, 0, 0.25)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          overflow: 'visible',
+          shadowColor: '#FFD700',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.5,
+          shadowRadius: 20,
+          elevation: 10,
+        },
+        loadingMessageContainer: {
+          alignItems: 'center',
+          marginTop: 8 * fontScale,
+          width: '100%',
+          paddingHorizontal: 20 * fontScale,
+        },
+        loadingMessage: {
+          textAlign: 'center',
+          opacity: 0.9,
+          marginBottom: 12 * fontScale,
+          width: '100%',
+        },
+        loadingDots: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8 * fontScale,
+          marginTop: 4 * fontScale,
+        },
+        loadingDot: {
+          width: 8 * fontScale,
+          height: 8 * fontScale,
+          borderRadius: 4 * fontScale,
+          backgroundColor: colors.primary,
+        },
+        progressBarContainer: {
+          width: '100%',
+          marginTop: 24 * fontScale,
+          paddingHorizontal: 20 * fontScale,
+        },
+        progressBarBackground: {
+          width: '100%',
+          height: 4 * fontScale,
+          backgroundColor: colorScheme === 'dark' 
+            ? 'rgba(255, 255, 255, 0.1)' 
+            : 'rgba(0, 0, 0, 0.1)',
+          borderRadius: 2 * fontScale,
+          overflow: 'hidden',
+        },
+        progressBarFill: {
+          height: '100%',
+          backgroundColor: colors.primary,
+          borderRadius: 2 * fontScale,
         },
         content: {
           padding: 16 * fontScale,
@@ -458,46 +883,344 @@ export function AIEntityCreationModal({
     [fontScale, colorScheme, colors]
   );
 
-  if (!visible) return null;
+  // Allow "Open Sfera" modal to show even if main modal is closed
+  if (!visible && !showOpenSferaModal) return null;
+  
+  // If "Open Sfera" modal should be shown, show only that
+  if (showOpenSferaModal) {
+    const sphereLabel = savedSphere 
+      ? SPHERES.find(s => s.value === savedSphere)?.label || savedSphere
+      : 'Sfera';
+    
+    return (
+      <Modal
+        visible={showOpenSferaModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelOpenSfera}
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+      >
+        <Pressable 
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20 * fontScale,
+          }}
+          onPress={handleCancelOpenSfera}
+        >
+          <Pressable
+            style={{
+              backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
+              borderRadius: 16 * fontScale,
+              padding: 24 * fontScale,
+              width: '100%',
+              maxWidth: 400 * fontScale,
+            }}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={{ alignItems: 'center', marginBottom: 12 * fontScale }}>
+              <ThemedText size="lg" weight="bold" style={{ textAlign: 'center' }}>
+                {t('ai.entity.openSferaMessage') || 'Entities have been saved successfully!'}
+              </ThemedText>
+            </View>
+            
+            <View style={{ flexDirection: 'row', gap: 12 * fontScale, marginTop: 24 * fontScale }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.primary,
+                  borderRadius: 8 * fontScale,
+                  padding: 14 * fontScale,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={handleOpenSfera}
+              >
+                <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF', textAlign: 'center' }}>
+                  {t('ai.entity.openSfera') ? `${t('ai.entity.openSfera')} ${sphereLabel}` : `Open ${sphereLabel} Sfera`}
+                </ThemedText>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: colorScheme === 'dark' 
+                    ? 'rgba(255, 255, 255, 0.1)' 
+                    : 'rgba(0, 0, 0, 0.05)',
+                  borderRadius: 8 * fontScale,
+                  padding: 14 * fontScale,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={handleCancelOpenSfera}
+              >
+                <ThemedText size="m" weight="medium" style={{ textAlign: 'center' }}>
+                  {t('common.cancel') || 'Cancel'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    );
+  }
+
+  // Show results view if AI response is ready
+  if (showResults && aiResponse && !showOpenSferaModal) {
+    return (
+      <>
+        <Modal
+          visible={visible && !showOpenSferaModal}
+          transparent={false}
+          animationType="slide"
+          onRequestClose={handleResultsCancel}
+          presentationStyle="fullScreen"
+          statusBarTranslucent
+        >
+        <View style={{ flex: 1, backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff' }}>
+          <View style={{ 
+            padding: 16 * fontScale, 
+            paddingTop: 50 * fontScale,
+            borderBottomWidth: 1,
+            borderBottomColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <ThemedText size="xl" weight="bold">
+              {t('ai.entity.results') || 'Review Entities'}
+            </ThemedText>
+            <TouchableOpacity
+              style={{
+                width: 32 * fontScale,
+                height: 32 * fontScale,
+                borderRadius: 16 * fontScale,
+                backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              onPress={handleResultsCancel}
+            >
+              <MaterialIcons 
+                name="close" 
+                size={20 * fontScale} 
+                color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} 
+              />
+            </TouchableOpacity>
+          </View>
+          <AIEntityResultsView
+            sphere={aiResponse.sphere}
+            entities={aiResponse.entities}
+            onSave={handleResultsSave}
+            onCancel={handleResultsCancel}
+          />
+        </View>
+      </Modal>
+      
+      {/* Open Sfera Modal */}
+      <Modal
+        visible={showOpenSferaModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelOpenSfera}
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+      >
+        <Pressable 
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20 * fontScale,
+          }}
+          onPress={handleCancelOpenSfera}
+        >
+          <Pressable
+            style={{
+              backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
+              borderRadius: 16 * fontScale,
+              padding: 24 * fontScale,
+              width: '100%',
+              maxWidth: 400 * fontScale,
+            }}
+            onStartShouldSetResponder={() => true}
+          >
+            <ThemedText size="lg" weight="bold" style={{ marginBottom: 12 * fontScale, textAlign: 'center' }}>
+              {t('ai.entity.openSferaMessage') || 'Entities have been saved successfully!'}
+            </ThemedText>
+            
+            <View style={{ flexDirection: 'row', gap: 12 * fontScale, marginTop: 24 * fontScale }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.primary,
+                  borderRadius: 8 * fontScale,
+                  padding: 14 * fontScale,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={handleOpenSfera}
+              >
+                <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF' }}>
+                  {(() => {
+                    const sphereLabel = savedSphere 
+                      ? SPHERES.find(s => s.value === savedSphere)?.label || savedSphere
+                      : 'Sfera';
+                    return t('ai.entity.openSfera') ? `${t('ai.entity.openSfera')} ${sphereLabel}` : `Open ${sphereLabel} Sfera`;
+                  })()}
+                </ThemedText>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: colorScheme === 'dark' 
+                    ? 'rgba(255, 255, 255, 0.1)' 
+                    : 'rgba(0, 0, 0, 0.05)',
+                  borderRadius: 8 * fontScale,
+                  padding: 14 * fontScale,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={handleCancelOpenSfera}
+              >
+                <ThemedText size="m" weight="medium">
+                  {t('common.cancel') || 'Cancel'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+    );
+  }
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-      presentationStyle="overFullScreen"
-      statusBarTranslucent
-    >
+    <>
+      <Modal
+        visible={visible && !showOpenSferaModal}
+        transparent
+        animationType="fade"
+        onRequestClose={onClose}
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+      >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.overlay}
       >
-        <Pressable style={styles.overlay} onPress={onClose}>
-          <Pressable style={styles.container} onStartShouldSetResponder={() => true}>
+        <Pressable 
+          style={styles.overlay} 
+          onPress={onClose}
+        >
+          <Pressable 
+            style={isProcessing && !aiResponse ? styles.containerLoading : styles.container} 
+            onStartShouldSetResponder={() => true}
+            onPress={(e) => e.stopPropagation()}
+          >
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.header}>
-                <TouchableOpacity 
-                  style={styles.closeButton} 
-                  onPress={onClose}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <MaterialIcons 
-                    name="close" 
-                    size={22 * fontScale} 
-                    color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} 
-                  />
-                </TouchableOpacity>
-                <ThemedText size="xl" weight="bold" style={styles.headerTitle}>
-                  {t('ai.entity.title') || 'Create Entity with AI'}
-                </ThemedText>
-                <ThemedText size="sm" style={{ opacity: 0.7 }}>
-                  {t('ai.entity.subtitle') || 'Select a sphere and tell us about the entity'}
-                </ThemedText>
+                <View style={styles.headerButtons}>
+                  {onMinimize && isProcessing && !aiResponse && (
+                    <TouchableOpacity
+                      style={styles.minimizeButton}
+                      onPress={handleMinimize}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <MaterialIcons 
+                        name="minimize" 
+                        size={22 * fontScale} 
+                        color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} 
+                      />
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity 
+                    style={styles.closeButton} 
+                    onPress={onClose}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialIcons 
+                      name="close" 
+                      size={22 * fontScale} 
+                      color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} 
+                    />
+                  </TouchableOpacity>
+                </View>
+                {isProcessing && !aiResponse ? (
+                  <View style={styles.loadingContainer}>
+                    <View style={{ flex: 1 }}>
+                      {/* Loading Indicator */}
+                      <View style={styles.loadingIndicatorContainer}>
+                        {/* Animation circles container */}
+                        <View style={styles.animationCirclesContainer}>
+                          {/* Animated background glow */}
+                          <Animated.View style={[styles.loadingGlow, animatedPulseBgStyle]} />
+                          
+                          {/* Main sparkle icon with enhanced animation - centered */}
+                          <View style={styles.aiIconWrapper}>
+                            <Animated.View style={animatedSparkleStyle}>
+                              <View style={styles.aiIconContainer}>
+                                <ThemedText style={{ 
+                                  fontSize: 64 * fontScale,
+                                  lineHeight: 64 * fontScale,
+                                  textAlign: 'center',
+                                  includeFontPadding: false,
+                                }}>
+                                  ✨
+                                </ThemedText>
+                              </View>
+                            </Animated.View>
+                          </View>
+                        </View>
+
+                        {/* Loading message with animated dots */}
+                        <View style={styles.loadingMessageContainer}>
+                          <ThemedText size="l" weight="medium" style={styles.loadingMessage}>
+                            {loadingMessages[loadingMessageIndex]}
+                          </ThemedText>
+                          <View style={styles.loadingDots}>
+                            <Animated.View style={[styles.loadingDot, animatedDot1Style]} />
+                            <Animated.View style={[styles.loadingDot, animatedDot2Style]} />
+                            <Animated.View style={[styles.loadingDot, animatedDot3Style]} />
+                          </View>
+                        </View>
+
+                        {/* Progress indicator */}
+                        <View style={styles.progressBarContainer}>
+                          <View style={styles.progressBarBackground}>
+                            <View 
+                              style={[
+                                styles.progressBarFill,
+                                {
+                                  width: `${(loadingMessageIndex + 1) * 25}%`,
+                                }
+                              ]} 
+                            />
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    <ThemedText size="xl" weight="bold" style={styles.headerTitle}>
+                      {t('ai.entity.title') || 'Create Entity with AI'}
+                    </ThemedText>
+                    <ThemedText size="sm" style={{ opacity: 0.7 }}>
+                      {t('ai.entity.subtitle') || 'Select a sphere and tell us about the entity'}
+                    </ThemedText>
+                  </>
+                )}
               </View>
 
-              <View style={styles.content}>
-                <View style={styles.sphereContainer}>
+              {!isProcessing && (
+                <View style={styles.content}>
+                  <View style={styles.sphereContainer}>
                   <ThemedText size="s" weight="medium" style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}>
                     {t('ai.entity.selectSphere') || 'Select Sphere'}
                   </ThemedText>
@@ -603,11 +1326,90 @@ export function AIEntityCreationModal({
                     </ThemedText>
                   )}
                 </TouchableOpacity>
-              </View>
+                </View>
+              )}
             </ScrollView>
           </Pressable>
         </Pressable>
       </KeyboardAvoidingView>
-    </Modal>
+      </Modal>
+      
+      {/* Open Sfera Modal */}
+      <Modal
+        visible={showOpenSferaModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelOpenSfera}
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+      >
+        <Pressable 
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20 * fontScale,
+          }}
+          onPress={handleCancelOpenSfera}
+        >
+          <Pressable
+            style={{
+              backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
+              borderRadius: 16 * fontScale,
+              padding: 24 * fontScale,
+              width: '100%',
+              maxWidth: 400 * fontScale,
+            }}
+            onStartShouldSetResponder={() => true}
+          >
+            <ThemedText size="lg" weight="bold" style={{ marginBottom: 12 * fontScale, textAlign: 'center' }}>
+              {t('ai.entity.openSferaMessage') || 'Entities have been saved successfully!'}
+            </ThemedText>
+            
+            <View style={{ flexDirection: 'row', gap: 12 * fontScale, marginTop: 24 * fontScale }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.primary,
+                  borderRadius: 8 * fontScale,
+                  padding: 14 * fontScale,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={handleOpenSfera}
+              >
+                <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF' }}>
+                  {(() => {
+                    const sphereLabel = savedSphere 
+                      ? SPHERES.find(s => s.value === savedSphere)?.label || savedSphere
+                      : 'Sfera';
+                    return t('ai.entity.openSfera') ? `${t('ai.entity.openSfera')} ${sphereLabel}` : `Open ${sphereLabel} Sfera`;
+                  })()}
+                </ThemedText>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: colorScheme === 'dark' 
+                    ? 'rgba(255, 255, 255, 0.1)' 
+                    : 'rgba(0, 0, 0, 0.05)',
+                  borderRadius: 8 * fontScale,
+                  padding: 14 * fontScale,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={handleCancelOpenSfera}
+              >
+                <ThemedText size="m" weight="medium">
+                  {t('common.cancel') || 'Cancel'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
   );
 }

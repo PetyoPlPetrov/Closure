@@ -105,11 +105,16 @@ export default function AddFamilyMemberScreen() {
     setSelectedImage(null);
   };
 
-  const isSaveEnabled = name.trim().length > 0 && !isSaving;
+  const isSaveEnabled = name.trim().length > 0 && relationship.trim().length > 0 && !isSaving;
 
   const handleSubmit = async () => {
     if (!name.trim()) {
       Alert.alert(t('common.error'), t('profile.familyMember.name.required'));
+      return;
+    }
+
+    if (!relationship.trim()) {
+      Alert.alert(t('common.error'), t('profile.familyMember.relationship.required') || 'Relationship type is required');
       return;
     }
 
@@ -129,14 +134,14 @@ export default function AddFamilyMemberScreen() {
         await updateFamilyMember(memberId, {
           name: name.trim(),
           description: description.trim() || undefined,
-          relationship: relationship.trim() || undefined,
+          relationship: relationship.trim(),
           imageUri: selectedImage || undefined,
         });
       } else {
         const newMemberId = await addFamilyMember({
           name: name.trim(),
           description: description.trim() || undefined,
-          relationship: relationship.trim() || undefined,
+          relationship: relationship.trim(),
           imageUri: selectedImage || undefined,
           setupProgress: 0,
           isCompleted: false,
@@ -209,7 +214,7 @@ export default function AddFamilyMemberScreen() {
           />
 
           <Input
-            label={`${t('profile.relationshipType')} (${t('common.optional')})`}
+            label={t('profile.relationshipType')}
             placeholder={t('profile.relationshipType.placeholder')}
             value={relationship}
             onChangeText={setRelationship}

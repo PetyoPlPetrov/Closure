@@ -7,6 +7,9 @@ import { getApp } from '@react-native-firebase/app';
 import { firebase } from '@react-native-firebase/app-check';
 import type { LifeSphere } from './JourneyProvider';
 
+// Runtime flag for mock AI requests (set to true to use slow mock requests for testing)
+const USE_MOCK_AI_REQUEST = __DEV__ && false; // Set to true to enable mock requests
+
 export interface AIMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -35,6 +38,21 @@ export interface AIMemoryResponse {
   hardTruths: string[];
   goodFacts: string[];
   lessonsLearned: string[];
+}
+
+export interface AIEntitySuggestion {
+  name: string;
+  relationship?: string; // For family members: "Brother", "Sister", "Mother", etc.
+  isCurrent?: boolean; // For relationships: current or past
+  startDate?: string; // For relationships: when it started (ISO format)
+  endDate?: string | null; // For relationships: when it ended (null if ongoing)
+  description?: string; // Optional description for any entity
+  imageUri?: string; // Optional image URI for any entity
+}
+
+export interface AIEntityCreationResponse {
+  sphere: 'family' | 'friends' | 'hobbies' | 'relationships' | 'career';
+  entities: AIEntitySuggestion[];
 }
 
 /**
@@ -408,5 +426,296 @@ export async function processSpeechToText(audioUri: string): Promise<string> {
     return '';
   } catch (error) {
     throw new Error((error as Error).message || 'Speech-to-text failed');
+  }
+}
+
+/**
+ * Process entity creation prompt using Firebase AI (Gemini)
+ * Analyzes the user's story and extracts entities for the specified sphere
+ * @param prompt - User's story/input text
+ * @param sphere - The sphere type ('family', 'friends', 'hobbies', 'relationships', 'career')
+ * @param language - Language code ('en' or 'bg') for prompt and response
+ */
+export async function processEntityCreationPrompt(
+  prompt: string,
+  sphere: 'family' | 'friends' | 'hobbies' | 'relationships' | 'career',
+  language: 'en' | 'bg' = 'en'
+): Promise<AIEntityCreationResponse> {
+  console.log('🤖 Processing AI entity creation prompt for sphere:', sphere);
+  
+  // Mock AI request for testing loading states
+  if (USE_MOCK_AI_REQUEST) {
+    console.log('🧪 Using mock AI request (slow) for testing...');
+    
+    // Simulate a slow AI request (6 seconds delay)
+    await new Promise(resolve => setTimeout(resolve, 6000));
+    
+    // Return mock data based on sphere type
+    const mockData: AIEntityCreationResponse = {
+      sphere,
+      entities: [],
+    };
+    
+    if (sphere === 'family') {
+      mockData.entities = [
+        {
+          name: language === 'bg' ? 'Мария Иванова' : 'Maria Johnson',
+          relationship: language === 'bg' ? 'Сестра' : 'Sister',
+          description: language === 'bg' ? 'Моята сестра е много забавна и винаги ме кара да се смея.' : 'My sister is very funny and always makes me laugh.',
+        },
+      ];
+    } else if (sphere === 'friends') {
+      mockData.entities = [
+        {
+          name: language === 'bg' ? 'Петър Стоянов' : 'Peter Smith',
+          description: language === 'bg' ? 'Моят приятел е много добър и винаги е там за мен.' : 'My friend is very kind and always there for me.',
+        },
+      ];
+    } else if (sphere === 'hobbies') {
+      mockData.entities = [
+        {
+          name: language === 'bg' ? 'Четене' : 'Reading',
+          description: language === 'bg' ? 'Обичам да чета книги в свободното си време.' : 'I love reading books in my free time.',
+        },
+      ];
+    } else if (sphere === 'relationships') {
+      mockData.entities = [
+        {
+          name: language === 'bg' ? 'Анна Петрова' : 'Anna Williams',
+          isCurrent: true,
+          startDate: '2020-01-15',
+          endDate: null,
+          description: language === 'bg' ? 'Моята текуща партньорка е много подкрепяща.' : 'My current partner is very supportive.',
+        },
+      ];
+    } else if (sphere === 'career') {
+      mockData.entities = [
+        {
+          name: language === 'bg' ? 'Софтуерен инженер' : 'Software Engineer',
+          isCurrent: true,
+          startDate: '2021-06-01',
+          endDate: null,
+          description: language === 'bg' ? 'Работя като софтуерен инженер в технологична компания.' : 'I work as a software engineer at a tech company.',
+        },
+      ];
+    }
+    
+    console.log('📦 Mock AI Entity Creation Response:', JSON.stringify(mockData, null, 2));
+    return mockData;
+  }
+  
+  try {
+    const app = getApp();
+    const aiInstance = getAI(app, {
+      appCheck: firebase.appCheck(), // Pass App Check instance for automatic token inclusion
+    });
+
+    const languageName = language === 'bg' ? 'Bulgarian' : 'English';
+    const languageCode = language === 'bg' ? 'bg' : 'en';
+
+    // Build schema based on sphere type
+    let responseSchema: Schema;
+    let systemPrompt: string;
+
+    if (sphere === 'family') {
+      responseSchema = Schema.object({
+        properties: {
+          entities: Schema.array({
+            items: Schema.object({
+              properties: {
+                name: Schema.string({ description: 'Full name of the family member' }),
+                relationship: Schema.string({ 
+                  description: 'Relationship to the user (e.g., "Mother", "Father", "Brother", "Sister", "Grandmother", "Grandfather", "Aunt", "Uncle", "Cousin", "Son", "Daughter", etc.)' 
+                }),
+                description: Schema.string({ 
+                  description: 'Optional brief description or context about this family member' 
+                }),
+              },
+              required: ['name', 'relationship'],
+            }),
+          }),
+        },
+        required: ['entities'],
+      });
+
+      systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their family members and extract all family members mentioned.
+
+IMPORTANT: You must respond entirely in ${languageName} (${languageCode}). All names and text must be in ${languageName}.
+
+CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. For example, write "My sister is funny" or "My brother loves music", NOT "User's sister is funny" or "The user's brother loves music". Use first-person possessive pronouns (my, my sister, my brother, etc.).
+
+Extract all family members from the story. For each family member, provide:
+- name: The full name of the family member
+- relationship: Their relationship to the user (e.g., "Mother", "Father", "Brother", "Sister", "Grandmother", "Grandfather", "Aunt", "Uncle", "Cousin", "Son", "Daughter", etc.)
+- description: Optional brief description if mentioned in the story (written from first-person perspective, e.g., "My sister is funny" not "User's sister is funny")
+
+Return a JSON object with an "entities" array containing all family members found.`;
+    } else if (sphere === 'relationships') {
+      responseSchema = Schema.object({
+        properties: {
+          entities: Schema.array({
+            items: Schema.object({
+              properties: {
+                name: Schema.string({ description: 'Name of the person in the relationship' }),
+                isCurrent: Schema.boolean({ 
+                  description: 'Whether this is a current relationship (true) or past relationship (false)' 
+                }),
+                startDate: Schema.string({ 
+                  description: 'When the relationship started (ISO date format: YYYY-MM-DD, or approximate year if exact date unknown)' 
+                }),
+                endDate: Schema.string({ 
+                  description: 'When the relationship ended (ISO date format: YYYY-MM-DD, or null if ongoing/current). Leave as null if isCurrent is true.' 
+                }),
+                description: Schema.string({ 
+                  description: 'Optional brief description or context about this relationship' 
+                }),
+              },
+              required: ['name', 'isCurrent', 'startDate'],
+            }),
+          }),
+        },
+        required: ['entities'],
+      });
+
+      systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their relationships and extract all relationships mentioned.
+
+IMPORTANT: You must respond entirely in ${languageName} (${languageCode}). All names and text must be in ${languageName}.
+
+CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. For example, write "My current partner is supportive" or "We met in college", NOT "User's current partner is supportive" or "The user met them in college". Use first-person perspective.
+
+Extract all relationships from the story. For each relationship, provide:
+- name: The name of the person
+- isCurrent: true if it's a current relationship, false if it's a past relationship
+- startDate: When the relationship started (ISO date format YYYY-MM-DD, or approximate year if exact date unknown)
+- endDate: When the relationship ended (ISO date format YYYY-MM-DD, or null if ongoing/current)
+- description: Optional brief description if mentioned in the story (written from first-person perspective, e.g., "My current partner is supportive" not "User's current partner is supportive")
+
+Return a JSON object with an "entities" array containing all relationships found.`;
+    } else if (sphere === 'career') {
+      responseSchema = Schema.object({
+        properties: {
+          entities: Schema.array({
+            items: Schema.object({
+              properties: {
+                name: Schema.string({ description: 'Job title or company name' }),
+                isCurrent: Schema.boolean({ 
+                  description: 'Whether this is a current job (true) or past job (false)' 
+                }),
+                startDate: Schema.string({ 
+                  description: 'When the job started (ISO date format: YYYY-MM-DD, or approximate year if exact date unknown)' 
+                }),
+                endDate: Schema.string({ 
+                  description: 'When the job ended (ISO date format: YYYY-MM-DD, or null if ongoing/current). Leave as null if isCurrent is true.' 
+                }),
+                description: Schema.string({ 
+                  description: 'Optional brief description or context about this job' 
+                }),
+              },
+              required: ['name', 'isCurrent', 'startDate'],
+            }),
+          }),
+        },
+        required: ['entities'],
+      });
+
+      systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their jobs/career and extract all jobs mentioned.
+
+IMPORTANT: You must respond entirely in ${languageName} (${languageCode}). All names and text must be in ${languageName}.
+
+CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. For example, write "I worked as a software engineer" or "My current job is challenging", NOT "User worked as a software engineer" or "The user's current job is challenging". Use first-person perspective.
+
+Extract all jobs from the story. For each job, provide:
+- name: The job title or company name
+- isCurrent: true if it's a current job, false if it's a past job
+- startDate: When the job started (ISO date format YYYY-MM-DD, or approximate year if exact date unknown)
+- endDate: When the job ended (ISO date format YYYY-MM-DD, or null if ongoing/current)
+- description: Optional brief description if mentioned in the story (written from first-person perspective, e.g., "I worked as a software engineer" not "User worked as a software engineer")
+
+Return a JSON object with an "entities" array containing all jobs found.`;
+    } else if (sphere === 'friends') {
+      responseSchema = Schema.object({
+        properties: {
+          entities: Schema.array({
+            items: Schema.object({
+              properties: {
+                name: Schema.string({ description: 'Full name of the friend' }),
+                description: Schema.string({ 
+                  description: 'Optional brief description or context about this friend' 
+                }),
+              },
+              required: ['name'],
+            }),
+          }),
+        },
+        required: ['entities'],
+      });
+
+      systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their friends and extract all friends mentioned.
+
+IMPORTANT: You must respond entirely in ${languageName} (${languageCode}). All names and text must be in ${languageName}.
+
+CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. For example, write "My friend is very kind" or "We've known each other since childhood", NOT "User's friend is very kind" or "The user has known them since childhood". Use first-person perspective.
+
+Extract all friends from the story. For each friend, provide:
+- name: The full name of the friend
+- description: Optional brief description if mentioned in the story (written from first-person perspective, e.g., "My friend is very kind" not "User's friend is very kind")
+
+Return a JSON object with an "entities" array containing all friends found.`;
+    } else { // hobbies
+      responseSchema = Schema.object({
+        properties: {
+          entities: Schema.array({
+            items: Schema.object({
+              properties: {
+                name: Schema.string({ description: 'Name of the hobby' }),
+                description: Schema.string({ 
+                  description: 'Optional brief description or context about this hobby' 
+                }),
+              },
+              required: ['name'],
+            }),
+          }),
+        },
+        required: ['entities'],
+      });
+
+      systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their hobbies and extract all hobbies mentioned.
+
+IMPORTANT: You must respond entirely in ${languageName} (${languageCode}). All names and text must be in ${languageName}.
+
+CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. For example, write "I love playing guitar" or "My favorite hobby is reading", NOT "User loves playing guitar" or "The user's favorite hobby is reading". Use first-person perspective.
+
+Extract all hobbies from the story. For each hobby, provide:
+- name: The name of the hobby
+- description: Optional brief description if mentioned in the story (written from first-person perspective, e.g., "I love playing guitar" not "User loves playing guitar")
+
+Return a JSON object with an "entities" array containing all hobbies found.`;
+    }
+
+    const model = getGenerativeModel(aiInstance, {
+      model: 'gemini-2.5-flash-lite',
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: responseSchema,
+      },
+    });
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      systemInstruction: systemPrompt,
+    });
+
+    const responseText = result.response.text();
+    console.log('📦 AI Entity Creation Response:', responseText);
+
+    const parsed = JSON.parse(responseText);
+    
+    return {
+      sphere,
+      entities: parsed.entities || [],
+    };
+  } catch (error) {
+    console.error('❌ AI Entity Creation Error:', error);
+    throw new Error((error as Error).message || 'Failed to process entity creation prompt');
   }
 }
