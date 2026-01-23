@@ -106,6 +106,7 @@ export function AIEntityCreationModal({
 
   // Keyboard visibility
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
   const micScale = useSharedValue(1);
   const micOpacity = useSharedValue(1);
 
@@ -380,7 +381,7 @@ export function AIEntityCreationModal({
 
   const handleStartRecording = async () => {
     if (!Voice) {
-      Alert.alert(t('common.error') || 'Error', t('ai.error.notAvailable') || 'Speech recognition is not available');
+      Alert.alert(t('common.error') || 'Error', (t('ai.error.notAvailable' as any)) || 'Speech recognition is not available');
       return;
     }
 
@@ -443,9 +444,13 @@ export function AIEntityCreationModal({
 
   const handleSubmit = async () => {
     if (!inputText.trim() || inputText.trim().length < 10) {
+      setShowValidationErrors(true);
       Alert.alert(t('common.error') || 'Error', t('ai.error.empty') || 'Please enter at least 10 words');
       return;
     }
+
+    // Clear validation errors if validation passes
+    setShowValidationErrors(false);
 
     // Only process family, friends, hobbies, relationships, and career with AI
     if (['family', 'friends', 'hobbies', 'relationships', 'career'].includes(selectedSphere)) {
@@ -510,10 +515,8 @@ export function AIEntityCreationModal({
         await addJob({
           name,
           description: trimmedText.substring(0, 200),
-          sphere: 'career',
           setupProgress: 0,
           isCompleted: false,
-          ongoing: true,
         });
 
         Alert.alert(
@@ -558,8 +561,11 @@ export function AIEntityCreationModal({
   };
 
   const handleOpenSfera = () => {
+    console.log('🟣 [AI Entity Modal] handleOpenSfera called');
+    console.log('🟣 [AI Entity Modal] savedSphere:', savedSphere);
     if (savedSphere) {
       const sphereToOpen = savedSphere;
+      console.log('🟣 [AI Entity Modal] Navigating to sphere:', sphereToOpen);
       
       setShowOpenSferaModal(false);
       setSavedSphere(null);
@@ -569,11 +575,16 @@ export function AIEntityCreationModal({
       setTimeout(() => {
         // Navigate to the spheres tab with the specific sphere
         // Use push instead of replace to ensure params are updated even if already on the route
+        const navigationParams = { selectedSphere: sphereToOpen };
+        console.log('🟣 [AI Entity Modal] router.push with params:', navigationParams);
         router.push({
           pathname: '/(tabs)/spheres' as const,
-          params: { selectedSphere: sphereToOpen },
+          params: navigationParams,
         });
+        console.log('🟣 [AI Entity Modal] router.push completed');
       }, 200);
+    } else {
+      console.log('🟣 [AI Entity Modal] No savedSphere, cannot navigate');
     }
   };
 
@@ -860,6 +871,14 @@ export function AIEntityCreationModal({
           color: colors.text,
           fontSize: 15 * fontScale,
           textAlignVertical: 'top',
+          borderWidth: 1,
+          borderColor: colorScheme === 'dark' 
+            ? 'rgba(255, 255, 255, 0.1)' 
+            : 'rgba(0, 0, 0, 0.1)',
+        },
+        textInputError: {
+          borderColor: '#FF3B30',
+          borderWidth: 2,
         },
         micButton: {
           position: 'absolute',
@@ -935,7 +954,7 @@ export function AIEntityCreationModal({
             onStartShouldSetResponder={() => true}
           >
             <View style={{ alignItems: 'center', marginBottom: 12 * fontScale }}>
-              <ThemedText size="lg" weight="bold" style={{ textAlign: 'center' }}>
+              <ThemedText size="xl" weight="bold" style={{ textAlign: 'center' }}>
                 {t('ai.entity.openSferaMessage') || 'Entities have been saved successfully!'}
               </ThemedText>
             </View>
@@ -954,14 +973,15 @@ export function AIEntityCreationModal({
                 onPress={handleOpenSfera}
                 activeOpacity={0.8}
               >
-                <LinearGradient
-                  colors={['#4A90E2', '#357ABD', '#2E6DA4']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={StyleSheet.absoluteFill}
-                  borderRadius={8 * fontScale}
-                />
-                <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF', textAlign: 'center' }}>
+                <View style={[StyleSheet.absoluteFillObject, { borderRadius: 8 * fontScale, overflow: 'hidden' }]}>
+                  <LinearGradient
+                    colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                </View>
+                <ThemedText size="sm" weight="bold" style={{ color: '#FFFFFF', textAlign: 'center' }}>
                   {t('ai.entity.openSfera') ? `${t('ai.entity.openSfera')} ${sphereLabel}` : `Open ${sphereLabel} Sfera`}
                 </ThemedText>
               </TouchableOpacity>
@@ -984,14 +1004,15 @@ export function AIEntityCreationModal({
                   }}
                   activeOpacity={0.8}
                 >
-                  <LinearGradient
-                    colors={['#4A90E2', '#357ABD', '#2E6DA4']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFill}
-                    borderRadius={8 * fontScale}
-                  />
-                  <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF', textAlign: 'center' }}>
+                  <View style={[StyleSheet.absoluteFillObject, { borderRadius: 8 * fontScale, overflow: 'hidden' }]}>
+                    <LinearGradient
+                      colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </View>
+                  <ThemedText size="sm" weight="bold" style={{ color: '#FFFFFF', textAlign: 'center' }}>
                     {t('ai.action.createMemory') || 'Create Memory'}
                   </ThemedText>
                 </TouchableOpacity>
@@ -1011,7 +1032,7 @@ export function AIEntityCreationModal({
                 onPress={handleCancelOpenSfera}
                 activeOpacity={0.8}
               >
-                <ThemedText size="m" weight="medium" style={{ textAlign: 'center' }}>
+                <ThemedText size="sm" weight="medium" style={{ textAlign: 'center' }}>
                   {t('common.cancel') || 'Cancel'}
                 </ThemedText>
               </TouchableOpacity>
@@ -1103,7 +1124,7 @@ export function AIEntityCreationModal({
             }}
             onStartShouldSetResponder={() => true}
           >
-            <ThemedText size="lg" weight="bold" style={{ marginBottom: 12 * fontScale, textAlign: 'center' }}>
+            <ThemedText size="xl" weight="bold" style={{ marginBottom: 12 * fontScale, textAlign: 'center' }}>
               {t('ai.entity.openSferaMessage') || 'Entities have been saved successfully!'}
             </ThemedText>
             
@@ -1121,14 +1142,15 @@ export function AIEntityCreationModal({
                 onPress={handleOpenSfera}
                 activeOpacity={0.8}
               >
-                <LinearGradient
-                  colors={['#4A90E2', '#357ABD', '#2E6DA4']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={StyleSheet.absoluteFill}
-                  borderRadius={8 * fontScale}
-                />
-                <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF' }}>
+                <View style={[StyleSheet.absoluteFillObject, { borderRadius: 8 * fontScale, overflow: 'hidden' }]}>
+                  <LinearGradient
+                    colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                </View>
+                <ThemedText size="sm" weight="bold" style={{ color: '#FFFFFF' }}>
                   {(() => {
                     const sphereLabel = savedSphere 
                       ? SPHERES.find(s => s.value === savedSphere)?.label || savedSphere
@@ -1156,14 +1178,15 @@ export function AIEntityCreationModal({
                   }}
                   activeOpacity={0.8}
                 >
-                  <LinearGradient
-                    colors={['#4A90E2', '#357ABD', '#2E6DA4']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFill}
-                    borderRadius={8 * fontScale}
-                  />
-                  <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF' }}>
+                  <View style={[StyleSheet.absoluteFillObject, { borderRadius: 8 * fontScale, overflow: 'hidden' }]}>
+                    <LinearGradient
+                      colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </View>
+                  <ThemedText size="sm" weight="bold" style={{ color: '#FFFFFF' }}>
                     {t('ai.action.createMemory') || 'Create Memory'}
                   </ThemedText>
                 </TouchableOpacity>
@@ -1183,7 +1206,7 @@ export function AIEntityCreationModal({
                 onPress={handleCancelOpenSfera}
                 activeOpacity={0.8}
               >
-                <ThemedText size="m" weight="medium">
+                <ThemedText size="sm" weight="medium">
                   {t('common.cancel') || 'Cancel'}
                 </ThemedText>
               </TouchableOpacity>
@@ -1320,7 +1343,7 @@ export function AIEntityCreationModal({
                     <ThemedText 
                       size="l" 
                       weight="bold" 
-                      style={[styles.headerTitle, { numberOfLines: 1 }]}
+                      style={styles.headerTitle}
                       numberOfLines={1}
                     >
                       {t('ai.entity.title') || 'Create Entity with AI'}
@@ -1336,7 +1359,7 @@ export function AIEntityCreationModal({
                 <View style={styles.content}>
                   {!keyboardVisible && (
                     <View style={styles.sphereContainer}>
-                      <ThemedText size="s" weight="medium" style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}>
+                      <ThemedText size="xs" weight="medium" style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}>
                         {t('ai.entity.selectSphere') || 'Select Sphere'}
                       </ThemedText>
                       {SPHERES.map((sphere) => (
@@ -1355,7 +1378,7 @@ export function AIEntityCreationModal({
                             style={styles.sphereIcon}
                           />
                           <ThemedText 
-                            size="m" 
+                            size="sm" 
                             weight={selectedSphere === sphere.value ? 'bold' : 'normal'}
                             style={{ 
                               color: selectedSphere === sphere.value ? colors.primary : colors.text,
@@ -1379,7 +1402,7 @@ export function AIEntityCreationModal({
                   {/* Show only selected sphere when keyboard is visible */}
                   {keyboardVisible && (
                     <View style={styles.sphereContainer}>
-                      <ThemedText size="s" weight="medium" style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}>
+                      <ThemedText size="xs" weight="medium" style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}>
                         {t('ai.entity.selectSphere') || 'Select Sphere'}
                       </ThemedText>
                       {SPHERES.filter(sphere => sphere.value === selectedSphere).map((sphere) => (
@@ -1401,7 +1424,7 @@ export function AIEntityCreationModal({
                             style={styles.sphereIcon}
                           />
                           <ThemedText 
-                            size="m" 
+                            size="sm" 
                             weight="bold"
                             style={{ 
                               color: colors.primary,
@@ -1423,7 +1446,10 @@ export function AIEntityCreationModal({
                 <View style={styles.inputContainer}>
                   <View style={styles.inputWrapper}>
                     <TextInput
-                      style={styles.textInput}
+                      style={[
+                        styles.textInput,
+                        (showValidationErrors && (!inputText.trim() || inputText.trim().length < 10)) ? styles.textInputError : null
+                      ].filter(Boolean)}
                       placeholder={
                         selectedSphere === 'relationships' 
                           ? (t('ai.entity.placeholder.relationship') || 'Tell me about one relationship of yours. When it started, when it ended.')
@@ -1437,9 +1463,21 @@ export function AIEntityCreationModal({
                           ? (t('ai.entity.placeholder.hobbies') || 'Tell me about your hobbies.')
                           : (t('ai.entity.placeholder') || 'Write or use the microphone to tell a story...')
                       }
-                      placeholderTextColor={colors.muted}
+                      placeholderTextColor={colorScheme === 'dark' ? colors.textMediumEmphasis : colors.text + '80'}
                       value={inputText}
-                      onChangeText={setInputText}
+                      onChangeText={(text) => {
+                        setInputText(text);
+                        // Clear validation error when user starts typing valid text
+                        if (showValidationErrors && text.trim().length >= 10) {
+                          setShowValidationErrors(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        // Clear validation error when user focuses on the field
+                        if (showValidationErrors && inputText.trim().length >= 10) {
+                          setShowValidationErrors(false);
+                        }
+                      }}
                       multiline
                       textAlignVertical="top"
                     />
@@ -1479,19 +1517,20 @@ export function AIEntityCreationModal({
                   disabled={!inputText.trim() || inputText.trim().length < 10 || isProcessing}
                   activeOpacity={0.8}
                 >
-                  <LinearGradient
-                    colors={
-                      (!inputText.trim() || inputText.trim().length < 10 || isProcessing)
-                        ? colorScheme === 'dark'
-                          ? ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)']
-                          : ['rgba(0, 0, 0, 0.1)', 'rgba(0, 0, 0, 0.1)']
-                        : ['#4A90E2', '#357ABD', '#2E6DA4']
-                    }
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFill}
-                    borderRadius={12 * fontScale}
-                  />
+                  <View style={[StyleSheet.absoluteFillObject, { borderRadius: 12 * fontScale, overflow: 'hidden' }]}>
+                    <LinearGradient
+                      colors={
+                        (!inputText.trim() || inputText.trim().length < 10 || isProcessing)
+                          ? colorScheme === 'dark'
+                            ? ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)']
+                            : ['rgba(0, 0, 0, 0.1)', 'rgba(0, 0, 0, 0.1)']
+                          : ['#4A90E2', '#357ABD', '#2E6DA4']
+                      }
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </View>
                   {isProcessing ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
@@ -1537,7 +1576,7 @@ export function AIEntityCreationModal({
             }}
             onStartShouldSetResponder={() => true}
           >
-            <ThemedText size="lg" weight="bold" style={{ marginBottom: 12 * fontScale, textAlign: 'center' }}>
+            <ThemedText size="xl" weight="bold" style={{ marginBottom: 12 * fontScale, textAlign: 'center' }}>
               {t('ai.entity.openSferaMessage') || 'Entities have been saved successfully!'}
             </ThemedText>
             
@@ -1555,14 +1594,15 @@ export function AIEntityCreationModal({
                 onPress={handleOpenSfera}
                 activeOpacity={0.8}
               >
-                <LinearGradient
-                  colors={['#4A90E2', '#357ABD', '#2E6DA4']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={StyleSheet.absoluteFill}
-                  borderRadius={8 * fontScale}
-                />
-                <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF' }}>
+                <View style={[StyleSheet.absoluteFillObject, { borderRadius: 8 * fontScale, overflow: 'hidden' }]}>
+                  <LinearGradient
+                    colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                </View>
+                <ThemedText size="sm" weight="bold" style={{ color: '#FFFFFF' }}>
                   {(() => {
                     const sphereLabel = savedSphere 
                       ? SPHERES.find(s => s.value === savedSphere)?.label || savedSphere
@@ -1590,14 +1630,15 @@ export function AIEntityCreationModal({
                   }}
                   activeOpacity={0.8}
                 >
-                  <LinearGradient
-                    colors={['#4A90E2', '#357ABD', '#2E6DA4']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFill}
-                    borderRadius={8 * fontScale}
-                  />
-                  <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF' }}>
+                  <View style={[StyleSheet.absoluteFillObject, { borderRadius: 8 * fontScale, overflow: 'hidden' }]}>
+                    <LinearGradient
+                      colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </View>
+                  <ThemedText size="sm" weight="bold" style={{ color: '#FFFFFF' }}>
                     {t('ai.action.createMemory') || 'Create Memory'}
                   </ThemedText>
                 </TouchableOpacity>
@@ -1617,7 +1658,7 @@ export function AIEntityCreationModal({
                 onPress={handleCancelOpenSfera}
                 activeOpacity={0.8}
               >
-                <ThemedText size="m" weight="medium">
+                <ThemedText size="sm" weight="medium">
                   {t('common.cancel') || 'Cancel'}
                 </ThemedText>
               </TouchableOpacity>

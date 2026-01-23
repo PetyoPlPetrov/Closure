@@ -120,6 +120,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(null);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [selectedEntityName, setSelectedEntityName] = useState<string | null>(null);
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [showSpherePicker, setShowSpherePicker] = useState(false);
   const [showEntityPicker, setShowEntityPicker] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
@@ -442,6 +443,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         // If entity not found, set sphere but let user select entity
         if (!entityFound) {
           setSelectedSphere(finalSphere);
+          // Automatically show validation error if entity is required but not found
+          // We'll check this after availableEntitiesForSphere is computed
         } else {
           setSelectedSphere(finalSphere);
           setSelectedEntityId(finalEntityId);
@@ -1067,6 +1070,14 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     }
   }, [selectedSphere, profiles, jobs, familyMembers, friends, hobbies]);
 
+  // Automatically show validation error when results are displayed with invalid entity
+  useEffect(() => {
+    if (aiResponse && selectedSphere && availableEntitiesForSphere.length > 0 && !selectedEntityId) {
+      // Entity is required but not selected - show validation error immediately
+      setShowValidationErrors(true);
+    }
+  }, [aiResponse, selectedSphere, availableEntitiesForSphere.length, selectedEntityId]);
+
   // Handle sphere change - reset entity if sphere changes
   const handleSphereChange = (sphere: LifeSphere) => {
     setSelectedSphere(sphere);
@@ -1080,6 +1091,10 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     setSelectedEntityId(entityId);
     setSelectedEntityName(entityName);
     setShowEntityPicker(false);
+    // Clear validation error when entity is selected
+    if (showValidationErrors) {
+      setShowValidationErrors(false);
+    }
   };
 
   const handleSave = async () => {
@@ -1088,20 +1103,19 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     }
 
     // Entity is required - ensure we have an entity selected
-    if (!selectedEntityId) {
-      if (availableEntitiesForSphere.length === 0) {
-        Alert.alert(
-          t('common.error') || 'Error',
-          t('ai.results.noEntities') || 'No entities available for this sphere. Please add an entity first.'
-        );
-      } else {
-        Alert.alert(
-          t('common.error') || 'Error',
-          t('ai.results.selectEntity') || 'Please select an entity'
-        );
-      }
+    // Check if entity is required (sphere has entities available)
+    const needsEntity = selectedSphere && availableEntitiesForSphere.length > 0;
+    if (needsEntity && !selectedEntityId) {
+      setShowValidationErrors(true);
+      Alert.alert(
+        t('common.error') || 'Error',
+        t('ai.results.selectEntity' as any) || 'Please select an entity'
+      );
       return;
     }
+
+    // Clear validation errors if validation passes
+    setShowValidationErrors(false);
 
     setIsProcessing(true);
     try {
@@ -1654,6 +1668,10 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         ? 'rgba(255, 255, 255, 0.1)' 
         : 'rgba(0, 0, 0, 0.1)',
     },
+    dropdownButtonError: {
+      borderColor: '#FF3B30',
+      borderWidth: 2,
+    },
     pickerOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -2087,11 +2105,23 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                             {t('ai.results.entity') || 'Entity'}
                           </ThemedText>
                           <Pressable
-                            style={styles.dropdownButton}
-                            onPress={() => setShowEntityPicker(true)}
+                            style={[
+                              styles.dropdownButton,
+                              // Show error border if validation errors are shown AND no entity is selected
+                              // OR if entity is required (entities available) but not selected
+                              ((showValidationErrors || (availableEntitiesForSphere.length > 0 && !selectedEntityId)) && !selectedEntityId) 
+                                ? styles.dropdownButtonError 
+                                : null
+                            ].filter(Boolean)}
+                            onPress={() => {
+                              setShowEntityPicker(true);
+                              if (showValidationErrors) {
+                                setShowValidationErrors(false);
+                              }
+                            }}
                           >
-                            <ThemedText size="m" weight="semibold">
-                              {selectedEntityName || t('ai.results.selectEntity') || 'Select entity...'}
+                            <ThemedText size="sm" weight="semibold">
+                              {selectedEntityName || t('ai.results.selectEntity' as any) || 'Select entity...'}
                             </ThemedText>
                             <MaterialIcons name="arrow-drop-down" size={24 * fontScale} color={colors.text} />
                           </Pressable>

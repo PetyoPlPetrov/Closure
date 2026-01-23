@@ -21,7 +21,7 @@ import { useSubscription } from '@/utils/SubscriptionProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, AppStateStatus, BackHandler, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
@@ -246,13 +246,10 @@ export default function SpheresScreen() {
   );
 
   const params = useLocalSearchParams();
-  console.log('🟢 [Spheres Screen] Params received:', params);
-  console.log('🟢 [Spheres Screen] params.selectedSphere:', params.selectedSphere);
   
   // Initialize state from params
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(() => {
     const initialSphere = (params.selectedSphere as LifeSphere) || null;
-    console.log('🟢 [Spheres Screen] Initial selectedSphere state (from useState init):', initialSphere);
     return initialSphere;
   });
   
@@ -261,22 +258,20 @@ export default function SpheresScreen() {
   
   // Sync params to state immediately when they change
   // This runs on every render to catch param changes that useEffect might miss
-  React.useLayoutEffect(() => {
-    const currentSphereParam = params.selectedSphere as LifeSphere | undefined;
-    console.log('🟢 [Spheres Screen] useLayoutEffect: currentSphereParam:', currentSphereParam);
-    console.log('🟢 [Spheres Screen] useLayoutEffect: selectedSphere:', selectedSphere);
-    console.log('🟢 [Spheres Screen] useLayoutEffect: prevParamsRef.current:', prevParamsRef.current);
-    
-    if (currentSphereParam && (prevParamsRef.current !== currentSphereParam || selectedSphere !== currentSphereParam)) {
-      console.log('🟢 [Spheres Screen] useLayoutEffect: Updating selectedSphere to:', currentSphereParam);
-      prevParamsRef.current = currentSphereParam;
-      setSelectedSphere(currentSphereParam);
-    } else if (!currentSphereParam && selectedSphere !== null) {
-      console.log('🟢 [Spheres Screen] useLayoutEffect: Clearing selectedSphere');
-      prevParamsRef.current = undefined;
-      setSelectedSphere(null);
-    }
-  });
+    React.useLayoutEffect(() => {
+      const currentSphereParam = params.selectedSphere as LifeSphere | undefined;
+      
+      // Only sync FROM URL params TO state when URL params actually change
+      // Don't clear state if URL param is missing but state exists (state might be set by user interaction)
+      if (currentSphereParam && prevParamsRef.current !== currentSphereParam) {
+        prevParamsRef.current = currentSphereParam;
+        setSelectedSphere(currentSphereParam);
+      } else if (!currentSphereParam && prevParamsRef.current !== undefined) {
+        // Only clear if URL param was explicitly removed (prevParamsRef had a value)
+        prevParamsRef.current = undefined;
+        setSelectedSphere(null);
+      }
+    });
   const [aiModalVisible, setAiModalVisible] = useState(false);
   const [aiActionModalVisible, setAiActionModalVisible] = useState(false);
   const [aiEntityCreationModalVisible, setAiEntityCreationModalVisible] = useState(false);
@@ -369,7 +364,6 @@ export default function SpheresScreen() {
           }
         }
       } catch (error) {
-        console.error('Error checking for AI response:', error);
         // On error, stop polling to prevent endless retries
         if (intervalId) {
           clearInterval(intervalId);
@@ -440,7 +434,6 @@ export default function SpheresScreen() {
           }
         }
       } catch (error) {
-        console.error('Error checking for entity response:', error);
         if (intervalId) {
           clearInterval(intervalId);
           intervalId = null;
@@ -532,43 +525,29 @@ export default function SpheresScreen() {
   useFocusEffect(
     React.useCallback(() => {
       const currentSphere = params.selectedSphere as LifeSphere | undefined;
-      console.log('🟢 [Spheres Screen] useFocusEffect triggered, params.selectedSphere:', currentSphere);
-      console.log('🟢 [Spheres Screen] prevParamsRef.current:', prevParamsRef.current);
-      console.log('🟢 [Spheres Screen] current selectedSphere state:', selectedSphere);
       
       // Always update if params have changed or if state doesn't match params
       if (currentSphere && (prevParamsRef.current !== currentSphere || selectedSphere !== currentSphere)) {
-        console.log('🟢 [Spheres Screen] Setting selectedSphere to:', currentSphere);
         prevParamsRef.current = currentSphere;
         setSelectedSphere(currentSphere);
       } else if (!currentSphere && selectedSphere !== null) {
-        console.log('🟢 [Spheres Screen] Clearing selectedSphere (no params)');
         prevParamsRef.current = undefined;
         setSelectedSphere(null);
-      } else {
-        console.log('🟢 [Spheres Screen] No change needed');
       }
-    }, [params.selectedSphere, selectedSphere])
+    }, [params, selectedSphere])
   );
   
   // Also update when params change (backup for when screen is already focused)
   React.useEffect(() => {
     const currentSphere = params.selectedSphere as LifeSphere | undefined;
-    console.log('🟢 [Spheres Screen] useEffect triggered, params.selectedSphere:', currentSphere);
-    console.log('🟢 [Spheres Screen] prevParamsRef.current:', prevParamsRef.current);
-    console.log('🟢 [Spheres Screen] current selectedSphere state:', selectedSphere);
     
     // Always update if params have changed or if state doesn't match params
     if (currentSphere && (prevParamsRef.current !== currentSphere || selectedSphere !== currentSphere)) {
-      console.log('🟢 [Spheres Screen] Setting selectedSphere to:', currentSphere);
       prevParamsRef.current = currentSphere;
       setSelectedSphere(currentSphere);
     } else if (!currentSphere && selectedSphere !== null) {
-      console.log('🟢 [Spheres Screen] Clearing selectedSphere (no params)');
       prevParamsRef.current = undefined;
       setSelectedSphere(null);
-    } else {
-      console.log('🟢 [Spheres Screen] No change needed in useEffect');
     }
   }, [params.selectedSphere, selectedSphere]);
   
@@ -582,14 +561,13 @@ export default function SpheresScreen() {
   
   // Function to clear selected sphere and params
   const clearSelectedSphere = React.useCallback(() => {
-    console.log('🟢 [Spheres Screen] clearSelectedSphere called');
+    // Update state first
     setSelectedSphere(null);
     prevParamsRef.current = undefined;
-    // Clear params by navigating to the same route without the selectedSphere param
-    // Using router.push to ensure params are updated
-    router.push({
-      pathname: '/(tabs)/spheres' as const,
-    });
+    
+    // Use router.replace to navigate to the same route without params
+    // This should clear the selectedSphere param from the URL
+    router.replace('/(tabs)/spheres' as any);
   }, []);
   
   // Listen for spheres tab press events - only when screen is focused
@@ -601,7 +579,6 @@ export default function SpheresScreen() {
         
         // Check if there's a selected sphere - if so, clear it to return to main view
         if (currentSelectedSphere) {
-          console.log('🟢 [Spheres Screen] Tab pressed, clearing selected sphere');
           clearSelectedSphere();
         }
       });
@@ -612,11 +589,15 @@ export default function SpheresScreen() {
     }, [clearSelectedSphere]) // Include clearSelectedSphere in deps
   );
 
-  // Handle back button press
+  // Get navigation object for handling back button on iOS
+  const navigation = useNavigation();
+
+  // Handle back button press (Android) and navigation back (iOS)
   React.useEffect(() => {
+    // Android: Handle hardware back button
     const handleBackPress = () => {
-      if (selectedSphere) {
-        console.log('🟢 [Spheres Screen] Back button pressed, clearing selected sphere');
+      const currentSelectedSphere = selectedSphereRef.current;
+      if (currentSelectedSphere) {
         clearSelectedSphere();
         return true; // Prevent default back behavior
       }
@@ -624,8 +605,24 @@ export default function SpheresScreen() {
     };
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
-    return () => backHandler.remove();
-  }, [selectedSphere, clearSelectedSphere]);
+
+    // iOS: Handle navigation back button using beforeRemove event
+    const unsubscribeBeforeRemove = navigation.addListener('beforeRemove', (e: any) => {
+      const currentSelectedSphere = selectedSphereRef.current;
+      if (currentSelectedSphere) {
+        // Prevent default navigation
+        e.preventDefault();
+        // Clear the selected sphere instead
+        clearSelectedSphere();
+      }
+      // If no sphere is selected, allow default navigation
+    });
+
+    return () => {
+      backHandler.remove();
+      unsubscribeBeforeRemove();
+    };
+  }, [clearSelectedSphere, navigation]);
 
   // Calculate entity-level scores for comparison
   const _entityComparisons = useMemo(() => {
@@ -763,7 +760,9 @@ export default function SpheresScreen() {
   const sphereData = useMemo(() => {
     const calculateSphereData = (sphereType: LifeSphere) => {
       const entities = getEntitiesBySphere(sphereType);
-      if (entities.length === 0) return { totalMoments: 0, sunnyPercentage: 0 };
+      if (entities.length === 0) {
+        return { totalMoments: 0, sunnyPercentage: 0 };
+      }
 
       let totalClouds = 0;
       let totalSuns = 0;
@@ -1484,12 +1483,48 @@ export default function SpheresScreen() {
     // Check if the sphere has any moments (floating things) - this determines if it's visually empty
     const hasMoments = sphereData[sphere].totalMoments > 0;
     
-    // If sphere has no moments (empty sphere on main screen), always show empty state
-    // If sphere has moments, toggle selection as before
+    // Check if sphere has entities
+    let hasEntities = false;
+    switch (sphere) {
+      case 'relationships':
+        hasEntities = profiles.length > 0;
+        break;
+      case 'career':
+        hasEntities = jobs.length > 0;
+        break;
+      case 'family':
+        hasEntities = familyMembers.length > 0;
+        break;
+      case 'friends':
+        hasEntities = friends.length > 0;
+        break;
+      case 'hobbies':
+        hasEntities = hobbies.length > 0;
+        break;
+    }
+    
+    // Determine the new selected sphere
+    let newSelectedSphere: LifeSphere | null;
     if (!hasMoments) {
-      setSelectedSphere(sphere);
+      newSelectedSphere = sphere;
     } else {
-      setSelectedSphere(selectedSphere === sphere ? null : sphere);
+      newSelectedSphere = selectedSphere === sphere ? null : sphere;
+    }
+    
+    // Update state and URL params together to keep them in sync
+    setSelectedSphere(newSelectedSphere);
+    prevParamsRef.current = newSelectedSphere || undefined;
+    
+    // Update URL params to match state
+    if (newSelectedSphere) {
+      router.push({
+        pathname: '/(tabs)/spheres' as const,
+        params: { selectedSphere: newSelectedSphere },
+      });
+    } else {
+      router.push({
+        pathname: '/(tabs)/spheres' as const,
+      });
     }
   };
 
@@ -1620,7 +1655,7 @@ export default function SpheresScreen() {
       <TabScreenContainer>
         <View style={styles.header}>
           <Pressable
-            onPress={() => setSelectedSphere(null)}
+            onPress={() => clearSelectedSphere()}
             style={styles.headerButton}
           >
             <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
@@ -1708,7 +1743,7 @@ export default function SpheresScreen() {
       <TabScreenContainer>
         <View style={styles.header}>
           <Pressable
-            onPress={() => setSelectedSphere(null)}
+            onPress={() => clearSelectedSphere()}
             style={styles.headerButton}
           >
             <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
@@ -1798,7 +1833,7 @@ export default function SpheresScreen() {
       <TabScreenContainer>
         <View style={styles.header}>
           <Pressable
-            onPress={() => setSelectedSphere(null)}
+            onPress={() => clearSelectedSphere()}
             style={styles.headerButton}
           >
             <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
@@ -1929,7 +1964,7 @@ export default function SpheresScreen() {
       <TabScreenContainer>
         <View style={styles.header}>
           <Pressable
-            onPress={() => setSelectedSphere(null)}
+            onPress={() => clearSelectedSphere()}
             style={styles.headerButton}
           >
             <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
@@ -2055,7 +2090,7 @@ export default function SpheresScreen() {
       <TabScreenContainer>
         <View style={styles.header}>
           <Pressable
-            onPress={() => setSelectedSphere(null)}
+            onPress={() => clearSelectedSphere()}
             style={styles.headerButton}
           >
             <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
