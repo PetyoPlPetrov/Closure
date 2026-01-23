@@ -1,32 +1,32 @@
+import { AIEntityResultsView } from '@/components/ai-entity-results-view';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import {
+  clearPendingEntityError,
+  clearPendingEntityRequest,
+  clearPendingEntityResponse,
+  getPendingEntityError,
+  getPendingEntityRequest,
+  getPendingEntityResponse,
+  isBackgroundEntityTaskRunning,
+  startBackgroundEntityProcessing,
+  stopBackgroundEntityProcessing,
+  type PendingEntityResponse,
+} from '@/utils/ai-background-processor';
+import { processEntityCreationPrompt, type AIEntityCreationResponse } from '@/utils/ai-service';
 import { LifeSphere, useJourney } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
-import { processEntityCreationPrompt, type AIEntityCreationResponse } from '@/utils/ai-service';
-import { AIEntityResultsView } from '@/components/ai-entity-results-view';
-import {
-  startBackgroundEntityProcessing,
-  stopBackgroundEntityProcessing,
-  isBackgroundEntityTaskRunning,
-  getPendingEntityRequest,
-  getPendingEntityResponse,
-  getPendingEntityError,
-  clearPendingEntityRequest,
-  clearPendingEntityResponse,
-  clearPendingEntityError,
-  type PendingEntityResponse,
-} from '@/utils/ai-background-processor';
-import { AppState } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -39,13 +39,13 @@ import {
   View,
 } from 'react-native';
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
-  withTiming,
   withRepeat,
   withSequence,
-  Easing,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 // Conditionally import Voice
@@ -292,7 +292,7 @@ export function AIEntityCreationModal({
         setBackgroundRequestId(null);
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [pendingResponse, visible, isProcessing, aiResponse]);
 
   const micAnimatedStyle = useAnimatedStyle(() => ({
@@ -1216,9 +1216,23 @@ export function AIEntityCreationModal({
           <Pressable 
             style={isProcessing && !aiResponse ? styles.containerLoading : styles.container} 
             onStartShouldSetResponder={() => true}
-            onPress={(e) => e.stopPropagation()}
+            onPress={(e) => {
+              e.stopPropagation();
+              // Dismiss keyboard when clicking outside input
+              if (keyboardVisible) {
+                Keyboard.dismiss();
+              }
+            }}
           >
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              onScrollBeginDrag={() => {
+                if (keyboardVisible) {
+                  Keyboard.dismiss();
+                }
+              }}
+            >
               <View style={styles.header}>
                 <View style={styles.headerButtons}>
                   {onMinimize && isProcessing && !aiResponse && (
@@ -1320,45 +1334,91 @@ export function AIEntityCreationModal({
 
               {!isProcessing && (
                 <View style={styles.content}>
-                  <View style={styles.sphereContainer}>
-                  <ThemedText size="s" weight="medium" style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}>
-                    {t('ai.entity.selectSphere') || 'Select Sphere'}
-                  </ThemedText>
-                  {SPHERES.map((sphere) => (
-                    <TouchableOpacity
-                      key={sphere.value}
-                      style={[
-                        styles.sphereOption,
-                        selectedSphere === sphere.value && styles.sphereOptionActive,
-                      ]}
-                      onPress={() => setSelectedSphere(sphere.value)}
-                    >
-                      <MaterialIcons 
-                        name={sphere.icon as any} 
-                        size={20 * fontScale} 
-                        color={selectedSphere === sphere.value ? colors.primary : colors.text}
-                        style={styles.sphereIcon}
-                      />
-                      <ThemedText 
-                        size="m" 
-                        weight={selectedSphere === sphere.value ? 'bold' : 'normal'}
-                        style={{ 
-                          color: selectedSphere === sphere.value ? colors.primary : colors.text,
-                          flex: 1,
-                        }}
-                      >
-                        {sphere.label}
+                  {!keyboardVisible && (
+                    <View style={styles.sphereContainer}>
+                      <ThemedText size="s" weight="medium" style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}>
+                        {t('ai.entity.selectSphere') || 'Select Sphere'}
                       </ThemedText>
-                      {selectedSphere === sphere.value && (
-                        <MaterialIcons 
-                          name="check-circle" 
-                          size={20 * fontScale} 
-                          color={colors.primary}
-                        />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      {SPHERES.map((sphere) => (
+                        <TouchableOpacity
+                          key={sphere.value}
+                          style={[
+                            styles.sphereOption,
+                            selectedSphere === sphere.value && styles.sphereOptionActive,
+                          ]}
+                          onPress={() => setSelectedSphere(sphere.value)}
+                        >
+                          <MaterialIcons 
+                            name={sphere.icon as any} 
+                            size={20 * fontScale} 
+                            color={selectedSphere === sphere.value ? colors.primary : colors.text}
+                            style={styles.sphereIcon}
+                          />
+                          <ThemedText 
+                            size="m" 
+                            weight={selectedSphere === sphere.value ? 'bold' : 'normal'}
+                            style={{ 
+                              color: selectedSphere === sphere.value ? colors.primary : colors.text,
+                              flex: 1,
+                            }}
+                          >
+                            {sphere.label}
+                          </ThemedText>
+                          {selectedSphere === sphere.value && (
+                            <MaterialIcons 
+                              name="check-circle" 
+                              size={20 * fontScale} 
+                              color={colors.primary}
+                            />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                  
+                  {/* Show only selected sphere when keyboard is visible */}
+                  {keyboardVisible && (
+                    <View style={styles.sphereContainer}>
+                      <ThemedText size="s" weight="medium" style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}>
+                        {t('ai.entity.selectSphere') || 'Select Sphere'}
+                      </ThemedText>
+                      {SPHERES.filter(sphere => sphere.value === selectedSphere).map((sphere) => (
+                        <TouchableOpacity
+                          key={sphere.value}
+                          style={[
+                            styles.sphereOption,
+                            styles.sphereOptionActive,
+                          ]}
+                          onPress={() => {
+                            Keyboard.dismiss();
+                            setSelectedSphere(sphere.value);
+                          }}
+                        >
+                          <MaterialIcons 
+                            name={sphere.icon as any} 
+                            size={20 * fontScale} 
+                            color={colors.primary}
+                            style={styles.sphereIcon}
+                          />
+                          <ThemedText 
+                            size="m" 
+                            weight="bold"
+                            style={{ 
+                              color: colors.primary,
+                              flex: 1,
+                            }}
+                          >
+                            {sphere.label}
+                          </ThemedText>
+                          <MaterialIcons 
+                            name="check-circle" 
+                            size={20 * fontScale} 
+                            color={colors.primary}
+                          />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
 
                 <View style={styles.inputContainer}>
                   <View style={styles.inputWrapper}>

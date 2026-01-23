@@ -4740,10 +4740,10 @@ const FloatingMemory = React.memo(function FloatingMemory({
         ? (upperRegionEnd - upperRegionStart) / Math.max(1, totalCount - 1)
         : 0;
       const targetY = upperRegionStart + (index * verticalSpacing);
-      
-      momentX = savedX !== undefined ? Math.max(minX, Math.min(maxX, savedX)) : targetX;
+        
+        momentX = savedX !== undefined ? Math.max(minX, Math.min(maxX, savedX)) : targetX;
       // Clamp Y to upper region (above middle of screen)
-      momentY = savedY !== undefined 
+        momentY = savedY !== undefined 
         ? Math.max(minY, Math.min(upperRegionEnd, savedY))
         : Math.max(minY, Math.min(upperRegionEnd, targetY));
 

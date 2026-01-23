@@ -1747,7 +1747,13 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         >
           <Pressable 
             style={currentView === 'loading' ? styles.modalContainerLarge : styles.modalContainer} 
-            onPress={(e) => e.stopPropagation()}
+            onPress={(e) => {
+              e.stopPropagation();
+              // Dismiss keyboard when clicking outside input
+              if (isKeyboardVisible) {
+                Keyboard.dismiss();
+              }
+            }}
           >
             <Animated.View style={[
               currentView === 'loading' ? styles.modalLarge : styles.modal, 

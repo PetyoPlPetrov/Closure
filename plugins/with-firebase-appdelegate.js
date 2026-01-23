@@ -63,15 +63,15 @@ const withFirebaseAppDelegate = (config) => {
           if (!hasFirebaseCoreImport) {
             importsToAdd += 'import FirebaseCore\n';
           }
-          if (!hasFirebaseImport) {
+      if (!hasFirebaseImport) {
             importsToAdd += 'import Firebase\n';
           }
           
           if (importsToAdd) {
-            appDelegateContent = appDelegateContent.replace(
-              /(import ReactAppDependencyProvider\n)/,
+          appDelegateContent = appDelegateContent.replace(
+            /(import ReactAppDependencyProvider\n)/,
               `$1${importsToAdd}`
-            );
+          );
             console.log('✓ Firebase AppDelegate: Added App Check imports after ReactAppDependencyProvider');
             modified = true;
           }

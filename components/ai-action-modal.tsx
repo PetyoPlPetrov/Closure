@@ -45,6 +45,7 @@ export function AIActionModal({
   // Pulse animation for the modal
   const pulseScale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.3);
+  const iconScale = useSharedValue(1);
 
   React.useEffect(() => {
     if (visible) {
@@ -65,9 +66,19 @@ export function AIActionModal({
         -1,
         false
       );
+      // Icon pulse animation
+      iconScale.value = withRepeat(
+        withSequence(
+          withTiming(1.2, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
     } else {
       pulseScale.value = 1;
       glowOpacity.value = 0.3;
+      iconScale.value = 1;
     }
   }, [visible]);
 
@@ -77,6 +88,10 @@ export function AIActionModal({
 
   const glowAnimatedStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,
+  }));
+
+  const iconAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScale.value }],
   }));
 
   const styles = useMemo(
@@ -99,6 +114,11 @@ export function AIActionModal({
           position: 'relative',
           overflow: 'visible',
         },
+        dotsOverlay: {
+          ...StyleSheet.absoluteFillObject,
+          borderRadius: 24 * fontScale,
+          pointerEvents: 'none',
+        },
         glowContainer: {
           position: 'absolute',
           top: -20,
@@ -113,12 +133,6 @@ export function AIActionModal({
           zIndex: 1,
         },
         iconContainer: {
-          width: 80 * fontScale,
-          height: 80 * fontScale,
-          borderRadius: 40 * fontScale,
-          backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(255, 215, 0, 0.15)' 
-            : 'rgba(255, 215, 0, 0.15)',
           justifyContent: 'center',
           alignItems: 'center',
           alignSelf: 'center',
@@ -146,6 +160,11 @@ export function AIActionModal({
           gap: 12 * fontScale,
           overflow: 'hidden',
           position: 'relative',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.4,
+          shadowRadius: 12,
+          elevation: 12,
         },
         buttonText: {
           color: '#ffffff',
@@ -198,6 +217,31 @@ export function AIActionModal({
                 />
               </Animated.View>
 
+              {/* Sparse white dots overlay */}
+              {colorScheme === 'dark' && (
+                <View style={styles.dotsOverlay}>
+                  {[...Array(20)].map((_, i) => {
+                    const size = Math.random() * 2 + 1;
+                    const left = Math.random() * 100;
+                    const top = Math.random() * 100;
+                    return (
+                      <View
+                        key={i}
+                        style={{
+                          position: 'absolute',
+                          left: `${left}%`,
+                          top: `${top}%`,
+                          width: size,
+                          height: size,
+                          borderRadius: size / 2,
+                          backgroundColor: 'rgba(255, 255, 255, 0.4)',
+                        }}
+                      />
+                    );
+                  })}
+                </View>
+              )}
+
               {/* Close button */}
               <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                 <MaterialIcons 
@@ -208,16 +252,21 @@ export function AIActionModal({
               </TouchableOpacity>
 
               <View style={styles.content}>
-                {/* Icon */}
+                {/* Icon - no circle, just pulsing */}
                 <View style={styles.iconContainer}>
-                  <ThemedText style={{ 
-                    fontSize: 48 * fontScale,
-                    lineHeight: 48 * fontScale,
-                    textAlign: 'center',
-                    includeFontPadding: false,
-                  }}>
+                  <Animated.Text 
+                    style={[
+                      iconAnimatedStyle,
+                      {
+                        fontSize: 56 * fontScale,
+                        lineHeight: 56 * fontScale,
+                        textAlign: 'center',
+                        includeFontPadding: false,
+                      }
+                    ]}
+                  >
                     ✨
-                  </ThemedText>
+                  </Animated.Text>
                 </View>
 
                 {/* Title */}
