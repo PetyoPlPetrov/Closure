@@ -1,4 +1,6 @@
 import { AIModal } from '@/components/ai-modal';
+import { AIActionModal } from '@/components/ai-action-modal';
+import { AIEntityCreationModal } from '@/components/ai-entity-creation-modal';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -245,6 +247,8 @@ export default function SpheresScreen() {
   const params = useLocalSearchParams();
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>((params.selectedSphere as LifeSphere) || null);
   const [aiModalVisible, setAiModalVisible] = useState(false);
+  const [aiActionModalVisible, setAiActionModalVisible] = useState(false);
+  const [aiEntityCreationModalVisible, setAiEntityCreationModalVisible] = useState(false);
   const [pendingAIResponse, setPendingAIResponse] = useState<any>(null);
   
   // Check for pending AI response when app becomes active or component mounts
@@ -373,8 +377,25 @@ export default function SpheresScreen() {
     const pendingResponse = await getPendingAIResponse();
     if (pendingResponse) {
       setPendingAIResponse(pendingResponse);
+      // If there's a pending response, open the AI modal directly
+      setAiModalVisible(true);
+    } else {
+      // Otherwise, show the action modal to let user choose
+      setAiActionModalVisible(true);
     }
+  };
+
+  const handleSelectCreateMemory = () => {
     setAiModalVisible(true);
+  };
+
+  const handleSelectCreateEntity = () => {
+    setAiEntityCreationModalVisible(true);
+  };
+
+  const handleEntityCreated = () => {
+    // Reload entities after creation
+    // The JourneyProvider will automatically update, but we can trigger a refresh if needed
   };
   
   // Update selectedSphere when params change (e.g., when navigating back from edit screen)
@@ -2333,6 +2354,22 @@ export default function SpheresScreen() {
             </View>
           </View>
         )}
+
+        {/* AI Action Modal */}
+        <AIActionModal
+          visible={aiActionModalVisible}
+          onClose={() => setAiActionModalVisible(false)}
+          onSelectCreateMemory={handleSelectCreateMemory}
+          onSelectCreateEntity={handleSelectCreateEntity}
+          hasEntities={(profiles.length + jobs.length + familyMembers.length + friends.length + hobbies.length) > 0}
+        />
+
+        {/* AI Entity Creation Modal */}
+        <AIEntityCreationModal
+          visible={aiEntityCreationModalVisible}
+          onClose={() => setAiEntityCreationModalVisible(false)}
+          onEntityCreated={handleEntityCreated}
+        />
 
         {/* AI Modal */}
         <AIModal

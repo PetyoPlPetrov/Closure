@@ -661,6 +661,22 @@ export interface Translations {
   'ai.error.message': string;
   'ai.noEntities.title': string;
   'ai.noEntities.message': string;
+  'ai.action.title': string;
+  'ai.action.message.withEntities': string;
+  'ai.action.message.noEntities': string;
+  'ai.action.createMemory': string;
+  'ai.action.createEntity': string;
+  'ai.entity.title': string;
+  'ai.entity.subtitle': string;
+  'ai.entity.selectSphere': string;
+  'ai.entity.tellStory': string;
+  'ai.entity.placeholder': string;
+  'ai.entity.placeholder.relationship': string;
+  'ai.entity.placeholder.career': string;
+  'ai.entity.placeholder.family': string;
+  'ai.entity.placeholder.friends': string;
+  'ai.entity.placeholder.hobbies': string;
+  'ai.entity.create': string;
 
   // Moment Suggestions
   'suggestions.birthday.hardTruths.0': string;
@@ -3988,6 +4004,22 @@ const translations: Record<Language, Translations> = {
     'ai.rateLimit.upgrade': 'Upgrade to Premium',
     'ai.error.title': 'AI Processing Failed',
     'ai.error.message': 'Failed to process your request: {error}. Please try again.',
+    'ai.action.title': 'What would you like to create?',
+    'ai.action.message.withEntities': 'Choose to create a new memory or add a new entity to your life spheres.',
+    'ai.action.message.noEntities': 'Let\'s start by creating your first entity. Tell us about someone or something important in your life.',
+    'ai.action.createMemory': 'Create Memory',
+    'ai.action.createEntity': 'Create Entity',
+    'ai.entity.title': 'Create Entity with AI',
+    'ai.entity.subtitle': 'Select a sphere and tell us about the entity',
+    'ai.entity.selectSphere': 'Select Sphere',
+    'ai.entity.tellStory': 'Tell us about this entity',
+    'ai.entity.placeholder': 'Write or use the microphone to tell a story...',
+    'ai.entity.placeholder.relationship': 'Tell me about one relationship of yours. When it started, when it ended.',
+    'ai.entity.placeholder.career': 'Tell me about one job of yours. When it started, when it ended.',
+    'ai.entity.placeholder.family': 'Tell me about all of your family members.',
+    'ai.entity.placeholder.friends': 'Tell me about all of your friends.',
+    'ai.entity.placeholder.hobbies': 'Tell me about all of your hobbies.',
+    'ai.entity.create': 'Create Entity',
     'ai.noEntities.title': 'No Entities Found',
     'ai.noEntities.message': 'Please create at least one entity (profile, job, family member, friend, or hobby) before using the AI feature.',
 
@@ -6898,6 +6930,22 @@ const translations: Record<Language, Translations> = {
     'ai.rateLimit.upgrade': 'Надграждане до Premium',
     'ai.error.title': 'AI обработката неуспешна',
     'ai.error.message': 'Неуспешно обработване на заявката: {error}. Моля, опитайте отново.',
+    'ai.action.title': 'Какво искате да създадете?',
+    'ai.action.message.withEntities': 'Изберете да създадете нов спомен или да добавите нов обект към житейските си сфери.',
+    'ai.action.message.noEntities': 'Нека започнем като създадем първия ви обект. Разкажете ни за някой или нещо важно в живота ви.',
+    'ai.action.createMemory': 'Създай спомен',
+    'ai.action.createEntity': 'Създай обект',
+    'ai.entity.title': 'Създай обект с AI',
+    'ai.entity.subtitle': 'Изберете сфера и разкажете ни за обекта',
+    'ai.entity.selectSphere': 'Изберете сфера',
+    'ai.entity.tellStory': 'Разкажете ни за този обект',
+    'ai.entity.placeholder': 'Пишете или използвайте микрофона, за да разкажете история...',
+    'ai.entity.placeholder.relationship': 'Разкажете ми за една връзка от вашия живот. Кога започна, кога приключи.',
+    'ai.entity.placeholder.career': 'Разкажете ми за една работа от вашия живот. Кога започна, кога приключи.',
+    'ai.entity.placeholder.family': 'Разкажете ми за всички членове на вашето семейство.',
+    'ai.entity.placeholder.friends': 'Разкажете ми за всички ваши приятели.',
+    'ai.entity.placeholder.hobbies': 'Разкажете ми за всички ваши хобита.',
+    'ai.entity.create': 'Създай обект',
     'ai.noEntities.title': 'Няма намерени обекти',
     'ai.noEntities.message': 'Моля, създайте поне един обект (профил, работа, член на семейството, приятел или хоби) преди да използвате функцията AI.',
 
