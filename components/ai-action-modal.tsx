@@ -117,8 +117,8 @@ export function AIActionModal({
           height: 80 * fontScale,
           borderRadius: 40 * fontScale,
           backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(100, 150, 255, 0.2)' 
-            : 'rgba(100, 150, 255, 0.15)',
+            ? 'rgba(255, 215, 0, 0.15)' 
+            : 'rgba(255, 215, 0, 0.15)',
           justifyContent: 'center',
           alignItems: 'center',
           alignSelf: 'center',
@@ -208,11 +208,14 @@ export function AIActionModal({
               <View style={styles.content}>
                 {/* Icon */}
                 <View style={styles.iconContainer}>
-                  <MaterialIcons 
-                    name="auto-awesome" 
-                    size={40 * fontScale} 
-                    color={colors.primaryLight} 
-                  />
+                  <ThemedText style={{ 
+                    fontSize: 48 * fontScale,
+                    lineHeight: 48 * fontScale,
+                    textAlign: 'center',
+                    includeFontPadding: false,
+                  }}>
+                    ✨
+                  </ThemedText>
                 </View>
 
                 {/* Title */}

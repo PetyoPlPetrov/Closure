@@ -525,7 +525,7 @@ export async function processEntityCreationPrompt(
               properties: {
                 name: Schema.string({ description: 'Full name of the family member' }),
                 relationship: Schema.string({ 
-                  description: 'Relationship to the user (e.g., "Mother", "Father", "Brother", "Sister", "Grandmother", "Grandfather", "Aunt", "Uncle", "Cousin", "Son", "Daughter", etc.)' 
+                  description: `Relationship to the user in ${languageName} (e.g., ${language === 'bg' ? '"Майка", "Баща", "Брат", "Сестра", "Баба", "Дядо", "Леля", "Чичо", "Братовчед", "Син", "Дъщеря"' : '"Mother", "Father", "Brother", "Sister", "Grandmother", "Grandfather", "Aunt", "Uncle", "Cousin", "Son", "Daughter"'} etc.)` 
                 }),
                 description: Schema.string({ 
                   description: 'Optional brief description or context about this family member' 
@@ -538,18 +538,30 @@ export async function processEntityCreationPrompt(
         required: ['entities'],
       });
 
+      const relationshipExamples = language === 'bg' 
+        ? 'например: "Майка", "Баща", "Брат", "Сестра", "Баба", "Дядо", "Леля", "Чичо", "Братовчед", "Син", "Дъщеря" и т.н.'
+        : 'e.g., "Mother", "Father", "Brother", "Sister", "Grandmother", "Grandfather", "Aunt", "Uncle", "Cousin", "Son", "Daughter", etc.';
+      
+      const descriptionExample = language === 'bg'
+        ? 'например: "Моята сестра е много забавна" не "Сестрата на потребителя е забавна"'
+        : 'e.g., "My sister is funny" not "User\'s sister is funny"';
+
       systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their family members and extract all family members mentioned.
 
-IMPORTANT: You must respond entirely in ${languageName} (${languageCode}). All names and text must be in ${languageName}.
+CRITICAL LANGUAGE REQUIREMENT: You MUST respond entirely in ${languageName} (${languageCode}). This includes:
+- ALL relationship types (${relationshipExamples})
+- ALL descriptions
+- ALL text content
+- ALL entity names (if the user provided names in their story, use those; otherwise use appropriate ${languageName} names)
 
-CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. For example, write "My sister is funny" or "My brother loves music", NOT "User's sister is funny" or "The user's brother loves music". Use first-person possessive pronouns (my, my sister, my brother, etc.).
+CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. ${descriptionExample}. Use first-person possessive pronouns.
 
 Extract all family members from the story. For each family member, provide:
-- name: The full name of the family member
-- relationship: Their relationship to the user (e.g., "Mother", "Father", "Brother", "Sister", "Grandmother", "Grandfather", "Aunt", "Uncle", "Cousin", "Son", "Daughter", etc.)
-- description: Optional brief description if mentioned in the story (written from first-person perspective, e.g., "My sister is funny" not "User's sister is funny")
+- name: The full name of the family member (in ${languageName} if generating names)
+- relationship: Their relationship to the user in ${languageName} (${relationshipExamples})
+- description: Optional brief description if mentioned in the story (written from first-person perspective in ${languageName}, ${descriptionExample})
 
-Return a JSON object with an "entities" array containing all family members found.`;
+ALL fields must be in ${languageName}.`;
     } else if (sphere === 'relationships') {
       responseSchema = Schema.object({
         properties: {
@@ -577,20 +589,27 @@ Return a JSON object with an "entities" array containing all family members foun
         required: ['entities'],
       });
 
+      const relationshipDescriptionExample = language === 'bg'
+        ? 'например: "Моят текущ партньор е много подкрепящ" не "Текущият партньор на потребителя е подкрепящ"'
+        : 'e.g., "My current partner is supportive" not "User\'s current partner is supportive"';
+
       systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their relationships and extract all relationships mentioned.
 
-IMPORTANT: You must respond entirely in ${languageName} (${languageCode}). All names and text must be in ${languageName}.
+CRITICAL LANGUAGE REQUIREMENT: You MUST respond entirely in ${languageName} (${languageCode}). This includes:
+- ALL person names (if the user provided names in their story, use those; otherwise use appropriate ${languageName} names)
+- ALL descriptions
+- ALL text content
 
-CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. For example, write "My current partner is supportive" or "We met in college", NOT "User's current partner is supportive" or "The user met them in college". Use first-person perspective.
+CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. ${relationshipDescriptionExample}. Use first-person perspective.
 
 Extract all relationships from the story. For each relationship, provide:
-- name: The name of the person
+- name: The name of the person (in ${languageName} if generating names)
 - isCurrent: true if it's a current relationship, false if it's a past relationship
 - startDate: When the relationship started (ISO date format YYYY-MM-DD, or approximate year if exact date unknown)
 - endDate: When the relationship ended (ISO date format YYYY-MM-DD, or null if ongoing/current)
-- description: Optional brief description if mentioned in the story (written from first-person perspective, e.g., "My current partner is supportive" not "User's current partner is supportive")
+- description: Optional brief description if mentioned in the story (written from first-person perspective in ${languageName}, ${relationshipDescriptionExample})
 
-Return a JSON object with an "entities" array containing all relationships found.`;
+ALL fields must be in ${languageName}.`;
     } else if (sphere === 'career') {
       responseSchema = Schema.object({
         properties: {
@@ -618,20 +637,27 @@ Return a JSON object with an "entities" array containing all relationships found
         required: ['entities'],
       });
 
+      const jobDescriptionExample = language === 'bg'
+        ? 'например: "Работя като софтуерен инженер" не "Потребителят работи като софтуерен инженер"'
+        : 'e.g., "I worked as a software engineer" not "User worked as a software engineer"';
+
       systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their jobs/career and extract all jobs mentioned.
 
-IMPORTANT: You must respond entirely in ${languageName} (${languageCode}). All names and text must be in ${languageName}.
+CRITICAL LANGUAGE REQUIREMENT: You MUST respond entirely in ${languageName} (${languageCode}). This includes:
+- ALL job titles and company names (in ${languageName})
+- ALL descriptions
+- ALL text content
 
-CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. For example, write "I worked as a software engineer" or "My current job is challenging", NOT "User worked as a software engineer" or "The user's current job is challenging". Use first-person perspective.
+CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. ${jobDescriptionExample}. Use first-person perspective.
 
 Extract all jobs from the story. For each job, provide:
-- name: The job title or company name
+- name: The job title or company name (in ${languageName})
 - isCurrent: true if it's a current job, false if it's a past job
 - startDate: When the job started (ISO date format YYYY-MM-DD, or approximate year if exact date unknown)
 - endDate: When the job ended (ISO date format YYYY-MM-DD, or null if ongoing/current)
-- description: Optional brief description if mentioned in the story (written from first-person perspective, e.g., "I worked as a software engineer" not "User worked as a software engineer")
+- description: Optional brief description if mentioned in the story (written from first-person perspective in ${languageName}, ${jobDescriptionExample})
 
-Return a JSON object with an "entities" array containing all jobs found.`;
+ALL fields must be in ${languageName}.`;
     } else if (sphere === 'friends') {
       responseSchema = Schema.object({
         properties: {
@@ -650,17 +676,24 @@ Return a JSON object with an "entities" array containing all jobs found.`;
         required: ['entities'],
       });
 
+      const friendDescriptionExample = language === 'bg'
+        ? 'например: "Моят приятел е много добър" не "Приятелят на потребителя е добър"'
+        : 'e.g., "My friend is very kind" not "User\'s friend is very kind"';
+
       systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their friends and extract all friends mentioned.
 
-IMPORTANT: You must respond entirely in ${languageName} (${languageCode}). All names and text must be in ${languageName}.
+CRITICAL LANGUAGE REQUIREMENT: You MUST respond entirely in ${languageName} (${languageCode}). This includes:
+- ALL friend names (if the user provided names in their story, use those; otherwise use appropriate ${languageName} names)
+- ALL descriptions
+- ALL text content
 
-CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. For example, write "My friend is very kind" or "We've known each other since childhood", NOT "User's friend is very kind" or "The user has known them since childhood". Use first-person perspective.
+CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. ${friendDescriptionExample}. Use first-person perspective.
 
 Extract all friends from the story. For each friend, provide:
-- name: The full name of the friend
-- description: Optional brief description if mentioned in the story (written from first-person perspective, e.g., "My friend is very kind" not "User's friend is very kind")
+- name: The full name of the friend (in ${languageName} if generating names)
+- description: Optional brief description if mentioned in the story (written from first-person perspective in ${languageName}, ${friendDescriptionExample})
 
-Return a JSON object with an "entities" array containing all friends found.`;
+ALL fields must be in ${languageName}.`;
     } else { // hobbies
       responseSchema = Schema.object({
         properties: {
@@ -679,17 +712,28 @@ Return a JSON object with an "entities" array containing all friends found.`;
         required: ['entities'],
       });
 
+      const hobbyDescriptionExample = language === 'bg'
+        ? 'например: "Обичам да свиря на китара" не "Потребителят обича да свири на китара"'
+        : 'e.g., "I love playing guitar" not "User loves playing guitar"';
+
+      const hobbyNameExample = language === 'bg'
+        ? 'например: "Четене", "Спорт", "Музика", "Рисуване" и т.н.'
+        : 'e.g., "Reading", "Sports", "Music", "Painting", etc.';
+
       systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their hobbies and extract all hobbies mentioned.
 
-IMPORTANT: You must respond entirely in ${languageName} (${languageCode}). All names and text must be in ${languageName}.
+CRITICAL LANGUAGE REQUIREMENT: You MUST respond entirely in ${languageName} (${languageCode}). This includes:
+- ALL hobby names (in ${languageName}, ${hobbyNameExample})
+- ALL descriptions
+- ALL text content
 
-CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. For example, write "I love playing guitar" or "My favorite hobby is reading", NOT "User loves playing guitar" or "The user's favorite hobby is reading". Use first-person perspective.
+CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. ${hobbyDescriptionExample}. Use first-person perspective.
 
 Extract all hobbies from the story. For each hobby, provide:
-- name: The name of the hobby
-- description: Optional brief description if mentioned in the story (written from first-person perspective, e.g., "I love playing guitar" not "User loves playing guitar")
+- name: The name of the hobby (in ${languageName}, ${hobbyNameExample})
+- description: Optional brief description if mentioned in the story (written from first-person perspective in ${languageName}, ${hobbyDescriptionExample})
 
-Return a JSON object with an "entities" array containing all hobbies found.`;
+ALL fields must be in ${languageName}.`;
     }
 
     const model = getGenerativeModel(aiInstance, {

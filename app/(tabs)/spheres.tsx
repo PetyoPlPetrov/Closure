@@ -23,7 +23,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, AppStateStatus, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, AppStateStatus, BackHandler, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
 
 const AnimatedView = Animated.createAnimatedComponent(View);
@@ -246,7 +246,37 @@ export default function SpheresScreen() {
   );
 
   const params = useLocalSearchParams();
-  const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>((params.selectedSphere as LifeSphere) || null);
+  console.log('🟢 [Spheres Screen] Params received:', params);
+  console.log('🟢 [Spheres Screen] params.selectedSphere:', params.selectedSphere);
+  
+  // Initialize state from params
+  const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(() => {
+    const initialSphere = (params.selectedSphere as LifeSphere) || null;
+    console.log('🟢 [Spheres Screen] Initial selectedSphere state (from useState init):', initialSphere);
+    return initialSphere;
+  });
+  
+  // Use a ref to track previous params to detect changes
+  const prevParamsRef = React.useRef<string | undefined>(params.selectedSphere as string | undefined);
+  
+  // Sync params to state immediately when they change
+  // This runs on every render to catch param changes that useEffect might miss
+  React.useLayoutEffect(() => {
+    const currentSphereParam = params.selectedSphere as LifeSphere | undefined;
+    console.log('🟢 [Spheres Screen] useLayoutEffect: currentSphereParam:', currentSphereParam);
+    console.log('🟢 [Spheres Screen] useLayoutEffect: selectedSphere:', selectedSphere);
+    console.log('🟢 [Spheres Screen] useLayoutEffect: prevParamsRef.current:', prevParamsRef.current);
+    
+    if (currentSphereParam && (prevParamsRef.current !== currentSphereParam || selectedSphere !== currentSphereParam)) {
+      console.log('🟢 [Spheres Screen] useLayoutEffect: Updating selectedSphere to:', currentSphereParam);
+      prevParamsRef.current = currentSphereParam;
+      setSelectedSphere(currentSphereParam);
+    } else if (!currentSphereParam && selectedSphere !== null) {
+      console.log('🟢 [Spheres Screen] useLayoutEffect: Clearing selectedSphere');
+      prevParamsRef.current = undefined;
+      setSelectedSphere(null);
+    }
+  });
   const [aiModalVisible, setAiModalVisible] = useState(false);
   const [aiActionModalVisible, setAiActionModalVisible] = useState(false);
   const [aiEntityCreationModalVisible, setAiEntityCreationModalVisible] = useState(false);
@@ -498,11 +528,49 @@ export default function SpheresScreen() {
   };
   
   // Update selectedSphere when params change (e.g., when navigating back from edit screen)
+  // Use useFocusEffect to ensure it runs every time the screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      const currentSphere = params.selectedSphere as LifeSphere | undefined;
+      console.log('🟢 [Spheres Screen] useFocusEffect triggered, params.selectedSphere:', currentSphere);
+      console.log('🟢 [Spheres Screen] prevParamsRef.current:', prevParamsRef.current);
+      console.log('🟢 [Spheres Screen] current selectedSphere state:', selectedSphere);
+      
+      // Always update if params have changed or if state doesn't match params
+      if (currentSphere && (prevParamsRef.current !== currentSphere || selectedSphere !== currentSphere)) {
+        console.log('🟢 [Spheres Screen] Setting selectedSphere to:', currentSphere);
+        prevParamsRef.current = currentSphere;
+        setSelectedSphere(currentSphere);
+      } else if (!currentSphere && selectedSphere !== null) {
+        console.log('🟢 [Spheres Screen] Clearing selectedSphere (no params)');
+        prevParamsRef.current = undefined;
+        setSelectedSphere(null);
+      } else {
+        console.log('🟢 [Spheres Screen] No change needed');
+      }
+    }, [params.selectedSphere, selectedSphere])
+  );
+  
+  // Also update when params change (backup for when screen is already focused)
   React.useEffect(() => {
-    if (params.selectedSphere) {
-      setSelectedSphere(params.selectedSphere as LifeSphere);
+    const currentSphere = params.selectedSphere as LifeSphere | undefined;
+    console.log('🟢 [Spheres Screen] useEffect triggered, params.selectedSphere:', currentSphere);
+    console.log('🟢 [Spheres Screen] prevParamsRef.current:', prevParamsRef.current);
+    console.log('🟢 [Spheres Screen] current selectedSphere state:', selectedSphere);
+    
+    // Always update if params have changed or if state doesn't match params
+    if (currentSphere && (prevParamsRef.current !== currentSphere || selectedSphere !== currentSphere)) {
+      console.log('🟢 [Spheres Screen] Setting selectedSphere to:', currentSphere);
+      prevParamsRef.current = currentSphere;
+      setSelectedSphere(currentSphere);
+    } else if (!currentSphere && selectedSphere !== null) {
+      console.log('🟢 [Spheres Screen] Clearing selectedSphere (no params)');
+      prevParamsRef.current = undefined;
+      setSelectedSphere(null);
+    } else {
+      console.log('🟢 [Spheres Screen] No change needed in useEffect');
     }
-  }, [params.selectedSphere]);
+  }, [params.selectedSphere, selectedSphere]);
   
   // Use a ref to always get the current selectedSphere value in the callback
   const selectedSphereRef = React.useRef<LifeSphere | null>(null);
@@ -512,6 +580,18 @@ export default function SpheresScreen() {
     selectedSphereRef.current = selectedSphere;
   }, [selectedSphere]);
   
+  // Function to clear selected sphere and params
+  const clearSelectedSphere = React.useCallback(() => {
+    console.log('🟢 [Spheres Screen] clearSelectedSphere called');
+    setSelectedSphere(null);
+    prevParamsRef.current = undefined;
+    // Clear params by navigating to the same route without params
+    router.replace({
+      pathname: '/(tabs)/spheres' as const,
+      params: {},
+    });
+  }, []);
+
   // Listen for spheres tab press events - only when screen is focused
   useFocusEffect(
     React.useCallback(() => {
@@ -521,15 +601,31 @@ export default function SpheresScreen() {
         
         // Check if there's a selected sphere - if so, clear it to return to main view
         if (currentSelectedSphere) {
-          setSelectedSphere(null);
+          console.log('🟢 [Spheres Screen] Tab pressed, clearing selected sphere');
+          clearSelectedSphere();
         }
       });
       
       return () => {
         unsubscribe();
       };
-    }, []) // Empty deps - we use ref for current value
+    }, [clearSelectedSphere]) // Include clearSelectedSphere in deps
   );
+
+  // Handle back button press
+  React.useEffect(() => {
+    const handleBackPress = () => {
+      if (selectedSphere) {
+        console.log('🟢 [Spheres Screen] Back button pressed, clearing selected sphere');
+        clearSelectedSphere();
+        return true; // Prevent default back behavior
+      }
+      return false; // Allow default back behavior
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => backHandler.remove();
+  }, [selectedSphere, clearSelectedSphere]);
 
   // Calculate entity-level scores for comparison
   const _entityComparisons = useMemo(() => {

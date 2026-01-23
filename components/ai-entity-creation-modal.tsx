@@ -450,11 +450,14 @@ export function AIEntityCreationModal({
     if (['family', 'friends', 'hobbies', 'relationships', 'career'].includes(selectedSphere)) {
       setIsProcessing(true);
       try {
+        // Ensure language is defined (default to 'en' if not available)
+        const currentLanguage = language || 'en';
+        
         // Start background processing
         const requestId = await startBackgroundEntityProcessing(
           inputText.trim(),
           selectedSphere as 'family' | 'friends' | 'hobbies' | 'relationships' | 'career',
-          language
+          currentLanguage
         );
         setBackgroundRequestId(requestId);
 
@@ -464,7 +467,7 @@ export function AIEntityCreationModal({
             const response = await processEntityCreationPrompt(
               inputText.trim(),
               selectedSphere as 'family' | 'friends' | 'hobbies' | 'relationships' | 'career',
-              language
+              currentLanguage
             );
             
             const currentAppState = AppState.currentState;
@@ -554,15 +557,35 @@ export function AIEntityCreationModal({
   };
 
   const handleOpenSfera = () => {
+    console.log('🔵 [AI Entity Modal] handleOpenSfera called');
+    console.log('🔵 [AI Entity Modal] savedSphere:', savedSphere);
+    
     if (savedSphere) {
+      const sphereToOpen = savedSphere;
+      console.log('🔵 [AI Entity Modal] sphereToOpen:', sphereToOpen);
+      
       setShowOpenSferaModal(false);
-      onClose();
-      // Navigate to the spheres tab with the specific sphere
-      router.push({
-        pathname: '/(tabs)/spheres' as const,
-        params: { selectedSphere: savedSphere },
-      });
       setSavedSphere(null);
+      onClose();
+      
+      console.log('🔵 [AI Entity Modal] Modal closed, navigating in 200ms...');
+      
+      // Longer delay to ensure modal closes and state is cleared before navigation
+      setTimeout(() => {
+        console.log('🔵 [AI Entity Modal] Navigating to spheres with selectedSphere:', sphereToOpen);
+        console.log('🔵 [AI Entity Modal] Navigation params:', { selectedSphere: sphereToOpen });
+        
+        // Navigate to the spheres tab with the specific sphere
+        // Use push instead of replace to ensure params are updated even if already on the route
+        router.push({
+          pathname: '/(tabs)/spheres' as const,
+          params: { selectedSphere: sphereToOpen },
+        });
+        
+        console.log('🔵 [AI Entity Modal] Navigation call completed');
+      }, 200);
+    } else {
+      console.log('🔵 [AI Entity Modal] No savedSphere, cannot navigate');
     }
   };
 
