@@ -21,6 +21,7 @@ import {
 } from '@/utils/ai-background-processor';
 import { AppState } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import {
@@ -53,7 +54,7 @@ let Voice: any = null;
 try {
   Voice = require('@react-native-voice/voice').default || require('@react-native-voice/voice');
 } catch (error) {
-  console.warn('Voice module not available:', error);
+  // Voice module not available
 }
 
 type AIEntityCreationModalProps = {
@@ -61,6 +62,7 @@ type AIEntityCreationModalProps = {
   onClose: () => void;
   onMinimize?: () => void;
   onEntityCreated?: () => void;
+  onCreateMemory?: () => void;
   pendingResponse?: PendingEntityResponse | null;
 };
 
@@ -77,6 +79,7 @@ export function AIEntityCreationModal({
   onClose,
   onMinimize,
   onEntityCreated,
+  onCreateMemory,
   pendingResponse,
 }: AIEntityCreationModalProps) {
   const colorScheme = useColorScheme();
@@ -222,7 +225,7 @@ export function AIEntityCreationModal({
         }
       }
     } catch (error) {
-      console.error('Failed to check pending request:', error);
+      // Failed to check pending request
     }
   };
 
@@ -256,7 +259,7 @@ export function AIEntityCreationModal({
         setBackgroundRequestId(null);
       }
     } catch (error) {
-      console.error('Failed to check pending entity response:', error);
+      // Failed to check pending entity response
     }
   };
 
@@ -346,7 +349,6 @@ export function AIEntityCreationModal({
     };
 
     Voice.onSpeechError = (e: SpeechErrorEvent) => {
-      console.error('Speech recognition error:', e);
       setIsRecording(false);
       setIsListening(false);
       setPartialResults('');
@@ -421,7 +423,6 @@ export function AIEntityCreationModal({
       await Voice.start(languageCode, options);
       setIsRecording(true);
     } catch (error: any) {
-      console.error('Failed to start recording:', error);
       setIsRecording(false);
       Alert.alert(
         t('common.error') || 'Error',
@@ -436,7 +437,7 @@ export function AIEntityCreationModal({
       await Voice.stop();
       setIsRecording(false);
     } catch (error) {
-      console.error('Failed to stop recording:', error);
+      // Failed to stop recording
     }
   };
 
@@ -557,35 +558,22 @@ export function AIEntityCreationModal({
   };
 
   const handleOpenSfera = () => {
-    console.log('🔵 [AI Entity Modal] handleOpenSfera called');
-    console.log('🔵 [AI Entity Modal] savedSphere:', savedSphere);
-    
     if (savedSphere) {
       const sphereToOpen = savedSphere;
-      console.log('🔵 [AI Entity Modal] sphereToOpen:', sphereToOpen);
       
       setShowOpenSferaModal(false);
       setSavedSphere(null);
       onClose();
       
-      console.log('🔵 [AI Entity Modal] Modal closed, navigating in 200ms...');
-      
       // Longer delay to ensure modal closes and state is cleared before navigation
       setTimeout(() => {
-        console.log('🔵 [AI Entity Modal] Navigating to spheres with selectedSphere:', sphereToOpen);
-        console.log('🔵 [AI Entity Modal] Navigation params:', { selectedSphere: sphereToOpen });
-        
         // Navigate to the spheres tab with the specific sphere
         // Use push instead of replace to ensure params are updated even if already on the route
         router.push({
           pathname: '/(tabs)/spheres' as const,
           params: { selectedSphere: sphereToOpen },
         });
-        
-        console.log('🔵 [AI Entity Modal] Navigation call completed');
       }, 200);
-    } else {
-      console.log('🔵 [AI Entity Modal] No savedSphere, cannot navigate');
     }
   };
 
@@ -693,6 +681,7 @@ export function AIEntityCreationModal({
         },
         headerTitle: {
           marginBottom: 4 * fontScale,
+          flexShrink: 0,
         },
         headerButtons: {
           position: 'absolute',
@@ -894,10 +883,11 @@ export function AIEntityCreationModal({
         submitButton: {
           height: 48 * fontScale,
           borderRadius: 12 * fontScale,
-          backgroundColor: colors.primary,
           justifyContent: 'center',
           alignItems: 'center',
           marginTop: 12 * fontScale,
+          overflow: 'hidden',
+          position: 'relative',
         },
         submitButtonDisabled: {
           opacity: 0.5,
@@ -950,26 +940,66 @@ export function AIEntityCreationModal({
               </ThemedText>
             </View>
             
-            <View style={{ flexDirection: 'row', gap: 12 * fontScale, marginTop: 24 * fontScale }}>
+            <View style={{ gap: 12 * fontScale, marginTop: 24 * fontScale }}>
               <TouchableOpacity
                 style={{
-                  flex: 1,
-                  backgroundColor: colors.primary,
+                  width: '100%',
                   borderRadius: 8 * fontScale,
                   padding: 14 * fontScale,
                   alignItems: 'center',
                   justifyContent: 'center',
+                  overflow: 'hidden',
+                  position: 'relative',
                 }}
                 onPress={handleOpenSfera}
+                activeOpacity={0.8}
               >
+                <LinearGradient
+                  colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={StyleSheet.absoluteFill}
+                  borderRadius={8 * fontScale}
+                />
                 <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF', textAlign: 'center' }}>
                   {t('ai.entity.openSfera') ? `${t('ai.entity.openSfera')} ${sphereLabel}` : `Open ${sphereLabel} Sfera`}
                 </ThemedText>
               </TouchableOpacity>
               
+              {onCreateMemory && (
+                <TouchableOpacity
+                  style={{
+                    width: '100%',
+                    borderRadius: 8 * fontScale,
+                    padding: 14 * fontScale,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    position: 'relative',
+                  }}
+                  onPress={() => {
+                    setShowOpenSferaModal(false);
+                    onClose();
+                    onCreateMemory();
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFill}
+                    borderRadius={8 * fontScale}
+                  />
+                  <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF', textAlign: 'center' }}>
+                    {t('ai.action.createMemory') || 'Create Memory'}
+                  </ThemedText>
+                </TouchableOpacity>
+              )}
+              
               <TouchableOpacity
                 style={{
-                  flex: 1,
+                  width: '100%',
                   backgroundColor: colorScheme === 'dark' 
                     ? 'rgba(255, 255, 255, 0.1)' 
                     : 'rgba(0, 0, 0, 0.05)',
@@ -979,6 +1009,7 @@ export function AIEntityCreationModal({
                   justifyContent: 'center',
                 }}
                 onPress={handleCancelOpenSfera}
+                activeOpacity={0.8}
               >
                 <ThemedText size="m" weight="medium" style={{ textAlign: 'center' }}>
                   {t('common.cancel') || 'Cancel'}
@@ -1076,18 +1107,27 @@ export function AIEntityCreationModal({
               {t('ai.entity.openSferaMessage') || 'Entities have been saved successfully!'}
             </ThemedText>
             
-            <View style={{ flexDirection: 'row', gap: 12 * fontScale, marginTop: 24 * fontScale }}>
+            <View style={{ gap: 12 * fontScale, marginTop: 24 * fontScale }}>
               <TouchableOpacity
                 style={{
-                  flex: 1,
-                  backgroundColor: colors.primary,
+                  width: '100%',
                   borderRadius: 8 * fontScale,
                   padding: 14 * fontScale,
                   alignItems: 'center',
                   justifyContent: 'center',
+                  overflow: 'hidden',
+                  position: 'relative',
                 }}
                 onPress={handleOpenSfera}
+                activeOpacity={0.8}
               >
+                <LinearGradient
+                  colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={StyleSheet.absoluteFill}
+                  borderRadius={8 * fontScale}
+                />
                 <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF' }}>
                   {(() => {
                     const sphereLabel = savedSphere 
@@ -1098,9 +1138,40 @@ export function AIEntityCreationModal({
                 </ThemedText>
               </TouchableOpacity>
               
+              {onCreateMemory && (
+                <TouchableOpacity
+                  style={{
+                    width: '100%',
+                    borderRadius: 8 * fontScale,
+                    padding: 14 * fontScale,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    position: 'relative',
+                  }}
+                  onPress={() => {
+                    setShowOpenSferaModal(false);
+                    onClose();
+                    onCreateMemory();
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFill}
+                    borderRadius={8 * fontScale}
+                  />
+                  <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF' }}>
+                    {t('ai.action.createMemory') || 'Create Memory'}
+                  </ThemedText>
+                </TouchableOpacity>
+              )}
+              
               <TouchableOpacity
                 style={{
-                  flex: 1,
+                  width: '100%',
                   backgroundColor: colorScheme === 'dark' 
                     ? 'rgba(255, 255, 255, 0.1)' 
                     : 'rgba(0, 0, 0, 0.05)',
@@ -1110,6 +1181,7 @@ export function AIEntityCreationModal({
                   justifyContent: 'center',
                 }}
                 onPress={handleCancelOpenSfera}
+                activeOpacity={0.8}
               >
                 <ThemedText size="m" weight="medium">
                   {t('common.cancel') || 'Cancel'}
@@ -1231,7 +1303,12 @@ export function AIEntityCreationModal({
                   </View>
                 ) : (
                   <>
-                    <ThemedText size="xl" weight="bold" style={styles.headerTitle}>
+                    <ThemedText 
+                      size="l" 
+                      weight="bold" 
+                      style={[styles.headerTitle, { numberOfLines: 1 }]}
+                      numberOfLines={1}
+                    >
                       {t('ai.entity.title') || 'Create Entity with AI'}
                     </ThemedText>
                     <ThemedText size="sm" style={{ opacity: 0.7 }}>
@@ -1340,7 +1417,21 @@ export function AIEntityCreationModal({
                   ]}
                   onPress={handleSubmit}
                   disabled={!inputText.trim() || inputText.trim().length < 10 || isProcessing}
+                  activeOpacity={0.8}
                 >
+                  <LinearGradient
+                    colors={
+                      (!inputText.trim() || inputText.trim().length < 10 || isProcessing)
+                        ? colorScheme === 'dark'
+                          ? ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)']
+                          : ['rgba(0, 0, 0, 0.1)', 'rgba(0, 0, 0, 0.1)']
+                        : ['#4A90E2', '#357ABD', '#2E6DA4']
+                    }
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFill}
+                    borderRadius={12 * fontScale}
+                  />
                   {isProcessing ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
@@ -1390,18 +1481,27 @@ export function AIEntityCreationModal({
               {t('ai.entity.openSferaMessage') || 'Entities have been saved successfully!'}
             </ThemedText>
             
-            <View style={{ flexDirection: 'row', gap: 12 * fontScale, marginTop: 24 * fontScale }}>
+            <View style={{ gap: 12 * fontScale, marginTop: 24 * fontScale }}>
               <TouchableOpacity
                 style={{
-                  flex: 1,
-                  backgroundColor: colors.primary,
+                  width: '100%',
                   borderRadius: 8 * fontScale,
                   padding: 14 * fontScale,
                   alignItems: 'center',
                   justifyContent: 'center',
+                  overflow: 'hidden',
+                  position: 'relative',
                 }}
                 onPress={handleOpenSfera}
+                activeOpacity={0.8}
               >
+                <LinearGradient
+                  colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={StyleSheet.absoluteFill}
+                  borderRadius={8 * fontScale}
+                />
                 <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF' }}>
                   {(() => {
                     const sphereLabel = savedSphere 
@@ -1412,9 +1512,40 @@ export function AIEntityCreationModal({
                 </ThemedText>
               </TouchableOpacity>
               
+              {onCreateMemory && (
+                <TouchableOpacity
+                  style={{
+                    width: '100%',
+                    borderRadius: 8 * fontScale,
+                    padding: 14 * fontScale,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    position: 'relative',
+                  }}
+                  onPress={() => {
+                    setShowOpenSferaModal(false);
+                    onClose();
+                    onCreateMemory();
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFill}
+                    borderRadius={8 * fontScale}
+                  />
+                  <ThemedText size="m" weight="bold" style={{ color: '#FFFFFF' }}>
+                    {t('ai.action.createMemory') || 'Create Memory'}
+                  </ThemedText>
+                </TouchableOpacity>
+              )}
+              
               <TouchableOpacity
                 style={{
-                  flex: 1,
+                  width: '100%',
                   backgroundColor: colorScheme === 'dark' 
                     ? 'rgba(255, 255, 255, 0.1)' 
                     : 'rgba(0, 0, 0, 0.05)',
@@ -1424,6 +1555,7 @@ export function AIEntityCreationModal({
                   justifyContent: 'center',
                 }}
                 onPress={handleCancelOpenSfera}
+                activeOpacity={0.8}
               >
                 <ThemedText size="m" weight="medium">
                   {t('common.cancel') || 'Cancel'}

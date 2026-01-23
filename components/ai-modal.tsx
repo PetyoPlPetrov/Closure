@@ -65,7 +65,7 @@ let Voice: any = null;
 try {
   Voice = require('@react-native-voice/voice').default || require('@react-native-voice/voice');
 } catch (error) {
-  console.warn('Voice module not available:', error);
+  // Voice module not available
 }
 
 type ModalView = 'input' | 'loading' | 'results';
@@ -281,7 +281,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         }
       }
     } catch (error) {
-      console.error('Failed to check pending request:', error);
+      // Failed to check pending request
     }
   };
 
@@ -291,7 +291,6 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       // Ensure App Check is initialized before checking for errors/responses
       // This prevents showing stale errors from before App Check was ready
       if (!isAppCheckInitialized()) {
-        console.log('⏳ App Check not initialized yet, skipping pending response check');
         return;
       }
 
@@ -301,7 +300,6 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         // Only show error if it's not an App Check token error (might be stale)
         // If App Check is now initialized, clear old App Check errors
         if (pendingError.error.includes('App Check token is invalid')) {
-          console.log('🧹 Clearing stale App Check error - App Check is now initialized');
           await clearPendingAIError();
           // Don't show the error, just clear it and let user try again
           return;
@@ -360,7 +358,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         await checkPendingRequest();
       }
     } catch (error) {
-      console.error('Failed to check pending AI response:', error);
+      // Failed to check pending AI response
     }
   };
 
@@ -454,7 +452,6 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       setIsProcessing(false);
       // Keep loading view but show results
     } catch (error) {
-      console.error('Error processing AI response:', error);
       Alert.alert(
         t('common.error') || 'Error',
         (error as Error).message || t('ai.error.send') || 'Failed to process memory'
@@ -709,7 +706,6 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     };
 
     Voice.onSpeechError = (e: SpeechErrorEvent) => {
-      console.error('Speech recognition error:', e);
       setIsRecording(false);
       setIsListening(false);
       setPartialResults('');
@@ -774,7 +770,6 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
           }
         } catch (permError) {
           // Permission request failed, but Voice.start() will handle it
-          console.warn('Permission request error:', permError);
         }
       }
       // Note: Voice.start() will automatically request permissions if needed
@@ -820,7 +815,6 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       setIsRecording(true);
       
     } catch (error) {
-      console.error('Error starting voice recognition:', error);
       Alert.alert(
         t('common.error') || 'Error',
         (error as Error).message || t('ai.error.recording') || 'Failed to start recording'
@@ -846,7 +840,6 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       setPartialResults('');
       
     } catch (error) {
-      console.error('Error stopping voice recognition:', error);
       Alert.alert(
         t('common.error') || 'Error',
         (error as Error).message || t('ai.error.stopRecording') || 'Failed to stop recording'
@@ -891,7 +884,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
               });
             }
           } catch (error) {
-            console.error('Failed to save image URI to AsyncStorage:', error);
+            // Failed to save image URI to AsyncStorage
           }
         }
       }
@@ -1024,7 +1017,6 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         // App is already in background, let background task handle it
       }
     } catch (error) {
-      console.error('Failed to start AI processing:', error);
       Alert.alert(
         t('common.error') || 'Error',
         (error as Error).message || 'Failed to process AI request'
@@ -1259,7 +1251,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       borderRadius: 24 * fontScale,
       paddingHorizontal: 24 * fontScale,
       paddingTop: 24 * fontScale,
-      paddingBottom: 16 * fontScale,
+      paddingBottom: 12 * fontScale,
       minHeight: 500 * fontScale,
       maxHeight: '85%',
     },
@@ -1407,7 +1399,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       paddingVertical: 16 * fontScale,
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: 48 * fontScale,
+      marginTop: 24 * fontScale,
       marginBottom: 0,
       flexDirection: 'row',
     },
@@ -1744,8 +1736,14 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       <Pressable style={styles.overlay} onPress={onClose}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' }}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          style={{ 
+            flex: 1, 
+            justifyContent: isKeyboardVisible ? 'flex-end' : 'center', 
+            alignItems: 'center', 
+            width: '100%',
+            paddingBottom: isKeyboardVisible ? 20 * fontScale : 0,
+          }}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? -50 : 20}
         >
           <Pressable 
             style={currentView === 'loading' ? styles.modalContainerLarge : styles.modalContainer} 
@@ -1760,7 +1758,12 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
               <View style={styles.header}>
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', width: '100%' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * fontScale }}>
-                    <ThemedText size="l" weight="semibold" style={styles.headerTitle}>
+                    <ThemedText 
+                      size="l" 
+                      weight="semibold" 
+                      style={styles.headerTitle}
+                      numberOfLines={1}
+                    >
                       {t('ai.title') || 'Create Memory with AI'}
                     </ThemedText>
                     {__DEV__ && (
@@ -1889,7 +1892,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                   style={styles.textInput}
                   value={inputText}
                   onChangeText={setInputText}
-                  placeholder={t('ai.placeholder.input') || 'Or type here...'}
+                  placeholder={t('ai.placeholder.input') || 'Tell a story or memory about someone from your sferas...'}
                   placeholderTextColor={colors.textSecondary || colors.text + '80'}
                   multiline
                   editable={!isRecording && !isProcessing}
@@ -1973,7 +1976,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                               });
                             }
                           } catch (error) {
-                            console.error('Failed to update image URI in AsyncStorage:', error);
+                            // Failed to update image URI in AsyncStorage
                           }
                         }
                       }}

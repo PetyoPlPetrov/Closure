@@ -144,6 +144,8 @@ export function AIActionModal({
           paddingHorizontal: 24 * fontScale,
           flexDirection: 'row',
           gap: 12 * fontScale,
+          overflow: 'hidden',
+          position: 'relative',
         },
         buttonText: {
           color: '#ffffff',
@@ -235,13 +237,20 @@ export function AIActionModal({
                 <View style={styles.buttonContainer}>
                   {hasEntities && (
                     <TouchableOpacity
-                      style={[styles.button, { backgroundColor: colors.primary }]}
                       onPress={() => {
                         onClose();
                         onSelectCreateMemory();
                       }}
                       activeOpacity={0.8}
+                      style={styles.button}
                     >
+                      <LinearGradient
+                        colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={StyleSheet.absoluteFill}
+                        borderRadius={16 * fontScale}
+                      />
                       <MaterialIcons name="memory" size={24 * fontScale} color="#FFFFFF" />
                       <ThemedText size="l" weight="bold" style={styles.buttonText}>
                         {t('ai.action.createMemory')}
@@ -250,13 +259,20 @@ export function AIActionModal({
                   )}
                   
                   <TouchableOpacity
-                    style={[styles.button, { backgroundColor: colors.primary }]}
                     onPress={() => {
                       onClose();
                       onSelectCreateEntity();
                     }}
                     activeOpacity={0.8}
+                    style={styles.button}
                   >
+                    <LinearGradient
+                      colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFill}
+                      borderRadius={16 * fontScale}
+                    />
                     <MaterialIcons name="person-add" size={24 * fontScale} color="#FFFFFF" />
                     <ThemedText size="l" weight="bold" style={styles.buttonText}>
                       {t('ai.action.createEntity')}

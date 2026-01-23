@@ -233,8 +233,8 @@ export default function SpheresScreen() {
     // In development mode, bypass subscription check
     // Only show paywall if user is not subscribed
     if (!__DEV__ && !isSubscribed) {
-      // Show paywall (custom in dev, RevenueCat in prod)
-      await showPaywallForPremiumAccess();
+    // Show paywall (custom in dev, RevenueCat in prod)
+    await showPaywallForPremiumAccess();
     }
   };
   
@@ -585,13 +585,13 @@ export default function SpheresScreen() {
     console.log('🟢 [Spheres Screen] clearSelectedSphere called');
     setSelectedSphere(null);
     prevParamsRef.current = undefined;
-    // Clear params by navigating to the same route without params
-    router.replace({
+    // Clear params by navigating to the same route without the selectedSphere param
+    // Using router.push to ensure params are updated
+    router.push({
       pathname: '/(tabs)/spheres' as const,
-      params: {},
     });
   }, []);
-
+  
   // Listen for spheres tab press events - only when screen is focused
   useFocusEffect(
     React.useCallback(() => {
@@ -2566,6 +2566,7 @@ export default function SpheresScreen() {
             setAiEntityCreationModalVisible(false);
             setPendingEntityResponse(null);
           }}
+          onCreateMemory={handleSelectCreateMemory}
           onMinimize={() => {
             setAiEntityCreationModalVisible(false);
           }}

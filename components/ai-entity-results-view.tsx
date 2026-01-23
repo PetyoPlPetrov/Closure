@@ -5,6 +5,7 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { LifeSphere, useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   Alert,
@@ -155,9 +156,10 @@ export function AIEntityResultsView({
         saveButton: {
           height: 48 * fontScale,
           borderRadius: 12 * fontScale,
-          backgroundColor: colors.primary,
           justifyContent: 'center',
           alignItems: 'center',
+          overflow: 'hidden',
+          position: 'relative',
         },
         saveButtonDisabled: {
           opacity: 0.5,
@@ -889,7 +891,21 @@ export function AIEntityResultsView({
           ]}
           onPress={handleSave}
           disabled={!validateEntities() || isSaving || entities.length === 0}
+          activeOpacity={0.8}
         >
+          <LinearGradient
+            colors={
+              (!validateEntities() || isSaving || entities.length === 0)
+                ? colorScheme === 'dark'
+                  ? ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)']
+                  : ['rgba(0, 0, 0, 0.1)', 'rgba(0, 0, 0, 0.1)']
+                : ['#4A90E2', '#357ABD', '#2E6DA4']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+            borderRadius={12 * fontScale}
+          />
           <ThemedText size="l" weight="bold" style={{ color: '#FFFFFF' }}>
             {isSaving ? (t('common.saving') || 'Saving...') : (t('common.save') || 'Save')}
           </ThemedText>
