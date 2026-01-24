@@ -292,6 +292,19 @@ export default function SpheresScreen() {
   const [pendingEntityResponse, setPendingEntityResponse] = useState<any>(null);
   const [aiInsightsConsentVisible, setAiInsightsConsentVisible] = useState(false);
   const pendingAIIconActionRef = useRef<null | 'open_ai'>(null);
+
+  // Ensure AI modals are mutually exclusive (prevents shared mic/STT conflicts).
+  const openMemoryAIModal = useCallback(() => {
+    setAiActionModalVisible(false);
+    setAiEntityCreationModalVisible(false);
+    setAiModalVisible(true);
+  }, []);
+
+  const openEntityAIModal = useCallback(() => {
+    setAiActionModalVisible(false);
+    setAiModalVisible(false);
+    setAiEntityCreationModalVisible(true);
+  }, []);
   
   // Check for pending AI response when app becomes active or component mounts
   // This ensures data persists even after app is killed
@@ -304,7 +317,7 @@ export default function SpheresScreen() {
           setPendingAIResponse(pendingResponse);
           // Auto-open modal if response is ready (user hasn't saved/discarded yet)
           if (!aiModalVisible) {
-            setAiModalVisible(true);
+            openMemoryAIModal();
           }
         }
       }
@@ -317,7 +330,7 @@ export default function SpheresScreen() {
         setPendingAIResponse(pendingResponse);
         // Auto-open modal to show the pending response
         if (!aiModalVisible) {
-          setAiModalVisible(true);
+          openMemoryAIModal();
         }
       }
     };
@@ -356,7 +369,7 @@ export default function SpheresScreen() {
           
           // If modal is closed, auto-open it
           if (!aiModalVisible) {
-            setAiModalVisible(true);
+            openMemoryAIModal();
           }
           
           // Clear interval once response is found
@@ -431,7 +444,7 @@ export default function SpheresScreen() {
         if (pendingResponse && !isCleanedUp) {
           setPendingEntityResponse(pendingResponse);
           if (!aiEntityCreationModalVisible) {
-            setAiEntityCreationModalVisible(true);
+            openEntityAIModal();
           }
           if (intervalId) {
             clearInterval(intervalId);
@@ -486,7 +499,7 @@ export default function SpheresScreen() {
         if (pendingResponse) {
           setPendingEntityResponse(pendingResponse);
           if (!aiEntityCreationModalVisible) {
-            setAiEntityCreationModalVisible(true);
+            openEntityAIModal();
           }
         }
       }
@@ -497,7 +510,7 @@ export default function SpheresScreen() {
       if (pendingResponse) {
         setPendingEntityResponse(pendingResponse);
         if (!aiEntityCreationModalVisible) {
-          setAiEntityCreationModalVisible(true);
+          openEntityAIModal();
         }
       }
     };
@@ -521,7 +534,7 @@ export default function SpheresScreen() {
     if (pendingResponse) {
       setPendingAIResponse(pendingResponse);
       // If there's a pending response, open the AI modal directly
-      setAiModalVisible(true);
+      openMemoryAIModal();
     } else {
       // Otherwise, show the action modal to let user choose
       setAiActionModalVisible(true);
@@ -529,11 +542,11 @@ export default function SpheresScreen() {
   };
 
   const handleSelectCreateMemory = () => {
-    setAiModalVisible(true);
+    openMemoryAIModal();
   };
 
   const handleSelectCreateEntity = () => {
-    setAiEntityCreationModalVisible(true);
+    openEntityAIModal();
   };
 
   const handleEntityCreated = () => {

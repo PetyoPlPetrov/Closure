@@ -83,6 +83,7 @@ export function AIEntityCreationModal({
 
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere>('family');
   const [inputText, setInputText] = useState('');
+  const [inputHeight, setInputHeight] = useState(() => 80 * fontScale);
   const [isProcessing, setIsProcessing] = useState(false);
   const [aiResponse, setAiResponse] = useState<AIEntityCreationResponse | null>(null);
   const [showResults, setShowResults] = useState(false);
@@ -91,6 +92,7 @@ export function AIEntityCreationModal({
   const [backgroundRequestId, setBackgroundRequestId] = useState<string | null>(null);
   const [appState, setAppState] = useState(AppState.currentState);
   const isMinimizingRef = useRef(false);
+  const closeConfirmVisibleRef = useRef(false);
 
   // Keyboard visibility
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -262,7 +264,7 @@ export function AIEntityCreationModal({
       // Reset state when modal closes (but not when minimized)
       if (!isMinimizingRef.current) {
         // Stop any ongoing speech recognition only on real close
-        void speechToText.abort();
+        void speechToText.stop();
 
         setIsProcessing(false);
         setBackgroundRequestId(null);
@@ -306,6 +308,48 @@ export function AIEntityCreationModal({
 
   const handleStopRecording = async () => {
     await speechToText.stop();
+  };
+
+  const handleAttemptClose = () => {
+    const hasProgress =
+      isProcessing ||
+      Boolean(aiResponse) ||
+      showResults ||
+      Boolean(backgroundRequestId) ||
+      inputText.trim().length > 0;
+    if (hasProgress) {
+      if (closeConfirmVisibleRef.current) return;
+      closeConfirmVisibleRef.current = true;
+      Alert.alert(
+        (t('ai.closeConfirm.title') as any) || 'Discard changes?',
+        (t('ai.closeConfirm.message') as any) || 'Your progress will be lost if you close this modal.',
+        [
+          {
+            text: t('common.cancel') || 'Cancel',
+            style: 'cancel',
+            onPress: () => {
+              closeConfirmVisibleRef.current = false;
+            },
+          },
+          {
+            text: (t('ai.closeConfirm.discard') as any) || 'Discard',
+            style: 'destructive',
+            onPress: () => {
+              closeConfirmVisibleRef.current = false;
+              void (async () => {
+                await clearPendingEntityResponse();
+                await clearPendingEntityRequest();
+                await clearPendingEntityError();
+                await stopBackgroundEntityProcessing();
+                onClose();
+              })();
+            },
+          },
+        ]
+      );
+    } else {
+      onClose();
+    }
   };
 
   const handleSubmit = async () => {
@@ -529,6 +573,39 @@ export function AIEntityCreationModal({
           justifyContent: 'center',
           alignItems: 'center',
         },
+        confirmOverlay: {
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20 * fontScale,
+        },
+        confirmModalContainer: {
+          width: '100%',
+          maxWidth: 360 * fontScale,
+          backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
+          borderRadius: 16 * fontScale,
+          padding: 24 * fontScale,
+          alignItems: 'center',
+        },
+        confirmButtonContainer: {
+          flexDirection: 'row',
+          width: '100%',
+          gap: 12 * fontScale,
+        },
+        confirmButton: {
+          flex: 1,
+          paddingVertical: 14 * fontScale,
+          borderRadius: 12 * fontScale,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        cancelButton: {
+          backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+        },
+        discardButton: {
+          backgroundColor: '#FF3B30',
+        },
         container: {
           width: 360 * fontScale, // Fixed width
           maxWidth: 360 * fontScale,
@@ -729,7 +806,10 @@ export function AIEntityCreationModal({
         },
         textInput: {
           minHeight: 80 * fontScale,
-          padding: 12 * fontScale,
+          paddingVertical: 12 * fontScale,
+          paddingLeft: 12 * fontScale,
+          // leave room for the mic button so text never overlaps it
+          paddingRight: 12 * fontScale + 44 * fontScale + 10 * fontScale,
           borderRadius: 12 * fontScale,
           backgroundColor: colorScheme === 'dark' 
             ? 'rgba(255, 255, 255, 0.05)' 
@@ -748,8 +828,8 @@ export function AIEntityCreationModal({
         },
         micButton: {
           position: 'absolute',
-          bottom: 12 * fontScale,
           right: 12 * fontScale,
+          bottom: 12 * fontScale,
           width: 44 * fontScale,
           height: 44 * fontScale,
           borderRadius: 22 * fontScale,
@@ -1090,7 +1170,7 @@ export function AIEntityCreationModal({
         visible={visible && !showOpenSferaModal}
         transparent
         animationType="fade"
-        onRequestClose={onClose}
+        onRequestClose={handleAttemptClose}
         presentationStyle="overFullScreen"
         statusBarTranslucent
       >
@@ -1100,7 +1180,7 @@ export function AIEntityCreationModal({
       >
         <Pressable 
           style={styles.overlay} 
-          onPress={onClose}
+          onPress={handleAttemptClose}
         >
           <Pressable 
             style={isProcessing && !aiResponse ? styles.containerLoading : styles.container} 
@@ -1139,7 +1219,7 @@ export function AIEntityCreationModal({
                   )}
                   <TouchableOpacity 
                     style={styles.closeButton} 
-                    onPress={onClose}
+                    onPress={handleAttemptClose}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <MaterialIcons 
@@ -1314,6 +1394,7 @@ export function AIEntityCreationModal({
                     <TextInput
                       style={[
                         styles.textInput,
+                        { height: inputHeight },
                         (showValidationErrors && (!inputText.trim() || inputText.trim().length < 10)) ? styles.textInputError : null
                       ].filter(Boolean)}
                       placeholder={
@@ -1346,26 +1427,32 @@ export function AIEntityCreationModal({
                       }}
                       multiline
                       textAlignVertical="top"
+                      onContentSizeChange={(e) => {
+                        const h = e.nativeEvent.contentSize.height;
+                        const minH = 80 * fontScale;
+                        const maxH = 220 * fontScale;
+                        setInputHeight(Math.max(minH, Math.min(maxH, h)));
+                      }}
                     />
-                    {!keyboardVisible && (
-                      <Animated.View style={[
-                        styles.micButton, 
+                    <Animated.View
+                      style={[
+                        styles.micButton,
                         isRecording && styles.micButtonRecording,
-                        micAnimatedStyle
-                      ]}>
-                        <TouchableOpacity
-                          onPress={isRecording ? handleStopRecording : handleStartRecording}
-                          activeOpacity={0.8}
-                          disabled={isProcessing}
-                        >
-                          <MaterialIcons
-                            name={isRecording ? 'mic' : 'mic-none'}
-                            size={24 * fontScale}
-                            color="#FFFFFF"
-                          />
-                        </TouchableOpacity>
-                      </Animated.View>
-                    )}
+                        micAnimatedStyle,
+                      ]}
+                    >
+                      <TouchableOpacity
+                        onPress={isRecording ? handleStopRecording : handleStartRecording}
+                        activeOpacity={0.85}
+                        disabled={isProcessing}
+                      >
+                        <MaterialIcons
+                          name={isRecording ? 'mic' : 'mic-none'}
+                          size={24 * fontScale}
+                          color="#FFFFFF"
+                        />
+                      </TouchableOpacity>
+                    </Animated.View>
                   </View>
                   {(isListening || isRecording) && (
                     <ThemedText size="xs" style={{ marginTop: 8 * fontScale, opacity: 0.7, color: isRecording ? colors.primary : colors.text }}>
@@ -1412,7 +1499,7 @@ export function AIEntityCreationModal({
         </Pressable>
       </KeyboardAvoidingView>
       </Modal>
-      
+
       {/* Open Sfera Modal */}
       <Modal
         visible={showOpenSferaModal}

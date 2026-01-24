@@ -58,6 +58,7 @@ export function useSpeechToText({
   const [isListening, setIsListening] = useState(false);
   const baseTextRef = useRef<string>('');
   const lastFinalTranscriptRef = useRef<string>('');
+  const startSeqRef = useRef(0);
 
   const lang = useMemo(() => (language === 'bg' ? 'bg-BG' : 'en-US'), [language]);
 
@@ -122,16 +123,9 @@ export function useSpeechToText({
     return () => subs.forEach(s => s.remove());
   }, [module, getText, setText, t]);
 
-  // Ensure we stop recognition if component unmounts
-  useEffect(() => {
-    return () => {
-      try {
-        module?.abort();
-      } catch {
-        // ignore
-      }
-    };
-  }, [module]);
+  // IMPORTANT:
+  // Do not abort() on unmount. The underlying recognizer is effectively global, and aborting here can
+  // cancel a new session started by another modal that mounts immediately after this one unmounts.
 
   const ensureAvailableAndPermitted = useCallback(async () => {
     // Web is not supported in these modals
@@ -166,11 +160,21 @@ export function useSpeechToText({
     const m = getOrLoadModule();
     if (!m) return;
 
+    const seq = ++startSeqRef.current;
+    const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
     // Best-effort cleanup: avoid abort() here since it emits an "aborted" error event on iOS
     try {
       m.stop();
     } catch {
       // ignore
+    }
+
+    // iOS can be finicky about rapid restart: give the audio/session a brief moment to settle.
+    if (Platform.OS === 'ios') {
+      await sleep(180);
+      // If another start was requested while we were waiting, ignore this one.
+      if (startSeqRef.current !== seq) return;
     }
 
     const options: ExpoSpeechRecognitionOptions = {

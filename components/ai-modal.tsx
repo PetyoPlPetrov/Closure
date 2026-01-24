@@ -108,6 +108,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
   } = useJourney();
   
   const [inputText, setInputText] = useState('');
+  const [inputHeight, setInputHeight] = useState(() => 56 * fontScale);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentView, setCurrentView] = useState<ModalView>('input');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -522,7 +523,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
           setLoadingMessageIndex(0);
           
           // Stop any ongoing speech recognition
-          void speechToText.abort();
+          void speechToText.stop();
         }
       });
     }
@@ -562,7 +563,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       modalOpacity.value = withTiming(0, { duration: 200 });
       modalScale.value = withTiming(0.8, { duration: 200 });
       setInputText('');
-      void speechToText.abort();
+      void speechToText.stop();
       setCurrentView('input');
       setSelectedImage(null);
       setAiResponse(null);
@@ -1306,33 +1307,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       justifyContent: 'center',
       alignItems: 'center',
     },
-    micButtonContainer: {
-      alignItems: 'center',
-      marginBottom: 24 * fontScale,
-    },
-    micButtonContainerSmall: {
-      marginBottom: 12 * fontScale,
-    },
-    largeMicButton: {
-      width: 120 * fontScale,
-      height: 120 * fontScale,
-      borderRadius: 60 * fontScale,
-      backgroundColor: '#FF9500', // Orange color
-      justifyContent: 'center',
-      alignItems: 'center',
-      shadowColor: '#FF9500',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 8,
-    },
-    largeMicButtonSmall: {
-      width: 64 * fontScale,
-      height: 64 * fontScale,
-      borderRadius: 32 * fontScale,
-      shadowRadius: 4,
-      elevation: 4,
-    },
+    // removed: large standalone mic button styles (mic is now inline with the input)
     inputContainer: {
       marginBottom: 0,
       width: '100%',
@@ -1353,13 +1328,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       flex: 1,
       fontSize: 16 * fontScale,
       color: colors.text,
-      maxHeight: 120 * fontScale,
       textAlignVertical: 'top',
       paddingRight: 8 * fontScale,
-    },
-    pencilIcon: {
-      marginLeft: 8 * fontScale,
-      opacity: 0.6,
     },
     micButton: {
       width: 40 * fontScale,
@@ -1372,16 +1342,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       alignItems: 'center',
       marginLeft: 12 * fontScale,
     },
-    waveRing: {
-      position: 'absolute',
-      width: 120 * fontScale,
-      height: 120 * fontScale,
-      borderRadius: 60 * fontScale,
-      borderWidth: 2,
-      borderColor: '#FF9500',
-      top: 0,
-      left: 0,
-    },
+    // removed: wave ring styles for standalone mic button
     submitButton: {
       width: '100%',
       borderRadius: 16 * fontScale,
@@ -1968,77 +1929,48 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
             {/* Input View */}
             {currentView === 'input' && (
               <>
-            {/* Large Microphone Button - Smaller when keyboard is visible */}
-            <View style={[styles.micButtonContainer, isKeyboardVisible && styles.micButtonContainerSmall]}>
-              <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
-                {isRecording && !isKeyboardVisible && (
-                  <Animated.View 
-                    style={[
-                      styles.waveRing, 
-                      animatedWaveStyle,
-                      {
-                        position: 'absolute',
-                      }
-                    ]} 
-                  />
-                )}
-                <Animated.View style={animatedMicStyle}>
-                  <TouchableOpacity
-                    style={[
-                      styles.largeMicButton,
-                      isKeyboardVisible && styles.largeMicButtonSmall
-                    ]}
-                    onPress={isRecording ? handleStopRecording : handleStartRecording}
-                    disabled={isProcessing}
-                    activeOpacity={0.8}
-                  >
-                    {isRecording ? (
-                      <MaterialIcons 
-                        name="stop" 
-                        size={isKeyboardVisible ? 32 * fontScale : 48 * fontScale} 
-                        color="#ffffff" 
-                      />
-                    ) : (
-                      <MaterialIcons 
-                        name="mic" 
-                        size={isKeyboardVisible ? 32 * fontScale : 48 * fontScale} 
-                        color="#ffffff" 
-                      />
-                    )}
-                  </TouchableOpacity>
-                </Animated.View>
-              </View>
-              
-              {isListening && (
-                <View style={{ marginTop: 16 * fontScale, flexDirection: 'row', alignItems: 'center', gap: 8 * fontScale }}>
-                  <ActivityIndicator size="small" color="#FF9500" />
-                  <ThemedText size="sm" style={{ opacity: 0.7 }}>
-                    {t('ai.listening') || 'Listening...'}
-                  </ThemedText>
-                </View>
-              )}
-            </View>
-
             {/* Text Input Container */}
             <View style={styles.inputContainer}>
               <View style={styles.inputWrapper}>
                 <TextInput
                   ref={inputRef}
-                  style={styles.textInput}
+                  style={[styles.textInput, { height: inputHeight }]}
                   value={inputText}
                   onChangeText={setInputText}
                   placeholder={t('ai.placeholder.input') || 'Tell a story or memory about someone from your sferas...'}
                   placeholderTextColor={colors.textMediumEmphasis || colors.text + '80'}
                   multiline
+                  onContentSizeChange={(e) => {
+                    const h = e.nativeEvent.contentSize.height;
+                    const minH = 56 * fontScale;
+                    const maxH = 180 * fontScale;
+                    setInputHeight(Math.max(minH, Math.min(maxH, h)));
+                  }}
                   editable={!isRecording && !isProcessing}
                 />
-                <MaterialIcons 
-                  name="edit" 
-                  size={20 * fontScale} 
-                  color={colors.textMediumEmphasis || colors.text + '80'} 
-                  style={styles.pencilIcon}
-                />
+                <Animated.View style={animatedMicStyle}>
+                  <TouchableOpacity
+                    style={styles.micButton}
+                    onPress={isRecording ? handleStopRecording : handleStartRecording}
+                    disabled={isProcessing}
+                    activeOpacity={0.85}
+                  >
+                    <MaterialIcons
+                      name={isRecording ? 'stop' : 'mic'}
+                      size={20 * fontScale}
+                      color="#FFFFFF"
+                    />
+                  </TouchableOpacity>
+                </Animated.View>
               </View>
+              {isListening && (
+                <View style={{ marginTop: 10 * fontScale, flexDirection: 'row', alignItems: 'center', gap: 8 * fontScale }}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <ThemedText size="sm" style={{ opacity: 0.7 }}>
+                    {t('ai.listening') || 'Listening...'}
+                  </ThemedText>
+                </View>
+              )}
             </View>
 
             {/* Submit Button */}
