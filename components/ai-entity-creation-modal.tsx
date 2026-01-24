@@ -47,15 +47,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-
-// Conditionally import Voice
-import type { SpeechErrorEvent, SpeechResultsEvent } from '@react-native-voice/voice';
-let Voice: any = null;
-try {
-  Voice = require('@react-native-voice/voice').default || require('@react-native-voice/voice');
-} catch (error) {
-  // Voice module not available
-}
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
 
 type AIEntityCreationModalProps = {
   visible: boolean;
@@ -92,10 +84,6 @@ export function AIEntityCreationModal({
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere>('family');
   const [inputText, setInputText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [partialResults, setPartialResults] = useState('');
-  const baseTextRef = useRef('');
   const [aiResponse, setAiResponse] = useState<AIEntityCreationResponse | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [showOpenSferaModal, setShowOpenSferaModal] = useState(false);
@@ -301,145 +289,20 @@ export function AIEntityCreationModal({
     opacity: micOpacity.value,
   }));
 
-  // Voice recognition setup
-  useEffect(() => {
-    if (!Voice) return;
-
-    Voice.onSpeechStart = () => {
-      setIsListening(true);
-      setIsRecording(true);
-      // Preserve existing text when starting new recording session
-      baseTextRef.current = inputText;
-    };
-
-    Voice.onSpeechEnd = () => {
-      setIsListening(false);
-      setIsRecording(false);
-      setPartialResults('');
-    };
-
-    Voice.onSpeechResults = (e: SpeechResultsEvent) => {
-      // Final results - commit to baseTextRef
-      if (e.value && e.value.length > 0) {
-        const transcript = e.value[0].trim();
-        if (transcript) {
-          const currentBase = baseTextRef.current;
-          const newText = currentBase 
-            ? `${currentBase} ${transcript}`.trim()
-            : transcript;
-          baseTextRef.current = newText;
-          setInputText(newText);
-        }
-        setPartialResults('');
-      }
-      setIsRecording(false);
-    };
-
-    Voice.onSpeechPartialResults = (e: SpeechResultsEvent) => {
-      // Partial results - only for preview, don't commit
-      if (e.value && e.value.length > 0) {
-        const partial = e.value[0].trim();
-        setPartialResults(partial);
-        // Show preview: baseTextRef + partial (temporary)
-        const currentBase = baseTextRef.current;
-        const previewText = currentBase 
-          ? `${currentBase} ${partial}`.trim()
-          : partial;
-        setInputText(previewText);
-      }
-    };
-
-    Voice.onSpeechError = (e: SpeechErrorEvent) => {
-      setIsRecording(false);
-      setIsListening(false);
-      setPartialResults('');
-      
-      // Ignore "No speech input" errors (code 7)
-      if (e.error?.code === '7') {
-        return;
-      }
-      
-      // Handle specific error codes
-      let errorMessage = e.error?.message || t('ai.error.recording') || 'Speech recognition failed';
-      
-      if (e.error?.code === 'audio' || e.error?.message?.toLowerCase().includes('session activation')) {
-        errorMessage = 'Audio session failed. Please close other apps using the microphone and try again.';
-      }
-      
-      Alert.alert(
-        t('common.error') || 'Error',
-        errorMessage
-      );
-    };
-
-    return () => {
-      if (Voice) {
-        Voice.destroy().then(Voice.removeAllListeners).catch(() => {});
-      }
-    };
-  }, [inputText, t]);
+  const speechToText = useSpeechToText({
+    language,
+    getText: () => inputText,
+    setText: setInputText,
+    disabled: isProcessing,
+  });
+  const { isRecording, isListening } = speechToText;
 
   const handleStartRecording = async () => {
-    if (!Voice) {
-      Alert.alert(t('common.error') || 'Error', (t('ai.error.notAvailable' as any)) || 'Speech recognition is not available');
-      return;
-    }
-
-    try {
-      // Cleanup previous session
-      try {
-        await Voice.stop();
-      } catch (e) {
-        // Ignore if not running
-      }
-      try {
-        await Voice.cancel();
-      } catch (e) {
-        // Ignore if not running
-      }
-      try {
-        await Voice.destroy();
-      } catch (e) {
-        // Ignore if already destroyed
-      }
-      
-      // Small delay to ensure cleanup completes
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const languageCode = language === 'bg' ? 'bg-BG' : 'en-US';
-      
-      // Android-specific options for better speech recognition
-      const options = Platform.OS === 'android' 
-        ? {
-            RECOGNIZER_ENGINE: 'GOOGLE',
-            EXTRA_PARTIAL_RESULTS: true,
-            EXTRA_LANGUAGE_MODEL: 'free_form',
-            EXTRA_MAX_RESULTS: 5,
-            EXTRA_CALLING_PACKAGE: 'com.petyoplpetrov.Sphere',
-            // Silence timeout - Android only
-            silenceTimeout: 5000, // 5 seconds of silence before stopping
-          }
-        : {};
-
-      await Voice.start(languageCode, options);
-      setIsRecording(true);
-    } catch (error: any) {
-      setIsRecording(false);
-      Alert.alert(
-        t('common.error') || 'Error',
-        error.message || t('ai.error.recording') || 'Failed to start recording'
-      );
-    }
+    await speechToText.start();
   };
 
   const handleStopRecording = async () => {
-    if (!Voice) return;
-    try {
-      await Voice.stop();
-      setIsRecording(false);
-    } catch (error) {
-      // Failed to stop recording
-    }
+    await speechToText.stop();
   };
 
   const handleSubmit = async () => {

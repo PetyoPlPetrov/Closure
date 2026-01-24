@@ -61,15 +61,7 @@ import Animated, {
   withSpring,
   withTiming
 } from 'react-native-reanimated';
-
-// Conditionally import Voice to handle cases where native module isn't available
-import type { SpeechErrorEvent, SpeechRecognizedEvent, SpeechResultsEvent } from '@react-native-voice/voice';
-let Voice: any = null;
-try {
-  Voice = require('@react-native-voice/voice').default || require('@react-native-voice/voice');
-} catch (error) {
-  // Voice module not available
-}
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
 
 type ModalView = 'input' | 'loading' | 'results';
 
@@ -116,12 +108,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
   } = useJourney();
   
   const [inputText, setInputText] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [partialResults, setPartialResults] = useState<string>('');
-  const baseTextRef = useRef<string>(''); // Track confirmed text (before partial results)
-  const hasReceivedFinalResultRef = useRef<boolean>(false); // Track if we've received final result for current session
   const [currentView, setCurrentView] = useState<ModalView>('input');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [aiResponse, setAiResponse] = useState<AIMemoryResponse | null>(null);
@@ -150,6 +137,14 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
   const [backgroundRequestId, setBackgroundRequestId] = useState<string | null>(null);
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  const speechToText = useSpeechToText({
+    language,
+    getText: () => inputText,
+    setText: setInputText,
+    disabled: isProcessing,
+  });
+  const { isRecording, isListening } = speechToText;
 
   // Monitor app state to detect when app goes to background
   useEffect(() => {
@@ -514,10 +509,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
           
           // Reset all state to initial values
           setInputText('');
-          setIsRecording(false);
           setIsProcessing(false);
-          setIsListening(false);
-          setPartialResults('');
           setCurrentView('input');
           setSelectedImage(null);
           setAiResponse(null);
@@ -529,15 +521,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
           setShowEntityPicker(false);
           setLoadingMessageIndex(0);
           
-          // Stop any ongoing voice recognition
-          if (Voice && isListening) {
-            try {
-              Voice.stop();
-              Voice.cancel();
-            } catch (error) {
-              // Ignore errors when stopping
-            }
-          }
+          // Stop any ongoing speech recognition
+          void speechToText.abort();
         }
       });
     }
@@ -570,8 +555,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       modalOpacity.value = withTiming(0, { duration: 200 });
       modalScale.value = withTiming(0.8, { duration: 200 });
       setInputText('');
-      setIsRecording(false);
-      setIsListening(false);
+      void speechToText.abort();
       setCurrentView('input');
       setSelectedImage(null);
       setAiResponse(null);
@@ -668,210 +652,12 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     }
   }, [currentView, aiResponse, sparkleScale, sparkleOpacity, loadingPulseScale, dotsOpacity]);
 
-  // Voice recognition handlers
-  useEffect(() => {
-    if (!Voice) {
-      return; // Voice module not available
-    }
-
-    // Set up Voice event handlers
-    Voice.onSpeechStart = () => {
-      setIsListening(true);
-      hasReceivedFinalResultRef.current = false; // Reset flag for new session
-      // Don't clear baseTextRef here - preserve existing text
-    };
-
-    Voice.onSpeechRecognized = (e: SpeechRecognizedEvent) => {
-      // Speech was recognized (intermediate event, before final results)
-      // This is useful for UI feedback but we don't commit text here
-      // We wait for onSpeechResults for final transcript
-    };
-
-    Voice.onSpeechEnd = () => {
-      setIsListening(false);
-      // Clear partial results when speech ends
-      setPartialResults('');
-      // If no final result was received, the partial might be all we have
-      // But don't commit it here - wait for onSpeechResults or let user continue
-    };
-
-    Voice.onSpeechResults = (e: SpeechResultsEvent) => {
-      // Final results - this is the only place we should commit text
-      if (e.value && e.value.length > 0 && !hasReceivedFinalResultRef.current) {
-        const transcript = e.value[0].trim();
-        const currentBase = baseTextRef.current;
-        
-        // Only append if transcript is not empty and we haven't processed it yet
-        if (transcript) {
-          // Append final transcript to existing base text
-          const newBaseText = currentBase 
-            ? `${currentBase} ${transcript}`.trim()
-            : transcript;
-          
-          baseTextRef.current = newBaseText;
-          setInputText(newBaseText);
-          hasReceivedFinalResultRef.current = true; // Mark as processed
-        }
-        setPartialResults(''); // Clear partial results
-      }
-    };
-
-    Voice.onSpeechPartialResults = (e: SpeechResultsEvent) => {
-      // Partial results - ONLY for preview, don't commit to baseTextRef
-      if (e.value && e.value.length > 0) {
-        const partial = e.value[0].trim();
-        setPartialResults(partial);
-        // Show preview: baseTextRef + partial (temporary, not saved)
-        const currentBase = baseTextRef.current;
-        const previewText = currentBase 
-          ? `${currentBase} ${partial}`.trim()
-          : partial;
-        setInputText(previewText);
-      }
-    };
-
-    Voice.onSpeechError = (e: SpeechErrorEvent) => {
-      setIsRecording(false);
-      setIsListening(false);
-      setPartialResults('');
-      
-      // Ignore "No speech input" errors (code 7)
-      if (e.error?.code === '7') {
-        return;
-      }
-      
-      // Handle specific error codes
-      let errorMessage = e.error?.message || t('ai.error.recording') || 'Speech recognition failed';
-      
-      if (e.error?.code === 'audio' || e.error?.message?.toLowerCase().includes('session activation')) {
-        errorMessage = 'Audio session failed. Please close other apps using the microphone and try again.';
-      }
-      
-      Alert.alert(
-        t('common.error') || 'Error',
-        errorMessage
-      );
-    };
-
-    // Cleanup on unmount
-    return () => {
-      if (Voice) {
-        Voice.destroy().then(Voice.removeAllListeners).catch(() => {});
-      }
-    };
-  }, [partialResults, t]);
-
   const handleStartRecording = async () => {
-    try {
-      if (!Voice) {
-        Alert.alert(
-          t('common.error') || 'Error',
-          t('ai.error.notAvailable') || 'Speech recognition is not available. Please rebuild the app with native modules.'
-        );
-        return;
-      }
-
-      // Check if Voice is available
-      const isAvailable = await Voice.isAvailable();
-      if (!isAvailable) {
-        Alert.alert(
-          t('common.error') || 'Error',
-          t('ai.error.notAvailable') || 'Speech recognition is not available on this device'
-        );
-        return;
-      }
-
-      // Request permissions - check if method exists (may not be available on all platforms/versions)
-      if (Voice.requestSpeechRecognitionPermission) {
-        try {
-          const permissions = await Voice.requestSpeechRecognitionPermission();
-          if (permissions === false) {
-            Alert.alert(
-              t('ai.permission.title') || 'Permission Required',
-              t('ai.permission.message') || 'Microphone permission is required for speech-to-text.',
-              [{ text: t('common.ok') || 'OK' }]
-            );
-            return;
-          }
-        } catch (permError) {
-          // Permission request failed, but Voice.start() will handle it
-        }
-      }
-      // Note: Voice.start() will automatically request permissions if needed
-
-      // Stop and destroy any existing session first to prevent conflicts
-      try {
-        await Voice.stop();
-      } catch (stopError) {
-        // Ignore errors when stopping (might not be running)
-      }
-      try {
-        await Voice.cancel();
-      } catch (cancelError) {
-        // Ignore errors when canceling
-      }
-      try {
-        await Voice.destroy();
-      } catch (destroyError) {
-        // Ignore errors when destroying
-      }
-      
-      // Small delay to ensure cleanup completes
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Clear previous partial results and save current text as base
-      setPartialResults('');
-      hasReceivedFinalResultRef.current = false; // Reset flag
-      baseTextRef.current = inputText.trim(); // Save current text as base before starting new recognition
-      
-      // Determine language code for voice recognition
-      const languageCode = language === 'bg' ? 'bg-BG' : 'en-US';
-      
-      // Start voice recognition with extended silence timeout (Android)
-      // This prevents early stopping when user pauses briefly
-      const startOptions = Platform.OS === 'android' 
-        ? {
-            EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 5000, // 5 seconds of silence before stopping
-            EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000, // 3 seconds for partial completion
-          }
-        : undefined;
-      
-      await Voice.start(languageCode, startOptions);
-      setIsRecording(true);
-      
-    } catch (error) {
-      Alert.alert(
-        t('common.error') || 'Error',
-        (error as Error).message || t('ai.error.recording') || 'Failed to start recording'
-      );
-      setIsRecording(false);
-      setIsListening(false);
-    }
+    await speechToText.start();
   };
 
   const handleStopRecording = async () => {
-    try {
-      setIsRecording(false);
-      setIsListening(false);
-      
-      if (!Voice) {
-        return;
-      }
-      
-      // Stop voice recognition
-      await Voice.stop();
-      
-      // Clear partial results
-      setPartialResults('');
-      
-    } catch (error) {
-      Alert.alert(
-        t('common.error') || 'Error',
-        (error as Error).message || t('ai.error.stopRecording') || 'Failed to stop recording'
-      );
-      setIsRecording(false);
-      setIsListening(false);
-    }
+    await speechToText.stop();
   };
 
   const handlePickImage = async () => {
@@ -916,7 +702,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     } catch (error) {
       Alert.alert(
         t('common.error') || 'Error',
-        (error as Error).message || t('ai.error.image') || 'Failed to pick image'
+        (error as Error).message || (t('ai.error.image' as any) as any) || 'Failed to pick image'
       );
     }
   };
@@ -2235,14 +2021,14 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                   value={inputText}
                   onChangeText={setInputText}
                   placeholder={t('ai.placeholder.input') || 'Tell a story or memory about someone from your sferas...'}
-                  placeholderTextColor={colors.textSecondary || colors.text + '80'}
+                  placeholderTextColor={colors.textMediumEmphasis || colors.text + '80'}
                   multiline
                   editable={!isRecording && !isProcessing}
                 />
                 <MaterialIcons 
                   name="edit" 
                   size={20 * fontScale} 
-                  color={colors.textSecondary || colors.text + '80'} 
+                  color={colors.textMediumEmphasis || colors.text + '80'} 
                   style={styles.pencilIcon}
                 />
               </View>
@@ -2296,7 +2082,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                     activeOpacity={0.7}
                   >
                     <MaterialIcons name="add-photo-alternate" size={32 * fontScale} color={colors.primary} />
-                    <ThemedText size="m" weight="medium" style={{ color: colors.primary, marginTop: 8 * fontScale }}>
+                    <ThemedText size="sm" weight="medium" style={{ color: colors.primary, marginTop: 8 * fontScale }}>
                       {t('ai.upload.image') || 'Add photo'}
                     </ThemedText>
                   </TouchableOpacity>
@@ -2387,11 +2173,11 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                     {/* Memory Title */}
                     <View style={[styles.resultsHeader, { marginTop: 24 * fontScale }]}>
                       <View style={styles.dropdownContainer}>
-                        <ThemedText size="s" weight="medium" style={styles.dropdownLabel}>
+                        <ThemedText size="xs" weight="medium" style={styles.dropdownLabel}>
                           {t('memory.title') || 'Title'}
                         </ThemedText>
                         <View style={styles.titleDisplay}>
-                          <ThemedText size="m" weight="semibold">
+                          <ThemedText size="sm" weight="semibold">
                             {aiResponse.title || ''}
                           </ThemedText>
                         </View>
@@ -2402,14 +2188,14 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                     <View style={styles.resultsHeader}>
                       {/* Sphere Dropdown */}
                       <View style={styles.dropdownContainer}>
-                        <ThemedText size="s" weight="medium" style={styles.dropdownLabel}>
+                        <ThemedText size="xs" weight="medium" style={styles.dropdownLabel}>
                           {t('ai.results.sphere') || 'Sphere'}
                         </ThemedText>
                         <Pressable
                           style={styles.dropdownButton}
                           onPress={() => setShowSpherePicker(true)}
                         >
-                          <ThemedText size="m" weight="semibold">
+                          <ThemedText size="sm" weight="semibold">
                             {selectedSphere || aiResponse.sphere}
                           </ThemedText>
                           <MaterialIcons name="arrow-drop-down" size={24 * fontScale} color={colors.text} />
@@ -2419,7 +2205,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                       {/* Entity Dropdown - Show when sphere is selected, hide when form is expanded */}
                       {selectedSphere && !showAddEntityForm && (
                         <View style={[styles.dropdownContainer, { marginTop: 12 * fontScale }]}>
-                          <ThemedText size="s" weight="medium" style={styles.dropdownLabel}>
+                          <ThemedText size="xs" weight="medium" style={styles.dropdownLabel}>
                             {t('ai.results.entity') || 'Entity'}
                           </ThemedText>
                           {availableEntitiesForSphere.length > 0 ? (
@@ -2759,7 +2545,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                             style={styles.removeItemButton}
                             onPress={() => handleRemoveItem(item.id)}
                           >
-                            <MaterialIcons name="close" size={16 * fontScale} color={colors.textSecondary || colors.text} />
+                            <MaterialIcons name="close" size={16 * fontScale} color={colors.textMediumEmphasis || colors.text} />
                           </TouchableOpacity>
                         </View>
                         <TextInput
@@ -2767,7 +2553,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                           value={item.text}
                           onChangeText={(text) => handleEditItem(item.id, text)}
                           multiline
-                          placeholderTextColor={colors.textSecondary || colors.text + '80'}
+                          placeholderTextColor={colors.textMediumEmphasis || colors.text + '80'}
                         />
                       </View>
                     ))}
@@ -2845,7 +2631,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                       ]}
                       onPress={() => handleSphereChange(sphere)}
                     >
-                      <ThemedText size="m" weight={selectedSphere === sphere ? 'bold' : 'regular'}>
+                      <ThemedText size="sm" weight={selectedSphere === sphere ? 'bold' : 'normal'}>
                         {sphereLabels[sphere]}
                       </ThemedText>
                       {selectedSphere === sphere && (
@@ -2886,7 +2672,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                     ]}
                     onPress={() => handleEntityChange(entity.id, entity.name)}
                   >
-                    <ThemedText size="m" weight={selectedEntityId === entity.id ? 'bold' : 'regular'}>
+                    <ThemedText size="sm" weight={selectedEntityId === entity.id ? 'bold' : 'normal'}>
                       {entity.name}
                     </ThemedText>
                     {selectedEntityId === entity.id && (
@@ -2911,7 +2697,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
               <ThemedText size="l" weight="bold" style={{ marginBottom: 16 * fontScale }}>
                 {t('ai.closeConfirm.title') || 'Discard changes?'}
               </ThemedText>
-              <ThemedText size="m" style={{ marginBottom: 24 * fontScale, opacity: 0.8, textAlign: 'center' }}>
+              <ThemedText size="sm" style={{ marginBottom: 24 * fontScale, opacity: 0.8, textAlign: 'center' }}>
                 {t('ai.closeConfirm.message') || 'Your progress will be lost if you close this modal.'}
               </ThemedText>
               <View style={styles.confirmButtonContainer}>
@@ -2919,7 +2705,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                   style={[styles.confirmButton, styles.cancelButton]}
                   onPress={() => setShowCloseConfirm(false)}
                 >
-                  <ThemedText size="m" weight="semibold">
+                  <ThemedText size="sm" weight="semibold">
                     {t('common.cancel') || 'Cancel'}
                   </ThemedText>
                 </Pressable>
@@ -2939,7 +2725,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                     }, 100);
                   }}
                 >
-                  <ThemedText size="m" weight="semibold" style={{ color: '#ffffff' }}>
+                  <ThemedText size="sm" weight="semibold" style={{ color: '#ffffff' }}>
                     {t('ai.closeConfirm.discard') || 'Discard'}
                   </ThemedText>
                 </Pressable>

@@ -503,7 +503,7 @@ export async function sendToAI(
  * Note: This is a placeholder. You'll need to integrate with:
  * - Google Cloud Speech-to-Text API
  * - AWS Transcribe
- * - Or use @react-native-voice/voice library
+ * - Or use a local on-device library (e.g. expo-speech-recognition)
  */
 export async function processSpeechToText(audioUri: string): Promise<string> {
   // TODO: Implement speech-to-text

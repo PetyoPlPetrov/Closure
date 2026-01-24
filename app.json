@@ -19,8 +19,8 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "This app uses your photo library to let you select images for your relationships, hobbies, and career profiles. For example, you can pick a photo to represent a family member or add an image to a job entry.",
         "NSPhotoLibraryAddUsageDescription": "The app needs permission to save your exported video memories directly to your photo gallery. For example, you can save an animated recap of your memories to share with friends or keep as a memento.",
-        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to convert your voice input into text for the AI assistant feature. When you use the AI memory creation feature, you can speak your story instead of typing. For example, you can tell the app about a meaningful conversation with a friend, and the AI will help you create a structured memory with moments from that experience.",
-        "NSMicrophoneUsageDescription": "This app needs access to your microphone to record your voice for speech-to-text conversion in the AI assistant feature. When you use the AI memory creation feature, you can speak your story instead of typing. For example, you can tell the app about a meaningful conversation with a friend, and the AI will help you create a structured memory with moments from that experience. Your voice recordings are processed locally and converted to text - we do not store or transmit your voice recordings.",
+        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to convert your voice into text for the AI assistant feature. When you choose voice input, your speech may be processed on-device and/or by Apple's speech recognition services to generate a transcript. We do not store your raw audio recordings.",
+        "NSMicrophoneUsageDescription": "This app needs access to your microphone for voice input so we can convert what you say into text in the AI assistant feature. Audio may be processed on-device and/or by Apple's speech recognition services to generate a transcript. We do not store your raw audio recordings.",
         "UIBackgroundModes": [
           "processing"
         ],
@@ -51,7 +51,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 105,
+      "versionCode": 106,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -96,10 +96,14 @@
       "./plugins/withAnalyticsSourcePatch.js",
       "./plugins/with-video-composer.js",
       [
-        "@react-native-voice/voice",
+        "expo-speech-recognition",
         {
-          "microphonePermission": "This app needs access to your microphone to record your voice for speech-to-text conversion in the AI assistant feature. When you use the AI memory creation feature, you can speak your story instead of typing. For example, you can tell the app about a meaningful conversation with a friend, and the AI will help you create a structured memory with moments from that experience. Your voice recordings are processed locally and converted to text - we do not store or transmit your voice recordings.",
-          "speechRecognitionPermission": "This app uses speech recognition to convert your voice input into text for the AI assistant feature. When you use the AI memory creation feature, you can speak your story instead of typing. For example, you can tell the app about a meaningful conversation with a friend, and the AI will help you create a structured memory with moments from that experience."
+          "microphonePermission": "This app needs access to your microphone for voice input so we can convert what you say into text in the AI assistant feature. Audio may be processed on-device and/or by Apple's speech recognition services to generate a transcript. We do not store your raw audio recordings.",
+          "speechRecognitionPermission": "This app uses speech recognition to convert your voice into text for the AI assistant feature. Speech may be processed on-device and/or by Apple's speech recognition services to generate a transcript. We do not store your raw audio recordings.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.as"
+          ]
         }
       ]
     ],
