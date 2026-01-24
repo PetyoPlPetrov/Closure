@@ -28,6 +28,7 @@ import { useTranslate } from '@/utils/languages/use-translate';
 import { showPaywallForPremiumAccess } from '@/utils/premium-access';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -103,7 +104,12 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     familyMembers, 
     friends, 
     hobbies,
-    addIdealizedMemory
+    addIdealizedMemory,
+    addFriend,
+    addFamilyMember,
+    addJob,
+    addHobby,
+    addProfile
   } = useJourney();
   
   const [inputText, setInputText] = useState('');
@@ -123,6 +129,19 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [showSpherePicker, setShowSpherePicker] = useState(false);
   const [showEntityPicker, setShowEntityPicker] = useState(false);
+  const [showAddEntityForm, setShowAddEntityForm] = useState(false);
+  
+  // Form fields for adding new entity
+  const [newEntityName, setNewEntityName] = useState('');
+  const [newEntityDescription, setNewEntityDescription] = useState('');
+  const [newEntityRelationship, setNewEntityRelationship] = useState(''); // For family members
+  const [newEntityStartDate, setNewEntityStartDate] = useState<Date | null>(null); // For jobs/relationships
+  const [newEntityEndDate, setNewEntityEndDate] = useState<Date | null>(null); // For jobs/relationships
+  const [newEntityIsCurrent, setNewEntityIsCurrent] = useState(false); // For jobs/relationships
+  const [newEntityImage, setNewEntityImage] = useState<string | null>(null);
+  const [isSavingEntity, setIsSavingEntity] = useState(false);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [backgroundRequestId, setBackgroundRequestId] = useState<string | null>(null);
@@ -1071,12 +1090,14 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
   }, [selectedSphere, profiles, jobs, familyMembers, friends, hobbies]);
 
   // Automatically show validation error when results are displayed with invalid entity
+  // All spheres (relationships, career, family, friends, hobbies) require an entity
   useEffect(() => {
-    if (aiResponse && selectedSphere && availableEntitiesForSphere.length > 0 && !selectedEntityId) {
+    const spheresRequiringEntity: LifeSphere[] = ['relationships', 'career', 'family', 'friends', 'hobbies'];
+    if (aiResponse && selectedSphere && spheresRequiringEntity.includes(selectedSphere) && !selectedEntityId) {
       // Entity is required but not selected - show validation error immediately
       setShowValidationErrors(true);
     }
-  }, [aiResponse, selectedSphere, availableEntitiesForSphere.length, selectedEntityId]);
+  }, [aiResponse, selectedSphere, selectedEntityId]);
 
   // Handle sphere change - reset entity if sphere changes
   const handleSphereChange = (sphere: LifeSphere) => {
@@ -1097,14 +1118,118 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     }
   };
 
+  // Validate entity form
+  const isEntityFormValid = () => {
+    if (!newEntityName.trim()) return false;
+    if (selectedSphere === 'family' && !newEntityRelationship.trim()) return false;
+    return true;
+  };
+
+  // Handle saving new entity
+  const handleSaveNewEntity = async () => {
+    if (!isEntityFormValid()) {
+      setShowValidationErrors(true);
+      return;
+    }
+
+    setIsSavingEntity(true);
+    try {
+      let newEntityId: string;
+      
+      if (selectedSphere === 'family') {
+        newEntityId = await addFamilyMember({
+          name: newEntityName.trim(),
+          description: newEntityDescription.trim() || undefined,
+          relationship: newEntityRelationship.trim(),
+          imageUri: newEntityImage || undefined,
+          setupProgress: 0,
+          isCompleted: false,
+        });
+      } else if (selectedSphere === 'friends') {
+        newEntityId = await addFriend({
+          name: newEntityName.trim(),
+          description: newEntityDescription.trim() || undefined,
+          imageUri: newEntityImage || undefined,
+          setupProgress: 0,
+          isCompleted: false,
+        });
+      } else if (selectedSphere === 'career') {
+        newEntityId = await addJob({
+          name: newEntityName.trim(),
+          description: newEntityDescription.trim() || undefined,
+          startDate: newEntityStartDate ? newEntityStartDate.toISOString().split('T')[0] : undefined,
+          endDate: newEntityIsCurrent ? null : (newEntityEndDate ? newEntityEndDate.toISOString().split('T')[0] : undefined),
+          imageUri: newEntityImage || undefined,
+          setupProgress: 0,
+          isCompleted: false,
+        });
+      } else if (selectedSphere === 'hobbies') {
+        newEntityId = await addHobby({
+          name: newEntityName.trim(),
+          description: newEntityDescription.trim() || undefined,
+          imageUri: newEntityImage || undefined,
+          setupProgress: 0,
+          isCompleted: false,
+        });
+      } else if (selectedSphere === 'relationships') {
+        newEntityId = await addProfile({
+          name: newEntityName.trim(),
+          description: newEntityDescription.trim() || undefined,
+          relationshipStartDate: newEntityStartDate ? newEntityStartDate.toISOString().split('T')[0] : undefined,
+          relationshipEndDate: newEntityIsCurrent ? null : (newEntityEndDate ? newEntityEndDate.toISOString().split('T')[0] : undefined),
+          imageUri: newEntityImage || undefined,
+          setupProgress: 0,
+          isCompleted: false,
+        });
+      } else {
+        throw new Error('Invalid sphere');
+      }
+
+      // Update selected entity
+      setSelectedEntityId(newEntityId);
+      setSelectedEntityName(newEntityName.trim());
+      setShowValidationErrors(false);
+      setShowAddEntityForm(false);
+      
+      // Reset form fields
+      setNewEntityName('');
+      setNewEntityDescription('');
+      setNewEntityRelationship('');
+      setNewEntityStartDate(null);
+      setNewEntityEndDate(null);
+      setNewEntityIsCurrent(false);
+      setNewEntityImage(null);
+    } catch (error) {
+      Alert.alert(
+        t('common.error') || 'Error',
+        (error as Error).message || t('ai.entity.saveError') || 'Failed to save entity'
+      );
+    } finally {
+      setIsSavingEntity(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!aiResponse || memoryItems.length === 0 || !selectedSphere) {
       return;
     }
 
-    // Entity is required - ensure we have an entity selected
-    // Check if entity is required (sphere has entities available)
-    const needsEntity = selectedSphere && availableEntitiesForSphere.length > 0;
+    // Entity is required for all spheres that support entities
+    // All spheres (relationships, career, family, friends, hobbies) require an entity
+    const spheresRequiringEntity: LifeSphere[] = ['relationships', 'career', 'family', 'friends', 'hobbies'];
+    const needsEntity = selectedSphere && spheresRequiringEntity.includes(selectedSphere);
+    
+    // If form is expanded, check if it's valid
+    if (showAddEntityForm && !isEntityFormValid()) {
+      setShowValidationErrors(true);
+      Alert.alert(
+        t('common.error') || 'Error',
+        t('ai.results.selectEntity' as any) || 'Please fill all required fields'
+      );
+      return;
+    }
+    
+    // Entity is always required for these spheres
     if (needsEntity && !selectedEntityId) {
       setShowValidationErrors(true);
       Alert.alert(
@@ -1672,6 +1797,142 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       borderColor: '#FF3B30',
       borderWidth: 2,
     },
+    helperButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 8 * fontScale,
+      padding: 8 * fontScale,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 59, 48, 0.1)' 
+        : 'rgba(255, 59, 48, 0.05)',
+      borderRadius: 8 * fontScale,
+      borderWidth: 1,
+      borderColor: '#FF3B30',
+    },
+    helperText: {
+      flex: 1,
+      color: '#FF3B30',
+    },
+    helperButtonValid: {
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(100, 181, 246, 0.1)' 
+        : 'rgba(100, 181, 246, 0.05)',
+      borderColor: colors.primary,
+    },
+    helperTextValid: {
+      color: colors.primary,
+    },
+    addEntityForm: {
+      marginTop: 16 * fontScale,
+      padding: 16 * fontScale,
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.03)' 
+        : 'rgba(0, 0, 0, 0.03)',
+      borderRadius: 12 * fontScale,
+      borderWidth: 1,
+      borderColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.1)',
+    },
+    addEntityFormHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16 * fontScale,
+    },
+    formField: {
+      marginBottom: 16 * fontScale,
+    },
+    formLabel: {
+      marginBottom: 6 * fontScale,
+      opacity: 0.8,
+    },
+    formInput: {
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.05)' 
+        : 'rgba(0, 0, 0, 0.05)',
+      borderRadius: 8 * fontScale,
+      padding: 12 * fontScale,
+      color: colors.text,
+      fontSize: 15 * fontScale,
+      borderWidth: 1,
+      borderColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.1)',
+    },
+    formInputError: {
+      borderColor: '#FF3B30',
+      borderWidth: 2,
+    },
+    formTextArea: {
+      minHeight: 80 * fontScale,
+      textAlignVertical: 'top',
+    },
+    dateButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.05)' 
+        : 'rgba(0, 0, 0, 0.05)',
+      borderRadius: 8 * fontScale,
+      padding: 12 * fontScale,
+      borderWidth: 1,
+      borderColor: colorScheme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.1)' 
+        : 'rgba(0, 0, 0, 0.1)',
+    },
+    checkboxContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    addEntityImagePreviewContainer: {
+      position: 'relative',
+      width: 100 * fontScale,
+      height: 100 * fontScale,
+      borderRadius: 8 * fontScale,
+      overflow: 'hidden',
+    },
+    addEntityImagePreview: {
+      width: '100%',
+      height: '100%',
+    },
+    addEntityRemoveImageButton: {
+      position: 'absolute',
+      top: 4 * fontScale,
+      right: 4 * fontScale,
+      width: 24 * fontScale,
+      height: 24 * fontScale,
+      borderRadius: 12 * fontScale,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    addEntityImageUploadButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 16 * fontScale,
+      paddingHorizontal: 16 * fontScale,
+      borderRadius: 8 * fontScale,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderStyle: 'dashed',
+      backgroundColor: colorScheme === 'dark' 
+        ? 'rgba(100, 181, 246, 0.05)' 
+        : 'rgba(100, 181, 246, 0.05)',
+    },
+    saveEntityButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 8 * fontScale,
+      paddingVertical: 12 * fontScale,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 8 * fontScale,
+    },
+    saveEntityButtonDisabled: {
+      opacity: 0.5,
+    },
     pickerOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -2098,33 +2359,307 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                         </Pressable>
                       </View>
 
-                      {/* Entity Dropdown */}
-                      {selectedSphere && availableEntitiesForSphere.length > 0 && (
+                      {/* Entity Dropdown - Show when sphere is selected, hide when form is expanded */}
+                      {selectedSphere && !showAddEntityForm && (
                         <View style={[styles.dropdownContainer, { marginTop: 12 * fontScale }]}>
                           <ThemedText size="s" weight="medium" style={styles.dropdownLabel}>
                             {t('ai.results.entity') || 'Entity'}
                           </ThemedText>
-                          <Pressable
-                            style={[
-                              styles.dropdownButton,
-                              // Show error border if validation errors are shown AND no entity is selected
-                              // OR if entity is required (entities available) but not selected
-                              ((showValidationErrors || (availableEntitiesForSphere.length > 0 && !selectedEntityId)) && !selectedEntityId) 
-                                ? styles.dropdownButtonError 
-                                : null
-                            ].filter(Boolean)}
-                            onPress={() => {
-                              setShowEntityPicker(true);
-                              if (showValidationErrors) {
-                                setShowValidationErrors(false);
-                              }
-                            }}
-                          >
-                            <ThemedText size="sm" weight="semibold">
-                              {selectedEntityName || t('ai.results.selectEntity' as any) || 'Select entity...'}
+                          {availableEntitiesForSphere.length > 0 ? (
+                            <>
+                              <Pressable
+                                style={[
+                                  styles.dropdownButton,
+                                  // Show error border if validation errors are shown AND no entity is selected
+                                  // OR if entity is required (entities available) but not selected
+                                  ((showValidationErrors || (availableEntitiesForSphere.length > 0 && !selectedEntityId)) && !selectedEntityId) 
+                                    ? styles.dropdownButtonError 
+                                    : null
+                                ].filter(Boolean)}
+                                onPress={() => {
+                                  setShowEntityPicker(true);
+                                  if (showValidationErrors) {
+                                    setShowValidationErrors(false);
+                                  }
+                                }}
+                              >
+                                <ThemedText size="sm" weight="semibold">
+                                  {selectedEntityName || t('ai.results.selectEntity' as any) || 'Select entity...'}
+                                </ThemedText>
+                                <MaterialIcons name="arrow-drop-down" size={24 * fontScale} color={colors.text} />
+                              </Pressable>
+                              
+                              {/* Helper text/button - always show to allow adding new entity */}
+                              <TouchableOpacity
+                                style={[
+                                  styles.helperButton,
+                                  selectedEntityId && styles.helperButtonValid
+                                ]}
+                                onPress={() => {
+                                  setShowAddEntityForm(true);
+                                  setShowEntityPicker(false);
+                                }}
+                                activeOpacity={0.7}
+                              >
+                                <ThemedText size="xs" style={[
+                                  styles.helperText,
+                                  selectedEntityId && styles.helperTextValid
+                                ]}>
+                                  {!selectedEntityId 
+                                    ? `${t('ai.results.unrecognizedEntity' as any) || 'Unrecognized entity.'} ${t('ai.results.expandToAdd' as any) || 'Expand to Add the sfera entity'}`
+                                    : t('ai.results.expandToAdd' as any) || 'Expand to Add the sfera entity'}
+                                </ThemedText>
+                                <MaterialIcons name="expand-more" size={16 * fontScale} color={selectedEntityId ? colors.primary : '#FF3B30'} />
+                              </TouchableOpacity>
+                            </>
+                          ) : (
+                            /* No entities exist - show helper button to add first entity */
+                            <TouchableOpacity
+                              style={styles.helperButton}
+                              onPress={() => {
+                                setShowAddEntityForm(true);
+                                setShowEntityPicker(false);
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <ThemedText size="xs" style={styles.helperText}>
+                                {t('ai.results.expandToAdd' as any) || 'Expand to Add the sfera entity'}
+                              </ThemedText>
+                              <MaterialIcons name="expand-more" size={16 * fontScale} color={colors.primary} />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      )}
+                      
+                      {/* Expandable form for adding new entity */}
+                      {showAddEntityForm && selectedSphere && (
+                        <View style={styles.addEntityForm}>
+                          <View style={styles.addEntityFormHeader}>
+                            <ThemedText size="sm" weight="bold">
+                              {selectedSphere === 'family' 
+                                ? (t('profile.familyMember.add' as any) || 'Add Family Member')
+                                : selectedSphere === 'friends'
+                                ? (t('profile.friend.add' as any) || 'Add Friend')
+                                : selectedSphere === 'career'
+                                ? (t('profile.job.add' as any) || 'Add Job')
+                                : selectedSphere === 'hobbies'
+                                ? (t('profile.hobby.add' as any) || 'Add Hobby')
+                                : (t('profile.relationship.add' as any) || 'Add Relationship')}
                             </ThemedText>
-                            <MaterialIcons name="arrow-drop-down" size={24 * fontScale} color={colors.text} />
-                          </Pressable>
+                            <TouchableOpacity
+                              onPress={() => {
+                                setShowAddEntityForm(false);
+                                // Reset form fields
+                                setNewEntityName('');
+                                setNewEntityDescription('');
+                                setNewEntityRelationship('');
+                                setNewEntityStartDate(null);
+                                setNewEntityEndDate(null);
+                                setNewEntityIsCurrent(false);
+                                setNewEntityImage(null);
+                              }}
+                            >
+                              <MaterialIcons name="close" size={20 * fontScale} color={colors.text} />
+                            </TouchableOpacity>
+                          </View>
+                          
+                          {/* Name field - required for all */}
+                          <View style={styles.formField}>
+                            <ThemedText size="xs" weight="medium" style={styles.formLabel}>
+                              {t('profile.name') || 'Name'} *
+                            </ThemedText>
+                            <TextInput
+                              style={[
+                                styles.formInput,
+                                !newEntityName.trim() && showValidationErrors && styles.formInputError
+                              ]}
+                              value={newEntityName}
+                              onChangeText={setNewEntityName}
+                              placeholder={t('profile.name.placeholder' as any) || 'Enter name'}
+                              placeholderTextColor={colorScheme === 'dark' ? colors.textMediumEmphasis : colors.text + '80'}
+                            />
+                          </View>
+                          
+                          {/* Relationship field - required for family */}
+                          {selectedSphere === 'family' && (
+                            <View style={styles.formField}>
+                              <ThemedText size="xs" weight="medium" style={styles.formLabel}>
+                                {t('profile.familyMember.relationship' as any) || 'Relationship'} *
+                              </ThemedText>
+                              <TextInput
+                                style={[
+                                  styles.formInput,
+                                  !newEntityRelationship.trim() && showValidationErrors && styles.formInputError
+                                ]}
+                                value={newEntityRelationship}
+                                onChangeText={setNewEntityRelationship}
+                                placeholder={t('profile.familyMember.relationship.placeholder' as any) || 'e.g., Mother, Brother'}
+                                placeholderTextColor={colorScheme === 'dark' ? colors.textMediumEmphasis : colors.text + '80'}
+                              />
+                            </View>
+                          )}
+                          
+                          {/* Date fields - for jobs and relationships */}
+                          {(selectedSphere === 'career' || selectedSphere === 'relationships') && (
+                            <>
+                              <View style={styles.formField}>
+                                <ThemedText size="xs" weight="medium" style={styles.formLabel}>
+                                  {t('profile.job.startDate' as any) || 'Start Date'}
+                                </ThemedText>
+                                <TouchableOpacity
+                                  style={styles.dateButton}
+                                  onPress={() => setShowStartDatePicker(true)}
+                                >
+                                  <ThemedText size="sm">
+                                    {newEntityStartDate 
+                                      ? newEntityStartDate.toLocaleDateString()
+                                      : t('profile.job.selectStartDate' as any) || 'Select start date'}
+                                  </ThemedText>
+                                  <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
+                                </TouchableOpacity>
+                                {showStartDatePicker && (
+                                  <DateTimePicker
+                                    value={newEntityStartDate || new Date()}
+                                    mode="date"
+                                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                    onChange={(event, date) => {
+                                      setShowStartDatePicker(Platform.OS === 'ios');
+                                      if (date && event.type !== 'dismissed') {
+                                        setNewEntityStartDate(date);
+                                      }
+                                    }}
+                                  />
+                                )}
+                              </View>
+                              
+                              <View style={styles.formField}>
+                                <TouchableOpacity
+                                  style={styles.checkboxContainer}
+                                  onPress={() => {
+                                    setNewEntityIsCurrent(!newEntityIsCurrent);
+                                    if (!newEntityIsCurrent) {
+                                      setNewEntityEndDate(null);
+                                    }
+                                  }}
+                                >
+                                  <MaterialIcons 
+                                    name={newEntityIsCurrent ? 'check-box' : 'check-box-outline-blank'} 
+                                    size={24 * fontScale} 
+                                    color={newEntityIsCurrent ? colors.primary : colors.text} 
+                                  />
+                                  <ThemedText size="sm" style={{ marginLeft: 8 * fontScale }}>
+                                    {t('profile.job.current' as any) || 'Current'}
+                                  </ThemedText>
+                                </TouchableOpacity>
+                              </View>
+                              
+                              {!newEntityIsCurrent && (
+                                <View style={styles.formField}>
+                                  <ThemedText size="xs" weight="medium" style={styles.formLabel}>
+                                    {t('profile.job.endDate' as any) || 'End Date'}
+                                  </ThemedText>
+                                  <TouchableOpacity
+                                    style={styles.dateButton}
+                                    onPress={() => setShowEndDatePicker(true)}
+                                  >
+                                    <ThemedText size="sm">
+                                      {newEntityEndDate 
+                                        ? newEntityEndDate.toLocaleDateString()
+                                        : t('profile.job.selectEndDate' as any) || 'Select end date'}
+                                    </ThemedText>
+                                    <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
+                                  </TouchableOpacity>
+                                  {showEndDatePicker && (
+                                    <DateTimePicker
+                                      value={newEntityEndDate || new Date()}
+                                      mode="date"
+                                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                      onChange={(event, date) => {
+                                        setShowEndDatePicker(Platform.OS === 'ios');
+                                        if (date && event.type !== 'dismissed') {
+                                          setNewEntityEndDate(date);
+                                        }
+                                      }}
+                                    />
+                                  )}
+                                </View>
+                              )}
+                            </>
+                          )}
+                          
+                          {/* Description field - optional for all */}
+                          <View style={styles.formField}>
+                            <ThemedText size="xs" weight="medium" style={styles.formLabel}>
+                              {t('profile.description') || 'Description'}
+                            </ThemedText>
+                            <TextInput
+                              style={[styles.formInput, styles.formTextArea]}
+                              value={newEntityDescription}
+                              onChangeText={setNewEntityDescription}
+                              placeholder={t('profile.description.placeholder') || 'Optional description'}
+                              placeholderTextColor={colorScheme === 'dark' ? colors.textMediumEmphasis : colors.text + '80'}
+                              multiline
+                              numberOfLines={3}
+                              textAlignVertical="top"
+                            />
+                          </View>
+                          
+                          {/* Image upload - optional for all */}
+                          <View style={styles.formField}>
+                            <ThemedText size="xs" weight="medium" style={styles.formLabel}>
+                              {t('profile.image' as any) || 'Image'}
+                            </ThemedText>
+                            {newEntityImage ? (
+                              <View style={styles.addEntityImagePreviewContainer}>
+                                <Image source={{ uri: newEntityImage }} style={styles.addEntityImagePreview} />
+                                <TouchableOpacity
+                                  style={styles.addEntityRemoveImageButton}
+                                  onPress={() => setNewEntityImage(null)}
+                                >
+                                  <MaterialIcons name="close" size={16 * fontScale} color="#ffffff" />
+                                </TouchableOpacity>
+                              </View>
+                            ) : (
+                              <TouchableOpacity
+                                style={styles.addEntityImageUploadButton}
+                                onPress={async () => {
+                                  const result = await ImagePicker.launchImageLibraryAsync({
+                                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                                    allowsEditing: true,
+                                    aspect: [1, 1],
+                                    quality: 0.8,
+                                  });
+                                  if (!result.canceled && result.assets[0]) {
+                                    setNewEntityImage(result.assets[0].uri);
+                                  }
+                                }}
+                              >
+                                <MaterialIcons name="add-photo-alternate" size={24 * fontScale} color={colors.primary} />
+                                <ThemedText size="xs" style={{ color: colors.primary, marginTop: 4 * fontScale }}>
+                                  {t('profile.image.add' as any) || 'Add photo'}
+                                </ThemedText>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                          
+                          {/* Save button */}
+                          <TouchableOpacity
+                            style={[
+                              styles.saveEntityButton,
+                              (!isEntityFormValid() || isSavingEntity) && styles.saveEntityButtonDisabled
+                            ]}
+                            onPress={handleSaveNewEntity}
+                            disabled={!isEntityFormValid() || isSavingEntity}
+                            activeOpacity={0.8}
+                          >
+                            {isSavingEntity ? (
+                              <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                              <ThemedText size="sm" weight="bold" style={{ color: '#FFFFFF' }}>
+                                {t('common.save') || 'Save'}
+                              </ThemedText>
+                            )}
+                          </TouchableOpacity>
                         </View>
                       )}
                     </View>
@@ -2188,10 +2723,10 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                 <TouchableOpacity
                   style={[
                     styles.saveButton, 
-                    (isProcessing || !selectedEntityId) && styles.saveButtonDisabled
+                    ((isProcessing || ((['relationships', 'career', 'family', 'friends', 'hobbies'] as LifeSphere[]).includes(selectedSphere || '' as LifeSphere) && !selectedEntityId) || (showAddEntityForm && !isEntityFormValid()))) && styles.saveButtonDisabled
                   ]}
                   onPress={handleSave}
-                  disabled={isProcessing || !selectedEntityId}
+                  disabled={isProcessing || ((['relationships', 'career', 'family', 'friends', 'hobbies'] as LifeSphere[]).includes(selectedSphere || '' as LifeSphere) && !selectedEntityId) || (showAddEntityForm && !isEntityFormValid())}
                   activeOpacity={0.8}
                 >
                   {isProcessing ? (

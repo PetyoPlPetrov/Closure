@@ -1043,30 +1043,60 @@ export default function AddIdealizedMemoryScreen() {
   
   // Function to check if there are unsaved changes
   const hasUnsavedChanges = useCallback(() => {
+    console.log('[hasUnsavedChanges] Checking for unsaved changes...');
+    console.log('[hasUnsavedChanges] Current memoryLabel:', memoryLabel);
+    console.log('[hasUnsavedChanges] Initial memoryLabel:', initialMemoryLabel.current);
+    console.log('[hasUnsavedChanges] Current selectedImage:', selectedImage);
+    console.log('[hasUnsavedChanges] Initial selectedImage:', initialSelectedImage.current);
+    console.log('[hasUnsavedChanges] Current clouds count:', clouds.length);
+    console.log('[hasUnsavedChanges] Initial clouds count:', initialClouds.current.length);
+    console.log('[hasUnsavedChanges] Current suns count:', suns.length);
+    console.log('[hasUnsavedChanges] Initial suns count:', initialSuns.current.length);
+    console.log('[hasUnsavedChanges] Current lessons count:', lessons.length);
+    console.log('[hasUnsavedChanges] Initial lessons count:', initialLessons.current.length);
+    
     // Check if title changed
     if (memoryLabel.trim() !== initialMemoryLabel.current.trim()) {
+      console.log('[hasUnsavedChanges] ❌ Title changed:', {
+        current: memoryLabel.trim(),
+        initial: initialMemoryLabel.current.trim()
+      });
       return true;
     }
+    console.log('[hasUnsavedChanges] ✅ Title unchanged');
     
     // Check if image changed
     if (selectedImage !== initialSelectedImage.current) {
+      console.log('[hasUnsavedChanges] ❌ Image changed:', {
+        current: selectedImage,
+        initial: initialSelectedImage.current
+      });
       return true;
     }
+    console.log('[hasUnsavedChanges] ✅ Image unchanged');
     
     // Check if clouds changed (count, text, or positions)
     if (clouds.length !== initialClouds.current.length) {
+      console.log('[hasUnsavedChanges] ❌ Clouds count changed:', {
+        current: clouds.length,
+        initial: initialClouds.current.length
+      });
       return true;
     }
     
-    // Check if cloud text or positions changed
+    // Check if cloud text changed (positions are not saved, so don't check them)
     for (const cloud of clouds) {
       const initialCloud = initialClouds.current.find(c => c.id === cloud.id);
       if (!initialCloud) {
+        console.log('[hasUnsavedChanges] ❌ New cloud added:', cloud.id);
         return true; // New cloud added
       }
-      if (cloud.text.trim() !== initialCloud.text.trim() || 
-          cloud.x !== initialCloud.x || 
-          cloud.y !== initialCloud.y) {
+      // Only check text changes, not position changes
+      if (cloud.text.trim() !== initialCloud.text.trim()) {
+        console.log('[hasUnsavedChanges] ❌ Cloud text changed:', {
+          id: cloud.id,
+          text: { current: cloud.text.trim(), initial: initialCloud.text.trim() }
+        });
         return true;
       }
     }
@@ -1074,24 +1104,34 @@ export default function AddIdealizedMemoryScreen() {
     // Check if any initial cloud was deleted
     for (const initialCloud of initialClouds.current) {
       if (!clouds.find(c => c.id === initialCloud.id)) {
+        console.log('[hasUnsavedChanges] ❌ Cloud deleted:', initialCloud.id);
         return true;
       }
     }
+    console.log('[hasUnsavedChanges] ✅ Clouds unchanged');
     
     // Check if suns changed (count, text, or positions)
     if (suns.length !== initialSuns.current.length) {
+      console.log('[hasUnsavedChanges] ❌ Suns count changed:', {
+        current: suns.length,
+        initial: initialSuns.current.length
+      });
       return true;
     }
     
-    // Check if sun text or positions changed
+    // Check if sun text changed (positions are not saved, so don't check them)
     for (const sun of suns) {
       const initialSun = initialSuns.current.find(s => s.id === sun.id);
       if (!initialSun) {
+        console.log('[hasUnsavedChanges] ❌ New sun added:', sun.id);
         return true; // New sun added
       }
-      if (sun.text.trim() !== initialSun.text.trim() || 
-          sun.x !== initialSun.x || 
-          sun.y !== initialSun.y) {
+      // Only check text changes, not position changes
+      if (sun.text.trim() !== initialSun.text.trim()) {
+        console.log('[hasUnsavedChanges] ❌ Sun text changed:', {
+          id: sun.id,
+          text: { current: sun.text.trim(), initial: initialSun.text.trim() }
+        });
         return true;
       }
     }
@@ -1099,24 +1139,34 @@ export default function AddIdealizedMemoryScreen() {
     // Check if any initial sun was deleted
     for (const initialSun of initialSuns.current) {
       if (!suns.find(s => s.id === initialSun.id)) {
+        console.log('[hasUnsavedChanges] ❌ Sun deleted:', initialSun.id);
         return true;
       }
     }
+    console.log('[hasUnsavedChanges] ✅ Suns unchanged');
 
     // Check if lessons changed (count, text, or positions)
     if (lessons.length !== initialLessons.current.length) {
+      console.log('[hasUnsavedChanges] ❌ Lessons count changed:', {
+        current: lessons.length,
+        initial: initialLessons.current.length
+      });
       return true;
     }
 
-    // Check if lesson text or positions changed
+    // Check if lesson text changed (positions are not saved, so don't check them)
     for (const lesson of lessons) {
       const initialLesson = initialLessons.current.find(l => l.id === lesson.id);
       if (!initialLesson) {
+        console.log('[hasUnsavedChanges] ❌ New lesson added:', lesson.id);
         return true; // New lesson added
       }
-      if (lesson.text.trim() !== initialLesson.text.trim() ||
-          lesson.x !== initialLesson.x ||
-          lesson.y !== initialLesson.y) {
+      // Only check text changes, not position changes
+      if (lesson.text.trim() !== initialLesson.text.trim()) {
+        console.log('[hasUnsavedChanges] ❌ Lesson text changed:', {
+          id: lesson.id,
+          text: { current: lesson.text.trim(), initial: initialLesson.text.trim() }
+        });
         return true;
       }
     }
@@ -1124,10 +1174,13 @@ export default function AddIdealizedMemoryScreen() {
     // Check if any initial lesson was deleted
     for (const initialLesson of initialLessons.current) {
       if (!lessons.find(l => l.id === initialLesson.id)) {
+        console.log('[hasUnsavedChanges] ❌ Lesson deleted:', initialLesson.id);
         return true;
       }
     }
+    console.log('[hasUnsavedChanges] ✅ Lessons unchanged');
 
+    console.log('[hasUnsavedChanges] ✅ No unsaved changes detected');
     return false;
   }, [memoryLabel, selectedImage, clouds, suns, lessons]);
   
@@ -1150,10 +1203,16 @@ export default function AddIdealizedMemoryScreen() {
       }
       
       // Don't show dialog if there are no unsaved changes
-      if (!hasUnsavedChanges()) {
+      console.log('[Navigation] beforeRemove event triggered, checking for unsaved changes...');
+      const hasChanges = hasUnsavedChanges();
+      console.log('[Navigation] hasUnsavedChanges result:', hasChanges);
+      
+      if (!hasChanges) {
+        console.log('[Navigation] No unsaved changes, allowing navigation');
         return;
       }
       
+      console.log('[Navigation] Unsaved changes detected, preventing navigation and showing alert');
       // Prevent default behavior of leaving the screen
       e.preventDefault();
       
@@ -1286,7 +1345,16 @@ export default function AddIdealizedMemoryScreen() {
 
   // Load existing memory data when editing
   useEffect(() => {
+    console.log('[LoadMemory] Loading memory data...', {
+      hasExistingMemory: !!existingMemory,
+      memoryId,
+      isEditMode,
+      existingMemoryTitle: existingMemory?.title,
+      existingMemoryImageUri: existingMemory?.imageUri
+    });
+    
     if (existingMemory) {
+      console.log('[LoadMemory] Setting initial values from existing memory');
       setMemoryLabel(existingMemory.title || '');
       setSelectedImage(existingMemory.imageUri || null);
       initialMemoryLabel.current = existingMemory.title || '';
@@ -1328,6 +1396,7 @@ export default function AddIdealizedMemoryScreen() {
         
         setClouds(initialCloudsData);
         initialClouds.current = initialCloudsData.map(c => ({ ...c }));
+        console.log('[LoadMemory] Initialized clouds:', initialClouds.current.length);
       }
 
       // Initialize suns from existing memory
@@ -1366,6 +1435,7 @@ export default function AddIdealizedMemoryScreen() {
         
         setSuns(initialSunsData);
         initialSuns.current = initialSunsData.map(s => ({ ...s }));
+        console.log('[LoadMemory] Initialized suns:', initialSuns.current.length);
       }
 
       // Initialize lessons from existing memory
@@ -1406,7 +1476,16 @@ export default function AddIdealizedMemoryScreen() {
 
         setLessons(initialLessonsData);
         initialLessons.current = initialLessonsData.map(l => ({ ...l }));
+        console.log('[LoadMemory] Initialized lessons:', initialLessons.current.length);
       }
+      
+      console.log('[LoadMemory] Final initial values set:', {
+        memoryLabel: initialMemoryLabel.current,
+        selectedImage: initialSelectedImage.current,
+        cloudsCount: initialClouds.current.length,
+        sunsCount: initialSuns.current.length,
+        lessonsCount: initialLessons.current.length
+      });
     } else {
       // New memory - initialize refs with empty state
       initialMemoryLabel.current = '';
@@ -1414,6 +1493,7 @@ export default function AddIdealizedMemoryScreen() {
       initialClouds.current = [];
       initialSuns.current = [];
       initialLessons.current = [];
+      console.log('[LoadMemory] No existing memory - initial values reset to empty');
     }
   }, [existingMemory, cloudWidth, cloudHeight, sunWidth, sunHeight, getInitialCloudPosition, getInitialSunPosition, getInitialLessonPosition, isLargeDevice]);
   
@@ -1659,6 +1739,14 @@ export default function AddIdealizedMemoryScreen() {
       }
       
       // Update initial state after saving to prevent false positives
+      console.log('[SaveMemory] Updating initial values after save:', {
+        memoryLabel: memoryLabel.trim(),
+        selectedImage,
+        cloudsCount: clouds.length,
+        sunsCount: suns.length,
+        lessonsCount: lessons.length
+      });
+      
       initialMemoryLabel.current = memoryLabel.trim();
       initialSelectedImage.current = selectedImage;
       initialClouds.current = clouds.map(c => ({ ...c }));

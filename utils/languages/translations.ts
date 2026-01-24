@@ -138,11 +138,14 @@ export interface Translations {
   'profile.editProfile': string;
   'profile.editProfile.description': string;
   'profile.name': string;
+  'profile.name.placeholder': string;
   'profile.exPartnerName': string;
   'profile.exPartnerName.placeholder': string;
   'profile.description': string;
   'profile.description.placeholder': string;
   'profile.description.example': string;
+  'profile.image': string;
+  'profile.image.add': string;
   'profile.uploadPicture': string;
   'profile.changePicture': string;
   'profile.openingGallery': string;
@@ -182,6 +185,8 @@ export interface Translations {
   'profile.relationshipType': string;
   'profile.relationshipType.placeholder': string;
   'profile.addFamilyMember': string;
+  'profile.familyMember.add': string;
+  'profile.familyMember.relationship.placeholder': string;
   'profile.editFamilyMember': string;
   'profile.editFamilyInfo': string;
   'profile.editFriendInfo': string;
@@ -197,6 +202,7 @@ export interface Translations {
   'profile.friendName': string;
   'profile.friendName.placeholder': string;
   'profile.addFriend': string;
+  'profile.friend.add': string;
   'profile.addFriend.description': string;
   'profile.editFriend': string;
   'profile.editFriend.description': string;
@@ -212,6 +218,7 @@ export interface Translations {
   'profile.hobbyName': string;
   'profile.hobbyName.placeholder': string;
   'profile.addHobby': string;
+  'profile.hobby.add': string;
   'profile.addHobby.description': string;
   'profile.editHobby': string;
   'profile.editHobby.description': string;
@@ -225,6 +232,13 @@ export interface Translations {
   'profile.hobbyActionSheet.delete': string;
   'profile.hobby.name.required': string;
   'job.addJob': string;
+  'profile.job.add': string;
+  'profile.job.startDate': string;
+  'profile.job.selectStartDate': string;
+  'profile.job.endDate': string;
+  'profile.job.selectEndDate': string;
+  'profile.job.current': string;
+  'profile.relationship.add': string;
   'job.editJob': string;
   'job.editJobInfo': string;
   'job.jobTitle': string;
@@ -651,6 +665,9 @@ export interface Translations {
   'ai.results.title': string;
   'ai.results.sphere': string;
   'ai.results.entity': string;
+  'ai.results.selectEntity': string;
+  'ai.results.unrecognizedEntity': string;
+  'ai.results.expandToAdd': string;
   'ai.results.hardTruth': string;
   'ai.results.goodFact': string;
   'ai.results.lesson': string;
@@ -3496,11 +3513,14 @@ const translations: Record<Language, Translations> = {
     'profile.editProfile': 'Edit Profile',
     'profile.editProfile.description': 'Choose what you\'d like to edit for this profile.',
     'profile.name': 'Name',
+    'profile.name.placeholder': 'Enter name',
     'profile.exPartnerName': 'Partner\'s Name',
     'profile.exPartnerName.placeholder': 'Enter their name',
     'profile.description': 'Description',
     'profile.description.placeholder': 'Enter a short description (max 30 characters)',
     'profile.description.example': 'e.g., College sweetheart, first love...',
+    'profile.image': 'Image',
+    'profile.image.add': 'Add photo',
     'profile.uploadPicture': 'Add a Picture',
     'profile.changePicture': 'Change Picture',
     'profile.openingGallery': 'Opening gallery...',
@@ -3540,10 +3560,12 @@ const translations: Record<Language, Translations> = {
     'profile.relationshipType': 'Relationship Type',
     'profile.relationshipType.placeholder': 'e.g., Mother, Father, Sister...',
     'profile.familyMember.relationship': 'Relationship',
+    'profile.familyMember.relationship.placeholder': 'e.g., Mother, Brother',
     'profile.relationship.status': 'Status',
     'profile.relationship.current': 'Current',
     'profile.relationship.past': 'Past',
     'profile.addFamilyMember': 'Add Family Member',
+    'profile.familyMember.add': 'Add Family Member',
     'profile.editFamilyMember': 'Edit Family Member',
     'profile.editFamilyInfo': 'Edit Info',
     'profile.editFriendInfo': 'Edit Info',
@@ -3559,6 +3581,7 @@ const translations: Record<Language, Translations> = {
     'profile.friendName': 'Friend Name',
     'profile.friendName.placeholder': 'Enter their name',
     'profile.addFriend': 'Add Friend',
+    'profile.friend.add': 'Add Friend',
     'profile.addFriend.description': 'Add a friend to track your relationship moments',
     'profile.editFriend': 'Edit Friend',
     'profile.editFriend.description': 'Update your friend\'s information',
@@ -3574,6 +3597,7 @@ const translations: Record<Language, Translations> = {
     'profile.hobbyName': 'Hobby Name',
     'profile.hobbyName.placeholder': 'Enter hobby name',
     'profile.addHobby': 'Add Hobby',
+    'profile.hobby.add': 'Add Hobby',
     'profile.addHobby.description': 'Add a hobby to track your activity moments',
     'profile.editHobby': 'Edit Hobby',
     'profile.editHobby.description': 'Update your hobby\'s information',
@@ -3587,6 +3611,13 @@ const translations: Record<Language, Translations> = {
     'profile.hobbyActionSheet.delete': 'Delete',
     'profile.hobby.name.required': 'Name is required',
     'job.addJob': 'Add Job',
+    'profile.job.add': 'Add Job',
+    'profile.job.startDate': 'Start Date',
+    'profile.job.selectStartDate': 'Select start date',
+    'profile.job.endDate': 'End Date',
+    'profile.job.selectEndDate': 'Select end date',
+    'profile.job.current': 'Current',
+    'profile.relationship.add': 'Add Relationship',
     'job.editJob': 'Edit Job',
     'job.editJobInfo': 'Edit Info',
     'job.jobTitle': 'Job Title',
@@ -4015,6 +4046,9 @@ const translations: Record<Language, Translations> = {
     'ai.results.title': 'AI Suggestions',
     'ai.results.sphere': 'Sphere',
     'ai.results.entity': 'Entity',
+    'ai.results.selectEntity': 'Select entity...',
+    'ai.results.unrecognizedEntity': 'Unrecognized entity.',
+    'ai.results.expandToAdd': 'Expand to Add the sfera entity',
     'ai.results.hardTruth': 'Hard Truth',
     'ai.results.goodFact': 'Good Fact',
     'ai.results.lesson': 'Lesson',
@@ -6437,11 +6471,14 @@ const translations: Record<Language, Translations> = {
     'profile.editProfile': 'Редактирай Профил',
     'profile.editProfile.description': 'Изберете какво искате да редактирате за този профил.',
     'profile.name': 'Име',
+    'profile.name.placeholder': 'Въведете име',
     'profile.exPartnerName': 'Име на Партньор',
     'profile.exPartnerName.placeholder': 'Въведете името им',
     'profile.description': 'Описание',
     'profile.description.placeholder': 'Въведете кратко описание (макс. 30 символа)',
     'profile.description.example': 'напр. Студентска любов, първа любов...',
+    'profile.image': 'Снимка',
+    'profile.image.add': 'Добави снимка',
     'profile.uploadPicture': 'Добави Снимка',
     'profile.changePicture': 'Промени Снимка',
     'profile.openingGallery': 'Отваряне на галерия...',
@@ -6481,12 +6518,14 @@ const translations: Record<Language, Translations> = {
     'profile.relationshipType': 'Тип Връзка',
     'profile.relationshipType.placeholder': 'напр. Майка, Баща, Сестра...',
     'profile.familyMember.relationship': 'Връзка',
+    'profile.familyMember.relationship.placeholder': 'напр. Майка, Брат',
     'profile.relationship.status': 'Статус',
     'profile.relationship.current': 'Текуща',
     'profile.relationship.past': 'Минала',
     'profile.relationship.startDate': 'Начална дата',
     'profile.relationship.endDate': 'Крайна дата',
     'profile.addFamilyMember': 'Добави Член на Семейството',
+    'profile.familyMember.add': 'Добави Член на Семейството',
     'profile.editFamilyMember': 'Редактирай Член на Семейството',
     'profile.editFamilyInfo': 'Редактирай Информация',
     'profile.editFriendInfo': 'Редактирай Информация',
@@ -6517,6 +6556,7 @@ const translations: Record<Language, Translations> = {
     'profile.hobbyName': 'Име на Хоби',
     'profile.hobbyName.placeholder': 'Въведете име на хоби',
     'profile.addHobby': 'Добави Хоби',
+    'profile.hobby.add': 'Добави Хоби',
     'profile.addHobby.description': 'Добавете хоби, за да проследявате моментите от вашата дейност',
     'profile.editHobby': 'Редактирай Хоби',
     'profile.editHobby.description': 'Актуализирайте информацията за вашето хоби',
@@ -6530,6 +6570,13 @@ const translations: Record<Language, Translations> = {
     'profile.hobbyActionSheet.delete': 'Изтрий',
     'profile.hobby.name.required': 'Името е задължително',
     'job.addJob': 'Добави Работно Място',
+    'profile.job.add': 'Добави Работа',
+    'profile.job.startDate': 'Начална Дата',
+    'profile.job.selectStartDate': 'Изберете начална дата',
+    'profile.job.endDate': 'Крайна Дата',
+    'profile.job.selectEndDate': 'Изберете крайна дата',
+    'profile.job.current': 'Текуща',
+    'profile.relationship.add': 'Добави Връзка',
     'job.editJob': 'Редактирай Работно Място',
     'job.editJobInfo': 'Редактирай Информация',
     'job.jobTitle': 'Длъжност',
@@ -6959,6 +7006,9 @@ const translations: Record<Language, Translations> = {
     'ai.results.title': 'AI Предложения',
     'ai.results.sphere': 'Сфера',
     'ai.results.entity': 'Обект',
+    'ai.results.selectEntity': 'Избери обект...',
+    'ai.results.unrecognizedEntity': 'Нераспознат обект.',
+    'ai.results.expandToAdd': 'Разгъни, за да добавиш обекта на сферата',
     'ai.results.hardTruth': 'Трудна истина',
     'ai.results.goodFact': 'Добър факт',
     'ai.results.lesson': 'Урок',
