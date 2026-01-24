@@ -112,6 +112,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentView, setCurrentView] = useState<ModalView>('input');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isPickingImage, setIsPickingImage] = useState(false);
   const [aiResponse, setAiResponse] = useState<AIMemoryResponse | null>(null);
   const [memoryItems, setMemoryItems] = useState<AIMemoryItem[]>([]);
   const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(null);
@@ -669,6 +670,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
   };
 
   const handlePickImage = async () => {
+    setIsPickingImage(true);
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -712,6 +714,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         t('common.error') || 'Error',
         (error as Error).message || (t('ai.error.image' as any) as any) || 'Failed to pick image'
       );
+    } finally {
+      setIsPickingImage(false);
     }
   };
 
@@ -1242,7 +1246,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       paddingHorizontal: 24 * fontScale,
       paddingTop: 24 * fontScale,
       paddingBottom: 12 * fontScale,
-      minHeight: 500 * fontScale,
+      minHeight: 360 * fontScale,
       maxHeight: '85%',
     },
     modalContainerLarge: {
@@ -2019,11 +2023,18 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                     style={styles.imageUploadButtonLarge}
                     onPress={handlePickImage}
                     activeOpacity={0.7}
+                    disabled={isPickingImage}
                   >
-                    <MaterialIcons name="add-photo-alternate" size={32 * fontScale} color={colors.primary} />
-                    <ThemedText size="sm" weight="medium" style={{ color: colors.primary, marginTop: 8 * fontScale }}>
-                      {t('ai.upload.image') || 'Add photo'}
-                    </ThemedText>
+                    {isPickingImage ? (
+                      <ActivityIndicator size="large" color={colors.primary} />
+                    ) : (
+                      <>
+                        <MaterialIcons name="add-photo-alternate" size={32 * fontScale} color={colors.primary} />
+                        <ThemedText size="sm" weight="medium" style={{ color: colors.primary, marginTop: 8 * fontScale }}>
+                          {t('ai.upload.image') || 'Add photo'}
+                        </ThemedText>
+                      </>
+                    )}
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.imagePreview}>
@@ -2405,21 +2416,33 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                               <TouchableOpacity
                                 style={styles.addEntityImageUploadButton}
                                 onPress={async () => {
-                                  const result = await ImagePicker.launchImageLibraryAsync({
-                                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                                    allowsEditing: true,
-                                    aspect: [1, 1],
-                                    quality: 0.8,
-                                  });
-                                  if (!result.canceled && result.assets[0]) {
-                                    setNewEntityImage(result.assets[0].uri);
+                                  setIsPickingImage(true);
+                                  try {
+                                    const result = await ImagePicker.launchImageLibraryAsync({
+                                      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                                      allowsEditing: true,
+                                      aspect: [1, 1],
+                                      quality: 0.8,
+                                    });
+                                    if (!result.canceled && result.assets[0]) {
+                                      setNewEntityImage(result.assets[0].uri);
+                                    }
+                                  } finally {
+                                    setIsPickingImage(false);
                                   }
                                 }}
+                                disabled={isPickingImage}
                               >
-                                <MaterialIcons name="add-photo-alternate" size={24 * fontScale} color={colors.primary} />
-                                <ThemedText size="xs" style={{ color: colors.primary, marginTop: 4 * fontScale }}>
-                                  {t('profile.image.add' as any) || 'Add photo'}
-                                </ThemedText>
+                                {isPickingImage ? (
+                                  <ActivityIndicator size="small" color={colors.primary} />
+                                ) : (
+                                  <>
+                                    <MaterialIcons name="add-photo-alternate" size={24 * fontScale} color={colors.primary} />
+                                    <ThemedText size="xs" style={{ color: colors.primary, marginTop: 4 * fontScale }}>
+                                      {t('profile.image.add' as any) || 'Add photo'}
+                                    </ThemedText>
+                                  </>
+                                )}
                               </TouchableOpacity>
                             )}
                           </View>

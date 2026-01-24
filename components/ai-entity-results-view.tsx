@@ -8,6 +8,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo, useState, useEffect } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   ScrollView,
@@ -44,6 +45,7 @@ export function AIEntityResultsView({
   const [isSaving, setIsSaving] = useState(false);
   const [datePickerEntityIndex, setDatePickerEntityIndex] = useState<number | null>(null);
   const [datePickerField, setDatePickerField] = useState<'startDate' | 'endDate' | null>(null);
+  const [pickingImageForEntityIndex, setPickingImageForEntityIndex] = useState<number | null>(null);
 
   // Sort entities: current relationships/jobs first
   const sortedEntities = useMemo(() => {
@@ -266,6 +268,10 @@ export function AIEntityResultsView({
   };
 
   const handlePickImage = async (entity: AIEntitySuggestion) => {
+    const index = findEntityIndex(entity);
+    if (index < 0) return;
+    
+    setPickingImageForEntityIndex(index);
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -284,16 +290,15 @@ export function AIEntityResultsView({
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        const index = findEntityIndex(entity);
-        if (index >= 0) {
-          updateEntity(index, { imageUri: result.assets[0].uri });
-        }
+        updateEntity(index, { imageUri: result.assets[0].uri });
       }
     } catch (error) {
       Alert.alert(
         t('common.error') || 'Error',
         t('error.imagePickFailed') || 'Failed to pick image.'
       );
+    } finally {
+      setPickingImageForEntityIndex(null);
     }
   };
 
@@ -806,15 +811,22 @@ export function AIEntityResultsView({
                   <TouchableOpacity
                     style={styles.imagePlaceholder}
                     onPress={() => handlePickImage(entity)}
+                    disabled={pickingImageForEntityIndex === index}
                   >
-                    <MaterialIcons 
-                      name="add-photo-alternate" 
-                      size={32 * fontScale} 
-                      color={colors.muted} 
-                    />
-                    <ThemedText size="s" style={{ marginTop: 8 * fontScale, opacity: 0.7 }}>
-                      {t('common.addPhoto') || 'Add Photo'}
-                    </ThemedText>
+                    {pickingImageForEntityIndex === index ? (
+                      <ActivityIndicator size="large" color={colors.primary} />
+                    ) : (
+                      <>
+                        <MaterialIcons 
+                          name="add-photo-alternate" 
+                          size={32 * fontScale} 
+                          color={colors.muted} 
+                        />
+                        <ThemedText size="s" style={{ marginTop: 8 * fontScale, opacity: 0.7 }}>
+                          {t('common.addPhoto') || 'Add Photo'}
+                        </ThemedText>
+                      </>
+                    )}
                   </TouchableOpacity>
                 )}
               </View>
