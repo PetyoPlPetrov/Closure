@@ -176,6 +176,16 @@ export default function SpheresScreen() {
   const { isSubscribed, offerings } = useSubscription();
   const t = useTranslate();
 
+  // Phone-only viewport scaling to preserve proportions across different phone sizes.
+  // Tablets keep existing fixed sizing.
+  const phoneViewportScale = useMemo(() => {
+    if (isTablet) return 1;
+    const base = 390; // iPhone 14-ish logical width baseline
+    const minDim = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT);
+    // Clamp so very small/large phones don't get extreme spacing.
+    return Math.max(0.85, Math.min(1.2, minDim / base));
+  }, [isTablet]);
+
   const containerRef = useRef<View>(null);
   const [containerLayout, setContainerLayout] = useState<{ width: number; height: number; x: number; y: number } | null>(null);
   const [textWidths, setTextWidths] = useState<Record<LifeSphere, number>>({
@@ -2232,7 +2242,7 @@ export default function SpheresScreen() {
 
                 // Pre-calculate values used by both button and cards
                 // Use larger radius for tablets to spread spheres out more
-                const radius = isTablet ? 200 * fontScale : 140 * fontScale;
+                const radius = isTablet ? 200 * fontScale : 140 * fontScale * phoneViewportScale;
                 
                 // Helper function to calculate card width based on text width
                 const calculateCardWidth = (sphereType: LifeSphere): number => {
@@ -2243,7 +2253,7 @@ export default function SpheresScreen() {
                   // Minimum width based on 7-letter word width, or fallback to fixed size
                   const minWidthBasedOnText = sevenLetterWidth > 0 
                     ? sevenLetterWidth + horizontalPadding + (16 * fontScale)
-                    : 100 * fontScale;
+                    : 100 * fontScale * (isTablet ? 1 : phoneViewportScale);
                   
                   // Remove maxWidth constraint - let card expand to fit text
                   const screenWidth = Dimensions.get('window').width;
@@ -2251,7 +2261,10 @@ export default function SpheresScreen() {
                   
                   // If text hasn't been measured yet, use a default width
                   if (textWidth === 0) {
-                    return Math.max(minWidthBasedOnText, isTablet ? 160 * fontScale : 120 * fontScale);
+                    return Math.max(
+                      minWidthBasedOnText,
+                      isTablet ? 160 * fontScale : 120 * fontScale * phoneViewportScale
+                    );
                   }
                   
                   // Card width = text width + reduced padding to minimize empty space
@@ -2384,7 +2397,7 @@ export default function SpheresScreen() {
                     {/* AI Square - positioned in perfect orbit */}
                     {(() => {
                       // Use similar sizing logic as other spheres
-                      const aiCardWidth = isTablet ? 120 * fontScale : 100 * fontScale;
+                      const aiCardWidth = isTablet ? 120 * fontScale : 100 * fontScale * phoneViewportScale;
                       const aiCardHalfWidth = aiCardWidth / 2;
                       const aiCardHalfHeight = aiCardWidth / 2;
                       // Position in perfect orbit: 90° (top) - 60° spacing from Relationships at -90°
