@@ -9508,11 +9508,13 @@ export default function HomeScreen() {
   }, [overallSunnyPercentage, t]);
 
   // Ensure we always show a sparkle at the end (the AI sometimes omits it).
+  // If the AI already included a sparkle/AI-style icon at the end, don't double-append.
   const encouragementTextWithSparkle = useMemo(() => {
     const base = (aiEncouragementText || fallbackEncouragementText || '').trim();
     if (!base) return base;
-    // If it already ends with a sparkle emoji, keep as-is.
-    if (/✨\s*$/.test(base)) return base;
+    // If it already ends with a sparkle (or common variants), keep as-is.
+    // Handles cases like: "…✨", "… ✨", "…✨✨", "…✨." (punctuation after).
+    if (/(?:✨|🌟|⭐️?)+[\s.!?…]*$/.test(base)) return base;
     return `${base} ✨`;
   }, [aiEncouragementText, fallbackEncouragementText]);
 

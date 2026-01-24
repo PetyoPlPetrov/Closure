@@ -1178,10 +1178,18 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
       // CRITICAL: Slow down animations during capture to match capture speed
       // Frame capture takes ~215ms per frame (not 33ms), so animations run 6.5x faster than video
       // We need to slow animations by the same factor
-      // Estimate: captureRef takes ~200ms per frame on average
+      // Estimate: captureRef takes ~200ms per frame on average.
+      // Capturing at true 30fps is unrealistic and can produce intermittent "blank/black" frames under load.
+      //
+      // Approach:
+      // - Capture at a stable fps (captureFps)
+      // - Export at a higher fps (exportFps) by duplicating frames
+      // This keeps the final video "natural" (30fps playback) while avoiding capture overload.
+      const captureFps = 15;
+      const exportFps = 30;
       const estimatedCaptureTimePerFrame = 200; // ms (based on previous captures)
-      const targetFrameTime = 1000 / 30; // 33.33ms for 30fps
-      const timeScaleFactor = estimatedCaptureTimePerFrame / targetFrameTime; // ~6x slower
+      const targetFrameTime = 1000 / captureFps; // e.g. 66.7ms for 15fps
+      const timeScaleFactor = estimatedCaptureTimePerFrame / targetFrameTime;
 
       // Update the ref so popup interval also gets scaled
       timeScaleFactorRef.current = timeScaleFactor;
@@ -1232,27 +1240,32 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
       const baseInterval = 1500 - (memoryRotationSpeed * 100);
       const popupInterval = Math.max(500, Math.min(1500, baseInterval)); // Time between moment appearances
 
-      // Calculate moment lifecycle timing (matching PopUpMoment component)
-      const growDuration = 600;
-      const holdLargeDuration = 200;
-      const holdVisibleDuration = 500 + (popupDisappearSpeed * 950);
-      const shrinkDuration = 600;
+      // Calculate moment lifecycle timing (matching PopUpMoment component).
+      // IMPORTANT: PopUpMoment scales its durations by `timeScaleFactor` during capture,
+      // and the popup scheduler scales its interval by `timeScaleFactorRef.current`.
+      // If we don't apply the same scaling here, we'll stop capturing too early -> video feels "too fast".
+      const growDuration = 600 * timeScaleFactorRef.current;
+      const holdLargeDuration = 200 * timeScaleFactorRef.current;
+      const holdVisibleDuration = (500 + (popupDisappearSpeed * 950)) * timeScaleFactorRef.current;
+      const shrinkDuration = 600 * timeScaleFactorRef.current;
       const totalMomentDuration = growDuration + holdLargeDuration + holdVisibleDuration + shrinkDuration;
 
-      // Time for all moments to appear: (allMoments.length - 1) * popupInterval
-      const timeForAllToAppear = (allMoments.length - 1) * popupInterval;
+      // Popup appearances are also slowed during capture (see useEffect: scaledInterval)
+      const scaledPopupInterval = popupInterval * timeScaleFactorRef.current;
+
+      // Time for all moments to appear: (allMoments.length - 1) * scaledPopupInterval
+      const timeForAllToAppear = (allMoments.length - 1) * scaledPopupInterval;
       // Time for all moments to complete their lifecycle
       const timeForAllMomentsComplete = timeForAllToAppear + totalMomentDuration;
 
-      // BUT: Also ensure we capture at least one full memory rotation
-      // Otherwise the video looks sped up compared to the preview
-      const captureTime = Math.max(timeForAllMomentsComplete, actualMemoryAnimDuration);
+      // Ensure we capture at least one full memory rotation at the slowed duration,
+      // otherwise playback feels sped up compared to what the user previewed.
+      const captureTime = Math.max(timeForAllMomentsComplete, scaledMemoryDuration);
 
       // Capture frames in real-time matching the animation duration
       // captureTime is the animation duration we want to capture
       // We'll capture in real-time at the same pace as animations run
-      const videoFps = 30; // Final video playback speed
-      const frameDuration = 1000 / videoFps; // Time per frame in ms (33.33ms for 30fps)
+      const frameDuration = 1000 / captureFps; // Capture frame spacing
       const frameCount = Math.floor(captureTime / frameDuration);
       const frames: string[] = [];
 
@@ -1261,7 +1274,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
       console.log(`[GifAnimationPreview] Moments complete in: ${timeForAllMomentsComplete}ms (${(timeForAllMomentsComplete/1000).toFixed(1)}s)`);
       console.log(`[GifAnimationPreview] Memory full rotation: ${actualMemoryAnimDuration}ms (${(actualMemoryAnimDuration/1000).toFixed(1)}s)`);
       console.log(`[GifAnimationPreview] Capturing ${frameCount} frames over ${(captureTime/1000).toFixed(1)}s in real-time`);
-      console.log(`[GifAnimationPreview] Frame interval: ${frameDuration.toFixed(1)}ms, Video playback: ${videoFps}fps = ${(frameCount/videoFps).toFixed(1)}s duration`);
+      console.log(`[GifAnimationPreview] Capture fps: ${captureFps}, Export fps: ${exportFps}`);
 
       const captureStartTime = Date.now();
       for (let i = 0; i < frameCount; i++) {
@@ -1343,15 +1356,20 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
 
       setCaptureProgress(75); // Video creation starts at 75%
 
-      console.log(`[GifAnimationPreview] Creating video with ${frameCount} frames at ${videoFps} fps`);
+      // Expand frames to match export fps (duplicate each frame N times, consecutively)
+      // e.g. [f1,f2] at 15fps -> [f1,f1,f2,f2] at 30fps (same duration, smoother playback)
+      const duplicationFactor = Math.max(1, Math.round(exportFps / captureFps));
+      const exportFramePaths = absoluteFramePaths.flatMap((p) => Array.from({ length: duplicationFactor }, () => p));
+
+      console.log(`[GifAnimationPreview] Creating video with ${exportFramePaths.length} frames at ${exportFps} fps (duplicationFactor=${duplicationFactor})`);
       console.log(`[GifAnimationPreview] Video will show all ${allMoments.length} moments appearing once`);
-      console.log(`[GifAnimationPreview] Expected video duration: ${(frameCount / videoFps).toFixed(1)}s`);
+      console.log(`[GifAnimationPreview] Expected video duration: ${(exportFramePaths.length / exportFps).toFixed(1)}s`);
       console.log(`[GifAnimationPreview] Each moment lifecycle: ${totalMomentDuration}ms (appear + visible + disappear)`);
 
       const videoPath = await createVideoFromFrames({
-        framePaths: absoluteFramePaths,
+        framePaths: exportFramePaths,
         outputPath: outputPath, // Use original path with file:// if present
-        fps: videoFps,
+        fps: exportFps,
         width: Math.floor(SCREEN_WIDTH),
         height: Math.floor(SCREEN_HEIGHT),
       });
@@ -1897,5 +1915,7 @@ const styles = StyleSheet.create({
     height: SCREEN_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
+    // Ensure captured frames always have an opaque base (prevents occasional transparent->black snapshots).
+    backgroundColor: '#0B1220',
   },
 });
