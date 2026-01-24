@@ -8,6 +8,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { useAIInsightsConsent } from '@/utils/AIInsightsConsentProvider';
 import { resetStreakData } from '@/utils/streak-manager';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -15,8 +16,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Asset } from 'expo-asset';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { Alert, DimensionValue, Modal, Pressable, ScrollView, StyleSheet, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, DimensionValue, Modal, Pressable, ScrollView, StyleSheet, Switch, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
@@ -27,6 +28,7 @@ export default function SettingsScreen() {
   const { addProfile, addJob, addFamilyMember, addFriend, addHobby, addIdealizedMemory, profiles, jobs, familyMembers, friends, hobbies, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, reloadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies, cleanupOrphanedMemories } = useJourney();
   const { presentPaywall } = useSubscription();
   const t = useTranslate();
+  const aiConsent = useAIInsightsConsent();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
   const [isDeletingData, setIsDeletingData] = useState(false);
@@ -40,6 +42,10 @@ export default function SettingsScreen() {
         title: TextStyle;
         section: ViewStyle;
         sectionTitle: TextStyle;
+        aiToggleRow: ViewStyle;
+        aiToggleTextWrap: ViewStyle;
+        aiToggleTitle: TextStyle;
+        aiToggleSubtitle: TextStyle;
         languageOption: ViewStyle;
         languageOptionSelected: ViewStyle;
         languageOptionContent: ViewStyle;
@@ -72,6 +78,32 @@ export default function SettingsScreen() {
         },
         sectionTitle: {
           marginBottom: 8 * fontScale,
+        },
+        aiToggleRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 16 * fontScale,
+          borderRadius: 12 * fontScale,
+          backgroundColor:
+            colorScheme === 'dark'
+              ? 'rgba(255, 255, 255, 0.05)'
+              : 'rgba(0, 0, 0, 0.05)',
+          borderWidth: 1,
+          borderColor:
+            colorScheme === 'dark'
+              ? 'rgba(255, 255, 255, 0.1)'
+              : 'rgba(0, 0, 0, 0.1)',
+        },
+        aiToggleTextWrap: {
+          flex: 1,
+          paddingRight: 12 * fontScale,
+        },
+        aiToggleTitle: {
+          marginBottom: 4 * fontScale,
+        },
+        aiToggleSubtitle: {
+          opacity: 0.75,
         },
         languageOption: {
           flexDirection: 'row',
@@ -183,6 +215,14 @@ export default function SettingsScreen() {
   const getLanguageLabel = (lang: 'en' | 'bg') => {
     return lang === 'en' ? t('settings.language.english') : t('settings.language.bulgarian');
   };
+
+  const handleToggleAIInsights = useCallback(async (next: boolean) => {
+    try {
+      await aiConsent.setChoice(next ? 'enabled' : 'maybe_later');
+    } catch {
+      // ignore (provider will re-sync)
+    }
+  }, [aiConsent]);
 
 
   const handleNotificationsPress = async () => {
@@ -1594,6 +1634,29 @@ export default function SettingsScreen() {
             </View>
           </Pressable>
         </Modal>
+
+        <View style={styles.section}>
+          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            AI Insights
+          </ThemedText>
+
+          <View style={styles.aiToggleRow}>
+            <View style={styles.aiToggleTextWrap}>
+              <ThemedText size="l" weight="medium" style={styles.aiToggleTitle}>
+                Enable AI Insights
+              </ThemedText>
+              <ThemedText size="sm" style={styles.aiToggleSubtitle}>
+                Uses AI to analyze your memories and show motivational nudges. Your data is sent securely to our AI partner solely for this purpose and is not used for training models.
+              </ThemedText>
+            </View>
+            <Switch
+              value={aiConsent.isEnabled}
+              onValueChange={handleToggleAIInsights}
+              trackColor={{ false: 'rgba(150,150,150,0.35)', true: colors.primary }}
+              thumbColor={'#FFFFFF'}
+            />
+          </View>
+        </View>
 
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>

@@ -1,6 +1,7 @@
 import { AIModal } from '@/components/ai-modal';
 import { AIActionModal } from '@/components/ai-action-modal';
 import { AIEntityCreationModal } from '@/components/ai-entity-creation-modal';
+import { AIInsightsConsentModal } from '@/components/ai-insights-consent-modal';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -11,6 +12,7 @@ import { ProfileCard } from '@/library/components/profile-card';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { getPendingAIRequest, getPendingAIResponse, isBackgroundTaskRunning } from '@/utils/ai-background-processor';
 import { getPendingEntityRequest, getPendingEntityResponse, isBackgroundEntityTaskRunning } from '@/utils/ai-background-processor';
+import { useAIInsightsConsent } from '@/utils/AIInsightsConsentProvider';
 import { sendToAI } from '@/utils/ai-service';
 import type { ExProfile, FamilyMember, Friend, Hobby, Job, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
@@ -175,6 +177,7 @@ export default function SpheresScreen() {
   const { profiles, jobs, familyMembers, friends, hobbies, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, reloadIdealizedMemories, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories } = useJourney();
   const { isSubscribed, offerings } = useSubscription();
   const t = useTranslate();
+  const aiConsent = useAIInsightsConsent();
 
   // Phone-only viewport scaling to preserve proportions across different phone sizes.
   // Tablets keep existing fixed sizing.
@@ -287,6 +290,8 @@ export default function SpheresScreen() {
   const [aiEntityCreationModalVisible, setAiEntityCreationModalVisible] = useState(false);
   const [pendingAIResponse, setPendingAIResponse] = useState<any>(null);
   const [pendingEntityResponse, setPendingEntityResponse] = useState<any>(null);
+  const [aiInsightsConsentVisible, setAiInsightsConsentVisible] = useState(false);
+  const pendingAIIconActionRef = useRef<null | 'open_ai'>(null);
   
   // Check for pending AI response when app becomes active or component mounts
   // This ensures data persists even after app is killed
@@ -505,6 +510,12 @@ export default function SpheresScreen() {
 
   // Check for pending response when modal opens manually
   const handleAIModalOpen = async () => {
+    if (!aiConsent.isEnabled) {
+      pendingAIIconActionRef.current = 'open_ai';
+      setAiInsightsConsentVisible(true);
+      return;
+    }
+
     // Check for pending response or request
     const pendingResponse = await getPendingAIResponse();
     if (pendingResponse) {
@@ -2597,6 +2608,26 @@ export default function SpheresScreen() {
             </View>
           </View>
         )}
+
+        <AIInsightsConsentModal
+          visible={aiInsightsConsentVisible}
+          onEnable={() => {
+            void aiConsent.setChoice('enabled').then(() => {
+              setAiInsightsConsentVisible(false);
+              const pending = pendingAIIconActionRef.current;
+              pendingAIIconActionRef.current = null;
+              if (pending === 'open_ai') {
+                void handleAIModalOpen();
+              }
+            });
+          }}
+          onMaybeLater={() => {
+            void aiConsent.setChoice('maybe_later').then(() => {
+              pendingAIIconActionRef.current = null;
+              setAiInsightsConsentVisible(false);
+            });
+          }}
+        />
 
         {/* AI Action Modal */}
         {aiActionModalVisible && (

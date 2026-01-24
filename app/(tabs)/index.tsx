@@ -12,9 +12,11 @@ import { OnboardingStepper } from '@/library/components/onboarding-stepper';
 import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS, TabScreenContainer } from '@/library/components/tab-screen-container';
 import { logError } from '@/utils/error-logger';
 import { processHomeEncouragementPrompt } from '@/utils/ai-service';
+import { AIInsightsConsentModal } from '@/components/ai-insights-consent-modal';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useLanguage } from '@/utils/languages/language-context';
+import { useAIInsightsConsent } from '@/utils/AIInsightsConsentProvider';
 import { requestSpheresTabPulse, stopSpheresTabPulse } from '@/utils/spheres-tab-pulse';
 import { useSplash } from '@/utils/SplashAnimationProvider';
 import {
@@ -9481,6 +9483,9 @@ export default function HomeScreen() {
   const [aiEncouragementText, setAiEncouragementText] = useState<string | null>(null);
   const [aiEncouragementLoading, setAiEncouragementLoading] = useState(false);
   const [aiEncouragementError, setAiEncouragementError] = useState(false);
+  const [aiInsightsConsentVisible, setAiInsightsConsentVisible] = useState(false);
+  const aiInsightsConsentPromptedRef = useRef(false);
+  const aiConsent = useAIInsightsConsent();
   // When user closes the banner, bump this to force a new AI message next time it shows.
   const [encouragementCacheBust, setEncouragementCacheBust] = useState(0);
   const lastEncouragementCacheKeyRef = useRef<string | null>(null);
@@ -9518,12 +9523,32 @@ export default function HomeScreen() {
     return `${base} ✨`;
   }, [aiEncouragementText, fallbackEncouragementText]);
 
+  const fallbackEncouragementTextClean = useMemo(() => {
+    // Some local translations include sparkle/star emojis; when AI is disabled we don't want AI-like adornments.
+    return (fallbackEncouragementText || '').trim().replace(/(?:\s*(?:✨|🌟|⭐️?)+[\s.!?…]*)+$/g, '').trim();
+  }, [fallbackEncouragementText]);
+
   // AI encouragement (cached). Keeps existing logic as fallback.
   useEffect(() => {
     let cancelled = false;
 
     const run = async () => {
       if (!hasAnyMoments || !isEncouragementVisible) return;
+      // Gate AI usage behind explicit consent.
+      const consent = aiConsent.choice;
+      if (!aiConsent.isLoaded) return;
+      if (consent !== 'enabled') {
+        // Only show the prompt once automatically; otherwise silently fallback.
+        if (consent === null && !aiInsightsConsentPromptedRef.current) {
+          aiInsightsConsentPromptedRef.current = true;
+          if (!cancelled) setAiInsightsConsentVisible(true);
+        }
+        if (!cancelled) setAiEncouragementText(null);
+        if (!cancelled) setAiEncouragementError(false);
+        if (!cancelled) setAiEncouragementLoading(false);
+        return;
+      }
+
       // While we fetch a fresh AI message, avoid flashing fallback text.
       setAiEncouragementError(false);
       setAiEncouragementLoading(true);
@@ -9604,6 +9629,9 @@ export default function HomeScreen() {
     fallbackEncouragementText,
     appLanguage,
     encouragementCacheBust,
+    aiInsightsConsentVisible,
+    aiConsent.choice,
+    aiConsent.isLoaded,
   ]);
   
   // Message position constants
@@ -12729,6 +12757,29 @@ export default function HomeScreen() {
       // momentType={showMomentTypeSelector ? selectedMomentType : undefined}
       // momentTypeOpacity={cornerGlowOpacity}
     >
+        {/* Never show AI consent / banner if user has no memories */}
+        {hasAnyMoments && (
+          <AIInsightsConsentModal
+            visible={aiInsightsConsentVisible}
+            onEnable={() => {
+              void aiConsent.setChoice('enabled').then(() => {
+                setAiInsightsConsentVisible(false);
+                // Trigger a fresh AI message now that consent is granted
+                setAiEncouragementText(null);
+                setEncouragementCacheBust((x) => x + 1);
+              });
+            }}
+            onMaybeLater={() => {
+              void aiConsent.setChoice('maybe_later').then(() => {
+                setAiInsightsConsentVisible(false);
+                // Use fallback (no AI call)
+                setAiEncouragementText(null);
+                setAiEncouragementLoading(false);
+              });
+            }}
+          />
+        )}
+
         {/* Streak Badge - Top Right */}
         {streakData && (
           <StreakBadgeComponent
@@ -12780,7 +12831,11 @@ export default function HomeScreen() {
           
           {/* Encouraging Message Section */}
           {/* Only render when we have content (AI text) or an error fallback. Avoid empty flash while AI loads. */}
-          {hasAnyMoments && isEncouragementVisible && (aiEncouragementError || !!aiEncouragementText) && (
+          {hasAnyMoments &&
+            isEncouragementVisible &&
+            // If AI isn't enabled, always show the local fallback encouragement.
+            // If AI is enabled, only show when we have AI text or an error (fallback).
+            (!aiConsent.isEnabled || aiEncouragementError || !!aiEncouragementText) && (
             <View
               style={[
                 encouragementContainerStyle,
@@ -12838,9 +12893,9 @@ export default function HomeScreen() {
                 size="sm"
                 style={encouragementTextStyle}
               >
-                {aiEncouragementText
+                {aiConsent.isEnabled && aiEncouragementText
                   ? encouragementTextWithSparkle
-                  : `${fallbackEncouragementText.trim()} ✨`}
+                  : fallbackEncouragementTextClean}
               </ThemedText>
             </View>
           )}
