@@ -125,6 +125,12 @@ export function AIEntityResultsView({
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
+          borderWidth: 1,
+          borderColor: 'transparent',
+        },
+        dateButtonError: {
+          borderColor: '#FF4444',
+          borderWidth: 2,
         },
         toggleButton: {
           padding: 8 * fontScale,
@@ -332,6 +338,14 @@ export function AIEntityResultsView({
         }
         if (entity.isCurrent === false && !entity.endDate) {
           return false;
+        }
+        // Validate that end date is after start date
+        if (entity.startDate && entity.endDate) {
+          const startDate = new Date(entity.startDate);
+          const endDate = new Date(entity.endDate);
+          if (endDate <= startDate) {
+            return false;
+          }
         }
       }
     }
@@ -631,7 +645,10 @@ export function AIEntityResultsView({
                     {t('profile.relationshipStartDate') || 'Start Date'} *
                   </ThemedText>
                   <TouchableOpacity
-                    style={styles.dateButton}
+                    style={[
+                      styles.dateButton,
+                      !entity.startDate && styles.dateButtonError,
+                    ]}
                     onPress={() => {
                       const idx = findEntityIndex(entity);
                       if (idx >= 0) {
@@ -658,7 +675,10 @@ export function AIEntityResultsView({
                       {t('profile.relationshipEndDate') || 'End Date'} *
                     </ThemedText>
                     <TouchableOpacity
-                      style={styles.dateButton}
+                      style={[
+                        styles.dateButton,
+                        (!entity.endDate || (entity.startDate && entity.endDate && new Date(entity.endDate) <= new Date(entity.startDate))) && styles.dateButtonError,
+                      ]}
                       onPress={() => {
                         const idx = findEntityIndex(entity);
                         if (idx >= 0) {
@@ -675,6 +695,10 @@ export function AIEntityResultsView({
                     {!entity.endDate ? (
                       <ThemedText size="xs" style={styles.errorText}>
                         {t('common.required') || 'Required'}
+                      </ThemedText>
+                    ) : entity.startDate && entity.endDate && new Date(entity.endDate) <= new Date(entity.startDate) ? (
+                      <ThemedText size="xs" style={styles.errorText}>
+                        {t('profile.date.error.endBeforeStart') || 'End date must be after start date.'}
                       </ThemedText>
                     ) : null}
                   </View>
@@ -736,7 +760,10 @@ export function AIEntityResultsView({
                     {t('profile.relationship.startDate') || 'Start Date'} *
                   </ThemedText>
                   <TouchableOpacity
-                    style={styles.dateButton}
+                    style={[
+                      styles.dateButton,
+                      !entity.startDate && styles.dateButtonError,
+                    ]}
                     onPress={() => {
                       const idx = findEntityIndex(entity);
                       if (idx >= 0) {
@@ -763,7 +790,10 @@ export function AIEntityResultsView({
                       {t('profile.relationship.endDate') || 'End Date'} *
                     </ThemedText>
                     <TouchableOpacity
-                      style={styles.dateButton}
+                      style={[
+                        styles.dateButton,
+                        (!entity.endDate || (entity.startDate && entity.endDate && new Date(entity.endDate) <= new Date(entity.startDate))) && styles.dateButtonError,
+                      ]}
                       onPress={() => {
                         const idx = findEntityIndex(entity);
                         if (idx >= 0) {
@@ -780,6 +810,10 @@ export function AIEntityResultsView({
                     {!entity.endDate ? (
                       <ThemedText size="xs" style={styles.errorText}>
                         {t('common.required') || 'Required'}
+                      </ThemedText>
+                    ) : entity.startDate && entity.endDate && new Date(entity.endDate) <= new Date(entity.startDate) ? (
+                      <ThemedText size="xs" style={styles.errorText}>
+                        {t('profile.date.error.endBeforeStart') || 'End date must be after start date.'}
                       </ThemedText>
                     ) : null}
                   </View>
@@ -879,9 +913,36 @@ export function AIEntityResultsView({
             }
             if (selectedDate && datePickerEntityIndex !== null) {
               const dateString = selectedDate.toISOString().split('T')[0];
-              updateEntity(datePickerEntityIndex, {
-                [datePickerField]: dateString,
-              });
+              const entity = entities[datePickerEntityIndex];
+              
+              if (datePickerField === 'startDate') {
+                // When start date changes, clear end date
+                updateEntity(datePickerEntityIndex, {
+                  startDate: dateString,
+                  endDate: undefined,
+                });
+              } else if (datePickerField === 'endDate') {
+                // Validate end date is after start date
+                if (entity.startDate) {
+                  const startDate = new Date(entity.startDate);
+                  const newEndDate = new Date(dateString);
+                  if (newEndDate <= startDate) {
+                    Alert.alert(
+                      t('common.error') || 'Error',
+                      t('profile.date.error.endBeforeStart') || 'End date must be after start date.'
+                    );
+                    if (Platform.OS === 'ios') {
+                      setDatePickerEntityIndex(null);
+                      setDatePickerField(null);
+                    }
+                    return;
+                  }
+                }
+                updateEntity(datePickerEntityIndex, {
+                  [datePickerField]: dateString,
+                });
+              }
+              
               if (Platform.OS === 'ios') {
                 setDatePickerEntityIndex(null);
                 setDatePickerField(null);

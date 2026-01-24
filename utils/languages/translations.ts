@@ -3564,6 +3564,8 @@ const translations: Record<Language, Translations> = {
     'profile.relationship.status': 'Status',
     'profile.relationship.current': 'Current',
     'profile.relationship.past': 'Past',
+    'profile.relationship.startDate': 'Start Date',
+    'profile.relationship.endDate': 'End Date',
     'profile.addFamilyMember': 'Add Family Member',
     'profile.familyMember.add': 'Add Family Member',
     'profile.editFamilyMember': 'Edit Family Member',

@@ -180,7 +180,16 @@ CRITICAL MATCHING RULES:
 - For Relationships: Match based on whether it's a current or past relationship
 - The entityName must be the EXACT name from the list (e.g., if available entity is "John Smith (Father)", use "John Smith" as entityName)
 - All arrays should contain meaningful, specific moments related to the story, ALL IN ${languageName.toUpperCase()}
-- Be empathetic and thoughtful in your analysis`;
+- Be empathetic and thoughtful in your analysis
+
+ESSENTIAL PHILOSOPHY - BALANCED TRUTH WITH COMPASSION:
+- HARD TRUTHS: Be honest and direct about toxic, unhealthy, or harmful situations. Do not sugar-coat reality. If a relationship is toxic, abusive, or harmful, clearly state this in the "hardTruths" array. Users need to see reality to protect themselves and make healthy choices.
+- ENCOURAGEMENT: Even in toxic or difficult situations, find healthy, realistic encouragement. The "goodFacts" array is REQUIRED and must ALWAYS contain at least 2 meaningful positive aspects. However, these should be:
+  * Realistic and healthy (not false positivity)
+  * Focused on: recognizing the problem (a strength), setting boundaries (growth), learning what healthy love looks like (wisdom), protecting oneself (self-care), or finding support (connection)
+  * NOT minimizing the harm or toxicity
+- LOVE IN ALL FORMS: Love comes in many forms - embrace its diversity. In healthy relationships, celebrate acts of kindness, understanding, growth, connections, resilience, and wisdom. In unhealthy relationships, recognize that learning to identify and protect oneself from harm is also a form of self-love.
+- BALANCE: Be truthful about what is harmful or toxic, while also providing healthy encouragement that helps the user grow, learn, and protect themselves. Every memory holds lessons - sometimes the lesson is recognizing what is NOT love, and that is valuable wisdom.`;
 
     const userPrompt = `User's story (in ${languageName}): ${prompt}
 
@@ -206,15 +215,15 @@ Analyze this story and return the structured memory response. Remember: ALL text
         }),
         hardTruths: Schema.array({
           items: Schema.string({
-            description: `A difficult truth or challenging moment (cloud) IN ${languageName.toUpperCase()}`,
+            description: `A difficult truth, challenging moment, or honest assessment of toxic/unhealthy behavior (cloud) IN ${languageName.toUpperCase()}. Be direct and honest - if a relationship is toxic, abusive, or harmful, state this clearly. Users need to see reality.`,
           }),
-          description: `Array of 2-4 difficult truths or challenging moments, if applicable, ALL IN ${languageName.toUpperCase()}`,
+          description: `Array of 2-4 difficult truths or challenging moments. Be honest and direct about toxic, unhealthy, or harmful situations. Do not sugar-coat reality. If applicable, ALL IN ${languageName.toUpperCase()}`,
         }),
         goodFacts: Schema.array({
           items: Schema.string({
-            description: `A positive aspect or happy moment (sun) IN ${languageName.toUpperCase()}`,
+            description: `A healthy, realistic positive aspect worth appreciating (sun) IN ${languageName.toUpperCase()}. In healthy relationships: acts of kindness, understanding, growth, connections, resilience. In toxic/unhealthy situations: recognizing the problem (strength), setting boundaries (growth), learning what healthy love looks like (wisdom), protecting oneself (self-care), or finding support. Be realistic - not false positivity.`,
           }),
-          description: `Array of 2-4 positive aspects or happy moments, if applicable, ALL IN ${languageName.toUpperCase()}`,
+          description: `REQUIRED: Array of 2-4 healthy, realistic positive aspects. In healthy relationships, celebrate kindness, growth, and love. In toxic situations, focus on: recognizing harm (strength), learning boundaries (growth), understanding what healthy love is (wisdom), self-protection (self-care), or finding support. Always provide healthy encouragement, but be realistic. ALL IN ${languageName.toUpperCase()}`,
         }),
         lessonsLearned: Schema.array({
           items: Schema.string({
