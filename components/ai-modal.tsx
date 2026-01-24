@@ -22,6 +22,8 @@ import {
 import { processMemoryPrompt, type AIMemoryResponse } from '@/utils/ai-service';
 import { logAIMemoryDiscarded, logAIMemorySaved, logAIModalSubmit } from '@/utils/analytics';
 import { ensureAppCheckToken, isAppCheckInitialized } from '@/utils/app-check';
+import { useInAppNotification } from '@/utils/InAppNotificationProvider';
+import { updateStreakOnMemoryCreation } from '@/utils/streak-manager';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
@@ -97,6 +99,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
   const fontScale = useFontScale();
   const t = useTranslate();
   const { language } = useLanguage();
+  const { showNotification } = useInAppNotification();
   const { isSubscribed } = useSubscription();
   const { 
     profiles, 
@@ -1293,6 +1296,60 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         !!selectedImage,
         memoryItems.length
       );
+
+      // Count AI-created memories toward streak/badges (same as manual creation).
+      // Don't block the save flow if streak update fails.
+      try {
+        const streakResult = await updateStreakOnMemoryCreation();
+        const currentStreak = streakResult.data.currentStreak;
+
+        // Mirror the same notification behavior as manual creation (AddIdealizedMemoryScreen)
+        if (streakResult.newBadges.length > 0) {
+          const badge = streakResult.newBadges[0];
+          const emoji = badge.daysRequired >= 100 ? '👑' : badge.daysRequired >= 30 ? '🏆' : badge.daysRequired >= 7 ? '🌟' : '🔥';
+
+          showNotification({
+            title: 'New Badge Unlocked!',
+            message: `You've earned the ${badge.name} badge with ${badge.daysRequired} consecutive days!`,
+            emoji,
+            duration: 4000,
+          });
+        } else if (streakResult.newMilestones.length > 0) {
+          const milestone = streakResult.newMilestones[0];
+          const emoji = milestone >= 100 ? '👑' : milestone >= 30 ? '🏆' : milestone >= 7 ? '🌟' : '🔥';
+
+          showNotification({
+            title: `${milestone}-day streak!`,
+            message: `Amazing! You've created memories for ${milestone} days in a row.`,
+            emoji,
+            duration: 4000,
+          });
+        } else if (streakResult.streakIncreased || streakResult.isFirstMemory) {
+          const emoji = currentStreak >= 30 ? '👑' : currentStreak >= 14 ? '🏆' : currentStreak >= 7 ? '⭐' : currentStreak >= 3 ? '🔥' : '✨';
+          let title = '';
+          let message = '';
+
+          if (currentStreak === 1) {
+            title = 'Streak started!';
+            message = "You're on day 1! Keep creating memories daily to build your streak.";
+          } else if (currentStreak === 2) {
+            title = 'Great start!';
+            message = '2 days in a row! One more day until your Flame badge.';
+          } else {
+            title = `${currentStreak}-day streak!`;
+            message = `Amazing! You've created memories for ${currentStreak} days in a row. Keep it up!`;
+          }
+
+          showNotification({
+            title,
+            message,
+            emoji,
+            duration: 3000,
+          });
+        }
+      } catch {
+        // noop
+      }
 
       // Clear AsyncStorage after successful save
       await clearPendingAIResponse();

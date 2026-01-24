@@ -11,6 +11,7 @@ import { GifAnimationPreview } from '@/library/components/gif-animation-preview'
 import { OnboardingStepper } from '@/library/components/onboarding-stepper';
 import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS, TabScreenContainer } from '@/library/components/tab-screen-container';
 import { logError } from '@/utils/error-logger';
+import { processHomeEncouragementPrompt } from '@/utils/ai-service';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useLanguage } from '@/utils/languages/language-context';
@@ -9151,6 +9152,7 @@ export default function HomeScreen() {
     reloadHobbies,
   } = useJourney();
   const t = useTranslate();
+  const { language: appLanguage } = useLanguage();
 
   // Streak feature state
   const [streakData, setStreakData] = useState<StreakData | null>(null);
@@ -9476,6 +9478,12 @@ export default function HomeScreen() {
   
   // State to track if encouragement message is visible (shown automatically on tab open)
   const [isEncouragementVisible, setIsEncouragementVisible] = useState(false);
+  const [aiEncouragementText, setAiEncouragementText] = useState<string | null>(null);
+  const [aiEncouragementLoading, setAiEncouragementLoading] = useState(false);
+  const [aiEncouragementError, setAiEncouragementError] = useState(false);
+  // When user closes the banner, bump this to force a new AI message next time it shows.
+  const [encouragementCacheBust, setEncouragementCacheBust] = useState(0);
+  const lastEncouragementCacheKeyRef = useRef<string | null>(null);
   
   // Show encouragement message automatically when home tab is opened
   useFocusEffect(
@@ -9491,6 +9499,110 @@ export default function HomeScreen() {
       };
     }, [hasAnyMoments])
   );
+
+  // Build fallback message (existing logic)
+  const fallbackEncouragementText = useMemo(() => {
+    return overallSunnyPercentage > 50
+      ? t('spheres.encouragement.goodMomentsPrevail')
+      : t('spheres.encouragement.keepPushing');
+  }, [overallSunnyPercentage, t]);
+
+  // Ensure we always show a sparkle at the end (the AI sometimes omits it).
+  const encouragementTextWithSparkle = useMemo(() => {
+    const base = (aiEncouragementText || fallbackEncouragementText || '').trim();
+    if (!base) return base;
+    // If it already ends with a sparkle emoji, keep as-is.
+    if (/✨\s*$/.test(base)) return base;
+    return `${base} ✨`;
+  }, [aiEncouragementText, fallbackEncouragementText]);
+
+  // AI encouragement (cached). Keeps existing logic as fallback.
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!hasAnyMoments || !isEncouragementVisible) return;
+      // While we fetch a fresh AI message, avoid flashing fallback text.
+      setAiEncouragementError(false);
+      setAiEncouragementLoading(true);
+
+      // Derive signal for prompt
+      const sunnyMoments = (idealizedMemories || []).flatMap((m: any) => (m.goodFacts || []).map((x: any) => x.text).filter(Boolean));
+      const cloudyMoments = (idealizedMemories || []).flatMap((m: any) => (m.hardTruths || []).map((x: any) => x.text).filter(Boolean));
+      const lessons = (idealizedMemories || []).flatMap((m: any) => (m.lessonsLearned || []).map((x: any) => x.text).filter(Boolean));
+
+      // Keep prompt small: take a few recent-ish samples from the end
+      const sampleLessons = lessons.slice(-5);
+      const sampleSunny = sunnyMoments.slice(-5);
+
+      // Make the AI banner message a bit longer than the current fallback copy
+      const targetCharCount = Math.round(((fallbackEncouragementText || '').length || 120) * 1.35);
+      const bucket = Math.round(overallSunnyPercentage / 10) * 10;
+      // Also refresh sooner if the underlying signals change meaningfully.
+      // Use coarse buckets to avoid spamming AI for tiny fluctuations.
+      const sunnyCountBucket = Math.floor(sunnyMoments.length / 5) * 5; // 0,5,10,15...
+      const lessonsCountBucket = Math.floor(lessons.length / 3) * 3; // 0,3,6,9...
+      // Small fingerprint of the latest content so message can update when the content updates,
+      // even if counts stay in the same bucket.
+      const contentFingerprint = `${sampleLessons.join(' ').slice(0, 80)}|${sampleSunny.join(' ').slice(0, 80)}`;
+      const contentBucket = contentFingerprint.length; // stable-ish small signal without heavy hashing
+      // Refresh more often than daily: use a rolling time window (every 2 hours).
+      // This keeps the message feeling fresh without calling AI on every render.
+      // Dev: refresh super frequently for iteration. Prod: refresh less often.
+      const windowMs = __DEV__ ? 60_000 : 10 * 60 * 1000; // 1 min in dev, 10 min in prod
+      const windowId = Math.floor(Date.now() / windowMs);
+      const cacheKey = `home_encouragement_v4:${appLanguage}:${bucket}:s${sunnyCountBucket}:l${lessonsCountBucket}:c${contentBucket}:ms${windowMs}:${windowId}:b${encouragementCacheBust}`;
+      lastEncouragementCacheKeyRef.current = cacheKey;
+
+      try {
+        const cached = await AsyncStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached) as { message?: string };
+          if (!cancelled && parsed?.message) {
+            setAiEncouragementText(parsed.message);
+            setAiEncouragementLoading(false);
+            return;
+          }
+        }
+
+        const resp = await processHomeEncouragementPrompt({
+          overallSunnyPercentage,
+          sunnyMomentsCount: sunnyMoments.length,
+          cloudyMomentsCount: cloudyMoments.length,
+          sampleLessons,
+          sampleSunnyMoments: sampleSunny,
+          targetCharCount,
+          language: appLanguage === 'bg' ? 'bg' : 'en',
+        });
+
+        const message = resp?.message?.trim();
+        if (!message) return;
+
+        await AsyncStorage.setItem(cacheKey, JSON.stringify({ message }));
+        if (!cancelled) setAiEncouragementText(message);
+        if (!cancelled) setAiEncouragementLoading(false);
+      } catch (e) {
+        // Keep fallback behavior
+        logError(e, 'home-ai-encouragement');
+        if (!cancelled) setAiEncouragementText(null);
+        if (!cancelled) setAiEncouragementError(true);
+        if (!cancelled) setAiEncouragementLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    hasAnyMoments,
+    isEncouragementVisible,
+    idealizedMemories,
+    overallSunnyPercentage,
+    fallbackEncouragementText,
+    appLanguage,
+    encouragementCacheBust,
+  ]);
   
   // Message position constants
   // Badge is at top: 80, badge height ~40px, so position message slightly below badge
@@ -12665,7 +12777,8 @@ export default function HomeScreen() {
           )}
           
           {/* Encouraging Message Section */}
-          {hasAnyMoments && (
+          {/* Only render when we have content (AI text) or an error fallback. Avoid empty flash while AI loads. */}
+          {hasAnyMoments && isEncouragementVisible && (aiEncouragementError || !!aiEncouragementText) && (
             <View
               style={[
                 encouragementContainerStyle,
@@ -12674,7 +12787,23 @@ export default function HomeScreen() {
             >
               {/* Close button */}
               <Pressable
-                onPress={() => setIsEncouragementVisible(false)}
+                onPress={() => {
+                  void (async () => {
+                    try {
+                      const key = lastEncouragementCacheKeyRef.current;
+                      if (key) {
+                        await AsyncStorage.removeItem(key);
+                      }
+                    } catch {
+                      // ignore cache removal errors
+                    } finally {
+                      // Hide now, force refresh next time
+                      setAiEncouragementText(null);
+                      setEncouragementCacheBust((x) => x + 1);
+                      setIsEncouragementVisible(false);
+                    }
+                  })();
+                }}
                 style={closeButtonStyle}
                 hitSlop={CLOSE_BUTTON_HITSLOP}
               >
@@ -12707,10 +12836,9 @@ export default function HomeScreen() {
                 size="sm"
                 style={encouragementTextStyle}
               >
-                {overallSunnyPercentage > 50
-                  ? t('spheres.encouragement.goodMomentsPrevail')
-                  : t('spheres.encouragement.keepPushing')
-                }
+                {aiEncouragementText
+                  ? encouragementTextWithSparkle
+                  : `${fallbackEncouragementText.trim()} ✨`}
               </ThemedText>
             </View>
           )}

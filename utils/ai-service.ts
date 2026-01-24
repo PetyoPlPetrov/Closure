@@ -55,6 +55,10 @@ export interface AIEntityCreationResponse {
   entities: AIEntitySuggestion[];
 }
 
+export interface AIEncouragementResponse {
+  message: string;
+}
+
 /**
  * Process memory prompt using Firebase AI (Gemini)
  * Analyzes the user's story and generates a memory with moments
@@ -334,6 +338,109 @@ Analyze this story and return the structured memory response. Remember: ALL text
 }
 
 /**
+ * Generate an encouraging, motivational home notification message based on the user's overall mood balance.
+ * Uses structured JSON schema so the UI can safely render the result.
+ */
+export async function processHomeEncouragementPrompt(params: {
+  overallSunnyPercentage: number;
+  sunnyMomentsCount: number;
+  cloudyMomentsCount: number;
+  sampleLessons: string[];
+  sampleSunnyMoments: string[];
+  targetCharCount: number;
+  language: 'en' | 'bg';
+}): Promise<AIEncouragementResponse> {
+  const {
+    overallSunnyPercentage,
+    sunnyMomentsCount,
+    cloudyMomentsCount,
+    sampleLessons,
+    sampleSunnyMoments,
+    targetCharCount,
+    language,
+  } = params;
+
+  // If using mock requests, just return a deterministic message
+  if (USE_MOCK_AI_REQUEST) {
+    return {
+      message:
+        language === 'bg'
+          ? 'Чудесно! Ти напредваш — продължавай да създаваш малки слънчеви моменти всеки ден. ✨'
+          : 'Wonderful! You’re making progress—keep creating small sunny moments every day. ✨',
+    };
+  }
+
+  const languageName = language === 'bg' ? 'Bulgarian' : 'English';
+  const languageCode = language === 'bg' ? 'bg' : 'en';
+
+  const responseSchema = Schema.object({
+    properties: {
+      message: Schema.string({
+        description:
+          'A single-sentence (or two short sentences) motivational notification message for the home banner. No newlines.',
+      }),
+    },
+    required: ['message'],
+  });
+
+  const systemPrompt = `You are the Sfera AI coach. Create ONE short, encouraging, premium-sounding notification message for the Sferas app home banner.
+
+CRITICAL LANGUAGE: respond entirely in ${languageName} (${languageCode}).
+
+CONSTRAINTS:
+- Output JSON only, following the provided schema.
+- The message must be motivational, uplifting, and personal (second person "you").
+- No shaming, no clinical language, no advice overload.
+- No newlines.
+- Length target: about ${targetCharCount} characters (±15%).
+- Keep it human and warm: do NOT mention percentages, numbers, counts, statistics, or any math-like framing.
+- Instead, reflect the overall tone based on whether sunny or cloudy moments prevail (implicitly, without numbers).
+ - Always remind the user to appreciate the love they have in their life—every sunny moment is worth love and appreciation.
+ - Always remind the user to remember their lessons and to be grateful for any sunny moment and lesson.
+ - If cloudy moments prevail (overall sunny percentage < 55%), additionally encourage the user to create more sunny moments.
+ - Do NOT include emojis.
+`;
+
+  const userPrompt = `User mood balance:
+- Overall sunny percentage: ${Math.round(overallSunnyPercentage)}%
+- Sunny moments count: ${sunnyMomentsCount}
+- Cloudy moments count: ${cloudyMomentsCount}
+
+Sample lessons (may be empty): ${sampleLessons.slice(0, 5).join(' | ') || 'None'}
+Sample sunny moments (may be empty): ${sampleSunnyMoments.slice(0, 5).join(' | ') || 'None'}
+
+Write the notification message now.`;
+
+  const app = getApp();
+  const ai = getAI(app, {
+    appCheck: firebase.appCheck(),
+  });
+
+  const model = getGenerativeModel(ai, {
+    model: 'gemini-2.5-flash-lite',
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema,
+    },
+  });
+
+  const result = await model.generateContent({
+    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+    systemInstruction: systemPrompt,
+  });
+
+  const responseText = result.response.text();
+  const parsed = JSON.parse(responseText);
+
+  const message = typeof parsed?.message === 'string' ? parsed.message.trim() : '';
+  if (!message) {
+    throw new Error('AI returned empty encouragement message');
+  }
+
+  return { message };
+}
+
+/**
  * Send a message to the AI service
  * @param message - User's message
  * @param context - Optional context about the user's journey/spheres
@@ -399,34 +506,9 @@ export async function sendToAI(
  * - Or use @react-native-voice/voice library
  */
 export async function processSpeechToText(audioUri: string): Promise<string> {
-  try {
-    // TODO: Implement speech-to-text
-    // Example with Google Cloud Speech-to-Text:
-    // const response = await fetch('https://speech.googleapis.com/v1/speech:recognize', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${apiKey}`,
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     config: {
-    //       encoding: 'LINEAR16',
-    //       sampleRateHertz: 16000,
-    //       languageCode: 'en-US',
-    //     },
-    //     audio: {
-    //       uri: audioUri,
-    //     },
-    //   }),
-    // });
-    
-    // const data = await response.json();
-    // return data.results[0].alternatives[0].transcript;
-    
-    return '';
-  } catch (error) {
-    throw new Error((error as Error).message || 'Speech-to-text failed');
-  }
+  // TODO: Implement speech-to-text
+  void audioUri;
+  return '';
 }
 
 /**
