@@ -25,6 +25,13 @@ function getSpeechModule(): SpeechModule | null {
   }
 }
 
+const STT_DEBUG = __DEV__ && true;
+function dlog(...args: any[]) {
+  if (!STT_DEBUG) return;
+  // eslint-disable-next-line no-console
+  console.log('[SpeechToText]', ...args);
+}
+
 type UseSpeechToTextParams = {
   /** Current app language, used for recognizer language. */
   language: 'en' | 'bg';
@@ -51,7 +58,8 @@ export function useSpeechToText({
   disabled = false,
 }: UseSpeechToTextParams): UseSpeechToTextReturn {
   const t = useTranslate();
-  const [module, setModule] = useState<SpeechModule['ExpoSpeechRecognitionModule'] | null>(null);
+  const moduleRef = useRef<SpeechModule['ExpoSpeechRecognitionModule'] | null>(null);
+  const [module, setModule] = useState<SpeechModule['ExpoSpeechRecognitionModule'] | null>(null); // state used only to trigger effects/subscriptions
 
   const [isRecording, setIsRecording] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -59,6 +67,16 @@ export function useSpeechToText({
   const lastFinalTranscriptRef = useRef<string>('');
 
   const lang = useMemo(() => (language === 'bg' ? 'bg-BG' : 'en-US'), [language]);
+
+  const getOrLoadModule = useCallback(() => {
+    if (moduleRef.current) return moduleRef.current;
+    const speech = getSpeechModule();
+    const loaded = speech?.ExpoSpeechRecognitionModule ?? null;
+    moduleRef.current = loaded;
+    if (loaded) setModule(loaded);
+    dlog('loadModule', { loaded: !!loaded, platform: Platform.OS });
+    return loaded;
+  }, []);
 
   // Native event subscriptions (safe even if module is missing)
   useEffect(() => {
@@ -69,12 +87,29 @@ export function useSpeechToText({
         setIsRecording(true);
         lastFinalTranscriptRef.current = '';
         baseTextRef.current = getText().trim();
+        dlog('event:start', { baseLen: baseTextRef.current.length });
       }),
-      module.addListener('speechstart', () => setIsListening(true)),
-      module.addListener('speechend', () => setIsListening(false)),
+      module.addListener('speechstart', () => {
+        setIsListening(true);
+        dlog('event:speechstart');
+      }),
+      module.addListener('speechend', () => {
+        setIsListening(false);
+        dlog('event:speechend');
+      }),
       module.addListener('end', () => {
         setIsRecording(false);
         setIsListening(false);
+        dlog('event:end');
+      }),
+      module.addListener('audiostart', (e: any) => {
+        dlog('event:audiostart', { hasUri: !!e?.uri });
+      }),
+      module.addListener('audioend', (e: any) => {
+        dlog('event:audioend', { hasUri: !!e?.uri });
+      }),
+      module.addListener('nomatch', () => {
+        dlog('event:nomatch');
       }),
       module.addListener('result', (e: ExpoSpeechRecognitionResultEvent) => {
         const transcript = e?.results?.[0]?.transcript?.trim() ?? '';
@@ -89,16 +124,22 @@ export function useSpeechToText({
           const committed = currentBase ? `${currentBase} ${transcript}`.trim() : transcript;
           baseTextRef.current = committed;
           setText(committed);
+          dlog('event:result(final)', { len: transcript.length, committedLen: committed.length });
         } else {
           const preview = currentBase ? `${currentBase} ${transcript}`.trim() : transcript;
           setText(preview);
+          dlog('event:result(partial)', { len: transcript.length, previewLen: preview.length });
         }
       }),
       module.addListener('error', (e: ExpoSpeechRecognitionErrorEvent) => {
         setIsRecording(false);
         setIsListening(false);
 
-        if (e?.error === 'no-speech' || e?.error === 'speech-timeout') return;
+        // Always log errors in dev; only alert on actionable ones.
+        dlog('event:error', { error: e?.error, code: e?.code, message: e?.message });
+
+        // Ignore benign/expected errors (no alert)
+        if (e?.error === 'no-speech' || e?.error === 'speech-timeout' || e?.error === 'aborted') return;
         const message = e?.message || t('ai.error.recording') || 'Speech recognition failed';
         Alert.alert(t('common.error') || 'Error', message);
       }),
@@ -121,58 +162,44 @@ export function useSpeechToText({
   const ensureAvailableAndPermitted = useCallback(async () => {
     // Web is not supported in these modals
     if (Platform.OS === 'web') {
-      throw new Error(t('ai.error.notAvailable') || 'Speech recognition is not available on this device');
+      throw new Error((t('ai.error.notAvailable' as any) as any) || 'Speech recognition is not available on this device');
     }
 
     // Lazily load the native module (prevents crashes on startup if app wasn't rebuilt yet)
-    if (!module) {
-      const speech = getSpeechModule();
-      const loaded = speech?.ExpoSpeechRecognitionModule ?? null;
-      if (loaded) setModule(loaded);
-      if (!loaded) {
-        throw new Error(
-          t('ai.error.notAvailable') ||
-            'Speech recognition is not available. Please rebuild the app so native modules are included.'
-        );
-      }
-      // Continue checks using the loaded module
-      const available = loaded.isRecognitionAvailable();
-      if (!available) {
-        throw new Error(t('ai.error.notAvailable') || 'Speech recognition is not available on this device');
-      }
-      const perms = await loaded.requestPermissionsAsync();
-      if (!perms.granted) {
-        throw new Error(t('ai.permission.message') || 'Microphone permission is required for speech-to-text.');
-      }
-      return;
-    }
-
-    // Module already loaded
-    if (!module) {
+    const m = getOrLoadModule();
+    if (!m) {
+      dlog('ensureAvailableAndPermitted:missingNativeModule');
       throw new Error(
-        t('ai.error.notAvailable') ||
+        (t('ai.error.notAvailable' as any) as any) ||
           'Speech recognition is not available. Please rebuild the app so native modules are included.'
       );
     }
 
-    const available = module.isRecognitionAvailable();
+    const available = m.isRecognitionAvailable();
+    dlog('availability', { available, lang });
     if (!available) {
-      throw new Error(t('ai.error.notAvailable') || 'Speech recognition is not available on this device');
+      throw new Error((t('ai.error.notAvailable' as any) as any) || 'Speech recognition is not available on this device');
     }
 
-    const perms = await module.requestPermissionsAsync();
+    const perms = await m.requestPermissionsAsync();
+    dlog('permissions', { status: (perms as any)?.status, granted: perms.granted, restricted: (perms as any)?.restricted, canAskAgain: (perms as any)?.canAskAgain });
     if (!perms.granted) {
       throw new Error(t('ai.permission.message') || 'Microphone permission is required for speech-to-text.');
     }
-  }, [module, t]);
+  }, [getOrLoadModule, t]);
 
   const start = useCallback(async () => {
     if (disabled) return;
+    dlog('start:pressed', { lang, disabled });
     await ensureAvailableAndPermitted();
 
-    // Best-effort cleanup
+    const m = getOrLoadModule();
+    if (!m) return;
+
+    // Best-effort cleanup: avoid abort() here since it emits an "aborted" error event on iOS
     try {
-      module?.abort();
+      m.stop();
+      dlog('prestart:stop');
     } catch {
       // ignore
     }
@@ -198,32 +225,43 @@ export function useSpeechToText({
         : undefined,
     };
 
-    module?.start(options);
-  }, [disabled, ensureAvailableAndPermitted, lang, module]);
+    dlog('start:options', {
+      lang: options.lang,
+      interimResults: options.interimResults,
+      continuous: options.continuous,
+      maxAlternatives: options.maxAlternatives,
+      addsPunctuation: options.addsPunctuation,
+      iosTaskHint: options.iosTaskHint,
+      requiresOnDeviceRecognition: options.requiresOnDeviceRecognition,
+    });
+    m.start(options);
+  }, [disabled, ensureAvailableAndPermitted, getOrLoadModule, lang]);
 
   const stop = useCallback(async () => {
     if (disabled) return;
+    dlog('stop:pressed');
     try {
-      module?.stop();
+      getOrLoadModule()?.stop();
     } catch {
       // ignore
     } finally {
       setIsRecording(false);
       setIsListening(false);
     }
-  }, [disabled, module]);
+  }, [disabled, getOrLoadModule]);
 
   const abort = useCallback(async () => {
     if (disabled) return;
+    dlog('abort:called');
     try {
-      module?.abort();
+      getOrLoadModule()?.abort();
     } catch {
       // ignore
     } finally {
       setIsRecording(false);
       setIsListening(false);
     }
-  }, [disabled, module]);
+  }, [disabled, getOrLoadModule]);
 
   return { isRecording, isListening, start, stop, abort };
 }
