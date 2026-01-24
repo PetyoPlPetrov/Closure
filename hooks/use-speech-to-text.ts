@@ -1,7 +1,7 @@
+import { useTranslate } from '@/utils/languages/use-translate';
+import type { ExpoSpeechRecognitionErrorEvent, ExpoSpeechRecognitionOptions, ExpoSpeechRecognitionResultEvent } from 'expo-speech-recognition';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
-import type { ExpoSpeechRecognitionErrorEvent, ExpoSpeechRecognitionOptions, ExpoSpeechRecognitionResultEvent } from 'expo-speech-recognition';
-import { useTranslate } from '@/utils/languages/use-translate';
 
 // Expo native module may be unavailable until you rebuild the dev client.
 // Avoid importing it at module scope (it can throw during initialization).
@@ -23,13 +23,6 @@ function getSpeechModule(): SpeechModule | null {
   } catch {
     return null;
   }
-}
-
-const STT_DEBUG = __DEV__ && true;
-function dlog(...args: any[]) {
-  if (!STT_DEBUG) return;
-  // eslint-disable-next-line no-console
-  console.log('[SpeechToText]', ...args);
 }
 
 type UseSpeechToTextParams = {
@@ -74,7 +67,6 @@ export function useSpeechToText({
     const loaded = speech?.ExpoSpeechRecognitionModule ?? null;
     moduleRef.current = loaded;
     if (loaded) setModule(loaded);
-    dlog('loadModule', { loaded: !!loaded, platform: Platform.OS });
     return loaded;
   }, []);
 
@@ -87,29 +79,16 @@ export function useSpeechToText({
         setIsRecording(true);
         lastFinalTranscriptRef.current = '';
         baseTextRef.current = getText().trim();
-        dlog('event:start', { baseLen: baseTextRef.current.length });
       }),
       module.addListener('speechstart', () => {
         setIsListening(true);
-        dlog('event:speechstart');
       }),
       module.addListener('speechend', () => {
         setIsListening(false);
-        dlog('event:speechend');
       }),
       module.addListener('end', () => {
         setIsRecording(false);
         setIsListening(false);
-        dlog('event:end');
-      }),
-      module.addListener('audiostart', (e: any) => {
-        dlog('event:audiostart', { hasUri: !!e?.uri });
-      }),
-      module.addListener('audioend', (e: any) => {
-        dlog('event:audioend', { hasUri: !!e?.uri });
-      }),
-      module.addListener('nomatch', () => {
-        dlog('event:nomatch');
       }),
       module.addListener('result', (e: ExpoSpeechRecognitionResultEvent) => {
         const transcript = e?.results?.[0]?.transcript?.trim() ?? '';
@@ -124,19 +103,14 @@ export function useSpeechToText({
           const committed = currentBase ? `${currentBase} ${transcript}`.trim() : transcript;
           baseTextRef.current = committed;
           setText(committed);
-          dlog('event:result(final)', { len: transcript.length, committedLen: committed.length });
         } else {
           const preview = currentBase ? `${currentBase} ${transcript}`.trim() : transcript;
           setText(preview);
-          dlog('event:result(partial)', { len: transcript.length, previewLen: preview.length });
         }
       }),
       module.addListener('error', (e: ExpoSpeechRecognitionErrorEvent) => {
         setIsRecording(false);
         setIsListening(false);
-
-        // Always log errors in dev; only alert on actionable ones.
-        dlog('event:error', { error: e?.error, code: e?.code, message: e?.message });
 
         // Ignore benign/expected errors (no alert)
         if (e?.error === 'no-speech' || e?.error === 'speech-timeout' || e?.error === 'aborted') return;
@@ -168,7 +142,6 @@ export function useSpeechToText({
     // Lazily load the native module (prevents crashes on startup if app wasn't rebuilt yet)
     const m = getOrLoadModule();
     if (!m) {
-      dlog('ensureAvailableAndPermitted:missingNativeModule');
       throw new Error(
         (t('ai.error.notAvailable' as any) as any) ||
           'Speech recognition is not available. Please rebuild the app so native modules are included.'
@@ -176,13 +149,11 @@ export function useSpeechToText({
     }
 
     const available = m.isRecognitionAvailable();
-    dlog('availability', { available, lang });
     if (!available) {
       throw new Error((t('ai.error.notAvailable' as any) as any) || 'Speech recognition is not available on this device');
     }
 
     const perms = await m.requestPermissionsAsync();
-    dlog('permissions', { status: (perms as any)?.status, granted: perms.granted, restricted: (perms as any)?.restricted, canAskAgain: (perms as any)?.canAskAgain });
     if (!perms.granted) {
       throw new Error(t('ai.permission.message') || 'Microphone permission is required for speech-to-text.');
     }
@@ -190,7 +161,6 @@ export function useSpeechToText({
 
   const start = useCallback(async () => {
     if (disabled) return;
-    dlog('start:pressed', { lang, disabled });
     await ensureAvailableAndPermitted();
 
     const m = getOrLoadModule();
@@ -199,7 +169,6 @@ export function useSpeechToText({
     // Best-effort cleanup: avoid abort() here since it emits an "aborted" error event on iOS
     try {
       m.stop();
-      dlog('prestart:stop');
     } catch {
       // ignore
     }
@@ -225,21 +194,11 @@ export function useSpeechToText({
         : undefined,
     };
 
-    dlog('start:options', {
-      lang: options.lang,
-      interimResults: options.interimResults,
-      continuous: options.continuous,
-      maxAlternatives: options.maxAlternatives,
-      addsPunctuation: options.addsPunctuation,
-      iosTaskHint: options.iosTaskHint,
-      requiresOnDeviceRecognition: options.requiresOnDeviceRecognition,
-    });
     m.start(options);
   }, [disabled, ensureAvailableAndPermitted, getOrLoadModule, lang]);
 
   const stop = useCallback(async () => {
     if (disabled) return;
-    dlog('stop:pressed');
     try {
       getOrLoadModule()?.stop();
     } catch {
@@ -252,7 +211,6 @@ export function useSpeechToText({
 
   const abort = useCallback(async () => {
     if (disabled) return;
-    dlog('abort:called');
     try {
       getOrLoadModule()?.abort();
     } catch {

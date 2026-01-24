@@ -2,32 +2,33 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import {
-  clearPendingAIError,
-  clearPendingAIRequest,
-  clearPendingAIResponse,
-  getPendingAIError,
-  getPendingAIRequest,
-  getPendingAIResponse,
-  isBackgroundTaskRunning,
-  savePendingAIResponse,
-  startBackgroundAIProcessing,
-  stopBackgroundAIProcessing,
-  type PendingAIResponse
+    clearPendingAIError,
+    clearPendingAIRequest,
+    clearPendingAIResponse,
+    getPendingAIError,
+    getPendingAIRequest,
+    getPendingAIResponse,
+    isBackgroundTaskRunning,
+    savePendingAIResponse,
+    startBackgroundAIProcessing,
+    stopBackgroundAIProcessing,
+    type PendingAIResponse
 } from '@/utils/ai-background-processor';
 import {
-  canMakeAIRequest,
-  recordAIRequest
+    canMakeAIRequest,
+    recordAIRequest
 } from '@/utils/ai-rate-limiter';
 import { processMemoryPrompt, type AIMemoryResponse } from '@/utils/ai-service';
 import { logAIMemoryDiscarded, logAIMemorySaved, logAIModalSubmit } from '@/utils/analytics';
 import { ensureAppCheckToken, isAppCheckInitialized } from '@/utils/app-check';
 import { useInAppNotification } from '@/utils/InAppNotificationProvider';
-import { updateStreakOnMemoryCreation } from '@/utils/streak-manager';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { showPaywallForPremiumAccess } from '@/utils/premium-access';
+import { updateStreakOnMemoryCreation } from '@/utils/streak-manager';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -37,31 +38,30 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  AppState, AppStateStatus,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  Modal as RNModal,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    AppState, AppStateStatus,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    Modal as RNModal,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withSequence,
+    withSpring,
+    withTiming
 } from 'react-native-reanimated';
-import { useSpeechToText } from '@/hooks/use-speech-to-text';
 
 type ModalView = 'input' | 'loading' | 'results';
 
@@ -528,9 +528,12 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     }
   }, [visible, backgroundRequestId]);
 
-  // Modal entrance animation
+  // Modal entrance animation + close cleanup
+  // IMPORTANT: only run close cleanup on actual visibility transitions.
+  const wasVisibleRef = useRef<boolean>(false);
   useEffect(() => {
     if (visible) {
+      wasVisibleRef.current = true;
       modalOpacity.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) });
       modalScale.value = withSpring(1, { damping: 15, stiffness: 150 });
       
@@ -552,6 +555,10 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         inputRef.current?.focus();
       }, 400);
     } else {
+      // If we were never visible, don't run close cleanup (prevents hidden modal from aborting STT)
+      if (!wasVisibleRef.current) return;
+      wasVisibleRef.current = false;
+
       modalOpacity.value = withTiming(0, { duration: 200 });
       modalScale.value = withTiming(0.8, { duration: 200 });
       setInputText('');
@@ -561,7 +568,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       setAiResponse(null);
       setMemoryItems([]);
     }
-  }, [visible, isRecording]);
+  }, [visible]);
 
   // Mic pulse animation when recording
   useEffect(() => {

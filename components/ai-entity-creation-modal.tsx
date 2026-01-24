@@ -261,6 +261,9 @@ export function AIEntityCreationModal({
     } else {
       // Reset state when modal closes (but not when minimized)
       if (!isMinimizingRef.current) {
+        // Stop any ongoing speech recognition only on real close
+        void speechToText.abort();
+
         setIsProcessing(false);
         setBackgroundRequestId(null);
         setAiResponse(null);

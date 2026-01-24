@@ -2599,70 +2599,75 @@ export default function SpheresScreen() {
         )}
 
         {/* AI Action Modal */}
-        <AIActionModal
-          visible={aiActionModalVisible}
-          onClose={() => setAiActionModalVisible(false)}
-          onSelectCreateMemory={handleSelectCreateMemory}
-          onSelectCreateEntity={handleSelectCreateEntity}
-          hasEntities={(profiles.length + jobs.length + familyMembers.length + friends.length + hobbies.length) > 0}
-        />
+        {aiActionModalVisible && (
+          <AIActionModal
+            visible={aiActionModalVisible}
+            onClose={() => setAiActionModalVisible(false)}
+            onSelectCreateMemory={handleSelectCreateMemory}
+            onSelectCreateEntity={handleSelectCreateEntity}
+            hasEntities={(profiles.length + jobs.length + familyMembers.length + friends.length + hobbies.length) > 0}
+          />
+        )}
 
         {/* AI Entity Creation Modal */}
-        <AIEntityCreationModal
-          visible={aiEntityCreationModalVisible}
-          onClose={() => {
-            setAiEntityCreationModalVisible(false);
-            setPendingEntityResponse(null);
-          }}
-          onCreateMemory={handleSelectCreateMemory}
-          onMinimize={() => {
-            setAiEntityCreationModalVisible(false);
-          }}
-          pendingResponse={pendingEntityResponse}
-          onEntityCreated={handleEntityCreated}
-        />
+        {aiEntityCreationModalVisible && (
+          <AIEntityCreationModal
+            visible={aiEntityCreationModalVisible}
+            onClose={() => {
+              setAiEntityCreationModalVisible(false);
+              setPendingEntityResponse(null);
+            }}
+            onCreateMemory={handleSelectCreateMemory}
+            onMinimize={() => {
+              setAiEntityCreationModalVisible(false);
+            }}
+            pendingResponse={pendingEntityResponse}
+            onEntityCreated={handleEntityCreated}
+          />
+        )}
 
         {/* AI Modal */}
-        <AIModal
-          key={aiModalVisible ? 'open' : 'closed'}
-          visible={aiModalVisible}
-          onClose={async () => {
-            // When closing (not minimizing), clear pending response
-            setAiModalVisible(false);
-            setPendingAIResponse(null);
-          }}
-          onMinimize={() => {
-            // When minimizing, keep processing running but close modal
-            setAiModalVisible(false);
-            // Don't clear pending response - it will be restored when modal reopens
-          }}
-          pendingResponse={pendingAIResponse}
-          onSend={async (message: string) => {
-            try {
-              const response = await sendToAI(message, {
-                spheres: spheres.map(s => s.type),
-              });
-              
-              if (response.error) {
+        {aiModalVisible && (
+          <AIModal
+            visible={aiModalVisible}
+            onClose={async () => {
+              // When closing (not minimizing), clear pending response
+              setAiModalVisible(false);
+              setPendingAIResponse(null);
+            }}
+            onMinimize={() => {
+              // When minimizing, keep processing running but close modal
+              setAiModalVisible(false);
+              // Don't clear pending response - it will be restored when modal reopens
+            }}
+            pendingResponse={pendingAIResponse}
+            onSend={async (message: string) => {
+              try {
+                const response = await sendToAI(message, {
+                  spheres: spheres.map(s => s.type),
+                });
+                
+                if (response.error) {
+                  Alert.alert(
+                    t('common.error') || 'Error',
+                    response.error
+                  );
+                } else {
+                  Alert.alert(
+                    t('ai.response.title') || 'AI Response',
+                    response.message,
+                    [{ text: t('common.ok') || 'OK' }]
+                  );
+                }
+              } catch (error) {
                 Alert.alert(
                   t('common.error') || 'Error',
-                  response.error
-                );
-              } else {
-                Alert.alert(
-                  t('ai.response.title') || 'AI Response',
-                  response.message,
-                  [{ text: t('common.ok') || 'OK' }]
+                  (error as Error).message || t('ai.error.send') || 'Failed to send message'
                 );
               }
-            } catch (error) {
-              Alert.alert(
-                t('common.error') || 'Error',
-                (error as Error).message || t('ai.error.send') || 'Failed to send message'
-              );
-            }
-          }}
-        />
+            }}
+          />
+        )}
       </View>
     </TabScreenContainer>
   );
