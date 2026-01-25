@@ -26,7 +26,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, AppStateStatus, BackHandler, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 
 const AnimatedView = Animated.createAnimatedComponent(View);
 
@@ -46,19 +46,33 @@ const SparkledDots = React.memo(function SparkledDots({
 }) {
   const { isTablet } = useLargeDevice();
   
-  // Generate random positions for dots around the avatar
-  // Create more dots with better visibility
+  // Generate random positions for dots spread across the screen
+  // Mix of dots around center and dots spread across entire screen
   const dots = React.useMemo(() => {
-    const numDots = isTablet ? 60 : 45; // Increased for more density
-    const minRadius = avatarSize / 2 + 20; // Start closer to avatar
-    const maxRadius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.42; // Extend to near sphere positions
+    const numDots = isTablet ? 80 : 60; // Increased for better coverage
+    const padding = 20; // Padding from screen edges
     
     return Array.from({ length: numDots }, (_, i) => {
-      // Random angle and radius for scattered effect
-      const angle = Math.random() * 2 * Math.PI;
-      const radius = minRadius + Math.random() * (maxRadius - minRadius);
-      const x = avatarCenterX + Math.cos(angle) * radius;
-      const y = avatarCenterY + Math.sin(angle) * radius;
+      let x: number, y: number;
+      
+      // Mix distribution: 40% around center, 60% spread across screen
+      if (i < numDots * 0.4) {
+        // Dots around the center (insight button area)
+        const minRadius = avatarSize / 2 + 20;
+        const maxRadius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35;
+        const angle = Math.random() * 2 * Math.PI;
+        const radius = minRadius + Math.random() * (maxRadius - minRadius);
+        x = avatarCenterX + Math.cos(angle) * radius;
+        y = avatarCenterY + Math.sin(angle) * radius;
+      } else {
+        // Dots spread across entire screen
+        x = padding + Math.random() * (SCREEN_WIDTH - padding * 2);
+        y = padding + Math.random() * (SCREEN_HEIGHT - padding * 2);
+      }
+      
+      // Ensure dots stay within screen bounds
+      x = Math.max(padding, Math.min(SCREEN_WIDTH - padding, x));
+      y = Math.max(padding, Math.min(SCREEN_HEIGHT - padding, y));
       
       // Medium size range for better visibility (2-4px)
       const size = 2 + Math.random() * 2;
@@ -217,6 +231,35 @@ export default function SpheresScreen() {
   const pulseAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: pulseScale.value }],
+    };
+  });
+
+  // Pulse animation for AI sparkle icon - pulse every 10 seconds
+  const sparkleIconScale = useSharedValue(1);
+
+  useEffect(() => {
+    // Create pulse sequence: 3 pulses then wait 10 seconds
+    const pulseSequence = withSequence(
+      // First pulse
+      withTiming(1.3, { duration: 200, easing: Easing.out(Easing.ease) }),
+      withTiming(1, { duration: 200, easing: Easing.in(Easing.ease) }),
+      // Second pulse
+      withTiming(1.3, { duration: 200, easing: Easing.out(Easing.ease) }),
+      withTiming(1, { duration: 200, easing: Easing.in(Easing.ease) }),
+      // Third pulse
+      withTiming(1.3, { duration: 200, easing: Easing.out(Easing.ease) }),
+      withTiming(1, { duration: 200, easing: Easing.in(Easing.ease) }),
+      // Wait 10 seconds before next pulse sequence
+      withTiming(1, { duration: 10000, easing: Easing.linear })
+    );
+
+    // Start the animation and repeat infinitely
+    sparkleIconScale.value = withRepeat(pulseSequence, -1, false);
+  }, [sparkleIconScale]);
+
+  const sparkleIconAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: sparkleIconScale.value }],
     };
   });
 
@@ -2360,12 +2403,14 @@ export default function SpheresScreen() {
                       >
                         <View style={styles.insightsIconContainerCircular}>
                           <MaterialIcons name="insights" size={24 * fontScale} color="#ffffff" />
-                          <MaterialIcons
-                            name="auto-awesome"
-                            size={12 * fontScale}
-                            color="#FFD700"
-                            style={styles.sparkleIcon}
-                          />
+                          <Animated.View style={sparkleIconAnimatedStyle}>
+                            <MaterialIcons
+                              name="auto-awesome"
+                              size={12 * fontScale}
+                              color="#FFD700"
+                              style={styles.sparkleIcon}
+                            />
+                          </Animated.View>
                         </View>
                       </LinearGradient>
                       </TouchableOpacity>
