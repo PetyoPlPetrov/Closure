@@ -7474,6 +7474,23 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   const fontScale = useFontScale();
   const scale = useSharedValue(0);
   const growPulseScale = useSharedValue(1);
+  
+  // Track if animation has been initialized to prevent sudden appearance
+  const animationInitializedRef = React.useRef(false);
+  
+  // CRITICAL: Initialize scale to initial value synchronously before render
+  // This prevents moments from appearing at full size suddenly
+  useLayoutEffect(() => {
+    // Calculate initial scale immediately (must match calculation below)
+    const smallIconSize = isTablet ? 14 : 12;
+    const maxSize = Math.max(finalWidth, finalHeight);
+    const initScale = smallIconSize / maxSize;
+    
+    // Set initial scale synchronously (before paint) - CRITICAL to prevent sudden appearance
+    scale.value = initScale;
+    growPulseScale.value = 1;
+    animationInitializedRef.current = false;
+  }, [scale, growPulseScale, finalWidth, finalHeight, isTablet, memoryIndex, momentIndex, momentType]);
 
   // Calculate text length for dynamic sizing (matching selectedWheelMoment calculation)
   const textLength = text?.length || 0;
@@ -7526,32 +7543,55 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     const HOLD_DURATION = 3000;
     const SHRINK_DURATION = 800;
 
-    // Start at small icon size - set WITHOUT animation first
+    // CRITICAL: Always reset to initial scale first (without animation) to ensure animation starts from small
+    // This must happen synchronously before any rendering to prevent sudden appearance
+    // The useLayoutEffect above should have already set this, but double-check here
     scale.value = initialScale;
     growPulseScale.value = 1;
+    animationInitializedRef.current = true;
 
-    // Delay slightly then grow from small icon size to full size
-    setTimeout(() => {
-      scale.value = withTiming(finalScale, { duration: GROW_DURATION, easing: Easing.out(Easing.ease) });
+    // Store timeout IDs for cleanup
+    let growTimeout: NodeJS.Timeout;
+    let pulseTimeout: NodeJS.Timeout;
+    let shrinkTimeout: NodeJS.Timeout;
+
+    // Small delay to ensure initial state is rendered, then grow from small icon size to full size
+    growTimeout = setTimeout(() => {
+      // Only animate if component is still mounted and initialized
+      if (animationInitializedRef.current) {
+        scale.value = withTiming(finalScale, { duration: GROW_DURATION, easing: Easing.out(Easing.ease) });
+      }
     }, 50);
 
     // Start pulsing after growing
-    setTimeout(() => {
-      growPulseScale.value = withRepeat(
-        withSequence(
-          withTiming(1.08, { duration: 600, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) })
-        ),
-        Math.floor(HOLD_DURATION / 1200),
-        false
-      );
+    pulseTimeout = setTimeout(() => {
+      if (animationInitializedRef.current) {
+        growPulseScale.value = withRepeat(
+          withSequence(
+            withTiming(1.08, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+            withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) })
+          ),
+          Math.floor(HOLD_DURATION / 1200),
+          false
+        );
+      }
     }, 50 + GROW_DURATION);
 
     // After hold, shrink back to small icon size
-    setTimeout(() => {
-      scale.value = withTiming(initialScale, { duration: SHRINK_DURATION, easing: Easing.in(Easing.ease) });
+    shrinkTimeout = setTimeout(() => {
+      if (animationInitializedRef.current) {
+        scale.value = withTiming(initialScale, { duration: SHRINK_DURATION, easing: Easing.in(Easing.ease) });
+      }
     }, 50 + GROW_DURATION + HOLD_DURATION);
-  }, [initialScale, finalScale]);
+
+    // Cleanup timeouts on unmount or when dependencies change
+    return () => {
+      animationInitializedRef.current = false;
+      if (growTimeout) clearTimeout(growTimeout);
+      if (pulseTimeout) clearTimeout(pulseTimeout);
+      if (shrinkTimeout) clearTimeout(shrinkTimeout);
+    };
+  }, [initialScale, finalScale, scale, growPulseScale, memoryIndex, momentIndex, momentType]);
 
   // Calculate position dynamically based on current orbit angle
   // This MUST be reactive to all changes: focusedX, focusedY, orbitAngle, showEntityWheelShared
@@ -7574,54 +7614,60 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
       };
     }
 
-    // Calculate memory position on orbit (matching the EXACT memory orbit calculation from memoryAnimatedPosition)
-    // CRITICAL: All values must be read from shared values to ensure reactivity
+    // NEW STRATEGY: Position moments randomly around the avatar (focused entity)
+    // Use focusedX and focusedY as the center point
+    const avatarX = focusedX.value;
+    const avatarY = focusedY.value;
     
-    // Calculate the memory's current angle (matching line 4977)
-    // baseOrbitAngle (memoryBaseAngle) is this memory's starting position in radians
-    // currentOrbitAngle (orbitAngle.value) is the current rotation offset in degrees
-    const currentOrbitAngle = orbitAngle.value;
-    const currentAngleRad = memoryBaseAngle + (currentOrbitAngle * Math.PI / 180);
+    // Generate consistent random position for this moment based on its unique properties
+    // Use a seed based on memoryIndex, momentIndex, and momentType to ensure each moment
+    // always appears in the same random position relative to the avatar
+    const seed = memoryIndex * 1000 + momentIndex * 100 + (momentType === 'sunny' ? 1 : momentType === 'cloudy' ? 2 : 3);
+    
+    // Simple pseudo-random number generator using seed
+    // This ensures the same moment always gets the same random position
+    const random1 = ((seed * 9301 + 49297) % 233280) / 233280;
+    const random2 = ((seed * 9301 + 49297) % 233280) / 233280;
+    
+    // Define radius range for moments around avatar
+    // Min radius: ensure moments don't overlap with avatar
+    // Max radius: spread them out nicely around the avatar
+    const avatarSize = isTablet ? 80 : 64;
+    const minRadius = avatarSize / 2 + Math.max(finalWidth, finalHeight) / 2 + (isTablet ? 30 : 25);
+    const maxRadius = isTablet ? 200 : 160;
+    const radius = minRadius + (maxRadius - minRadius) * random1;
+    
+    // Random angle around avatar (0 to 2π)
+    const angle = random2 * 2 * Math.PI;
+    
+    // Calculate position relative to avatar
+    const offsetX = radius * Math.cos(angle);
+    const offsetY = radius * Math.sin(angle);
+    
+    let momentX = avatarX + offsetX;
+    let momentY = avatarY + offsetY;
+    
+    const viewportPadding = isTablet ? 20 : 15; // Padding from screen edges for viewport bounds
 
-    // Calculate orbital radius from the memory's offsetX and offsetY (matching line 4982)
-    // IMPORTANT: The memory uses baseRadius + radiusOffset.value, but radiusOffset is random per memory (-8 to +8)
-    // For floating moments, we use the base radius (without random offset) to match the memory's base position
-    // The memories don't reduce their orbital radius in wheel mode - they only scale down visually
-    const baseRadius = Math.sqrt(memoryOffsetX * memoryOffsetX + memoryOffsetY * memoryOffsetY);
-    // Use the same radius as the memory (without the random radiusOffset variation)
-    const radius = baseRadius;
-
-    // Calculate new position in circular orbit (matching lines 4985-4986)
-    const newOffsetX = radius * Math.cos(currentAngleRad);
-    const newOffsetY = radius * Math.sin(currentAngleRad);
-
-    // Memory center position calculation (matching lines 4989-4991 EXACTLY)
-    // In wheel mode, memories use container coordinates: centerX = SCREEN_WIDTH + newOffsetX, centerY = SCREEN_HEIGHT + newOffsetY
-    // The container is positioned at: left = clampedX - SCREEN_WIDTH, top = clampedY - SCREEN_HEIGHT
-    // where clampedX/clampedY come from panX/panY (the actual container position)
-    // CRITICAL: Use panX/panY directly - these are the actual values used by the container
-    // The container's position is calculated from panX/panY in containerAnimatedStyle
-    // panX/panY represent the actual entity position used by the container
-    // Convert container coordinates to screen coordinates:
-    // Screen X = Container Left + Memory X in Container = (panX.value - SCREEN_WIDTH) + (SCREEN_WIDTH + newOffsetX) = panX.value + newOffsetX
-    // Screen Y = Container Top + Memory Y in Container = (panY.value - SCREEN_HEIGHT) + (SCREEN_HEIGHT + newOffsetY) = panY.value + newOffsetY
-    const memoryX = panX.value + newOffsetX;
-    const memoryY = panY.value + newOffsetY;
-
-    // Calculate moment icon position around the memory (matching MemoryMomentsRenderer logic)
-    const momentIconOrbitRadius = isTablet ? 35 : 28;
-    const iconAngle = (momentIndex / totalMoments) * 2 * Math.PI;
-    const iconX = memoryX + Math.cos(iconAngle) * momentIconOrbitRadius;
-    const iconY = memoryY + Math.sin(iconAngle) * momentIconOrbitRadius;
+    // Ensure moment stays within viewport bounds - CRITICAL for visibility
+    const minX = viewportPadding + finalWidth / 2;
+    const maxX = SCREEN_WIDTH - viewportPadding - finalWidth / 2;
+    const minY = viewportPadding + finalHeight / 2;
+    const maxY = SCREEN_HEIGHT - viewportPadding - finalHeight / 2;
+    
+    // Clamp position to viewport bounds
+    // If moment would be outside viewport, clamp it to stay within bounds
+    momentX = Math.max(minX, Math.min(maxX, momentX));
+    momentY = Math.max(minY, Math.min(maxY, momentY));
 
     return {
       position: 'absolute',
-      left: iconX - finalWidth / 2,
-      top: iconY - finalHeight / 2,
+      left: momentX - finalWidth / 2,
+      top: momentY - finalHeight / 2,
       transform: [{ scale: scale.value * growPulseScale.value }],
       zIndex: 1005,
     };
-  }, [focusedX, focusedY, orbitAngle, showEntityWheelShared, memoryBaseAngle, memoryOffsetX, memoryOffsetY, momentIndex, totalMoments, isTablet, finalWidth, finalHeight, scale, growPulseScale]);
+  }, [focusedX, focusedY, showEntityWheelShared, memoryIndex, momentIndex, momentType, isTablet, finalWidth, finalHeight, scale, growPulseScale]);
 
   // Render using the EXACT same visualization as selectedWheelMoment (post-spin moments)
   // This matches the wheel of life moment display exactly

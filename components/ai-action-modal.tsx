@@ -46,41 +46,105 @@ export function AIActionModal({
   const pulseScale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.3);
   const iconScale = useSharedValue(1);
+  const memoryButtonScale = useSharedValue(1);
+  const entityButtonScale = useSharedValue(1);
+
+  // Track which button should pulse next
+  const buttonPulseRef = React.useRef<{ intervalId: NodeJS.Timeout | null; isMemoryTurn: boolean }>({
+    intervalId: null,
+    isMemoryTurn: true,
+  });
 
   React.useEffect(() => {
     if (visible) {
-      // Start pulsing animation
+      // Start pulsing animation for modal container - only for 3 seconds (1.5 pulse cycles)
+      // Using 750ms per half-cycle to match icon timing: 750ms * 2 * 2 = 3000ms
       pulseScale.value = withRepeat(
         withSequence(
-          withTiming(1.05, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+          withTiming(1.05, { duration: 750, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 750, easing: Easing.inOut(Easing.ease) })
         ),
-        -1,
+        2, // 2 cycles = 3 seconds total (750ms * 2 * 2 = 3000ms)
         false
       );
       glowOpacity.value = withRepeat(
         withSequence(
-          withTiming(0.6, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.3, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+          withTiming(0.6, { duration: 750, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.3, { duration: 750, easing: Easing.inOut(Easing.ease) })
         ),
-        -1,
+        2, // 2 cycles = 3 seconds total
         false
       );
-      // Icon pulse animation
+      
+      // Icon pulse animation - only for 3 seconds (2 pulse cycles)
       iconScale.value = withRepeat(
         withSequence(
-          withTiming(1.2, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+          withTiming(1.2, { duration: 750, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 750, easing: Easing.inOut(Easing.ease) })
         ),
-        -1,
+        2, // 2 cycles = 3 seconds total (750ms * 2 * 2 = 3000ms)
         false
       );
+
+      // After 3 seconds, stop all modal pulsing and start button pulsing (taking turns)
+      const buttonPulseTimeout = setTimeout(() => {
+        // Stop all modal pulsing (icon, container, glow)
+        iconScale.value = 1;
+        pulseScale.value = 1;
+        glowOpacity.value = 0.3;
+        
+        // Reset button turn state
+        buttonPulseRef.current.isMemoryTurn = true;
+        
+        const pulseNextButton = () => {
+          if (buttonPulseRef.current.isMemoryTurn && hasEntities) {
+            // Pulse "Create Memory" button
+            memoryButtonScale.value = withSequence(
+              withTiming(1.08, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+              withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) })
+            );
+            buttonPulseRef.current.isMemoryTurn = false;
+          } else {
+            // Pulse "Create Sfera Entity" button
+            entityButtonScale.value = withSequence(
+              withTiming(1.08, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+              withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) })
+            );
+            buttonPulseRef.current.isMemoryTurn = true;
+          }
+        };
+
+        // Start first button pulse
+        pulseNextButton();
+        
+        // Continue alternating (every 2 seconds: 600ms grow + 600ms shrink + 800ms pause)
+        buttonPulseRef.current.intervalId = setInterval(() => {
+          pulseNextButton();
+        }, 2000);
+      }, 3000);
+
+      return () => {
+        clearTimeout(buttonPulseTimeout);
+        if (buttonPulseRef.current.intervalId) {
+          clearInterval(buttonPulseRef.current.intervalId);
+          buttonPulseRef.current.intervalId = null;
+        }
+      };
     } else {
+      // Reset all animations when modal closes
       pulseScale.value = 1;
       glowOpacity.value = 0.3;
       iconScale.value = 1;
+      memoryButtonScale.value = 1;
+      entityButtonScale.value = 1;
+      
+      // Clear any running intervals
+      if (buttonPulseRef.current.intervalId) {
+        clearInterval(buttonPulseRef.current.intervalId);
+        buttonPulseRef.current.intervalId = null;
+      }
     }
-  }, [visible]);
+  }, [visible, hasEntities, pulseScale, glowOpacity, iconScale, memoryButtonScale, entityButtonScale]);
 
   const pulseAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
@@ -92,6 +156,14 @@ export function AIActionModal({
 
   const iconAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: iconScale.value }],
+  }));
+
+  const memoryButtonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: memoryButtonScale.value }],
+  }));
+
+  const entityButtonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: entityButtonScale.value }],
   }));
 
   const styles = useMemo(
@@ -285,10 +357,35 @@ export function AIActionModal({
                 {/* Buttons */}
                 <View style={styles.buttonContainer}>
                   {hasEntities && (
+                    <Animated.View style={memoryButtonAnimatedStyle}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          onClose();
+                          onSelectCreateMemory();
+                        }}
+                        activeOpacity={0.8}
+                        style={styles.button}
+                      >
+                        <LinearGradient
+                          colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={StyleSheet.absoluteFill}
+                          borderRadius={16 * fontScale}
+                        />
+                        <MaterialIcons name="memory" size={24 * fontScale} color="#FFFFFF" />
+                        <ThemedText size="l" weight="bold" style={styles.buttonText}>
+                          {t('ai.action.createMemory')}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  )}
+                  
+                  <Animated.View style={entityButtonAnimatedStyle}>
                     <TouchableOpacity
                       onPress={() => {
                         onClose();
-                        onSelectCreateMemory();
+                        onSelectCreateEntity();
                       }}
                       activeOpacity={0.8}
                       style={styles.button}
@@ -300,33 +397,12 @@ export function AIActionModal({
                         style={StyleSheet.absoluteFill}
                         borderRadius={16 * fontScale}
                       />
-                      <MaterialIcons name="memory" size={24 * fontScale} color="#FFFFFF" />
+                      <MaterialIcons name="person-add" size={24 * fontScale} color="#FFFFFF" />
                       <ThemedText size="l" weight="bold" style={styles.buttonText}>
-                        {t('ai.action.createMemory')}
+                        {t('ai.action.createEntity')}
                       </ThemedText>
                     </TouchableOpacity>
-                  )}
-                  
-                  <TouchableOpacity
-                    onPress={() => {
-                      onClose();
-                      onSelectCreateEntity();
-                    }}
-                    activeOpacity={0.8}
-                    style={styles.button}
-                  >
-                    <LinearGradient
-                      colors={['#4A90E2', '#357ABD', '#2E6DA4']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={StyleSheet.absoluteFill}
-                      borderRadius={16 * fontScale}
-                    />
-                    <MaterialIcons name="person-add" size={24 * fontScale} color="#FFFFFF" />
-                    <ThemedText size="l" weight="bold" style={styles.buttonText}>
-                      {t('ai.action.createEntity')}
-                    </ThemedText>
-                  </TouchableOpacity>
+                  </Animated.View>
                 </View>
               </View>
             </Animated.View>
