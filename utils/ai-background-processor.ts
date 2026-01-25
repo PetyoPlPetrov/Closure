@@ -172,7 +172,17 @@ export async function clearPendingAIError(): Promise<void> {
 /**
  * Background task to process AI request
  */
-const backgroundTask = async (taskData: { requestId: string; prompt: string; context: AIRequestContext; imageUri?: string; language?: 'en' | 'bg' }) => {
+type AIBackgroundTaskData = {
+  delay: number;
+  requestId: string;
+  prompt: string;
+  context: AIRequestContext;
+  imageUri: string | undefined;
+  language: 'en' | 'bg' | undefined;
+};
+
+const backgroundTask = async (taskData?: AIBackgroundTaskData) => {
+  if (!taskData) return;
   const { requestId, prompt, context } = taskData;
   
   try {
@@ -181,8 +191,8 @@ const backgroundTask = async (taskData: { requestId: string; prompt: string; con
     const savedImageUri = pendingRequest?.imageUri || taskData.imageUri;
     const language = pendingRequest?.language || taskData.language || 'en';
     
-    // Process the AI request with language
-    const response = await processMemoryPrompt(prompt, context, language);
+    // Process the AI request with language and optional image (AI analyzes image for better moments)
+    const response = await processMemoryPrompt(prompt, context, language, savedImageUri);
     
     // Save response to storage with image URI if available
     await savePendingAIResponse({
@@ -412,7 +422,16 @@ export async function clearPendingEntityError(): Promise<void> {
 /**
  * Background task to process entity creation request
  */
-const entityBackgroundTask = async (taskData: { requestId: string; prompt: string; sphere: 'family' | 'friends' | 'hobbies' | 'relationships' | 'career'; language?: 'en' | 'bg' }) => {
+type EntityBackgroundTaskData = {
+  delay: number;
+  requestId: string;
+  prompt: string;
+  sphere: 'family' | 'friends' | 'hobbies' | 'relationships' | 'career';
+  language: 'en' | 'bg' | undefined;
+};
+
+const entityBackgroundTask = async (taskData?: EntityBackgroundTaskData) => {
+  if (!taskData) return;
   const { requestId, prompt, sphere } = taskData;
   
   try {

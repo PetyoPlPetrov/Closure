@@ -4,21 +4,21 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import {
-    clearPendingAIError,
-    clearPendingAIRequest,
-    clearPendingAIResponse,
-    getPendingAIError,
-    getPendingAIRequest,
-    getPendingAIResponse,
-    isBackgroundTaskRunning,
-    savePendingAIResponse,
-    startBackgroundAIProcessing,
-    stopBackgroundAIProcessing,
-    type PendingAIResponse
+  clearPendingAIError,
+  clearPendingAIRequest,
+  clearPendingAIResponse,
+  getPendingAIError,
+  getPendingAIRequest,
+  getPendingAIResponse,
+  isBackgroundTaskRunning,
+  savePendingAIResponse,
+  startBackgroundAIProcessing,
+  stopBackgroundAIProcessing,
+  type PendingAIResponse
 } from '@/utils/ai-background-processor';
 import {
-    canMakeAIRequest,
-    recordAIRequest
+  canMakeAIRequest,
+  recordAIRequest
 } from '@/utils/ai-rate-limiter';
 import { processMemoryPrompt, type AIMemoryResponse } from '@/utils/ai-service';
 import { logAIMemoryDiscarded, logAIMemorySaved, logAIModalSubmit } from '@/utils/analytics';
@@ -32,38 +32,42 @@ import { updateStreakOnMemoryCreation } from '@/utils/streak-manager';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    AppState, AppStateStatus,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    Modal as RNModal,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  AppState, AppStateStatus,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  Modal as RNModal,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import Animated, {
-    Easing,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withSpring,
-    withTiming
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming
 } from 'react-native-reanimated';
 
 type ModalView = 'input' | 'loading' | 'results';
+
+/** Max file size for AI memory photos (2MB). Keeps API payloads small; base64 adds ~33% overhead. */
+const MAX_IMAGE_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 
 interface AIModalProps {
   visible: boolean;
@@ -686,25 +690,37 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.8,
+        quality: 0.6,
       });
 
       if (!result.canceled && result.assets[0]) {
         const imageUri = result.assets[0].uri;
+        try {
+          const info = await FileSystem.getInfoAsync(imageUri);
+          const size = info.exists && 'size' in info && typeof info.size === 'number' ? info.size : 0;
+          if (size > MAX_IMAGE_FILE_SIZE_BYTES) {
+            Alert.alert(
+              t('ai.imageTooLarge.title'),
+              t('ai.imageTooLarge.message'),
+              [{ text: t('common.ok') || 'OK' }]
+            );
+            return;
+          }
+        } catch {
+          // If we can't read size, allow the image (e.g. some URI schemes)
+        }
         setSelectedImage(imageUri);
-        
-        // If AI response has already arrived, persist the image URI to AsyncStorage
+
         if (aiResponse) {
           try {
             const pendingResponse = await getPendingAIResponse();
             if (pendingResponse) {
-              // Update the pending response with the new image URI
               await savePendingAIResponse({
                 ...pendingResponse,
                 imageUri,
               });
             }
-          } catch (error) {
+          } catch {
             // Failed to save image URI to AsyncStorage
           }
         }
@@ -795,7 +811,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
           const response = await processMemoryPrompt(
             inputText.trim(), 
             { sferas },
-            language
+            language,
+            selectedImage || undefined
           );
           
           // Check if app is still active before stopping background task
@@ -1245,9 +1262,9 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       borderRadius: 24 * fontScale,
       paddingHorizontal: 24 * fontScale,
       paddingTop: 24 * fontScale,
-      paddingBottom: 12 * fontScale,
-      minHeight: 360 * fontScale,
-      maxHeight: '85%',
+      paddingBottom: 28 * fontScale,
+      minHeight: 440 * fontScale,
+      maxHeight: '88%',
     },
     modalContainerLarge: {
       width: '95%',
@@ -1372,6 +1389,22 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       justifyContent: 'center',
       alignItems: 'center',
     },
+    inputImageSection: {
+      marginTop: 12 * fontScale,
+      marginBottom: 8 * fontScale,
+    },
+    inputImagePreview: {
+      width: '100%',
+      height: 80 * fontScale,
+      borderRadius: 12 * fontScale,
+      overflow: 'hidden',
+      position: 'relative',
+    },
+    inputImagePreviewImage: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 12 * fontScale,
+    },
     imageUploadButton: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1382,29 +1415,30 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       borderWidth: 1,
       borderColor: colors.primary,
       borderStyle: 'dashed',
-      marginTop: 12 * fontScale,
-      marginBottom: 8 * fontScale,
     },
     imageUploadButtonLarge: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 24 * fontScale,
-      paddingHorizontal: 32 * fontScale,
-      borderRadius: 16 * fontScale,
+      paddingVertical: 16 * fontScale,
+      paddingHorizontal: 24 * fontScale,
+      borderRadius: 12 * fontScale,
       borderWidth: 2,
       borderColor: colors.primary,
       borderStyle: 'dashed',
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(100, 181, 246, 0.1)' 
+      backgroundColor: colorScheme === 'dark'
+        ? 'rgba(100, 181, 246, 0.1)'
         : 'rgba(100, 181, 246, 0.05)',
-      marginBottom: 24 * fontScale,
+      marginBottom: 16 * fontScale,
+    },
+    imagePreviewContainer: {
+      marginBottom: 16 * fontScale,
     },
     imagePreview: {
       width: '100%',
-      height: 200 * fontScale,
+      height: 160 * fontScale,
       borderRadius: 12 * fontScale,
-      marginTop: 16 * fontScale,
-      marginBottom: 8 * fontScale,
+      marginTop: 0,
+      marginBottom: 0,
       position: 'relative',
       overflow: 'hidden',
     },
@@ -1429,53 +1463,53 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     },
     loadingContainer: {
       flex: 1,
-      paddingVertical: 20 * fontScale,
+      paddingVertical: 16 * fontScale,
     },
     loadingIndicatorContainer: {
       alignItems: 'center',
       justifyContent: 'flex-start',
-      paddingVertical: 40 * fontScale,
-      paddingHorizontal: 20 * fontScale,
-      marginTop: 24 * fontScale,
+      paddingVertical: 16 * fontScale,
+      paddingHorizontal: 16 * fontScale,
+      marginTop: 12 * fontScale,
       overflow: 'visible',
     },
     animationCirclesContainer: {
       position: 'relative',
-      width: 200 * fontScale,
-      height: 200 * fontScale,
-      marginBottom: 24 * fontScale,
+      width: 110 * fontScale,
+      height: 110 * fontScale,
+      marginBottom: 12 * fontScale,
       alignItems: 'center',
       justifyContent: 'center',
     },
     loadingGlow: {
       position: 'absolute',
-      width: 200 * fontScale,
-      height: 200 * fontScale,
-      borderRadius: 100 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 215, 0, 0.15)' 
+      width: 110 * fontScale,
+      height: 110 * fontScale,
+      borderRadius: 55 * fontScale,
+      backgroundColor: colorScheme === 'dark'
+        ? 'rgba(255, 215, 0, 0.15)'
         : 'rgba(255, 215, 0, 0.25)',
       top: 0,
       left: '50%',
-      marginLeft: -100 * fontScale,
+      marginLeft: -55 * fontScale,
     },
     aiIconWrapper: {
       position: 'absolute',
       top: '50%',
       left: '50%',
-      marginLeft: -70 * fontScale,
-      marginTop: -70 * fontScale,
-      width: 140 * fontScale,
-      height: 140 * fontScale,
+      marginLeft: -36 * fontScale,
+      marginTop: -36 * fontScale,
+      width: 72 * fontScale,
+      height: 72 * fontScale,
       alignItems: 'center',
       justifyContent: 'center',
     },
     aiIconContainer: {
-      width: 140 * fontScale,
-      height: 140 * fontScale,
-      borderRadius: 70 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 215, 0, 0.15)' 
+      width: 72 * fontScale,
+      height: 72 * fontScale,
+      borderRadius: 36 * fontScale,
+      backgroundColor: colorScheme === 'dark'
+        ? 'rgba(255, 215, 0, 0.15)'
         : 'rgba(255, 215, 0, 0.25)',
       justifyContent: 'center',
       alignItems: 'center',
@@ -1483,35 +1517,36 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       shadowColor: '#FFD700',
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 0.5,
-      shadowRadius: 20,
-      elevation: 10,
+      shadowRadius: 12,
+      elevation: 8,
     },
     loadingMessageContainer: {
       alignItems: 'center',
-      marginTop: 8 * fontScale,
+      marginTop: 4 * fontScale,
     },
     loadingMessage: {
       textAlign: 'center',
       opacity: 0.9,
-      marginBottom: 12 * fontScale,
+      marginBottom: 8 * fontScale,
+      fontSize: 15 * fontScale,
     },
     loadingDots: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 8 * fontScale,
-      marginTop: 4 * fontScale,
+      gap: 6 * fontScale,
+      marginTop: 2 * fontScale,
     },
     loadingDot: {
-      width: 8 * fontScale,
-      height: 8 * fontScale,
-      borderRadius: 4 * fontScale,
+      width: 6 * fontScale,
+      height: 6 * fontScale,
+      borderRadius: 3 * fontScale,
       backgroundColor: colors.primary,
     },
     progressBarContainer: {
       width: '100%',
-      marginTop: 24 * fontScale,
-      paddingHorizontal: 20 * fontScale,
+      marginTop: 12 * fontScale,
+      paddingHorizontal: 16 * fontScale,
     },
     progressBarBackground: {
       width: '100%',
@@ -1977,6 +2012,39 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
               )}
             </View>
 
+            {/* Optional image upload - AI will analyze it for better moment suggestions */}
+            <View style={styles.inputImageSection}>
+              {!selectedImage ? (
+                <TouchableOpacity
+                  style={styles.imageUploadButton}
+                  onPress={handlePickImage}
+                  activeOpacity={0.7}
+                  disabled={isPickingImage}
+                >
+                  {isPickingImage ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <>
+                      <MaterialIcons name="add-photo-alternate" size={20 * fontScale} color={colors.primary} />
+                      <ThemedText size="sm" weight="medium" style={{ color: colors.primary, marginLeft: 8 * fontScale }}>
+                        {t('ai.upload.image.optional')}
+                      </ThemedText>
+                    </>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.inputImagePreview}>
+                  <Image source={{ uri: selectedImage }} style={styles.inputImagePreviewImage} />
+                  <TouchableOpacity
+                    style={styles.removeImageButton}
+                    onPress={() => setSelectedImage(null)}
+                  >
+                    <MaterialIcons name="close" size={16 * fontScale} color="#ffffff" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
             {/* Submit Button */}
             <TouchableOpacity
               onPress={handleSend}
@@ -2017,8 +2085,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                 showsVerticalScrollIndicator={true}
                 persistentScrollbar={true}
               >
-                {/* Image Upload Field */}
-                {!selectedImage ? (
+                {/* Image block: hide during loading if image was added on input step */}
+                {(!aiResponse && selectedImage) ? null : !selectedImage ? (
                   <TouchableOpacity
                     style={styles.imageUploadButtonLarge}
                     onPress={handlePickImage}
@@ -2029,7 +2097,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                       <ActivityIndicator size="large" color={colors.primary} />
                     ) : (
                       <>
-                        <MaterialIcons name="add-photo-alternate" size={32 * fontScale} color={colors.primary} />
+                        <MaterialIcons name="add-photo-alternate" size={24 * fontScale} color={colors.primary} />
                         <ThemedText size="sm" weight="medium" style={{ color: colors.primary, marginTop: 8 * fontScale }}>
                           {t('ai.upload.image') || 'Add photo'}
                         </ThemedText>
@@ -2037,30 +2105,36 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                     )}
                   </TouchableOpacity>
                 ) : (
-                  <View style={styles.imagePreview}>
-                    <Image source={{ uri: selectedImage }} style={styles.imagePreviewImage} />
-                    <TouchableOpacity
-                      style={styles.removeImageButton}
-                      onPress={async () => {
-                        setSelectedImage(null);
-                        // If AI response exists, update AsyncStorage to remove image URI
-                        if (aiResponse) {
-                          try {
-                            const pendingResponse = await getPendingAIResponse();
-                            if (pendingResponse) {
-                              await savePendingAIResponse({
-                                ...pendingResponse,
-                                imageUri: undefined,
-                              });
+                  <View style={styles.imagePreviewContainer}>
+                    {aiResponse && (
+                      <ThemedText size="xs" weight="medium" style={[styles.dropdownLabel, { marginBottom: 6 * fontScale }]}>
+                        {t('ai.results.momentPicture')}
+                      </ThemedText>
+                    )}
+                    <View style={styles.imagePreview}>
+                      <Image source={{ uri: selectedImage }} style={styles.imagePreviewImage} />
+                      <TouchableOpacity
+                        style={styles.removeImageButton}
+                        onPress={async () => {
+                          setSelectedImage(null);
+                          if (aiResponse) {
+                            try {
+                              const pendingResponse = await getPendingAIResponse();
+                              if (pendingResponse) {
+                                await savePendingAIResponse({
+                                  ...pendingResponse,
+                                  imageUri: undefined,
+                                });
+                              }
+                            } catch (error) {
+                              // noop
                             }
-                          } catch (error) {
-                            // Failed to update image URI in AsyncStorage
                           }
-                        }
-                      }}
-                    >
-                      <MaterialIcons name="close" size={16 * fontScale} color="#ffffff" />
-                    </TouchableOpacity>
+                        }}
+                      >
+                        <MaterialIcons name="close" size={16 * fontScale} color="#ffffff" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
 
@@ -2073,12 +2147,12 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                       <Animated.View style={[styles.loadingGlow, animatedPulseBgStyle]} />
                       
                       {/* Main sparkle icon with enhanced animation - centered */}
-                      <View style={styles.aiIconWrapper}>
+                        <View style={styles.aiIconWrapper}>
                         <Animated.View style={animatedSparkleStyle}>
                           <View style={styles.aiIconContainer}>
-                            <ThemedText style={{ 
-                              fontSize: 64 * fontScale,
-                              lineHeight: 64 * fontScale,
+                            <ThemedText style={{
+                              fontSize: 36 * fontScale,
+                              lineHeight: 36 * fontScale,
                               textAlign: 'center',
                               includeFontPadding: false,
                             }}>

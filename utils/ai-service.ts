@@ -5,6 +5,7 @@
 import { getAI, getGenerativeModel, Schema } from '@react-native-firebase/ai';
 import { getApp } from '@react-native-firebase/app';
 import { firebase } from '@react-native-firebase/app-check';
+import * as FileSystem from 'expo-file-system/legacy';
 import type { LifeSphere } from './JourneyProvider';
 
 // Runtime flag for mock AI requests (set to true to use slow mock requests for testing)
@@ -60,18 +61,39 @@ export interface AIEncouragementResponse {
 }
 
 /**
+ * Read image file as base64 for Gemini inline data.
+ * Returns { mimeType, data } or null if read fails.
+ */
+async function readImageAsBase64(imageUri: string): Promise<{ mimeType: string; data: string } | null> {
+  try {
+    const mimeType = imageUri.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg';
+    const data = await FileSystem.readAsStringAsync(imageUri, {
+      encoding: 'base64',
+    });
+    if (!data || data.length === 0) return null;
+    return { mimeType, data };
+  } catch (e) {
+    console.warn('Failed to read image as base64:', e);
+    return null;
+  }
+}
+
+/**
  * Process memory prompt using Firebase AI (Gemini)
- * Analyzes the user's story and generates a memory with moments
+ * Analyzes the user's story and generates a memory with moments.
+ * When imageUri is provided, the AI also analyzes the image to suggest better, more specific moments.
  * @param prompt - User's story/input text
  * @param context - AI request context with entities
  * @param language - Language code ('en' or 'bg') for prompt and response
+ * @param imageUri - Optional local image URI; AI will analyze it for better moment suggestions. Used as memory moment picture.
  */
 export async function processMemoryPrompt(
   prompt: string,
   context: AIRequestContext,
-  language: 'en' | 'bg' = 'en'
+  language: 'en' | 'bg' = 'en',
+  imageUri?: string
 ): Promise<AIMemoryResponse> {
-  console.log('🤖 Processing AI memory prompt:', prompt.substring(0, 100) + '...');
+  console.log('🤖 Processing AI memory prompt:', prompt.substring(0, 100) + '...', imageUri ? '(with image)' : '');
   try {
     // Extract entities from context.sferas (now with enriched metadata)
     const relationships = context.sferas.relationships || [];
@@ -173,6 +195,11 @@ Based on the user's story, you must:
 5. Generate 2-4 "goodFacts" - positive aspects or happy moments (suns) if applicable, ALL IN ${languageName.toUpperCase()}
 6. Generate 1-3 "lessonsLearned" - insights or lessons from the experience (lightbulbs) if applicable, ALL IN ${languageName.toUpperCase()}
 
+FIRST-PERSON VOICE ("I"):
+- Write the title, hardTruths, goodFacts, and lessonsLearned as if the USER has written them themselves. Use first person: "I", "my", "me" (or the equivalent in ${languageName}).
+- Each moment must sound like the user's own reflection, not a third-person observation. Examples: "I often felt dismissed" not "She was often dismissive"; "I learned to set boundaries" not "Setting boundaries is important"; "I am grateful for the good times we had" not "There were good times."
+- Apply this to ALL output: title, hardTruths, goodFacts, and lessonsLearned.
+
 CRITICAL MATCHING RULES:
 - Match entities based on relationship keywords in the user's story (in ${languageName})
 - For Family: Match based on relationship type mentioned in the story (e.g., "father"/"баща", "mother"/"майка", "brother"/"брат", "sister"/"сестра", etc.)
@@ -189,16 +216,26 @@ ESSENTIAL PHILOSOPHY - BALANCED TRUTH WITH COMPASSION:
   * Focused on: recognizing the problem (a strength), setting boundaries (growth), learning what healthy love looks like (wisdom), protecting oneself (self-care), or finding support (connection)
   * NOT minimizing the harm or toxicity
 - LOVE IN ALL FORMS: Love comes in many forms - embrace its diversity. In healthy relationships, celebrate acts of kindness, understanding, growth, connections, resilience, and wisdom. In unhealthy relationships, recognize that learning to identify and protect oneself from harm is also a form of self-love.
-- BALANCE: Be truthful about what is harmful or toxic, while also providing healthy encouragement that helps the user grow, learn, and protect themselves. Every memory holds lessons - sometimes the lesson is recognizing what is NOT love, and that is valuable wisdom.`;
+- BALANCE: Be truthful about what is harmful or toxic, while also providing healthy encouragement that helps the user grow, learn, and protect themselves. Every memory holds lessons - sometimes the lesson is recognizing what is NOT love, and that is valuable wisdom.${imageUri ? `
+
+IMAGE ANALYSIS: The user may attach a photo. If an image is provided, analyze it alongside the story. Identify people, setting, occasion, and mood from the image. Use this visual context to suggest more specific, relevant moments (hardTruths, goodFacts, lessonsLearned). The image will be used as the memory's moment picture—reference it to enrich your suggestions.` : ''}`;
 
     const userPrompt = `User's story (in ${languageName}): ${prompt}
+${imageUri ? `\nThe user has attached an image. Analyze it together with the story to suggest better, more specific moments for this memory.` : ''}
 
-Analyze this story and return the structured memory response. Remember: ALL text in your response (title, hardTruths, goodFacts, lessonsLearned) must be in ${languageName}.`;
+Analyze this story${imageUri ? ' and image' : ''} and return the structured memory response. Remember: ALL text (title, hardTruths, goodFacts, lessonsLearned) must be in ${languageName} and written in first person as if the user wrote it themselves (use I/my/me).`;
+
+    // Read image as base64 when provided
+    let imageBase64: { mimeType: string; data: string } | null = null;
+    if (imageUri) {
+      imageBase64 = await readImageAsBase64(imageUri);
+      if (imageBase64) {
+        console.log('📤 Sending to AI - Image attached, size:', Math.round(imageBase64.data.length / 1024), 'KB base64');
+      }
+    }
 
     // Log the full prompt being sent to AI
-    const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
-    console.log('📤 Sending to AI - Full prompt length:', fullPrompt.length);
-    console.log('📤 Sending to AI - System prompt:', systemPrompt.substring(0, 500) + '...');
+    console.log('📤 Sending to AI - System prompt length:', systemPrompt.length);
     console.log('📤 Sending to AI - User story:', prompt);
 
     // Define the response schema using Schema.object()
@@ -211,25 +248,25 @@ Analyze this story and return the structured memory response. Remember: ALL text
           description: 'The name of the entity this memory relates to. Must match one of the available entities in the selected sphere.',
         }),
         title: Schema.string({
-          description: `A concise, meaningful title for the memory IN ${languageName.toUpperCase()}`,
+          description: `A concise, meaningful title for the memory IN ${languageName.toUpperCase()}. Write as if the user wrote it (first person: I/my/me or ${languageName} equivalent).`,
         }),
         hardTruths: Schema.array({
           items: Schema.string({
-            description: `A difficult truth, challenging moment, or honest assessment of toxic/unhealthy behavior (cloud) IN ${languageName.toUpperCase()}. Be direct and honest - if a relationship is toxic, abusive, or harmful, state this clearly. Users need to see reality.`,
+            description: `A difficult truth or challenging moment IN ${languageName.toUpperCase()}, written as if the user wrote it (first person: I/my/me). Be direct and honest. Example: "I often felt dismissed" not "She was dismissive."`,
           }),
-          description: `Array of 2-4 difficult truths or challenging moments. Be honest and direct about toxic, unhealthy, or harmful situations. Do not sugar-coat reality. If applicable, ALL IN ${languageName.toUpperCase()}`,
+          description: `Array of 2-4 difficult truths or challenging moments. Each must be in first person as if the user wrote it. ALL IN ${languageName.toUpperCase()}`,
         }),
         goodFacts: Schema.array({
           items: Schema.string({
-            description: `A healthy, realistic positive aspect worth appreciating (sun) IN ${languageName.toUpperCase()}. In healthy relationships: acts of kindness, understanding, growth, connections, resilience. In toxic/unhealthy situations: recognizing the problem (strength), setting boundaries (growth), learning what healthy love looks like (wisdom), protecting oneself (self-care), or finding support. Be realistic - not false positivity.`,
+            description: `A healthy, realistic positive aspect IN ${languageName.toUpperCase()}, written as if the user wrote it (first person: I/my/me). Example: "I am grateful for the support I received." Be realistic, not false positivity.`,
           }),
-          description: `REQUIRED: Array of 2-4 healthy, realistic positive aspects. In healthy relationships, celebrate kindness, growth, and love. In toxic situations, focus on: recognizing harm (strength), learning boundaries (growth), understanding what healthy love is (wisdom), self-protection (self-care), or finding support. Always provide healthy encouragement, but be realistic. ALL IN ${languageName.toUpperCase()}`,
+          description: `REQUIRED: Array of 2-4 positive aspects. Each must be in first person as if the user wrote it. ALL IN ${languageName.toUpperCase()}`,
         }),
         lessonsLearned: Schema.array({
           items: Schema.string({
-            description: `An insight or lesson learned from the experience (lightbulb) IN ${languageName.toUpperCase()}`,
+            description: `An insight or lesson from the experience IN ${languageName.toUpperCase()}, written as if the user wrote it (first person: I/my/me). Example: "I learned to set boundaries."`,
           }),
-          description: `Array of 1-3 insights or lessons learned, if applicable, ALL IN ${languageName.toUpperCase()}`,
+          description: `Array of 1-3 insights or lessons. Each must be in first person as if the user wrote it. ALL IN ${languageName.toUpperCase()}`,
         }),
       },
       required: ['sphere', 'entityName', 'title', 'hardTruths', 'goodFacts', 'lessonsLearned'],
@@ -255,8 +292,20 @@ Analyze this story and return the structured memory response. Remember: ALL text
     });
     console.log('🤖 Firebase AI model ready, generating content...');
 
-    // Generate content with text-only input and structured schema
-    const result = await model.generateContent(fullPrompt);
+    // Build user message parts: text + optional image
+    const parts: ({ text: string } | { inlineData: { mimeType: string; data: string } })[] = [
+      { text: userPrompt },
+    ];
+    if (imageBase64) {
+      parts.push({
+        inlineData: { mimeType: imageBase64.mimeType, data: imageBase64.data },
+      });
+    }
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts }],
+      systemInstruction: systemPrompt,
+    });
 
     // Get the structured JSON response (schema ensures it's valid JSON)
     let parsedResponse: any;

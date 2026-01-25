@@ -661,7 +661,10 @@ export interface Translations {
   'ai.loading.generating': string;
   'ai.loading.uploadPrompt': string;
   'ai.upload.image': string;
+  'ai.upload.image.optional': string;
   'ai.permission.image': string;
+  'ai.imageTooLarge.title': string;
+  'ai.imageTooLarge.message': string;
   'ai.results.title': string;
   'ai.results.sphere': string;
   'ai.results.entity': string;
@@ -671,6 +674,7 @@ export interface Translations {
   'ai.results.hardTruth': string;
   'ai.results.goodFact': string;
   'ai.results.lesson': string;
+  'ai.results.momentPicture': string;
   'ai.save': string;
   'ai.saving': string;
   'ai.save.success': string;
@@ -4044,7 +4048,10 @@ const translations: Record<Language, Translations> = {
     'ai.loading.generating': 'Generating insights...',
     'ai.loading.uploadPrompt': 'While AI is thinking, you can upload a photo for this memory',
     'ai.upload.image': 'Add photo (optional)',
+    'ai.upload.image.optional': 'Add photo (optional) — AI will analyze it',
     'ai.permission.image': 'Photo library permission is required to upload images.',
+    'ai.imageTooLarge.title': 'Image too large',
+    'ai.imageTooLarge.message': 'Please choose a photo under 2 MB. Large files slow down AI processing.',
     'ai.results.title': 'AI Suggestions',
     'ai.results.sphere': 'Sphere',
     'ai.results.entity': 'Entity',
@@ -4054,6 +4061,7 @@ const translations: Record<Language, Translations> = {
     'ai.results.hardTruth': 'Hard Truth',
     'ai.results.goodFact': 'Good Fact',
     'ai.results.lesson': 'Lesson',
+    'ai.results.momentPicture': 'Moment picture',
     'ai.save': 'Save',
     'ai.saving': 'Saving...',
     'ai.save.success': 'Memory saved successfully!',
@@ -7004,7 +7012,10 @@ const translations: Record<Language, Translations> = {
     'ai.loading.generating': 'Генериране на прозрения...',
     'ai.loading.uploadPrompt': 'Докато AI мисли, можете да качите снимка за този спомен',
     'ai.upload.image': 'Добави снимка (по избор)',
+    'ai.upload.image.optional': 'Добави снимка (по избор) — AI ще я анализира',
     'ai.permission.image': 'Необходимо е разрешение за библиотека със снимки за качване на изображения.',
+    'ai.imageTooLarge.title': 'Изображението е твърде голямо',
+    'ai.imageTooLarge.message': 'Моля, изберете снимка под 2 MB. Големите файлове забавяват AI обработката.',
     'ai.results.title': 'AI Предложения',
     'ai.results.sphere': 'Сфера',
     'ai.results.entity': 'Обект',
@@ -7014,6 +7025,7 @@ const translations: Record<Language, Translations> = {
     'ai.results.hardTruth': 'Трудна истина',
     'ai.results.goodFact': 'Добър факт',
     'ai.results.lesson': 'Урок',
+    'ai.results.momentPicture': 'Снимка на момента',
     'ai.save': 'Запази',
     'ai.saving': 'Запазване...',
     'ai.save.success': 'Споменът е запазен успешно!',
