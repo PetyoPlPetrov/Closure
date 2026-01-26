@@ -556,7 +556,7 @@ export function EntityWheelOfLife({
       {/* Floating moments that grow from memories */}
       {(() => {
         console.log('[EntityWheel] Rendering floatingMoments. Count:', floatingMoments.length);
-        return floatingMoments.map((moment) => (
+        return floatingMoments.map((moment, index) => (
           <FloatingMomentFromMemory
             key={`floating-moment-${moment.id}`}
             memoryX={moment.memoryX}
@@ -565,6 +565,8 @@ export function EntityWheelOfLife({
             colorScheme={colorScheme}
             text={moment.text}
             isTablet={isTablet}
+            positionIndex={index}
+            totalConcurrent={floatingMoments.length}
           />
         ));
       })()}
@@ -671,6 +673,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   colorScheme,
   text = '',
   isTablet,
+  positionIndex = 0,
+  totalConcurrent = 1,
 }: {
   memoryX: number;
   memoryY: number;
@@ -678,6 +682,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   colorScheme: 'light' | 'dark';
   text?: string;
   isTablet: boolean;
+  positionIndex?: number;
+  totalConcurrent?: number;
 }) {
   const fontScale = useFontScale();
   const scale = useSharedValue(0);
@@ -721,9 +727,30 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   const startX = memoryX;
   const startY = memoryY;
 
-  // End position is center of screen
-  const endX = SCREEN_WIDTH / 2;
-  const endY = SCREEN_HEIGHT / 2 - 40;
+  // Calculate end position distributed around center to prevent overlap
+  const centerX = SCREEN_WIDTH / 2;
+  const centerY = SCREEN_HEIGHT / 2 - 40;
+  
+  // Calculate offset based on position index to distribute moments in a circle
+  // Use a radius that ensures moments don't overlap (based on maximum moment size + padding)
+  const maxMomentSize = Math.max(finalWidth, finalHeight);
+  // Minimum radius: half the diagonal of the largest moment + padding to prevent overlap
+  // For 4 moments in a circle, we need radius >= (maxMomentSize * sqrt(2) / 2) + padding
+  const minRadius = (maxMomentSize * Math.sqrt(2) / 2) + (maxMomentSize * 0.3);
+  // Scale radius based on number of concurrent moments
+  const distributionRadius = Math.max(minRadius, maxMomentSize * (0.4 + (totalConcurrent - 1) * 0.2));
+  
+  let endX = centerX;
+  let endY = centerY;
+  
+  if (totalConcurrent > 1) {
+    // Distribute moments in a circular pattern around center
+    // Offset angle by -PI/2 to start from top (12 o'clock position)
+    const angleStep = (2 * Math.PI) / totalConcurrent;
+    const angle = (positionIndex * angleStep) - (Math.PI / 2);
+    endX = centerX + Math.cos(angle) * distributionRadius;
+    endY = centerY + Math.sin(angle) * distributionRadius;
+  }
 
   // Animation: grow from memory position, move to center, hold, then shrink back to memory
   useEffect(() => {

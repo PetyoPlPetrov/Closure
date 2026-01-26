@@ -358,20 +358,26 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
   const [floatingMoments, setFloatingMoments] = React.useState<{
     id: number;
     memoryId: string;
-    memoryIndex: number; // Index in memories array
-    momentIndex: number; // Index within the moment type array for this memory
+    memoryIndex: number;
+    momentIndex: number;
     momentType: 'lesson' | 'sunny' | 'cloudy';
     text: string;
     memoryImageUri?: string;
-    memoryOffsetX: number; // Memory's offsetX from memoryPositions
-    memoryOffsetY: number; // Memory's offsetY from memoryPositions
-    memoryBaseAngle: number; // Memory's base angle from memoryPositions
+    memoryOffsetX: number;
+    memoryOffsetY: number;
+    memoryBaseAngle: number;
+    spawnSlot: number; // Stable slot for layout (avoids blink when totalConcurrent drops)
+    batchSize: number;
   }[]>([]);
   const momentIdCounter = useRef(0);
   const floatingMomentsTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const nextMomentIndexRef = useRef<number>(0); // Track the next moment index to spawn
-  const isSpawningNextRef = useRef<boolean>(false); // Lock to prevent concurrent spawns
-  const cycleIdRef = useRef<number>(0); // Track cycle to prevent old completions from spawning
+  const nextMomentIndexRef = useRef<number>(0);
+  const isSpawningNextRef = useRef<boolean>(false);
+  const cycleIdRef = useRef<number>(0);
+  const restartScheduledRef = useRef<boolean>(false);
+  const remainingBeforeRestartRef = useRef<number>(0);
+  const currentBatchSizeRef = useRef<number>(3);
+  const nextSlotRef = useRef<number>(0);
 
   // Create refs
   const viewShotRef = useRef<View>(null);
@@ -1049,6 +1055,14 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       return;
     }
 
+    const orderBeforeShuffle = momentsWithPositions.map(m => `${m.memoryIndex}-${m.momentIndex}-${m.momentType}`);
+    console.log('[GrowMoments] MEMORIES & MOMENTS', {
+      memoriesCount: memories.length,
+      momentsCount: momentsWithPositions.length,
+      type: selectedMomentType,
+      orderBeforeShuffle,
+    });
+
     // Shuffle moments to randomize which memory they come from
     // Fisher-Yates shuffle algorithm
     for (let i = momentsWithPositions.length - 1; i > 0; i--) {
@@ -1056,25 +1070,35 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       [momentsWithPositions[i], momentsWithPositions[j]] = [momentsWithPositions[j], momentsWithPositions[i]];
     }
 
+    const orderAfterShuffle = momentsWithPositions.map(m => `${m.memoryIndex}-${m.momentIndex}-${m.momentType}`);
+    console.log('[GrowMoments] ORDER AFTER SHUFFLE', {
+      order: orderAfterShuffle,
+      type: selectedMomentType,
+    });
+
     // Clear any existing timeouts from previous runs
     floatingMomentsTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
     floatingMomentsTimeoutsRef.current = [];
-    
-    // Reset next moment index to start from beginning
+
     nextMomentIndexRef.current = 0;
-    isSpawningNextRef.current = false; // Reset lock
-    cycleIdRef.current++; // Increment cycle ID to invalidate old completions
-    
+    isSpawningNextRef.current = false;
+    cycleIdRef.current++;
+    restartScheduledRef.current = false;
+    remainingBeforeRestartRef.current = 0;
+    nextSlotRef.current = 0;
+
     const timeouts: ReturnType<typeof setTimeout>[] = [];
     // Initial concurrent moments: 3 for lessons, 4 for sunny, 2 for cloudy
     const INITIAL_CONCURRENT_MOMENTS = selectedMomentType === 'lesson' ? 3 : selectedMomentType === 'sunny' ? 4 : 2;
     const INITIAL_START_DELAY = 1000; // Wait 1 second after opening
     const INITIAL_STAGGER_DELAY = 600; // 600ms between each initial moment
-    const GROW_DURATION = 800; // Time to grow
-    const HOLD_DURATION = 3000; // Hold for 3 seconds
-    const SHRINK_DURATION = 800; // Time to shrink back
-    const TOTAL_DURATION = GROW_DURATION + HOLD_DURATION + SHRINK_DURATION; // 4600ms total
-    const CLOUDY_SPAWN_DELAY = 500; // 500ms delay after previous cloud batch shrinks
+    const GROW_DELAY = 400;
+    const GROW_DURATION = 1400;
+    const HOLD_DURATION = 3200;
+    const SHRINK_DURATION = 1200;
+    const TOTAL_DURATION = GROW_DELAY + GROW_DURATION + HOLD_DURATION + SHRINK_DURATION;
+    const REMOVE_BUFFER_MS = 400;
+    const CLOUDY_SPAWN_DELAY = 500;
 
     // For cloudy moments, spawn 2 at a time with delay between batches
     // For other moments, spawn concurrently (multiple at once)
@@ -1092,87 +1116,107 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         
         const momentData = momentsWithPositions[momentIndex];
         const currentCycleId = cycleIdRef.current; // Capture cycle ID when moment is spawned
+        const momentIdentity = `${momentData.memoryIndex}-${momentData.momentIndex}-${momentData.momentType}`;
+        const slot = nextSlotRef.current++;
+        const batchSize = currentBatchSizeRef.current;
         const newMoment = {
           id: momentIdCounter.current++,
           ...momentData,
+          spawnSlot: slot,
+          batchSize,
         };
 
-        // Prevent duplicate moments - check if a moment with the same memoryIndex, momentIndex, and momentType already exists
+        console.log('[GrowMoments] APPEAR', {
+          momentId: momentIdentity,
+          spawnIndex: momentIndex,
+          slot,
+          batchSize,
+          delayMs: delay,
+          ts: new Date().toISOString().slice(11, 23),
+        });
+
         setFloatingMoments(prev => {
-          const isDuplicate = prev.some(m => 
-            m.memoryIndex === newMoment.memoryIndex && 
-            m.momentIndex === newMoment.momentIndex && 
+          const isDuplicate = prev.some(m =>
+            m.memoryIndex === newMoment.memoryIndex &&
+            m.momentIndex === newMoment.momentIndex &&
             m.momentType === newMoment.momentType
           );
           if (isDuplicate) {
-            return prev; // Don't add duplicate
+            console.log('[GrowMoments] APPEAR SKIP duplicate', { momentId: momentIdentity });
+            return prev;
           }
           return [...prev, newMoment];
         });
 
-        // Remove this moment after it completes
         const removeTimeout = setTimeout(() => {
-          // Check if this completion is from the current cycle (prevent old completions from spawning)
           if (cycleIdRef.current !== currentCycleId) {
             setFloatingMoments(prev => prev.filter(m => m.id !== newMoment.id));
             return;
           }
-          
+          momentAnimationStateMap.delete(momentIdentity);
+
+          console.log('[GrowMoments] DISAPPEAR', {
+            momentId: momentIdentity,
+            ts: new Date().toISOString().slice(11, 23),
+          });
+
           setFloatingMoments(prev => prev.filter(m => m.id !== newMoment.id));
-          
-          // As soon as this moment completes, spawn the next one to maintain constant count
-          // Use a lock to prevent multiple moments from spawning the next one simultaneously
-          if (isSpawningNextRef.current) {
-            // Another moment is already spawning the next one, skip
+
+          if (restartScheduledRef.current) {
+            remainingBeforeRestartRef.current--;
+            if (remainingBeforeRestartRef.current <= 0) {
+              restartScheduledRef.current = false;
+              remainingBeforeRestartRef.current = 0;
+              const momentsToSpawn = Math.min(INITIAL_CONCURRENT_MOMENTS, momentsWithPositions.length);
+              currentBatchSizeRef.current = momentsToSpawn;
+              nextSlotRef.current = 0;
+              cycleIdRef.current++;
+              nextMomentIndexRef.current = 0;
+              setFloatingMoments([]);
+              const restartOrder = momentsToSpawn > 0 ? momentsWithPositions.slice(0, momentsToSpawn).map(m => `${m.memoryIndex}-${m.momentIndex}-${m.momentType}`) : [];
+              console.log('[GrowMoments] RESTART', {
+                momentsToSpawn,
+                poolSize: momentsWithPositions.length,
+                spawnOrder: restartOrder,
+                ts: new Date().toISOString().slice(11, 23),
+              });
+              for (let i = 0; i < momentsToSpawn; i++) {
+                spawnSingleMoment(i, INITIAL_START_DELAY + (i * INITIAL_STAGGER_DELAY));
+                nextMomentIndexRef.current = i + 1;
+              }
+            }
             return;
           }
-          
-          // Check if there are more moments to spawn
+
+          if (isSpawningNextRef.current) return;
+
           if (nextMomentIndexRef.current < momentsWithPositions.length) {
-            // Acquire lock
             isSpawningNextRef.current = true;
             const nextIndex = nextMomentIndexRef.current++;
-            
-            // Small delay before spawning next moment (for cloudy moments, use longer delay)
-            const delayAfterShrink = isCloudyMoment 
-              ? CLOUDY_SPAWN_DELAY  // 500ms delay for cloudy moments
-              : 0; // No delay for other moments
-            
+            const delayAfterShrink = isCloudyMoment ? CLOUDY_SPAWN_DELAY : 0;
             const nextSpawnTimeout = setTimeout(() => {
-              // Check cycle again before spawning (cycle might have changed)
               if (cycleIdRef.current !== currentCycleId) {
                 isSpawningNextRef.current = false;
                 return;
               }
-              // Release lock
               isSpawningNextRef.current = false;
-              // Check again before spawning next moment
-              if (!selectedWheelMoment) {
-                spawnSingleMoment(nextIndex, 0);
-              }
+              const nextId = momentsWithPositions[nextIndex] ? `${momentsWithPositions[nextIndex].memoryIndex}-${momentsWithPositions[nextIndex].momentIndex}-${momentsWithPositions[nextIndex].momentType}` : '?';
+              console.log('[GrowMoments] SPAWN NEXT', {
+                nextIndex,
+                nextId,
+                poolSize: momentsWithPositions.length,
+                ts: new Date().toISOString().slice(11, 23),
+              });
+              if (!selectedWheelMoment) spawnSingleMoment(nextIndex, 0);
             }, delayAfterShrink);
             floatingMomentsTimeoutsRef.current.push(nextSpawnTimeout);
           } else {
-            // All moments have been shown, restart from beginning
-            // Acquire lock
-            isSpawningNextRef.current = true;
-            const restartTimeout = setTimeout(() => {
-              // Release lock
-              isSpawningNextRef.current = false;
-              if (!selectedWheelMoment) {
-                // Reset index and restart with initial batch, increment cycle
-                cycleIdRef.current++;
-                nextMomentIndexRef.current = 0;
-                const momentsToSpawn = Math.min(INITIAL_CONCURRENT_MOMENTS, momentsWithPositions.length);
-                for (let i = 0; i < momentsToSpawn; i++) {
-                  spawnSingleMoment(i, INITIAL_START_DELAY + (i * INITIAL_STAGGER_DELAY));
-                  nextMomentIndexRef.current = i + 1; // Update ref as we spawn
-                }
-              }
-            }, isCloudyMoment ? CLOUDY_SPAWN_DELAY : 0);
-            floatingMomentsTimeoutsRef.current.push(restartTimeout);
+            // Run out: wait for remaining moments to finish shrink and be removed, then restart.
+            const momentsToSpawnThisCycle = Math.min(INITIAL_CONCURRENT_MOMENTS, momentsWithPositions.length);
+            restartScheduledRef.current = true;
+            remainingBeforeRestartRef.current = momentsToSpawnThisCycle - 1;
           }
-        }, TOTAL_DURATION + 100);
+        }, TOTAL_DURATION + REMOVE_BUFFER_MS);
         timeouts.push(removeTimeout);
         floatingMomentsTimeoutsRef.current.push(removeTimeout);
       }, delay);
@@ -1181,13 +1225,19 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       floatingMomentsTimeoutsRef.current.push(timeout);
     };
 
-    // Start spawning initial batch of moments
-    // For all moment types: spawn multiple at once (concurrent)
-    // Cloudy moments spawn 2 at a time with 500ms delay between batches
     const momentsToSpawn = Math.min(INITIAL_CONCURRENT_MOMENTS, momentsWithPositions.length);
+    currentBatchSizeRef.current = momentsToSpawn;
+    nextSlotRef.current = 0;
+    console.log('[GrowMoments] INIT SPAWN', {
+      momentsToSpawn,
+      poolSize: momentsWithPositions.length,
+      type: selectedMomentType,
+      spawnOrder: momentsToSpawn > 0 ? momentsWithPositions.slice(0, momentsToSpawn).map(m => `${m.memoryIndex}-${m.momentIndex}-${m.momentType}`) : [],
+      ts: new Date().toISOString().slice(11, 23),
+    });
     for (let i = 0; i < momentsToSpawn; i++) {
       spawnSingleMoment(i, INITIAL_START_DELAY + (i * INITIAL_STAGGER_DELAY));
-      nextMomentIndexRef.current = i + 1; // Update ref as we spawn
+      nextMomentIndexRef.current = i + 1;
     }
 
     return () => {
@@ -2767,7 +2817,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           {/* Floating moments that grow from memories */}
           {floatingMoments.map((moment) => (
             <FloatingMomentFromMemory
-              key={`floating-moment-${moment.id}`}
+              key={`floating-moment-${moment.memoryIndex}-${moment.momentIndex}-${moment.momentType}`}
               memoryIndex={moment.memoryIndex}
               momentIndex={moment.momentIndex}
               totalMoments={memories[moment.memoryIndex]?.[
@@ -2791,6 +2841,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               memoryOffsetY={moment.memoryOffsetY}
               memoryBaseAngle={moment.memoryBaseAngle}
               showEntityWheelShared={showEntityWheelShared}
+              spawnSlot={moment.spawnSlot}
+              batchSize={moment.batchSize}
             />
           ))}
 
@@ -7428,6 +7480,9 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
 });
 
 // Floating Moment From Memory - grows from memory position, dynamically following orbit
+// Global map to track which moments have started animating (persists across unmount/remount)
+const momentAnimationStateMap = new Map<string, { hasStarted: boolean; lastSeen: number }>();
+
 const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   memoryIndex,
   momentIndex,
@@ -7449,6 +7504,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   memoryOffsetY,
   memoryBaseAngle,
   showEntityWheelShared,
+  spawnSlot = 0,
+  batchSize = 1,
 }: {
   memoryIndex: number;
   momentIndex: number;
@@ -7470,28 +7527,23 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   memoryOffsetY: number;
   memoryBaseAngle: number;
   showEntityWheelShared?: ReturnType<typeof useSharedValue<boolean>>;
+  spawnSlot?: number;
+  batchSize?: number;
 }) {
+  const positionIndex = batchSize > 0 ? spawnSlot % batchSize : 0;
+  const totalConcurrent = Math.max(1, batchSize);
   const fontScale = useFontScale();
-  const scale = useSharedValue(0);
-  const growPulseScale = useSharedValue(1);
+  
+  // Track the initial scale value to ensure we can always reset correctly
+  const initialScaleRef = React.useRef<number | null>(null);
   
   // Track if animation has been initialized to prevent sudden appearance
   const animationInitializedRef = React.useRef(false);
+  // Track the moment's identity to detect when it actually changes
+  const momentIdentityRef = React.useRef<string>('');
+  // Track if animation has started for this specific moment instance
+  const hasStartedAnimationRef = React.useRef(false);
   
-  // CRITICAL: Initialize scale to initial value synchronously before render
-  // This prevents moments from appearing at full size suddenly
-  useLayoutEffect(() => {
-    // Calculate initial scale immediately (must match calculation below)
-    const smallIconSize = isTablet ? 14 : 12;
-    const maxSize = Math.max(finalWidth, finalHeight);
-    const initScale = smallIconSize / maxSize;
-    
-    // Set initial scale synchronously (before paint) - CRITICAL to prevent sudden appearance
-    scale.value = initScale;
-    growPulseScale.value = 1;
-    animationInitializedRef.current = false;
-  }, [scale, growPulseScale, finalWidth, finalHeight, isTablet, memoryIndex, momentIndex, momentType]);
-
   // Calculate text length for dynamic sizing (matching selectedWheelMoment calculation)
   const textLength = text?.length || 0;
 
@@ -7536,36 +7588,105 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   // Calculate scale ratios: start at small icon size, grow to full size
   const initialScale = smallIconSize / Math.max(finalWidth, finalHeight); // e.g., 12/60 = 0.2
   const finalScale = 1.0; // Full size
+  
+  // Store initial scale in ref for stable reference
+  if (initialScaleRef.current === null || initialScaleRef.current !== initialScale) {
+    initialScaleRef.current = initialScale;
+  }
+
+  // CRITICAL: Initialize scale to initialScale IMMEDIATELY (not 0)
+  // This prevents moments from appearing at full size before animation starts
+  // We calculate initialScale first, then initialize the shared value with it
+  const scale = useSharedValue(initialScale);
+  const growPulseScale = useSharedValue(1);
+
+  // CRITICAL: Initialize scale to initial value synchronously before render
+  // This prevents moments from appearing at full size suddenly
+  // Only reset when the moment's identity actually changes (not when other props change)
+  const currentMomentIdentity = `${memoryIndex}-${momentIndex}-${momentType}`;
+  
+  // Check global animation state to see if this moment has already started animating
+  const globalAnimationState = momentAnimationStateMap.get(currentMomentIdentity);
+  const hasAnimatedBefore = globalAnimationState?.hasStarted ?? false;
+  
+  // All scale read/write happens in useLayoutEffect (before paint) to avoid Reanimated "during render" warnings
+  useLayoutEffect(() => {
+    if (momentIdentityRef.current !== currentMomentIdentity) {
+      momentIdentityRef.current = currentMomentIdentity;
+      if (hasAnimatedBefore) {
+        momentAnimationStateMap.delete(currentMomentIdentity);
+        hasStartedAnimationRef.current = false;
+        animationInitializedRef.current = false;
+        scale.value = initialScale;
+        growPulseScale.value = 1;
+        return;
+      }
+      hasStartedAnimationRef.current = false;
+      cancelAnimation(scale);
+      cancelAnimation(growPulseScale);
+      scale.value = initialScale;
+      growPulseScale.value = 1;
+      animationInitializedRef.current = false;
+    } else {
+      const currentScale = scale.value;
+      if (currentScale === 0) {
+        scale.value = initialScale;
+      } else if (currentScale >= 0.9 && !hasStartedAnimationRef.current && currentScale >= finalScale * 0.95) {
+        scale.value = initialScale;
+        hasStartedAnimationRef.current = false;
+      }
+    }
+  }, [scale, growPulseScale, initialScale, finalScale, currentMomentIdentity, hasAnimatedBefore]);
 
   // Animation: grow from small icon size to big size, hold, then shrink back
   React.useEffect(() => {
-    const GROW_DURATION = 800;
-    const HOLD_DURATION = 3000;
-    const SHRINK_DURATION = 800;
+    const effectMomentIdentity = currentMomentIdentity;
+    const globalState = momentAnimationStateMap.get(effectMomentIdentity);
+    const hasStartedGlobally = globalState?.hasStarted ?? false;
 
-    // CRITICAL: Always reset to initial scale first (without animation) to ensure animation starts from small
-    // This must happen synchronously before any rendering to prevent sudden appearance
-    // The useLayoutEffect above should have already set this, but double-check here
-    scale.value = initialScale;
+    if (momentIdentityRef.current !== effectMomentIdentity || hasStartedAnimationRef.current || hasStartedGlobally) {
+      return;
+    }
+
+    hasStartedAnimationRef.current = true;
+    momentAnimationStateMap.set(effectMomentIdentity, { hasStarted: true, lastSeen: Date.now() });
+
+    const GROW_DELAY = 400;
+    const GROW_DURATION = 1400;
+    const HOLD_DURATION = 3200;
+    const SHRINK_DURATION = 1200;
+
+    console.log('[GrowMoments] ANIM START', {
+      momentId: effectMomentIdentity,
+      positionIndex: positionIndex ?? -1,
+      totalConcurrent: totalConcurrent ?? -1,
+      ts: new Date().toISOString().slice(11, 23),
+    });
+
     growPulseScale.value = 1;
     animationInitializedRef.current = true;
 
-    // Store timeout IDs for cleanup
     let growTimeout: NodeJS.Timeout;
     let pulseTimeout: NodeJS.Timeout;
     let shrinkTimeout: NodeJS.Timeout;
 
-    // Small delay to ensure initial state is rendered, then grow from small icon size to full size
     growTimeout = setTimeout(() => {
-      // Only animate if component is still mounted and initialized
-      if (animationInitializedRef.current) {
+      if (animationInitializedRef.current && momentIdentityRef.current === effectMomentIdentity) {
+        const currentScale = scale.value;
+        if (Math.abs(currentScale - initialScale) > 0.01 && currentScale < initialScale * 1.1) {
+          scale.value = initialScale;
+        }
         scale.value = withTiming(finalScale, { duration: GROW_DURATION, easing: Easing.out(Easing.ease) });
+        console.log('[GrowMoments] GROW', {
+          momentId: effectMomentIdentity,
+          durationMs: GROW_DURATION,
+          ts: new Date().toISOString().slice(11, 23),
+        });
       }
-    }, 50);
+    }, GROW_DELAY);
 
-    // Start pulsing after growing
     pulseTimeout = setTimeout(() => {
-      if (animationInitializedRef.current) {
+      if (animationInitializedRef.current && momentIdentityRef.current === effectMomentIdentity) {
         growPulseScale.value = withRepeat(
           withSequence(
             withTiming(1.08, { duration: 600, easing: Easing.inOut(Easing.ease) }),
@@ -7575,23 +7696,26 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
           false
         );
       }
-    }, 50 + GROW_DURATION);
+    }, GROW_DELAY + GROW_DURATION);
 
-    // After hold, shrink back to small icon size
     shrinkTimeout = setTimeout(() => {
-      if (animationInitializedRef.current) {
+      if (animationInitializedRef.current && momentIdentityRef.current === effectMomentIdentity) {
         scale.value = withTiming(initialScale, { duration: SHRINK_DURATION, easing: Easing.in(Easing.ease) });
       }
-    }, 50 + GROW_DURATION + HOLD_DURATION);
+    }, GROW_DELAY + GROW_DURATION + HOLD_DURATION);
 
-    // Cleanup timeouts on unmount or when dependencies change
     return () => {
-      animationInitializedRef.current = false;
-      if (growTimeout) clearTimeout(growTimeout);
-      if (pulseTimeout) clearTimeout(pulseTimeout);
-      if (shrinkTimeout) clearTimeout(shrinkTimeout);
+      if (momentIdentityRef.current !== effectMomentIdentity) {
+        animationInitializedRef.current = false;
+        hasStartedAnimationRef.current = false;
+        cancelAnimation(scale);
+        cancelAnimation(growPulseScale);
+        if (growTimeout) clearTimeout(growTimeout);
+        if (pulseTimeout) clearTimeout(pulseTimeout);
+        if (shrinkTimeout) clearTimeout(shrinkTimeout);
+      }
     };
-  }, [initialScale, finalScale, scale, growPulseScale, memoryIndex, momentIndex, momentType]);
+  }, [initialScale, finalScale, scale, growPulseScale, currentMomentIdentity]);
 
   // Calculate position dynamically based on current orbit angle
   // This MUST be reactive to all changes: focusedX, focusedY, orbitAngle, showEntityWheelShared
@@ -7614,51 +7738,58 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
       };
     }
 
-    // NEW STRATEGY: Position moments randomly around the avatar (focused entity)
-    // Use focusedX and focusedY as the center point
+    // Position moments in a circular pattern around the avatar so GROWN sizes never overlap
     const avatarX = focusedX.value;
     const avatarY = focusedY.value;
     
-    // Generate consistent random position for this moment based on its unique properties
-    // Use a seed based on memoryIndex, momentIndex, and momentType to ensure each moment
-    // always appears in the same random position relative to the avatar
-    const seed = memoryIndex * 1000 + momentIndex * 100 + (momentType === 'sunny' ? 1 : momentType === 'cloudy' ? 2 : 3);
-    
-    // Simple pseudo-random number generator using seed
-    // This ensures the same moment always gets the same random position
-    const random1 = ((seed * 9301 + 49297) % 233280) / 233280;
-    const random2 = ((seed * 9301 + 49297) % 233280) / 233280;
-    
-    // Define radius range for moments around avatar
-    // Min radius: ensure moments don't overlap with avatar
-    // Max radius: spread them out nicely around the avatar
     const avatarSize = isTablet ? 80 : 64;
-    const minRadius = avatarSize / 2 + Math.max(finalWidth, finalHeight) / 2 + (isTablet ? 30 : 25);
-    const maxRadius = isTablet ? 200 : 160;
-    const radius = minRadius + (maxRadius - minRadius) * random1;
+    const viewportPadding = isTablet ? 24 : 20;
     
-    // Random angle around avatar (0 to 2π)
-    const angle = random2 * 2 * Math.PI;
+    // Use conservative max size for layout so all grown moments fit without overlap
+    // (actual max: sun/lesson up to 320/360; we use this for spacing)
+    const layoutMomentSize = isTablet ? 340 : 300;
     
-    // Calculate position relative to avatar
-    const offsetX = radius * Math.cos(angle);
-    const offsetY = radius * Math.sin(angle);
+    // Min center-to-center distance: full diameter + padding between edges
+    const minCenterToCenter = layoutMomentSize + (isTablet ? 50 : 40);
     
-    let momentX = avatarX + offsetX;
-    let momentY = avatarY + offsetY;
+    // Min radius: clear of avatar
+    const minRadius = avatarSize / 2 + layoutMomentSize / 2 + (isTablet ? 35 : 28);
     
-    const viewportPadding = isTablet ? 20 : 15; // Padding from screen edges for viewport bounds
-
-    // Ensure moment stays within viewport bounds - CRITICAL for visibility
-    const minX = viewportPadding + finalWidth / 2;
-    const maxX = SCREEN_WIDTH - viewportPadding - finalWidth / 2;
-    const minY = viewportPadding + finalHeight / 2;
-    const maxY = SCREEN_HEIGHT - viewportPadding - finalHeight / 2;
+    let distributionRadius = minRadius;
     
-    // Clamp position to viewport bounds
-    // If moment would be outside viewport, clamp it to stay within bounds
-    momentX = Math.max(minX, Math.min(maxX, momentX));
-    momentY = Math.max(minY, Math.min(maxY, momentY));
+    if (totalConcurrent > 1) {
+      // Chord between adjacent points on circle: 2 * R * sin(π/n).
+      // We need chord >= minCenterToCenter => R >= minCenterToCenter / (2 * sin(π/n))
+      const n = totalConcurrent;
+      const sinHalf = Math.sin(Math.PI / n);
+      const radiusFromChord = sinHalf > 1e-6
+        ? minCenterToCenter / (2 * sinHalf)
+        : minRadius;
+      distributionRadius = Math.max(minRadius, radiusFromChord);
+    }
+    
+    // Cap radius so moments stay on screen (no per-moment clamping — that causes overlap)
+    const maxRLeft = avatarX - viewportPadding - layoutMomentSize / 2;
+    const maxRRight = SCREEN_WIDTH - avatarX - viewportPadding - layoutMomentSize / 2;
+    const maxRTop = avatarY - viewportPadding - layoutMomentSize / 2;
+    const maxRBottom = SCREEN_HEIGHT - avatarY - viewportPadding - layoutMomentSize / 2;
+    const maxRFromViewport = Math.max(0, Math.min(maxRLeft, maxRRight, maxRTop, maxRBottom));
+    distributionRadius = Math.min(distributionRadius, Math.max(minRadius, maxRFromViewport));
+    
+    let momentX = avatarX;
+    let momentY = avatarY;
+    
+    if (totalConcurrent > 1) {
+      const angleStep = (2 * Math.PI) / totalConcurrent;
+      const angle = (positionIndex * angleStep) - (Math.PI / 2);
+      const offsetX = Math.cos(angle) * distributionRadius;
+      const offsetY = Math.sin(angle) * distributionRadius;
+      momentX = avatarX + offsetX;
+      momentY = avatarY + offsetY;
+    } else {
+      momentX = avatarX;
+      momentY = avatarY - distributionRadius;
+    }
 
     return {
       position: 'absolute',
@@ -7667,7 +7798,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
       transform: [{ scale: scale.value * growPulseScale.value }],
       zIndex: 1005,
     };
-  }, [focusedX, focusedY, showEntityWheelShared, memoryIndex, momentIndex, momentType, isTablet, finalWidth, finalHeight, scale, growPulseScale]);
+  }, [focusedX, focusedY, showEntityWheelShared, memoryIndex, momentIndex, momentType, isTablet, finalWidth, finalHeight, scale, growPulseScale, positionIndex, totalConcurrent]);
 
   // Render using the EXACT same visualization as selectedWheelMoment (post-spin moments)
   // This matches the wheel of life moment display exactly
