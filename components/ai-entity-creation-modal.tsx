@@ -16,6 +16,7 @@ import {
   type PendingEntityResponse,
 } from '@/utils/ai-background-processor';
 import { processEntityCreationPrompt, type AIEntityCreationResponse } from '@/utils/ai-service';
+import { logAIEntityModalSubmit } from '@/utils/analytics';
 import { LifeSphere, useJourney } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
@@ -321,8 +322,8 @@ export function AIEntityCreationModal({
       if (closeConfirmVisibleRef.current) return;
       closeConfirmVisibleRef.current = true;
       Alert.alert(
-        (t('ai.closeConfirm.title') as any) || 'Discard changes?',
-        (t('ai.closeConfirm.message') as any) || 'Your progress will be lost if you close this modal.',
+t('ai.closeConfirm.title') || 'Discard changes?',
+          t('ai.closeConfirm.message') || 'Your progress will be lost if you close this modal.',
         [
           {
             text: t('common.cancel') || 'Cancel',
@@ -332,7 +333,7 @@ export function AIEntityCreationModal({
             },
           },
           {
-            text: (t('ai.closeConfirm.discard') as any) || 'Discard',
+            text: t('ai.closeConfirm.discard') || 'Discard',
             style: 'destructive',
             onPress: () => {
               closeConfirmVisibleRef.current = false;
@@ -359,8 +360,8 @@ export function AIEntityCreationModal({
       return;
     }
 
-    // Clear validation errors if validation passes
     setShowValidationErrors(false);
+    await logAIEntityModalSubmit();
 
     // Only process family, friends, hobbies, relationships, and career with AI
     if (['family', 'friends', 'hobbies', 'relationships', 'career'].includes(selectedSphere)) {

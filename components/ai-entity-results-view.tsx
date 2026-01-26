@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import { logAIEntitySaved } from '@/utils/analytics';
 import { LifeSphere, useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -498,6 +499,7 @@ export function AIEntityResultsView({
         }
       }
 
+      await logAIEntitySaved(sphere, entities.length);
       await onSave(entities);
     } catch (error: any) {
       Alert.alert(

@@ -728,7 +728,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
     } catch (error) {
       Alert.alert(
         t('common.error') || 'Error',
-        (error as Error).message || (t('ai.error.image' as any) as any) || 'Failed to pick image'
+        (error as Error).message || t('ai.error.image') || 'Failed to pick image'
       );
     } finally {
       setIsPickingImage(false);
@@ -1042,7 +1042,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       setShowValidationErrors(true);
       Alert.alert(
         t('common.error') || 'Error',
-        t('ai.results.selectEntity' as any) || 'Please fill all required fields'
+        t('ai.results.selectEntity') || 'Please fill all required fields'
       );
       return;
     }
@@ -1052,7 +1052,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
       setShowValidationErrors(true);
       Alert.alert(
         t('common.error') || 'Error',
-        t('ai.results.selectEntity' as any) || 'Please select an entity'
+        t('ai.results.selectEntity') || 'Please select an entity'
       );
       return;
     }
@@ -2251,7 +2251,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                                 }}
                               >
                                 <ThemedText size="sm" weight="semibold">
-                                  {selectedEntityName || t('ai.results.selectEntity' as any) || 'Select entity...'}
+                                  {selectedEntityName || t('ai.results.selectEntity') || 'Select entity...'}
                                 </ThemedText>
                                 <MaterialIcons name="arrow-drop-down" size={24 * fontScale} color={colors.text} />
                               </Pressable>
@@ -2273,8 +2273,8 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                                   selectedEntityId && styles.helperTextValid
                                 ]}>
                                   {!selectedEntityId 
-                                    ? `${t('ai.results.unrecognizedEntity' as any) || 'Unrecognized entity.'} ${t('ai.results.expandToAdd' as any) || 'Expand to Add the sfera entity'}`
-                                    : t('ai.results.expandToAdd' as any) || 'Expand to Add the sfera entity'}
+                                    ? `${t('ai.results.unrecognizedEntity') || 'Unrecognized entity.'} ${t('ai.results.expandToAdd') || 'Expand to Add the sfera entity'}`
+                                    : t('ai.results.expandToAdd') || 'Expand to Add the sfera entity'}
                                 </ThemedText>
                                 <MaterialIcons name="expand-more" size={16 * fontScale} color={selectedEntityId ? colors.primary : '#FF3B30'} />
                               </TouchableOpacity>
@@ -2290,7 +2290,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                               activeOpacity={0.7}
                             >
                               <ThemedText size="xs" style={styles.helperText}>
-                                {t('ai.results.expandToAdd' as any) || 'Expand to Add the sfera entity'}
+                                {t('ai.results.expandToAdd') || 'Expand to Add the sfera entity'}
                               </ThemedText>
                               <MaterialIcons name="expand-more" size={16 * fontScale} color={colors.primary} />
                             </TouchableOpacity>
@@ -2304,14 +2304,14 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                           <View style={styles.addEntityFormHeader}>
                             <ThemedText size="sm" weight="bold">
                               {selectedSphere === 'family' 
-                                ? (t('profile.familyMember.add' as any) || 'Add Family Member')
+                                ? (t('profile.familyMember.add') || 'Add Family Member')
                                 : selectedSphere === 'friends'
-                                ? (t('profile.friend.add' as any) || 'Add Friend')
+                                ? (t('profile.friend.add') || 'Add Friend')
                                 : selectedSphere === 'career'
-                                ? (t('profile.job.add' as any) || 'Add Job')
+                                ? (t('profile.job.add') || 'Add Job')
                                 : selectedSphere === 'hobbies'
-                                ? (t('profile.hobby.add' as any) || 'Add Hobby')
-                                : (t('profile.relationship.add' as any) || 'Add Relationship')}
+                                ? (t('profile.hobby.add') || 'Add Hobby')
+                                : (t('profile.relationship.add') || 'Add Relationship')}
                             </ThemedText>
                             <TouchableOpacity
                               onPress={() => {
@@ -2342,7 +2342,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                               ]}
                               value={newEntityName}
                               onChangeText={setNewEntityName}
-                              placeholder={t('profile.name.placeholder' as any) || 'Enter name'}
+                              placeholder={t('profile.name.placeholder') || 'Enter name'}
                               placeholderTextColor={colorScheme === 'dark' ? colors.textMediumEmphasis : colors.text + '80'}
                             />
                           </View>
@@ -2351,7 +2351,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                           {selectedSphere === 'family' && (
                             <View style={styles.formField}>
                               <ThemedText size="xs" weight="medium" style={styles.formLabel}>
-                                {t('profile.familyMember.relationship' as any) || 'Relationship'} *
+                                {t('profile.familyMember.relationship') || 'Relationship'} *
                               </ThemedText>
                               <TextInput
                                 style={[
@@ -2360,7 +2360,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                                 ]}
                                 value={newEntityRelationship}
                                 onChangeText={setNewEntityRelationship}
-                                placeholder={t('profile.familyMember.relationship.placeholder' as any) || 'e.g., Mother, Brother'}
+                                placeholder={t('profile.familyMember.relationship.placeholder') || 'e.g., Mother, Brother'}
                                 placeholderTextColor={colorScheme === 'dark' ? colors.textMediumEmphasis : colors.text + '80'}
                               />
                             </View>
@@ -2371,7 +2371,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                             <>
                               <View style={styles.formField}>
                                 <ThemedText size="xs" weight="medium" style={styles.formLabel}>
-                                  {t('profile.job.startDate' as any) || 'Start Date'}
+                                  {t('profile.job.startDate') || 'Start Date'}
                                 </ThemedText>
                                 <TouchableOpacity
                                   style={styles.dateButton}
@@ -2380,7 +2380,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                                   <ThemedText size="sm">
                                     {newEntityStartDate 
                                       ? newEntityStartDate.toLocaleDateString()
-                                      : t('profile.job.selectStartDate' as any) || 'Select start date'}
+                                      : t('profile.job.selectStartDate') || 'Select start date'}
                                   </ThemedText>
                                   <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
                                 </TouchableOpacity>
@@ -2415,7 +2415,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                                     color={newEntityIsCurrent ? colors.primary : colors.text} 
                                   />
                                   <ThemedText size="sm" style={{ marginLeft: 8 * fontScale }}>
-                                    {t('profile.job.current' as any) || 'Current'}
+                                    {t('profile.job.current') || 'Current'}
                                   </ThemedText>
                                 </TouchableOpacity>
                               </View>
@@ -2423,7 +2423,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                               {!newEntityIsCurrent && (
                                 <View style={styles.formField}>
                                   <ThemedText size="xs" weight="medium" style={styles.formLabel}>
-                                    {t('profile.job.endDate' as any) || 'End Date'}
+                                    {t('profile.job.endDate') || 'End Date'}
                                   </ThemedText>
                                   <TouchableOpacity
                                     style={styles.dateButton}
@@ -2432,7 +2432,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                                     <ThemedText size="sm">
                                       {newEntityEndDate 
                                         ? newEntityEndDate.toLocaleDateString()
-                                        : t('profile.job.selectEndDate' as any) || 'Select end date'}
+                                        : t('profile.job.selectEndDate') || 'Select end date'}
                                     </ThemedText>
                                     <MaterialIcons name="calendar-today" size={20 * fontScale} color={colors.primary} />
                                   </TouchableOpacity>
@@ -2474,7 +2474,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                           {/* Image upload - optional for all */}
                           <View style={styles.formField}>
                             <ThemedText size="xs" weight="medium" style={styles.formLabel}>
-                              {t('profile.image' as any) || 'Image'}
+                              {t('profile.image') || 'Image'}
                             </ThemedText>
                             {newEntityImage ? (
                               <View style={styles.addEntityImagePreviewContainer}>
@@ -2513,7 +2513,7 @@ export function AIModal({ visible, onClose, onMinimize, onSend, pendingResponse 
                                   <>
                                     <MaterialIcons name="add-photo-alternate" size={24 * fontScale} color={colors.primary} />
                                     <ThemedText size="xs" style={{ color: colors.primary, marginTop: 4 * fontScale }}>
-                                      {t('profile.image.add' as any) || 'Add photo'}
+                                      {t('profile.image.add') || 'Add photo'}
                                     </ThemedText>
                                   </>
                                 )}

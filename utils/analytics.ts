@@ -152,6 +152,23 @@ export const logAIMemoryDiscarded = async () => {
   await logEvent('ai_memory_discarded', {});
 };
 
+/**
+ * Log when user submits AI entity modal (presses submit button)
+ */
+export const logAIEntityModalSubmit = async () => {
+  await logEvent('ai_entity_modal_submit', {});
+};
+
+/**
+ * Log when user saves AI-generated entities
+ */
+export const logAIEntitySaved = async (sphere: string, entityCount: number) => {
+  await logEvent('ai_entity_saved', {
+    sphere,
+    entity_count: entityCount,
+  });
+};
+
 export default {
   logEvent,
   logEntityCreated,
@@ -164,5 +181,7 @@ export default {
   logAIModalSubmit,
   logAIMemorySaved,
   logAIMemoryDiscarded,
+  logAIEntityModalSubmit,
+  logAIEntitySaved,
 };
 

@@ -238,9 +238,20 @@ export function AIActionModal({
           shadowRadius: 12,
           elevation: 12,
         },
+        buttonDisabled: {
+          opacity: 0.5,
+          backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+        },
         buttonText: {
           color: '#ffffff',
           fontWeight: '600',
+        },
+        hintText: {
+          marginTop: 6 * fontScale,
+          marginBottom: 4 * fontScale,
+          paddingHorizontal: 8 * fontScale,
+          textAlign: 'center',
+          opacity: 0.8,
         },
         closeButton: {
           position: 'absolute',
@@ -356,7 +367,7 @@ export function AIActionModal({
 
                 {/* Buttons */}
                 <View style={styles.buttonContainer}>
-                  {hasEntities && (
+                  {hasEntities ? (
                     <Animated.View style={memoryButtonAnimatedStyle}>
                       <TouchableOpacity
                         onPress={() => {
@@ -379,8 +390,24 @@ export function AIActionModal({
                         </ThemedText>
                       </TouchableOpacity>
                     </Animated.View>
+                  ) : (
+                    <View>
+                      <TouchableOpacity
+                        disabled
+                        activeOpacity={1}
+                        style={[styles.button, styles.buttonDisabled]}
+                      >
+                        <MaterialIcons name="memory" size={24 * fontScale} color={colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'} />
+                        <ThemedText size="l" weight="bold" style={[styles.buttonText, { color: colorScheme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }]}>
+                          {t('ai.action.createMemory')}
+                        </ThemedText>
+                      </TouchableOpacity>
+                      <ThemedText size="xs" style={[styles.hintText, { color: colorScheme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }]}>
+                        {t('ai.action.createMemoryHint')}
+                      </ThemedText>
+                    </View>
                   )}
-                  
+
                   <Animated.View style={entityButtonAnimatedStyle}>
                     <TouchableOpacity
                       onPress={() => {

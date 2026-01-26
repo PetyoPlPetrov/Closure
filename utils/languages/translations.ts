@@ -186,6 +186,7 @@ export interface Translations {
   'profile.relationshipType.placeholder': string;
   'profile.addFamilyMember': string;
   'profile.familyMember.add': string;
+  'profile.familyMember.relationship': string;
   'profile.familyMember.relationship.placeholder': string;
   'profile.editFamilyMember': string;
   'profile.editFamilyInfo': string;
@@ -466,6 +467,7 @@ export interface Translations {
   'profile.addFamilyMember.description': string;
   'profile.editFamilyMember.description': string;
   'profile.familyMember.name.required': string;
+  'profile.familyMember.relationship.required': string;
   
   // Memory screens
   'memory.add': string;
@@ -653,6 +655,8 @@ export interface Translations {
   'ai.error.stopRecording': string;
   'ai.error.empty': string;
   'ai.error.send': string;
+  'ai.error.notAvailable': string;
+  'ai.error.image': string;
   'ai.response.title': string;
   'ai.loading.title': string;
   'ai.loading.thinking': string;
@@ -695,6 +699,7 @@ export interface Translations {
   'ai.action.message.withEntities': string;
   'ai.action.message.noEntities': string;
   'ai.action.createMemory': string;
+  'ai.action.createMemoryHint': string;
   'ai.action.createEntity': string;
   'ai.entity.title': string;
   'ai.entity.subtitle': string;
@@ -3851,6 +3856,7 @@ const translations: Record<Language, Translations> = {
     'profile.addFamilyMember.description': 'Add a new family member to track your memories',
     'profile.editFamilyMember.description': 'Update family member information',
     'profile.familyMember.name.required': 'Name is required',
+    'profile.familyMember.relationship.required': 'Relationship type is required',
     
     // Memory screens
     'memory.add': 'Add Memory',
@@ -4081,6 +4087,7 @@ const translations: Record<Language, Translations> = {
     'ai.action.message.withEntities': 'Let Sfera AI help you create memories and add Sfera entities faster—relationships, family members, friends, jobs, and hobbies.',
     'ai.action.message.noEntities': 'Let Sfera AI help you get started quickly. Share your story and we\'ll add Sfera entities like relationships, family members, friends, jobs, and hobbies to your life spheres.',
     'ai.action.createMemory': 'Create Memory',
+    'ai.action.createMemoryHint': 'First create Sfera entities to use this',
     'ai.action.createEntity': 'Create Sfera Entity',
     'ai.entity.title': 'Create Entity with AI',
     'ai.entity.subtitle': 'Select a sphere and tell us about the entity',
@@ -6815,6 +6822,7 @@ const translations: Record<Language, Translations> = {
     'profile.addFamilyMember.description': 'Добавете нов член на семейството, за да проследявате спомените си',
     'profile.editFamilyMember.description': 'Актуализирайте информацията за член на семейството',
     'profile.familyMember.name.required': 'Името е задължително',
+    'profile.familyMember.relationship.required': 'Типът връзка е задължителен',
     
     // Memory screens
     'memory.add': 'Добави Спомен',
@@ -7045,6 +7053,7 @@ const translations: Record<Language, Translations> = {
     'ai.action.message.withEntities': 'Нека Sfera AI ви помогне да създавате спомени и да добавяте обекти на Сфера по-бързо—връзки, членове на семейството, приятели, работа и хобита.',
     'ai.action.message.noEntities': 'Нека Sfera AI ви помогне да започнете бързо. Споделете своята история и ще добавим обекти на Сфера като връзки, членове на семейството, приятели, работа и хобита към житейските ви сфери.',
     'ai.action.createMemory': 'Създай спомен',
+    'ai.action.createMemoryHint': 'Първо създай Sfera обекти, за да го използваш',
     'ai.action.createEntity': 'Създай Sfera обект',
     'ai.entity.title': 'Създай обект с AI',
     'ai.entity.subtitle': 'Изберете сфера и разкажете ни за обекта',

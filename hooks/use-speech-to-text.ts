@@ -130,21 +130,21 @@ export function useSpeechToText({
   const ensureAvailableAndPermitted = useCallback(async () => {
     // Web is not supported in these modals
     if (Platform.OS === 'web') {
-      throw new Error((t('ai.error.notAvailable' as any) as any) || 'Speech recognition is not available on this device');
+      throw new Error(t('ai.error.notAvailable') || 'Speech recognition is not available on this device');
     }
 
     // Lazily load the native module (prevents crashes on startup if app wasn't rebuilt yet)
     const m = getOrLoadModule();
     if (!m) {
       throw new Error(
-        (t('ai.error.notAvailable' as any) as any) ||
+        t('ai.error.notAvailable') ||
           'Speech recognition is not available. Please rebuild the app so native modules are included.'
       );
     }
 
     const available = m.isRecognitionAvailable();
     if (!available) {
-      throw new Error((t('ai.error.notAvailable' as any) as any) || 'Speech recognition is not available on this device');
+      throw new Error(t('ai.error.notAvailable') || 'Speech recognition is not available on this device');
     }
 
     const perms = await m.requestPermissionsAsync();
