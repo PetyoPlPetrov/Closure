@@ -93,7 +93,6 @@ export async function processMemoryPrompt(
   language: 'en' | 'bg' = 'en',
   imageUri?: string
 ): Promise<AIMemoryResponse> {
-  console.log('🤖 Processing AI memory prompt:', prompt.substring(0, 100) + '...', imageUri ? '(with image)' : '');
   try {
     // Extract entities from context.sferas (now with enriched metadata)
     const relationships = context.sferas.relationships || [];
@@ -143,10 +142,6 @@ export async function processMemoryPrompt(
       friends: friends.length > 0 ? friends : [],
       hobbies: hobbies.length > 0 ? hobbies : [],
     };
-
-    // Log available entities for debugging
-    console.log('📋 Available entities (enriched):', JSON.stringify(enrichedEntities, null, 2));
-    console.log('📋 Available entities (detailed):', JSON.stringify(availableEntities, null, 2));
 
     // Determine language name for prompt
     const languageName = language === 'bg' ? 'Bulgarian' : 'English';
@@ -229,14 +224,7 @@ Analyze this story${imageUri ? ' and image' : ''} and return the structured memo
     let imageBase64: { mimeType: string; data: string } | null = null;
     if (imageUri) {
       imageBase64 = await readImageAsBase64(imageUri);
-      if (imageBase64) {
-        console.log('📤 Sending to AI - Image attached, size:', Math.round(imageBase64.data.length / 1024), 'KB base64');
-      }
     }
-
-    // Log the full prompt being sent to AI
-    console.log('📤 Sending to AI - System prompt length:', systemPrompt.length);
-    console.log('📤 Sending to AI - User story:', prompt);
 
     // Define the response schema using Schema.object()
     const responseSchema = Schema.object({
@@ -275,7 +263,6 @@ Analyze this story${imageUri ? ' and image' : ''} and return the structured memo
     // Initialize Firebase AI
     // Pass App Check instance so SDK automatically includes token in X-Firebase-AppCheck header
     // The SDK will automatically call getToken() and add it to the X-Firebase-AppCheck header
-    console.log('🤖 Initializing Firebase AI...');
     const app = getApp();
     const ai = getAI(app, {
       appCheck: firebase.appCheck(), // Pass App Check instance for automatic token inclusion in requests
@@ -290,7 +277,6 @@ Analyze this story${imageUri ? ' and image' : ''} and return the structured memo
         responseSchema: responseSchema,
       },
     });
-    console.log('🤖 Firebase AI model ready, generating content...');
 
     // Build user message parts: text + optional image
     const parts: ({ text: string } | { inlineData: { mimeType: string; data: string } })[] = [
@@ -312,34 +298,7 @@ Analyze this story${imageUri ? ' and image' : ''} and return the structured memo
     try {
       // With responseSchema, the response should be directly parseable JSON
       const responseText = result.response.text();
-      console.log('📥 AI response received, length:', responseText.length);
-      console.log('📥 AI raw response text:', responseText);
-      
-      // Parse the JSON response (schema ensures it matches our structure)
       parsedResponse = JSON.parse(responseText);
-      console.log('✅ AI response parsed successfully');
-      console.log('📥 AI parsed response:', JSON.stringify(parsedResponse, null, 2));
-      console.log('📊 AI response summary:', {
-        sphere: parsedResponse.sphere,
-        entityName: parsedResponse.entityName,
-        title: parsedResponse.title,
-        hardTruthsCount: parsedResponse.hardTruths?.length || 0,
-        goodFactsCount: parsedResponse.goodFacts?.length || 0,
-        lessonsCount: parsedResponse.lessonsLearned?.length || 0,
-      });
-      
-      // Log entity matching details for debugging
-      console.log('🔍 Entity matching check:');
-      console.log('  - AI selected sphere:', parsedResponse.sphere);
-      console.log('  - AI selected entity:', parsedResponse.entityName);
-      console.log('  - Available entities in selected sphere:', JSON.stringify(availableEntities[parsedResponse.sphere as keyof typeof availableEntities] || []));
-      const selectedSphereEntities = availableEntities[parsedResponse.sphere as keyof typeof availableEntities] || [];
-      const entityMatch = selectedSphereEntities.includes(parsedResponse.entityName);
-      console.log('  - Entity match found:', entityMatch ? '✅ YES' : '❌ NO');
-      if (!entityMatch) {
-        console.warn('  ⚠️ WARNING: AI selected entity does not match available entities!');
-        console.warn('  ⚠️ Available options:', selectedSphereEntities);
-      }
     } catch (parseError) {
       console.error('❌ Failed to parse AI response:', parseError);
       const responseText = result.response.text();
@@ -385,7 +344,6 @@ Analyze this story${imageUri ? ' and image' : ''} and return the structured memo
       lessonsLearned: lessonsLearned.length > 0 ? lessonsLearned : ['I learned something valuable from this'],
     };
 
-    console.log('✅ AI memory processing completed successfully');
     return aiResponse;
   } catch (error) {
     console.error('AI processing error:', error);
@@ -581,11 +539,8 @@ export async function processEntityCreationPrompt(
   sphere: 'family' | 'friends' | 'hobbies' | 'relationships' | 'career',
   language: 'en' | 'bg' = 'en'
 ): Promise<AIEntityCreationResponse> {
-  console.log('🤖 Processing AI entity creation prompt for sphere:', sphere);
-  
   // Mock AI request for testing loading states
   if (USE_MOCK_AI_REQUEST) {
-    console.log('🧪 Using mock AI request (slow) for testing...');
     
     // Simulate a slow AI request (6 seconds delay)
     await new Promise(resolve => setTimeout(resolve, 6000));

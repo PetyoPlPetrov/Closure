@@ -671,10 +671,16 @@ export interface Translations {
   'ai.imageTooLarge.message': string;
   'ai.results.title': string;
   'ai.results.sphere': string;
+  'ai.results.selectSphere': string;
   'ai.results.entity': string;
   'ai.results.selectEntity': string;
   'ai.results.unrecognizedEntity': string;
-  'ai.results.expandToAdd': string;
+  'ai.results.expandToAdd.default': string;
+  'ai.results.expandToAdd.family': string;
+  'ai.results.expandToAdd.friends': string;
+  'ai.results.expandToAdd.hobbies': string;
+  'ai.results.expandToAdd.relationships': string;
+  'ai.results.expandToAdd.career': string;
   'ai.results.hardTruth': string;
   'ai.results.goodFact': string;
   'ai.results.lesson': string;
@@ -3998,7 +4004,7 @@ const translations: Record<Language, Translations> = {
     'notifications.settings.condition.lessThanJob.body': 'Notify when this relationship has fewer moments (memories, insights) than your current job. This helps ensure you\'re giving enough attention to your relationships.',
     'notifications.settings.condition.lessThanFriendsAvg.title': 'Less than friends avg',
     'notifications.settings.condition.lessThanFriendsAvg.body': 'Notify when this relationship has fewer moments than the average of your friendships. This helps maintain balance between romantic relationships and friendships.',
-    'notifications.settings.sphere': 'Sphere',
+    'notifications.settings.sphere': 'Sfera',
 
     // Onboarding
     'onboarding.skip': 'Skip',
@@ -4059,11 +4065,17 @@ const translations: Record<Language, Translations> = {
     'ai.imageTooLarge.title': 'Image too large',
     'ai.imageTooLarge.message': 'Please choose a photo under 2 MB. Large files slow down AI processing.',
     'ai.results.title': 'AI Suggestions',
-    'ai.results.sphere': 'Sphere',
+    'ai.results.sphere': 'Sfera',
+    'ai.results.selectSphere': 'Select Sfera',
     'ai.results.entity': 'Entity',
     'ai.results.selectEntity': 'Select entity...',
     'ai.results.unrecognizedEntity': 'Unrecognized entity.',
-    'ai.results.expandToAdd': 'Expand to Add the sfera entity',
+    'ai.results.expandToAdd.default': 'Expand to add new entity',
+    'ai.results.expandToAdd.family': 'Expand to add new family member',
+    'ai.results.expandToAdd.friends': 'Expand to add new friend',
+    'ai.results.expandToAdd.hobbies': 'Expand to add new hobby',
+    'ai.results.expandToAdd.relationships': 'Expand to add new relationship',
+    'ai.results.expandToAdd.career': 'Expand to add new job',
     'ai.results.hardTruth': 'Hard Truth',
     'ai.results.goodFact': 'Good Fact',
     'ai.results.lesson': 'Lesson',
@@ -4090,8 +4102,8 @@ const translations: Record<Language, Translations> = {
     'ai.action.createMemoryHint': 'First create Sfera entities to use this',
     'ai.action.createEntity': 'Create Sfera Entity',
     'ai.entity.title': 'Create Entity with AI',
-    'ai.entity.subtitle': 'Select a sphere and tell us about the entity',
-    'ai.entity.selectSphere': 'Select Sphere',
+    'ai.entity.subtitle': 'Select a Sfera and tell us about the entity',
+    'ai.entity.selectSphere': 'Select Sfera',
     'ai.entity.tellStory': 'Tell us about this entity',
     'ai.entity.placeholder': 'Write or use the microphone to tell a story...',
     'ai.entity.placeholder.relationship': 'Share a story about a relationship in your life, including when it began and when it ended (if it has).',
@@ -7026,10 +7038,16 @@ const translations: Record<Language, Translations> = {
     'ai.imageTooLarge.message': 'Моля, изберете снимка под 2 MB. Големите файлове забавяват AI обработката.',
     'ai.results.title': 'AI Предложения',
     'ai.results.sphere': 'Сфера',
+    'ai.results.selectSphere': 'Избери Сфера',
     'ai.results.entity': 'Обект',
     'ai.results.selectEntity': 'Избери обект...',
     'ai.results.unrecognizedEntity': 'Нераспознат обект.',
-    'ai.results.expandToAdd': 'Разгъни, за да добавиш обекта на сферата',
+    'ai.results.expandToAdd.default': 'Разгъни, за да добавиш нов обект',
+    'ai.results.expandToAdd.family': 'Разгъни, за да добавиш нов член на семейството',
+    'ai.results.expandToAdd.friends': 'Разгъни, за да добавиш нов приятел',
+    'ai.results.expandToAdd.hobbies': 'Разгъни, за да добавиш ново хоби',
+    'ai.results.expandToAdd.relationships': 'Разгъни, за да добавиш нова връзка',
+    'ai.results.expandToAdd.career': 'Разгъни, за да добавиш нова работа',
     'ai.results.hardTruth': 'Трудна истина',
     'ai.results.goodFact': 'Добър факт',
     'ai.results.lesson': 'Урок',
@@ -7056,8 +7074,8 @@ const translations: Record<Language, Translations> = {
     'ai.action.createMemoryHint': 'Първо създай Sfera обекти, за да го използваш',
     'ai.action.createEntity': 'Създай Sfera обект',
     'ai.entity.title': 'Създай обект с AI',
-    'ai.entity.subtitle': 'Изберете сфера и разкажете ни за обекта',
-    'ai.entity.selectSphere': 'Изберете сфера',
+    'ai.entity.subtitle': 'Изберете Сфера и разкажете ни за обекта',
+    'ai.entity.selectSphere': 'Избери Сфера',
     'ai.entity.tellStory': 'Разкажете ни за този обект',
     'ai.entity.placeholder': 'Пишете или използвайте микрофона, за да разкажете история...',
     'ai.entity.placeholder.relationship': 'Споделете история за една връзка от вашия живот, включително кога започна и кога приключи (ако е приключила).',

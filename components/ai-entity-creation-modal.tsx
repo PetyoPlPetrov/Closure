@@ -1296,7 +1296,7 @@ t('ai.closeConfirm.title') || 'Discard changes?',
                       {t('ai.entity.title') || 'Create Entity with AI'}
                     </ThemedText>
                     <ThemedText size="sm" style={{ opacity: 0.7 }}>
-                      {t('ai.entity.subtitle') || 'Select a sphere and tell us about the entity'}
+                      {t('ai.entity.subtitle') || 'Select a Sfera and tell us about the entity'}
                     </ThemedText>
                   </>
                 )}
@@ -1307,7 +1307,7 @@ t('ai.closeConfirm.title') || 'Discard changes?',
                   {!keyboardVisible && (
                     <View style={styles.sphereContainer}>
                       <ThemedText size="xs" weight="medium" style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}>
-                        {t('ai.entity.selectSphere') || 'Select Sphere'}
+                        {t('ai.entity.selectSphere') || 'Select Sfera'}
                       </ThemedText>
                       {SPHERES.map((sphere) => (
                         <TouchableOpacity
@@ -1350,7 +1350,7 @@ t('ai.closeConfirm.title') || 'Discard changes?',
                   {keyboardVisible && (
                     <View style={styles.sphereContainer}>
                       <ThemedText size="xs" weight="medium" style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}>
-                        {t('ai.entity.selectSphere') || 'Select Sphere'}
+                        {t('ai.entity.selectSphere') || 'Select Sfera'}
                       </ThemedText>
                       {SPHERES.filter(sphere => sphere.value === selectedSphere).map((sphere) => (
                         <TouchableOpacity

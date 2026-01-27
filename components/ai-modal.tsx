@@ -2551,7 +2551,7 @@ export function AIModal({
                               weight="medium"
                               style={styles.dropdownLabel}
                             >
-                              {t("ai.results.sphere") || "Sphere"}
+                              {t("ai.results.sphere") || "Sfera"}
                             </ThemedText>
                             <Pressable
                               style={styles.dropdownButton}
@@ -2638,10 +2638,16 @@ export function AIModal({
                                           styles.helperTextValid,
                                       ]}
                                     >
-                                      {!selectedEntityId
-                                        ? `${t("ai.results.unrecognizedEntity") || "Unrecognized entity."} ${t("ai.results.expandToAdd") || "Expand to Add the sfera entity"}`
-                                        : t("ai.results.expandToAdd") ||
-                                          "Expand to Add the sfera entity"}
+                                      {(() => {
+                                        const sphere = selectedSphere || aiResponse?.sphere;
+                                        const expandKey = sphere && ["family", "friends", "hobbies", "relationships", "career"].includes(sphere)
+                                          ? (`ai.results.expandToAdd.${sphere}` as const)
+                                          : "ai.results.expandToAdd.default";
+                                        const expandText = t(expandKey);
+                                        return !selectedEntityId
+                                          ? `${t("ai.results.unrecognizedEntity") || "Unrecognized entity."} ${expandText}`
+                                          : expandText;
+                                      })()}
                                     </ThemedText>
                                     <MaterialIcons
                                       name="expand-more"
@@ -2668,8 +2674,13 @@ export function AIModal({
                                     size="xs"
                                     style={styles.helperText}
                                   >
-                                    {t("ai.results.expandToAdd") ||
-                                      "Expand to Add the sfera entity"}
+                                    {(() => {
+                                      const sphere = selectedSphere || aiResponse?.sphere;
+                                      const expandKey = sphere && ["family", "friends", "hobbies", "relationships", "career"].includes(sphere)
+                                        ? (`ai.results.expandToAdd.${sphere}` as const)
+                                        : "ai.results.expandToAdd.default";
+                                      return t(expandKey);
+                                    })()}
                                   </ThemedText>
                                   <MaterialIcons
                                     name="expand-more"
@@ -3250,7 +3261,7 @@ export function AIModal({
             >
               <View style={styles.pickerHeader}>
                 <ThemedText size="l" weight="bold">
-                  {t("ai.results.sphere") || "Select Sphere"}
+                  {t("ai.results.selectSphere") || "Select Sfera"}
                 </ThemedText>
                 <Pressable onPress={() => setShowSpherePicker(false)}>
                   <MaterialIcons
