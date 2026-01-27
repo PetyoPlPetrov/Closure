@@ -369,6 +369,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     spawnSlot: number; // Stable slot for layout (avoids blink when totalConcurrent drops)
     batchSize: number;
     cycleId: number; // Rotate positions each restart so they're not always the same
+    angleJitter: number; // Random offset within slot arc for non-overlapping random positions
   }[]>([]);
   const momentIdCounter = useRef(0);
   const floatingMomentsTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -1102,16 +1103,19 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         if (selectedWheelMoment) return;
         
         const momentData = momentsWithPositions[momentIndex];
-        const currentCycleId = cycleIdRef.current; // Capture cycle ID when moment is spawned
+        const currentCycleId = cycleIdRef.current;
         const momentIdentity = `${momentData.memoryIndex}-${momentData.momentIndex}-${momentData.momentType}`;
         const slot = nextSlotRef.current++;
         const batchSize = currentBatchSizeRef.current;
+        const angleStep = (2 * Math.PI) / Math.max(1, batchSize);
+        const angleJitter = (Math.random() - 0.5) * angleStep * 0.6; // ±30% of half-arc
         const newMoment = {
           id: momentIdCounter.current++,
           ...momentData,
           spawnSlot: slot,
           batchSize,
           cycleId: currentCycleId,
+          angleJitter,
         };
 
         setFloatingMoments(prev => {
@@ -2794,6 +2798,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               spawnSlot={moment.spawnSlot}
               batchSize={moment.batchSize}
               cycleId={moment.cycleId}
+              angleJitter={moment.angleJitter ?? 0}
+              bottomInset={Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale)}
             />
           ))}
 
@@ -7458,6 +7464,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   spawnSlot = 0,
   batchSize = 1,
   cycleId = 0,
+  angleJitter = 0,
+  bottomInset = 0,
 }: {
   memoryIndex: number;
   momentIndex: number;
@@ -7482,6 +7490,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   spawnSlot?: number;
   batchSize?: number;
   cycleId?: number;
+  angleJitter?: number;
+  bottomInset?: number;
 }) {
   const positionIndex = batchSize > 0 ? spawnSlot % batchSize : 0;
   const totalConcurrent = Math.max(1, batchSize);
@@ -7501,27 +7511,24 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   // Calculate text length for dynamic sizing (matching selectedWheelMoment calculation)
   const textLength = text?.length || 0;
 
-  // Base sizes for floating moments - matching selectedWheelMoment but scaled down proportionally
-  // selectedWheelMoment uses: baseSunSize = isTablet ? 240 : (isLargeDevice ? 200 : 160)
-  // We'll use about 70-80% of those sizes for floating moments to ensure text fits
+  // Base sizes for floating moments - scaled so "bigger amount of letters = bigger element"
   const baseSunSize = isTablet ? 180 : (isLargeDevice ? 160 : 130);
-  const baseCloudWidth = isTablet ? 180 : 140;
-  const baseCloudHeight = isTablet ? 110 : 85;
+  const baseCloudWidth = isTablet ? 200 : 160;
+  const baseCloudHeight = isTablet ? 125 : 100;
   const baseLessonSize = isTablet ? 180 : 140;
 
-  // Apply dynamic sizing rules (matching selectedWheelMoment calculation)
-  // For sunny moments: circular, so width = height
-  // Increase max size to ensure text fits - selectedWheelMoment uses max of 400
-  const dynamicSunSize = Math.min(isTablet ? 360 : 320, Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 1.5)));
+  // Scale aggressively with text length so long text never overflows
+  const dynamicSunSize = Math.min(
+    isTablet ? 440 : 400,
+    Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 2.5))
+  );
 
-  // For cloudy moments: wider and shorter, scale width more than height
-  const cloudWidthMultiplier = Math.min(2.0, Math.max(1.0, 1.0 + (textLength / 100)));
-  const cloudHeightMultiplier = Math.min(1.2, Math.max(1.0, 1.0 + (textLength / 200)));
+  const cloudWidthMultiplier = Math.min(2.8, Math.max(1.0, 1.0 + (textLength / 55)));
+  const cloudHeightMultiplier = Math.min(2.4, Math.max(1.0, 1.0 + (textLength / 60)));
   const dynamicCloudWidth = baseCloudWidth * cloudWidthMultiplier;
   const dynamicCloudHeight = baseCloudHeight * cloudHeightMultiplier;
 
-  // For lesson moments: circular, scale based on text length
-  const lessonSizeMultiplier = Math.min(1.8, Math.max(1.0, 1.0 + (textLength / 120)));
+  const lessonSizeMultiplier = Math.min(2.5, Math.max(1.0, 1.0 + (textLength / 80)));
   const dynamicLessonSize = baseLessonSize * lessonSizeMultiplier;
 
   // Get final size based on type
@@ -7687,34 +7694,28 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     const avatarSize = isTablet ? 80 : 64;
     const viewportPadding = isTablet ? 24 : 20;
     
-    // Use conservative max size for layout so all grown moments fit without overlap
-    // (actual max: sun/lesson up to 320/360; use slightly larger for spacing)
-    const layoutMomentSize = isTablet ? 380 : 360;
-    
-    // Min center-to-center distance: full diameter + padding between edges
-    const minCenterToCenter = layoutMomentSize + (isTablet ? 50 : 40);
-    
-    // Min radius: clear of avatar
+    // Use conservative max size so fully grown clouds (widest) never overlap
+    const layoutMomentSize = isTablet ? 620 : 530;
+    const minCenterToCenter = layoutMomentSize + (isTablet ? 60 : 50);
     const minRadius = avatarSize / 2 + layoutMomentSize / 2 + (isTablet ? 35 : 28);
-    
     let distributionRadius = minRadius;
-    
+
     if (totalConcurrent > 1) {
-      // Chord between adjacent points on circle: 2 * R * sin(π/n).
-      // We need chord >= minCenterToCenter => R >= minCenterToCenter / (2 * sin(π/n))
       const n = totalConcurrent;
-      const sinHalf = Math.sin(Math.PI / n);
-      const radiusFromChord = sinHalf > 1e-6
-        ? minCenterToCenter / (2 * sinHalf)
+      // Account for angle jitter (±30% of half-arc): worst-case min gap = 0.4 * (2π/n)
+      const sinJitter = Math.sin(0.4 * Math.PI / n);
+      const radiusFromChord = sinJitter > 1e-6
+        ? minCenterToCenter / (2 * sinJitter)
         : minRadius;
       distributionRadius = Math.max(minRadius, radiusFromChord);
     }
     
-    // Cap base radius so the circle fits using conservative layout size
+    // Cap base radius so the circle fits; account for tab bar so moments stay above it
+    const effectiveBottom = SCREEN_HEIGHT - bottomInset;
     const maxRLeft = avatarX - viewportPadding - layoutMomentSize / 2;
     const maxRRight = SCREEN_WIDTH - avatarX - viewportPadding - layoutMomentSize / 2;
     const maxRTop = avatarY - viewportPadding - layoutMomentSize / 2;
-    const maxRBottom = SCREEN_HEIGHT - avatarY - viewportPadding - layoutMomentSize / 2;
+    const maxRBottom = effectiveBottom - avatarY - viewportPadding - layoutMomentSize / 2;
     const maxRFromViewport = Math.max(0, Math.min(maxRLeft, maxRRight, maxRTop, maxRBottom));
     distributionRadius = Math.min(distributionRadius, Math.max(minRadius, maxRFromViewport));
 
@@ -7723,14 +7724,14 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     const minX = viewportPadding + halfW;
     const maxX = SCREEN_WIDTH - viewportPadding - halfW;
     const minY = viewportPadding + halfH;
-    const maxY = SCREEN_HEIGHT - viewportPadding - halfH;
+    const maxY = effectiveBottom - viewportPadding - halfH;
 
     let momentX = avatarX;
     let momentY = avatarY;
 
     if (totalConcurrent > 1) {
       const angleStep = (2 * Math.PI) / totalConcurrent;
-      const angle = (positionIndex * angleStep) - (Math.PI / 2) + angleOffset;
+      const angle = (positionIndex * angleStep) - (Math.PI / 2) + angleOffset + angleJitter;
       const cosA = Math.cos(angle);
       const sinA = Math.sin(angle);
 
@@ -7771,7 +7772,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
       transform: [{ scale: scale.value * growPulseScale.value }],
       zIndex: 1005,
     };
-  }, [focusedX, focusedY, showEntityWheelShared, memoryIndex, momentIndex, momentType, isTablet, finalWidth, finalHeight, scale, growPulseScale, positionIndex, totalConcurrent, angleOffset]);
+  }, [focusedX, focusedY, showEntityWheelShared, memoryIndex, momentIndex, momentType, isTablet, finalWidth, finalHeight, scale, growPulseScale, positionIndex, totalConcurrent, angleOffset, angleJitter, bottomInset]);
 
   // Render using the EXACT same visualization as selectedWheelMoment (post-spin moments)
   // This matches the wheel of life moment display exactly
@@ -7957,15 +7958,17 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
               height: finalHeight,
               justifyContent: 'center',
               alignItems: 'center',
-              paddingHorizontal: Math.max(20, finalWidth * 0.1),
+              paddingHorizontal: Math.max(20, finalWidth * 0.12),
+              paddingVertical: Math.max(12, finalHeight * 0.12),
             }}
           >
             <ThemedText
               style={{
                 color: 'rgba(255,255,255,0.9)',
-                fontSize: Math.max(12, Math.min(16, 14 + (textLength / 80))) * fontScale,
+                fontSize: Math.max(11, Math.min(15, 12 + (textLength / 70))) * fontScale,
                 textAlign: 'center',
                 fontWeight: '500',
+                maxWidth: finalWidth * 0.9,
               }}
             >
               {text}
@@ -7976,46 +7979,52 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     );
   }
 
-  // Lesson - use simple bulb icon with text below (matching main wheel of life focused memory view)
+  // Lesson - use full lightbulb element with text below (matching main wheel of life PulsingFloatingMomentIcon)
   return (
     <Animated.View style={animatedStyle}>
       <View
         style={{
           width: finalWidth,
           height: finalHeight,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: 'rgba(255, 215, 0, 0.25)',
-          borderRadius: finalWidth / 2,
-          // Golden glow for lessons
           shadowColor: '#FFD700',
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.8,
-          shadowRadius: isTablet ? 12 : 8,
-          elevation: 8,
-          padding: 8,
+          shadowOpacity: 0.7,
+          shadowRadius: isTablet ? 12 : 9,
+          elevation: 10,
+          justifyContent: 'center',
+          alignItems: 'center',
         }}
       >
         <MaterialIcons
           name="lightbulb"
-          size={finalWidth * 0.35}
+          size={finalWidth * 0.4}
           color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'}
-          style={{ marginBottom: 4 }}
         />
+        {/* Text below lightbulb */}
         {text && (
-          <ThemedText
+          <View
             style={{
-              color: colorScheme === 'dark' ? '#000000' : '#1A1A1A',
-              fontSize: 11 * fontScale,
-              textAlign: 'center',
-              fontWeight: '700',
-              maxWidth: finalWidth * 0.85,
-              lineHeight: 14 * fontScale,
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              paddingHorizontal: 15,
+              paddingBottom: 10,
             }}
-            numberOfLines={5}
           >
-            {text}
-          </ThemedText>
+            <ThemedText
+              style={{
+                color: colorScheme === 'dark' ? '#FFD700' : '#FFA000',
+                fontSize: Math.max(9, Math.min(13, 11 - (textLength / 70))) * fontScale,
+                textAlign: 'center',
+                fontWeight: '600',
+                lineHeight: Math.max(11, Math.min(15, 13 - (textLength / 70))) * fontScale,
+              }}
+              numberOfLines={textLength > 80 ? 4 : 3}
+            >
+              {text}
+            </ThemedText>
+          </View>
         )}
       </View>
     </Animated.View>
