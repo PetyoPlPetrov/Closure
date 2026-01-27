@@ -2364,6 +2364,8 @@ export function AIModal({
                     style={styles.loadingContainer}
                     showsVerticalScrollIndicator={true}
                     persistentScrollbar={true}
+                    keyboardShouldPersistTaps="handled"
+                    nestedScrollEnabled={Platform.OS === "android"}
                   >
                     {/* Image block: hide during loading if image was added on input step */}
                     {!aiResponse && selectedImage ? null : !selectedImage ? (
@@ -3142,6 +3144,7 @@ export function AIModal({
                                   handleEditItem(item.id, text)
                                 }
                                 multiline
+                                scrollEnabled={false}
                                 placeholderTextColor={
                                   colors.textMediumEmphasis ||
                                   colors.text + "80"

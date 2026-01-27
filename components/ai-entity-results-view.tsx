@@ -531,7 +531,12 @@ export function AIEntityResultsView({
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled={Platform.OS === 'android'}
+      >
         {sortedEntities.map((entity, displayIndex) => {
           const entityIndex = findEntityIndex(entity);
           const index = entityIndex >= 0 ? entityIndex : displayIndex;
@@ -884,6 +889,7 @@ export function AIEntityResultsView({
                 placeholderTextColor={colors.muted}
                 multiline
                 textAlignVertical="top"
+                scrollEnabled={false}
               />
             </View>
           </View>
