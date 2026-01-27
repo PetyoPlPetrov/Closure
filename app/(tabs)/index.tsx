@@ -368,6 +368,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     memoryBaseAngle: number;
     spawnSlot: number; // Stable slot for layout (avoids blink when totalConcurrent drops)
     batchSize: number;
+    cycleId: number; // Rotate positions each restart so they're not always the same
   }[]>([]);
   const momentIdCounter = useRef(0);
   const floatingMomentsTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -1055,26 +1056,12 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
       return;
     }
 
-    const orderBeforeShuffle = momentsWithPositions.map(m => `${m.memoryIndex}-${m.momentIndex}-${m.momentType}`);
-    console.log('[GrowMoments] MEMORIES & MOMENTS', {
-      memoriesCount: memories.length,
-      momentsCount: momentsWithPositions.length,
-      type: selectedMomentType,
-      orderBeforeShuffle,
-    });
-
     // Shuffle moments to randomize which memory they come from
     // Fisher-Yates shuffle algorithm
     for (let i = momentsWithPositions.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [momentsWithPositions[i], momentsWithPositions[j]] = [momentsWithPositions[j], momentsWithPositions[i]];
     }
-
-    const orderAfterShuffle = momentsWithPositions.map(m => `${m.memoryIndex}-${m.momentIndex}-${m.momentType}`);
-    console.log('[GrowMoments] ORDER AFTER SHUFFLE', {
-      order: orderAfterShuffle,
-      type: selectedMomentType,
-    });
 
     // Clear any existing timeouts from previous runs
     floatingMomentsTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
@@ -1124,16 +1111,8 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
           ...momentData,
           spawnSlot: slot,
           batchSize,
+          cycleId: currentCycleId,
         };
-
-        console.log('[GrowMoments] APPEAR', {
-          momentId: momentIdentity,
-          spawnIndex: momentIndex,
-          slot,
-          batchSize,
-          delayMs: delay,
-          ts: new Date().toISOString().slice(11, 23),
-        });
 
         setFloatingMoments(prev => {
           const isDuplicate = prev.some(m =>
@@ -1141,10 +1120,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             m.momentIndex === newMoment.momentIndex &&
             m.momentType === newMoment.momentType
           );
-          if (isDuplicate) {
-            console.log('[GrowMoments] APPEAR SKIP duplicate', { momentId: momentIdentity });
-            return prev;
-          }
+          if (isDuplicate) return prev;
           return [...prev, newMoment];
         });
 
@@ -1154,11 +1130,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
             return;
           }
           momentAnimationStateMap.delete(momentIdentity);
-
-          console.log('[GrowMoments] DISAPPEAR', {
-            momentId: momentIdentity,
-            ts: new Date().toISOString().slice(11, 23),
-          });
 
           setFloatingMoments(prev => prev.filter(m => m.id !== newMoment.id));
 
@@ -1173,13 +1144,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               cycleIdRef.current++;
               nextMomentIndexRef.current = 0;
               setFloatingMoments([]);
-              const restartOrder = momentsToSpawn > 0 ? momentsWithPositions.slice(0, momentsToSpawn).map(m => `${m.memoryIndex}-${m.momentIndex}-${m.momentType}`) : [];
-              console.log('[GrowMoments] RESTART', {
-                momentsToSpawn,
-                poolSize: momentsWithPositions.length,
-                spawnOrder: restartOrder,
-                ts: new Date().toISOString().slice(11, 23),
-              });
               for (let i = 0; i < momentsToSpawn; i++) {
                 spawnSingleMoment(i, INITIAL_START_DELAY + (i * INITIAL_STAGGER_DELAY));
                 nextMomentIndexRef.current = i + 1;
@@ -1200,13 +1164,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
                 return;
               }
               isSpawningNextRef.current = false;
-              const nextId = momentsWithPositions[nextIndex] ? `${momentsWithPositions[nextIndex].memoryIndex}-${momentsWithPositions[nextIndex].momentIndex}-${momentsWithPositions[nextIndex].momentType}` : '?';
-              console.log('[GrowMoments] SPAWN NEXT', {
-                nextIndex,
-                nextId,
-                poolSize: momentsWithPositions.length,
-                ts: new Date().toISOString().slice(11, 23),
-              });
               if (!selectedWheelMoment) spawnSingleMoment(nextIndex, 0);
             }, delayAfterShrink);
             floatingMomentsTimeoutsRef.current.push(nextSpawnTimeout);
@@ -1228,13 +1185,6 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
     const momentsToSpawn = Math.min(INITIAL_CONCURRENT_MOMENTS, momentsWithPositions.length);
     currentBatchSizeRef.current = momentsToSpawn;
     nextSlotRef.current = 0;
-    console.log('[GrowMoments] INIT SPAWN', {
-      momentsToSpawn,
-      poolSize: momentsWithPositions.length,
-      type: selectedMomentType,
-      spawnOrder: momentsToSpawn > 0 ? momentsWithPositions.slice(0, momentsToSpawn).map(m => `${m.memoryIndex}-${m.momentIndex}-${m.momentType}`) : [],
-      ts: new Date().toISOString().slice(11, 23),
-    });
     for (let i = 0; i < momentsToSpawn; i++) {
       spawnSingleMoment(i, INITIAL_START_DELAY + (i * INITIAL_STAGGER_DELAY));
       nextMomentIndexRef.current = i + 1;
@@ -2843,6 +2793,7 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
               showEntityWheelShared={showEntityWheelShared}
               spawnSlot={moment.spawnSlot}
               batchSize={moment.batchSize}
+              cycleId={moment.cycleId}
             />
           ))}
 
@@ -7506,6 +7457,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   showEntityWheelShared,
   spawnSlot = 0,
   batchSize = 1,
+  cycleId = 0,
 }: {
   memoryIndex: number;
   momentIndex: number;
@@ -7529,9 +7481,11 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   showEntityWheelShared?: ReturnType<typeof useSharedValue<boolean>>;
   spawnSlot?: number;
   batchSize?: number;
+  cycleId?: number;
 }) {
   const positionIndex = batchSize > 0 ? spawnSlot % batchSize : 0;
   const totalConcurrent = Math.max(1, batchSize);
+  const angleOffset = (cycleId * 0.618) % (2 * Math.PI);
   const fontScale = useFontScale();
   
   // Track the initial scale value to ensure we can always reset correctly
@@ -7582,11 +7536,11 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     ? dynamicCloudHeight
     : dynamicLessonSize;
 
-  // Small icon size (the size of the orbiting moment icons around memories)
-  const smallIconSize = isTablet ? 14 : 12;
+  // Almost-invisible dot size before grow / after shrink (was 12–14px; now ~2px)
+  const smallIconSize = isTablet ? 2.5 : 2;
 
-  // Calculate scale ratios: start at small icon size, grow to full size
-  const initialScale = smallIconSize / Math.max(finalWidth, finalHeight); // e.g., 12/60 = 0.2
+  // Calculate scale ratios: start almost invisible, grow to full size, shrink back to almost invisible
+  const initialScale = smallIconSize / Math.max(finalWidth, finalHeight);
   const finalScale = 1.0; // Full size
   
   // Store initial scale in ref for stable reference
@@ -7656,13 +7610,6 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     const HOLD_DURATION = 3200;
     const SHRINK_DURATION = 1200;
 
-    console.log('[GrowMoments] ANIM START', {
-      momentId: effectMomentIdentity,
-      positionIndex: positionIndex ?? -1,
-      totalConcurrent: totalConcurrent ?? -1,
-      ts: new Date().toISOString().slice(11, 23),
-    });
-
     growPulseScale.value = 1;
     animationInitializedRef.current = true;
 
@@ -7677,11 +7624,6 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
           scale.value = initialScale;
         }
         scale.value = withTiming(finalScale, { duration: GROW_DURATION, easing: Easing.out(Easing.ease) });
-        console.log('[GrowMoments] GROW', {
-          momentId: effectMomentIdentity,
-          durationMs: GROW_DURATION,
-          ts: new Date().toISOString().slice(11, 23),
-        });
       }
     }, GROW_DELAY);
 
@@ -7746,8 +7688,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     const viewportPadding = isTablet ? 24 : 20;
     
     // Use conservative max size for layout so all grown moments fit without overlap
-    // (actual max: sun/lesson up to 320/360; we use this for spacing)
-    const layoutMomentSize = isTablet ? 340 : 300;
+    // (actual max: sun/lesson up to 320/360; use slightly larger for spacing)
+    const layoutMomentSize = isTablet ? 380 : 360;
     
     // Min center-to-center distance: full diameter + padding between edges
     const minCenterToCenter = layoutMomentSize + (isTablet ? 50 : 40);
@@ -7768,37 +7710,68 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
       distributionRadius = Math.max(minRadius, radiusFromChord);
     }
     
-    // Cap radius so moments stay on screen (no per-moment clamping — that causes overlap)
+    // Cap base radius so the circle fits using conservative layout size
     const maxRLeft = avatarX - viewportPadding - layoutMomentSize / 2;
     const maxRRight = SCREEN_WIDTH - avatarX - viewportPadding - layoutMomentSize / 2;
     const maxRTop = avatarY - viewportPadding - layoutMomentSize / 2;
     const maxRBottom = SCREEN_HEIGHT - avatarY - viewportPadding - layoutMomentSize / 2;
     const maxRFromViewport = Math.max(0, Math.min(maxRLeft, maxRRight, maxRTop, maxRBottom));
     distributionRadius = Math.min(distributionRadius, Math.max(minRadius, maxRFromViewport));
-    
+
+    const halfW = finalWidth / 2;
+    const halfH = finalHeight / 2;
+    const minX = viewportPadding + halfW;
+    const maxX = SCREEN_WIDTH - viewportPadding - halfW;
+    const minY = viewportPadding + halfH;
+    const maxY = SCREEN_HEIGHT - viewportPadding - halfH;
+
     let momentX = avatarX;
     let momentY = avatarY;
-    
+
     if (totalConcurrent > 1) {
       const angleStep = (2 * Math.PI) / totalConcurrent;
-      const angle = (positionIndex * angleStep) - (Math.PI / 2);
-      const offsetX = Math.cos(angle) * distributionRadius;
-      const offsetY = Math.sin(angle) * distributionRadius;
-      momentX = avatarX + offsetX;
-      momentY = avatarY + offsetY;
+      const angle = (positionIndex * angleStep) - (Math.PI / 2) + angleOffset;
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+
+      let R = distributionRadius;
+      let tMax = Infinity;
+      if (Math.abs(cosA) > 1e-9) {
+        const t1 = (minX - avatarX) / cosA;
+        const t2 = (maxX - avatarX) / cosA;
+        const txLo = Math.min(t1, t2);
+        const txHi = Math.max(t1, t2);
+        tMax = Math.min(tMax, txHi);
+      }
+      if (Math.abs(sinA) > 1e-9) {
+        const t1 = (minY - avatarY) / sinA;
+        const t2 = (maxY - avatarY) / sinA;
+        const tyLo = Math.min(t1, t2);
+        const tyHi = Math.max(t1, t2);
+        tMax = Math.min(tMax, tyHi);
+      }
+      const RClamp = tMax < Infinity && tMax > 0 ? Math.min(R, tMax) : R;
+      R = Math.max(0, RClamp);
+
+      momentX = avatarX + R * cosA;
+      momentY = avatarY + R * sinA;
     } else {
+      let R = distributionRadius;
+      const tMax = avatarY - minY;
+      const RClamp = tMax > 0 ? Math.min(R, tMax) : R;
+      R = Math.max(0, RClamp);
       momentX = avatarX;
-      momentY = avatarY - distributionRadius;
+      momentY = avatarY - R;
     }
 
     return {
       position: 'absolute',
-      left: momentX - finalWidth / 2,
-      top: momentY - finalHeight / 2,
+      left: momentX - halfW,
+      top: momentY - halfH,
       transform: [{ scale: scale.value * growPulseScale.value }],
       zIndex: 1005,
     };
-  }, [focusedX, focusedY, showEntityWheelShared, memoryIndex, momentIndex, momentType, isTablet, finalWidth, finalHeight, scale, growPulseScale, positionIndex, totalConcurrent]);
+  }, [focusedX, focusedY, showEntityWheelShared, memoryIndex, momentIndex, momentType, isTablet, finalWidth, finalHeight, scale, growPulseScale, positionIndex, totalConcurrent, angleOffset]);
 
   // Render using the EXACT same visualization as selectedWheelMoment (post-spin moments)
   // This matches the wheel of life moment display exactly

@@ -42,29 +42,20 @@ export function AIActionModal({
   const colors = Colors[colorScheme ?? 'dark'];
   const t = useTranslate();
 
-  // Pulse animation for the modal
+  // Pulse animation for the modal (container, glow, icon only — no button pulsing)
   const pulseScale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.3);
   const iconScale = useSharedValue(1);
-  const memoryButtonScale = useSharedValue(1);
-  const entityButtonScale = useSharedValue(1);
-
-  // Track which button should pulse next
-  const buttonPulseRef = React.useRef<{ intervalId: NodeJS.Timeout | null; isMemoryTurn: boolean }>({
-    intervalId: null,
-    isMemoryTurn: true,
-  });
 
   React.useEffect(() => {
     if (visible) {
       // Start pulsing animation for modal container - only for 3 seconds (1.5 pulse cycles)
-      // Using 750ms per half-cycle to match icon timing: 750ms * 2 * 2 = 3000ms
       pulseScale.value = withRepeat(
         withSequence(
           withTiming(1.05, { duration: 750, easing: Easing.inOut(Easing.ease) }),
           withTiming(1, { duration: 750, easing: Easing.inOut(Easing.ease) })
         ),
-        2, // 2 cycles = 3 seconds total (750ms * 2 * 2 = 3000ms)
+        2,
         false
       );
       glowOpacity.value = withRepeat(
@@ -72,79 +63,23 @@ export function AIActionModal({
           withTiming(0.6, { duration: 750, easing: Easing.inOut(Easing.ease) }),
           withTiming(0.3, { duration: 750, easing: Easing.inOut(Easing.ease) })
         ),
-        2, // 2 cycles = 3 seconds total
+        2,
         false
       );
-      
-      // Icon pulse animation - only for 3 seconds (2 pulse cycles)
       iconScale.value = withRepeat(
         withSequence(
           withTiming(1.2, { duration: 750, easing: Easing.inOut(Easing.ease) }),
           withTiming(1, { duration: 750, easing: Easing.inOut(Easing.ease) })
         ),
-        2, // 2 cycles = 3 seconds total (750ms * 2 * 2 = 3000ms)
+        2,
         false
       );
-
-      // After 3 seconds, stop all modal pulsing and start button pulsing (taking turns)
-      const buttonPulseTimeout = setTimeout(() => {
-        // Stop all modal pulsing (icon, container, glow)
-        iconScale.value = 1;
-        pulseScale.value = 1;
-        glowOpacity.value = 0.3;
-        
-        // Reset button turn state
-        buttonPulseRef.current.isMemoryTurn = true;
-        
-        const pulseNextButton = () => {
-          if (buttonPulseRef.current.isMemoryTurn && hasEntities) {
-            // Pulse "Create Memory" button
-            memoryButtonScale.value = withSequence(
-              withTiming(1.08, { duration: 600, easing: Easing.inOut(Easing.ease) }),
-              withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) })
-            );
-            buttonPulseRef.current.isMemoryTurn = false;
-          } else {
-            // Pulse "Create Sfera Entity" button
-            entityButtonScale.value = withSequence(
-              withTiming(1.08, { duration: 600, easing: Easing.inOut(Easing.ease) }),
-              withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) })
-            );
-            buttonPulseRef.current.isMemoryTurn = true;
-          }
-        };
-
-        // Start first button pulse
-        pulseNextButton();
-        
-        // Continue alternating (every 2 seconds: 600ms grow + 600ms shrink + 800ms pause)
-        buttonPulseRef.current.intervalId = setInterval(() => {
-          pulseNextButton();
-        }, 2000);
-      }, 3000);
-
-      return () => {
-        clearTimeout(buttonPulseTimeout);
-        if (buttonPulseRef.current.intervalId) {
-          clearInterval(buttonPulseRef.current.intervalId);
-          buttonPulseRef.current.intervalId = null;
-        }
-      };
     } else {
-      // Reset all animations when modal closes
       pulseScale.value = 1;
       glowOpacity.value = 0.3;
       iconScale.value = 1;
-      memoryButtonScale.value = 1;
-      entityButtonScale.value = 1;
-      
-      // Clear any running intervals
-      if (buttonPulseRef.current.intervalId) {
-        clearInterval(buttonPulseRef.current.intervalId);
-        buttonPulseRef.current.intervalId = null;
-      }
     }
-  }, [visible, hasEntities, pulseScale, glowOpacity, iconScale, memoryButtonScale, entityButtonScale]);
+  }, [visible, pulseScale, glowOpacity, iconScale]);
 
   const pulseAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
@@ -156,14 +91,6 @@ export function AIActionModal({
 
   const iconAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: iconScale.value }],
-  }));
-
-  const memoryButtonAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: memoryButtonScale.value }],
-  }));
-
-  const entityButtonAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: entityButtonScale.value }],
   }));
 
   const styles = useMemo(
@@ -368,7 +295,7 @@ export function AIActionModal({
                 {/* Buttons */}
                 <View style={styles.buttonContainer}>
                   {hasEntities ? (
-                    <Animated.View style={memoryButtonAnimatedStyle}>
+                    <View>
                       <TouchableOpacity
                         onPress={() => {
                           onClose();
@@ -389,7 +316,7 @@ export function AIActionModal({
                           {t('ai.action.createMemory')}
                         </ThemedText>
                       </TouchableOpacity>
-                    </Animated.View>
+                    </View>
                   ) : (
                     <View>
                       <TouchableOpacity
@@ -408,7 +335,7 @@ export function AIActionModal({
                     </View>
                   )}
 
-                  <Animated.View style={entityButtonAnimatedStyle}>
+                  <View>
                     <TouchableOpacity
                       onPress={() => {
                         onClose();
@@ -429,7 +356,7 @@ export function AIActionModal({
                         {t('ai.action.createEntity')}
                       </ThemedText>
                     </TouchableOpacity>
-                  </Animated.View>
+                  </View>
                 </View>
               </View>
             </Animated.View>
