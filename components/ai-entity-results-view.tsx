@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -46,6 +47,7 @@ export function AIEntityResultsView({
   const [isSaving, setIsSaving] = useState(false);
   const [datePickerEntityIndex, setDatePickerEntityIndex] = useState<number | null>(null);
   const [datePickerField, setDatePickerField] = useState<'startDate' | 'endDate' | null>(null);
+  const [datePickerTempDate, setDatePickerTempDate] = useState<Date>(new Date());
   const [pickingImageForEntityIndex, setPickingImageForEntityIndex] = useState<number | null>(null);
 
   // Sort entities: current relationships/jobs first
@@ -540,9 +542,10 @@ export function AIEntityResultsView({
         {sortedEntities.map((entity, displayIndex) => {
           const entityIndex = findEntityIndex(entity);
           const index = entityIndex >= 0 ? entityIndex : displayIndex;
-          
+          // Use stable key (index) so the card isn't remounted when name changes — otherwise
+          // the Name input loses focus after every keystroke.
           return (
-          <View key={`${entity.name}-${entity.isCurrent}-${entity.startDate}-${displayIndex}`} style={styles.entityCard}>
+          <View key={`entity-${index}`} style={styles.entityCard}>
             <View style={styles.entityHeader}>
               <ThemedText size="l" weight="bold" style={styles.entityTitle}>
                 {entity.name || `Entity ${displayIndex + 1}`}
@@ -661,6 +664,7 @@ export function AIEntityResultsView({
                       if (idx >= 0) {
                         setDatePickerEntityIndex(idx);
                         setDatePickerField('startDate');
+                        setDatePickerTempDate(entity.startDate ? parseDate(entity.startDate) : new Date());
                       }
                     }}
                   >
@@ -691,6 +695,8 @@ export function AIEntityResultsView({
                         if (idx >= 0) {
                           setDatePickerEntityIndex(idx);
                           setDatePickerField('endDate');
+                          const def = entity.startDate ? parseDate(entity.startDate) : new Date();
+                          setDatePickerTempDate(entity.endDate ? parseDate(entity.endDate) : def);
                         }
                       }}
                     >
@@ -776,6 +782,7 @@ export function AIEntityResultsView({
                       if (idx >= 0) {
                         setDatePickerEntityIndex(idx);
                         setDatePickerField('startDate');
+                        setDatePickerTempDate(entity.startDate ? parseDate(entity.startDate) : new Date());
                       }
                     }}
                   >
@@ -806,6 +813,8 @@ export function AIEntityResultsView({
                         if (idx >= 0) {
                           setDatePickerEntityIndex(idx);
                           setDatePickerField('endDate');
+                          const def = entity.startDate ? parseDate(entity.startDate) : new Date();
+                          setDatePickerTempDate(entity.endDate ? parseDate(entity.endDate) : def);
                         }
                       }}
                     >
@@ -906,62 +915,122 @@ export function AIEntityResultsView({
       </ScrollView>
 
       {/* Date Picker */}
-      {datePickerEntityIndex !== null && datePickerField && (
+      {datePickerEntityIndex !== null && datePickerField && (Platform.OS === 'ios' ? (
+        <Modal
+          visible
+          transparent
+          animationType="slide"
+          onRequestClose={() => {
+            setDatePickerEntityIndex(null);
+            setDatePickerField(null);
+          }}
+        >
+          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+            <View style={{
+              backgroundColor: colorScheme === 'dark' ? '#1E3A52' : '#FFFFFF',
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              paddingTop: 20,
+              paddingBottom: 40,
+            }}>
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: 20,
+                paddingBottom: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+              }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setDatePickerEntityIndex(null);
+                    setDatePickerField(null);
+                  }}
+                >
+                  <ThemedText size="l" style={{ color: colors.primary }}>
+                    {t('common.cancel') || 'Cancel'}
+                  </ThemedText>
+                </TouchableOpacity>
+                <ThemedText size="l" weight="semibold">
+                  {datePickerField === 'startDate'
+                    ? (t('profile.job.startDate') || 'Start Date')
+                    : (t('profile.job.endDate') || 'End Date')}
+                </ThemedText>
+                <TouchableOpacity
+                  onPress={() => {
+                    const idx = datePickerEntityIndex!;
+                    const entity = entities[idx];
+                    const dateString = datePickerTempDate.toISOString().split('T')[0];
+                    if (datePickerField === 'startDate') {
+                      updateEntity(idx, { startDate: dateString, endDate: undefined });
+                    } else {
+                      if (entity.startDate && new Date(dateString) <= new Date(entity.startDate)) {
+                        Alert.alert(
+                          t('common.error') || 'Error',
+                          t('profile.date.error.endBeforeStart') || 'End date must be after start date.',
+                          [{ text: t('common.ok') || 'OK' }]
+                        );
+                        return;
+                      }
+                      updateEntity(idx, { endDate: dateString });
+                    }
+                    setDatePickerEntityIndex(null);
+                    setDatePickerField(null);
+                  }}
+                >
+                  <ThemedText size="l" style={{ color: colors.primary, fontWeight: '600' }}>
+                    {t('common.ok') || 'OK'}
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={datePickerTempDate}
+                mode="date"
+                display="spinner"
+                minimumDate={datePickerField === 'endDate' && entities[datePickerEntityIndex!]?.startDate
+                  ? parseDate(entities[datePickerEntityIndex!].startDate!)
+                  : undefined
+                }
+                onChange={(_, selectedDate) => {
+                  if (selectedDate) setDatePickerTempDate(selectedDate);
+                }}
+                style={{ height: 200 }}
+              />
+            </View>
+          </View>
+        </Modal>
+      ) : (
         <DateTimePicker
-          value={datePickerField === 'startDate' 
-            ? (entities[datePickerEntityIndex]?.startDate ? parseDate(entities[datePickerEntityIndex].startDate!) : new Date())
-            : (entities[datePickerEntityIndex]?.endDate ? parseDate(entities[datePickerEntityIndex].endDate!) : new Date())
+          value={datePickerField === 'startDate'
+            ? (entities[datePickerEntityIndex!]?.startDate ? parseDate(entities[datePickerEntityIndex!].startDate!) : new Date())
+            : (entities[datePickerEntityIndex!]?.endDate ? parseDate(entities[datePickerEntityIndex!].endDate!) : new Date())
           }
           mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          display="default"
           onChange={(event, selectedDate) => {
-            if (Platform.OS === 'android') {
-              setDatePickerEntityIndex(null);
-              setDatePickerField(null);
-            }
-            if (selectedDate && datePickerEntityIndex !== null) {
+            setDatePickerEntityIndex(null);
+            setDatePickerField(null);
+            if (event.type === 'set' && selectedDate && datePickerEntityIndex !== null) {
               const dateString = selectedDate.toISOString().split('T')[0];
               const entity = entities[datePickerEntityIndex];
-              
               if (datePickerField === 'startDate') {
-                // When start date changes, clear end date
-                updateEntity(datePickerEntityIndex, {
-                  startDate: dateString,
-                  endDate: undefined,
-                });
-              } else if (datePickerField === 'endDate') {
-                // Validate end date is after start date
-                if (entity.startDate) {
-                  const startDate = new Date(entity.startDate);
-                  const newEndDate = new Date(dateString);
-                  if (newEndDate <= startDate) {
-                    Alert.alert(
-                      t('common.error') || 'Error',
-                      t('profile.date.error.endBeforeStart') || 'End date must be after start date.'
-                    );
-                    if (Platform.OS === 'ios') {
-                      setDatePickerEntityIndex(null);
-                      setDatePickerField(null);
-                    }
-                    return;
-                  }
+                updateEntity(datePickerEntityIndex, { startDate: dateString, endDate: undefined });
+              } else {
+                if (entity.startDate && selectedDate <= new Date(entity.startDate)) {
+                  Alert.alert(
+                    t('common.error') || 'Error',
+                    t('profile.date.error.endBeforeStart') || 'End date must be after start date.',
+                    [{ text: t('common.ok') || 'OK' }]
+                  );
+                  return;
                 }
-                updateEntity(datePickerEntityIndex, {
-                  [datePickerField]: dateString,
-                });
+                updateEntity(datePickerEntityIndex, { [datePickerField!]: dateString });
               }
-              
-              if (Platform.OS === 'ios') {
-                setDatePickerEntityIndex(null);
-                setDatePickerField(null);
-              }
-            } else if (Platform.OS === 'ios' && event.type === 'dismissed') {
-              setDatePickerEntityIndex(null);
-              setDatePickerField(null);
             }
           }}
         />
-      )}
+      ))}
 
       {/* Save Button */}
       <View style={styles.saveButtonContainer}>

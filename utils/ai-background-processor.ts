@@ -184,7 +184,7 @@ type AIBackgroundTaskData = {
 const backgroundTask = async (taskData?: AIBackgroundTaskData) => {
   if (!taskData) return;
   const { requestId, prompt, context } = taskData;
-  
+
   try {
     // Get the pending request to check for image URI and language
     const pendingRequest = await getPendingAIRequest();
@@ -433,7 +433,7 @@ type EntityBackgroundTaskData = {
 const entityBackgroundTask = async (taskData?: EntityBackgroundTaskData) => {
   if (!taskData) return;
   const { requestId, prompt, sphere } = taskData;
-  
+
   try {
     // Get the pending request to check for language
     const pendingRequest = await getPendingEntityRequest();

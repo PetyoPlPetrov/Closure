@@ -75,7 +75,6 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
 
   // Simple approach: always animate on press, the navigation system will handle whether to navigate
   const handlePress = (ev: any) => {
-    console.log('[HomeTabButton] Press detected');
     // Always animate when pressed
     pressScale.value = withSequence(
       // Press down
@@ -193,8 +192,6 @@ export function SpheresTabButton(props: BottomTabBarButtonProps) {
 
   // Modified press handler to include animation
   const handlePressWithAnimation = (ev: any) => {
-    console.log('[SpheresTabButton] Press detected');
-
     // Stop pulsing animation when tab is pressed
     cancelAnimation(pulseScale);
     pulseScale.value = withTiming(1, {

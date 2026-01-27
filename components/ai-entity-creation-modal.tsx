@@ -472,30 +472,21 @@ t('ai.closeConfirm.title') || 'Discard changes?',
   };
 
   const handleOpenSfera = () => {
-    console.log('🟣 [AI Entity Modal] handleOpenSfera called');
-    console.log('🟣 [AI Entity Modal] savedSphere:', savedSphere);
     if (savedSphere) {
       const sphereToOpen = savedSphere;
-      console.log('🟣 [AI Entity Modal] Navigating to sphere:', sphereToOpen);
-      
+
       setShowOpenSferaModal(false);
       setSavedSphere(null);
       onClose();
-      
+
       // Longer delay to ensure modal closes and state is cleared before navigation
       setTimeout(() => {
-        // Navigate to the spheres tab with the specific sphere
-        // Use push instead of replace to ensure params are updated even if already on the route
         const navigationParams = { selectedSphere: sphereToOpen };
-        console.log('🟣 [AI Entity Modal] router.push with params:', navigationParams);
         router.push({
           pathname: '/(tabs)/spheres' as const,
           params: navigationParams,
         });
-        console.log('🟣 [AI Entity Modal] router.push completed');
       }, 200);
-    } else {
-      console.log('🟣 [AI Entity Modal] No savedSphere, cannot navigate');
     }
   };
 

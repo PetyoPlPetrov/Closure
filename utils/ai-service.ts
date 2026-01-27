@@ -147,78 +147,31 @@ export async function processMemoryPrompt(
     const languageName = language === 'bg' ? 'Bulgarian' : 'English';
     const languageCode = language === 'bg' ? 'bg' : 'en';
     
-    // Create the AI prompt with enriched entity information
-    const systemPrompt = `You are a helpful assistant for the Sferas app, which helps users process life experiences and memories. 
-Your task is to analyze a user's story and create a structured memory with moments.
+    // Compact entity list: one line per sphere (no duplicate bullet lists)
+    const entityLines = [
+      `Relationships: ${enrichedEntities.relationships.join(', ') || 'None'}`,
+      `Career: ${enrichedEntities.career.join(', ') || 'None'}`,
+      `Family: ${enrichedEntities.family.join(', ') || 'None'}`,
+      `Friends: ${enrichedEntities.friends.join(', ') || 'None'}`,
+      `Hobbies: ${enrichedEntities.hobbies.join(', ') || 'None'}`,
+    ].join('\n');
 
-IMPORTANT: You must respond entirely in ${languageName} (${languageCode}). All text in your response including memory titles, moments, and lessons must be in ${languageName}.
+    const systemPrompt = `Sferas app assistant. Analyze the user's story and create a structured memory with moments. Respond entirely in ${languageName} (${languageCode}). Use first person ("I"/"my"/"me") as if the user wrote it—e.g. "I often felt dismissed" not "She was dismissive." Be empathetic and thoughtful.
 
-Available entities in each sphere (with relationship/role context):
-- Relationships: ${enrichedEntities.relationships.join(', ') || 'None'}
-  ${relationships.length > 0 ? relationships.map((e: any) => {
-    const entity = typeof e === 'string' ? { name: e } : e;
-    const status = entity.isOngoing === false ? ' (Past)' : entity.isOngoing === true ? ' (Current)' : '';
-    return `  - ${entity.name}${status}`;
-  }).join('\n') : ''}
+Entities (match by type; use EXACT name as entityName):
+${entityLines}
 
-- Career: ${enrichedEntities.career.join(', ') || 'None'}
-  ${career.length > 0 ? career.map((e: any) => {
-    const entity = typeof e === 'string' ? { name: e } : e;
-    const status = entity.isCurrent ? ' (Current Job)' : entity.endDate ? ' (Past Job)' : '';
-    return `  - ${entity.name}${status}`;
-  }).join('\n') : ''}
+Tasks:
+1. Pick sphere (relationships|career|family|friends|hobbies) and match to ONE entity. Family→relationship type; Career→current/past job; Relationships→current/past. Match by keywords (e.g. father/баща, sister/сестра). Output meaningful, specific moments.
+2. Output: title, 2-4 hardTruths, 2-4 goodFacts, 1-3 lessonsLearned. All in ${languageName}.
 
-- Family: ${enrichedEntities.family.join(', ') || 'None'}
-  ${family.length > 0 ? family.map((e: any) => {
-    const entity = typeof e === 'string' ? { name: e } : e;
-    const relationship = entity.relationship ? ` (${entity.relationship})` : '';
-    return `  - ${entity.name}${relationship}`;
-  }).join('\n') : ''}
+Philosophy: Be honest about harm and toxicity (hardTruths); don't sugar-coat. goodFacts REQUIRED (≥2)—realistic encouragement: recognizing the problem, boundaries, self-care, healthy love, support; never minimize harm. Balance truth with compassion.${imageUri ? `
 
-- Friends: ${enrichedEntities.friends.join(', ') || 'None'}
-- Hobbies: ${enrichedEntities.hobbies.join(', ') || 'None'}
+IMAGE: If a photo is attached, analyze it with the story. Identify people, setting, occasion, mood. The image is the memory's picture—use it to suggest more specific moments.` : ''}`;
 
-Based on the user's story, you must:
-1. Determine which sphere (relationships, career, family, friends, or hobbies) the story belongs to
-2. Match the story to the MOST SPECIFIC and RELEVANT entity in that sphere based on:
-   - For Family: Match based on relationship type (Father, Mother, Brother, Sister, etc.) mentioned in the story
-   - For Career: Match based on whether it's a current or past job mentioned in the story
-   - For Relationships: Match based on whether it's a current or past relationship
-   - The entityName must EXACTLY match the name (without the relationship/status suffix) from the available entities
-3. Generate a meaningful title for the memory IN ${languageName.toUpperCase()}
-4. Generate 2-4 "hardTruths" - difficult truths or challenging moments (clouds) if applicable, ALL IN ${languageName.toUpperCase()}
-5. Generate 2-4 "goodFacts" - positive aspects or happy moments (suns) if applicable, ALL IN ${languageName.toUpperCase()}
-6. Generate 1-3 "lessonsLearned" - insights or lessons from the experience (lightbulbs) if applicable, ALL IN ${languageName.toUpperCase()}
-
-FIRST-PERSON VOICE ("I"):
-- Write the title, hardTruths, goodFacts, and lessonsLearned as if the USER has written them themselves. Use first person: "I", "my", "me" (or the equivalent in ${languageName}).
-- Each moment must sound like the user's own reflection, not a third-person observation. Examples: "I often felt dismissed" not "She was often dismissive"; "I learned to set boundaries" not "Setting boundaries is important"; "I am grateful for the good times we had" not "There were good times."
-- Apply this to ALL output: title, hardTruths, goodFacts, and lessonsLearned.
-
-CRITICAL MATCHING RULES:
-- Match entities based on relationship keywords in the user's story (in ${languageName})
-- For Family: Match based on relationship type mentioned in the story (e.g., "father"/"баща", "mother"/"майка", "brother"/"брат", "sister"/"сестра", etc.)
-- For Career: Match based on whether it's a current or past job mentioned in the story
-- For Relationships: Match based on whether it's a current or past relationship
-- The entityName must be the EXACT name from the list (e.g., if available entity is "John Smith (Father)", use "John Smith" as entityName)
-- All arrays should contain meaningful, specific moments related to the story, ALL IN ${languageName.toUpperCase()}
-- Be empathetic and thoughtful in your analysis
-
-ESSENTIAL PHILOSOPHY - BALANCED TRUTH WITH COMPASSION:
-- HARD TRUTHS: Be honest and direct about toxic, unhealthy, or harmful situations. Do not sugar-coat reality. If a relationship is toxic, abusive, or harmful, clearly state this in the "hardTruths" array. Users need to see reality to protect themselves and make healthy choices.
-- ENCOURAGEMENT: Even in toxic or difficult situations, find healthy, realistic encouragement. The "goodFacts" array is REQUIRED and must ALWAYS contain at least 2 meaningful positive aspects. However, these should be:
-  * Realistic and healthy (not false positivity)
-  * Focused on: recognizing the problem (a strength), setting boundaries (growth), learning what healthy love looks like (wisdom), protecting oneself (self-care), or finding support (connection)
-  * NOT minimizing the harm or toxicity
-- LOVE IN ALL FORMS: Love comes in many forms - embrace its diversity. In healthy relationships, celebrate acts of kindness, understanding, growth, connections, resilience, and wisdom. In unhealthy relationships, recognize that learning to identify and protect oneself from harm is also a form of self-love.
-- BALANCE: Be truthful about what is harmful or toxic, while also providing healthy encouragement that helps the user grow, learn, and protect themselves. Every memory holds lessons - sometimes the lesson is recognizing what is NOT love, and that is valuable wisdom.${imageUri ? `
-
-IMAGE ANALYSIS: The user may attach a photo. If an image is provided, analyze it alongside the story. Identify people, setting, occasion, and mood from the image. Use this visual context to suggest more specific, relevant moments (hardTruths, goodFacts, lessonsLearned). The image will be used as the memory's moment picture—reference it to enrich your suggestions.` : ''}`;
-
-    const userPrompt = `User's story (in ${languageName}): ${prompt}
-${imageUri ? `\nThe user has attached an image. Analyze it together with the story to suggest better, more specific moments for this memory.` : ''}
-
-Analyze this story${imageUri ? ' and image' : ''} and return the structured memory response. Remember: ALL text (title, hardTruths, goodFacts, lessonsLearned) must be in ${languageName} and written in first person as if the user wrote it themselves (use I/my/me).`;
+    const userPrompt = imageUri
+      ? `Story: ${prompt}\n[Image attached—analyze with story.]\n\nAnalyze and return structured memory.`
+      : `Story: ${prompt}\n\nAnalyze and return structured memory.`;
 
     // Read image as base64 when provided
     let imageBase64: { mimeType: string; data: string } | null = null;
@@ -270,6 +223,8 @@ Analyze this story${imageUri ? ' and image' : ''} and return the structured memo
     
     // Using gemini-2.5-flash-lite (recommended newer model)
     // Note: gemini-1.5-flash was retired, gemini-2.0-flash will be retired March 3, 2026
+    // IMPORTANT: Each call creates a fresh model instance - no conversation history is maintained
+    // We send the complete current state in each request, so no need for context history
     const model = getGenerativeModel(ai, {
       model: 'gemini-2.5-flash-lite', // Updated to recommended newer model
       generationConfig: {
@@ -288,8 +243,10 @@ Analyze this story${imageUri ? ' and image' : ''} and return the structured memo
       });
     }
 
+    // Generate content with single user message - no conversation history
+    // Each request is stateless and includes all necessary context in the current message
     const result = await model.generateContent({
-      contents: [{ role: 'user', parts }],
+      contents: [{ role: 'user', parts }], // Single message only - no history
       systemInstruction: systemPrompt,
     });
 
@@ -299,10 +256,7 @@ Analyze this story${imageUri ? ' and image' : ''} and return the structured memo
       // With responseSchema, the response should be directly parseable JSON
       const responseText = result.response.text();
       parsedResponse = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('❌ Failed to parse AI response:', parseError);
-      const responseText = result.response.text();
-      console.error('Response text:', responseText);
+    } catch {
       throw new Error('AI returned invalid JSON response');
     }
 
@@ -346,9 +300,9 @@ Analyze this story${imageUri ? ' and image' : ''} and return the structured memo
 
     return aiResponse;
   } catch (error) {
-    console.error('AI processing error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `AI processing failed: ${(error as Error).message}. Please try again or check your Firebase AI configuration.`
+      `AI processing failed: ${errorMessage}. Please try again or check your Firebase AI configuration.`
     );
   }
 }
@@ -363,15 +317,20 @@ export async function processHomeEncouragementPrompt(params: {
   cloudyMomentsCount: number;
   sampleLessons: string[];
   sampleSunnyMoments: string[];
+  sampleCloudyMoments?: string[];
   targetCharCount: number;
   language: 'en' | 'bg';
 }): Promise<AIEncouragementResponse> {
+  const requestId = `encouragement_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const timestamp = Date.now();
+  
   const {
     overallSunnyPercentage,
     sunnyMomentsCount,
     cloudyMomentsCount,
     sampleLessons,
     sampleSunnyMoments,
+    sampleCloudyMoments = [],
     targetCharCount,
     language,
   } = params;
@@ -399,39 +358,26 @@ export async function processHomeEncouragementPrompt(params: {
     required: ['message'],
   });
 
-  const systemPrompt = `You are the Sfera AI coach. Create ONE short, encouraging, premium-sounding notification message for the Sferas app home banner.
+  const systemPrompt = `Sfera AI coach. Create ONE short, encouraging, premium-sounding home-banner message. Respond in ${languageName} (${languageCode}). JSON only, ~${targetCharCount} chars (±15%), no newlines, no emojis.
+Rules: Motivational, second-person "you". No shaming, no advice overload, no numbers/stats/clinical language. Reflect tone from whether sunny or cloudy prevails (implicitly). Always acknowledge love and lessons; if cloudy prevails, gently encourage more sunny moments.`;
 
-CRITICAL LANGUAGE: respond entirely in ${languageName} (${languageCode}).
-
-CONSTRAINTS:
-- Output JSON only, following the provided schema.
-- The message must be motivational, uplifting, and personal (second person "you").
-- No shaming, no clinical language, no advice overload.
-- No newlines.
-- Length target: about ${targetCharCount} characters (±15%).
-- Keep it human and warm: do NOT mention percentages, numbers, counts, statistics, or any math-like framing.
-- Instead, reflect the overall tone based on whether sunny or cloudy moments prevail (implicitly, without numbers).
- - Always remind the user to appreciate the love they have in their life—every sunny moment is worth love and appreciation.
- - Always remind the user to remember their lessons and to be grateful for any sunny moment and lesson.
- - If cloudy moments prevail (overall sunny percentage < 55%), additionally encourage the user to create more sunny moments.
- - Do NOT include emojis.
-`;
-
-  const userPrompt = `User mood balance:
-- Overall sunny percentage: ${Math.round(overallSunnyPercentage)}%
-- Sunny moments count: ${sunnyMomentsCount}
-- Cloudy moments count: ${cloudyMomentsCount}
-
-Sample lessons (may be empty): ${sampleLessons.slice(0, 5).join(' | ') || 'None'}
-Sample sunny moments (may be empty): ${sampleSunnyMoments.slice(0, 5).join(' | ') || 'None'}
-
-Write the notification message now.`;
+  const tone = overallSunnyPercentage >= 55 ? 'sunny prevails' : 'cloudy prevails';
+  const latestLessons = sampleLessons.slice(0, 2).join(' | ') || 'None';
+  const latestSunny = sampleSunnyMoments.slice(0, 2).join(' | ') || 'None';
+  const latestCloudy = sampleCloudyMoments.slice(0, 2).join(' | ') || 'None';
+  const userPrompt = `Tone: ${tone}
+Latest lessons: ${latestLessons}
+Latest sunny: ${latestSunny}
+Latest cloudy: ${latestCloudy}
+Write the notification message.`;
 
   const app = getApp();
   const ai = getAI(app, {
     appCheck: firebase.appCheck(),
   });
 
+  // IMPORTANT: Each call creates a fresh model instance - no conversation history is maintained
+  // We send the complete current state in each request, so no need for context history
   const model = getGenerativeModel(ai, {
     model: 'gemini-2.5-flash-lite',
     generationConfig: {
@@ -440,8 +386,10 @@ Write the notification message now.`;
     },
   });
 
+  // Generate content with single user message - no conversation history
+  // Each request is stateless and includes all necessary context in the current message
   const result = await model.generateContent({
-    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+    contents: [{ role: 'user', parts: [{ text: userPrompt }] }], // Single message only - no history
     systemInstruction: systemPrompt,
   });
 
@@ -594,8 +542,7 @@ export async function processEntityCreationPrompt(
         },
       ];
     }
-    
-    console.log('📦 Mock AI Entity Creation Response:', JSON.stringify(mockData, null, 2));
+
     return mockData;
   }
   
@@ -633,30 +580,8 @@ export async function processEntityCreationPrompt(
         required: ['entities'],
       });
 
-      const relationshipExamples = language === 'bg' 
-        ? 'например: "Майка", "Баща", "Брат", "Сестра", "Баба", "Дядо", "Леля", "Чичо", "Братовчед", "Син", "Дъщеря" и т.н.'
-        : 'e.g., "Mother", "Father", "Brother", "Sister", "Grandmother", "Grandfather", "Aunt", "Uncle", "Cousin", "Son", "Daughter", etc.';
-      
-      const descriptionExample = language === 'bg'
-        ? 'например: "Моята сестра е много забавна" не "Сестрата на потребителя е забавна"'
-        : 'e.g., "My sister is funny" not "User\'s sister is funny"';
-
-      systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their family members and extract all family members mentioned.
-
-CRITICAL LANGUAGE REQUIREMENT: You MUST respond entirely in ${languageName} (${languageCode}). This includes:
-- ALL relationship types (${relationshipExamples})
-- ALL descriptions
-- ALL text content
-- ALL entity names (if the user provided names in their story, use those; otherwise use appropriate ${languageName} names)
-
-CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. ${descriptionExample}. Use first-person possessive pronouns.
-
-Extract all family members from the story. For each family member, provide:
-- name: The full name of the family member (in ${languageName} if generating names)
-- relationship: Their relationship to the user in ${languageName} (${relationshipExamples})
-- description: Optional brief description if mentioned in the story (written from first-person perspective in ${languageName}, ${descriptionExample})
-
-ALL fields must be in ${languageName}.`;
+      const relEx = language === 'bg' ? 'Майка, Баща, Брат, Сестра, ...' : 'Mother, Father, Brother, Sister, ...';
+      systemPrompt = `Sferas assistant. Extract all family members from the story. Respond in ${languageName} (${languageCode}). First-person only: "My sister is funny" not "User's sister." Use names from the story when given; otherwise ${languageName} names. Fields: name, relationship (${relEx}), optional description. All output in ${languageName}.`;
     } else if (sphere === 'relationships') {
       responseSchema = Schema.object({
         properties: {
@@ -684,27 +609,7 @@ ALL fields must be in ${languageName}.`;
         required: ['entities'],
       });
 
-      const relationshipDescriptionExample = language === 'bg'
-        ? 'например: "Моят текущ партньор е много подкрепящ" не "Текущият партньор на потребителя е подкрепящ"'
-        : 'e.g., "My current partner is supportive" not "User\'s current partner is supportive"';
-
-      systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their relationships and extract all relationships mentioned.
-
-CRITICAL LANGUAGE REQUIREMENT: You MUST respond entirely in ${languageName} (${languageCode}). This includes:
-- ALL person names (if the user provided names in their story, use those; otherwise use appropriate ${languageName} names)
-- ALL descriptions
-- ALL text content
-
-CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. ${relationshipDescriptionExample}. Use first-person perspective.
-
-Extract all relationships from the story. For each relationship, provide:
-- name: The name of the person (in ${languageName} if generating names)
-- isCurrent: true if it's a current relationship, false if it's a past relationship
-- startDate: When the relationship started (ISO date format YYYY-MM-DD, or approximate year if exact date unknown)
-- endDate: When the relationship ended (ISO date format YYYY-MM-DD, or null if ongoing/current)
-- description: Optional brief description if mentioned in the story (written from first-person perspective in ${languageName}, ${relationshipDescriptionExample})
-
-ALL fields must be in ${languageName}.`;
+      systemPrompt = `Sferas assistant. Extract all relationships from the story. Respond in ${languageName} (${languageCode}). First-person only: "My partner is supportive" not "User's partner." Use names from the story when given; otherwise ${languageName} names. Fields: name, isCurrent, startDate (YYYY-MM-DD or year), endDate (null if current), optional description. All output in ${languageName}.`;
     } else if (sphere === 'career') {
       responseSchema = Schema.object({
         properties: {
@@ -732,27 +637,7 @@ ALL fields must be in ${languageName}.`;
         required: ['entities'],
       });
 
-      const jobDescriptionExample = language === 'bg'
-        ? 'например: "Работя като софтуерен инженер" не "Потребителят работи като софтуерен инженер"'
-        : 'e.g., "I worked as a software engineer" not "User worked as a software engineer"';
-
-      systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their jobs/career and extract all jobs mentioned.
-
-CRITICAL LANGUAGE REQUIREMENT: You MUST respond entirely in ${languageName} (${languageCode}). This includes:
-- ALL job titles and company names (in ${languageName})
-- ALL descriptions
-- ALL text content
-
-CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. ${jobDescriptionExample}. Use first-person perspective.
-
-Extract all jobs from the story. For each job, provide:
-- name: The job title or company name (in ${languageName})
-- isCurrent: true if it's a current job, false if it's a past job
-- startDate: When the job started (ISO date format YYYY-MM-DD, or approximate year if exact date unknown)
-- endDate: When the job ended (ISO date format YYYY-MM-DD, or null if ongoing/current)
-- description: Optional brief description if mentioned in the story (written from first-person perspective in ${languageName}, ${jobDescriptionExample})
-
-ALL fields must be in ${languageName}.`;
+      systemPrompt = `Sferas assistant. Extract all jobs/career from the story. Respond in ${languageName} (${languageCode}). First-person only: "I work as a software engineer" not "User works as..." Use job/company names from the story when given; otherwise ${languageName}. Fields: name (title/company), isCurrent, startDate (YYYY-MM-DD or year), endDate (null if current), optional description. All output in ${languageName}.`;
     } else if (sphere === 'friends') {
       responseSchema = Schema.object({
         properties: {
@@ -771,24 +656,7 @@ ALL fields must be in ${languageName}.`;
         required: ['entities'],
       });
 
-      const friendDescriptionExample = language === 'bg'
-        ? 'например: "Моят приятел е много добър" не "Приятелят на потребителя е добър"'
-        : 'e.g., "My friend is very kind" not "User\'s friend is very kind"';
-
-      systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their friends and extract all friends mentioned.
-
-CRITICAL LANGUAGE REQUIREMENT: You MUST respond entirely in ${languageName} (${languageCode}). This includes:
-- ALL friend names (if the user provided names in their story, use those; otherwise use appropriate ${languageName} names)
-- ALL descriptions
-- ALL text content
-
-CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. ${friendDescriptionExample}. Use first-person perspective.
-
-Extract all friends from the story. For each friend, provide:
-- name: The full name of the friend (in ${languageName} if generating names)
-- description: Optional brief description if mentioned in the story (written from first-person perspective in ${languageName}, ${friendDescriptionExample})
-
-ALL fields must be in ${languageName}.`;
+      systemPrompt = `Sferas assistant. Extract all friends from the story. Respond in ${languageName} (${languageCode}). First-person only: "My friend is kind" not "User's friend." Use names from the story when given; otherwise ${languageName} names. Fields: name, optional description. All output in ${languageName}.`;
     } else { // hobbies
       responseSchema = Schema.object({
         properties: {
@@ -807,30 +675,12 @@ ALL fields must be in ${languageName}.`;
         required: ['entities'],
       });
 
-      const hobbyDescriptionExample = language === 'bg'
-        ? 'например: "Обичам да свиря на китара" не "Потребителят обича да свири на китара"'
-        : 'e.g., "I love playing guitar" not "User loves playing guitar"';
-
-      const hobbyNameExample = language === 'bg'
-        ? 'например: "Четене", "Спорт", "Музика", "Рисуване" и т.н.'
-        : 'e.g., "Reading", "Sports", "Music", "Painting", etc.';
-
-      systemPrompt = `You are a helpful assistant for the Sferas app. Analyze the user's story about their hobbies and extract all hobbies mentioned.
-
-CRITICAL LANGUAGE REQUIREMENT: You MUST respond entirely in ${languageName} (${languageCode}). This includes:
-- ALL hobby names (in ${languageName}, ${hobbyNameExample})
-- ALL descriptions
-- ALL text content
-
-CRITICAL: When writing descriptions, write them from the user's first-person perspective. If the user refers to themselves as "me" or "I" in their story, write descriptions as if the user wrote them. ${hobbyDescriptionExample}. Use first-person perspective.
-
-Extract all hobbies from the story. For each hobby, provide:
-- name: The name of the hobby (in ${languageName}, ${hobbyNameExample})
-- description: Optional brief description if mentioned in the story (written from first-person perspective in ${languageName}, ${hobbyDescriptionExample})
-
-ALL fields must be in ${languageName}.`;
+      const hobbyEx = language === 'bg' ? 'Четене, Спорт, Музика, ...' : 'Reading, Sports, Music, ...';
+      systemPrompt = `Sferas assistant. Extract all hobbies from the story. Respond in ${languageName} (${languageCode}). First-person only: "I love playing guitar" not "User loves..." Use hobby names from the story when given; otherwise ${languageName} (${hobbyEx}). Fields: name, optional description. All output in ${languageName}.`;
     }
 
+    // IMPORTANT: Each call creates a fresh model instance - no conversation history is maintained
+    // We send the complete current state in each request, so no need for context history
     const model = getGenerativeModel(aiInstance, {
       model: 'gemini-2.5-flash-lite',
       generationConfig: {
@@ -839,22 +689,22 @@ ALL fields must be in ${languageName}.`;
       },
     });
 
+    // Generate content with single user message - no conversation history
+    // Each request is stateless and includes all necessary context in the current message
     const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      contents: [{ role: 'user', parts: [{ text: prompt }] }], // Single message only - no history
       systemInstruction: systemPrompt,
     });
 
     const responseText = result.response.text();
-    console.log('📦 AI Entity Creation Response:', responseText);
-
     const parsed = JSON.parse(responseText);
-    
+
     return {
       sphere,
       entities: parsed.entities || [],
     };
   } catch (error) {
-    console.error('❌ AI Entity Creation Error:', error);
-    throw new Error((error as Error).message || 'Failed to process entity creation prompt');
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(errorMessage || 'Failed to process entity creation prompt');
   }
 }

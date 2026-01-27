@@ -9666,6 +9666,8 @@ export default function HomeScreen() {
   const [aiEncouragementError, setAiEncouragementError] = useState(false);
   const [aiInsightsConsentVisible, setAiInsightsConsentVisible] = useState(false);
   const aiInsightsConsentPromptedRef = useRef(false);
+  // Track if encouragement request is in progress to prevent duplicate calls
+  const encouragementRequestInProgressRef = useRef(false);
   const aiConsent = useAIInsightsConsent();
   // When user closes the banner, bump this to force a new AI message next time it shows.
   const [encouragementCacheBust, setEncouragementCacheBust] = useState(0);
@@ -9715,6 +9717,12 @@ export default function HomeScreen() {
 
     const run = async () => {
       if (!hasAnyMoments || !isEncouragementVisible) return;
+      
+      // Prevent duplicate concurrent calls
+      if (encouragementRequestInProgressRef.current) {
+        return;
+      }
+      
       // Gate AI usage behind explicit consent.
       const consent = aiConsent.choice;
       if (!aiConsent.isLoaded) return;
@@ -9739,9 +9747,10 @@ export default function HomeScreen() {
       const cloudyMoments = (idealizedMemories || []).flatMap((m: any) => (m.hardTruths || []).map((x: any) => x.text).filter(Boolean));
       const lessons = (idealizedMemories || []).flatMap((m: any) => (m.lessonsLearned || []).map((x: any) => x.text).filter(Boolean));
 
-      // Keep prompt small: take a few recent-ish samples from the end
-      const sampleLessons = lessons.slice(-5);
-      const sampleSunny = sunnyMoments.slice(-5);
+      // Keep prompt small: only latest 2 of each (reduces payload)
+      const sampleLessons = lessons.slice(-2);
+      const sampleSunny = sunnyMoments.slice(-2);
+      const sampleCloudy = cloudyMoments.slice(-2);
 
       // Make the AI banner message a bit longer than the current fallback copy
       const targetCharCount = Math.round(((fallbackEncouragementText || '').length || 120) * 1.35);
@@ -9752,14 +9761,14 @@ export default function HomeScreen() {
       const lessonsCountBucket = Math.floor(lessons.length / 3) * 3; // 0,3,6,9...
       // Small fingerprint of the latest content so message can update when the content updates,
       // even if counts stay in the same bucket.
-      const contentFingerprint = `${sampleLessons.join(' ').slice(0, 80)}|${sampleSunny.join(' ').slice(0, 80)}`;
+      const contentFingerprint = `${sampleLessons.join(' ').slice(0, 60)}|${sampleSunny.join(' ').slice(0, 60)}|${sampleCloudy.join(' ').slice(0, 60)}`;
       const contentBucket = contentFingerprint.length; // stable-ish small signal without heavy hashing
       // Refresh more often than daily: use a rolling time window (every 2 hours).
       // This keeps the message feeling fresh without calling AI on every render.
       // Dev: refresh super frequently for iteration. Prod: refresh less often.
       const windowMs = __DEV__ ? 60_000 : 10 * 60 * 1000; // 1 min in dev, 10 min in prod
       const windowId = Math.floor(Date.now() / windowMs);
-      const cacheKey = `home_encouragement_v4:${appLanguage}:${bucket}:s${sunnyCountBucket}:l${lessonsCountBucket}:c${contentBucket}:ms${windowMs}:${windowId}:b${encouragementCacheBust}`;
+      const cacheKey = `home_encouragement_v5:${appLanguage}:${bucket}:s${sunnyCountBucket}:l${lessonsCountBucket}:c${contentBucket}:ms${windowMs}:${windowId}:b${encouragementCacheBust}`;
       lastEncouragementCacheKeyRef.current = cacheKey;
 
       try {
@@ -9773,24 +9782,35 @@ export default function HomeScreen() {
           }
         }
 
-        const resp = await processHomeEncouragementPrompt({
-          overallSunnyPercentage,
-          sunnyMomentsCount: sunnyMoments.length,
-          cloudyMomentsCount: cloudyMoments.length,
-          sampleLessons,
-          sampleSunnyMoments: sampleSunny,
-          targetCharCount,
-          language: appLanguage === 'bg' ? 'bg' : 'en',
-        });
+        encouragementRequestInProgressRef.current = true;
+        
+        try {
+          const resp = await processHomeEncouragementPrompt({
+            overallSunnyPercentage,
+            sunnyMomentsCount: sunnyMoments.length,
+            cloudyMomentsCount: cloudyMoments.length,
+            sampleLessons,
+            sampleSunnyMoments: sampleSunny,
+            sampleCloudyMoments: sampleCloudy,
+            targetCharCount,
+            language: appLanguage === 'bg' ? 'bg' : 'en',
+          });
 
-        const message = resp?.message?.trim();
-        if (!message) return;
+          const message = resp?.message?.trim();
+          if (!message) {
+            encouragementRequestInProgressRef.current = false;
+            return;
+          }
 
-        await AsyncStorage.setItem(cacheKey, JSON.stringify({ message }));
-        if (!cancelled) setAiEncouragementText(message);
-        if (!cancelled) setAiEncouragementLoading(false);
+          await AsyncStorage.setItem(cacheKey, JSON.stringify({ message }));
+          if (!cancelled) setAiEncouragementText(message);
+          if (!cancelled) setAiEncouragementLoading(false);
+        } finally {
+          encouragementRequestInProgressRef.current = false;
+        }
       } catch (e) {
         // Keep fallback behavior
+        encouragementRequestInProgressRef.current = false;
         logError(e, 'home-ai-encouragement');
         if (!cancelled) setAiEncouragementText(null);
         if (!cancelled) setAiEncouragementError(true);
@@ -9800,7 +9820,12 @@ export default function HomeScreen() {
 
     run();
     return () => {
-      cancelled = true;
+      // If a fetch is in progress, don't cancel: let it complete and apply state.
+      // Otherwise we'd clear loading, discard the result, and the banner would disappear.
+      if (!encouragementRequestInProgressRef.current) {
+        cancelled = true;
+        setAiEncouragementLoading(false);
+      }
     };
   }, [
     hasAnyMoments,
@@ -13014,8 +13039,8 @@ export default function HomeScreen() {
           {/* Only render when we have content (AI text) or an error fallback. Avoid empty flash while AI loads. */}
           {hasAnyMoments &&
             isEncouragementVisible &&
-            // If AI isn't enabled, always show the local fallback encouragement.
-            // If AI is enabled, only show when we have AI text or an error (fallback).
+            // If AI isn't enabled, always show the local fallback.
+            // If AI is enabled, show only when we have AI text or error—no fallback during load to avoid "first fallback then AI" flicker.
             (!aiConsent.isEnabled || aiEncouragementError || !!aiEncouragementText) && (
             <View
               style={[

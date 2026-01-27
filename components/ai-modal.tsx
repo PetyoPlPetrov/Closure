@@ -150,6 +150,8 @@ export function AIModal({
   const [isSavingEntity, setIsSavingEntity] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [startDatePickerTemp, setStartDatePickerTemp] = useState<Date>(new Date());
+  const [endDatePickerTemp, setEndDatePickerTemp] = useState<Date>(new Date());
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [backgroundRequestId, setBackgroundRequestId] = useState<string | null>(
@@ -862,17 +864,8 @@ export function AIModal({
         hobbies: hobbies.length > 0 ? hobbies.map((h) => h.name) : undefined,
       };
 
-      // Start background processing (include image URI and language if available)
-      const requestId = await startBackgroundAIProcessing(
-        inputText.trim(),
-        { sferas },
-        selectedImage || undefined,
-        language,
-      );
-      setBackgroundRequestId(requestId);
-
-      // Only try foreground processing if app is currently active
-      // If app goes to background, background task will handle it
+      // IMPORTANT: Only make ONE AI request to avoid rate limiting
+      // If app is active, use foreground processing (faster). Otherwise use background task.
       if (appState === "active") {
         try {
           const response = await processMemoryPrompt(
@@ -882,50 +875,40 @@ export function AIModal({
             selectedImage || undefined,
           );
 
-          // Check if app is still active before stopping background task
-          // If app went to background, let background task handle it
-          const currentAppState = AppState.currentState;
-          if (currentAppState === "active") {
-            // If we got a response while app is active, stop background task and process it
-            await stopBackgroundAIProcessing();
-            setBackgroundRequestId(null);
-
-            // Record successful AI request for rate limiting (only for non-premium users)
-            if (!isSubscribed) {
-              await recordAIRequest();
-            }
-
-            await processAIResponse(response);
-          } else {
-            // App went to background, let background task handle it
-            // The response will be saved by background task
+          // Record successful AI request for rate limiting (only for non-premium users)
+          if (!isSubscribed) {
+            await recordAIRequest();
           }
+
+          await processAIResponse(response);
         } catch (error) {
-          // If foreground processing fails, background task will handle it
-          // But also show error immediately if we're still in foreground
-          const currentAppState = AppState.currentState;
-          if (currentAppState === "active") {
-            setIsProcessing(false);
-            setCurrentView("input");
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
-            Alert.alert(
-              t("ai.error.title") || "AI Processing Failed",
-              (
-                t("ai.error.message") ||
-                "Failed to process your request: {error}. Please try again."
-              ).replace("{error}", errorMessage),
-              [
-                {
-                  text: t("common.ok") || "OK",
-                  style: "default",
-                },
-              ],
-            );
-          }
+          setIsProcessing(false);
+          setCurrentView("input");
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          Alert.alert(
+            t("ai.error.title") || "AI Processing Failed",
+            (
+              t("ai.error.message") ||
+              "Failed to process your request: {error}. Please try again."
+            ).replace("{error}", errorMessage),
+            [
+              {
+                text: t("common.ok") || "OK",
+                style: "default",
+              },
+            ],
+          );
         }
       } else {
-        // App is already in background, let background task handle it
+        // App is already in background, use background task
+        const requestId = await startBackgroundAIProcessing(
+          inputText.trim(),
+          { sferas },
+          selectedImage || undefined,
+          language,
+        );
+        setBackgroundRequestId(requestId);
       }
     } catch (error) {
       Alert.alert(
@@ -2811,9 +2794,12 @@ export function AIModal({
                                     </ThemedText>
                                     <TouchableOpacity
                                       style={styles.dateButton}
-                                      onPress={() =>
-                                        setShowStartDatePicker(true)
-                                      }
+                                      onPress={() => {
+                                        setStartDatePickerTemp(
+                                          newEntityStartDate || new Date(),
+                                        );
+                                        setShowStartDatePicker(true);
+                                      }}
                                     >
                                       <ThemedText size="sm">
                                         {newEntityStartDate
@@ -2827,28 +2813,129 @@ export function AIModal({
                                         color={colors.primary}
                                       />
                                     </TouchableOpacity>
-                                    {showStartDatePicker && (
-                                      <DateTimePicker
-                                        value={newEntityStartDate || new Date()}
-                                        mode="date"
-                                        display={
-                                          Platform.OS === "ios"
-                                            ? "spinner"
-                                            : "default"
-                                        }
-                                        onChange={(event, date) => {
-                                          setShowStartDatePicker(
-                                            Platform.OS === "ios",
-                                          );
-                                          if (
-                                            date &&
-                                            event.type !== "dismissed"
-                                          ) {
-                                            setNewEntityStartDate(date);
+                                    {showStartDatePicker &&
+                                      (Platform.OS === "ios" ? (
+                                        <RNModal
+                                          visible
+                                          transparent
+                                          animationType="slide"
+                                          onRequestClose={() =>
+                                            setShowStartDatePicker(false)
                                           }
-                                        }}
-                                      />
-                                    )}
+                                        >
+                                          <View
+                                            style={{
+                                              flex: 1,
+                                              justifyContent: "flex-end",
+                                              backgroundColor:
+                                                "rgba(0, 0, 0, 0.5)",
+                                            }}
+                                          >
+                                            <View
+                                              style={{
+                                                backgroundColor:
+                                                  colorScheme === "dark"
+                                                    ? "#1E3A52"
+                                                    : "#FFFFFF",
+                                                borderTopLeftRadius: 20,
+                                                borderTopRightRadius: 20,
+                                                paddingTop: 20,
+                                                paddingBottom: 40,
+                                              }}
+                                            >
+                                              <View
+                                                style={{
+                                                  flexDirection: "row",
+                                                  justifyContent:
+                                                    "space-between",
+                                                  alignItems: "center",
+                                                  paddingHorizontal: 20,
+                                                  paddingBottom: 10,
+                                                  borderBottomWidth: 1,
+                                                  borderBottomColor:
+                                                    colorScheme === "dark"
+                                                      ? "rgba(255, 255, 255, 0.1)"
+                                                      : "rgba(0, 0, 0, 0.1)",
+                                                }}
+                                              >
+                                                <TouchableOpacity
+                                                  onPress={() =>
+                                                    setShowStartDatePicker(false)
+                                                  }
+                                                >
+                                                  <ThemedText
+                                                    size="l"
+                                                    style={{
+                                                      color: colors.primary,
+                                                    }}
+                                                  >
+                                                    {t("common.cancel") ||
+                                                      "Cancel"}
+                                                  </ThemedText>
+                                                </TouchableOpacity>
+                                                <ThemedText
+                                                  size="l"
+                                                  weight="semibold"
+                                                >
+                                                  {t("profile.job.startDate") ||
+                                                    "Start Date"}
+                                                </ThemedText>
+                                                <TouchableOpacity
+                                                  onPress={() => {
+                                                    setNewEntityStartDate(
+                                                      startDatePickerTemp,
+                                                    );
+                                                    setShowStartDatePicker(
+                                                      false,
+                                                    );
+                                                  }}
+                                                >
+                                                  <ThemedText
+                                                    size="l"
+                                                    style={{
+                                                      color: colors.primary,
+                                                      fontWeight: "600",
+                                                    }}
+                                                  >
+                                                    {t("common.ok") || "OK"}
+                                                  </ThemedText>
+                                                </TouchableOpacity>
+                                              </View>
+                                              <DateTimePicker
+                                                value={startDatePickerTemp}
+                                                mode="date"
+                                                display="spinner"
+                                                onChange={(_, d) => {
+                                                  if (d)
+                                                    setStartDatePickerTemp(d);
+                                                }}
+                                                maximumDate={
+                                                  newEntityEndDate ||
+                                                  undefined
+                                                }
+                                                style={{ height: 200 }}
+                                              />
+                                            </View>
+                                          </View>
+                                        </RNModal>
+                                      ) : (
+                                        <DateTimePicker
+                                          value={
+                                            newEntityStartDate || new Date()
+                                          }
+                                          mode="date"
+                                          display="default"
+                                          onChange={(event, date) => {
+                                            setShowStartDatePicker(false);
+                                            if (
+                                              event.type === "set" &&
+                                              date
+                                            ) {
+                                              setNewEntityStartDate(date);
+                                            }
+                                          }}
+                                        />
+                                      ))}
                                   </View>
 
                                   <View style={styles.formField}>
@@ -2896,9 +2983,14 @@ export function AIModal({
                                       </ThemedText>
                                       <TouchableOpacity
                                         style={styles.dateButton}
-                                        onPress={() =>
-                                          setShowEndDatePicker(true)
-                                        }
+                                        onPress={() => {
+                                          setEndDatePickerTemp(
+                                            newEntityEndDate ||
+                                              newEntityStartDate ||
+                                              new Date(),
+                                          );
+                                          setShowEndDatePicker(true);
+                                        }}
                                       >
                                         <ThemedText size="sm">
                                           {newEntityEndDate
@@ -2912,28 +3004,154 @@ export function AIModal({
                                           color={colors.primary}
                                         />
                                       </TouchableOpacity>
-                                      {showEndDatePicker && (
-                                        <DateTimePicker
-                                          value={newEntityEndDate || new Date()}
-                                          mode="date"
-                                          display={
-                                            Platform.OS === "ios"
-                                              ? "spinner"
-                                              : "default"
-                                          }
-                                          onChange={(event, date) => {
-                                            setShowEndDatePicker(
-                                              Platform.OS === "ios",
-                                            );
-                                            if (
-                                              date &&
-                                              event.type !== "dismissed"
-                                            ) {
-                                              setNewEntityEndDate(date);
+                                      {showEndDatePicker &&
+                                        (Platform.OS === "ios" ? (
+                                          <RNModal
+                                            visible
+                                            transparent
+                                            animationType="slide"
+                                            onRequestClose={() =>
+                                              setShowEndDatePicker(false)
                                             }
-                                          }}
-                                        />
-                                      )}
+                                          >
+                                            <View
+                                              style={{
+                                                flex: 1,
+                                                justifyContent: "flex-end",
+                                                backgroundColor:
+                                                  "rgba(0, 0, 0, 0.5)",
+                                              }}
+                                            >
+                                              <View
+                                                style={{
+                                                  backgroundColor:
+                                                    colorScheme === "dark"
+                                                      ? "#1E3A52"
+                                                      : "#FFFFFF",
+                                                  borderTopLeftRadius: 20,
+                                                  borderTopRightRadius: 20,
+                                                  paddingTop: 20,
+                                                  paddingBottom: 40,
+                                                }}
+                                              >
+                                                <View
+                                                  style={{
+                                                    flexDirection: "row",
+                                                    justifyContent:
+                                                      "space-between",
+                                                    alignItems: "center",
+                                                    paddingHorizontal: 20,
+                                                    paddingBottom: 10,
+                                                    borderBottomWidth: 1,
+                                                    borderBottomColor:
+                                                      colorScheme === "dark"
+                                                        ? "rgba(255, 255, 255, 0.1)"
+                                                        : "rgba(0, 0, 0, 0.1)",
+                                                  }}
+                                                >
+                                                  <TouchableOpacity
+                                                    onPress={() =>
+                                                      setShowEndDatePicker(
+                                                        false,
+                                                      )
+                                                    }
+                                                  >
+                                                    <ThemedText
+                                                      size="l"
+                                                      style={{
+                                                        color: colors.primary,
+                                                      }}
+                                                    >
+                                                      {t("common.cancel") ||
+                                                        "Cancel"}
+                                                    </ThemedText>
+                                                  </TouchableOpacity>
+                                                  <ThemedText
+                                                    size="l"
+                                                    weight="semibold"
+                                                  >
+                                                    {t("profile.job.endDate") ||
+                                                      "End Date"}
+                                                  </ThemedText>
+                                                  <TouchableOpacity
+                                                    onPress={() => {
+                                                      if (
+                                                        newEntityStartDate &&
+                                                        endDatePickerTemp <
+                                                          newEntityStartDate
+                                                      ) {
+                                                        Alert.alert(
+                                                          t("common.error") ||
+                                                            "Error",
+                                                          t(
+                                                            "profile.date.error.endBeforeStart",
+                                                          ) ||
+                                                            "End date must be after start date.",
+                                                          [
+                                                            {
+                                                              text:
+                                                                t(
+                                                                  "common.ok",
+                                                                ) || "OK",
+                                                            },
+                                                          ],
+                                                        );
+                                                        return;
+                                                      }
+                                                      setNewEntityEndDate(
+                                                        endDatePickerTemp,
+                                                      );
+                                                      setShowEndDatePicker(
+                                                        false,
+                                                      );
+                                                    }}
+                                                  >
+                                                    <ThemedText
+                                                      size="l"
+                                                      style={{
+                                                        color: colors.primary,
+                                                        fontWeight: "600",
+                                                      }}
+                                                    >
+                                                      {t("common.ok") || "OK"}
+                                                    </ThemedText>
+                                                  </TouchableOpacity>
+                                                </View>
+                                                <DateTimePicker
+                                                  value={endDatePickerTemp}
+                                                  mode="date"
+                                                  display="spinner"
+                                                  onChange={(_, d) => {
+                                                    if (d)
+                                                      setEndDatePickerTemp(d);
+                                                  }}
+                                                  minimumDate={
+                                                    newEntityStartDate ||
+                                                    undefined
+                                                  }
+                                                  style={{ height: 200 }}
+                                                />
+                                              </View>
+                                            </View>
+                                          </RNModal>
+                                        ) : (
+                                          <DateTimePicker
+                                            value={
+                                              newEntityEndDate || new Date()
+                                            }
+                                            mode="date"
+                                            display="default"
+                                            onChange={(event, date) => {
+                                              setShowEndDatePicker(false);
+                                              if (
+                                                event.type === "set" &&
+                                                date
+                                              ) {
+                                                setNewEntityEndDate(date);
+                                              }
+                                            }}
+                                          />
+                                        ))}
                                     </View>
                                   )}
                                 </>
