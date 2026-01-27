@@ -2000,6 +2000,28 @@ const FloatingAvatar = React.memo(function FloatingAvatar({
         backgroundColor: 'transparent',
       }}
     >
+      {/* Scattered white dots in background when in focused entity or entity wheel mode */}
+      {isFocused && (
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: SCREEN_WIDTH,
+            height: SCREEN_HEIGHT,
+            zIndex: 0,
+            pointerEvents: 'none',
+          }}
+        >
+          <SparkledDots
+            avatarSize={avatarSize}
+            avatarCenterX={focusedX}
+            avatarCenterY={focusedY}
+            colorScheme={colorScheme ?? 'dark'}
+            fullScreen={true}
+          />
+        </View>
+      )}
       {/* Draggable container wrapping avatar and memories */}
       <Animated.View
         style={[
