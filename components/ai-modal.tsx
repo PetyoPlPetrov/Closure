@@ -4,31 +4,30 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import {
-  clearPendingAIError,
-  clearPendingAIRequest,
-  clearPendingAIResponse,
-  getPendingAIError,
-  getPendingAIRequest,
-  getPendingAIResponse,
-  isBackgroundTaskRunning,
-  savePendingAIResponse,
-  startBackgroundAIProcessing,
-  stopBackgroundAIProcessing,
-  type PendingAIResponse,
+    clearPendingAIError,
+    clearPendingAIRequest,
+    clearPendingAIResponse,
+    getPendingAIError,
+    getPendingAIRequest,
+    getPendingAIResponse,
+    isBackgroundTaskRunning,
+    savePendingAIResponse,
+    startBackgroundAIProcessing,
+    stopBackgroundAIProcessing,
+    type PendingAIResponse,
 } from "@/utils/ai-background-processor";
 import { canMakeAIRequest, recordAIRequest } from "@/utils/ai-rate-limiter";
 import { processMemoryPrompt, type AIMemoryResponse } from "@/utils/ai-service";
 import {
-  logAIMemoryDiscarded,
-  logAIMemorySaved,
-  logAIModalSubmit,
+    logAIMemoryDiscarded,
+    logAIMemorySaved,
+    logAIModalSubmit,
 } from "@/utils/analytics";
 import { ensureAppCheckToken, isAppCheckInitialized } from "@/utils/app-check";
 import { useInAppNotification } from "@/utils/InAppNotificationProvider";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForPremiumAccess } from "@/utils/premium-access";
 import { updateStreakOnMemoryCreation } from "@/utils/streak-manager";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -40,30 +39,30 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  AppState,
-  AppStateStatus,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  Modal as RNModal,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    AppState,
+    AppStateStatus,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    Modal as RNModal,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming,
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withSequence,
+    withSpring,
+    withTiming,
 } from "react-native-reanimated";
 
 type ModalView = "input" | "loading" | "results";
@@ -150,7 +149,9 @@ export function AIModal({
   const [isSavingEntity, setIsSavingEntity] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const [startDatePickerTemp, setStartDatePickerTemp] = useState<Date>(new Date());
+  const [startDatePickerTemp, setStartDatePickerTemp] = useState<Date>(
+    new Date(),
+  );
   const [endDatePickerTemp, setEndDatePickerTemp] = useState<Date>(new Date());
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
@@ -392,12 +393,7 @@ export function AIModal({
         }
         // If we have a pending response, process it
         // Don't clear AsyncStorage here - keep it until user saves or discards
-
-        // Record successful AI request for rate limiting (only for non-premium users)
-        // This handles the case where the response came from background processing
-        if (!isSubscribed) {
-          await recordAIRequest();
-        }
+        // (Rate limit already counted on submit when user pressed the button.)
 
         await processAIResponse(pendingResponse.response);
         setBackgroundRequestId(null);
@@ -807,20 +803,20 @@ export function AIModal({
       return;
     }
 
-    // Check rate limiting for non-premium users
-    if (!isSubscribed) {
-      const canMakeRequest = await canMakeAIRequest();
-      if (!canMakeRequest) {
-        // Show paywall directly when limit is reached
-        const userSubscribed = await showPaywallForPremiumAccess();
-
-        // If user didn't subscribe, return early
-        if (!userSubscribed) {
-          return;
-        }
-        // If user subscribed, continue with the request (they now have premium)
-      }
+    // Check rate limiting for all users (memory + entity creation share 30/day)
+    const canMakeRequest = await canMakeAIRequest();
+    if (!canMakeRequest) {
+      Alert.alert(
+        t("ai.rateLimit.title") || "AI Request Limit Reached",
+        t("ai.rateLimit.message") ||
+          "You've reached the daily limit of 30 AI requests (memory and entity creation). Try again tomorrow.",
+        [{ text: t("common.ok") || "OK", style: "default" }],
+      );
+      return;
     }
+
+    // Count this submit toward the daily limit (before firing the request)
+    await recordAIRequest();
 
     // Log analytics event for AI modal submit
     await logAIModalSubmit();
@@ -874,11 +870,6 @@ export function AIModal({
             language,
             selectedImage || undefined,
           );
-
-          // Record successful AI request for rate limiting (only for non-premium users)
-          if (!isSubscribed) {
-            await recordAIRequest();
-          }
 
           await processAIResponse(response);
         } catch (error) {
@@ -2622,10 +2613,19 @@ export function AIModal({
                                       ]}
                                     >
                                       {(() => {
-                                        const sphere = selectedSphere || aiResponse?.sphere;
-                                        const expandKey = sphere && ["family", "friends", "hobbies", "relationships", "career"].includes(sphere)
-                                          ? (`ai.results.expandToAdd.${sphere}` as const)
-                                          : "ai.results.expandToAdd.default";
+                                        const sphere =
+                                          selectedSphere || aiResponse?.sphere;
+                                        const expandKey =
+                                          sphere &&
+                                          [
+                                            "family",
+                                            "friends",
+                                            "hobbies",
+                                            "relationships",
+                                            "career",
+                                          ].includes(sphere)
+                                            ? (`ai.results.expandToAdd.${sphere}` as const)
+                                            : "ai.results.expandToAdd.default";
                                         const expandText = t(expandKey);
                                         return !selectedEntityId
                                           ? `${t("ai.results.unrecognizedEntity") || "Unrecognized entity."} ${expandText}`
@@ -2658,10 +2658,19 @@ export function AIModal({
                                     style={styles.helperText}
                                   >
                                     {(() => {
-                                      const sphere = selectedSphere || aiResponse?.sphere;
-                                      const expandKey = sphere && ["family", "friends", "hobbies", "relationships", "career"].includes(sphere)
-                                        ? (`ai.results.expandToAdd.${sphere}` as const)
-                                        : "ai.results.expandToAdd.default";
+                                      const sphere =
+                                        selectedSphere || aiResponse?.sphere;
+                                      const expandKey =
+                                        sphere &&
+                                        [
+                                          "family",
+                                          "friends",
+                                          "hobbies",
+                                          "relationships",
+                                          "career",
+                                        ].includes(sphere)
+                                          ? (`ai.results.expandToAdd.${sphere}` as const)
+                                          : "ai.results.expandToAdd.default";
                                       return t(expandKey);
                                     })()}
                                   </ThemedText>
@@ -2860,7 +2869,9 @@ export function AIModal({
                                               >
                                                 <TouchableOpacity
                                                   onPress={() =>
-                                                    setShowStartDatePicker(false)
+                                                    setShowStartDatePicker(
+                                                      false,
+                                                    )
                                                   }
                                                 >
                                                   <ThemedText
@@ -2910,8 +2921,7 @@ export function AIModal({
                                                     setStartDatePickerTemp(d);
                                                 }}
                                                 maximumDate={
-                                                  newEntityEndDate ||
-                                                  undefined
+                                                  newEntityEndDate || undefined
                                                 }
                                                 style={{ height: 200 }}
                                               />
@@ -2927,10 +2937,7 @@ export function AIModal({
                                           display="default"
                                           onChange={(event, date) => {
                                             setShowStartDatePicker(false);
-                                            if (
-                                              event.type === "set" &&
-                                              date
-                                            ) {
+                                            if (event.type === "set" && date) {
                                               setNewEntityStartDate(date);
                                             }
                                           }}

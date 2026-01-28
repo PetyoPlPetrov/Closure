@@ -1,54 +1,58 @@
-import { AIEntityResultsView } from '@/components/ai-entity-results-view';
-import { ThemedText } from '@/components/themed-text';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useFontScale } from '@/hooks/use-device-size';
+import { AIEntityResultsView } from "@/components/ai-entity-results-view";
+import { ThemedText } from "@/components/themed-text";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useFontScale } from "@/hooks/use-device-size";
+import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import {
-  clearPendingEntityError,
-  clearPendingEntityRequest,
-  clearPendingEntityResponse,
-  getPendingEntityError,
-  getPendingEntityRequest,
-  getPendingEntityResponse,
-  isBackgroundEntityTaskRunning,
-  startBackgroundEntityProcessing,
-  stopBackgroundEntityProcessing,
-  type PendingEntityResponse,
-} from '@/utils/ai-background-processor';
-import { processEntityCreationPrompt, type AIEntityCreationResponse } from '@/utils/ai-service';
-import { logAIEntityModalSubmit } from '@/utils/analytics';
-import { LifeSphere, useJourney } from '@/utils/JourneyProvider';
-import { useLanguage } from '@/utils/languages/language-context';
-import { useTranslate } from '@/utils/languages/use-translate';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+    clearPendingEntityError,
+    clearPendingEntityRequest,
+    clearPendingEntityResponse,
+    getPendingEntityError,
+    getPendingEntityRequest,
+    getPendingEntityResponse,
+    isBackgroundEntityTaskRunning,
+    startBackgroundEntityProcessing,
+    stopBackgroundEntityProcessing,
+    type PendingEntityResponse,
+} from "@/utils/ai-background-processor";
+import { canMakeAIRequest, recordAIRequest } from "@/utils/ai-rate-limiter";
 import {
-  ActivityIndicator,
-  Alert,
-  AppState,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+    processEntityCreationPrompt,
+    type AIEntityCreationResponse,
+} from "@/utils/ai-service";
+import { logAIEntityModalSubmit } from "@/utils/analytics";
+import { LifeSphere, useJourney } from "@/utils/JourneyProvider";
+import { useLanguage } from "@/utils/languages/language-context";
+import { useTranslate } from "@/utils/languages/use-translate";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    AppState,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
-import { useSpeechToText } from '@/hooks/use-speech-to-text';
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withSequence,
+    withSpring,
+    withTiming,
+} from "react-native-reanimated";
 
 type AIEntityCreationModalProps = {
   visible: boolean;
@@ -60,11 +64,11 @@ type AIEntityCreationModalProps = {
 };
 
 const SPHERES: { value: LifeSphere; label: string; icon: string }[] = [
-  { value: 'relationships', label: 'Relationships', icon: 'favorite' },
-  { value: 'career', label: 'Career', icon: 'work' },
-  { value: 'family', label: 'Family', icon: 'family-restroom' },
-  { value: 'friends', label: 'Friends', icon: 'people' },
-  { value: 'hobbies', label: 'Hobbies', icon: 'sports-esports' },
+  { value: "relationships", label: "Relationships", icon: "favorite" },
+  { value: "career", label: "Career", icon: "work" },
+  { value: "family", label: "Family", icon: "family-restroom" },
+  { value: "friends", label: "Friends", icon: "people" },
+  { value: "hobbies", label: "Hobbies", icon: "sports-esports" },
 ];
 
 export function AIEntityCreationModal({
@@ -77,20 +81,25 @@ export function AIEntityCreationModal({
 }: AIEntityCreationModalProps) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
-  const colors = Colors[colorScheme ?? 'dark'];
+  const colors = Colors[colorScheme ?? "dark"];
   const t = useTranslate();
   const { language } = useLanguage();
-  const { addProfile, addJob, addFamilyMember, addFriend, addHobby } = useJourney();
+  const { addProfile, addJob, addFamilyMember, addFriend, addHobby } =
+    useJourney();
 
-  const [selectedSphere, setSelectedSphere] = useState<LifeSphere>('family');
-  const [inputText, setInputText] = useState('');
+  const [selectedSphere, setSelectedSphere] = useState<LifeSphere>("family");
+  const [inputText, setInputText] = useState("");
   const [inputHeight, setInputHeight] = useState(() => 80 * fontScale);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [aiResponse, setAiResponse] = useState<AIEntityCreationResponse | null>(null);
+  const [aiResponse, setAiResponse] = useState<AIEntityCreationResponse | null>(
+    null,
+  );
   const [showResults, setShowResults] = useState(false);
   const [showOpenSferaModal, setShowOpenSferaModal] = useState(false);
   const [savedSphere, setSavedSphere] = useState<LifeSphere | null>(null);
-  const [backgroundRequestId, setBackgroundRequestId] = useState<string | null>(null);
+  const [backgroundRequestId, setBackgroundRequestId] = useState<string | null>(
+    null,
+  );
   const [appState, setAppState] = useState(AppState.currentState);
   const isMinimizingRef = useRef(false);
   const closeConfirmVisibleRef = useRef(false);
@@ -103,10 +112,10 @@ export function AIEntityCreationModal({
 
   // Loading messages that rotate
   const loadingMessages = [
-    t('ai.loading.thinking') || 'AI is thinking...',
-    t('ai.loading.analyzing') || 'Analyzing your thoughts...',
-    t('ai.loading.processing') || 'Processing entities...',
-    t('ai.loading.generating') || 'Generating insights...',
+    t("ai.loading.thinking") || "AI is thinking...",
+    t("ai.loading.analyzing") || "Analyzing your thoughts...",
+    t("ai.loading.processing") || "Processing entities...",
+    t("ai.loading.generating") || "Generating insights...",
   ];
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
 
@@ -117,12 +126,12 @@ export function AIEntityCreationModal({
   const dotsOpacity = useSharedValue([0.3, 0.3, 0.3]);
 
   useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
       setKeyboardVisible(true);
       micScale.value = withSpring(0.3);
       micOpacity.value = withTiming(0.3);
     });
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
       setKeyboardVisible(false);
       micScale.value = withSpring(1);
       micOpacity.value = withTiming(1);
@@ -136,7 +145,7 @@ export function AIEntityCreationModal({
 
   // App state listener
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextAppState => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
       setAppState(nextAppState);
     });
     return () => subscription.remove();
@@ -146,7 +155,7 @@ export function AIEntityCreationModal({
   useEffect(() => {
     if (isProcessing && !aiResponse) {
       const interval = setInterval(() => {
-        setLoadingMessageIndex(prev => (prev + 1) % loadingMessages.length);
+        setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
       }, 2000);
       return () => clearInterval(interval);
     }
@@ -159,30 +168,33 @@ export function AIEntityCreationModal({
       sparkleScale.value = withRepeat(
         withSequence(
           withTiming(1.2, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) })
+          withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
         ),
         -1,
-        false
+        false,
       );
 
       // Sparkle opacity fade
       sparkleOpacity.value = withRepeat(
         withSequence(
           withTiming(0.6, { duration: 1000 }),
-          withTiming(1, { duration: 1000 })
+          withTiming(1, { duration: 1000 }),
         ),
         -1,
-        false
+        false,
       );
 
       // Pulse animation for background glow
       loadingPulseScale.value = withRepeat(
         withSequence(
-          withTiming(1.15, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+          withTiming(1.15, {
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
         ),
         -1,
-        false
+        false,
       );
 
       // Animated dots
@@ -191,10 +203,10 @@ export function AIEntityCreationModal({
           withTiming([1, 0.3, 0.3], { duration: 400 }),
           withTiming([0.3, 1, 0.3], { duration: 400 }),
           withTiming([0.3, 0.3, 1], { duration: 400 }),
-          withTiming([0.3, 0.3, 0.3], { duration: 400 })
+          withTiming([0.3, 0.3, 0.3], { duration: 400 }),
         ),
         -1,
-        false
+        false,
       );
     } else {
       // Reset animations when not loading
@@ -203,7 +215,14 @@ export function AIEntityCreationModal({
       loadingPulseScale.value = 1;
       dotsOpacity.value = [0.3, 0.3, 0.3];
     }
-  }, [isProcessing, aiResponse, sparkleScale, sparkleOpacity, loadingPulseScale, dotsOpacity]);
+  }, [
+    isProcessing,
+    aiResponse,
+    sparkleScale,
+    sparkleOpacity,
+    loadingPulseScale,
+    dotsOpacity,
+  ]);
 
   // Check if there's a pending request (processing in background)
   const checkPendingRequest = async () => {
@@ -230,14 +249,17 @@ export function AIEntityCreationModal({
         await clearPendingEntityError();
         setIsProcessing(false);
         Alert.alert(
-          t('ai.error.title') || 'AI Processing Failed',
-          (t('ai.error.message') || 'Failed to process your request: {error}. Please try again.').replace('{error}', pendingError.error),
-          [{ text: t('common.ok') || 'OK' }]
+          t("ai.error.title") || "AI Processing Failed",
+          (
+            t("ai.error.message") ||
+            "Failed to process your request: {error}. Please try again."
+          ).replace("{error}", pendingError.error),
+          [{ text: t("common.ok") || "OK" }],
         );
         setBackgroundRequestId(null);
         return;
       }
-      
+
       // Check for successful response
       const pendingResponse = await getPendingEntityResponse();
       if (pendingResponse) {
@@ -287,7 +309,6 @@ export function AIEntityCreationModal({
         setBackgroundRequestId(null);
       });
     }
-     
   }, [pendingResponse, visible, isProcessing, aiResponse]);
 
   const micAnimatedStyle = useAnimatedStyle(() => ({
@@ -322,19 +343,20 @@ export function AIEntityCreationModal({
       if (closeConfirmVisibleRef.current) return;
       closeConfirmVisibleRef.current = true;
       Alert.alert(
-t('ai.closeConfirm.title') || 'Discard changes?',
-          t('ai.closeConfirm.message') || 'Your progress will be lost if you close this modal.',
+        t("ai.closeConfirm.title") || "Discard changes?",
+        t("ai.closeConfirm.message") ||
+          "Your progress will be lost if you close this modal.",
         [
           {
-            text: t('common.cancel') || 'Cancel',
-            style: 'cancel',
+            text: t("common.cancel") || "Cancel",
+            style: "cancel",
             onPress: () => {
               closeConfirmVisibleRef.current = false;
             },
           },
           {
-            text: t('ai.closeConfirm.discard') || 'Discard',
-            style: 'destructive',
+            text: t("ai.closeConfirm.discard") || "Discard",
+            style: "destructive",
             onPress: () => {
               closeConfirmVisibleRef.current = false;
               void (async () => {
@@ -346,7 +368,7 @@ t('ai.closeConfirm.title') || 'Discard changes?',
               })();
             },
           },
-        ]
+        ],
       );
     } else {
       onClose();
@@ -356,39 +378,68 @@ t('ai.closeConfirm.title') || 'Discard changes?',
   const handleSubmit = async () => {
     if (!inputText.trim() || inputText.trim().length < 10) {
       setShowValidationErrors(true);
-      Alert.alert(t('common.error') || 'Error', t('ai.error.empty') || 'Please enter at least 10 words');
+      Alert.alert(
+        t("common.error") || "Error",
+        t("ai.error.empty") || "Please enter at least 10 words",
+      );
       return;
     }
 
     setShowValidationErrors(false);
-    await logAIEntityModalSubmit();
 
     // Only process family, friends, hobbies, relationships, and career with AI
-    if (['family', 'friends', 'hobbies', 'relationships', 'career'].includes(selectedSphere)) {
+    if (
+      ["family", "friends", "hobbies", "relationships", "career"].includes(
+        selectedSphere,
+      )
+    ) {
+      const canMakeRequest = await canMakeAIRequest();
+      if (!canMakeRequest) {
+        Alert.alert(
+          t("ai.rateLimit.title") || "AI Request Limit Reached",
+          t("ai.rateLimit.message") ||
+            "You've reached the daily limit of 30 AI requests (memory and entity creation). Try again tomorrow.",
+          [{ text: t("common.ok") || "OK", style: "default" }],
+        );
+        return;
+      }
+      await recordAIRequest();
+      await logAIEntityModalSubmit();
+
       setIsProcessing(true);
       try {
         // Ensure language is defined (default to 'en' if not available)
-        const currentLanguage = language || 'en';
-        
+        const currentLanguage = language || "en";
+
         // Start background processing
         const requestId = await startBackgroundEntityProcessing(
           inputText.trim(),
-          selectedSphere as 'family' | 'friends' | 'hobbies' | 'relationships' | 'career',
-          currentLanguage
+          selectedSphere as
+            | "family"
+            | "friends"
+            | "hobbies"
+            | "relationships"
+            | "career",
+          currentLanguage,
         );
         setBackgroundRequestId(requestId);
 
         // Try foreground processing if app is active
-        if (appState === 'active') {
+        if (appState === "active") {
           try {
             const response = await processEntityCreationPrompt(
               inputText.trim(),
-              selectedSphere as 'family' | 'friends' | 'hobbies' | 'relationships' | 'career',
-              currentLanguage
+              selectedSphere as
+                | "family"
+                | "friends"
+                | "hobbies"
+                | "relationships"
+                | "career",
+              currentLanguage,
             );
-            
+
             const currentAppState = AppState.currentState;
-            if (currentAppState === 'active') {
+            if (currentAppState === "active") {
               await stopBackgroundEntityProcessing();
               setBackgroundRequestId(null);
               setAiResponse(response);
@@ -397,31 +448,38 @@ t('ai.closeConfirm.title') || 'Discard changes?',
             }
           } catch (error) {
             const currentAppState = AppState.currentState;
-            if (currentAppState === 'active') {
+            if (currentAppState === "active") {
               setIsProcessing(false);
-              const errorMessage = error instanceof Error ? error.message : String(error);
+              const errorMessage =
+                error instanceof Error ? error.message : String(error);
               Alert.alert(
-                t('ai.error.title') || 'AI Processing Failed',
-                (t('ai.error.message') || 'Failed to process your request: {error}. Please try again.').replace('{error}', errorMessage),
-                [{ text: t('common.ok') || 'OK' }]
+                t("ai.error.title") || "AI Processing Failed",
+                (
+                  t("ai.error.message") ||
+                  "Failed to process your request: {error}. Please try again."
+                ).replace("{error}", errorMessage),
+                [{ text: t("common.ok") || "OK" }],
               );
             }
           }
         }
       } catch (error: any) {
         Alert.alert(
-          t('common.error') || 'Error',
-          error.message || t('ai.error.send') || 'Failed to process request'
+          t("common.error") || "Error",
+          error.message || t("ai.error.send") || "Failed to process request",
         );
         setIsProcessing(false);
       }
     } else {
-      // For career, use the old simple flow (can be enhanced later)
+      await logAIEntityModalSubmit();
+      // Non-AI path (e.g. simple add job flow)
       setIsProcessing(true);
       try {
         const trimmedText = inputText.trim();
-        const nameMatch = trimmedText.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/);
-        const name = nameMatch ? nameMatch[1] : 'New Entity';
+        const nameMatch = trimmedText.match(
+          /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/,
+        );
+        const name = nameMatch ? nameMatch[1] : "New Entity";
 
         await addJob({
           name,
@@ -431,19 +489,24 @@ t('ai.closeConfirm.title') || 'Discard changes?',
         });
 
         Alert.alert(
-          t('common.success') || 'Success',
-          'Entity created successfully!',
-          [{ text: t('common.ok') || 'OK', onPress: () => {
-            onClose();
-            setInputText('');
-            setSelectedSphere('family');
-            if (onEntityCreated) onEntityCreated();
-          }}]
+          t("common.success") || "Success",
+          "Entity created successfully!",
+          [
+            {
+              text: t("common.ok") || "OK",
+              onPress: () => {
+                onClose();
+                setInputText("");
+                setSelectedSphere("family");
+                if (onEntityCreated) onEntityCreated();
+              },
+            },
+          ],
         );
       } catch (error: any) {
         Alert.alert(
-          t('common.error') || 'Error',
-          error.message || 'Failed to create entity'
+          t("common.error") || "Error",
+          error.message || "Failed to create entity",
         );
       } finally {
         setIsProcessing(false);
@@ -454,20 +517,20 @@ t('ai.closeConfirm.title') || 'Discard changes?',
   const handleResultsSave = async () => {
     // Store the sphere before clearing state
     const sphereToOpen = aiResponse?.sphere || selectedSphere;
-    
+
     await clearPendingEntityResponse();
     await clearPendingEntityRequest();
     await stopBackgroundEntityProcessing();
     setBackgroundRequestId(null);
-    setInputText('');
-    setSelectedSphere('family');
+    setInputText("");
+    setSelectedSphere("family");
     setAiResponse(null);
     setShowResults(false);
-    
+
     // Show the "Open Sfera" modal
     setSavedSphere(sphereToOpen);
     setShowOpenSferaModal(true);
-    
+
     if (onEntityCreated) onEntityCreated();
   };
 
@@ -483,7 +546,7 @@ t('ai.closeConfirm.title') || 'Discard changes?',
       setTimeout(() => {
         const navigationParams = { selectedSphere: sphereToOpen };
         router.push({
-          pathname: '/(tabs)/spheres' as const,
+          pathname: "/(tabs)/spheres" as const,
           params: navigationParams,
         });
       }, 200);
@@ -498,16 +561,17 @@ t('ai.closeConfirm.title') || 'Discard changes?',
 
   const handleResultsCancel = () => {
     Alert.alert(
-      t('ai.closeConfirm.title') || 'Discard changes?',
-      t('ai.closeConfirm.message') || 'Your progress will be lost if you close this modal.',
+      t("ai.closeConfirm.title") || "Discard changes?",
+      t("ai.closeConfirm.message") ||
+        "Your progress will be lost if you close this modal.",
       [
         {
-          text: t('common.cancel') || 'Cancel',
-          style: 'cancel',
+          text: t("common.cancel") || "Cancel",
+          style: "cancel",
         },
         {
-          text: t('ai.closeConfirm.discard') || 'Discard',
-          style: 'destructive',
+          text: t("ai.closeConfirm.discard") || "Discard",
+          style: "destructive",
           onPress: async () => {
             // Clear all state and close modals
             await clearPendingEntityResponse();
@@ -516,12 +580,12 @@ t('ai.closeConfirm.title') || 'Discard changes?',
             setBackgroundRequestId(null);
             setAiResponse(null);
             setShowResults(false);
-            setInputText('');
-            setSelectedSphere('family');
+            setInputText("");
+            setSelectedSphere("family");
             onClose();
           },
         },
-      ]
+      ],
     );
   };
 
@@ -534,9 +598,7 @@ t('ai.closeConfirm.title') || 'Discard changes?',
 
   // Animated styles for loading
   const animatedSparkleStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: sparkleScale.value }
-    ],
+    transform: [{ scale: sparkleScale.value }],
     opacity: sparkleOpacity.value,
   }));
 
@@ -561,58 +623,64 @@ t('ai.closeConfirm.title') || 'Discard changes?',
       StyleSheet.create({
         overlay: {
           flex: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.6)',
-          justifyContent: 'center',
-          alignItems: 'center',
+          backgroundColor: "rgba(0, 0, 0, 0.6)",
+          justifyContent: "center",
+          alignItems: "center",
         },
         confirmOverlay: {
           flex: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.6)',
-          justifyContent: 'center',
-          alignItems: 'center',
+          backgroundColor: "rgba(0, 0, 0, 0.6)",
+          justifyContent: "center",
+          alignItems: "center",
           padding: 20 * fontScale,
         },
         confirmModalContainer: {
-          width: '100%',
+          width: "100%",
           maxWidth: 360 * fontScale,
-          backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
+          backgroundColor:
+            colorScheme === "dark" ? colors.background : "#ffffff",
           borderRadius: 16 * fontScale,
           padding: 24 * fontScale,
-          alignItems: 'center',
+          alignItems: "center",
         },
         confirmButtonContainer: {
-          flexDirection: 'row',
-          width: '100%',
+          flexDirection: "row",
+          width: "100%",
           gap: 12 * fontScale,
         },
         confirmButton: {
           flex: 1,
           paddingVertical: 14 * fontScale,
           borderRadius: 12 * fontScale,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
         },
         cancelButton: {
-          backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255,255,255,0.08)"
+              : "rgba(0,0,0,0.06)",
         },
         discardButton: {
-          backgroundColor: '#FF3B30',
+          backgroundColor: "#FF3B30",
         },
         container: {
           width: 360 * fontScale, // Fixed width
           maxWidth: 360 * fontScale,
-          maxHeight: '75%',
-          backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
+          maxHeight: "75%",
+          backgroundColor:
+            colorScheme === "dark" ? colors.background : "#ffffff",
           borderRadius: 20 * fontScale,
-          overflow: 'hidden',
+          overflow: "hidden",
         },
         containerLoading: {
           width: 360 * fontScale, // Fixed width
           maxWidth: 360 * fontScale,
           height: 500 * fontScale, // Fixed height during loading
-          backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
+          backgroundColor:
+            colorScheme === "dark" ? colors.background : "#ffffff",
           borderRadius: 20 * fontScale,
-          overflow: 'hidden',
+          overflow: "hidden",
         },
         header: {
           padding: 16 * fontScale,
@@ -620,20 +688,21 @@ t('ai.closeConfirm.title') || 'Discard changes?',
           paddingBottom: 12 * fontScale,
           paddingRight: 50 * fontScale, // Add padding to prevent title from overlapping close button
           borderBottomWidth: 1,
-          borderBottomColor: colorScheme === 'dark' 
-            ? 'rgba(255, 255, 255, 0.1)' 
-            : 'rgba(0, 0, 0, 0.1)',
-          position: 'relative',
+          borderBottomColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(0, 0, 0, 0.1)",
+          position: "relative",
         },
         headerTitle: {
           marginBottom: 4 * fontScale,
           flexShrink: 0,
         },
         headerButtons: {
-          position: 'absolute',
+          position: "absolute",
           top: 12 * fontScale,
           right: 12 * fontScale,
-          flexDirection: 'row',
+          flexDirection: "row",
           gap: 8 * fontScale,
           zIndex: 10,
         },
@@ -641,98 +710,102 @@ t('ai.closeConfirm.title') || 'Discard changes?',
           width: 32 * fontScale,
           height: 32 * fontScale,
           borderRadius: 16 * fontScale,
-          backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(255, 255, 255, 0.15)' 
-            : 'rgba(0, 0, 0, 0.08)',
-          justifyContent: 'center',
-          alignItems: 'center',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.15)"
+              : "rgba(0, 0, 0, 0.08)",
+          justifyContent: "center",
+          alignItems: "center",
         },
         minimizeButton: {
           width: 32 * fontScale,
           height: 32 * fontScale,
           borderRadius: 16 * fontScale,
-          backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(255, 255, 255, 0.15)' 
-            : 'rgba(0, 0, 0, 0.08)',
-          justifyContent: 'center',
-          alignItems: 'center',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.15)"
+              : "rgba(0, 0, 0, 0.08)",
+          justifyContent: "center",
+          alignItems: "center",
         },
         loadingContainer: {
           flex: 1,
           paddingVertical: 20 * fontScale,
-          backgroundColor: 'transparent',
+          backgroundColor: "transparent",
         },
         loadingIndicatorContainer: {
-          alignItems: 'center',
-          justifyContent: 'flex-start',
+          alignItems: "center",
+          justifyContent: "flex-start",
           paddingVertical: 40 * fontScale,
           paddingHorizontal: 20 * fontScale,
           marginTop: 24 * fontScale,
-          overflow: 'visible',
+          overflow: "visible",
         },
         animationCirclesContainer: {
-          position: 'relative',
+          position: "relative",
           width: 200 * fontScale,
           height: 200 * fontScale,
           marginBottom: 24 * fontScale,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
         },
         loadingGlow: {
-          position: 'absolute',
+          position: "absolute",
           width: 200 * fontScale,
           height: 200 * fontScale,
           borderRadius: 100 * fontScale,
-          backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(255, 215, 0, 0.15)' 
-            : 'rgba(255, 215, 0, 0.25)',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 215, 0, 0.15)"
+              : "rgba(255, 215, 0, 0.25)",
           top: 0,
-          left: '50%',
+          left: "50%",
           marginLeft: -100 * fontScale,
         },
         aiIconWrapper: {
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
+          position: "absolute",
+          top: "50%",
+          left: "50%",
           marginLeft: -70 * fontScale,
           marginTop: -70 * fontScale,
           width: 140 * fontScale,
           height: 140 * fontScale,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
         },
         aiIconContainer: {
           width: 140 * fontScale,
           height: 140 * fontScale,
           borderRadius: 70 * fontScale,
-          backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(255, 215, 0, 0.15)' 
-            : 'rgba(255, 215, 0, 0.25)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          overflow: 'visible',
-          shadowColor: '#FFD700',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 215, 0, 0.15)"
+              : "rgba(255, 215, 0, 0.25)",
+          justifyContent: "center",
+          alignItems: "center",
+          overflow: "visible",
+          shadowColor: "#FFD700",
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.5,
           shadowRadius: 20,
           elevation: 10,
         },
         loadingMessageContainer: {
-          alignItems: 'center',
+          alignItems: "center",
           marginTop: 8 * fontScale,
-          width: '100%',
+          width: "100%",
           paddingHorizontal: 20 * fontScale,
         },
         loadingMessage: {
-          textAlign: 'center',
+          textAlign: "center",
           opacity: 0.9,
           marginBottom: 12 * fontScale,
-          width: '100%',
+          width: "100%",
         },
         loadingDots: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
           gap: 8 * fontScale,
           marginTop: 4 * fontScale,
         },
@@ -743,21 +816,22 @@ t('ai.closeConfirm.title') || 'Discard changes?',
           backgroundColor: colors.primary,
         },
         progressBarContainer: {
-          width: '100%',
+          width: "100%",
           marginTop: 24 * fontScale,
           paddingHorizontal: 20 * fontScale,
         },
         progressBarBackground: {
-          width: '100%',
+          width: "100%",
           height: 4 * fontScale,
-          backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(255, 255, 255, 0.1)' 
-            : 'rgba(0, 0, 0, 0.1)',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(0, 0, 0, 0.1)",
           borderRadius: 2 * fontScale,
-          overflow: 'hidden',
+          overflow: "hidden",
         },
         progressBarFill: {
-          height: '100%',
+          height: "100%",
           backgroundColor: colors.primary,
           borderRadius: 2 * fontScale,
         },
@@ -768,19 +842,21 @@ t('ai.closeConfirm.title') || 'Discard changes?',
           marginBottom: 16 * fontScale,
         },
         sphereOption: {
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: "row",
+          alignItems: "center",
           padding: 12 * fontScale,
           borderRadius: 12 * fontScale,
           marginBottom: 8 * fontScale,
-          backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(255, 255, 255, 0.05)' 
-            : 'rgba(0, 0, 0, 0.05)',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.05)"
+              : "rgba(0, 0, 0, 0.05)",
         },
         sphereOptionActive: {
-          backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(100, 150, 255, 0.2)' 
-            : 'rgba(100, 150, 255, 0.15)',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(100, 150, 255, 0.2)"
+              : "rgba(100, 150, 255, 0.15)",
           borderWidth: 1,
           borderColor: colors.primary,
         },
@@ -794,7 +870,7 @@ t('ai.closeConfirm.title') || 'Discard changes?',
           marginBottom: 8 * fontScale,
         },
         inputWrapper: {
-          position: 'relative',
+          position: "relative",
         },
         textInput: {
           minHeight: 80 * fontScale,
@@ -803,65 +879,67 @@ t('ai.closeConfirm.title') || 'Discard changes?',
           // leave room for the mic button so text never overlaps it
           paddingRight: 12 * fontScale + 44 * fontScale + 10 * fontScale,
           borderRadius: 12 * fontScale,
-          backgroundColor: colorScheme === 'dark' 
-            ? 'rgba(255, 255, 255, 0.05)' 
-            : 'rgba(0, 0, 0, 0.05)',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.05)"
+              : "rgba(0, 0, 0, 0.05)",
           color: colors.text,
           fontSize: 15 * fontScale,
-          textAlignVertical: 'top',
+          textAlignVertical: "top",
           borderWidth: 1,
-          borderColor: colorScheme === 'dark' 
-            ? 'rgba(255, 255, 255, 0.1)' 
-            : 'rgba(0, 0, 0, 0.1)',
+          borderColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(0, 0, 0, 0.1)",
         },
         textInputError: {
-          borderColor: '#FF3B30',
+          borderColor: "#FF3B30",
           borderWidth: 2,
         },
         micButton: {
-          position: 'absolute',
+          position: "absolute",
           right: 12 * fontScale,
           bottom: 12 * fontScale,
           width: 44 * fontScale,
           height: 44 * fontScale,
           borderRadius: 22 * fontScale,
           backgroundColor: colors.primary,
-          justifyContent: 'center',
-          alignItems: 'center',
-          shadowColor: '#000',
+          justifyContent: "center",
+          alignItems: "center",
+          shadowColor: "#000",
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.3,
           shadowRadius: 4,
           elevation: 5,
         },
         micButtonRecording: {
-          backgroundColor: '#FF4444',
+          backgroundColor: "#FF4444",
         },
         submitButton: {
           height: 48 * fontScale,
           borderRadius: 12 * fontScale,
-          justifyContent: 'center',
-          alignItems: 'center',
+          justifyContent: "center",
+          alignItems: "center",
           marginTop: 12 * fontScale,
-          overflow: 'hidden',
-          position: 'relative',
+          overflow: "hidden",
+          position: "relative",
         },
         submitButtonDisabled: {
           opacity: 0.5,
         },
       }),
-    [fontScale, colorScheme, colors]
+    [fontScale, colorScheme, colors],
   );
 
   // Allow "Open Sfera" modal to show even if main modal is closed
   if (!visible && !showOpenSferaModal) return null;
-  
+
   // If "Open Sfera" modal should be shown, show only that
   if (showOpenSferaModal) {
-    const sphereLabel = savedSphere 
-      ? SPHERES.find(s => s.value === savedSphere)?.label || savedSphere
-      : 'Sfera';
-    
+    const sphereLabel = savedSphere
+      ? SPHERES.find((s) => s.value === savedSphere)?.label || savedSphere
+      : "Sfera";
+
     return (
       <Modal
         visible={showOpenSferaModal}
@@ -871,69 +949,88 @@ t('ai.closeConfirm.title') || 'Discard changes?',
         presentationStyle="overFullScreen"
         statusBarTranslucent
       >
-        <Pressable 
+        <Pressable
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            justifyContent: "center",
+            alignItems: "center",
             padding: 20 * fontScale,
           }}
           onPress={handleCancelOpenSfera}
         >
           <Pressable
             style={{
-              backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
+              backgroundColor:
+                colorScheme === "dark" ? colors.background : "#ffffff",
               borderRadius: 16 * fontScale,
               padding: 24 * fontScale,
-              width: '100%',
+              width: "100%",
               maxWidth: 400 * fontScale,
             }}
             onStartShouldSetResponder={() => true}
           >
-            <View style={{ alignItems: 'center', marginBottom: 12 * fontScale }}>
-              <ThemedText size="xl" weight="bold" style={{ textAlign: 'center' }}>
-                {t('ai.entity.openSferaMessage') || 'Entities have been saved successfully!'}
+            <View
+              style={{ alignItems: "center", marginBottom: 12 * fontScale }}
+            >
+              <ThemedText
+                size="xl"
+                weight="bold"
+                style={{ textAlign: "center" }}
+              >
+                {t("ai.entity.openSferaMessage") ||
+                  "Entities have been saved successfully!"}
               </ThemedText>
             </View>
-            
+
             <View style={{ gap: 12 * fontScale, marginTop: 24 * fontScale }}>
               <TouchableOpacity
                 style={{
-                  width: '100%',
+                  width: "100%",
                   borderRadius: 8 * fontScale,
                   padding: 14 * fontScale,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                  position: 'relative',
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  position: "relative",
                 }}
                 onPress={handleOpenSfera}
                 activeOpacity={0.8}
               >
-                <View style={[StyleSheet.absoluteFillObject, { borderRadius: 8 * fontScale, overflow: 'hidden' }]}>
+                <View
+                  style={[
+                    StyleSheet.absoluteFillObject,
+                    { borderRadius: 8 * fontScale, overflow: "hidden" },
+                  ]}
+                >
                   <LinearGradient
-                    colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                    colors={["#4A90E2", "#357ABD", "#2E6DA4"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={StyleSheet.absoluteFillObject}
                   />
                 </View>
-                <ThemedText size="sm" weight="bold" style={{ color: '#FFFFFF', textAlign: 'center' }}>
-                  {t('ai.entity.openSfera') ? `${t('ai.entity.openSfera')} ${sphereLabel}` : `Open ${sphereLabel} Sfera`}
+                <ThemedText
+                  size="sm"
+                  weight="bold"
+                  style={{ color: "#FFFFFF", textAlign: "center" }}
+                >
+                  {t("ai.entity.openSfera")
+                    ? `${t("ai.entity.openSfera")} ${sphereLabel}`
+                    : `Open ${sphereLabel} Sfera`}
                 </ThemedText>
               </TouchableOpacity>
-              
+
               {onCreateMemory && (
                 <TouchableOpacity
                   style={{
-                    width: '100%',
+                    width: "100%",
                     borderRadius: 8 * fontScale,
                     padding: 14 * fontScale,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                    position: 'relative',
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    position: "relative",
                   }}
                   onPress={() => {
                     setShowOpenSferaModal(false);
@@ -942,36 +1039,50 @@ t('ai.closeConfirm.title') || 'Discard changes?',
                   }}
                   activeOpacity={0.8}
                 >
-                  <View style={[StyleSheet.absoluteFillObject, { borderRadius: 8 * fontScale, overflow: 'hidden' }]}>
+                  <View
+                    style={[
+                      StyleSheet.absoluteFillObject,
+                      { borderRadius: 8 * fontScale, overflow: "hidden" },
+                    ]}
+                  >
                     <LinearGradient
-                      colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                      colors={["#4A90E2", "#357ABD", "#2E6DA4"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={StyleSheet.absoluteFillObject}
                     />
                   </View>
-                  <ThemedText size="sm" weight="bold" style={{ color: '#FFFFFF', textAlign: 'center' }}>
-                    {t('ai.action.createMemory') || 'Create Memory'}
+                  <ThemedText
+                    size="sm"
+                    weight="bold"
+                    style={{ color: "#FFFFFF", textAlign: "center" }}
+                  >
+                    {t("ai.action.createMemory") || "Create Memory"}
                   </ThemedText>
                 </TouchableOpacity>
               )}
-              
+
               <TouchableOpacity
                 style={{
-                  width: '100%',
-                  backgroundColor: colorScheme === 'dark' 
-                    ? 'rgba(255, 255, 255, 0.1)' 
-                    : 'rgba(0, 0, 0, 0.05)',
+                  width: "100%",
+                  backgroundColor:
+                    colorScheme === "dark"
+                      ? "rgba(255, 255, 255, 0.1)"
+                      : "rgba(0, 0, 0, 0.05)",
                   borderRadius: 8 * fontScale,
                   padding: 14 * fontScale,
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
                 onPress={handleCancelOpenSfera}
                 activeOpacity={0.8}
               >
-                <ThemedText size="sm" weight="medium" style={{ textAlign: 'center' }}>
-                  {t('common.cancel') || 'Cancel'}
+                <ThemedText
+                  size="sm"
+                  weight="medium"
+                  style={{ textAlign: "center" }}
+                >
+                  {t("common.cancel") || "Cancel"}
                 </ThemedText>
               </TouchableOpacity>
             </View>
@@ -993,166 +1104,208 @@ t('ai.closeConfirm.title') || 'Discard changes?',
           presentationStyle="fullScreen"
           statusBarTranslucent
         >
-        <View style={{ flex: 1, backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff' }}>
-          <View style={{ 
-            padding: 16 * fontScale, 
-            paddingTop: 50 * fontScale,
-            borderBottomWidth: 1,
-            borderBottomColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}>
-            <ThemedText size="xl" weight="bold">
-              {t('ai.entity.results') || 'Review Entities'}
-            </ThemedText>
-            <TouchableOpacity
+          <View
+            style={{
+              flex: 1,
+              backgroundColor:
+                colorScheme === "dark" ? colors.background : "#ffffff",
+            }}
+          >
+            <View
               style={{
-                width: 32 * fontScale,
-                height: 32 * fontScale,
-                borderRadius: 16 * fontScale,
-                backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                justifyContent: 'center',
-                alignItems: 'center',
+                padding: 16 * fontScale,
+                paddingTop: 50 * fontScale,
+                borderBottomWidth: 1,
+                borderBottomColor:
+                  colorScheme === "dark"
+                    ? "rgba(255, 255, 255, 0.1)"
+                    : "rgba(0, 0, 0, 0.1)",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
-              onPress={handleResultsCancel}
             >
-              <MaterialIcons 
-                name="close" 
-                size={20 * fontScale} 
-                color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} 
-              />
-            </TouchableOpacity>
+              <ThemedText size="xl" weight="bold">
+                {t("ai.entity.results") || "Review Entities"}
+              </ThemedText>
+              <TouchableOpacity
+                style={{
+                  width: 32 * fontScale,
+                  height: 32 * fontScale,
+                  borderRadius: 16 * fontScale,
+                  backgroundColor:
+                    colorScheme === "dark"
+                      ? "rgba(255, 255, 255, 0.1)"
+                      : "rgba(0, 0, 0, 0.05)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+                onPress={handleResultsCancel}
+              >
+                <MaterialIcons
+                  name="close"
+                  size={20 * fontScale}
+                  color={colorScheme === "dark" ? "#FFFFFF" : "#000000"}
+                />
+              </TouchableOpacity>
+            </View>
+            <AIEntityResultsView
+              sphere={aiResponse.sphere}
+              entities={aiResponse.entities}
+              onSave={handleResultsSave}
+              onCancel={handleResultsCancel}
+            />
           </View>
-          <AIEntityResultsView
-            sphere={aiResponse.sphere}
-            entities={aiResponse.entities}
-            onSave={handleResultsSave}
-            onCancel={handleResultsCancel}
-          />
-        </View>
-      </Modal>
-      
-      {/* Open Sfera Modal */}
-      <Modal
-        visible={showOpenSferaModal}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCancelOpenSfera}
-        presentationStyle="overFullScreen"
-        statusBarTranslucent
-      >
-        <Pressable 
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: 20 * fontScale,
-          }}
-          onPress={handleCancelOpenSfera}
+        </Modal>
+
+        {/* Open Sfera Modal */}
+        <Modal
+          visible={showOpenSferaModal}
+          transparent
+          animationType="fade"
+          onRequestClose={handleCancelOpenSfera}
+          presentationStyle="overFullScreen"
+          statusBarTranslucent
         >
           <Pressable
             style={{
-              backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
-              borderRadius: 16 * fontScale,
-              padding: 24 * fontScale,
-              width: '100%',
-              maxWidth: 400 * fontScale,
+              flex: 1,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: 20 * fontScale,
             }}
-            onStartShouldSetResponder={() => true}
+            onPress={handleCancelOpenSfera}
           >
-            <ThemedText size="xl" weight="bold" style={{ marginBottom: 12 * fontScale, textAlign: 'center' }}>
-              {t('ai.entity.openSferaMessage') || 'Entities have been saved successfully!'}
-            </ThemedText>
-            
-            <View style={{ gap: 12 * fontScale, marginTop: 24 * fontScale }}>
-              <TouchableOpacity
-                style={{
-                  width: '100%',
-                  borderRadius: 8 * fontScale,
-                  padding: 14 * fontScale,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                  position: 'relative',
-                }}
-                onPress={handleOpenSfera}
-                activeOpacity={0.8}
+            <Pressable
+              style={{
+                backgroundColor:
+                  colorScheme === "dark" ? colors.background : "#ffffff",
+                borderRadius: 16 * fontScale,
+                padding: 24 * fontScale,
+                width: "100%",
+                maxWidth: 400 * fontScale,
+              }}
+              onStartShouldSetResponder={() => true}
+            >
+              <ThemedText
+                size="xl"
+                weight="bold"
+                style={{ marginBottom: 12 * fontScale, textAlign: "center" }}
               >
-                <View style={[StyleSheet.absoluteFillObject, { borderRadius: 8 * fontScale, overflow: 'hidden' }]}>
-                  <LinearGradient
-                    colors={['#4A90E2', '#357ABD', '#2E6DA4']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFillObject}
-                  />
-                </View>
-                <ThemedText size="sm" weight="bold" style={{ color: '#FFFFFF' }}>
-                  {(() => {
-                    const sphereLabel = savedSphere 
-                      ? SPHERES.find(s => s.value === savedSphere)?.label || savedSphere
-                      : 'Sfera';
-                    return t('ai.entity.openSfera') ? `${t('ai.entity.openSfera')} ${sphereLabel}` : `Open ${sphereLabel} Sfera`;
-                  })()}
-                </ThemedText>
-              </TouchableOpacity>
-              
-              {onCreateMemory && (
+                {t("ai.entity.openSferaMessage") ||
+                  "Entities have been saved successfully!"}
+              </ThemedText>
+
+              <View style={{ gap: 12 * fontScale, marginTop: 24 * fontScale }}>
                 <TouchableOpacity
                   style={{
-                    width: '100%',
+                    width: "100%",
                     borderRadius: 8 * fontScale,
                     padding: 14 * fontScale,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                    position: 'relative',
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    position: "relative",
                   }}
-                  onPress={() => {
-                    setShowOpenSferaModal(false);
-                    onClose();
-                    onCreateMemory();
-                  }}
+                  onPress={handleOpenSfera}
                   activeOpacity={0.8}
                 >
-                  <View style={[StyleSheet.absoluteFillObject, { borderRadius: 8 * fontScale, overflow: 'hidden' }]}>
+                  <View
+                    style={[
+                      StyleSheet.absoluteFillObject,
+                      { borderRadius: 8 * fontScale, overflow: "hidden" },
+                    ]}
+                  >
                     <LinearGradient
-                      colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                      colors={["#4A90E2", "#357ABD", "#2E6DA4"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={StyleSheet.absoluteFillObject}
                     />
                   </View>
-                  <ThemedText size="sm" weight="bold" style={{ color: '#FFFFFF' }}>
-                    {t('ai.action.createMemory') || 'Create Memory'}
+                  <ThemedText
+                    size="sm"
+                    weight="bold"
+                    style={{ color: "#FFFFFF" }}
+                  >
+                    {(() => {
+                      const sphereLabel = savedSphere
+                        ? SPHERES.find((s) => s.value === savedSphere)?.label ||
+                          savedSphere
+                        : "Sfera";
+                      return t("ai.entity.openSfera")
+                        ? `${t("ai.entity.openSfera")} ${sphereLabel}`
+                        : `Open ${sphereLabel} Sfera`;
+                    })()}
                   </ThemedText>
                 </TouchableOpacity>
-              )}
-              
-              <TouchableOpacity
-                style={{
-                  width: '100%',
-                  backgroundColor: colorScheme === 'dark' 
-                    ? 'rgba(255, 255, 255, 0.1)' 
-                    : 'rgba(0, 0, 0, 0.05)',
-                  borderRadius: 8 * fontScale,
-                  padding: 14 * fontScale,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                onPress={handleCancelOpenSfera}
-                activeOpacity={0.8}
-              >
-                <ThemedText size="sm" weight="medium">
-                  {t('common.cancel') || 'Cancel'}
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
+
+                {onCreateMemory && (
+                  <TouchableOpacity
+                    style={{
+                      width: "100%",
+                      borderRadius: 8 * fontScale,
+                      padding: 14 * fontScale,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                      position: "relative",
+                    }}
+                    onPress={() => {
+                      setShowOpenSferaModal(false);
+                      onClose();
+                      onCreateMemory();
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View
+                      style={[
+                        StyleSheet.absoluteFillObject,
+                        { borderRadius: 8 * fontScale, overflow: "hidden" },
+                      ]}
+                    >
+                      <LinearGradient
+                        colors={["#4A90E2", "#357ABD", "#2E6DA4"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={StyleSheet.absoluteFillObject}
+                      />
+                    </View>
+                    <ThemedText
+                      size="sm"
+                      weight="bold"
+                      style={{ color: "#FFFFFF" }}
+                    >
+                      {t("ai.action.createMemory") || "Create Memory"}
+                    </ThemedText>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  style={{
+                    width: "100%",
+                    backgroundColor:
+                      colorScheme === "dark"
+                        ? "rgba(255, 255, 255, 0.1)"
+                        : "rgba(0, 0, 0, 0.05)",
+                    borderRadius: 8 * fontScale,
+                    padding: 14 * fontScale,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  onPress={handleCancelOpenSfera}
+                  activeOpacity={0.8}
+                >
+                  <ThemedText size="sm" weight="medium">
+                    {t("common.cancel") || "Cancel"}
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
-    </>
+        </Modal>
+      </>
     );
   }
 
@@ -1166,330 +1319,421 @@ t('ai.closeConfirm.title') || 'Discard changes?',
         presentationStyle="overFullScreen"
         statusBarTranslucent
       >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.overlay}
-      >
-        <Pressable 
-          style={styles.overlay} 
-          onPress={handleAttemptClose}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.overlay}
         >
-          <Pressable 
-            style={isProcessing && !aiResponse ? styles.containerLoading : styles.container} 
-            onStartShouldSetResponder={() => true}
-            onPress={(e) => {
-              e.stopPropagation();
-              // Dismiss keyboard when clicking outside input
-              if (keyboardVisible) {
-                Keyboard.dismiss();
+          <Pressable style={styles.overlay} onPress={handleAttemptClose}>
+            <Pressable
+              style={
+                isProcessing && !aiResponse
+                  ? styles.containerLoading
+                  : styles.container
               }
-            }}
-          >
-            <ScrollView 
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              onScrollBeginDrag={() => {
+              onStartShouldSetResponder={() => true}
+              onPress={(e) => {
+                e.stopPropagation();
+                // Dismiss keyboard when clicking outside input
                 if (keyboardVisible) {
                   Keyboard.dismiss();
                 }
               }}
             >
-              <View style={styles.header}>
-                <View style={styles.headerButtons}>
-                  {onMinimize && isProcessing && !aiResponse && (
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                onScrollBeginDrag={() => {
+                  if (keyboardVisible) {
+                    Keyboard.dismiss();
+                  }
+                }}
+              >
+                <View style={styles.header}>
+                  <View style={styles.headerButtons}>
+                    {onMinimize && isProcessing && !aiResponse && (
+                      <TouchableOpacity
+                        style={styles.minimizeButton}
+                        onPress={handleMinimize}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <MaterialIcons
+                          name="minimize"
+                          size={22 * fontScale}
+                          color={colorScheme === "dark" ? "#FFFFFF" : "#000000"}
+                        />
+                      </TouchableOpacity>
+                    )}
                     <TouchableOpacity
-                      style={styles.minimizeButton}
-                      onPress={handleMinimize}
+                      style={styles.closeButton}
+                      onPress={handleAttemptClose}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <MaterialIcons 
-                        name="minimize" 
-                        size={22 * fontScale} 
-                        color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} 
+                      <MaterialIcons
+                        name="close"
+                        size={22 * fontScale}
+                        color={colorScheme === "dark" ? "#FFFFFF" : "#000000"}
                       />
                     </TouchableOpacity>
-                  )}
-                  <TouchableOpacity 
-                    style={styles.closeButton} 
-                    onPress={handleAttemptClose}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <MaterialIcons 
-                      name="close" 
-                      size={22 * fontScale} 
-                      color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} 
-                    />
-                  </TouchableOpacity>
-                </View>
-                {isProcessing && !aiResponse ? (
-                  <View style={styles.loadingContainer}>
-                    <View style={{ flex: 1 }}>
-                      {/* Loading Indicator */}
-                      <View style={styles.loadingIndicatorContainer}>
-                        {/* Animation circles container */}
-                        <View style={styles.animationCirclesContainer}>
-                          {/* Animated background glow */}
-                          <Animated.View style={[styles.loadingGlow, animatedPulseBgStyle]} />
-                          
-                          {/* Main sparkle icon with enhanced animation - centered */}
-                          <View style={styles.aiIconWrapper}>
-                            <Animated.View style={animatedSparkleStyle}>
-                              <View style={styles.aiIconContainer}>
-                                <ThemedText style={{ 
-                                  fontSize: 64 * fontScale,
-                                  lineHeight: 64 * fontScale,
-                                  textAlign: 'center',
-                                  includeFontPadding: false,
-                                }}>
-                                  ✨
-                                </ThemedText>
-                              </View>
-                            </Animated.View>
-                          </View>
-                        </View>
-
-                        {/* Loading message with animated dots */}
-                        <View style={styles.loadingMessageContainer}>
-                          <ThemedText size="l" weight="medium" style={styles.loadingMessage}>
-                            {loadingMessages[loadingMessageIndex]}
-                          </ThemedText>
-                          <View style={styles.loadingDots}>
-                            <Animated.View style={[styles.loadingDot, animatedDot1Style]} />
-                            <Animated.View style={[styles.loadingDot, animatedDot2Style]} />
-                            <Animated.View style={[styles.loadingDot, animatedDot3Style]} />
-                          </View>
-                        </View>
-
-                        {/* Progress indicator */}
-                        <View style={styles.progressBarContainer}>
-                          <View style={styles.progressBarBackground}>
-                            <View 
-                              style={[
-                                styles.progressBarFill,
-                                {
-                                  width: `${(loadingMessageIndex + 1) * 25}%`,
-                                }
-                              ]} 
+                  </View>
+                  {isProcessing && !aiResponse ? (
+                    <View style={styles.loadingContainer}>
+                      <View style={{ flex: 1 }}>
+                        {/* Loading Indicator */}
+                        <View style={styles.loadingIndicatorContainer}>
+                          {/* Animation circles container */}
+                          <View style={styles.animationCirclesContainer}>
+                            {/* Animated background glow */}
+                            <Animated.View
+                              style={[styles.loadingGlow, animatedPulseBgStyle]}
                             />
+
+                            {/* Main sparkle icon with enhanced animation - centered */}
+                            <View style={styles.aiIconWrapper}>
+                              <Animated.View style={animatedSparkleStyle}>
+                                <View style={styles.aiIconContainer}>
+                                  <ThemedText
+                                    style={{
+                                      fontSize: 64 * fontScale,
+                                      lineHeight: 64 * fontScale,
+                                      textAlign: "center",
+                                      includeFontPadding: false,
+                                    }}
+                                  >
+                                    ✨
+                                  </ThemedText>
+                                </View>
+                              </Animated.View>
+                            </View>
+                          </View>
+
+                          {/* Loading message with animated dots */}
+                          <View style={styles.loadingMessageContainer}>
+                            <ThemedText
+                              size="l"
+                              weight="medium"
+                              style={styles.loadingMessage}
+                            >
+                              {loadingMessages[loadingMessageIndex]}
+                            </ThemedText>
+                            <View style={styles.loadingDots}>
+                              <Animated.View
+                                style={[styles.loadingDot, animatedDot1Style]}
+                              />
+                              <Animated.View
+                                style={[styles.loadingDot, animatedDot2Style]}
+                              />
+                              <Animated.View
+                                style={[styles.loadingDot, animatedDot3Style]}
+                              />
+                            </View>
+                          </View>
+
+                          {/* Progress indicator */}
+                          <View style={styles.progressBarContainer}>
+                            <View style={styles.progressBarBackground}>
+                              <View
+                                style={[
+                                  styles.progressBarFill,
+                                  {
+                                    width: `${(loadingMessageIndex + 1) * 25}%`,
+                                  },
+                                ]}
+                              />
+                            </View>
                           </View>
                         </View>
                       </View>
                     </View>
-                  </View>
-                ) : (
-                  <>
-                    <ThemedText 
-                      size="l" 
-                      weight="bold" 
-                      style={styles.headerTitle}
-                      numberOfLines={1}
-                    >
-                      {t('ai.entity.title') || 'Create Entity with AI'}
-                    </ThemedText>
-                    <ThemedText size="sm" style={{ opacity: 0.7 }}>
-                      {t('ai.entity.subtitle') || 'Select a Sfera and tell us about the entity'}
-                    </ThemedText>
-                  </>
-                )}
-              </View>
-
-              {!isProcessing && (
-                <View style={styles.content}>
-                  {!keyboardVisible && (
-                    <View style={styles.sphereContainer}>
-                      <ThemedText size="xs" weight="medium" style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}>
-                        {t('ai.entity.selectSphere') || 'Select Sfera'}
+                  ) : (
+                    <>
+                      <ThemedText
+                        size="l"
+                        weight="bold"
+                        style={styles.headerTitle}
+                        numberOfLines={1}
+                      >
+                        {t("ai.entity.title") || "Create Entity with AI"}
                       </ThemedText>
-                      {SPHERES.map((sphere) => (
-                        <TouchableOpacity
-                          key={sphere.value}
-                          style={[
-                            styles.sphereOption,
-                            selectedSphere === sphere.value && styles.sphereOptionActive,
-                          ]}
-                          onPress={() => setSelectedSphere(sphere.value)}
+                      <ThemedText size="sm" style={{ opacity: 0.7 }}>
+                        {t("ai.entity.subtitle") ||
+                          "Select a Sfera and tell us about the entity"}
+                      </ThemedText>
+                    </>
+                  )}
+                </View>
+
+                {!isProcessing && (
+                  <View style={styles.content}>
+                    {!keyboardVisible && (
+                      <View style={styles.sphereContainer}>
+                        <ThemedText
+                          size="xs"
+                          weight="medium"
+                          style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}
                         >
-                          <MaterialIcons 
-                            name={sphere.icon as any} 
-                            size={20 * fontScale} 
-                            color={selectedSphere === sphere.value ? colors.primary : colors.text}
-                            style={styles.sphereIcon}
-                          />
-                          <ThemedText 
-                            size="sm" 
-                            weight={selectedSphere === sphere.value ? 'bold' : 'normal'}
-                            style={{ 
-                              color: selectedSphere === sphere.value ? colors.primary : colors.text,
-                              flex: 1,
+                          {t("ai.entity.selectSphere") || "Select Sfera"}
+                        </ThemedText>
+                        {SPHERES.map((sphere) => (
+                          <TouchableOpacity
+                            key={sphere.value}
+                            style={[
+                              styles.sphereOption,
+                              selectedSphere === sphere.value &&
+                                styles.sphereOptionActive,
+                            ]}
+                            onPress={() => setSelectedSphere(sphere.value)}
+                          >
+                            <MaterialIcons
+                              name={sphere.icon as any}
+                              size={20 * fontScale}
+                              color={
+                                selectedSphere === sphere.value
+                                  ? colors.primary
+                                  : colors.text
+                              }
+                              style={styles.sphereIcon}
+                            />
+                            <ThemedText
+                              size="sm"
+                              weight={
+                                selectedSphere === sphere.value
+                                  ? "bold"
+                                  : "normal"
+                              }
+                              style={{
+                                color:
+                                  selectedSphere === sphere.value
+                                    ? colors.primary
+                                    : colors.text,
+                                flex: 1,
+                              }}
+                            >
+                              {sphere.label}
+                            </ThemedText>
+                            {selectedSphere === sphere.value && (
+                              <MaterialIcons
+                                name="check-circle"
+                                size={20 * fontScale}
+                                color={colors.primary}
+                              />
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+
+                    {/* Show only selected sphere when keyboard is visible */}
+                    {keyboardVisible && (
+                      <View style={styles.sphereContainer}>
+                        <ThemedText
+                          size="xs"
+                          weight="medium"
+                          style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}
+                        >
+                          {t("ai.entity.selectSphere") || "Select Sfera"}
+                        </ThemedText>
+                        {SPHERES.filter(
+                          (sphere) => sphere.value === selectedSphere,
+                        ).map((sphere) => (
+                          <TouchableOpacity
+                            key={sphere.value}
+                            style={[
+                              styles.sphereOption,
+                              styles.sphereOptionActive,
+                            ]}
+                            onPress={() => {
+                              Keyboard.dismiss();
+                              setSelectedSphere(sphere.value);
                             }}
                           >
-                            {sphere.label}
-                          </ThemedText>
-                          {selectedSphere === sphere.value && (
-                            <MaterialIcons 
-                              name="check-circle" 
-                              size={20 * fontScale} 
+                            <MaterialIcons
+                              name={sphere.icon as any}
+                              size={20 * fontScale}
+                              color={colors.primary}
+                              style={styles.sphereIcon}
+                            />
+                            <ThemedText
+                              size="sm"
+                              weight="bold"
+                              style={{
+                                color: colors.primary,
+                                flex: 1,
+                              }}
+                            >
+                              {sphere.label}
+                            </ThemedText>
+                            <MaterialIcons
+                              name="check-circle"
+                              size={20 * fontScale}
                               color={colors.primary}
                             />
-                          )}
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                  
-                  {/* Show only selected sphere when keyboard is visible */}
-                  {keyboardVisible && (
-                    <View style={styles.sphereContainer}>
-                      <ThemedText size="xs" weight="medium" style={{ marginBottom: 12 * fontScale, opacity: 0.7 }}>
-                        {t('ai.entity.selectSphere') || 'Select Sfera'}
-                      </ThemedText>
-                      {SPHERES.filter(sphere => sphere.value === selectedSphere).map((sphere) => (
-                        <TouchableOpacity
-                          key={sphere.value}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+
+                    <View style={styles.inputContainer}>
+                      <View style={styles.inputWrapper}>
+                        <TextInput
                           style={[
-                            styles.sphereOption,
-                            styles.sphereOptionActive,
+                            styles.textInput,
+                            { height: inputHeight },
+                            showValidationErrors &&
+                            (!inputText.trim() || inputText.trim().length < 10)
+                              ? styles.textInputError
+                              : null,
+                          ].filter(Boolean)}
+                          placeholder={
+                            selectedSphere === "relationships"
+                              ? t("ai.entity.placeholder.relationship") ||
+                                "Tell me about one relationship of yours. When it started, when it ended."
+                              : selectedSphere === "career"
+                                ? t("ai.entity.placeholder.career") ||
+                                  "Tell me about one job of yours. When it started, when it ended."
+                                : selectedSphere === "family"
+                                  ? t("ai.entity.placeholder.family") ||
+                                    "Tell me about your family."
+                                  : selectedSphere === "friends"
+                                    ? t("ai.entity.placeholder.friends") ||
+                                      "Tell me about your friends."
+                                    : selectedSphere === "hobbies"
+                                      ? t("ai.entity.placeholder.hobbies") ||
+                                        "Tell me about your hobbies."
+                                      : t("ai.entity.placeholder") ||
+                                        "Write or use the microphone to tell a story..."
+                          }
+                          placeholderTextColor={
+                            colorScheme === "dark"
+                              ? colors.textMediumEmphasis
+                              : colors.text + "80"
+                          }
+                          value={inputText}
+                          onChangeText={(text) => {
+                            setInputText(text);
+                            // Clear validation error when user starts typing valid text
+                            if (
+                              showValidationErrors &&
+                              text.trim().length >= 10
+                            ) {
+                              setShowValidationErrors(false);
+                            }
+                          }}
+                          onFocus={() => {
+                            // Clear validation error when user focuses on the field
+                            if (
+                              showValidationErrors &&
+                              inputText.trim().length >= 10
+                            ) {
+                              setShowValidationErrors(false);
+                            }
+                          }}
+                          multiline
+                          textAlignVertical="top"
+                          onContentSizeChange={(e) => {
+                            const h = e.nativeEvent.contentSize.height;
+                            const minH = 80 * fontScale;
+                            const maxH = 220 * fontScale;
+                            setInputHeight(Math.max(minH, Math.min(maxH, h)));
+                          }}
+                        />
+                        <Animated.View
+                          style={[
+                            styles.micButton,
+                            isRecording && styles.micButtonRecording,
+                            micAnimatedStyle,
                           ]}
-                          onPress={() => {
-                            Keyboard.dismiss();
-                            setSelectedSphere(sphere.value);
+                        >
+                          <TouchableOpacity
+                            onPress={
+                              isRecording
+                                ? handleStopRecording
+                                : handleStartRecording
+                            }
+                            activeOpacity={0.85}
+                            disabled={isProcessing}
+                          >
+                            <MaterialIcons
+                              name={isRecording ? "mic" : "mic-none"}
+                              size={24 * fontScale}
+                              color="#FFFFFF"
+                            />
+                          </TouchableOpacity>
+                        </Animated.View>
+                      </View>
+                      {(isListening || isRecording) && (
+                        <ThemedText
+                          size="xs"
+                          style={{
+                            marginTop: 8 * fontScale,
+                            opacity: 0.7,
+                            color: isRecording ? colors.primary : colors.text,
                           }}
                         >
-                          <MaterialIcons 
-                            name={sphere.icon as any} 
-                            size={20 * fontScale} 
-                            color={colors.primary}
-                            style={styles.sphereIcon}
-                          />
-                          <ThemedText 
-                            size="sm" 
-                            weight="bold"
-                            style={{ 
-                              color: colors.primary,
-                              flex: 1,
-                            }}
-                          >
-                            {sphere.label}
-                          </ThemedText>
-                          <MaterialIcons 
-                            name="check-circle" 
-                            size={20 * fontScale} 
-                            color={colors.primary}
-                          />
-                        </TouchableOpacity>
-                      ))}
+                          {isRecording
+                            ? t("ai.listening") || "Listening..."
+                            : t("ai.processing") || "Processing..."}
+                        </ThemedText>
+                      )}
                     </View>
-                  )}
 
-                <View style={styles.inputContainer}>
-                  <View style={styles.inputWrapper}>
-                    <TextInput
+                    <TouchableOpacity
                       style={[
-                        styles.textInput,
-                        { height: inputHeight },
-                        (showValidationErrors && (!inputText.trim() || inputText.trim().length < 10)) ? styles.textInputError : null
-                      ].filter(Boolean)}
-                      placeholder={
-                        selectedSphere === 'relationships' 
-                          ? (t('ai.entity.placeholder.relationship') || 'Tell me about one relationship of yours. When it started, when it ended.')
-                          : selectedSphere === 'career'
-                          ? (t('ai.entity.placeholder.career') || 'Tell me about one job of yours. When it started, when it ended.')
-                          : selectedSphere === 'family'
-                          ? (t('ai.entity.placeholder.family') || 'Tell me about your family.')
-                          : selectedSphere === 'friends'
-                          ? (t('ai.entity.placeholder.friends') || 'Tell me about your friends.')
-                          : selectedSphere === 'hobbies'
-                          ? (t('ai.entity.placeholder.hobbies') || 'Tell me about your hobbies.')
-                          : (t('ai.entity.placeholder') || 'Write or use the microphone to tell a story...')
-                      }
-                      placeholderTextColor={colorScheme === 'dark' ? colors.textMediumEmphasis : colors.text + '80'}
-                      value={inputText}
-                      onChangeText={(text) => {
-                        setInputText(text);
-                        // Clear validation error when user starts typing valid text
-                        if (showValidationErrors && text.trim().length >= 10) {
-                          setShowValidationErrors(false);
-                        }
-                      }}
-                      onFocus={() => {
-                        // Clear validation error when user focuses on the field
-                        if (showValidationErrors && inputText.trim().length >= 10) {
-                          setShowValidationErrors(false);
-                        }
-                      }}
-                      multiline
-                      textAlignVertical="top"
-                      onContentSizeChange={(e) => {
-                        const h = e.nativeEvent.contentSize.height;
-                        const minH = 80 * fontScale;
-                        const maxH = 220 * fontScale;
-                        setInputHeight(Math.max(minH, Math.min(maxH, h)));
-                      }}
-                    />
-                    <Animated.View
-                      style={[
-                        styles.micButton,
-                        isRecording && styles.micButtonRecording,
-                        micAnimatedStyle,
+                        styles.submitButton,
+                        (!inputText.trim() ||
+                          inputText.trim().length < 10 ||
+                          isProcessing) &&
+                          styles.submitButtonDisabled,
                       ]}
-                    >
-                      <TouchableOpacity
-                        onPress={isRecording ? handleStopRecording : handleStartRecording}
-                        activeOpacity={0.85}
-                        disabled={isProcessing}
-                      >
-                        <MaterialIcons
-                          name={isRecording ? 'mic' : 'mic-none'}
-                          size={24 * fontScale}
-                          color="#FFFFFF"
-                        />
-                      </TouchableOpacity>
-                    </Animated.View>
-                  </View>
-                  {(isListening || isRecording) && (
-                    <ThemedText size="xs" style={{ marginTop: 8 * fontScale, opacity: 0.7, color: isRecording ? colors.primary : colors.text }}>
-                      {isRecording ? (t('ai.listening') || 'Listening...') : (t('ai.processing') || 'Processing...')}
-                    </ThemedText>
-                  )}
-                </View>
-
-                <TouchableOpacity
-                  style={[
-                    styles.submitButton,
-                    (!inputText.trim() || inputText.trim().length < 10 || isProcessing) && styles.submitButtonDisabled,
-                  ]}
-                  onPress={handleSubmit}
-                  disabled={!inputText.trim() || inputText.trim().length < 10 || isProcessing}
-                  activeOpacity={0.8}
-                >
-                  <View style={[StyleSheet.absoluteFillObject, { borderRadius: 12 * fontScale, overflow: 'hidden' }]}>
-                    <LinearGradient
-                      colors={
-                        (!inputText.trim() || inputText.trim().length < 10 || isProcessing)
-                          ? colorScheme === 'dark'
-                            ? ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)']
-                            : ['rgba(0, 0, 0, 0.1)', 'rgba(0, 0, 0, 0.1)']
-                          : ['#4A90E2', '#357ABD', '#2E6DA4']
+                      onPress={handleSubmit}
+                      disabled={
+                        !inputText.trim() ||
+                        inputText.trim().length < 10 ||
+                        isProcessing
                       }
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={StyleSheet.absoluteFillObject}
-                    />
+                      activeOpacity={0.8}
+                    >
+                      <View
+                        style={[
+                          StyleSheet.absoluteFillObject,
+                          { borderRadius: 12 * fontScale, overflow: "hidden" },
+                        ]}
+                      >
+                        <LinearGradient
+                          colors={
+                            !inputText.trim() ||
+                            inputText.trim().length < 10 ||
+                            isProcessing
+                              ? colorScheme === "dark"
+                                ? [
+                                    "rgba(255, 255, 255, 0.1)",
+                                    "rgba(255, 255, 255, 0.1)",
+                                  ]
+                                : ["rgba(0, 0, 0, 0.1)", "rgba(0, 0, 0, 0.1)"]
+                              : ["#4A90E2", "#357ABD", "#2E6DA4"]
+                          }
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={StyleSheet.absoluteFillObject}
+                        />
+                      </View>
+                      {isProcessing ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <ThemedText
+                          size="l"
+                          weight="bold"
+                          style={{ color: "#FFFFFF" }}
+                        >
+                          {t("ai.entity.create") || "Create Entity"}
+                        </ThemedText>
+                      )}
+                    </TouchableOpacity>
                   </View>
-                  {isProcessing ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <ThemedText size="l" weight="bold" style={{ color: '#FFFFFF' }}>
-                      {t('ai.entity.create') || 'Create Entity'}
-                    </ThemedText>
-                  )}
-                </TouchableOpacity>
-                </View>
-              )}
-            </ScrollView>
+                )}
+              </ScrollView>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Open Sfera Modal */}
@@ -1501,72 +1745,90 @@ t('ai.closeConfirm.title') || 'Discard changes?',
         presentationStyle="overFullScreen"
         statusBarTranslucent
       >
-        <Pressable 
+        <Pressable
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            justifyContent: "center",
+            alignItems: "center",
             padding: 20 * fontScale,
           }}
           onPress={handleCancelOpenSfera}
         >
           <Pressable
             style={{
-              backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
+              backgroundColor:
+                colorScheme === "dark" ? colors.background : "#ffffff",
               borderRadius: 16 * fontScale,
               padding: 24 * fontScale,
-              width: '100%',
+              width: "100%",
               maxWidth: 400 * fontScale,
             }}
             onStartShouldSetResponder={() => true}
           >
-            <ThemedText size="xl" weight="bold" style={{ marginBottom: 12 * fontScale, textAlign: 'center' }}>
-              {t('ai.entity.openSferaMessage') || 'Entities have been saved successfully!'}
+            <ThemedText
+              size="xl"
+              weight="bold"
+              style={{ marginBottom: 12 * fontScale, textAlign: "center" }}
+            >
+              {t("ai.entity.openSferaMessage") ||
+                "Entities have been saved successfully!"}
             </ThemedText>
-            
+
             <View style={{ gap: 12 * fontScale, marginTop: 24 * fontScale }}>
               <TouchableOpacity
                 style={{
-                  width: '100%',
+                  width: "100%",
                   borderRadius: 8 * fontScale,
                   padding: 14 * fontScale,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                  position: 'relative',
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  position: "relative",
                 }}
                 onPress={handleOpenSfera}
                 activeOpacity={0.8}
               >
-                <View style={[StyleSheet.absoluteFillObject, { borderRadius: 8 * fontScale, overflow: 'hidden' }]}>
+                <View
+                  style={[
+                    StyleSheet.absoluteFillObject,
+                    { borderRadius: 8 * fontScale, overflow: "hidden" },
+                  ]}
+                >
                   <LinearGradient
-                    colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                    colors={["#4A90E2", "#357ABD", "#2E6DA4"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={StyleSheet.absoluteFillObject}
                   />
                 </View>
-                <ThemedText size="sm" weight="bold" style={{ color: '#FFFFFF' }}>
+                <ThemedText
+                  size="sm"
+                  weight="bold"
+                  style={{ color: "#FFFFFF" }}
+                >
                   {(() => {
-                    const sphereLabel = savedSphere 
-                      ? SPHERES.find(s => s.value === savedSphere)?.label || savedSphere
-                      : 'Sfera';
-                    return t('ai.entity.openSfera') ? `${t('ai.entity.openSfera')} ${sphereLabel}` : `Open ${sphereLabel} Sfera`;
+                    const sphereLabel = savedSphere
+                      ? SPHERES.find((s) => s.value === savedSphere)?.label ||
+                        savedSphere
+                      : "Sfera";
+                    return t("ai.entity.openSfera")
+                      ? `${t("ai.entity.openSfera")} ${sphereLabel}`
+                      : `Open ${sphereLabel} Sfera`;
                   })()}
                 </ThemedText>
               </TouchableOpacity>
-              
+
               {onCreateMemory && (
                 <TouchableOpacity
                   style={{
-                    width: '100%',
+                    width: "100%",
                     borderRadius: 8 * fontScale,
                     padding: 14 * fontScale,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                    position: 'relative',
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    position: "relative",
                   }}
                   onPress={() => {
                     setShowOpenSferaModal(false);
@@ -1575,36 +1837,46 @@ t('ai.closeConfirm.title') || 'Discard changes?',
                   }}
                   activeOpacity={0.8}
                 >
-                  <View style={[StyleSheet.absoluteFillObject, { borderRadius: 8 * fontScale, overflow: 'hidden' }]}>
+                  <View
+                    style={[
+                      StyleSheet.absoluteFillObject,
+                      { borderRadius: 8 * fontScale, overflow: "hidden" },
+                    ]}
+                  >
                     <LinearGradient
-                      colors={['#4A90E2', '#357ABD', '#2E6DA4']}
+                      colors={["#4A90E2", "#357ABD", "#2E6DA4"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={StyleSheet.absoluteFillObject}
                     />
                   </View>
-                  <ThemedText size="sm" weight="bold" style={{ color: '#FFFFFF' }}>
-                    {t('ai.action.createMemory') || 'Create Memory'}
+                  <ThemedText
+                    size="sm"
+                    weight="bold"
+                    style={{ color: "#FFFFFF" }}
+                  >
+                    {t("ai.action.createMemory") || "Create Memory"}
                   </ThemedText>
                 </TouchableOpacity>
               )}
-              
+
               <TouchableOpacity
                 style={{
-                  width: '100%',
-                  backgroundColor: colorScheme === 'dark' 
-                    ? 'rgba(255, 255, 255, 0.1)' 
-                    : 'rgba(0, 0, 0, 0.05)',
+                  width: "100%",
+                  backgroundColor:
+                    colorScheme === "dark"
+                      ? "rgba(255, 255, 255, 0.1)"
+                      : "rgba(0, 0, 0, 0.05)",
                   borderRadius: 8 * fontScale,
                   padding: 14 * fontScale,
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
                 onPress={handleCancelOpenSfera}
                 activeOpacity={0.8}
               >
                 <ThemedText size="sm" weight="medium">
-                  {t('common.cancel') || 'Cancel'}
+                  {t("common.cancel") || "Cancel"}
                 </ThemedText>
               </TouchableOpacity>
             </View>

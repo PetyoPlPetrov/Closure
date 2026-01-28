@@ -1,16 +1,17 @@
 /**
  * AI Request Rate Limiter
- * Tracks AI requests per calendar day (timezone-based) for non-premium users
- * Limits: 3 requests per day
- * Resets at midnight in user's timezone
- * 
+ * Tracks AI requests per calendar day (timezone-based) for all users (including premium).
+ * Counts submits for memory creation and entity creation (shared pool).
+ * Limits: 30 requests per day total.
+ * Resets at midnight in user's timezone.
+ *
  * NOTE: Rate limiting is disabled on emulator/simulator for development
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const AI_REQUESTS_KEY = '@sferas:ai_requests';
-const REQUESTS_PER_DAY = 3;
+const AI_REQUESTS_KEY = "@sferas:ai_requests";
+const REQUESTS_PER_DAY = 30;
 
 interface AIRequestRecord {
   date: string; // Date string in format "YYYY-MM-DD" (timezone-aware)
@@ -23,8 +24,8 @@ interface AIRequestRecord {
 function getCurrentDateString(): string {
   const now = new Date();
   const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
@@ -38,7 +39,7 @@ async function getAIRequestRecords(): Promise<AIRequestRecord[]> {
       return JSON.parse(data) as AIRequestRecord[];
     }
   } catch (error) {
-    console.error('Failed to get AI request records:', error);
+    console.error("Failed to get AI request records:", error);
   }
   return [];
 }
@@ -50,7 +51,7 @@ async function saveAIRequestRecords(records: AIRequestRecord[]): Promise<void> {
   try {
     await AsyncStorage.setItem(AI_REQUESTS_KEY, JSON.stringify(records));
   } catch (error) {
-    console.error('Failed to save AI request records:', error);
+    console.error("Failed to save AI request records:", error);
   }
 }
 
@@ -60,7 +61,7 @@ async function saveAIRequestRecords(records: AIRequestRecord[]): Promise<void> {
 async function getTodayRequestCount(): Promise<number> {
   const records = await getAIRequestRecords();
   const today = getCurrentDateString();
-  const todayRecord = records.find(record => record.date === today);
+  const todayRecord = records.find((record) => record.date === today);
   return todayRecord ? todayRecord.count : 0;
 }
 
@@ -70,8 +71,8 @@ async function getTodayRequestCount(): Promise<number> {
 async function cleanupOldRecords(): Promise<void> {
   const records = await getAIRequestRecords();
   const today = getCurrentDateString();
-  const filteredRecords = records.filter(record => record.date === today);
-  
+  const filteredRecords = records.filter((record) => record.date === today);
+
   // Only save if we removed some records
   if (filteredRecords.length !== records.length) {
     await saveAIRequestRecords(filteredRecords);
@@ -84,10 +85,10 @@ async function cleanupOldRecords(): Promise<void> {
 export async function recordAIRequest(): Promise<void> {
   const records = await getAIRequestRecords();
   const today = getCurrentDateString();
-  
+
   // Find today's record
-  const todayRecordIndex = records.findIndex(record => record.date === today);
-  
+  const todayRecordIndex = records.findIndex((record) => record.date === today);
+
   if (todayRecordIndex >= 0) {
     // Increment count for today
     records[todayRecordIndex].count += 1;
@@ -98,16 +99,16 @@ export async function recordAIRequest(): Promise<void> {
       count: 1,
     });
   }
-  
+
   await saveAIRequestRecords(records);
-  
+
   // Optional: cleanup old records
   await cleanupOldRecords();
 }
 
 /**
  * Get remaining AI requests for today
- * @returns Number of remaining requests (0-3)
+ * @returns Number of remaining requests (0–30)
  */
 export async function getRemainingAIRequests(): Promise<number> {
   const used = await getTodayRequestCount();
@@ -125,7 +126,7 @@ export async function canMakeAIRequest(): Promise<boolean> {
   if (__DEV__) {
     return true;
   }
-  
+
   const remaining = await getRemainingAIRequests();
   return remaining > 0;
 }
@@ -137,17 +138,17 @@ export async function canMakeAIRequest(): Promise<boolean> {
  */
 export async function getTimeUntilNextRequest(): Promise<number> {
   const used = await getTodayRequestCount();
-  
+
   if (used < REQUESTS_PER_DAY) {
     return 0; // Requests available now
   }
-  
+
   // Calculate time until midnight in user's timezone
   const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(0, 0, 0, 0); // Set to midnight
-  
+
   const timeUntilMidnight = tomorrow.getTime() - now.getTime();
   return Math.max(0, timeUntilMidnight);
 }
@@ -158,14 +159,14 @@ export async function getTimeUntilNextRequest(): Promise<number> {
  */
 export async function getTimeUntilNextRequestFormatted(): Promise<string> {
   const timeMs = await getTimeUntilNextRequest();
-  
+
   if (timeMs === 0) {
-    return 'Available now';
+    return "Available now";
   }
-  
+
   const hours = Math.floor(timeMs / (60 * 60 * 1000));
   const minutes = Math.floor((timeMs % (60 * 60 * 1000)) / (60 * 1000));
-  
+
   if (hours > 0) {
     return `${hours}h ${minutes}m`;
   }
@@ -179,6 +180,6 @@ export async function clearAIRequestRecords(): Promise<void> {
   try {
     await AsyncStorage.removeItem(AI_REQUESTS_KEY);
   } catch (error) {
-    console.error('Failed to clear AI request records:', error);
+    console.error("Failed to clear AI request records:", error);
   }
 }
