@@ -38,6 +38,11 @@ export interface Translations {
   "settings.devTools.cleanupMemories.error": string;
   "settings.notifications.title": string;
   "settings.notifications.manage": string;
+  "settings.aiInsights.title": string;
+  "settings.aiInsights.enable": string;
+  "settings.aiInsights.description": string;
+  "ai.insights.consent.body": string;
+  "ai.insights.consent.maybeLater": string;
   "settings.subscriptions.title": string;
   "settings.subscriptions.premium": string;
   "settings.devTools.title": string;
@@ -3442,6 +3447,13 @@ const translations: Record<Language, Translations> = {
       "Failed to clean up orphaned memories. Please try again.",
     "settings.notifications.title": "Notifications",
     "settings.notifications.manage": "Manage notifications",
+    "settings.aiInsights.title": "AI Insights",
+    "settings.aiInsights.enable": "Enable AI Insights",
+    "settings.aiInsights.description":
+      "Uses AI to analyze your memories and show motivational nudges. Your data is sent securely to our AI partner solely for this purpose and is not used for training models.",
+    "ai.insights.consent.body":
+      "Sferas now uses AI to analyze your memories and send you personalized motivational nudges. Your data is sent securely to our AI partner solely for this purpose and is not used for training models.",
+    "ai.insights.consent.maybeLater": "Maybe Later",
     "settings.subscriptions.title": "Subscriptions",
     "settings.subscriptions.premium": "Sferas Premium",
     "settings.devTools.title": "Development Tools",
@@ -7678,6 +7690,13 @@ const translations: Record<Language, Translations> = {
       "Неуспешно изчистване на изолираните спомени. Моля, опитайте отново.",
     "settings.notifications.title": "Известия",
     "settings.notifications.manage": "Управление на известия",
+    "settings.aiInsights.title": "AI Инсайти",
+    "settings.aiInsights.enable": "Включи AI Инсайти",
+    "settings.aiInsights.description":
+      "Използва AI за анализ на вашите спомени и показва мотивационни подсказки. Вашите данни се изпращат сигурно до нашия AI партньор само за тази цел и не се използват за обучение на модели.",
+    "ai.insights.consent.body":
+      "Sferas вече използва AI за анализ на вашите спомени и ви изпраща персонализирани мотивационни подсказки. Вашите данни се изпращат сигурно до нашия AI партньор само за тази цел и не се използват за обучение на модели.",
+    "ai.insights.consent.maybeLater": "По-късно",
     "settings.subscriptions.title": "Абонаменти",
     "settings.subscriptions.premium": "Sferas Premium",
     "settings.devTools.title": "Инструменти за Разработка",

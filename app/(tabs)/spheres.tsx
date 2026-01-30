@@ -1,36 +1,80 @@
-import { AIModal } from '@/components/ai-modal';
-import { AIActionModal } from '@/components/ai-action-modal';
-import { AIEntityCreationModal } from '@/components/ai-entity-creation-modal';
-import { AIInsightsConsentModal } from '@/components/ai-insights-consent-modal';
-import { ThemedText } from '@/components/themed-text';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useFontScale, useIconScale } from '@/hooks/use-device-size';
-import { useLargeDevice } from '@/hooks/use-large-device';
-import { JobCard } from '@/library/components/job-card';
-import { ProfileCard } from '@/library/components/profile-card';
-import { TabScreenContainer } from '@/library/components/tab-screen-container';
-import { getPendingAIRequest, getPendingAIResponse, isBackgroundTaskRunning } from '@/utils/ai-background-processor';
-import { getPendingEntityRequest, getPendingEntityResponse, isBackgroundEntityTaskRunning } from '@/utils/ai-background-processor';
-import { useAIInsightsConsent } from '@/utils/AIInsightsConsentProvider';
-import { sendToAI } from '@/utils/ai-service';
-import type { ExProfile, FamilyMember, Friend, Hobby, Job, LifeSphere } from '@/utils/JourneyProvider';
-import { useJourney } from '@/utils/JourneyProvider';
-import { useTranslate } from '@/utils/languages/use-translate';
-import { showPaywallForPremiumAccess } from '@/utils/premium-access';
-import { onSpheresTabPress } from '@/utils/spheres-tab-press';
-import { useSubscription } from '@/utils/SubscriptionProvider';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, AppStateStatus, BackHandler, Dimensions, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import { AIActionModal } from "@/components/ai-action-modal";
+import { AIEntityCreationModal } from "@/components/ai-entity-creation-modal";
+import { AIInsightsConsentModal } from "@/components/ai-insights-consent-modal";
+import { AIModal } from "@/components/ai-modal";
+import { ThemedText } from "@/components/themed-text";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useFontScale, useIconScale } from "@/hooks/use-device-size";
+import { useLargeDevice } from "@/hooks/use-large-device";
+import { JobCard } from "@/library/components/job-card";
+import { ProfileCard } from "@/library/components/profile-card";
+import { TabScreenContainer } from "@/library/components/tab-screen-container";
+import {
+    getPendingAIRequest,
+    getPendingAIResponse,
+    getPendingEntityRequest,
+    getPendingEntityResponse,
+    isBackgroundEntityTaskRunning,
+    isBackgroundTaskRunning
+} from "@/utils/ai-background-processor";
+import { sendToAI } from "@/utils/ai-service";
+import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
+import type {
+    ExProfile,
+    FamilyMember,
+    Friend,
+    Hobby,
+    Job,
+    LifeSphere,
+} from "@/utils/JourneyProvider";
+import { useJourney } from "@/utils/JourneyProvider";
+import { useTranslate } from "@/utils/languages/use-translate";
+import { showPaywallForPremiumAccess } from "@/utils/premium-access";
+import { onSpheresTabPress } from "@/utils/spheres-tab-press";
+import { useSubscription } from "@/utils/SubscriptionProvider";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+    router,
+    useFocusEffect,
+    useLocalSearchParams,
+    useNavigation,
+} from "expo-router";
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    AppState,
+    AppStateStatus,
+    BackHandler,
+    Dimensions,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import Animated, {
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withDelay,
+    withRepeat,
+    withSpring,
+    withTiming
+} from "react-native-reanimated";
 
 const AnimatedView = Animated.createAnimatedComponent(View);
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 // Sparkled Dots Component - animated glowing dots (copied from index.tsx)
 const SparkledDots = React.memo(function SparkledDots({
@@ -42,19 +86,19 @@ const SparkledDots = React.memo(function SparkledDots({
   avatarSize: number;
   avatarCenterX: number;
   avatarCenterY: number;
-  colorScheme: 'light' | 'dark';
+  colorScheme: "light" | "dark";
 }) {
   const { isTablet } = useLargeDevice();
-  
+
   // Generate random positions for dots spread across the screen
   // Mix of dots around center and dots spread across entire screen
   const dots = React.useMemo(() => {
     const numDots = isTablet ? 80 : 60; // Increased for better coverage
     const padding = 20; // Padding from screen edges
-    
+
     return Array.from({ length: numDots }, (_, i) => {
       let x: number, y: number;
-      
+
       // Mix distribution: 40% around center, 60% spread across screen
       if (i < numDots * 0.4) {
         // Dots around the center (insight button area)
@@ -69,24 +113,24 @@ const SparkledDots = React.memo(function SparkledDots({
         x = padding + Math.random() * (SCREEN_WIDTH - padding * 2);
         y = padding + Math.random() * (SCREEN_HEIGHT - padding * 2);
       }
-      
+
       // Ensure dots stay within screen bounds
       x = Math.max(padding, Math.min(SCREEN_WIDTH - padding, x));
       y = Math.max(padding, Math.min(SCREEN_HEIGHT - padding, y));
-      
+
       // Medium size range for better visibility (2-4px)
       const size = 2 + Math.random() * 2;
-      
+
       // Random delay for staggered animation
       const delay = Math.random() * 2000;
-      
+
       // Random animation duration (2.5-4 seconds)
       const duration = 2500 + Math.random() * 1500;
-      
+
       return { x, y, size, delay, duration, id: i };
     });
   }, [avatarSize, avatarCenterX, avatarCenterY, isTablet]);
-  
+
   return (
     <>
       {dots.map((dot) => (
@@ -118,52 +162,57 @@ const SparkledDot = React.memo(function SparkledDot({
   size: number;
   delay: number;
   duration: number;
-  colorScheme: 'light' | 'dark';
+  colorScheme: "light" | "dark";
 }) {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.7);
-  
+
   React.useEffect(() => {
     // Scale up animation
     scale.value = withDelay(
       delay,
-      withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 })
+      withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 }),
     );
-    
+
     // Fade in first, then start pulsing with better visibility
     opacity.value = withDelay(
       delay,
-      withTiming(0.7, { 
-        duration: 600, 
-        easing: Easing.out(Easing.ease) 
-      }, (finished) => {
-        if (finished) {
-          // After fade in completes, start pulsing (between 0.4 and 0.7 for better visibility)
-          opacity.value = withRepeat(
-            withTiming(0.4, { duration, easing: Easing.inOut(Easing.ease) }),
-            -1,
-            true
-          );
-        }
-      })
+      withTiming(
+        0.7,
+        {
+          duration: 600,
+          easing: Easing.out(Easing.ease),
+        },
+        (finished) => {
+          if (finished) {
+            // After fade in completes, start pulsing (between 0.4 and 0.7 for better visibility)
+            opacity.value = withRepeat(
+              withTiming(0.4, { duration, easing: Easing.inOut(Easing.ease) }),
+              -1,
+              true,
+            );
+          }
+        },
+      ),
     );
   }, [delay, duration, opacity, scale]);
-  
+
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ scale: scale.value }],
   }));
-  
+
   // More visible glow color based on theme
-  const glowColor = colorScheme === 'dark' 
-    ? 'rgba(255, 255, 255, 0.65)' // Increased from 0.4 to 0.65
-    : 'rgba(255, 215, 0, 0.55)'; // Increased from 0.3 to 0.55
-  
+  const glowColor =
+    colorScheme === "dark"
+      ? "rgba(255, 255, 255, 0.65)" // Increased from 0.4 to 0.65
+      : "rgba(255, 215, 0, 0.55)"; // Increased from 0.3 to 0.55
+
   return (
     <Animated.View
       style={[
         {
-          position: 'absolute',
+          position: "absolute",
           left: x - size / 2,
           top: y - size / 2,
           width: size,
@@ -184,11 +233,24 @@ const SparkledDot = React.memo(function SparkledDot({
 
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'dark'];
+  const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
   const iconScale = useIconScale();
   const { maxContentWidth, isLargeDevice, isTablet } = useLargeDevice();
-  const { profiles, jobs, familyMembers, friends, hobbies, isLoading, getEntitiesBySphere, getOverallSunnyPercentage, reloadIdealizedMemories, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, idealizedMemories } = useJourney();
+  const {
+    profiles,
+    jobs,
+    familyMembers,
+    friends,
+    hobbies,
+    isLoading,
+    getEntitiesBySphere,
+    getOverallSunnyPercentage,
+    reloadIdealizedMemories,
+    getIdealizedMemoriesByProfileId,
+    getIdealizedMemoriesByEntityId,
+    idealizedMemories,
+  } = useJourney();
   const { isSubscribed, offerings } = useSubscription();
   const t = useTranslate();
   const aiConsent = useAIInsightsConsent();
@@ -204,7 +266,12 @@ export default function SpheresScreen() {
   }, [isTablet]);
 
   const containerRef = useRef<View>(null);
-  const [containerLayout, setContainerLayout] = useState<{ width: number; height: number; x: number; y: number } | null>(null);
+  const [containerLayout, setContainerLayout] = useState<{
+    width: number;
+    height: number;
+    x: number;
+    y: number;
+  } | null>(null);
   const [textWidths, setTextWidths] = useState<Record<LifeSphere, number>>({
     relationships: 0,
     career: 0,
@@ -213,7 +280,7 @@ export default function SpheresScreen() {
     hobbies: 0,
   });
   const [sevenLetterWidth, setSevenLetterWidth] = useState<number>(0);
-  
+
   // Pulse animation for Insights button
   const pulseScale = useSharedValue(1);
 
@@ -224,61 +291,32 @@ export default function SpheresScreen() {
         easing: Easing.inOut(Easing.ease),
       }),
       -1,
-      true
+      true,
     );
   }, []);
-  
+
   const pulseAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: pulseScale.value }],
     };
   });
 
-  // Pulse animation for AI sparkle icon - pulse every 10 seconds
-  const sparkleIconScale = useSharedValue(1);
-
-  useEffect(() => {
-    // Create pulse sequence: 3 pulses then wait 10 seconds
-    const pulseSequence = withSequence(
-      // First pulse
-      withTiming(1.3, { duration: 200, easing: Easing.out(Easing.ease) }),
-      withTiming(1, { duration: 200, easing: Easing.in(Easing.ease) }),
-      // Second pulse
-      withTiming(1.3, { duration: 200, easing: Easing.out(Easing.ease) }),
-      withTiming(1, { duration: 200, easing: Easing.in(Easing.ease) }),
-      // Third pulse
-      withTiming(1.3, { duration: 200, easing: Easing.out(Easing.ease) }),
-      withTiming(1, { duration: 200, easing: Easing.in(Easing.ease) }),
-      // Wait 10 seconds before next pulse sequence
-      withTiming(1, { duration: 10000, easing: Easing.linear })
-    );
-
-    // Start the animation and repeat infinitely
-    sparkleIconScale.value = withRepeat(pulseSequence, -1, false);
-  }, [sparkleIconScale]);
-
-  const sparkleIconAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: sparkleIconScale.value }],
-    };
-  });
-
   const checkSubscriptionLimit = (sphere: LifeSphere): boolean => {
     // In development mode, bypass subscription limits
     if (__DEV__) return true;
-    
+
     if (isSubscribed) return true; // Subscribed users can create unlimited
-    
+
     switch (sphere) {
-      case 'relationships':
+      case "relationships":
         return profiles.length < 1;
-      case 'career':
+      case "career":
         return jobs.length < 1;
-      case 'family':
+      case "family":
         return familyMembers.length < 1;
-      case 'friends':
+      case "friends":
         return friends.length < 1;
-      case 'hobbies':
+      case "hobbies":
         return hobbies.length < 1;
       default:
         return true;
@@ -289,52 +327,58 @@ export default function SpheresScreen() {
     // In development mode, bypass subscription check
     // Only show paywall if user is not subscribed
     if (!__DEV__ && !isSubscribed) {
-    // Show paywall (custom in dev, RevenueCat in prod)
-    await showPaywallForPremiumAccess();
+      // Show paywall (custom in dev, RevenueCat in prod)
+      await showPaywallForPremiumAccess();
     }
   };
-  
+
   // Reload memories when screen comes into focus (e.g., after running mock data script)
   useFocusEffect(
     useCallback(() => {
       reloadIdealizedMemories();
-    }, [reloadIdealizedMemories])
+    }, [reloadIdealizedMemories]),
   );
 
   const params = useLocalSearchParams();
-  
+
   // Initialize state from params
-  const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(() => {
-    const initialSphere = (params.selectedSphere as LifeSphere) || null;
-    return initialSphere;
-  });
-  
+  const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(
+    () => {
+      const initialSphere = (params.selectedSphere as LifeSphere) || null;
+      return initialSphere;
+    },
+  );
+
   // Use a ref to track previous params to detect changes
-  const prevParamsRef = React.useRef<string | undefined>(params.selectedSphere as string | undefined);
-  
+  const prevParamsRef = React.useRef<string | undefined>(
+    params.selectedSphere as string | undefined,
+  );
+
   // Sync params to state immediately when they change
   // This runs on every render to catch param changes that useEffect might miss
-    React.useLayoutEffect(() => {
-      const currentSphereParam = params.selectedSphere as LifeSphere | undefined;
-      
-      // Only sync FROM URL params TO state when URL params actually change
-      // Don't clear state if URL param is missing but state exists (state might be set by user interaction)
-      if (currentSphereParam && prevParamsRef.current !== currentSphereParam) {
-        prevParamsRef.current = currentSphereParam;
-        setSelectedSphere(currentSphereParam);
-      } else if (!currentSphereParam && prevParamsRef.current !== undefined) {
-        // Only clear if URL param was explicitly removed (prevParamsRef had a value)
-        prevParamsRef.current = undefined;
-        setSelectedSphere(null);
-      }
-    });
+  React.useLayoutEffect(() => {
+    const currentSphereParam = params.selectedSphere as LifeSphere | undefined;
+
+    // Only sync FROM URL params TO state when URL params actually change
+    // Don't clear state if URL param is missing but state exists (state might be set by user interaction)
+    if (currentSphereParam && prevParamsRef.current !== currentSphereParam) {
+      prevParamsRef.current = currentSphereParam;
+      setSelectedSphere(currentSphereParam);
+    } else if (!currentSphereParam && prevParamsRef.current !== undefined) {
+      // Only clear if URL param was explicitly removed (prevParamsRef had a value)
+      prevParamsRef.current = undefined;
+      setSelectedSphere(null);
+    }
+  });
   const [aiModalVisible, setAiModalVisible] = useState(false);
   const [aiActionModalVisible, setAiActionModalVisible] = useState(false);
-  const [aiEntityCreationModalVisible, setAiEntityCreationModalVisible] = useState(false);
+  const [aiEntityCreationModalVisible, setAiEntityCreationModalVisible] =
+    useState(false);
   const [pendingAIResponse, setPendingAIResponse] = useState<any>(null);
   const [pendingEntityResponse, setPendingEntityResponse] = useState<any>(null);
-  const [aiInsightsConsentVisible, setAiInsightsConsentVisible] = useState(false);
-  const pendingAIIconActionRef = useRef<null | 'open_ai'>(null);
+  const [aiInsightsConsentVisible, setAiInsightsConsentVisible] =
+    useState(false);
+  const pendingAIIconActionRef = useRef<null | "open_ai">(null);
 
   // Ensure AI modals are mutually exclusive (prevents shared mic/STT conflicts).
   const openMemoryAIModal = useCallback(() => {
@@ -348,23 +392,26 @@ export default function SpheresScreen() {
     setAiModalVisible(false);
     setAiEntityCreationModalVisible(true);
   }, []);
-  
+
   // Check for pending AI response when app becomes active or component mounts
   // This ensures data persists even after app is killed
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', async (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active') {
-        // Check for pending AI response
-        const pendingResponse = await getPendingAIResponse();
-        if (pendingResponse) {
-          setPendingAIResponse(pendingResponse);
-          // Auto-open modal if response is ready (user hasn't saved/discarded yet)
-          if (!aiModalVisible) {
-            openMemoryAIModal();
+    const subscription = AppState.addEventListener(
+      "change",
+      async (nextAppState: AppStateStatus) => {
+        if (nextAppState === "active") {
+          // Check for pending AI response
+          const pendingResponse = await getPendingAIResponse();
+          if (pendingResponse) {
+            setPendingAIResponse(pendingResponse);
+            // Auto-open modal if response is ready (user hasn't saved/discarded yet)
+            if (!aiModalVisible) {
+              openMemoryAIModal();
+            }
           }
         }
-      }
-    });
+      },
+    );
 
     // Also check immediately when component mounts (e.g., after app restart)
     const checkPending = async () => {
@@ -405,16 +452,16 @@ export default function SpheresScreen() {
         // ALWAYS check for response first, even if request/task is cleared
         // The response might have just been saved while we were polling
         const pendingResponse = await getPendingAIResponse();
-        
+
         if (pendingResponse && !isCleanedUp) {
           // Update the prop (modal will react to it if open, or we'll open modal if closed)
           setPendingAIResponse(pendingResponse);
-          
+
           // If modal is closed, auto-open it
           if (!aiModalVisible) {
             openMemoryAIModal();
           }
-          
+
           // Clear interval once response is found
           if (intervalId) {
             clearInterval(intervalId);
@@ -422,11 +469,11 @@ export default function SpheresScreen() {
           }
           return; // Exit early if response found
         }
-        
+
         // If no response, check if there's still a pending request or task running
         const pendingRequest = await getPendingAIRequest();
         const isRunning = await isBackgroundTaskRunning();
-        
+
         // If there's no pending request or task, stop polling
         if (!pendingRequest && !isRunning) {
           if (intervalId) {
@@ -536,17 +583,20 @@ export default function SpheresScreen() {
 
   // Check for pending entity response when app becomes active
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', async (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active') {
-        const pendingResponse = await getPendingEntityResponse();
-        if (pendingResponse) {
-          setPendingEntityResponse(pendingResponse);
-          if (!aiEntityCreationModalVisible) {
-            openEntityAIModal();
+    const subscription = AppState.addEventListener(
+      "change",
+      async (nextAppState: AppStateStatus) => {
+        if (nextAppState === "active") {
+          const pendingResponse = await getPendingEntityResponse();
+          if (pendingResponse) {
+            setPendingEntityResponse(pendingResponse);
+            if (!aiEntityCreationModalVisible) {
+              openEntityAIModal();
+            }
           }
         }
-      }
-    });
+      },
+    );
 
     const checkPending = async () => {
       const pendingResponse = await getPendingEntityResponse();
@@ -567,7 +617,7 @@ export default function SpheresScreen() {
   // Check for pending response when modal opens manually
   const handleAIModalOpen = async () => {
     if (!aiConsent.isEnabled) {
-      pendingAIIconActionRef.current = 'open_ai';
+      pendingAIIconActionRef.current = "open_ai";
       setAiInsightsConsentVisible(true);
       return;
     }
@@ -596,30 +646,38 @@ export default function SpheresScreen() {
     // Reload entities after creation
     // The JourneyProvider will automatically update, but we can trigger a refresh if needed
   };
-  
+
   // Update selectedSphere when params change (e.g., when navigating back from edit screen)
   // Use useFocusEffect to ensure it runs every time the screen is focused
   useFocusEffect(
     React.useCallback(() => {
       const currentSphere = params.selectedSphere as LifeSphere | undefined;
-      
+
       // Always update if params have changed or if state doesn't match params
-      if (currentSphere && (prevParamsRef.current !== currentSphere || selectedSphere !== currentSphere)) {
+      if (
+        currentSphere &&
+        (prevParamsRef.current !== currentSphere ||
+          selectedSphere !== currentSphere)
+      ) {
         prevParamsRef.current = currentSphere;
         setSelectedSphere(currentSphere);
       } else if (!currentSphere && selectedSphere !== null) {
         prevParamsRef.current = undefined;
         setSelectedSphere(null);
       }
-    }, [params, selectedSphere])
+    }, [params, selectedSphere]),
   );
-  
+
   // Also update when params change (backup for when screen is already focused)
   React.useEffect(() => {
     const currentSphere = params.selectedSphere as LifeSphere | undefined;
-    
+
     // Always update if params have changed or if state doesn't match params
-    if (currentSphere && (prevParamsRef.current !== currentSphere || selectedSphere !== currentSphere)) {
+    if (
+      currentSphere &&
+      (prevParamsRef.current !== currentSphere ||
+        selectedSphere !== currentSphere)
+    ) {
       prevParamsRef.current = currentSphere;
       setSelectedSphere(currentSphere);
     } else if (!currentSphere && selectedSphere !== null) {
@@ -627,43 +685,43 @@ export default function SpheresScreen() {
       setSelectedSphere(null);
     }
   }, [params.selectedSphere, selectedSphere]);
-  
+
   // Use a ref to always get the current selectedSphere value in the callback
   const selectedSphereRef = React.useRef<LifeSphere | null>(null);
-  
+
   // Keep ref in sync with state
   React.useEffect(() => {
     selectedSphereRef.current = selectedSphere;
   }, [selectedSphere]);
-  
+
   // Function to clear selected sphere and params
   const clearSelectedSphere = React.useCallback(() => {
     // Update state first
     setSelectedSphere(null);
     prevParamsRef.current = undefined;
-    
+
     // Use router.replace to navigate to the same route without params
     // This should clear the selectedSphere param from the URL
-    router.replace('/(tabs)/spheres' as any);
+    router.replace("/(tabs)/spheres" as any);
   }, []);
-  
+
   // Listen for spheres tab press events - only when screen is focused
   useFocusEffect(
     React.useCallback(() => {
       // Listen for tab press events
       const unsubscribe = onSpheresTabPress(() => {
         const currentSelectedSphere = selectedSphereRef.current;
-        
+
         // Check if there's a selected sphere - if so, clear it to return to main view
         if (currentSelectedSphere) {
           clearSelectedSphere();
         }
       });
-      
+
       return () => {
         unsubscribe();
       };
-    }, [clearSelectedSphere]) // Include clearSelectedSphere in deps
+    }, [clearSelectedSphere]), // Include clearSelectedSphere in deps
   );
 
   // Get navigation object for handling back button on iOS
@@ -681,19 +739,25 @@ export default function SpheresScreen() {
       return false; // Allow default back behavior
     };
 
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      handleBackPress,
+    );
 
     // iOS: Handle navigation back button using beforeRemove event
-    const unsubscribeBeforeRemove = navigation.addListener('beforeRemove', (e: any) => {
-      const currentSelectedSphere = selectedSphereRef.current;
-      if (currentSelectedSphere) {
-        // Prevent default navigation
-        e.preventDefault();
-        // Clear the selected sphere instead
-        clearSelectedSphere();
-      }
-      // If no sphere is selected, allow default navigation
-    });
+    const unsubscribeBeforeRemove = navigation.addListener(
+      "beforeRemove",
+      (e: any) => {
+        const currentSelectedSphere = selectedSphereRef.current;
+        if (currentSelectedSphere) {
+          // Prevent default navigation
+          e.preventDefault();
+          // Clear the selected sphere instead
+          clearSelectedSphere();
+        }
+        // If no sphere is selected, allow default navigation
+      },
+    );
 
     return () => {
       backHandler.remove();
@@ -703,35 +767,39 @@ export default function SpheresScreen() {
 
   // Calculate entity-level scores for comparison
   const _entityComparisons = useMemo(() => {
-    const calculateEntityScore = (entityId: string, sphereType: LifeSphere): number => {
-      const memories = sphereType === 'relationships'
-        ? getIdealizedMemoriesByProfileId(entityId)
-        : getIdealizedMemoriesByEntityId(entityId, sphereType);
-      
+    const calculateEntityScore = (
+      entityId: string,
+      sphereType: LifeSphere,
+    ): number => {
+      const memories =
+        sphereType === "relationships"
+          ? getIdealizedMemoriesByProfileId(entityId)
+          : getIdealizedMemoriesByEntityId(entityId, sphereType);
+
       let totalClouds = 0;
       let totalSuns = 0;
-      
+
       memories.forEach((memory) => {
         totalClouds += (memory.hardTruths || []).length;
         totalSuns += (memory.goodFacts || []).length;
       });
-      
+
       const total = totalClouds + totalSuns;
       if (total === 0) return 0;
-      
+
       const percentage = (totalSuns / total) * 100;
       return Math.max(0, Math.min(100, isNaN(percentage) ? 0 : percentage));
     };
 
     const relationships = profiles
-      .map(p => ({
+      .map((p) => ({
         id: p.id,
         name: p.name,
-        score: calculateEntityScore(p.id, 'relationships'),
+        score: calculateEntityScore(p.id, "relationships"),
         isOngoing: !p.relationshipEndDate,
         entity: p,
       }))
-      .filter(e => e.score > 0)
+      .filter((e) => e.score > 0)
       .sort((a, b) => {
         // Sort: ongoing first, then by score descending
         if (a.isOngoing && !b.isOngoing) return -1;
@@ -740,14 +808,14 @@ export default function SpheresScreen() {
       });
 
     const jobsList = jobs
-      .map(j => ({
+      .map((j) => ({
         id: j.id,
         name: j.name,
-        score: calculateEntityScore(j.id, 'career'),
+        score: calculateEntityScore(j.id, "career"),
         isOngoing: !j.endDate,
         entity: j,
       }))
-      .filter(e => e.score > 0)
+      .filter((e) => e.score > 0)
       .sort((a, b) => {
         // Sort: ongoing first, then by score descending
         if (a.isOngoing && !b.isOngoing) return -1;
@@ -756,36 +824,36 @@ export default function SpheresScreen() {
       });
 
     const familyMembersList = familyMembers
-      .map(f => ({
+      .map((f) => ({
         id: f.id,
         name: f.name,
-        score: calculateEntityScore(f.id, 'family'),
+        score: calculateEntityScore(f.id, "family"),
         isOngoing: true, // Family members are always "ongoing"
         entity: f,
       }))
-      .filter(e => e.score > 0)
+      .filter((e) => e.score > 0)
       .sort((a, b) => b.score - a.score);
 
     const friendsList = friends
-      .map(f => ({
+      .map((f) => ({
         id: f.id,
         name: f.name,
-        score: calculateEntityScore(f.id, 'friends'),
+        score: calculateEntityScore(f.id, "friends"),
         isOngoing: true, // Friends are always "ongoing"
         entity: f,
       }))
-      .filter(e => e.score > 0)
+      .filter((e) => e.score > 0)
       .sort((a, b) => b.score - a.score);
 
     const hobbiesList = hobbies
-      .map(h => ({
+      .map((h) => ({
         id: h.id,
         name: h.name,
-        score: calculateEntityScore(h.id, 'hobbies'),
+        score: calculateEntityScore(h.id, "hobbies"),
         isOngoing: true, // Hobbies are always "ongoing"
         entity: h,
       }))
-      .filter(e => e.score > 0)
+      .filter((e) => e.score > 0)
       .sort((a, b) => b.score - a.score);
 
     return {
@@ -795,42 +863,61 @@ export default function SpheresScreen() {
       friends: friendsList,
       hobbies: hobbiesList,
     };
-  }, [profiles, jobs, familyMembers, friends, hobbies, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
+  }, [
+    profiles,
+    jobs,
+    familyMembers,
+    friends,
+    hobbies,
+    getIdealizedMemoriesByProfileId,
+    getIdealizedMemoriesByEntityId,
+  ]);
 
-  const spheres: { type: LifeSphere; icon: string; label: string; entities: (ExProfile | Job | FamilyMember | Friend | Hobby)[] }[] = useMemo(() => [
-    {
-      type: 'relationships',
-      icon: 'favorite',
-      label: t('spheres.relationships'),
-      entities: getEntitiesBySphere('relationships') as ExProfile[],
-    },
-    {
-      type: 'career',
-      icon: 'work',
-      label: t('spheres.career'),
-      entities: getEntitiesBySphere('career') as Job[],
-    },
-    {
-      type: 'family',
-      icon: 'family-restroom',
-      label: t('spheres.family'),
-      entities: getEntitiesBySphere('family') as FamilyMember[],
-    },
-    {
-      type: 'friends',
-      icon: 'people',
-      label: t('spheres.friends'),
-      entities: getEntitiesBySphere('friends') as Friend[],
-    },
-    {
-      type: 'hobbies',
-      icon: 'sports-esports',
-      label: t('spheres.hobbies'),
-      entities: getEntitiesBySphere('hobbies') as Hobby[],
-    },
-  ], [getEntitiesBySphere, t]);
+  const spheres: {
+    type: LifeSphere;
+    icon: string;
+    label: string;
+    entities: (ExProfile | Job | FamilyMember | Friend | Hobby)[];
+  }[] = useMemo(
+    () => [
+      {
+        type: "relationships",
+        icon: "favorite",
+        label: t("spheres.relationships"),
+        entities: getEntitiesBySphere("relationships") as ExProfile[],
+      },
+      {
+        type: "career",
+        icon: "work",
+        label: t("spheres.career"),
+        entities: getEntitiesBySphere("career") as Job[],
+      },
+      {
+        type: "family",
+        icon: "family-restroom",
+        label: t("spheres.family"),
+        entities: getEntitiesBySphere("family") as FamilyMember[],
+      },
+      {
+        type: "friends",
+        icon: "people",
+        label: t("spheres.friends"),
+        entities: getEntitiesBySphere("friends") as Friend[],
+      },
+      {
+        type: "hobbies",
+        icon: "sports-esports",
+        label: t("spheres.hobbies"),
+        entities: getEntitiesBySphere("hobbies") as Hobby[],
+      },
+    ],
+    [getEntitiesBySphere, t],
+  );
 
-  const _overallPercentage = useMemo(() => getOverallSunnyPercentage(), [getOverallSunnyPercentage]);
+  const _overallPercentage = useMemo(
+    () => getOverallSunnyPercentage(),
+    [getOverallSunnyPercentage],
+  );
 
   // Calculate sunny percentage for each sphere
   // Calculate sphere data: total moments (for distribution) and sunny percentage (for quality)
@@ -845,9 +932,10 @@ export default function SpheresScreen() {
       let totalSuns = 0;
 
       entities.forEach((entity) => {
-        const memories = sphereType === 'relationships' && 'id' in entity
-          ? getIdealizedMemoriesByProfileId(entity.id)
-          : getIdealizedMemoriesByEntityId(entity.id, sphereType);
+        const memories =
+          sphereType === "relationships" && "id" in entity
+            ? getIdealizedMemoriesByProfileId(entity.id)
+            : getIdealizedMemoriesByEntityId(entity.id, sphereType);
 
         memories.forEach((memory) => {
           totalClouds += (memory.hardTruths || []).length;
@@ -856,31 +944,38 @@ export default function SpheresScreen() {
       });
 
       const totalMoments = totalClouds + totalSuns;
-      const sunnyPercentage = totalMoments > 0 
-        ? (totalSuns / totalMoments) * 100 
-        : 0;
+      const sunnyPercentage =
+        totalMoments > 0 ? (totalSuns / totalMoments) * 100 : 0;
 
       return {
         totalMoments,
-        sunnyPercentage: Math.max(0, Math.min(100, isNaN(sunnyPercentage) ? 0 : sunnyPercentage)),
+        sunnyPercentage: Math.max(
+          0,
+          Math.min(100, isNaN(sunnyPercentage) ? 0 : sunnyPercentage),
+        ),
       };
     };
 
     return {
-      relationships: calculateSphereData('relationships'),
-      career: calculateSphereData('career'),
-      family: calculateSphereData('family'),
-      friends: calculateSphereData('friends'),
-      hobbies: calculateSphereData('hobbies'),
+      relationships: calculateSphereData("relationships"),
+      career: calculateSphereData("career"),
+      family: calculateSphereData("family"),
+      friends: calculateSphereData("friends"),
+      hobbies: calculateSphereData("hobbies"),
     };
-  }, [getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
+  }, [
+    getEntitiesBySphere,
+    getIdealizedMemoriesByProfileId,
+    getIdealizedMemoriesByEntityId,
+  ]);
 
   // Calculate distribution percentages (for segment sizes)
   const sphereDistribution = useMemo(() => {
-    const totalAllMoments = sphereData.relationships.totalMoments + 
-                           sphereData.career.totalMoments + 
-                           sphereData.family.totalMoments;
-    
+    const totalAllMoments =
+      sphereData.relationships.totalMoments +
+      sphereData.career.totalMoments +
+      sphereData.family.totalMoments;
+
     if (totalAllMoments === 0) {
       return {
         relationships: 33.33,
@@ -890,88 +985,102 @@ export default function SpheresScreen() {
     }
 
     return {
-      relationships: (sphereData.relationships.totalMoments / totalAllMoments) * 100,
+      relationships:
+        (sphereData.relationships.totalMoments / totalAllMoments) * 100,
       career: (sphereData.career.totalMoments / totalAllMoments) * 100,
       family: (sphereData.family.totalMoments / totalAllMoments) * 100,
     };
   }, [sphereData]);
 
   // Keep sphereScores for insights (sunny percentage)
-  const sphereScores = useMemo(() => ({
-    relationships: sphereData.relationships.sunnyPercentage,
-    career: sphereData.career.sunnyPercentage,
-    family: sphereData.family.sunnyPercentage,
-    friends: sphereData.friends.sunnyPercentage,
-    hobbies: sphereData.hobbies.sunnyPercentage,
-  }), [sphereData]);
+  const sphereScores = useMemo(
+    () => ({
+      relationships: sphereData.relationships.sunnyPercentage,
+      career: sphereData.career.sunnyPercentage,
+      family: sphereData.family.sunnyPercentage,
+      friends: sphereData.friends.sunnyPercentage,
+      hobbies: sphereData.hobbies.sunnyPercentage,
+    }),
+    [sphereData],
+  );
 
   // Calculate entity-level scores and generate detailed insights
   const insights = useMemo(() => {
-    const insightsList: { 
-      sphere: LifeSphere; 
-      message: string; 
-      priority: 'high' | 'medium' | 'low';
+    const insightsList: {
+      sphere: LifeSphere;
+      message: string;
+      priority: "high" | "medium" | "low";
       details?: { entityName: string; percentage: number; comparison?: string };
     }[] = [];
 
     // Helper to calculate entity score
-    const calculateEntityScore = (entityId: string, sphereType: LifeSphere): number => {
-      const memories = sphereType === 'relationships'
-        ? getIdealizedMemoriesByProfileId(entityId)
-        : getIdealizedMemoriesByEntityId(entityId, sphereType);
-      
+    const calculateEntityScore = (
+      entityId: string,
+      sphereType: LifeSphere,
+    ): number => {
+      const memories =
+        sphereType === "relationships"
+          ? getIdealizedMemoriesByProfileId(entityId)
+          : getIdealizedMemoriesByEntityId(entityId, sphereType);
+
       let totalClouds = 0;
       let totalSuns = 0;
-      
+
       memories.forEach((memory) => {
         totalClouds += (memory.hardTruths || []).length;
         totalSuns += (memory.goodFacts || []).length;
       });
-      
+
       const total = totalClouds + totalSuns;
       if (total === 0) return 0;
-      
+
       const percentage = (totalSuns / total) * 100;
       return Math.max(0, Math.min(100, isNaN(percentage) ? 0 : percentage));
     };
 
     // Relationships analysis
-    const relationshipsEntities = profiles.filter(p => 
-      p.relationshipStartDate || p.relationshipEndDate !== undefined
+    const relationshipsEntities = profiles.filter(
+      (p) => p.relationshipStartDate || p.relationshipEndDate !== undefined,
     );
     if (relationshipsEntities.length > 0) {
-      const currentRelationships = relationshipsEntities.filter(p => !p.relationshipEndDate);
-      const pastRelationships = relationshipsEntities.filter(p => p.relationshipEndDate);
-      
+      const currentRelationships = relationshipsEntities.filter(
+        (p) => !p.relationshipEndDate,
+      );
+      const pastRelationships = relationshipsEntities.filter(
+        (p) => p.relationshipEndDate,
+      );
+
       // Analyze current relationships
-      currentRelationships.forEach(profile => {
-        const score = calculateEntityScore(profile.id, 'relationships');
+      currentRelationships.forEach((profile) => {
+        const score = calculateEntityScore(profile.id, "relationships");
         // Only generate insights if there are memories and score is below 50%
         if (score > 0 && score < 50) {
           // Compare with past relationships that have memories
           const pastScoresWithData = pastRelationships
-            .map(p => calculateEntityScore(p.id, 'relationships'))
-            .filter(s => s > 0); // Only include past relationships with memories
-          
-          const avgPastScore = pastScoresWithData.length > 0 
-            ? pastScoresWithData.reduce((a, b) => a + b, 0) / pastScoresWithData.length 
-            : null;
-          
-          let messageKey = 'insights.relationships.current.low';
+            .map((p) => calculateEntityScore(p.id, "relationships"))
+            .filter((s) => s > 0); // Only include past relationships with memories
+
+          const avgPastScore =
+            pastScoresWithData.length > 0
+              ? pastScoresWithData.reduce((a, b) => a + b, 0) /
+                pastScoresWithData.length
+              : null;
+
+          let messageKey = "insights.relationships.current.low";
           let comparison: string | undefined = undefined;
-          
+
           if (avgPastScore !== null && avgPastScore < 50) {
             // Pattern detected - similar low scores across relationships
-            messageKey = 'insights.relationships.pattern.current';
+            messageKey = "insights.relationships.pattern.current";
             comparison = `This is similar to your past relationships (avg ${Math.round(avgPastScore)}% sunny).`;
           } else if (avgPastScore !== null) {
             comparison = `Your past relationships averaged ${Math.round(avgPastScore)}% sunny.`;
           }
-          
+
           insightsList.push({
-            sphere: 'relationships',
+            sphere: "relationships",
             message: messageKey,
-            priority: score < 30 ? 'high' : 'medium',
+            priority: score < 30 ? "high" : "medium",
             details: {
               entityName: profile.name,
               percentage: Math.round(score),
@@ -983,39 +1092,41 @@ export default function SpheresScreen() {
     }
 
     // Career analysis
-    const careerEntities = jobs.filter(j => j.startDate);
+    const careerEntities = jobs.filter((j) => j.startDate);
     if (careerEntities.length > 0) {
-      const currentJobs = careerEntities.filter(j => !j.endDate);
-      const pastJobs = careerEntities.filter(j => j.endDate);
-      
+      const currentJobs = careerEntities.filter((j) => !j.endDate);
+      const pastJobs = careerEntities.filter((j) => j.endDate);
+
       // Analyze current jobs
-      currentJobs.forEach(job => {
-        const score = calculateEntityScore(job.id, 'career');
+      currentJobs.forEach((job) => {
+        const score = calculateEntityScore(job.id, "career");
         // Only generate insights if there are memories and score is below 50%
         if (score > 0 && score < 50) {
           const pastScoresWithData = pastJobs
-            .map(j => calculateEntityScore(j.id, 'career'))
-            .filter(s => s > 0); // Only include past jobs with memories
-          
-          const avgPastScore = pastScoresWithData.length > 0 
-            ? pastScoresWithData.reduce((a, b) => a + b, 0) / pastScoresWithData.length 
-            : null;
-          
-          let messageKey = 'insights.career.current.low';
+            .map((j) => calculateEntityScore(j.id, "career"))
+            .filter((s) => s > 0); // Only include past jobs with memories
+
+          const avgPastScore =
+            pastScoresWithData.length > 0
+              ? pastScoresWithData.reduce((a, b) => a + b, 0) /
+                pastScoresWithData.length
+              : null;
+
+          let messageKey = "insights.career.current.low";
           let comparison: string | undefined = undefined;
-          
+
           if (avgPastScore !== null && avgPastScore < 50) {
             // Pattern detected - similar low scores across jobs
-            messageKey = 'insights.career.pattern.current';
+            messageKey = "insights.career.pattern.current";
             comparison = `This pattern is similar to your previous jobs (avg ${Math.round(avgPastScore)}% positive).`;
           } else if (avgPastScore !== null) {
             comparison = `Your previous jobs averaged ${Math.round(avgPastScore)}% positive moments.`;
           }
-          
+
           insightsList.push({
-            sphere: 'career',
+            sphere: "career",
             message: messageKey,
-            priority: score < 30 ? 'high' : 'medium',
+            priority: score < 30 ? "high" : "medium",
             details: {
               entityName: job.name,
               percentage: Math.round(score),
@@ -1029,30 +1140,34 @@ export default function SpheresScreen() {
     // Family analysis - compare all family members
     if (familyMembers.length > 1) {
       const familyScores = familyMembers
-        .map(member => ({
+        .map((member) => ({
           member,
-          score: calculateEntityScore(member.id, 'family'),
+          score: calculateEntityScore(member.id, "family"),
         }))
         .filter(({ score }) => score > 0); // Only include members with memories
-      
+
       if (familyScores.length > 1) {
-        const lowScoreMembers = familyScores.filter(({ score }) => score > 0 && score < 50);
-        const avgScore = familyScores.reduce((sum, { score }) => sum + score, 0) / familyScores.length;
-        
+        const lowScoreMembers = familyScores.filter(
+          ({ score }) => score > 0 && score < 50,
+        );
+        const avgScore =
+          familyScores.reduce((sum, { score }) => sum + score, 0) /
+          familyScores.length;
+
         lowScoreMembers.forEach(({ member, score }) => {
-          let messageKey = 'insights.family.member.low';
+          let messageKey = "insights.family.member.low";
           let comparison: string | undefined = undefined;
-          
+
           if (avgScore < 50) {
             // Pattern detected - similar low scores across family
-            messageKey = 'insights.family.pattern';
+            messageKey = "insights.family.pattern";
             comparison = `This is similar to other family relationships (avg ${Math.round(avgScore)}% positive).`;
           }
-          
+
           insightsList.push({
-            sphere: 'family',
+            sphere: "family",
             message: messageKey,
-            priority: score < 30 ? 'high' : 'medium',
+            priority: score < 30 ? "high" : "medium",
             details: {
               entityName: member.name,
               percentage: Math.round(score),
@@ -1060,12 +1175,16 @@ export default function SpheresScreen() {
             },
           });
         });
-      } else if (familyScores.length === 1 && familyScores[0].score > 0 && familyScores[0].score < 50) {
+      } else if (
+        familyScores.length === 1 &&
+        familyScores[0].score > 0 &&
+        familyScores[0].score < 50
+      ) {
         // Single family member with low score
         insightsList.push({
-          sphere: 'family',
-          message: 'insights.family.member.low',
-          priority: familyScores[0].score < 30 ? 'high' : 'medium',
+          sphere: "family",
+          message: "insights.family.member.low",
+          priority: familyScores[0].score < 30 ? "high" : "medium",
           details: {
             entityName: familyScores[0].member.name,
             percentage: Math.round(familyScores[0].score),
@@ -1075,511 +1194,540 @@ export default function SpheresScreen() {
     }
 
     return insightsList;
-  }, [profiles, jobs, familyMembers, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
+  }, [
+    profiles,
+    jobs,
+    familyMembers,
+    getIdealizedMemoriesByProfileId,
+    getIdealizedMemoriesByEntityId,
+  ]);
 
-  const styles = useMemo(() => StyleSheet.create({
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 16 * fontScale,
-      paddingTop: 20 * fontScale,
-      paddingBottom: 8 * fontScale,
-      marginTop: 70,
-    },
-    headerButton: {
-      width: 48 * fontScale,
-      height: 48 * fontScale,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    headerTitle: {
-      flex: 1,
-      textAlign: 'center',
-    },
-    content: {
-      flex: 1,
-      paddingHorizontal: 12 * fontScale,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingTop: 0, // Remove top padding to allow better centering
-      paddingBottom: 0, // Remove bottom padding to allow better centering
-    },
-    mainContentWrapper: {
-      width: '100%',
-      height: '100%',
-      justifyContent: 'center',
-      alignItems: 'center',
-      position: 'relative',
-      marginBottom:'12%',
-    },
-    mainContentContainer: {
-      width: '100%',
-      alignItems: 'center',
-      justifyContent: 'center',
-      position: 'relative',
-    },
-    sphereGrid: {
-      width: '100%',
-      height: '100%',
-      position: 'relative',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    sphereCardPositioned: {
-      position: 'absolute',
-    },
-    sphereCard: {
-      minWidth: 100 * fontScale,
-      aspectRatio: 1,
-      borderRadius: 12 * fontScale,
-      overflow: 'hidden', // Required for gradient to respect borderRadius
-      borderWidth: 1,
-      borderColor: colorScheme === 'dark'
-        ? 'rgba(255, 255, 255, 0.1)' // Subtle border with low opacity
-        : 'rgba(125, 211, 252, 0.4)',
-      // Subtle elevation shadow
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.15,
-      shadowRadius: 4,
-      elevation: 3,
-    },
-    sphereCardContent: {
-      flex: 1,
-      paddingHorizontal: 8 * fontScale,
-      paddingVertical: 12 * fontScale,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6 * fontScale,
-    },
-    sphereCardActive: {
-      borderColor: colors.primary,
-      borderWidth: 2,
-    },
-    sphereIcon: {
-      marginBottom: 4 * fontScale,
-    },
-    sphereLabel: {
-      textAlign: 'center',
-      fontSize: 14 * fontScale, // Increased from 11
-    },
-    sphereCount: {
-      textAlign: 'center',
-      fontSize: 10 * fontScale,
-      color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.8)' : '#333333', // Darker color for better contrast in light mode
-    },
-    insightsButtonContainer: {
-      marginTop: 0,
-      borderRadius: 16 * fontScale,
-      overflow: 'hidden',
-      shadowColor: '#8b5cf6',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.3,
-      shadowRadius: 12,
-      elevation: 10,
-      width: (Dimensions.get('window').width - 48 * fontScale - 32 * fontScale) / 2, // Match sphere card width
-      minWidth: 100 * fontScale,
-      maxWidth: 180 * fontScale,
-      flexShrink: 0,
-    },
-    insightsButtonContainerCentered: {
-      position: 'absolute',
-      borderRadius: 24 * fontScale, // Circular - reduced from 30
-      width: 48 * fontScale, // Reduced from 60
-      height: 48 * fontScale, // Reduced from 60
-      zIndex: 10,
-      // Shadow/elevation effect
-      shadowColor: '#8b5cf6',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.6,
-      shadowRadius: 20,
-      elevation: 12,
-      // Border for additional visual depth
-      borderWidth: 3,
-      borderColor: 'rgba(255, 255, 255, 0.3)',
-    },
-    insightsButtonGradientCircular: {
-      width: '100%',
-      height: '100%',
-      borderRadius: 24 * fontScale, // Reduced from 30 to match container
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden', // Keep gradient circular
-    },
-    insightsIconContainerCircular: {
-      position: 'relative',
-      width: '100%',
-      height: '100%',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    insightsButtonGradient: {
-      borderRadius: 16 * fontScale,
-      padding: 14 * fontScale,
-    },
-    insightsButtonContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12 * fontScale,
-            width: '100%',
-
-    },
-    insightsIconContainer: {
-      position: 'relative',
-      width: 48 * fontScale,
-      height: 48 * fontScale,
-      borderRadius: 24 * fontScale,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    sparkleIcon: {
-      position: 'absolute',
-      top: -4,
-      right: -4,
-    },
-    insightsTextContainer: {
-      flex: 1,
-      gap: 2 * fontScale,
-    },
-    insightsButtonTitle: {
-      color: '#ffffff',
-      fontWeight: '700',
-    },
-    insightsButtonSubtitle: {
-      color: 'rgba(255, 255, 255, 0.9)',
-      opacity: 0.9,
-    },
-    entityList: {
-      gap: 12 * fontScale,
-    },
-    entityCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 16 * fontScale,
-      borderRadius: 12 * fontScale,
-      backgroundColor: colorScheme === 'dark'
-        ? 'rgba(255, 255, 255, 0.05)'
-        : 'rgba(0, 0, 0, 0.05)',
-      gap: 12 * fontScale,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.15,
-      shadowRadius: 4,
-      elevation: 3,
-    },
-    entityImage: {
-      width: 48 * fontScale,
-      height: 48 * fontScale,
-      borderRadius: 24 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? Colors.dark.surfaceElevated1 // Use elevation-based surface color
-        : 'rgba(125, 211, 252, 0.3)',
-    },
-    entityInfo: {
-      flex: 1,
-      gap: 4 * fontScale,
-    },
-    emptyState: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 32 * fontScale,
-      gap: 16 * fontScale,
-    },
-    emptyIcon: {
-      width: 80 * fontScale * iconScale,
-      height: 80 * fontScale * iconScale,
-      borderRadius: 40 * fontScale * iconScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? Colors.dark.surfaceElevated1 // Use elevation-based surface color
-        : 'rgba(125, 211, 252, 0.3)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    iconContainer: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 24 * fontScale,
-    },
-    addButton: {
-      marginTop: 8 * fontScale,
-      paddingHorizontal: 24 * fontScale,
-      paddingVertical: 12 * fontScale,
-      borderRadius: 8 * fontScale,
-      backgroundColor: colors.primary,
-    },
-    loadingContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    listContent: {
-      padding: 16 * fontScale,
-      paddingBottom: 100 * fontScale,
-      gap: 16 * fontScale,
-      alignItems: 'center',
-      backgroundColor: 'transparent', // Ensure transparent so gradient shows through
-    },
-    listContentWrapper: {
-      maxWidth: maxContentWidth as any,
-      width: '100%',
-      alignSelf: 'center',
-      backgroundColor: 'transparent', // Ensure transparent so gradient shows through
-      gap: 12 * fontScale, // Add gap between list items
-    },
-    fabContainer: {
-      position: 'absolute',
-      bottom: 26 * fontScale,
-      right: 16 * fontScale,
-      zIndex: 10,
-    },
-    fabButton: {
-      width: 56 * fontScale,
-      height: 56 * fontScale,
-      borderRadius: 28 * fontScale,
-      backgroundColor: colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 8,
-    },
-    scrollContent: {
-      flexGrow: 1,
-      justifyContent: 'center',
-      maxWidth: maxContentWidth as any,
-      alignSelf: 'center',
-      width: '100%',
-      paddingHorizontal: 16 * fontScale,
-      backgroundColor: 'transparent', // Ensure transparent so gradient shows through
-    },
-    textContainer: {
-      alignItems: 'center',
-      gap: 8 * fontScale,
-      maxWidth: 480 * fontScale,
-    },
-    heading: {
-      textAlign: 'center',
-    },
-    description: {
-      textAlign: 'center',
-      maxWidth: 480 * fontScale,
-    },
-    button: {
-      width: '100%',
-      minWidth: 84 * fontScale,
-      maxWidth: 480 * fontScale,
-      height: 48 * fontScale,
-      borderRadius: 8 * fontScale,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 16 * fontScale,
-      marginTop: 32 * fontScale,
-    },
-    buttonText: {},
-    wheelContainer: {
-      marginBottom: 32 * fontScale,
-      padding: 20 * fontScale,
-      borderRadius: 16 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 255, 255, 0.05)' 
-        : 'rgba(0, 0, 0, 0.05)',
-    },
-    wheelTitle: {
-      textAlign: 'center',
-      marginBottom: 8 * fontScale,
-    },
-    wheelSubtitle: {
-      textAlign: 'center',
-      opacity: 0.7,
-      marginBottom: 24 * fontScale,
-    },
-    wheelWrapper: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginVertical: 20 * fontScale,
-    },
-    scoresContainer: {
-      marginTop: 24 * fontScale,
-      gap: 16 * fontScale,
-    },
-    scoreItem: {
-      marginBottom: 12 * fontScale,
-      borderRadius: 12 * fontScale,
-      padding: 12 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 255, 255, 0.03)' 
-        : 'rgba(0, 0, 0, 0.03)',
-    },
-    scoreRowTouchable: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12 * fontScale,
-      marginBottom: 8 * fontScale,
-    },
-    scoreRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12 * fontScale,
-      marginBottom: 8 * fontScale,
-    },
-    scoreLabel: {
-      flex: 1,
-    },
-    scoreValue: {
-      minWidth: 50 * fontScale,
-      textAlign: 'right',
-    },
-    scoreBarContainer: {
-      height: 6 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 255, 255, 0.1)' 
-        : 'rgba(0, 0, 0, 0.1)',
-      borderRadius: 3 * fontScale,
-      overflow: 'hidden',
-    },
-    scoreBar: {
-      height: '100%',
-      borderRadius: 3 * fontScale,
-    },
-    insightsContainer: {
-      marginTop: 32 * fontScale,
-      gap: 16 * fontScale,
-    },
-    insightsTitle: {
-      marginBottom: 12 * fontScale,
-    },
-    insightItem: {
-      padding: 16 * fontScale,
-      borderRadius: 12 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 255, 255, 0.03)' 
-        : 'rgba(0, 0, 0, 0.03)',
-      borderLeftWidth: 4,
-      marginBottom: 12 * fontScale,
-    },
-    insightHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8 * fontScale,
-      marginBottom: 8 * fontScale,
-    },
-    insightSphere: {
-      flex: 1,
-    },
-    insightMessage: {
-      opacity: 0.8,
-      lineHeight: 20 * fontScale,
-    },
-    insightPercentage: {
-      marginTop: 4 * fontScale,
-      fontWeight: '600',
-    },
-    comparisonContainer: {
-      marginTop: 16 * fontScale,
-      paddingTop: 16 * fontScale,
-      borderTopWidth: 1,
-      borderTopColor: colorScheme === 'dark' 
-        ? 'rgba(255, 255, 255, 0.1)' 
-        : 'rgba(0, 0, 0, 0.1)',
-    },
-    comparisonSection: {
-      marginBottom: 16 * fontScale,
-    },
-    comparisonSectionTitle: {
-      marginBottom: 12 * fontScale,
-      opacity: 0.8,
-    },
-    entityComparisonItem: {
-      marginBottom: 12 * fontScale,
-    },
-    entityComparisonName: {
-      marginBottom: 6 * fontScale,
-      opacity: 0.9,
-    },
-    entityComparisonRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8 * fontScale,
-    },
-    entityScoreBarContainer: {
-      flex: 1,
-      height: 4 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 255, 255, 0.1)' 
-        : 'rgba(0, 0, 0, 0.1)',
-      borderRadius: 2 * fontScale,
-      overflow: 'hidden',
-    },
-    entityScoreBar: {
-      height: '100%',
-      borderRadius: 2 * fontScale,
-    },
-    entityScoreValue: {
-      minWidth: 40 * fontScale,
-      textAlign: 'right',
-    },
-    suggestionContainer: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 8 * fontScale,
-      marginTop: 16 * fontScale,
-      padding: 12 * fontScale,
-      borderRadius: 8 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? Colors.dark.surfaceElevated1 // Use elevation-based surface color
-        : 'rgba(125, 211, 252, 0.2)',
-    },
-    suggestionText: {
-      flex: 1,
-      opacity: 0.9,
-      lineHeight: 20 * fontScale,
-    },
-    percentageExplanation: {
-      marginTop: 16 * fontScale,
-      marginBottom: 8 * fontScale,
-      paddingHorizontal: 20 * fontScale,
-      paddingVertical: 12 * fontScale,
-      backgroundColor: colorScheme === 'dark' 
-        ? 'rgba(255, 255, 255, 0.05)' 
-        : 'rgba(0, 0, 0, 0.05)',
-      borderRadius: 8 * fontScale,
-    },
-    percentageExplanationText: {
-      opacity: 0.7,
-      lineHeight: 18 * fontScale,
-      textAlign: 'center',
-    },
-  }), [fontScale, iconScale, colorScheme, colors.primary, colors.primaryLight, colors.text, colors.icon, colors.error, maxContentWidth]);
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        header: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingHorizontal: 16 * fontScale,
+          paddingTop: 20 * fontScale,
+          paddingBottom: 8 * fontScale,
+          marginTop: 70,
+        },
+        headerButton: {
+          width: 48 * fontScale,
+          height: 48 * fontScale,
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        headerTitle: {
+          flex: 1,
+          textAlign: "center",
+        },
+        content: {
+          flex: 1,
+          paddingHorizontal: 12 * fontScale,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingTop: 0, // Remove top padding to allow better centering
+          paddingBottom: 0, // Remove bottom padding to allow better centering
+        },
+        mainContentWrapper: {
+          width: "100%",
+          height: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+          position: "relative",
+          marginBottom: "12%",
+        },
+        mainContentContainer: {
+          width: "100%",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "relative",
+        },
+        sphereGrid: {
+          width: "100%",
+          height: "100%",
+          position: "relative",
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        sphereCardPositioned: {
+          position: "absolute",
+        },
+        sphereCard: {
+          minWidth: 100 * fontScale,
+          aspectRatio: 1,
+          borderRadius: 12 * fontScale,
+          overflow: "hidden", // Required for gradient to respect borderRadius
+          borderWidth: 1,
+          borderColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.1)" // Subtle border with low opacity
+              : "rgba(125, 211, 252, 0.4)",
+          // Subtle elevation shadow
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: colorScheme === "dark" ? 0.3 : 0.15,
+          shadowRadius: 4,
+          elevation: 3,
+        },
+        sphereCardContent: {
+          flex: 1,
+          paddingHorizontal: 8 * fontScale,
+          paddingVertical: 12 * fontScale,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6 * fontScale,
+        },
+        sphereCardActive: {
+          borderColor: colors.primary,
+          borderWidth: 2,
+        },
+        sphereIcon: {
+          marginBottom: 4 * fontScale,
+        },
+        sphereLabel: {
+          textAlign: "center",
+          fontSize: 14 * fontScale, // Increased from 11
+        },
+        sphereCount: {
+          textAlign: "center",
+          fontSize: 10 * fontScale,
+          color:
+            colorScheme === "dark" ? "rgba(255, 255, 255, 0.8)" : "#333333", // Darker color for better contrast in light mode
+        },
+        insightsButtonContainer: {
+          marginTop: 0,
+          borderRadius: 16 * fontScale,
+          overflow: "hidden",
+          shadowColor: "#8b5cf6",
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.3,
+          shadowRadius: 12,
+          elevation: 10,
+          width:
+            (Dimensions.get("window").width - 48 * fontScale - 32 * fontScale) /
+            2, // Match sphere card width
+          minWidth: 100 * fontScale,
+          maxWidth: 180 * fontScale,
+          flexShrink: 0,
+        },
+        insightsButtonContainerCentered: {
+          position: "absolute",
+          borderRadius: 24 * fontScale, // Circular - reduced from 30
+          width: 48 * fontScale, // Reduced from 60
+          height: 48 * fontScale, // Reduced from 60
+          zIndex: 10,
+          // Shadow/elevation effect
+          shadowColor: "#8b5cf6",
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.6,
+          shadowRadius: 20,
+          elevation: 12,
+          // Border for additional visual depth
+          borderWidth: 3,
+          borderColor: "rgba(255, 255, 255, 0.3)",
+        },
+        insightsButtonGradientCircular: {
+          width: "100%",
+          height: "100%",
+          borderRadius: 24 * fontScale, // Reduced from 30 to match container
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden", // Keep gradient circular
+        },
+        insightsIconContainerCircular: {
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        insightsButtonGradient: {
+          borderRadius: 16 * fontScale,
+          padding: 14 * fontScale,
+        },
+        insightsButtonContent: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12 * fontScale,
+          width: "100%",
+        },
+        insightsIconContainer: {
+          position: "relative",
+          width: 48 * fontScale,
+          height: 48 * fontScale,
+          borderRadius: 24 * fontScale,
+          backgroundColor: "rgba(255, 255, 255, 0.2)",
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        insightsTextContainer: {
+          flex: 1,
+          gap: 2 * fontScale,
+        },
+        insightsButtonTitle: {
+          color: "#ffffff",
+          fontWeight: "700",
+        },
+        insightsButtonSubtitle: {
+          color: "rgba(255, 255, 255, 0.9)",
+          opacity: 0.9,
+        },
+        entityList: {
+          gap: 12 * fontScale,
+        },
+        entityCard: {
+          flexDirection: "row",
+          alignItems: "center",
+          padding: 16 * fontScale,
+          borderRadius: 12 * fontScale,
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.05)"
+              : "rgba(0, 0, 0, 0.05)",
+          gap: 12 * fontScale,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: colorScheme === "dark" ? 0.3 : 0.15,
+          shadowRadius: 4,
+          elevation: 3,
+        },
+        entityImage: {
+          width: 48 * fontScale,
+          height: 48 * fontScale,
+          borderRadius: 24 * fontScale,
+          backgroundColor:
+            colorScheme === "dark"
+              ? Colors.dark.surfaceElevated1 // Use elevation-based surface color
+              : "rgba(125, 211, 252, 0.3)",
+        },
+        entityInfo: {
+          flex: 1,
+          gap: 4 * fontScale,
+        },
+        emptyState: {
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 32 * fontScale,
+          gap: 16 * fontScale,
+        },
+        emptyIcon: {
+          width: 80 * fontScale * iconScale,
+          height: 80 * fontScale * iconScale,
+          borderRadius: 40 * fontScale * iconScale,
+          backgroundColor:
+            colorScheme === "dark"
+              ? Colors.dark.surfaceElevated1 // Use elevation-based surface color
+              : "rgba(125, 211, 252, 0.3)",
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        iconContainer: {
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 24 * fontScale,
+        },
+        addButton: {
+          marginTop: 8 * fontScale,
+          paddingHorizontal: 24 * fontScale,
+          paddingVertical: 12 * fontScale,
+          borderRadius: 8 * fontScale,
+          backgroundColor: colors.primary,
+        },
+        loadingContainer: {
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        listContent: {
+          padding: 16 * fontScale,
+          paddingBottom: 100 * fontScale,
+          gap: 16 * fontScale,
+          alignItems: "center",
+          backgroundColor: "transparent", // Ensure transparent so gradient shows through
+        },
+        listContentWrapper: {
+          maxWidth: maxContentWidth as any,
+          width: "100%",
+          alignSelf: "center",
+          backgroundColor: "transparent", // Ensure transparent so gradient shows through
+          gap: 12 * fontScale, // Add gap between list items
+        },
+        fabContainer: {
+          position: "absolute",
+          bottom: 26 * fontScale,
+          right: 16 * fontScale,
+          zIndex: 10,
+        },
+        fabButton: {
+          width: 56 * fontScale,
+          height: 56 * fontScale,
+          borderRadius: 28 * fontScale,
+          backgroundColor: colors.primary,
+          alignItems: "center",
+          justifyContent: "center",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 8,
+        },
+        scrollContent: {
+          flexGrow: 1,
+          justifyContent: "center",
+          maxWidth: maxContentWidth as any,
+          alignSelf: "center",
+          width: "100%",
+          paddingHorizontal: 16 * fontScale,
+          backgroundColor: "transparent", // Ensure transparent so gradient shows through
+        },
+        textContainer: {
+          alignItems: "center",
+          gap: 8 * fontScale,
+          maxWidth: 480 * fontScale,
+        },
+        heading: {
+          textAlign: "center",
+        },
+        description: {
+          textAlign: "center",
+          maxWidth: 480 * fontScale,
+        },
+        button: {
+          width: "100%",
+          minWidth: 84 * fontScale,
+          maxWidth: 480 * fontScale,
+          height: 48 * fontScale,
+          borderRadius: 8 * fontScale,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingHorizontal: 16 * fontScale,
+          marginTop: 32 * fontScale,
+        },
+        buttonText: {},
+        wheelContainer: {
+          marginBottom: 32 * fontScale,
+          padding: 20 * fontScale,
+          borderRadius: 16 * fontScale,
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.05)"
+              : "rgba(0, 0, 0, 0.05)",
+        },
+        wheelTitle: {
+          textAlign: "center",
+          marginBottom: 8 * fontScale,
+        },
+        wheelSubtitle: {
+          textAlign: "center",
+          opacity: 0.7,
+          marginBottom: 24 * fontScale,
+        },
+        wheelWrapper: {
+          alignItems: "center",
+          justifyContent: "center",
+          marginVertical: 20 * fontScale,
+        },
+        scoresContainer: {
+          marginTop: 24 * fontScale,
+          gap: 16 * fontScale,
+        },
+        scoreItem: {
+          marginBottom: 12 * fontScale,
+          borderRadius: 12 * fontScale,
+          padding: 12 * fontScale,
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.03)"
+              : "rgba(0, 0, 0, 0.03)",
+        },
+        scoreRowTouchable: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12 * fontScale,
+          marginBottom: 8 * fontScale,
+        },
+        scoreRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12 * fontScale,
+          marginBottom: 8 * fontScale,
+        },
+        scoreLabel: {
+          flex: 1,
+        },
+        scoreValue: {
+          minWidth: 50 * fontScale,
+          textAlign: "right",
+        },
+        scoreBarContainer: {
+          height: 6 * fontScale,
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(0, 0, 0, 0.1)",
+          borderRadius: 3 * fontScale,
+          overflow: "hidden",
+        },
+        scoreBar: {
+          height: "100%",
+          borderRadius: 3 * fontScale,
+        },
+        insightsContainer: {
+          marginTop: 32 * fontScale,
+          gap: 16 * fontScale,
+        },
+        insightsTitle: {
+          marginBottom: 12 * fontScale,
+        },
+        insightItem: {
+          padding: 16 * fontScale,
+          borderRadius: 12 * fontScale,
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.03)"
+              : "rgba(0, 0, 0, 0.03)",
+          borderLeftWidth: 4,
+          marginBottom: 12 * fontScale,
+        },
+        insightHeader: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8 * fontScale,
+          marginBottom: 8 * fontScale,
+        },
+        insightSphere: {
+          flex: 1,
+        },
+        insightMessage: {
+          opacity: 0.8,
+          lineHeight: 20 * fontScale,
+        },
+        insightPercentage: {
+          marginTop: 4 * fontScale,
+          fontWeight: "600",
+        },
+        comparisonContainer: {
+          marginTop: 16 * fontScale,
+          paddingTop: 16 * fontScale,
+          borderTopWidth: 1,
+          borderTopColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(0, 0, 0, 0.1)",
+        },
+        comparisonSection: {
+          marginBottom: 16 * fontScale,
+        },
+        comparisonSectionTitle: {
+          marginBottom: 12 * fontScale,
+          opacity: 0.8,
+        },
+        entityComparisonItem: {
+          marginBottom: 12 * fontScale,
+        },
+        entityComparisonName: {
+          marginBottom: 6 * fontScale,
+          opacity: 0.9,
+        },
+        entityComparisonRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8 * fontScale,
+        },
+        entityScoreBarContainer: {
+          flex: 1,
+          height: 4 * fontScale,
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(0, 0, 0, 0.1)",
+          borderRadius: 2 * fontScale,
+          overflow: "hidden",
+        },
+        entityScoreBar: {
+          height: "100%",
+          borderRadius: 2 * fontScale,
+        },
+        entityScoreValue: {
+          minWidth: 40 * fontScale,
+          textAlign: "right",
+        },
+        suggestionContainer: {
+          flexDirection: "row",
+          alignItems: "flex-start",
+          gap: 8 * fontScale,
+          marginTop: 16 * fontScale,
+          padding: 12 * fontScale,
+          borderRadius: 8 * fontScale,
+          backgroundColor:
+            colorScheme === "dark"
+              ? Colors.dark.surfaceElevated1 // Use elevation-based surface color
+              : "rgba(125, 211, 252, 0.2)",
+        },
+        suggestionText: {
+          flex: 1,
+          opacity: 0.9,
+          lineHeight: 20 * fontScale,
+        },
+        percentageExplanation: {
+          marginTop: 16 * fontScale,
+          marginBottom: 8 * fontScale,
+          paddingHorizontal: 20 * fontScale,
+          paddingVertical: 12 * fontScale,
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.05)"
+              : "rgba(0, 0, 0, 0.05)",
+          borderRadius: 8 * fontScale,
+        },
+        percentageExplanationText: {
+          opacity: 0.7,
+          lineHeight: 18 * fontScale,
+          textAlign: "center",
+        },
+      }),
+    [
+      fontScale,
+      iconScale,
+      colorScheme,
+      colors.primary,
+      colors.primaryLight,
+      colors.text,
+      colors.icon,
+      colors.error,
+      maxContentWidth,
+    ],
+  );
 
   const handleSpherePress = (sphere: LifeSphere) => {
     // Check if the sphere has any moments (floating things) - this determines if it's visually empty
     const hasMoments = sphereData[sphere].totalMoments > 0;
-    
+
     // Check if sphere has entities
     let hasEntities = false;
     switch (sphere) {
-      case 'relationships':
+      case "relationships":
         hasEntities = profiles.length > 0;
         break;
-      case 'career':
+      case "career":
         hasEntities = jobs.length > 0;
         break;
-      case 'family':
+      case "family":
         hasEntities = familyMembers.length > 0;
         break;
-      case 'friends':
+      case "friends":
         hasEntities = friends.length > 0;
         break;
-      case 'hobbies':
+      case "hobbies":
         hasEntities = hobbies.length > 0;
         break;
     }
-    
+
     // Determine the new selected sphere
     let newSelectedSphere: LifeSphere | null;
     if (!hasMoments) {
@@ -1587,114 +1735,116 @@ export default function SpheresScreen() {
     } else {
       newSelectedSphere = selectedSphere === sphere ? null : sphere;
     }
-    
+
     // Update state and URL params together to keep them in sync
     setSelectedSphere(newSelectedSphere);
     prevParamsRef.current = newSelectedSphere || undefined;
-    
+
     // Update URL params to match state
     if (newSelectedSphere) {
       router.push({
-        pathname: '/(tabs)/spheres' as const,
+        pathname: "/(tabs)/spheres" as const,
         params: { selectedSphere: newSelectedSphere },
       });
     } else {
       router.push({
-        pathname: '/(tabs)/spheres' as const,
+        pathname: "/(tabs)/spheres" as const,
       });
     }
   };
 
   const handleEntityPress = (entity: ExProfile | Job, sphere: LifeSphere) => {
-    if (sphere === 'relationships') {
+    if (sphere === "relationships") {
       // For relationships, navigate to home screen with selected sphere
       router.push({
-        pathname: '/(tabs)' as const,
-        params: { sphere: 'relationships', entityId: entity.id },
+        pathname: "/(tabs)" as const,
+        params: { sphere: "relationships", entityId: entity.id },
       });
     } else {
       // For other spheres, navigate to home screen
       router.push({
-        pathname: '/(tabs)' as const,
+        pathname: "/(tabs)" as const,
         params: { sphere, entityId: entity.id },
       });
     }
   };
-  
+
   const handleMorePress = (profile: ExProfile) => {
-      router.push({
-        pathname: '/edit-profile',
+    router.push({
+      pathname: "/edit-profile",
       params: { profileId: profile.id },
     });
   };
-
 
   const handleAddEntity = (sphere: LifeSphere) => {
     if (!checkSubscriptionLimit(sphere)) {
       showSubscriptionPrompt(sphere);
       return;
     }
-    
+
     switch (sphere) {
-      case 'relationships':
-        router.push('/add-ex-profile');
+      case "relationships":
+        router.push("/add-ex-profile");
         break;
-      case 'career':
-        router.push('/add-job');
+      case "career":
+        router.push("/add-job");
         break;
-      case 'family':
-        router.push('/add-family-member');
+      case "family":
+        router.push("/add-family-member");
         break;
-      case 'friends':
-        router.push('/add-friend');
+      case "friends":
+        router.push("/add-friend");
         break;
-      case 'hobbies':
-        router.push('/add-hobby');
+      case "hobbies":
+        router.push("/add-hobby");
         break;
     }
   };
 
   // Define these before the loading check to use in hooks
-  const selectedSphereData = selectedSphere ? spheres.find(s => s.type === selectedSphere) : null;
+  const selectedSphereData = selectedSphere
+    ? spheres.find((s) => s.type === selectedSphere)
+    : null;
   // Use the actual data sources directly instead of relying on selectedSphereData
-  const relationshipsProfiles = selectedSphere === 'relationships' ? profiles : [];
-  const careerJobs = selectedSphere === 'career' ? jobs : [];
-  const familyMembersList = selectedSphere === 'family' ? familyMembers : [];
-  const friendsList = selectedSphere === 'friends' ? friends : [];
-  const hobbiesList = selectedSphere === 'hobbies' ? hobbies : [];
-  
+  const relationshipsProfiles =
+    selectedSphere === "relationships" ? profiles : [];
+  const careerJobs = selectedSphere === "career" ? jobs : [];
+  const familyMembersList = selectedSphere === "family" ? familyMembers : [];
+  const friendsList = selectedSphere === "friends" ? friends : [];
+  const hobbiesList = selectedSphere === "hobbies" ? hobbies : [];
+
   // Check if any entity has at least one memory - moved before loading check
   const hasAnyRelationshipMemory = useMemo(() => {
-    return relationshipsProfiles.some(profile => {
+    return relationshipsProfiles.some((profile) => {
       const memories = getIdealizedMemoriesByProfileId(profile.id);
       return memories.length > 0;
     });
   }, [relationshipsProfiles, getIdealizedMemoriesByProfileId]);
-  
+
   const hasAnyCareerMemory = useMemo(() => {
-    return careerJobs.some(job => {
-      const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
+    return careerJobs.some((job) => {
+      const memories = getIdealizedMemoriesByEntityId(job.id, "career");
       return memories.length > 0;
     });
   }, [careerJobs, getIdealizedMemoriesByEntityId]);
-  
+
   const hasAnyFamilyMemory = useMemo(() => {
-    return familyMembersList.some(member => {
-      const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
+    return familyMembersList.some((member) => {
+      const memories = getIdealizedMemoriesByEntityId(member.id, "family");
       return memories.length > 0;
     });
   }, [familyMembersList, getIdealizedMemoriesByEntityId]);
 
   const hasAnyFriendMemory = useMemo(() => {
-    return friendsList.some(friend => {
-      const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
+    return friendsList.some((friend) => {
+      const memories = getIdealizedMemoriesByEntityId(friend.id, "friends");
       return memories.length > 0;
     });
   }, [friendsList, getIdealizedMemoriesByEntityId]);
 
   const hasAnyHobbyMemory = useMemo(() => {
-    return hobbiesList.some(hobby => {
-      const memories = getIdealizedMemoriesByEntityId(hobby.id, 'hobbies');
+    return hobbiesList.some((hobby) => {
+      const memories = getIdealizedMemoriesByEntityId(hobby.id, "hobbies");
       return memories.length > 0;
     });
   }, [hobbiesList, getIdealizedMemoriesByEntityId]);
@@ -1713,21 +1863,20 @@ export default function SpheresScreen() {
       </TabScreenContainer>
     );
   }
-  
+
   const handleJobMorePress = (job: Job) => {
-      router.push({
-        pathname: '/edit-job',
-      params: { 
+    router.push({
+      pathname: "/edit-job",
+      params: {
         jobId: job.id,
-        returnTo: 'spheres',
-        returnSphere: 'career', // Preserve the selected sphere
+        returnTo: "spheres",
+        returnSphere: "career", // Preserve the selected sphere
       },
     });
   };
-  
 
   // Show relationships profiles view (ex-profiles content) when relationships sphere is selected
-  if (selectedSphere === 'relationships') {
+  if (selectedSphere === "relationships") {
     return (
       <TabScreenContainer>
         <View style={styles.header}>
@@ -1735,48 +1884,68 @@ export default function SpheresScreen() {
             onPress={() => clearSelectedSphere()}
             style={styles.headerButton}
           >
-            <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
+            <MaterialIcons
+              name="arrow-back"
+              size={24 * fontScale}
+              color={colors.text}
+            />
           </Pressable>
-          <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-            {t('spheres.relationships')}
+          <ThemedText
+            size="l"
+            weight="bold"
+            letterSpacing="s"
+            style={styles.headerTitle}
+          >
+            {t("spheres.relationships")}
           </ThemedText>
-            <View style={styles.headerButton} />
+          <View style={styles.headerButton} />
         </View>
 
         {profiles.length === 0 ? (
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.content]}
             showsVerticalScrollIndicator={false}
-            style={{ backgroundColor: 'transparent' }}
+            style={{ backgroundColor: "transparent" }}
           >
             <View style={styles.iconContainer}>
               <MaterialIcons
                 name="psychology"
                 size={100 * fontScale * iconScale}
-                color={colorScheme === 'dark' ? colors.primaryLight : colors.primary}
+                color={
+                  colorScheme === "dark" ? colors.primaryLight : colors.primary
+                }
               />
             </View>
             <View style={styles.textContainer}>
-              <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.heading}>
-                {t('profile.emptyState.title')}
+              <ThemedText
+                size="l"
+                weight="bold"
+                letterSpacing="s"
+                style={styles.heading}
+              >
+                {t("profile.emptyState.title")}
               </ThemedText>
               <ThemedText size="sm" weight="normal" style={styles.description}>
-                {t('profile.emptyState.description')}
+                {t("profile.emptyState.description")}
               </ThemedText>
             </View>
             <TouchableOpacity
               style={[styles.button, { backgroundColor: colors.primary }]}
               activeOpacity={0.8}
               onPress={() => {
-                if (!checkSubscriptionLimit('relationships')) {
-                  showSubscriptionPrompt('relationships');
+                if (!checkSubscriptionLimit("relationships")) {
+                  showSubscriptionPrompt("relationships");
                 } else {
-                  router.push('/add-ex-profile');
+                  router.push("/add-ex-profile");
                 }
               }}
             >
-              <ThemedText weight="bold" letterSpacing="l" style={styles.buttonText}>
-                {t('profile.emptyState.button')}
+              <ThemedText
+                weight="bold"
+                letterSpacing="l"
+                style={styles.buttonText}
+              >
+                {t("profile.emptyState.button")}
               </ThemedText>
             </TouchableOpacity>
           </ScrollView>
@@ -1785,7 +1954,7 @@ export default function SpheresScreen() {
             <ScrollView
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
-              style={{ backgroundColor: 'transparent' }}
+              style={{ backgroundColor: "transparent" }}
             >
               <View style={styles.listContentWrapper}>
                 {relationshipsProfiles.map((profile) => (
@@ -1801,21 +1970,24 @@ export default function SpheresScreen() {
             <View style={styles.fabContainer}>
               <TouchableOpacity
                 style={styles.fabButton}
-                onPress={() => handleAddEntity('relationships')}
+                onPress={() => handleAddEntity("relationships")}
                 activeOpacity={0.8}
               >
-                <MaterialIcons name="add" size={24 * fontScale} color="#ffffff" />
+                <MaterialIcons
+                  name="add"
+                  size={24 * fontScale}
+                  color="#ffffff"
+                />
               </TouchableOpacity>
             </View>
           </>
         )}
-
       </TabScreenContainer>
     );
   }
 
   // Show career jobs view when career sphere is selected
-  if (selectedSphere === 'career') {
+  if (selectedSphere === "career") {
     return (
       <TabScreenContainer>
         <View style={styles.header}>
@@ -1823,42 +1995,62 @@ export default function SpheresScreen() {
             onPress={() => clearSelectedSphere()}
             style={styles.headerButton}
           >
-            <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
+            <MaterialIcons
+              name="arrow-back"
+              size={24 * fontScale}
+              color={colors.text}
+            />
           </Pressable>
-          <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-            {t('spheres.career')}
+          <ThemedText
+            size="l"
+            weight="bold"
+            letterSpacing="s"
+            style={styles.headerTitle}
+          >
+            {t("spheres.career")}
           </ThemedText>
-            <View style={styles.headerButton} />
+          <View style={styles.headerButton} />
         </View>
 
-        {(!jobs || !Array.isArray(jobs) || jobs.length === 0) ? (
+        {!jobs || !Array.isArray(jobs) || jobs.length === 0 ? (
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.content]}
             showsVerticalScrollIndicator={false}
-            style={{ backgroundColor: 'transparent' }}
+            style={{ backgroundColor: "transparent" }}
           >
             <View style={styles.iconContainer}>
               <MaterialIcons
                 name="work"
                 size={100 * fontScale * iconScale}
-                color={colorScheme === 'dark' ? colors.primaryLight : colors.primary}
+                color={
+                  colorScheme === "dark" ? colors.primaryLight : colors.primary
+                }
               />
             </View>
             <View style={styles.textContainer}>
-              <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.heading}>
-                {t('job.jobEmptyState.title')}
+              <ThemedText
+                size="l"
+                weight="bold"
+                letterSpacing="s"
+                style={styles.heading}
+              >
+                {t("job.jobEmptyState.title")}
               </ThemedText>
               <ThemedText size="sm" weight="normal" style={styles.description}>
-                {t('job.jobEmptyState.description')}
+                {t("job.jobEmptyState.description")}
               </ThemedText>
             </View>
             <TouchableOpacity
               style={[styles.button, { backgroundColor: colors.primary }]}
               activeOpacity={0.8}
-              onPress={() => router.push('/add-job')}
+              onPress={() => router.push("/add-job")}
             >
-              <ThemedText weight="bold" letterSpacing="l" style={styles.buttonText}>
-                {t('job.jobEmptyState.button')}
+              <ThemedText
+                weight="bold"
+                letterSpacing="l"
+                style={styles.buttonText}
+              >
+                {t("job.jobEmptyState.button")}
               </ThemedText>
             </TouchableOpacity>
           </ScrollView>
@@ -1867,7 +2059,7 @@ export default function SpheresScreen() {
             <ScrollView
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
-              style={{ backgroundColor: 'transparent' }}
+              style={{ backgroundColor: "transparent" }}
             >
               <View style={styles.listContentWrapper}>
                 {careerJobs.map((job) => (
@@ -1883,28 +2075,30 @@ export default function SpheresScreen() {
             <View style={styles.fabContainer}>
               <TouchableOpacity
                 style={styles.fabButton}
-                onPress={() => handleAddEntity('career')}
+                onPress={() => handleAddEntity("career")}
                 activeOpacity={0.8}
               >
-                <MaterialIcons name="add" size={24 * fontScale} color="#ffffff" />
+                <MaterialIcons
+                  name="add"
+                  size={24 * fontScale}
+                  color="#ffffff"
+                />
               </TouchableOpacity>
             </View>
           </>
         )}
-
       </TabScreenContainer>
     );
   }
 
   // Show family members view when family sphere is selected
-  if (selectedSphere === 'family') {
+  if (selectedSphere === "family") {
     const handleFamilyMemberMorePress = (member: FamilyMember) => {
-        router.push({
-          pathname: '/edit-family-member',
+      router.push({
+        pathname: "/edit-family-member",
         params: { memberId: member.id },
       });
     };
-    
 
     return (
       <TabScreenContainer>
@@ -1913,42 +2107,62 @@ export default function SpheresScreen() {
             onPress={() => clearSelectedSphere()}
             style={styles.headerButton}
           >
-            <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
+            <MaterialIcons
+              name="arrow-back"
+              size={24 * fontScale}
+              color={colors.text}
+            />
           </Pressable>
-          <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-            {t('spheres.family')}
+          <ThemedText
+            size="l"
+            weight="bold"
+            letterSpacing="s"
+            style={styles.headerTitle}
+          >
+            {t("spheres.family")}
           </ThemedText>
-            <View style={styles.headerButton} />
+          <View style={styles.headerButton} />
         </View>
 
         {familyMembers.length === 0 ? (
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.content]}
             showsVerticalScrollIndicator={false}
-            style={{ backgroundColor: 'transparent' }}
+            style={{ backgroundColor: "transparent" }}
           >
             <View style={styles.iconContainer}>
               <MaterialIcons
                 name="family-restroom"
                 size={100 * fontScale * iconScale}
-                color={colorScheme === 'dark' ? colors.primaryLight : colors.primary}
+                color={
+                  colorScheme === "dark" ? colors.primaryLight : colors.primary
+                }
               />
             </View>
             <View style={styles.textContainer}>
-              <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.heading}>
-                {t('profile.familyEmptyState.title')}
+              <ThemedText
+                size="l"
+                weight="bold"
+                letterSpacing="s"
+                style={styles.heading}
+              >
+                {t("profile.familyEmptyState.title")}
               </ThemedText>
               <ThemedText size="sm" weight="normal" style={styles.description}>
-                {t('profile.familyEmptyState.description')}
+                {t("profile.familyEmptyState.description")}
               </ThemedText>
             </View>
             <TouchableOpacity
               style={[styles.button, { backgroundColor: colors.primary }]}
               activeOpacity={0.8}
-              onPress={() => router.push('/add-family-member')}
+              onPress={() => router.push("/add-family-member")}
             >
-              <ThemedText weight="bold" letterSpacing="l" style={styles.buttonText}>
-                {t('profile.familyEmptyState.button')}
+              <ThemedText
+                weight="bold"
+                letterSpacing="l"
+                style={styles.buttonText}
+              >
+                {t("profile.familyEmptyState.button")}
               </ThemedText>
             </TouchableOpacity>
           </ScrollView>
@@ -1957,7 +2171,7 @@ export default function SpheresScreen() {
             <ScrollView
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
-              style={{ backgroundColor: 'transparent' }}
+              style={{ backgroundColor: "transparent" }}
             >
               <View style={styles.listContentWrapper}>
                 {familyMembersList.map((member) => (
@@ -1974,7 +2188,12 @@ export default function SpheresScreen() {
                         contentFit="cover"
                       />
                     ) : (
-                      <View style={[styles.entityImage, { alignItems: 'center', justifyContent: 'center' }]}>
+                      <View
+                        style={[
+                          styles.entityImage,
+                          { alignItems: "center", justifyContent: "center" },
+                        ]}
+                      >
                         <MaterialIcons
                           name="person"
                           size={24 * fontScale}
@@ -1992,7 +2211,11 @@ export default function SpheresScreen() {
                         </ThemedText>
                       )}
                       {member.description && (
-                        <ThemedText size="xs" style={{ opacity: 0.6 }} numberOfLines={1}>
+                        <ThemedText
+                          size="xs"
+                          style={{ opacity: 0.6 }}
+                          numberOfLines={1}
+                        >
                           {member.description}
                         </ThemedText>
                       )}
@@ -2014,28 +2237,29 @@ export default function SpheresScreen() {
             <View style={styles.fabContainer}>
               <TouchableOpacity
                 style={styles.fabButton}
-                onPress={() => handleAddEntity('family')}
+                onPress={() => handleAddEntity("family")}
                 activeOpacity={0.8}
               >
-                <MaterialIcons name="add" size={24 * fontScale} color="#ffffff" />
+                <MaterialIcons
+                  name="add"
+                  size={24 * fontScale}
+                  color="#ffffff"
+                />
               </TouchableOpacity>
             </View>
           </>
         )}
-
       </TabScreenContainer>
     );
   }
 
-  if (selectedSphere === 'friends') {
+  if (selectedSphere === "friends") {
     const handleFriendMorePress = (friend: Friend) => {
-        router.push({
-          pathname: '/edit-friend',
+      router.push({
+        pathname: "/edit-friend",
         params: { friendId: friend.id },
       });
     };
-    
-
 
     return (
       <TabScreenContainer>
@@ -2044,42 +2268,62 @@ export default function SpheresScreen() {
             onPress={() => clearSelectedSphere()}
             style={styles.headerButton}
           >
-            <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
+            <MaterialIcons
+              name="arrow-back"
+              size={24 * fontScale}
+              color={colors.text}
+            />
           </Pressable>
-          <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-            {t('spheres.friends')}
+          <ThemedText
+            size="l"
+            weight="bold"
+            letterSpacing="s"
+            style={styles.headerTitle}
+          >
+            {t("spheres.friends")}
           </ThemedText>
-            <View style={styles.headerButton} />
+          <View style={styles.headerButton} />
         </View>
 
         {friends.length === 0 ? (
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.content]}
             showsVerticalScrollIndicator={false}
-            style={{ backgroundColor: 'transparent' }}
+            style={{ backgroundColor: "transparent" }}
           >
             <View style={styles.iconContainer}>
               <MaterialIcons
                 name="people"
                 size={100 * fontScale * iconScale}
-                color={colorScheme === 'dark' ? colors.primaryLight : colors.primary}
+                color={
+                  colorScheme === "dark" ? colors.primaryLight : colors.primary
+                }
               />
             </View>
             <View style={styles.textContainer}>
-              <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.heading}>
-                {t('profile.friendEmptyState.title')}
+              <ThemedText
+                size="l"
+                weight="bold"
+                letterSpacing="s"
+                style={styles.heading}
+              >
+                {t("profile.friendEmptyState.title")}
               </ThemedText>
               <ThemedText size="sm" weight="normal" style={styles.description}>
-                {t('profile.friendEmptyState.description')}
+                {t("profile.friendEmptyState.description")}
               </ThemedText>
             </View>
             <TouchableOpacity
               style={[styles.button, { backgroundColor: colors.primary }]}
               activeOpacity={0.8}
-              onPress={() => router.push('/add-friend')}
+              onPress={() => router.push("/add-friend")}
             >
-              <ThemedText weight="bold" letterSpacing="l" style={styles.buttonText}>
-                {t('profile.friendEmptyState.button')}
+              <ThemedText
+                weight="bold"
+                letterSpacing="l"
+                style={styles.buttonText}
+              >
+                {t("profile.friendEmptyState.button")}
               </ThemedText>
             </TouchableOpacity>
           </ScrollView>
@@ -2088,7 +2332,7 @@ export default function SpheresScreen() {
             <ScrollView
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
-              style={{ backgroundColor: 'transparent' }}
+              style={{ backgroundColor: "transparent" }}
             >
               <View style={styles.listContentWrapper}>
                 {friendsList.map((friend) => (
@@ -2105,7 +2349,12 @@ export default function SpheresScreen() {
                         contentFit="cover"
                       />
                     ) : (
-                      <View style={[styles.entityImage, { alignItems: 'center', justifyContent: 'center' }]}>
+                      <View
+                        style={[
+                          styles.entityImage,
+                          { alignItems: "center", justifyContent: "center" },
+                        ]}
+                      >
                         <MaterialIcons
                           name="people"
                           size={24 * fontScale}
@@ -2118,7 +2367,11 @@ export default function SpheresScreen() {
                         {friend.name}
                       </ThemedText>
                       {friend.description && (
-                        <ThemedText size="xs" style={{ opacity: 0.6 }} numberOfLines={1}>
+                        <ThemedText
+                          size="xs"
+                          style={{ opacity: 0.6 }}
+                          numberOfLines={1}
+                        >
                           {friend.description}
                         </ThemedText>
                       )}
@@ -2140,28 +2393,29 @@ export default function SpheresScreen() {
             <View style={styles.fabContainer}>
               <TouchableOpacity
                 style={styles.fabButton}
-                onPress={() => handleAddEntity('friends')}
+                onPress={() => handleAddEntity("friends")}
                 activeOpacity={0.8}
               >
-                <MaterialIcons name="add" size={24 * fontScale} color="#ffffff" />
+                <MaterialIcons
+                  name="add"
+                  size={24 * fontScale}
+                  color="#ffffff"
+                />
               </TouchableOpacity>
             </View>
           </>
         )}
-
       </TabScreenContainer>
     );
   }
 
-  if (selectedSphere === 'hobbies') {
+  if (selectedSphere === "hobbies") {
     const handleHobbyMorePress = (hobby: Hobby) => {
-        router.push({
-          pathname: '/edit-hobby',
+      router.push({
+        pathname: "/edit-hobby",
         params: { hobbyId: hobby.id },
       });
     };
-    
-
 
     return (
       <TabScreenContainer>
@@ -2170,42 +2424,62 @@ export default function SpheresScreen() {
             onPress={() => clearSelectedSphere()}
             style={styles.headerButton}
           >
-            <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
+            <MaterialIcons
+              name="arrow-back"
+              size={24 * fontScale}
+              color={colors.text}
+            />
           </Pressable>
-          <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.headerTitle}>
-            {t('spheres.hobbies')}
+          <ThemedText
+            size="l"
+            weight="bold"
+            letterSpacing="s"
+            style={styles.headerTitle}
+          >
+            {t("spheres.hobbies")}
           </ThemedText>
-            <View style={styles.headerButton} />
+          <View style={styles.headerButton} />
         </View>
 
         {hobbies.length === 0 ? (
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.content]}
             showsVerticalScrollIndicator={false}
-            style={{ backgroundColor: 'transparent' }}
+            style={{ backgroundColor: "transparent" }}
           >
             <View style={styles.iconContainer}>
               <MaterialIcons
                 name="sports-esports"
                 size={100 * fontScale * iconScale}
-                color={colorScheme === 'dark' ? colors.primaryLight : colors.primary}
+                color={
+                  colorScheme === "dark" ? colors.primaryLight : colors.primary
+                }
               />
             </View>
             <View style={styles.textContainer}>
-              <ThemedText size="l" weight="bold" letterSpacing="s" style={styles.heading}>
-                {t('profile.hobbyEmptyState.title')}
+              <ThemedText
+                size="l"
+                weight="bold"
+                letterSpacing="s"
+                style={styles.heading}
+              >
+                {t("profile.hobbyEmptyState.title")}
               </ThemedText>
               <ThemedText size="sm" weight="normal" style={styles.description}>
-                {t('profile.hobbyEmptyState.description')}
+                {t("profile.hobbyEmptyState.description")}
               </ThemedText>
             </View>
             <TouchableOpacity
               style={[styles.button, { backgroundColor: colors.primary }]}
               activeOpacity={0.8}
-              onPress={() => router.push('/add-hobby')}
+              onPress={() => router.push("/add-hobby")}
             >
-              <ThemedText weight="bold" letterSpacing="l" style={styles.buttonText}>
-                {t('profile.hobbyEmptyState.button')}
+              <ThemedText
+                weight="bold"
+                letterSpacing="l"
+                style={styles.buttonText}
+              >
+                {t("profile.hobbyEmptyState.button")}
               </ThemedText>
             </TouchableOpacity>
           </ScrollView>
@@ -2214,7 +2488,7 @@ export default function SpheresScreen() {
             <ScrollView
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
-              style={{ backgroundColor: 'transparent' }}
+              style={{ backgroundColor: "transparent" }}
             >
               <View style={styles.listContentWrapper}>
                 {hobbiesList.map((hobby) => (
@@ -2231,7 +2505,12 @@ export default function SpheresScreen() {
                         contentFit="cover"
                       />
                     ) : (
-                      <View style={[styles.entityImage, { alignItems: 'center', justifyContent: 'center' }]}>
+                      <View
+                        style={[
+                          styles.entityImage,
+                          { alignItems: "center", justifyContent: "center" },
+                        ]}
+                      >
                         <MaterialIcons
                           name="sports-esports"
                           size={24 * fontScale}
@@ -2244,7 +2523,11 @@ export default function SpheresScreen() {
                         {hobby.name}
                       </ThemedText>
                       {hobby.description && (
-                        <ThemedText size="xs" style={{ opacity: 0.6 }} numberOfLines={1}>
+                        <ThemedText
+                          size="xs"
+                          style={{ opacity: 0.6 }}
+                          numberOfLines={1}
+                        >
                           {hobby.description}
                         </ThemedText>
                       )}
@@ -2266,15 +2549,18 @@ export default function SpheresScreen() {
             <View style={styles.fabContainer}>
               <TouchableOpacity
                 style={styles.fabButton}
-                onPress={() => handleAddEntity('hobbies')}
+                onPress={() => handleAddEntity("hobbies")}
                 activeOpacity={0.8}
               >
-                <MaterialIcons name="add" size={24 * fontScale} color="#ffffff" />
+                <MaterialIcons
+                  name="add"
+                  size={24 * fontScale}
+                  color="#ffffff"
+                />
               </TouchableOpacity>
             </View>
           </>
         )}
-
       </TabScreenContainer>
     );
   }
@@ -2287,12 +2573,10 @@ export default function SpheresScreen() {
         <View style={styles.headerButton} />
       </View>
 
-      <View 
-        style={styles.content}
-      >
+      <View style={styles.content}>
         {/* Sphere Selection Grid - only show when no sphere is selected */}
         {!selectedSphere && (
-          <View 
+          <View
             style={styles.mainContentWrapper}
             ref={containerRef}
             onLayout={(event) => {
@@ -2302,367 +2586,450 @@ export default function SpheresScreen() {
           >
             <View style={styles.mainContentContainer}>
               {/* Calculate center point relative to container - this will be used for both Insights button and sphere cards */}
-              {containerLayout && (() => {
-                // Calculate center based on the actual visual space
-                // The center should be in the middle of the circle formed by the boxes
-                const centerX = containerLayout.width / 2;
+              {containerLayout &&
+                (() => {
+                  // Calculate center based on the actual visual space
+                  // The center should be in the middle of the circle formed by the boxes
+                  const centerX = containerLayout.width / 2;
 
-                // Pre-calculate values used by both button and cards
-                // Use larger radius for tablets to spread spheres out more
-                const radius = isTablet ? 200 * fontScale : 140 * fontScale * phoneViewportScale;
-                
-                // Helper function to calculate card width based on text width
-                const calculateCardWidth = (sphereType: LifeSphere): number => {
-                  const textWidth = textWidths[sphereType];
-                  const iconSize = 32 * fontScale * iconScale;
-                  const horizontalPadding = 16 * fontScale; // 8 * 2 (left + right padding, reduced from 12)
-                  
-                  // Minimum width based on 7-letter word width, or fallback to fixed size
-                  const minWidthBasedOnText = sevenLetterWidth > 0 
-                    ? sevenLetterWidth + horizontalPadding + (16 * fontScale)
-                    : 100 * fontScale * (isTablet ? 1 : phoneViewportScale);
-                  
-                  // Remove maxWidth constraint - let card expand to fit text
-                  const screenWidth = Dimensions.get('window').width;
-                  const maxWidth = screenWidth * 0.5; // Allow up to 50% of screen width for very long text
-                  
-                  // If text hasn't been measured yet, use a default width
-                  if (textWidth === 0) {
-                    return Math.max(
-                      minWidthBasedOnText,
-                      isTablet ? 160 * fontScale : 120 * fontScale * phoneViewportScale
+                  // Pre-calculate values used by both button and cards
+                  // Use larger radius for tablets to spread spheres out more
+                  const radius = isTablet
+                    ? 200 * fontScale
+                    : 140 * fontScale * phoneViewportScale;
+
+                  // Helper function to calculate card width based on text width
+                  const calculateCardWidth = (
+                    sphereType: LifeSphere,
+                  ): number => {
+                    const textWidth = textWidths[sphereType];
+                    const iconSize = 32 * fontScale * iconScale;
+                    const horizontalPadding = 16 * fontScale; // 8 * 2 (left + right padding, reduced from 12)
+
+                    // Minimum width based on 7-letter word width, or fallback to fixed size
+                    const minWidthBasedOnText =
+                      sevenLetterWidth > 0
+                        ? sevenLetterWidth + horizontalPadding + 16 * fontScale
+                        : 100 * fontScale * (isTablet ? 1 : phoneViewportScale);
+
+                    // Remove maxWidth constraint - let card expand to fit text
+                    const screenWidth = Dimensions.get("window").width;
+                    const maxWidth = screenWidth * 0.5; // Allow up to 50% of screen width for very long text
+
+                    // If text hasn't been measured yet, use a default width
+                    if (textWidth === 0) {
+                      return Math.max(
+                        minWidthBasedOnText,
+                        isTablet
+                          ? 160 * fontScale
+                          : 120 * fontScale * phoneViewportScale,
+                      );
+                    }
+
+                    // Card width = text width + reduced padding to minimize empty space
+                    // Use text width directly (not max with icon) since text is the limiting factor
+                    // Add minimal padding (8px on each side) to ensure text doesn't get cut off
+                    const calculatedWidth =
+                      textWidth + horizontalPadding + 16 * fontScale; // Reduced extra padding
+
+                    // Ensure square aspect ratio - use the calculated width, respecting min/max
+                    // But ensure it's at least as wide as the icon requires AND at least as wide as 7-letter word
+                    const finalWidth = Math.max(
+                      iconSize + horizontalPadding,
+                      Math.max(calculatedWidth, minWidthBasedOnText),
                     );
-                  }
-                  
-                  // Card width = text width + reduced padding to minimize empty space
-                  // Use text width directly (not max with icon) since text is the limiting factor
-                  // Add minimal padding (8px on each side) to ensure text doesn't get cut off
-                  const calculatedWidth = textWidth + horizontalPadding + (16 * fontScale); // Reduced extra padding
-                  
-                  // Ensure square aspect ratio - use the calculated width, respecting min/max
-                  // But ensure it's at least as wide as the icon requires AND at least as wide as 7-letter word
-                  const finalWidth = Math.max(
-                    iconSize + horizontalPadding, 
-                    Math.max(calculatedWidth, minWidthBasedOnText)
-                  );
-                  return Math.min(maxWidth, finalWidth);
-                };
-                
-                // Calculate the visual center Y by finding the midpoint between topmost and bottommost cards
-                // Top card is at angle 90° (top), bottom card is at angle -90° (bottom)
-                // Card centers are at: centerY + radius * sin(angle)
-                const topCardAngle = 90 * (Math.PI / 180);
-                const bottomCardAngle = -90 * (Math.PI / 180);
-                
-                // Calculate where card centers would be (relative to container top)
-                const containerCenterY = containerLayout.height / 2;
-                const topCardCenterY = containerCenterY + radius * Math.sin(topCardAngle);
-                const bottomCardCenterY = containerCenterY + radius * Math.sin(bottomCardAngle);
-                
-                // The visual center is the midpoint between the top and bottom card centers
-                // This ensures the button is centered in the actual space between boxes
-                const centerY = (topCardCenterY + bottomCardCenterY) / 2;
-                
-                return (
-                  <>
-                    {/* Sparkled Dots around center */}
-                    <SparkledDots
-                      avatarSize={48 * fontScale} // Size of the Insights button
-                      avatarCenterX={centerX}
-                      avatarCenterY={centerY}
-                      colorScheme={colorScheme ?? 'dark'}
-                    />
+                    return Math.min(maxWidth, finalWidth);
+                  };
 
-                    {/* Insights button in the center - circular */}
-                    <AnimatedView
-                      style={[
-                        styles.insightsButtonContainerCentered,
-                        {
-                          left: centerX - 24 * fontScale, // Adjusted for smaller button (was 30)
-                          top: centerY - 20 * fontScale, // Elevated button position
-                        },
-                        pulseAnimatedStyle,
-                      ]}
-                    >
-                      <TouchableOpacity
-                        style={{ width: '100%', height: '100%' }}
-                        onPress={() => {
-                          router.push('/insights');
-                        }}
-                        activeOpacity={0.9}
-                      >
-                        <LinearGradient
-                        colors={
-                          colorScheme === 'dark'
-                            ? ['#BA68C8', '#9575CD', '#64B5F6', '#4DB6AC'] // Desaturated purple-to-blue gradient
-                            : ['#a78bfa', '#818cf8', '#60a5fa', '#38bdf8']
-                        }
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.insightsButtonGradientCircular}
-                      >
-                        <View style={styles.insightsIconContainerCircular}>
-                          <MaterialIcons name="insights" size={24 * fontScale} color="#ffffff" />
-                          <Animated.View style={sparkleIconAnimatedStyle}>
-                            <MaterialIcons
-                              name="auto-awesome"
-                              size={12 * fontScale}
-                              color="#FFD700"
-                              style={styles.sparkleIcon}
-                            />
-                          </Animated.View>
-                        </View>
-                      </LinearGradient>
-                      </TouchableOpacity>
-                    </AnimatedView>
+                  // Calculate the visual center Y by finding the midpoint between topmost and bottommost cards
+                  // Top card is at angle 90° (top), bottom card is at angle -90° (bottom)
+                  // Card centers are at: centerY + radius * sin(angle)
+                  const topCardAngle = 90 * (Math.PI / 180);
+                  const bottomCardAngle = -90 * (Math.PI / 180);
 
-                    {/* Hidden text measurement component - positioned off-screen but visible for measurement */}
-                    <View style={{ position: 'absolute', left: -10000, top: -10000, opacity: 0 }}>
-                      {/* Measure 7-letter word width for minimum card size */}
-                      <View style={{ width: 10000 }}>
-                        <ThemedText
-                          size="xs"
-                          weight="bold"
-                          style={styles.sphereLabel}
-                          onTextLayout={(event) => {
-                            const lines = event.nativeEvent.lines;
-                            if (lines && lines.length > 0) {
-                              const measuredWidth = lines[0].width;
-                              if (measuredWidth > 0 && sevenLetterWidth !== measuredWidth) {
-                                setSevenLetterWidth(measuredWidth);
-                              }
-                            }
+                  // Calculate where card centers would be (relative to container top)
+                  const containerCenterY = containerLayout.height / 2;
+                  const topCardCenterY =
+                    containerCenterY + radius * Math.sin(topCardAngle);
+                  const bottomCardCenterY =
+                    containerCenterY + radius * Math.sin(bottomCardAngle);
+
+                  // The visual center is the midpoint between the top and bottom card centers
+                  // This ensures the button is centered in the actual space between boxes
+                  const centerY = (topCardCenterY + bottomCardCenterY) / 2;
+
+                  return (
+                    <>
+                      {/* Sparkled Dots around center */}
+                      <SparkledDots
+                        avatarSize={48 * fontScale} // Size of the Insights button
+                        avatarCenterX={centerX}
+                        avatarCenterY={centerY}
+                        colorScheme={colorScheme ?? "dark"}
+                      />
+
+                      {/* Insights button in the center - circular */}
+                      <AnimatedView
+                        style={[
+                          styles.insightsButtonContainerCentered,
+                          {
+                            left: centerX - 24 * fontScale, // Adjusted for smaller button (was 30)
+                            top: centerY - 20 * fontScale, // Elevated button position
+                          },
+                          pulseAnimatedStyle,
+                        ]}
+                      >
+                        <TouchableOpacity
+                          style={{ width: "100%", height: "100%" }}
+                          onPress={() => {
+                            router.push("/insights");
                           }}
+                          activeOpacity={0.9}
                         >
-                          AAAAAAA
-                        </ThemedText>
-                      </View>
-                      {spheres.map((sphere) => (
-                        <View key={`measure-wrapper-${sphere.type}`} style={{ width: 10000 }}>
+                          <LinearGradient
+                            colors={
+                              colorScheme === "dark"
+                                ? ["#BA68C8", "#9575CD", "#64B5F6", "#4DB6AC"] // Desaturated purple-to-blue gradient
+                                : ["#a78bfa", "#818cf8", "#60a5fa", "#38bdf8"]
+                            }
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.insightsButtonGradientCircular}
+                          >
+                            <View style={styles.insightsIconContainerCircular}>
+                              <MaterialIcons
+                                name="insights"
+                                size={24 * fontScale}
+                                color="#ffffff"
+                              />
+                            </View>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </AnimatedView>
+
+                      {/* Hidden text measurement component - positioned off-screen but visible for measurement */}
+                      <View
+                        style={{
+                          position: "absolute",
+                          left: -10000,
+                          top: -10000,
+                          opacity: 0,
+                        }}
+                      >
+                        {/* Measure 7-letter word width for minimum card size */}
+                        <View style={{ width: 10000 }}>
                           <ThemedText
-                            key={`measure-${sphere.type}`}
                             size="xs"
                             weight="bold"
                             style={styles.sphereLabel}
                             onTextLayout={(event) => {
-                              // Get the full text width from the first (and only) line
-                              // The wrapper has enough width that text won't wrap
                               const lines = event.nativeEvent.lines;
                               if (lines && lines.length > 0) {
-                                // Use the width of the first line (should be the full text width)
                                 const measuredWidth = lines[0].width;
-                                if (measuredWidth > 0 && textWidths[sphere.type] !== measuredWidth) {
-                                  setTextWidths(prev => ({ ...prev, [sphere.type]: measuredWidth }));
+                                if (
+                                  measuredWidth > 0 &&
+                                  sevenLetterWidth !== measuredWidth
+                                ) {
+                                  setSevenLetterWidth(measuredWidth);
                                 }
                               }
                             }}
                           >
-                            {sphere.label}
+                            AAAAAAA
                           </ThemedText>
                         </View>
-                      ))}
-                    </View>
-
-                    {/* AI Square - positioned in perfect orbit */}
-                    {(() => {
-                      // Use similar sizing logic as other spheres
-                      const aiCardWidth = isTablet ? 120 * fontScale : 100 * fontScale * phoneViewportScale;
-                      const aiCardHalfWidth = aiCardWidth / 2;
-                      const aiCardHalfHeight = aiCardWidth / 2;
-                      // Position in perfect orbit: 90° (top) - 60° spacing from Relationships at -90°
-                      // Adjust radius smaller and add offset to ensure it's fully visible at the top
-                      const aiRadius = radius * 0.85; // Smaller radius to prevent cutoff
-                      const aiAngle = 90 * (Math.PI / 180); // 90 degrees (straight up)
-                      const aiX = centerX + aiRadius * Math.cos(aiAngle) - aiCardHalfWidth;
-                      // Add padding from top to ensure icon isn't cut off (account for header/status bar)
-                      const topPadding = 20 * fontScale;
-                      const aiY = centerY + aiRadius * Math.sin(aiAngle) - aiCardHalfHeight + topPadding;
-                      
-                      const darkGradientColors = ['#223041', '#243041', '#263041'] as const;
-                      const lightGradientColors = ['rgb(170, 170, 170)', 'rgb(180, 180, 180)', 'rgb(175, 175, 175)'] as const;
-                      
-                      return (
-                        <TouchableOpacity
-                          key="ai-square"
-                          style={[
-                            styles.sphereCard,
-                            styles.sphereCardPositioned,
-                            {
-                              left: aiX,
-                              top: aiY,
-                              width: aiCardWidth,
-                              height: aiCardWidth,
-                            },
-                          ]}
-                          onPress={() => {
-                            handleAIModalOpen();
-                          }}
-                          activeOpacity={0.8}
-                        >
-                          <LinearGradient
-                            colors={
-                              colorScheme === 'dark'
-                                ? darkGradientColors
-                                : lightGradientColors
-                            }
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.sphereCardContent}
+                        {spheres.map((sphere) => (
+                          <View
+                            key={`measure-wrapper-${sphere.type}`}
+                            style={{ width: 10000 }}
                           >
-                            <View style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-                              <ThemedText
+                            <ThemedText
+                              key={`measure-${sphere.type}`}
+                              size="xs"
+                              weight="bold"
+                              style={styles.sphereLabel}
+                              onTextLayout={(event) => {
+                                // Get the full text width from the first (and only) line
+                                // The wrapper has enough width that text won't wrap
+                                const lines = event.nativeEvent.lines;
+                                if (lines && lines.length > 0) {
+                                  // Use the width of the first line (should be the full text width)
+                                  const measuredWidth = lines[0].width;
+                                  if (
+                                    measuredWidth > 0 &&
+                                    textWidths[sphere.type] !== measuredWidth
+                                  ) {
+                                    setTextWidths((prev) => ({
+                                      ...prev,
+                                      [sphere.type]: measuredWidth,
+                                    }));
+                                  }
+                                }
+                              }}
+                            >
+                              {sphere.label}
+                            </ThemedText>
+                          </View>
+                        ))}
+                      </View>
+
+                      {/* AI Square - positioned in perfect orbit */}
+                      {(() => {
+                        // Use similar sizing logic as other spheres
+                        const aiCardWidth = isTablet
+                          ? 120 * fontScale
+                          : 100 * fontScale * phoneViewportScale;
+                        const aiCardHalfWidth = aiCardWidth / 2;
+                        const aiCardHalfHeight = aiCardWidth / 2;
+                        // Position in perfect orbit: 90° (top) - 60° spacing from Relationships at -90°
+                        // Adjust radius smaller and add offset to ensure it's fully visible at the top
+                        const aiRadius = radius * 0.85; // Smaller radius to prevent cutoff
+                        const aiAngle = 90 * (Math.PI / 180); // 90 degrees (straight up)
+                        const aiX =
+                          centerX +
+                          aiRadius * Math.cos(aiAngle) -
+                          aiCardHalfWidth;
+                        // Add padding from top to ensure icon isn't cut off (account for header/status bar)
+                        const topPadding = 20 * fontScale;
+                        const aiY =
+                          centerY +
+                          aiRadius * Math.sin(aiAngle) -
+                          aiCardHalfHeight +
+                          topPadding;
+
+                        const darkGradientColors = [
+                          "#223041",
+                          "#243041",
+                          "#263041",
+                        ] as const;
+                        const lightGradientColors = [
+                          "rgb(170, 170, 170)",
+                          "rgb(180, 180, 180)",
+                          "rgb(175, 175, 175)",
+                        ] as const;
+
+                        return (
+                          <TouchableOpacity
+                            key="ai-square"
+                            style={[
+                              styles.sphereCard,
+                              styles.sphereCardPositioned,
+                              {
+                                left: aiX,
+                                top: aiY,
+                                width: aiCardWidth,
+                                height: aiCardWidth,
+                              },
+                            ]}
+                            onPress={() => {
+                              handleAIModalOpen();
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <LinearGradient
+                              colors={
+                                colorScheme === "dark"
+                                  ? darkGradientColors
+                                  : lightGradientColors
+                              }
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={styles.sphereCardContent}
+                            >
+                              <View
                                 style={{
-                                  fontSize: 40 * fontScale * iconScale,
-                                  color: colorScheme === 'dark' ? '#FFD700' : '#F57C00',
-                                  textAlign: 'center',
-                                  lineHeight: 40 * fontScale * iconScale,
-                                  includeFontPadding: false,
+                                  justifyContent: "center",
+                                  alignItems: "center",
+                                  flex: 1,
                                 }}
                               >
-                                ✨
-                              </ThemedText>
-                            </View>
-                          </LinearGradient>
-                        </TouchableOpacity>
-                      );
-                    })()}
+                                <ThemedText
+                                  style={{
+                                    fontSize: 40 * fontScale * iconScale,
+                                    color:
+                                      colorScheme === "dark"
+                                        ? "#FFD700"
+                                        : "#F57C00",
+                                    textAlign: "center",
+                                    lineHeight: 40 * fontScale * iconScale,
+                                    includeFontPadding: false,
+                                  }}
+                                >
+                                  ✨
+                                </ThemedText>
+                              </View>
+                            </LinearGradient>
+                          </TouchableOpacity>
+                        );
+                      })()}
 
-                    {/* Sphere boxes arranged in a circle around the Insights button */}
-              <View style={styles.sphereGrid}>
-                      {spheres.map((sphere, index) => {
-                        // Calculate card width for this specific sphere based on its text width
-                        const cardWidth = calculateCardWidth(sphere.type);
-                        const cardHalfWidth = cardWidth / 2;
-                        const cardHalfHeight = cardWidth / 2; // Cards are square (aspectRatio: 1)
-                        
-                        // Calculate circular positions for spheres
-                        // Perfect orbit: 6 spheres evenly spaced at 60° intervals (360°/6 = 60°)
-                        // Starting from Relationships at bottom (-90°), going clockwise:
-                        // -90°, -30° (330°), 30°, 90° (AI), 150°, 210°
-                        let angle: number;
-                        
-                        // Perfect orbit positioning - 60° spacing between each sphere
-                        if (sphere.type === 'relationships') {
-                          // Bottom position (-90°), directly under Analytics button
-                          angle = -90 * (Math.PI / 180);
-                        } else if (sphere.type === 'career') {
-                          // Bottom-right: -90° + 60° = -30° (or 330°)
-                          angle = 340 * (Math.PI / 180);
-                        } else if (sphere.type === 'family') {
-                          // Top-right: -30° + 60° = 30°
-                          angle = 40 * (Math.PI / 190);
-                        } else if (sphere.type === 'friends') {
-                          // Top-left: 90° + 60° = 150° (AI is at 90°)
-                          angle = 140 * (Math.PI / 180);
-                        } else if (sphere.type === 'hobbies') {
-                          // Bottom-left: 150° + 60° = 210°
-                          angle = 200 * (Math.PI / 180);
-                        } else {
-                          // Fallback: distribute evenly
-                          angle = (90 - (index * 72)) * (Math.PI / 180);
-                        }
-                        
-                        // Position cards around the center point (same as Insights button)
-                        // The center point is the center of the circle, so we position cards relative to that
-                        const x = centerX + radius * Math.cos(angle) - cardHalfWidth; // Subtract half card width
-                        const y = centerY + radius * Math.sin(angle) - cardHalfHeight; // Subtract half card height
-                  
-                  // Get sphere-specific colors - theme-aware for proper contrast
-                  const getSphereColor = (sphereType: LifeSphere): string => {
-                    const scheme: 'light' | 'dark' = (colorScheme ?? 'dark') as 'light' | 'dark';
-                    if (scheme === 'light') {
-                      switch (sphereType) {
-                        case 'relationships':
-                          return '#D32F2F';
-                        case 'career':
-                          return '#1976D2';
-                        case 'family':
-                          return '#388E3C';
-                        case 'friends':
-                          return '#7B1FA2';
-                        case 'hobbies':
-                          return '#F57C00';
-                        default:
-                          return '#1976D2';
-                      }
-                    } else {
-                      switch (sphereType) {
-                        case 'relationships':
-                          return '#E57373';
-                        case 'career':
-                          return '#64B5F6';
-                        case 'family':
-                          return '#81C784';
-                        case 'friends':
-                          return '#BA68C8';
-                        case 'hobbies':
-                          return '#FFB74D';
-                        default:
-                          return '#64B5F6';
-                      }
-                    }
-                  };
-                  
-                  const sphereColor = getSphereColor(sphere.type);
-                  const isActive = selectedSphere === sphere.type;
-                  
-                  const darkGradientColors = ['#223041', '#243041', '#263041'] as const;
-                  const lightGradientColors = ['rgb(170, 170, 170)', 'rgb(180, 180, 180)', 'rgb(175, 175, 175)'] as const;
-                  const darkActiveGradientColors = ['#2D3A4F', '#2F3A4F', '#313A4F'] as const;
-                  const lightActiveGradientColors = ['rgb(190, 190, 190)', 'rgb(200, 200, 200)', 'rgb(195, 195, 195)'] as const;
-                  
-                  return (
-                    <TouchableOpacity
-                      key={sphere.type}
-                      style={[
-                        styles.sphereCard,
-                        styles.sphereCardPositioned,
-                        isActive && styles.sphereCardActive,
-                        {
-                          left: x,
-                          top: y,
-                          width: cardWidth,
-                          height: cardWidth,
-                        },
-                      ]}
-                      onPress={() => handleSpherePress(sphere.type)}
-                      activeOpacity={0.8}
-                    >
-                      <LinearGradient
-                        colors={
-                          colorScheme === 'dark'
-                            ? (isActive ? darkActiveGradientColors : darkGradientColors)
-                            : (isActive ? lightActiveGradientColors : lightGradientColors)
-                        }
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.sphereCardContent}
-                      >
-                        <MaterialIcons
-                          name={sphere.icon as any}
-                          size={32 * fontScale * iconScale}
-                          color={sphereColor}
-                          style={styles.sphereIcon}
-                        />
-                        <ThemedText 
-                          size="xs" 
-                          weight="bold" 
-                          style={styles.sphereLabel}
-                          numberOfLines={1}
-                        >
-                          {sphere.label}
-                        </ThemedText>
-                        <ThemedText size="xs" style={styles.sphereCount}>
-                          {sphere.entities.length} {sphere.entities.length === 1 ? t('spheres.item') : t('spheres.items')}
-                        </ThemedText>
-                      </LinearGradient>
-                    </TouchableOpacity>
+                      {/* Sphere boxes arranged in a circle around the Insights button */}
+                      <View style={styles.sphereGrid}>
+                        {spheres.map((sphere, index) => {
+                          // Calculate card width for this specific sphere based on its text width
+                          const cardWidth = calculateCardWidth(sphere.type);
+                          const cardHalfWidth = cardWidth / 2;
+                          const cardHalfHeight = cardWidth / 2; // Cards are square (aspectRatio: 1)
+
+                          // Calculate circular positions for spheres
+                          // Perfect orbit: 6 spheres evenly spaced at 60° intervals (360°/6 = 60°)
+                          // Starting from Relationships at bottom (-90°), going clockwise:
+                          // -90°, -30° (330°), 30°, 90° (AI), 150°, 210°
+                          let angle: number;
+
+                          // Perfect orbit positioning - 60° spacing between each sphere
+                          if (sphere.type === "relationships") {
+                            // Bottom position (-90°), directly under Analytics button
+                            angle = -90 * (Math.PI / 180);
+                          } else if (sphere.type === "career") {
+                            // Bottom-right: -90° + 60° = -30° (or 330°)
+                            angle = 340 * (Math.PI / 180);
+                          } else if (sphere.type === "family") {
+                            // Top-right: -30° + 60° = 30°
+                            angle = 40 * (Math.PI / 190);
+                          } else if (sphere.type === "friends") {
+                            // Top-left: 90° + 60° = 150° (AI is at 90°)
+                            angle = 140 * (Math.PI / 180);
+                          } else if (sphere.type === "hobbies") {
+                            // Bottom-left: 150° + 60° = 210°
+                            angle = 200 * (Math.PI / 180);
+                          } else {
+                            // Fallback: distribute evenly
+                            angle = (90 - index * 72) * (Math.PI / 180);
+                          }
+
+                          // Position cards around the center point (same as Insights button)
+                          // The center point is the center of the circle, so we position cards relative to that
+                          const x =
+                            centerX + radius * Math.cos(angle) - cardHalfWidth; // Subtract half card width
+                          const y =
+                            centerY + radius * Math.sin(angle) - cardHalfHeight; // Subtract half card height
+
+                          // Get sphere-specific colors - theme-aware for proper contrast
+                          const getSphereColor = (
+                            sphereType: LifeSphere,
+                          ): string => {
+                            const scheme: "light" | "dark" = (colorScheme ??
+                              "dark") as "light" | "dark";
+                            if (scheme === "light") {
+                              switch (sphereType) {
+                                case "relationships":
+                                  return "#D32F2F";
+                                case "career":
+                                  return "#1976D2";
+                                case "family":
+                                  return "#388E3C";
+                                case "friends":
+                                  return "#7B1FA2";
+                                case "hobbies":
+                                  return "#F57C00";
+                                default:
+                                  return "#1976D2";
+                              }
+                            } else {
+                              switch (sphereType) {
+                                case "relationships":
+                                  return "#E57373";
+                                case "career":
+                                  return "#64B5F6";
+                                case "family":
+                                  return "#81C784";
+                                case "friends":
+                                  return "#BA68C8";
+                                case "hobbies":
+                                  return "#FFB74D";
+                                default:
+                                  return "#64B5F6";
+                              }
+                            }
+                          };
+
+                          const sphereColor = getSphereColor(sphere.type);
+                          const isActive = selectedSphere === sphere.type;
+
+                          const darkGradientColors = [
+                            "#223041",
+                            "#243041",
+                            "#263041",
+                          ] as const;
+                          const lightGradientColors = [
+                            "rgb(170, 170, 170)",
+                            "rgb(180, 180, 180)",
+                            "rgb(175, 175, 175)",
+                          ] as const;
+                          const darkActiveGradientColors = [
+                            "#2D3A4F",
+                            "#2F3A4F",
+                            "#313A4F",
+                          ] as const;
+                          const lightActiveGradientColors = [
+                            "rgb(190, 190, 190)",
+                            "rgb(200, 200, 200)",
+                            "rgb(195, 195, 195)",
+                          ] as const;
+
+                          return (
+                            <TouchableOpacity
+                              key={sphere.type}
+                              style={[
+                                styles.sphereCard,
+                                styles.sphereCardPositioned,
+                                isActive && styles.sphereCardActive,
+                                {
+                                  left: x,
+                                  top: y,
+                                  width: cardWidth,
+                                  height: cardWidth,
+                                },
+                              ]}
+                              onPress={() => handleSpherePress(sphere.type)}
+                              activeOpacity={0.8}
+                            >
+                              <LinearGradient
+                                colors={
+                                  colorScheme === "dark"
+                                    ? isActive
+                                      ? darkActiveGradientColors
+                                      : darkGradientColors
+                                    : isActive
+                                      ? lightActiveGradientColors
+                                      : lightGradientColors
+                                }
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.sphereCardContent}
+                              >
+                                <MaterialIcons
+                                  name={sphere.icon as any}
+                                  size={32 * fontScale * iconScale}
+                                  color={sphereColor}
+                                  style={styles.sphereIcon}
+                                />
+                                <ThemedText
+                                  size="xs"
+                                  weight="bold"
+                                  style={styles.sphereLabel}
+                                  numberOfLines={1}
+                                >
+                                  {sphere.label}
+                                </ThemedText>
+                                <ThemedText
+                                  size="xs"
+                                  style={styles.sphereCount}
+                                >
+                                  {sphere.entities.length}{" "}
+                                  {sphere.entities.length === 1
+                                    ? t("spheres.item")
+                                    : t("spheres.items")}
+                                </ThemedText>
+                              </LinearGradient>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </>
                   );
-                })}
-              </View>
-                  </>
-                );
-              })()}
+                })()}
             </View>
           </View>
         )}
@@ -2670,17 +3037,17 @@ export default function SpheresScreen() {
         <AIInsightsConsentModal
           visible={aiInsightsConsentVisible}
           onEnable={() => {
-            void aiConsent.setChoice('enabled').then(() => {
+            void aiConsent.setChoice("enabled").then(() => {
               setAiInsightsConsentVisible(false);
               const pending = pendingAIIconActionRef.current;
               pendingAIIconActionRef.current = null;
-              if (pending === 'open_ai') {
+              if (pending === "open_ai") {
                 void handleAIModalOpen();
               }
             });
           }}
           onMaybeLater={() => {
-            void aiConsent.setChoice('maybe_later').then(() => {
+            void aiConsent.setChoice("maybe_later").then(() => {
               pendingAIIconActionRef.current = null;
               setAiInsightsConsentVisible(false);
             });
@@ -2694,7 +3061,14 @@ export default function SpheresScreen() {
             onClose={() => setAiActionModalVisible(false)}
             onSelectCreateMemory={handleSelectCreateMemory}
             onSelectCreateEntity={handleSelectCreateEntity}
-            hasEntities={(profiles.length + jobs.length + familyMembers.length + friends.length + hobbies.length) > 0}
+            hasEntities={
+              profiles.length +
+                jobs.length +
+                familyMembers.length +
+                friends.length +
+                hobbies.length >
+              0
+            }
           />
         )}
 
@@ -2733,25 +3107,24 @@ export default function SpheresScreen() {
             onSend={async (message: string) => {
               try {
                 const response = await sendToAI(message, {
-                  spheres: spheres.map(s => s.type),
+                  spheres: spheres.map((s) => s.type),
                 });
-                
+
                 if (response.error) {
-                  Alert.alert(
-                    t('common.error') || 'Error',
-                    response.error
-                  );
+                  Alert.alert(t("common.error") || "Error", response.error);
                 } else {
                   Alert.alert(
-                    t('ai.response.title') || 'AI Response',
+                    t("ai.response.title") || "AI Response",
                     response.message,
-                    [{ text: t('common.ok') || 'OK' }]
+                    [{ text: t("common.ok") || "OK" }],
                   );
                 }
               } catch (error) {
                 Alert.alert(
-                  t('common.error') || 'Error',
-                  (error as Error).message || t('ai.error.send') || 'Failed to send message'
+                  t("common.error") || "Error",
+                  (error as Error).message ||
+                    t("ai.error.send") ||
+                    "Failed to send message",
                 );
               }
             }}
@@ -2761,4 +3134,3 @@ export default function SpheresScreen() {
     </TabScreenContainer>
   );
 }
-
