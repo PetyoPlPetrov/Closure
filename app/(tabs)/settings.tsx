@@ -59,7 +59,7 @@ export default function SettingsScreen() {
     reloadHobbies,
     cleanupOrphanedMemories,
   } = useJourney();
-  const { presentPaywall } = useSubscription();
+  const { presentPaywall, isSubscribed } = useSubscription();
   const t = useTranslate();
   const aiConsent = useAIInsightsConsent();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
@@ -266,7 +266,11 @@ export default function SettingsScreen() {
     router.push("/notifications");
   };
 
-  const handlePresentPaywall = useCallback(async () => {
+  const handlePremiumPress = useCallback(async () => {
+    if (isSubscribed) {
+      router.push("/premium-info");
+      return;
+    }
     try {
       const success = await presentPaywall();
       if (success) {
@@ -276,7 +280,6 @@ export default function SettingsScreen() {
           [{ text: t("common.ok") }],
         );
       }
-      // If cancelled or error, just return without showing alert
     } catch (error: any) {
       Alert.alert(
         t("subscription.error.title"),
@@ -284,7 +287,7 @@ export default function SettingsScreen() {
         [{ text: t("common.ok") }],
       );
     }
-  }, [presentPaywall, t]);
+  }, [isSubscribed, presentPaywall, t]);
 
   const generateFakeData = async () => {
     if (isGeneratingFakeData) return;
@@ -1991,7 +1994,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={styles.dropdown}
-            onPress={handlePresentPaywall}
+            onPress={handlePremiumPress}
             activeOpacity={0.7}
           >
             <View style={styles.dropdownContent}>
@@ -2044,39 +2047,67 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           {/* Generate Fake Data Button - Only visible in development */}
           {__DEV__ && (
-            <TouchableOpacity
-              style={[
-                styles.dropdown,
-                isGeneratingFakeData && { opacity: 0.5 },
-              ]}
-              onPress={generateFakeData}
-              activeOpacity={0.7}
-              disabled={isGeneratingFakeData}
-            >
-              <View style={styles.dropdownContent}>
+            <>
+              <TouchableOpacity
+                style={[
+                  styles.dropdown,
+                  isGeneratingFakeData && { opacity: 0.5 },
+                ]}
+                onPress={generateFakeData}
+                activeOpacity={0.7}
+                disabled={isGeneratingFakeData}
+              >
+                <View style={styles.dropdownContent}>
+                  <MaterialIcons
+                    name="bug-report"
+                    size={24 * fontScale}
+                    color={colors.primary}
+                  />
+                  <ThemedText
+                    size="l"
+                    weight="medium"
+                    style={styles.dropdownText}
+                  >
+                    {isGeneratingFakeData
+                      ? t("settings.devTools.generateData.generating")
+                      : t("settings.devTools.generateData.button")}
+                  </ThemedText>
+                </View>
+                {isGeneratingFakeData && (
+                  <MaterialIcons
+                    name="hourglass-empty"
+                    size={24 * fontScale}
+                    color={colors.text}
+                  />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dropdown}
+                onPress={() => router.push("/premium-info")}
+                activeOpacity={0.7}
+              >
+                <View style={styles.dropdownContent}>
+                  <MaterialIcons
+                    name="star"
+                    size={24 * fontScale}
+                    color={colors.primary}
+                  />
+                  <ThemedText
+                    size="l"
+                    weight="medium"
+                    style={styles.dropdownText}
+                  >
+                    {t("settings.devTools.viewPremiumFeatures")}
+                  </ThemedText>
+                </View>
                 <MaterialIcons
-                  name="bug-report"
-                  size={24 * fontScale}
-                  color={colors.primary}
-                />
-                <ThemedText
-                  size="l"
-                  weight="medium"
-                  style={styles.dropdownText}
-                >
-                  {isGeneratingFakeData
-                    ? t("settings.devTools.generateData.generating")
-                    : t("settings.devTools.generateData.button")}
-                </ThemedText>
-              </View>
-              {isGeneratingFakeData && (
-                <MaterialIcons
-                  name="hourglass-empty"
+                  name="chevron-right"
                   size={24 * fontScale}
                   color={colors.text}
                 />
-              )}
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </>
           )}
 
           <TouchableOpacity

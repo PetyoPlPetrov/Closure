@@ -1,17 +1,16 @@
 /**
  * AI Request Rate Limiter
- * Tracks AI requests per calendar day (timezone-based) for all users (including premium).
+ * Tracks AI requests per calendar day (timezone-based).
  * Counts submits for memory creation and entity creation (shared pool).
- * Limits: 30 requests per day total.
+ * Limits: 3/day for free users, 30/day for premium.
  * Resets at midnight in user's timezone.
- *
- * NOTE: Rate limiting is disabled on emulator/simulator for development
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const AI_REQUESTS_KEY = "@sferas:ai_requests";
-const REQUESTS_PER_DAY = 30;
+export const REQUESTS_PER_DAY_FREE = 3;
+export const REQUESTS_PER_DAY_PREMIUM = 30;
 
 interface AIRequestRecord {
   date: string; // Date string in format "YYYY-MM-DD" (timezone-aware)
@@ -19,9 +18,10 @@ interface AIRequestRecord {
 }
 
 /**
- * Get current date string in user's timezone (YYYY-MM-DD format)
+ * Get current date string in user's timezone (YYYY-MM-DD format).
+ * Exported for use by encouragement rate limiting.
  */
-function getCurrentDateString(): string {
+export function getLocalDateString(): string {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -60,7 +60,7 @@ async function saveAIRequestRecords(records: AIRequestRecord[]): Promise<void> {
  */
 async function getTodayRequestCount(): Promise<number> {
   const records = await getAIRequestRecords();
-  const today = getCurrentDateString();
+  const today = getLocalDateString();
   const todayRecord = records.find((record) => record.date === today);
   return todayRecord ? todayRecord.count : 0;
 }
@@ -70,7 +70,7 @@ async function getTodayRequestCount(): Promise<number> {
  */
 async function cleanupOldRecords(): Promise<void> {
   const records = await getAIRequestRecords();
-  const today = getCurrentDateString();
+  const today = getLocalDateString();
   const filteredRecords = records.filter((record) => record.date === today);
 
   // Only save if we removed some records
@@ -84,7 +84,7 @@ async function cleanupOldRecords(): Promise<void> {
  */
 export async function recordAIRequest(): Promise<void> {
   const records = await getAIRequestRecords();
-  const today = getCurrentDateString();
+  const today = getLocalDateString();
 
   // Find today's record
   const todayRecordIndex = records.findIndex((record) => record.date === today);
@@ -108,57 +108,59 @@ export async function recordAIRequest(): Promise<void> {
 
 /**
  * Get remaining AI requests for today
- * @returns Number of remaining requests (0–30)
+ * @param isSubscribed - Whether user has premium subscription
+ * @returns Number of remaining requests
  */
-export async function getRemainingAIRequests(): Promise<number> {
+export async function getRemainingAIRequests(
+  isSubscribed: boolean,
+): Promise<number> {
   const used = await getTodayRequestCount();
-  const remaining = Math.max(0, REQUESTS_PER_DAY - used);
-  return remaining;
+  const limit = isSubscribed ? REQUESTS_PER_DAY_PREMIUM : REQUESTS_PER_DAY_FREE;
+  return Math.max(0, limit - used);
 }
 
 /**
  * Check if user can make an AI request
+ * @param isSubscribed - Whether user has premium subscription
  * @returns true if user has remaining requests, false otherwise
- * NOTE: Always returns true in development mode (unlimited requests)
  */
-export async function canMakeAIRequest(): Promise<boolean> {
-  // Skip rate limiting in development mode (unlimited requests)
-  if (__DEV__) {
-    return true;
-  }
-
-  const remaining = await getRemainingAIRequests();
+export async function canMakeAIRequest(
+  isSubscribed: boolean,
+): Promise<boolean> {
+  const remaining = await getRemainingAIRequests(isSubscribed);
   return remaining > 0;
 }
 
 /**
  * Get time until next request is available (in milliseconds)
  * Returns 0 if requests are available now
- * For calendar day tracking, this is time until midnight
+ * @param isSubscribed - Whether user has premium subscription
  */
-export async function getTimeUntilNextRequest(): Promise<number> {
+export async function getTimeUntilNextRequest(
+  isSubscribed: boolean,
+): Promise<number> {
   const used = await getTodayRequestCount();
+  const limit = isSubscribed ? REQUESTS_PER_DAY_PREMIUM : REQUESTS_PER_DAY_FREE;
 
-  if (used < REQUESTS_PER_DAY) {
-    return 0; // Requests available now
+  if (used < limit) {
+    return 0;
   }
 
-  // Calculate time until midnight in user's timezone
   const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0); // Set to midnight
-
-  const timeUntilMidnight = tomorrow.getTime() - now.getTime();
-  return Math.max(0, timeUntilMidnight);
+  tomorrow.setHours(0, 0, 0, 0);
+  return Math.max(0, tomorrow.getTime() - now.getTime());
 }
 
 /**
  * Format time until next request as human-readable string
- * @returns String like "5h 30m" or "23h 15m" or "Available now"
+ * @param isSubscribed - Whether user has premium subscription
  */
-export async function getTimeUntilNextRequestFormatted(): Promise<string> {
-  const timeMs = await getTimeUntilNextRequest();
+export async function getTimeUntilNextRequestFormatted(
+  isSubscribed: boolean,
+): Promise<string> {
+  const timeMs = await getTimeUntilNextRequest(isSubscribed);
 
   if (timeMs === 0) {
     return "Available now";

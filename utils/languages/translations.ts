@@ -48,6 +48,7 @@ export interface Translations {
   "settings.devTools.title": string;
   "settings.devTools.generateData.button": string;
   "settings.devTools.generateData.generating": string;
+  "settings.devTools.viewPremiumFeatures": string;
   "settings.devTools.clearData.button": string;
   "settings.devTools.clearData.deleting": string;
 
@@ -569,6 +570,12 @@ export interface Translations {
   "subscription.limit.friend": string;
   "subscription.limit.family": string;
   "subscription.limit.hobby": string;
+  "premium.activeBadge": string;
+  "premium.whatsIncluded": string;
+  "premium.feature.ai": string;
+  "premium.feature.unlimited": string;
+  "premium.feature.notifications": string;
+  "premium.feature.analytics": string;
 
   // Notifications
   "notifications.title": string;
@@ -624,6 +631,7 @@ export interface Translations {
   "onboarding.done": string;
   "onboarding.demo": string;
   "onboarding.of": string;
+  "onboarding.showDetails": string;
   "onboarding.intro.title": string;
   "onboarding.intro.message": string;
   "onboarding.welcome.title": string;
@@ -704,6 +712,7 @@ export interface Translations {
   "ai.closeConfirm.discard": string;
   "ai.rateLimit.title": string;
   "ai.rateLimit.message": string;
+  "ai.rateLimit.premiumMessage": string;
   "ai.rateLimit.upgrade": string;
   "ai.error.title": string;
   "ai.error.message": string;
@@ -3462,6 +3471,7 @@ const translations: Record<Language, Translations> = {
     "settings.devTools.generateData.button":
       "Generate Fake Data (Profiles & Jobs)",
     "settings.devTools.generateData.generating": "Generating...",
+    "settings.devTools.viewPremiumFeatures": "View Premium Features",
     "settings.devTools.clearData.button": "Clear All App Data",
     "settings.devTools.clearData.deleting": "Deleting...",
     "wheel.noLessons.message":
@@ -4154,6 +4164,15 @@ const translations: Record<Language, Translations> = {
       "You can create one family member for free. Subscribe to create more family members.",
     "subscription.limit.hobby":
       "You can create one hobby for free. Subscribe to create more hobbies.",
+    "premium.activeBadge": "You're an active Premium member",
+    "premium.whatsIncluded": "WHAT'S INCLUDED",
+    "premium.feature.ai":
+      "Access to Sfera AI to turn your notes or voice stories into memories and moments",
+    "premium.feature.unlimited":
+      "Unlimited creation of partners, jobs, friends, family members and hobbies",
+    "premium.feature.notifications":
+      "Access to custom notifications based on sferas activity",
+    "premium.feature.analytics": "Access to premium analyses and statistics",
 
     // Notifications
     "notifications.title": "Notifications",
@@ -4217,6 +4236,7 @@ const translations: Record<Language, Translations> = {
     "onboarding.done": "Done",
     "onboarding.demo": "Try Demo",
     "onboarding.of": "of",
+    "onboarding.showDetails": "Show Details",
     "onboarding.intro.title": "Welcome to Sferas!",
     "onboarding.intro.message":
       "Sferas helps you appreciate and track the total amount of sunny vs cloudy moments in your life, measured as % in the main avatar. See at a glance how balanced each sphere of your life is.",
@@ -4316,7 +4336,9 @@ const translations: Record<Language, Translations> = {
     "ai.closeConfirm.discard": "Discard",
     "ai.rateLimit.title": "AI Request Limit Reached",
     "ai.rateLimit.message":
-      "You've reached the daily limit of 30 AI requests (memory and entity creation) as per fair use of AI under our Terms and Conditions.",
+      "You've used your 3 free AI requests today. Upgrade to Premium for more.",
+    "ai.rateLimit.premiumMessage":
+      "You've reached the daily limit. Try again tomorrow.",
     "ai.rateLimit.upgrade": "Upgrade to Premium",
     "ai.error.title": "AI Processing Failed",
     "ai.error.message":
@@ -7708,6 +7730,7 @@ const translations: Record<Language, Translations> = {
     "settings.devTools.generateData.button":
       "Генериране на Фалшиви Данни (Профили и Работи)",
     "settings.devTools.generateData.generating": "Генериране...",
+    "settings.devTools.viewPremiumFeatures": "Преглед на премиум функциите",
     "settings.devTools.clearData.button": "Изтриване на Всички Данни",
     "settings.devTools.clearData.deleting": "Изтриване...",
     "wheel.noLessons.message":
@@ -8404,6 +8427,15 @@ const translations: Record<Language, Translations> = {
       "Можете да създадете един член на семейството безплатно. Абонирайте се, за да създавате повече членове на семейството.",
     "subscription.limit.hobby":
       "Можете да създадете едно хоби безплатно. Абонирайте се, за да създавате повече хобита.",
+    "premium.activeBadge": "Активен премиум член сте",
+    "premium.whatsIncluded": "КАКВО Е ВКЛЮЧЕНО",
+    "premium.feature.ai":
+      "Достъп до Sfera AI за превръщане на бележките или гласовите си истории в спомени и моменти",
+    "premium.feature.unlimited":
+      "Неограничено създаване на партньори, работни места, приятели, членове на семейството и хобита",
+    "premium.feature.notifications":
+      "Достъп до персонализирани известия според активността в сферите",
+    "premium.feature.analytics": "Достъп до премиум анализи и статистики",
 
     // Notifications
     "notifications.title": "Известия",
@@ -8468,6 +8500,7 @@ const translations: Record<Language, Translations> = {
     "onboarding.done": "Готово",
     "onboarding.demo": "Пробно Демо",
     "onboarding.of": "от",
+    "onboarding.showDetails": "Покажи детайли",
     "onboarding.intro.title": "Добре дошли в Sferas!",
     "onboarding.intro.message":
       "Sferas ви помага да оцените и проследите общото количество слънчеви и облачни моменти във вашия живот, измерени като % в главния аватар. Вижте с един поглед колко балансирана е всяка сфера от живота ви.",
@@ -8570,7 +8603,9 @@ const translations: Record<Language, Translations> = {
       "Необходимо е разрешение за достъп до галерията, за да добавите снимки.",
     "ai.rateLimit.title": "Достигнат лимит за AI заявки",
     "ai.rateLimit.message":
-      "Достигнахте дневния лимит от 30 AI заявки (памети и обекти) съгласно справедливото ползване на AI по Общите условия.",
+      "Използвахте 3-те си безплатни AI заявки за днес. Надградете до Premium за повече.",
+    "ai.rateLimit.premiumMessage":
+      "Достигнахте дневния лимит. Опитайте отново утре.",
     "ai.rateLimit.upgrade": "Надграждане до Premium",
     "ai.error.title": "AI обработката неуспешна",
     "ai.error.message":

@@ -28,6 +28,7 @@ import { useInAppNotification } from "@/utils/InAppNotificationProvider";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { showPaywallForPremiumAccess } from "@/utils/premium-access";
 import { updateStreakOnMemoryCreation } from "@/utils/streak-manager";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -803,15 +804,19 @@ export function AIModal({
       return;
     }
 
-    // Check rate limiting for all users (memory + entity creation share 30/day)
-    const canMakeRequest = await canMakeAIRequest();
+    // Check rate limiting: 3/day for free, 30/day for premium (memory + entity creation share pool)
+    const canMakeRequest = await canMakeAIRequest(isSubscribed);
     if (!canMakeRequest) {
-      Alert.alert(
-        t("ai.rateLimit.title") || "AI Request Limit Reached",
-        t("ai.rateLimit.message") ||
-          "You've reached the daily limit of 30 AI requests (memory and entity creation). Try again tomorrow.",
-        [{ text: t("common.ok") || "OK", style: "default" }],
-      );
+      if (!isSubscribed) {
+        await showPaywallForPremiumAccess();
+      } else {
+        Alert.alert(
+          t("ai.rateLimit.title") || "AI Request Limit Reached",
+          t("ai.rateLimit.premiumMessage") ||
+            "You've reached the daily limit. Try again tomorrow.",
+          [{ text: t("common.ok") || "OK", style: "default" }],
+        );
+      }
       return;
     }
 

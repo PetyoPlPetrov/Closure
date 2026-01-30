@@ -1,0 +1,189 @@
+import { ThemedText } from "@/components/themed-text";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useFontScale } from "@/hooks/use-device-size";
+import { TabScreenContainer } from "@/library/components/tab-screen-container";
+import { useTranslate } from "@/utils/languages/use-translate";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { router } from "expo-router";
+import { useMemo } from "react";
+import {
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
+    type ViewStyle,
+} from "react-native";
+
+const FEATURES: { icon: keyof typeof MaterialIcons.glyphMap; key: string }[] = [
+  { icon: "psychology", key: "premium.feature.ai" },
+  { icon: "people", key: "premium.feature.unlimited" },
+  { icon: "notifications-active", key: "premium.feature.notifications" },
+  { icon: "insights", key: "premium.feature.analytics" },
+];
+
+export default function PremiumInfoScreen() {
+  const t = useTranslate();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? "dark"];
+  const fontScale = useFontScale();
+
+  const styles = useMemo(
+    () => createStyles(colors, colorScheme ?? "dark", fontScale),
+    [colors, colorScheme, fontScale],
+  );
+
+  return (
+    <TabScreenContainer style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <ThemedText size="l" weight="semibold" style={styles.title}>
+          {t("settings.subscriptions.premium")}
+        </ThemedText>
+        <View style={styles.backButton} />
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.activeBadge}>
+          <View style={styles.activeBadgeIcon}>
+            <MaterialIcons
+              name="check-circle"
+              size={28 * fontScale}
+              color={colors.primary}
+            />
+          </View>
+          <ThemedText size="l" weight="semibold" style={styles.activeBadgeText}>
+            {t("premium.activeBadge")}
+          </ThemedText>
+        </View>
+
+        <ThemedText size="sm" weight="medium" style={styles.sectionTitle}>
+          {t("premium.whatsIncluded")}
+        </ThemedText>
+
+        <View style={styles.featuresList}>
+          {FEATURES.map(({ icon, key }) => (
+            <View key={key} style={styles.featureRow}>
+              <View style={styles.iconWrapper}>
+                <MaterialIcons
+                  name={icon}
+                  size={22 * fontScale}
+                  color={colors.primary}
+                />
+              </View>
+              <ThemedText size="sm" style={styles.featureText}>
+                {t(key)}
+              </ThemedText>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </TabScreenContainer>
+  );
+}
+
+function createStyles(
+  colors: { text: string; primary: string },
+  scheme: "light" | "dark",
+  fontScale: number,
+) {
+  const isDark = scheme === "dark";
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16 * fontScale,
+      paddingTop: 48 * fontScale,
+      paddingBottom: 16 * fontScale,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark
+        ? "rgba(255, 255, 255, 0.1)"
+        : "rgba(0, 0, 0, 0.1)",
+    } as ViewStyle,
+    backButton: {
+      padding: 8 * fontScale,
+      minWidth: 40 * fontScale,
+      alignItems: "center",
+    } as ViewStyle,
+    title: {
+      flex: 1,
+      textAlign: "center",
+    } as ViewStyle,
+    scroll: {
+      flex: 1,
+    } as ViewStyle,
+    scrollContent: {
+      padding: 20 * fontScale,
+      paddingBottom: 40 * fontScale,
+    } as ViewStyle,
+    activeBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12 * fontScale,
+      padding: 16 * fontScale,
+      marginBottom: 24 * fontScale,
+      borderRadius: 12 * fontScale,
+      backgroundColor: isDark
+        ? "rgba(100, 150, 255, 0.15)"
+        : "rgba(100, 150, 255, 0.12)",
+      borderWidth: 1,
+      borderColor: isDark
+        ? "rgba(100, 150, 255, 0.3)"
+        : "rgba(100, 150, 255, 0.25)",
+    } as ViewStyle,
+    activeBadgeIcon: {
+      width: 36 * fontScale,
+      height: 36 * fontScale,
+      justifyContent: "center",
+      alignItems: "center",
+    } as ViewStyle,
+    activeBadgeText: {
+      flex: 1,
+      color: colors.text,
+    } as ViewStyle,
+    sectionTitle: {
+      color: colors.text,
+      opacity: 0.8,
+      textTransform: "uppercase",
+      letterSpacing: 1,
+      marginBottom: 20 * fontScale,
+    } as ViewStyle,
+    featuresList: {
+      gap: 14 * fontScale,
+    } as ViewStyle,
+    featureRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12 * fontScale,
+    } as ViewStyle,
+    iconWrapper: {
+      width: 36 * fontScale,
+      height: 36 * fontScale,
+      borderRadius: 18 * fontScale,
+      backgroundColor: isDark
+        ? "rgba(100, 150, 255, 0.2)"
+        : "rgba(100, 150, 255, 0.15)",
+      justifyContent: "center",
+      alignItems: "center",
+    } as ViewStyle,
+    featureText: {
+      flex: 1,
+      color: colors.text,
+      lineHeight: 20 * fontScale,
+    } as ViewStyle,
+  });
+}

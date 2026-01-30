@@ -15,6 +15,7 @@ import {
     LIGHT_GRADIENT_COLORS,
     TabScreenContainer,
 } from "@/library/components/tab-screen-container";
+import { getLocalDateString } from "@/utils/ai-rate-limiter";
 import { processHomeEncouragementPrompt } from "@/utils/ai-service";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
 import { logError } from "@/utils/error-logger";
@@ -11579,7 +11580,7 @@ export default function HomeScreen() {
   const ENCOURAGEMENT_REQUESTS_PER_DAY = 12;
 
   const getEncouragementRequestUsage = async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getLocalDateString();
     try {
       const raw = await AsyncStorage.getItem(ENCOURAGEMENT_REQUESTS_KEY);
       if (!raw) return { count: 0, today };
@@ -11594,7 +11595,7 @@ export default function HomeScreen() {
   };
 
   const incrementEncouragementRequestCount = async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getLocalDateString();
     let nextCount = 1;
     try {
       const raw = await AsyncStorage.getItem(ENCOURAGEMENT_REQUESTS_KEY);
@@ -11620,7 +11621,7 @@ export default function HomeScreen() {
    * automatically cleared when the date changes to avoid unneeded storage.
    */
   const appendTodayEncouragementMessage = async (message: string) => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getLocalDateString();
     try {
       const raw = await AsyncStorage.getItem(ENCOURAGEMENT_MESSAGES_KEY);
       if (!raw) {
@@ -11662,7 +11663,7 @@ export default function HomeScreen() {
    * day, clear it so it doesn't accumulate indefinitely.
    */
   const getRandomTodayEncouragementMessage = async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getLocalDateString();
     try {
       const raw = await AsyncStorage.getItem(ENCOURAGEMENT_MESSAGES_KEY);
       if (!raw) return null;

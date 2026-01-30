@@ -604,7 +604,7 @@ export function OnboardingStepper({
                             weight="medium"
                             style={{ color: colors.primary }}
                           >
-                            Show Details
+                            {t("onboarding.showDetails")}
                           </ThemedText>
                         </Pressable>
                       ) : (
