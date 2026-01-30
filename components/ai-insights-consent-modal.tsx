@@ -3,14 +3,8 @@ import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useTranslate } from "@/utils/languages/use-translate";
-import React, { useMemo } from "react";
-import {
-    Modal,
-    Pressable,
-    StyleSheet,
-    TouchableOpacity,
-    View,
-} from "react-native";
+import React, { useEffect, useMemo, useRef } from "react";
+import { Modal, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type AIInsightsConsentModalProps = {
@@ -35,6 +29,25 @@ export function AIInsightsConsentModal({
     [colors, colorScheme, fontScale, insets.top],
   );
 
+  const enablePressedRef = useRef(false);
+
+  useEffect(() => {
+    if (visible) enablePressedRef.current = false;
+  }, [visible]);
+
+  const handleContainerPress = () => {
+    onMaybeLater();
+  };
+  const handleCardPress = () => {};
+  const handleEnablePress = () => {
+    if (enablePressedRef.current) return;
+    enablePressedRef.current = true;
+    onEnable();
+  };
+  const handleMaybeLaterPress = () => {
+    onMaybeLater();
+  };
+
   return (
     <Modal
       visible={visible}
@@ -42,9 +55,8 @@ export function AIInsightsConsentModal({
       animationType="fade"
       onRequestClose={onMaybeLater}
     >
-      <Pressable style={styles.backdrop} onPress={onMaybeLater} />
-      <View style={styles.container}>
-        <View style={styles.card}>
+      <Pressable style={styles.container} onPress={handleContainerPress}>
+        <Pressable style={styles.card} onPress={handleCardPress}>
           <ThemedText size="l" weight="bold" style={styles.title}>
             {t("settings.aiInsights.title")}
           </ThemedText>
@@ -53,10 +65,10 @@ export function AIInsightsConsentModal({
           </ThemedText>
 
           <View style={styles.actions}>
-            <TouchableOpacity
+            <Pressable
               style={styles.primaryButton}
-              onPress={onEnable}
-              activeOpacity={0.85}
+              onPress={handleEnablePress}
+              hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
             >
               <ThemedText
                 size="sm"
@@ -65,12 +77,11 @@ export function AIInsightsConsentModal({
               >
                 {t("settings.aiInsights.enable")}
               </ThemedText>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
+            <Pressable
               style={styles.secondaryButton}
-              onPress={onMaybeLater}
-              activeOpacity={0.85}
+              onPress={handleMaybeLaterPress}
             >
               <ThemedText
                 size="sm"
@@ -79,10 +90,10 @@ export function AIInsightsConsentModal({
               >
                 {t("ai.insights.consent.maybeLater")}
               </ThemedText>
-            </TouchableOpacity>
+            </Pressable>
           </View>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
@@ -95,15 +106,12 @@ function createStyles(
 ) {
   const isDark = scheme === "dark";
   return StyleSheet.create({
-    backdrop: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: "rgba(0,0,0,0.55)",
-    },
     container: {
       flex: 1,
       justifyContent: "center",
       paddingHorizontal: 18 * fontScale,
       paddingTop: safeTop,
+      backgroundColor: "rgba(0,0,0,0.55)",
     },
     card: {
       borderRadius: 16 * fontScale,

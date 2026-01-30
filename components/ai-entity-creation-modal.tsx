@@ -1331,7 +1331,14 @@ export function AIEntityCreationModal({
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.overlay}
+          style={[
+            styles.overlay,
+            keyboardVisible && {
+              justifyContent: "flex-end",
+              paddingBottom: 16 * fontScale,
+            },
+          ]}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 30 : 24}
         >
           <Pressable style={styles.overlay} onPress={handleAttemptClose}>
             <Pressable

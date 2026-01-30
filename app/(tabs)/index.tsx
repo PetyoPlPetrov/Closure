@@ -15832,12 +15832,10 @@ export default function HomeScreen() {
           <AIInsightsConsentModal
             visible={aiInsightsConsentVisible}
             onEnable={() => {
-              void aiConsent.setChoice("enabled").then(() => {
-                setAiInsightsConsentVisible(false);
-                // Trigger a fresh AI message now that consent is granted
-                setAiEncouragementText(null);
-                setEncouragementCacheBust((x) => x + 1);
-              });
+              setAiInsightsConsentVisible(false);
+              setAiEncouragementText(null);
+              setEncouragementCacheBust((x) => x + 1);
+              void aiConsent.setChoice("enabled");
             }}
             onMaybeLater={() => {
               void aiConsent.setChoice("maybe_later").then(() => {

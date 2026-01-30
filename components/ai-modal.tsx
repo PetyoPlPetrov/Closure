@@ -1992,9 +1992,9 @@ export function AIModal({
             justifyContent: isKeyboardVisible ? "flex-end" : "center",
             alignItems: "center",
             width: "100%",
-            paddingBottom: isKeyboardVisible ? 20 * fontScale : 0,
+            paddingBottom: isKeyboardVisible ? 16 * fontScale : 0,
           }}
-          keyboardVerticalOffset={Platform.OS === "ios" ? -50 : 20}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 30 : 24}
         >
           <Pressable
             style={

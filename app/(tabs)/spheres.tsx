@@ -16,7 +16,7 @@ import {
     getPendingEntityRequest,
     getPendingEntityResponse,
     isBackgroundEntityTaskRunning,
-    isBackgroundTaskRunning
+    isBackgroundTaskRunning,
 } from "@/utils/ai-background-processor";
 import { sendToAI } from "@/utils/ai-service";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
@@ -69,7 +69,7 @@ import Animated, {
     withDelay,
     withRepeat,
     withSpring,
-    withTiming
+    withTiming,
 } from "react-native-reanimated";
 
 const AnimatedView = Animated.createAnimatedComponent(View);
@@ -3037,12 +3037,18 @@ export default function SpheresScreen() {
         <AIInsightsConsentModal
           visible={aiInsightsConsentVisible}
           onEnable={() => {
-            void aiConsent.setChoice("enabled").then(() => {
-              setAiInsightsConsentVisible(false);
-              const pending = pendingAIIconActionRef.current;
-              pendingAIIconActionRef.current = null;
+            setAiInsightsConsentVisible(false);
+            const pending = pendingAIIconActionRef.current;
+            pendingAIIconActionRef.current = null;
+            void aiConsent.setChoice("enabled").then(async () => {
               if (pending === "open_ai") {
-                void handleAIModalOpen();
+                const pendingResponse = await getPendingAIResponse();
+                if (pendingResponse) {
+                  setPendingAIResponse(pendingResponse);
+                  openMemoryAIModal();
+                } else {
+                  setAiActionModalVisible(true);
+                }
               }
             });
           }}
