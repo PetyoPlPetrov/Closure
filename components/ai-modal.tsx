@@ -2328,6 +2328,21 @@ export function AIModal({
                       </ThemedText>
                     </LinearGradient>
                   </TouchableOpacity>
+
+                  {/* Minimum words warning */}
+                  {wordCount > 0 && wordCount < 10 && !isProcessing && (
+                    <ThemedText
+                      style={{
+                        color: colorScheme === "dark" ? "#FF6B6B" : "#D93025",
+                        fontSize: 13 * fontScale,
+                        textAlign: "center",
+                        marginTop: 8,
+                      }}
+                    >
+                      {t("ai.error.minimumWords") ||
+                        "Please enter at least 10 words"}
+                    </ThemedText>
+                  )}
                 </>
               )}
 

@@ -110,6 +110,16 @@ export function AIEntityCreationModal({
   const micScale = useSharedValue(1);
   const micOpacity = useSharedValue(1);
 
+  // Count words in input text
+  const wordCount = useMemo(() => {
+    return inputText
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0).length;
+  }, [inputText]);
+
+  const canSubmit = wordCount >= 10 && !isProcessing;
+
   // Loading messages that rotate
   const loadingMessages = [
     t("ai.loading.thinking") || "AI is thinking...",
@@ -376,11 +386,11 @@ export function AIEntityCreationModal({
   };
 
   const handleSubmit = async () => {
-    if (!inputText.trim() || inputText.trim().length < 10) {
+    if (wordCount < 10) {
       setShowValidationErrors(true);
       Alert.alert(
         t("common.error") || "Error",
-        t("ai.error.empty") || "Please enter at least 10 words",
+        t("ai.error.minimumWords") || "Please enter at least 10 words",
       );
       return;
     }
@@ -1679,17 +1689,10 @@ export function AIEntityCreationModal({
                     <TouchableOpacity
                       style={[
                         styles.submitButton,
-                        (!inputText.trim() ||
-                          inputText.trim().length < 10 ||
-                          isProcessing) &&
-                          styles.submitButtonDisabled,
+                        !canSubmit && styles.submitButtonDisabled,
                       ]}
                       onPress={handleSubmit}
-                      disabled={
-                        !inputText.trim() ||
-                        inputText.trim().length < 10 ||
-                        isProcessing
-                      }
+                      disabled={!canSubmit}
                       activeOpacity={0.8}
                     >
                       <View
@@ -1700,9 +1703,7 @@ export function AIEntityCreationModal({
                       >
                         <LinearGradient
                           colors={
-                            !inputText.trim() ||
-                            inputText.trim().length < 10 ||
-                            isProcessing
+                            !canSubmit
                               ? colorScheme === "dark"
                                 ? [
                                     "rgba(255, 255, 255, 0.1)",
@@ -1728,6 +1729,21 @@ export function AIEntityCreationModal({
                         </ThemedText>
                       )}
                     </TouchableOpacity>
+
+                    {/* Minimum words warning */}
+                    {wordCount > 0 && wordCount < 10 && !isProcessing && (
+                      <ThemedText
+                        style={{
+                          color: colorScheme === "dark" ? "#FF6B6B" : "#D93025",
+                          fontSize: 13 * fontScale,
+                          textAlign: "center",
+                          marginTop: 8,
+                        }}
+                      >
+                        {t("ai.error.minimumWords") ||
+                          "Please enter at least 10 words"}
+                      </ThemedText>
+                    )}
                   </View>
                 )}
               </ScrollView>
