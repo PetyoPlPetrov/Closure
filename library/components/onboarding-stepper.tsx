@@ -1,33 +1,33 @@
-import { ThemedText } from '@/components/themed-text';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useFontScale } from '@/hooks/use-device-size';
-import { useTranslate } from '@/utils/languages/use-translate';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Image } from 'expo-image';
-import { Video, ResizeMode } from 'expo-av';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useState } from 'react';
+import { ThemedText } from "@/components/themed-text";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useFontScale } from "@/hooks/use-device-size";
+import { useTranslate } from "@/utils/languages/use-translate";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { ResizeMode, Video } from "expo-av";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
-} from 'react-native';
+    Modal,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
+} from "react-native";
 import Animated, {
-  Easing,
-  SlideInRight,
-  SlideOutLeft,
-  useAnimatedStyle,
-  useSharedValue,
-  withSequence,
-  withTiming
-} from 'react-native-reanimated';
+    Easing,
+    SlideInRight,
+    SlideOutLeft,
+    useAnimatedStyle,
+    useSharedValue,
+    withSequence,
+    withTiming,
+} from "react-native-reanimated";
 
-import type { Translations } from '@/utils/languages/translations';
+import type { Translations } from "@/utils/languages/translations";
 
 // Removed unused SCREEN_WIDTH - was not being used in the component
 
@@ -36,7 +36,15 @@ type OnboardingStep = {
   titleKey: keyof Translations;
   messageKey: keyof Translations;
   showGif?: boolean;
-  gifSource?: 'welcome' | 'memory' | 'recap' | 'insights' | 'notifications' | 'creating' | 'wheel';
+  gifSource?:
+    | "welcome"
+    | "memory"
+    | "recap"
+    | "insights"
+    | "notifications"
+    | "creating"
+    | "wheel"
+    | "ai";
   imageComponent?: React.ReactNode;
 };
 
@@ -49,45 +57,51 @@ type OnboardingStepperProps = {
 const STEPS: OnboardingStep[] = [
   {
     showGif: true,
-    gifSource: 'welcome',
-    titleKey: 'onboarding.intro.title',
-    messageKey: 'onboarding.intro.message',
+    gifSource: "welcome",
+    titleKey: "onboarding.intro.title",
+    messageKey: "onboarding.intro.message",
   },
   {
     showGif: true,
-    gifSource: 'wheel',
-    titleKey: 'onboarding.welcome.title',
-    messageKey: 'onboarding.welcome.message',
+    gifSource: "wheel",
+    titleKey: "onboarding.welcome.title",
+    messageKey: "onboarding.welcome.message",
   },
   {
     showGif: true,
-    gifSource: 'memory',
-    titleKey: 'onboarding.moments.title',
-    messageKey: 'onboarding.moments.message',
+    gifSource: "memory",
+    titleKey: "onboarding.moments.title",
+    messageKey: "onboarding.moments.message",
   },
   {
     showGif: true,
-    gifSource: 'recap',
-    titleKey: 'onboarding.recap.title',
-    messageKey: 'onboarding.recap.message',
+    gifSource: "recap",
+    titleKey: "onboarding.recap.title",
+    messageKey: "onboarding.recap.message",
   },
   {
     showGif: true,
-    gifSource: 'insights',
-    titleKey: 'onboarding.lessons.title',
-    messageKey: 'onboarding.lessons.message',
+    gifSource: "insights",
+    titleKey: "onboarding.lessons.title",
+    messageKey: "onboarding.lessons.message",
   },
   {
     showGif: true,
-    gifSource: 'notifications',
-    titleKey: 'onboarding.notifications.title',
-    messageKey: 'onboarding.notifications.message',
+    gifSource: "notifications",
+    titleKey: "onboarding.notifications.title",
+    messageKey: "onboarding.notifications.message",
   },
   {
     showGif: true,
-    gifSource: 'creating',
-    titleKey: 'onboarding.getStarted.title',
-    messageKey: 'onboarding.getStarted.message',
+    gifSource: "creating",
+    titleKey: "onboarding.getStarted.title",
+    messageKey: "onboarding.getStarted.message",
+  },
+  {
+    showGif: true,
+    gifSource: "ai",
+    titleKey: "onboarding.ai.title",
+    messageKey: "onboarding.ai.message",
   },
 ];
 
@@ -100,7 +114,7 @@ export function OnboardingStepper({
   const [isTextCollapsed, setIsTextCollapsed] = useState(false);
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
-  const colors = Colors[colorScheme ?? 'dark'];
+  const colors = Colors[colorScheme ?? "dark"];
   const t = useTranslate();
 
   // Animated values for smooth expansion
@@ -115,10 +129,7 @@ export function OnboardingStepper({
 
   // Animated styles
   const gifAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: gifScale.value },
-      { translateY: gifTranslateY.value },
-    ],
+    transform: [{ scale: gifScale.value }, { translateY: gifTranslateY.value }],
   }));
 
   const collapseIconAnimatedStyle = useAnimatedStyle(() => ({
@@ -134,7 +145,7 @@ export function OnboardingStepper({
           withTiming(1.2, { duration: 800, easing: Easing.inOut(Easing.ease) }),
           withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
           withTiming(1.2, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) })
+          withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
         );
       }, 600); // Start pulse 600ms after modal opens
       return () => clearTimeout(timer);
@@ -204,23 +215,24 @@ export function OnboardingStepper({
       StyleSheet.create({
         overlay: {
           flex: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.75)',
-          justifyContent: 'center',
-          alignItems: 'center',
+          backgroundColor: "rgba(0, 0, 0, 0.75)",
+          justifyContent: "center",
+          alignItems: "center",
           padding: 20 * fontScale,
         },
         container: {
-          backgroundColor: colorScheme === 'dark' ? colors.background : '#ffffff',
+          backgroundColor:
+            colorScheme === "dark" ? colors.background : "#ffffff",
           borderRadius: 24 * fontScale,
           padding: 28 * fontScale,
-          width: '100%',
+          width: "100%",
           maxWidth: 420 * fontScale,
           height: 580 * fontScale,
-          position: 'relative',
-          overflow: 'hidden',
+          position: "relative",
+          overflow: "hidden",
         },
         gradientBackground: {
-          position: 'absolute',
+          position: "absolute",
           top: 0,
           left: 0,
           right: 0,
@@ -228,18 +240,18 @@ export function OnboardingStepper({
           borderRadius: 24 * fontScale,
         },
         content: {
-          position: 'relative',
+          position: "relative",
           zIndex: 1,
           flex: 1,
-          flexDirection: 'column',
+          flexDirection: "column",
         },
         scrollContainer: {
           flex: 1,
         },
         header: {
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
           marginBottom: 16 * fontScale,
         },
         scrollContent: {
@@ -248,7 +260,7 @@ export function OnboardingStepper({
           paddingTop: 20 * fontScale,
         },
         progressContainer: {
-          flexDirection: 'row',
+          flexDirection: "row",
           gap: 6 * fontScale,
           flex: 1,
         },
@@ -256,9 +268,10 @@ export function OnboardingStepper({
           flex: 1,
           height: 4 * fontScale,
           borderRadius: 2 * fontScale,
-          backgroundColor: colorScheme === 'dark'
-            ? 'rgba(255, 255, 255, 0.2)'
-            : 'rgba(0, 0, 0, 0.1)',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.2)"
+              : "rgba(0, 0, 0, 0.1)",
         },
         progressDotActive: {
           backgroundColor: colors.primary,
@@ -276,18 +289,19 @@ export function OnboardingStepper({
           width: 80 * fontScale,
           height: 80 * fontScale,
           borderRadius: 40 * fontScale,
-          backgroundColor: colorScheme === 'dark'
-            ? 'rgba(100, 150, 255, 0.2)'
-            : 'rgba(100, 150, 255, 0.15)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          alignSelf: 'center',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(100, 150, 255, 0.2)"
+              : "rgba(100, 150, 255, 0.15)",
+          justifyContent: "center",
+          alignItems: "center",
+          alignSelf: "center",
           marginBottom: 20 * fontScale,
           marginTop: 12 * fontScale,
         },
         gifWrapper: {
-          position: 'relative',
-          alignSelf: 'center',
+          position: "relative",
+          alignSelf: "center",
           marginBottom: 20 * fontScale,
           marginTop: -20,
           width: 340 * fontScale,
@@ -297,67 +311,73 @@ export function OnboardingStepper({
           width: 340 * fontScale,
           height: 255 * fontScale,
           borderRadius: 16 * fontScale,
-          overflow: 'hidden',
-          backgroundColor: colorScheme === 'dark'
-            ? 'rgba(0, 0, 0, 0.3)'
-            : 'rgba(0, 0, 0, 0.05)',
+          overflow: "hidden",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(0, 0, 0, 0.3)"
+              : "rgba(0, 0, 0, 0.05)",
         },
         gif: {
-          width: '100%',
-          height: '100%',
+          width: "100%",
+          height: "100%",
         },
         textContainer: {
-          position: 'relative',
-          backgroundColor: colorScheme === 'dark'
-            ? 'rgba(100, 150, 255, 0.15)'
-            : 'rgba(100, 150, 255, 0.1)',
+          position: "relative",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(100, 150, 255, 0.15)"
+              : "rgba(100, 150, 255, 0.1)",
           borderRadius: 16 * fontScale,
           borderWidth: 1.5,
-          borderColor: colorScheme === 'dark'
-            ? 'rgba(100, 150, 255, 0.3)'
-            : 'rgba(100, 150, 255, 0.25)',
+          borderColor:
+            colorScheme === "dark"
+              ? "rgba(100, 150, 255, 0.3)"
+              : "rgba(100, 150, 255, 0.25)",
           padding: 16 * fontScale,
           paddingTop: 20 * fontScale,
           marginBottom: 16 * fontScale,
-          overflow: 'hidden',
+          overflow: "hidden",
         },
         textCollapseIcon: {
-          position: 'absolute',
+          position: "absolute",
           top: 12 * fontScale,
           right: 12 * fontScale,
           width: 28 * fontScale,
           height: 28 * fontScale,
           borderRadius: 14 * fontScale,
-          backgroundColor: colorScheme === 'dark'
-            ? 'rgba(100, 150, 255, 0.25)'
-            : 'rgba(100, 150, 255, 0.2)',
-          justifyContent: 'center',
-          alignItems: 'center',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(100, 150, 255, 0.25)"
+              : "rgba(100, 150, 255, 0.2)",
+          justifyContent: "center",
+          alignItems: "center",
           zIndex: 10,
         },
         collapsedBar: {
-          backgroundColor: colorScheme === 'dark'
-            ? 'rgba(100, 150, 255, 0.15)'
-            : 'rgba(100, 150, 255, 0.1)',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(100, 150, 255, 0.15)"
+              : "rgba(100, 150, 255, 0.1)",
           borderRadius: 16 * fontScale,
           borderWidth: 1.5,
-          borderColor: colorScheme === 'dark'
-            ? 'rgba(100, 150, 255, 0.3)'
-            : 'rgba(100, 150, 255, 0.25)',
+          borderColor:
+            colorScheme === "dark"
+              ? "rgba(100, 150, 255, 0.3)"
+              : "rgba(100, 150, 255, 0.25)",
           padding: 12 * fontScale,
           marginTop: 60 * fontScale,
           marginBottom: 20 * fontScale,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
           gap: 8 * fontScale,
         },
         title: {
-          textAlign: 'center',
+          textAlign: "center",
           marginBottom: 12 * fontScale,
         },
         message: {
-          textAlign: 'center',
+          textAlign: "center",
           lineHeight: 24 * fontScale,
           marginBottom: 12 * fontScale,
         },
@@ -368,52 +388,54 @@ export function OnboardingStepper({
           marginBottom: 4 * fontScale,
         },
         buttonRow: {
-          flexDirection: 'row',
+          flexDirection: "row",
           gap: 12 * fontScale,
         },
         button: {
           flex: 1,
           height: 52 * fontScale,
           borderRadius: 14 * fontScale,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
           paddingHorizontal: 20 * fontScale,
         },
         buttonPrimary: {
           backgroundColor: colors.primary,
         },
         buttonSecondary: {
-          backgroundColor: colorScheme === 'dark'
-            ? 'rgba(255, 255, 255, 0.12)'
-            : 'rgba(0, 0, 0, 0.08)',
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.12)"
+              : "rgba(0, 0, 0, 0.08)",
           borderWidth: 1.5,
-          borderColor: colorScheme === 'dark'
-            ? 'rgba(100, 150, 255, 0.4)'
-            : 'rgba(100, 150, 255, 0.3)',
+          borderColor:
+            colorScheme === "dark"
+              ? "rgba(100, 150, 255, 0.4)"
+              : "rgba(100, 150, 255, 0.3)",
         },
         buttonOutline: {
-          backgroundColor: 'transparent',
+          backgroundColor: "transparent",
           borderWidth: 2,
           borderColor: colors.primary,
         },
         buttonTextPrimary: {
-          color: '#ffffff',
-          fontWeight: '600',
+          color: "#ffffff",
+          fontWeight: "600",
         },
         buttonTextSecondary: {
           color: colors.text,
-          fontWeight: '600',
+          fontWeight: "600",
         },
         buttonTextOutline: {
           color: colors.primary,
-          fontWeight: '600',
+          fontWeight: "600",
         },
         stepIndicator: {
-          textAlign: 'center',
+          textAlign: "center",
           marginTop: 8 * fontScale,
         },
       }),
-    [fontScale, colorScheme, colors]
+    [fontScale, colorScheme, colors],
   );
 
   return (
@@ -432,9 +454,17 @@ export function OnboardingStepper({
               {/* Gradient background */}
               <LinearGradient
                 colors={
-                  colorScheme === 'dark'
-                    ? ['rgba(70, 120, 220, 0.45)', 'rgba(50, 90, 180, 0.35)', 'rgba(80, 130, 230, 0.42)']
-                    : ['rgba(100, 150, 255, 0.35)', 'rgba(120, 170, 255, 0.25)', 'rgba(100, 150, 255, 0.32)']
+                  colorScheme === "dark"
+                    ? [
+                        "rgba(70, 120, 220, 0.45)",
+                        "rgba(50, 90, 180, 0.35)",
+                        "rgba(80, 130, 230, 0.42)",
+                      ]
+                    : [
+                        "rgba(100, 150, 255, 0.35)",
+                        "rgba(120, 170, 255, 0.25)",
+                        "rgba(100, 150, 255, 0.32)",
+                      ]
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -444,16 +474,17 @@ export function OnboardingStepper({
               {/* Border */}
               <View
                 style={{
-                  position: 'absolute',
+                  position: "absolute",
                   left: 0,
                   right: 0,
                   top: 0,
                   bottom: 0,
                   borderRadius: 24 * fontScale,
                   borderWidth: 1.5,
-                  borderColor: colorScheme === 'dark'
-                    ? 'rgba(100, 150, 255, 0.4)'
-                    : 'rgba(100, 150, 255, 0.3)',
+                  borderColor:
+                    colorScheme === "dark"
+                      ? "rgba(100, 150, 255, 0.4)"
+                      : "rgba(100, 150, 255, 0.3)",
                 }}
               />
 
@@ -476,8 +507,12 @@ export function OnboardingStepper({
                     onPress={handleSkip}
                     activeOpacity={0.7}
                   >
-                    <ThemedText size="sm" weight="semibold" style={styles.skipText}>
-                      {t('onboarding.skip')}
+                    <ThemedText
+                      size="sm"
+                      weight="semibold"
+                      style={styles.skipText}
+                    >
+                      {t("onboarding.skip")}
                     </ThemedText>
                   </TouchableOpacity>
                 </View>
@@ -500,9 +535,18 @@ export function OnboardingStepper({
                         <View style={styles.gifWrapper}>
                           <Animated.View style={gifAnimatedStyle}>
                             <View style={styles.gifContainer}>
-                              {step.gifSource === 'recap' ? (
+                              {step.gifSource === "recap" ? (
                                 <Video
-                                  source={require('@/recapGiff.mp4')}
+                                  source={require("@/recapGiff.mp4")}
+                                  style={styles.gif}
+                                  resizeMode={ResizeMode.CONTAIN}
+                                  shouldPlay
+                                  isLooping
+                                  isMuted
+                                />
+                              ) : step.gifSource === "ai" ? (
+                                <Video
+                                  source={require("@/ai.mov")}
                                   style={styles.gif}
                                   resizeMode={ResizeMode.CONTAIN}
                                   shouldPlay
@@ -512,19 +556,19 @@ export function OnboardingStepper({
                               ) : (
                                 <Image
                                   source={
-                                    step.gifSource === 'welcome'
-                                      ? require('@/assets/images/home.gif')
-                                      : step.gifSource === 'wheel'
-                                      ? require('@/assets/images/wheel.gif')
-                                      : step.gifSource === 'memory'
-                                      ? require('@/assets/images/memories.gif')
-                                      : step.gifSource === 'insights'
-                                      ? require('@/assets/images/insights.gif')
-                                      : step.gifSource === 'notifications'
-                                      ? require('@/assets/images/reminders.gif')
-                                      : step.gifSource === 'creating'
-                                      ? require('@/family.gif')
-                                      : require('@/assets/images/output.gif')
+                                    step.gifSource === "welcome"
+                                      ? require("@/assets/images/home.gif")
+                                      : step.gifSource === "wheel"
+                                        ? require("@/assets/images/wheel.gif")
+                                        : step.gifSource === "memory"
+                                          ? require("@/assets/images/memories.gif")
+                                          : step.gifSource === "insights"
+                                            ? require("@/assets/images/insights.gif")
+                                            : step.gifSource === "notifications"
+                                              ? require("@/assets/images/reminders.gif")
+                                              : step.gifSource === "creating"
+                                                ? require("@/family.gif")
+                                                : require("@/assets/images/output.gif")
                                   }
                                   style={styles.gif}
                                   contentFit="contain"
@@ -546,21 +590,36 @@ export function OnboardingStepper({
                       {/* Text Container - shows full or collapsed bar */}
                       {isTextCollapsed ? (
                         // Collapsed state - show simple bar with expand icon
-                        <Pressable onPress={handleToggleText} style={styles.collapsedBar}>
+                        <Pressable
+                          onPress={handleToggleText}
+                          style={styles.collapsedBar}
+                        >
                           <MaterialIcons
                             name="expand-more"
                             size={20 * fontScale}
                             color={colors.primary}
                           />
-                          <ThemedText size="sm" weight="medium" style={{ color: colors.primary }}>
+                          <ThemedText
+                            size="sm"
+                            weight="medium"
+                            style={{ color: colors.primary }}
+                          >
                             Show Details
                           </ThemedText>
                         </Pressable>
                       ) : (
                         // Expanded state - show full text container
-                        <Pressable onPress={handleToggleText} style={styles.textContainer}>
+                        <Pressable
+                          onPress={handleToggleText}
+                          style={styles.textContainer}
+                        >
                           {/* Collapse icon in top-right corner */}
-                          <Animated.View style={[styles.textCollapseIcon, collapseIconAnimatedStyle]}>
+                          <Animated.View
+                            style={[
+                              styles.textCollapseIcon,
+                              collapseIconAnimatedStyle,
+                            ]}
+                          >
                             <MaterialIcons
                               name="expand-less"
                               size={18 * fontScale}
@@ -568,19 +627,32 @@ export function OnboardingStepper({
                             />
                           </Animated.View>
 
-                          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.title}>
+                          <ThemedText
+                            size="xl"
+                            weight="bold"
+                            letterSpacing="s"
+                            style={styles.title}
+                          >
                             {t(step.titleKey)}
                           </ThemedText>
 
-                          <ThemedText size="sm" weight="normal" style={styles.message}>
+                          <ThemedText
+                            size="sm"
+                            weight="normal"
+                            style={styles.message}
+                          >
                             {t(step.messageKey)}
                           </ThemedText>
                         </Pressable>
                       )}
 
                       {/* Step indicator */}
-                      <ThemedText size="xs" weight="medium" style={styles.stepIndicator}>
-                        {currentStep + 1} {t('onboarding.of')} {STEPS.length}
+                      <ThemedText
+                        size="xs"
+                        weight="medium"
+                        style={styles.stepIndicator}
+                      >
+                        {currentStep + 1} {t("onboarding.of")} {STEPS.length}
                       </ThemedText>
                     </Animated.View>
                   </ScrollView>
@@ -594,8 +666,12 @@ export function OnboardingStepper({
                       onPress={handlePrevious}
                       activeOpacity={0.8}
                     >
-                      <ThemedText size="l" weight="bold" style={styles.buttonTextSecondary}>
-                        {t('onboarding.back')}
+                      <ThemedText
+                        size="l"
+                        weight="bold"
+                        style={styles.buttonTextSecondary}
+                      >
+                        {t("onboarding.back")}
                       </ThemedText>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -603,8 +679,14 @@ export function OnboardingStepper({
                       onPress={isLastStep ? onDismiss : handleNext}
                       activeOpacity={0.8}
                     >
-                      <ThemedText size="l" weight="bold" style={styles.buttonTextPrimary}>
-                        {isLastStep ? t('onboarding.done') : t('onboarding.next')}
+                      <ThemedText
+                        size="l"
+                        weight="bold"
+                        style={styles.buttonTextPrimary}
+                      >
+                        {isLastStep
+                          ? t("onboarding.done")
+                          : t("onboarding.next")}
                       </ThemedText>
                     </TouchableOpacity>
                   </View>

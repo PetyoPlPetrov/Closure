@@ -640,6 +640,8 @@ export interface Translations {
   "onboarding.notifications.message": string;
   "onboarding.getStarted.title": string;
   "onboarding.getStarted.message": string;
+  "onboarding.ai.title": string;
+  "onboarding.ai.message": string;
 
   // Settings - Help Section
   "settings.help.title": string;
@@ -4239,6 +4241,9 @@ const translations: Record<Language, Translations> = {
     "onboarding.getStarted.title": "Ready to Begin?",
     "onboarding.getStarted.message":
       "Start by creating records in each sphere. Add partners, jobs, family members, friends, or hobbies to begin tracking your life's moments and discovering meaningful insights.",
+    "onboarding.ai.title": "Sferas AI & Voice-to-Text",
+    "onboarding.ai.message":
+      "Sferas AI and Voice-to-Text are now here to help you transform your spoken stories into structured memories, organised moments and lasting lessons instantly!",
 
     // Settings - Help Section
     "settings.help.title": "Help",
@@ -8487,6 +8492,9 @@ const translations: Record<Language, Translations> = {
     "onboarding.getStarted.title": "Готови ли сте да започнете?",
     "onboarding.getStarted.message":
       "Започнете, като създадете записи във всяка сфера. Добавете партньори, работа, членове на семейството, приятели или хобита, за да започнете да проследявате житейските си моменти и да откривате смислени прозрения.",
+    "onboarding.ai.title": "Sferas AI и глас към текст",
+    "onboarding.ai.message":
+      "Sferas AI и глас към текст вече са тук, за да ви помогнат да превърнете разказаните си истории в структурирани спомени, организирани моменти и трайни уроци мигновено!",
 
     // Settings - Help Section
     "settings.help.title": "Помощ",
