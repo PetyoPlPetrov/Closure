@@ -66,7 +66,7 @@ import Animated, {
     withTiming,
 } from "react-native-reanimated";
 
-type ModalView = "input" | "loading" | "results";
+type ModalView = "input" | "loading" | "results" | "error";
 
 /** Max file size for AI memory photos (2MB). Keeps API payloads small; base64 adds ~33% overhead. */
 const MAX_IMAGE_FILE_SIZE_BYTES = 2 * 1024 * 1024;
@@ -133,6 +133,7 @@ export function AIModal({
     null,
   );
   const [showValidationErrors, setShowValidationErrors] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSpherePicker, setShowSpherePicker] = useState(false);
   const [showEntityPicker, setShowEntityPicker] = useState(false);
   const [showAddEntityForm, setShowAddEntityForm] = useState(false);
@@ -306,7 +307,21 @@ export function AIModal({
           }
           // Process pending response from prop
           // Don't clear AsyncStorage here - keep it until user saves or discards
-          await processAIResponse(pendingResponse.response);
+          try {
+            await processAIResponse(pendingResponse.response);
+          } catch (error) {
+            setIsProcessing(false);
+            const errorMsg =
+              error instanceof Error
+                ? error.message
+                : t("ai.error.send") || "Failed to process memory";
+            setErrorMessage(errorMsg);
+            setCurrentView("error");
+            if (backgroundRequestId) {
+              await stopBackgroundAIProcessing();
+              setBackgroundRequestId(null);
+            }
+          }
         } else {
           // Check storage for pending response (in case prop wasn't updated yet)
           await checkPendingAIResponse();
@@ -326,7 +341,23 @@ export function AIModal({
       if (pendingResponse.imageUri) {
         setSelectedImage(pendingResponse.imageUri);
       }
-      processAIResponse(pendingResponse.response);
+      (async () => {
+        try {
+          await processAIResponse(pendingResponse.response);
+        } catch (error) {
+          setIsProcessing(false);
+          const errorMsg =
+            error instanceof Error
+              ? error.message
+              : t("ai.error.send") || "Failed to process memory";
+          setErrorMessage(errorMsg);
+          setCurrentView("error");
+          if (backgroundRequestId) {
+            await stopBackgroundAIProcessing();
+            setBackgroundRequestId(null);
+          }
+        }
+      })();
     }
   }, [pendingResponse, visible, isProcessing, aiResponse]);
 
@@ -383,22 +414,8 @@ export function AIModal({
 
         // Show error to user and allow retry
         setIsProcessing(false);
-        setCurrentView("input");
-
-        Alert.alert(
-          t("ai.error.title") || "AI Processing Failed",
-          (
-            t("ai.error.message") ||
-            "Failed to process your request: {error}. Please try again."
-          ).replace("{error}", pendingError.error),
-          [
-            {
-              text: t("common.ok") || "OK",
-              style: "default",
-            },
-          ],
-        );
-
+        setErrorMessage(pendingError.error);
+        setCurrentView("error");
         setBackgroundRequestId(null);
         return;
       }
@@ -417,14 +434,33 @@ export function AIModal({
         // Don't clear AsyncStorage here - keep it until user saves or discards
         // (Rate limit already counted on submit when user pressed the button.)
 
-        await processAIResponse(pendingResponse.response);
-        setBackgroundRequestId(null);
+        try {
+          await processAIResponse(pendingResponse.response);
+          setBackgroundRequestId(null);
+        } catch (error) {
+          setIsProcessing(false);
+          const errorMsg =
+            error instanceof Error
+              ? error.message
+              : t("ai.error.send") || "Failed to process memory";
+          setErrorMessage(errorMsg);
+          setCurrentView("error");
+          setBackgroundRequestId(null);
+          if (backgroundRequestId) {
+            await stopBackgroundAIProcessing();
+          }
+        }
       } else {
         // Check if there's a pending request (still processing)
         await checkPendingRequest();
       }
     } catch (error) {
-      // Failed to check pending AI response
+      // Failed to check pending AI response - show error
+      setIsProcessing(false);
+      const errorMsg =
+        error instanceof Error ? error.message : "Failed to check AI response";
+      setErrorMessage(errorMsg);
+      setCurrentView("error");
     }
   };
 
@@ -526,15 +562,21 @@ export function AIModal({
       }
 
       setIsProcessing(false);
+      setCurrentView("results");
       // Keep loading view but show results
     } catch (error) {
-      Alert.alert(
-        t("common.error") || "Error",
-        (error as Error).message ||
-          t("ai.error.send") ||
-          "Failed to process memory",
-      );
       setIsProcessing(false);
+      const errorMsg =
+        error instanceof Error
+          ? error.message
+          : t("ai.error.send") || "Failed to process memory";
+      setErrorMessage(errorMsg);
+      setCurrentView("error");
+      // Stop background processing if it was started
+      if (backgroundRequestId) {
+        await stopBackgroundAIProcessing();
+        setBackgroundRequestId(null);
+      }
     }
   };
 
@@ -633,6 +675,7 @@ export function AIModal({
       setSelectedImage(null);
       setAiResponse(null);
       setMemoryItems([]);
+      setErrorMessage(null);
     }
   }, [visible]);
 
@@ -900,22 +943,15 @@ export function AIModal({
           await processAIResponse(response);
         } catch (error) {
           setIsProcessing(false);
-          setCurrentView("input");
-          const errorMessage =
+          const errorMsg =
             error instanceof Error ? error.message : String(error);
-          Alert.alert(
-            t("ai.error.title") || "AI Processing Failed",
-            (
-              t("ai.error.message") ||
-              "Failed to process your request: {error}. Please try again."
-            ).replace("{error}", errorMessage),
-            [
-              {
-                text: t("common.ok") || "OK",
-                style: "default",
-              },
-            ],
-          );
+          setErrorMessage(errorMsg);
+          setCurrentView("error");
+          // Stop background processing if it was started
+          if (backgroundRequestId) {
+            await stopBackgroundAIProcessing();
+            setBackgroundRequestId(null);
+          }
         }
       } else {
         // App is already in background, use background task
@@ -928,12 +964,16 @@ export function AIModal({
         setBackgroundRequestId(requestId);
       }
     } catch (error) {
-      Alert.alert(
-        t("common.error") || "Error",
-        (error as Error).message || "Failed to process AI request",
-      );
       setIsProcessing(false);
-      setCurrentView("input");
+      const errorMsg =
+        error instanceof Error ? error.message : "Failed to process AI request";
+      setErrorMessage(errorMsg);
+      setCurrentView("error");
+      // Stop background processing if it was started
+      if (backgroundRequestId) {
+        await stopBackgroundAIProcessing();
+        setBackgroundRequestId(null);
+      }
     }
   };
 
@@ -945,6 +985,13 @@ export function AIModal({
 
   const handleRemoveItem = (id: string) => {
     setMemoryItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleRetry = async () => {
+    setErrorMessage(null);
+    setCurrentView("input");
+    // Retry the request
+    await handleSend();
   };
 
   const handleBackToInput = () => {
@@ -2044,7 +2091,7 @@ export function AIModal({
               ]}
             >
               {/* Header */}
-              {currentView !== "loading" && (
+              {currentView !== "loading" && currentView !== "error" && (
                 <View style={styles.header}>
                   <View
                     style={{
@@ -2411,8 +2458,166 @@ export function AIModal({
                 </>
               )}
 
+              {/* Error View */}
+              {currentView === "error" && errorMessage && (
+                <>
+                  {/* Header for error view */}
+                  <View style={styles.header}>
+                    <View
+                      style={{
+                        flex: 1,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: "100%",
+                      }}
+                    >
+                      <ThemedText
+                        size="l"
+                        weight="semibold"
+                        style={styles.headerTitle}
+                      >
+                        {t("ai.error.title") || "AI Processing Failed"}
+                      </ThemedText>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.closeButton}
+                      onPress={() => {
+                        setErrorMessage(null);
+                        setCurrentView("input");
+                        setIsProcessing(false);
+                        if (backgroundRequestId) {
+                          stopBackgroundAIProcessing();
+                          setBackgroundRequestId(null);
+                        }
+                        onClose();
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <MaterialIcons
+                        name="close"
+                        size={22 * fontScale}
+                        color={colorScheme === "dark" ? "#FFFFFF" : "#000000"}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  <View
+                    style={{
+                      padding: 24 * fontScale,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minHeight: 300 * fontScale,
+                    }}
+                  >
+                    <MaterialIcons
+                      name="error-outline"
+                      size={64 * fontScale}
+                      color={colorScheme === "dark" ? "#FF6B6B" : "#D93025"}
+                      style={{ marginBottom: 16 * fontScale }}
+                    />
+                    <ThemedText
+                      size="l"
+                      weight="bold"
+                      style={{
+                        marginBottom: 8 * fontScale,
+                        textAlign: "center",
+                        color: colorScheme === "dark" ? "#FF6B6B" : "#D93025",
+                      }}
+                    >
+                      {t("ai.error.title") || "AI Processing Failed"}
+                    </ThemedText>
+                    <ThemedText
+                      size="sm"
+                      style={{
+                        marginBottom: 24 * fontScale,
+                        textAlign: "center",
+                        opacity: 0.8,
+                        paddingHorizontal: 16 * fontScale,
+                      }}
+                    >
+                      {errorMessage}
+                    </ThemedText>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        gap: 12 * fontScale,
+                        width: "100%",
+                      }}
+                    >
+                      <TouchableOpacity
+                        style={{
+                          flex: 1,
+                          paddingVertical: 12 * fontScale,
+                          paddingHorizontal: 24 * fontScale,
+                          borderRadius: 12 * fontScale,
+                          backgroundColor:
+                            colorScheme === "dark"
+                              ? "rgba(255, 255, 255, 0.1)"
+                              : "rgba(0, 0, 0, 0.05)",
+                          alignItems: "center",
+                        }}
+                        onPress={() => {
+                          setErrorMessage(null);
+                          setCurrentView("input");
+                        }}
+                      >
+                        <ThemedText size="sm" weight="medium">
+                          {t("common.cancel") || "Cancel"}
+                        </ThemedText>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{
+                          flex: 1,
+                          paddingVertical: 12 * fontScale,
+                          paddingHorizontal: 24 * fontScale,
+                          borderRadius: 12 * fontScale,
+                          overflow: "hidden",
+                          position: "relative",
+                        }}
+                        onPress={handleRetry}
+                        activeOpacity={0.8}
+                      >
+                        <LinearGradient
+                          colors={
+                            colorScheme === "dark"
+                              ? [
+                                  colors.primary,
+                                  colors.primaryLight,
+                                  colors.primary,
+                                ]
+                              : [
+                                  colors.primary,
+                                  colors.primaryLight,
+                                  colors.primary,
+                                ]
+                          }
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={StyleSheet.absoluteFillObject}
+                        >
+                          <View
+                            style={{
+                              flex: 1,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <ThemedText
+                              size="sm"
+                              weight="bold"
+                              style={{ color: "#ffffff" }}
+                            >
+                              {t("common.retry") || "Retry"}
+                            </ThemedText>
+                          </View>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </>
+              )}
+
               {/* Loading View */}
-              {currentView === "loading" && (
+              {currentView === "loading" && !errorMessage && (
                 <View style={styles.loadingViewWrapper}>
                   <ScrollView
                     style={styles.loadingContainer}

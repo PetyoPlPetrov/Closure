@@ -98,6 +98,7 @@ export function AIEntityCreationModal({
     null,
   );
   const [showResults, setShowResults] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showOpenSferaModal, setShowOpenSferaModal] = useState(false);
   const [savedSphere, setSavedSphere] = useState<LifeSphere | null>(null);
   const [backgroundRequestId, setBackgroundRequestId] = useState<string | null>(
@@ -272,14 +273,7 @@ export function AIEntityCreationModal({
       if (pendingError) {
         await clearPendingEntityError();
         setIsProcessing(false);
-        Alert.alert(
-          t("ai.error.title") || "AI Processing Failed",
-          (
-            t("ai.error.message") ||
-            "Failed to process your request: {error}. Please try again."
-          ).replace("{error}", pendingError.error),
-          [{ text: t("common.ok") || "OK" }],
-        );
+        setErrorMessage(pendingError.error);
         setBackgroundRequestId(null);
         return;
       }
@@ -317,6 +311,7 @@ export function AIEntityCreationModal({
         setBackgroundRequestId(null);
         setAiResponse(null);
         setShowResults(false);
+        setErrorMessage(null);
       }
       isMinimizingRef.current = false;
     }
@@ -487,25 +482,25 @@ export function AIEntityCreationModal({
             const currentAppState = AppState.currentState;
             if (currentAppState === "active") {
               setIsProcessing(false);
-              const errorMessage =
+              const errorMsg =
                 error instanceof Error ? error.message : String(error);
-              Alert.alert(
-                t("ai.error.title") || "AI Processing Failed",
-                (
-                  t("ai.error.message") ||
-                  "Failed to process your request: {error}. Please try again."
-                ).replace("{error}", errorMessage),
-                [{ text: t("common.ok") || "OK" }],
-              );
+              setErrorMessage(errorMsg);
+              // Stop background processing if it was started
+              await stopBackgroundEntityProcessing();
+              setBackgroundRequestId(null);
             }
           }
         }
       } catch (error: any) {
-        Alert.alert(
-          t("common.error") || "Error",
-          error.message || t("ai.error.send") || "Failed to process request",
-        );
         setIsProcessing(false);
+        const errorMsg =
+          error instanceof Error
+            ? error.message
+            : t("ai.error.send") || "Failed to process request";
+        setErrorMessage(errorMsg);
+        // Stop background processing if it was started
+        await stopBackgroundEntityProcessing();
+        setBackgroundRequestId(null);
       }
     } else {
       await logAIEntityModalSubmit();
@@ -1419,7 +1414,7 @@ export function AIEntityCreationModal({
                       />
                     </TouchableOpacity>
                   </View>
-                  {isProcessing && !aiResponse ? (
+                  {isProcessing && !aiResponse && !errorMessage ? (
                     <View style={styles.loadingContainer}>
                       <View style={{ flex: 1 }}>
                         {/* Loading Indicator */}
@@ -1506,7 +1501,115 @@ export function AIEntityCreationModal({
                   )}
                 </View>
 
-                {!isProcessing && (
+                {/* Error View */}
+                {errorMessage && !isProcessing && !showResults && (
+                  <View
+                    style={{
+                      padding: 24 * fontScale,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minHeight: 200 * fontScale,
+                    }}
+                  >
+                    <MaterialIcons
+                      name="error-outline"
+                      size={64 * fontScale}
+                      color={colorScheme === "dark" ? "#FF6B6B" : "#D93025"}
+                      style={{ marginBottom: 16 * fontScale }}
+                    />
+                    <ThemedText
+                      size="l"
+                      weight="bold"
+                      style={{
+                        marginBottom: 8 * fontScale,
+                        textAlign: "center",
+                        color: colorScheme === "dark" ? "#FF6B6B" : "#D93025",
+                      }}
+                    >
+                      {t("ai.error.title") || "AI Processing Failed"}
+                    </ThemedText>
+                    <ThemedText
+                      size="sm"
+                      style={{
+                        marginBottom: 24 * fontScale,
+                        textAlign: "center",
+                        opacity: 0.8,
+                        paddingHorizontal: 16 * fontScale,
+                      }}
+                    >
+                      {errorMessage}
+                    </ThemedText>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        gap: 12 * fontScale,
+                        width: "100%",
+                      }}
+                    >
+                      <TouchableOpacity
+                        style={{
+                          flex: 1,
+                          paddingVertical: 12 * fontScale,
+                          paddingHorizontal: 24 * fontScale,
+                          borderRadius: 12 * fontScale,
+                          backgroundColor:
+                            colorScheme === "dark"
+                              ? "rgba(255, 255, 255, 0.1)"
+                              : "rgba(0, 0, 0, 0.05)",
+                          alignItems: "center",
+                        }}
+                        onPress={() => {
+                          setErrorMessage(null);
+                        }}
+                      >
+                        <ThemedText size="sm" weight="medium">
+                          {t("common.cancel") || "Cancel"}
+                        </ThemedText>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{
+                          flex: 1,
+                          paddingVertical: 12 * fontScale,
+                          paddingHorizontal: 24 * fontScale,
+                          borderRadius: 12 * fontScale,
+                          overflow: "hidden",
+                          position: "relative",
+                        }}
+                        onPress={async () => {
+                          setErrorMessage(null);
+                          await handleSubmit();
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <View
+                          style={[
+                            StyleSheet.absoluteFillObject,
+                            {
+                              borderRadius: 12 * fontScale,
+                              overflow: "hidden",
+                            },
+                          ]}
+                        >
+                          <LinearGradient
+                            colors={["#4A90E2", "#357ABD", "#2E6DA4"]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={StyleSheet.absoluteFillObject}
+                          />
+                        </View>
+                        <ThemedText
+                          size="sm"
+                          weight="bold"
+                          style={{ color: "#FFFFFF", textAlign: "center" }}
+                        >
+                          {t("common.retry") || "Retry"}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {!isProcessing && !errorMessage && (
                   <View style={styles.content}>
                     {!keyboardVisible && (
                       <View style={styles.sphereContainer}>

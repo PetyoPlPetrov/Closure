@@ -83,17 +83,6 @@ export async function processHomeEncouragementPrompt(params: {
   targetCharCount: number;
   language: "en" | "bg";
 }): Promise<AIEncouragementResponse> {
-  const requestId = `encouragement_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const timestamp = Date.now();
-  const now = new Date();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const localTimeString = now.toLocaleString();
-  const localDateString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-
-  console.log(
-    `[AI Service] processHomeEncouragementPrompt called - Request ID: ${requestId}, Date: ${localDateString}, Timezone: ${timezone}, Local time: ${localTimeString}, Timestamp: ${timestamp}`,
-  );
-
   const {
     overallSunnyPercentage,
     sunnyMomentsCount,
@@ -183,14 +172,7 @@ Write 8-12 varied notification messages for today.`;
         .filter((m: string) => m.length > 0)
     : [];
 
-  console.log(
-    `[AI Service] processHomeEncouragementPrompt response - Request ID: ${requestId}, Date: ${localDateString}, Timezone: ${timezone}, Local time: ${new Date().toLocaleString()}, Messages received: ${messages.length}`,
-  );
-
   if (messages.length === 0) {
-    console.log(
-      `[AI Service] processHomeEncouragementPrompt error - Request ID: ${requestId}, Date: ${localDateString}, No valid messages returned`,
-    );
     throw new Error("AI returned no valid encouragement messages");
   }
 

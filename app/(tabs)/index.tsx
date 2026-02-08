@@ -11579,33 +11579,14 @@ export default function HomeScreen() {
 
   const getEncouragementRequestUsage = async () => {
     const today = getLocalDateString();
-    const now = new Date();
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const localTimeString = now.toLocaleString();
-
     try {
       const raw = await AsyncStorage.getItem(ENCOURAGEMENT_REQUESTS_KEY);
-      if (!raw) {
-        console.log(
-          `[AI Encouragement] Usage check - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Stored: null, Count: 0`,
-        );
-        return { count: 0, today };
-      }
+      if (!raw) return { count: 0, today };
       const parsed = JSON.parse(raw);
       if (parsed?.date === today && typeof parsed.count === "number") {
-        console.log(
-          `[AI Encouragement] Usage check - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Stored date: ${parsed.date}, Count: ${parsed.count}`,
-        );
         return { count: parsed.count as number, today };
-      } else {
-        console.log(
-          `[AI Encouragement] Usage check - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Stored date: ${parsed?.date} (different day), Count: 0`,
-        );
       }
-    } catch (error) {
-      console.log(
-        `[AI Encouragement] Usage check - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Error: ${error}, Count: 0`,
-      );
+    } catch {
       // ignore parse errors and fallback to 0
     }
     return { count: 0, today };
@@ -11613,41 +11594,22 @@ export default function HomeScreen() {
 
   const incrementEncouragementRequestCount = async () => {
     const today = getLocalDateString();
-    const now = new Date();
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const localTimeString = now.toLocaleString();
     let nextCount = 1;
-    let previousCount = 0;
-
     try {
       const raw = await AsyncStorage.getItem(ENCOURAGEMENT_REQUESTS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.date === today && typeof parsed.count === "number") {
-          previousCount = parsed.count as number;
-          nextCount = previousCount + 1;
-        } else {
-          console.log(
-            `[AI Encouragement] Increment - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Stored date: ${parsed?.date} (different day), Starting fresh at count: 1`,
-          );
+          nextCount = (parsed.count as number) + 1;
         }
       }
-    } catch (error) {
-      console.log(
-        `[AI Encouragement] Increment - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Parse error: ${error}, Starting fresh at count: 1`,
-      );
+    } catch {
       // ignore parse errors and start fresh
     }
-
     await AsyncStorage.setItem(
       ENCOURAGEMENT_REQUESTS_KEY,
       JSON.stringify({ date: today, count: nextCount }),
     );
-
-    console.log(
-      `[AI Encouragement] Increment - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Previous count: ${previousCount}, New count: ${nextCount}`,
-    );
-
     return nextCount;
   };
 
@@ -11657,33 +11619,18 @@ export default function HomeScreen() {
    */
   const storeTodayEncouragementMessages = async (messages: string[]) => {
     const today = getLocalDateString();
-    const now = new Date();
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const localTimeString = now.toLocaleString();
-
     try {
       const validMessages = messages
         .filter((m: any) => typeof m === "string" && m.trim().length > 0)
         .map((m: string) => m.trim());
 
-      if (validMessages.length === 0) {
-        console.log(
-          `[AI Encouragement] Store messages - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, No valid messages to store`,
-        );
-        return;
-      }
+      if (validMessages.length === 0) return;
 
       await AsyncStorage.setItem(
         ENCOURAGEMENT_MESSAGES_KEY,
         JSON.stringify({ date: today, messages: validMessages }),
       );
-      console.log(
-        `[AI Encouragement] Store messages - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Stored ${validMessages.length} messages`,
-      );
-    } catch (error) {
-      console.log(
-        `[AI Encouragement] Store messages error - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Error: ${error}`,
-      );
+    } catch {
       // Swallow errors; this is a best-effort cache.
     }
   };
@@ -11699,24 +11646,12 @@ export default function HomeScreen() {
     string | null
   > => {
     const today = getLocalDateString();
-    const now = new Date();
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const localTimeString = now.toLocaleString();
-
     try {
       const raw = await AsyncStorage.getItem(ENCOURAGEMENT_MESSAGES_KEY);
-      if (!raw) {
-        console.log(
-          `[AI Encouragement] Get random message - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, No stored messages`,
-        );
-        return null;
-      }
+      if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (parsed?.date !== today || !Array.isArray(parsed.messages)) {
         // Different day or invalid shape: clear for cleanliness.
-        console.log(
-          `[AI Encouragement] Get random message - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Stored date: ${parsed?.date} (different day or invalid), Clearing cache`,
-        );
         await AsyncStorage.removeItem(ENCOURAGEMENT_MESSAGES_KEY);
         return null;
       }
@@ -11724,22 +11659,10 @@ export default function HomeScreen() {
         .filter((m: any) => typeof m === "string")
         .map((m: string) => m.trim())
         .filter(Boolean);
-      if (validMessages.length === 0) {
-        console.log(
-          `[AI Encouragement] Get random message - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, No valid messages in stored batch`,
-        );
-        return null;
-      }
+      if (validMessages.length === 0) return null;
       const idx = Math.floor(Math.random() * validMessages.length);
-      const selectedMessage = validMessages[idx] || null;
-      console.log(
-        `[AI Encouragement] Get random message - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Selected message ${idx + 1} of ${validMessages.length}`,
-      );
-      return selectedMessage;
-    } catch (error) {
-      console.log(
-        `[AI Encouragement] Get random message error - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Error: ${error}`,
-      );
+      return validMessages[idx] || null;
+    } catch {
       return null;
     }
   };
@@ -11798,7 +11721,6 @@ export default function HomeScreen() {
 
       // Prevent duplicate concurrent calls
       if (encouragementRequestInProgressRef.current) {
-        console.log(`[AI Encouragement] Request already in progress, skipping`);
         return;
       }
 
@@ -11852,11 +11774,6 @@ export default function HomeScreen() {
       const thresholdKey = `${bucket}:s${sunnyCountBucket}:l${lessonsCountBucket}:c${contentBucket}`;
 
       try {
-        const today = getLocalDateString();
-        const now = new Date();
-        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const localTimeString = now.toLocaleString();
-
         // Check if we already have today's batch of messages
         const existingMessages = await getRandomTodayEncouragementMessage();
         const hasTodayBatch = existingMessages !== null;
@@ -11864,19 +11781,11 @@ export default function HomeScreen() {
         // Always check usage to verify count (even if we have cached batch)
         const { count } = await getEncouragementRequestUsage();
 
-        console.log(
-          `[AI Encouragement] Request flow start - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Has today's batch: ${hasTodayBatch}, Today's request count: ${count}/${ENCOURAGEMENT_REQUESTS_PER_DAY}`,
-        );
-
         if (hasTodayBatch) {
           // We have today's batch - check if we need a new random message
           // (threshold changed or cache bust from dismissal)
           const lastThresholdKey = lastEncouragementCacheKeyRef.current;
           const thresholdChanged = lastThresholdKey !== thresholdKey;
-
-          console.log(
-            `[AI Encouragement] Using cached batch - Date: ${today}, Threshold changed: ${thresholdChanged}, Cache bust: ${encouragementCacheBust}`,
-          );
 
           if (thresholdChanged || encouragementCacheBust > 0) {
             // Pick a new random message from today's batch
@@ -11906,14 +11815,7 @@ export default function HomeScreen() {
 
         // No batch for today - check rate limit and make ONE request
         // Note: count was already checked above, reuse it here
-        console.log(
-          `[AI Encouragement] Rate limit check - Date: ${today}, Current count: ${count}, Limit: ${ENCOURAGEMENT_REQUESTS_PER_DAY}, Can make request: ${count < ENCOURAGEMENT_REQUESTS_PER_DAY}`,
-        );
-
         if (count >= ENCOURAGEMENT_REQUESTS_PER_DAY) {
-          console.log(
-            `[AI Encouragement] Rate limit reached - Date: ${today}, Count: ${count}, Limit: ${ENCOURAGEMENT_REQUESTS_PER_DAY}, Attempting to use cached batch`,
-          );
           // Already made today's request - try to get a random from batch
           const randomMessage = await getRandomTodayEncouragementMessage();
           if (randomMessage && !cancelled) {
@@ -11922,9 +11824,6 @@ export default function HomeScreen() {
             lastEncouragementCacheKeyRef.current = thresholdKey;
           } else if (!cancelled) {
             // No batch available - fall back to local non-AI encouragement
-            console.log(
-              `[AI Encouragement] No cached batch available, falling back to local encouragement`,
-            );
             setAiEncouragementText(null);
             setAiEncouragementLoading(false);
           }
@@ -11935,10 +11834,7 @@ export default function HomeScreen() {
 
         try {
           // Count this as today's AI request before calling the model
-          const newCount = await incrementEncouragementRequestCount();
-          console.log(
-            `[AI Encouragement] Making API request - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Request count after increment: ${newCount}`,
-          );
+          await incrementEncouragementRequestCount();
 
           const resp = await processHomeEncouragementPrompt({
             overallSunnyPercentage,
@@ -11952,21 +11848,13 @@ export default function HomeScreen() {
           });
 
           const messages = resp?.messages || [];
-          console.log(
-            `[AI Encouragement] API response received - Date: ${today}, Messages count: ${messages.length}`,
-          );
-
           if (messages.length === 0) {
-            console.log(`[AI Encouragement] No messages in response, aborting`);
             encouragementRequestInProgressRef.current = false;
             return;
           }
 
           // Store all messages from today's batch
           await storeTodayEncouragementMessages(messages);
-          console.log(
-            `[AI Encouragement] Messages stored - Date: ${today}, Messages count: ${messages.length}`,
-          );
 
           // Pick a random message to display now
           const randomMessage =

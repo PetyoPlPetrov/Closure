@@ -117,6 +117,7 @@ export interface Translations {
   "common.ok": string;
   "common.success": string;
   "common.error": string;
+  "common.retry": string;
   "common.optional": string;
   "common.discard": string;
   "common.name": string;
@@ -3548,6 +3549,7 @@ const translations: Record<Language, Translations> = {
     "common.ok": "OK",
     "common.success": "Success",
     "common.error": "Error",
+    "common.retry": "Retry",
     "common.name": "Name",
     "common.description": "Description",
     "common.required": "Required",
@@ -7808,6 +7810,7 @@ const translations: Record<Language, Translations> = {
     "common.success": "Успех",
     "common.done": "Готово",
     "common.error": "Грешка",
+    "common.retry": "Опитай отново",
     "common.photo": "Снимка",
     "common.addPhoto": "Добави снимка",
     "common.permissionRequired": "Необходимо разрешение",
