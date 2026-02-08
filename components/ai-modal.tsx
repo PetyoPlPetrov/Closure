@@ -164,10 +164,19 @@ export function AIModal({
   );
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
+  // Wrapper for setText that enforces max length limit
+  const setInputTextWithLimit = (text: string) => {
+    if (text.length > MAX_INPUT_LENGTH) {
+      setInputText(text.slice(0, MAX_INPUT_LENGTH));
+    } else {
+      setInputText(text);
+    }
+  };
+
   const speechToText = useSpeechToText({
     language,
     getText: () => inputText,
-    setText: setInputText,
+    setText: setInputTextWithLimit,
     disabled: isProcessing,
   });
   const { isRecording, isListening } = speechToText;
@@ -225,6 +234,10 @@ export function AIModal({
     };
   }, []);
 
+  // Character and word limits
+  const MAX_INPUT_LENGTH = 500; // Maximum characters allowed (~6 sentences)
+  const MIN_WORDS = 10; // Minimum words required
+
   // Count words in input text
   const wordCount = useMemo(() => {
     return inputText
@@ -233,7 +246,15 @@ export function AIModal({
       .filter((word) => word.length > 0).length;
   }, [inputText]);
 
-  const canSubmit = wordCount >= 10 && !isProcessing && !isRecording;
+  const characterCount = useMemo(() => {
+    return inputText.length;
+  }, [inputText]);
+
+  const exceedsMaxLength = characterCount > MAX_INPUT_LENGTH;
+  const hasMinWords = wordCount >= MIN_WORDS;
+
+  const canSubmit =
+    hasMinWords && !exceedsMaxLength && !isProcessing && !isRecording;
 
   // Loading messages that rotate
   const loadingMessages = [
@@ -1438,6 +1459,7 @@ export function AIModal({
       width: "100%",
     },
     inputWrapper: {
+      position: "relative",
       flexDirection: "row",
       alignItems: "center",
       backgroundColor:
@@ -2174,7 +2196,8 @@ export function AIModal({
                         ref={inputRef}
                         style={[styles.textInput, { height: inputHeight }]}
                         value={inputText}
-                        onChangeText={setInputText}
+                        onChangeText={setInputTextWithLimit}
+                        maxLength={MAX_INPUT_LENGTH}
                         placeholder={
                           t("ai.placeholder.input") ||
                           "Tell a story or memory about someone from your sferas..."
@@ -2228,6 +2251,30 @@ export function AIModal({
                         </ThemedText>
                       </View>
                     )}
+                  </View>
+
+                  {/* Character count label - positioned between input and photo upload */}
+                  <View
+                    style={{
+                      paddingHorizontal: 16 * fontScale,
+                      marginTop: 8 * fontScale,
+                      marginBottom: 8 * fontScale,
+                      alignItems: "flex-end",
+                    }}
+                  >
+                    <ThemedText
+                      size="xs"
+                      style={{
+                        opacity: 0.8,
+                        color: exceedsMaxLength
+                          ? colorScheme === "dark"
+                            ? "#FF6B6B"
+                            : "#D93025"
+                          : colors.textMediumEmphasis || colors.text + "CC",
+                      }}
+                    >
+                      {characterCount}/{MAX_INPUT_LENGTH}
+                    </ThemedText>
                   </View>
 
                   {/* Optional image upload - AI will analyze it for better moment suggestions */}
@@ -2334,8 +2381,8 @@ export function AIModal({
                     </LinearGradient>
                   </TouchableOpacity>
 
-                  {/* Minimum words warning */}
-                  {wordCount > 0 && wordCount < 10 && !isProcessing && (
+                  {/* Validation warnings */}
+                  {wordCount > 0 && wordCount < MIN_WORDS && !isProcessing && (
                     <ThemedText
                       style={{
                         color: colorScheme === "dark" ? "#FF6B6B" : "#D93025",
@@ -2346,6 +2393,19 @@ export function AIModal({
                     >
                       {t("ai.error.minimumWords") ||
                         "Please enter at least 10 words"}
+                    </ThemedText>
+                  )}
+                  {exceedsMaxLength && !isProcessing && (
+                    <ThemedText
+                      style={{
+                        color: colorScheme === "dark" ? "#FF6B6B" : "#D93025",
+                        fontSize: 13 * fontScale,
+                        textAlign: "center",
+                        marginTop: 8,
+                      }}
+                    >
+                      {t("ai.error.maximumLength", { max: MAX_INPUT_LENGTH }) ||
+                        `Text is too long. Maximum ${MAX_INPUT_LENGTH} characters allowed.`}
                     </ThemedText>
                   )}
                 </>

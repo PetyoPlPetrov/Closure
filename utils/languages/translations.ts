@@ -670,6 +670,7 @@ export interface Translations {
   "ai.error.stopRecording": string;
   "ai.error.empty": string;
   "ai.error.minimumWords": string;
+  "ai.error.maximumLength": string;
   "ai.error.send": string;
   "ai.error.notAvailable": string;
   "ai.error.image": string;
@@ -4288,6 +4289,8 @@ const translations: Record<Language, Translations> = {
     "ai.error.stopRecording": "Failed to stop recording",
     "ai.error.empty": "Please enter a message or use voice input",
     "ai.error.minimumWords": "Please enter at least 10 words",
+    "ai.error.maximumLength":
+      "Text is too long. Please keep it to about 6 sentences ({max} characters max).",
     "ai.error.send": "Failed to send message",
     "ai.error.notAvailable":
       "Speech recognition is not available on this device",
@@ -8552,6 +8555,8 @@ const translations: Record<Language, Translations> = {
     "ai.error.stopRecording": "Неуспешно спиране на запис",
     "ai.error.empty": "Моля, въведете съобщение или използвайте глас",
     "ai.error.minimumWords": "Моля, въведете поне 10 думи",
+    "ai.error.maximumLength":
+      "Текстът е твърде дълъг. Моля, ограничете го до около 6 изречения (максимум {max} символа).",
     "ai.error.send": "Неуспешно изпращане на съобщение",
     "ai.error.notAvailable":
       "Распознаването на реч не е налично на това устройство",

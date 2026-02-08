@@ -11,9 +11,9 @@ import { useLargeDevice } from "@/hooks/use-large-device";
 import { GifAnimationPreview } from "@/library/components/gif-animation-preview";
 import { OnboardingStepper } from "@/library/components/onboarding-stepper";
 import {
-    DARK_GRADIENT_COLORS,
-    LIGHT_GRADIENT_COLORS,
-    TabScreenContainer,
+  DARK_GRADIENT_COLORS,
+  LIGHT_GRADIENT_COLORS,
+  TabScreenContainer,
 } from "@/library/components/tab-screen-container";
 import { getLocalDateString } from "@/utils/ai-rate-limiter";
 import { processHomeEncouragementPrompt } from "@/utils/ai-service";
@@ -23,14 +23,14 @@ import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import {
-    requestSpheresTabPulse,
-    stopSpheresTabPulse,
+  requestSpheresTabPulse,
+  stopSpheresTabPulse,
 } from "@/utils/spheres-tab-pulse";
 import { useSplash } from "@/utils/SplashAnimationProvider";
 import {
-    getCurrentBadge,
-    getNextBadge,
-    recalculateStreak,
+  getCurrentBadge,
+  getNextBadge,
+  recalculateStreak,
 } from "@/utils/streak-manager";
 import { refreshStreakNotifications } from "@/utils/streak-notifications";
 import type { StreakBadge, StreakData } from "@/utils/streak-types";
@@ -42,52 +42,52 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
 import React, {
-    useCallback,
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    useState,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import {
-    AppState,
-    Dimensions,
-    Modal,
-    PanResponder,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    View,
+  AppState,
+  Dimensions,
+  Modal,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
 } from "react-native";
 import Animated, {
-    cancelAnimation,
-    createAnimatedComponent,
-    Easing,
-    interpolateColor,
-    runOnJS,
-    useAnimatedProps,
-    useAnimatedReaction,
-    useAnimatedStyle,
-    useSharedValue,
-    withDelay,
-    withRepeat,
-    withSequence,
-    withSpring,
-    withTiming,
+  cancelAnimation,
+  createAnimatedComponent,
+  Easing,
+  interpolateColor,
+  runOnJS,
+  useAnimatedProps,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, {
-    Circle,
-    Defs,
-    FeColorMatrix,
-    FeGaussianBlur,
-    FeMerge,
-    FeMergeNode,
-    Filter,
-    Path,
-    RadialGradient,
-    Stop,
-    LinearGradient as SvgLinearGradient,
+  Circle,
+  Defs,
+  FeColorMatrix,
+  FeGaussianBlur,
+  FeMerge,
+  FeMergeNode,
+  Filter,
+  Path,
+  RadialGradient,
+  Stop,
+  LinearGradient as SvgLinearGradient,
 } from "react-native-svg";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -11574,21 +11574,38 @@ export default function HomeScreen() {
   const [encouragementCacheBust, setEncouragementCacheBust] = useState(0);
   const lastEncouragementCacheKeyRef = useRef<string | null>(null);
   const ENCOURAGEMENT_REQUESTS_KEY = "@sferas:ai_encouragement_requests";
-  const ENCOURAGEMENT_LAST_MESSAGE_KEY =
-    "@sferas:ai_encouragement_last_message";
   const ENCOURAGEMENT_MESSAGES_KEY = "@sferas:ai_encouragement_messages";
-  const ENCOURAGEMENT_REQUESTS_PER_DAY = 12;
+  const ENCOURAGEMENT_REQUESTS_PER_DAY = 1; // Only one AI request per day, returns multiple messages
 
   const getEncouragementRequestUsage = async () => {
     const today = getLocalDateString();
+    const now = new Date();
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const localTimeString = now.toLocaleString();
+
     try {
       const raw = await AsyncStorage.getItem(ENCOURAGEMENT_REQUESTS_KEY);
-      if (!raw) return { count: 0, today };
+      if (!raw) {
+        console.log(
+          `[AI Encouragement] Usage check - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Stored: null, Count: 0`,
+        );
+        return { count: 0, today };
+      }
       const parsed = JSON.parse(raw);
       if (parsed?.date === today && typeof parsed.count === "number") {
+        console.log(
+          `[AI Encouragement] Usage check - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Stored date: ${parsed.date}, Count: ${parsed.count}`,
+        );
         return { count: parsed.count as number, today };
+      } else {
+        console.log(
+          `[AI Encouragement] Usage check - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Stored date: ${parsed?.date} (different day), Count: 0`,
+        );
       }
-    } catch {
+    } catch (error) {
+      console.log(
+        `[AI Encouragement] Usage check - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Error: ${error}, Count: 0`,
+      );
       // ignore parse errors and fallback to 0
     }
     return { count: 0, today };
@@ -11596,80 +11613,110 @@ export default function HomeScreen() {
 
   const incrementEncouragementRequestCount = async () => {
     const today = getLocalDateString();
+    const now = new Date();
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const localTimeString = now.toLocaleString();
     let nextCount = 1;
+    let previousCount = 0;
+
     try {
       const raw = await AsyncStorage.getItem(ENCOURAGEMENT_REQUESTS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.date === today && typeof parsed.count === "number") {
-          nextCount = (parsed.count as number) + 1;
+          previousCount = parsed.count as number;
+          nextCount = previousCount + 1;
+        } else {
+          console.log(
+            `[AI Encouragement] Increment - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Stored date: ${parsed?.date} (different day), Starting fresh at count: 1`,
+          );
         }
       }
-    } catch {
+    } catch (error) {
+      console.log(
+        `[AI Encouragement] Increment - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Parse error: ${error}, Starting fresh at count: 1`,
+      );
       // ignore parse errors and start fresh
     }
+
     await AsyncStorage.setItem(
       ENCOURAGEMENT_REQUESTS_KEY,
       JSON.stringify({ date: today, count: nextCount }),
     );
+
+    console.log(
+      `[AI Encouragement] Increment - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Previous count: ${previousCount}, New count: ${nextCount}`,
+    );
+
     return nextCount;
   };
 
   /**
-   * Store today's AI encouragement message in a per-day list so we can
-   * reuse any of them once the daily rate limit is hit. Messages are
-   * automatically cleared when the date changes to avoid unneeded storage.
+   * Store today's batch of AI encouragement messages (from single daily request).
+   * Messages are automatically cleared when the date changes to avoid unneeded storage.
    */
-  const appendTodayEncouragementMessage = async (message: string) => {
+  const storeTodayEncouragementMessages = async (messages: string[]) => {
     const today = getLocalDateString();
+    const now = new Date();
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const localTimeString = now.toLocaleString();
+
     try {
-      const raw = await AsyncStorage.getItem(ENCOURAGEMENT_MESSAGES_KEY);
-      if (!raw) {
-        await AsyncStorage.setItem(
-          ENCOURAGEMENT_MESSAGES_KEY,
-          JSON.stringify({ date: today, messages: [message] }),
+      const validMessages = messages
+        .filter((m: any) => typeof m === "string" && m.trim().length > 0)
+        .map((m: string) => m.trim());
+
+      if (validMessages.length === 0) {
+        console.log(
+          `[AI Encouragement] Store messages - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, No valid messages to store`,
         );
         return;
       }
-      const parsed = JSON.parse(raw);
-      if (parsed?.date !== today || !Array.isArray(parsed.messages)) {
-        // New day or unexpected shape: start fresh for today.
-        await AsyncStorage.setItem(
-          ENCOURAGEMENT_MESSAGES_KEY,
-          JSON.stringify({ date: today, messages: [message] }),
-        );
-        return;
-      }
-      const existing: string[] = parsed.messages.filter(
-        (m: any) => typeof m === "string" && m.trim().length > 0,
-      );
-      // Avoid duplicate consecutive messages to keep list small.
-      if (existing[existing.length - 1] === message) {
-        return;
-      }
-      existing.push(message);
+
       await AsyncStorage.setItem(
         ENCOURAGEMENT_MESSAGES_KEY,
-        JSON.stringify({ date: today, messages: existing }),
+        JSON.stringify({ date: today, messages: validMessages }),
       );
-    } catch {
+      console.log(
+        `[AI Encouragement] Store messages - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Stored ${validMessages.length} messages`,
+      );
+    } catch (error) {
+      console.log(
+        `[AI Encouragement] Store messages error - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Error: ${error}`,
+      );
       // Swallow errors; this is a best-effort cache.
     }
   };
 
   /**
-   * When over the daily limit, pick a random message from today's stored
-   * encouragement messages (if any). If the stored blob is from a previous
-   * day, clear it so it doesn't accumulate indefinitely.
+   * Pick a random message from today's stored batch of encouragement messages.
+   * If the stored blob is from a previous day, clear it so it doesn't accumulate indefinitely.
+   * This is called when:
+   * - Banner is dismissed (to show a different message next time)
+   * - Threshold/content changes (to refresh the message)
    */
-  const getRandomTodayEncouragementMessage = async () => {
+  const getRandomTodayEncouragementMessage = async (): Promise<
+    string | null
+  > => {
     const today = getLocalDateString();
+    const now = new Date();
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const localTimeString = now.toLocaleString();
+
     try {
       const raw = await AsyncStorage.getItem(ENCOURAGEMENT_MESSAGES_KEY);
-      if (!raw) return null;
+      if (!raw) {
+        console.log(
+          `[AI Encouragement] Get random message - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, No stored messages`,
+        );
+        return null;
+      }
       const parsed = JSON.parse(raw);
       if (parsed?.date !== today || !Array.isArray(parsed.messages)) {
         // Different day or invalid shape: clear for cleanliness.
+        console.log(
+          `[AI Encouragement] Get random message - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Stored date: ${parsed?.date} (different day or invalid), Clearing cache`,
+        );
         await AsyncStorage.removeItem(ENCOURAGEMENT_MESSAGES_KEY);
         return null;
       }
@@ -11677,10 +11724,22 @@ export default function HomeScreen() {
         .filter((m: any) => typeof m === "string")
         .map((m: string) => m.trim())
         .filter(Boolean);
-      if (validMessages.length === 0) return null;
+      if (validMessages.length === 0) {
+        console.log(
+          `[AI Encouragement] Get random message - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, No valid messages in stored batch`,
+        );
+        return null;
+      }
       const idx = Math.floor(Math.random() * validMessages.length);
-      return validMessages[idx] || null;
-    } catch {
+      const selectedMessage = validMessages[idx] || null;
+      console.log(
+        `[AI Encouragement] Get random message - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Selected message ${idx + 1} of ${validMessages.length}`,
+      );
+      return selectedMessage;
+    } catch (error) {
+      console.log(
+        `[AI Encouragement] Get random message error - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Error: ${error}`,
+      );
       return null;
     }
   };
@@ -11739,6 +11798,7 @@ export default function HomeScreen() {
 
       // Prevent duplicate concurrent calls
       if (encouragementRequestInProgressRef.current) {
+        console.log(`[AI Encouragement] Request already in progress, skipping`);
         return;
       }
 
@@ -11781,47 +11841,90 @@ export default function HomeScreen() {
       const targetCharCount = Math.round(
         ((fallbackEncouragementText || "").length || 120) * 1.35,
       );
+
+      // Calculate threshold bucket to detect when content changes meaningfully
+      // This triggers picking a new random message from today's batch
       const bucket = Math.round(overallSunnyPercentage / 10) * 10;
-      // Also refresh sooner if the underlying signals change meaningfully.
-      // Use coarse buckets to avoid spamming AI for tiny fluctuations.
-      const sunnyCountBucket = Math.floor(sunnyMoments.length / 5) * 5; // 0,5,10,15...
-      const lessonsCountBucket = Math.floor(lessons.length / 3) * 3; // 0,3,6,9...
-      // Small fingerprint of the latest content so message can update when the content updates,
-      // even if counts stay in the same bucket.
+      const sunnyCountBucket = Math.floor(sunnyMoments.length / 5) * 5;
+      const lessonsCountBucket = Math.floor(lessons.length / 3) * 3;
       const contentFingerprint = `${sampleLessons.join(" ").slice(0, 60)}|${sampleSunny.join(" ").slice(0, 60)}|${sampleCloudy.join(" ").slice(0, 60)}`;
-      const contentBucket = contentFingerprint.length; // stable-ish small signal without heavy hashing
-      // Refresh more often than daily: use a rolling time window (every 2 hours).
-      // This keeps the message feeling fresh without calling AI on every render.
-      // Dev: refresh super frequently for iteration. Prod: refresh less often.
-      const windowMs = __DEV__ ? 60_000 : 10 * 60 * 1000; // 1 min in dev, 10 min in prod
-      const windowId = Math.floor(Date.now() / windowMs);
-      const cacheKey = `home_encouragement_v5:${appLanguage}:${bucket}:s${sunnyCountBucket}:l${lessonsCountBucket}:c${contentBucket}:ms${windowMs}:${windowId}:b${encouragementCacheBust}`;
-      lastEncouragementCacheKeyRef.current = cacheKey;
+      const contentBucket = contentFingerprint.length;
+      const thresholdKey = `${bucket}:s${sunnyCountBucket}:l${lessonsCountBucket}:c${contentBucket}`;
 
       try {
-        const cached = await AsyncStorage.getItem(cacheKey);
-        if (cached) {
-          const parsed = JSON.parse(cached) as { message?: string };
-          if (!cancelled && parsed?.message) {
-            setAiEncouragementText(parsed.message);
-            setAiEncouragementLoading(false);
-            return;
+        const today = getLocalDateString();
+        const now = new Date();
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const localTimeString = now.toLocaleString();
+
+        // Check if we already have today's batch of messages
+        const existingMessages = await getRandomTodayEncouragementMessage();
+        const hasTodayBatch = existingMessages !== null;
+
+        // Always check usage to verify count (even if we have cached batch)
+        const { count } = await getEncouragementRequestUsage();
+
+        console.log(
+          `[AI Encouragement] Request flow start - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Has today's batch: ${hasTodayBatch}, Today's request count: ${count}/${ENCOURAGEMENT_REQUESTS_PER_DAY}`,
+        );
+
+        if (hasTodayBatch) {
+          // We have today's batch - check if we need a new random message
+          // (threshold changed or cache bust from dismissal)
+          const lastThresholdKey = lastEncouragementCacheKeyRef.current;
+          const thresholdChanged = lastThresholdKey !== thresholdKey;
+
+          console.log(
+            `[AI Encouragement] Using cached batch - Date: ${today}, Threshold changed: ${thresholdChanged}, Cache bust: ${encouragementCacheBust}`,
+          );
+
+          if (thresholdChanged || encouragementCacheBust > 0) {
+            // Pick a new random message from today's batch
+            const randomMessage = await getRandomTodayEncouragementMessage();
+            if (randomMessage && !cancelled) {
+              setAiEncouragementText(randomMessage);
+              setAiEncouragementLoading(false);
+              lastEncouragementCacheKeyRef.current = thresholdKey;
+              return;
+            }
+          } else {
+            // Same threshold, use current message (don't change it)
+            if (!cancelled && aiEncouragementText) {
+              setAiEncouragementLoading(false);
+              return;
+            }
+            // No current message but we have batch - pick one
+            const randomMessage = await getRandomTodayEncouragementMessage();
+            if (randomMessage && !cancelled) {
+              setAiEncouragementText(randomMessage);
+              setAiEncouragementLoading(false);
+              lastEncouragementCacheKeyRef.current = thresholdKey;
+              return;
+            }
           }
         }
 
-        // Enforce per-day rate limit for AI notification requests.
-        const { count } = await getEncouragementRequestUsage();
+        // No batch for today - check rate limit and make ONE request
+        // Note: count was already checked above, reuse it here
+        console.log(
+          `[AI Encouragement] Rate limit check - Date: ${today}, Current count: ${count}, Limit: ${ENCOURAGEMENT_REQUESTS_PER_DAY}, Can make request: ${count < ENCOURAGEMENT_REQUESTS_PER_DAY}`,
+        );
+
         if (count >= ENCOURAGEMENT_REQUESTS_PER_DAY) {
-          // When over the limit, stop making new AI calls and show a random
-          // encouragement message from today's stored nudges (if any),
-          // ignoring the usual cache bucket rules.
+          console.log(
+            `[AI Encouragement] Rate limit reached - Date: ${today}, Count: ${count}, Limit: ${ENCOURAGEMENT_REQUESTS_PER_DAY}, Attempting to use cached batch`,
+          );
+          // Already made today's request - try to get a random from batch
           const randomMessage = await getRandomTodayEncouragementMessage();
           if (randomMessage && !cancelled) {
             setAiEncouragementText(randomMessage);
             setAiEncouragementLoading(false);
+            lastEncouragementCacheKeyRef.current = thresholdKey;
           } else if (!cancelled) {
-            // If we don't have any stored messages for today, fall back to
-            // local non-AI encouragement logic.
+            // No batch available - fall back to local non-AI encouragement
+            console.log(
+              `[AI Encouragement] No cached batch available, falling back to local encouragement`,
+            );
             setAiEncouragementText(null);
             setAiEncouragementLoading(false);
           }
@@ -11831,8 +11934,11 @@ export default function HomeScreen() {
         encouragementRequestInProgressRef.current = true;
 
         try {
-          // Count this as a real AI request before calling the model.
-          await incrementEncouragementRequestCount();
+          // Count this as today's AI request before calling the model
+          const newCount = await incrementEncouragementRequestCount();
+          console.log(
+            `[AI Encouragement] Making API request - Date: ${today}, Timezone: ${timezone}, Local time: ${localTimeString}, Request count after increment: ${newCount}`,
+          );
 
           const resp = await processHomeEncouragementPrompt({
             overallSunnyPercentage,
@@ -11845,18 +11951,31 @@ export default function HomeScreen() {
             language: appLanguage === "bg" ? "bg" : "en",
           });
 
-          const message = resp?.message?.trim();
-          if (!message) {
+          const messages = resp?.messages || [];
+          console.log(
+            `[AI Encouragement] API response received - Date: ${today}, Messages count: ${messages.length}`,
+          );
+
+          if (messages.length === 0) {
+            console.log(`[AI Encouragement] No messages in response, aborting`);
             encouragementRequestInProgressRef.current = false;
             return;
           }
 
-          await AsyncStorage.setItem(cacheKey, JSON.stringify({ message }));
-          // Also store the message in today's list so we can re-use any of
-          // them (picked at random) once the per-day limit is reached.
-          await appendTodayEncouragementMessage(message);
-          if (!cancelled) setAiEncouragementText(message);
-          if (!cancelled) setAiEncouragementLoading(false);
+          // Store all messages from today's batch
+          await storeTodayEncouragementMessages(messages);
+          console.log(
+            `[AI Encouragement] Messages stored - Date: ${today}, Messages count: ${messages.length}`,
+          );
+
+          // Pick a random message to display now
+          const randomMessage =
+            messages[Math.floor(Math.random() * messages.length)];
+          if (!cancelled && randomMessage) {
+            setAiEncouragementText(randomMessage);
+            setAiEncouragementLoading(false);
+            lastEncouragementCacheKeyRef.current = thresholdKey;
+          }
         } finally {
           encouragementRequestInProgressRef.current = false;
         }
@@ -15932,19 +16051,15 @@ export default function HomeScreen() {
                 <Pressable
                   onPress={() => {
                     void (async () => {
-                      try {
-                        const key = lastEncouragementCacheKeyRef.current;
-                        if (key) {
-                          await AsyncStorage.removeItem(key);
-                        }
-                      } catch {
-                        // ignore cache removal errors
-                      } finally {
-                        // Hide now, force refresh next time
-                        setAiEncouragementText(null);
-                        setEncouragementCacheBust((x) => x + 1);
-                        setIsEncouragementVisible(false);
+                      // When dismissed, pick a new random message from today's batch
+                      // This will be shown next time the banner appears
+                      const randomMessage =
+                        await getRandomTodayEncouragementMessage();
+                      if (randomMessage) {
+                        setAiEncouragementText(randomMessage);
                       }
+                      setEncouragementCacheBust((x) => x + 1);
+                      setIsEncouragementVisible(false);
                     })();
                   }}
                   style={closeButtonStyle}
