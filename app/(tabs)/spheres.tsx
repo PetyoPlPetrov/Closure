@@ -30,7 +30,7 @@ import type {
 } from "@/utils/JourneyProvider";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForPlusAccess } from "@/utils/premium-access";
+import { showPaywallForPremiumAccess } from "@/utils/premium-access";
 import { onSpheresTabPress } from "@/utils/spheres-tab-press";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -251,7 +251,12 @@ export default function SpheresScreen() {
     getIdealizedMemoriesByEntityId,
     idealizedMemories,
   } = useJourney();
-  const { hasPlusEntitlement, offerings } = useSubscription();
+  const {
+    hasPlusEntitlement,
+    offerings,
+    subscriptionStatus,
+    ensureSubscriptionResolved,
+  } = useSubscription();
   const t = useTranslate();
   const aiConsent = useAIInsightsConsent();
 
@@ -301,34 +306,34 @@ export default function SpheresScreen() {
     };
   });
 
-  const checkSubscriptionLimit = (sphere: LifeSphere): boolean => {
-    // In development mode, bypass subscription limits
-    if (__DEV__) return true;
-
-    if (hasPlusEntitlement) return true; // Sfera Plus users can create unlimited
+  const checkSubscriptionLimit = (
+    sphere: LifeSphere,
+    resolvedPlusEntitlement?: boolean,
+  ): boolean => {
+    const hasPlus = resolvedPlusEntitlement ?? hasPlusEntitlement;
+    if (hasPlus) return true; // Sfera Plus users can create unlimited
 
     switch (sphere) {
       case "relationships":
-        return profiles.length < 1;
+        return profiles.length < 2;
       case "career":
-        return jobs.length < 1;
+        return jobs.length < 2;
       case "family":
-        return familyMembers.length < 1;
+        return familyMembers.length < 2;
       case "friends":
-        return friends.length < 1;
+        return friends.length < 2;
       case "hobbies":
-        return hobbies.length < 1;
+        return hobbies.length < 2;
       default:
         return true;
     }
   };
 
-  const showSubscriptionPrompt = async (sphere: LifeSphere) => {
-    // In development mode, bypass subscription check
-    // Only show paywall if user is not subscribed
-    if (!__DEV__ && !hasPlusEntitlement) {
-      await showPaywallForPlusAccess();
-    }
+  const showSubscriptionPrompt = async (_sphere: LifeSphere) => {
+    // Use presentPaywall (force show) - our checkSubscriptionLimit already verified
+    // hasPlusEntitlement is false. RevenueCat's presentPaywallIfNeeded can return
+    // NOT_PRESENTED from stale cache (e.g. sandbox), incorrectly skipping the paywall.
+    await showPaywallForPremiumAccess();
   };
 
   // Reload memories when screen comes into focus (e.g., after running mock data script)
@@ -1775,9 +1780,14 @@ export default function SpheresScreen() {
     });
   };
 
-  const handleAddEntity = (sphere: LifeSphere) => {
-    if (!checkSubscriptionLimit(sphere)) {
-      showSubscriptionPrompt(sphere);
+  const handleAddEntity = async (sphere: LifeSphere) => {
+    // When still loading from init, wait for subscription before gating.
+    let resolvedPlus: boolean | undefined;
+    if (subscriptionStatus === "loading") {
+      resolvedPlus = (await ensureSubscriptionResolved()).hasPlusEntitlement;
+    }
+    if (!checkSubscriptionLimit(sphere, resolvedPlus)) {
+      await showSubscriptionPrompt(sphere);
       return;
     }
 
@@ -1931,13 +1941,7 @@ export default function SpheresScreen() {
             <TouchableOpacity
               style={[styles.button, { backgroundColor: colors.primary }]}
               activeOpacity={0.8}
-              onPress={() => {
-                if (!checkSubscriptionLimit("relationships")) {
-                  showSubscriptionPrompt("relationships");
-                } else {
-                  router.push("/add-ex-profile");
-                }
-              }}
+              onPress={() => handleAddEntity("relationships")}
             >
               <ThemedText
                 weight="bold"

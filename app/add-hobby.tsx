@@ -29,7 +29,7 @@ export default function AddHobbyScreen() {
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
   const { addHobby, updateHobby, getHobby, hobbies } = useJourney();
-  const { hasPlusEntitlement } = useSubscription();
+  const { ensureSubscriptionResolved } = useSubscription();
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
   const t = useTranslate();
@@ -57,23 +57,20 @@ export default function AddHobbyScreen() {
     // Don't check if we're saving (prevents redirect after saving first hobby)
     if (isSaving) return;
 
-    // In development mode, bypass subscription limits
     // Only redirect if user already had 2+ hobbies when they entered this screen
-    // This allows 2 free hobbies per sphere before paywall
-    if (
-      !__DEV__ &&
-      !isEditMode &&
-      !hasPlusEntitlement &&
-      initialHobbyCount.current >= 2
-    ) {
+    if (!isEditMode && initialHobbyCount.current >= 2) {
       (async () => {
-        const subscribed = await showPaywallForPlusAccess();
-        if (!subscribed) {
-          router.back();
+        const { hasPlusEntitlement: hasPlus } =
+          await ensureSubscriptionResolved();
+        if (!hasPlus) {
+          const subscribed = await showPaywallForPlusAccess();
+          if (!subscribed) {
+            router.back();
+          }
         }
       })();
     }
-  }, [isEditMode, hasPlusEntitlement, hobbies.length, isSaving]);
+  }, [isEditMode, ensureSubscriptionResolved, hobbies.length, isSaving]);
 
   // Load existing hobby data when in edit mode
   useEffect(() => {
@@ -124,20 +121,18 @@ export default function AddHobbyScreen() {
       return;
     }
 
-    // In development mode, bypass subscription limits
     // Check subscription limit for new hobbies (not edits)
-    // Only check if user already had 1+ hobbies when they entered this screen
     if (
-      !__DEV__ &&
       !isEditMode &&
-      !hasPlusEntitlement &&
       initialHobbyCount.current !== null &&
       initialHobbyCount.current >= 2
     ) {
-      // Show paywall (custom in dev, RevenueCat in prod)
-      const subscribed = await showPaywallForPlusAccess();
-      if (!subscribed) return; // User cancelled or didn't subscribe
-      // User subscribed, continue to save
+      const { hasPlusEntitlement: hasPlus } =
+        await ensureSubscriptionResolved();
+      if (!hasPlus) {
+        const subscribed = await showPaywallForPlusAccess();
+        if (!subscribed) return;
+      }
     }
 
     setIsSaving(true);

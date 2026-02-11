@@ -923,7 +923,7 @@ export default function InsightsScreen() {
     getIdealizedMemoriesByProfileId,
     getIdealizedMemoriesByEntityId,
   } = useJourney();
-  const { hasPlusEntitlement } = useSubscription();
+  const { ensureSubscriptionResolved } = useSubscription();
   const t = useTranslate();
 
   // Temporary flag to hide the list view
@@ -936,13 +936,11 @@ export default function InsightsScreen() {
 
     if (!hasEntities) return;
 
-    // In development mode, bypass subscription check
     // Check subscription before navigating to comparison screens
-    if (!__DEV__ && !hasPlusEntitlement) {
-      // Show paywall (custom in dev, RevenueCat in prod)
+    const { hasPlusEntitlement: hasPlus } = await ensureSubscriptionResolved();
+    if (!hasPlus) {
       const subscribed = await showPaywallForPlusAccess();
-      if (!subscribed) return; // User cancelled or didn't subscribe
-      // User subscribed, continue to navigation
+      if (!subscribed) return;
     }
 
     // Log analytics event
@@ -1343,13 +1341,11 @@ export default function InsightsScreen() {
                     onPress={async () => {
                       if (!hasEntities) return;
 
-                      // In development mode, bypass subscription check
-                      // Check subscription before navigating to comparison screens
-                      if (!__DEV__ && !hasPlusEntitlement) {
-                        // Show paywall (custom in dev, RevenueCat in prod)
+                      const { hasPlusEntitlement: hasPlus } =
+                        await ensureSubscriptionResolved();
+                      if (!hasPlus) {
                         const subscribed = await showPaywallForPlusAccess();
-                        if (!subscribed) return; // User cancelled or didn't subscribe
-                        // User subscribed, continue to navigation
+                        if (!subscribed) return;
                       }
 
                       if (sphere.type === "relationships") {

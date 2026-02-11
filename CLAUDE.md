@@ -127,7 +127,7 @@ Heavy use of `react-native-reanimated` for:
 - Controlled by `ENABLE_REVENUECAT` feature flag in `utils/revenuecat-wrapper.ts`
 - Gracefully handles missing native module (web/dev builds)
 - Platform-specific API keys in `app/_layout.tsx`
-- RevenueCat entitlements: `sfera_plus_entitlement` (unlimited entities, custom notifications, statistics), `sfera_ai_entitlement` (AI features)
+- RevenueCat entitlements: `SferaPlus` (unlimited entities, custom notifications, statistics), `Sfera Premium` (AI features, product petyo.petrov.sferas)
 - Paywall helpers: `showPaywallForPlusAccess()`, `showPaywallForAIAccess()`, `showPaywallForPremiumAccess()` from `utils/premium-access.ts`
 
 ### Localization

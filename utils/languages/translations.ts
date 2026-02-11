@@ -578,6 +578,7 @@ export interface Translations {
   "premium.activeBadge.both": string;
   "premium.plan.sferaPlus": string;
   "premium.plan.sferaAI": string;
+  "premium.upgrade": string;
   "premium.whatsIncluded": string;
   "premium.feature.ai": string;
   "premium.feature.unlimited": string;
@@ -4180,6 +4181,7 @@ const translations: Record<Language, Translations> = {
     "premium.activeBadge.both": "You're an active Sfera AI & Plus member",
     "premium.plan.sferaPlus": "Sfera Plus",
     "premium.plan.sferaAI": "Sfera AI",
+    "premium.upgrade": "Upgrade to Sfera AI",
     "premium.whatsIncluded": "WHAT'S INCLUDED",
     "premium.feature.ai":
       "Access to Sfera AI to turn your notes or voice stories into memories and moments",
@@ -8452,6 +8454,7 @@ const translations: Record<Language, Translations> = {
     "premium.activeBadge.both": "Активен член на Sfera AI и Plus сте",
     "premium.plan.sferaPlus": "Sfera Plus",
     "premium.plan.sferaAI": "Sfera AI",
+    "premium.upgrade": "Надградете до Sfera AI",
     "premium.whatsIncluded": "КАКВО Е ВКЛЮЧЕНО",
     "premium.feature.ai":
       "Достъп до Sfera AI за превръщане на бележките или гласовите си истории в спомени и моменти",

@@ -15,7 +15,12 @@ import type {
   PurchasesPackage,
 } from "react-native-purchases";
 import { handleDevError } from "./dev-error-handler";
-import { SFERA_AI_ENTITLEMENT, SFERA_PLUS_ENTITLEMENT } from "./entitlements";
+import {
+  SFERA_AI_ENTITLEMENT,
+  SFERA_AI_PRODUCT_ID,
+  SFERA_PLUS_ENTITLEMENT,
+  SFERA_PLUS_PRODUCT_ID,
+} from "./entitlements";
 import { presentPaywall, presentPaywallIfNeeded } from "./revenuecat-paywall";
 import { isNativeModuleAvailable, Purchases } from "./revenuecat-wrapper";
 
@@ -80,6 +85,8 @@ function logSubscriptionInitInfo(
   );
 }
 
+export type PrimaryPlan = "ai" | "plus" | null;
+
 interface SubscriptionContextType {
   /** True if user has either Plus or AI entitlement */
   isSubscribed: boolean;
@@ -87,9 +94,13 @@ interface SubscriptionContextType {
   hasPlusEntitlement: boolean;
   /** Sfera AI: all AI features */
   hasAIEntitlement: boolean;
+  /** Plan to display (AI product vs Plus product) - resolves "both entitlements" correctly */
+  primaryPlan: PrimaryPlan;
   subscriptionStatus: SubscriptionStatus;
   offerings: PurchasesOffering | null;
   customerInfo: CustomerInfo | null;
+  /** Waits for subscription to resolve if loading, returns current Plus entitlement. Use before paywall checks. */
+  ensureSubscriptionResolved: () => Promise<{ hasPlusEntitlement: boolean }>;
   checkSubscription: () => Promise<void>;
   refreshCustomerInfo: () => Promise<void>;
   purchasePackage: (pkg: PurchasesPackage) => Promise<void>;
@@ -113,6 +124,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [hasPlusEntitlement, setHasPlusEntitlement] = useState(false);
   const [hasAIEntitlement, setHasAIEntitlement] = useState(false);
+  const [primaryPlan, setPrimaryPlan] = useState<PrimaryPlan>(null);
   const [subscriptionStatus, setSubscriptionStatus] =
     useState<SubscriptionStatus>("loading");
   const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
@@ -122,24 +134,67 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   // Helper function to update state from customerInfo
   // RevenueCat best practice: Trust the isActive flag from RevenueCat
   const updateSubscriptionState = useCallback((info: CustomerInfo) => {
+    console.log("[SubscriptionProvider] updateSubscriptionState called");
     const plus = info.entitlements.active[SFERA_PLUS_ENTITLEMENT];
     const ai = info.entitlements.active[SFERA_AI_ENTITLEMENT];
     const hasPlus = plus !== undefined && plus.isActive === true;
     const hasAI = ai !== undefined && ai.isActive === true;
     const hasAny = hasPlus || hasAI;
 
+    // Determine primaryPlan from activeSubscriptions: which Apple subscription plan
+    // the user actually purchased. Sfera Plus product (sferasplus) vs Sfera AI product (sferas).
+    // RevenueCat entitlements can be granted by either product; we need the purchased plan.
+    const activeSubs = info.activeSubscriptions ?? [];
+    const hasAIPlan = activeSubs.includes(SFERA_AI_PRODUCT_ID);
+    const hasPlusPlan = activeSubs.includes(SFERA_PLUS_PRODUCT_ID);
+    let plan: PrimaryPlan = null;
+    if (hasAIPlan) {
+      plan = "ai"; // User has Sfera AI subscription plan
+    } else if (hasPlusPlan) {
+      plan = "plus"; // User has Sfera Plus subscription plan
+    } else if (hasAI) {
+      plan = "ai"; // Fallback: has AI entitlement but activeSubs empty
+    } else if (hasPlus) {
+      plan = "plus";
+    }
+
     setIsSubscribed(hasAny);
     setHasPlusEntitlement(hasPlus);
     setHasAIEntitlement(hasAI);
+    setPrimaryPlan(plan);
     setSubscriptionStatus(hasAny ? "subscribed" : "not_subscribed");
     setCustomerInfo(info);
 
-    console.log("[SubscriptionProvider] Subscription state updated:", {
+    console.log("[SubscriptionProvider] RevenueCat data received:", {
+      activeSubscriptions: info.activeSubscriptions ?? [],
+      allPurchasedProductIdentifiers: info.allPurchasedProductIdentifiers ?? [],
+      allExpirationDates: info.allExpirationDates ?? {},
+      activeEntitlements: Object.keys(info.entitlements.active ?? {}),
       hasPlusEntitlement: hasPlus,
       hasAIEntitlement: hasAI,
+      hasAIPlan,
+      hasPlusPlan,
+      primaryPlan: plan,
       isSubscribed: hasAny,
-      activeEntitlements: Object.keys(info.entitlements.active),
     });
+    console.log(
+      "[SubscriptionProvider] CustomerInfo (full) – permissions & plans:",
+      {
+        originalAppUserId: info.originalAppUserId,
+        requestDate: info.requestDate,
+        entitlements: {
+          active: info.entitlements?.active ?? {},
+          all: info.entitlements?.all ?? {},
+        },
+        activeSubscriptions: info.activeSubscriptions ?? [],
+        allPurchasedProductIdentifiers:
+          info.allPurchasedProductIdentifiers ?? [],
+        allExpirationDates: info.allExpirationDates ?? {},
+        allPurchaseDates: info.allPurchaseDates ?? {},
+        latestExpirationDate: info.latestExpirationDate,
+        managementURL: info.managementURL,
+      },
+    );
   }, []);
 
   const checkSubscription = useCallback(
@@ -149,6 +204,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         setIsSubscribed(false);
         setHasPlusEntitlement(false);
         setHasAIEntitlement(false);
+        setPrimaryPlan(null);
         setCustomerInfo(null);
         return;
       }
@@ -165,6 +221,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         setIsSubscribed(false);
         setHasPlusEntitlement(false);
         setHasAIEntitlement(false);
+        setPrimaryPlan(null);
         setCustomerInfo(null);
       }
     },
@@ -176,6 +233,30 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     console.log("[SubscriptionProvider] Manually refreshing customer info...");
     await checkSubscription();
   }, [checkSubscription]);
+
+  /** Waits for subscription to resolve if loading. Use before paywall checks to avoid
+   * showing paywall to users whose state was still loading on init. */
+  const ensureSubscriptionResolved = useCallback(async (): Promise<{
+    hasPlusEntitlement: boolean;
+  }> => {
+    if (!isNativeModuleAvailable || !Purchases) {
+      return { hasPlusEntitlement: false };
+    }
+    if (subscriptionStatus === "loading") {
+      try {
+        const customerInfo = await Purchases.getCustomerInfo();
+        updateSubscriptionState(customerInfo);
+        const plus = customerInfo.entitlements.active[SFERA_PLUS_ENTITLEMENT];
+        return {
+          hasPlusEntitlement: plus !== undefined && plus.isActive === true,
+        };
+      } catch (error) {
+        handleDevError(error, "Ensure Subscription Resolved");
+        return { hasPlusEntitlement: false };
+      }
+    }
+    return { hasPlusEntitlement };
+  }, [subscriptionStatus, hasPlusEntitlement, updateSubscriptionState]);
 
   const purchasePackage = useCallback(
     async (pkg: PurchasesPackage) => {
@@ -219,49 +300,24 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   }, [updateSubscriptionState]);
 
   useEffect(() => {
-    // Initialize RevenueCat subscription system
+    let listener: any = null;
+
     const initializeSubscription = async () => {
+      console.log("[SubscriptionProvider] initializeSubscription started");
       if (!isNativeModuleAvailable || !Purchases) {
         setSubscriptionStatus("not_subscribed");
         setIsSubscribed(false);
         setHasPlusEntitlement(false);
         setHasAIEntitlement(false);
+        setPrimaryPlan(null);
         setOfferings(null);
         return;
       }
 
       try {
-        // Fetch offerings from RevenueCat
-        const offerings = await Purchases.getOfferings();
-
-        if (offerings.current !== null) {
-          setOfferings(offerings.current);
-        }
-
-        // Check subscription status (this syncs with store automatically)
-        const customerInfo = await Purchases.getCustomerInfo();
-        updateSubscriptionState(customerInfo);
-
-        // Log all subscriptions, products, packages, and entitlements on init
-        logSubscriptionInitInfo(offerings, customerInfo);
-      } catch (error) {
-        handleDevError(error, "Initialize Subscription");
-        setSubscriptionStatus("not_subscribed");
-        setIsSubscribed(false);
-        setHasPlusEntitlement(false);
-        setHasAIEntitlement(false);
-        setOfferings(null);
-      }
-    };
-
-    initializeSubscription();
-
-    // Add CustomerInfo update listener (RevenueCat best practice)
-    // This automatically updates subscription state when purchases/restores complete
-    let listener: any = null;
-
-    if (isNativeModuleAvailable && Purchases) {
-      try {
+        // Add listener first – the React Native bridge sometimes doesn't resolve
+        // getCustomerInfo() promises, but the listener reliably receives updates
+        // when the native SDK gets CustomerInfo (including initial fetch).
         console.log(
           "[SubscriptionProvider] Adding CustomerInfo update listener",
         );
@@ -273,12 +329,33 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
             updateSubscriptionState(info);
           },
         );
-      } catch (error) {
-        handleDevError(error, "Add CustomerInfo Listener");
-      }
-    }
 
-    // Cleanup listener on unmount
+        const offerings = await Purchases.getOfferings();
+        if (offerings.current !== null) {
+          setOfferings(offerings.current);
+        }
+
+        // getCustomerInfo triggers the fetch; we may get the result via the
+        // listener above if the promise doesn't resolve (known bridge issue).
+        const customerInfo = await Purchases.getCustomerInfo();
+        console.log(
+          "[SubscriptionProvider] getCustomerInfo resolved, updating state...",
+        );
+        updateSubscriptionState(customerInfo);
+        logSubscriptionInitInfo(offerings, customerInfo);
+      } catch (error) {
+        handleDevError(error, "Initialize Subscription");
+        setSubscriptionStatus("not_subscribed");
+        setIsSubscribed(false);
+        setHasPlusEntitlement(false);
+        setHasAIEntitlement(false);
+        setPrimaryPlan(null);
+        setOfferings(null);
+      }
+    };
+
+    initializeSubscription();
+
     return () => {
       if (listener && typeof listener.remove === "function") {
         console.log(
@@ -287,7 +364,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         listener.remove();
       }
     };
-  }, [checkSubscription, updateSubscriptionState]);
+  }, [updateSubscriptionState]);
 
   // RevenueCat best practice: Refresh subscription status when app comes to foreground
   // This ensures we catch subscription expirations that occurred while the app was in background
@@ -320,7 +397,6 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const handlePresentPaywall = useCallback(async (): Promise<boolean> => {
     const result = await presentPaywall();
     if (result) {
-      // User purchased or restored, refresh subscription status
       await checkSubscription();
     }
     return result;
@@ -336,7 +412,6 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         offering: offering || offerings || undefined,
       });
       if (result) {
-        // User has entitlement or purchased/restored, refresh subscription status
         await checkSubscription();
       }
       return result;
@@ -348,9 +423,11 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     isSubscribed,
     hasPlusEntitlement,
     hasAIEntitlement,
+    primaryPlan,
     subscriptionStatus,
     offerings,
     customerInfo,
+    ensureSubscriptionResolved,
     checkSubscription,
     refreshCustomerInfo,
     purchasePackage,

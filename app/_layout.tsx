@@ -67,36 +67,7 @@ function AppContent() {
         handleDevError(error, "App Check Initialization");
       }
 
-      // Initialize RevenueCat
-      // Skip initialization if RevenueCat is disabled via feature flag
-      if (!ENABLE_REVENUECAT) {
-        return;
-      }
-
-      // Only initialize if native module is available
-      if (!isNativeModuleAvailable || !Purchases || !LOG_LEVEL) {
-        return;
-      }
-
-      try {
-        // Set log level based on environment
-        Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.VERBOSE : LOG_LEVEL.ERROR);
-
-        // Platform-specific API keys
-        const iosApiKey = "appl_DEXthnrRgJUgeRHbnAqcepQbhkl";
-        const androidApiKey = "test_bwsKZRrhzegZZheOpaNyrIYYLmW";
-
-        if (Platform.OS === "ios") {
-          Purchases.configure({ apiKey: iosApiKey });
-        } else if (Platform.OS === "android") {
-          Purchases.configure({ apiKey: androidApiKey });
-        }
-      } catch (error) {
-        // Handle RevenueCat initialization errors
-        // Show error in dev mode, silently handle in production
-        handleDevError(error, "RevenueCat Initialization");
-        // The app can still function without RevenueCat
-      }
+      // RevenueCat is configured in RootLayout so it's ready before SubscriptionProvider
     };
 
     initializeServices();
@@ -256,6 +227,30 @@ function AppContent() {
 }
 
 export default function RootLayout() {
+  // Configure RevenueCat first so it's ready before SubscriptionProvider's useEffect runs.
+  // SubscriptionProvider is a descendant and calls getOfferings/getCustomerInfo on mount.
+  useEffect(() => {
+    if (
+      ENABLE_REVENUECAT &&
+      isNativeModuleAvailable &&
+      Purchases &&
+      LOG_LEVEL
+    ) {
+      try {
+        Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.VERBOSE : LOG_LEVEL.ERROR);
+        const iosApiKey = "appl_DEXthnrRgJUgeRHbnAqcepQbhkl";
+        const androidApiKey = "test_bwsKZRrhzegZZheOpaNyrIYYLmW";
+        if (Platform.OS === "ios") {
+          Purchases.configure({ apiKey: iosApiKey });
+        } else if (Platform.OS === "android") {
+          Purchases.configure({ apiKey: androidApiKey });
+        }
+      } catch (error) {
+        handleDevError(error, "RevenueCat Initialization");
+      }
+    }
+  }, []);
+
   // Don't hide native splash here - let SplashAnimationProvider handle it
   // This prevents race conditions with the animation provider
 

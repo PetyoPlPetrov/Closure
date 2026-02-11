@@ -29,7 +29,7 @@ export default function AddFriendScreen() {
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
   const { addFriend, updateFriend, getFriend, friends } = useJourney();
-  const { hasPlusEntitlement } = useSubscription();
+  const { ensureSubscriptionResolved } = useSubscription();
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
   const t = useTranslate();
@@ -57,23 +57,20 @@ export default function AddFriendScreen() {
     // Don't check if we're saving (prevents redirect after saving first friend)
     if (isSaving) return;
 
-    // In development mode, bypass subscription limits
     // Only redirect if user already had 2+ friends when they entered this screen
-    // This allows 2 free friends per sphere before paywall
-    if (
-      !__DEV__ &&
-      !isEditMode &&
-      !hasPlusEntitlement &&
-      initialFriendCount.current >= 2
-    ) {
+    if (!isEditMode && initialFriendCount.current >= 2) {
       (async () => {
-        const subscribed = await showPaywallForPlusAccess();
-        if (!subscribed) {
-          router.back();
+        const { hasPlusEntitlement: hasPlus } =
+          await ensureSubscriptionResolved();
+        if (!hasPlus) {
+          const subscribed = await showPaywallForPlusAccess();
+          if (!subscribed) {
+            router.back();
+          }
         }
       })();
     }
-  }, [isEditMode, hasPlusEntitlement, friends.length, isSaving]);
+  }, [isEditMode, ensureSubscriptionResolved, friends.length, isSaving]);
 
   // Load existing friend data when in edit mode
   useEffect(() => {
@@ -124,20 +121,18 @@ export default function AddFriendScreen() {
       return;
     }
 
-    // In development mode, bypass subscription limits
     // Check subscription limit for new friends (not edits)
-    // Only check if user already had 1+ friends when they entered this screen
     if (
-      !__DEV__ &&
       !isEditMode &&
-      !hasPlusEntitlement &&
       initialFriendCount.current !== null &&
       initialFriendCount.current >= 2
     ) {
-      // Show paywall (custom in dev, RevenueCat in prod)
-      const subscribed = await showPaywallForPlusAccess();
-      if (!subscribed) return; // User cancelled or didn't subscribe
-      // User subscribed, continue to save
+      const { hasPlusEntitlement: hasPlus } =
+        await ensureSubscriptionResolved();
+      if (!hasPlus) {
+        const subscribed = await showPaywallForPlusAccess();
+        if (!subscribed) return;
+      }
     }
 
     setIsSaving(true);

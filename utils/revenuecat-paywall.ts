@@ -3,10 +3,58 @@ import type { PurchasesOffering } from "react-native-purchases";
 import type { PAYWALL_RESULT as PAYWALL_RESULT_TYPE } from "react-native-purchases-ui";
 import { handleDevError } from "./dev-error-handler";
 import {
-    PAYWALL_RESULT,
-    RevenueCatUI,
     isNativeModuleAvailable,
+    PAYWALL_RESULT,
+    Purchases,
+    RevenueCatUI
 } from "./revenuecat-wrapper";
+
+/**
+ * Present paywall for a specific offering by identifier (dev/testing).
+ * Use when you want to force-show a paywall regardless of subscription state.
+ */
+export async function presentPaywallWithOffering(
+  offeringIdentifier: string,
+): Promise<boolean> {
+  if (!isNativeModuleAvailable || !RevenueCatUI || !PAYWALL_RESULT) {
+    handleDevError(
+      new Error("RevenueCat native module not available"),
+      "Present Paywall",
+    );
+    return false;
+  }
+
+  try {
+    const offerings = await Purchases.getOfferings();
+    const offering = (offerings as { all?: Record<string, PurchasesOffering> })
+      ?.all?.[offeringIdentifier];
+    if (!offering) {
+      handleDevError(
+        new Error(`Offering "${offeringIdentifier}" not found`),
+        "Present Paywall",
+      );
+      return false;
+    }
+
+    const paywallResult: PAYWALL_RESULT_TYPE =
+      await RevenueCatUI.presentPaywall({ offering });
+
+    switch (paywallResult) {
+      case PAYWALL_RESULT.NOT_PRESENTED:
+      case PAYWALL_RESULT.ERROR:
+      case PAYWALL_RESULT.CANCELLED:
+        return false;
+      case PAYWALL_RESULT.PURCHASED:
+      case PAYWALL_RESULT.RESTORED:
+        return true;
+      default:
+        return false;
+    }
+  } catch (error) {
+    handleDevError(error, "Present Paywall");
+    return false;
+  }
+}
 
 /**
  * Present paywall for current offering
@@ -46,7 +94,7 @@ export async function presentPaywall(): Promise<boolean> {
 /**
  * Present paywall if needed - checks entitlement and shows paywall if user doesn't have access
  * @param options - Configuration options
- * @param options.requiredEntitlementIdentifier - The entitlement identifier to check (e.g., "sfera_plus_entitlement", "sfera_ai_entitlement")
+ * @param options.requiredEntitlementIdentifier - The entitlement identifier to check (e.g., "SferaPlus", "Sfera Premium")
  * @param options.offering - Optional specific offering to present
  * @returns Promise<boolean> - Returns true if user has entitlement or purchased/restored, false otherwise
  */

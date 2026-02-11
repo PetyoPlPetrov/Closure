@@ -4,6 +4,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { showPaywallForUpgradeAccess } from "@/utils/premium-access";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -40,7 +41,12 @@ export default function PremiumInfoScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
-  const { hasPlusEntitlement, hasAIEntitlement } = useSubscription();
+  const {
+    hasPlusEntitlement,
+    hasAIEntitlement,
+    primaryPlan,
+    checkSubscription,
+  } = useSubscription();
   const params = useLocalSearchParams<{ plan?: string }>();
   const forcePlan =
     params.plan === "plus" ? "plus" : params.plan === "ai" ? "ai" : null;
@@ -59,19 +65,14 @@ export default function PremiumInfoScreen() {
         features: SFERA_AI_FEATURES,
       };
     }
-    if (hasAIEntitlement && hasPlusEntitlement) {
-      return {
-        activeBadgeKey: "premium.activeBadge.both" as const,
-        features: SFERA_AI_FEATURES,
-      };
-    }
-    if (hasAIEntitlement) {
+    // Use primaryPlan (product-based) so "Sfera Plus" shows when user bought Plus
+    if (primaryPlan === "ai") {
       return {
         activeBadgeKey: "premium.activeBadge.ai" as const,
         features: SFERA_AI_FEATURES,
       };
     }
-    if (hasPlusEntitlement) {
+    if (primaryPlan === "plus" || hasPlusEntitlement) {
       return {
         activeBadgeKey: "premium.activeBadge.plus" as const,
         features: SFERA_PLUS_FEATURES,
@@ -81,7 +82,7 @@ export default function PremiumInfoScreen() {
       activeBadgeKey: "premium.activeBadge" as const,
       features: SFERA_AI_FEATURES,
     };
-  }, [hasPlusEntitlement, hasAIEntitlement, forcePlan]);
+  }, [hasPlusEntitlement, hasAIEntitlement, primaryPlan, forcePlan]);
 
   const styles = useMemo(
     () => createStyles(colors, colorScheme ?? "dark", fontScale),
@@ -142,6 +143,30 @@ export default function PremiumInfoScreen() {
             </View>
           ))}
         </View>
+
+        {features === SFERA_PLUS_FEATURES && primaryPlan !== "ai" && (
+          <TouchableOpacity
+            style={styles.upgradeButton}
+            onPress={async () => {
+              const success = await showPaywallForUpgradeAccess();
+              if (success) await checkSubscription();
+            }}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons
+              name="rocket-launch"
+              size={22 * fontScale}
+              color="#FFFFFF"
+            />
+            <ThemedText
+              size="l"
+              weight="semibold"
+              style={styles.upgradeButtonText}
+            >
+              {t("premium.upgrade")}
+            </ThemedText>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </TabScreenContainer>
   );
@@ -239,6 +264,20 @@ function createStyles(
       flex: 1,
       color: colors.text,
       lineHeight: 20 * fontScale,
+    } as ViewStyle,
+    upgradeButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8 * fontScale,
+      marginTop: 24 * fontScale,
+      paddingVertical: 16 * fontScale,
+      paddingHorizontal: 24 * fontScale,
+      borderRadius: 12 * fontScale,
+      backgroundColor: colors.primary,
+    } as ViewStyle,
+    upgradeButtonText: {
+      color: "#FFFFFF",
     } as ViewStyle,
   });
 }

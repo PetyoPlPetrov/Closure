@@ -33,7 +33,7 @@ export default function AddExProfileScreen() {
   const fontScale = useFontScale();
   const { addProfile, updateProfile, getProfile, profiles, isLoading } =
     useJourney();
-  const { hasPlusEntitlement } = useSubscription();
+  const { ensureSubscriptionResolved } = useSubscription();
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
   const t = useTranslate();
@@ -90,23 +90,21 @@ export default function AddExProfileScreen() {
     // Don't check if we're saving or navigating away (prevents redirect after saving first profile)
     if (isSaving.current || isNavigatingAway.current) return;
 
-    // In development mode, bypass subscription limits
     // Only redirect if user already had 2+ profiles when they entered this screen
     // This allows 2 free profiles per sphere before paywall
-    if (
-      !__DEV__ &&
-      !isEditMode &&
-      !hasPlusEntitlement &&
-      initialProfileCount.current >= 2
-    ) {
+    if (!isEditMode && initialProfileCount.current >= 2) {
       (async () => {
-        const subscribed = await showPaywallForPlusAccess();
-        if (!subscribed) {
-          router.back();
+        const { hasPlusEntitlement: hasPlus } =
+          await ensureSubscriptionResolved();
+        if (!hasPlus) {
+          const subscribed = await showPaywallForPlusAccess();
+          if (!subscribed) {
+            router.back();
+          }
         }
       })();
     }
-  }, [isEditMode, hasPlusEntitlement, profiles.length, isLoading]);
+  }, [isEditMode, ensureSubscriptionResolved, profiles.length, isLoading]);
 
   // Load existing profile data when in edit mode
   useEffect(() => {
@@ -447,21 +445,16 @@ export default function AddExProfileScreen() {
     // Mark as saving to prevent unsaved changes dialog
     isSaving.current = true;
 
-    // In development mode, bypass subscription limits
     // Check subscription limit for new profiles (not edits)
     // Only check if profiles have loaded (to avoid false positives)
-    if (
-      !__DEV__ &&
-      !isEditMode &&
-      !hasPlusEntitlement &&
-      !isLoading &&
-      profiles.length >= 2
-    ) {
-      isSaving.current = false;
-      // Show paywall (custom in dev, RevenueCat in prod)
-      const subscribed = await showPaywallForPlusAccess();
-      if (!subscribed) return; // User cancelled or didn't subscribe
-      // User subscribed, continue to save
+    if (!isEditMode && !isLoading && profiles.length >= 2) {
+      const { hasPlusEntitlement: hasPlus } =
+        await ensureSubscriptionResolved();
+      if (!hasPlus) {
+        isSaving.current = false;
+        const subscribed = await showPaywallForPlusAccess();
+        if (!subscribed) return;
+      }
     }
 
     // Validate: prevent setting as ongoing if there's already an ongoing partner

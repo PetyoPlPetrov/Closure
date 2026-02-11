@@ -34,7 +34,7 @@ export default function AddFamilyMemberScreen() {
     getFamilyMember,
     familyMembers,
   } = useJourney();
-  const { hasPlusEntitlement } = useSubscription();
+  const { ensureSubscriptionResolved } = useSubscription();
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
   const t = useTranslate();
@@ -63,23 +63,20 @@ export default function AddFamilyMemberScreen() {
     // Don't check if we're saving (prevents redirect after saving first member)
     if (isSaving) return;
 
-    // In development mode, bypass subscription limits
     // Only redirect if user already had 2+ family members when they entered this screen
-    // This allows 2 free family members per sphere before paywall
-    if (
-      !__DEV__ &&
-      !isEditMode &&
-      !hasPlusEntitlement &&
-      initialFamilyMemberCount.current >= 2
-    ) {
+    if (!isEditMode && initialFamilyMemberCount.current >= 2) {
       (async () => {
-        const subscribed = await showPaywallForPlusAccess();
-        if (!subscribed) {
-          router.back();
+        const { hasPlusEntitlement: hasPlus } =
+          await ensureSubscriptionResolved();
+        if (!hasPlus) {
+          const subscribed = await showPaywallForPlusAccess();
+          if (!subscribed) {
+            router.back();
+          }
         }
       })();
     }
-  }, [isEditMode, hasPlusEntitlement, familyMembers.length, isSaving]);
+  }, [isEditMode, ensureSubscriptionResolved, familyMembers.length, isSaving]);
 
   // Load existing member data when in edit mode
   useEffect(() => {
@@ -141,20 +138,18 @@ export default function AddFamilyMemberScreen() {
       return;
     }
 
-    // In development mode, bypass subscription limits
     // Check subscription limit for new family members (not edits)
-    // Only check if user already had 1+ family members when they entered this screen
     if (
-      !__DEV__ &&
       !isEditMode &&
-      !hasPlusEntitlement &&
       initialFamilyMemberCount.current !== null &&
       initialFamilyMemberCount.current >= 2
     ) {
-      // Show paywall (custom in dev, RevenueCat in prod)
-      const subscribed = await showPaywallForPlusAccess();
-      if (!subscribed) return; // User cancelled or didn't subscribe
-      // User subscribed, continue to save
+      const { hasPlusEntitlement: hasPlus } =
+        await ensureSubscriptionResolved();
+      if (!hasPlus) {
+        const subscribed = await showPaywallForPlusAccess();
+        if (!subscribed) return;
+      }
     }
 
     setIsSaving(true);

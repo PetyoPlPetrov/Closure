@@ -82,7 +82,7 @@ export default function NotificationDetailScreen() {
     getNextTriggerDate,
     getScheduledNotifications,
   } = useNotificationsManager();
-  const { hasPlusEntitlement } = useSubscription();
+  const { ensureSubscriptionResolved } = useSubscription();
 
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } =
     Dimensions.get("window");
@@ -170,12 +170,11 @@ export default function NotificationDetailScreen() {
       await setOverride(sphere, entityId, { kind: "none" });
     } else {
       // Turn on notifications - check subscription first
-      // In development mode, bypass subscription check
-      if (!__DEV__ && !hasPlusEntitlement) {
-        // Show paywall (custom in dev, RevenueCat in prod)
+      const { hasPlusEntitlement: hasPlus } =
+        await ensureSubscriptionResolved();
+      if (!hasPlus) {
         const subscribed = await showPaywallForPlusAccess();
-        if (!subscribed) return; // User cancelled or didn't subscribe
-        // User subscribed, continue to enable notifications
+        if (!subscribed) return;
       }
 
       // Request notification permissions when user explicitly enables notifications

@@ -31,7 +31,7 @@ export default function AddJobScreen() {
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
   const { addJob, updateJob, getJob, jobs } = useJourney();
-  const { hasPlusEntitlement } = useSubscription();
+  const { ensureSubscriptionResolved } = useSubscription();
   const params = useLocalSearchParams();
   const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
@@ -70,23 +70,21 @@ export default function AddJobScreen() {
     // Don't check if we're saving (prevents redirect after saving first job)
     if (isSaving.current) return;
 
-    // In development mode, bypass subscription limits
     // Only redirect if user already had 2+ jobs when they entered this screen
     // This allows 2 free jobs per sphere before paywall
-    if (
-      !__DEV__ &&
-      !isEditMode &&
-      !hasPlusEntitlement &&
-      initialJobCount.current >= 2
-    ) {
+    if (!isEditMode && initialJobCount.current >= 2) {
       (async () => {
-        const subscribed = await showPaywallForPlusAccess();
-        if (!subscribed) {
-          router.back();
+        const { hasPlusEntitlement: hasPlus } =
+          await ensureSubscriptionResolved();
+        if (!hasPlus) {
+          const subscribed = await showPaywallForPlusAccess();
+          if (!subscribed) {
+            router.back();
+          }
         }
       })();
     }
-  }, [isEditMode, hasPlusEntitlement, jobs.length]);
+  }, [isEditMode, ensureSubscriptionResolved, jobs.length]);
 
   // Load existing job data when in edit mode
   useEffect(() => {
@@ -268,20 +266,18 @@ export default function AddJobScreen() {
   const handleSubmit = async () => {
     if (!isSaveEnabled) return;
 
-    // In development mode, bypass subscription limits
     // Check subscription limit for new jobs (not edits)
-    // Only check if user already had 1+ jobs when they entered this screen
     if (
-      !__DEV__ &&
       !isEditMode &&
-      !hasPlusEntitlement &&
       initialJobCount.current !== null &&
       initialJobCount.current >= 2
     ) {
-      // Show paywall (custom in dev, RevenueCat in prod)
-      const subscribed = await showPaywallForPlusAccess();
-      if (!subscribed) return; // User cancelled or didn't subscribe
-      // User subscribed, continue to save
+      const { hasPlusEntitlement: hasPlus } =
+        await ensureSubscriptionResolved();
+      if (!hasPlus) {
+        const subscribed = await showPaywallForPlusAccess();
+        if (!subscribed) return;
+      }
     }
 
     // Mark as saving to prevent useEffect redirect

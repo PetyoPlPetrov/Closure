@@ -9,6 +9,7 @@ import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { presentPaywallWithOffering } from "@/utils/revenuecat-paywall";
 import { resetStreakData } from "@/utils/streak-manager";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -59,8 +60,14 @@ export default function SettingsScreen() {
     reloadHobbies,
     cleanupOrphanedMemories,
   } = useJourney();
-  const { presentPaywall, isSubscribed, hasPlusEntitlement, hasAIEntitlement } =
-    useSubscription();
+  const {
+    presentPaywall,
+    checkSubscription,
+    isSubscribed,
+    hasPlusEntitlement,
+    hasAIEntitlement,
+    primaryPlan,
+  } = useSubscription();
   const t = useTranslate();
   const aiConsent = useAIInsightsConsent();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
@@ -2053,46 +2060,53 @@ export default function SettingsScreen() {
             />
           </TouchableOpacity>
 
-          {isSubscribed && (
-            <View style={styles.planInfoCard}>
+          {__DEV__ && (
+            <View style={[styles.planInfoCard, { marginTop: 12 * fontScale }]}>
               <ThemedText
                 size="sm"
                 weight="semibold"
-                style={styles.planInfoTitle}
+                style={[styles.planInfoTitle, { marginBottom: 8 * fontScale }]}
               >
-                {hasAIEntitlement && hasPlusEntitlement
-                  ? t("premium.activeBadge.both")
-                  : hasAIEntitlement
-                    ? t("premium.activeBadge.ai")
-                    : t("premium.activeBadge.plus")}
+                Dev: Show paywalls
               </ThemedText>
-              <View style={styles.planFeaturesList}>
-                {(hasAIEntitlement
-                  ? [
-                      "premium.feature.ai",
-                      "premium.feature.unlimited",
-                      "premium.feature.notifications",
-                      "premium.feature.analytics",
-                    ]
-                  : [
-                      "premium.feature.unlimited",
-                      "premium.feature.notifications",
-                      "premium.feature.analytics",
-                    ]
-                ).map((key) => (
-                  <View key={key} style={styles.planFeatureRow}>
-                    <View style={styles.planFeatureIcon}>
-                      <MaterialIcons
-                        name="check-circle"
-                        size={18 * fontScale}
-                        color={colors.primary}
-                      />
-                    </View>
-                    <ThemedText size="sm" style={styles.planFeatureText}>
-                      {t(key)}
-                    </ThemedText>
-                  </View>
-                ))}
+              <View style={{ gap: 8 * fontScale }}>
+                <TouchableOpacity
+                  style={[
+                    styles.dropdown,
+                    {
+                      paddingVertical: 10 * fontScale,
+                      paddingHorizontal: 14 * fontScale,
+                    },
+                  ]}
+                  onPress={async () => {
+                    const ok = await presentPaywallWithOffering("Sferas Plus");
+                    if (ok) await checkSubscription();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <ThemedText size="sm" weight="medium">
+                    Sfera Plus paywall
+                  </ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.dropdown,
+                    {
+                      paddingVertical: 10 * fontScale,
+                      paddingHorizontal: 14 * fontScale,
+                    },
+                  ]}
+                  onPress={async () => {
+                    const ok =
+                      await presentPaywallWithOffering("ofrngf2c100f8c5");
+                    if (ok) await checkSubscription();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <ThemedText size="sm" weight="medium">
+                    Sfera AI paywall
+                  </ThemedText>
+                </TouchableOpacity>
               </View>
             </View>
           )}
