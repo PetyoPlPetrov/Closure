@@ -108,7 +108,7 @@ export async function recordAIRequest(): Promise<void> {
 
 /**
  * Get remaining AI requests for today
- * @param isSubscribed - Whether user has premium subscription
+ * @param isSubscribed - Whether user has Sfera AI entitlement (premium AI)
  * @returns Number of remaining requests
  */
 export async function getRemainingAIRequests(
@@ -121,7 +121,7 @@ export async function getRemainingAIRequests(
 
 /**
  * Check if user can make an AI request
- * @param isSubscribed - Whether user has premium subscription
+ * @param isSubscribed - Whether user has Sfera AI entitlement (premium AI)
  * @returns true if user has remaining requests, false otherwise
  */
 export async function canMakeAIRequest(
@@ -134,7 +134,7 @@ export async function canMakeAIRequest(
 /**
  * Get time until next request is available (in milliseconds)
  * Returns 0 if requests are available now
- * @param isSubscribed - Whether user has premium subscription
+ * @param isSubscribed - Whether user has Sfera AI entitlement (premium AI)
  */
 export async function getTimeUntilNextRequest(
   isSubscribed: boolean,
@@ -155,7 +155,7 @@ export async function getTimeUntilNextRequest(
 
 /**
  * Format time until next request as human-readable string
- * @param isSubscribed - Whether user has premium subscription
+ * @param isSubscribed - Whether user has Sfera AI entitlement (premium AI)
  */
 export async function getTimeUntilNextRequestFormatted(
   isSubscribed: boolean,

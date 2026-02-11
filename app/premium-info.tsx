@@ -4,8 +4,9 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
 import {
     ScrollView,
@@ -15,8 +16,20 @@ import {
     type ViewStyle,
 } from "react-native";
 
-const FEATURES: { icon: keyof typeof MaterialIcons.glyphMap; key: string }[] = [
+const SFERA_AI_FEATURES: {
+  icon: keyof typeof MaterialIcons.glyphMap;
+  key: string;
+}[] = [
   { icon: "psychology", key: "premium.feature.ai" },
+  { icon: "people", key: "premium.feature.unlimited" },
+  { icon: "notifications-active", key: "premium.feature.notifications" },
+  { icon: "insights", key: "premium.feature.analytics" },
+];
+
+const SFERA_PLUS_FEATURES: {
+  icon: keyof typeof MaterialIcons.glyphMap;
+  key: string;
+}[] = [
   { icon: "people", key: "premium.feature.unlimited" },
   { icon: "notifications-active", key: "premium.feature.notifications" },
   { icon: "insights", key: "premium.feature.analytics" },
@@ -27,6 +40,48 @@ export default function PremiumInfoScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
+  const { hasPlusEntitlement, hasAIEntitlement } = useSubscription();
+  const params = useLocalSearchParams<{ plan?: string }>();
+  const forcePlan =
+    params.plan === "plus" ? "plus" : params.plan === "ai" ? "ai" : null;
+
+  const { activeBadgeKey, features } = useMemo(() => {
+    // Dev: force plan via URL param (e.g. ?plan=plus)
+    if (forcePlan === "plus") {
+      return {
+        activeBadgeKey: "premium.activeBadge.plus" as const,
+        features: SFERA_PLUS_FEATURES,
+      };
+    }
+    if (forcePlan === "ai") {
+      return {
+        activeBadgeKey: "premium.activeBadge.ai" as const,
+        features: SFERA_AI_FEATURES,
+      };
+    }
+    if (hasAIEntitlement && hasPlusEntitlement) {
+      return {
+        activeBadgeKey: "premium.activeBadge.both" as const,
+        features: SFERA_AI_FEATURES,
+      };
+    }
+    if (hasAIEntitlement) {
+      return {
+        activeBadgeKey: "premium.activeBadge.ai" as const,
+        features: SFERA_AI_FEATURES,
+      };
+    }
+    if (hasPlusEntitlement) {
+      return {
+        activeBadgeKey: "premium.activeBadge.plus" as const,
+        features: SFERA_PLUS_FEATURES,
+      };
+    }
+    return {
+      activeBadgeKey: "premium.activeBadge" as const,
+      features: SFERA_AI_FEATURES,
+    };
+  }, [hasPlusEntitlement, hasAIEntitlement, forcePlan]);
 
   const styles = useMemo(
     () => createStyles(colors, colorScheme ?? "dark", fontScale),
@@ -63,7 +118,7 @@ export default function PremiumInfoScreen() {
             />
           </View>
           <ThemedText size="l" weight="semibold" style={styles.activeBadgeText}>
-            {t("premium.activeBadge")}
+            {t(activeBadgeKey)}
           </ThemedText>
         </View>
 
@@ -72,7 +127,7 @@ export default function PremiumInfoScreen() {
         </ThemedText>
 
         <View style={styles.featuresList}>
-          {FEATURES.map(({ icon, key }) => (
+          {features.map(({ icon, key }) => (
             <View key={key} style={styles.featureRow}>
               <View style={styles.iconWrapper}>
                 <MaterialIcons

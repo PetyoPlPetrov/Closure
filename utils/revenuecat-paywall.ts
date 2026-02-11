@@ -1,8 +1,12 @@
 // Make sure to configure a Paywall in the Dashboard first.
-import type { PurchasesOffering } from 'react-native-purchases';
-import type { PAYWALL_RESULT as PAYWALL_RESULT_TYPE } from 'react-native-purchases-ui';
-import { handleDevError } from './dev-error-handler';
-import { PAYWALL_RESULT, RevenueCatUI, isNativeModuleAvailable } from './revenuecat-wrapper';
+import type { PurchasesOffering } from "react-native-purchases";
+import type { PAYWALL_RESULT as PAYWALL_RESULT_TYPE } from "react-native-purchases-ui";
+import { handleDevError } from "./dev-error-handler";
+import {
+    PAYWALL_RESULT,
+    RevenueCatUI,
+    isNativeModuleAvailable,
+} from "./revenuecat-wrapper";
 
 /**
  * Present paywall for current offering
@@ -10,12 +14,16 @@ import { PAYWALL_RESULT, RevenueCatUI, isNativeModuleAvailable } from './revenue
  */
 export async function presentPaywall(): Promise<boolean> {
   if (!isNativeModuleAvailable || !RevenueCatUI || !PAYWALL_RESULT) {
-    handleDevError(new Error('RevenueCat native module not available'), 'Present Paywall');
+    handleDevError(
+      new Error("RevenueCat native module not available"),
+      "Present Paywall",
+    );
     return false;
   }
 
   try {
-    const paywallResult: PAYWALL_RESULT_TYPE = await RevenueCatUI.presentPaywall();
+    const paywallResult: PAYWALL_RESULT_TYPE =
+      await RevenueCatUI.presentPaywall();
 
     switch (paywallResult) {
       case PAYWALL_RESULT.NOT_PRESENTED:
@@ -30,7 +38,7 @@ export async function presentPaywall(): Promise<boolean> {
     }
   } catch (error) {
     // Error presenting paywall
-    handleDevError(error, 'Present Paywall');
+    handleDevError(error, "Present Paywall");
     return false;
   }
 }
@@ -38,7 +46,7 @@ export async function presentPaywall(): Promise<boolean> {
 /**
  * Present paywall if needed - checks entitlement and shows paywall if user doesn't have access
  * @param options - Configuration options
- * @param options.requiredEntitlementIdentifier - The entitlement identifier to check (e.g., "Sfera Premium")
+ * @param options.requiredEntitlementIdentifier - The entitlement identifier to check (e.g., "sfera_plus_entitlement", "sfera_ai_entitlement")
  * @param options.offering - Optional specific offering to present
  * @returns Promise<boolean> - Returns true if user has entitlement or purchased/restored, false otherwise
  */
@@ -47,15 +55,19 @@ export async function presentPaywallIfNeeded(options: {
   offering?: PurchasesOffering;
 }): Promise<boolean> {
   if (!isNativeModuleAvailable || !RevenueCatUI || !PAYWALL_RESULT) {
-    handleDevError(new Error('RevenueCat native module not available'), 'Present Paywall');
+    handleDevError(
+      new Error("RevenueCat native module not available"),
+      "Present Paywall",
+    );
     return false;
   }
 
   try {
-    const paywallResult: PAYWALL_RESULT_TYPE = await RevenueCatUI.presentPaywallIfNeeded({
-      requiredEntitlementIdentifier: options.requiredEntitlementIdentifier,
-      offering: options.offering,
-    });
+    const paywallResult: PAYWALL_RESULT_TYPE =
+      await RevenueCatUI.presentPaywallIfNeeded({
+        requiredEntitlementIdentifier: options.requiredEntitlementIdentifier,
+        offering: options.offering,
+      });
 
     switch (paywallResult) {
       case PAYWALL_RESULT.NOT_PRESENTED:
@@ -74,8 +86,7 @@ export async function presentPaywallIfNeeded(options: {
     }
   } catch (error) {
     // Error presenting paywall
-    handleDevError(error, 'Present Paywall');
+    handleDevError(error, "Present Paywall");
     return false;
   }
 }
-

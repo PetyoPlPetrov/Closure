@@ -49,6 +49,7 @@ export interface Translations {
   "settings.devTools.generateData.button": string;
   "settings.devTools.generateData.generating": string;
   "settings.devTools.viewPremiumFeatures": string;
+  "settings.devTools.viewPlusFeatures": string;
   "settings.devTools.clearData.button": string;
   "settings.devTools.clearData.deleting": string;
 
@@ -572,6 +573,11 @@ export interface Translations {
   "subscription.limit.family": string;
   "subscription.limit.hobby": string;
   "premium.activeBadge": string;
+  "premium.activeBadge.plus": string;
+  "premium.activeBadge.ai": string;
+  "premium.activeBadge.both": string;
+  "premium.plan.sferaPlus": string;
+  "premium.plan.sferaAI": string;
   "premium.whatsIncluded": string;
   "premium.feature.ai": string;
   "premium.feature.unlimited": string;
@@ -3468,12 +3474,13 @@ const translations: Record<Language, Translations> = {
       "Sferas now uses AI to analyze your memories and send you personalized motivational nudges. Your data is sent securely to our AI partner solely for this purpose and is not used for training models.",
     "ai.insights.consent.maybeLater": "Maybe Later",
     "settings.subscriptions.title": "Subscriptions",
-    "settings.subscriptions.premium": "Sferas Premium",
+    "settings.subscriptions.premium": "Sfera plans",
     "settings.devTools.title": "Development Tools",
     "settings.devTools.generateData.button":
       "Generate Fake Data (Profiles & Jobs)",
     "settings.devTools.generateData.generating": "Generating...",
     "settings.devTools.viewPremiumFeatures": "View Premium Features",
+    "settings.devTools.viewPlusFeatures": "View Plus features",
     "settings.devTools.clearData.button": "Clear All App Data",
     "settings.devTools.clearData.deleting": "Deleting...",
     "wheel.noLessons.message":
@@ -4168,6 +4175,11 @@ const translations: Record<Language, Translations> = {
     "subscription.limit.hobby":
       "You can create one hobby for free. Subscribe to create more hobbies.",
     "premium.activeBadge": "You're an active Premium member",
+    "premium.activeBadge.plus": "You're an active Sfera Plus member",
+    "premium.activeBadge.ai": "You're an active Sfera AI member",
+    "premium.activeBadge.both": "You're an active Sfera AI & Plus member",
+    "premium.plan.sferaPlus": "Sfera Plus",
+    "premium.plan.sferaAI": "Sfera AI",
     "premium.whatsIncluded": "WHAT'S INCLUDED",
     "premium.feature.ai":
       "Access to Sfera AI to turn your notes or voice stories into memories and moments",
@@ -7730,12 +7742,13 @@ const translations: Record<Language, Translations> = {
       "Sferas вече използва AI за анализ на вашите спомени и ви изпраща персонализирани мотивационни подсказки. Вашите данни се изпращат сигурно до нашия AI партньор само за тази цел и не се използват за обучение на модели.",
     "ai.insights.consent.maybeLater": "По-късно",
     "settings.subscriptions.title": "Абонаменти",
-    "settings.subscriptions.premium": "Sferas Premium",
+    "settings.subscriptions.premium": "Sfera plans",
     "settings.devTools.title": "Инструменти за Разработка",
     "settings.devTools.generateData.button":
       "Генериране на Фалшиви Данни (Профили и Работи)",
     "settings.devTools.generateData.generating": "Генериране...",
     "settings.devTools.viewPremiumFeatures": "Преглед на премиум функциите",
+    "settings.devTools.viewPlusFeatures": "Преглед на Plus функциите",
     "settings.devTools.clearData.button": "Изтриване на Всички Данни",
     "settings.devTools.clearData.deleting": "Изтриване...",
     "wheel.noLessons.message":
@@ -8434,6 +8447,11 @@ const translations: Record<Language, Translations> = {
     "subscription.limit.hobby":
       "Можете да създадете едно хоби безплатно. Абонирайте се, за да създавате повече хобита.",
     "premium.activeBadge": "Активен премиум член сте",
+    "premium.activeBadge.plus": "Активен член на Sfera Plus сте",
+    "premium.activeBadge.ai": "Активен член на Sfera AI сте",
+    "premium.activeBadge.both": "Активен член на Sfera AI и Plus сте",
+    "premium.plan.sferaPlus": "Sfera Plus",
+    "premium.plan.sferaAI": "Sfera AI",
     "premium.whatsIncluded": "КАКВО Е ВКЛЮЧЕНО",
     "premium.feature.ai":
       "Достъп до Sfera AI за превръщане на бележките или гласовите си истории в спомени и моменти",

@@ -1,42 +1,49 @@
-import { ThemedText } from '@/components/themed-text';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useFontScale } from '@/hooks/use-device-size';
-import { useLargeDevice } from '@/hooks/use-large-device';
-import { Input } from '@/library/components/input';
-import { TabScreenContainer } from '@/library/components/tab-screen-container';
-import { TextArea } from '@/library/components/text-area';
-import { UploadPicture } from '@/library/components/upload-picture';
-import { useJourney } from '@/utils/JourneyProvider';
-import { useSubscription } from '@/utils/SubscriptionProvider';
-import { showPaywallForPremiumAccess } from '@/utils/premium-access';
-import { useTranslate } from '@/utils/languages/use-translate';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import * as ImagePicker from 'expo-image-picker';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ThemedText } from "@/components/themed-text";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useFontScale } from "@/hooks/use-device-size";
+import { useLargeDevice } from "@/hooks/use-large-device";
+import { Input } from "@/library/components/input";
+import { TabScreenContainer } from "@/library/components/tab-screen-container";
+import { TextArea } from "@/library/components/text-area";
+import { UploadPicture } from "@/library/components/upload-picture";
+import { useJourney } from "@/utils/JourneyProvider";
+import { useSubscription } from "@/utils/SubscriptionProvider";
+import { useTranslate } from "@/utils/languages/use-translate";
+import { showPaywallForPlusAccess } from "@/utils/premium-access";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import * as ImagePicker from "expo-image-picker";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
 export default function AddFriendScreen() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'dark'];
+  const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
   const { addFriend, updateFriend, getFriend, friends } = useJourney();
-  const { isSubscribed } = useSubscription();
+  const { hasPlusEntitlement } = useSubscription();
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
   const t = useTranslate();
-  
-  const isEditMode = params.edit === 'true' && params.friendId;
+
+  const isEditMode = params.edit === "true" && params.friendId;
   const friendId = params.friendId as string | undefined;
   const existingFriend = friendId ? getFriend(friendId) : null;
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Track initial friend count to prevent redirect after saving first friend
   const initialFriendCount = useRef<number | null>(null);
 
@@ -46,28 +53,33 @@ export default function AddFriendScreen() {
     if (initialFriendCount.current === null) {
       initialFriendCount.current = friends.length;
     }
-    
+
     // Don't check if we're saving (prevents redirect after saving first friend)
     if (isSaving) return;
-    
+
     // In development mode, bypass subscription limits
     // Only redirect if user already had 2+ friends when they entered this screen
     // This allows 2 free friends per sphere before paywall
-    if (!__DEV__ && !isEditMode && !isSubscribed && initialFriendCount.current >= 2) {
+    if (
+      !__DEV__ &&
+      !isEditMode &&
+      !hasPlusEntitlement &&
+      initialFriendCount.current >= 2
+    ) {
       (async () => {
-        const subscribed = await showPaywallForPremiumAccess();
+        const subscribed = await showPaywallForPlusAccess();
         if (!subscribed) {
           router.back();
         }
       })();
     }
-  }, [isEditMode, isSubscribed, friends.length, isSaving]);
+  }, [isEditMode, hasPlusEntitlement, friends.length, isSaving]);
 
   // Load existing friend data when in edit mode
   useEffect(() => {
     if (isEditMode && existingFriend) {
-      setName(existingFriend.name || '');
-      setDescription(existingFriend.description || '');
+      setName(existingFriend.name || "");
+      setDescription(existingFriend.description || "");
       setSelectedImage(existingFriend.imageUri || null);
     }
   }, [isEditMode, existingFriend]);
@@ -76,14 +88,15 @@ export default function AddFriendScreen() {
     try {
       setIsLoadingImage(true);
 
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        alert(t('error.cameraPermissionRequired'));
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        alert(t("error.cameraPermissionRequired"));
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
@@ -95,7 +108,7 @@ export default function AddFriendScreen() {
       }
     } catch (error) {
       setIsLoadingImage(false);
-      alert(t('error.imagePickFailed'));
+      alert(t("error.imagePickFailed"));
     }
   };
 
@@ -107,16 +120,22 @@ export default function AddFriendScreen() {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      Alert.alert(t('common.error'), t('profile.friend.name.required'));
+      Alert.alert(t("common.error"), t("profile.friend.name.required"));
       return;
     }
 
     // In development mode, bypass subscription limits
     // Check subscription limit for new friends (not edits)
     // Only check if user already had 1+ friends when they entered this screen
-    if (!__DEV__ && !isEditMode && !isSubscribed && initialFriendCount.current !== null && initialFriendCount.current >= 2) {
+    if (
+      !__DEV__ &&
+      !isEditMode &&
+      !hasPlusEntitlement &&
+      initialFriendCount.current !== null &&
+      initialFriendCount.current >= 2
+    ) {
       // Show paywall (custom in dev, RevenueCat in prod)
-      const subscribed = await showPaywallForPremiumAccess();
+      const subscribed = await showPaywallForPlusAccess();
       if (!subscribed) return; // User cancelled or didn't subscribe
       // User subscribed, continue to save
     }
@@ -139,16 +158,16 @@ export default function AddFriendScreen() {
         });
         // Navigate to memory creation screen for the new friend
         router.replace({
-          pathname: '/idealized-memories',
-          params: { entityId: newFriendId, sphere: 'friends' },
+          pathname: "/idealized-memories",
+          params: { entityId: newFriendId, sphere: "friends" },
         });
         return; // Exit early to avoid the router.replace below
       }
 
       // For edit mode, navigate back to tabs
-      router.replace('/(tabs)/' as any);
+      router.replace("/(tabs)/" as any);
     } catch (error) {
-      Alert.alert(t('common.error'), t('error.saveFailed'));
+      Alert.alert(t("common.error"), t("error.saveFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -170,7 +189,11 @@ export default function AddFriendScreen() {
           />
         </TouchableOpacity>
         <View style={styles.headerTitle}>
-          <MaterialIcons name="people" size={20 * fontScale} color={colors.primary} />
+          <MaterialIcons
+            name="people"
+            size={20 * fontScale}
+            color={colors.primary}
+          />
           <ThemedText size="l" weight="bold" letterSpacing="s">
             Sferas
           </ThemedText>
@@ -185,28 +208,33 @@ export default function AddFriendScreen() {
       >
         {/* Title and Description */}
         <View>
-          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.title}>
-            {isEditMode ? t('profile.editFriend') : t('profile.addFriend')}
+          <ThemedText
+            size="xl"
+            weight="bold"
+            letterSpacing="s"
+            style={styles.title}
+          >
+            {isEditMode ? t("profile.editFriend") : t("profile.addFriend")}
           </ThemedText>
           <ThemedText size="sm" weight="normal" style={styles.description}>
             {isEditMode
-              ? t('profile.editFriend.description')
-              : t('profile.addFriend.description')}
+              ? t("profile.editFriend.description")
+              : t("profile.addFriend.description")}
           </ThemedText>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
           <Input
-            label={t('profile.name')}
-            placeholder={t('profile.friendName.placeholder')}
+            label={t("profile.name")}
+            placeholder={t("profile.friendName.placeholder")}
             value={name}
             onChangeText={setName}
           />
 
           <TextArea
-            label={`${t('profile.description')} (${t('common.optional')})`}
-            placeholder={t('profile.description.placeholder')}
+            label={`${t("profile.description")} (${t("common.optional")})`}
+            placeholder={t("profile.description.placeholder")}
             value={description}
             onChangeText={setDescription}
             maxLength={100}
@@ -214,8 +242,8 @@ export default function AddFriendScreen() {
             rows={3}
           />
 
-          <UploadPicture 
-            label={t('profile.uploadPicture')}
+          <UploadPicture
+            label={t("profile.uploadPicture")}
             onPress={handleUploadPicture}
             onDelete={handleDeleteImage}
             imageUri={selectedImage}
@@ -239,8 +267,12 @@ export default function AddFriendScreen() {
           {isSaving ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <ThemedText weight="bold" letterSpacing="l" style={{ color: '#ffffff' }}>
-              {isEditMode ? t('common.save') : t('profile.addFriend')}
+            <ThemedText
+              weight="bold"
+              letterSpacing="l"
+              style={{ color: "#ffffff" }}
+            >
+              {isEditMode ? t("common.save") : t("profile.addFriend")}
             </ThemedText>
           )}
         </TouchableOpacity>
@@ -251,9 +283,9 @@ export default function AddFriendScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 8,
@@ -262,12 +294,12 @@ const styles = StyleSheet.create({
   headerButton: {
     width: 40,
     height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   scrollContent: {
@@ -289,12 +321,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     minHeight: 52,
   },
   buttonDisabled: {
     opacity: 0.5,
   },
 });
-

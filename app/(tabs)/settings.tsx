@@ -59,7 +59,8 @@ export default function SettingsScreen() {
     reloadHobbies,
     cleanupOrphanedMemories,
   } = useJourney();
-  const { presentPaywall, isSubscribed } = useSubscription();
+  const { presentPaywall, isSubscribed, hasPlusEntitlement, hasAIEntitlement } =
+    useSubscription();
   const t = useTranslate();
   const aiConsent = useAIInsightsConsent();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
@@ -93,6 +94,12 @@ export default function SettingsScreen() {
         dropdownOption: ViewStyle;
         dropdownOptionContent: ViewStyle;
         dropdownOptionText: TextStyle;
+        planInfoCard: ViewStyle;
+        planInfoTitle: TextStyle;
+        planFeaturesList: ViewStyle;
+        planFeatureRow: ViewStyle;
+        planFeatureIcon: ViewStyle;
+        planFeatureText: TextStyle;
       }>({
         content: {
           padding: 16 * fontScale,
@@ -236,6 +243,38 @@ export default function SettingsScreen() {
         dropdownOptionText: {
           flex: 1,
         },
+        planInfoCard: {
+          marginTop: 12 * fontScale,
+          padding: 16 * fontScale,
+          borderRadius: 12 * fontScale,
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.05)"
+              : "rgba(0, 0, 0, 0.05)",
+          borderWidth: 1,
+          borderColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(0, 0, 0, 0.1)",
+        } as ViewStyle,
+        planInfoTitle: {
+          marginBottom: 12 * fontScale,
+        } as TextStyle,
+        planFeaturesList: {
+          gap: 8 * fontScale,
+        } as ViewStyle,
+        planFeatureRow: {
+          flexDirection: "row",
+          alignItems: "flex-start",
+          gap: 8 * fontScale,
+        } as ViewStyle,
+        planFeatureIcon: {
+          paddingTop: 2,
+        } as ViewStyle,
+        planFeatureText: {
+          flex: 1,
+          opacity: 0.9,
+        } as TextStyle,
       }),
     [fontScale, colorScheme, colors.primary, maxContentWidth],
   );
@@ -2013,6 +2052,50 @@ export default function SettingsScreen() {
               color={colors.text}
             />
           </TouchableOpacity>
+
+          {isSubscribed && (
+            <View style={styles.planInfoCard}>
+              <ThemedText
+                size="sm"
+                weight="semibold"
+                style={styles.planInfoTitle}
+              >
+                {hasAIEntitlement && hasPlusEntitlement
+                  ? t("premium.activeBadge.both")
+                  : hasAIEntitlement
+                    ? t("premium.activeBadge.ai")
+                    : t("premium.activeBadge.plus")}
+              </ThemedText>
+              <View style={styles.planFeaturesList}>
+                {(hasAIEntitlement
+                  ? [
+                      "premium.feature.ai",
+                      "premium.feature.unlimited",
+                      "premium.feature.notifications",
+                      "premium.feature.analytics",
+                    ]
+                  : [
+                      "premium.feature.unlimited",
+                      "premium.feature.notifications",
+                      "premium.feature.analytics",
+                    ]
+                ).map((key) => (
+                  <View key={key} style={styles.planFeatureRow}>
+                    <View style={styles.planFeatureIcon}>
+                      <MaterialIcons
+                        name="check-circle"
+                        size={18 * fontScale}
+                        color={colors.primary}
+                      />
+                    </View>
+                    <ThemedText size="sm" style={styles.planFeatureText}>
+                      {t(key)}
+                    </ThemedText>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -2099,6 +2182,32 @@ export default function SettingsScreen() {
                     style={styles.dropdownText}
                   >
                     {t("settings.devTools.viewPremiumFeatures")}
+                  </ThemedText>
+                </View>
+                <MaterialIcons
+                  name="chevron-right"
+                  size={24 * fontScale}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dropdown}
+                onPress={() => router.push("/premium-info?plan=plus")}
+                activeOpacity={0.7}
+              >
+                <View style={styles.dropdownContent}>
+                  <MaterialIcons
+                    name="star"
+                    size={24 * fontScale}
+                    color={colors.primary}
+                  />
+                  <ThemedText
+                    size="l"
+                    weight="medium"
+                    style={styles.dropdownText}
+                  >
+                    {t("settings.devTools.viewPlusFeatures")}
                   </ThemedText>
                 </View>
                 <MaterialIcons

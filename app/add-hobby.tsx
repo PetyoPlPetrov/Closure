@@ -1,42 +1,49 @@
-import { ThemedText } from '@/components/themed-text';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useFontScale } from '@/hooks/use-device-size';
-import { useLargeDevice } from '@/hooks/use-large-device';
-import { Input } from '@/library/components/input';
-import { TabScreenContainer } from '@/library/components/tab-screen-container';
-import { TextArea } from '@/library/components/text-area';
-import { UploadPicture } from '@/library/components/upload-picture';
-import { useJourney } from '@/utils/JourneyProvider';
-import { useSubscription } from '@/utils/SubscriptionProvider';
-import { showPaywallForPremiumAccess } from '@/utils/premium-access';
-import { useTranslate } from '@/utils/languages/use-translate';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import * as ImagePicker from 'expo-image-picker';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ThemedText } from "@/components/themed-text";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useFontScale } from "@/hooks/use-device-size";
+import { useLargeDevice } from "@/hooks/use-large-device";
+import { Input } from "@/library/components/input";
+import { TabScreenContainer } from "@/library/components/tab-screen-container";
+import { TextArea } from "@/library/components/text-area";
+import { UploadPicture } from "@/library/components/upload-picture";
+import { useJourney } from "@/utils/JourneyProvider";
+import { useSubscription } from "@/utils/SubscriptionProvider";
+import { useTranslate } from "@/utils/languages/use-translate";
+import { showPaywallForPlusAccess } from "@/utils/premium-access";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import * as ImagePicker from "expo-image-picker";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
 export default function AddHobbyScreen() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'dark'];
+  const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
   const { addHobby, updateHobby, getHobby, hobbies } = useJourney();
-  const { isSubscribed } = useSubscription();
+  const { hasPlusEntitlement } = useSubscription();
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
   const t = useTranslate();
-  
-  const isEditMode = params.edit === 'true' && params.hobbyId;
+
+  const isEditMode = params.edit === "true" && params.hobbyId;
   const hobbyId = params.hobbyId as string | undefined;
   const existingHobby = hobbyId ? getHobby(hobbyId) : null;
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Track initial hobby count to prevent redirect after saving first hobby
   const initialHobbyCount = useRef<number | null>(null);
 
@@ -46,28 +53,33 @@ export default function AddHobbyScreen() {
     if (initialHobbyCount.current === null) {
       initialHobbyCount.current = hobbies.length;
     }
-    
+
     // Don't check if we're saving (prevents redirect after saving first hobby)
     if (isSaving) return;
-    
+
     // In development mode, bypass subscription limits
     // Only redirect if user already had 2+ hobbies when they entered this screen
     // This allows 2 free hobbies per sphere before paywall
-    if (!__DEV__ && !isEditMode && !isSubscribed && initialHobbyCount.current >= 2) {
+    if (
+      !__DEV__ &&
+      !isEditMode &&
+      !hasPlusEntitlement &&
+      initialHobbyCount.current >= 2
+    ) {
       (async () => {
-        const subscribed = await showPaywallForPremiumAccess();
+        const subscribed = await showPaywallForPlusAccess();
         if (!subscribed) {
           router.back();
         }
       })();
     }
-  }, [isEditMode, isSubscribed, hobbies.length, isSaving]);
+  }, [isEditMode, hasPlusEntitlement, hobbies.length, isSaving]);
 
   // Load existing hobby data when in edit mode
   useEffect(() => {
     if (isEditMode && existingHobby) {
-      setName(existingHobby.name || '');
-      setDescription(existingHobby.description || '');
+      setName(existingHobby.name || "");
+      setDescription(existingHobby.description || "");
       setSelectedImage(existingHobby.imageUri || null);
     }
   }, [isEditMode, existingHobby]);
@@ -76,14 +88,15 @@ export default function AddHobbyScreen() {
     try {
       setIsLoadingImage(true);
 
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        alert(t('error.cameraPermissionRequired'));
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        alert(t("error.cameraPermissionRequired"));
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
@@ -95,7 +108,7 @@ export default function AddHobbyScreen() {
       }
     } catch (error) {
       setIsLoadingImage(false);
-      alert(t('error.imagePickFailed'));
+      alert(t("error.imagePickFailed"));
     }
   };
 
@@ -107,16 +120,22 @@ export default function AddHobbyScreen() {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      Alert.alert(t('common.error'), t('profile.hobby.name.required'));
+      Alert.alert(t("common.error"), t("profile.hobby.name.required"));
       return;
     }
 
     // In development mode, bypass subscription limits
     // Check subscription limit for new hobbies (not edits)
     // Only check if user already had 1+ hobbies when they entered this screen
-    if (!__DEV__ && !isEditMode && !isSubscribed && initialHobbyCount.current !== null && initialHobbyCount.current >= 2) {
+    if (
+      !__DEV__ &&
+      !isEditMode &&
+      !hasPlusEntitlement &&
+      initialHobbyCount.current !== null &&
+      initialHobbyCount.current >= 2
+    ) {
       // Show paywall (custom in dev, RevenueCat in prod)
-      const subscribed = await showPaywallForPremiumAccess();
+      const subscribed = await showPaywallForPlusAccess();
       if (!subscribed) return; // User cancelled or didn't subscribe
       // User subscribed, continue to save
     }
@@ -139,16 +158,16 @@ export default function AddHobbyScreen() {
         });
         // Navigate to memory creation screen for the new hobby
         router.replace({
-          pathname: '/idealized-memories',
-          params: { entityId: newHobbyId, sphere: 'hobbies' },
+          pathname: "/idealized-memories",
+          params: { entityId: newHobbyId, sphere: "hobbies" },
         });
         return; // Exit early to avoid the router.replace below
       }
 
       // For edit mode, navigate back to tabs
-      router.replace('/(tabs)/' as any);
+      router.replace("/(tabs)/" as any);
     } catch (error) {
-      Alert.alert(t('common.error'), t('error.saveFailed'));
+      Alert.alert(t("common.error"), t("error.saveFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -170,7 +189,11 @@ export default function AddHobbyScreen() {
           />
         </TouchableOpacity>
         <View style={styles.headerTitle}>
-          <MaterialIcons name="sports-esports" size={20 * fontScale} color={colors.primary} />
+          <MaterialIcons
+            name="sports-esports"
+            size={20 * fontScale}
+            color={colors.primary}
+          />
           <ThemedText size="l" weight="bold" letterSpacing="s">
             Sferas
           </ThemedText>
@@ -185,28 +208,33 @@ export default function AddHobbyScreen() {
       >
         {/* Title and Description */}
         <View>
-          <ThemedText size="xl" weight="bold" letterSpacing="s" style={styles.title}>
-            {isEditMode ? t('profile.editHobby') : t('profile.addHobby')}
+          <ThemedText
+            size="xl"
+            weight="bold"
+            letterSpacing="s"
+            style={styles.title}
+          >
+            {isEditMode ? t("profile.editHobby") : t("profile.addHobby")}
           </ThemedText>
           <ThemedText size="sm" weight="normal" style={styles.description}>
             {isEditMode
-              ? t('profile.editHobby.description')
-              : t('profile.addHobby.description')}
+              ? t("profile.editHobby.description")
+              : t("profile.addHobby.description")}
           </ThemedText>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
           <Input
-            label={t('profile.name')}
-            placeholder={t('profile.hobbyName.placeholder')}
+            label={t("profile.name")}
+            placeholder={t("profile.hobbyName.placeholder")}
             value={name}
             onChangeText={setName}
           />
 
           <TextArea
-            label={`${t('profile.description')} (${t('common.optional')})`}
-            placeholder={t('profile.description.placeholder')}
+            label={`${t("profile.description")} (${t("common.optional")})`}
+            placeholder={t("profile.description.placeholder")}
             value={description}
             onChangeText={setDescription}
             maxLength={100}
@@ -214,8 +242,8 @@ export default function AddHobbyScreen() {
             rows={3}
           />
 
-          <UploadPicture 
-            label={t('profile.uploadPicture')}
+          <UploadPicture
+            label={t("profile.uploadPicture")}
             onPress={handleUploadPicture}
             onDelete={handleDeleteImage}
             imageUri={selectedImage}
@@ -239,8 +267,12 @@ export default function AddHobbyScreen() {
           {isSaving ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <ThemedText weight="bold" letterSpacing="l" style={{ color: '#ffffff' }}>
-              {isEditMode ? t('common.save') : t('profile.addHobby')}
+            <ThemedText
+              weight="bold"
+              letterSpacing="l"
+              style={{ color: "#ffffff" }}
+            >
+              {isEditMode ? t("common.save") : t("profile.addHobby")}
             </ThemedText>
           )}
         </TouchableOpacity>
@@ -251,9 +283,9 @@ export default function AddHobbyScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 8,
@@ -262,12 +294,12 @@ const styles = StyleSheet.create({
   headerButton: {
     width: 40,
     height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   scrollContent: {
@@ -289,12 +321,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     minHeight: 52,
   },
   buttonDisabled: {
     opacity: 0.5,
   },
 });
-

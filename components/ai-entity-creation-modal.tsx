@@ -25,7 +25,7 @@ import { logAIEntityModalSubmit } from "@/utils/analytics";
 import { LifeSphere, useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForPremiumAccess } from "@/utils/premium-access";
+import { showPaywallForAIAccess } from "@/utils/premium-access";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -85,7 +85,7 @@ export function AIEntityCreationModal({
   const fontScale = useFontScale();
   const colors = Colors[colorScheme ?? "dark"];
   const t = useTranslate();
-  const { isSubscribed } = useSubscription();
+  const { hasAIEntitlement } = useSubscription();
   const { language } = useLanguage();
   const { addProfile, addJob, addFamilyMember, addFriend, addHobby } =
     useJourney();
@@ -421,10 +421,10 @@ export function AIEntityCreationModal({
         selectedSphere,
       )
     ) {
-      const canMakeRequest = await canMakeAIRequest(isSubscribed);
+      const canMakeRequest = await canMakeAIRequest(hasAIEntitlement);
       if (!canMakeRequest) {
-        if (!isSubscribed) {
-          await showPaywallForPremiumAccess();
+        if (!hasAIEntitlement) {
+          await showPaywallForAIAccess();
         } else {
           Alert.alert(
             t("ai.rateLimit.title") || "AI Request Limit Reached",

@@ -28,7 +28,7 @@ import { useInAppNotification } from "@/utils/InAppNotificationProvider";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForPremiumAccess } from "@/utils/premium-access";
+import { showPaywallForAIAccess } from "@/utils/premium-access";
 import { updateStreakOnMemoryCreation } from "@/utils/streak-manager";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -104,7 +104,7 @@ export function AIModal({
   const t = useTranslate();
   const { language } = useLanguage();
   const { showNotification } = useInAppNotification();
-  const { isSubscribed } = useSubscription();
+  const { hasAIEntitlement } = useSubscription();
   const {
     profiles,
     jobs,
@@ -868,11 +868,11 @@ export function AIModal({
       return;
     }
 
-    // Check rate limiting: 3/day for free, 30/day for premium (memory + entity creation share pool)
-    const canMakeRequest = await canMakeAIRequest(isSubscribed);
+    // Check rate limiting: 3/day for free, 30/day for Sfera AI (memory + entity creation share pool)
+    const canMakeRequest = await canMakeAIRequest(hasAIEntitlement);
     if (!canMakeRequest) {
-      if (!isSubscribed) {
-        await showPaywallForPremiumAccess();
+      if (!hasAIEntitlement) {
+        await showPaywallForAIAccess();
       } else {
         Alert.alert(
           t("ai.rateLimit.title") || "AI Request Limit Reached",

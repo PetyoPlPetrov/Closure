@@ -30,7 +30,7 @@ import type {
 } from "@/utils/JourneyProvider";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForPremiumAccess } from "@/utils/premium-access";
+import { showPaywallForPlusAccess } from "@/utils/premium-access";
 import { onSpheresTabPress } from "@/utils/spheres-tab-press";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -251,7 +251,7 @@ export default function SpheresScreen() {
     getIdealizedMemoriesByEntityId,
     idealizedMemories,
   } = useJourney();
-  const { isSubscribed, offerings } = useSubscription();
+  const { hasPlusEntitlement, offerings } = useSubscription();
   const t = useTranslate();
   const aiConsent = useAIInsightsConsent();
 
@@ -305,7 +305,7 @@ export default function SpheresScreen() {
     // In development mode, bypass subscription limits
     if (__DEV__) return true;
 
-    if (isSubscribed) return true; // Subscribed users can create unlimited
+    if (hasPlusEntitlement) return true; // Sfera Plus users can create unlimited
 
     switch (sphere) {
       case "relationships":
@@ -326,9 +326,8 @@ export default function SpheresScreen() {
   const showSubscriptionPrompt = async (sphere: LifeSphere) => {
     // In development mode, bypass subscription check
     // Only show paywall if user is not subscribed
-    if (!__DEV__ && !isSubscribed) {
-      // Show paywall (custom in dev, RevenueCat in prod)
-      await showPaywallForPremiumAccess();
+    if (!__DEV__ && !hasPlusEntitlement) {
+      await showPaywallForPlusAccess();
     }
   };
 
