@@ -170,9 +170,9 @@ export default function NotificationDetailScreen() {
       await setOverride(sphere, entityId, { kind: "none" });
     } else {
       // Turn on notifications - check subscription first
-      const { hasPlusEntitlement: hasPlus } =
+      const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
-      if (!hasPlus) {
+      if (!hasEntityLimitEntitlement) {
         const subscribed = await showPaywallForPlusAccess();
         if (!subscribed) return;
       }

@@ -60,9 +60,9 @@ export default function AddHobbyScreen() {
     // Only redirect if user already had 2+ hobbies when they entered this screen
     if (!isEditMode && initialHobbyCount.current >= 2) {
       (async () => {
-        const { hasPlusEntitlement: hasPlus } =
+        const { hasEntityLimitEntitlement } =
           await ensureSubscriptionResolved();
-        if (!hasPlus) {
+        if (!hasEntityLimitEntitlement) {
           const subscribed = await showPaywallForPlusAccess();
           if (!subscribed) {
             router.back();
@@ -127,9 +127,9 @@ export default function AddHobbyScreen() {
       initialHobbyCount.current !== null &&
       initialHobbyCount.current >= 2
     ) {
-      const { hasPlusEntitlement: hasPlus } =
+      const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
-      if (!hasPlus) {
+      if (!hasEntityLimitEntitlement) {
         const subscribed = await showPaywallForPlusAccess();
         if (!subscribed) return;
       }

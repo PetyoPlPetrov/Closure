@@ -60,9 +60,9 @@ export default function AddFriendScreen() {
     // Only redirect if user already had 2+ friends when they entered this screen
     if (!isEditMode && initialFriendCount.current >= 2) {
       (async () => {
-        const { hasPlusEntitlement: hasPlus } =
+        const { hasEntityLimitEntitlement } =
           await ensureSubscriptionResolved();
-        if (!hasPlus) {
+        if (!hasEntityLimitEntitlement) {
           const subscribed = await showPaywallForPlusAccess();
           if (!subscribed) {
             router.back();
@@ -127,9 +127,9 @@ export default function AddFriendScreen() {
       initialFriendCount.current !== null &&
       initialFriendCount.current >= 2
     ) {
-      const { hasPlusEntitlement: hasPlus } =
+      const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
-      if (!hasPlus) {
+      if (!hasEntityLimitEntitlement) {
         const subscribed = await showPaywallForPlusAccess();
         if (!subscribed) return;
       }

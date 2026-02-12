@@ -94,9 +94,9 @@ export default function AddExProfileScreen() {
     // This allows 2 free profiles per sphere before paywall
     if (!isEditMode && initialProfileCount.current >= 2) {
       (async () => {
-        const { hasPlusEntitlement: hasPlus } =
+        const { hasEntityLimitEntitlement } =
           await ensureSubscriptionResolved();
-        if (!hasPlus) {
+        if (!hasEntityLimitEntitlement) {
           const subscribed = await showPaywallForPlusAccess();
           if (!subscribed) {
             router.back();
@@ -448,9 +448,9 @@ export default function AddExProfileScreen() {
     // Check subscription limit for new profiles (not edits)
     // Only check if profiles have loaded (to avoid false positives)
     if (!isEditMode && !isLoading && profiles.length >= 2) {
-      const { hasPlusEntitlement: hasPlus } =
+      const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
-      if (!hasPlus) {
+      if (!hasEntityLimitEntitlement) {
         isSaving.current = false;
         const subscribed = await showPaywallForPlusAccess();
         if (!subscribed) return;

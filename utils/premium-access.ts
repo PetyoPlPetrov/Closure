@@ -2,8 +2,10 @@ import { SFERA_AI_ENTITLEMENT, SFERA_PLUS_ENTITLEMENT } from "./entitlements";
 import { presentPaywall, presentPaywallIfNeeded } from "./revenuecat-paywall";
 import { Purchases } from "./revenuecat-wrapper";
 
-/** RevenueCat offering ID shown when user taps Upgrade (e.g. premium-info screen) */
-const UPGRADE_OFFERING_ID = "ofrngf2c100f8c5";
+/** RevenueCat offering identifier for upgrade paywall (AI-only, for Plus→AI upgrade).
+ * Must be the offering identifier (e.g. "Sferas AI"), not the RevenueCat internal ID.
+ * offerings.all is keyed by identifier. */
+const UPGRADE_OFFERING_ID = "Sferas AI";
 
 /**
  * Shows RevenueCat paywall directly (generic - used by settings)

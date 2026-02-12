@@ -2098,7 +2098,7 @@ export default function SettingsScreen() {
                   ]}
                   onPress={async () => {
                     const ok =
-                      await presentPaywallWithOffering("ofrngf2c100f8c5");
+                      await presentPaywallWithOffering("Sferas AI");
                     if (ok) await checkSubscription();
                   }}
                   activeOpacity={0.7}

@@ -74,9 +74,9 @@ export default function AddJobScreen() {
     // This allows 2 free jobs per sphere before paywall
     if (!isEditMode && initialJobCount.current >= 2) {
       (async () => {
-        const { hasPlusEntitlement: hasPlus } =
+        const { hasEntityLimitEntitlement } =
           await ensureSubscriptionResolved();
-        if (!hasPlus) {
+        if (!hasEntityLimitEntitlement) {
           const subscribed = await showPaywallForPlusAccess();
           if (!subscribed) {
             router.back();
@@ -272,9 +272,9 @@ export default function AddJobScreen() {
       initialJobCount.current !== null &&
       initialJobCount.current >= 2
     ) {
-      const { hasPlusEntitlement: hasPlus } =
+      const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
-      if (!hasPlus) {
+      if (!hasEntityLimitEntitlement) {
         const subscribed = await showPaywallForPlusAccess();
         if (!subscribed) return;
       }

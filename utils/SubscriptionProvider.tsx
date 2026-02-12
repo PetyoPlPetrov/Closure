@@ -99,8 +99,12 @@ interface SubscriptionContextType {
   subscriptionStatus: SubscriptionStatus;
   offerings: PurchasesOffering | null;
   customerInfo: CustomerInfo | null;
-  /** Waits for subscription to resolve if loading, returns current Plus entitlement. Use before paywall checks. */
-  ensureSubscriptionResolved: () => Promise<{ hasPlusEntitlement: boolean }>;
+  /** Waits for subscription to resolve if loading. hasEntityLimitEntitlement = Plus OR AI (both include unlimited). */
+  ensureSubscriptionResolved: () => Promise<{
+    hasPlusEntitlement: boolean;
+    hasAIEntitlement: boolean;
+    hasEntityLimitEntitlement: boolean;
+  }>;
   checkSubscription: () => Promise<void>;
   refreshCustomerInfo: () => Promise<void>;
   purchasePackage: (pkg: PurchasesPackage) => Promise<void>;
@@ -234,29 +238,52 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     await checkSubscription();
   }, [checkSubscription]);
 
-  /** Waits for subscription to resolve if loading. Use before paywall checks to avoid
-   * showing paywall to users whose state was still loading on init. */
+  /** Waits for subscription to resolve if loading. hasEntityLimitEntitlement = Plus OR AI (both include unlimited). */
   const ensureSubscriptionResolved = useCallback(async (): Promise<{
     hasPlusEntitlement: boolean;
+    hasAIEntitlement: boolean;
+    hasEntityLimitEntitlement: boolean;
   }> => {
     if (!isNativeModuleAvailable || !Purchases) {
-      return { hasPlusEntitlement: false };
+      return {
+        hasPlusEntitlement: false,
+        hasAIEntitlement: false,
+        hasEntityLimitEntitlement: false,
+      };
     }
     if (subscriptionStatus === "loading") {
       try {
         const customerInfo = await Purchases.getCustomerInfo();
         updateSubscriptionState(customerInfo);
         const plus = customerInfo.entitlements.active[SFERA_PLUS_ENTITLEMENT];
+        const ai = customerInfo.entitlements.active[SFERA_AI_ENTITLEMENT];
+        const hasPlus = plus !== undefined && plus.isActive === true;
+        const hasAI = ai !== undefined && ai.isActive === true;
         return {
-          hasPlusEntitlement: plus !== undefined && plus.isActive === true,
+          hasPlusEntitlement: hasPlus,
+          hasAIEntitlement: hasAI,
+          hasEntityLimitEntitlement: hasPlus || hasAI,
         };
       } catch (error) {
         handleDevError(error, "Ensure Subscription Resolved");
-        return { hasPlusEntitlement: false };
+        return {
+          hasPlusEntitlement: false,
+          hasAIEntitlement: false,
+          hasEntityLimitEntitlement: false,
+        };
       }
     }
-    return { hasPlusEntitlement };
-  }, [subscriptionStatus, hasPlusEntitlement, updateSubscriptionState]);
+    return {
+      hasPlusEntitlement,
+      hasAIEntitlement,
+      hasEntityLimitEntitlement: hasPlusEntitlement || hasAIEntitlement,
+    };
+  }, [
+    subscriptionStatus,
+    hasPlusEntitlement,
+    hasAIEntitlement,
+    updateSubscriptionState,
+  ]);
 
   const purchasePackage = useCallback(
     async (pkg: PurchasesPackage) => {

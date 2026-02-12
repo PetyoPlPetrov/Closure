@@ -66,9 +66,9 @@ export default function AddFamilyMemberScreen() {
     // Only redirect if user already had 2+ family members when they entered this screen
     if (!isEditMode && initialFamilyMemberCount.current >= 2) {
       (async () => {
-        const { hasPlusEntitlement: hasPlus } =
+        const { hasEntityLimitEntitlement } =
           await ensureSubscriptionResolved();
-        if (!hasPlus) {
+        if (!hasEntityLimitEntitlement) {
           const subscribed = await showPaywallForPlusAccess();
           if (!subscribed) {
             router.back();
@@ -144,9 +144,9 @@ export default function AddFamilyMemberScreen() {
       initialFamilyMemberCount.current !== null &&
       initialFamilyMemberCount.current >= 2
     ) {
-      const { hasPlusEntitlement: hasPlus } =
+      const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
-      if (!hasPlus) {
+      if (!hasEntityLimitEntitlement) {
         const subscribed = await showPaywallForPlusAccess();
         if (!subscribed) return;
       }

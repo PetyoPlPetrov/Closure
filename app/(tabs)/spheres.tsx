@@ -253,6 +253,7 @@ export default function SpheresScreen() {
   } = useJourney();
   const {
     hasPlusEntitlement,
+    hasAIEntitlement,
     offerings,
     subscriptionStatus,
     ensureSubscriptionResolved,
@@ -308,10 +309,10 @@ export default function SpheresScreen() {
 
   const checkSubscriptionLimit = (
     sphere: LifeSphere,
-    resolvedPlusEntitlement?: boolean,
+    resolvedEntityLimitEntitlement?: boolean,
   ): boolean => {
-    const hasPlus = resolvedPlusEntitlement ?? hasPlusEntitlement;
-    if (hasPlus) return true; // Sfera Plus users can create unlimited
+    const hasLimit = resolvedEntityLimitEntitlement ?? (hasPlusEntitlement || hasAIEntitlement);
+    if (hasLimit) return true; // Plus or AI users can create unlimited
 
     switch (sphere) {
       case "relationships":
@@ -1782,11 +1783,11 @@ export default function SpheresScreen() {
 
   const handleAddEntity = async (sphere: LifeSphere) => {
     // When still loading from init, wait for subscription before gating.
-    let resolvedPlus: boolean | undefined;
+    let resolvedEntityLimit: boolean | undefined;
     if (subscriptionStatus === "loading") {
-      resolvedPlus = (await ensureSubscriptionResolved()).hasPlusEntitlement;
+      resolvedEntityLimit = (await ensureSubscriptionResolved()).hasEntityLimitEntitlement;
     }
-    if (!checkSubscriptionLimit(sphere, resolvedPlus)) {
+    if (!checkSubscriptionLimit(sphere, resolvedEntityLimit)) {
       await showSubscriptionPrompt(sphere);
       return;
     }

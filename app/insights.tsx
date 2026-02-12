@@ -937,8 +937,8 @@ export default function InsightsScreen() {
     if (!hasEntities) return;
 
     // Check subscription before navigating to comparison screens
-    const { hasPlusEntitlement: hasPlus } = await ensureSubscriptionResolved();
-    if (!hasPlus) {
+    const { hasEntityLimitEntitlement } = await ensureSubscriptionResolved();
+    if (!hasEntityLimitEntitlement) {
       const subscribed = await showPaywallForPlusAccess();
       if (!subscribed) return;
     }
