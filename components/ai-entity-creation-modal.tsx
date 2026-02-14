@@ -25,7 +25,7 @@ import { logAIEntityModalSubmit } from "@/utils/analytics";
 import { LifeSphere, useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForAIAccess } from "@/utils/premium-access";
+import { showPaywallForUpgradeAccess } from "@/utils/premium-access";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -421,10 +421,12 @@ export function AIEntityCreationModal({
         selectedSphere,
       )
     ) {
+      // Check rate limiting: 3/day for free, 30/day for Sfera AI (memory + entity creation share pool)
       const canMakeRequest = await canMakeAIRequest(hasAIEntitlement);
       if (!canMakeRequest) {
         if (!hasAIEntitlement) {
-          await showPaywallForAIAccess();
+          // Free requests exhausted – show the Sferas AI offering paywall
+          await showPaywallForUpgradeAccess();
         } else {
           Alert.alert(
             t("ai.rateLimit.title") || "AI Request Limit Reached",

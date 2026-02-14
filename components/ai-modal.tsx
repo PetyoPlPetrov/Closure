@@ -28,7 +28,7 @@ import { useInAppNotification } from "@/utils/InAppNotificationProvider";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForAIAccess } from "@/utils/premium-access";
+import { showPaywallForUpgradeAccess } from "@/utils/premium-access";
 import { updateStreakOnMemoryCreation } from "@/utils/streak-manager";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -872,7 +872,8 @@ export function AIModal({
     const canMakeRequest = await canMakeAIRequest(hasAIEntitlement);
     if (!canMakeRequest) {
       if (!hasAIEntitlement) {
-        await showPaywallForAIAccess();
+        // Free requests exhausted – show the Sferas AI offering paywall
+        await showPaywallForUpgradeAccess();
       } else {
         Alert.alert(
           t("ai.rateLimit.title") || "AI Request Limit Reached",
