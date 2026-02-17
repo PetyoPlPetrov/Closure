@@ -467,29 +467,30 @@ export function AIModal({
   // Process AI response and update state
   const processAIResponse = async (response: AIMemoryResponse) => {
     try {
-      // Convert response to memory items
-      const items: AIMemoryItem[] = [
-        ...response.goodFacts.map((text, index) => ({
-          id: `goodFact-${index}`,
-          type: "goodFact" as const,
-          text,
-        })),
-        ...response.hardTruths.map((text, index) => ({
-          id: `hardTruth-${index}`,
-          type: "hardTruth" as const,
-          text,
-        })),
-        ...response.lessonsLearned.map((text, index) => ({
-          id: `lesson-${index}`,
-          type: "lesson" as const,
-          text,
-        })),
-      ];
+      // Map the moments[] array into the AIMemoryItem[] format the UI expects
+      const momentTypeMap: Record<string, AIMemoryItem["type"]> = {
+        sunnyMoments: "goodFact",
+        hardTruths: "hardTruth",
+        lessonsLearned: "lesson",
+      };
+
+      const items: AIMemoryItem[] = (response.moments || []).map(
+        (moment, index) => ({
+          id: `${momentTypeMap[moment.type] || "goodFact"}-${index}`,
+          type: momentTypeMap[moment.type] || "goodFact",
+          text: moment.text,
+        }),
+      );
+
+      if (__DEV__) {
+        console.log("[AI Modal] Full response:", JSON.stringify(response, null, 2));
+        console.log("[AI Modal] sphere:", response.sphere, "entityName:", response.entityName);
+      }
 
       setAiResponse(response);
       setMemoryItems(items);
 
-      // Validate and set sphere and entity
+      // Map AI-suggested sphere and entity into the selection state
       const validSpheres: LifeSphere[] = [
         "relationships",
         "career",
@@ -497,73 +498,34 @@ export function AIModal({
         "friends",
         "hobbies",
       ];
-      let finalSphere: LifeSphere | null = null;
-      let finalEntityId: string | null = null;
-      let finalEntityName: string | null = null;
 
-      // Check if AI response sphere is valid
       if (response.sphere && validSpheres.includes(response.sphere)) {
-        finalSphere = response.sphere;
+        setSelectedSphere(response.sphere);
 
-        // Check if entity exists in the selected sphere
-        let entityFound = false;
+        // Try to match entityName to an existing entity in the sphere
         if (response.entityName) {
-          // Find entity in the appropriate list
-          if (finalSphere === "relationships") {
-            const entity = profiles.find((p) => p.name === response.entityName);
-            if (entity) {
-              finalEntityId = entity.id;
-              finalEntityName = entity.name;
-              entityFound = true;
-            }
-          } else if (finalSphere === "career") {
-            const entity = jobs.find((j) => j.name === response.entityName);
-            if (entity) {
-              finalEntityId = entity.id;
-              finalEntityName = entity.name;
-              entityFound = true;
-            }
-          } else if (finalSphere === "family") {
-            const entity = familyMembers.find(
-              (f) => f.name === response.entityName,
-            );
-            if (entity) {
-              finalEntityId = entity.id;
-              finalEntityName = entity.name;
-              entityFound = true;
-            }
-          } else if (finalSphere === "friends") {
-            const entity = friends.find((f) => f.name === response.entityName);
-            if (entity) {
-              finalEntityId = entity.id;
-              finalEntityName = entity.name;
-              entityFound = true;
-            }
-          } else if (finalSphere === "hobbies") {
-            const entity = hobbies.find((h) => h.name === response.entityName);
-            if (entity) {
-              finalEntityId = entity.id;
-              finalEntityName = entity.name;
-              entityFound = true;
-            }
-          }
-        }
+          const entityLists: Record<LifeSphere, { id: string; name: string }[]> = {
+            relationships: profiles.map((p) => ({ id: p.id, name: p.name })),
+            career: jobs.map((j) => ({ id: j.id, name: j.name })),
+            family: familyMembers.map((f) => ({ id: f.id, name: f.name })),
+            friends: friends.map((f) => ({ id: f.id, name: f.name })),
+            hobbies: hobbies.map((h) => ({ id: h.id, name: h.name })),
+          };
 
-        // If entity not found, set sphere but let user select entity
-        if (!entityFound) {
-          setSelectedSphere(finalSphere);
-          // Automatically show validation error if entity is required but not found
-          // We'll check this after availableEntitiesForSphere is computed
-        } else {
-          setSelectedSphere(finalSphere);
-          setSelectedEntityId(finalEntityId);
-          setSelectedEntityName(finalEntityName);
+          const list = entityLists[response.sphere] || [];
+          const match = list.find(
+            (e) =>
+              e.name.toLowerCase() === response.entityName!.toLowerCase(),
+          );
+          if (match) {
+            setSelectedEntityId(match.id);
+            setSelectedEntityName(match.name);
+          }
         }
       }
 
       setIsProcessing(false);
-      setCurrentView("results");
-      // Keep loading view but show results
+      // Stay on "loading" view — results render within it when aiResponse is set
     } catch (error) {
       setIsProcessing(false);
       const errorMsg =
@@ -859,8 +821,8 @@ export function AIModal({
       return;
     }
 
-    // Ensure App Check is initialized before making AI requests
-    if (!isAppCheckInitialized()) {
+    // Ensure App Check is initialized before making AI requests (skip in dev)
+    if (!__DEV__ && !isAppCheckInitialized()) {
       Alert.alert(
         t("common.error") || "Error",
         "App Check is not initialized. Please wait a moment and try again.",
@@ -868,21 +830,24 @@ export function AIModal({
       return;
     }
 
-    // Check rate limiting: 3/day for free, 30/day for Sfera AI (memory + entity creation share pool)
-    const canMakeRequest = await canMakeAIRequest(hasAIEntitlement);
-    if (!canMakeRequest) {
-      if (!hasAIEntitlement) {
-        // Free requests exhausted – show the Sferas AI offering paywall
-        await showPaywallForUpgradeAccess();
-      } else {
-        Alert.alert(
-          t("ai.rateLimit.title") || "AI Request Limit Reached",
-          t("ai.rateLimit.premiumMessage") ||
-            "You've reached the daily limit. Try again tomorrow.",
-          [{ text: t("common.ok") || "OK", style: "default" }],
-        );
+    // In dev mode, bypass subscription and rate-limit checks
+    if (!__DEV__) {
+      // Check rate limiting: 3/day for free, 30/day for Sfera AI (memory + entity creation share pool)
+      const canMakeRequest = await canMakeAIRequest(hasAIEntitlement);
+      if (!canMakeRequest) {
+        if (!hasAIEntitlement) {
+          // Free requests exhausted – show the Sferas AI offering paywall
+          await showPaywallForUpgradeAccess();
+        } else {
+          Alert.alert(
+            t("ai.rateLimit.title") || "AI Request Limit Reached",
+            t("ai.rateLimit.premiumMessage") ||
+              "You've reached the daily limit. Try again tomorrow.",
+            [{ text: t("common.ok") || "OK", style: "default" }],
+          );
+        }
+        return;
       }
-      return;
     }
 
     // Count this submit toward the daily limit (before firing the request)
@@ -1214,9 +1179,9 @@ export function AIModal({
 
     setIsProcessing(true);
     try {
-      // Use selected sphere and entity (or fallback to AI response)
-      const finalSphere = selectedSphere || aiResponse.sphere;
-      const finalEntityId = selectedEntityId || aiResponse.entityId;
+      // Use selected sphere and entity
+      const finalSphere = selectedSphere;
+      const finalEntityId = selectedEntityId;
 
       if (!finalEntityId) {
         throw new Error("No entity selected");
@@ -1246,7 +1211,7 @@ export function AIModal({
 
       // Create the memory with AI suggestions
       const memoryId = await addIdealizedMemory(finalEntityId, finalSphere, {
-        title: aiResponse.title || "", // Use AI-generated title
+        title: aiResponse?.memory?.title || "", // Use AI-generated title
         imageUri: selectedImage || undefined,
         hardTruths,
         goodFacts,
@@ -2796,7 +2761,7 @@ export function AIModal({
                             </ThemedText>
                             <View style={styles.titleDisplay}>
                               <ThemedText size="sm" weight="semibold">
-                                {aiResponse.title || ""}
+                                {aiResponse?.memory?.title || ""}
                               </ThemedText>
                             </View>
                           </View>
@@ -2818,7 +2783,7 @@ export function AIModal({
                               onPress={() => setShowSpherePicker(true)}
                             >
                               <ThemedText size="sm" weight="semibold">
-                                {selectedSphere || aiResponse.sphere}
+                                {selectedSphere || ""}
                               </ThemedText>
                               <MaterialIcons
                                 name="arrow-drop-down"
@@ -2900,7 +2865,7 @@ export function AIModal({
                                     >
                                       {(() => {
                                         const sphere =
-                                          selectedSphere || aiResponse?.sphere;
+                                          selectedSphere;
                                         const expandKey =
                                           sphere &&
                                           [
@@ -2945,7 +2910,7 @@ export function AIModal({
                                   >
                                     {(() => {
                                       const sphere =
-                                        selectedSphere || aiResponse?.sphere;
+                                        selectedSphere;
                                       const expandKey =
                                         sphere &&
                                         [
@@ -3684,32 +3649,16 @@ export function AIModal({
                       style={[
                         styles.saveButton,
                         (isProcessing ||
-                          ((
-                            [
-                              "relationships",
-                              "career",
-                              "family",
-                              "friends",
-                              "hobbies",
-                            ] as LifeSphere[]
-                          ).includes(selectedSphere || ("" as LifeSphere)) &&
-                            !selectedEntityId) ||
+                          !selectedSphere ||
+                          !selectedEntityId ||
                           (showAddEntityForm && !isEntityFormValid())) &&
                           styles.saveButtonDisabled,
                       ]}
                       onPress={handleSave}
                       disabled={
                         isProcessing ||
-                        ((
-                          [
-                            "relationships",
-                            "career",
-                            "family",
-                            "friends",
-                            "hobbies",
-                          ] as LifeSphere[]
-                        ).includes(selectedSphere || ("" as LifeSphere)) &&
-                          !selectedEntityId) ||
+                        !selectedSphere ||
+                        !selectedEntityId ||
                         (showAddEntityForm && !isEntityFormValid())
                       }
                       activeOpacity={0.8}

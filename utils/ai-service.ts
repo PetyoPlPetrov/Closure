@@ -262,6 +262,15 @@ export async function processMemoryPrompt(
         },
         required: ["title", "description", "date"],
       }),
+      sphere: Schema.string({
+        enum: ["relationships", "career", "family", "friends", "hobbies"],
+        description:
+          "The life sphere this memory belongs to. Pick the best match based on the story content.",
+      }),
+      entityName: Schema.string({
+        description:
+          "Name of the specific entity (person, job, hobby, etc.) this memory is about. Must match one of the names from the user's Sferas context if provided.",
+      }),
       moments: Schema.array({
         items: Schema.object({
           properties: {
@@ -277,12 +286,13 @@ export async function processMemoryPrompt(
         }),
       }),
     },
-    required: ["memory", "moments"],
+    required: ["memory", "sphere", "entityName", "moments"],
   });
 
   const systemPrompt = `Sfera AI coach. Analyze the user's story and extract:
 1. ONE memory (title, description, date)
-2. Multiple moments: sunnyMoments (goodFacts), lessonsLearned, hardTruths
+2. The life sphere and entity name this memory belongs to
+3. Multiple moments: sunnyMoments (goodFacts), lessonsLearned, hardTruths
 
 CRITICAL: Generate moments in FIRST PERSON ("I", "my", "me") as if the user wrote them.
 
@@ -290,6 +300,8 @@ Respond in ${languageName} (${languageCode}). JSON only.
 
 Rules:
 - Memory: Realistic title and description based on the story
+- Sphere: Pick the best matching sphere (relationships, career, family, friends, hobbies)
+- Entity name: The specific person, job, family member, friend, or hobby name from the user's context. Must match an existing name if context is provided.
 - Moments: Extract 2-4 sunny moments, 1-2 lessons, 0-2 hard truths
 - Use first person perspective ("I learned...", "I felt...", "My experience...")
 - Be honest about hard truths but compassionate
@@ -351,21 +363,20 @@ export async function processEntityCreationPrompt(
   sphere: LifeSphere,
   language: string = "en",
 ): Promise<AIEntityCreationResponse> {
-  const requestId = `entity_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const timestamp = Date.now();
 
   // If using mock requests, return mock data
   if (USE_MOCK_AI_REQUEST) {
-    await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate delay
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     return {
-      entity: {
-        name: "Mock Entity",
-        description: prompt.substring(0, 100),
-      },
-      moments: [
+      sphere,
+      entities: [
         {
-          type: "sunnyMoments",
-          text: "This is a mock sunny moment",
+          name: "Mock Entity",
+          description: prompt.substring(0, 100),
+          ...(sphere === "relationships" || sphere === "career"
+            ? { isCurrent: false, startDate: "2020-01-01", endDate: "2023-06-15" }
+            : {}),
+          ...(sphere === "family" ? { relationship: "mother" } : {}),
         },
       ],
     };
@@ -376,54 +387,83 @@ export async function processEntityCreationPrompt(
 
   const spherePrompts: Record<LifeSphere, string> = {
     relationships:
-      "Analyze the story and extract information about a relationship/partner",
-    career: "Analyze the story and extract information about a job/career",
-    family: "Analyze the story and extract information about a family member",
-    friends: "Analyze the story and extract information about a friend",
-    hobbies: "Analyze the story and extract information about a hobby",
+      "Analyze the story and extract all relationships/partners mentioned",
+    career: "Analyze the story and extract all jobs/careers mentioned",
+    family: "Analyze the story and extract all family members mentioned",
+    friends: "Analyze the story and extract all friends mentioned",
+    hobbies: "Analyze the story and extract all hobbies mentioned",
   };
+
+  const entityProperties: Record<string, any> = {
+    name: Schema.string({
+      description: `Name of the ${sphere} entity`,
+    }),
+    description: Schema.string({
+      description: `Brief description`,
+    }),
+  };
+
+  const requiredFields = ["name", "description"];
+
+  if (sphere === "relationships" || sphere === "career") {
+    entityProperties.isCurrent = Schema.boolean({
+      description: "Whether this is current (true) or past (false)",
+    });
+    entityProperties.startDate = Schema.string({
+      description: "Approximate start date in YYYY-MM-DD format",
+    });
+    entityProperties.endDate = Schema.string({
+      description:
+        "Approximate end date in YYYY-MM-DD format (omit if isCurrent is true)",
+    });
+    requiredFields.push("isCurrent", "startDate");
+  }
+
+  if (sphere === "family") {
+    entityProperties.relationship = Schema.string({
+      description:
+        "Relationship type (e.g. mother, father, sister, brother, aunt, uncle, grandmother, grandfather, cousin)",
+    });
+    requiredFields.push("relationship");
+  }
 
   const responseSchema = Schema.object({
     properties: {
-      entity: Schema.object({
-        properties: {
-          name: Schema.string({
-            description: `Name of the ${sphere}`,
-          }),
-          description: Schema.string({
-            description: `Brief description of the ${sphere}`,
-          }),
-        },
-        required: ["name", "description"],
+      sphere: Schema.string({
+        enum: ["relationships", "career", "family", "friends", "hobbies"],
+        description: "The life sphere these entities belong to",
       }),
-      moments: Schema.array({
+      entities: Schema.array({
         items: Schema.object({
-          properties: {
-            type: Schema.string({
-              enum: ["sunnyMoments", "lessonsLearned", "hardTruths"],
-              description: "Type of moment",
-            }),
-            text: Schema.string({
-              description: 'Text content of the moment (first person "I")',
-            }),
-          },
-          required: ["type", "text"],
+          properties: entityProperties,
+          required: requiredFields,
         }),
       }),
     },
-    required: ["entity", "moments"],
+    required: ["sphere", "entities"],
   });
+
+  const dateGuidance =
+    sphere === "relationships" || sphere === "career"
+      ? `\n- Include startDate (YYYY-MM-DD) and isCurrent flag for each entity\n- If the entity has ended, include endDate (YYYY-MM-DD)`
+      : "";
+
+  const familyGuidance =
+    sphere === "family"
+      ? `\n- Include the relationship type (mother, father, sister, etc.) for each family member`
+      : "";
 
   const systemPrompt = `Sfera AI coach. ${spherePrompts[sphere]}.
 
-CRITICAL: Generate moments in FIRST PERSON ("I", "my", "me") as if the user wrote them.
-
 Respond in ${languageName} (${languageCode}). JSON only.
 
+CRITICAL: You MUST return at least 1 entity. Never return an empty entities array. If the user mentions people, places, activities, or experiences, create entities from them. If the text is vague, infer the most likely entity from context.
+
 Rules:
-- Extract entity name and description from the story
-- Generate 2-4 moments (mix of sunny moments, lessons, and optionally hard truths)
-- Use first person perspective ("I learned...", "I felt...", "My experience...")
+- Extract ALL entities mentioned in the story (1-5 entities)
+- You MUST always create at least 1 entity from the user's text
+- For each entity provide a name and brief description
+- Set sphere to "${sphere}"${dateGuidance}${familyGuidance}
 - Be honest but compassionate`;
 
   const app = getApp();
@@ -439,6 +479,12 @@ Rules:
     },
   });
 
+  if (__DEV__) {
+    console.log("[AI Entity Creation] Prompt:", prompt);
+    console.log("[AI Entity Creation] Sphere:", sphere);
+    console.log("[AI Entity Creation] System prompt:", systemPrompt);
+  }
+
   const result = await model.generateContent({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     systemInstruction: systemPrompt,
@@ -446,6 +492,11 @@ Rules:
 
   const responseText = result.response.text();
   const parsed = JSON.parse(responseText);
+
+  if (__DEV__) {
+    console.log("[AI Entity Creation] Raw response:", responseText);
+    console.log("[AI Entity Creation] Parsed:", JSON.stringify(parsed, null, 2));
+  }
 
   return parsed as AIEntityCreationResponse;
 }
@@ -456,19 +507,25 @@ export interface AIMemoryResponse {
     description: string;
     date: string;
   };
+  sphere?: "relationships" | "career" | "family" | "friends" | "hobbies";
+  entityName?: string;
   moments: {
     type: "sunnyMoments" | "lessonsLearned" | "hardTruths";
     text: string;
   }[];
 }
 
+export interface AIEntitySuggestion {
+  name: string;
+  description?: string;
+  isCurrent?: boolean;
+  startDate?: string;
+  endDate?: string;
+  relationship?: string;
+  imageUri?: string;
+}
+
 export interface AIEntityCreationResponse {
-  entity: {
-    name: string;
-    description: string;
-  };
-  moments: {
-    type: "sunnyMoments" | "lessonsLearned" | "hardTruths";
-    text: string;
-  }[];
+  sphere: "relationships" | "career" | "family" | "friends" | "hobbies";
+  entities: AIEntitySuggestion[];
 }

@@ -421,23 +421,26 @@ export function AIEntityCreationModal({
         selectedSphere,
       )
     ) {
-      // Check rate limiting: 3/day for free, 30/day for Sfera AI (memory + entity creation share pool)
-      const canMakeRequest = await canMakeAIRequest(hasAIEntitlement);
-      if (!canMakeRequest) {
-        if (!hasAIEntitlement) {
-          // Free requests exhausted – show the Sferas AI offering paywall
-          await showPaywallForUpgradeAccess();
-        } else {
-          Alert.alert(
-            t("ai.rateLimit.title") || "AI Request Limit Reached",
-            t("ai.rateLimit.premiumMessage") ||
-              "You've reached the daily limit. Try again tomorrow.",
-            [{ text: t("common.ok") || "OK", style: "default" }],
-          );
+      // In dev mode, bypass subscription and rate-limit checks
+      if (!__DEV__) {
+        // Check rate limiting: 3/day for free, 30/day for Sfera AI (memory + entity creation share pool)
+        const canMakeRequest = await canMakeAIRequest(hasAIEntitlement);
+        if (!canMakeRequest) {
+          if (!hasAIEntitlement) {
+            // Free requests exhausted – show the Sferas AI offering paywall
+            await showPaywallForUpgradeAccess();
+          } else {
+            Alert.alert(
+              t("ai.rateLimit.title") || "AI Request Limit Reached",
+              t("ai.rateLimit.premiumMessage") ||
+                "You've reached the daily limit. Try again tomorrow.",
+              [{ text: t("common.ok") || "OK", style: "default" }],
+            );
+          }
+          return;
         }
-        return;
+        await recordAIRequest();
       }
-      await recordAIRequest();
       await logAIEntityModalSubmit();
 
       setIsProcessing(true);
