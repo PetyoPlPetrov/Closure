@@ -1314,7 +1314,7 @@ export function AIModal({
           "Your memory has been created with AI suggestions.",
         [
           {
-            text: t("common.cancel") || "Cancel",
+            text: t("common.close") || "Close",
             style: "cancel",
           },
           {

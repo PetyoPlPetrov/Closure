@@ -4366,9 +4366,9 @@ const translations: Record<Language, Translations> = {
       "Permission to access camera roll is required to add photos.",
     "ai.action.title": "Accelerate your journey",
     "ai.action.message.withEntities":
-      "Let Sfera AI help you create memories faster. Share your story and we'll turn it into moments and lessons.",
+      "Let Sfera AI help you create memories and add Sfera entities faster—relationships, family members, friends, jobs, and hobbies.",
     "ai.action.message.noEntities":
-      "Let Sfera AI help you create memories faster. First add entities to your life spheres, then share your story and we'll turn it into moments and lessons.",
+      "Let Sfera AI help you get started quickly. Share your story and we'll add Sfera entities like relationships, family members, friends, jobs, and hobbies to your life spheres.",
     "ai.action.createMemory": "Create Memory",
     "ai.action.createMemoryHint": "First create Sfera entities to use this",
     "ai.action.createEntity": "Create Sfera Entity",
@@ -8641,9 +8641,9 @@ const translations: Record<Language, Translations> = {
       "Неуспешно обработване на заявката: {error}. Моля, опитайте отново.",
     "ai.action.title": "Ускорете пътешествието си",
     "ai.action.message.withEntities":
-      "Нека Sfera AI ви помогне да създавате спомени по-бързо. Споделете историята си и ще я превърнем в моменти и поуки.",
+      "Нека Sfera AI ви помогне да създавате спомени и да добавяте обекти на Сфера по-бързо—връзки, членове на семейството, приятели, работа и хобита.",
     "ai.action.message.noEntities":
-      "Нека Sfera AI ви помогне да създавате спомени по-бързо. Първо добавете обекти към житейските си сфери, след това споделете историята си и ще я превърнем в моменти и поуки.",
+      "Нека Sfera AI ви помогне да започнете бързо. Споделете своята история и ще добавим обекти на Сфера като връзки, членове на семейството, приятели, работа и хобита към житейските ви сфери.",
     "ai.action.createMemory": "Създай спомен",
     "ai.action.createMemoryHint":
       "Първо създай Sfera обекти, за да го използваш",

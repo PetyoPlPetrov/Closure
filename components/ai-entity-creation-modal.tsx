@@ -1119,7 +1119,7 @@ export function AIEntityCreationModal({
                   weight="medium"
                   style={{ textAlign: "center" }}
                 >
-                  {t("common.cancel") || "Cancel"}
+                  {t("common.close") || "Close"}
                 </ThemedText>
               </TouchableOpacity>
             </View>
@@ -1335,7 +1335,7 @@ export function AIEntityCreationModal({
                   activeOpacity={0.8}
                 >
                   <ThemedText size="sm" weight="medium">
-                    {t("common.cancel") || "Cancel"}
+                    {t("common.close") || "Close"}
                   </ThemedText>
                 </TouchableOpacity>
               </View>
@@ -2076,7 +2076,7 @@ export function AIEntityCreationModal({
                 activeOpacity={0.8}
               >
                 <ThemedText size="sm" weight="medium">
-                  {t("common.cancel") || "Cancel"}
+                  {t("common.close") || "Close"}
                 </ThemedText>
               </TouchableOpacity>
             </View>
