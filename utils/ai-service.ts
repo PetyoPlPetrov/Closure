@@ -166,11 +166,15 @@ Write 8-12 varied notification messages for today.`;
   const responseText = result.response.text();
   const parsed = JSON.parse(responseText);
 
-  const messages = Array.isArray(parsed?.messages)
-    ? parsed.messages
-        .map((m: any) => (typeof m === "string" ? m.trim() : ""))
-        .filter((m: string) => m.length > 0)
-    : [];
+  // Normalize: accept array of strings, or array of objects with .text
+  let messages: string[] = [];
+  if (Array.isArray(parsed?.messages)) {
+    messages = parsed.messages
+      .map((m: any) => (typeof m === "string" ? m.trim() : m?.text != null ? String(m.text).trim() : ""))
+      .filter((m: string) => m.length > 0);
+  } else if (typeof parsed?.message === "string" && parsed.message.trim()) {
+    messages = [parsed.message.trim()];
+  }
 
   if (messages.length === 0) {
     throw new Error("AI returned no valid encouragement messages");
