@@ -11823,9 +11823,10 @@ export default function HomeScreen() {
             setAiEncouragementLoading(false);
             lastEncouragementCacheKeyRef.current = thresholdKey;
           } else if (!cancelled) {
-            // No batch available - fall back to local non-AI encouragement
+            // No batch available (e.g. request failed after counting) - show fallback so banner still appears
             setAiEncouragementText(null);
             setAiEncouragementLoading(false);
+            setAiEncouragementError(true);
           }
           return;
         }
@@ -11850,6 +11851,10 @@ export default function HomeScreen() {
           const messages = resp?.messages || [];
           if (messages.length === 0) {
             encouragementRequestInProgressRef.current = false;
+            if (!cancelled) {
+              setAiEncouragementLoading(false);
+              setAiEncouragementError(true);
+            }
             return;
           }
 
