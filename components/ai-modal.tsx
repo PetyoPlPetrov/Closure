@@ -1209,14 +1209,25 @@ export function AIModal({
           text: item.text,
         }));
 
-      // Create the memory with AI suggestions
-      const memoryId = await addIdealizedMemory(finalEntityId, finalSphere, {
-        title: aiResponse?.memory?.title || "", // Use AI-generated title
-        imageUri: selectedImage || undefined,
-        hardTruths,
-        goodFacts,
-        lessonsLearned,
-      });
+      // Create the memory with AI suggestions (bypass limits - AI modal allows creation beyond free tier caps)
+      const memoryId = await addIdealizedMemory(
+        finalEntityId,
+        finalSphere,
+        {
+          title: aiResponse?.memory?.title || "", // Use AI-generated title
+          imageUri: selectedImage || undefined,
+          hardTruths,
+          goodFacts,
+          lessonsLearned,
+        },
+        { bypassMemoryLimit: true }
+      );
+
+      // Limit reached and user dismissed paywall - don't proceed
+      if (!memoryId) {
+        setIsProcessing(false);
+        return;
+      }
 
       // Log analytics event for AI memory saved
       await logAIMemorySaved(finalSphere, !!selectedImage, memoryItems.length);

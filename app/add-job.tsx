@@ -57,34 +57,7 @@ export default function AddJobScreen() {
   const [isLoadingImage, setIsLoadingImage] = useState(false);
 
   // Track initial job count to prevent redirect after saving first job
-  const initialJobCount = useRef<number | null>(null);
   const isSaving = useRef(false);
-
-  // Check subscription limit when component loads (only for new jobs, not edits)
-  useEffect(() => {
-    // Store initial job count on first load
-    if (initialJobCount.current === null) {
-      initialJobCount.current = jobs.length;
-    }
-
-    // Don't check if we're saving (prevents redirect after saving first job)
-    if (isSaving.current) return;
-
-    // Only redirect if user already had 2+ jobs when they entered this screen
-    // This allows 2 free jobs per sphere before paywall
-    if (!isEditMode && initialJobCount.current >= 2) {
-      (async () => {
-        const { hasEntityLimitEntitlement } =
-          await ensureSubscriptionResolved();
-        if (!hasEntityLimitEntitlement) {
-          const subscribed = await showPaywallForPlusAccess();
-          if (!subscribed) {
-            router.back();
-          }
-        }
-      })();
-    }
-  }, [isEditMode, ensureSubscriptionResolved, jobs.length]);
 
   // Load existing job data when in edit mode
   useEffect(() => {
@@ -266,12 +239,8 @@ export default function AddJobScreen() {
   const handleSubmit = async () => {
     if (!isSaveEnabled) return;
 
-    // Check subscription limit for new jobs (not edits)
-    if (
-      !isEditMode &&
-      initialJobCount.current !== null &&
-      initialJobCount.current >= 2
-    ) {
+    // Check subscription limit for new jobs (not edits) - show paywall on Save
+    if (!isEditMode && jobs.length >= 2) {
       const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
       if (!hasEntityLimitEntitlement) {

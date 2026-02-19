@@ -1188,7 +1188,7 @@ export default function SettingsScreen() {
                   memoryTitles[i % memoryTitles.length] + ` (${i + 1})`;
 
                 // Use explicit sphere parameter to ensure memories are created for relationships
-                await addIdealizedMemory(profileId, "relationships", {
+                const memoryId = await addIdealizedMemory(profileId, "relationships", {
                   title: memoryTitle,
                   imageUri: getRandomMemoryImage(),
                   hardTruths,
@@ -1196,8 +1196,10 @@ export default function SettingsScreen() {
                   lessonsLearned,
                 });
 
-                createdMemories++;
-                successfullyCreatedCount++;
+                if (memoryId) {
+                  createdMemories++;
+                  successfullyCreatedCount++;
+                }
 
                 // Small delay to allow AsyncStorage write to complete
                 await new Promise((resolve) => setTimeout(resolve, 50));
@@ -1331,7 +1333,7 @@ export default function SettingsScreen() {
                 }
 
                 // Use new signature for career sphere: (entityId, sphere, memoryData)
-                await addIdealizedMemory(jobId, "career", {
+                const memoryId = await addIdealizedMemory(jobId, "career", {
                   title: memoryTitle,
                   imageUri: getRandomMemoryImage(),
                   hardTruths,
@@ -1339,7 +1341,7 @@ export default function SettingsScreen() {
                   lessonsLearned,
                 });
 
-                createdMemories++;
+                if (memoryId) createdMemories++;
 
                 // Brief delay to allow AsyncStorage write to complete
                 await new Promise((resolve) => setTimeout(resolve, 50));
@@ -1474,7 +1476,7 @@ export default function SettingsScreen() {
                   });
                 }
 
-                await addIdealizedMemory(memberId, "family", {
+                const memoryId = await addIdealizedMemory(memberId, "family", {
                   title: memoryTitle,
                   imageUri: getRandomMemoryImage(),
                   hardTruths,
@@ -1482,7 +1484,7 @@ export default function SettingsScreen() {
                   lessonsLearned,
                 });
 
-                createdMemories++;
+                if (memoryId) createdMemories++;
 
                 await new Promise((resolve) => setTimeout(resolve, 50));
               } catch (_memoryError) {
@@ -1596,7 +1598,7 @@ export default function SettingsScreen() {
                   });
                 }
 
-                await addIdealizedMemory(friendId, "friends", {
+                const memoryId = await addIdealizedMemory(friendId, "friends", {
                   title: memoryTitle,
                   imageUri: getRandomMemoryImage(),
                   hardTruths,
@@ -1604,7 +1606,7 @@ export default function SettingsScreen() {
                   lessonsLearned,
                 });
 
-                createdMemories++;
+                if (memoryId) createdMemories++;
                 await new Promise((resolve) => setTimeout(resolve, 50));
               } catch (_memoryError) {
                 // Error creating memory
@@ -1714,7 +1716,7 @@ export default function SettingsScreen() {
                   });
                 }
 
-                await addIdealizedMemory(hobbyId, "hobbies", {
+                const memoryId = await addIdealizedMemory(hobbyId, "hobbies", {
                   title: memoryTitle,
                   imageUri: getRandomMemoryImage(),
                   hardTruths,
@@ -1722,7 +1724,7 @@ export default function SettingsScreen() {
                   lessonsLearned,
                 });
 
-                createdMemories++;
+                if (memoryId) createdMemories++;
                 await new Promise((resolve) => setTimeout(resolve, 50));
               } catch (_memoryError) {
                 // Error creating memory

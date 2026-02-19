@@ -14,7 +14,7 @@ import { showPaywallForPlusAccess } from "@/utils/premium-access";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -51,33 +51,6 @@ export default function AddFamilyMemberScreen() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Track initial family member count to prevent redirect after saving first member
-  const initialFamilyMemberCount = useRef<number | null>(null);
-
-  // Check subscription limit when component loads (only for new family members, not edits)
-  useEffect(() => {
-    // Store initial family member count on first load
-    if (initialFamilyMemberCount.current === null) {
-      initialFamilyMemberCount.current = familyMembers.length;
-    }
-
-    // Don't check if we're saving (prevents redirect after saving first member)
-    if (isSaving) return;
-
-    // Only redirect if user already had 2+ family members when they entered this screen
-    if (!isEditMode && initialFamilyMemberCount.current >= 2) {
-      (async () => {
-        const { hasEntityLimitEntitlement } =
-          await ensureSubscriptionResolved();
-        if (!hasEntityLimitEntitlement) {
-          const subscribed = await showPaywallForPlusAccess();
-          if (!subscribed) {
-            router.back();
-          }
-        }
-      })();
-    }
-  }, [isEditMode, ensureSubscriptionResolved, familyMembers.length, isSaving]);
-
   // Load existing member data when in edit mode
   useEffect(() => {
     if (isEditMode && existingMember) {
@@ -138,12 +111,8 @@ export default function AddFamilyMemberScreen() {
       return;
     }
 
-    // Check subscription limit for new family members (not edits)
-    if (
-      !isEditMode &&
-      initialFamilyMemberCount.current !== null &&
-      initialFamilyMemberCount.current >= 2
-    ) {
+    // Check subscription limit for new family members (not edits) - show paywall on Save
+    if (!isEditMode && familyMembers.length >= 2) {
       const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
       if (!hasEntityLimitEntitlement) {

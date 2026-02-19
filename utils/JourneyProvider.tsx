@@ -1,6 +1,11 @@
 import { logEntityCreated, logMemoryCreated, logMemoryDeleted, logMomentCreated } from '@/utils/analytics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import { showPaywallForAIAccess } from '@/utils/premium-access';
+import { useSubscription } from '@/utils/SubscriptionProvider';
+
+/** Max memories per entity for users without Sfera AI plan. */
+const MEMORY_LIMIT_PER_ENTITY_FREE = 5;
 
 const STORAGE_KEY = '@sferas:ex_profiles';
 const IDEALIZED_MEMORIES_KEY = '@sferas:idealized_memories';
@@ -288,8 +293,9 @@ type JourneyContextType = {
   addIdealizedMemory: (
     entityIdOrProfileId: string,
     sphereOrMemoryData: LifeSphere | Omit<IdealizedMemory, 'id' | 'entityId' | 'profileId' | 'sphere' | 'createdAt' | 'updatedAt'>,
-    memoryData?: Omit<IdealizedMemory, 'id' | 'entityId' | 'profileId' | 'sphere' | 'createdAt' | 'updatedAt'>
-  ) => Promise<string>; // Returns the new memory ID
+    memoryData?: Omit<IdealizedMemory, 'id' | 'entityId' | 'profileId' | 'sphere' | 'createdAt' | 'updatedAt'>,
+    options?: { bypassMemoryLimit?: boolean }
+  ) => Promise<string | null>; // Returns the new memory ID, or null if limit reached and paywall dismissed
   updateIdealizedMemory: (id: string, updates: Partial<IdealizedMemory>) => Promise<void>;
   deleteIdealizedMemory: (id: string) => Promise<void>;
   getIdealizedMemoriesByEntityId: (entityId: string, sphere: LifeSphere) => IdealizedMemory[];
@@ -314,6 +320,7 @@ interface JourneyProviderProps {
 }
 
 export function JourneyProvider({ children }: JourneyProviderProps) {
+  const { hasAIEntitlement, checkSubscription } = useSubscription();
   const [profiles, isLoading, error, setProfiles] = useProfiles();
   const [idealizedMemories, setIdealizedMemories] = useState<IdealizedMemory[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -758,7 +765,8 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     async (
       entityId: string,
       sphere: LifeSphere,
-      memoryData: Omit<IdealizedMemory, 'id' | 'entityId' | 'profileId' | 'sphere' | 'createdAt' | 'updatedAt'>
+      memoryData: Omit<IdealizedMemory, 'id' | 'entityId' | 'profileId' | 'sphere' | 'createdAt' | 'updatedAt'>,
+      options?: { bypassMemoryLimit?: boolean }
     ) => {
       const now = new Date().toISOString();
       const newMemory: IdealizedMemory = {
@@ -790,7 +798,23 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         // If read fails, fall back to current state
         existingMemories = idealizedMemories;
       }
-      
+
+      // Enforce 5-memory limit per entity for users without Sfera AI plan (skip when called from AI modal)
+      const memoryCountForEntity = existingMemories.filter(
+        (m) => m.entityId === entityId && m.sphere === sphere
+      ).length;
+      if (
+        !options?.bypassMemoryLimit &&
+        !hasAIEntitlement &&
+        memoryCountForEntity >= MEMORY_LIMIT_PER_ENTITY_FREE
+      ) {
+        const purchased = await showPaywallForAIAccess();
+        if (!purchased) {
+          return null;
+        }
+        await checkSubscription();
+      }
+
       // Check if this memory already exists (shouldn't happen, but safety check)
       const memoryExists = existingMemories.some(m => m.id === newMemory.id);
       if (memoryExists) {
@@ -832,7 +856,16 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         }
       }
     },
-    [profiles, jobs, familyMembers, saveIdealizedMemoriesToStorage, updateProfile, idealizedMemories]
+    [
+      profiles,
+      jobs,
+      familyMembers,
+      saveIdealizedMemoriesToStorage,
+      updateProfile,
+      idealizedMemories,
+      hasAIEntitlement,
+      checkSubscription,
+    ]
   );
 
   // Public function with new signature - supports multiple spheres
@@ -840,12 +873,18 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     async (
       entityIdOrProfileId: string,
       sphereOrMemoryData: LifeSphere | Omit<IdealizedMemory, 'id' | 'entityId' | 'profileId' | 'sphere' | 'createdAt' | 'updatedAt'>,
-      memoryData?: Omit<IdealizedMemory, 'id' | 'entityId' | 'profileId' | 'sphere' | 'createdAt' | 'updatedAt'>
+      memoryData?: Omit<IdealizedMemory, 'id' | 'entityId' | 'profileId' | 'sphere' | 'createdAt' | 'updatedAt'>,
+      options?: { bypassMemoryLimit?: boolean }
     ) => {
       // Check if this is the new signature (3 params) or old signature (2 params)
       if (memoryData !== undefined && typeof sphereOrMemoryData === 'string') {
-        // New signature: (entityId, sphere, memoryData)
-        return addIdealizedMemoryInternal(entityIdOrProfileId, sphereOrMemoryData as LifeSphere, memoryData);
+        // New signature: (entityId, sphere, memoryData, options?)
+        return addIdealizedMemoryInternal(
+          entityIdOrProfileId,
+          sphereOrMemoryData as LifeSphere,
+          memoryData,
+          options
+        );
       } else {
         // Old signature: (profileId, memoryData) - backward compatibility
         return addIdealizedMemoryInternal(

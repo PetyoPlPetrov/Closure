@@ -14,7 +14,7 @@ import { showPaywallForPlusAccess } from "@/utils/premium-access";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -45,33 +45,6 @@ export default function AddHobbyScreen() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Track initial hobby count to prevent redirect after saving first hobby
-  const initialHobbyCount = useRef<number | null>(null);
-
-  // Check subscription limit when component loads (only for new hobbies, not edits)
-  useEffect(() => {
-    // Store initial hobby count on first load
-    if (initialHobbyCount.current === null) {
-      initialHobbyCount.current = hobbies.length;
-    }
-
-    // Don't check if we're saving (prevents redirect after saving first hobby)
-    if (isSaving) return;
-
-    // Only redirect if user already had 2+ hobbies when they entered this screen
-    if (!isEditMode && initialHobbyCount.current >= 2) {
-      (async () => {
-        const { hasEntityLimitEntitlement } =
-          await ensureSubscriptionResolved();
-        if (!hasEntityLimitEntitlement) {
-          const subscribed = await showPaywallForPlusAccess();
-          if (!subscribed) {
-            router.back();
-          }
-        }
-      })();
-    }
-  }, [isEditMode, ensureSubscriptionResolved, hobbies.length, isSaving]);
-
   // Load existing hobby data when in edit mode
   useEffect(() => {
     if (isEditMode && existingHobby) {
@@ -121,12 +94,8 @@ export default function AddHobbyScreen() {
       return;
     }
 
-    // Check subscription limit for new hobbies (not edits)
-    if (
-      !isEditMode &&
-      initialHobbyCount.current !== null &&
-      initialHobbyCount.current >= 2
-    ) {
+    // Check subscription limit for new hobbies (not edits) - show paywall on Save
+    if (!isEditMode && hobbies.length >= 2) {
       const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
       if (!hasEntityLimitEntitlement) {

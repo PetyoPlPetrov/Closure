@@ -71,40 +71,8 @@ export default function AddExProfileScreen() {
   const isNavigatingAway = useRef(false);
   const isSaving = useRef(false);
 
-  // Track initial profile count to prevent redirect after saving first profile
-  const initialProfileCount = useRef<number | null>(null);
-
   // Navigation hook for intercepting back navigation
   const navigation = useNavigation();
-
-  // Check subscription limit when component loads (only for new profiles, not edits)
-  useEffect(() => {
-    // Don't check subscription until profiles have finished loading
-    if (isLoading) return;
-
-    // Store initial profile count on first load
-    if (initialProfileCount.current === null) {
-      initialProfileCount.current = profiles.length;
-    }
-
-    // Don't check if we're saving or navigating away (prevents redirect after saving first profile)
-    if (isSaving.current || isNavigatingAway.current) return;
-
-    // Only redirect if user already had 2+ profiles when they entered this screen
-    // This allows 2 free profiles per sphere before paywall
-    if (!isEditMode && initialProfileCount.current >= 2) {
-      (async () => {
-        const { hasEntityLimitEntitlement } =
-          await ensureSubscriptionResolved();
-        if (!hasEntityLimitEntitlement) {
-          const subscribed = await showPaywallForPlusAccess();
-          if (!subscribed) {
-            router.back();
-          }
-        }
-      })();
-    }
-  }, [isEditMode, ensureSubscriptionResolved, profiles.length, isLoading]);
 
   // Load existing profile data when in edit mode
   useEffect(() => {

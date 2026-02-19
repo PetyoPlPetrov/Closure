@@ -14,7 +14,7 @@ import { showPaywallForPlusAccess } from "@/utils/premium-access";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -45,33 +45,6 @@ export default function AddFriendScreen() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Track initial friend count to prevent redirect after saving first friend
-  const initialFriendCount = useRef<number | null>(null);
-
-  // Check subscription limit when component loads (only for new friends, not edits)
-  useEffect(() => {
-    // Store initial friend count on first load
-    if (initialFriendCount.current === null) {
-      initialFriendCount.current = friends.length;
-    }
-
-    // Don't check if we're saving (prevents redirect after saving first friend)
-    if (isSaving) return;
-
-    // Only redirect if user already had 2+ friends when they entered this screen
-    if (!isEditMode && initialFriendCount.current >= 2) {
-      (async () => {
-        const { hasEntityLimitEntitlement } =
-          await ensureSubscriptionResolved();
-        if (!hasEntityLimitEntitlement) {
-          const subscribed = await showPaywallForPlusAccess();
-          if (!subscribed) {
-            router.back();
-          }
-        }
-      })();
-    }
-  }, [isEditMode, ensureSubscriptionResolved, friends.length, isSaving]);
-
   // Load existing friend data when in edit mode
   useEffect(() => {
     if (isEditMode && existingFriend) {
@@ -121,12 +94,8 @@ export default function AddFriendScreen() {
       return;
     }
 
-    // Check subscription limit for new friends (not edits)
-    if (
-      !isEditMode &&
-      initialFriendCount.current !== null &&
-      initialFriendCount.current >= 2
-    ) {
+    // Check subscription limit for new friends (not edits) - show paywall on Save
+    if (!isEditMode && friends.length >= 2) {
       const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
       if (!hasEntityLimitEntitlement) {

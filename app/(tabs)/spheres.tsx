@@ -307,36 +307,6 @@ export default function SpheresScreen() {
     };
   });
 
-  const checkSubscriptionLimit = (
-    sphere: LifeSphere,
-    resolvedEntityLimitEntitlement?: boolean,
-  ): boolean => {
-    const hasLimit = resolvedEntityLimitEntitlement ?? (hasPlusEntitlement || hasAIEntitlement);
-    if (hasLimit) return true; // Plus or AI users can create unlimited
-
-    switch (sphere) {
-      case "relationships":
-        return profiles.length < 2;
-      case "career":
-        return jobs.length < 2;
-      case "family":
-        return familyMembers.length < 2;
-      case "friends":
-        return friends.length < 2;
-      case "hobbies":
-        return hobbies.length < 2;
-      default:
-        return true;
-    }
-  };
-
-  const showSubscriptionPrompt = async (_sphere: LifeSphere) => {
-    // Use presentPaywall (force show) - our checkSubscriptionLimit already verified
-    // hasPlusEntitlement is false. RevenueCat's presentPaywallIfNeeded can return
-    // NOT_PRESENTED from stale cache (e.g. sandbox), incorrectly skipping the paywall.
-    await showPaywallForPremiumAccess();
-  };
-
   // Reload memories when screen comes into focus (e.g., after running mock data script)
   useFocusEffect(
     useCallback(() => {
@@ -1781,17 +1751,8 @@ export default function SpheresScreen() {
     });
   };
 
-  const handleAddEntity = async (sphere: LifeSphere) => {
-    // When still loading from init, wait for subscription before gating.
-    let resolvedEntityLimit: boolean | undefined;
-    if (subscriptionStatus === "loading") {
-      resolvedEntityLimit = (await ensureSubscriptionResolved()).hasEntityLimitEntitlement;
-    }
-    if (!checkSubscriptionLimit(sphere, resolvedEntityLimit)) {
-      await showSubscriptionPrompt(sphere);
-      return;
-    }
-
+  const handleAddEntity = (sphere: LifeSphere) => {
+    // Paywall is shown on Save in add-entity screens, not here
     switch (sphere) {
       case "relationships":
         router.push("/add-ex-profile");

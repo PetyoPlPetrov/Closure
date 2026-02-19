@@ -1682,6 +1682,12 @@ export default function AddIdealizedMemoryScreen() {
           throw new Error('Missing required parameters to save memory');
         }
 
+        // Limit reached and user dismissed paywall - don't proceed
+        if (!newMemoryId) {
+          setIsSaving(false);
+          return;
+        }
+
         // Trigger streak update for new memory creation
         try {
           const streakResult = await updateStreakOnMemoryCreation();
