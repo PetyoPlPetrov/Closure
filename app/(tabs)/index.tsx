@@ -11667,18 +11667,19 @@ export default function HomeScreen() {
     }
   };
 
-  // Show encouragement message automatically when home tab is opened
+  // Show encouragement message when home tab is opened. Do NOT hide when leaving—
+  // message persists across tab switches and only disappears when user closes it
+  // or we replace it with a new one (threshold change).
+  const ENCOURAGEMENT_DELAY_MS = 180;
   useFocusEffect(
     React.useCallback(() => {
-      // Show encouragement message when tab is focused and there are moments
-      if (hasAnyMoments) {
-        setIsEncouragementVisible(true);
-      }
+      if (!hasAnyMoments) return;
 
-      return () => {
-        // Hide message when leaving tab
-        setIsEncouragementVisible(false);
-      };
+      const timer = setTimeout(() => {
+        setIsEncouragementVisible(true);
+      }, ENCOURAGEMENT_DELAY_MS);
+
+      return () => clearTimeout(timer);
     }, [hasAnyMoments]),
   );
 
@@ -11754,10 +11755,10 @@ export default function HomeScreen() {
         (m.lessonsLearned || []).map((x: any) => x.text).filter(Boolean),
       );
 
-      // Keep prompt small: only latest 2 of each (reduces payload)
-      const sampleLessons = lessons.slice(-2);
+      // Latest 4 lessons, 2 sunny moments, 0 cloudy (reduces payload, focuses on positive)
+      const sampleLessons = lessons.slice(-4);
       const sampleSunny = sunnyMoments.slice(-2);
-      const sampleCloudy = cloudyMoments.slice(-2);
+      const sampleCloudy: string[] = [];
 
       // Make the AI banner message a bit longer than the current fallback copy
       const targetCharCount = Math.round(
@@ -11788,13 +11789,32 @@ export default function HomeScreen() {
           const thresholdChanged = lastThresholdKey !== thresholdKey;
 
           if (thresholdChanged || encouragementCacheBust > 0) {
-            // Pick a new random message from today's batch
-            const randomMessage = await getRandomTodayEncouragementMessage();
-            if (randomMessage && !cancelled) {
-              setAiEncouragementText(randomMessage);
+            // Threshold changed: content changed, pick new message.
+            // Cache bust only (from dismiss): we already set new message in dismiss handler—don't re-pick to avoid blink on tab return.
+            if (thresholdChanged) {
+              const randomMessage =
+                await getRandomTodayEncouragementMessage();
+              if (randomMessage && !cancelled) {
+                setAiEncouragementText(randomMessage);
+                setAiEncouragementLoading(false);
+                lastEncouragementCacheKeyRef.current = thresholdKey;
+                return;
+              }
+            } else if (!cancelled && aiEncouragementText) {
+              // Cache bust from dismiss, we already have the "next" message—use it
               setAiEncouragementLoading(false);
               lastEncouragementCacheKeyRef.current = thresholdKey;
               return;
+            } else {
+              // Cache bust but no current message—pick one
+              const randomMessage =
+                await getRandomTodayEncouragementMessage();
+              if (randomMessage && !cancelled) {
+                setAiEncouragementText(randomMessage);
+                setAiEncouragementLoading(false);
+                lastEncouragementCacheKeyRef.current = thresholdKey;
+                return;
+              }
             }
           } else {
             // Same threshold, use current message (don't change it)
