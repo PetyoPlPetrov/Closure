@@ -166,37 +166,33 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const getNextTriggerDate = useCallback((template: NotificationTemplate): Date => {
     const now = new Date();
     const [hours, minutes] = template.timeOfDay.split(':').map(Number);
-    const trigger = new Date();
-    trigger.setHours(hours ?? 9, minutes ?? 0, 0, 0);
+    const h = hours ?? 9;
+    const m = minutes ?? 0;
 
-    if (trigger.getTime() < now.getTime()) {
-      if (template.frequencyDays === 7 && template.weekDay !== undefined) {
-        // Weekly notification on specific day
-        const currentDay = now.getDay();
-        const targetDay = template.weekDay;
-
-        let daysUntilTarget = targetDay - currentDay;
-
-        if (daysUntilTarget < 0) {
-          daysUntilTarget += 7;
-        } else if (daysUntilTarget === 0) {
-          // Same day - check if time has passed
-          if (now.getHours() > hours || (now.getHours() === hours && now.getMinutes() >= (minutes ?? 0))) {
-            // Time has passed, schedule for next week
-            daysUntilTarget = 7;
-          }
-        }
-
-        trigger.setDate(now.getDate() + daysUntilTarget);
-      } else {
-        // Daily or custom frequency
-        if (now.getHours() > hours || (now.getHours() === hours && now.getMinutes() >= (minutes ?? 0))) {
-          // Time has passed today, schedule for tomorrow
-          trigger.setDate(now.getDate() + template.frequencyDays);
+    if (template.frequencyDays === 7 && template.weekDay !== undefined) {
+      // Weekly: find next occurrence of target weekday at timeOfDay
+      // Use date arithmetic (add days to now) so month boundaries are correct
+      const currentDay = now.getDay();
+      const targetDay = template.weekDay;
+      let daysUntilTarget = targetDay - currentDay;
+      if (daysUntilTarget < 0) {
+        daysUntilTarget += 7;
+      } else if (daysUntilTarget === 0) {
+        if (now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m)) {
+          daysUntilTarget = 7;
         }
       }
+      const trigger = new Date(now.getTime() + daysUntilTarget * 24 * 60 * 60 * 1000);
+      trigger.setHours(h, m, 0, 0);
+      return trigger;
     }
 
+    // Daily (frequencyDays === 1): today at timeOfDay, or tomorrow if time has passed
+    const trigger = new Date();
+    trigger.setHours(h, m, 0, 0);
+    if (trigger.getTime() <= now.getTime()) {
+      trigger.setDate(trigger.getDate() + template.frequencyDays);
+    }
     return trigger;
   }, []);
 
@@ -211,7 +207,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       try {
         // Check if condition is met
         const conditionMet = checkCondition(entityId, sphere, template.condition, template.noRecentDays);
-
+        if (__DEV__) {
+          console.log('[Notifications] scheduleForEntity:', {
+            entityId,
+            entityName,
+            sphere,
+            frequencyDays: template.frequencyDays,
+            weekDay: template.weekDay,
+            conditionMet,
+          });
+        }
         if (!conditionMet) {
           return null;
         }
@@ -237,7 +242,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
         // Check permissions before scheduling
         const { status: permissionStatus } = await Notifications.getPermissionsAsync();
-
+        if (__DEV__) {
+          console.log('[Notifications] permission:', permissionStatus, 'triggerDate:', triggerDate.toISOString());
+        }
         if (permissionStatus !== 'granted') {
           return null;
         }
@@ -251,9 +258,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           },
           trigger: triggerInput, // Use explicit DateTriggerInput format
         });
-
+        if (__DEV__) {
+          console.log('[Notifications] scheduled:', notificationId, 'for', triggerDate.toISOString());
+        }
         return notificationId;
       } catch (error) {
+        if (__DEV__) {
+          console.warn('[Notifications] scheduleForEntity error:', entityId, error);
+        }
         return null;
       }
     },
@@ -263,6 +275,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   // Refresh all notification schedules
   const refreshSchedules = useCallback(async () => {
     setIsScheduling(true);
+    if (__DEV__) {
+      console.log('[Notifications] refreshSchedules start');
+    }
     try {
       // Cancel all existing notifications
       await Notifications.cancelAllScheduledNotificationsAsync();
@@ -283,6 +298,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           const override = assignment.overrides[entity.id];
 
           if (override?.kind === 'custom') {
+            if (__DEV__) {
+              console.log('[Notifications] custom override for', sphere, entity.name, 'template:', {
+                frequencyDays: override.template.frequencyDays,
+                weekDay: override.template.weekDay,
+                timeOfDay: override.template.timeOfDay,
+              });
+            }
             await scheduleNotificationForEntity(
               entity.id,
               entity.name,
@@ -300,22 +322,36 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         scheduleForSphere('friends', friends),
         scheduleForSphere('hobbies', hobbies),
       ]);
+      if (__DEV__) {
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        const summary = scheduled.map((s) => {
+          const t = s.trigger as { type?: string; date?: number } | null;
+          return {
+            id: s.identifier,
+            title: s.content?.title,
+            at: t?.date != null ? new Date(t.date).toISOString() : (t?.type ?? 'unknown'),
+          };
+        });
+        console.log('[Notifications] refreshSchedules done, scheduled count:', scheduled.length, summary);
+      }
     } catch (error) {
-      // Silent error handling
+      if (__DEV__) {
+        console.warn('[Notifications] refreshSchedules error:', error);
+      }
     } finally {
       setIsScheduling(false);
     }
   }, [assignments, journey, scheduleNotificationForEntity]);
 
-  // Auto-refresh schedules when assignments change
+  // Auto-refresh schedules when assignments or memories change
+  // (conditions like belowAvgMoments and noRecent depend on idealizedMemories)
+  const idealizedMemories = journey.idealizedMemories ?? [];
   useEffect(() => {
-    // Debounce refresh to avoid multiple rapid calls
     const timeoutId = setTimeout(() => {
       refreshSchedules();
-    }, 1000); // Wait 1 second after last change
-
+    }, 1000);
     return () => clearTimeout(timeoutId);
-  }, [assignments, refreshSchedules]);
+  }, [assignments, refreshSchedules, idealizedMemories]);
 
   const addTemplate = useCallback(
     async (tpl: Omit<NotificationTemplate, 'id'>): Promise<NotificationTemplate> => {
