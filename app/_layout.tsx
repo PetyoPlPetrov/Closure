@@ -98,12 +98,10 @@ function AppContent() {
     const handleNotificationResponse = (response: Notifications.NotificationResponse, source: string) => {
       const content = response.notification.request.content;
       const data = content.data as { type?: string; entityId?: string; sphere?: string };
-      console.log("[NotifTap] _layout handleNotificationResponse", { source, type: data.type, title: content.title, hasBody: !!content.body });
       if (data.type === "entity_reminder") {
         notificationResponseHandledByLayoutRef.current = true;
         const title = content.title ?? "";
         const body = content.body ?? "";
-        console.log("[NotifTap] _layout setting pending + replace/(tabs)", { title, body: body.slice(0, 40) });
         // Set ref synchronously so home tab can show alert even if state hasn't propagated yet
         pendingAlertFromLayoutRef.current = { title, body };
         setPendingNotificationFromTap({ title, body });
@@ -111,18 +109,11 @@ function AppContent() {
         setTimeout(() => {
           router.replace("/(tabs)");
         }, 0);
-      } else {
-        console.log("[NotifTap] _layout ignoring non entity_reminder", data.type);
       }
     };
 
     // Cold start: app was killed and user opened it by tapping a notification.
-    console.log("[NotifTap] _layout mount: calling getLastNotificationResponseAsync (cold start check)");
     Notifications.getLastNotificationResponseAsync().then((response) => {
-      console.log("[NotifTap] _layout getLastNotificationResponseAsync resolved", {
-        hasResponse: !!response,
-        type: response?.notification?.request?.content?.data ? (response.notification.request.content.data as { type?: string }).type : undefined,
-      });
       if (response) {
         handleNotificationResponse(response, "cold-start");
         void Notifications.clearLastNotificationResponseAsync();
@@ -134,7 +125,6 @@ function AppContent() {
 
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log("[NotifTap] _layout responseListener fired (app was in background)");
         handleNotificationResponse(response, "response-listener");
       });
 

@@ -38,8 +38,6 @@ export const options = {
   headerShown: true,
 };
 
-const NOTIF_SCREEN_LOG = "[NotifScreen]";
-
 export default function NotificationDetailScreen() {
   const t = useTranslate();
   const params = useLocalSearchParams<{
@@ -144,12 +142,6 @@ export default function NotificationDetailScreen() {
   );
 
   useEffect(() => {
-    console.log(NOTIF_SCREEN_LOG, "mount", { sphere, entityId, entityName });
-    return () => console.log(NOTIF_SCREEN_LOG, "unmount", { entityId });
-  }, [entityId, entityName, sphere]);
-
-  useEffect(() => {
-    console.log(NOTIF_SCREEN_LOG, "sync effect run", { kind: currentOverride?.kind, entityId });
     if (currentOverride?.kind === "custom") {
       const { template } = currentOverride;
       setCustomDraft({
@@ -190,11 +182,9 @@ export default function NotificationDetailScreen() {
   }, [currentOverride?.kind, customDraft, entityId, refreshSchedules, setOverride, sphere]);
 
   const handleToggleNotifications = async () => {
-    console.log(NOTIF_SCREEN_LOG, "handleToggleNotifications", { entityId, turningOff: currentOverride?.kind === "custom" });
     if (currentOverride?.kind === "custom") {
       // Turn off notifications
       await setOverride(sphere, entityId, { kind: "none" });
-      console.log(NOTIF_SCREEN_LOG, "handleToggleNotifications done (off)", { entityId });
     } else {
       // Turn on notifications - check subscription first
       const { hasEntityLimitEntitlement } =
@@ -239,7 +229,6 @@ export default function NotificationDetailScreen() {
       logNotificationTurnedOn(sphere, entityType).catch(() => {
         // Failed to log event
       });
-      console.log(NOTIF_SCREEN_LOG, "handleToggleNotifications done (on)", { entityId });
     }
   };
 
@@ -258,11 +247,7 @@ export default function NotificationDetailScreen() {
     if (!isInitializing.current && currentOverride?.kind === "custom") {
       const saveChanges = async () => {
         const tpl = currentOverride?.kind === "custom" ? currentOverride.template : null;
-        if (tpl && templateKey(customDraft) === templateKey(tpl)) {
-          console.log(NOTIF_SCREEN_LOG, "auto-save skipped (draft unchanged)");
-          return;
-        }
-        console.log(NOTIF_SCREEN_LOG, "auto-save running setOverride", { entityId });
+        if (tpl && templateKey(customDraft) === templateKey(tpl)) return;
         await setOverride(sphere, entityId, {
           kind: "custom",
           template: { ...customDraft, id: `custom_${entityId}` },
@@ -334,12 +319,6 @@ export default function NotificationDetailScreen() {
   }, []);
 
   useEffect(() => {
-    console.log(NOTIF_SCREEN_LOG, "countdown effect run", {
-      __DEV__,
-      isConditionMet,
-      kind: currentOverride?.kind,
-      entityId,
-    });
     if (!__DEV__) {
       setCountdown(null);
       return;
@@ -366,14 +345,12 @@ export default function NotificationDetailScreen() {
 
       const startInterval = () => {
         if (countdownIntervalRef.current) return;
-        console.log(NOTIF_SCREEN_LOG, "countdown startInterval", { entityId });
         updateCountdown();
         countdownIntervalRef.current = setInterval(updateCountdown, 1000);
       };
 
       const stopInterval = () => {
         if (countdownIntervalRef.current) {
-          console.log(NOTIF_SCREEN_LOG, "countdown stopInterval", { entityId });
           clearInterval(countdownIntervalRef.current);
           countdownIntervalRef.current = null;
         }
@@ -382,7 +359,6 @@ export default function NotificationDetailScreen() {
       startInterval();
 
       const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
-        console.log(NOTIF_SCREEN_LOG, "AppState change", { state, entityId });
         if (state === "background" || state === "inactive") {
           stopInterval();
         } else if (state === "active") {

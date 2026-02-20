@@ -11211,11 +11211,6 @@ export default function HomeScreen() {
     loadStreakData();
   }, [loadStreakData]);
 
-  useEffect(() => {
-    console.log("[NotifTap] home tab mounted");
-    return () => console.log("[NotifTap] home tab unmounting");
-  }, []);
-
   // Track app state to pause/resume intervals when app backgrounds/foregrounds
   const [isAppActive, setIsAppActive] = useState(true);
 
@@ -11239,13 +11234,6 @@ export default function HomeScreen() {
     const fromLayout = pendingAlertFromLayoutRef.current;
     const pending = pendingNotificationFromTap;
     const now = Date.now();
-    console.log("[NotifTap] home effect run", {
-      hasFromLayout: !!fromLayout,
-      hasPending: !!pending,
-      pendingTitle: pending?.title ?? fromLayout?.title,
-      scheduledFor: notificationAlertScheduledRef.current?.title ?? null,
-      scheduledAt: notificationAlertScheduledRef.current ? now - notificationAlertScheduledRef.current.at : null,
-    });
     // Prefer ref so we don't depend on state propagation after navigation
     const toShow = fromLayout ?? pending;
     if (!toShow) return;
@@ -11262,9 +11250,7 @@ export default function HomeScreen() {
     if (prev && prev.title === title && now - prev.at < 2500) {
       // Duplicate: another run already scheduled. That timeout may have been cleared on unmount,
       // so we still schedule one alert; clear pending in timeout so effect re-run doesn't cancel timer.
-      console.log("[NotifTap] home skip duplicate (scheduling one alert for this tap)");
       const t = setTimeout(() => {
-        console.log("[NotifTap] home showing Alert.alert now (from dedupe path)", { title });
         notificationAlertScheduledRef.current = null;
         setPendingNotificationFromTap(null);
         Alert.alert(title, message, [{ text: "OK", onPress: () => {} }]);
@@ -11274,9 +11260,7 @@ export default function HomeScreen() {
       };
     }
     notificationAlertScheduledRef.current = { title, at: now };
-    console.log("[NotifTap] home scheduling single alert in 150ms", { title, messageLen: message.length });
     const t = setTimeout(() => {
-      console.log("[NotifTap] home showing Alert.alert now", { title });
       notificationAlertScheduledRef.current = null;
       setPendingNotificationFromTap(null);
       Alert.alert(title, message, [{ text: "OK", onPress: () => {} }]);
@@ -11289,27 +11273,15 @@ export default function HomeScreen() {
 
   // Cold start fallback only when _layout did not handle (e.g. app was killed). Skip when opened from background.
   useEffect(() => {
-    console.log("[NotifTap] home cold-start fallback: scheduling getLastNotificationResponseAsync in 600ms");
     const id = setTimeout(async () => {
-      if (notificationResponseHandledByLayoutRef.current) {
-        console.log("[NotifTap] home cold-start skip (_layout already handled, opened from background)");
-        return;
-      }
+      if (notificationResponseHandledByLayoutRef.current) return;
       const response = await Notifications.getLastNotificationResponseAsync();
-      console.log("[NotifTap] home cold-start getLastNotificationResponseAsync resolved", {
-        hasResponse: !!response,
-        type: response?.notification?.request?.content?.data ? (response.notification.request.content.data as { type?: string }).type : undefined,
-      });
       if (!response) return;
       const data = (response.notification.request.content.data || {}) as { type?: string };
-      if (data.type !== "entity_reminder") {
-        console.log("[NotifTap] home cold-start ignoring type", data.type);
-        return;
-      }
+      if (data.type !== "entity_reminder") return;
       await Notifications.clearLastNotificationResponseAsync();
       const title = response.notification.request.content.title ?? "";
       const body = response.notification.request.content.body ?? "";
-      console.log("[NotifTap] home cold-start setting pending", { title, bodyLen: body.length });
       setPendingNotificationFromTap({ title, body });
     }, 600);
     return () => clearTimeout(id);
