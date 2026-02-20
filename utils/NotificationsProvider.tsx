@@ -1,7 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, type MutableRefObject, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, AppStateStatus, InteractionManager } from 'react-native';
 
+import { useLanguage } from './languages/language-context';
+import { getTranslation } from './languages/translations';
 import { LifeSphere, useJourney } from './JourneyProvider';
 
 // For now, assume we're always on a real device since simulator detection is unreliable
@@ -59,6 +62,13 @@ type NotificationContextType = {
   checkCondition: (entityId: string, sphere: LifeSphere, condition: string, noRecentDays?: number) => boolean;
   getNextTriggerDate: (template: NotificationTemplate) => Date;
   getScheduledNotifications: () => Promise<Notifications.NotificationRequest[]>;
+  /** Set when user taps a scheduled entity_reminder; home tab shows alert and clears on OK */
+  pendingNotificationFromTap: { title: string; body: string } | null;
+  setPendingNotificationFromTap: (n: { title: string; body: string } | null) => void;
+  notificationAlertScheduledRef: MutableRefObject<{ title: string; at: number } | null>;
+  notificationResponseHandledByLayoutRef: MutableRefObject<boolean>;
+  /** Set synchronously by _layout when handling tap so home can show alert even before state propagates */
+  pendingAlertFromLayoutRef: MutableRefObject<{ title: string; body: string } | null>;
 };
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -67,7 +77,46 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
   const [assignments, setAssignments] = useState<AssignmentsState>({});
   const [isScheduling, setIsScheduling] = useState(false);
+  const [pendingNotificationFromTap, setPendingNotificationFromTap] = useState<{
+    title: string;
+    body: string;
+  } | null>(null);
+  const lastForegroundAtRef = useRef(0);
+  const notificationAlertScheduledRef = useRef<{ title: string; at: number } | null>(null);
+  const notificationResponseHandledByLayoutRef = useRef(false);
+  const pendingAlertFromLayoutRef = useRef<{ title: string; body: string } | null>(null);
   const journey = useJourney();
+  const { language } = useLanguage();
+
+  // Track when app comes to foreground so we can defer heavy refresh and avoid freezing UI
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') {
+        lastForegroundAtRef.current = Date.now();
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  const getReasonForCondition = useCallback(
+    (condition: string, noRecentDays?: number): string => {
+      if (condition === 'noRecent') {
+        const days = noRecentDays ?? 7;
+        return getTranslation('notifications.reason.noRecent', language).replace('{days}', String(days));
+      }
+      if (condition === 'belowAvgMoments') {
+        return getTranslation('notifications.reason.belowAvg', language);
+      }
+      if (condition === 'relationshipLessThanJob') {
+        return getTranslation('notifications.reason.lessThanJob', language);
+      }
+      if (condition === 'relationshipLessThanFriendsAvg') {
+        return getTranslation('notifications.reason.lessThanFriendsAvg', language);
+      }
+      return '';
+    },
+    [language]
+  );
 
   // Load templates and assignments from storage on mount
   useEffect(() => {
@@ -207,22 +256,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       try {
         // Check if condition is met
         const conditionMet = checkCondition(entityId, sphere, template.condition, template.noRecentDays);
-        if (__DEV__) {
-          console.log('[Notifications] scheduleForEntity:', {
-            entityId,
-            entityName,
-            sphere,
-            frequencyDays: template.frequencyDays,
-            weekDay: template.weekDay,
-            conditionMet,
-          });
-        }
         if (!conditionMet) {
           return null;
         }
 
         const trigger = getNextTriggerDate(template);
-        const message = template.message || `Check in with ${entityName} today`;
+        const baseMessage = template.message || `Check in with ${entityName} today`;
+        const reason = getReasonForCondition(template.condition, template.noRecentDays);
+        const message = reason ? `${baseMessage} • ${reason}` : baseMessage;
 
         // IMPORTANT: expo-notifications has bugs with repeats:true on iOS
         // Instead of using repeating notifications, we schedule one-time notifications
@@ -242,9 +283,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
         // Check permissions before scheduling
         const { status: permissionStatus } = await Notifications.getPermissionsAsync();
-        if (__DEV__) {
-          console.log('[Notifications] permission:', permissionStatus, 'triggerDate:', triggerDate.toISOString());
-        }
         if (permissionStatus !== 'granted') {
           return null;
         }
@@ -258,86 +296,67 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           },
           trigger: triggerInput, // Use explicit DateTriggerInput format
         });
-        if (__DEV__) {
-          console.log('[Notifications] scheduled:', notificationId, 'for', triggerDate.toISOString());
-        }
         return notificationId;
       } catch (error) {
-        if (__DEV__) {
-          console.warn('[Notifications] scheduleForEntity error:', entityId, error);
-        }
         return null;
       }
     },
-    [checkCondition, getNextTriggerDate]
+    [checkCondition, getNextTriggerDate, getReasonForCondition]
   );
+
+  // Yield to main thread so UI stays responsive during heavy scheduling (e.g. many daily notifications)
+  const yieldToMain = () => new Promise<void>((r) => setTimeout(r, 0));
 
   // Refresh all notification schedules
   const refreshSchedules = useCallback(async () => {
+    // Yield once so UI (e.g. timer on notification screen) can paint before we do any work
+    await yieldToMain();
     setIsScheduling(true);
-    if (__DEV__) {
-      console.log('[Notifications] refreshSchedules start');
-    }
     try {
-      // Cancel all existing notifications
+      await yieldToMain();
+      // Cancel all existing notifications (can be slow when many are scheduled)
       await Notifications.cancelAllScheduledNotificationsAsync();
+      await yieldToMain();
 
       const { profiles, jobs, familyMembers, friends, hobbies } = journey;
 
-      // Schedule notifications for each sphere
-      const scheduleForSphere = async (
+      // Build flat list of (entity, sphere, template) to schedule, then process with yields
+      type Item = { entityId: string; entityName: string; sphere: LifeSphere; template: NotificationTemplate };
+      const items: Item[] = [];
+
+      const collect = (
         sphere: LifeSphere,
         entities: { id: string; name: string }[]
       ) => {
         const assignment = assignments[sphere];
-        if (!assignment) {
-          return;
-        }
-
+        if (!assignment) return;
         for (const entity of entities) {
           const override = assignment.overrides[entity.id];
-
           if (override?.kind === 'custom') {
-            if (__DEV__) {
-              console.log('[Notifications] custom override for', sphere, entity.name, 'template:', {
-                frequencyDays: override.template.frequencyDays,
-                weekDay: override.template.weekDay,
-                timeOfDay: override.template.timeOfDay,
-              });
-            }
-            await scheduleNotificationForEntity(
-              entity.id,
-              entity.name,
+            items.push({
+              entityId: entity.id,
+              entityName: entity.name,
               sphere,
-              override.template
-            );
+              template: override.template,
+            });
           }
         }
       };
 
-      await Promise.all([
-        scheduleForSphere('relationships', profiles.filter(p => !p.relationshipEndDate).map(p => ({ id: p.id, name: p.name }))),
-        scheduleForSphere('career', jobs.map(j => ({ id: j.id, name: j.name }))),
-        scheduleForSphere('family', familyMembers.map(f => ({ id: f.id, name: f.name }))),
-        scheduleForSphere('friends', friends),
-        scheduleForSphere('hobbies', hobbies),
-      ]);
-      if (__DEV__) {
-        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-        const summary = scheduled.map((s) => {
-          const t = s.trigger as { type?: string; date?: number } | null;
-          return {
-            id: s.identifier,
-            title: s.content?.title,
-            at: t?.date != null ? new Date(t.date).toISOString() : (t?.type ?? 'unknown'),
-          };
-        });
-        console.log('[Notifications] refreshSchedules done, scheduled count:', scheduled.length, summary);
+      collect('relationships', profiles.filter(p => !p.relationshipEndDate).map(p => ({ id: p.id, name: p.name })));
+      collect('career', jobs.map(j => ({ id: j.id, name: j.name })));
+      collect('family', familyMembers.map(f => ({ id: f.id, name: f.name })));
+      collect('friends', friends);
+      collect('hobbies', hobbies);
+
+      for (let i = 0; i < items.length; i++) {
+        const { entityId, entityName, sphere, template } = items[i];
+        await scheduleNotificationForEntity(entityId, entityName, sphere, template);
+        // Yield every entity so main thread can process UI (avoids freeze with many daily notifications)
+        await yieldToMain();
       }
     } catch (error) {
-      if (__DEV__) {
-        console.warn('[Notifications] refreshSchedules error:', error);
-      }
+      // Silent in production
     } finally {
       setIsScheduling(false);
     }
@@ -347,9 +366,15 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   // (conditions like belowAvgMoments and noRecent depend on idealizedMemories)
   const idealizedMemories = journey.idealizedMemories ?? [];
   useEffect(() => {
+    // When app just came from background, wait longer so timer and UI stay responsive
+    const recentlyForegrounded = Date.now() - lastForegroundAtRef.current < 4000;
+    const delayMs = recentlyForegrounded ? 5500 : 1000;
     const timeoutId = setTimeout(() => {
-      refreshSchedules();
-    }, 1000);
+      InteractionManager.runAfterInteractions(() => {
+        // Yield again so we don't block the runAfterInteractions callback (timer can tick)
+        setTimeout(() => void refreshSchedules(), 0);
+      });
+    }, delayMs);
     return () => clearTimeout(timeoutId);
   }, [assignments, refreshSchedules, idealizedMemories]);
 
@@ -438,6 +463,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       checkCondition,
       getNextTriggerDate,
       getScheduledNotifications,
+      pendingNotificationFromTap,
+      setPendingNotificationFromTap,
+      notificationAlertScheduledRef,
+      notificationResponseHandledByLayoutRef,
+      pendingAlertFromLayoutRef,
     }),
     [
       templates,
@@ -452,6 +482,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       checkCondition,
       getNextTriggerDate,
       getScheduledNotifications,
+      pendingNotificationFromTap,
+      setPendingNotificationFromTap,
     ]
   );
 

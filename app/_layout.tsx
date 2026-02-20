@@ -24,7 +24,7 @@ import { handleDevError } from "@/utils/dev-error-handler";
 import { InAppNotificationProvider } from "@/utils/InAppNotificationProvider";
 import { JourneyProvider, LifeSphere } from "@/utils/JourneyProvider";
 import { LanguageProvider } from "@/utils/languages/language-context";
-import { NotificationsProvider } from "@/utils/NotificationsProvider";
+import { NotificationsProvider, useNotificationsManager } from "@/utils/NotificationsProvider";
 import {
     SplashAnimationProvider,
     useSplash,
@@ -52,6 +52,7 @@ export const unstable_settings = {
 function AppContent() {
   const { hideSplash, isAnimationComplete } = useSplash();
   const { colorScheme } = useTheme();
+  const { setPendingNotificationFromTap, notificationResponseHandledByLayoutRef, pendingAlertFromLayoutRef } = useNotificationsManager();
   const notificationListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
@@ -92,44 +93,56 @@ function AppContent() {
     }
   }, [hideSplash, isAnimationComplete]);
 
-  // Handle notification deep linking
+  // Handle notification deep linking (tap when app in background) and cold start (app opened from killed state by tap)
   useEffect(() => {
-    // This listener is fired whenever a notification is received while the app is foregrounded
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener((notification) => {
-        // Notification received while app is foregrounded
-        // We don't need to do anything here, just showing the notification is enough
-      });
+    const handleNotificationResponse = (response: Notifications.NotificationResponse, source: string) => {
+      const content = response.notification.request.content;
+      const data = content.data as { type?: string; entityId?: string; sphere?: string };
+      console.log("[NotifTap] _layout handleNotificationResponse", { source, type: data.type, title: content.title, hasBody: !!content.body });
+      if (data.type === "entity_reminder") {
+        notificationResponseHandledByLayoutRef.current = true;
+        const title = content.title ?? "";
+        const body = content.body ?? "";
+        console.log("[NotifTap] _layout setting pending + replace/(tabs)", { title, body: body.slice(0, 40) });
+        // Set ref synchronously so home tab can show alert even if state hasn't propagated yet
+        pendingAlertFromLayoutRef.current = { title, body };
+        setPendingNotificationFromTap({ title, body });
+        // Defer navigation to next tick so the response handler returns and the UI doesn't freeze
+        setTimeout(() => {
+          router.replace("/(tabs)");
+        }, 0);
+      } else {
+        console.log("[NotifTap] _layout ignoring non entity_reminder", data.type);
+      }
+    };
 
-    // This listener is fired whenever a user taps on or interacts with a notification
+    // Cold start: app was killed and user opened it by tapping a notification.
+    console.log("[NotifTap] _layout mount: calling getLastNotificationResponseAsync (cold start check)");
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      console.log("[NotifTap] _layout getLastNotificationResponseAsync resolved", {
+        hasResponse: !!response,
+        type: response?.notification?.request?.content?.data ? (response.notification.request.content.data as { type?: string }).type : undefined,
+      });
+      if (response) {
+        handleNotificationResponse(response, "cold-start");
+        void Notifications.clearLastNotificationResponseAsync();
+      }
+    });
+
+    notificationListener.current =
+      Notifications.addNotificationReceivedListener(() => {});
+
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        const data = response.notification.request.content.data;
-
-        if (data.type === "entity_reminder" && data.entityId && data.sphere) {
-          const entityId = data.entityId as string;
-          const sphere = data.sphere as LifeSphere;
-
-          // Navigate to the appropriate entity detail screen based on sphere
-          if (sphere === "relationships") {
-            router.push(`/relationship-detail?id=${entityId}`);
-          } else if (sphere === "career") {
-            router.push(`/job-detail?id=${entityId}`);
-          } else if (sphere === "family") {
-            router.push(`/family-member-detail?id=${entityId}`);
-          } else if (sphere === "friends") {
-            router.push(`/friend-detail?id=${entityId}`);
-          } else if (sphere === "hobbies") {
-            router.push(`/hobby-detail?id=${entityId}`);
-          }
-        }
+        console.log("[NotifTap] _layout responseListener fired (app was in background)");
+        handleNotificationResponse(response, "response-listener");
       });
 
     return () => {
       notificationListener.current?.remove();
       responseListener.current?.remove();
     };
-  }, []);
+  }, [setPendingNotificationFromTap, notificationResponseHandledByLayoutRef, pendingAlertFromLayoutRef]);
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>

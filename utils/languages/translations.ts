@@ -630,6 +630,11 @@ export interface Translations {
   "notifications.settings.condition.lessThanFriendsAvg.title": string;
   "notifications.settings.condition.lessThanFriendsAvg.body": string;
   "notifications.settings.sphere": string;
+  /** Short reasons shown in notification body (use {days} for noRecent) */
+  "notifications.reason.noRecent": string;
+  "notifications.reason.belowAvg": string;
+  "notifications.reason.lessThanJob": string;
+  "notifications.reason.lessThanFriendsAvg": string;
 
   // Onboarding
   "onboarding.skip": string;
@@ -4244,6 +4249,10 @@ const translations: Record<Language, Translations> = {
     "notifications.settings.condition.lessThanFriendsAvg.body":
       "Notify when this relationship has fewer moments than the average of your friendships. This helps maintain balance between romantic relationships and friendships.",
     "notifications.settings.sphere": "Sfera",
+    "notifications.reason.noRecent": "No memories logged in the past {days} days",
+    "notifications.reason.belowAvg": "Memories below average for this sphere",
+    "notifications.reason.lessThanJob": "Fewer memories than your job",
+    "notifications.reason.lessThanFriendsAvg": "Fewer memories than friends average",
 
     // Onboarding
     "onboarding.skip": "Skip",
@@ -8518,6 +8527,10 @@ const translations: Record<Language, Translations> = {
     "notifications.settings.condition.lessThanFriendsAvg.body":
       "Известява, когато тази връзка има по-малко моменти от средното на вашите приятелства. Това помага да се поддържа баланс между романтични връзки и приятелства.",
     "notifications.settings.sphere": "Сфера",
+    "notifications.reason.noRecent": "Няма спомени през последните {days} дни",
+    "notifications.reason.belowAvg": "Спомени под средното за тази сфера",
+    "notifications.reason.lessThanJob": "По-малко спомени от работата",
+    "notifications.reason.lessThanFriendsAvg": "По-малко спомени от средното за приятелите",
 
     // Onboarding
     "onboarding.skip": "Пропусни",

@@ -20,6 +20,7 @@ import { processHomeEncouragementPrompt } from "@/utils/ai-service";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
 import { logError } from "@/utils/error-logger";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
+import { useNotificationsManager } from "@/utils/NotificationsProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import {
@@ -38,6 +39,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import { Image } from "expo-image";
+import * as Notifications from "expo-notifications";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
@@ -50,8 +52,10 @@ import React, {
   useState,
 } from "react";
 import {
+  Alert,
   AppState,
   Dimensions,
+  InteractionManager,
   Modal,
   PanResponder,
   Pressable,
@@ -11162,6 +11166,13 @@ export default function HomeScreen() {
   } = useJourney();
   const t = useTranslate();
   const { language: appLanguage } = useLanguage();
+  const {
+    pendingNotificationFromTap,
+    setPendingNotificationFromTap,
+    notificationAlertScheduledRef,
+    notificationResponseHandledByLayoutRef,
+    pendingAlertFromLayoutRef,
+  } = useNotificationsManager();
 
   // Streak feature state
   const [streakData, setStreakData] = useState<StreakData | null>(null);
@@ -11200,6 +11211,11 @@ export default function HomeScreen() {
     loadStreakData();
   }, [loadStreakData]);
 
+  useEffect(() => {
+    console.log("[NotifTap] home tab mounted");
+    return () => console.log("[NotifTap] home tab unmounting");
+  }, []);
+
   // Track app state to pause/resume intervals when app backgrounds/foregrounds
   const [isAppActive, setIsAppActive] = useState(true);
 
@@ -11215,6 +11231,89 @@ export default function HomeScreen() {
 
   // Track if this is the first app launch (splash screen shown)
   const isFirstLaunchRef = useRef(true);
+
+  // When user opened app by tapping a scheduled notification, show alert and mark as seen on OK.
+  // Use ref from provider so it survives home tab remount (only one alert per tap).
+  // Check pendingAlertFromLayoutRef first (set synchronously by _layout) so we show alert even if state hasn't propagated.
+  useEffect(() => {
+    const fromLayout = pendingAlertFromLayoutRef.current;
+    const pending = pendingNotificationFromTap;
+    const now = Date.now();
+    console.log("[NotifTap] home effect run", {
+      hasFromLayout: !!fromLayout,
+      hasPending: !!pending,
+      pendingTitle: pending?.title ?? fromLayout?.title,
+      scheduledFor: notificationAlertScheduledRef.current?.title ?? null,
+      scheduledAt: notificationAlertScheduledRef.current ? now - notificationAlertScheduledRef.current.at : null,
+    });
+    // Prefer ref so we don't depend on state propagation after navigation
+    const toShow = fromLayout ?? pending;
+    if (!toShow) return;
+    // Clear layout ref so we don't double-show; when fromLayout we clear pending too so effect re-run gets toShow=null.
+    // For fromLayout we must not clear the timeout in cleanup (so alert still fires after re-run).
+    if (fromLayout) {
+      pendingAlertFromLayoutRef.current = null;
+      setPendingNotificationFromTap(null);
+    }
+    const title = toShow.title || "Sferas";
+    const message =
+      toShow.body || toShow.title || "Check in with your sphere today";
+    const prev = notificationAlertScheduledRef.current;
+    if (prev && prev.title === title && now - prev.at < 2500) {
+      // Duplicate: another run already scheduled. That timeout may have been cleared on unmount,
+      // so we still schedule one alert; clear pending in timeout so effect re-run doesn't cancel timer.
+      console.log("[NotifTap] home skip duplicate (scheduling one alert for this tap)");
+      const t = setTimeout(() => {
+        console.log("[NotifTap] home showing Alert.alert now (from dedupe path)", { title });
+        notificationAlertScheduledRef.current = null;
+        setPendingNotificationFromTap(null);
+        Alert.alert(title, message, [{ text: "OK", onPress: () => {} }]);
+      }, 150);
+      return () => {
+        if (!fromLayout) clearTimeout(t);
+      };
+    }
+    notificationAlertScheduledRef.current = { title, at: now };
+    console.log("[NotifTap] home scheduling single alert in 150ms", { title, messageLen: message.length });
+    const t = setTimeout(() => {
+      console.log("[NotifTap] home showing Alert.alert now", { title });
+      notificationAlertScheduledRef.current = null;
+      setPendingNotificationFromTap(null);
+      Alert.alert(title, message, [{ text: "OK", onPress: () => {} }]);
+    }, 150);
+    // When we used fromLayout we cleared pending above, so effect will re-run and cleanup would cancel the timer; don't cancel so alert still shows
+    return () => {
+      if (!fromLayout) clearTimeout(t);
+    };
+  }, [pendingNotificationFromTap, setPendingNotificationFromTap, notificationAlertScheduledRef, pendingAlertFromLayoutRef]);
+
+  // Cold start fallback only when _layout did not handle (e.g. app was killed). Skip when opened from background.
+  useEffect(() => {
+    console.log("[NotifTap] home cold-start fallback: scheduling getLastNotificationResponseAsync in 600ms");
+    const id = setTimeout(async () => {
+      if (notificationResponseHandledByLayoutRef.current) {
+        console.log("[NotifTap] home cold-start skip (_layout already handled, opened from background)");
+        return;
+      }
+      const response = await Notifications.getLastNotificationResponseAsync();
+      console.log("[NotifTap] home cold-start getLastNotificationResponseAsync resolved", {
+        hasResponse: !!response,
+        type: response?.notification?.request?.content?.data ? (response.notification.request.content.data as { type?: string }).type : undefined,
+      });
+      if (!response) return;
+      const data = (response.notification.request.content.data || {}) as { type?: string };
+      if (data.type !== "entity_reminder") {
+        console.log("[NotifTap] home cold-start ignoring type", data.type);
+        return;
+      }
+      await Notifications.clearLastNotificationResponseAsync();
+      const title = response.notification.request.content.title ?? "";
+      const body = response.notification.request.content.body ?? "";
+      console.log("[NotifTap] home cold-start setting pending", { title, bodyLen: body.length });
+      setPendingNotificationFromTap({ title, body });
+    }, 600);
+    return () => clearTimeout(id);
+  }, [setPendingNotificationFromTap, notificationResponseHandledByLayoutRef]);
 
   // Check for first launch and show walkthrough if no data exists
   // This runs whenever the screen comes into focus

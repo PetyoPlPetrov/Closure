@@ -4,7 +4,10 @@ import * as Notifications from "expo-notifications";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+    AppState,
+    AppStateStatus,
     Dimensions,
+    InteractionManager,
     Modal,
     Platform,
     Pressable,
@@ -34,6 +37,8 @@ import { showPaywallForPlusAccess } from "@/utils/premium-access";
 export const options = {
   headerShown: true,
 };
+
+const NOTIF_SCREEN_LOG = "[NotifScreen]";
 
 export default function NotificationDetailScreen() {
   const t = useTranslate();
@@ -81,6 +86,7 @@ export default function NotificationDetailScreen() {
     checkCondition,
     getNextTriggerDate,
     getScheduledNotifications,
+    refreshSchedules,
   } = useNotificationsManager();
   const { ensureSubscriptionResolved } = useSubscription();
 
@@ -138,6 +144,12 @@ export default function NotificationDetailScreen() {
   );
 
   useEffect(() => {
+    console.log(NOTIF_SCREEN_LOG, "mount", { sphere, entityId, entityName });
+    return () => console.log(NOTIF_SCREEN_LOG, "unmount", { entityId });
+  }, [entityId, entityName, sphere]);
+
+  useEffect(() => {
+    console.log(NOTIF_SCREEN_LOG, "sync effect run", { kind: currentOverride?.kind, entityId });
     if (currentOverride?.kind === "custom") {
       const { template } = currentOverride;
       setCustomDraft({
@@ -155,7 +167,7 @@ export default function NotificationDetailScreen() {
     } else {
       isInitializing.current = false;
     }
-  }, [currentOverride]);
+  }, [currentOverride, entityId]);
 
   const updateCustomDraft = useCallback(
     (patch: Partial<Omit<NotificationTemplate, "id">>) => {
@@ -164,10 +176,25 @@ export default function NotificationDetailScreen() {
     [],
   );
 
+  // Persist current draft to assignments immediately (so scheduling uses latest options).
+  // Call when user confirms a change (e.g. time picker Done) so we don't rely only on debounce.
+  const persistDraftIfCustom = useCallback(async () => {
+    if (currentOverride?.kind === "custom") {
+      await setOverride(sphere, entityId, {
+        kind: "custom",
+        template: { ...customDraft, id: `custom_${entityId}` },
+      });
+      // Reschedule immediately so the new time is applied before user might background the app
+      await refreshSchedules();
+    }
+  }, [currentOverride?.kind, customDraft, entityId, refreshSchedules, setOverride, sphere]);
+
   const handleToggleNotifications = async () => {
+    console.log(NOTIF_SCREEN_LOG, "handleToggleNotifications", { entityId, turningOff: currentOverride?.kind === "custom" });
     if (currentOverride?.kind === "custom") {
       // Turn off notifications
       await setOverride(sphere, entityId, { kind: "none" });
+      console.log(NOTIF_SCREEN_LOG, "handleToggleNotifications done (off)", { entityId });
     } else {
       // Turn on notifications - check subscription first
       const { hasEntityLimitEntitlement } =
@@ -212,31 +239,40 @@ export default function NotificationDetailScreen() {
       logNotificationTurnedOn(sphere, entityType).catch(() => {
         // Failed to log event
       });
+      console.log(NOTIF_SCREEN_LOG, "handleToggleNotifications done (on)", { entityId });
     }
   };
 
-  // Auto-save changes when draft is updated (only if notifications are enabled)
+  // Auto-save changes when draft is updated by user (skip when we just synced from currentOverride to avoid loop)
+  const templateKey = (t: Omit<NotificationTemplate, "id">) =>
+    JSON.stringify({
+      timeOfDay: t.timeOfDay,
+      weekDay: t.weekDay,
+      frequencyDays: t.frequencyDays,
+      condition: t.condition,
+      noRecentDays: t.noRecentDays,
+      message: (t as any).message ?? "",
+      soundEnabled: t.soundEnabled !== false,
+    });
   useEffect(() => {
     if (!isInitializing.current && currentOverride?.kind === "custom") {
       const saveChanges = async () => {
+        const tpl = currentOverride?.kind === "custom" ? currentOverride.template : null;
+        if (tpl && templateKey(customDraft) === templateKey(tpl)) {
+          console.log(NOTIF_SCREEN_LOG, "auto-save skipped (draft unchanged)");
+          return;
+        }
+        console.log(NOTIF_SCREEN_LOG, "auto-save running setOverride", { entityId });
         await setOverride(sphere, entityId, {
           kind: "custom",
           template: { ...customDraft, id: `custom_${entityId}` },
         });
       };
 
-      // Debounce the save to avoid excessive updates
       const timeoutId = setTimeout(saveChanges, 500);
       return () => clearTimeout(timeoutId);
     }
-  }, [
-    customDraft,
-    currentOverride?.kind,
-    entityId,
-    isInitializing,
-    setOverride,
-    sphere,
-  ]);
+  }, [customDraft, currentOverride, entityId, isInitializing, setOverride, sphere]);
 
   const handleBackPress = useCallback(() => {
     if (router.canGoBack()) {
@@ -274,8 +310,10 @@ export default function NotificationDetailScreen() {
     checkCondition,
   ]);
 
-  // Countdown timer for dev mode
+  // Countdown timer for dev mode only – use persisted template (currentOverride), not draft, so timer updates only on Done
   const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastCountdownRef = useRef<number>(-1);
 
   // Format seconds to human-readable format (e.g., "1d 2h 30m 15s" or "5m 30s" or "45s")
   const formatCountdown = useCallback((totalSeconds: number): string => {
@@ -296,24 +334,71 @@ export default function NotificationDetailScreen() {
   }, []);
 
   useEffect(() => {
+    console.log(NOTIF_SCREEN_LOG, "countdown effect run", {
+      __DEV__,
+      isConditionMet,
+      kind: currentOverride?.kind,
+      entityId,
+    });
+    if (!__DEV__) {
+      setCountdown(null);
+      return;
+    }
     if (isConditionMet && currentOverride?.kind === "custom") {
+      const template = currentOverride.template;
+      const templateWithId = { ...template, id: `custom_${entityId}` };
+
       const updateCountdown = () => {
-        const nextTriggerDate = getNextTriggerDate(customDraft);
+        const nextTriggerDate = getNextTriggerDate(templateWithId);
         const now = new Date();
         const secondsUntilTrigger = Math.floor(
           (nextTriggerDate.getTime() - now.getTime()) / 1000,
         );
-        setCountdown(secondsUntilTrigger > 0 ? secondsUntilTrigger : 0);
+        const value =
+          secondsUntilTrigger > 0 && Number.isFinite(secondsUntilTrigger)
+            ? secondsUntilTrigger
+            : 0;
+        if (value !== lastCountdownRef.current) {
+          lastCountdownRef.current = value;
+          setCountdown(value);
+        }
       };
 
-      updateCountdown();
-      const interval = setInterval(updateCountdown, 1000);
+      const startInterval = () => {
+        if (countdownIntervalRef.current) return;
+        console.log(NOTIF_SCREEN_LOG, "countdown startInterval", { entityId });
+        updateCountdown();
+        countdownIntervalRef.current = setInterval(updateCountdown, 1000);
+      };
 
-      return () => clearInterval(interval);
+      const stopInterval = () => {
+        if (countdownIntervalRef.current) {
+          console.log(NOTIF_SCREEN_LOG, "countdown stopInterval", { entityId });
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+      };
+
+      startInterval();
+
+      const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
+        console.log(NOTIF_SCREEN_LOG, "AppState change", { state, entityId });
+        if (state === "background" || state === "inactive") {
+          stopInterval();
+        } else if (state === "active") {
+          lastCountdownRef.current = -1;
+          InteractionManager.runAfterInteractions(() => startInterval());
+        }
+      });
+
+      return () => {
+        stopInterval();
+        sub.remove();
+      };
     } else {
       setCountdown(null);
     }
-  }, [isConditionMet, currentOverride?.kind, customDraft, getNextTriggerDate]);
+  }, [isConditionMet, currentOverride, entityId, getNextTriggerDate]);
 
   return (
     <TabScreenContainer>
@@ -537,12 +622,14 @@ export default function NotificationDetailScreen() {
                     animationType="slide"
                     onRequestClose={() => {
                       setShowTimePicker(false);
+                      persistDraftIfCustom();
                     }}
                   >
                     <Pressable
                       style={styles.timePickerOverlay}
                       onPress={() => {
                         setShowTimePicker(false);
+                        persistDraftIfCustom();
                       }}
                     >
                       <Pressable
@@ -553,6 +640,7 @@ export default function NotificationDetailScreen() {
                           <TouchableOpacity
                             onPress={() => {
                               setShowTimePicker(false);
+                              persistDraftIfCustom();
                             }}
                           >
                             <ThemedText

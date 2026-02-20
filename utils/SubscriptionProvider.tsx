@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus, InteractionManager } from "react-native";
 import type {
   CustomerInfo,
   PurchasesOffering,
@@ -405,8 +405,9 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         console.log(
           "[SubscriptionProvider] App came to foreground, refreshing subscription status...",
         );
-        // Refresh subscription status to catch any expirations that occurred in background
-        checkSubscription();
+        InteractionManager.runAfterInteractions(() => {
+          checkSubscription();
+        });
       }
       appState.current = nextAppState;
     };
