@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
-import { createContext, type MutableRefObject, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, AppStateStatus, InteractionManager } from 'react-native';
 
 import { useLanguage } from './languages/language-context';
@@ -62,13 +62,6 @@ type NotificationContextType = {
   checkCondition: (entityId: string, sphere: LifeSphere, condition: string, noRecentDays?: number) => boolean;
   getNextTriggerDate: (template: NotificationTemplate) => Date;
   getScheduledNotifications: () => Promise<Notifications.NotificationRequest[]>;
-  /** Set when user taps a scheduled entity_reminder; home tab shows alert and clears on OK */
-  pendingNotificationFromTap: { title: string; body: string } | null;
-  setPendingNotificationFromTap: (n: { title: string; body: string } | null) => void;
-  notificationAlertScheduledRef: MutableRefObject<{ title: string; at: number } | null>;
-  notificationResponseHandledByLayoutRef: MutableRefObject<boolean>;
-  /** Set synchronously by _layout when handling tap so home can show alert even before state propagates */
-  pendingAlertFromLayoutRef: MutableRefObject<{ title: string; body: string } | null>;
 };
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -77,14 +70,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
   const [assignments, setAssignments] = useState<AssignmentsState>({});
   const [isScheduling, setIsScheduling] = useState(false);
-  const [pendingNotificationFromTap, setPendingNotificationFromTap] = useState<{
-    title: string;
-    body: string;
-  } | null>(null);
   const lastForegroundAtRef = useRef(0);
-  const notificationAlertScheduledRef = useRef<{ title: string; at: number } | null>(null);
-  const notificationResponseHandledByLayoutRef = useRef(false);
-  const pendingAlertFromLayoutRef = useRef<{ title: string; body: string } | null>(null);
   const journey = useJourney();
   const { language } = useLanguage();
 
@@ -463,11 +449,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       checkCondition,
       getNextTriggerDate,
       getScheduledNotifications,
-      pendingNotificationFromTap,
-      setPendingNotificationFromTap,
-      notificationAlertScheduledRef,
-      notificationResponseHandledByLayoutRef,
-      pendingAlertFromLayoutRef,
     }),
     [
       templates,
@@ -482,8 +463,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       checkCondition,
       getNextTriggerDate,
       getScheduledNotifications,
-      pendingNotificationFromTap,
-      setPendingNotificationFromTap,
     ]
   );
 

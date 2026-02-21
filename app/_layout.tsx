@@ -15,7 +15,7 @@ import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef } from "react";
-import { Platform } from "react-native";
+import { InteractionManager, Platform } from "react-native";
 import "react-native-reanimated";
 
 import { AIInsightsConsentProvider } from "@/utils/AIInsightsConsentProvider";
@@ -24,7 +24,7 @@ import { handleDevError } from "@/utils/dev-error-handler";
 import { InAppNotificationProvider } from "@/utils/InAppNotificationProvider";
 import { JourneyProvider, LifeSphere } from "@/utils/JourneyProvider";
 import { LanguageProvider } from "@/utils/languages/language-context";
-import { NotificationsProvider, useNotificationsManager } from "@/utils/NotificationsProvider";
+import { NotificationsProvider } from "@/utils/NotificationsProvider";
 import {
     SplashAnimationProvider,
     useSplash,
@@ -52,7 +52,6 @@ export const unstable_settings = {
 function AppContent() {
   const { hideSplash, isAnimationComplete } = useSplash();
   const { colorScheme } = useTheme();
-  const { setPendingNotificationFromTap, notificationResponseHandledByLayoutRef, pendingAlertFromLayoutRef } = useNotificationsManager();
   const notificationListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
@@ -93,29 +92,23 @@ function AppContent() {
     }
   }, [hideSplash, isAnimationComplete]);
 
-  // Handle notification deep linking (tap when app in background) and cold start (app opened from killed state by tap)
+  // Handle notification deep linking (tap when app in background) and cold start (app opened from killed state by tap).
+  // Navigate to the entity's notification (edit) screen so the user lands in the right place.
   useEffect(() => {
-    const handleNotificationResponse = (response: Notifications.NotificationResponse, source: string) => {
+    const handleNotificationResponse = (response: Notifications.NotificationResponse) => {
       const content = response.notification.request.content;
       const data = content.data as { type?: string; entityId?: string; sphere?: string };
-      if (data.type === "entity_reminder") {
-        notificationResponseHandledByLayoutRef.current = true;
-        const title = content.title ?? "";
-        const body = content.body ?? "";
-        // Set ref synchronously so home tab can show alert even if state hasn't propagated yet
-        pendingAlertFromLayoutRef.current = { title, body };
-        setPendingNotificationFromTap({ title, body });
-        // Defer navigation to next tick so the response handler returns and the UI doesn't freeze
-        setTimeout(() => {
-          router.replace("/(tabs)");
-        }, 0);
+      if (data.type === "entity_reminder" && data.entityId && data.sphere) {
+        InteractionManager.runAfterInteractions(() => {
+          router.replace(`/notifications/${data.sphere}/${data.entityId}`);
+        });
       }
     };
 
     // Cold start: app was killed and user opened it by tapping a notification.
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (response) {
-        handleNotificationResponse(response, "cold-start");
+        handleNotificationResponse(response);
         void Notifications.clearLastNotificationResponseAsync();
       }
     });
@@ -125,14 +118,14 @@ function AppContent() {
 
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        handleNotificationResponse(response, "response-listener");
+        handleNotificationResponse(response);
       });
 
     return () => {
       notificationListener.current?.remove();
       responseListener.current?.remove();
     };
-  }, [setPendingNotificationFromTap, notificationResponseHandledByLayoutRef, pendingAlertFromLayoutRef]);
+  }, []);
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>

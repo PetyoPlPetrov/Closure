@@ -299,6 +299,7 @@ export default function NotificationDetailScreen() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastCountdownRef = useRef<number>(-1);
+  const countdownActiveCleanupRef = useRef<(() => void) | null>(null);
 
   // Format seconds to human-readable format (e.g., "1d 2h 30m 15s" or "5m 30s" or "45s")
   const formatCountdown = useCallback((totalSeconds: number): string => {
@@ -345,6 +346,7 @@ export default function NotificationDetailScreen() {
 
       const startInterval = () => {
         if (countdownIntervalRef.current) return;
+        lastCountdownRef.current = -1;
         updateCountdown();
         countdownIntervalRef.current = setInterval(updateCountdown, 1000);
       };
@@ -356,18 +358,32 @@ export default function NotificationDetailScreen() {
         }
       };
 
+      // Always start from a clean state when effect runs (avoids stale interval after reopen)
+      stopInterval();
       startInterval();
 
       const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
         if (state === "background" || state === "inactive") {
+          countdownActiveCleanupRef.current?.();
+          countdownActiveCleanupRef.current = null;
           stopInterval();
         } else if (state === "active") {
-          lastCountdownRef.current = -1;
-          InteractionManager.runAfterInteractions(() => startInterval());
+          stopInterval();
+          countdownActiveCleanupRef.current?.();
+          // Restart after a short delay so we don't race with heavy foreground work (e.g. refreshSchedules).
+          // runAfterInteractions alone can fire very late when app is busy, so also use a short timeout.
+          const t = setTimeout(startInterval, 80);
+          const interaction = InteractionManager.runAfterInteractions(startInterval);
+          countdownActiveCleanupRef.current = () => {
+            clearTimeout(t);
+            interaction.cancel();
+          };
         }
       });
 
       return () => {
+        countdownActiveCleanupRef.current?.();
+        countdownActiveCleanupRef.current = null;
         stopInterval();
         sub.remove();
       };
