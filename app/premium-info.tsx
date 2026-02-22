@@ -45,34 +45,39 @@ export default function PremiumInfoScreen() {
     hasPlusEntitlement,
     hasAIEntitlement,
     primaryPlan,
+    isSubscribed,
     checkSubscription,
+    presentPaywall,
   } = useSubscription();
   const params = useLocalSearchParams<{ plan?: string }>();
   const forcePlan =
     params.plan === "plus" ? "plus" : params.plan === "ai" ? "ai" : null;
 
   const { activeBadgeKey, features } = useMemo(() => {
-    // Dev: force plan via URL param (e.g. ?plan=plus)
+    const hasPlus = hasPlusEntitlement || primaryPlan === "plus";
+    const hasAI = hasAIEntitlement || primaryPlan === "ai";
+
+    // Dev: force plan via URL param (e.g. ?plan=plus) – show plan features but badge must reflect actual subscription
     if (forcePlan === "plus") {
       return {
-        activeBadgeKey: "premium.activeBadge.plus" as const,
+        activeBadgeKey: (hasPlus ? "premium.activeBadge.plus" : "premium.plan.sferaPlus") as const,
         features: SFERA_PLUS_FEATURES,
       };
     }
     if (forcePlan === "ai") {
       return {
-        activeBadgeKey: "premium.activeBadge.ai" as const,
+        activeBadgeKey: (hasAI ? "premium.activeBadge.ai" : "premium.plan.sferaAI") as const,
         features: SFERA_AI_FEATURES,
       };
     }
-    // Use primaryPlan (product-based) so "Sfera Plus" shows when user bought Plus
-    if (primaryPlan === "ai") {
+    // No force plan: use actual subscription status
+    if (primaryPlan === "ai" || hasAI) {
       return {
         activeBadgeKey: "premium.activeBadge.ai" as const,
         features: SFERA_AI_FEATURES,
       };
     }
-    if (primaryPlan === "plus" || hasPlusEntitlement) {
+    if (primaryPlan === "plus" || hasPlus) {
       return {
         activeBadgeKey: "premium.activeBadge.plus" as const,
         features: SFERA_PLUS_FEATURES,
@@ -83,6 +88,15 @@ export default function PremiumInfoScreen() {
       features: SFERA_AI_FEATURES,
     };
   }, [hasPlusEntitlement, hasAIEntitlement, primaryPlan, forcePlan]);
+
+  // When user has no plan, show the paywall on open
+  useEffect(() => {
+    if (!isSubscribed) {
+      presentPaywall().then((success) => {
+        if (success) checkSubscription();
+      });
+    }
+  }, [isSubscribed, presentPaywall, checkSubscription]);
 
   const styles = useMemo(
     () => createStyles(colors, colorScheme ?? "dark", fontScale),

@@ -216,9 +216,10 @@ export function OnboardingStepper({
         overlay: {
           flex: 1,
           backgroundColor: "rgba(0, 0, 0, 0.75)",
-          justifyContent: "center",
+          justifyContent: "flex-start",
           alignItems: "center",
           padding: 20 * fontScale,
+          paddingTop: 48 * fontScale,
         },
         container: {
           backgroundColor:
