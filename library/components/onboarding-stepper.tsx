@@ -219,7 +219,7 @@ export function OnboardingStepper({
           justifyContent: "flex-start",
           alignItems: "center",
           padding: 20 * fontScale,
-          paddingTop: 48 * fontScale,
+          paddingTop: 80 * fontScale,
         },
         container: {
           backgroundColor:
@@ -228,7 +228,7 @@ export function OnboardingStepper({
           padding: 28 * fontScale,
           width: "100%",
           maxWidth: 420 * fontScale,
-          height: 580 * fontScale,
+          height: 720 * fontScale,
           position: "relative",
           overflow: "hidden",
         },

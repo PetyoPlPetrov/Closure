@@ -1,7 +1,7 @@
 import { logEntityCreated, logMemoryCreated, logMemoryDeleted, logMomentCreated } from '@/utils/analytics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
-import { showPaywallForAIAccess } from '@/utils/premium-access';
+import { showPaywallForPlusAccess } from '@/utils/premium-access';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 
 /** Max memories per entity for users without Sfera AI plan. */
@@ -320,7 +320,7 @@ interface JourneyProviderProps {
 }
 
 export function JourneyProvider({ children }: JourneyProviderProps) {
-  const { hasAIEntitlement, checkSubscription } = useSubscription();
+  const { hasPlusEntitlement, hasAIEntitlement, checkSubscription } = useSubscription();
   const [profiles, isLoading, error, setProfiles] = useProfiles();
   const [idealizedMemories, setIdealizedMemories] = useState<IdealizedMemory[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -799,16 +799,17 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         existingMemories = idealizedMemories;
       }
 
-      // Enforce 5-memory limit per entity for users without Sfera AI plan (skip when called from AI modal)
+      // Enforce 5-memory limit per entity for users without Plus or AI (both include unlimited; skip when called from AI modal)
+      const hasEntityLimitEntitlement = hasPlusEntitlement || hasAIEntitlement;
       const memoryCountForEntity = existingMemories.filter(
         (m) => m.entityId === entityId && m.sphere === sphere
       ).length;
       if (
         !options?.bypassMemoryLimit &&
-        !hasAIEntitlement &&
+        !hasEntityLimitEntitlement &&
         memoryCountForEntity >= MEMORY_LIMIT_PER_ENTITY_FREE
       ) {
-        const purchased = await showPaywallForAIAccess();
+        const purchased = await showPaywallForPlusAccess();
         if (!purchased) {
           return null;
         }
@@ -863,6 +864,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       saveIdealizedMemoriesToStorage,
       updateProfile,
       idealizedMemories,
+      hasPlusEntitlement,
       hasAIEntitlement,
       checkSubscription,
     ]
