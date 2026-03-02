@@ -108,9 +108,10 @@ export function MomentColorsProvider({
   );
 }
 
+/** Returns custom moment colors when user has any subscription (Plus or AI); otherwise defaults. */
 export function useMomentColors() {
   const ctx = useContext(MomentColorsContext);
-  const { isSubscribed } = useSubscription();
+  const { isSubscribed } = useSubscription(); // true for Sfera Plus OR Sfera AI
 
   return useMemo(
     () =>

@@ -400,7 +400,7 @@ export default function MomentColorsScreen() {
   const t = useTranslate();
   const { momentColors, setMomentColor, resetToDefaults } = useMomentColorsRaw();
   const { recent, addRecent } = useRecentColors();
-  const { isSubscribed } = useSubscription();
+  const { isSubscribed } = useSubscription(); // true for Sfera Plus OR Sfera AI — both can save colors
 
   // Draft state per section — initially matches saved colors
   const [draftColors, setDraftColors] = useState<MomentColors>(() => ({
@@ -439,6 +439,7 @@ export default function MomentColorsScreen() {
 
   const handleSave = useCallback(
     async (key: keyof MomentColors) => {
+      // Show paywall only if no subscription (Plus or AI both allow saving)
       if (!isSubscribed) {
         const purchased = await showPaywallForPlusAccess();
         if (!purchased) return;
