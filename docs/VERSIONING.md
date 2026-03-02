@@ -31,9 +31,13 @@ The **app version** (e.g. `1.0.131`) is the **native build** version. It only ch
    - For **store releases**: note version `1.0.132` and what’s in that binary.
    - For **OTA**: keep a simple log (e.g. in Notion/GitHub/Docs): “2024-03-02: Fix settings crash (production channel).” No need to bump app version for these.
 
+## OTA and builds
+
+We use a single build: `npm run build:ios` (production profile, version bump on each build). TestFlight and App Store both use the **production** channel. When you run `npm run update:production -- "message"`, the OTA goes to all installs (TestFlight and live). Run it only when you are ready to update everyone.
+
 ## Summary
 
-- **Version in app.json** = “which store build” (bump only for new store submissions).
-- **OTA** = “which JS bundle” (no version bump; track via EAS dashboard + optional update ID in Settings).
+- **Version in app.json** = which store build; `build:ios` bumps version on each build.
+- **OTA** = which JS bundle (no version bump in app.json for OTA-only); use `update:production` when you want to push to all users.
 
 This matches current best practice: one version number per binary, many OTA updates per version.

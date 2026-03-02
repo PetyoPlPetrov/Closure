@@ -15,7 +15,7 @@ import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef } from "react";
-import { InteractionManager, Platform } from "react-native";
+import { AppState, type AppStateStatus, InteractionManager, Platform } from "react-native";
 import "react-native-reanimated";
 
 import { AIInsightsConsentProvider } from "@/utils/AIInsightsConsentProvider";
@@ -23,7 +23,7 @@ import { initializeAppCheckService, verifyAppCheck } from "@/utils/app-check";
 import { handleDevError } from "@/utils/dev-error-handler";
 import { InAppNotificationProvider } from "@/utils/InAppNotificationProvider";
 import { checkForUpdateAndReload } from "@/utils/updates";
-import { JourneyProvider, LifeSphere } from "@/utils/JourneyProvider";
+import { JourneyProvider } from "@/utils/JourneyProvider";
 import { MomentColorsProvider } from "@/utils/MomentColorsProvider";
 import { LanguageProvider } from "@/utils/languages/language-context";
 import { NotificationsProvider } from "@/utils/NotificationsProvider";
@@ -75,14 +75,21 @@ function AppContent() {
     initializeServices();
   }, []);
 
-  // EAS Update: check for OTA update after app is ready (production only; applies and reloads if available)
+  // EAS Update: check for OTA on launch (after splash) and when app comes to foreground
   useEffect(() => {
     if (!isAnimationComplete) return;
     const t = setTimeout(() => {
       void checkForUpdateAndReload();
-    }, 4000);
+    }, 2000);
     return () => clearTimeout(t);
   }, [isAnimationComplete]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
+      if (state === "active") void checkForUpdateAndReload();
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     // Wait for animation to complete, then hide splash

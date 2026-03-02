@@ -2016,7 +2016,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Moment Colors Section */}
+        {/* Moments Colors Section */}
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
             {t("settings.momentColors.title")}

@@ -665,7 +665,7 @@ export interface Translations {
   "onboarding.ai.title": string;
   "onboarding.ai.message": string;
 
-  // Settings - Moment Colors
+  // Settings - Moments Colors
   "settings.momentColors.title": string;
   "settings.momentColors.sunny": string;
   "settings.momentColors.cloudy": string;
@@ -4312,8 +4312,8 @@ const translations: Record<Language, Translations> = {
     "onboarding.ai.message":
       "Sferas AI and Voice-to-Text are now here to help you transform your spoken stories into structured memories, organised moments and lasting lessons instantly!",
 
-    // Settings - Moment Colors
-    "settings.momentColors.title": "Moment Colors",
+    // Settings - Moments Colors
+    "settings.momentColors.title": "Moments Colors",
     "settings.momentColors.sunny": "Sunny Moments",
     "settings.momentColors.cloudy": "Cloudy Moments",
     "settings.momentColors.lesson": "Lessons",
@@ -8610,7 +8610,7 @@ const translations: Record<Language, Translations> = {
     "onboarding.ai.message":
       "Sferas AI и глас към текст вече са тук, за да ви помогнат да превърнете разказаните си истории в структурирани спомени, организирани моменти и трайни уроци мигновено!",
 
-    // Settings - Moment Colors
+    // Settings - Moments Colors
     "settings.momentColors.title": "Цветове на моменти",
     "settings.momentColors.sunny": "Слънчеви моменти",
     "settings.momentColors.cloudy": "Облачни моменти",

@@ -19,7 +19,7 @@
     "bump:version": "node ./scripts/bump-version.js",
     "build:android": "eas build --platform android --profile production --local",
     "build:ios": "npm run clean:ios && npm run bump:version && exec eas build --platform ios --profile production --local --clear-cache",
-    "build:ios:preview": "npm run clean:ios && eas build --platform ios --profile preview --local",
+    "update": "eas update --channel preview --message",
     "update:preview": "eas update --channel preview --message",
     "update:production": "eas update --channel production --message",
     "phone": "npx expo run:ios --device '00008140-0014346822E3001C'"

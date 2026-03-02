@@ -35,19 +35,18 @@ npm run web              # Run on web
 npm run prebuild         # Generate native projects
 npm run build:android    # Build Android production locally
 npm run build:ios        # Bump version and build iOS production locally
-npm run build:ios:preview # Build iOS preview locally
 ```
 
 ### Over-the-Air Updates (EAS Update)
 
-OTA updates are configured. Builds use channels: `development`, `preview`, `production`. To publish an update (JS/assets only; no native changes):
+OTA updates are configured. We use a single build (`build:ios`), so TestFlight and App Store both use the **production** channel. Publish an OTA only when you want it to go to all users (TestFlight + live):
 
 ```bash
-npm run update:preview -- "Describe the update"     # Preview channel
-npm run update:production -- "Describe the update"  # Production channel
+npm run update:production -- "Describe the update"
 ```
 
-Or run `eas update --channel <channel> --message "..."` directly. Updates are checked on app load and applied after restart (or immediately via the in-app check in `utils/updates.ts`).
+Updates are checked on app load and when the app returns to foreground; if an update is available the app fetches and reloads to apply it. Run `npm run update:production` only when you're ready to roll out to everyone.
+
 
 **Versioning:** Bump `app.json` version only when creating a **new store build**, not for OTA. See `docs/VERSIONING.md` for the full strategy. Settings screen shows "App version" (native version + optional update ID) for support.
 
