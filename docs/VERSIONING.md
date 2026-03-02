@@ -33,7 +33,8 @@ The **app version** (e.g. `1.0.131`) is the **native build** version. It only ch
 
 ## OTA and builds
 
-We use a single build: `npm run build:ios` (production profile, version bump on each build). TestFlight and App Store both use the **production** channel. When you run `npm run update:production -- "message"`, the OTA goes to all installs (TestFlight and live). Run it only when you are ready to update everyone.
+- **Dev (TestFlight):** `npm run build:ios:dev` → preview build (no version bump). Submit to TestFlight. Use `npm run ota:update:dev -- "message"` to push OTAs to TestFlight only.
+- **Prod (App Store):** `npm run build:ios:prod` (or `npm run build:ios`) → production build (version bump). Submit to App Store. Use `npm run ota:update:prod -- "message"` when you want to update all users.
 
 ## Summary
 

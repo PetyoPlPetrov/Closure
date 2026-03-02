@@ -660,6 +660,8 @@ export interface Translations {
   "onboarding.insights.message": string;
   "onboarding.notifications.title": string;
   "onboarding.notifications.message": string;
+  "onboarding.momentsPersonalization.title": string;
+  "onboarding.momentsPersonalization.message": string;
   "onboarding.getStarted.title": string;
   "onboarding.getStarted.message": string;
   "onboarding.ai.title": string;
@@ -4305,6 +4307,9 @@ const translations: Record<Language, Translations> = {
     "onboarding.notifications.title": "Stay Connected",
     "onboarding.notifications.message":
       "Set reminders to keep in touch with important people or catch up on different life spheres. Never lose track of what matters most to you.",
+    "onboarding.momentsPersonalization.title": "Moments personalization",
+    "onboarding.momentsPersonalization.message":
+      "Adjust the colors of your sunny and cloudy moments to match your style. Pick background and text colors for each type so your moments look exactly how you want.",
     "onboarding.getStarted.title": "Ready to Begin?",
     "onboarding.getStarted.message":
       "Start by creating records in each sphere. Add partners, jobs, family members, friends, or hobbies to begin tracking your life's moments and discovering meaningful insights.",
@@ -8603,6 +8608,9 @@ const translations: Record<Language, Translations> = {
     "onboarding.notifications.title": "Оставайте свързани",
     "onboarding.notifications.message":
       "Задайте напомняния, за да поддържате връзка с важни хора или да наваксате с различни житейски сфери. Никога не губете от поглед това, което е най-важно за вас.",
+    "onboarding.momentsPersonalization.title": "Персонализация на моментите",
+    "onboarding.momentsPersonalization.message":
+      "Настройте цветовете на слънчевите и облачните моменти според стила си. Изберете цвят на фона и на текста за всеки тип, за да изглеждат моментите ви точно както искате.",
     "onboarding.getStarted.title": "Готови ли сте да започнете?",
     "onboarding.getStarted.message":
       "Започнете, като създадете записи във всяка сфера. Добавете партньори, работа, членове на семейството, приятели или хобита, за да започнете да проследявате житейските си моменти и да откривате смислени прозрения.",

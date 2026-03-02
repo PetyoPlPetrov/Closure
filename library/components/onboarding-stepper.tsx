@@ -42,6 +42,7 @@ type OnboardingStep = {
     | "recap"
     | "insights"
     | "notifications"
+    | "momentsColors"
     | "creating"
     | "wheel"
     | "ai";
@@ -90,6 +91,12 @@ const STEPS: OnboardingStep[] = [
     gifSource: "notifications",
     titleKey: "onboarding.notifications.title",
     messageKey: "onboarding.notifications.message",
+  },
+  {
+    showGif: true,
+    gifSource: "momentsColors",
+    titleKey: "onboarding.momentsPersonalization.title",
+    messageKey: "onboarding.momentsPersonalization.message",
   },
   {
     showGif: true,
@@ -548,6 +555,15 @@ export function OnboardingStepper({
                               ) : step.gifSource === "ai" ? (
                                 <Video
                                   source={require("@/ai.mov")}
+                                  style={styles.gif}
+                                  resizeMode={ResizeMode.CONTAIN}
+                                  shouldPlay
+                                  isLooping
+                                  isMuted
+                                />
+                              ) : step.gifSource === "momentsColors" ? (
+                                <Video
+                                  source={require("@/momentsColorsGiff.mp4")}
                                   style={styles.gif}
                                   resizeMode={ResizeMode.CONTAIN}
                                   shouldPlay
