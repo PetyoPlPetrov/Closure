@@ -26,6 +26,41 @@ import { isNativeModuleAvailable, Purchases } from "./revenuecat-wrapper";
 
 export type SubscriptionStatus = "loading" | "subscribed" | "not_subscribed";
 
+/** Serialize entitlements for readable logs (avoids [Object] in output) */
+function serializeEntitlementsForLog(entitlements: CustomerInfo["entitlements"]) {
+  const active = entitlements?.active ?? {};
+  const all = entitlements?.all ?? {};
+  return {
+    active: Object.fromEntries(
+      Object.entries(active).map(([k, v]) => [
+        k,
+        v
+          ? {
+              isActive: v.isActive,
+              expirationDate: v.expirationDate ?? null,
+              willRenew: v.willRenew ?? null,
+              productIdentifier: v.productIdentifier ?? null,
+              periodType: v.periodType ?? null,
+            }
+          : null,
+      ]),
+    ),
+    all: Object.fromEntries(
+      Object.entries(all).map(([k, v]) => [
+        k,
+        v
+          ? {
+              isActive: v.isActive,
+              expirationDate: v.expirationDate ?? null,
+              willRenew: v.willRenew ?? null,
+              productIdentifier: v.productIdentifier ?? null,
+            }
+          : null,
+      ]),
+    ),
+  };
+}
+
 function logSubscriptionInitInfo(
   offerings: PurchasesOfferings,
   customerInfo: CustomerInfo,
@@ -183,21 +218,22 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     });
     console.log(
       "[SubscriptionProvider] CustomerInfo (full) – permissions & plans:",
-      {
-        originalAppUserId: info.originalAppUserId,
-        requestDate: info.requestDate,
-        entitlements: {
-          active: info.entitlements?.active ?? {},
-          all: info.entitlements?.all ?? {},
+      JSON.stringify(
+        {
+          originalAppUserId: info.originalAppUserId,
+          requestDate: info.requestDate,
+          entitlements: serializeEntitlementsForLog(info.entitlements),
+          activeSubscriptions: info.activeSubscriptions ?? [],
+          allPurchasedProductIdentifiers:
+            info.allPurchasedProductIdentifiers ?? [],
+          allExpirationDates: info.allExpirationDates ?? {},
+          allPurchaseDates: info.allPurchaseDates ?? {},
+          latestExpirationDate: info.latestExpirationDate ?? null,
+          managementURL: info.managementURL ?? null,
         },
-        activeSubscriptions: info.activeSubscriptions ?? [],
-        allPurchasedProductIdentifiers:
-          info.allPurchasedProductIdentifiers ?? [],
-        allExpirationDates: info.allExpirationDates ?? {},
-        allPurchaseDates: info.allPurchaseDates ?? {},
-        latestExpirationDate: info.latestExpirationDate,
-        managementURL: info.managementURL,
-      },
+        null,
+        2,
+      ),
     );
   }, []);
 

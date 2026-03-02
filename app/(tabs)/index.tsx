@@ -12682,10 +12682,19 @@ export default function HomeScreen() {
   // Note: We no longer clear moments when selectedMomentType changes
   // All moment types remain visible, but only the selected type will pulse
 
+  // When user switches tab (e.g. to sunny moments), hide "grow all" overlay for other types
+  // so lessons don't keep pulsing when we're on sunny moments
+  useEffect(() => {
+    if (growAllMomentsType !== null && growAllMomentsType !== selectedMomentType) {
+      setGrowAllMomentsType(null);
+    }
+  }, [selectedMomentType, growAllMomentsType]);
+
   // Clear all moments immediately when spinning starts
   useEffect(() => {
     if (isSpinning) {
       setRandomMoments([]);
+      setGrowAllMomentsType(null);
     }
   }, [isSpinning]);
 
@@ -12714,6 +12723,7 @@ export default function HomeScreen() {
       !momentsAreBlocked
     ) {
       setRandomMoments([]);
+      setGrowAllMomentsType(null); // So "grow all" overlay doesn't show wrong type (e.g. lessons when on sunny)
       currentMomentIndices.current[selectedMomentType] = 0;
       prevSelectedMomentType.current = selectedMomentType;
     }
@@ -12722,9 +12732,10 @@ export default function HomeScreen() {
     prevWasMomentsBlocked.current = momentsAreBlocked;
 
     if (momentsAreBlocked) {
-      // Clear moments when selector is hidden or conditions prevent showing
+      // Clear moments when selector is hidden or app backgrounded
       if (showMomentTypeSelector === false || isAppActive === false) {
         setRandomMoments([]);
+        setGrowAllMomentsType(null); // Clear so on resume we don't show wrong type (e.g. all lessons when on sunny)
         prevSelectedMomentType.current = null;
       }
       // Reset indices when selector is hidden or when wheel is spinning
@@ -12748,6 +12759,7 @@ export default function HomeScreen() {
 
     if (totalCount === 0) {
       setRandomMoments([]);
+      setGrowAllMomentsType(null);
       return;
     }
 
@@ -17739,6 +17751,7 @@ export default function HomeScreen() {
           {animationsReady &&
             showMomentTypeSelector &&
             growAllMomentsType &&
+            growAllMomentsType === selectedMomentType &&
             !isSpinning &&
             !selectedLesson &&
             (() => {
