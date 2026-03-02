@@ -665,6 +665,25 @@ export interface Translations {
   "onboarding.ai.title": string;
   "onboarding.ai.message": string;
 
+  // Settings - Moment Colors
+  "settings.momentColors.title": string;
+  "settings.momentColors.sunny": string;
+  "settings.momentColors.cloudy": string;
+  "settings.momentColors.lesson": string;
+  "settings.momentColors.background": string;
+  "settings.momentColors.text": string;
+  "settings.momentColors.reset": string;
+  "settings.momentColors.preview": string;
+  "settings.momentColors.save": string;
+  "settings.momentColors.saved": string;
+  "settings.momentColors.sampleSunny": string;
+  "settings.momentColors.sampleCloudy": string;
+  "settings.momentColors.sampleLesson": string;
+  "settings.momentColors.custom": string;
+  "settings.momentColors.pickColor": string;
+  "settings.momentColors.confirm": string;
+  "settings.momentColors.recentColors": string;
+
   // Settings - Help Section
   "settings.help.title": string;
   "settings.help.viewGuide": string;
@@ -4292,6 +4311,25 @@ const translations: Record<Language, Translations> = {
     "onboarding.ai.title": "Sferas AI & Voice-to-Text",
     "onboarding.ai.message":
       "Sferas AI and Voice-to-Text are now here to help you transform your spoken stories into structured memories, organised moments and lasting lessons instantly!",
+
+    // Settings - Moment Colors
+    "settings.momentColors.title": "Moment Colors",
+    "settings.momentColors.sunny": "Sunny Moments",
+    "settings.momentColors.cloudy": "Cloudy Moments",
+    "settings.momentColors.lesson": "Lessons",
+    "settings.momentColors.background": "Background",
+    "settings.momentColors.text": "Text",
+    "settings.momentColors.reset": "Reset to Defaults",
+    "settings.momentColors.preview": "Preview",
+    "settings.momentColors.save": "Save",
+    "settings.momentColors.saved": "Saved!",
+    "settings.momentColors.sampleSunny": "A beautiful day at the park with family",
+    "settings.momentColors.sampleCloudy": "That difficult conversation we had",
+    "settings.momentColors.sampleLesson": "I learned to trust my instincts",
+    "settings.momentColors.custom": "Custom",
+    "settings.momentColors.pickColor": "Pick a Color",
+    "settings.momentColors.confirm": "Confirm",
+    "settings.momentColors.recentColors": "Recent",
 
     // Settings - Help Section
     "settings.help.title": "Help",
@@ -8571,6 +8609,25 @@ const translations: Record<Language, Translations> = {
     "onboarding.ai.title": "Sferas AI и глас към текст",
     "onboarding.ai.message":
       "Sferas AI и глас към текст вече са тук, за да ви помогнат да превърнете разказаните си истории в структурирани спомени, организирани моменти и трайни уроци мигновено!",
+
+    // Settings - Moment Colors
+    "settings.momentColors.title": "Цветове на моменти",
+    "settings.momentColors.sunny": "Слънчеви моменти",
+    "settings.momentColors.cloudy": "Облачни моменти",
+    "settings.momentColors.lesson": "Уроци",
+    "settings.momentColors.background": "Фон",
+    "settings.momentColors.text": "Текст",
+    "settings.momentColors.reset": "По подразбиране",
+    "settings.momentColors.preview": "Преглед",
+    "settings.momentColors.save": "Запази",
+    "settings.momentColors.saved": "Запазено!",
+    "settings.momentColors.sampleSunny": "Красив ден в парка със семейството",
+    "settings.momentColors.sampleCloudy": "Онзи труден разговор, който водихме",
+    "settings.momentColors.sampleLesson": "Научих се да вярвам на инстинктите си",
+    "settings.momentColors.custom": "Собствен",
+    "settings.momentColors.pickColor": "Избери цвят",
+    "settings.momentColors.confirm": "Потвърди",
+    "settings.momentColors.recentColors": "Скорошни",
 
     // Settings - Help Section
     "settings.help.title": "Помощ",

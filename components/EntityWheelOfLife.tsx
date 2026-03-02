@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
+import { useMomentColors } from '@/utils/MomentColorsProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, Image, Pressable, StyleSheet, View } from 'react-native';
@@ -95,11 +96,13 @@ export function EntityWheelOfLife({
   const momentIconSize = isTablet ? 60 : 50;
   const orbitRadius = isTablet ? 180 : 140;
 
-  // Moment types configuration
+  const { momentColors } = useMomentColors();
+
+  // Moment types configuration (uses custom colors)
   const momentTypes: MomentType[] = [
-    { type: 'lesson', icon: 'lightbulb', color: '#FFD700', label: 'Lesson' },
-    { type: 'sunny', icon: 'wb-sunny', color: '#FFA726', label: 'Sunny' },
-    { type: 'cloudy', icon: 'cloud', color: '#78909C', label: 'Cloudy' },
+    { type: 'lesson', icon: 'lightbulb', color: momentColors.lesson.background, label: 'Lesson' },
+    { type: 'sunny', icon: 'wb-sunny', color: momentColors.sunny.background, label: 'Sunny' },
+    { type: 'cloudy', icon: 'cloud', color: momentColors.cloudy.background, label: 'Cloudy' },
   ];
 
   // Collect all moments by type
@@ -394,8 +397,8 @@ export function EntityWheelOfLife({
         <Svg width={avatarSize + borderWidth * 2} height={avatarSize + borderWidth * 2} style={styles.progressCircle}>
           <Defs>
             <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <Stop offset="0%" stopColor="#FFA726" stopOpacity="1" />
-              <Stop offset="100%" stopColor="#FFD700" stopOpacity="1" />
+              <Stop offset="0%" stopColor={momentColors.sunny.background} stopOpacity="1" />
+              <Stop offset="100%" stopColor={momentColors.sunny.background} stopOpacity="1" />
             </LinearGradient>
           </Defs>
           <Circle
@@ -692,6 +695,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   totalConcurrent?: number;
 }) {
   const fontScale = useFontScale();
+  const { momentColors } = useMomentColors();
   const scale = useSharedValue(0);
   const positionX = useSharedValue(0);
   const positionY = useSharedValue(0);
@@ -816,8 +820,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
             width: finalWidth,
             height: finalHeight,
             borderRadius: finalWidth / 2,
-            backgroundColor: 'rgba(255, 215, 0, 0.55)',
-            shadowColor: '#FFD700',
+            backgroundColor: momentColors.sunny.background + '8C',
+            shadowColor: momentColors.sunny.background,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.8,
             shadowRadius: isTablet ? 12 : 9,
@@ -827,11 +831,11 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
             padding: finalWidth * 0.15,
           }}
         >
-          <MaterialIcons name="wb-sunny" size={finalWidth * 0.15} color="#FFD700" />
+          <MaterialIcons name="wb-sunny" size={finalWidth * 0.15} color={momentColors.sunny.background} />
           {text && (
             <ThemedText
               style={{
-                color: 'black',
+                color: momentColors.sunny.text,
                 fontSize: Math.max(11, Math.min(16, 12 + (textLength / 60))) * fontScale,
                 textAlign: 'center',
                 fontWeight: '700',
@@ -855,8 +859,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
             width: finalWidth,
             height: finalHeight,
             borderRadius: finalWidth * 0.3,
-            backgroundColor: 'rgba(44, 62, 80, 0.95)',
-            shadowColor: '#4A5568',
+            backgroundColor: momentColors.cloudy.background + 'F2',
+            shadowColor: momentColors.cloudy.background,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.7,
             shadowRadius: 10,
@@ -867,11 +871,11 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
             paddingVertical: finalHeight * 0.2,
           }}
         >
-          <MaterialIcons name="cloud" size={finalHeight * 0.3} color="rgba(255,255,255,0.9)" />
+          <MaterialIcons name="cloud" size={finalHeight * 0.3} color={momentColors.cloudy.text} />
           {text && (
             <ThemedText
               style={{
-                color: 'rgba(255,255,255,0.9)',
+                color: momentColors.cloudy.text,
                 fontSize: Math.max(12, Math.min(16, 14 + (textLength / 80))) * fontScale,
                 textAlign: 'center',
                 fontWeight: '500',
@@ -895,8 +899,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
           width: finalWidth,
           height: finalHeight,
           borderRadius: finalWidth / 2,
-          backgroundColor: 'rgba(255, 215, 0, 0.45)',
-          shadowColor: '#FFD700',
+          backgroundColor: momentColors.lesson.background + '73',
+          shadowColor: momentColors.lesson.background,
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.95,
           shadowRadius: isTablet ? 40 : 30,
@@ -906,11 +910,11 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
           padding: Math.max(8, finalWidth * 0.05),
         }}
       >
-        <MaterialIcons name="lightbulb" size={finalWidth * 0.25} color="#FFD700" />
+        <MaterialIcons name="lightbulb" size={finalWidth * 0.25} color={momentColors.lesson.background} />
         {text && (
           <ThemedText
             style={{
-              color: colorScheme === 'dark' ? '#1A1A1A' : '#000000',
+              color: momentColors.lesson.text,
               fontSize: Math.max(11, Math.min(14, 11 + (textLength / 50))) * fontScale,
               textAlign: 'center',
               fontWeight: '700',

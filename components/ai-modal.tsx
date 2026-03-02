@@ -28,6 +28,7 @@ import { useInAppNotification } from "@/utils/InAppNotificationProvider";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { showPaywallForUpgradeAccess } from "@/utils/premium-access";
 import { updateStreakOnMemoryCreation } from "@/utils/streak-manager";
 import { useSubscription } from "@/utils/SubscriptionProvider";
@@ -68,6 +69,12 @@ import Animated, {
 
 type ModalView = "input" | "loading" | "results" | "error";
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace("#", "");
+  const num = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+
 /** Max file size for AI memory photos (2MB). Keeps API payloads small; base64 adds ~33% overhead. */
 const MAX_IMAGE_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 
@@ -100,6 +107,7 @@ export function AIModal({
 }: AIModalProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
+  const { momentColors } = useMomentColors();
   const fontScale = useFontScale();
   const t = useTranslate();
   const { language } = useLanguage();
@@ -1638,9 +1646,10 @@ export function AIModal({
       height: 110 * fontScale,
       borderRadius: 55 * fontScale,
       backgroundColor:
-        colorScheme === "dark"
-          ? "rgba(255, 215, 0, 0.15)"
-          : "rgba(255, 215, 0, 0.25)",
+        (() => {
+          const { r, g, b } = hexToRgb(momentColors.sunny.background);
+          return `rgba(${r}, ${g}, ${b}, ${colorScheme === "dark" ? 0.15 : 0.25})`;
+        })(),
       top: 0,
       left: "50%",
       marginLeft: -55 * fontScale,
@@ -1661,13 +1670,14 @@ export function AIModal({
       height: 72 * fontScale,
       borderRadius: 36 * fontScale,
       backgroundColor:
-        colorScheme === "dark"
-          ? "rgba(255, 215, 0, 0.15)"
-          : "rgba(255, 215, 0, 0.25)",
+        (() => {
+          const { r, g, b } = hexToRgb(momentColors.sunny.background);
+          return `rgba(${r}, ${g}, ${b}, ${colorScheme === "dark" ? 0.15 : 0.25})`;
+        })(),
       justifyContent: "center",
       alignItems: "center",
       overflow: "visible",
-      shadowColor: "#FFD700",
+      shadowColor: momentColors.sunny.background,
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 0.5,
       shadowRadius: 12,
@@ -3604,8 +3614,8 @@ export function AIModal({
                                     item.type === "hardTruth"
                                       ? "#64B5F6"
                                       : item.type === "goodFact"
-                                        ? "#FFD700"
-                                        : "#FFA726"
+                                        ? momentColors.sunny.background
+                                        : momentColors.lesson.background
                                   }
                                 />
                                 <ThemedText

@@ -6,6 +6,7 @@ import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import type { LifeSphere } from "@/utils/JourneyProvider";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { showPaywallForPlusAccess } from "@/utils/premium-access";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -73,6 +74,7 @@ function WheelOfLifeVisualization({
   fontScale: number;
   onSlicePress?: (sphere: LifeSphere) => void;
 }) {
+  const { momentColors } = useMomentColors();
   const size = Math.min(380 * fontScale, SCREEN_WIDTH - 40);
   const center = size / 2;
   const radius = size / 2 - 20;
@@ -481,7 +483,7 @@ function WheelOfLifeVisualization({
         {
           width: size,
           height: size,
-          shadowColor: "#FFD700",
+          shadowColor: momentColors.sunny.background,
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.2,
           shadowRadius: 15,

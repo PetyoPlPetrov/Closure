@@ -24,6 +24,7 @@ import { handleDevError } from "@/utils/dev-error-handler";
 import { InAppNotificationProvider } from "@/utils/InAppNotificationProvider";
 import { checkForUpdateAndReload } from "@/utils/updates";
 import { JourneyProvider, LifeSphere } from "@/utils/JourneyProvider";
+import { MomentColorsProvider } from "@/utils/MomentColorsProvider";
 import { LanguageProvider } from "@/utils/languages/language-context";
 import { NotificationsProvider } from "@/utils/NotificationsProvider";
 import {
@@ -226,6 +227,7 @@ function AppContent() {
           options={{ presentation: "modal", title: "Modal" }}
         />
         <Stack.Screen name="premium-info" options={{ headerShown: false }} />
+        <Stack.Screen name="moment-colors" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
@@ -266,13 +268,15 @@ export default function RootLayout() {
         <LanguageProvider>
           <SubscriptionProvider>
             <JourneyProvider>
-              <NotificationsProvider>
-                <AIInsightsConsentProvider>
-                  <InAppNotificationProvider>
-                    <AppContent />
-                  </InAppNotificationProvider>
-                </AIInsightsConsentProvider>
-              </NotificationsProvider>
+              <MomentColorsProvider>
+                <NotificationsProvider>
+                  <AIInsightsConsentProvider>
+                    <InAppNotificationProvider>
+                      <AppContent />
+                    </InAppNotificationProvider>
+                  </AIInsightsConsentProvider>
+                </NotificationsProvider>
+              </MomentColorsProvider>
             </JourneyProvider>
           </SubscriptionProvider>
         </LanguageProvider>

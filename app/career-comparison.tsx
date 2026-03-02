@@ -6,6 +6,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import type { Job, LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { useMomentColors } from '@/utils/MomentColorsProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -19,6 +20,7 @@ export default function CareerComparisonScreen() {
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const t = useTranslate();
+  const { momentColors } = useMomentColors();
 
   const { jobs, profiles, getIdealizedMemoriesByEntityId, getEntitiesBySphere, getIdealizedMemoriesByProfileId } = useJourney();
 
@@ -814,7 +816,7 @@ export default function CareerComparisonScreen() {
                             styles.sunSegment,
                             {
                               width: `${sunPercentage}%`,
-                              backgroundColor: '#FFD700',
+                              backgroundColor: momentColors.sunny.background,
                               justifyContent: 'center',
                               alignItems: 'center',
                             }
@@ -874,10 +876,10 @@ export default function CareerComparisonScreen() {
             {/* Categories */}
             <View style={styles.categoriesContainer}>
               <View style={styles.categoryItem}>
-                <View style={[styles.categoryIcon, { backgroundColor: '#FFD70020' }]}>
-                  <MaterialIcons name="wb-sunny" size={24 * fontScale} color="#FFD700" />
+                <View style={[styles.categoryIcon, { backgroundColor: `${momentColors.sunny.background}20` }]}>
+                  <MaterialIcons name="wb-sunny" size={24 * fontScale} color={momentColors.sunny.background} />
                 </View>
-                <ThemedText size="sm" style={[styles.categoryText, { color: '#FFD700' }]}>
+                <ThemedText size="sm" style={[styles.categoryText, { color: momentColors.sunny.background }]}>
                   {t('insights.comparison.career.goodMoments')}
                 </ThemedText>
               </View>

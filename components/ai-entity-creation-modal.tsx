@@ -25,6 +25,7 @@ import { logAIEntityModalSubmit } from "@/utils/analytics";
 import { LifeSphere, useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { showPaywallForUpgradeAccess } from "@/utils/premium-access";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -56,6 +57,12 @@ import Animated, {
     withTiming,
 } from "react-native-reanimated";
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace("#", "");
+  const num = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+
 type AIEntityCreationModalProps = {
   visible: boolean;
   onClose: () => void;
@@ -84,6 +91,7 @@ export function AIEntityCreationModal({
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
   const colors = Colors[colorScheme ?? "dark"];
+  const { momentColors } = useMomentColors();
   const t = useTranslate();
   const { hasAIEntitlement } = useSubscription();
   const { language } = useLanguage();
@@ -792,9 +800,10 @@ export function AIEntityCreationModal({
           height: 200 * fontScale,
           borderRadius: 100 * fontScale,
           backgroundColor:
-            colorScheme === "dark"
-              ? "rgba(255, 215, 0, 0.15)"
-              : "rgba(255, 215, 0, 0.25)",
+            (() => {
+              const { r, g, b } = hexToRgb(momentColors.sunny.background);
+              return `rgba(${r}, ${g}, ${b}, ${colorScheme === "dark" ? 0.15 : 0.25})`;
+            })(),
           top: 0,
           left: "50%",
           marginLeft: -100 * fontScale,
@@ -815,13 +824,14 @@ export function AIEntityCreationModal({
           height: 140 * fontScale,
           borderRadius: 70 * fontScale,
           backgroundColor:
-            colorScheme === "dark"
-              ? "rgba(255, 215, 0, 0.15)"
-              : "rgba(255, 215, 0, 0.25)",
+            (() => {
+              const { r, g, b } = hexToRgb(momentColors.sunny.background);
+              return `rgba(${r}, ${g}, ${b}, ${colorScheme === "dark" ? 0.15 : 0.25})`;
+            })(),
           justifyContent: "center",
           alignItems: "center",
           overflow: "visible",
-          shadowColor: "#FFD700",
+          shadowColor: momentColors.sunny.background,
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.5,
           shadowRadius: 20,

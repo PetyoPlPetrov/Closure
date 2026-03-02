@@ -20,6 +20,7 @@ import { processHomeEncouragementPrompt } from "@/utils/ai-service";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
 import { logError } from "@/utils/error-logger";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
+import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import {
@@ -104,6 +105,12 @@ const AnimatedCircle = createAnimatedComponent(Circle);
 const LINEAR_GRADIENT_START = { x: 0, y: 0 };
 const LINEAR_GRADIENT_END = { x: 1, y: 1 };
 const CLOSE_BUTTON_HITSLOP = { top: 8, bottom: 8, left: 8, right: 8 };
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace("#", "");
+  const num = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
 
 // Draggable Moment Component (for focused memory view)
 const DraggableMoment = React.memo(function DraggableMoment({
@@ -453,6 +460,7 @@ const FloatingAvatar = React.memo(
     externalPositionY?: ReturnType<typeof useSharedValue<number>>;
     onEntityWheelChange?: (isActive: boolean) => void;
   }) {
+    const { momentColors } = useMomentColors();
     const { isTablet, isLargeDevice } = useLargeDevice();
     const insets = useSafeAreaInsets();
     const fontScale = useFontScale();
@@ -2653,16 +2661,16 @@ const FloatingAvatar = React.memo(
                     cx={(avatarSize + borderWidth * 2) / 2}
                     cy={(avatarSize + borderWidth * 2) / 2}
                     r={radius}
-                    stroke="#000000" // Black for cloudy moments
-                    strokeWidth={borderWidth + 2} // Thicker black border
+                    stroke={momentColors.cloudy.background}
+                    strokeWidth={borderWidth + 2}
                     fill="none"
                   />
-                  {/* Progress circle (sunny/yellow) */}
+                  {/* Progress circle (sunny) */}
                   <Circle
                     cx={(avatarSize + borderWidth * 2) / 2}
                     cy={(avatarSize + borderWidth * 2) / 2}
                     r={radius}
-                    stroke="#FFD700" // Yellow for sunny moments
+                    stroke={momentColors.sunny.background}
                     strokeWidth={borderWidth}
                     fill="none"
                     strokeDasharray={circumference}
@@ -3710,21 +3718,21 @@ const FloatingAvatar = React.memo(
                 const momentVisuals = {
                   lesson: {
                     icon: "lightbulb" as const,
-                    backgroundColor: "rgba(255, 215, 0, 0.45)",
-                    shadowColor: "#FFD700",
-                    iconColor: colorScheme === "dark" ? "#FFD700" : "#FFA000",
+                    backgroundColor: `${momentColors.lesson.background}73`,
+                    shadowColor: momentColors.lesson.background,
+                    iconColor: momentColors.lesson.background,
                   },
                   sunny: {
                     icon: "wb-sunny" as const,
-                    backgroundColor: "rgba(255, 215, 0, 0.55)",
-                    shadowColor: "#FFD700",
-                    iconColor: colorScheme === "dark" ? "#FFD700" : "#FF9800",
+                    backgroundColor: `${momentColors.sunny.background}8C`,
+                    shadowColor: momentColors.sunny.background,
+                    iconColor: momentColors.sunny.background,
                   },
                   cloudy: {
                     icon: "cloud" as const,
-                    backgroundColor: "rgba(150, 150, 180, 0.35)",
-                    shadowColor: "#9696B4",
-                    iconColor: colorScheme === "dark" ? "#B0B0C8" : "#7878A0",
+                    backgroundColor: `${momentColors.cloudy.background}59`,
+                    shadowColor: momentColors.cloudy.background,
+                    iconColor: momentColors.cloudy.background,
                   },
                 };
 
@@ -3794,8 +3802,7 @@ const FloatingAvatar = React.memo(
                           style={{
                             width: dynamicSunSize,
                             height: dynamicSunSize,
-                            // Golden glow for suns (positive moments)
-                            shadowColor: "#FFD700",
+                            shadowColor: momentColors.sunny.background,
                             shadowOffset: { width: 0, height: 0 },
                             shadowOpacity: 0.8,
                             shadowRadius: isTablet ? 12 : 9,
@@ -3822,22 +3829,17 @@ const FloatingAvatar = React.memo(
                               >
                                 <Stop
                                   offset="0%"
-                                  stopColor="#FFEB3B"
-                                  stopOpacity="1"
-                                />
-                                <Stop
-                                  offset="30%"
-                                  stopColor="#FFEB3B"
-                                  stopOpacity="1"
+                                  stopColor={momentColors.sunny.background}
+                                  stopOpacity="0.9"
                                 />
                                 <Stop
                                   offset="60%"
-                                  stopColor="#FFD700"
+                                  stopColor={momentColors.sunny.background}
                                   stopOpacity="1"
                                 />
                                 <Stop
                                   offset="100%"
-                                  stopColor="#FFC107"
+                                  stopColor={momentColors.sunny.background}
                                   stopOpacity="1"
                                 />
                               </RadialGradient>
@@ -3881,7 +3883,7 @@ const FloatingAvatar = React.memo(
                                 <Path
                                   key={`wheelRay-${i}`}
                                   d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
-                                  fill="#FFD700"
+                                  fill={momentColors.sunny.background}
                                 />
                               );
                             })}
@@ -3912,22 +3914,20 @@ const FloatingAvatar = React.memo(
                           >
                             <ThemedText
                               style={{
-                                color: "black",
+                                color: momentColors.sunny.text,
                                 fontSize:
                                   Math.max(
                                     11,
                                     Math.min(16, 12 + textLength / 60),
-                                  ) * fontScale, // Scale font size with text length
+                                  ) * fontScale,
                                 textAlign: "center",
                                 fontWeight: "700",
-                                // Max width should be less than circle diameter minus padding to ensure text fits within circle
-                                // Circle diameter = (dynamicSunSize / 160) * 48 * 2, use 75% for safe margin
-                                maxWidth: (dynamicSunSize / 160) * 48 * 1.5, // 75% of diameter to ensure text fits within circle
+                                maxWidth: (dynamicSunSize / 160) * 48 * 1.5,
                               }}
                               numberOfLines={Math.min(
                                 4,
                                 Math.max(2, Math.ceil(textLength / 25)),
-                              )} // More lines for longer text
+                              )}
                             >
                               {selectedWheelMoment.text?.split("\n")[0] ||
                                 selectedWheelMoment.text}
@@ -3935,7 +3935,7 @@ const FloatingAvatar = React.memo(
                             {selectedWheelMoment.text?.includes("\n") && (
                               <ThemedText
                                 style={{
-                                  color: "black",
+                                  color: momentColors.sunny.text,
                                   fontSize:
                                     Math.max(
                                       7,
@@ -3965,7 +3965,7 @@ const FloatingAvatar = React.memo(
                                   borderRadius: 16,
                                   marginTop: 8,
                                   borderWidth: 2,
-                                  borderColor: "#FFD700",
+                                  borderColor: momentColors.sunny.background,
                                 }}
                               />
                             )}
@@ -4084,17 +4084,17 @@ const FloatingAvatar = React.memo(
                               >
                                 <Stop
                                   offset="0%"
-                                  stopColor="#2C3E50"
+                                  stopColor={momentColors.cloudy.background}
                                   stopOpacity="0.95"
                                 />
                                 <Stop
                                   offset="50%"
-                                  stopColor="#1A1A1A"
+                                  stopColor={momentColors.cloudy.background}
                                   stopOpacity="0.98"
                                 />
                                 <Stop
                                   offset="100%"
-                                  stopColor="#0A0A0A"
+                                  stopColor={momentColors.cloudy.background}
                                   stopOpacity="1"
                                 />
                               </SvgLinearGradient>
@@ -4277,22 +4277,21 @@ const FloatingAvatar = React.memo(
                         />
                         <ThemedText
                           style={{
-                            color:
-                              colorScheme === "dark" ? "#1A1A1A" : "#000000",
+                            color: momentColors.lesson.text,
                             fontSize:
                               Math.max(13, Math.min(16, 13 + textLength / 60)) *
-                              fontScale, // Increased base from 11 to 13
+                              fontScale,
                             textAlign: "center",
                             fontWeight: "700",
-                            maxWidth: dynamicLessonSize * 0.75, // Reduced to 75% to ensure text stays within circular bounds
+                            maxWidth: dynamicLessonSize * 0.75,
                             lineHeight:
                               Math.max(17, Math.min(20, 17 + textLength / 60)) *
-                              fontScale, // Increased from 15 to 17
+                              fontScale,
                           }}
                           numberOfLines={Math.min(
                             10,
                             Math.max(4, Math.ceil(textLength / 30)),
-                          )} // More lines for longer text
+                          )}
                         >
                           {selectedWheelMoment.text}
                         </ThemedText>
@@ -4306,8 +4305,7 @@ const FloatingAvatar = React.memo(
                               borderRadius: 16,
                               marginTop: 8,
                               borderWidth: 2,
-                              borderColor:
-                                colorScheme === "dark" ? "#FFD700" : "#FFA000",
+                              borderColor: momentColors.lesson.background,
                             }}
                           />
                         )}
@@ -4464,6 +4462,7 @@ const MemoryMomentsRenderer = React.memo(
     showEntityWheel?: boolean;
     showEntityWheelRef?: React.MutableRefObject<boolean>;
   }) {
+    const { momentColors } = useMomentColors();
     const fontScale = useFontScale();
     const { isTablet, isLargeDevice } = useLargeDevice();
 
@@ -4604,15 +4603,15 @@ const MemoryMomentsRenderer = React.memo(
                     >
                       <Stop
                         offset="0%"
-                        stopColor="#2C3E50"
+                        stopColor={momentColors.cloudy.background}
                         stopOpacity="0.95"
                       />
                       <Stop
                         offset="50%"
-                        stopColor="#1A1A1A"
+                        stopColor={momentColors.cloudy.background}
                         stopOpacity="0.98"
                       />
-                      <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
+                      <Stop offset="100%" stopColor={momentColors.cloudy.background} stopOpacity="1" />
                     </SvgLinearGradient>
                   </Defs>
                   <Path
@@ -4820,8 +4819,7 @@ const MemoryMomentsRenderer = React.memo(
                 style={{
                   width: dynamicSunSize,
                   height: dynamicSunSize,
-                  // Golden glow for suns (positive moments)
-                  shadowColor: "#FFD700",
+                  shadowColor: momentColors.sunny.background,
                   shadowOffset: { width: 0, height: 0 },
                   shadowOpacity: 0.8,
                   shadowRadius: isTablet ? 12 : 9,
@@ -4846,10 +4844,9 @@ const MemoryMomentsRenderer = React.memo(
                       fy="80"
                       gradientUnits="userSpaceOnUse"
                     >
-                      <Stop offset="0%" stopColor="#FFEB3B" stopOpacity="1" />
-                      <Stop offset="30%" stopColor="#FFEB3B" stopOpacity="1" />
-                      <Stop offset="60%" stopColor="#FFD700" stopOpacity="1" />
-                      <Stop offset="100%" stopColor="#FFC107" stopOpacity="1" />
+                      <Stop offset="0%" stopColor={momentColors.sunny.background} stopOpacity="0.9" />
+                      <Stop offset="60%" stopColor={momentColors.sunny.background} stopOpacity="1" />
+                      <Stop offset="100%" stopColor={momentColors.sunny.background} stopOpacity="1" />
                     </RadialGradient>
                   </Defs>
                   {/* Sun rays - triangular rays */}
@@ -4883,7 +4880,7 @@ const MemoryMomentsRenderer = React.memo(
                       <Path
                         key={`ray-${i}`}
                         d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
-                        fill="#FFD700"
+                        fill={momentColors.sunny.background}
                       />
                     );
                   })}
@@ -5091,10 +5088,9 @@ const MemoryMomentsRenderer = React.memo(
                   height: dynamicLessonSize,
                   justifyContent: "center",
                   alignItems: "center",
-                  backgroundColor: "rgba(255, 215, 0, 0.25)",
+                  backgroundColor: `${momentColors.lesson.background}40`,
                   borderRadius: dynamicLessonSize / 2,
-                  // Golden glow for lessons
-                  shadowColor: "#FFD700",
+                  shadowColor: momentColors.lesson.background,
                   shadowOffset: { width: 0, height: 0 },
                   shadowOpacity: 0.8,
                   shadowRadius: isTablet ? 12 : 8,
@@ -5105,13 +5101,13 @@ const MemoryMomentsRenderer = React.memo(
                 <MaterialIcons
                   name="lightbulb"
                   size={dynamicLessonSize * 0.35}
-                  color={colorScheme === "dark" ? "#FFD700" : "#FFA000"}
+                  color={momentColors.lesson.background}
                   style={{ marginBottom: 4 }}
                 />
                 {lesson.text && (
                   <ThemedText
                     style={{
-                      color: colorScheme === "dark" ? "#000000" : "#1A1A1A",
+                      color: momentColors.lesson.text,
                       fontSize: 11 * fontScale,
                       textAlign: "center",
                       fontWeight: "700",
@@ -5273,8 +5269,8 @@ const MemoryActionButtons = React.memo(
     handleAddSun: () => void;
     handleAddLesson?: () => void;
   }) {
+    const { momentColors } = useMomentColors();
     const t = useTranslate();
-    // Memoize these calculations - must be called unconditionally
     const allClouds = useMemo(
       () =>
         (memory.hardTruths || []).filter(
@@ -5433,8 +5429,7 @@ const MemoryActionButtons = React.memo(
                         colorScheme === "dark"
                           ? "rgba(255, 255, 255, 0.08)"
                           : "rgba(255, 255, 255, 0.9)",
-                      shadowColor:
-                        colorScheme === "dark" ? "#FFA000" : "#FFA000",
+                      shadowColor: momentColors.lesson.background,
                       shadowOffset: {
                         width: 0,
                         height: colorScheme === "dark" ? 14 : 12,
@@ -5444,8 +5439,7 @@ const MemoryActionButtons = React.memo(
                       elevation: colorScheme === "dark" ? 18 : 15,
                       overflow: "visible",
                       borderWidth: colorScheme === "dark" ? 2 : 1.5,
-                      borderColor:
-                        colorScheme === "dark" ? "#FFA000" : "#FFA000",
+                      borderColor: momentColors.lesson.background,
                       opacity:
                         allLessonsVisible || totalLessonsCount === 0 ? 0.4 : 1,
                     },
@@ -5490,7 +5484,7 @@ const MemoryActionButtons = React.memo(
                       <MaterialIcons
                         name="lightbulb"
                         size={isLargeDevice ? 44 : 40}
-                        color={colorScheme === "dark" ? "#FFD700" : "#555"}
+                        color={momentColors.lesson.background}
                       />
                     </View>
                     {/* Count badge */}
@@ -5509,7 +5503,7 @@ const MemoryActionButtons = React.memo(
                           style={{
                             fontSize: isLargeDevice ? 14 : 12,
                             fontWeight: "700",
-                            color: colorScheme === "dark" ? "#FFD700" : "#555",
+                            color: momentColors.lesson.background,
                             textAlign: "center",
                           }}
                         >
@@ -5714,8 +5708,7 @@ const MemoryActionButtons = React.memo(
                         colorScheme === "dark"
                           ? "rgba(255, 255, 255, 0.08)"
                           : "rgba(255, 255, 255, 0.9)",
-                      shadowColor:
-                        colorScheme === "dark" ? "#FFD700" : "#FFD700",
+                      shadowColor: momentColors.sunny.background,
                       shadowOffset: {
                         width: 0,
                         height: colorScheme === "dark" ? 14 : 12,
@@ -5723,21 +5716,16 @@ const MemoryActionButtons = React.memo(
                       shadowOpacity: colorScheme === "dark" ? 0.9 : 0.7,
                       shadowRadius: colorScheme === "dark" ? 24 : 20,
                       elevation: colorScheme === "dark" ? 18 : 15,
-                      overflow: "visible", // Allow count text to be visible
+                      overflow: "visible",
                       borderWidth: colorScheme === "dark" ? 2 : 1.5,
-                      borderColor:
-                        colorScheme === "dark" ? "#FFD700" : "#FFD700",
+                      borderColor: momentColors.sunny.background,
                       opacity: allSunsVisible ? 0.4 : 1,
                     },
                     sunButtonAnimatedStyle,
                   ]}
                 >
                   <LinearGradient
-                    colors={
-                      colorScheme === "dark"
-                        ? ["#FFD700", "#FFD700", "#FFD700"]
-                        : ["#FFD700", "#FFD700", "#FFD700"]
-                    }
+                    colors={[momentColors.sunny.background, momentColors.sunny.background, momentColors.sunny.background]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={{
@@ -5887,9 +5875,9 @@ const FloatingMemory = React.memo(
       momentToShowId?: string;
     } | null;
   }) {
+    const { momentColors } = useMomentColors();
     const { isLargeDevice, isTablet } = useLargeDevice();
 
-    // Share modal state
     const [shareModalVisible, setShareModalVisible] = React.useState(false);
     const [shareModalContent, setShareModalContent] = React.useState({
       title: "",
@@ -6768,22 +6756,13 @@ const FloatingMemory = React.memo(
             style={{
               width: memorySize,
               height: memorySize,
-              // Dynamic shadow color based on sunny/cloudy ratio - applied to outer container
               shadowColor: (() => {
-                // Interpolate between dark gray (cloudy) and yellow (sunny)
-                const t = sunnyPercentage / 100; // 0 = all cloudy, 1 = all sunny
-                // Dark color: #2D3748 (darker gray)
-                const darkR = 45,
-                  darkG = 55,
-                  darkB = 72;
-                // Sunny color: #FFD700 (gold)
-                const sunnyR = 255,
-                  sunnyG = 215,
-                  sunnyB = 0;
-                // Interpolate
-                const r = Math.round(darkR + (sunnyR - darkR) * t);
-                const g = Math.round(darkG + (sunnyG - darkG) * t);
-                const b = Math.round(darkB + (sunnyB - darkB) * t);
+                const t = sunnyPercentage / 100;
+                const dark = hexToRgb(momentColors.cloudy.background);
+                const bright = hexToRgb(momentColors.sunny.background);
+                const r = Math.round(dark.r + (bright.r - dark.r) * t);
+                const g = Math.round(dark.g + (bright.g - dark.g) * t);
+                const b = Math.round(dark.b + (bright.b - dark.b) * t);
                 return `rgb(${r}, ${g}, ${b})`;
               })(),
               shadowOffset: { width: 0, height: 0 },
@@ -6841,13 +6820,13 @@ const FloatingMemory = React.memo(
 
                     return (
                       <>
-                        {/* Black border for cloudy moments */}
+                        {/* Cloudy border */}
                         {cloudyPercentage > 0 && (
                           <Circle
                             cx={centerX}
                             cy={centerY}
                             r={borderRadius}
-                            stroke="#000000"
+                            stroke={momentColors.cloudy.background}
                             strokeWidth={strokeWidth}
                             fill="none"
                             strokeDasharray={`${blackDashLength} ${circumference * 10}`}
@@ -6856,13 +6835,13 @@ const FloatingMemory = React.memo(
                             transform={`rotate(-90 ${centerX} ${centerY})`}
                           />
                         )}
-                        {/* Yellow border for sunny moments */}
+                        {/* Sunny border */}
                         {sunnyPercentage > 0 && (
                           <Circle
                             cx={centerX}
                             cy={centerY}
                             r={borderRadius}
-                            stroke="#FFD700"
+                            stroke={momentColors.sunny.background}
                             strokeWidth={strokeWidth}
                             fill="none"
                             strokeDasharray={`${yellowDashLength} ${circumference * 10}`}
@@ -6908,12 +6887,14 @@ const FloatingMemory = React.memo(
                       <LinearGradient
                         colors={
                           sunnyPercentage >= 50
-                            ? // Sunny gradient (bright/yellow) for positive memories
-                              [
-                                "rgba(255, 215, 0, 0.4)",
-                                "rgba(255, 215, 0, 0.5)",
-                                "rgba(255, 215, 0, 0.4)",
-                              ]
+                            ? (() => {
+                                const { r, g, b } = hexToRgb(momentColors.sunny.background);
+                                return [
+                                  `rgba(${r}, ${g}, ${b}, 0.4)`,
+                                  `rgba(${r}, ${g}, ${b}, 0.5)`,
+                                  `rgba(${r}, ${g}, ${b}, 0.4)`,
+                                ];
+                              })()
                             : // Dark gradient for negative memories - intensity based on cloudy percentage
                               (() => {
                                 const cloudyPercentage = 100 - sunnyPercentage;
@@ -7198,9 +7179,8 @@ const FloatingCloud = React.memo(function FloatingCloud({
   showEntityWheel?: boolean;
   showEntityWheelRef?: React.MutableRefObject<boolean>;
 }) {
-  // Make clouds smaller when focused, but maintain proper proportions
-  // Use larger base size to avoid clipping and maintain aspect ratio
-  const cloudSize = isFocused ? 18 : 24; // Smaller when focused, but not too small
+  const { momentColors } = useMomentColors();
+  const cloudSize = isFocused ? 18 : 24;
 
   const floatAnimation = useSharedValue(0);
 
@@ -7320,22 +7300,13 @@ const FloatingCloud = React.memo(function FloatingCloud({
             alignItems: "center",
             borderWidth: 1.5,
             borderColor: "rgba(0,0,0,0.3)", // Dark border
-            // Dynamic shadow color based on sunny/cloudy ratio
             shadowColor: (() => {
-              // Interpolate between dark gray (cloudy) and yellow (sunny)
-              const t = sunnyPercentage / 100; // 0 = all cloudy, 1 = all sunny
-              // Dark color: #2D3748 (darker gray)
-              const darkR = 45,
-                darkG = 55,
-                darkB = 72;
-              // Sunny color: #FFD700 (gold)
-              const sunnyR = 255,
-                sunnyG = 215,
-                sunnyB = 0;
-              // Interpolate
-              const r = Math.round(darkR + (sunnyR - darkR) * t);
-              const g = Math.round(darkG + (sunnyG - darkG) * t);
-              const b = Math.round(darkB + (sunnyB - darkB) * t);
+              const t = sunnyPercentage / 100;
+              const dark = hexToRgb(momentColors.cloudy.background);
+              const bright = hexToRgb(momentColors.sunny.background);
+              const r = Math.round(dark.r + (bright.r - dark.r) * t);
+              const g = Math.round(dark.g + (bright.g - dark.g) * t);
+              const b = Math.round(dark.b + (bright.b - dark.b) * t);
               return `rgb(${r}, ${g}, ${b})`;
             })(),
             shadowOffset: { width: 0, height: 0 },
@@ -7347,7 +7318,7 @@ const FloatingCloud = React.memo(function FloatingCloud({
           <MaterialIcons
             name="cloud"
             size={safeCloudSize * 0.7}
-            color="#000000"
+            color={momentColors.cloudy.text}
           />
         </View>
       </Pressable>
@@ -7399,9 +7370,8 @@ const FloatingSun = React.memo(function FloatingSun({
   showEntityWheel?: boolean;
   showEntityWheelRef?: React.MutableRefObject<boolean>;
 }) {
-  // Make suns smaller when focused, but maintain proper proportions
-  // Use larger base size to avoid clipping and maintain aspect ratio
-  const sunSize = isFocused ? 16 : 22; // Smaller when focused, but not too small
+  const { momentColors } = useMomentColors();
+  const sunSize = isFocused ? 16 : 22;
 
   const floatAnimation = useSharedValue(0);
 
@@ -7502,22 +7472,13 @@ const FloatingSun = React.memo(function FloatingSun({
           style={{
             width: sunSize,
             height: sunSize,
-            // Dynamic shadow color based on sunny/cloudy ratio
             shadowColor: (() => {
-              // Interpolate between dark gray (cloudy) and yellow (sunny)
-              const t = sunnyPercentage / 100; // 0 = all cloudy, 1 = all sunny
-              // Dark color: #2D3748 (darker gray)
-              const darkR = 45,
-                darkG = 55,
-                darkB = 72;
-              // Sunny color: #FFD700 (gold)
-              const sunnyR = 255,
-                sunnyG = 215,
-                sunnyB = 0;
-              // Interpolate
-              const r = Math.round(darkR + (sunnyR - darkR) * t);
-              const g = Math.round(darkG + (sunnyG - darkG) * t);
-              const b = Math.round(darkB + (sunnyB - darkB) * t);
+              const t = sunnyPercentage / 100;
+              const dark = hexToRgb(momentColors.cloudy.background);
+              const bright = hexToRgb(momentColors.sunny.background);
+              const r = Math.round(dark.r + (bright.r - dark.r) * t);
+              const g = Math.round(dark.g + (bright.g - dark.g) * t);
+              const b = Math.round(dark.b + (bright.b - dark.b) * t);
               return `rgb(${r}, ${g}, ${b})`;
             })(),
             shadowOffset: { width: 0, height: 0 },
@@ -7543,9 +7504,9 @@ const FloatingSun = React.memo(function FloatingSun({
                 fy="11"
                 gradientUnits="userSpaceOnUse"
               >
-                <Stop offset="0%" stopColor="#FFB300" stopOpacity="1" />
-                <Stop offset="50%" stopColor="#FFC107" stopOpacity="1" />
-                <Stop offset="100%" stopColor="#FFD54F" stopOpacity="1" />
+                <Stop offset="0%" stopColor={momentColors.sunny.background} stopOpacity="0.9" />
+                <Stop offset="50%" stopColor={momentColors.sunny.background} stopOpacity="1" />
+                <Stop offset="100%" stopColor={momentColors.sunny.background} stopOpacity="1" />
               </RadialGradient>
             </Defs>
             {/* Sun rays - 16 triangular rays for smaller version */}
@@ -7577,7 +7538,7 @@ const FloatingSun = React.memo(function FloatingSun({
                 <Path
                   key={`floatingRay-${i}`}
                   d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
-                  fill="#FFD700"
+                  fill={momentColors.sunny.background}
                 />
               );
             })}
@@ -7637,6 +7598,7 @@ const FloatingLesson = React.memo(function FloatingLesson({
   showEntityWheel?: boolean;
   showEntityWheelRef?: React.MutableRefObject<boolean>;
 }) {
+  const { momentColors } = useMomentColors();
   const lessonSize = isFocused ? 16 : 22;
 
   const floatAnimation = useSharedValue(0);
@@ -7733,10 +7695,10 @@ const FloatingLesson = React.memo(function FloatingLesson({
             width: lessonSize,
             height: lessonSize,
             borderRadius: lessonSize / 2,
-            backgroundColor: colorScheme === "dark" ? "#FFD700" : "#FFA000",
+            backgroundColor: momentColors.lesson.background,
             alignItems: "center",
             justifyContent: "center",
-            shadowColor: "#FFD700",
+            shadowColor: momentColors.lesson.background,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.6,
             shadowRadius: 6,
@@ -7746,7 +7708,7 @@ const FloatingLesson = React.memo(function FloatingLesson({
           <MaterialIcons
             name="lightbulb"
             size={lessonSize * 0.7}
-            color={colorScheme === "dark" ? "#000000" : "#FFFFFF"}
+            color={momentColors.lesson.text}
           />
         </View>
       </Pressable>
@@ -7764,6 +7726,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   colorScheme: "light" | "dark";
   colors: any;
 }) {
+  const { momentColors } = useMomentColors();
   const { isTablet } = useLargeDevice();
   const t = useTranslate();
   const { language } = useLanguage();
@@ -7851,9 +7814,9 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               x2="100%"
               y2="100%"
             >
-              <Stop offset="0%" stopColor="#FFF9C4" stopOpacity="1" />
-              <Stop offset="50%" stopColor="#FFD700" stopOpacity="1" />
-              <Stop offset="100%" stopColor="#FFA000" stopOpacity="1" />
+              <Stop offset="0%" stopColor={momentColors.sunny.background} stopOpacity="0.7" />
+              <Stop offset="50%" stopColor={momentColors.sunny.background} stopOpacity="1" />
+              <Stop offset="100%" stopColor={momentColors.sunny.background} stopOpacity="1" />
             </SvgLinearGradient>
             {/* Strong outer glow filter - extends outward prominently */}
             <Filter
@@ -8001,7 +7964,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
           <ThemedText
             size="xl"
             weight="bold"
-            style={{ color: "#FFD700", fontSize: 24 }}
+            style={{ color: momentColors.sunny.background, fontSize: 24 }}
           >
             {Math.round(percentage)}%
           </ThemedText>
@@ -8011,7 +7974,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                 size="sm"
                 weight="medium"
                 style={{
-                  color: "#FFD700",
+                  color: momentColors.sunny.background,
                   fontSize: 10,
                   marginTop: -2,
                   textAlign: "center",
@@ -8024,7 +7987,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                 size="sm"
                 weight="medium"
                 style={{
-                  color: "#FFD700",
+                  color: momentColors.sunny.background,
                   fontSize: 10,
                   textAlign: "center",
                   lineHeight: 10,
@@ -8039,7 +8002,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               size="sm"
               weight="medium"
               style={{
-                color: "#FFD700",
+                color: momentColors.sunny.background,
                 fontSize: 12,
                 marginTop: -2,
               }}
@@ -8077,10 +8040,10 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                 height: 24,
                 justifyContent: "center",
                 alignItems: "center",
-                backgroundColor: "#FFD700",
+                backgroundColor: momentColors.sunny.background,
                 borderRadius: 12,
                 borderWidth: 2,
-                borderColor: "#FFA500",
+                borderColor: momentColors.sunny.background,
                 zIndex: 999,
                 elevation: 30,
                 shadowColor: "#000",
@@ -8384,11 +8347,10 @@ const SparkledDot = React.memo(function SparkledDot({
     };
   });
 
-  // More visible glow color based on theme
   const glowColor =
     colorScheme === "dark"
-      ? "rgba(255, 255, 255, 0.65)" // Increased from 0.4 to 0.65
-      : "rgba(255, 215, 0, 0.55)"; // Increased from 0.3 to 0.55
+      ? "rgba(255, 255, 255, 0.65)"
+      : "rgba(255, 215, 0, 0.55)";
 
   return (
     <Animated.View
@@ -8485,6 +8447,7 @@ const SpirallingStar = React.memo(function SpirallingStar({
   colorScheme: "light" | "dark";
   momentType?: "lessons" | "hardTruths" | "sunnyMoments";
 }) {
+  const { momentColors } = useMomentColors();
   const progress = useSharedValue(0);
   const opacity = useSharedValue(0);
 
@@ -8567,29 +8530,16 @@ const SpirallingStar = React.memo(function SpirallingStar({
     };
   });
 
-  // Icon and color based on moment type
   const getIconConfig = () => {
     switch (momentType) {
       case "lessons":
-        return {
-          icon: "💡",
-          color: "rgba(255, 215, 0, 1)", // Bright yellow for bulbs
-        };
+        return { icon: "💡", color: momentColors.lesson.background };
       case "sunnyMoments":
-        return {
-          icon: "☀️",
-          color: "rgba(255, 193, 7, 1)", // Golden yellow for suns
-        };
+        return { icon: "☀️", color: momentColors.sunny.background };
       case "hardTruths":
-        return {
-          icon: "☁️",
-          color: "rgba(140, 140, 140, 1)", // Grey for clouds
-        };
+        return { icon: "☁️", color: momentColors.cloudy.background };
       default:
-        return {
-          icon: "💡",
-          color: "rgba(255, 215, 0, 1)", // Bright yellow for bulbs
-        };
+        return { icon: "💡", color: momentColors.lesson.background };
     }
   };
 
@@ -8943,6 +8893,7 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
   isWrapped?: boolean;
   selectedMomentType?: "lessons" | "hardTruths" | "sunnyMoments";
 }) {
+  const { momentColors } = useMomentColors();
   const floatOffset = useSharedValue(0);
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0);
@@ -9029,21 +8980,21 @@ const FloatingMomentIcon = React.memo(function FloatingMomentIcon({
       case "sunnyMoments":
         return {
           name: "wb-sunny" as const,
-          color: colorScheme === "dark" ? "#FFC832" : "#FF9800",
+          color: momentColors.sunny.background,
         };
       case "hardTruths":
         return {
           name: "cloud" as const,
-          color: colorScheme === "dark" ? "#B0B0C8" : "#7878A0",
+          color: momentColors.cloudy.background,
         };
       case "lessons":
       default:
         return {
           name: "lightbulb" as const,
-          color: colorScheme === "dark" ? "#FFD700" : "#FFA000",
+          color: momentColors.lesson.background,
         };
     }
-  }, [momentType, colorScheme]);
+  }, [momentType, momentColors]);
 
   return (
     <Animated.View
@@ -9136,6 +9087,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   const totalConcurrent = Math.max(1, batchSize);
   const angleOffset = (cycleId * 0.618) % (2 * Math.PI);
   const fontScale = useFontScale();
+  const { momentColors } = useMomentColors();
 
   // Track the initial scale value to ensure we can always reset correctly
   const initialScaleRef = React.useRef<number | null>(null);
@@ -9502,13 +9454,15 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   // Render using the EXACT same visualization as selectedWheelMoment (post-spin moments)
   // This matches the wheel of life moment display exactly
   if (momentType === "sunny") {
+    const sunnyBg = momentColors.sunny.background;
+    const sunnyText = momentColors.sunny.text;
     return (
       <Animated.View style={animatedStyle}>
         <View
           style={{
             width: finalWidth,
             height: finalHeight,
-            shadowColor: "#FFD700",
+            shadowColor: sunnyBg,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.8,
             shadowRadius: isTablet ? 12 : 9,
@@ -9533,10 +9487,10 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
                 fy="80"
                 gradientUnits="userSpaceOnUse"
               >
-                <Stop offset="0%" stopColor="#FFEB3B" stopOpacity="1" />
-                <Stop offset="30%" stopColor="#FFEB3B" stopOpacity="1" />
-                <Stop offset="60%" stopColor="#FFD700" stopOpacity="1" />
-                <Stop offset="100%" stopColor="#FFC107" stopOpacity="1" />
+                <Stop offset="0%" stopColor={sunnyBg} stopOpacity="0.9" />
+                <Stop offset="30%" stopColor={sunnyBg} stopOpacity="0.95" />
+                <Stop offset="60%" stopColor={sunnyBg} stopOpacity="1" />
+                <Stop offset="100%" stopColor={sunnyBg} stopOpacity="1" />
               </RadialGradient>
             </Defs>
             {/* Sun rays - triangular rays */}
@@ -9564,7 +9518,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
                 <Path
                   key={`floatingSunRay-${i}`}
                   d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
-                  fill="#FFD700"
+                  fill={sunnyBg}
                 />
               );
             })}
@@ -9591,7 +9545,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
           >
             <ThemedText
               style={{
-                color: "black",
+                color: sunnyText,
                 fontSize:
                   Math.max(11, Math.min(16, 12 + textLength / 60)) * fontScale,
                 textAlign: "center",
@@ -9604,7 +9558,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
             {text?.includes("\n") && (
               <ThemedText
                 style={{
-                  color: "black",
+                  color: sunnyText,
                   fontSize:
                     Math.max(7, Math.min(11, 7 + textLength / 100)) * fontScale,
                   textAlign: "center",
@@ -9622,13 +9576,15 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   }
 
   if (momentType === "cloudy") {
+    const cloudyBg = momentColors.cloudy.background;
+    const cloudyText = momentColors.cloudy.text;
     return (
       <Animated.View style={animatedStyle}>
         <View
           style={{
             width: finalWidth,
             height: finalHeight,
-            shadowColor: "#4A5568",
+            shadowColor: cloudyBg,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.7,
             shadowRadius: 10,
@@ -9650,9 +9606,9 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
                 x2="0%"
                 y2="100%"
               >
-                <Stop offset="0%" stopColor="#2C3E50" stopOpacity="0.95" />
-                <Stop offset="50%" stopColor="#1A1A1A" stopOpacity="0.98" />
-                <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
+                <Stop offset="0%" stopColor={cloudyBg} stopOpacity="0.95" />
+                <Stop offset="50%" stopColor={cloudyBg} stopOpacity="0.98" />
+                <Stop offset="100%" stopColor={cloudyBg} stopOpacity="1" />
               </SvgLinearGradient>
             </Defs>
             <Path
@@ -9697,7 +9653,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
           >
             <ThemedText
               style={{
-                color: "rgba(255,255,255,0.9)",
+                color: cloudyText,
                 fontSize:
                   Math.max(11, Math.min(15, 12 + textLength / 70)) * fontScale,
                 textAlign: "center",
@@ -9714,13 +9670,15 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   }
 
   // Lesson - use full lightbulb element with text below (matching main wheel of life PulsingFloatingMomentIcon)
+  const lessonBg = momentColors.lesson.background;
+  const lessonText = momentColors.lesson.text;
   return (
     <Animated.View style={animatedStyle}>
       <View
         style={{
           width: finalWidth,
           height: finalHeight,
-          shadowColor: "#FFD700",
+          shadowColor: lessonBg,
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.7,
           shadowRadius: isTablet ? 12 : 9,
@@ -9732,7 +9690,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
         <MaterialIcons
           name="lightbulb"
           size={finalWidth * 0.4}
-          color={colorScheme === "dark" ? "#FFD700" : "#FFA000"}
+          color={lessonBg}
         />
         {/* Text below lightbulb */}
         {text && (
@@ -9748,7 +9706,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
           >
             <ThemedText
               style={{
-                color: colorScheme === "dark" ? "#FFD700" : "#FFA000",
+                color: lessonText,
                 fontSize:
                   Math.max(9, Math.min(13, 11 - textLength / 70)) * fontScale,
                 textAlign: "center",
@@ -9805,6 +9763,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
 
   const { isTablet } = useLargeDevice();
   const fontScale = useFontScale();
+  const { momentColors } = useMomentColors();
   const iconSize = isTablet ? 20 : 16; // Slightly larger than regular floating icons
 
   const isSelected = selectedMomentType === momentType;
@@ -9947,27 +9906,27 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
     };
   });
 
-  // Icon properties based on moment type
+  // Icon properties based on moment type (uses custom moment colors)
   const iconProps = React.useMemo(() => {
     switch (momentType) {
       case "sunnyMoments":
         return {
           name: "wb-sunny" as const,
-          color: colorScheme === "dark" ? "#FFC832" : "#FF9800",
+          color: momentColors.sunny.background,
         };
       case "hardTruths":
         return {
           name: "cloud" as const,
-          color: colorScheme === "dark" ? "#B0B0C8" : "#7878A0",
+          color: momentColors.cloudy.background,
         };
       case "lessons":
       default:
         return {
           name: "lightbulb" as const,
-          color: colorScheme === "dark" ? "#FFD700" : "#FFA000",
+          color: momentColors.lesson.background,
         };
     }
-  }, [momentType, colorScheme]);
+  }, [momentType, momentColors]);
 
   // If shouldGrowToFull, render the full popup element, otherwise render icon
   if (shouldGrowToFull) {
@@ -10033,7 +9992,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
             style={{
               width: baseSunSize,
               height: baseSunSize,
-              shadowColor: "#FFD700",
+              shadowColor: momentColors.sunny.background,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 0.8,
               shadowRadius: isTablet ? 12 : 9,
@@ -10058,10 +10017,10 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                   fy="80"
                   gradientUnits="userSpaceOnUse"
                 >
-                  <Stop offset="0%" stopColor="#FFEB3B" stopOpacity="1" />
-                  <Stop offset="30%" stopColor="#FFEB3B" stopOpacity="1" />
-                  <Stop offset="60%" stopColor="#FFD700" stopOpacity="1" />
-                  <Stop offset="100%" stopColor="#FFC107" stopOpacity="1" />
+                  <Stop offset="0%" stopColor={momentColors.sunny.background} stopOpacity="0.9" />
+                  <Stop offset="30%" stopColor={momentColors.sunny.background} stopOpacity="0.95" />
+                  <Stop offset="60%" stopColor={momentColors.sunny.background} stopOpacity="1" />
+                  <Stop offset="100%" stopColor={momentColors.sunny.background} stopOpacity="1" />
                 </RadialGradient>
               </Defs>
               {/* Sun rays */}
@@ -10092,7 +10051,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                   <Path
                     key={`pulsingRay-${i}`}
                     d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
-                    fill="#FFD700"
+                    fill={momentColors.sunny.background}
                   />
                 );
               })}
@@ -10119,7 +10078,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
             >
               <ThemedText
                 style={{
-                  color: "black",
+                  color: momentColors.sunny.text,
                   fontSize:
                     Math.max(10, Math.min(14, 12 - textLength / 60)) *
                     fontScale,
@@ -10136,7 +10095,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               {text?.includes("\n") && (
                 <ThemedText
                   style={{
-                    color: "black",
+                    color: momentColors.sunny.text,
                     fontSize:
                       Math.max(6, Math.min(9, 7 - textLength / 80)) * fontScale,
                     textAlign: "center",
@@ -10155,7 +10114,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
             style={{
               width: baseCloudWidth,
               height: baseCloudHeight,
-              shadowColor: "#4A5568",
+              shadowColor: momentColors.cloudy.background,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 0.7,
               shadowRadius: 10,
@@ -10177,9 +10136,9 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                   x2="0%"
                   y2="100%"
                 >
-                  <Stop offset="0%" stopColor="#2C3E50" stopOpacity="0.95" />
-                  <Stop offset="50%" stopColor="#1A1A1A" stopOpacity="0.98" />
-                  <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
+                  <Stop offset="0%" stopColor={momentColors.cloudy.background} stopOpacity="0.95" />
+                  <Stop offset="50%" stopColor={momentColors.cloudy.background} stopOpacity="0.98" />
+                  <Stop offset="100%" stopColor={momentColors.cloudy.background} stopOpacity="1" />
                 </SvgLinearGradient>
               </Defs>
               <Path
@@ -10224,7 +10183,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
             >
               <ThemedText
                 style={{
-                  color: "rgba(255,255,255,0.9)",
+                  color: momentColors.cloudy.text,
                   fontSize:
                     Math.max(11, Math.min(16, 14 - textLength / 50)) *
                     fontScale,
@@ -10246,7 +10205,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
             style={{
               width: baseSunSize,
               height: baseSunSize,
-              shadowColor: "#FFD700",
+              shadowColor: momentColors.lesson.background,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 0.7,
               shadowRadius: isTablet ? 12 : 9,
@@ -10258,7 +10217,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
             <MaterialIcons
               name="lightbulb"
               size={baseSunSize * 0.4}
-              color={colorScheme === "dark" ? "#FFD700" : "#FFA000"}
+              color={momentColors.lesson.background}
             />
             {/* Text below lightbulb */}
             <View
@@ -10273,7 +10232,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
             >
               <ThemedText
                 style={{
-                  color: colorScheme === "dark" ? "#FFD700" : "#FFA000",
+                  color: momentColors.lesson.text,
                   fontSize:
                     Math.max(9, Math.min(13, 11 - textLength / 70)) * fontScale,
                   textAlign: "center",
@@ -11144,6 +11103,7 @@ export default function HomeScreen() {
   const { isTablet, isLargeDevice } = useLargeDevice();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  const { momentColors } = useMomentColors();
   const {
     profiles,
     jobs,
@@ -16113,21 +16073,21 @@ export default function HomeScreen() {
               const momentVisuals = {
                 lessons: {
                   icon: "lightbulb" as const,
-                  backgroundColor: "rgba(255, 215, 0, 0.45)",
-                  shadowColor: "#FFD700",
-                  iconColor: colorScheme === "dark" ? "#FFD700" : "#FFA000",
+                  backgroundColor: `${momentColors.lesson.background}73`,
+                  shadowColor: momentColors.lesson.background,
+                  iconColor: momentColors.lesson.background,
                 },
                 hardTruths: {
                   icon: "cloud" as const,
-                  backgroundColor: "rgba(150, 150, 180, 0.35)",
-                  shadowColor: "#9696B4",
-                  iconColor: colorScheme === "dark" ? "#B0B0C8" : "#7878A0",
+                  backgroundColor: `${momentColors.cloudy.background}59`,
+                  shadowColor: momentColors.cloudy.background,
+                  iconColor: momentColors.cloudy.background,
                 },
                 sunnyMoments: {
                   icon: "wb-sunny" as const,
-                  backgroundColor: "rgba(255, 215, 0, 0.55)",
-                  shadowColor: "#FFD700",
-                  iconColor: colorScheme === "dark" ? "#FFD700" : "#FF9800",
+                  backgroundColor: `${momentColors.sunny.background}8C`,
+                  shadowColor: momentColors.sunny.background,
+                  iconColor: momentColors.sunny.background,
                 },
               };
 
@@ -16245,7 +16205,7 @@ export default function HomeScreen() {
                         style={{
                           width: momentWidth,
                           height: momentHeight,
-                          shadowColor: "#FFD700",
+                          shadowColor: momentColors.sunny.background,
                           shadowOffset: { width: 0, height: 0 },
                           shadowOpacity: 0.8,
                           shadowRadius: 12,
@@ -16272,22 +16232,17 @@ export default function HomeScreen() {
                             >
                               <Stop
                                 offset="0%"
-                                stopColor="#FFEB3B"
-                                stopOpacity="1"
-                              />
-                              <Stop
-                                offset="30%"
-                                stopColor="#FFEB3B"
-                                stopOpacity="1"
+                                stopColor={momentColors.sunny.background}
+                                stopOpacity="0.9"
                               />
                               <Stop
                                 offset="60%"
-                                stopColor="#FFD700"
+                                stopColor={momentColors.sunny.background}
                                 stopOpacity="1"
                               />
                               <Stop
                                 offset="100%"
-                                stopColor="#FFC107"
+                                stopColor={momentColors.sunny.background}
                                 stopOpacity="1"
                               />
                             </RadialGradient>
@@ -16328,7 +16283,7 @@ export default function HomeScreen() {
                               <Path
                                 key={`mainRay-${i}`}
                                 d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
-                                fill="#FFD700"
+                                fill={momentColors.sunny.background}
                               />
                             );
                           })}
@@ -16355,7 +16310,7 @@ export default function HomeScreen() {
                         >
                           <ThemedText
                             style={{
-                              color: "black",
+                              color: momentColors.sunny.text,
                               fontSize: 13 * fontScale,
                               textAlign: "center",
                               fontWeight: "700",
@@ -16497,17 +16452,17 @@ export default function HomeScreen() {
                             >
                               <Stop
                                 offset="0%"
-                                stopColor="#2C3E50"
+                                stopColor={momentColors.cloudy.background}
                                 stopOpacity="0.95"
                               />
                               <Stop
                                 offset="50%"
-                                stopColor="#1A1A1A"
+                                stopColor={momentColors.cloudy.background}
                                 stopOpacity="0.98"
                               />
                               <Stop
                                 offset="100%"
-                                stopColor="#0A0A0A"
+                                stopColor={momentColors.cloudy.background}
                                 stopOpacity="1"
                               />
                             </SvgLinearGradient>

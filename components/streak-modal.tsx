@@ -7,6 +7,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { useMomentColors } from '@/utils/MomentColorsProvider';
 import type { StreakBadge, StreakData } from '@/utils/streak-types';
 import { STREAK_BADGES } from '@/utils/streak-types';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -33,6 +34,7 @@ export const StreakModal = React.memo(function StreakModal({
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const t = useTranslate();
+  const { momentColors } = useMomentColors();
 
   const daysToNext = nextBadge ? nextBadge.daysRequired - streakData.currentStreak : 0;
 
@@ -111,7 +113,7 @@ export const StreakModal = React.memo(function StreakModal({
                   <ThemedText size="sm" style={{ opacity: 0.7 }}>
                     {t('streak.modal.longestStreak')}
                   </ThemedText>
-                  <ThemedText size="xl" weight="bold" style={{ marginTop: 4, color: '#FFD700' }}>
+                  <ThemedText size="xl" weight="bold" style={{ marginTop: 4, color: momentColors.sunny.background }}>
                     {streakData.longestStreak} {streakData.longestStreak === 1 ? t('streak.badge.day') : t('streak.badge.days')}
                   </ThemedText>
                 </View>

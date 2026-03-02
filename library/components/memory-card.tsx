@@ -3,6 +3,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { useMomentColors } from '@/utils/MomentColorsProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -46,6 +47,7 @@ export function MemoryCard({
   const t = useTranslate();
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
+  const { momentColors } = useMomentColors();
   const colors = Colors[colorScheme ?? 'dark'];
 
   const hardTruthCount = memory.hardTruths.length;
@@ -90,14 +92,14 @@ export function MemoryCard({
           position: 'relative',
           overflow: 'hidden', // Required for gradient to respect borderRadius
           ...(isSunny && hasMoments && {
-            shadowColor: '#FFD700',
+            shadowColor: momentColors.sunny.background,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.6,
             shadowRadius: 10,
             elevation: 5,
           }),
           ...(isCloudy && hasMoments && {
-            shadowColor: '#000000',
+            shadowColor: momentColors.cloudy.background,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.4,
             shadowRadius: 8,
@@ -169,9 +171,7 @@ export function MemoryCard({
           marginTop: 8 * fontScale,
         },
         hardTruthText: {
-          color: colorScheme === 'dark' 
-            ? '#9CA3AF' // Dark grey for dark mode
-            : '#4B5563', // Dark grey for light mode (darker than clouds)
+          color: momentColors.cloudy.text,
         },
         hardTruthTextEmpty: {
           color:
@@ -180,9 +180,7 @@ export function MemoryCard({
               : 'rgba(148, 163, 184, 0.8)',
         },
         goodFactText: {
-          color: colorScheme === 'dark' 
-            ? '#FFD700' // Bright yellow/gold for dark mode (good contrast)
-            : '#D97706', // Darker amber/yellow for light mode (good contrast)
+          color: momentColors.sunny.background,
         },
         goodFactTextEmpty: {
           color:
@@ -191,9 +189,7 @@ export function MemoryCard({
               : 'rgba(148, 163, 184, 0.8)',
         },
         lessonText: {
-          color: colorScheme === 'dark' 
-            ? '#FFD700' // Yellow/gold for dark mode (same as good facts)
-            : '#D97706', // Darker amber/yellow for light mode
+          color: momentColors.lesson.background,
         },
         lessonTextEmpty: {
           color:
@@ -207,7 +203,7 @@ export function MemoryCard({
           gap: 4 * fontScale,
         },
       }),
-    [fontScale, colorScheme, colors.primary, isSunny, isCloudy, hasMoments]
+    [fontScale, colorScheme, colors.primary, momentColors, isSunny, isCloudy, hasMoments]
   );
 
   return (
@@ -264,7 +260,7 @@ export function MemoryCard({
                 {cloudyPercentage > 0 && (
                   <Path
                     d={path}
-                    stroke="#000000"
+                    stroke={momentColors.cloudy.background}
                     strokeWidth={borderWidth}
                     fill="none"
                     strokeDasharray={blackDashArray}
@@ -277,7 +273,7 @@ export function MemoryCard({
                 {sunnyPercentage > 0 && (
                   <Path
                     d={path}
-                    stroke="#FFD700"
+                    stroke={momentColors.sunny.background}
                     strokeWidth={borderWidth}
                     fill="none"
                     strokeDasharray={yellowDashArray}
@@ -359,7 +355,7 @@ export function MemoryCard({
                   name="cloud"
                   size={16 * fontScale}
                   color={hasHardTruths 
-                    ? (colorScheme === 'dark' ? '#9CA3AF' : '#4B5563') // Dark grey to match text
+                    ? momentColors.cloudy.text
                     : 'rgba(148, 163, 184, 0.5)'}
                 />
                 <ThemedText
@@ -379,7 +375,7 @@ export function MemoryCard({
                   name="wb-sunny"
                   size={16 * fontScale}
                   color={hasGoodFacts 
-                    ? (colorScheme === 'dark' ? '#FFD700' : '#D97706') // Yellow to match text
+                    ? momentColors.sunny.background
                     : 'rgba(148, 163, 184, 0.5)'}
                 />
                 <ThemedText
@@ -399,7 +395,7 @@ export function MemoryCard({
                   name="lightbulb"
                   size={16 * fontScale}
                   color={hasLessons 
-                    ? (colorScheme === 'dark' ? '#FFD700' : '#D97706') // Yellow to match lessons
+                    ? momentColors.lesson.background
                     : 'rgba(148, 163, 184, 0.5)'}
                 />
                 <ThemedText

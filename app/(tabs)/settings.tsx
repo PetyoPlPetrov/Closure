@@ -2016,6 +2016,35 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Moment Colors Section */}
+        <View style={styles.section}>
+          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            {t("settings.momentColors.title")}
+          </ThemedText>
+
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={() => router.push("/moment-colors")}
+            activeOpacity={0.7}
+          >
+            <View style={styles.dropdownContent}>
+              <MaterialIcons
+                name="palette"
+                size={24 * fontScale}
+                color={colors.primary}
+              />
+              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                {t("settings.momentColors.title")}
+              </ThemedText>
+            </View>
+            <MaterialIcons
+              name="arrow-forward-ios"
+              size={20 * fontScale}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
             {t("settings.notifications.title")}

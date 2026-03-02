@@ -30,6 +30,7 @@ import type {
 } from "@/utils/JourneyProvider";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { showPaywallForPremiumAccess } from "@/utils/premium-access";
 import { onSpheresTabPress } from "@/utils/spheres-tab-press";
 import { useSubscription } from "@/utils/SubscriptionProvider";
@@ -82,11 +83,13 @@ const SparkledDots = React.memo(function SparkledDots({
   avatarCenterX,
   avatarCenterY,
   colorScheme,
+  sunnyBackground,
 }: {
   avatarSize: number;
   avatarCenterX: number;
   avatarCenterY: number;
   colorScheme: "light" | "dark";
+  sunnyBackground: string;
 }) {
   const { isTablet } = useLargeDevice();
 
@@ -142,6 +145,7 @@ const SparkledDots = React.memo(function SparkledDots({
           delay={dot.delay}
           duration={dot.duration}
           colorScheme={colorScheme}
+          sunnyBackground={sunnyBackground}
         />
       ))}
     </>
@@ -156,6 +160,7 @@ const SparkledDot = React.memo(function SparkledDot({
   delay,
   duration,
   colorScheme,
+  sunnyBackground,
 }: {
   x: number;
   y: number;
@@ -163,6 +168,7 @@ const SparkledDot = React.memo(function SparkledDot({
   delay: number;
   duration: number;
   colorScheme: "light" | "dark";
+  sunnyBackground: string;
 }) {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.7);
@@ -206,7 +212,12 @@ const SparkledDot = React.memo(function SparkledDot({
   const glowColor =
     colorScheme === "dark"
       ? "rgba(255, 255, 255, 0.65)" // Increased from 0.4 to 0.65
-      : "rgba(255, 215, 0, 0.55)"; // Increased from 0.3 to 0.55
+      : (() => {
+          const r = parseInt(sunnyBackground.slice(1, 3), 16);
+          const g = parseInt(sunnyBackground.slice(3, 5), 16);
+          const b = parseInt(sunnyBackground.slice(5, 7), 16);
+          return `rgba(${r}, ${g}, ${b}, 0.55)`;
+        })();
 
   return (
     <Animated.View
@@ -234,6 +245,7 @@ const SparkledDot = React.memo(function SparkledDot({
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
+  const { momentColors } = useMomentColors();
   const fontScale = useFontScale();
   const iconScale = useIconScale();
   const { maxContentWidth, isLargeDevice, isTablet } = useLargeDevice();
@@ -2631,6 +2643,7 @@ export default function SpheresScreen() {
                         avatarCenterX={centerX}
                         avatarCenterY={centerY}
                         colorScheme={colorScheme ?? "dark"}
+                        sunnyBackground={momentColors.sunny.background}
                       />
 
                       {/* Insights button in the center - circular */}
@@ -2813,8 +2826,8 @@ export default function SpheresScreen() {
                                     fontSize: 40 * fontScale * iconScale,
                                     color:
                                       colorScheme === "dark"
-                                        ? "#FFD700"
-                                        : "#F57C00",
+                                        ? momentColors.sunny.background
+                                        : momentColors.sunny.background,
                                     textAlign: "center",
                                     lineHeight: 40 * fontScale * iconScale,
                                     includeFontPadding: false,

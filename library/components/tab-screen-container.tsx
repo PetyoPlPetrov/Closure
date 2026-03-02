@@ -1,7 +1,14 @@
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useMomentColors } from '@/utils/MomentColorsProvider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View, type ViewProps, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace("#", "");
+  const num = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
 
 export const TAB_BACKGROUND_COLOR_DARK = '#1A2332'; // Dark blue-grey background
 export const TAB_BACKGROUND_COLOR_LIGHT = '#B0B0B0'; // Darker grey background for light mode
@@ -20,16 +27,25 @@ type TabScreenContainerProps = ViewProps & {
 };
 
 // Get corner accent color based on moment type
-function getCornerAccentColor(momentType: MomentType | undefined): string {
+function getCornerAccentColor(
+  momentType: MomentType | undefined,
+  momentColors: { sunny: { background: string }; cloudy: { background: string }; lesson: { background: string } }
+): string {
   if (!momentType) return 'transparent';
 
   switch (momentType) {
-    case 'lessons':
-      return 'rgba(255, 215, 0, 0.15)'; // Yellowish for bulbs
-    case 'sunnyMoments':
-      return 'rgba(255, 193, 7, 0.15)'; // Sunny/golden for suns
-    case 'hardTruths':
-      return 'rgba(140, 140, 140, 0.12)'; // Greyish for clouds
+    case 'lessons': {
+      const { r, g, b } = hexToRgb(momentColors.lesson.background);
+      return `rgba(${r}, ${g}, ${b}, 0.15)`;
+    }
+    case 'sunnyMoments': {
+      const { r, g, b } = hexToRgb(momentColors.sunny.background);
+      return `rgba(${r}, ${g}, ${b}, 0.15)`;
+    }
+    case 'hardTruths': {
+      const { r, g, b } = hexToRgb(momentColors.cloudy.background);
+      return `rgba(${r}, ${g}, ${b}, 0.12)`;
+    }
   }
 }
 
@@ -42,7 +58,9 @@ export function TabScreenContainer({
   ...otherProps
 }: TabScreenContainerProps) {
   const colorScheme = useColorScheme();
+  const { momentColors } = useMomentColors();
   const isDark = colorScheme === 'dark';
+  const cornerAccentColor = getCornerAccentColor(momentType, momentColors);
 
   return (
     <SafeAreaView
@@ -61,7 +79,7 @@ export function TabScreenContainer({
             <>
               {/* Top-left corner */}
               <LinearGradient
-                colors={[getCornerAccentColor(momentType), 'transparent']}
+                colors={[cornerAccentColor, 'transparent']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={[
@@ -73,7 +91,7 @@ export function TabScreenContainer({
 
               {/* Top-right corner */}
               <LinearGradient
-                colors={[getCornerAccentColor(momentType), 'transparent']}
+                colors={[cornerAccentColor, 'transparent']}
                 start={{ x: 1, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={[
@@ -85,7 +103,7 @@ export function TabScreenContainer({
 
               {/* Bottom-left corner */}
               <LinearGradient
-                colors={['transparent', getCornerAccentColor(momentType)]}
+                colors={['transparent', cornerAccentColor]}
                 start={{ x: 1, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={[
@@ -97,7 +115,7 @@ export function TabScreenContainer({
 
               {/* Bottom-right corner */}
               <LinearGradient
-                colors={['transparent', getCornerAccentColor(momentType)]}
+                colors={['transparent', cornerAccentColor]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={[
@@ -131,7 +149,7 @@ export function TabScreenContainer({
             <>
               {/* Top-left corner */}
               <LinearGradient
-                colors={[getCornerAccentColor(momentType), 'transparent']}
+                colors={[cornerAccentColor, 'transparent']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={[
@@ -143,7 +161,7 @@ export function TabScreenContainer({
 
               {/* Top-right corner */}
               <LinearGradient
-                colors={[getCornerAccentColor(momentType), 'transparent']}
+                colors={[cornerAccentColor, 'transparent']}
                 start={{ x: 1, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={[
@@ -155,7 +173,7 @@ export function TabScreenContainer({
 
               {/* Bottom-left corner */}
               <LinearGradient
-                colors={['transparent', getCornerAccentColor(momentType)]}
+                colors={['transparent', cornerAccentColor]}
                 start={{ x: 1, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={[
@@ -167,7 +185,7 @@ export function TabScreenContainer({
 
               {/* Bottom-right corner */}
               <LinearGradient
-                colors={['transparent', getCornerAccentColor(momentType)]}
+                colors={['transparent', cornerAccentColor]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={[

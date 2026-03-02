@@ -6,6 +6,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import type { FamilyMember } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { useMomentColors } from '@/utils/MomentColorsProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -17,6 +18,7 @@ export default function FamilyMemberDetailScreen() {
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const t = useTranslate();
+  const { momentColors } = useMomentColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   
   const { familyMembers, getIdealizedMemoriesByEntityId } = useJourney();
@@ -386,7 +388,7 @@ export default function FamilyMemberDetailScreen() {
                               styles.memoryBarSegment,
                               {
                                 width: `${sunnyPercentage}%`,
-                                backgroundColor: '#FFD700',
+                                backgroundColor: momentColors.sunny.background,
                                 justifyContent: 'center',
                                 alignItems: 'center',
                               }

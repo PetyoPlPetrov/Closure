@@ -6,6 +6,7 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import type { LifeSphere } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { useMomentColors } from '@/utils/MomentColorsProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -17,6 +18,7 @@ export default function HobbiesComparisonScreen() {
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const t = useTranslate();
+  const { momentColors } = useMomentColors();
   
   const { hobbies, profiles, jobs, familyMembers, getEntitiesBySphere, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
 
@@ -787,7 +789,7 @@ export default function HobbiesComparisonScreen() {
                                     styles.sunSegment,
                                     {
                                       width: `${sunPercentage}%`,
-                                      backgroundColor: '#FFD700',
+                                      backgroundColor: momentColors.sunny.background,
                                       justifyContent: 'center',
                                       alignItems: 'center',
                                     }

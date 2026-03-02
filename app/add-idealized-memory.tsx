@@ -15,6 +15,7 @@ import {
   getGoodFactSuggestion,
   getLessonSuggestion
 } from '@/utils/moment-suggestions';
+import { useMomentColors } from '@/utils/MomentColorsProvider';
 import { updateStreakOnMemoryCreation } from '@/utils/streak-manager';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -49,6 +50,12 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Circle, Defs, Path, RadialGradient, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace("#", "");
+  const num = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
@@ -113,6 +120,7 @@ function AnimatedCloud({
   viewOnly = false,
   inputRef,
   shouldAutoFocus = false,
+  cloudyBackground,
 }: {
   cloud: { id: string; text: string; x: number; y: number; startX?: number; startY?: number; placeholder?: string };
   panHandlers: any;
@@ -128,6 +136,7 @@ function AnimatedCloud({
   viewOnly?: boolean;
   inputRef?: React.RefObject<TextInput | null>;
   shouldAutoFocus?: boolean;
+  cloudyBackground: string;
 }) {
   // Animation values
   const translateX = useSharedValue(cloud.startX !== undefined ? cloud.startX : cloud.x);
@@ -245,8 +254,8 @@ function AnimatedCloud({
       >
         <Defs>
           <SvgLinearGradient id={`cloudGradient-${cloud.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-            <Stop offset="0%" stopColor="#2C3E50" stopOpacity="0.95" />
-            <Stop offset="50%" stopColor="#1A1A1A" stopOpacity="0.98" />
+            <Stop offset="0%" stopColor={cloudyBackground} stopOpacity="0.95" />
+            <Stop offset="50%" stopColor={cloudyBackground} stopOpacity="0.98" />
             <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
           </SvgLinearGradient>
         </Defs>
@@ -364,6 +373,7 @@ function AnimatedSun({
   viewOnly = false,
   inputRef,
   shouldAutoFocus = false,
+  sunnyBackground,
 }: {
   sun: { id: string; text: string; x: number; y: number; startX?: number; startY?: number; placeholder?: string };
   panHandlers: any;
@@ -379,6 +389,7 @@ function AnimatedSun({
   viewOnly?: boolean;
   inputRef?: React.RefObject<TextInput | null>;
   shouldAutoFocus?: boolean;
+  sunnyBackground: string;
 }) {
   // Animation values
   const translateX = useSharedValue(sun.startX !== undefined ? sun.startX : sun.x);
@@ -492,7 +503,7 @@ function AnimatedSun({
           width: sunWidth,
           height: sunHeight,
           // Golden glow for suns (positive moments)
-          shadowColor: '#FFD700',
+          shadowColor: sunnyBackground,
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.8,
           shadowRadius: 12,
@@ -517,10 +528,10 @@ function AnimatedSun({
               fy="80"
               gradientUnits="userSpaceOnUse"
             >
-              <Stop offset="0%" stopColor="#FFEB3B" stopOpacity="1" />
-              <Stop offset="30%" stopColor="#FFEB3B" stopOpacity="1" />
-              <Stop offset="60%" stopColor="#FFD700" stopOpacity="1" />
-              <Stop offset="100%" stopColor="#FFC107" stopOpacity="1" />
+              <Stop offset="0%" stopColor={sunnyBackground} stopOpacity="1" />
+              <Stop offset="30%" stopColor={sunnyBackground} stopOpacity="1" />
+              <Stop offset="60%" stopColor={sunnyBackground} stopOpacity="1" />
+              <Stop offset="100%" stopColor={sunnyBackground} stopOpacity="1" />
             </RadialGradient>
           </Defs>
           {/* Sun rays - triangular rays */}
@@ -552,7 +563,7 @@ function AnimatedSun({
               <Path
                 key={`ray-${i}`}
                 d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
-                fill="#FFD700"
+                fill={sunnyBackground}
               />
             );
           })}
@@ -671,6 +682,8 @@ function AnimatedLesson({
   viewOnly = false,
   inputRef,
   shouldAutoFocus = false,
+  lessonBackground,
+  lessonText,
 }: {
   lesson: { id: string; text: string; x: number; y: number; startX?: number; startY?: number };
   panHandlers: any;
@@ -687,6 +700,8 @@ function AnimatedLesson({
   viewOnly?: boolean;
   inputRef?: React.RefObject<TextInput | null>;
   shouldAutoFocus?: boolean;
+  lessonBackground: string;
+  lessonText: string;
 }) {
   // Animation values
   const translateX = useSharedValue(lesson.startX !== undefined ? lesson.startX : lesson.x);
@@ -800,9 +815,13 @@ function AnimatedLesson({
     >
       <LinearGradient
         colors={
-          colorScheme === 'dark'
-            ? ['#FFD700', '#FFA000']  // Gold gradient
-            : ['#FFE082', '#FFB300']  // Lighter gold gradient
+          (() => {
+            const { r, g, b } = hexToRgb(lessonBackground);
+            return [
+              lessonBackground,
+              `rgb(${Math.max(0, r - 40)}, ${Math.max(0, g - 40)}, ${Math.max(0, b - 40)})`,
+            ];
+          })()
         }
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -823,14 +842,14 @@ function AnimatedLesson({
         <MaterialIcons
           name="lightbulb"
           size={lessonWidth * 0.35}
-          color={colorScheme === 'dark' ? '#000000' : '#1A1A1A'}
+          color={lessonText}
           style={{ marginBottom: 4 }}
         />
         <View style={{ position: 'relative', width: '100%', alignItems: 'center' }}>
           <TextInput
             ref={inputRef}
             style={{
-              color: colorScheme === 'dark' ? '#000000' : '#1A1A1A',
+              color: lessonText,
               fontSize: 11,
               textAlign: 'center',
               fontWeight: '700',
@@ -841,7 +860,7 @@ function AnimatedLesson({
             value={lesson.text}
             onChangeText={(text) => onTextChange(lesson.id, text)}
             placeholder={placeholder}
-            placeholderTextColor={(colorScheme === 'dark' ? '#000000' : '#1A1A1A') + '80'}
+            placeholderTextColor={lessonText + '80'}
             multiline
             numberOfLines={5}
             editable={!viewOnly}
@@ -900,9 +919,9 @@ function AnimatedLesson({
 }
 
 export default function AddIdealizedMemoryScreen() {
-  
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
+  const { momentColors } = useMomentColors();
   const fontScale = useFontScale();
   const { maxContentWidth, isLargeDevice } = useLargeDevice();
   
@@ -2979,7 +2998,7 @@ export default function AddIdealizedMemoryScreen() {
                 justifyContent: 'center',
                 alignItems: 'center',
                 // Enhanced 3D shadow effect - stronger for dark theme
-                shadowColor: colorScheme === 'dark' ? '#FFA500' : '#FFA500',
+                shadowColor: momentColors.sunny.background,
                 shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
                 shadowOpacity: colorScheme === 'dark' ? 0.9 : 0.7,
                 shadowRadius: colorScheme === 'dark' ? 24 : 20,
@@ -2988,9 +3007,12 @@ export default function AddIdealizedMemoryScreen() {
               }}>
                 <LinearGradient
                   colors={
-                    colorScheme === 'dark'
-                      ? ['rgba(255, 230, 140, 0.85)', 'rgba(255, 180, 70, 0.7)', 'rgba(255, 140, 40, 0.85)']
-                      : ['rgba(255, 250, 200, 1)', 'rgba(255, 230, 120, 0.95)', 'rgba(255, 210, 60, 1)']
+                    (() => {
+                      const { r, g, b } = hexToRgb(momentColors.sunny.background);
+                      return colorScheme === 'dark'
+                        ? [`rgba(${r}, ${g}, ${b}, 0.85)`, `rgba(${r}, ${g}, ${b}, 0.7)`, `rgba(${r}, ${g}, ${b}, 0.85)`]
+                        : [`rgba(${r}, ${g}, ${b}, 1)`, `rgba(${r}, ${g}, ${b}, 0.95)`, `rgba(${r}, ${g}, ${b}, 1)`];
+                    })()
                   }
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -3007,18 +3029,18 @@ export default function AddIdealizedMemoryScreen() {
                     borderLeftColor: colorScheme === 'dark' 
                       ? 'rgba(255, 255, 200, 0.35)' 
                       : 'rgba(255, 255, 255, 0.9)',
-                    borderBottomColor: colorScheme === 'dark' 
-                      ? 'rgba(200, 120, 0, 0.5)' 
-                      : 'rgba(255, 210, 60, 0.9)',
-                    borderRightColor: colorScheme === 'dark' 
-                      ? 'rgba(200, 100, 0, 0.4)' 
-                      : 'rgba(255, 210, 60, 0.9)',
+                    borderBottomColor: colorScheme === 'dark'
+                      ? (() => { const { r, g, b } = hexToRgb(momentColors.sunny.background); return `rgba(${Math.max(0, r - 55)}, ${Math.max(0, g - 95)}, ${Math.max(0, b - 55)}, 0.5)`; })()
+                      : (() => { const { r, g, b } = hexToRgb(momentColors.sunny.background); return `rgba(${r}, ${g}, ${b}, 0.9)`; })(),
+                    borderRightColor: colorScheme === 'dark'
+                      ? (() => { const { r, g, b } = hexToRgb(momentColors.sunny.background); return `rgba(${Math.max(0, r - 55)}, ${Math.max(0, g - 95)}, ${Math.max(0, b - 55)}, 0.4)`; })()
+                      : (() => { const { r, g, b } = hexToRgb(momentColors.sunny.background); return `rgba(${r}, ${g}, ${b}, 0.9)`; })(),
                   }}
                 >
                   <MaterialIcons
                     name="wb-sunny"
                     size={isLargeDevice ? 32 : 28}
-                    color={colorScheme === 'dark' ? '#FFD700' : '#FFA500'}
+                    color={momentColors.sunny.background}
                   />
                 </LinearGradient>
               </View>
@@ -3054,7 +3076,7 @@ export default function AddIdealizedMemoryScreen() {
                 justifyContent: 'center',
                 alignItems: 'center',
                 // Enhanced 3D shadow effect - golden glow for lightbulb
-                shadowColor: colorScheme === 'dark' ? '#FFD700' : '#FFA000',
+                shadowColor: momentColors.lesson.background,
                 shadowOffset: { width: 0, height: colorScheme === 'dark' ? 14 : 12 },
                 shadowOpacity: colorScheme === 'dark' ? 0.85 : 0.65,
                 shadowRadius: colorScheme === 'dark' ? 24 : 20,
@@ -3063,9 +3085,12 @@ export default function AddIdealizedMemoryScreen() {
               }}>
                 <LinearGradient
                   colors={
-                    colorScheme === 'dark'
-                      ? ['rgba(255, 249, 196, 0.9)', 'rgba(255, 213, 79, 0.75)', 'rgba(255, 160, 0, 0.9)']
-                      : ['rgba(255, 253, 231, 1)', 'rgba(255, 245, 157, 0.95)', 'rgba(255, 213, 79, 1)']
+                    (() => {
+                      const { r, g, b } = hexToRgb(momentColors.lesson.background);
+                      return colorScheme === 'dark'
+                        ? [`rgba(${r}, ${g}, ${b}, 0.9)`, `rgba(${r}, ${g}, ${b}, 0.75)`, `rgba(${r}, ${g}, ${b}, 0.9)`]
+                        : [`rgba(${r}, ${g}, ${b}, 1)`, `rgba(${r}, ${g}, ${b}, 0.95)`, `rgba(${r}, ${g}, ${b}, 1)`];
+                    })()
                   }
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -3083,17 +3108,17 @@ export default function AddIdealizedMemoryScreen() {
                       ? 'rgba(255, 255, 230, 0.4)'
                       : 'rgba(255, 255, 255, 0.95)',
                     borderBottomColor: colorScheme === 'dark'
-                      ? 'rgba(200, 130, 0, 0.55)'
-                      : 'rgba(255, 213, 79, 0.95)',
+                      ? (() => { const { r, g, b } = hexToRgb(momentColors.lesson.background); return `rgba(${Math.max(0, r - 55)}, ${Math.max(0, g - 83)}, ${Math.max(0, b - 55)}, 0.55)`; })()
+                      : (() => { const { r, g, b } = hexToRgb(momentColors.lesson.background); return `rgba(${r}, ${g}, ${b}, 0.95)`; })(),
                     borderRightColor: colorScheme === 'dark'
-                      ? 'rgba(200, 110, 0, 0.45)'
-                      : 'rgba(255, 213, 79, 0.95)',
+                      ? (() => { const { r, g, b } = hexToRgb(momentColors.lesson.background); return `rgba(${Math.max(0, r - 55)}, ${Math.max(0, g - 83)}, ${Math.max(0, b - 55)}, 0.45)`; })()
+                      : (() => { const { r, g, b } = hexToRgb(momentColors.lesson.background); return `rgba(${r}, ${g}, ${b}, 0.95)`; })(),
                   }}
                 >
                   <MaterialIcons
                     name="lightbulb"
                     size={isLargeDevice ? 32 : 28}
-                    color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'}
+                    color={momentColors.lesson.background}
                   />
                 </LinearGradient>
               </View>
@@ -3131,6 +3156,7 @@ export default function AddIdealizedMemoryScreen() {
             panHandlers={pan.panHandlers}
             styles={styles}
             colors={colors}
+            cloudyBackground={momentColors.cloudy.background}
             cloudWidth={dynamicCloudWidth}
             cloudHeight={dynamicCloudHeight}
             placeholder={cloud.placeholder || t('memory.hardTruth.placeholder')}
@@ -3193,6 +3219,7 @@ export default function AddIdealizedMemoryScreen() {
             panHandlers={pan.panHandlers}
             styles={styles}
             colors={colors}
+            sunnyBackground={momentColors.sunny.background}
             sunWidth={dynamicSunSize}
             sunHeight={dynamicSunSize}
             placeholder={sun.placeholder || t('memory.goodFact.placeholder')}
@@ -3254,6 +3281,8 @@ export default function AddIdealizedMemoryScreen() {
             styles={styles}
             colors={colors}
             colorScheme={colorScheme}
+            lessonBackground={momentColors.lesson.background}
+            lessonText={momentColors.lesson.text}
             lessonWidth={lessonWidth}
             lessonHeight={lessonHeight}
             placeholder={lesson.placeholder || t('memory.lesson.placeholder')}

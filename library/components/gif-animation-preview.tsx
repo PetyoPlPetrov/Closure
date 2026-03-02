@@ -4,6 +4,13 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS } from '@/library/components/tab-screen-container';
 import { createVideoFromFrames } from '@/modules/video-composer';
 import type { IdealizedMemory } from '@/utils/JourneyProvider';
+import { useMomentColors } from '@/utils/MomentColorsProvider';
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace('#', '');
+  const num = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
 import { MaterialIcons } from '@expo/vector-icons';
 import { File } from 'expo-file-system';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
@@ -67,6 +74,8 @@ function FloatingMoment({
   isCurrentlyPoppedUp: boolean;
   backgroundOpacity: number;
 }) {
+  const { momentColors } = useMomentColors();
+
   // Use derived value to convert boolean prop to worklet-safe value
   const isHidden = useDerivedValue(() => isCurrentlyPoppedUp ? 1 : 0, [isCurrentlyPoppedUp]);
 
@@ -99,10 +108,10 @@ function FloatingMoment({
           height: momentSize,
           borderRadius: momentSize / 2,
           backgroundColor: moment.type === 'lessons'
-            ? '#FFD700'
+            ? momentColors.lesson.background
             : moment.type === 'sunnyMoments'
-            ? '#FFA500'
-            : '#999',
+            ? momentColors.sunny.background
+            : momentColors.cloudy.background,
           justifyContent: 'center',
           alignItems: 'center',
         },
@@ -315,6 +324,8 @@ function SpeedSlider({
 
 // Loading overlay with splash animation during video export
 function LoadingOverlay({ progress, colorScheme }: { progress: number; colorScheme: 'light' | 'dark' }) {
+  const { momentColors } = useMomentColors();
+  const sunnyRgb = hexToRgb(momentColors.sunny.background);
   const orbitRadius = 60;
   const sphereSize = 40;
   const avatarSize = 50;
@@ -380,7 +391,11 @@ function LoadingOverlay({ progress, colorScheme }: { progress: number; colorSche
             alignItems: 'center',
           }}
         >
-          <MaterialIcons name="person" size={30} color="rgba(255, 215, 0, 0.9)" />
+          <MaterialIcons
+          name="person"
+          size={30}
+          color={`rgba(${sunnyRgb.r}, ${sunnyRgb.g}, ${sunnyRgb.b}, 0.9)`}
+        />
         </View>
 
         {/* Sphere 1 - Relationships */}
@@ -466,6 +481,7 @@ function PopUpMoment({
 }) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
+  const { momentColors } = useMomentColors();
 
   // Calculate dynamic size based on text length and moment type
   const textLength = moment.text.length;
@@ -508,24 +524,27 @@ function PopUpMoment({
   const sourceY = useSharedValue(SCREEN_HEIGHT / 2);
 
   // Get visual properties based on moment type (matching entity wheel popup)
+  const lessonRgb = hexToRgb(momentColors.lesson.background);
+  const sunnyRgb = hexToRgb(momentColors.sunny.background);
+  const cloudyRgb = hexToRgb(momentColors.cloudy.background);
   const momentVisuals = {
     lessons: {
       icon: 'lightbulb' as const,
-      backgroundColor: 'rgba(255, 215, 0, 0.45)',
-      shadowColor: '#FFD700',
-      iconColor: colorScheme === 'dark' ? '#FFD700' : '#FFA000',
+      backgroundColor: `rgba(${lessonRgb.r}, ${lessonRgb.g}, ${lessonRgb.b}, 0.45)`,
+      shadowColor: momentColors.lesson.background,
+      iconColor: momentColors.lesson.text,
     },
     sunnyMoments: {
       icon: 'wb-sunny' as const,
-      backgroundColor: 'rgba(255, 215, 0, 0.55)',
-      shadowColor: '#FFD700',
-      iconColor: colorScheme === 'dark' ? '#FFD700' : '#FF9800',
+      backgroundColor: `rgba(${sunnyRgb.r}, ${sunnyRgb.g}, ${sunnyRgb.b}, 0.55)`,
+      shadowColor: momentColors.sunny.background,
+      iconColor: momentColors.sunny.text,
     },
     hardTruths: {
       icon: 'cloud' as const,
-      backgroundColor: 'rgba(150, 150, 180, 0.35)',
-      shadowColor: '#9696B4',
-      iconColor: colorScheme === 'dark' ? '#B0B0C8' : '#7878A0',
+      backgroundColor: `rgba(${cloudyRgb.r}, ${cloudyRgb.g}, ${cloudyRgb.b}, 0.35)`,
+      shadowColor: momentColors.cloudy.background,
+      iconColor: momentColors.cloudy.text,
     },
   };
 
@@ -685,9 +704,9 @@ function PopUpMoment({
             height: momentHeight,
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: 'rgba(255, 215, 0, 0.25)',
+            backgroundColor: `rgba(${lessonRgb.r}, ${lessonRgb.g}, ${lessonRgb.b}, 0.25)`,
             borderRadius: momentWidth / 2,
-            shadowColor: '#FFD700',
+            shadowColor: momentColors.lesson.background,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.8,
             shadowRadius: 12,
@@ -698,12 +717,12 @@ function PopUpMoment({
           <MaterialIcons
             name="lightbulb"
             size={momentWidth * 0.35}
-            color={colorScheme === 'dark' ? '#FFD700' : '#FFA000'}
+            color={momentColors.lesson.text}
             style={{ marginBottom: 4 }}
           />
           <ThemedText
             style={{
-              color: colorScheme === 'dark' ? '#000000' : '#1A1A1A',
+              color: momentColors.lesson.text,
               fontSize: Math.max(10, Math.min(14, 11 + (textLength / 80))) * fontScale,
               textAlign: 'center',
               fontWeight: '700',
@@ -723,7 +742,7 @@ function PopUpMoment({
           style={{
             width: momentWidth,
             height: momentHeight,
-            shadowColor: '#FFD700',
+            shadowColor: momentColors.sunny.background,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.8,
             shadowRadius: 12,
@@ -748,10 +767,10 @@ function PopUpMoment({
                 fy="80"
                 gradientUnits="userSpaceOnUse"
               >
-                <Stop offset="0%" stopColor="#FFEB3B" stopOpacity="1" />
-                <Stop offset="30%" stopColor="#FFEB3B" stopOpacity="1" />
-                <Stop offset="60%" stopColor="#FFD700" stopOpacity="1" />
-                <Stop offset="100%" stopColor="#FFC107" stopOpacity="1" />
+                <Stop offset="0%" stopColor={momentColors.sunny.background} stopOpacity="1" />
+                <Stop offset="30%" stopColor={momentColors.sunny.background} stopOpacity="1" />
+                <Stop offset="60%" stopColor={momentColors.sunny.background} stopOpacity="0.9" />
+                <Stop offset="100%" stopColor={momentColors.sunny.background} stopOpacity="0.85" />
               </RadialGradient>
             </Defs>
             {/* Sun rays */}
@@ -780,7 +799,7 @@ function PopUpMoment({
                 <Path
                   key={`ray-${i}`}
                   d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
-                  fill="#FFD700"
+                  fill={momentColors.sunny.background}
                 />
               );
             })}
@@ -807,7 +826,7 @@ function PopUpMoment({
           >
             <ThemedText
               style={{
-                color: 'black',
+                color: momentColors.sunny.text,
                 fontSize: Math.max(11, Math.min(16, 12 + (textLength / 60))) * fontScale,
                 textAlign: 'center',
                 fontWeight: '700',
@@ -829,7 +848,7 @@ function PopUpMoment({
           style={{
             width: cloudWidth,
             height: cloudHeight,
-            shadowColor: '#4A5568',
+            shadowColor: momentColors.cloudy.background,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.7,
             shadowRadius: 10,
@@ -845,9 +864,9 @@ function PopUpMoment({
           >
             <Defs>
               <SvgLinearGradient id={`cloudGradient-${moment.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <Stop offset="0%" stopColor="#2C3E50" stopOpacity="0.95" />
-                <Stop offset="50%" stopColor="#1A1A1A" stopOpacity="0.98" />
-                <Stop offset="100%" stopColor="#0A0A0A" stopOpacity="1" />
+                <Stop offset="0%" stopColor={momentColors.cloudy.background} stopOpacity="0.95" />
+                <Stop offset="50%" stopColor={momentColors.cloudy.background} stopOpacity="0.98" />
+                <Stop offset="100%" stopColor={momentColors.cloudy.background} stopOpacity="1" />
               </SvgLinearGradient>
             </Defs>
             <Path
@@ -892,7 +911,7 @@ function PopUpMoment({
           >
             <ThemedText
               style={{
-                color: 'rgba(255,255,255,0.9)',
+                color: momentColors.cloudy.text,
                 fontSize: Math.max(10, Math.min(14, 12 + (textLength / 120))) * fontScale,
                 textAlign: 'center',
                 fontWeight: '500',
