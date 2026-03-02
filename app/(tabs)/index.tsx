@@ -12636,29 +12636,29 @@ export default function HomeScreen() {
   // Animate spheres scale and icon buttons when moment type selector is shown/hidden
   useEffect(() => {
     if (showMomentTypeSelector) {
-      // Shrink spheres to 0.6 scale
+      // Shrink spheres to 0.6 scale — softer spring so the wheel doesn’t “pop” in
       spheresScale.value = withSpring(0.6, {
-        damping: 15,
-        stiffness: 150,
+        damping: 18,
+        stiffness: 85,
       });
-      // Animate icon buttons from 0 to 1
+      // Animate icon buttons from 0 to 1 — slower so the percentage controls appear smoothly
       iconButtonScale.value = withSpring(1, {
-        damping: 12,
-        stiffness: 150,
-        mass: 0.8,
+        damping: 16,
+        stiffness: 80,
+        mass: 0.9,
       });
     } else {
       // Return to normal size
       spheresScale.value = withSpring(1, {
-        damping: 15,
-        stiffness: 150,
+        damping: 18,
+        stiffness: 85,
       });
-      // Scale buttons back to 0
-      iconButtonScale.value = withTiming(0, { duration: 200 });
+      // Scale buttons back to 0 — slightly longer so hide feels consistent
+      iconButtonScale.value = withTiming(0, { duration: 280 });
     }
   }, [showMomentTypeSelector, spheresScale, iconButtonScale]);
 
-  // Auto-dismiss "Spin the wheel" label after 5 seconds
+  // Auto-dismiss "Spin the wheel" label after 3 seconds
   useEffect(() => {
     if (!showMomentTypeSelector) {
       // Reset dismissed state when selector is hidden
@@ -12669,10 +12669,10 @@ export default function HomeScreen() {
     // Reset dismissed state when selector is shown
     setMomentTypeSelectorDismissed(false);
 
-    // Auto-dismiss after 5 seconds
+    // Auto-dismiss after 3 seconds
     const autoDismissTimer = setTimeout(() => {
       setMomentTypeSelectorDismissed(true);
-    }, 5000);
+    }, 3000);
 
     return () => {
       clearTimeout(autoDismissTimer);
@@ -16755,6 +16755,7 @@ export default function HomeScreen() {
               );
             })()}
 
+          {/* MAIN Wheel of Life — center circle with sunny/cloudy % and five spheres */}
           {/* Center - Overall Percentage Avatar with Sparkled Dots */}
           {(() => {
             // Calculate avatar size considering floating entities intersection
