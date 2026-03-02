@@ -1,3 +1,9 @@
+/**
+ * Entity Wheel of Life — wheel-of-life view for a single entity (orbit of memories,
+ * sunny/cloudy percentage ring, lesson/sunny/cloudy selector). Used when an entity
+ * circle is focused (e.g. in modal or detail flow). The home tab uses an inline
+ * implementation inside FloatingAvatar; this component is the standalone variant.
+ */
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useFontScale } from '@/hooks/use-device-size';
