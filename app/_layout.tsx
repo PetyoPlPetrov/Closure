@@ -22,6 +22,7 @@ import { AIInsightsConsentProvider } from "@/utils/AIInsightsConsentProvider";
 import { initializeAppCheckService, verifyAppCheck } from "@/utils/app-check";
 import { handleDevError } from "@/utils/dev-error-handler";
 import { InAppNotificationProvider } from "@/utils/InAppNotificationProvider";
+import { checkForUpdateAndReload } from "@/utils/updates";
 import { JourneyProvider, LifeSphere } from "@/utils/JourneyProvider";
 import { LanguageProvider } from "@/utils/languages/language-context";
 import { NotificationsProvider } from "@/utils/NotificationsProvider";
@@ -72,6 +73,15 @@ function AppContent() {
 
     initializeServices();
   }, []);
+
+  // EAS Update: check for OTA update after app is ready (production only; applies and reloads if available)
+  useEffect(() => {
+    if (!isAnimationComplete) return;
+    const t = setTimeout(() => {
+      void checkForUpdateAndReload();
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [isAnimationComplete]);
 
   useEffect(() => {
     // Wait for animation to complete, then hide splash

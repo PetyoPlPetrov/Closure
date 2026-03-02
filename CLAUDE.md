@@ -38,6 +38,17 @@ npm run build:ios        # Bump version and build iOS production locally
 npm run build:ios:preview # Build iOS preview locally
 ```
 
+### Over-the-Air Updates (EAS Update)
+
+OTA updates are configured. Builds use channels: `development`, `preview`, `production`. To publish an update (JS/assets only; no native changes):
+
+```bash
+npm run update:preview -- "Describe the update"     # Preview channel
+npm run update:production -- "Describe the update"  # Production channel
+```
+
+Or run `eas update --channel <channel> --message "..."` directly. Updates are checked on app load and applied after restart (or immediately via the in-app check in `utils/updates.ts`).
+
 ### Other Commands
 
 ```bash
