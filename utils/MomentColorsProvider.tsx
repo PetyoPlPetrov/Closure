@@ -1,3 +1,4 @@
+import { useSubscription } from "@/utils/SubscriptionProvider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
@@ -108,5 +109,20 @@ export function MomentColorsProvider({
 }
 
 export function useMomentColors() {
+  const ctx = useContext(MomentColorsContext);
+  const { isSubscribed } = useSubscription();
+
+  return useMemo(
+    () =>
+      isSubscribed
+        ? ctx
+        : { ...ctx, momentColors: DEFAULT_MOMENT_COLORS },
+    [ctx, isSubscribed],
+  );
+}
+
+/** Raw context without subscription gating — used only by the settings screen
+ *  so free users can preview colors even though they can't save them. */
+export function useMomentColorsRaw() {
   return useContext(MomentColorsContext);
 }

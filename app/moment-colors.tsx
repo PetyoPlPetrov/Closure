@@ -5,12 +5,14 @@ import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import {
-  useMomentColors,
+  useMomentColorsRaw,
   DEFAULT_MOMENT_COLORS,
   type MomentColors,
   type MomentColorSet,
 } from "@/utils/MomentColorsProvider";
+import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { showPaywallForPlusAccess } from "@/utils/premium-access";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
@@ -396,8 +398,9 @@ export default function MomentColorsScreen() {
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
   const t = useTranslate();
-  const { momentColors, setMomentColor, resetToDefaults } = useMomentColors();
+  const { momentColors, setMomentColor, resetToDefaults } = useMomentColorsRaw();
   const { recent, addRecent } = useRecentColors();
+  const { isSubscribed } = useSubscription();
 
   // Draft state per section — initially matches saved colors
   const [draftColors, setDraftColors] = useState<MomentColors>(() => ({
@@ -435,13 +438,17 @@ export default function MomentColorsScreen() {
   );
 
   const handleSave = useCallback(
-    (key: keyof MomentColors) => {
+    async (key: keyof MomentColors) => {
+      if (!isSubscribed) {
+        const purchased = await showPaywallForPlusAccess();
+        if (!purchased) return;
+      }
       setMomentColor(key, "background", draftColors[key].background);
       setMomentColor(key, "text", draftColors[key].text);
       setSavedFlash((prev) => ({ ...prev, [key]: true }));
       setTimeout(() => setSavedFlash((prev) => ({ ...prev, [key]: false })), 1500);
     },
-    [draftColors, setMomentColor],
+    [draftColors, setMomentColor, isSubscribed],
   );
 
   const isNonDefault = useCallback(
