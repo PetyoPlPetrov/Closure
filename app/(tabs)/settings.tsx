@@ -6,6 +6,7 @@ import { useLargeDevice } from "@/hooks/use-large-device";
 import { OnboardingStepper } from "@/library/components/onboarding-stepper";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
+import { useNotificationNudgePreference } from "@/utils/NotificationNudgePreferenceProvider";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
@@ -25,6 +26,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
     DimensionValue,
+    Linking,
     Modal,
     Pressable,
     ScrollView,
@@ -74,12 +76,14 @@ export default function SettingsScreen() {
   } = useSubscription();
   const t = useTranslate();
   const aiConsent = useAIInsightsConsent();
+  const notificationNudge = useNotificationNudgePreference();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [isCleaningMemories, setIsCleaningMemories] = useState(false);
   const [onboardingVisible, setOnboardingVisible] = useState(false);
   const [versionInfo, setVersionInfo] = useState<AppVersionInfo | null>(null);
+  const [infoPopupKey, setInfoPopupKey] = useState<"aiInsights" | "notificationNudge" | null>(null);
 
   useEffect(() => {
     getAppVersionInfo().then(setVersionInfo);
@@ -96,6 +100,9 @@ export default function SettingsScreen() {
         aiToggleTextWrap: ViewStyle;
         aiToggleTitle: TextStyle;
         aiToggleSubtitle: TextStyle;
+        aiToggleTitleRow: ViewStyle;
+        infoIconButton: ViewStyle;
+        infoPopupCard: ViewStyle;
         languageOption: ViewStyle;
         languageOptionSelected: ViewStyle;
         languageOptionContent: ViewStyle;
@@ -156,10 +163,28 @@ export default function SettingsScreen() {
           paddingRight: 12 * fontScale,
         },
         aiToggleTitle: {
-          marginBottom: 4 * fontScale,
+          flex: 1,
         },
         aiToggleSubtitle: {
           opacity: 0.75,
+        },
+        aiToggleTitleRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8 * fontScale,
+          flex: 1,
+        },
+        infoIconButton: {
+          padding: 4 * fontScale,
+          marginLeft: 4 * fontScale,
+        },
+        infoPopupCard: {
+          marginHorizontal: 24 * fontScale,
+          padding: 20 * fontScale,
+          borderRadius: 16 * fontScale,
+          backgroundColor: colorScheme === "dark" ? "#1a1a1a" : "#ffffff",
+          maxWidth: 360,
+          alignSelf: "center",
         },
         languageOption: {
           flexDirection: "row",
@@ -1990,6 +2015,31 @@ export default function SettingsScreen() {
           </Pressable>
         </Modal>
 
+        <Modal
+          visible={infoPopupKey !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setInfoPopupKey(null)}
+        >
+          <Pressable
+            style={[styles.modalOverlay, { justifyContent: "center" }]}
+            onPress={() => setInfoPopupKey(null)}
+          >
+            <Pressable
+              style={styles.infoPopupCard}
+              onPress={() => setInfoPopupKey(null)}
+            >
+              <ThemedText size="sm" style={{ lineHeight: 22, opacity: 0.9 }}>
+                {infoPopupKey === "aiInsights"
+                  ? t("settings.aiInsights.description")
+                  : infoPopupKey === "notificationNudge"
+                    ? t("settings.notificationNudge.description")
+                    : ""}
+              </ThemedText>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
             {t("settings.aiInsights.title")}
@@ -1997,12 +2047,23 @@ export default function SettingsScreen() {
 
           <View style={styles.aiToggleRow}>
             <View style={styles.aiToggleTextWrap}>
-              <ThemedText size="l" weight="medium" style={styles.aiToggleTitle}>
-                {t("settings.aiInsights.enable")}
-              </ThemedText>
-              <ThemedText size="sm" style={styles.aiToggleSubtitle}>
-                {t("settings.aiInsights.description")}
-              </ThemedText>
+              <View style={styles.aiToggleTitleRow}>
+                <ThemedText size="l" weight="medium" style={styles.aiToggleTitle}>
+                  {t("settings.aiInsights.enable")}
+                </ThemedText>
+                <TouchableOpacity
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={styles.infoIconButton}
+                  onPress={() => setInfoPopupKey("aiInsights")}
+                >
+                  <MaterialIcons
+                    name="info-outline"
+                    size={20 * fontScale}
+                    color={colors.text}
+                    style={{ opacity: 0.6 }}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
             <Switch
               value={aiConsent.isEnabled}
@@ -2050,6 +2111,37 @@ export default function SettingsScreen() {
             {t("settings.notifications.title")}
           </ThemedText>
 
+          <View style={styles.aiToggleRow}>
+            <View style={styles.aiToggleTextWrap}>
+              <View style={styles.aiToggleTitleRow}>
+                <ThemedText size="l" weight="medium" style={styles.aiToggleTitle}>
+                  {t("settings.notificationNudge.title")}
+                </ThemedText>
+                <TouchableOpacity
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={styles.infoIconButton}
+                  onPress={() => setInfoPopupKey("notificationNudge")}
+                >
+                  <MaterialIcons
+                    name="info-outline"
+                    size={20 * fontScale}
+                    color={colors.text}
+                    style={{ opacity: 0.6 }}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <Switch
+              value={notificationNudge.enabled}
+              onValueChange={(v) => void notificationNudge.setEnabled(v)}
+              trackColor={{
+                false: "rgba(150,150,150,0.35)",
+                true: colors.primary,
+              }}
+              thumbColor={"#FFFFFF"}
+            />
+          </View>
+
           <TouchableOpacity
             style={styles.dropdown}
             onPress={handleNotificationsPress}
@@ -2063,6 +2155,34 @@ export default function SettingsScreen() {
               />
               <ThemedText size="l" weight="medium" style={styles.dropdownText}>
                 {t("settings.notifications.manage")}
+              </ThemedText>
+            </View>
+            <MaterialIcons
+              name="arrow-forward-ios"
+              size={20 * fontScale}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            {t("settings.feedback.title")}
+          </ThemedText>
+
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={() => Linking.openURL("https://forms.gle/6JGAWe2BAMety8m26")}
+            activeOpacity={0.7}
+          >
+            <View style={styles.dropdownContent}>
+              <MaterialIcons
+                name="feedback"
+                size={24 * fontScale}
+                color={colors.primary}
+              />
+              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                {t("settings.feedback.addFeedback")}
               </ThemedText>
             </View>
             <MaterialIcons

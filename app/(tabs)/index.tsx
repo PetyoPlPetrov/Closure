@@ -18,6 +18,7 @@ import {
 import { getLocalDateString } from "@/utils/ai-rate-limiter";
 import { processHomeEncouragementPrompt } from "@/utils/ai-service";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
+import { useNotificationNudgePreference } from "@/utils/NotificationNudgePreferenceProvider";
 import { logError } from "@/utils/error-logger";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
@@ -11532,6 +11533,7 @@ export default function HomeScreen() {
   // Track if encouragement request is in progress to prevent duplicate calls
   const encouragementRequestInProgressRef = useRef(false);
   const aiConsent = useAIInsightsConsent();
+  const { enabled: notificationNudgeEnabled } = useNotificationNudgePreference();
   // When user closes the banner, bump this to force a new AI message next time it shows.
   const [encouragementCacheBust, setEncouragementCacheBust] = useState(0);
   const lastEncouragementCacheKeyRef = useRef<string | null>(null);
@@ -11642,18 +11644,18 @@ export default function HomeScreen() {
 
   // Show encouragement message when home tab is opened. Do NOT hide when leaving—
   // message persists across tab switches and only disappears when user closes it
-  // or we replace it with a new one (threshold change).
+  // or we replace it with a new one (threshold change). Only show when nudge is enabled in settings.
   const ENCOURAGEMENT_DELAY_MS = 180;
   useFocusEffect(
     React.useCallback(() => {
-      if (!hasAnyMoments) return;
+      if (!hasAnyMoments || !notificationNudgeEnabled) return;
 
       const timer = setTimeout(() => {
         setIsEncouragementVisible(true);
       }, ENCOURAGEMENT_DELAY_MS);
 
       return () => clearTimeout(timer);
-    }, [hasAnyMoments]),
+    }, [hasAnyMoments, notificationNudgeEnabled]),
   );
 
   // Build fallback message (existing logic)
@@ -11686,12 +11688,12 @@ export default function HomeScreen() {
       .trim();
   }, [fallbackEncouragementText]);
 
-  // AI encouragement (cached). Keeps existing logic as fallback.
+  // AI encouragement (cached). Keeps existing logic as fallback. Skip entirely when nudge is disabled.
   useEffect(() => {
     let cancelled = false;
 
     const run = async () => {
-      if (!hasAnyMoments || !isEncouragementVisible) return;
+      if (!hasAnyMoments || !isEncouragementVisible || !notificationNudgeEnabled) return;
 
       // Prevent duplicate concurrent calls
       if (encouragementRequestInProgressRef.current) {
@@ -11895,6 +11897,7 @@ export default function HomeScreen() {
   }, [
     hasAnyMoments,
     isEncouragementVisible,
+    notificationNudgeEnabled,
     idealizedMemories,
     overallSunnyPercentage,
     fallbackEncouragementText,
@@ -11920,7 +11923,7 @@ export default function HomeScreen() {
 
   // Static styles for encouragement message (no animation)
   const encouragementStaticStyle = {
-    opacity: isEncouragementVisible && hasAnyMoments ? 1 : 0,
+    opacity: notificationNudgeEnabled && isEncouragementVisible && hasAnyMoments ? 1 : 0,
   };
 
   // Memoized styles for encouragement message section to avoid recreating on every render
@@ -15951,6 +15954,7 @@ export default function HomeScreen() {
           {/* Encouraging Message Section */}
           {/* Only render when we have content (AI text) or an error fallback. Avoid empty flash while AI loads. */}
           {hasAnyMoments &&
+            notificationNudgeEnabled &&
             isEncouragementVisible &&
             // If AI isn't enabled, always show the local fallback.
             // If AI is enabled, show only when we have AI text or error—no fallback during load to avoid "first fallback then AI" flicker.

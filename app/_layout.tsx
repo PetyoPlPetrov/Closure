@@ -19,6 +19,7 @@ import { AppState, type AppStateStatus, InteractionManager, Platform } from "rea
 import "react-native-reanimated";
 
 import { AIInsightsConsentProvider } from "@/utils/AIInsightsConsentProvider";
+import { NotificationNudgePreferenceProvider } from "@/utils/NotificationNudgePreferenceProvider";
 import { initializeAppCheckService, verifyAppCheck } from "@/utils/app-check";
 import { handleDevError } from "@/utils/dev-error-handler";
 import { InAppNotificationProvider } from "@/utils/InAppNotificationProvider";
@@ -278,9 +279,11 @@ export default function RootLayout() {
               <MomentColorsProvider>
                 <NotificationsProvider>
                   <AIInsightsConsentProvider>
+                    <NotificationNudgePreferenceProvider>
                     <InAppNotificationProvider>
                       <AppContent />
                     </InAppNotificationProvider>
+                    </NotificationNudgePreferenceProvider>
                   </AIInsightsConsentProvider>
                 </NotificationsProvider>
               </MomentColorsProvider>

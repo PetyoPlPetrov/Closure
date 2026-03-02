@@ -38,6 +38,10 @@ export interface Translations {
   "settings.devTools.cleanupMemories.error": string;
   "settings.notifications.title": string;
   "settings.notifications.manage": string;
+  "settings.feedback.title": string;
+  "settings.feedback.addFeedback": string;
+  "settings.notificationNudge.title": string;
+  "settings.notificationNudge.description": string;
   "settings.aiInsights.title": string;
   "settings.aiInsights.enable": string;
   "settings.aiInsights.description": string;
@@ -3494,6 +3498,11 @@ const translations: Record<Language, Translations> = {
       "Failed to clean up orphaned memories. Please try again.",
     "settings.notifications.title": "Notifications",
     "settings.notifications.manage": "Manage notifications",
+    "settings.feedback.title": "Feedback",
+    "settings.feedback.addFeedback": "Add feedback",
+    "settings.notificationNudge.title": "Encouragement nudge on Home",
+    "settings.notificationNudge.description":
+      "Show motivational messages on the Home tab. When on, the app may request AI-suggested messages for the day.",
     "settings.aiInsights.title": "AI Insights",
     "settings.aiInsights.enable": "Enable AI Insights",
     "settings.aiInsights.description":
@@ -7790,6 +7799,11 @@ const translations: Record<Language, Translations> = {
       "Неуспешно изчистване на изолираните спомени. Моля, опитайте отново.",
     "settings.notifications.title": "Известия",
     "settings.notifications.manage": "Управление на известия",
+    "settings.feedback.title": "Обратна връзка",
+    "settings.feedback.addFeedback": "Добави обратна връзка",
+    "settings.notificationNudge.title": "Подсказка за насърчение на Начало",
+    "settings.notificationNudge.description":
+      "Показване на мотивационни съобщения в раздела Начало. Когато е включено, приложението може да поиска AI-предложени съобщения за деня.",
     "settings.aiInsights.title": "AI Инсайти",
     "settings.aiInsights.enable": "Включи AI Инсайти",
     "settings.aiInsights.description":

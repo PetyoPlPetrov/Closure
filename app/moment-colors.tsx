@@ -99,7 +99,22 @@ function useRecentColors() {
     [],
   );
 
-  return { recent, addRecent };
+  const removeRecent = useCallback(
+    (field: "background" | "text", hex: string) => {
+      const upper = hex.toUpperCase();
+      setRecent((prev) => {
+        const list = prev[field].filter((c) => c.toUpperCase() !== upper);
+        const next = { ...prev, [field]: list };
+        AsyncStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(next)).catch(
+          () => {},
+        );
+        return next;
+      });
+    },
+    [],
+  );
+
+  return { recent, addRecent, removeRecent };
 }
 
 function ColorPickerModal({
@@ -220,23 +235,40 @@ function ColorPickerModal({
   );
 }
 
+// Sunny: joyful, warm memories — golden hour, sunshine, happiness
 const SUNNY_BG_SUGGESTED = [
-  "#FFD700", "#FFC107", "#FF9800", "#FFEB3B", "#F57C00", "#FFB300",
+  "#FFD700", "#FFC107", "#FFB300", "#FF9800", "#FFEB3B", "#F9A825", "#FFA726", "#FFF176",
 ];
+// Cloudy: reflective, difficult moments — overcast, contemplative, safe to process
 const CLOUDY_BG_SUGGESTED = [
-  "#2C3E50", "#1A1A1A", "#37474F", "#455A64", "#263238", "#546E7A",
+  "#2C3E50", "#37474F", "#455A64", "#546E7A", "#263238", "#3E4A5C", "#1A2332",
 ];
+// Lesson: wisdom, growth, insight — clarity, “aha”, learning
 const LESSON_BG_SUGGESTED = [
-  "#FFD700", "#FFA000", "#64B5F6", "#81C784", "#CE93D8", "#4DB6AC",
+  "#FFD700", "#FFA000", "#64B5F6", "#81C784", "#CE93D8", "#4DB6AC", "#7986CB", "#F48FB1",
 ];
-const TEXT_COLOR_SUGGESTED = [
-  "#000000", "#FFFFFF", "#1A1A1A", "#333333", "#FFFFFFE6", "#FFD700",
+
+// Text suggestions tuned per moment so they read well and match the vibe
+const SUNNY_TEXT_SUGGESTED = [
+  "#000000", "#1A1A1A", "#2D2D2D", "#3E2723", "#1B5E20", "#333333",
+];
+const CLOUDY_TEXT_SUGGESTED = [
+  "#FFFFFFE6", "#FFFFFF", "#E8E8E8", "#B0BEC5", "#CFD8DC", "#ECEFF1",
+];
+const LESSON_TEXT_SUGGESTED = [
+  "#1A1A1A", "#000000", "#333333", "#37474F", "#4A148C", "#2D2D2D",
 ];
 
 function getBgSuggestedForType(type: keyof MomentColors): string[] {
   if (type === "sunny") return SUNNY_BG_SUGGESTED;
   if (type === "cloudy") return CLOUDY_BG_SUGGESTED;
   return LESSON_BG_SUGGESTED;
+}
+
+function getTextSuggestedForType(type: keyof MomentColors): string[] {
+  if (type === "sunny") return SUNNY_TEXT_SUGGESTED;
+  if (type === "cloudy") return CLOUDY_TEXT_SUGGESTED;
+  return LESSON_TEXT_SUGGESTED;
 }
 
 function mergeSwatches(suggested: string[], recent: string[]): string[] {
@@ -399,7 +431,7 @@ export default function MomentColorsScreen() {
   const fontScale = useFontScale();
   const t = useTranslate();
   const { momentColors, setMomentColor, resetToDefaults } = useMomentColorsRaw();
-  const { recent, addRecent } = useRecentColors();
+  const { recent, addRecent, removeRecent } = useRecentColors();
   const { isSubscribed } = useSubscription(); // true for Sfera Plus OR Sfera AI — both can save colors
 
   // Draft state per section — initially matches saved colors
@@ -553,24 +585,62 @@ export default function MomentColorsScreen() {
     color: string,
     isSelected: boolean,
     onPress: () => void,
+    onRemove?: () => void,
   ) => (
-    <TouchableOpacity
+    <View
       key={swatchKey}
-      activeOpacity={0.7}
-      onPress={onPress}
       style={{
         width: 38 * fontScale,
         height: 38 * fontScale,
-        borderRadius: 19 * fontScale,
-        backgroundColor: color,
-        borderWidth: isSelected ? 3 : 1,
-        borderColor: isSelected
-          ? colors.primary
-          : colorScheme === "dark"
-            ? "rgba(255,255,255,0.2)"
-            : "rgba(0,0,0,0.15)",
+        position: "relative",
       }}
-    />
+    >
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={onPress}
+        style={{
+          width: 38 * fontScale,
+          height: 38 * fontScale,
+          borderRadius: 19 * fontScale,
+          backgroundColor: color,
+          borderWidth: isSelected ? 3 : 1,
+          borderColor: isSelected
+            ? colors.primary
+            : colorScheme === "dark"
+              ? "rgba(255,255,255,0.2)"
+              : "rgba(0,0,0,0.15)",
+        }}
+      />
+      {onRemove != null && (
+        <TouchableOpacity
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          onPress={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          activeOpacity={0.8}
+          style={{
+            position: "absolute",
+            top: -4,
+            right: -4,
+            width: 20 * fontScale,
+            height: 20 * fontScale,
+            borderRadius: 10 * fontScale,
+            backgroundColor: colorScheme === "dark" ? "#1E293B" : "#FFF",
+            borderWidth: 1,
+            borderColor: colors.error || "#EF5350",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <MaterialIcons
+            name="close"
+            size={12 * fontScale}
+            color={colors.error || "#EF5350"}
+          />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 
   return (
@@ -615,8 +685,14 @@ export default function MomentColorsScreen() {
               </ThemedText>
               <View style={styles.swatchRow}>
                 {mergeSwatches(getBgSuggestedForType(key), recent.background).map((c) =>
-                  renderSwatch(`bg-${c}`, c, draftColors[key].background === c, () =>
-                    setDraft(key, "background", c),
+                  renderSwatch(
+                    `bg-${c}`,
+                    c,
+                    draftColors[key].background === c,
+                    () => setDraft(key, "background", c),
+                    recent.background.some((r) => r.toUpperCase() === c.toUpperCase())
+                      ? () => removeRecent("background", c)
+                      : undefined,
                   ),
                 )}
                 <TouchableOpacity
@@ -642,9 +718,15 @@ export default function MomentColorsScreen() {
                 {t("settings.momentColors.text")}
               </ThemedText>
               <View style={styles.swatchRow}>
-                {mergeSwatches(TEXT_COLOR_SUGGESTED, recent.text).map((c) =>
-                  renderSwatch(`txt-${c}`, c, draftColors[key].text === c, () =>
-                    setDraft(key, "text", c),
+                {mergeSwatches(getTextSuggestedForType(key), recent.text).map((c) =>
+                  renderSwatch(
+                    `txt-${c}`,
+                    c,
+                    draftColors[key].text === c,
+                    () => setDraft(key, "text", c),
+                    recent.text.some((r) => r.toUpperCase() === c.toUpperCase())
+                      ? () => removeRecent("text", c)
+                      : undefined,
                   ),
                 )}
                 <TouchableOpacity
