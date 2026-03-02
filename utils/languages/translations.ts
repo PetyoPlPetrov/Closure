@@ -52,6 +52,7 @@ export interface Translations {
   "settings.devTools.viewPlusFeatures": string;
   "settings.devTools.clearData.button": string;
   "settings.devTools.clearData.deleting": string;
+  "settings.appVersion": string;
 
   // Wheel of Life
   "wheel.noLessons.message": string;
@@ -3489,6 +3490,7 @@ const translations: Record<Language, Translations> = {
     "settings.devTools.viewPlusFeatures": "View Plus features",
     "settings.devTools.clearData.button": "Clear All App Data",
     "settings.devTools.clearData.deleting": "Deleting...",
+    "settings.appVersion": "App version",
     "wheel.noLessons.message":
       "Add lessons to your memories to see them here and practice them!",
     "wheel.noHardTruths.message":
@@ -7762,6 +7764,7 @@ const translations: Record<Language, Translations> = {
     "settings.devTools.viewPlusFeatures": "Преглед на Plus функциите",
     "settings.devTools.clearData.button": "Изтриване на Всички Данни",
     "settings.devTools.clearData.deleting": "Изтриване...",
+    "settings.appVersion": "Версия на приложението",
     "wheel.noLessons.message":
       "Добавете уроци към вашите спомени, за да ги видите тук и да ги практикувате!",
     "wheel.noHardTruths.message":

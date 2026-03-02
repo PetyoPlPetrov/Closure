@@ -49,6 +49,8 @@ npm run update:production -- "Describe the update"  # Production channel
 
 Or run `eas update --channel <channel> --message "..."` directly. Updates are checked on app load and applied after restart (or immediately via the in-app check in `utils/updates.ts`).
 
+**Versioning:** Bump `app.json` version only when creating a **new store build**, not for OTA. See `docs/VERSIONING.md` for the full strategy. Settings screen shows "App version" (native version + optional update ID) for support.
+
 ### Other Commands
 
 ```bash

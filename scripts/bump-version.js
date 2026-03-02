@@ -3,6 +3,9 @@
 /**
  * Bump Expo app version, iOS buildNumber, and Android versionCode.
  *
+ * Run only when creating a new store build (App Store / Play Store submission).
+ * Do not run for OTA-only updates; see docs/VERSIONING.md.
+ *
  * - Increments the patch component of expo.version (major.minor.patch).
  * - Mirrors the new semantic version into ios.buildNumber (string).
  * - Increments android.versionCode (numeric).

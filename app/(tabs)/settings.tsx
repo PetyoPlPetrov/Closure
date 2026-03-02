@@ -12,12 +12,16 @@ import { useTranslate } from "@/utils/languages/use-translate";
 import { presentPaywallWithOffering } from "@/utils/revenuecat-paywall";
 import { resetStreakData } from "@/utils/streak-manager";
 import { useSubscription } from "@/utils/SubscriptionProvider";
+import {
+  type AppVersionInfo,
+  getAppVersionInfo,
+} from "@/utils/updates";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Asset } from "expo-asset";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
     DimensionValue,
@@ -75,6 +79,11 @@ export default function SettingsScreen() {
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [isCleaningMemories, setIsCleaningMemories] = useState(false);
   const [onboardingVisible, setOnboardingVisible] = useState(false);
+  const [versionInfo, setVersionInfo] = useState<AppVersionInfo | null>(null);
+
+  useEffect(() => {
+    getAppVersionInfo().then(setVersionInfo);
+  }, []);
 
   const styles = useMemo(
     () =>
@@ -2141,6 +2150,21 @@ export default function SettingsScreen() {
             />
           </TouchableOpacity>
         </View>
+
+        {/* App version (store build + OTA update id for support) */}
+        {versionInfo && (
+          <View style={[styles.section, { marginTop: 8 * fontScale }]}>
+            <ThemedText
+              size="s"
+              style={{ color: colors.icon, marginBottom: 4 }}
+            >
+              {t("settings.appVersion")} {versionInfo.nativeVersion}
+              {versionInfo.updateId && !versionInfo.isEmbeddedLaunch
+                ? ` · ${versionInfo.updateId.slice(0, 8)}`
+                : ""}
+            </ThemedText>
+          </View>
+        )}
 
         {/* Development Tools Section */}
         <View style={styles.section}>
