@@ -1,3 +1,4 @@
+import { ConstellationBackground } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -26,6 +27,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
+    Dimensions,
     DimensionValue,
     Linking,
     Modal,
@@ -38,6 +40,8 @@ import {
     View,
     ViewStyle,
 } from "react-native";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
@@ -1903,6 +1907,7 @@ export default function SettingsScreen() {
 
   return (
     <TabScreenContainer>
+      <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

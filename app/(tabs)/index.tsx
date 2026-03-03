@@ -2,6 +2,8 @@ import { AIInsightsConsentModal } from "@/components/ai-insights-consent-modal";
 import ShareModal from "@/components/ShareModal";
 import { StreakBadgeComponent } from "@/components/streak-badge";
 import { StreakModal } from "@/components/streak-modal";
+import { ConstellationBackground } from "@/components/constellation-background";
+import { FocusedSferaView } from "@/components/focused-sfera-view";
 import { StreakRulesModal } from "@/components/streak-rules-modal";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
@@ -21,6 +23,11 @@ import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
 import { useNotificationNudgePreference } from "@/utils/NotificationNudgePreferenceProvider";
 import { logError } from "@/utils/error-logger";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
+import {
+  getSphereGradientColors,
+  getSphereIconColor,
+  getSphereShadowColor,
+} from "@/utils/sphere-styles";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
@@ -10551,176 +10558,13 @@ const SphereAvatar = React.memo(function SphereAvatar({
     hobbies: "sports-esports",
   };
 
-  // Get sphere-specific icon colors - theme-aware for proper contrast
-  // Light mode: Use darker, more saturated colors for contrast against light grey backgrounds
-  // Dark mode: Use desaturated colors for reduced eye strain and better readability
-  const getSphereIconColor = (sphereType: LifeSphere): string => {
-    if (colorScheme === "light") {
-      // Light mode: Use darker, more saturated colors for better contrast with light grey backgrounds
-      // Following Material Design principles for light surfaces
-      switch (sphereType) {
-        case "relationships":
-          return "#D32F2F"; // Darker red for better contrast
-        case "career":
-          return "#1976D2"; // Darker blue for better contrast
-        case "family":
-          return "#388E3C"; // Darker green for better contrast
-        case "friends":
-          return "#7B1FA2"; // Darker purple for better contrast
-        case "hobbies":
-          return "#F57C00"; // Darker orange for better contrast
-        default:
-          return "#1976D2"; // Default to darker blue
-      }
-    } else {
-      // Dark mode: Use desaturated colors (Material Design 300 palette)
-      // These work well against dark backgrounds and reduce eye strain
-      switch (sphereType) {
-        case "relationships":
-          return "#E57373"; // Desaturated red
-        case "career":
-          return "#64B5F6"; // Desaturated blue
-        case "family":
-          return "#81C784"; // Desaturated green
-        case "friends":
-          return "#BA68C8"; // Desaturated purple
-        case "hobbies":
-          return "#FFB74D"; // Desaturated orange
-        default:
-          return "#64B5F6"; // Default to desaturated blue
-      }
-    }
-  };
-
-  // Determine sphere background gradient colors based on sunny vs cloudy
-  // Lighter for more suns, darker for more clouds
-  // Returns an array of 3 colors for a subtle gradient
-  // Light mode uses grey shades, dark mode uses colorful gradients
-  const sphereGradientColors = React.useMemo(() => {
-    const isMoreSunny = sunnyPercentage >= 50;
-
-    // Light mode: Use darker grey shades for better contrast with darker icon colors
-    // Following accessibility guidelines: darker backgrounds provide better contrast
-    if (colorScheme === "light") {
-      if (isMoreSunny) {
-        // More sunny - medium grey gradient (darker for better contrast)
-        // Base grey value increases with sunny percentage but stays darker for contrast
-        const baseGrey = 170 + (sunnyPercentage / 100) * 30; // Range: 170-200 (darker than before)
-        return [
-          `rgb(${baseGrey - 8}, ${baseGrey - 8}, ${baseGrey - 8})`, // Slightly darker
-          `rgb(${baseGrey}, ${baseGrey}, ${baseGrey})`, // Base color
-          `rgb(${baseGrey + 8}, ${baseGrey + 8}, ${baseGrey + 8})`, // Slightly lighter
-        ] as const;
-      } else {
-        // More cloudy - darker grey gradient
-        const cloudyPercentage = 100 - sunnyPercentage;
-        const baseGrey = 130 + (cloudyPercentage / 100) * 40; // Range: 130-170 (darker for contrast)
-        return [
-          `rgb(${baseGrey - 8}, ${baseGrey - 8}, ${baseGrey - 8})`, // Slightly darker
-          `rgb(${baseGrey}, ${baseGrey}, ${baseGrey})`, // Base color
-          `rgb(${baseGrey + 8}, ${baseGrey + 8}, ${baseGrey + 8})`, // Slightly lighter
-        ] as const;
-      }
-    }
-
-    // Dark mode: Use colorful gradients (existing logic)
-    if (sphere === "relationships") {
-      if (isMoreSunny) {
-        // More sunny - lighter pink/red gradient
-        const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
-        return [
-          `rgba(255, 140, 140, ${baseOpacity - 0.05})`, // Slightly darker
-          `rgba(255, 150, 150, ${baseOpacity})`, // Base color
-          `rgba(255, 160, 160, ${baseOpacity + 0.05})`, // Slightly lighter
-        ] as const;
-      } else {
-        // More cloudy - darker red gradient
-        const cloudyPercentage = 100 - sunnyPercentage;
-        const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
-        return [
-          `rgba(170, 50, 50, ${baseOpacity - 0.05})`,
-          `rgba(180, 60, 60, ${baseOpacity})`,
-          `rgba(190, 70, 70, ${baseOpacity + 0.05})`,
-        ] as const;
-      }
-    } else if (sphere === "career") {
-      // Career sphere
-      if (isMoreSunny) {
-        // More sunny - lighter blue gradient
-        const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
-        return [
-          `rgba(140, 190, 245, ${baseOpacity - 0.05})`,
-          `rgba(150, 200, 255, ${baseOpacity})`,
-          `rgba(160, 210, 255, ${baseOpacity + 0.05})`,
-        ] as const;
-      } else {
-        // More cloudy - darker blue gradient
-        const cloudyPercentage = 100 - sunnyPercentage;
-        const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
-        return [
-          `rgba(50, 90, 170, ${baseOpacity - 0.05})`,
-          `rgba(60, 100, 180, ${baseOpacity})`,
-          `rgba(70, 110, 190, ${baseOpacity + 0.05})`,
-        ] as const;
-      }
-    } else if (sphere === "family") {
-      // Family sphere
-      if (isMoreSunny) {
-        // More sunny - lighter purple/violet gradient
-        const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
-        return [
-          `rgba(190, 140, 245, ${baseOpacity - 0.05})`,
-          `rgba(200, 150, 255, ${baseOpacity})`,
-          `rgba(210, 160, 255, ${baseOpacity + 0.05})`,
-        ] as const;
-      } else {
-        // More cloudy - darker purple gradient
-        const cloudyPercentage = 100 - sunnyPercentage;
-        const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
-        return [
-          `rgba(110, 50, 170, ${baseOpacity - 0.05})`,
-          `rgba(120, 60, 180, ${baseOpacity})`,
-          `rgba(130, 70, 190, ${baseOpacity + 0.05})`,
-        ] as const;
-      }
-    } else if (sphere === "friends") {
-      // Friends sphere - purple/violet
-      if (isMoreSunny) {
-        const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
-        return [
-          `rgba(129, 82, 236, ${baseOpacity - 0.05})`,
-          `rgba(139, 92, 246, ${baseOpacity})`,
-          `rgba(149, 102, 255, ${baseOpacity + 0.05})`,
-        ] as const;
-      } else {
-        const cloudyPercentage = 100 - sunnyPercentage;
-        const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
-        return [
-          `rgba(78, 18, 125, ${baseOpacity - 0.05})`,
-          `rgba(88, 28, 135, ${baseOpacity})`,
-          `rgba(98, 38, 145, ${baseOpacity + 0.05})`,
-        ] as const;
-      }
-    } else {
-      // Hobbies sphere - orange
-      if (isMoreSunny) {
-        const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
-        return [
-          `rgba(239, 105, 12, ${baseOpacity - 0.05})`,
-          `rgba(249, 115, 22, ${baseOpacity})`,
-          `rgba(255, 125, 32, ${baseOpacity + 0.05})`,
-        ] as const;
-      } else {
-        const cloudyPercentage = 100 - sunnyPercentage;
-        const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
-        return [
-          `rgba(144, 42, 8, ${baseOpacity - 0.05})`,
-          `rgba(154, 52, 18, ${baseOpacity})`,
-          `rgba(164, 62, 28, ${baseOpacity + 0.05})`,
-        ] as const;
-      }
-    }
-  }, [sunnyPercentage, colorScheme, sphere]);
+  // Reuse shared sphere gradient and icon colors (same as focused sfera view)
+  const sphereGradientColors = React.useMemo(
+    () => getSphereGradientColors(sphere, sunnyPercentage, colorScheme),
+    [sphere, sunnyPercentage, colorScheme],
+  );
+  const sphereIconColor = getSphereIconColor(sphere, colorScheme);
+  const sphereShadowColor = getSphereShadowColor(sphere, colorScheme);
 
   // Create subtle floating animation similar to floating memories
   const floatAnimation = useSharedValue(0);
@@ -10948,44 +10792,6 @@ const SphereAvatar = React.memo(function SphereAvatar({
     };
   });
 
-  // Get loading border color based on sphere type and theme
-  // Colors match the sphere's gradient for better visual cohesion
-  const loadingBorderColor = React.useMemo(() => {
-    if (colorScheme === "light") {
-      // Light mode: Use vibrant colors that stand out against grey spheres
-      switch (sphere) {
-        case "relationships":
-          return "#D32F2F"; // Red
-        case "career":
-          return "#1976D2"; // Blue
-        case "family":
-          return "#388E3C"; // Green
-        case "friends":
-          return "#7B1FA2"; // Purple
-        case "hobbies":
-          return "#F57C00"; // Orange
-        default:
-          return "#1976D2";
-      }
-    } else {
-      // Dark mode: Use colors that match the sphere gradients
-      switch (sphere) {
-        case "relationships":
-          return "#FF9696"; // Lighter pink/red to match sphere
-        case "career":
-          return "#96CAFF"; // Lighter blue to match sphere
-        case "family":
-          return "#C89CFF"; // Lighter purple to match family sphere
-        case "friends":
-          return "#9B7AFF"; // Lighter purple to match friends sphere
-        case "hobbies":
-          return "#FFAA5A"; // Lighter orange to match sphere
-        default:
-          return "#96CAFF";
-      }
-    }
-  }, [sphere, colorScheme]);
-
   return (
     <Pressable
       onPress={handlePress}
@@ -11014,7 +10820,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
             justifyContent: "center",
             alignItems: "center",
             // Enhanced elevated shadow effect with glow
-            shadowColor: colorScheme === "dark" ? loadingBorderColor : "#000",
+            shadowColor: colorScheme === "dark" ? sphereShadowColor : "#000",
             shadowOffset: { width: 0, height: isTablet ? 4 : 3 },
             shadowOpacity: colorScheme === "dark" ? 0.4 : 0.2,
             shadowRadius: isTablet ? 12 : 8,
@@ -11037,7 +10843,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
             <MaterialIcons
               name={sphereIcons[sphere] as any}
               size={sphereSize * 0.5}
-              color={getSphereIconColor(sphere)}
+              color={sphereIconColor}
             />
           </Animated.View>
         ) : (
@@ -11057,7 +10863,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
             <MaterialIcons
               name={sphereIcons[sphere] as any}
               size={sphereSize * 0.5}
-              color={getSphereIconColor(sphere)}
+              color={sphereIconColor}
             />
           </LinearGradient>
         )}
@@ -11081,7 +10887,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
               cx={sphereSize / 2}
               cy={sphereSize / 2}
               r={circleRadius}
-              stroke={loadingBorderColor}
+              stroke={sphereShadowColor}
               strokeWidth={2}
               fill="none"
               strokeDasharray={circumference}
@@ -11380,6 +11186,26 @@ export default function HomeScreen() {
   );
   const previousSelectedSphereRef = useRef<LifeSphere | null>(null);
   const sphereRenderKeyRef = useRef<number>(0);
+
+  // Home view mode: "Classic" = Classic view (wheel of life); "focused" = FocusedSferas view (one sphere in focus, swipe to change).
+  // When FocusedSferas view is active, only FocusedSferaView is mounted — Classic view components are not in the tree.
+  const HOME_VIEW_MODE_KEY = "@sferas:home_view_mode";
+  const [homeViewMode, setHomeViewMode] = useState<"classic" | "focused">("classic");
+  const homeViewModeLoadedRef = useRef(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(HOME_VIEW_MODE_KEY).then((v) => {
+      if (v === "focused" || v === "classic") setHomeViewMode(v);
+    }).finally(() => {
+      homeViewModeLoadedRef.current = true;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (homeViewModeLoadedRef.current) {
+      AsyncStorage.setItem(HOME_VIEW_MODE_KEY, homeViewMode);
+    }
+  }, [homeViewMode]);
 
   // Focused state management - must be at top level (moved before useFocusEffect)
   const [focusedProfileId, setFocusedProfileId] = useState<string | null>(null);
@@ -12172,6 +11998,69 @@ export default function HomeScreen() {
 
     return (totalSuns / total) * 100;
   }, [hobbies, getIdealizedMemoriesByEntityId]);
+
+  const getSphereSunnyPercentage = useCallback(
+    (sphere: LifeSphere) => {
+      switch (sphere) {
+        case "relationships":
+          return relationshipsSunnyPercentage;
+        case "career":
+          return careerSunnyPercentage;
+        case "family":
+          return familySunnyPercentage;
+        case "friends":
+          return friendsSunnyPercentage;
+        case "hobbies":
+          return hobbiesSunnyPercentage;
+      }
+    },
+    [
+      relationshipsSunnyPercentage,
+      careerSunnyPercentage,
+      familySunnyPercentage,
+      friendsSunnyPercentage,
+      hobbiesSunnyPercentage,
+    ],
+  );
+
+  const entityImageUrisBySphere = useMemo(
+    () => ({
+      relationships: profiles.map((p) => p.imageUri).filter((u): u is string => !!u),
+      career: jobs.map((j) => j.imageUri).filter((u): u is string => !!u),
+      family: familyMembers.map((m) => m.imageUri).filter((u): u is string => !!u),
+      friends: friends.map((f) => f.imageUri).filter((u): u is string => !!u),
+      hobbies: hobbies.map((h) => h.imageUri).filter((u): u is string => !!u),
+    }),
+    [profiles, jobs, familyMembers, friends, hobbies],
+  );
+
+  const memoriesPerEntityBySphere = useMemo(
+    () => ({
+      relationships: profiles
+        .filter((p) => !!p.imageUri)
+        .map((p) => getIdealizedMemoriesByEntityId(p.id, "relationships")),
+      career: jobs
+        .filter((j) => !!j.imageUri)
+        .map((j) => getIdealizedMemoriesByEntityId(j.id, "career")),
+      family: familyMembers
+        .filter((m) => !!m.imageUri)
+        .map((m) => getIdealizedMemoriesByEntityId(m.id, "family")),
+      friends: friends
+        .filter((f) => !!f.imageUri)
+        .map((f) => getIdealizedMemoriesByEntityId(f.id, "friends")),
+      hobbies: hobbies
+        .filter((h) => !!h.imageUri)
+        .map((h) => getIdealizedMemoriesByEntityId(h.id, "hobbies")),
+    }),
+    [
+      profiles,
+      jobs,
+      familyMembers,
+      friends,
+      hobbies,
+      getIdealizedMemoriesByEntityId,
+    ],
+  );
 
   // Calculate sphere positions (evenly distributed in a circle for 5 spheres)
   // Wheel of Life rotation state
@@ -15857,12 +15746,81 @@ export default function HomeScreen() {
   const avatarSizeForDots = baseAvatarSize; // Use base size for dots positioning
 
   if (!selectedSphere) {
+    // ─── FocusedSferas view: one sphere in focus, others on orbit ───
+    if (homeViewMode === "focused") {
+      return (
+        <TabScreenContainer>
+          {hasAnyMoments && (
+            <AIInsightsConsentModal
+              visible={aiInsightsConsentVisible}
+              onEnable={() => {
+                setAiInsightsConsentVisible(false);
+                setAiEncouragementText(null);
+                setEncouragementCacheBust((x) => x + 1);
+                void aiConsent.setChoice("enabled");
+              }}
+              onMaybeLater={() => {
+                void aiConsent.setChoice("maybe_later").then(() => {
+                  setAiInsightsConsentVisible(false);
+                  setAiEncouragementText(null);
+                  setAiEncouragementLoading(false);
+                });
+              }}
+            />
+          )}
+          {streakData && (
+            <StreakBadgeComponent
+              currentStreak={streakData.currentStreak}
+              currentBadge={currentBadge}
+              onPress={() => setStreakRulesModalVisible(true)}
+              onLongPress={() => setStreakModalVisible(true)}
+            />
+          )}
+          <StreakRulesModal
+            visible={streakRulesModalVisible}
+            onClose={() => setStreakRulesModalVisible(false)}
+          />
+          {streakData && (
+            <StreakModal
+              visible={streakModalVisible}
+              onClose={() => setStreakModalVisible(false)}
+              streakData={streakData}
+              currentBadge={currentBadge}
+              nextBadge={nextBadge}
+            />
+          )}
+          <View style={{ flex: 1 }}>
+            <FocusedSferaView
+              overallSunnyPercentage={overallSunnyPercentage}
+              onSphereSelect={(sphere) => {
+                setFocusedMemory(null);
+                setFocusedProfileId(null);
+                setFocusedJobId(null);
+                setFocusedFamilyMemberId(null);
+                setFocusedFriendId(null);
+                setFocusedHobbyId(null);
+                setAnimationsComplete(false);
+                setSelectedSphere(sphere);
+              }}
+              onSwitchToClassic={() => setHomeViewMode("classic")}
+              colorScheme={colorScheme ?? "dark"}
+              getSphereSunnyPercentage={getSphereSunnyPercentage}
+              entityImageUrisBySphere={entityImageUrisBySphere}
+              memoriesPerEntityBySphere={memoriesPerEntityBySphere}
+            />
+          </View>
+        </TabScreenContainer>
+      );
+    }
+
+    // ─── Classic view: wheel of life and five spheres ───
     return (
       <TabScreenContainer
       // Glow effect disabled - no momentType or momentTypeOpacity
       // momentType={showMomentTypeSelector ? selectedMomentType : undefined}
       // momentTypeOpacity={cornerGlowOpacity}
       >
+        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
         {/* Never show AI consent / banner if user has no memories */}
         {hasAnyMoments && (
           <AIInsightsConsentModal
@@ -15920,6 +15878,25 @@ export default function HomeScreen() {
             alignItems: "center",
           }}
         >
+          {/* Toggle: switch to FocusedSferas view (one sphere in focus, swipe to change). */}
+          <Pressable
+            onPress={() => setHomeViewMode("focused")}
+            style={{
+              position: "absolute",
+              top: 80,
+              left: 16,
+              width: 48,
+              height: 48,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(0,0,0,0.4)",
+              borderRadius: 24,
+              zIndex: 200,
+            }}
+          >
+            <MaterialIcons name="view-carousel" size={26} color={colors.text} />
+          </Pressable>
+
           {/* Sparkled Dots - Always visible on all screens - full screen coverage */}
           <SparkledDots
             avatarSize={avatarSizeForDots}

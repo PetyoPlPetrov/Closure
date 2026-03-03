@@ -1,4 +1,5 @@
 import { AIActionModal } from "@/components/ai-action-modal";
+import { ConstellationBackground } from "@/components/constellation-background";
 import { AIEntityCreationModal } from "@/components/ai-entity-creation-modal";
 import { AIInsightsConsentModal } from "@/components/ai-insights-consent-modal";
 import { AIModal } from "@/components/ai-modal";
@@ -1835,6 +1836,7 @@ export default function SpheresScreen() {
   if (isLoading) {
     return (
       <TabScreenContainer>
+        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
         <View style={styles.header}>
           <View style={styles.headerButton} />
           <View style={styles.headerTitle} />
@@ -1862,6 +1864,7 @@ export default function SpheresScreen() {
   if (selectedSphere === "relationships") {
     return (
       <TabScreenContainer>
+        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
         <View style={styles.header}>
           <Pressable
             onPress={() => clearSelectedSphere()}
@@ -1967,6 +1970,7 @@ export default function SpheresScreen() {
   if (selectedSphere === "career") {
     return (
       <TabScreenContainer>
+        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
         <View style={styles.header}>
           <Pressable
             onPress={() => clearSelectedSphere()}
@@ -2079,6 +2083,7 @@ export default function SpheresScreen() {
 
     return (
       <TabScreenContainer>
+        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
         <View style={styles.header}>
           <Pressable
             onPress={() => clearSelectedSphere()}
@@ -2240,6 +2245,7 @@ export default function SpheresScreen() {
 
     return (
       <TabScreenContainer>
+        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
         <View style={styles.header}>
           <Pressable
             onPress={() => clearSelectedSphere()}
@@ -2396,6 +2402,7 @@ export default function SpheresScreen() {
 
     return (
       <TabScreenContainer>
+        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
         <View style={styles.header}>
           <Pressable
             onPress={() => clearSelectedSphere()}
@@ -2544,6 +2551,7 @@ export default function SpheresScreen() {
 
   return (
     <TabScreenContainer>
+      <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
       <View style={styles.header}>
         <View style={styles.headerButton} />
         <View style={styles.headerTitle} />
