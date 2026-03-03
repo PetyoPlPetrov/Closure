@@ -151,7 +151,6 @@ function AppContent() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="add-ex-profile" options={{ headerShown: false }} />
-        <Stack.Screen name="reality-check" options={{ headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="add-job" options={{ headerShown: false }} />
         <Stack.Screen name="edit-job" options={{ headerShown: false }} />
@@ -236,6 +235,8 @@ function AppContent() {
         />
         <Stack.Screen name="premium-info" options={{ headerShown: false }} />
         <Stack.Screen name="moment-colors" options={{ headerShown: false }} />
+        <Stack.Screen name="backup" options={{ headerShown: false }} />
+        <Stack.Screen name="backup/import" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

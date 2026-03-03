@@ -57,6 +57,14 @@ export interface Translations {
   "settings.devTools.clearData.button": string;
   "settings.devTools.clearData.deleting": string;
   "settings.appVersion": string;
+  "settings.backup.title": string;
+  "settings.backup.export": string;
+  "settings.backup.import": string;
+  "settings.backup.exportSuccess": string;
+  "settings.backup.importSuccess": string;
+  "settings.backup.importError": string;
+  "settings.backup.exportError": string;
+  "settings.backup.description": string;
 
   // Wheel of Life
   "wheel.noLessons.message": string;
@@ -3521,6 +3529,15 @@ const translations: Record<Language, Translations> = {
     "settings.devTools.clearData.button": "Clear All App Data",
     "settings.devTools.clearData.deleting": "Deleting...",
     "settings.appVersion": "App version",
+    "settings.backup.title": "Backup",
+    "settings.backup.export": "Export data (ZIP)",
+    "settings.backup.import": "Import from backup",
+    "settings.backup.exportSuccess": "Backup created. You can save or share the file.",
+    "settings.backup.importSuccess": "Data imported. Restart the app to see your content.",
+    "settings.backup.importError": "Import failed",
+    "settings.backup.exportError": "Export failed",
+    "settings.backup.description":
+      "Export all data and photos to a ZIP file, or import from a previous backup (e.g. when changing phones).",
     "wheel.noLessons.message":
       "Add lessons to your memories to see them here and practice them!",
     "wheel.noHardTruths.message":
@@ -7822,6 +7839,15 @@ const translations: Record<Language, Translations> = {
     "settings.devTools.clearData.button": "Изтриване на Всички Данни",
     "settings.devTools.clearData.deleting": "Изтриване...",
     "settings.appVersion": "Версия на приложението",
+    "settings.backup.title": "Резервно копие",
+    "settings.backup.export": "Експорт на данни (ZIP)",
+    "settings.backup.import": "Импорт от резервно копие",
+    "settings.backup.exportSuccess": "Резервното копие е създадено. Можете да запазите или споделите файла.",
+    "settings.backup.importSuccess": "Данните са импортирани. Рестартирайте приложението, за да видите съдържанието.",
+    "settings.backup.importError": "Импортът не успя",
+    "settings.backup.exportError": "Експортът не успя",
+    "settings.backup.description":
+      "Експортирайте всички данни и снимки в ZIP файл или импортирайте от предишен бекъп (напр. при смяна на телефон).",
     "wheel.noLessons.message":
       "Добавете уроци към вашите спомени, за да ги видите тук и да ги практикувате!",
     "wheel.noHardTruths.message":

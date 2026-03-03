@@ -10,6 +10,7 @@ import { useNotificationNudgePreference } from "@/utils/NotificationNudgePrefere
 import { useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { showPaywallForPlusAccess } from "@/utils/premium-access";
 import { presentPaywallWithOffering } from "@/utils/revenuecat-paywall";
 import { resetStreakData } from "@/utils/streak-manager";
 import { useSubscription } from "@/utils/SubscriptionProvider";
@@ -74,6 +75,7 @@ export default function SettingsScreen() {
     hasAIEntitlement,
     primaryPlan,
   } = useSubscription();
+  const hasBackupAccess = hasPlusEntitlement || hasAIEntitlement;
   const t = useTranslate();
   const aiConsent = useAIInsightsConsent();
   const notificationNudge = useNotificationNudgePreference();
@@ -2183,6 +2185,39 @@ export default function SettingsScreen() {
               />
               <ThemedText size="l" weight="medium" style={styles.dropdownText}>
                 {t("settings.feedback.addFeedback")}
+              </ThemedText>
+            </View>
+            <MaterialIcons
+              name="arrow-forward-ios"
+              size={20 * fontScale}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            {t("settings.backup.title")}
+          </ThemedText>
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={async () => {
+              if (!hasBackupAccess) {
+                const purchased = await showPaywallForPlusAccess();
+                if (!purchased) return;
+              }
+              router.push("/backup");
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.dropdownContent}>
+              <MaterialIcons
+                name="backup"
+                size={24 * fontScale}
+                color={colors.primary}
+              />
+              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                {t("settings.backup.title")}
               </ThemedText>
             </View>
             <MaterialIcons
