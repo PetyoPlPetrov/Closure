@@ -6,7 +6,7 @@
 import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import React, { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -57,15 +57,35 @@ export function HomeTransitionLoader({
   );
 }
 
-/** Renders the loader above tab bar when visible (consumes context). */
+/** Renders the loader above tab bar when visible. Use as sibling of main content for correct stacking. */
 export function HomeTransitionLoaderOverlay() {
   const ctx = useHomeTransitionLoader();
   const isVisible = ctx?.isVisible ?? false;
   if (!isVisible) return null;
-  return <HomeTransitionLoader anchor="top" />;
+  return (
+    <View
+      style={[
+        styles.overlay,
+        {
+          zIndex: 999999,
+          elevation: 999999,
+        },
+      ]}
+      pointerEvents="none"
+    >
+      <HomeTransitionLoader anchor="top" />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
+  overlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: LINE_HEIGHT,
+    overflow: "hidden",
+  },
   track: {
     position: "absolute",
     left: 0,

@@ -1,4 +1,3 @@
-import { ConstellationBackground } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -6,8 +5,6 @@ import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import { OnboardingStepper } from "@/library/components/onboarding-stepper";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
-import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
-import { useNotificationNudgePreference } from "@/utils/NotificationNudgePreferenceProvider";
 import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
@@ -25,7 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Asset } from "expo-asset";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Alert,
     Dimensions,
@@ -82,15 +79,12 @@ export default function SettingsScreen() {
   } = useSubscription();
   const hasBackupAccess = hasPlusEntitlement || hasAIEntitlement;
   const t = useTranslate();
-  const aiConsent = useAIInsightsConsent();
-  const notificationNudge = useNotificationNudgePreference();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [isCleaningMemories, setIsCleaningMemories] = useState(false);
   const [onboardingVisible, setOnboardingVisible] = useState(false);
   const [versionInfo, setVersionInfo] = useState<AppVersionInfo | null>(null);
-  const [infoPopupKey, setInfoPopupKey] = useState<"aiInsights" | "notificationNudge" | null>(null);
 
   useEffect(() => {
     getAppVersionInfo().then(setVersionInfo);
@@ -337,17 +331,6 @@ export default function SettingsScreen() {
       ? t("settings.language.english")
       : t("settings.language.bulgarian");
   };
-
-  const handleToggleAIInsights = useCallback(
-    async (next: boolean) => {
-      try {
-        await aiConsent.setChoice(next ? "enabled" : "maybe_later");
-      } catch {
-        // ignore (provider will re-sync)
-      }
-    },
-    [aiConsent],
-  );
 
   const handleNotificationsPress = async () => {
     router.push("/notifications");
@@ -1910,7 +1893,6 @@ export default function SettingsScreen() {
 
   return (
     <TabScreenContainer>
-      <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -2025,87 +2007,25 @@ export default function SettingsScreen() {
           </Pressable>
         </Modal>
 
-        <Modal
-          visible={infoPopupKey !== null}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setInfoPopupKey(null)}
-        >
-          <Pressable
-            style={[styles.modalOverlay, { justifyContent: "center" }]}
-            onPress={() => setInfoPopupKey(null)}
-          >
-            <Pressable
-              style={styles.infoPopupCard}
-              onPress={() => setInfoPopupKey(null)}
-            >
-              <ThemedText size="sm" style={{ lineHeight: 22, opacity: 0.9 }}>
-                {infoPopupKey === "aiInsights"
-                  ? t("settings.aiInsights.description")
-                  : infoPopupKey === "notificationNudge"
-                    ? t("settings.notificationNudge.description")
-                    : ""}
-              </ThemedText>
-            </Pressable>
-          </Pressable>
-        </Modal>
-
+        {/* Personalization: opens dedicated screen (Look + AI sections) */}
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            {t("settings.aiInsights.title")}
-          </ThemedText>
-
-          <View style={styles.aiToggleRow}>
-            <View style={styles.aiToggleTextWrap}>
-              <View style={styles.aiToggleTitleRow}>
-                <ThemedText size="l" weight="medium" style={styles.aiToggleTitle}>
-                  {t("settings.aiInsights.enable")}
-                </ThemedText>
-                <TouchableOpacity
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  style={styles.infoIconButton}
-                  onPress={() => setInfoPopupKey("aiInsights")}
-                >
-                  <MaterialIcons
-                    name="info-outline"
-                    size={20 * fontScale}
-                    color={colors.text}
-                    style={{ opacity: 0.6 }}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-            <Switch
-              value={aiConsent.isEnabled}
-              onValueChange={handleToggleAIInsights}
-              trackColor={{
-                false: "rgba(150,150,150,0.35)",
-                true: colors.primary,
-              }}
-              thumbColor={"#FFFFFF"}
-            />
-          </View>
-        </View>
-
-        {/* Moments Colors Section */}
-        <View style={styles.section}>
-          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            {t("settings.momentColors.title")}
+            {t("settings.personalization.title")}
           </ThemedText>
 
           <TouchableOpacity
             style={styles.dropdown}
-            onPress={() => router.push("/moment-colors")}
+            onPress={() => router.push("/personalization")}
             activeOpacity={0.7}
           >
             <View style={styles.dropdownContent}>
               <MaterialIcons
-                name="palette"
+                name="tune"
                 size={24 * fontScale}
                 color={colors.primary}
               />
               <ThemedText size="l" weight="medium" style={styles.dropdownText}>
-                {t("settings.momentColors.title")}
+                {t("settings.personalization.title")}
               </ThemedText>
             </View>
             <MaterialIcons
@@ -2120,37 +2040,6 @@ export default function SettingsScreen() {
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
             {t("settings.notifications.title")}
           </ThemedText>
-
-          <View style={styles.aiToggleRow}>
-            <View style={styles.aiToggleTextWrap}>
-              <View style={styles.aiToggleTitleRow}>
-                <ThemedText size="l" weight="medium" style={styles.aiToggleTitle}>
-                  {t("settings.notificationNudge.title")}
-                </ThemedText>
-                <TouchableOpacity
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  style={styles.infoIconButton}
-                  onPress={() => setInfoPopupKey("notificationNudge")}
-                >
-                  <MaterialIcons
-                    name="info-outline"
-                    size={20 * fontScale}
-                    color={colors.text}
-                    style={{ opacity: 0.6 }}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-            <Switch
-              value={notificationNudge.enabled}
-              onValueChange={(v) => void notificationNudge.setEnabled(v)}
-              trackColor={{
-                false: "rgba(150,150,150,0.35)",
-                true: colors.primary,
-              }}
-              thumbColor={"#FFFFFF"}
-            />
-          </View>
 
           <TouchableOpacity
             style={styles.dropdown}

@@ -698,6 +698,11 @@ export interface Translations {
   "settings.momentColors.confirm": string;
   "settings.momentColors.recentColors": string;
 
+  "settings.personalization.title": string;
+  "settings.personalization.rotationSpeed": string;
+  "settings.personalization.constellationAmount": string;
+  "personalization.visualSection": string;
+
   // Settings - Help Section
   "settings.help.title": string;
   "settings.help.viewGuide": string;
@@ -4361,6 +4366,11 @@ const translations: Record<Language, Translations> = {
     "settings.momentColors.pickColor": "Pick a Color",
     "settings.momentColors.confirm": "Confirm",
     "settings.momentColors.recentColors": "Recent",
+
+    "settings.personalization.title": "Personalization",
+    "settings.personalization.rotationSpeed": "Rotation speed",
+    "settings.personalization.constellationAmount": "Constellations",
+    "personalization.visualSection": "Look",
 
     // Settings - Help Section
     "settings.help.title": "Help",
@@ -8676,6 +8686,11 @@ const translations: Record<Language, Translations> = {
     "settings.momentColors.pickColor": "Избери цвят",
     "settings.momentColors.confirm": "Потвърди",
     "settings.momentColors.recentColors": "Скорошни",
+
+    "settings.personalization.title": "Персонализация",
+    "settings.personalization.rotationSpeed": "Скорост на въртене",
+    "settings.personalization.constellationAmount": "Съзвездия",
+    "personalization.visualSection": "Външен вид",
 
     // Settings - Help Section
     "settings.help.title": "Помощ",

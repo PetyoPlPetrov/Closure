@@ -35,6 +35,7 @@ import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { showPaywallForPremiumAccess } from "@/utils/premium-access";
 import { onSpheresTabPress } from "@/utils/spheres-tab-press";
 import { useSubscription } from "@/utils/SubscriptionProvider";
+import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -247,6 +248,7 @@ export default function SpheresScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const { momentColors } = useMomentColors();
+  const { constellationAmount } = useVisualSettings();
   const fontScale = useFontScale();
   const iconScale = useIconScale();
   const { maxContentWidth, isLargeDevice, isTablet } = useLargeDevice();
@@ -1836,7 +1838,11 @@ export default function SpheresScreen() {
   if (isLoading) {
     return (
       <TabScreenContainer>
-        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
+        <ConstellationBackground
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          constellationAmount={constellationAmount}
+        />
         <View style={styles.header}>
           <View style={styles.headerButton} />
           <View style={styles.headerTitle} />
@@ -1864,7 +1870,11 @@ export default function SpheresScreen() {
   if (selectedSphere === "relationships") {
     return (
       <TabScreenContainer>
-        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
+        <ConstellationBackground
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          constellationAmount={constellationAmount}
+        />
         <View style={styles.header}>
           <Pressable
             onPress={() => clearSelectedSphere()}
@@ -1970,7 +1980,11 @@ export default function SpheresScreen() {
   if (selectedSphere === "career") {
     return (
       <TabScreenContainer>
-        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
+        <ConstellationBackground
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          constellationAmount={constellationAmount}
+        />
         <View style={styles.header}>
           <Pressable
             onPress={() => clearSelectedSphere()}
@@ -2083,7 +2097,11 @@ export default function SpheresScreen() {
 
     return (
       <TabScreenContainer>
-        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
+        <ConstellationBackground
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          constellationAmount={constellationAmount}
+        />
         <View style={styles.header}>
           <Pressable
             onPress={() => clearSelectedSphere()}
@@ -2245,7 +2263,11 @@ export default function SpheresScreen() {
 
     return (
       <TabScreenContainer>
-        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
+        <ConstellationBackground
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          constellationAmount={constellationAmount}
+        />
         <View style={styles.header}>
           <Pressable
             onPress={() => clearSelectedSphere()}
@@ -2402,7 +2424,11 @@ export default function SpheresScreen() {
 
     return (
       <TabScreenContainer>
-        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
+        <ConstellationBackground
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          constellationAmount={constellationAmount}
+        />
         <View style={styles.header}>
           <Pressable
             onPress={() => clearSelectedSphere()}
@@ -2551,7 +2577,11 @@ export default function SpheresScreen() {
 
   return (
     <TabScreenContainer>
-      <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
+      <ConstellationBackground
+        width={SCREEN_WIDTH}
+        height={SCREEN_HEIGHT}
+        constellationAmount={constellationAmount}
+      />
       <View style={styles.header}>
         <View style={styles.headerButton} />
         <View style={styles.headerTitle} />

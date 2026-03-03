@@ -29,6 +29,7 @@ import {
   getSphereShadowColor,
 } from "@/utils/sphere-styles";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
+import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
@@ -62,6 +63,7 @@ import React, {
 import {
   Alert,
   AppState,
+  BackHandler,
   Dimensions,
   InteractionManager,
   Modal,
@@ -433,6 +435,7 @@ const FloatingAvatar = React.memo(
     externalPositionX,
     externalPositionY,
     onEntityWheelChange,
+    orbitDurationMs = 60000,
   }: {
     profile: any;
     position: { x: number; y: number };
@@ -469,6 +472,7 @@ const FloatingAvatar = React.memo(
     externalPositionX?: ReturnType<typeof useSharedValue<number>>;
     externalPositionY?: ReturnType<typeof useSharedValue<number>>;
     onEntityWheelChange?: (isActive: boolean) => void;
+    orbitDurationMs?: number;
   }) {
     const { momentColors } = useMomentColors();
     const { isTablet, isLargeDevice } = useLargeDevice();
@@ -1277,7 +1281,7 @@ const FloatingAvatar = React.memo(
         orbitAngle.value = 0;
         orbitAngle.value = withRepeat(
           withTiming(360, {
-            duration: 60000, // 60 seconds (1 minute) for full rotation - slow and smooth
+            duration: orbitDurationMs,
             easing: Easing.linear,
           }),
           -1, // Infinite repeat
@@ -1327,6 +1331,7 @@ const FloatingAvatar = React.memo(
       targetX,
       starCenterX,
       starCenterY,
+      orbitDurationMs,
     ]);
     // Note: selectedMomentType is intentionally NOT in dependencies to avoid restarting animations when icon selection changes
 
@@ -2212,7 +2217,7 @@ const FloatingAvatar = React.memo(
                     // Restart automatic slow orbit from current position
                     orbitAngle.value = withRepeat(
                       withTiming(orbitAngle.value + 360, {
-                        duration: 60000,
+                        duration: orbitDurationMs,
                         easing: Easing.linear,
                       }),
                       -1,
@@ -2229,7 +2234,7 @@ const FloatingAvatar = React.memo(
             // Restart automatic slow orbit from current position
             orbitAngle.value = withRepeat(
               withTiming(orbitAngle.value + 360, {
-                duration: 60000,
+                duration: orbitDurationMs,
                 easing: Easing.linear,
               }),
               -1,
@@ -2253,6 +2258,7 @@ const FloatingAvatar = React.memo(
       wheelDragFrameCount,
       wheelLastAngle,
       wheelStartAngle,
+      orbitDurationMs,
     ]);
 
     // No container rotation - each memory will animate individually
@@ -10913,6 +10919,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { momentColors } = useMomentColors();
+  const { orbitDurationMs, constellationAmount } = useVisualSettings();
   const {
     profiles,
     jobs,
@@ -11398,6 +11405,34 @@ export default function HomeScreen() {
       focusedHobbyId,
     ]),
   );
+
+  // Handle hardware back button when in Focused view - show loader and switch to Classic (same as toggle)
+  useEffect(() => {
+    if (homeViewMode !== "focused") return;
+
+    const handleBackPress = () => {
+      markViewTogglePressed();
+      startTransitionLoader();
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          setFocusedMemory(null);
+          setFocusedProfileId(null);
+          setFocusedJobId(null);
+          setFocusedFamilyMemberId(null);
+          setFocusedFriendId(null);
+          setFocusedHobbyId(null);
+          setSelectedSphere(null);
+          setAnimationsComplete(false);
+          setShowMomentTypeSelector(true);
+          setHomeViewMode("classic");
+        }, 80);
+      });
+      return true; // Prevent default (e.g. exiting app or going back in stack)
+    };
+
+    const sub = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+    return () => sub.remove();
+  }, [homeViewMode, markViewTogglePressed, startTransitionLoader, focusedSphereIndex]);
 
   // Zoom progress for sphere animations (0 = normal view, 1 = zoomed in/out)
   const sphereZoomProgress = useSharedValue(0);
@@ -15125,6 +15160,7 @@ export default function HomeScreen() {
           onEntityWheelChange={(isActive) =>
             setIsAnyEntityWheelActive(isActive)
           }
+          orbitDurationMs={orbitDurationMs}
         />
       );
     });
@@ -15141,6 +15177,7 @@ export default function HomeScreen() {
     setFocusedMemory,
     colors,
     colorScheme,
+    orbitDurationMs,
   ]);
 
   // Memoize focused jobs render - must be called unconditionally
@@ -15270,6 +15307,7 @@ export default function HomeScreen() {
             });
           }}
           yearSection={yearSection}
+          orbitDurationMs={orbitDurationMs}
         />
       );
     });
@@ -15287,6 +15325,7 @@ export default function HomeScreen() {
     setFocusedMemory,
     colors,
     colorScheme,
+    orbitDurationMs,
   ]);
 
   // Memoize focused family members render - must be called unconditionally
@@ -15386,6 +15425,7 @@ export default function HomeScreen() {
             }
             updateFamilyMemberPosition(member.id, { x, y });
           }}
+          orbitDurationMs={orbitDurationMs}
         />
       );
     });
@@ -15404,6 +15444,7 @@ export default function HomeScreen() {
     focusedFamilyMemberPositionX,
     focusedFamilyMemberPositionY,
     updateFamilyMemberPosition,
+    orbitDurationMs,
   ]);
 
   // Memoize focused friends render - must be called unconditionally
@@ -15502,6 +15543,7 @@ export default function HomeScreen() {
             }
             updateFriendPosition(friend.id, { x, y });
           }}
+          orbitDurationMs={orbitDurationMs}
         />
       );
     });
@@ -15520,6 +15562,7 @@ export default function HomeScreen() {
     focusedFriendPositionX,
     focusedFriendPositionY,
     updateFriendPosition,
+    orbitDurationMs,
   ]);
 
   // Memoize focused hobbies render - must be called unconditionally
@@ -15615,6 +15658,7 @@ export default function HomeScreen() {
             }
             updateHobbyPosition(hobby.id, { x, y });
           }}
+          orbitDurationMs={orbitDurationMs}
         />
       );
     });
@@ -15633,6 +15677,7 @@ export default function HomeScreen() {
     focusedHobbyPositionX,
     focusedHobbyPositionY,
     updateHobbyPosition,
+    orbitDurationMs,
   ]);
 
   // Memoize calculated positions for family members with collision detection
@@ -15976,6 +16021,8 @@ export default function HomeScreen() {
               memoriesPerEntityBySphere={memoriesPerEntityBySphere}
               initialFocusedIdx={focusedSphereIndex}
               onFocusedSphereChange={handleFocusedSphereChange}
+              orbitDurationMs={orbitDurationMs}
+              constellationAmount={constellationAmount}
             />
           </View>
 
@@ -15996,7 +16043,11 @@ export default function HomeScreen() {
       // momentType={showMomentTypeSelector ? selectedMomentType : undefined}
       // momentTypeOpacity={cornerGlowOpacity}
       >
-        <ConstellationBackground width={SCREEN_WIDTH} height={SCREEN_HEIGHT} />
+        <ConstellationBackground
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          constellationAmount={constellationAmount}
+        />
         {/* Never show AI consent / banner if user has no memories */}
         {hasAnyMoments && (
           <AIInsightsConsentModal
@@ -18588,6 +18639,7 @@ export default function HomeScreen() {
                     colors={colors}
                     memorySlideOffset={memorySlideOffset}
                     animationsComplete={animationsComplete}
+                    orbitDurationMs={orbitDurationMs}
                   />
                 );
               }
@@ -19142,6 +19194,7 @@ export default function HomeScreen() {
                                 });
                               }}
                               yearSection={section}
+                              orbitDurationMs={orbitDurationMs}
                             />
                           </NonFocusedZone>
                         );
@@ -19603,6 +19656,7 @@ export default function HomeScreen() {
                         }
                         externalPositionX={focusedFamilyMemberPositionX}
                         externalPositionY={focusedFamilyMemberPositionY}
+                        orbitDurationMs={orbitDurationMs}
                       />
                     </NonFocusedZone>
                   );
@@ -20058,6 +20112,7 @@ export default function HomeScreen() {
                         }
                         externalPositionX={focusedFriendPositionX}
                         externalPositionY={focusedFriendPositionY}
+                        orbitDurationMs={orbitDurationMs}
                       />
                     </NonFocusedZone>
                   );
@@ -20513,6 +20568,7 @@ export default function HomeScreen() {
                         }
                         externalPositionX={focusedHobbyPositionX}
                         externalPositionY={focusedHobbyPositionY}
+                        orbitDurationMs={orbitDurationMs}
                       />
                     </NonFocusedZone>
                   );
@@ -20583,6 +20639,7 @@ export default function HomeScreen() {
               colors={colors}
               memorySlideOffset={memorySlideOffset}
               animationsComplete={animationsComplete}
+              orbitDurationMs={orbitDurationMs}
             />
           )}
 
@@ -20634,6 +20691,7 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
   colors,
   memorySlideOffset,
   animationsComplete,
+  orbitDurationMs = 60000,
 }: {
   yearSections: Map<
     string,
@@ -20681,6 +20739,7 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
   colors: any;
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
   animationsComplete: boolean;
+  orbitDurationMs?: number;
 }) {
   // CRITICAL: Only use focusedMemory if it's from relationships sphere
   // This ensures cross-sphere focusedMemory (e.g., from career) doesn't affect relationships rendering
@@ -20848,6 +20907,7 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
                     memorySlideOffset={memorySlideOffset}
                     animationsComplete={animationsComplete}
                     focusedProfileId={focusedProfileId}
+                    orbitDurationMs={orbitDurationMs}
                   />
                 );
               },
@@ -21073,6 +21133,7 @@ const ProfileRenderer = React.memo(
     memorySlideOffset,
     animationsComplete,
     focusedProfileId,
+    orbitDurationMs = 60000,
   }: {
     profile: any;
     index: number;
@@ -21116,6 +21177,7 @@ const ProfileRenderer = React.memo(
     memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
     animationsComplete: boolean;
     focusedProfileId: string | null;
+    orbitDurationMs?: number;
   }) {
     // Determine slide direction for non-focused zones
     const centerX = SCREEN_WIDTH / 2;
@@ -21203,6 +21265,7 @@ const ProfileRenderer = React.memo(
             handleMemoryFocus(entityId, memoryId, "relationships")
           }
           yearSection={getProfileYearSection(profile)}
+          orbitDurationMs={orbitDurationMs}
         />
       </NonFocusedZone>
     );

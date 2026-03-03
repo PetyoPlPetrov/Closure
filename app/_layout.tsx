@@ -26,6 +26,7 @@ import { InAppNotificationProvider } from "@/utils/InAppNotificationProvider";
 import { checkForUpdateAndReload } from "@/utils/updates";
 import { JourneyProvider } from "@/utils/JourneyProvider";
 import { MomentColorsProvider } from "@/utils/MomentColorsProvider";
+import { VisualSettingsProvider } from "@/utils/VisualSettingsProvider";
 import { LanguageProvider } from "@/utils/languages/language-context";
 import { NotificationsProvider } from "@/utils/NotificationsProvider";
 import {
@@ -235,6 +236,7 @@ function AppContent() {
         />
         <Stack.Screen name="premium-info" options={{ headerShown: false }} />
         <Stack.Screen name="moment-colors" options={{ headerShown: false }} />
+        <Stack.Screen name="personalization" options={{ headerShown: false }} />
         <Stack.Screen name="backup" options={{ headerShown: false }} />
         <Stack.Screen name="backup/import" options={{ headerShown: false }} />
       </Stack>
@@ -278,6 +280,7 @@ export default function RootLayout() {
           <SubscriptionProvider>
             <JourneyProvider>
               <MomentColorsProvider>
+                <VisualSettingsProvider>
                 <NotificationsProvider>
                   <AIInsightsConsentProvider>
                     <NotificationNudgePreferenceProvider>
@@ -287,6 +290,7 @@ export default function RootLayout() {
                     </NotificationNudgePreferenceProvider>
                   </AIInsightsConsentProvider>
                 </NotificationsProvider>
+                </VisualSettingsProvider>
               </MomentColorsProvider>
             </JourneyProvider>
           </SubscriptionProvider>

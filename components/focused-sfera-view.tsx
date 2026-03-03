@@ -9,19 +9,19 @@ import { ConstellationBackground } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
+import { useMomentColors } from "@/utils/MomentColorsProvider";
+import { useLanguage } from "@/utils/languages/language-context";
+import { useTranslate } from "@/utils/languages/use-translate";
 import {
   getSphere3DGradientColors,
   getSphereGradientColors,
   getSphereIconColor,
   getSphereShadowColor,
 } from "@/utils/sphere-styles";
-import { useMomentColors } from "@/utils/MomentColorsProvider";
-import { useLanguage } from "@/utils/languages/language-context";
-import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
   PanResponder,
@@ -34,7 +34,6 @@ import Animated, {
   Easing,
   interpolate,
   SharedValue,
-  useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -43,8 +42,8 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, {
-  Circle as SvgCircle,
   Defs,
   FeColorMatrix,
   FeGaussianBlur,
@@ -53,9 +52,9 @@ import Svg, {
   Filter,
   RadialGradient,
   Stop,
+  Circle as SvgCircle,
   LinearGradient as SvgLinearGradient,
 } from "react-native-svg";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width: SW, height: SH } = Dimensions.get("window");
 
@@ -117,6 +116,10 @@ export type FocusedSferaViewProps = {
   initialFocusedIdx?: number;
   /** Called when user changes focus (swipe/chevron) so parent can persist the selection. */
   onFocusedSphereChange?: (index: number) => void;
+  /** Full orbit duration in ms for entities around the focused sphere. From Personalization settings. */
+  orbitDurationMs?: number;
+  /** Constellation density 0–10. From Personalization settings. */
+  constellationAmount?: number;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -149,7 +152,10 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
 
   useEffect(() => {
     floatY.value = withRepeat(
-      withTiming(1, { duration: 1800 + entityIndex * 150, easing: Easing.inOut(Easing.ease) }),
+      withTiming(1, {
+        duration: 1800 + entityIndex * 150,
+        easing: Easing.inOut(Easing.ease),
+      }),
       -1,
       true,
     );
@@ -164,8 +170,12 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
       return {
         id: memory.id,
         name: (isSunny ? "wb-sunny" : "cloud") as "wb-sunny" | "cloud",
-        color: isSunny ? momentColors.sunny.background : momentColors.cloudy.background,
-        glowColor: isSunny ? momentColors.sunny.background : momentColors.cloudy.background,
+        color: isSunny
+          ? momentColors.sunny.background
+          : momentColors.cloudy.background,
+        glowColor: isSunny
+          ? momentColors.sunny.background
+          : momentColors.cloudy.background,
       };
     });
   }, [memories, momentColors]);
@@ -176,8 +186,14 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
     <>
       {memoryIcons.map((m, i) => {
         const angle = (i / memoryIcons.length) * 2 * Math.PI - Math.PI / 2;
-        const ix = entityCenterX + Math.cos(angle) * MOMENT_ORBIT_RADIUS - MOMENT_ICON_SIZE / 2;
-        const iy = entityCenterY + Math.sin(angle) * MOMENT_ORBIT_RADIUS - MOMENT_ICON_SIZE / 2;
+        const ix =
+          entityCenterX +
+          Math.cos(angle) * MOMENT_ORBIT_RADIUS -
+          MOMENT_ICON_SIZE / 2;
+        const iy =
+          entityCenterY +
+          Math.sin(angle) * MOMENT_ORBIT_RADIUS -
+          MOMENT_ICON_SIZE / 2;
         return (
           <SmallFloatingMomentIcon
             key={m.id}
@@ -244,7 +260,7 @@ const SmallFloatingMomentIcon = React.memo(function SmallFloatingMomentIcon({
 
 // ───────────────────── Entity avatar ring (same glow blur as classic FloatingEntity) ─────────────────────
 
-const ENTITY_ORBIT_DURATION = 32000; // Full orbit in ms
+const DEFAULT_ENTITY_ORBIT_DURATION_MS = 60000;
 
 // ───────────────────── Sparkled dots (scattered across screen) ─────────────────────
 
@@ -411,6 +427,7 @@ const EntityRing = React.memo(function EntityRing({
   glowColor,
   showFloatingMoments = false,
   rotateOrbit = false,
+  orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
 }: {
   uris: string[];
   entityIds: string[];
@@ -425,21 +442,31 @@ const EntityRing = React.memo(function EntityRing({
   glowColor: string;
   showFloatingMoments?: boolean;
   rotateOrbit?: boolean;
+  orbitDurationMs?: number;
 }) {
   const { isTablet } = useLargeDevice();
   const orbitAngle = useSharedValue(0);
 
   useEffect(() => {
-    if (!rotateOrbit) return;
+    if (!rotateOrbit) {
+      cancelAnimation(orbitAngle);
+      orbitAngle.value = 0;
+      return;
+    }
+    cancelAnimation(orbitAngle);
+    orbitAngle.value = 0;
     orbitAngle.value = withRepeat(
       withTiming(2 * Math.PI, {
-        duration: ENTITY_ORBIT_DURATION,
+        duration: orbitDurationMs,
         easing: Easing.linear,
       }),
       -1,
       false,
     );
-  }, [rotateOrbit, orbitAngle]);
+    return () => {
+      cancelAnimation(orbitAngle);
+    };
+  }, [rotateOrbit, orbitAngle, orbitDurationMs]);
 
   if (entityIds.length === 0) return null;
   const count = Math.min(entityIds.length, 8);
@@ -536,7 +563,9 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
     };
   });
 
-  const initialLetter = entityName.trim() ? entityName.trim()[0].toUpperCase() : "?";
+  const initialLetter = entityName.trim()
+    ? entityName.trim()[0].toUpperCase()
+    : "?";
 
   return (
     <Animated.View
@@ -554,7 +583,11 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
       ]}
     >
       <Pressable
-        style={{ width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }}
+        style={{
+          width: avatarSize,
+          height: avatarSize,
+          borderRadius: avatarSize / 2,
+        }}
         onPress={() => entityId && onEntitySelect(entityId, sphere)}
       >
         {uri ? (
@@ -582,7 +615,9 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
               justifyContent: "center",
             }}
           >
-            <ThemedText style={{ fontSize: avatarSize * 0.45, fontWeight: "600" }}>
+            <ThemedText
+              style={{ fontSize: avatarSize * 0.45, fontWeight: "600" }}
+            >
               {initialLetter}
             </ThemedText>
           </View>
@@ -617,6 +652,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   onEntitySelect,
   colorScheme,
   sunnyPercentage,
+  orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
 }: {
   sphereIdx: number;
   sphere: { type: LifeSphere; icon: string };
@@ -629,6 +665,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
   colorScheme: "light" | "dark";
   sunnyPercentage: number;
+  orbitDurationMs?: number;
 }) {
   const { isTablet } = useLargeDevice();
   const target = getSphereTarget(sphereIdx, focusedIdx);
@@ -698,8 +735,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     const centerY = ORBIT_CY + ORBIT_R * Math.cos(rad);
     // Depth: spheres behind (top) are smaller and shifted up for distance illusion
     // cos(rad)=1 at bottom (front), -1 at top (back). (1+cos)/2 = 1→0.5→0
-    const depthScale =
-      slot === 0 ? 1 : 0.52 + 0.48 * ((1 + Math.cos(rad)) / 2);
+    const depthScale = slot === 0 ? 1 : 0.52 + 0.48 * ((1 + Math.cos(rad)) / 2);
     // Shift back-half spheres up so they feel further away (behind circle avatar)
     const backOffsetY = slot === 0 ? 0 : Math.cos(rad) < 0 ? -48 : 0;
     return {
@@ -716,11 +752,18 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     };
   });
 
-  const gradient3D = getSphere3DGradientColors(sphere.type, sunnyPercentage, colorScheme);
+  const gradient3D = getSphere3DGradientColors(
+    sphere.type,
+    sunnyPercentage,
+    colorScheme,
+  );
   const iconColor = getSphereIconColor(sphere.type, colorScheme);
   const shadowColor = getSphereShadowColor(sphere.type, colorScheme);
-  const entityAvatarSize = isFocused ? 40 : Math.max(22, Math.round(target.size * 0.3));
-  const orbitRadius = target.size / 2 + entityAvatarSize / 2 + (isFocused ? 8 : 6);
+  const entityAvatarSize = isFocused
+    ? 40
+    : Math.max(22, Math.round(target.size * 0.3));
+  const orbitRadius =
+    target.size / 2 + entityAvatarSize / 2 + (isFocused ? 8 : 6);
 
   const sphereStyle = useAnimatedStyle(() => ({
     position: "absolute",
@@ -731,7 +774,9 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     transform: [{ scale: spherePulseScale.value }],
   }));
 
-  const iconSize = isFocused ? FOCUSED_ICON_SIZE : Math.round(target.size * 0.5);
+  const iconSize = isFocused
+    ? FOCUSED_ICON_SIZE
+    : Math.round(target.size * 0.5);
 
   return (
     <Animated.View
@@ -768,7 +813,12 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             },
           ]}
         >
-          <Svg width="100%" height="100%" viewBox="0 0 100 100" style={{ position: "absolute" }}>
+          <Svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 100 100"
+            style={{ position: "absolute" }}
+          >
             <Defs>
               <RadialGradient
                 id={`sphere3d-${sphere.type}-${sphereIdx}`}
@@ -779,12 +829,29 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
                 fy="32"
                 gradientUnits="userSpaceOnUse"
               >
-                <Stop offset="0%" stopColor={gradient3D.highlight} stopOpacity="1" />
-                <Stop offset="38%" stopColor={gradient3D.base} stopOpacity="1" />
-                <Stop offset="100%" stopColor={gradient3D.shadow} stopOpacity="1" />
+                <Stop
+                  offset="0%"
+                  stopColor={gradient3D.highlight}
+                  stopOpacity="1"
+                />
+                <Stop
+                  offset="38%"
+                  stopColor={gradient3D.base}
+                  stopOpacity="1"
+                />
+                <Stop
+                  offset="100%"
+                  stopColor={gradient3D.shadow}
+                  stopOpacity="1"
+                />
               </RadialGradient>
             </Defs>
-            <SvgCircle cx="50" cy="50" r="50" fill={`url(#sphere3d-${sphere.type}-${sphereIdx})`} />
+            <SvgCircle
+              cx="50"
+              cy="50"
+              r="50"
+              fill={`url(#sphere3d-${sphere.type}-${sphereIdx})`}
+            />
           </Svg>
           {/* Specular highlight - bright ellipse top-left for glossy 3D effect */}
           <View
@@ -806,7 +873,11 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
               zIndex: 1,
             }}
           >
-            <MaterialIcons name={sphere.icon as any} size={iconSize} color={iconColor} />
+            <MaterialIcons
+              name={sphere.icon as any}
+              size={iconSize}
+              color={iconColor}
+            />
           </View>
         </Animated.View>
       </Pressable>
@@ -836,6 +907,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
           glowColor={shadowColor}
           showFloatingMoments={isFocused}
           rotateOrbit={isFocused}
+          orbitDurationMs={orbitDurationMs}
         />
       </View>
     </Animated.View>
@@ -844,8 +916,28 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
 
 // ───────────────── Overall Percentage Avatar (same as classic view) ──────────────────
 
-const BADGE_GRADIENT_DARK = ['#080C14', '#0D121A', '#121820', '#1A2332', '#1F2A3A', '#243041', '#2A3545', '#2F3A4A', '#344050'] as const;
-const BADGE_GRADIENT_LIGHT = ['#858585', '#909090', '#9B9B9B', '#B0B0B0', '#C5C5C5', '#D0D0D0', '#DBDBDB', '#E5E5E5', '#F0F0F0'] as const;
+const BADGE_GRADIENT_DARK = [
+  "#080C14",
+  "#0D121A",
+  "#121820",
+  "#1A2332",
+  "#1F2A3A",
+  "#243041",
+  "#2A3545",
+  "#2F3A4A",
+  "#344050",
+] as const;
+const BADGE_GRADIENT_LIGHT = [
+  "#858585",
+  "#909090",
+  "#9B9B9B",
+  "#B0B0B0",
+  "#C5C5C5",
+  "#D0D0D0",
+  "#DBDBDB",
+  "#E5E5E5",
+  "#F0F0F0",
+] as const;
 
 const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   percentage,
@@ -871,7 +963,8 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
-  const gradientColors = colorScheme === "dark" ? BADGE_GRADIENT_DARK : BADGE_GRADIENT_LIGHT;
+  const gradientColors =
+    colorScheme === "dark" ? BADGE_GRADIENT_DARK : BADGE_GRADIENT_LIGHT;
 
   // Pulse animation for circle avatar (percentage) — every 10s, offset so not in sync with focused sphere
   const avatarPulseScale = useSharedValue(1);
@@ -909,145 +1002,325 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
 
   return (
     <Pressable onPress={onPress} style={wrapperStyle}>
-      <Animated.View style={[{ width: avatarSize, height: avatarSize }, avatarPulseStyle]}>
-      <View
-        style={{
-          width: avatarSize,
-          height: avatarSize,
-          borderRadius: avatarSize / 2,
-          justifyContent: "center",
-          alignItems: "center",
-          position: "relative",
-          overflow: "hidden",
-        }}
+      <Animated.View
+        style={[{ width: avatarSize, height: avatarSize }, avatarPulseStyle]}
       >
-        <LinearGradient
-          colors={gradientColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
+        <View
           style={{
-            position: "absolute",
             width: avatarSize,
             height: avatarSize,
             borderRadius: avatarSize / 2,
+            justifyContent: "center",
+            alignItems: "center",
+            position: "relative",
+            overflow: "hidden",
           }}
-        />
-        <Svg
-          width={avatarSize}
-          height={avatarSize}
-          viewBox={`0 0 ${avatarSize} ${avatarSize}`}
-          style={{ position: "absolute", top: 0, left: 0 }}
         >
-          <Defs>
-            <SvgLinearGradient
-              id="focusedBorderGradient"
-              x1="0%"
-              y1="0%"
-              x2="100%"
-              y2="100%"
+          <LinearGradient
+            colors={gradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={{
+              position: "absolute",
+              width: avatarSize,
+              height: avatarSize,
+              borderRadius: avatarSize / 2,
+            }}
+          />
+          <Svg
+            width={avatarSize}
+            height={avatarSize}
+            viewBox={`0 0 ${avatarSize} ${avatarSize}`}
+            style={{ position: "absolute", top: 0, left: 0 }}
+          >
+            <Defs>
+              <SvgLinearGradient
+                id="focusedBorderGradient"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
+                <Stop
+                  offset="0%"
+                  stopColor={momentColors.sunny.background}
+                  stopOpacity="0.7"
+                />
+                <Stop
+                  offset="50%"
+                  stopColor={momentColors.sunny.background}
+                  stopOpacity="1"
+                />
+                <Stop
+                  offset="100%"
+                  stopColor={momentColors.sunny.background}
+                  stopOpacity="1"
+                />
+              </SvgLinearGradient>
+              <Filter
+                id="focusedOuterGlow"
+                x="-200%"
+                y="-200%"
+                width="500%"
+                height="500%"
+              >
+                <FeGaussianBlur
+                  in="SourceGraphic"
+                  stdDeviation="20"
+                  result="outerBlurLarge"
+                />
+                <FeColorMatrix
+                  in="outerBlurLarge"
+                  type="matrix"
+                  values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.5 0"
+                  result="outerGlowLarge"
+                />
+                <FeGaussianBlur
+                  in="SourceGraphic"
+                  stdDeviation="12"
+                  result="outerBlurMedium"
+                />
+                <FeColorMatrix
+                  in="outerBlurMedium"
+                  type="matrix"
+                  values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.7 0"
+                  result="outerGlowMedium"
+                />
+                <FeGaussianBlur
+                  in="SourceGraphic"
+                  stdDeviation="6"
+                  result="outerBlurSmall"
+                />
+                <FeColorMatrix
+                  in="outerBlurSmall"
+                  type="matrix"
+                  values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.9 0"
+                  result="outerGlowSmall"
+                />
+                <FeMerge>
+                  <FeMergeNode in="outerGlowLarge" />
+                  <FeMergeNode in="outerGlowMedium" />
+                  <FeMergeNode in="outerGlowSmall" />
+                </FeMerge>
+              </Filter>
+              <Filter
+                id="focusedYellowGlow"
+                x="-200%"
+                y="-200%"
+                width="500%"
+                height="500%"
+              >
+                <FeGaussianBlur
+                  in="SourceGraphic"
+                  stdDeviation="16"
+                  result="outerBlur"
+                />
+                <FeColorMatrix
+                  in="outerBlur"
+                  type="matrix"
+                  values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 1.0 0"
+                  result="outerGlow"
+                />
+                <FeGaussianBlur
+                  in="SourceGraphic"
+                  stdDeviation="10"
+                  result="outerBlurMed"
+                />
+                <FeColorMatrix
+                  in="outerBlurMed"
+                  type="matrix"
+                  values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.85 0"
+                  result="outerGlowMed"
+                />
+                <FeGaussianBlur
+                  in="SourceGraphic"
+                  stdDeviation="4"
+                  result="innerBlur"
+                />
+                <FeColorMatrix
+                  in="innerBlur"
+                  type="matrix"
+                  values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.8 0"
+                  result="innerGlow"
+                />
+                <FeMerge>
+                  <FeMergeNode in="outerGlow" />
+                  <FeMergeNode in="outerGlowMed" />
+                  <FeMergeNode in="innerGlow" />
+                  <FeMergeNode in="SourceGraphic" />
+                </FeMerge>
+              </Filter>
+            </Defs>
+            {/* Dark ring track */}
+            <SvgCircle
+              cx={avatarSize / 2}
+              cy={avatarSize / 2}
+              r={radius}
+              stroke="#000000"
+              strokeWidth={borderWidth}
+              fill="none"
+            />
+            {/* Outer glow arc */}
+            <SvgCircle
+              cx={avatarSize / 2}
+              cy={avatarSize / 2}
+              r={radius}
+              stroke="url(#focusedBorderGradient)"
+              strokeWidth={borderWidth}
+              fill="none"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+              filter="url(#focusedOuterGlow)"
+              transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
+            />
+            {/* Main glowing progress arc */}
+            <SvgCircle
+              cx={avatarSize / 2}
+              cy={avatarSize / 2}
+              r={radius}
+              stroke="url(#focusedBorderGradient)"
+              strokeWidth={borderWidth}
+              fill="none"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+              filter="url(#focusedYellowGlow)"
+              transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
+            />
+          </Svg>
+
+          <View style={{ alignItems: "center", marginTop: -8 }}>
+            <ThemedText
+              size="xl"
+              weight="bold"
+              style={{ color: momentColors.sunny.background, fontSize: 24 }}
             >
-              <Stop offset="0%" stopColor={momentColors.sunny.background} stopOpacity="0.7" />
-              <Stop offset="50%" stopColor={momentColors.sunny.background} stopOpacity="1" />
-              <Stop offset="100%" stopColor={momentColors.sunny.background} stopOpacity="1" />
-            </SvgLinearGradient>
-            <Filter id="focusedOuterGlow" x="-200%" y="-200%" width="500%" height="500%">
-              <FeGaussianBlur in="SourceGraphic" stdDeviation="20" result="outerBlurLarge" />
-              <FeColorMatrix in="outerBlurLarge" type="matrix" values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.5 0" result="outerGlowLarge" />
-              <FeGaussianBlur in="SourceGraphic" stdDeviation="12" result="outerBlurMedium" />
-              <FeColorMatrix in="outerBlurMedium" type="matrix" values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.7 0" result="outerGlowMedium" />
-              <FeGaussianBlur in="SourceGraphic" stdDeviation="6" result="outerBlurSmall" />
-              <FeColorMatrix in="outerBlurSmall" type="matrix" values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.9 0" result="outerGlowSmall" />
-              <FeMerge>
-                <FeMergeNode in="outerGlowLarge" />
-                <FeMergeNode in="outerGlowMedium" />
-                <FeMergeNode in="outerGlowSmall" />
-              </FeMerge>
-            </Filter>
-            <Filter id="focusedYellowGlow" x="-200%" y="-200%" width="500%" height="500%">
-              <FeGaussianBlur in="SourceGraphic" stdDeviation="16" result="outerBlur" />
-              <FeColorMatrix in="outerBlur" type="matrix" values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 1.0 0" result="outerGlow" />
-              <FeGaussianBlur in="SourceGraphic" stdDeviation="10" result="outerBlurMed" />
-              <FeColorMatrix in="outerBlurMed" type="matrix" values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.85 0" result="outerGlowMed" />
-              <FeGaussianBlur in="SourceGraphic" stdDeviation="4" result="innerBlur" />
-              <FeColorMatrix in="innerBlur" type="matrix" values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.8 0" result="innerGlow" />
-              <FeMerge>
-                <FeMergeNode in="outerGlow" />
-                <FeMergeNode in="outerGlowMed" />
-                <FeMergeNode in="innerGlow" />
-                <FeMergeNode in="SourceGraphic" />
-              </FeMerge>
-            </Filter>
-          </Defs>
-          {/* Dark ring track */}
-          <SvgCircle cx={avatarSize / 2} cy={avatarSize / 2} r={radius} stroke="#000000" strokeWidth={borderWidth} fill="none" />
-          {/* Outer glow arc */}
-          <SvgCircle
-            cx={avatarSize / 2} cy={avatarSize / 2} r={radius}
-            stroke="url(#focusedBorderGradient)" strokeWidth={borderWidth} fill="none"
-            strokeDasharray={circumference} strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round" filter="url(#focusedOuterGlow)"
-            transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
-          />
-          {/* Main glowing progress arc */}
-          <SvgCircle
-            cx={avatarSize / 2} cy={avatarSize / 2} r={radius}
-            stroke="url(#focusedBorderGradient)" strokeWidth={borderWidth} fill="none"
-            strokeDasharray={circumference} strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round" filter="url(#focusedYellowGlow)"
-            transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
-          />
-        </Svg>
-
-        <View style={{ alignItems: "center", marginTop: -8 }}>
-          <ThemedText size="xl" weight="bold" style={{ color: momentColors.sunny.background, fontSize: 24 }}>
-            {Math.round(percentage)}%
-          </ThemedText>
-          {language === "bg" ? (
-            <View style={{ alignItems: "center" }}>
-              <ThemedText size="sm" weight="medium" style={{ color: momentColors.sunny.background, fontSize: 10, marginTop: -2, textAlign: "center", lineHeight: 10 }}>
-                Слънчев
-              </ThemedText>
-              <ThemedText size="sm" weight="medium" style={{ color: momentColors.sunny.background, fontSize: 10, textAlign: "center", lineHeight: 10, marginTop: -1 }}>
-                живот
-              </ThemedText>
-            </View>
-          ) : (
-            <ThemedText size="sm" weight="medium" style={{ color: momentColors.sunny.background, fontSize: 12, marginTop: -2 }}>
-              {t("avatar.sunnyLife")}
+              {Math.round(percentage)}%
             </ThemedText>
-          )}
+            {language === "bg" ? (
+              <View style={{ alignItems: "center" }}>
+                <ThemedText
+                  size="sm"
+                  weight="medium"
+                  style={{
+                    color: momentColors.sunny.background,
+                    fontSize: 10,
+                    marginTop: -2,
+                    textAlign: "center",
+                    lineHeight: 10,
+                  }}
+                >
+                  Слънчев
+                </ThemedText>
+                <ThemedText
+                  size="sm"
+                  weight="medium"
+                  style={{
+                    color: momentColors.sunny.background,
+                    fontSize: 10,
+                    textAlign: "center",
+                    lineHeight: 10,
+                    marginTop: -1,
+                  }}
+                >
+                  живот
+                </ThemedText>
+              </View>
+            ) : (
+              <ThemedText
+                size="sm"
+                weight="medium"
+                style={{
+                  color: momentColors.sunny.background,
+                  fontSize: 12,
+                  marginTop: -2,
+                }}
+              >
+                {t("avatar.sunnyLife")}
+              </ThemedText>
+            )}
+          </View>
         </View>
-      </View>
 
-      {/* Sun icon on the sunny arc */}
-      {percentage > 0 && (() => {
-        const sunnyArcAngle = -90 + ((percentage / 100) * 360) / 2;
-        const sunnyAngleRad = (sunnyArcAngle * Math.PI) / 180;
-        const iconRadius = avatarSize / 2;
-        const sunX = avatarSize / 2 + iconRadius * Math.cos(sunnyAngleRad) - 12;
-        const sunY = avatarSize / 2 + iconRadius * Math.sin(sunnyAngleRad) - 12;
-        return (
-          <View pointerEvents="none" style={{ position: "absolute", top: sunY, left: sunX, width: 24, height: 24, justifyContent: "center", alignItems: "center", backgroundColor: momentColors.sunny.background, borderRadius: 12, borderWidth: 2, borderColor: momentColors.sunny.background, zIndex: 999, elevation: 30, shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.6, shadowRadius: 4 }}>
-            <MaterialIcons name="wb-sunny" size={14} color="#FFFFFF" />
-          </View>
-        );
-      })()}
+        {/* Sun icon on the sunny arc */}
+        {percentage > 0 &&
+          (() => {
+            const sunnyArcAngle = -90 + ((percentage / 100) * 360) / 2;
+            const sunnyAngleRad = (sunnyArcAngle * Math.PI) / 180;
+            const iconRadius = avatarSize / 2;
+            const sunX =
+              avatarSize / 2 + iconRadius * Math.cos(sunnyAngleRad) - 12;
+            const sunY =
+              avatarSize / 2 + iconRadius * Math.sin(sunnyAngleRad) - 12;
+            return (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  top: sunY,
+                  left: sunX,
+                  width: 24,
+                  height: 24,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: momentColors.sunny.background,
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: momentColors.sunny.background,
+                  zIndex: 999,
+                  elevation: 30,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.6,
+                  shadowRadius: 4,
+                }}
+              >
+                <MaterialIcons name="wb-sunny" size={14} color="#FFFFFF" />
+              </View>
+            );
+          })()}
 
-      {/* Cloud icon on the dark arc */}
-      {percentage < 100 && percentage > 0 && (() => {
-        const cloudyStartAngle = -90 + (percentage / 100) * 360;
-        const cloudyArcLength = 360 - (percentage / 100) * 360;
-        const cloudyArcAngle = cloudyStartAngle + cloudyArcLength / 2;
-        const cloudyAngleRad = (cloudyArcAngle * Math.PI) / 180;
-        const iconRadius = avatarSize / 2;
-        const cloudX = avatarSize / 2 + iconRadius * Math.cos(cloudyAngleRad) - 12;
-        const cloudY = avatarSize / 2 + iconRadius * Math.sin(cloudyAngleRad) - 12;
-        return (
-          <View pointerEvents="none" style={{ position: "absolute", top: cloudY, left: cloudX, width: 24, height: 24, justifyContent: "center", alignItems: "center", backgroundColor: "#555555", borderRadius: 12, borderWidth: 2, borderColor: "#222222", zIndex: 999, elevation: 30, shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.6, shadowRadius: 4 }}>
-            <MaterialIcons name="cloud" size={14} color="#FFFFFF" />
-          </View>
-        );
-      })()}
+        {/* Cloud icon on the dark arc */}
+        {percentage < 100 &&
+          percentage > 0 &&
+          (() => {
+            const cloudyStartAngle = -90 + (percentage / 100) * 360;
+            const cloudyArcLength = 360 - (percentage / 100) * 360;
+            const cloudyArcAngle = cloudyStartAngle + cloudyArcLength / 2;
+            const cloudyAngleRad = (cloudyArcAngle * Math.PI) / 180;
+            const iconRadius = avatarSize / 2;
+            const cloudX =
+              avatarSize / 2 + iconRadius * Math.cos(cloudyAngleRad) - 12;
+            const cloudY =
+              avatarSize / 2 + iconRadius * Math.sin(cloudyAngleRad) - 12;
+            return (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  top: cloudY,
+                  left: cloudX,
+                  width: 24,
+                  height: 24,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: "#555555",
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: "#222222",
+                  zIndex: 999,
+                  elevation: 30,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.6,
+                  shadowRadius: 4,
+                }}
+              >
+                <MaterialIcons name="cloud" size={14} color="#FFFFFF" />
+              </View>
+            );
+          })()}
       </Animated.View>
     </Pressable>
   );
@@ -1069,6 +1342,8 @@ export function FocusedSferaView({
   memoriesPerEntityBySphere,
   initialFocusedIdx = 0,
   onFocusedSphereChange,
+  orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
+  constellationAmount = 10,
 }: FocusedSferaViewProps) {
   const insets = useSafeAreaInsets();
   const { isTablet } = useLargeDevice();
@@ -1091,7 +1366,8 @@ export function FocusedSferaView({
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy * 1.5),
+        onMoveShouldSetPanResponder: (_, g) =>
+          Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy * 1.5),
         onPanResponderRelease: (_, g) => {
           if (g.dx < -50) {
             goToSphere((focusedIdx + 1) % N);
@@ -1105,9 +1381,16 @@ export function FocusedSferaView({
 
   const focusedSphere = SPHERE_LIST[focusedIdx];
   const focusedSunnyPct = getSphereSunnyPercentage(focusedSphere.type);
-  const focusedGradientColors = getSphereGradientColors(focusedSphere.type, focusedSunnyPct, colorScheme);
+  const focusedGradientColors = getSphereGradientColors(
+    focusedSphere.type,
+    focusedSunnyPct,
+    colorScheme,
+  );
   const focusedIconColor = getSphereIconColor(focusedSphere.type, colorScheme);
-  const focusedShadowColor = getSphereShadowColor(focusedSphere.type, colorScheme);
+  const focusedShadowColor = getSphereShadowColor(
+    focusedSphere.type,
+    colorScheme,
+  );
   const focusedUris = entityImageUrisBySphere[focusedSphere.type] ?? [];
 
   const handleSwitchToClassic = useCallback(() => {
@@ -1188,7 +1471,7 @@ export function FocusedSferaView({
 
   return (
     <View style={styles.root} {...panResponder.panHandlers}>
-      <ConstellationBackground width={SW} height={SH} />
+      <ConstellationBackground width={SW} height={SH} constellationAmount={constellationAmount} />
 
       {/* ─── Sparkled dots scattered across screen ─── */}
       <SparkledDots
@@ -1210,10 +1493,13 @@ export function FocusedSferaView({
           entityIds={entityIdsBySphere[sphere.type] ?? []}
           entityNames={entityNamesBySphere[sphere.type] ?? []}
           entityMemories={memoriesPerEntityBySphere[sphere.type] ?? []}
-          onPress={() => (i === focusedIdx ? onSphereSelect(sphere.type) : goToSphere(i))}
+          onPress={() =>
+            i === focusedIdx ? onSphereSelect(sphere.type) : goToSphere(i)
+          }
           onEntitySelect={onEntitySelect}
           colorScheme={colorScheme}
           sunnyPercentage={getSphereSunnyPercentage(sphere.type)}
+          orbitDurationMs={orbitDurationMs}
         />
       ))}
 
@@ -1227,33 +1513,45 @@ export function FocusedSferaView({
       />
 
       {/* ─── Chevron buttons: left = prev, right = next (orbital cycle) ─── */}
-      <Animated.View style={[styles.chevron, styles.chevronLeft, chevronPulseStyle]}>
+      <Animated.View
+        style={[styles.chevron, styles.chevronLeft, chevronPulseStyle]}
+      >
         <Pressable
           style={{ padding: 8 }}
           onPress={() => goToSphere((focusedIdx - 1 + N) % N)}
         >
-          <MaterialIcons name="chevron-left" size={32} color="rgba(255,255,255,0.45)" />
+          <MaterialIcons
+            name="chevron-left"
+            size={32}
+            color="rgba(255,255,255,0.45)"
+          />
         </Pressable>
       </Animated.View>
-      <Animated.View style={[styles.chevron, styles.chevronRight, chevronPulseStyle]}>
+      <Animated.View
+        style={[styles.chevron, styles.chevronRight, chevronPulseStyle]}
+      >
         <Pressable
           style={{ padding: 8 }}
           onPress={() => goToSphere((focusedIdx + 1) % N)}
         >
-          <MaterialIcons name="chevron-right" size={32} color="rgba(255,255,255,0.45)" />
+          <MaterialIcons
+            name="chevron-right"
+            size={32}
+            color="rgba(255,255,255,0.45)"
+          />
         </Pressable>
       </Animated.View>
 
-      {/* ─── Toggle: switch to Classic view (wheel of life) ─── */}
+      {/* ─── Toggle: switch to Classic view (wheel of life), aligned with streak badge ─── */}
       <Animated.View
         style={[
           styles.toggleBtn,
-          { top: insets.top },
+          { top: 68 },
           ...(shouldPulseViewToggle ? [togglePulseStyle] : []),
         ]}
       >
         <Pressable
-          style={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}
+          style={styles.toggleBtnPressable}
           onPress={handleSwitchToClassic}
         >
           <MaterialIcons name="bubble-chart" size={30} color="#fff" />
@@ -1286,10 +1584,14 @@ const styles = StyleSheet.create({
     left: 16,
     width: 64,
     height: 64,
-    borderRadius: 32,
-    backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 30,
+  },
+  toggleBtnPressable: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
