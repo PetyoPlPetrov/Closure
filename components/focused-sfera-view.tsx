@@ -100,9 +100,13 @@ export type FocusedSferaViewProps = {
   onSphereSelect: (sphere: LifeSphere) => void;
   /** Switch back to Classic view (wheel of life). */
   onSwitchToClassic: () => void;
+  /** Called when user taps a floating entity avatar; navigates to entity detail. */
+  onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
   colorScheme: "light" | "dark";
   getSphereSunnyPercentage: (sphere: LifeSphere) => number;
   entityImageUrisBySphere: Record<LifeSphere, string[]>;
+  /** Entity IDs per sphere; inner array matches entityImageUrisBySphere order. */
+  entityIdsBySphere: Record<LifeSphere, string[]>;
   /** Memories per entity per sphere; inner array matches entityImageUrisBySphere order. */
   memoriesPerEntityBySphere: Record<LifeSphere, IdealizedMemory[][]>;
 };
@@ -387,7 +391,10 @@ const SparkledDot = React.memo(function SparkledDot({
 
 const EntityRing = React.memo(function EntityRing({
   uris,
+  entityIds,
   entityMemories,
+  onEntitySelect,
+  sphere,
   centerX,
   centerY,
   orbitRadius,
@@ -397,7 +404,10 @@ const EntityRing = React.memo(function EntityRing({
   rotateOrbit = false,
 }: {
   uris: string[];
+  entityIds: string[];
   entityMemories: IdealizedMemory[][];
+  onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
+  sphere: LifeSphere;
   centerX: number;
   centerY: number;
   orbitRadius: number;
@@ -430,10 +440,12 @@ const EntityRing = React.memo(function EntityRing({
       {uris.slice(0, count).map((uri, i) => {
         const baseAngle = (i / count) * 2 * Math.PI - Math.PI / 2;
         const memories = entityMemories[i] ?? [];
+        const entityId = entityIds[i] ?? "";
         return (
           <OrbitingEntity
             key={`${uri}-${i}`}
             uri={uri}
+            entityId={entityId}
             index={i}
             count={count}
             baseAngle={baseAngle}
@@ -446,6 +458,8 @@ const EntityRing = React.memo(function EntityRing({
             isTablet={isTablet}
             showFloatingMoments={showFloatingMoments}
             entityMemories={memories}
+            onEntitySelect={onEntitySelect}
+            sphere={sphere}
             orbitAngle={orbitAngle}
             rotateOrbit={rotateOrbit}
           />
@@ -457,6 +471,7 @@ const EntityRing = React.memo(function EntityRing({
 
 const OrbitingEntity = React.memo(function OrbitingEntity({
   uri,
+  entityId,
   index,
   count,
   baseAngle,
@@ -469,10 +484,13 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   isTablet,
   showFloatingMoments,
   entityMemories,
+  onEntitySelect,
+  sphere,
   orbitAngle,
   rotateOrbit,
 }: {
   uri: string;
+  entityId: string;
   index: number;
   count: number;
   baseAngle: number;
@@ -485,6 +503,8 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   isTablet: boolean;
   showFloatingMoments: boolean;
   entityMemories: IdealizedMemory[];
+  onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
+  sphere: LifeSphere;
   orbitAngle: SharedValue<number>;
   rotateOrbit: boolean;
 }) {
@@ -516,25 +536,30 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
         },
       ]}
     >
-      <Image
-        source={{ uri }}
-        style={{
-          width: avatarSize,
-          height: avatarSize,
-          borderRadius: avatarSize / 2,
-          borderWidth,
-          borderColor: "rgba(255,255,255,0.75)",
-        }}
-        contentFit="cover"
-      />
-      {showFloatingMoments && (
-        <SmallFloatingMoments
-          entityCenterX={avatarSize / 2}
-          entityCenterY={avatarSize / 2}
-          entityIndex={index}
-          memories={entityMemories}
+      <Pressable
+        style={{ width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }}
+        onPress={() => entityId && onEntitySelect(entityId, sphere)}
+      >
+        <Image
+          source={{ uri }}
+          style={{
+            width: avatarSize,
+            height: avatarSize,
+            borderRadius: avatarSize / 2,
+            borderWidth,
+            borderColor: "rgba(255,255,255,0.75)",
+          }}
+          contentFit="cover"
         />
-      )}
+        {showFloatingMoments && (
+          <SmallFloatingMoments
+            entityCenterX={avatarSize / 2}
+            entityCenterY={avatarSize / 2}
+            entityIndex={index}
+            memories={entityMemories}
+          />
+        )}
+      </Pressable>
     </Animated.View>
   );
 });
@@ -549,8 +574,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   sphere,
   focusedIdx,
   entityUris,
+  entityIds,
   entityMemories,
   onPress,
+  onEntitySelect,
   colorScheme,
   sunnyPercentage,
 }: {
@@ -558,8 +585,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   sphere: { type: LifeSphere; icon: string };
   focusedIdx: number;
   entityUris: string[];
+  entityIds: string[];
   entityMemories: IdealizedMemory[][];
   onPress: () => void;
+  onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
   colorScheme: "light" | "dark";
   sunnyPercentage: number;
 }) {
@@ -757,7 +786,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       >
         <EntityRing
           uris={entityUris}
+          entityIds={entityIds}
           entityMemories={entityMemories}
+          onEntitySelect={onEntitySelect}
+          sphere={sphere.type}
           centerX={CONTAINER_HALF}
           centerY={CONTAINER_HALF}
           orbitRadius={orbitRadius}
@@ -988,9 +1020,11 @@ export function FocusedSferaView({
   overallSunnyPercentage,
   onSphereSelect,
   onSwitchToClassic,
+  onEntitySelect,
   colorScheme,
   getSphereSunnyPercentage,
   entityImageUrisBySphere,
+  entityIdsBySphere,
   memoriesPerEntityBySphere,
 }: FocusedSferaViewProps) {
   const insets = useSafeAreaInsets();
@@ -1089,8 +1123,10 @@ export function FocusedSferaView({
           sphere={sphere}
           focusedIdx={focusedIdx}
           entityUris={entityImageUrisBySphere[sphere.type] ?? []}
+          entityIds={entityIdsBySphere[sphere.type] ?? []}
           entityMemories={memoriesPerEntityBySphere[sphere.type] ?? []}
           onPress={() => (i === focusedIdx ? onSphereSelect(sphere.type) : goToSphere(i))}
+          onEntitySelect={onEntitySelect}
           colorScheme={colorScheme}
           sunnyPercentage={getSphereSunnyPercentage(sphere.type)}
         />

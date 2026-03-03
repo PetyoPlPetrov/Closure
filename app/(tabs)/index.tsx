@@ -11192,19 +11192,29 @@ export default function HomeScreen() {
   const HOME_VIEW_MODE_KEY = "@sferas:home_view_mode";
   const [homeViewMode, setHomeViewMode] = useState<"classic" | "focused">("classic");
   const homeViewModeLoadedRef = useRef(false);
+  const skipNextViewModePersistRef = useRef(false);
+  const cameFromFocusedSferaForEntityRef = useRef(false);
+  const userHomeViewPreferenceRef = useRef<"classic" | "focused">("classic");
 
   useEffect(() => {
     AsyncStorage.getItem(HOME_VIEW_MODE_KEY).then((v) => {
-      if (v === "focused" || v === "classic") setHomeViewMode(v);
+      if (v === "focused" || v === "classic") {
+        setHomeViewMode(v);
+        userHomeViewPreferenceRef.current = v;
+      }
     }).finally(() => {
       homeViewModeLoadedRef.current = true;
     });
   }, []);
 
   useEffect(() => {
-    if (homeViewModeLoadedRef.current) {
-      AsyncStorage.setItem(HOME_VIEW_MODE_KEY, homeViewMode);
+    if (!homeViewModeLoadedRef.current) return;
+    if (skipNextViewModePersistRef.current) {
+      skipNextViewModePersistRef.current = false;
+      return;
     }
+    userHomeViewPreferenceRef.current = homeViewMode;
+    AsyncStorage.setItem(HOME_VIEW_MODE_KEY, homeViewMode);
   }, [homeViewMode]);
 
   // Focused state management - must be at top level (moved before useFocusEffect)
@@ -11229,6 +11239,36 @@ export default function HomeScreen() {
   // Track if any entity wheel is active (to disable scrolling)
   const [isAnyEntityWheelActive, setIsAnyEntityWheelActive] =
     useState<boolean>(false);
+
+  const hasFocusedView =
+    !!(
+      focusedMemory ||
+      selectedSphere ||
+      focusedProfileId ||
+      focusedJobId ||
+      focusedFamilyMemberId ||
+      focusedFriendId ||
+      focusedHobbyId
+    );
+  const prevHasFocusedViewRef = useRef(hasFocusedView);
+
+  useLayoutEffect(() => {
+    const wasFocused = prevHasFocusedViewRef.current;
+    prevHasFocusedViewRef.current = hasFocusedView;
+    if (wasFocused && !hasFocusedView && cameFromFocusedSferaForEntityRef.current) {
+      cameFromFocusedSferaForEntityRef.current = false;
+      setHomeViewMode(userHomeViewPreferenceRef.current);
+    }
+  }, [
+    hasFocusedView,
+    focusedMemory,
+    selectedSphere,
+    focusedProfileId,
+    focusedJobId,
+    focusedFamilyMemberId,
+    focusedFriendId,
+    focusedHobbyId,
+  ]);
 
   // Track if home screen was already focused to detect when user presses home tab while already on home
   const isHomeFocusedRef = useRef<boolean>(false);
@@ -11318,20 +11358,20 @@ export default function HomeScreen() {
   }, [selectedSphere, sphereZoomProgress]);
 
   // Clear focused states when selectedSphere changes to prevent stale state
-  // This MUST run first to clear any cross-sphere state
+  // Only clear focus for spheres we're LEAVING — preserve focus for the sphere we're switching TO
+  // (e.g. when coming from FocusedSfera, we set both selectedSphere and focused*Id together)
   const previousSphereForCleanup = useRef<LifeSphere | null>(null);
   React.useEffect(() => {
-    // Clear focus states when sphere changes (including when selecting a sphere for the first time)
     const sphereChanged = selectedSphere !== previousSphereForCleanup.current;
     if (sphereChanged) {
-      // Clear all focus states immediately when sphere changes
       setFocusedMemory(null);
-      setFocusedProfileId(null);
-      setFocusedJobId(null);
-      setFocusedFamilyMemberId(null);
-      // Reset animations complete to ensure profiles aren't hidden by stale animation state
+      // Clear only the focused entity of spheres we're NOT switching to
+      if (selectedSphere !== "relationships") setFocusedProfileId(null);
+      if (selectedSphere !== "career") setFocusedJobId(null);
+      if (selectedSphere !== "family") setFocusedFamilyMemberId(null);
+      if (selectedSphere !== "friends") setFocusedFriendId(null);
+      if (selectedSphere !== "hobbies") setFocusedHobbyId(null);
       setAnimationsComplete(false);
-      // Increment render key to force remount of YearSectionsRenderer
       sphereRenderKeyRef.current += 1;
       previousSphereForCleanup.current = selectedSphere;
     }
@@ -12030,6 +12070,27 @@ export default function HomeScreen() {
       family: familyMembers.map((m) => m.imageUri).filter((u): u is string => !!u),
       friends: friends.map((f) => f.imageUri).filter((u): u is string => !!u),
       hobbies: hobbies.map((h) => h.imageUri).filter((u): u is string => !!u),
+    }),
+    [profiles, jobs, familyMembers, friends, hobbies],
+  );
+
+  const entityIdsBySphere = useMemo(
+    () => ({
+      relationships: profiles
+        .filter((p) => !!p.imageUri)
+        .map((p) => p.id),
+      career: jobs
+        .filter((j) => !!j.imageUri)
+        .map((j) => j.id),
+      family: familyMembers
+        .filter((m) => !!m.imageUri)
+        .map((m) => m.id),
+      friends: friends
+        .filter((f) => !!f.imageUri)
+        .map((f) => f.id),
+      hobbies: hobbies
+        .filter((h) => !!h.imageUri)
+        .map((h) => h.id),
     }),
     [profiles, jobs, familyMembers, friends, hobbies],
   );
@@ -15802,10 +15863,24 @@ export default function HomeScreen() {
                 setAnimationsComplete(false);
                 setSelectedSphere(sphere);
               }}
+              onEntitySelect={(entityId, sphere) => {
+                skipNextViewModePersistRef.current = true;
+                cameFromFocusedSferaForEntityRef.current = true;
+                setFocusedMemory(null);
+                setSelectedSphere(sphere);
+                setFocusedProfileId(sphere === "relationships" ? entityId : null);
+                setFocusedJobId(sphere === "career" ? entityId : null);
+                setFocusedFamilyMemberId(sphere === "family" ? entityId : null);
+                setFocusedFriendId(sphere === "friends" ? entityId : null);
+                setFocusedHobbyId(sphere === "hobbies" ? entityId : null);
+                setAnimationsComplete(false);
+                setHomeViewMode("classic");
+              }}
               onSwitchToClassic={() => setHomeViewMode("classic")}
               colorScheme={colorScheme ?? "dark"}
               getSphereSunnyPercentage={getSphereSunnyPercentage}
               entityImageUrisBySphere={entityImageUrisBySphere}
+              entityIdsBySphere={entityIdsBySphere}
               memoriesPerEntityBySphere={memoriesPerEntityBySphere}
             />
           </View>

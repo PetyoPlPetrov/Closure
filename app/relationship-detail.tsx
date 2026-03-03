@@ -20,7 +20,7 @@ export default function RelationshipDetailScreen() {
   const t = useTranslate();
   const { momentColors } = useMomentColors();
   const { id } = useLocalSearchParams<{ id: string }>();
-  
+
   const { profiles, getIdealizedMemoriesByProfileId } = useJourney();
 
   const profile = useMemo(() => {
