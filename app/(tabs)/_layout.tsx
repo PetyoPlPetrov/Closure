@@ -2,14 +2,16 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { HomeTransitionLoaderOverlay } from '@/components/home-transition-loader';
 import { HapticTab, HomeTabButton, SpheresTabButton } from '@/components/haptic-tab';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import { HomeTransitionLoaderProvider } from '@/utils/home-transition-loader-context';
 import { useTranslate } from '@/utils/languages/use-translate';
 
 export default function TabLayout() {
@@ -44,7 +46,11 @@ export default function TabLayout() {
     );
   };
 
+  const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+
   return (
+    <HomeTransitionLoaderProvider>
+    <View style={styles.container}>
     <Tabs
       initialRouteName="index"
       screenOptions={{
@@ -158,5 +164,24 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    <View
+      style={[styles.loaderOverlay, { bottom: tabBarHeight }]}
+      pointerEvents="none"
+    >
+      <HomeTransitionLoaderOverlay />
+    </View>
+    </View>
+    </HomeTransitionLoaderProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  loaderOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 3,
+    zIndex: 9999,
+  },
+});

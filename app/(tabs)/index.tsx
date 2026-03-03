@@ -31,6 +31,7 @@ import {
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
 import {
   requestSpheresTabPulse,
   stopSpheresTabPulse,
@@ -11195,6 +11196,9 @@ export default function HomeScreen() {
   const skipNextViewModePersistRef = useRef(false);
   const cameFromFocusedSferaForEntityRef = useRef(false);
   const userHomeViewPreferenceRef = useRef<"classic" | "focused">("classic");
+  const { showLoader: startTransitionLoader } = useHomeTransitionLoader() ?? {
+    showLoader: () => {},
+  };
 
   useEffect(() => {
     AsyncStorage.getItem(HOME_VIEW_MODE_KEY).then((v) => {
@@ -11257,6 +11261,7 @@ export default function HomeScreen() {
     prevHasFocusedViewRef.current = hasFocusedView;
     if (wasFocused && !hasFocusedView && cameFromFocusedSferaForEntityRef.current) {
       cameFromFocusedSferaForEntityRef.current = false;
+      startTransitionLoader();
       setHomeViewMode(userHomeViewPreferenceRef.current);
     }
   }, [
@@ -11268,6 +11273,7 @@ export default function HomeScreen() {
     focusedFamilyMemberId,
     focusedFriendId,
     focusedHobbyId,
+    startTransitionLoader,
   ]);
 
   // Track if home screen was already focused to detect when user presses home tab while already on home
@@ -15864,19 +15870,43 @@ export default function HomeScreen() {
                 setSelectedSphere(sphere);
               }}
               onEntitySelect={(entityId, sphere) => {
-                skipNextViewModePersistRef.current = true;
-                cameFromFocusedSferaForEntityRef.current = true;
-                setFocusedMemory(null);
-                setSelectedSphere(sphere);
-                setFocusedProfileId(sphere === "relationships" ? entityId : null);
-                setFocusedJobId(sphere === "career" ? entityId : null);
-                setFocusedFamilyMemberId(sphere === "family" ? entityId : null);
-                setFocusedFriendId(sphere === "friends" ? entityId : null);
-                setFocusedHobbyId(sphere === "hobbies" ? entityId : null);
-                setAnimationsComplete(false);
-                setHomeViewMode("classic");
+                if (__DEV__) console.log("[index] onEntitySelect", entityId, sphere);
+                // Start loader first so it's visible and animating before the redirect
+                startTransitionLoader();
+                requestAnimationFrame(() => {
+                  setTimeout(() => {
+                    skipNextViewModePersistRef.current = true;
+                    cameFromFocusedSferaForEntityRef.current = true;
+                    setFocusedMemory(null);
+                    setSelectedSphere(sphere);
+                    setFocusedProfileId(sphere === "relationships" ? entityId : null);
+                    setFocusedJobId(sphere === "career" ? entityId : null);
+                    setFocusedFamilyMemberId(sphere === "family" ? entityId : null);
+                    setFocusedFriendId(sphere === "friends" ? entityId : null);
+                    setFocusedHobbyId(sphere === "hobbies" ? entityId : null);
+                    setAnimationsComplete(false);
+                    setHomeViewMode("classic");
+                  }, 80);
+                });
               }}
-              onSwitchToClassic={() => setHomeViewMode("classic")}
+              onSwitchToClassic={() => {
+                // Start loader, switch to classic view, clear focus, auto-open wheel of life
+                startTransitionLoader();
+                requestAnimationFrame(() => {
+                  setTimeout(() => {
+                    setFocusedMemory(null);
+                    setFocusedProfileId(null);
+                    setFocusedJobId(null);
+                    setFocusedFamilyMemberId(null);
+                    setFocusedFriendId(null);
+                    setFocusedHobbyId(null);
+                    setSelectedSphere(null);
+                    setAnimationsComplete(false);
+                    setShowMomentTypeSelector(true); // Auto-open wheel of life (moment type selector)
+                    setHomeViewMode("classic");
+                  }, 80);
+                });
+              }}
               colorScheme={colorScheme ?? "dark"}
               getSphereSunnyPercentage={getSphereSunnyPercentage}
               entityImageUrisBySphere={entityImageUrisBySphere}
@@ -18163,31 +18193,32 @@ export default function HomeScreen() {
                 return;
               }
 
-              // Default behavior - unfocus memory/profile
-              if (focusedMemory) {
-                // If memory is focused, unfocus the memory and ensure profile is focused
-                // This returns to the focused profile view with memories floating around
-                setFocusedMemory(null);
-                // Ensure the profile is focused so we return to focused profile view
-                if (focusedMemory.profileId) {
-                  if (
-                    !focusedProfileId ||
-                    focusedProfileId !== focusedMemory.profileId
-                  ) {
-                    setFocusedProfileId(focusedMemory.profileId);
+              // Start loader before the redirect so it's visible during the slow calc
+              startTransitionLoader();
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  // Default behavior - unfocus memory/profile
+                  if (focusedMemory) {
+                    setFocusedMemory(null);
+                    if (focusedMemory.profileId) {
+                      if (
+                        !focusedProfileId ||
+                        focusedProfileId !== focusedMemory.profileId
+                      ) {
+                        setFocusedProfileId(focusedMemory.profileId);
+                      }
+                    }
+                  } else if (focusedProfileId) {
+                    setFocusedProfileId(null);
+                    setFocusedMemory(null);
+                  } else {
+                    setFocusedMemory(null);
+                    setFocusedProfileId(null);
+                    setFocusedJobId(null);
+                    setSelectedSphere(null);
                   }
-                }
-              } else if (focusedProfileId) {
-                // If only profile is focused, unfocus it (this will bring back other profiles)
-                setFocusedProfileId(null);
-                setFocusedMemory(null); // Clear any stale memory state
-              } else {
-                // No focus, return to sphere selection
-                setFocusedMemory(null); // Clear any stale memory state
-                setFocusedProfileId(null); // Clear any stale profile focus
-                setFocusedJobId(null); // Clear any stale job focus
-                setSelectedSphere(null);
-              }
+                }, 80);
+              });
             }}
             style={{
               position: "absolute",
@@ -18528,30 +18559,28 @@ export default function HomeScreen() {
               const returnToId = params.returnToId as string | undefined;
 
               if (returnTo && returnToId) {
-                // Navigate back to the detail view - use back() since detail view is in history
                 router.back();
                 return;
               }
 
-              // Default behavior - unfocus memory/job
-              if (focusedMemory) {
-                // If memory is focused, unfocus the memory and ensure job is focused
-                // This returns to the focused job view with memories floating around
-                setFocusedMemory(null);
-                // Ensure the job is focused so we return to focused job view
-                if (
-                  !focusedJobId ||
-                  (focusedMemory.jobId && focusedJobId !== focusedMemory.jobId)
-                ) {
-                  setFocusedJobId(focusedMemory.jobId || null);
-                }
-              } else if (focusedJobId) {
-                // If only job is focused, unfocus it (this will bring back other jobs)
-                setFocusedJobId(null);
-              } else {
-                // No focus, return to sphere selection
-                setSelectedSphere(null);
-              }
+              startTransitionLoader();
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  if (focusedMemory) {
+                    setFocusedMemory(null);
+                    if (
+                      !focusedJobId ||
+                      (focusedMemory.jobId && focusedJobId !== focusedMemory.jobId)
+                    ) {
+                      setFocusedJobId(focusedMemory.jobId || null);
+                    }
+                  } else if (focusedJobId) {
+                    setFocusedJobId(null);
+                  } else {
+                    setSelectedSphere(null);
+                  }
+                }, 80);
+              });
             }}
             style={{
               position: "absolute",
@@ -19096,37 +19125,36 @@ export default function HomeScreen() {
               const returnToId = params.returnToId as string | undefined;
 
               if (returnTo && returnToId) {
-                // Navigate back to the detail view - use back() since detail view is in history
                 router.back();
                 return;
               }
 
-              if (focusedMemory) {
-                // If memory is focused, unfocus the memory and ensure family member is focused
-                // This returns to the focused family member view with memories floating around
-                setFocusedMemory(null);
-                // Ensure the family member is focused so we return to focused family member view
-                if (
-                  !focusedFamilyMemberId ||
-                  (focusedMemory.familyMemberId &&
-                    focusedFamilyMemberId !== focusedMemory.familyMemberId)
-                ) {
-                  setFocusedFamilyMemberId(
-                    focusedMemory.familyMemberId || null,
-                  );
-                }
-              } else if (focusedFamilyMemberId) {
-                // If only family member is focused, unfocus it (this will bring back other family members)
-                setFocusedFamilyMemberId(null);
-                setFocusedMemory(null); // Clear any stale memory state
-              } else {
-                // No focus, return to sphere selection
-                setFocusedMemory(null); // Clear any stale memory state
-                setFocusedProfileId(null); // Clear any stale profile focus
-                setFocusedJobId(null); // Clear any stale job focus
-                setFocusedFamilyMemberId(null); // Clear any stale family member focus
-                setSelectedSphere(null);
-              }
+              startTransitionLoader();
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  if (focusedMemory) {
+                    setFocusedMemory(null);
+                    if (
+                      !focusedFamilyMemberId ||
+                      (focusedMemory.familyMemberId &&
+                        focusedFamilyMemberId !== focusedMemory.familyMemberId)
+                    ) {
+                      setFocusedFamilyMemberId(
+                        focusedMemory.familyMemberId || null,
+                      );
+                    }
+                  } else if (focusedFamilyMemberId) {
+                    setFocusedFamilyMemberId(null);
+                    setFocusedMemory(null);
+                  } else {
+                    setFocusedMemory(null);
+                    setFocusedProfileId(null);
+                    setFocusedJobId(null);
+                    setFocusedFamilyMemberId(null);
+                    setSelectedSphere(null);
+                  }
+                }, 80);
+              });
             }}
             style={{
               position: "absolute",
@@ -19554,27 +19582,32 @@ export default function HomeScreen() {
                 return;
               }
 
-              if (focusedMemory) {
-                setFocusedMemory(null);
-                if (
-                  !focusedFriendId ||
-                  (focusedMemory.friendId &&
-                    focusedFriendId !== focusedMemory.friendId)
-                ) {
-                  setFocusedFriendId(focusedMemory.friendId || null);
-                }
-              } else if (focusedFriendId) {
-                setFocusedFriendId(null);
-                setFocusedMemory(null);
-              } else {
-                setFocusedMemory(null);
-                setFocusedProfileId(null);
-                setFocusedJobId(null);
-                setFocusedFamilyMemberId(null);
-                setFocusedFriendId(null);
-                setFocusedHobbyId(null);
-                setSelectedSphere(null);
-              }
+              startTransitionLoader();
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  if (focusedMemory) {
+                    setFocusedMemory(null);
+                    if (
+                      !focusedFriendId ||
+                      (focusedMemory.friendId &&
+                        focusedFriendId !== focusedMemory.friendId)
+                    ) {
+                      setFocusedFriendId(focusedMemory.friendId || null);
+                    }
+                  } else if (focusedFriendId) {
+                    setFocusedFriendId(null);
+                    setFocusedMemory(null);
+                  } else {
+                    setFocusedMemory(null);
+                    setFocusedProfileId(null);
+                    setFocusedJobId(null);
+                    setFocusedFamilyMemberId(null);
+                    setFocusedFriendId(null);
+                    setFocusedHobbyId(null);
+                    setSelectedSphere(null);
+                  }
+                }, 80);
+              });
             }}
             style={{
               position: "absolute",
@@ -20004,27 +20037,32 @@ export default function HomeScreen() {
                 return;
               }
 
-              if (focusedMemory) {
-                setFocusedMemory(null);
-                if (
-                  !focusedHobbyId ||
-                  (focusedMemory.hobbyId &&
-                    focusedHobbyId !== focusedMemory.hobbyId)
-                ) {
-                  setFocusedHobbyId(focusedMemory.hobbyId || null);
-                }
-              } else if (focusedHobbyId) {
-                setFocusedHobbyId(null);
-                setFocusedMemory(null);
-              } else {
-                setFocusedMemory(null);
-                setFocusedProfileId(null);
-                setFocusedJobId(null);
-                setFocusedFamilyMemberId(null);
-                setFocusedFriendId(null);
-                setFocusedHobbyId(null);
-                setSelectedSphere(null);
-              }
+              startTransitionLoader();
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  if (focusedMemory) {
+                    setFocusedMemory(null);
+                    if (
+                      !focusedHobbyId ||
+                      (focusedMemory.hobbyId &&
+                        focusedHobbyId !== focusedMemory.hobbyId)
+                    ) {
+                      setFocusedHobbyId(focusedMemory.hobbyId || null);
+                    }
+                  } else if (focusedHobbyId) {
+                    setFocusedHobbyId(null);
+                    setFocusedMemory(null);
+                  } else {
+                    setFocusedMemory(null);
+                    setFocusedProfileId(null);
+                    setFocusedJobId(null);
+                    setFocusedFamilyMemberId(null);
+                    setFocusedFriendId(null);
+                    setFocusedHobbyId(null);
+                    setSelectedSphere(null);
+                  }
+                }, 80);
+              });
             }}
             style={{
               position: "absolute",
