@@ -12,11 +12,9 @@ export function HomeTransitionLoaderProvider({ children }: { children: React.Rea
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showLoader = useCallback(() => {
-    if (__DEV__) console.log("[HomeTransitionLoader] showLoader called");
     if (timerRef.current) clearTimeout(timerRef.current);
     setIsVisible(true);
     timerRef.current = setTimeout(() => {
-      if (__DEV__) console.log("[HomeTransitionLoader] hiding after 1s");
       setIsVisible(false);
       timerRef.current = null;
     }, 1000);

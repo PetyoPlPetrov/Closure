@@ -8,6 +8,7 @@ import { OnboardingStepper } from "@/library/components/onboarding-stepper";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
 import { useNotificationNudgePreference } from "@/utils/NotificationNudgePreferenceProvider";
+import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
@@ -396,12 +397,13 @@ export default function SettingsScreen() {
         require("@/assets/images/fake-memory-12.jpg"),
       ];
 
-      // Preload all memory images
+      // Preload all memory images and copy to Documents so backup can read them
       const memoryImageUris: string[] = [];
       for (const memoryImg of memoryImages) {
         const asset = Asset.fromModule(memoryImg);
         await asset.downloadAsync();
-        memoryImageUris.push(asset.localUri || asset.uri);
+        const localUri = asset.localUri || asset.uri;
+        memoryImageUris.push(await ensureImageInAppDocuments(localUri));
       }
 
       // Helper to get a random memory image
@@ -463,7 +465,7 @@ export default function SettingsScreen() {
         }
       };
 
-      // Get entity image URI from local asset
+      // Get entity image URI from local asset (copy to Documents so backup can read it)
       const getEntityImageUri = async (
         entityName: string,
         category: "profile" | "job" | "family" | "friend" | "hobby",
@@ -472,7 +474,8 @@ export default function SettingsScreen() {
         if (asset) {
           const imageAsset = Asset.fromModule(asset);
           await imageAsset.downloadAsync();
-          return imageAsset.localUri || imageAsset.uri;
+          const localUri = imageAsset.localUri || imageAsset.uri;
+          return ensureImageInAppDocuments(localUri);
         }
         // Fallback to Unsplash if local asset not found
         const hash = entityName

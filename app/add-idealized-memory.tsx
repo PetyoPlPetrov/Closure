@@ -5,6 +5,7 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import { FloatingActionButton } from '@/library/components/floating-action-button';
 import { logMomentCreated } from '@/utils/analytics';
+import { ensureImageInAppDocuments } from '@/utils/entity-image-storage';
 import { useInAppNotification } from '@/utils/InAppNotificationProvider';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
@@ -1667,11 +1668,15 @@ export default function AddIdealizedMemoryScreen() {
           y: lesson.y,
         }));
 
+      const resolvedImageUri = selectedImage
+        ? await ensureImageInAppDocuments(selectedImage)
+        : undefined;
+
       if (isEditMode && memoryId) {
         // Update existing memory
         await updateIdealizedMemory(memoryId, {
           title: memoryLabel.trim(),
-          imageUri: selectedImage || undefined,
+          imageUri: resolvedImageUri,
           hardTruths,
           goodFacts,
           lessonsLearned,
@@ -1683,7 +1688,7 @@ export default function AddIdealizedMemoryScreen() {
           // New signature: (entityId, sphere, memoryData)
           newMemoryId = await addIdealizedMemory(entityId, sphere, {
             title: memoryLabel.trim(),
-            imageUri: selectedImage || undefined,
+            imageUri: resolvedImageUri,
             hardTruths,
             goodFacts,
             lessonsLearned,
@@ -1692,7 +1697,7 @@ export default function AddIdealizedMemoryScreen() {
           // Old signature: (profileId, memoryData) - backward compatibility
           newMemoryId = await addIdealizedMemory(profileId, {
             title: memoryLabel.trim(),
-            imageUri: selectedImage || undefined,
+            imageUri: resolvedImageUri,
             hardTruths,
             goodFacts,
             lessonsLearned,

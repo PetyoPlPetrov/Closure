@@ -12,10 +12,6 @@ const BACKUP_VERSION = 1;
 const IMAGE_PLACEHOLDER_PREFIX = "__SFERAS_IMG__";
 const IMAGES_ZIP_FOLDER = "images";
 
-const LOG = __DEV__
-  ? (msg: string, ...args: unknown[]) => console.log("[Sferas backup]", msg, ...args)
-  : () => {};
-
 /** AsyncStorage keys to include in backup (order preserved for manifest). */
 const STORAGE_KEYS_TO_EXPORT = [
   "@sferas:ex_profiles",
@@ -112,7 +108,6 @@ function replaceImageUrisWithPlaceholders(
  */
 export async function exportToZip(): Promise<ExportResult> {
   try {
-    LOG("export: start");
     if (Platform.OS === "web") {
       return { success: false, error: "Export is not available on web. Use the app on a device." };
     }
@@ -120,18 +115,14 @@ export async function exportToZip(): Promise<ExportResult> {
     if (!dir) {
       return { success: false, error: "No storage directory. Try again or restart the app." };
     }
-    LOG("export: storage dir", dir);
 
     const keyValues: Record<string, string> = {};
     for (const key of STORAGE_KEYS_TO_EXPORT) {
       const value = await AsyncStorage.getItem(key);
       if (value != null) keyValues[key] = value;
     }
-    LOG("export: loaded storage keys", Object.keys(keyValues).length, Object.keys(keyValues));
 
     const imageUris = collectImageUrisFromStorageValues(keyValues);
-    LOG("export: found image URIs count", imageUris.length);
-    imageUris.forEach((uri, i) => LOG("  export: image URI [" + i + "]", uri.slice(-60)));
 
     const uriToPlaceholder = new Map<string, string>();
     imageUris.forEach((uri, index) => {
@@ -139,11 +130,8 @@ export async function exportToZip(): Promise<ExportResult> {
       const safe = /^[a-z0-9]+$/i.test(ext) ? ext : "jpg";
       uriToPlaceholder.set(uri, `${IMAGE_PLACEHOLDER_PREFIX}${index}.${safe}`);
     });
-    LOG("export: uriToPlaceholder size", uriToPlaceholder.size, "e.g. first placeholder", [...uriToPlaceholder.values()][0]);
 
     const valuesWithPlaceholders = replaceImageUrisWithPlaceholders(keyValues, uriToPlaceholder);
-    const keysWithPlaceholders = Object.keys(valuesWithPlaceholders).filter((k) => valuesWithPlaceholders[k].includes(IMAGE_PLACEHOLDER_PREFIX));
-    LOG("export: keys that contain placeholders", keysWithPlaceholders.length, keysWithPlaceholders);
 
     const zip = new JSZip();
     const manifest = {
@@ -152,7 +140,6 @@ export async function exportToZip(): Promise<ExportResult> {
       storage: valuesWithPlaceholders,
     };
     zip.file("manifest.json", JSON.stringify(manifest, null, 0));
-    LOG("export: manifest.json added to zip");
 
     for (let i = 0; i < imageUris.length; i++) {
       const uri = imageUris[i];
@@ -160,14 +147,22 @@ export async function exportToZip(): Promise<ExportResult> {
       const filename = placeholder.replace(IMAGE_PLACEHOLDER_PREFIX, "");
       const zipPath = `${IMAGES_ZIP_FOLDER}/${filename}`;
       try {
-        const base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
+        let base64: string;
+        try {
+          base64 = await FileSystem.readAsStringAsync(uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        } catch {
+          const tempUri = `${FileSystem.cacheDirectory || FileSystem.documentDirectory}__sferas_export_temp_${i}.jpg`;
+          await FileSystem.copyAsync({ from: uri, to: tempUri });
+          base64 = await FileSystem.readAsStringAsync(tempUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          await FileSystem.deleteAsync(tempUri, { idempotent: true });
+        }
         zip.file(zipPath, base64, { base64: true });
-        LOG("export: image [" + i + "] zip path " + zipPath + " base64 len " + (base64?.length ?? 0));
-      } catch (e) {
-        // Skip image if unreadable (e.g. deleted file)
-        console.warn("[Sferas backup] export: skip image", uri, e);
+      } catch {
+        // Skip image if unreadable (e.g. deleted file, different app container)
       }
     }
 
@@ -177,7 +172,6 @@ export async function exportToZip(): Promise<ExportResult> {
     await FileSystem.writeAsStringAsync(fileUri, zipBase64, {
       encoding: FileSystem.EncodingType.Base64,
     });
-    LOG("export: done, fileUri", fileUri, "zip base64 length", zipBase64.length);
     return { success: true, fileUri };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
@@ -251,43 +245,22 @@ export async function importFromZip(pickedFileUri: string): Promise<ImportResult
 
     const placeholderToNewUri = new Map<string, string>();
     const imageNames = zip.folder(IMAGES_ZIP_FOLDER)?.filter((_, f) => !f.dir)?.map((f) => f.name) ?? [];
-    LOG("import: zip has %d image files in '%s/', imagesDir=%s", imageNames.length, IMAGES_ZIP_FOLDER, imagesDir);
 
     for (const name of imageNames) {
-      // JSZip folder returns full paths (e.g. "images/0.jpg"); manifest uses filename-only placeholder "__SFERAS_IMG__0.jpg"
       const filenameOnly = name.includes("/") ? name.split("/").pop()! : name;
       const zipPath = name.startsWith(IMAGES_ZIP_FOLDER + "/") ? name : `${IMAGES_ZIP_FOLDER}/${name}`;
       const placeholder = IMAGE_PLACEHOLDER_PREFIX + filenameOnly;
       try {
         const newUri = await copyImageFromZipToApp(zip, zipPath, imagesDir);
         placeholderToNewUri.set(placeholder, newUri);
-        LOG("import: image '%s' -> %s", placeholder, newUri);
-      } catch (e) {
-        console.warn("[Sferas backup] import: skip image", name, e);
+      } catch {
+        // Skip image if copy fails
       }
-    }
-
-    LOG("import: placeholderToNewUri size=%d, keys=%s", placeholderToNewUri.size, [...placeholderToNewUri.keys()].join(", "));
-    // Debug: sample a key that usually has imageUri to verify placeholder format in manifest
-    const sampleKey = Object.keys(manifest.storage).find((k) => manifest.storage[k].includes(IMAGE_PLACEHOLDER_PREFIX));
-    if (sampleKey) {
-      const sample = manifest.storage[sampleKey];
-      const idx = sample.indexOf(IMAGE_PLACEHOLDER_PREFIX);
-      const snippet = idx >= 0 ? sample.slice(idx, idx + 60) : "(no placeholder in value)";
-      LOG("import: sample key '%s' placeholder snippet: %s", sampleKey, snippet);
-    } else {
-      LOG("import: no key in manifest contains placeholder prefix (export may have had 0 images)");
     }
 
     for (const key of Object.keys(manifest.storage)) {
       let value = manifest.storage[key];
-      const before = value;
       value = replacePlaceholdersWithUris(value, placeholderToNewUri);
-      const hadPlaceholder = before.includes(IMAGE_PLACEHOLDER_PREFIX);
-      const hasFileUri = value.includes("file://");
-      if (hadPlaceholder || key.includes("profiles") || key.includes("memories") || key.includes("jobs") || key.includes("family") || key.includes("friends") || key.includes("hobbies")) {
-        LOG("import: key=%s hadPlaceholder=%s hasFileUriAfter=%s", key, hadPlaceholder, hasFileUri);
-      }
       await AsyncStorage.setItem(key, value);
     }
 

@@ -7,6 +7,7 @@ import { Input } from "@/library/components/input";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { TextArea } from "@/library/components/text-area";
 import { UploadPicture } from "@/library/components/upload-picture";
+import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
@@ -110,13 +111,17 @@ export default function AddFriendScreen() {
         await updateFriend(friendId, {
           name: name.trim(),
           description: description.trim() || undefined,
-          imageUri: selectedImage || undefined,
+          imageUri: selectedImage
+            ? await ensureImageInAppDocuments(selectedImage)
+            : undefined,
         });
       } else {
         const newFriendId = await addFriend({
           name: name.trim(),
           description: description.trim() || undefined,
-          imageUri: selectedImage || undefined,
+          imageUri: selectedImage
+            ? await ensureImageInAppDocuments(selectedImage)
+            : undefined,
           setupProgress: 0,
           isCompleted: false,
         });

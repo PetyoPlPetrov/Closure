@@ -7,6 +7,7 @@ import { Input } from "@/library/components/input";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { TextArea } from "@/library/components/text-area";
 import { UploadPicture } from "@/library/components/upload-picture";
+import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
@@ -257,7 +258,9 @@ export default function AddJobScreen() {
         await updateJob(jobId, {
           name: name.trim(),
           description: description.trim() || undefined,
-          ...(selectedImage && { imageUri: selectedImage }),
+          ...(selectedImage && {
+            imageUri: await ensureImageInAppDocuments(selectedImage),
+          }),
           startDate: startDate
             ? startDate.toISOString().split("T")[0]
             : undefined,
@@ -282,7 +285,9 @@ export default function AddJobScreen() {
               : undefined,
           setupProgress: 0,
           isCompleted: false,
-          ...(selectedImage && { imageUri: selectedImage }),
+          ...(selectedImage && {
+            imageUri: await ensureImageInAppDocuments(selectedImage),
+          }),
         });
         // Navigate to memory creation screen for the new job
         // Reset saving flag before navigation

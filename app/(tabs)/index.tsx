@@ -75,6 +75,7 @@ import Animated, {
   cancelAnimation,
   createAnimatedComponent,
   Easing,
+  interpolate,
   interpolateColor,
   runOnJS,
   useAnimatedProps,
@@ -11191,7 +11192,11 @@ export default function HomeScreen() {
   // Home view mode: "Classic" = Classic view (wheel of life); "focused" = FocusedSferas view (one sphere in focus, swipe to change).
   // When FocusedSferas view is active, only FocusedSferaView is mounted — Classic view components are not in the tree.
   const HOME_VIEW_MODE_KEY = "@sferas:home_view_mode";
+  const FOCUSED_SPHERE_INDEX_KEY = "@sferas:focused_sphere_index";
+  const VIEW_TOGGLE_EVER_PRESSED_KEY = "@sferas:view_toggle_ever_pressed";
   const [homeViewMode, setHomeViewMode] = useState<"classic" | "focused">("classic");
+  const [focusedSphereIndex, setFocusedSphereIndex] = useState(0);
+  const [viewToggleEverPressed, setViewToggleEverPressed] = useState(false);
   const homeViewModeLoadedRef = useRef(false);
   const skipNextViewModePersistRef = useRef(false);
   const cameFromFocusedSferaForEntityRef = useRef(false);
@@ -11210,6 +11215,65 @@ export default function HomeScreen() {
       homeViewModeLoadedRef.current = true;
     });
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem(FOCUSED_SPHERE_INDEX_KEY).then((v) => {
+      const idx = v != null ? parseInt(v, 10) : NaN;
+      if (Number.isFinite(idx) && idx >= 0 && idx <= 4) setFocusedSphereIndex(idx);
+    });
+  }, []);
+
+  const handleFocusedSphereChange = useCallback((index: number) => {
+    setFocusedSphereIndex(index);
+    AsyncStorage.setItem(FOCUSED_SPHERE_INDEX_KEY, String(index));
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem(VIEW_TOGGLE_EVER_PRESSED_KEY).then((v) => {
+      if (v === "true") setViewToggleEverPressed(true);
+    });
+  }, []);
+
+  const markViewTogglePressed = useCallback(() => {
+    setViewToggleEverPressed(true);
+    AsyncStorage.setItem(VIEW_TOGGLE_EVER_PRESSED_KEY, "true");
+  }, []);
+
+  const togglePulseProgress = useSharedValue(0);
+  useEffect(() => {
+    if (!viewToggleEverPressed) {
+      togglePulseProgress.value = withDelay(
+        10000,
+        withRepeat(
+          withSequence(
+            withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) }),
+            withTiming(0, { duration: 350, easing: Easing.inOut(Easing.ease) }),
+            withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) }),
+            withTiming(0, { duration: 350, easing: Easing.inOut(Easing.ease) }),
+            withDelay(10000, withTiming(0, { duration: 0 })),
+          ),
+          -1,
+          false,
+        ),
+      );
+      return () => {
+        cancelAnimation(togglePulseProgress);
+        togglePulseProgress.value = 0;
+      };
+    }
+    cancelAnimation(togglePulseProgress);
+    togglePulseProgress.value = 0;
+  }, [viewToggleEverPressed, togglePulseProgress]);
+
+  const togglePulseStyle = useAnimatedStyle(() => {
+    const p = togglePulseProgress.value;
+    const scale = 1 + p * 0.15;
+    const opacity = interpolate(p, [0, 1], [0.85, 1]);
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
+  });
 
   useEffect(() => {
     if (!homeViewModeLoadedRef.current) return;
@@ -11297,16 +11361,20 @@ export default function HomeScreen() {
         );
 
         if (hasFocusedView) {
-          // Clear all focused states to return to main view
-          setFocusedMemory(null);
-          setSelectedSphere(null);
-          setFocusedProfileId(null);
-          setFocusedJobId(null);
-          setFocusedFamilyMemberId(null);
-          setFocusedFriendId(null);
-          setFocusedHobbyId(null);
-          // Clear URL params to reset navigation state
-          router.replace("/");
+          // Start loader before recalc so it's visible
+          startTransitionLoader();
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              setFocusedMemory(null);
+              setSelectedSphere(null);
+              setFocusedProfileId(null);
+              setFocusedJobId(null);
+              setFocusedFamilyMemberId(null);
+              setFocusedFriendId(null);
+              setFocusedHobbyId(null);
+              router.replace("/");
+            }, 80);
+          });
         }
       });
 
@@ -11320,6 +11388,7 @@ export default function HomeScreen() {
       };
     }, [
       navigation,
+      startTransitionLoader,
       focusedMemory,
       selectedSphere,
       focusedProfileId,
@@ -12071,53 +12140,44 @@ export default function HomeScreen() {
 
   const entityImageUrisBySphere = useMemo(
     () => ({
-      relationships: profiles.map((p) => p.imageUri).filter((u): u is string => !!u),
-      career: jobs.map((j) => j.imageUri).filter((u): u is string => !!u),
-      family: familyMembers.map((m) => m.imageUri).filter((u): u is string => !!u),
-      friends: friends.map((f) => f.imageUri).filter((u): u is string => !!u),
-      hobbies: hobbies.map((h) => h.imageUri).filter((u): u is string => !!u),
+      relationships: profiles.map((p) => p.imageUri ?? ""),
+      career: jobs.map((j) => j.imageUri ?? ""),
+      family: familyMembers.map((m) => m.imageUri ?? ""),
+      friends: friends.map((f) => f.imageUri ?? ""),
+      hobbies: hobbies.map((h) => h.imageUri ?? ""),
     }),
     [profiles, jobs, familyMembers, friends, hobbies],
   );
 
   const entityIdsBySphere = useMemo(
     () => ({
-      relationships: profiles
-        .filter((p) => !!p.imageUri)
-        .map((p) => p.id),
-      career: jobs
-        .filter((j) => !!j.imageUri)
-        .map((j) => j.id),
-      family: familyMembers
-        .filter((m) => !!m.imageUri)
-        .map((m) => m.id),
-      friends: friends
-        .filter((f) => !!f.imageUri)
-        .map((f) => f.id),
-      hobbies: hobbies
-        .filter((h) => !!h.imageUri)
-        .map((h) => h.id),
+      relationships: profiles.map((p) => p.id),
+      career: jobs.map((j) => j.id),
+      family: familyMembers.map((m) => m.id),
+      friends: friends.map((f) => f.id),
+      hobbies: hobbies.map((h) => h.id),
+    }),
+    [profiles, jobs, familyMembers, friends, hobbies],
+  );
+
+  const entityNamesBySphere = useMemo(
+    () => ({
+      relationships: profiles.map((p) => p.name),
+      career: jobs.map((j) => j.name),
+      family: familyMembers.map((m) => m.name),
+      friends: friends.map((f) => f.name),
+      hobbies: hobbies.map((h) => h.name),
     }),
     [profiles, jobs, familyMembers, friends, hobbies],
   );
 
   const memoriesPerEntityBySphere = useMemo(
     () => ({
-      relationships: profiles
-        .filter((p) => !!p.imageUri)
-        .map((p) => getIdealizedMemoriesByEntityId(p.id, "relationships")),
-      career: jobs
-        .filter((j) => !!j.imageUri)
-        .map((j) => getIdealizedMemoriesByEntityId(j.id, "career")),
-      family: familyMembers
-        .filter((m) => !!m.imageUri)
-        .map((m) => getIdealizedMemoriesByEntityId(m.id, "family")),
-      friends: friends
-        .filter((f) => !!f.imageUri)
-        .map((f) => getIdealizedMemoriesByEntityId(f.id, "friends")),
-      hobbies: hobbies
-        .filter((h) => !!h.imageUri)
-        .map((h) => getIdealizedMemoriesByEntityId(h.id, "hobbies")),
+      relationships: profiles.map((p) => getIdealizedMemoriesByEntityId(p.id, "relationships")),
+      career: jobs.map((j) => getIdealizedMemoriesByEntityId(j.id, "career")),
+      family: familyMembers.map((m) => getIdealizedMemoriesByEntityId(m.id, "family")),
+      friends: friends.map((f) => getIdealizedMemoriesByEntityId(f.id, "friends")),
+      hobbies: hobbies.map((h) => getIdealizedMemoriesByEntityId(h.id, "hobbies")),
     }),
     [
       profiles,
@@ -15870,7 +15930,6 @@ export default function HomeScreen() {
                 setSelectedSphere(sphere);
               }}
               onEntitySelect={(entityId, sphere) => {
-                if (__DEV__) console.log("[index] onEntitySelect", entityId, sphere);
                 // Start loader first so it's visible and animating before the redirect
                 startTransitionLoader();
                 requestAnimationFrame(() => {
@@ -15890,6 +15949,7 @@ export default function HomeScreen() {
                 });
               }}
               onSwitchToClassic={() => {
+                markViewTogglePressed();
                 // Start loader, switch to classic view, clear focus, auto-open wheel of life
                 startTransitionLoader();
                 requestAnimationFrame(() => {
@@ -15907,13 +15967,24 @@ export default function HomeScreen() {
                   }, 80);
                 });
               }}
+              shouldPulseViewToggle={!viewToggleEverPressed}
               colorScheme={colorScheme ?? "dark"}
               getSphereSunnyPercentage={getSphereSunnyPercentage}
               entityImageUrisBySphere={entityImageUrisBySphere}
               entityIdsBySphere={entityIdsBySphere}
+              entityNamesBySphere={entityNamesBySphere}
               memoriesPerEntityBySphere={memoriesPerEntityBySphere}
+              initialFocusedIdx={focusedSphereIndex}
+              onFocusedSphereChange={handleFocusedSphereChange}
             />
           </View>
+
+          {/* Onboarding Stepper - same as Classic view when no entities */}
+          <OnboardingStepper
+            visible={walkthroughVisible}
+            onDismiss={handleWalkthroughDismiss}
+            onDemo={handleOnboardingDemo}
+          />
         </TabScreenContainer>
       );
     }
@@ -15984,23 +16055,33 @@ export default function HomeScreen() {
           }}
         >
           {/* Toggle: switch to FocusedSferas view (one sphere in focus, swipe to change). */}
-          <Pressable
-            onPress={() => setHomeViewMode("focused")}
-            style={{
-              position: "absolute",
-              top: 80,
-              left: 16,
-              width: 48,
-              height: 48,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "rgba(0,0,0,0.4)",
-              borderRadius: 24,
-              zIndex: 200,
-            }}
+          <Animated.View
+            style={[
+              {
+                position: "absolute",
+                top: 40,
+                left: 16,
+                width: 64,
+                height: 64,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "rgba(0,0,0,0.4)",
+                borderRadius: 32,
+                zIndex: 200,
+              },
+              ...(!viewToggleEverPressed ? [togglePulseStyle] : []),
+            ]}
           >
-            <MaterialIcons name="view-carousel" size={26} color={colors.text} />
-          </Pressable>
+            <Pressable
+              onPress={() => {
+                markViewTogglePressed();
+                setHomeViewMode("focused");
+              }}
+              style={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}
+            >
+              <MaterialIcons name="view-carousel" size={34} color={colors.text} />
+            </Pressable>
+          </Animated.View>
 
           {/* Sparkled Dots - Always visible on all screens - full screen coverage */}
           <SparkledDots

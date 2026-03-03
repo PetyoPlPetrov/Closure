@@ -3,6 +3,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { logAIEntitySaved } from '@/utils/analytics';
+import { ensureImageInAppDocuments } from '@/utils/entity-image-storage';
 import { LifeSphere, useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -367,12 +368,16 @@ export function AIEntityResultsView({
     setIsSaving(true);
     try {
       for (const entity of entities) {
+        const resolvedImageUri = entity.imageUri
+          ? await ensureImageInAppDocuments(entity.imageUri)
+          : undefined;
+
         if (sphere === 'family') {
           await addFamilyMember({
             name: entity.name.trim(),
             relationship: entity.relationship?.trim(),
             description: entity.description?.trim(),
-            imageUri: entity.imageUri,
+            imageUri: resolvedImageUri,
             sphere: 'family',
             setupProgress: 0,
             isCompleted: false,
@@ -381,7 +386,7 @@ export function AIEntityResultsView({
           await addFriend({
             name: entity.name.trim(),
             description: entity.description?.trim(),
-            imageUri: entity.imageUri,
+            imageUri: resolvedImageUri,
             sphere: 'friends',
             setupProgress: 0,
             isCompleted: false,
@@ -390,7 +395,7 @@ export function AIEntityResultsView({
           await addHobby({
             name: entity.name.trim(),
             description: entity.description?.trim(),
-            imageUri: entity.imageUri,
+            imageUri: resolvedImageUri,
             sphere: 'hobbies',
             setupProgress: 0,
             isCompleted: false,
@@ -442,7 +447,7 @@ export function AIEntityResultsView({
             description: entity.description?.trim(),
             relationshipStartDate: formattedStartDate,
             relationshipEndDate: formattedEndDate,
-            imageUri: entity.imageUri,
+            imageUri: resolvedImageUri,
             sphere: 'relationships',
             setupProgress: 0,
             isCompleted: false,
@@ -494,7 +499,7 @@ export function AIEntityResultsView({
             description: entity.description?.trim(),
             startDate: formattedStartDate,
             endDate: formattedEndDate,
-            imageUri: entity.imageUri,
+            imageUri: resolvedImageUri,
             setupProgress: 0,
             isCompleted: false,
           });

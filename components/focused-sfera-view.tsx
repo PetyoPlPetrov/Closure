@@ -100,6 +100,8 @@ export type FocusedSferaViewProps = {
   onSphereSelect: (sphere: LifeSphere) => void;
   /** Switch back to Classic view (wheel of life). */
   onSwitchToClassic: () => void;
+  /** If true, pulse the view toggle button every 10s to draw attention (until user presses it). */
+  shouldPulseViewToggle?: boolean;
   /** Called when user taps a floating entity avatar; navigates to entity detail. */
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
   colorScheme: "light" | "dark";
@@ -107,8 +109,14 @@ export type FocusedSferaViewProps = {
   entityImageUrisBySphere: Record<LifeSphere, string[]>;
   /** Entity IDs per sphere; inner array matches entityImageUrisBySphere order. */
   entityIdsBySphere: Record<LifeSphere, string[]>;
+  /** Entity names per sphere; used for placeholder when entity has no image. */
+  entityNamesBySphere: Record<LifeSphere, string[]>;
   /** Memories per entity per sphere; inner array matches entityImageUrisBySphere order. */
   memoriesPerEntityBySphere: Record<LifeSphere, IdealizedMemory[][]>;
+  /** Initial focused sphere index (0–4); used when returning to Focused view so selection is remembered. */
+  initialFocusedIdx?: number;
+  /** Called when user changes focus (swipe/chevron) so parent can persist the selection. */
+  onFocusedSphereChange?: (index: number) => void;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -392,6 +400,7 @@ const SparkledDot = React.memo(function SparkledDot({
 const EntityRing = React.memo(function EntityRing({
   uris,
   entityIds,
+  entityNames,
   entityMemories,
   onEntitySelect,
   sphere,
@@ -405,6 +414,7 @@ const EntityRing = React.memo(function EntityRing({
 }: {
   uris: string[];
   entityIds: string[];
+  entityNames: string[];
   entityMemories: IdealizedMemory[][];
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
   sphere: LifeSphere;
@@ -431,21 +441,24 @@ const EntityRing = React.memo(function EntityRing({
     );
   }, [rotateOrbit, orbitAngle]);
 
-  if (uris.length === 0) return null;
-  const count = Math.min(uris.length, 8);
+  if (entityIds.length === 0) return null;
+  const count = Math.min(entityIds.length, 8);
   const borderWidth = isTablet ? 3 : 2;
 
   return (
     <>
-      {uris.slice(0, count).map((uri, i) => {
+      {Array.from({ length: count }, (_, i) => {
         const baseAngle = (i / count) * 2 * Math.PI - Math.PI / 2;
+        const uri = uris[i] ?? "";
         const memories = entityMemories[i] ?? [];
         const entityId = entityIds[i] ?? "";
+        const entityName = entityNames[i] ?? "";
         return (
           <OrbitingEntity
-            key={`${uri}-${i}`}
+            key={`${entityId}-${i}`}
             uri={uri}
             entityId={entityId}
+            entityName={entityName}
             index={i}
             count={count}
             baseAngle={baseAngle}
@@ -472,6 +485,7 @@ const EntityRing = React.memo(function EntityRing({
 const OrbitingEntity = React.memo(function OrbitingEntity({
   uri,
   entityId,
+  entityName,
   index,
   count,
   baseAngle,
@@ -491,6 +505,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
 }: {
   uri: string;
   entityId: string;
+  entityName: string;
   index: number;
   count: number;
   baseAngle: number;
@@ -521,6 +536,8 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
     };
   });
 
+  const initialLetter = entityName.trim() ? entityName.trim()[0].toUpperCase() : "?";
+
   return (
     <Animated.View
       style={[
@@ -540,17 +557,36 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
         style={{ width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }}
         onPress={() => entityId && onEntitySelect(entityId, sphere)}
       >
-        <Image
-          source={{ uri }}
-          style={{
-            width: avatarSize,
-            height: avatarSize,
-            borderRadius: avatarSize / 2,
-            borderWidth,
-            borderColor: "rgba(255,255,255,0.75)",
-          }}
-          contentFit="cover"
-        />
+        {uri ? (
+          <Image
+            source={{ uri }}
+            style={{
+              width: avatarSize,
+              height: avatarSize,
+              borderRadius: avatarSize / 2,
+              borderWidth,
+              borderColor: "rgba(255,255,255,0.75)",
+            }}
+            contentFit="cover"
+          />
+        ) : (
+          <View
+            style={{
+              width: avatarSize,
+              height: avatarSize,
+              borderRadius: avatarSize / 2,
+              borderWidth,
+              borderColor: "rgba(255,255,255,0.75)",
+              backgroundColor: "rgba(128,128,128,0.5)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <ThemedText style={{ fontSize: avatarSize * 0.45, fontWeight: "600" }}>
+              {initialLetter}
+            </ThemedText>
+          </View>
+        )}
         {showFloatingMoments && (
           <SmallFloatingMoments
             entityCenterX={avatarSize / 2}
@@ -575,6 +611,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   focusedIdx,
   entityUris,
   entityIds,
+  entityNames,
   entityMemories,
   onPress,
   onEntitySelect,
@@ -586,6 +623,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   focusedIdx: number;
   entityUris: string[];
   entityIds: string[];
+  entityNames: string[];
   entityMemories: IdealizedMemory[][];
   onPress: () => void;
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
@@ -787,6 +825,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
         <EntityRing
           uris={entityUris}
           entityIds={entityIds}
+          entityNames={entityNames}
           entityMemories={entityMemories}
           onEntitySelect={onEntitySelect}
           sphere={sphere.type}
@@ -1020,21 +1059,33 @@ export function FocusedSferaView({
   overallSunnyPercentage,
   onSphereSelect,
   onSwitchToClassic,
+  shouldPulseViewToggle = false,
   onEntitySelect,
   colorScheme,
   getSphereSunnyPercentage,
   entityImageUrisBySphere,
   entityIdsBySphere,
+  entityNamesBySphere,
   memoriesPerEntityBySphere,
+  initialFocusedIdx = 0,
+  onFocusedSphereChange,
 }: FocusedSferaViewProps) {
   const insets = useSafeAreaInsets();
   const { isTablet } = useLargeDevice();
-  const [focusedIdx, setFocusedIdx] = useState(0);
+  const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
   const N = SPHERE_LIST.length;
 
-  const goToSphere = useCallback((newIdx: number) => {
-    setFocusedIdx(newIdx);
-  }, []);
+  useEffect(() => {
+    setFocusedIdx(initialFocusedIdx);
+  }, [initialFocusedIdx]);
+
+  const goToSphere = useCallback(
+    (newIdx: number) => {
+      setFocusedIdx(newIdx);
+      onFocusedSphereChange?.(newIdx);
+    },
+    [onFocusedSphereChange],
+  );
 
   const panResponder = useMemo(
     () =>
@@ -1060,9 +1111,6 @@ export function FocusedSferaView({
   const focusedUris = entityImageUrisBySphere[focusedSphere.type] ?? [];
 
   const handleSwitchToClassic = useCallback(() => {
-    if (__DEV__) {
-      console.log("[HomeView] FocusedSferas: switch-to-classic requested (circle avatar or bubble button)");
-    }
     onSwitchToClassic();
   }, [onSwitchToClassic]);
 
@@ -1102,6 +1150,42 @@ export function FocusedSferaView({
     };
   });
 
+  const togglePulseProgress = useSharedValue(0);
+  useEffect(() => {
+    if (shouldPulseViewToggle) {
+      togglePulseProgress.value = withDelay(
+        10000,
+        withRepeat(
+          withSequence(
+            withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) }),
+            withTiming(0, { duration: 350, easing: Easing.inOut(Easing.ease) }),
+            withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) }),
+            withTiming(0, { duration: 350, easing: Easing.inOut(Easing.ease) }),
+            withDelay(10000, withTiming(0, { duration: 0 })),
+          ),
+          -1,
+          false,
+        ),
+      );
+      return () => {
+        cancelAnimation(togglePulseProgress);
+        togglePulseProgress.value = 0;
+      };
+    }
+    cancelAnimation(togglePulseProgress);
+    togglePulseProgress.value = 0;
+  }, [shouldPulseViewToggle, togglePulseProgress]);
+
+  const togglePulseStyle = useAnimatedStyle(() => {
+    const p = togglePulseProgress.value;
+    const scale = 1 + p * 0.15;
+    const opacity = interpolate(p, [0, 1], [0.85, 1]);
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
+  });
+
   return (
     <View style={styles.root} {...panResponder.panHandlers}>
       <ConstellationBackground width={SW} height={SH} />
@@ -1124,6 +1208,7 @@ export function FocusedSferaView({
           focusedIdx={focusedIdx}
           entityUris={entityImageUrisBySphere[sphere.type] ?? []}
           entityIds={entityIdsBySphere[sphere.type] ?? []}
+          entityNames={entityNamesBySphere[sphere.type] ?? []}
           entityMemories={memoriesPerEntityBySphere[sphere.type] ?? []}
           onPress={() => (i === focusedIdx ? onSphereSelect(sphere.type) : goToSphere(i))}
           onEntitySelect={onEntitySelect}
@@ -1160,12 +1245,20 @@ export function FocusedSferaView({
       </Animated.View>
 
       {/* ─── Toggle: switch to Classic view (wheel of life) ─── */}
-      <Pressable
-        style={[styles.toggleBtn, { top: insets.top + 28 }]}
-        onPress={handleSwitchToClassic}
+      <Animated.View
+        style={[
+          styles.toggleBtn,
+          { top: insets.top },
+          ...(shouldPulseViewToggle ? [togglePulseStyle] : []),
+        ]}
       >
-        <MaterialIcons name="bubble-chart" size={26} color="#fff" />
-      </Pressable>
+        <Pressable
+          style={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}
+          onPress={handleSwitchToClassic}
+        >
+          <MaterialIcons name="bubble-chart" size={30} color="#fff" />
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -1191,9 +1284,9 @@ const styles = StyleSheet.create({
   toggleBtn: {
     position: "absolute",
     left: 16,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",

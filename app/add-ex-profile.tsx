@@ -7,6 +7,7 @@ import { Input } from "@/library/components/input";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { TextArea } from "@/library/components/text-area";
 import { UploadPicture } from "@/library/components/upload-picture";
+import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney, type ExProfile } from "@/utils/JourneyProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
@@ -459,7 +460,7 @@ export default function AddExProfileScreen() {
 
         // Always include imageUri in update - if null, set to undefined to clear it
         if (selectedImage !== null) {
-          updateData.imageUri = selectedImage;
+          updateData.imageUri = await ensureImageInAppDocuments(selectedImage);
         } else {
           // Explicitly set to undefined to clear the image
           updateData.imageUri = undefined;
@@ -487,7 +488,9 @@ export default function AddExProfileScreen() {
               : undefined,
           setupProgress: 0, // Start with 0% progress
           isCompleted: false,
-          ...(selectedImage && { imageUri: selectedImage }),
+          ...(selectedImage && {
+            imageUri: await ensureImageInAppDocuments(selectedImage),
+          }),
         });
 
         // Mark as navigating away to prevent unsaved changes dialog

@@ -7,6 +7,7 @@ import { Input } from "@/library/components/input";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { TextArea } from "@/library/components/text-area";
 import { UploadPicture } from "@/library/components/upload-picture";
+import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
@@ -128,14 +129,18 @@ export default function AddFamilyMemberScreen() {
           name: name.trim(),
           description: description.trim() || undefined,
           relationship: relationship.trim(),
-          imageUri: selectedImage || undefined,
+          imageUri: selectedImage
+            ? await ensureImageInAppDocuments(selectedImage)
+            : undefined,
         });
       } else {
         const newMemberId = await addFamilyMember({
           name: name.trim(),
           description: description.trim() || undefined,
           relationship: relationship.trim(),
-          imageUri: selectedImage || undefined,
+          imageUri: selectedImage
+            ? await ensureImageInAppDocuments(selectedImage)
+            : undefined,
           setupProgress: 0,
           isCompleted: false,
         });

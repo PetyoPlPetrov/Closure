@@ -20,7 +20,6 @@ const DURATION_MS = 1000;
 export function HomeTransitionLoader({
   anchor = "bottom",
 }: { anchor?: "top" | "bottom" } = {}) {
-  if (__DEV__) console.log("[HomeTransitionLoader] rendering loader");
   const { momentColors } = useMomentColors();
   const progress = useSharedValue(0);
 
@@ -41,8 +40,7 @@ export function HomeTransitionLoader({
 
   const trackStyle = [
     styles.track,
-    // Bright track for debug visibility
-    __DEV__ ? { backgroundColor: "rgba(255,100,0,0.5)" } : { backgroundColor: "rgba(0,0,0,0.3)" },
+    { backgroundColor: "rgba(0,0,0,0.3)" },
     anchor === "top" ? styles.anchorTop : styles.anchorBottom,
   ] as const;
 
@@ -63,9 +61,6 @@ export function HomeTransitionLoader({
 export function HomeTransitionLoaderOverlay() {
   const ctx = useHomeTransitionLoader();
   const isVisible = ctx?.isVisible ?? false;
-  if (__DEV__ && (ctx === null || isVisible)) {
-    console.log("[HomeTransitionLoaderOverlay] ctx=", !!ctx, "isVisible=", isVisible);
-  }
   if (!isVisible) return null;
   return <HomeTransitionLoader anchor="top" />;
 }

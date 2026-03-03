@@ -24,6 +24,7 @@ import {
     logAIModalSubmit,
 } from "@/utils/analytics";
 import { ensureAppCheckToken, isAppCheckInitialized } from "@/utils/app-check";
+import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useInAppNotification } from "@/utils/InAppNotificationProvider";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
@@ -1056,6 +1057,10 @@ export function AIModal({
 
     setIsSavingEntity(true);
     try {
+      const resolvedEntityImage = newEntityImage
+        ? await ensureImageInAppDocuments(newEntityImage)
+        : undefined;
+
       let newEntityId: string;
 
       if (selectedSphere === "family") {
@@ -1063,7 +1068,7 @@ export function AIModal({
           name: newEntityName.trim(),
           description: newEntityDescription.trim() || undefined,
           relationship: newEntityRelationship.trim(),
-          imageUri: newEntityImage || undefined,
+          imageUri: resolvedEntityImage,
           setupProgress: 0,
           isCompleted: false,
         });
@@ -1071,7 +1076,7 @@ export function AIModal({
         newEntityId = await addFriend({
           name: newEntityName.trim(),
           description: newEntityDescription.trim() || undefined,
-          imageUri: newEntityImage || undefined,
+          imageUri: resolvedEntityImage,
           setupProgress: 0,
           isCompleted: false,
         });
@@ -1087,7 +1092,7 @@ export function AIModal({
             : newEntityEndDate
               ? newEntityEndDate.toISOString().split("T")[0]
               : undefined,
-          imageUri: newEntityImage || undefined,
+          imageUri: resolvedEntityImage,
           setupProgress: 0,
           isCompleted: false,
         });
@@ -1095,7 +1100,7 @@ export function AIModal({
         newEntityId = await addHobby({
           name: newEntityName.trim(),
           description: newEntityDescription.trim() || undefined,
-          imageUri: newEntityImage || undefined,
+          imageUri: resolvedEntityImage,
           setupProgress: 0,
           isCompleted: false,
         });
@@ -1111,7 +1116,7 @@ export function AIModal({
             : newEntityEndDate
               ? newEntityEndDate.toISOString().split("T")[0]
               : undefined,
-          imageUri: newEntityImage || undefined,
+          imageUri: resolvedEntityImage,
           setupProgress: 0,
           isCompleted: false,
         });
@@ -1217,13 +1222,17 @@ export function AIModal({
           text: item.text,
         }));
 
+      const resolvedMemoryImage = selectedImage
+        ? await ensureImageInAppDocuments(selectedImage)
+        : undefined;
+
       // Create the memory with AI suggestions (bypass limits - AI modal allows creation beyond free tier caps)
       const memoryId = await addIdealizedMemory(
         finalEntityId,
         finalSphere,
         {
           title: aiResponse?.memory?.title || "", // Use AI-generated title
-          imageUri: selectedImage || undefined,
+          imageUri: resolvedMemoryImage,
           hardTruths,
           goodFacts,
           lessonsLearned,
