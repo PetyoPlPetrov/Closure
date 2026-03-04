@@ -9,6 +9,7 @@ import type { LifeSphere } from "./JourneyProvider";
 export function getSphereIconColor(
   sphereType: LifeSphere,
   colorScheme: "light" | "dark",
+  sunnyPercentage?: number,
 ): string {
   if (colorScheme === "light") {
     switch (sphereType) {
@@ -28,15 +29,35 @@ export function getSphereIconColor(
   }
   switch (sphereType) {
     case "relationships":
-      return "#E57373";
+      // WCAG 2.0 AA: 3:1 contrast. Same pink-red shade as sfera, toned down but sufficient contrast.
+      if (sunnyPercentage !== undefined && sunnyPercentage < 50) {
+        return "#F56868"; // Light red on dark-red cloudy gradient
+      }
+      return "#CC3838"; // Deep red, same hue as sfera (~3:1 on light-pink)
     case "career":
-      return "#64B5F6";
+      // WCAG 2.0 AA: 3:1 contrast. Sunny = light blue → dark icon; Cloudy = dark blue → lighter icon.
+      if (sunnyPercentage !== undefined && sunnyPercentage < 50) {
+        return "#90CAF9"; // Light blue on dark-blue cloudy gradient
+      }
+      return "#1565C0"; // Deep blue on light-blue sunny gradient
     case "family":
-      return "#81C784";
+      // WCAG 2.0 AA: 3:1 contrast.
+      if (sunnyPercentage !== undefined && sunnyPercentage < 50) {
+        return "#CE93D8"; // Light purple on dark-purple cloudy gradient
+      }
+      return "#5E35B1"; // Deep purple on light-purple sunny gradient
     case "friends":
-      return "#BA68C8";
+      // WCAG 2.0 AA: 3:1 contrast.
+      if (sunnyPercentage !== undefined && sunnyPercentage < 50) {
+        return "#B39DDB"; // Light purple on dark-purple cloudy gradient
+      }
+      return "#512DA8"; // Deep purple on light-purple sunny gradient
     case "hobbies":
-      return "#FFB74D";
+      // WCAG 2.0 AA: 3:1 contrast.
+      if (sunnyPercentage !== undefined && sunnyPercentage < 50) {
+        return "#FFCC80"; // Light orange on dark-orange cloudy gradient
+      }
+      return "#E65100"; // Deep orange on light-orange sunny gradient
     default:
       return "#64B5F6";
   }

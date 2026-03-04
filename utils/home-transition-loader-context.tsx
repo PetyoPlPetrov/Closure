@@ -3,6 +3,7 @@ import React, { createContext, useCallback, useContext, useRef, useState } from 
 /** Stable API for triggering the loader. Consumers do NOT re-render when isVisible changes. */
 type HomeTransitionLoaderActions = {
   showLoader: () => void;
+  hideLoader: () => void;
 };
 
 /** Visibility state. Only the overlay consumes this so it re-renders when visible. */
@@ -19,13 +20,21 @@ export function HomeTransitionLoaderProvider({ children }: { children: React.Rea
   const [isVisible, setIsVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const hideLoader = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setIsVisible(false);
+  }, []);
+
   const showLoader = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     setIsVisible(true);
     timerRef.current = setTimeout(() => {
       setIsVisible(false);
       timerRef.current = null;
-    }, 1000);
+    }, 2500); // fallback if hideLoader never called
   }, []);
 
   React.useEffect(() => {
@@ -34,7 +43,7 @@ export function HomeTransitionLoaderProvider({ children }: { children: React.Rea
     };
   }, []);
 
-  const actionsValue = React.useMemo(() => ({ showLoader }), [showLoader]);
+  const actionsValue = React.useMemo(() => ({ showLoader, hideLoader }), [showLoader, hideLoader]);
   const visibilityValue = React.useMemo(() => ({ isVisible }), [isVisible]);
 
   return (

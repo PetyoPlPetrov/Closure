@@ -792,7 +792,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     sunnyPercentage,
     colorScheme,
   );
-  const iconColor = getSphereIconColor(sphere.type, colorScheme);
+  const iconColor = getSphereIconColor(sphere.type, colorScheme, sunnyPercentage);
   const shadowColor = getSphereShadowColor(sphere.type, colorScheme);
   const entityAvatarSize = isFocused
     ? 40
@@ -1438,7 +1438,11 @@ export function FocusedSferaView({
     focusedSunnyPct,
     colorScheme,
   );
-  const focusedIconColor = getSphereIconColor(focusedSphere.type, colorScheme);
+  const focusedIconColor = getSphereIconColor(
+    focusedSphere.type,
+    colorScheme,
+    focusedSunnyPct,
+  );
   const focusedShadowColor = getSphereShadowColor(
     focusedSphere.type,
     colorScheme,

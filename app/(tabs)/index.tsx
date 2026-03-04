@@ -10579,7 +10579,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
     () => getSphereGradientColors(sphere, sunnyPercentage, colorScheme),
     [sphere, sunnyPercentage, colorScheme],
   );
-  const sphereIconColor = getSphereIconColor(sphere, colorScheme);
+  const sphereIconColor = getSphereIconColor(sphere, colorScheme, sunnyPercentage);
   const sphereShadowColor = getSphereShadowColor(sphere, colorScheme);
 
   // Create subtle floating animation similar to floating memories
@@ -11216,8 +11216,9 @@ export default function HomeScreen() {
   const [homeViewMode, setHomeViewMode] = useState<"classic" | "focused">("focused");
   const [focusedSphereIndex, setFocusedSphereIndex] = useState(0);
   const cameFromFocusedSferaForEntityRef = useRef(false);
-  const { showLoader: startTransitionLoader } = useHomeTransitionLoader() ?? {
+  const { showLoader: startTransitionLoader, hideLoader } = useHomeTransitionLoader() ?? {
     showLoader: () => {},
+    hideLoader: () => {},
   };
 
   useEffect(() => {
@@ -11274,6 +11275,7 @@ export default function HomeScreen() {
       cameFromFocusedSferaForEntityRef.current = false;
       startTransitionLoader();
       setHomeViewMode("focused");
+      hideLoader();
     }
   }, [
     hasFocusedView,
@@ -11285,10 +11287,13 @@ export default function HomeScreen() {
     focusedFriendId,
     focusedHobbyId,
     startTransitionLoader,
+    hideLoader,
   ]);
 
   // Track if home screen was already focused to detect when user presses home tab while already on home
   const isHomeFocusedRef = useRef<boolean>(false);
+  // When true: already on focused view with no selection — tab press should no-op (no loader, no state updates)
+  const tabPressNoOpRef = useRef(false);
   const navigation = useNavigation();
 
   // Listen for tab press events using navigation listeners
@@ -11323,15 +11328,22 @@ export default function HomeScreen() {
               setShowMomentTypeSelector(false);
               setHomeViewMode("focused");
               router.replace("/");
+              hideLoader();
             }, 80);
           });
         } else {
-          // Already on Home with no selection - ensure Focused view is shown
+          // Already on Home with no selection — if we're already showing Focused view, no work needed.
+          // Just let the Home tab button's pulse animation provide feedback; skip loader and state updates.
+          if (tabPressNoOpRef.current) {
+            return;
+          }
+          // Not yet in focused view — transition to it
           startTransitionLoader();
           requestAnimationFrame(() => {
             setTimeout(() => {
               setHomeViewMode("focused");
               setShowMomentTypeSelector(false);
+              hideLoader();
             }, 80);
           });
         }
@@ -11348,6 +11360,7 @@ export default function HomeScreen() {
     }, [
       navigation,
       startTransitionLoader,
+      hideLoader,
       focusedMemory,
       selectedSphere,
       focusedProfileId,
@@ -11376,6 +11389,7 @@ export default function HomeScreen() {
           setAnimationsComplete(false);
           setShowMomentTypeSelector(false);
           setHomeViewMode("focused");
+          hideLoader();
         }, 80);
       });
       return true; // Prevent default (e.g. exiting app or going back in stack)
@@ -11383,7 +11397,7 @@ export default function HomeScreen() {
 
     const sub = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
     return () => sub.remove();
-  }, [homeViewMode, startTransitionLoader, focusedSphereIndex]);
+  }, [homeViewMode, startTransitionLoader, hideLoader, focusedSphereIndex]);
 
   // Zoom progress for sphere animations (0 = normal view, 1 = zoomed in/out)
   const sphereZoomProgress = useSharedValue(0);
@@ -12185,7 +12199,7 @@ export default function HomeScreen() {
   const isHintAnimating = useSharedValue(false); // Track if hint animation is active
   const spheresScale = useSharedValue(1); // Scale for floating spheres (shrink when selector is shown)
   const wheelCenterX = useSharedValue(SCREEN_WIDTH / 2); // Center X for wheel (shared value for stars)
-  const wheelCenterY = useSharedValue(SCREEN_HEIGHT / 2 + 40); // Center Y for wheel (shared value for stars)
+  const wheelCenterY = useSharedValue(SCREEN_HEIGHT / 2); // Center Y for wheel (shared value for stars)
 
   // State for selected moment type when spinning the wheel
   type MomentType = "lessons" | "hardTruths" | "sunnyMoments";
@@ -12201,6 +12215,12 @@ export default function HomeScreen() {
   } | null>(null);
   const [showLesson, setShowLesson] = useState(false);
   const [showMomentTypeSelector, setShowMomentTypeSelector] = useState(false);
+
+  // Keep tabPressNoOpRef in sync — when true, Home tab press (already on focused view) does nothing
+  useEffect(() => {
+    tabPressNoOpRef.current =
+      homeViewMode === "focused" && !showMomentTypeSelector;
+  }, [homeViewMode, showMomentTypeSelector]);
 
   // Viewport glow effect for moment type selection
   const viewportGlowOpacity = useSharedValue(0);
@@ -12301,7 +12321,7 @@ export default function HomeScreen() {
   // Constants for sphere circle
   const sphereCircle = useMemo(() => {
     const centerX = SCREEN_WIDTH / 2;
-    const centerY = SCREEN_HEIGHT / 2 + 40; // Lower the main circle and floating elements by 60px
+    const centerY = SCREEN_HEIGHT / 2; // Center of main circle and floating elements
     // On tablets, use smaller radius multiplier to keep spheres closer to the center
     const radiusMultiplier = isTablet ? 0.25 : 0.35; // Reduced from 0.35 to 0.25 on tablets
     const radius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * radiusMultiplier;
@@ -15864,7 +15884,7 @@ export default function HomeScreen() {
 
   // Calculate avatar center coordinates for sparkled dots (always show on all screens)
   const avatarCenterX = SCREEN_WIDTH / 2;
-  const avatarCenterY = SCREEN_HEIGHT / 2 + 60; // Lower the main circle by 60px
+  const avatarCenterY = SCREEN_HEIGHT / 2 + 20; // Slightly below center for main circle
   const baseAvatarSize = isTablet ? 180 : 140; // Increased from 120 to 140
   const avatarSizeForDots = baseAvatarSize; // Use base size for dots positioning
 
@@ -15941,6 +15961,7 @@ export default function HomeScreen() {
                     setFocusedHobbyId(sphere === "hobbies" ? entityId : null);
                     setAnimationsComplete(false);
                     setHomeViewMode("focused");
+                    hideLoader();
                   }, 80);
                 });
               }}
@@ -15964,6 +15985,7 @@ export default function HomeScreen() {
                   setAnimationsComplete(false);
                   setShowMomentTypeSelector(true);
                   setHomeViewMode("classic");
+                  hideLoader();
                 };
                 const t = setTimeout(run, 120);
                 InteractionManager.runAfterInteractions(() => {
@@ -16910,7 +16932,7 @@ export default function HomeScreen() {
                 ? Math.max(maxSafeAvatarRadius * 2, isTablet ? 140 : 80)
                 : baseAvatarSize;
             const avatarCenterX = SCREEN_WIDTH / 2;
-            const avatarCenterY = SCREEN_HEIGHT / 2 + 60; // Lower the main circle by 60px
+            const avatarCenterY = SCREEN_HEIGHT / 2 + 20; // Slightly below center for main circle
 
             return (
               <Animated.View
@@ -16947,6 +16969,7 @@ export default function HomeScreen() {
                     requestAnimationFrame(() => {
                       setShowMomentTypeSelector(false);
                       setHomeViewMode("focused");
+                      hideLoader();
                     });
                   }}
                   style={{
@@ -17930,7 +17953,7 @@ export default function HomeScreen() {
             !momentTypeSelectorDismissed &&
             (() => {
               // Calculate position below the wheel
-              const wheelCenterY = SCREEN_HEIGHT / 2 + 60;
+              const wheelCenterY = SCREEN_HEIGHT / 2 + 20;
               const avatarSize = isTablet ? 180 : 140;
               const avatarRadius = avatarSize / 2;
 
@@ -18001,7 +18024,7 @@ export default function HomeScreen() {
             showMomentTypeSelector &&
             (() => {
               // Calculate fixed position below the wheel
-              const wheelCenterY = SCREEN_HEIGHT / 2 + 60;
+              const wheelCenterY = SCREEN_HEIGHT / 2 + 20;
               const avatarSize = isTablet ? 180 : 140;
               const avatarRadius = avatarSize / 2;
 
@@ -18281,6 +18304,7 @@ export default function HomeScreen() {
                     setFocusedJobId(null);
                     setSelectedSphere(null);
                   }
+                  hideLoader();
                 }, 80);
               });
             }}
@@ -18644,6 +18668,7 @@ export default function HomeScreen() {
                   } else {
                     setSelectedSphere(null);
                   }
+                  hideLoader();
                 }, 80);
               });
             }}
@@ -19219,6 +19244,7 @@ export default function HomeScreen() {
                     setFocusedFamilyMemberId(null);
                     setSelectedSphere(null);
                   }
+                  hideLoader();
                 }, 80);
               });
             }}
@@ -19673,6 +19699,7 @@ export default function HomeScreen() {
                     setFocusedHobbyId(null);
                     setSelectedSphere(null);
                   }
+                  hideLoader();
                 }, 80);
               });
             }}
@@ -20129,6 +20156,7 @@ export default function HomeScreen() {
                     setFocusedHobbyId(null);
                     setSelectedSphere(null);
                   }
+                  hideLoader();
                 }, 80);
               });
             }}
