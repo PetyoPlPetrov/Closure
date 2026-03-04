@@ -26,8 +26,12 @@ import {
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import {
   MAX_CONSTELLATION_AMOUNT,
+  MAX_CONSTELLATION_OPACITY,
+  MAX_COSMIC_BACKGROUND_OPACITY,
   MAX_ORBIT_DURATION_MS,
   MIN_CONSTELLATION_AMOUNT,
+  MIN_CONSTELLATION_OPACITY,
+  MIN_COSMIC_BACKGROUND_OPACITY,
   MIN_ORBIT_DURATION_MS,
   useVisualSettings,
 } from "@/utils/VisualSettingsProvider";
@@ -140,8 +144,16 @@ export default function PersonalizationScreen() {
   const fontScale = useFontScale();
   const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
-  const { orbitDurationMs, setOrbitDurationMs, constellationAmount, setConstellationAmount } =
-    useVisualSettings();
+  const {
+    orbitDurationMs,
+    setOrbitDurationMs,
+    constellationAmount,
+    setConstellationAmount,
+    constellationOpacity,
+    setConstellationOpacity,
+    cosmicBackgroundOpacity,
+    setCosmicBackgroundOpacity,
+  } = useVisualSettings();
   const aiConsent = useAIInsightsConsent();
   const notificationNudge = useNotificationNudgePreference();
   const [infoPopupKey, setInfoPopupKey] = useState<"aiInsights" | "notificationNudge" | null>(null);
@@ -273,6 +285,7 @@ export default function PersonalizationScreen() {
         width={SCREEN_WIDTH}
         height={SCREEN_HEIGHT}
         constellationAmount={constellationAmount}
+        constellationOpacity={constellationOpacity}
       />
       <View style={styles.container}>
         <View style={styles.header}>
@@ -344,6 +357,36 @@ export default function PersonalizationScreen() {
               max={MAX_CONSTELLATION_AMOUNT}
               onValueChange={setConstellationAmount}
               valueLabel={String(constellationAmount)}
+              colorScheme={colorScheme ?? "dark"}
+              colors={colors}
+              fontScale={fontScale}
+            />
+            <SliderRow
+              label={t("settings.personalization.constellationOpacity")}
+              value={constellationOpacity}
+              min={MIN_CONSTELLATION_OPACITY}
+              max={MAX_CONSTELLATION_OPACITY}
+              onValueChange={setConstellationOpacity}
+              valueLabel={
+                constellationOpacity === 0
+                  ? t("settings.personalization.cosmicBackgroundOff")
+                  : String(constellationOpacity)
+              }
+              colorScheme={colorScheme ?? "dark"}
+              colors={colors}
+              fontScale={fontScale}
+            />
+            <SliderRow
+              label={t("settings.personalization.cosmicBackgroundOpacity")}
+              value={cosmicBackgroundOpacity}
+              min={MIN_COSMIC_BACKGROUND_OPACITY}
+              max={MAX_COSMIC_BACKGROUND_OPACITY}
+              onValueChange={setCosmicBackgroundOpacity}
+              valueLabel={
+                cosmicBackgroundOpacity === 0
+                  ? t("settings.personalization.cosmicBackgroundOff")
+                  : String(cosmicBackgroundOpacity)
+              }
               colorScheme={colorScheme ?? "dark"}
               colors={colors}
               fontScale={fontScale}

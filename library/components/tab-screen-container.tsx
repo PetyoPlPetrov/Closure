@@ -1,5 +1,6 @@
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useMomentColors } from '@/utils/MomentColorsProvider';
+import { useVisualSettings } from '@/utils/VisualSettingsProvider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image, StyleSheet, View, type ViewProps, type ViewStyle } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -71,7 +72,9 @@ export function TabScreenContainer({
 }: TabScreenContainerProps) {
   const colorScheme = useColorScheme();
   const { momentColors } = useMomentColors();
+  const { cosmicBackgroundOpacity } = useVisualSettings();
   const isDark = colorScheme === 'dark';
+  const cosmicImageOpacity = cosmicBackgroundOpacity / 10;
   const cornerAccentColor = getCornerAccentColor(momentType, momentColors);
   const insets = useSafeAreaInsets();
 
@@ -84,7 +87,7 @@ export function TabScreenContainer({
         <View style={StyleSheet.absoluteFill}>
           <Image
             source={cosmicBackground}
-            style={StyleSheet.absoluteFill}
+            style={[StyleSheet.absoluteFill, { opacity: cosmicImageOpacity }]}
             resizeMode="cover"
             pointerEvents="none"
           />

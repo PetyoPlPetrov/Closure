@@ -196,13 +196,17 @@ export function ConstellationBackground({
   width,
   height,
   constellationAmount = 10,
+  constellationOpacity = 10,
 }: {
   width: number;
   height: number;
   /** 0–10, controls how many constellation groups, nebula clouds, and stars are shown. Default 10 = full. */
   constellationAmount?: number;
+  /** 0–10, controls visibility (opacity) of constellations, stars, nebula. Default 10 = full. */
+  constellationOpacity?: number;
 }) {
   const { allStars, allLines, scatteredDots } = getConstellationDataWithAmount(width, height, constellationAmount);
+  const opacityMult = constellationOpacity / 10;
 
   const nebulaCount =
     constellationAmount <= 0
@@ -245,10 +249,10 @@ export function ConstellationBackground({
               fx="45%"
               fy="45%"
             >
-              <Stop offset="0" stopColor={cloud.color} stopOpacity={String(cloud.peak)} />
-              <Stop offset="0.25" stopColor={cloud.color} stopOpacity={String(cloud.peak * 0.75)} />
-              <Stop offset="0.50" stopColor={cloud.color} stopOpacity={String(cloud.peak * 0.45)} />
-              <Stop offset="0.75" stopColor={cloud.color} stopOpacity={String(cloud.peak * 0.15)} />
+              <Stop offset="0" stopColor={cloud.color} stopOpacity={String(cloud.peak * opacityMult)} />
+              <Stop offset="0.25" stopColor={cloud.color} stopOpacity={String(cloud.peak * 0.75 * opacityMult)} />
+              <Stop offset="0.50" stopColor={cloud.color} stopOpacity={String(cloud.peak * 0.45 * opacityMult)} />
+              <Stop offset="0.75" stopColor={cloud.color} stopOpacity={String(cloud.peak * 0.15 * opacityMult)} />
               <Stop offset="1" stopColor={cloud.color} stopOpacity="0" />
             </RadialGradient>
           ))}
@@ -273,7 +277,7 @@ export function ConstellationBackground({
             cx={s.x}
             cy={s.y}
             r={s.r}
-            fill={`rgba(255,255,255,${s.opacity})`}
+            fill={`rgba(255,255,255,${(s.opacity * opacityMult).toFixed(3)})`}
           />
         ))}
 
@@ -284,7 +288,7 @@ export function ConstellationBackground({
             cx={s.x}
             cy={s.y}
             r={s.r * 3.5}
-            fill={`rgba(255,255,255,${(s.opacity * 0.18).toFixed(3)})`}
+            fill={`rgba(255,255,255,${(s.opacity * 0.18 * opacityMult).toFixed(3)})`}
           />
         ))}
 
@@ -296,7 +300,7 @@ export function ConstellationBackground({
             y1={line.y1}
             x2={line.x2}
             y2={line.y2}
-            stroke="rgba(255,255,255,0.08)"
+            stroke={`rgba(255,255,255,${(0.08 * opacityMult).toFixed(3)})`}
             strokeWidth={0.5}
           />
         ))}
@@ -308,7 +312,7 @@ export function ConstellationBackground({
             cx={d.x}
             cy={d.y}
             r={0.8}
-            fill="rgba(255,255,255,0.15)"
+            fill={`rgba(255,255,255,${(0.15 * opacityMult).toFixed(3)})`}
           />
         ))}
 
@@ -319,7 +323,7 @@ export function ConstellationBackground({
             cx={s.x}
             cy={s.y}
             r={1.2}
-            fill="rgba(255,255,255,0.22)"
+            fill={`rgba(255,255,255,${(0.22 * opacityMult).toFixed(3)})`}
           />
         ))}
       </Svg>

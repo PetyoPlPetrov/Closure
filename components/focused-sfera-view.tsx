@@ -137,6 +137,8 @@ export type FocusedSferaViewProps = {
   orbitDurationMs?: number;
   /** Constellation density 0–10. From Personalization settings. */
   constellationAmount?: number;
+  /** Constellation opacity 0–10. From Personalization settings. */
+  constellationOpacity?: number;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -1380,6 +1382,7 @@ export function FocusedSferaView({
   onFocusedSphereChange,
   orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
   constellationAmount = 10,
+  constellationOpacity = 10,
 }: FocusedSferaViewProps) {
   const insets = useSafeAreaInsets();
   const { isTablet } = useLargeDevice();
@@ -1513,7 +1516,12 @@ export function FocusedSferaView({
       style={[styles.root, { marginTop: rootMarginTop }]}
       {...panResponder.panHandlers}
     >
-      <ConstellationBackground width={SW} height={SH} constellationAmount={constellationAmount} />
+      <ConstellationBackground
+        width={SW}
+        height={SH}
+        constellationAmount={constellationAmount}
+        constellationOpacity={constellationOpacity}
+      />
 
       {/* ─── Sparkled dots scattered across screen ─── */}
       <SparkledDots

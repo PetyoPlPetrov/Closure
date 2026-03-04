@@ -10919,7 +10919,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { momentColors } = useMomentColors();
-  const { orbitDurationMs, constellationAmount } = useVisualSettings();
+  const { orbitDurationMs, constellationAmount, constellationOpacity } = useVisualSettings();
   const {
     profiles,
     jobs,
@@ -16024,6 +16024,7 @@ export default function HomeScreen() {
               onFocusedSphereChange={handleFocusedSphereChange}
               orbitDurationMs={orbitDurationMs}
               constellationAmount={constellationAmount}
+              constellationOpacity={constellationOpacity}
             />
           </View>
 
@@ -16048,6 +16049,7 @@ export default function HomeScreen() {
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
           constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
         />
         {/* Never show AI consent / banner if user has no memories */}
         {hasAnyMoments && (

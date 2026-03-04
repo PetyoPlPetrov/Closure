@@ -701,6 +701,9 @@ export interface Translations {
   "settings.personalization.title": string;
   "settings.personalization.rotationSpeed": string;
   "settings.personalization.constellationAmount": string;
+  "settings.personalization.constellationOpacity": string;
+  "settings.personalization.cosmicBackgroundOpacity": string;
+  "settings.personalization.cosmicBackgroundOff": string;
   "personalization.visualSection": string;
 
   // Settings - Help Section
@@ -4370,6 +4373,9 @@ const translations: Record<Language, Translations> = {
     "settings.personalization.title": "Personalization",
     "settings.personalization.rotationSpeed": "Rotation speed",
     "settings.personalization.constellationAmount": "Constellations",
+    "settings.personalization.constellationOpacity": "Constellation visibility",
+    "settings.personalization.cosmicBackgroundOpacity": "Cosmic background",
+    "settings.personalization.cosmicBackgroundOff": "Off",
     "personalization.visualSection": "Look",
 
     // Settings - Help Section
@@ -8690,6 +8696,9 @@ const translations: Record<Language, Translations> = {
     "settings.personalization.title": "Персонализация",
     "settings.personalization.rotationSpeed": "Скорост на въртене",
     "settings.personalization.constellationAmount": "Съзвездия",
+    "settings.personalization.constellationOpacity": "Видимост на съзвездията",
+    "settings.personalization.cosmicBackgroundOpacity": "Космически фон",
+    "settings.personalization.cosmicBackgroundOff": "Изключено",
     "personalization.visualSection": "Външен вид",
 
     // Settings - Help Section

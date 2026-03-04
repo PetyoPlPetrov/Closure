@@ -248,7 +248,7 @@ export default function SpheresScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const { momentColors } = useMomentColors();
-  const { constellationAmount } = useVisualSettings();
+  const { constellationAmount, constellationOpacity } = useVisualSettings();
   const fontScale = useFontScale();
   const iconScale = useIconScale();
   const { maxContentWidth, isLargeDevice, isTablet } = useLargeDevice();
@@ -1842,6 +1842,7 @@ export default function SpheresScreen() {
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
           constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
         />
         <View style={styles.header}>
           <View style={styles.headerButton} />
@@ -1874,6 +1875,7 @@ export default function SpheresScreen() {
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
           constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
         />
         <View style={styles.header}>
           <Pressable
@@ -1984,6 +1986,7 @@ export default function SpheresScreen() {
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
           constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
         />
         <View style={styles.header}>
           <Pressable
@@ -2101,6 +2104,7 @@ export default function SpheresScreen() {
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
           constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
         />
         <View style={styles.header}>
           <Pressable
@@ -2267,6 +2271,7 @@ export default function SpheresScreen() {
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
           constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
         />
         <View style={styles.header}>
           <Pressable
@@ -2428,6 +2433,7 @@ export default function SpheresScreen() {
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
           constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
         />
         <View style={styles.header}>
           <Pressable
@@ -2581,6 +2587,7 @@ export default function SpheresScreen() {
         width={SCREEN_WIDTH}
         height={SCREEN_HEIGHT}
         constellationAmount={constellationAmount}
+        constellationOpacity={constellationOpacity}
       />
       <View style={styles.header}>
         <View style={styles.headerButton} />
