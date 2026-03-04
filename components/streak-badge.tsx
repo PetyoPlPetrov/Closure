@@ -9,6 +9,8 @@ import type { StreakBadge } from '@/utils/streak-types';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
+
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
     Easing,
     useAnimatedStyle,
@@ -33,6 +35,8 @@ export const StreakBadgeComponent = React.memo(function StreakBadgeComponent({
 }: StreakBadgeProps) {
   const fontScale = useFontScale();
   const t = useTranslate();
+  const insets = useSafeAreaInsets();
+  const badgeTop = insets.top + 8;
 
   // Animation values
   const scale = useSharedValue(0);
@@ -98,7 +102,7 @@ export const StreakBadgeComponent = React.memo(function StreakBadgeComponent({
     : '#757575';
 
   return (
-    <Animated.View style={[styles.container, animatedStyle]}>
+    <Animated.View style={[styles.container, { top: badgeTop }, animatedStyle]}>
       <Pressable
         onPress={onPress}
         onLongPress={onLongPress}
@@ -140,7 +144,6 @@ export const StreakBadgeComponent = React.memo(function StreakBadgeComponent({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 80,
     right: 16,
     zIndex: 1000,
   },

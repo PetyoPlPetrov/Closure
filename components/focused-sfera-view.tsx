@@ -71,9 +71,17 @@ const FOCUSED_ICON_SIZE = 72;
 
 // Orbit around the Sunny Life avatar: spheres move along this circle when switching focus
 const ORBIT_CX = SW / 2;
-const ORBIT_CY = SH * 0.48;
+// Slightly lower than center to keep space for the badge + toggle
+const ORBIT_CY = SH * 0.46;
 const ORBIT_R = 135;
-const BG_SPHERE_SIZE = 62;
+/** Left just above the focused sfera (slot 4) — slightly bigger */
+const BG_SPHERE_SIZE_LEFT_BELOW = 76;
+/** Right just above / below-right of the circle avatar (slot 1) — a bit bigger */
+const BG_SPHERE_SIZE_RIGHT_BELOW = 82;
+/** Sfera above the Sunny Life circle on the right (slot 2) — slightly smaller */
+const BG_SPHERE_SIZE_TOP_RIGHT = 46;
+/** Sfera above the Sunny Life circle on the left (slot 3) — slightly bigger */
+const BG_SPHERE_SIZE_TOP_LEFT = 62;
 const SLOT_ANGLE = 72; // 360 / 5
 
 /** Slot 0 = focus (bottom), slots 1-4 go clockwise. Returns angle in degrees (0 = bottom). */
@@ -88,7 +96,16 @@ function getSphereTarget(
 ): { angle: number; size: number } {
   const slot = (sphereIdx - focusedIdx + 5) % 5;
   const angle = getSlotAngle(slot);
-  const size = slot === 0 ? FOCUSED_SIZE : BG_SPHERE_SIZE;
+  const size =
+    slot === 0
+      ? FOCUSED_SIZE
+      : slot === 1
+        ? BG_SPHERE_SIZE_RIGHT_BELOW
+        : slot === 4
+          ? BG_SPHERE_SIZE_LEFT_BELOW
+        : slot === 2
+          ? BG_SPHERE_SIZE_TOP_RIGHT
+          : BG_SPHERE_SIZE_TOP_LEFT;
   return { angle, size };
 }
 
@@ -742,6 +759,12 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     const backOffsetY = slot === 0 ? 0 : Math.cos(rad) < 0 ? -48 : 0;
     // Unfocused spheres: shift up; focused stays put
     const unfocusedOffsetY = slot === 0 ? 0 : -28;
+    // Right-side spheres (slots 1 & 2) sit higher so they don't align in a flat row
+    const rightSideOffsetY = slot === 1 || slot === 2 ? -22 : 0;
+    // Extra lift for the sphere below-right of the avatar (slot 1) so it sits slightly higher
+    const rightBelowExtraOffsetY = slot === 1 ? -8 : 0;
+    // Top pair above the Sunny Life circle (slots 2 & 3) sit a bit lower so they are closer to the avatar
+    const topPairOffsetY = slot === 2 || slot === 3 ? 10 : 0;
     return {
       position: "absolute",
       left: 0,
@@ -750,7 +773,16 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       height: SPHERE_CONTAINER_SIZE,
       transform: [
         { translateX: centerX - CONTAINER_HALF },
-        { translateY: centerY - CONTAINER_HALF + backOffsetY + unfocusedOffsetY },
+        {
+          translateY:
+            centerY -
+            CONTAINER_HALF +
+            backOffsetY +
+            unfocusedOffsetY +
+            rightSideOffsetY +
+            rightBelowExtraOffsetY +
+            topPairOffsetY,
+        },
         { scale: depthScale },
       ],
     };
@@ -1353,6 +1385,9 @@ export function FocusedSferaView({
   const { isTablet } = useLargeDevice();
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
   const N = SPHERE_LIST.length;
+  const toggleTop = insets.top + 8;
+  // Keep root aligned with TabScreenContainer; we shift spheres via ORBIT_CY instead.
+  const rootMarginTop = 0;
 
   useEffect(() => {
     setFocusedIdx(initialFocusedIdx);
@@ -1474,7 +1509,10 @@ export function FocusedSferaView({
   });
 
   return (
-    <View style={styles.root} {...panResponder.panHandlers}>
+    <View
+      style={[styles.root, { marginTop: rootMarginTop }]}
+      {...panResponder.panHandlers}
+    >
       <ConstellationBackground width={SW} height={SH} constellationAmount={constellationAmount} />
 
       {/* ─── Sparkled dots scattered across screen ─── */}
@@ -1550,7 +1588,7 @@ export function FocusedSferaView({
       <Animated.View
         style={[
           styles.toggleBtn,
-          { top: 68 },
+          { top: toggleTop },
           ...(shouldPulseViewToggle ? [togglePulseStyle] : []),
         ]}
       >

@@ -1,8 +1,10 @@
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useMomentColors } from '@/utils/MomentColorsProvider';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, View, type ViewProps, type ViewStyle } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image, StyleSheet, View, type ViewProps, type ViewStyle } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const cosmicBackground = require('@/assets/images/cosmic-background.png');
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const h = hex.replace("#", "");
@@ -13,8 +15,18 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 export const TAB_BACKGROUND_COLOR_DARK = '#1A2332'; // Dark blue-grey background
 export const TAB_BACKGROUND_COLOR_LIGHT = '#B0B0B0'; // Darker grey background for light mode
 
-// Gradient colors for dark mode background - visible gradient from darker to lighter blue-grey
-export const DARK_GRADIENT_COLORS = ['#080C14', '#0D121A', '#121820', '#1A2332', '#1F2A3A', '#243041', '#2A3545', '#2F3A4A', '#344050'] as const; // Visible gradient from darker to lighter blue-grey
+// Gradient colors for dark mode background — semi-transparent so cosmic image shows through
+export const DARK_GRADIENT_COLORS = [
+  'rgba(5,8,16,0.55)',
+  'rgba(10,15,24,0.55)',
+  'rgba(15,22,32,0.55)',
+  'rgba(21,30,46,0.55)',
+  'rgba(26,37,54,0.55)',
+  'rgba(31,43,60,0.55)',
+  'rgba(36,49,66,0.55)',
+  'rgba(41,54,72,0.55)',
+  'rgba(46,59,77,0.55)',
+] as const;
 export const LIGHT_GRADIENT_COLORS = ['#858585', '#909090', '#9B9B9B', '#B0B0B0', '#C5C5C5', '#D0D0D0', '#DBDBDB', '#E5E5E5', '#F0F0F0'] as const; // Visible gradient from darker to lighter grey
 
 type MomentType = 'lessons' | 'sunnyMoments' | 'hardTruths';
@@ -61,6 +73,7 @@ export function TabScreenContainer({
   const { momentColors } = useMomentColors();
   const isDark = colorScheme === 'dark';
   const cornerAccentColor = getCornerAccentColor(momentType, momentColors);
+  const insets = useSafeAreaInsets();
 
   return (
     <SafeAreaView
@@ -68,75 +81,60 @@ export function TabScreenContainer({
       edges={['top']}
     >
       {isDark ? (
-        <LinearGradient
-          colors={DARK_GRADIENT_COLORS}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        >
-          {/* Corner accent overlays - only visible when moment type is selected */}
-          {momentType && momentTypeOpacity > 0 && (
-            <>
-              {/* Top-left corner */}
-              <LinearGradient
-                colors={[cornerAccentColor, 'transparent']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[
-                  StyleSheet.absoluteFill,
-                  { opacity: momentTypeOpacity }
-                ]}
-                pointerEvents="none"
-              />
-
-              {/* Top-right corner */}
-              <LinearGradient
-                colors={[cornerAccentColor, 'transparent']}
-                start={{ x: 1, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={[
-                  StyleSheet.absoluteFill,
-                  { opacity: momentTypeOpacity }
-                ]}
-                pointerEvents="none"
-              />
-
-              {/* Bottom-left corner */}
-              <LinearGradient
-                colors={['transparent', cornerAccentColor]}
-                start={{ x: 1, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={[
-                  StyleSheet.absoluteFill,
-                  { opacity: momentTypeOpacity }
-                ]}
-                pointerEvents="none"
-              />
-
-              {/* Bottom-right corner */}
-              <LinearGradient
-                colors={['transparent', cornerAccentColor]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[
-                  StyleSheet.absoluteFill,
-                  { opacity: momentTypeOpacity }
-                ]}
-                pointerEvents="none"
-              />
-            </>
-          )}
-
-          <View
-            style={[
-              styles.content,
-              contentStyle
-            ]}
-            {...otherProps}
+        <View style={StyleSheet.absoluteFill}>
+          <Image
+            source={cosmicBackground}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+            pointerEvents="none"
+          />
+          <LinearGradient
+            colors={DARK_GRADIENT_COLORS}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={StyleSheet.absoluteFill}
           >
-            {children}
-          </View>
-        </LinearGradient>
+            {momentType && momentTypeOpacity > 0 && (
+              <>
+                <LinearGradient
+                  colors={[cornerAccentColor, 'transparent']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[StyleSheet.absoluteFill, { opacity: momentTypeOpacity }]}
+                  pointerEvents="none"
+                />
+                <LinearGradient
+                  colors={[cornerAccentColor, 'transparent']}
+                  start={{ x: 1, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={[StyleSheet.absoluteFill, { opacity: momentTypeOpacity }]}
+                  pointerEvents="none"
+                />
+                <LinearGradient
+                  colors={['transparent', cornerAccentColor]}
+                  start={{ x: 1, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={[StyleSheet.absoluteFill, { opacity: momentTypeOpacity }]}
+                  pointerEvents="none"
+                />
+                <LinearGradient
+                  colors={['transparent', cornerAccentColor]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[StyleSheet.absoluteFill, { opacity: momentTypeOpacity }]}
+                  pointerEvents="none"
+                />
+              </>
+            )}
+
+            <View
+              style={[styles.content, contentStyle]}
+              {...otherProps}
+            >
+              {children}
+            </View>
+          </LinearGradient>
+        </View>
       ) : (
         <LinearGradient
           colors={LIGHT_GRADIENT_COLORS}
@@ -218,7 +216,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    backgroundColor: 'transparent', // Ensure content is transparent so gradient shows through
+    backgroundColor: 'transparent',
   },
 });
 

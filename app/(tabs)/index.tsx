@@ -15919,6 +15919,7 @@ export default function HomeScreen() {
 
   if (!selectedSphere) {
     // ─── FocusedSferas view: one sphere in focus, others on orbit ───
+    // When focused, only this branch is rendered; classic view (wheel of life) is not in the tree.
     if (homeViewMode === "focused") {
       return (
         <TabScreenContainer>
@@ -16103,6 +16104,7 @@ export default function HomeScreen() {
             position: "relative",
             justifyContent: "center",
             alignItems: "center",
+            marginTop: -insets.top + 44,
           }}
         >
           {/* Toggle: switch to FocusedSferas view (one sphere in focus, swipe to change). */}
@@ -16110,7 +16112,7 @@ export default function HomeScreen() {
             style={[
               {
                 position: "absolute",
-                top: 40,
+                top: insets.top + 8,
                 left: 16,
                 width: 64,
                 height: 64,
@@ -16126,6 +16128,7 @@ export default function HomeScreen() {
             <Pressable
               onPress={() => {
                 markViewTogglePressed();
+                setShowMomentTypeSelector(false); // Ensure wheel of life is not active in focused view
                 setHomeViewMode("focused");
               }}
               style={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}
