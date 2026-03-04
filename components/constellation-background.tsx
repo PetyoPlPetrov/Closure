@@ -206,7 +206,8 @@ export function ConstellationBackground({
   constellationOpacity?: number;
 }) {
   const { allStars, allLines, scatteredDots } = getConstellationDataWithAmount(width, height, constellationAmount);
-  const opacityMult = constellationOpacity / 10;
+  // Slider 0–10: max visibility (10) = former level 2. Linear distribution.
+  const opacityMult = (constellationOpacity / 10) * 0.2;
 
   const nebulaCount =
     constellationAmount <= 0
@@ -292,7 +293,7 @@ export function ConstellationBackground({
           />
         ))}
 
-        {/* ── Constellation lines ── */}
+        {/* ── Constellation lines (higher base opacity for visibility on cosmic image BG) ── */}
         {allLines.map((line, i) => (
           <Line
             key={`line-${i}`}
@@ -300,8 +301,8 @@ export function ConstellationBackground({
             y1={line.y1}
             x2={line.x2}
             y2={line.y2}
-            stroke={`rgba(255,255,255,${(0.08 * opacityMult).toFixed(3)})`}
-            strokeWidth={0.5}
+            stroke={`rgba(255,255,255,${(0.72 * opacityMult).toFixed(3)})`}
+            strokeWidth={1.5}
           />
         ))}
 
@@ -312,7 +313,7 @@ export function ConstellationBackground({
             cx={d.x}
             cy={d.y}
             r={0.8}
-            fill={`rgba(255,255,255,${(0.15 * opacityMult).toFixed(3)})`}
+            fill={`rgba(255,255,255,${(0.58 * opacityMult).toFixed(3)})`}
           />
         ))}
 
@@ -323,7 +324,7 @@ export function ConstellationBackground({
             cx={s.x}
             cy={s.y}
             r={1.2}
-            fill={`rgba(255,255,255,${(0.22 * opacityMult).toFixed(3)})`}
+            fill={`rgba(255,255,255,${(0.72 * opacityMult).toFixed(3)})`}
           />
         ))}
       </Svg>

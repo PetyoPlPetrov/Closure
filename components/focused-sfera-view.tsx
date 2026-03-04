@@ -1,6 +1,6 @@
 /**
  * FocusedSferas view — one sphere in focus (large, center-bottom), the rest on orbit.
- * Swipe left/right or use chevrons to change focus. Toggle in home tab switches to Classic view.
+ * Swipe left/right or use chevrons to change focus. Tap Sunny Life avatar to return to Classic view.
  *
  * All interaction state lives here so the parent home tab does NOT re-render on swipes/interactions.
  */
@@ -42,7 +42,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, {
   Defs,
   FeColorMatrix,
@@ -116,8 +115,6 @@ export type FocusedSferaViewProps = {
   onSphereSelect: (sphere: LifeSphere) => void;
   /** Switch back to Classic view (wheel of life). */
   onSwitchToClassic: () => void;
-  /** If true, pulse the view toggle button every 10s to draw attention (until user presses it). */
-  shouldPulseViewToggle?: boolean;
   /** Called when user taps a floating entity avatar; navigates to entity detail. */
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
   colorScheme: "light" | "dark";
@@ -694,17 +691,17 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   const size = useSharedValue(target.size);
   const spherePulseScale = useSharedValue(1);
 
-  // Pulse animation for focused sphere — offset so it doesn't sync with circle avatar
+  // Pulse animation for focused sphere — every 7s, subtle (offset so it doesn't sync with circle avatar)
   useEffect(() => {
     if (isFocused) {
       spherePulseScale.value = 1;
       spherePulseScale.value = withDelay(
-        1500,
+        7000,
         withRepeat(
           withSequence(
-            withSpring(1.1, { damping: 8, stiffness: 100 }),
-            withSpring(1, { damping: 10, stiffness: 150 }),
-            withDelay(3000, withTiming(1, { duration: 0 })),
+            withSpring(1.04, { damping: 12, stiffness: 80 }),
+            withSpring(1, { damping: 12, stiffness: 100 }),
+            withDelay(7000, withTiming(1, { duration: 0 })),
           ),
           -1,
           false,
@@ -1004,17 +1001,17 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   const gradientColors =
     colorScheme === "dark" ? BADGE_GRADIENT_DARK : BADGE_GRADIENT_LIGHT;
 
-  // Pulse animation for circle avatar (percentage) — every 10s, offset so not in sync with focused sphere
+  // Pulse animation for circle avatar (percentage) — every 12s, offset so not in sync with focused sphere
   const avatarPulseScale = useSharedValue(1);
   useEffect(() => {
     avatarPulseScale.value = 1;
     avatarPulseScale.value = withDelay(
-      5000,
+      12000,
       withRepeat(
         withSequence(
           withSpring(1.1, { damping: 8, stiffness: 100 }),
           withSpring(1, { damping: 10, stiffness: 150 }),
-          withDelay(10000, withTiming(1, { duration: 0 })),
+          withDelay(12000, withTiming(1, { duration: 0 })),
         ),
         -1,
         false,
@@ -1025,9 +1022,20 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
       avatarPulseScale.value = 1;
     };
   }, [avatarPulseScale]);
+  // Press feedback: scale down on press, spring back on release
+  const pressScale = useSharedValue(1);
   const avatarPulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: avatarPulseScale.value }],
+    transform: [{ scale: avatarPulseScale.value * pressScale.value }],
   }));
+
+  const handlePressIn = useCallback(() => {
+    cancelAnimation(pressScale);
+    pressScale.value = withSpring(0.9, { damping: 12, stiffness: 400 });
+  }, [pressScale]);
+  const handlePressOut = useCallback(() => {
+    cancelAnimation(pressScale);
+    pressScale.value = withSpring(1, { damping: 12, stiffness: 400 });
+  }, [pressScale]);
 
   const wrapperStyle = {
     position: "absolute" as const,
@@ -1035,11 +1043,16 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
     top: y - avatarSize / 2,
     width: avatarSize,
     height: avatarSize,
-    zIndex: 3,
+    zIndex: 25, // Above spheres (10-12) so taps always reach the avatar
   };
 
   return (
-    <Pressable onPress={onPress} style={wrapperStyle}>
+    <Pressable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={wrapperStyle}
+    >
       <Animated.View
         style={[{ width: avatarSize, height: avatarSize }, avatarPulseStyle]}
       >
@@ -1370,7 +1383,6 @@ export function FocusedSferaView({
   overallSunnyPercentage,
   onSphereSelect,
   onSwitchToClassic,
-  shouldPulseViewToggle = false,
   onEntitySelect,
   colorScheme,
   getSphereSunnyPercentage,
@@ -1384,11 +1396,9 @@ export function FocusedSferaView({
   constellationAmount = 10,
   constellationOpacity = 10,
 }: FocusedSferaViewProps) {
-  const insets = useSafeAreaInsets();
   const { isTablet } = useLargeDevice();
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
   const N = SPHERE_LIST.length;
-  const toggleTop = insets.top + 8;
   // Keep root aligned with TabScreenContainer; we shift spheres via ORBIT_CY instead.
   const rootMarginTop = 0;
 
@@ -1475,42 +1485,6 @@ export function FocusedSferaView({
     };
   });
 
-  const togglePulseProgress = useSharedValue(0);
-  useEffect(() => {
-    if (shouldPulseViewToggle) {
-      togglePulseProgress.value = withDelay(
-        10000,
-        withRepeat(
-          withSequence(
-            withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) }),
-            withTiming(0, { duration: 350, easing: Easing.inOut(Easing.ease) }),
-            withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) }),
-            withTiming(0, { duration: 350, easing: Easing.inOut(Easing.ease) }),
-            withDelay(10000, withTiming(0, { duration: 0 })),
-          ),
-          -1,
-          false,
-        ),
-      );
-      return () => {
-        cancelAnimation(togglePulseProgress);
-        togglePulseProgress.value = 0;
-      };
-    }
-    cancelAnimation(togglePulseProgress);
-    togglePulseProgress.value = 0;
-  }, [shouldPulseViewToggle, togglePulseProgress]);
-
-  const togglePulseStyle = useAnimatedStyle(() => {
-    const p = togglePulseProgress.value;
-    const scale = 1 + p * 0.15;
-    const opacity = interpolate(p, [0, 1], [0.85, 1]);
-    return {
-      transform: [{ scale }],
-      opacity,
-    };
-  });
-
   return (
     <View
       style={[styles.root, { marginTop: rootMarginTop }]}
@@ -1591,22 +1565,6 @@ export function FocusedSferaView({
           />
         </Pressable>
       </Animated.View>
-
-      {/* ─── Toggle: switch to Classic view (wheel of life), aligned with streak badge ─── */}
-      <Animated.View
-        style={[
-          styles.toggleBtn,
-          { top: toggleTop },
-          ...(shouldPulseViewToggle ? [togglePulseStyle] : []),
-        ]}
-      >
-        <Pressable
-          style={styles.toggleBtnPressable}
-          onPress={handleSwitchToClassic}
-        >
-          <MaterialIcons name="bubble-chart" size={30} color="#fff" />
-        </Pressable>
-      </Animated.View>
     </View>
   );
 }
@@ -1628,20 +1586,5 @@ const styles = StyleSheet.create({
   },
   chevronRight: {
     right: 6,
-  },
-  toggleBtn: {
-    position: "absolute",
-    left: 16,
-    width: 64,
-    height: 64,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 30,
-  },
-  toggleBtnPressable: {
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

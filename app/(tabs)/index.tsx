@@ -9120,8 +9120,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
 
   // Base sizes for floating moments - scaled so "bigger amount of letters = bigger element"
   const baseSunSize = isTablet ? 180 : isLargeDevice ? 160 : 130;
-  const baseCloudWidth = isTablet ? 200 : 160;
-  const baseCloudHeight = isTablet ? 125 : 100;
+  const baseCloudWidth = isTablet ? 220 : 180;
+  const baseCloudHeight = isTablet ? 135 : 110;
   const baseLessonSize = isTablet ? 180 : 140;
 
   // Scale aggressively with text length so long text never overflows
@@ -9132,11 +9132,11 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
 
   const cloudWidthMultiplier = Math.min(
     2.8,
-    Math.max(1.0, 1.0 + textLength / 55),
+    Math.max(1.2, 1.0 + textLength / 40),
   );
   const cloudHeightMultiplier = Math.min(
     2.4,
-    Math.max(1.0, 1.0 + textLength / 60),
+    Math.max(1.15, 1.0 + textLength / 45),
   );
   const dynamicCloudWidth = baseCloudWidth * cloudWidthMultiplier;
   const dynamicCloudHeight = baseCloudHeight * cloudHeightMultiplier;
@@ -9555,19 +9555,21 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
               height: finalHeight,
               justifyContent: "center",
               alignItems: "center",
-              paddingHorizontal: (finalWidth / 160) * 48 * 0.7,
-              paddingVertical: (finalWidth / 160) * 48 * 0.5,
+              paddingHorizontal: (finalWidth / 160) * 48 * 0.85,
+              paddingVertical: (finalWidth / 160) * 48 * 0.55,
             }}
           >
             <ThemedText
               style={{
                 color: sunnyText,
                 fontSize:
-                  Math.max(11, Math.min(16, 12 + textLength / 60)) * fontScale,
+                  Math.max(10, Math.min(14, 13 - textLength / 50)) * fontScale,
                 textAlign: "center",
                 fontWeight: "700",
-                maxWidth: (finalWidth / 160) * 48 * 1.5,
+                lineHeight: Math.max(12, Math.min(16, 14 - textLength / 50)) * fontScale,
+                maxWidth: (finalWidth / 160) * 90,
               }}
+              numberOfLines={textLength > 50 ? 3 : 2}
             >
               {text?.split("\n")[0] || text}
             </ThemedText>
@@ -9576,11 +9578,12 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
                 style={{
                   color: sunnyText,
                   fontSize:
-                    Math.max(7, Math.min(11, 7 + textLength / 100)) * fontScale,
+                    Math.max(8, Math.min(11, 9 - textLength / 80)) * fontScale,
                   textAlign: "center",
                   fontWeight: "600",
-                  maxWidth: (finalWidth / 160) * 48 * 1.5,
+                  maxWidth: (finalWidth / 160) * 90,
                 }}
+                numberOfLines={2}
               >
                 {text.split("\n")[1]}
               </ThemedText>
@@ -9663,19 +9666,22 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
               height: finalHeight,
               justifyContent: "center",
               alignItems: "center",
-              paddingHorizontal: Math.max(20, finalWidth * 0.12),
-              paddingVertical: Math.max(12, finalHeight * 0.12),
+              paddingHorizontal: Math.max(28, finalWidth * 0.18),
+              paddingVertical: Math.max(16, finalHeight * 0.16),
             }}
           >
             <ThemedText
               style={{
                 color: cloudyText,
                 fontSize:
-                  Math.max(11, Math.min(15, 12 + textLength / 70)) * fontScale,
+                  Math.max(10, Math.min(14, 13 - textLength / 60)) * fontScale,
                 textAlign: "center",
                 fontWeight: "500",
-                maxWidth: finalWidth * 0.9,
+                lineHeight:
+                  Math.max(12, Math.min(16, 14 - textLength / 60)) * fontScale,
+                maxWidth: finalWidth * 0.8,
               }}
+              numberOfLines={textLength > 70 ? 5 : 4}
             >
               {text}
             </ThemedText>
@@ -9685,7 +9691,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     );
   }
 
-  // Lesson - use full lightbulb element with text below (matching main wheel of life PulsingFloatingMomentIcon)
+  // Lesson - lightbulb with text below it (no circle background)
   const lessonBg = momentColors.lesson.background;
   const lessonText = momentColors.lesson.text;
   return (
@@ -9724,13 +9730,13 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
               style={{
                 color: lessonText,
                 fontSize:
-                  Math.max(9, Math.min(13, 11 - textLength / 70)) * fontScale,
+                  Math.max(10, Math.min(14, 12 - textLength / 80)) * fontScale,
                 textAlign: "center",
                 fontWeight: "600",
                 lineHeight:
-                  Math.max(11, Math.min(15, 13 - textLength / 70)) * fontScale,
+                  Math.max(12, Math.min(16, 14 - textLength / 80)) * fontScale,
               }}
-              numberOfLines={textLength > 80 ? 4 : 3}
+              numberOfLines={textLength > 60 ? 4 : 3}
             >
               {text}
             </ThemedText>
@@ -9961,18 +9967,18 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
     const baseSunSize = calculatedSunSize;
 
     // For clouds: scale width and height based on text length
-    const minCloudWidth = isTablet ? 300 : 220;
-    const maxCloudWidth = isTablet ? 500 : 360;
-    const cloudWidthIncrement = isTablet ? 1.2 : 0.8; // px per character
+    const minCloudWidth = isTablet ? 320 : 250;
+    const maxCloudWidth = isTablet ? 520 : 400;
+    const cloudWidthIncrement = isTablet ? 1.4 : 1.0; // px per character
     const calculatedCloudWidth = Math.min(
       maxCloudWidth,
       minCloudWidth + textLength * cloudWidthIncrement,
     );
 
-    const minCloudHeight = isTablet ? 120 : 90;
-    const maxCloudHeight = isTablet ? 200 : 140;
-    // Height scales more gradually
-    const cloudHeightIncrement = isTablet ? 0.4 : 0.3;
+    const minCloudHeight = isTablet ? 130 : 100;
+    const maxCloudHeight = isTablet ? 210 : 150;
+    // Height scales more gradually to fit wrapped text
+    const cloudHeightIncrement = isTablet ? 0.5 : 0.4;
     const calculatedCloudHeight = Math.min(
       maxCloudHeight,
       minCloudHeight + textLength * cloudHeightIncrement,
@@ -10088,23 +10094,23 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                 height: baseSunSize,
                 justifyContent: "center",
                 alignItems: "center",
-                paddingHorizontal: (baseSunSize / 160) * 48 * 0.6,
-                paddingVertical: (baseSunSize / 160) * 48 * 0.4,
+                paddingHorizontal: (baseSunSize / 160) * 52 * 0.8,
+                paddingVertical: (baseSunSize / 160) * 48 * 0.5,
               }}
             >
               <ThemedText
                 style={{
                   color: momentColors.sunny.text,
                   fontSize:
-                    Math.max(10, Math.min(14, 12 - textLength / 60)) *
+                    Math.max(10, Math.min(14, 13 - textLength / 50)) *
                     fontScale,
                   textAlign: "center",
                   fontWeight: "700",
                   lineHeight:
-                    Math.max(12, Math.min(16, 14 - textLength / 60)) *
+                    Math.max(12, Math.min(16, 14 - textLength / 50)) *
                     fontScale,
                 }}
-                numberOfLines={textLength > 80 ? 4 : 3}
+                numberOfLines={textLength > 50 ? 3 : 2}
               >
                 {text?.split("\n")[0] || text}
               </ThemedText>
@@ -10113,7 +10119,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                   style={{
                     color: momentColors.sunny.text,
                     fontSize:
-                      Math.max(6, Math.min(9, 7 - textLength / 80)) * fontScale,
+                      Math.max(8, Math.min(10, 9 - textLength / 100)) * fontScale,
                     textAlign: "center",
                     fontWeight: "600",
                   }}
@@ -10194,29 +10200,31 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                 height: baseCloudHeight,
                 justifyContent: "center",
                 alignItems: "center",
-                paddingHorizontal: 20,
+                paddingHorizontal: 28,
+                paddingVertical: 12,
               }}
             >
               <ThemedText
                 style={{
                   color: momentColors.cloudy.text,
                   fontSize:
-                    Math.max(11, Math.min(16, 14 - textLength / 50)) *
+                    Math.max(10, Math.min(14, 13 - textLength / 55)) *
                     fontScale,
                   textAlign: "center",
                   fontWeight: "500",
                   lineHeight:
-                    Math.max(13, Math.min(18, 16 - textLength / 50)) *
+                    Math.max(12, Math.min(16, 14 - textLength / 55)) *
                     fontScale,
+                  maxWidth: baseCloudWidth * 0.82,
                 }}
-                numberOfLines={textLength > 100 ? 5 : 4}
+                numberOfLines={textLength > 70 ? 5 : 4}
               >
                 {text}
               </ThemedText>
             </View>
           </View>
         ) : (
-          // Render full lightbulb element (lessons)
+          // Render full lightbulb element (lessons) - lightbulb with text below, no circle background
           <View
             style={{
               width: baseSunSize,
@@ -10250,14 +10258,14 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                 style={{
                   color: momentColors.lesson.text,
                   fontSize:
-                    Math.max(9, Math.min(13, 11 - textLength / 70)) * fontScale,
+                    Math.max(10, Math.min(14, 12 - textLength / 80)) * fontScale,
                   textAlign: "center",
                   fontWeight: "600",
                   lineHeight:
-                    Math.max(11, Math.min(15, 13 - textLength / 70)) *
+                    Math.max(12, Math.min(16, 14 - textLength / 80)) *
                     fontScale,
                 }}
-                numberOfLines={textLength > 80 ? 4 : 3}
+                numberOfLines={textLength > 60 ? 4 : 3}
               >
                 {text}
               </ThemedText>
@@ -11180,6 +11188,12 @@ export default function HomeScreen() {
     };
   });
 
+  // Press feedback for Classic view circle avatar (scale down on press, spring back on release)
+  const classicAvatarPressScale = useSharedValue(1);
+  const classicAvatarStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: avatarPulseScale.value * classicAvatarPressScale.value }],
+  }));
+
   // Track selected sphere (null = showing all spheres, otherwise showing focused sphere)
   // Initialize from URL params if present
   const sphereParam =
@@ -11198,30 +11212,13 @@ export default function HomeScreen() {
 
   // Home view mode: "Classic" = Classic view (wheel of life); "focused" = FocusedSferas view (one sphere in focus, swipe to change).
   // When FocusedSferas view is active, only FocusedSferaView is mounted — Classic view components are not in the tree.
-  const HOME_VIEW_MODE_KEY = "@sferas:home_view_mode";
   const FOCUSED_SPHERE_INDEX_KEY = "@sferas:focused_sphere_index";
-  const VIEW_TOGGLE_EVER_PRESSED_KEY = "@sferas:view_toggle_ever_pressed";
-  const [homeViewMode, setHomeViewMode] = useState<"classic" | "focused">("classic");
+  const [homeViewMode, setHomeViewMode] = useState<"classic" | "focused">("focused");
   const [focusedSphereIndex, setFocusedSphereIndex] = useState(0);
-  const [viewToggleEverPressed, setViewToggleEverPressed] = useState(false);
-  const homeViewModeLoadedRef = useRef(false);
-  const skipNextViewModePersistRef = useRef(false);
   const cameFromFocusedSferaForEntityRef = useRef(false);
-  const userHomeViewPreferenceRef = useRef<"classic" | "focused">("classic");
   const { showLoader: startTransitionLoader } = useHomeTransitionLoader() ?? {
     showLoader: () => {},
   };
-
-  useEffect(() => {
-    AsyncStorage.getItem(HOME_VIEW_MODE_KEY).then((v) => {
-      if (v === "focused" || v === "classic") {
-        setHomeViewMode(v);
-        userHomeViewPreferenceRef.current = v;
-      }
-    }).finally(() => {
-      homeViewModeLoadedRef.current = true;
-    });
-  }, []);
 
   useEffect(() => {
     AsyncStorage.getItem(FOCUSED_SPHERE_INDEX_KEY).then((v) => {
@@ -11234,63 +11231,6 @@ export default function HomeScreen() {
     setFocusedSphereIndex(index);
     AsyncStorage.setItem(FOCUSED_SPHERE_INDEX_KEY, String(index));
   }, []);
-
-  useEffect(() => {
-    AsyncStorage.getItem(VIEW_TOGGLE_EVER_PRESSED_KEY).then((v) => {
-      if (v === "true") setViewToggleEverPressed(true);
-    });
-  }, []);
-
-  const markViewTogglePressed = useCallback(() => {
-    setViewToggleEverPressed(true);
-    AsyncStorage.setItem(VIEW_TOGGLE_EVER_PRESSED_KEY, "true");
-  }, []);
-
-  const togglePulseProgress = useSharedValue(0);
-  useEffect(() => {
-    if (!viewToggleEverPressed) {
-      togglePulseProgress.value = withDelay(
-        10000,
-        withRepeat(
-          withSequence(
-            withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) }),
-            withTiming(0, { duration: 350, easing: Easing.inOut(Easing.ease) }),
-            withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) }),
-            withTiming(0, { duration: 350, easing: Easing.inOut(Easing.ease) }),
-            withDelay(10000, withTiming(0, { duration: 0 })),
-          ),
-          -1,
-          false,
-        ),
-      );
-      return () => {
-        cancelAnimation(togglePulseProgress);
-        togglePulseProgress.value = 0;
-      };
-    }
-    cancelAnimation(togglePulseProgress);
-    togglePulseProgress.value = 0;
-  }, [viewToggleEverPressed, togglePulseProgress]);
-
-  const togglePulseStyle = useAnimatedStyle(() => {
-    const p = togglePulseProgress.value;
-    const scale = 1 + p * 0.15;
-    const opacity = interpolate(p, [0, 1], [0.85, 1]);
-    return {
-      transform: [{ scale }],
-      opacity,
-    };
-  });
-
-  useEffect(() => {
-    if (!homeViewModeLoadedRef.current) return;
-    if (skipNextViewModePersistRef.current) {
-      skipNextViewModePersistRef.current = false;
-      return;
-    }
-    userHomeViewPreferenceRef.current = homeViewMode;
-    AsyncStorage.setItem(HOME_VIEW_MODE_KEY, homeViewMode);
-  }, [homeViewMode]);
 
   // Focused state management - must be at top level (moved before useFocusEffect)
   const [focusedProfileId, setFocusedProfileId] = useState<string | null>(null);
@@ -11333,7 +11273,7 @@ export default function HomeScreen() {
     if (wasFocused && !hasFocusedView && cameFromFocusedSferaForEntityRef.current) {
       cameFromFocusedSferaForEntityRef.current = false;
       startTransitionLoader();
-      setHomeViewMode(userHomeViewPreferenceRef.current);
+      setHomeViewMode("focused");
     }
   }, [
     hasFocusedView,
@@ -11356,7 +11296,7 @@ export default function HomeScreen() {
     React.useCallback(() => {
       // Listen for tab press events
       const unsubscribe = navigation.addListener("tabPress" as any, () => {
-        // Check if there's any focused view
+        // When Home tab is pressed (including when already on Home), always show Focused view
         const hasFocusedView = !!(
           focusedMemory ||
           selectedSphere ||
@@ -11368,7 +11308,7 @@ export default function HomeScreen() {
         );
 
         if (hasFocusedView) {
-          // Start loader before recalc so it's visible
+          // Clear entity selection and show Focused view
           startTransitionLoader();
           requestAnimationFrame(() => {
             setTimeout(() => {
@@ -11379,7 +11319,19 @@ export default function HomeScreen() {
               setFocusedFamilyMemberId(null);
               setFocusedFriendId(null);
               setFocusedHobbyId(null);
+              setAnimationsComplete(false);
+              setShowMomentTypeSelector(false);
+              setHomeViewMode("focused");
               router.replace("/");
+            }, 80);
+          });
+        } else {
+          // Already on Home with no selection - ensure Focused view is shown
+          startTransitionLoader();
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              setHomeViewMode("focused");
+              setShowMomentTypeSelector(false);
             }, 80);
           });
         }
@@ -11406,12 +11358,11 @@ export default function HomeScreen() {
     ]),
   );
 
-  // Handle hardware back button when in Focused view - show loader and switch to Classic (same as toggle)
+  // Handle hardware back button when in Focused view - stay in Focused (clear any selection, or let default back happen)
   useEffect(() => {
     if (homeViewMode !== "focused") return;
 
     const handleBackPress = () => {
-      markViewTogglePressed();
       startTransitionLoader();
       requestAnimationFrame(() => {
         setTimeout(() => {
@@ -11423,8 +11374,8 @@ export default function HomeScreen() {
           setFocusedHobbyId(null);
           setSelectedSphere(null);
           setAnimationsComplete(false);
-          setShowMomentTypeSelector(true);
-          setHomeViewMode("classic");
+          setShowMomentTypeSelector(false);
+          setHomeViewMode("focused");
         }, 80);
       });
       return true; // Prevent default (e.g. exiting app or going back in stack)
@@ -11432,7 +11383,7 @@ export default function HomeScreen() {
 
     const sub = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
     return () => sub.remove();
-  }, [homeViewMode, markViewTogglePressed, startTransitionLoader, focusedSphereIndex]);
+  }, [homeViewMode, startTransitionLoader, focusedSphereIndex]);
 
   // Zoom progress for sphere animations (0 = normal view, 1 = zoomed in/out)
   const sphereZoomProgress = useSharedValue(0);
@@ -15980,7 +15931,6 @@ export default function HomeScreen() {
                 startTransitionLoader();
                 requestAnimationFrame(() => {
                   setTimeout(() => {
-                    skipNextViewModePersistRef.current = true;
                     cameFromFocusedSferaForEntityRef.current = true;
                     setFocusedMemory(null);
                     setSelectedSphere(sphere);
@@ -15990,30 +15940,37 @@ export default function HomeScreen() {
                     setFocusedFriendId(sphere === "friends" ? entityId : null);
                     setFocusedHobbyId(sphere === "hobbies" ? entityId : null);
                     setAnimationsComplete(false);
-                    setHomeViewMode("classic");
+                    setHomeViewMode("focused");
                   }, 80);
                 });
               }}
               onSwitchToClassic={() => {
-                markViewTogglePressed();
-                // Start loader, switch to classic view, clear focus, auto-open wheel of life
+                // Sunny Life avatar tap - switch to Classic view (wheel of life)
                 startTransitionLoader();
-                requestAnimationFrame(() => {
-                  setTimeout(() => {
-                    setFocusedMemory(null);
-                    setFocusedProfileId(null);
-                    setFocusedJobId(null);
-                    setFocusedFamilyMemberId(null);
-                    setFocusedFriendId(null);
-                    setFocusedHobbyId(null);
-                    setSelectedSphere(null);
-                    setAnimationsComplete(false);
-                    setShowMomentTypeSelector(true); // Auto-open wheel of life (moment type selector)
-                    setHomeViewMode("classic");
-                  }, 80);
+                // Defer heavy state update until after in-flight interactions complete.
+                // runAfterInteractions alone can fire very late when app is busy (e.g. after sphere
+                // navigations), so use a short timeout fallback so we never block for long.
+                let didRun = false;
+                const run = () => {
+                  if (didRun) return;
+                  didRun = true;
+                  setFocusedMemory(null);
+                  setFocusedProfileId(null);
+                  setFocusedJobId(null);
+                  setFocusedFamilyMemberId(null);
+                  setFocusedFriendId(null);
+                  setFocusedHobbyId(null);
+                  setSelectedSphere(null);
+                  setAnimationsComplete(false);
+                  setShowMomentTypeSelector(true);
+                  setHomeViewMode("classic");
+                };
+                const t = setTimeout(run, 120);
+                InteractionManager.runAfterInteractions(() => {
+                  run();
+                  clearTimeout(t);
                 });
               }}
-              shouldPulseViewToggle={!viewToggleEverPressed}
               colorScheme={colorScheme ?? "dark"}
               getSphereSunnyPercentage={getSphereSunnyPercentage}
               entityImageUrisBySphere={entityImageUrisBySphere}
@@ -16109,39 +16066,6 @@ export default function HomeScreen() {
             marginTop: -insets.top + 44,
           }}
         >
-          {/* Toggle: switch to FocusedSferas view (one sphere in focus, swipe to change). */}
-          <Animated.View
-            style={[
-              {
-                position: "absolute",
-                top: insets.top + 8,
-                left: 16,
-                width: 64,
-                height: 64,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: "rgba(0,0,0,0.4)",
-                borderRadius: 32,
-                zIndex: 200,
-              },
-              ...(!viewToggleEverPressed ? [togglePulseStyle] : []),
-            ]}
-          >
-            <Pressable
-              onPress={() => {
-                markViewTogglePressed();
-                startTransitionLoader();
-                requestAnimationFrame(() => {
-                  setShowMomentTypeSelector(false); // Ensure wheel of life is not active in focused view
-                  setHomeViewMode("focused");
-                });
-              }}
-              style={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}
-            >
-              <MaterialIcons name="view-carousel" size={34} color={colors.text} />
-            </Pressable>
-          </Animated.View>
-
           {/* Sparkled Dots - Always visible on all screens - full screen coverage */}
           <SparkledDots
             avatarSize={avatarSizeForDots}
@@ -16999,31 +16923,31 @@ export default function HomeScreen() {
                     height: avatarSize,
                     zIndex: 100,
                   },
-                  avatarPulseStyle,
+                  classicAvatarStyle,
                 ]}
               >
                 <Pressable
+                  onPressIn={() => {
+                    cancelAnimation(classicAvatarPressScale);
+                    classicAvatarPressScale.value = withSpring(0.9, {
+                      damping: 12,
+                      stiffness: 400,
+                    });
+                  }}
+                  onPressOut={() => {
+                    cancelAnimation(classicAvatarPressScale);
+                    classicAvatarPressScale.value = withSpring(1, {
+                      damping: 12,
+                      stiffness: 400,
+                    });
+                  }}
                   onPress={() => {
-                    // Trigger pulse animation when avatar is pressed
-                    // Cancel any ongoing animation and reset to 1 first
-                    cancelAnimation(avatarPulseScale);
-                    avatarPulseScale.value = 1;
-                    // Then start new pulse animation
-                    avatarPulseScale.value = withSequence(
-                      withSpring(1.15, {
-                        damping: 8,
-                        stiffness: 120,
-                      }),
-                      withSpring(1, {
-                        damping: 10,
-                        stiffness: 150,
-                      }),
-                    );
-
-                    // Toggle moment type selector when avatar is pressed
-                    if (!isWheelSpinning.value) {
-                      setShowMomentTypeSelector(!showMomentTypeSelector);
-                    }
+                    // Switch to FocusedSferas view after press feedback
+                    startTransitionLoader();
+                    requestAnimationFrame(() => {
+                      setShowMomentTypeSelector(false);
+                      setHomeViewMode("focused");
+                    });
                   }}
                   style={{
                     width: "100%",

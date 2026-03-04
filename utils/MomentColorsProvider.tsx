@@ -25,7 +25,7 @@ export interface MomentColors {
 export const DEFAULT_MOMENT_COLORS: MomentColors = {
   sunny: { background: "#FFD700", text: "#000000" },
   cloudy: { background: "#2C3E50", text: "#FFFFFFE6" },
-  lesson: { background: "#FFD700", text: "#1A1A1A" },
+  lesson: { background: "#FFD700", text: "#FFFFFF" },
 };
 
 interface MomentColorsContextValue {

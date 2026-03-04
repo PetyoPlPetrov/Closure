@@ -71,6 +71,8 @@ export default function CosmicAppLookScreen() {
           textAlign: "center",
         },
         content: {
+          flexGrow: 1,
+          justifyContent: "flex-end",
           padding: 16 * fontScale,
           paddingBottom: 32 * fontScale,
           gap: 24 * fontScale,
