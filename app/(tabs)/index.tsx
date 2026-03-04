@@ -16130,8 +16130,11 @@ export default function HomeScreen() {
             <Pressable
               onPress={() => {
                 markViewTogglePressed();
-                setShowMomentTypeSelector(false); // Ensure wheel of life is not active in focused view
-                setHomeViewMode("focused");
+                startTransitionLoader();
+                requestAnimationFrame(() => {
+                  setShowMomentTypeSelector(false); // Ensure wheel of life is not active in focused view
+                  setHomeViewMode("focused");
+                });
               }}
               style={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}
             >
