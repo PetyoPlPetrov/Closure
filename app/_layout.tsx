@@ -236,6 +236,7 @@ function AppContent() {
         />
         <Stack.Screen name="premium-info" options={{ headerShown: false }} />
         <Stack.Screen name="moment-colors" options={{ headerShown: false }} />
+        <Stack.Screen name="cosmic-app-look" options={{ headerShown: false }} />
         <Stack.Screen name="personalization" options={{ headerShown: false }} />
         <Stack.Screen name="backup" options={{ headerShown: false }} />
         <Stack.Screen name="backup/import" options={{ headerShown: false }} />

@@ -702,8 +702,10 @@ export interface Translations {
   "settings.personalization.rotationSpeed": string;
   "settings.personalization.constellationAmount": string;
   "settings.personalization.constellationOpacity": string;
+  "settings.personalization.cosmicAppLookTitle": string;
   "settings.personalization.cosmicBackgroundOpacity": string;
   "settings.personalization.cosmicBackgroundOff": string;
+  "personalization.homeSection": string;
   "personalization.visualSection": string;
 
   // Settings - Help Section
@@ -3518,7 +3520,7 @@ const translations: Record<Language, Translations> = {
     "settings.feedback.addFeedback": "Add feedback",
     "settings.notificationNudge.title": "Encouragement nudge on Home",
     "settings.notificationNudge.description":
-      "Show motivational messages on the Home tab. When on, the app may request AI-suggested messages for the day.",
+      "Show or hide the motivational message banner on the Home tab.",
     "settings.aiInsights.title": "AI Insights",
     "settings.aiInsights.enable": "Enable AI Insights",
     "settings.aiInsights.description":
@@ -4374,8 +4376,10 @@ const translations: Record<Language, Translations> = {
     "settings.personalization.rotationSpeed": "Rotation speed",
     "settings.personalization.constellationAmount": "Constellations",
     "settings.personalization.constellationOpacity": "Constellation visibility",
+    "settings.personalization.cosmicAppLookTitle": "Cosmic app look",
     "settings.personalization.cosmicBackgroundOpacity": "Cosmic background",
     "settings.personalization.cosmicBackgroundOff": "Off",
+    "personalization.homeSection": "Home",
     "personalization.visualSection": "Look",
 
     // Settings - Help Section
@@ -7836,7 +7840,7 @@ const translations: Record<Language, Translations> = {
     "settings.feedback.addFeedback": "Добави обратна връзка",
     "settings.notificationNudge.title": "Подсказка за насърчение на Начало",
     "settings.notificationNudge.description":
-      "Показване на мотивационни съобщения в раздела Начало. Когато е включено, приложението може да поиска AI-предложени съобщения за деня.",
+      "Показване или скриване на мотивационното съобщение в раздела Начало.",
     "settings.aiInsights.title": "AI Инсайти",
     "settings.aiInsights.enable": "Включи AI Инсайти",
     "settings.aiInsights.description":
@@ -8697,8 +8701,10 @@ const translations: Record<Language, Translations> = {
     "settings.personalization.rotationSpeed": "Скорост на въртене",
     "settings.personalization.constellationAmount": "Съзвездия",
     "settings.personalization.constellationOpacity": "Видимост на съзвездията",
+    "settings.personalization.cosmicAppLookTitle": "Космически вид на приложението",
     "settings.personalization.cosmicBackgroundOpacity": "Космически фон",
     "settings.personalization.cosmicBackgroundOff": "Изключено",
+    "personalization.homeSection": "Начало",
     "personalization.visualSection": "Външен вид",
 
     // Settings - Help Section

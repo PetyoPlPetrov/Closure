@@ -8,12 +8,12 @@ import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
 import { useNotificationNudgePreference } from "@/utils/NotificationNudgePreferenceProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import { router } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   Modal,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,119 +24,8 @@ import {
   type ViewStyle,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import {
-  MAX_CONSTELLATION_AMOUNT,
-  MAX_CONSTELLATION_OPACITY,
-  MAX_COSMIC_BACKGROUND_OPACITY,
-  MAX_ORBIT_DURATION_MS,
-  MIN_CONSTELLATION_AMOUNT,
-  MIN_CONSTELLATION_OPACITY,
-  MIN_COSMIC_BACKGROUND_OPACITY,
-  MIN_ORBIT_DURATION_MS,
-  useVisualSettings,
-} from "@/utils/VisualSettingsProvider";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-const SLIDER_TRACK_HEIGHT = 6;
-const SLIDER_THUMB_SIZE = 20;
-
-function SliderRow({
-  label,
-  value,
-  min,
-  max,
-  onValueChange,
-  valueLabel,
-  colorScheme,
-  colors,
-  fontScale,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  onValueChange: (v: number) => void;
-  valueLabel: string;
-  colorScheme: "light" | "dark";
-  colors: { text: string; primary: string };
-  fontScale: number;
-}) {
-  const trackRef = useRef<View>(null);
-  const fraction = (value - min) / (max - min) || 0;
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: (evt) => {
-          trackRef.current?.measureInWindow((x, _y, width) => {
-            const touchX = evt.nativeEvent.pageX - x;
-            const frac = Math.max(0, Math.min(1, touchX / width));
-            const v = min + frac * (max - min);
-            onValueChange(Math.round(v));
-          });
-        },
-        onPanResponderMove: (evt) => {
-          trackRef.current?.measureInWindow((x, _y, width) => {
-            const touchX = evt.nativeEvent.pageX - x;
-            const frac = Math.max(0, Math.min(1, touchX / width));
-            const v = min + frac * (max - min);
-            onValueChange(Math.round(v));
-          });
-        },
-      }),
-    [min, max, onValueChange],
-  );
-
-  return (
-    <View style={{ marginBottom: 16 * fontScale }}>
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 6,
-        }}
-      >
-        <ThemedText style={{ fontSize: 15 * fontScale, opacity: 0.9 }}>
-          {label}
-        </ThemedText>
-        <ThemedText style={{ fontSize: 14 * fontScale, opacity: 0.7 }}>
-          {valueLabel}
-        </ThemedText>
-      </View>
-      <View
-        ref={trackRef}
-        style={{ height: 32, justifyContent: "center" }}
-        {...panResponder.panHandlers}
-      >
-        <View
-          style={{
-            height: SLIDER_TRACK_HEIGHT,
-            borderRadius: SLIDER_TRACK_HEIGHT / 2,
-            backgroundColor:
-              colorScheme === "dark"
-                ? "rgba(255,255,255,0.2)"
-                : "rgba(0,0,0,0.15)",
-          }}
-        />
-        <View
-          style={{
-            position: "absolute",
-            left: `${fraction * 100}%`,
-            marginLeft: -SLIDER_THUMB_SIZE / 2,
-            width: SLIDER_THUMB_SIZE,
-            height: SLIDER_THUMB_SIZE,
-            borderRadius: SLIDER_THUMB_SIZE / 2,
-            backgroundColor: colors.primary,
-            top: (32 - SLIDER_THUMB_SIZE) / 2,
-          }}
-        />
-      </View>
-    </View>
-  );
-}
 
 export default function PersonalizationScreen() {
   const colorScheme = useColorScheme();
@@ -144,16 +33,7 @@ export default function PersonalizationScreen() {
   const fontScale = useFontScale();
   const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
-  const {
-    orbitDurationMs,
-    setOrbitDurationMs,
-    constellationAmount,
-    setConstellationAmount,
-    constellationOpacity,
-    setConstellationOpacity,
-    cosmicBackgroundOpacity,
-    setCosmicBackgroundOpacity,
-  } = useVisualSettings();
+  const { constellationAmount, constellationOpacity } = useVisualSettings();
   const aiConsent = useAIInsightsConsent();
   const notificationNudge = useNotificationNudgePreference();
   const [infoPopupKey, setInfoPopupKey] = useState<"aiInsights" | "notificationNudge" | null>(null);
@@ -311,89 +191,7 @@ export default function PersonalizationScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          {/* Look / Visual section: Moments Colors + sliders */}
-          <View style={styles.section}>
-            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-              {t("personalization.visualSection")}
-            </ThemedText>
-
-            <TouchableOpacity
-              style={styles.dropdown}
-              onPress={() => router.push("/moment-colors")}
-              activeOpacity={0.7}
-            >
-              <View style={styles.dropdownContent}>
-                <MaterialIcons
-                  name="palette"
-                  size={24 * fontScale}
-                  color={colors.primary}
-                />
-                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
-                  {t("settings.momentColors.title")}
-                </ThemedText>
-              </View>
-              <MaterialIcons
-                name="arrow-forward-ios"
-                size={20 * fontScale}
-                color={colors.text}
-              />
-            </TouchableOpacity>
-
-            <SliderRow
-              label={t("settings.personalization.rotationSpeed")}
-              value={orbitDurationMs}
-              min={MIN_ORBIT_DURATION_MS}
-              max={MAX_ORBIT_DURATION_MS}
-              onValueChange={setOrbitDurationMs}
-              valueLabel={`${Math.round(orbitDurationMs / 1000)}s`}
-              colorScheme={colorScheme ?? "dark"}
-              colors={colors}
-              fontScale={fontScale}
-            />
-            <SliderRow
-              label={t("settings.personalization.constellationAmount")}
-              value={constellationAmount}
-              min={MIN_CONSTELLATION_AMOUNT}
-              max={MAX_CONSTELLATION_AMOUNT}
-              onValueChange={setConstellationAmount}
-              valueLabel={String(constellationAmount)}
-              colorScheme={colorScheme ?? "dark"}
-              colors={colors}
-              fontScale={fontScale}
-            />
-            <SliderRow
-              label={t("settings.personalization.constellationOpacity")}
-              value={constellationOpacity}
-              min={MIN_CONSTELLATION_OPACITY}
-              max={MAX_CONSTELLATION_OPACITY}
-              onValueChange={setConstellationOpacity}
-              valueLabel={
-                constellationOpacity === 0
-                  ? t("settings.personalization.cosmicBackgroundOff")
-                  : String(constellationOpacity)
-              }
-              colorScheme={colorScheme ?? "dark"}
-              colors={colors}
-              fontScale={fontScale}
-            />
-            <SliderRow
-              label={t("settings.personalization.cosmicBackgroundOpacity")}
-              value={cosmicBackgroundOpacity}
-              min={MIN_COSMIC_BACKGROUND_OPACITY}
-              max={MAX_COSMIC_BACKGROUND_OPACITY}
-              onValueChange={setCosmicBackgroundOpacity}
-              valueLabel={
-                cosmicBackgroundOpacity === 0
-                  ? t("settings.personalization.cosmicBackgroundOff")
-                  : String(cosmicBackgroundOpacity)
-              }
-              colorScheme={colorScheme ?? "dark"}
-              colors={colors}
-              fontScale={fontScale}
-            />
-          </View>
-
-          {/* AI section */}
+          {/* AI section — at top */}
           <View style={styles.section}>
             <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
               {t("settings.aiInsights.title")}
@@ -429,6 +227,13 @@ export default function PersonalizationScreen() {
                 thumbColor="#FFFFFF"
               />
             </View>
+          </View>
+
+          {/* Home section: show/hide encouragement nudge (not AI participation) */}
+          <View style={styles.section}>
+            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+              {t("personalization.homeSection")}
+            </ThemedText>
 
             <View style={styles.aiToggleRow}>
               <View style={styles.aiToggleTextWrap}>
@@ -460,6 +265,57 @@ export default function PersonalizationScreen() {
                 thumbColor="#FFFFFF"
               />
             </View>
+          </View>
+
+          {/* Look / Visual section: Moment Colors + Cosmic app look */}
+          <View style={styles.section}>
+            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+              {t("personalization.visualSection")}
+            </ThemedText>
+
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => router.push("/moment-colors")}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dropdownContent}>
+                <MaterialIcons
+                  name="palette"
+                  size={24 * fontScale}
+                  color={colors.primary}
+                />
+                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                  {t("settings.momentColors.title")}
+                </ThemedText>
+              </View>
+              <MaterialIcons
+                name="arrow-forward-ios"
+                size={20 * fontScale}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => router.push("/cosmic-app-look")}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dropdownContent}>
+                <MaterialIcons
+                  name="auto-awesome"
+                  size={24 * fontScale}
+                  color={colors.primary}
+                />
+                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                  {t("settings.personalization.cosmicAppLookTitle")}
+                </ThemedText>
+              </View>
+              <MaterialIcons
+                name="arrow-forward-ios"
+                size={20 * fontScale}
+                color={colors.text}
+              />
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </View>
