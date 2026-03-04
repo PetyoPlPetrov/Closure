@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 const ORBIT_DURATION_KEY = "@sferas:orbit_duration_ms";
 const CONSTELLATION_AMOUNT_KEY = "@sferas:constellation_amount";
@@ -61,12 +61,15 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
     AsyncStorage.setItem(CONSTELLATION_AMOUNT_KEY, String(clamped));
   }, []);
 
-  const value: VisualSettingsContextValue = {
-    orbitDurationMs,
-    setOrbitDurationMs,
-    constellationAmount,
-    setConstellationAmount,
-  };
+  const value = useMemo<VisualSettingsContextValue>(
+    () => ({
+      orbitDurationMs,
+      setOrbitDurationMs,
+      constellationAmount,
+      setConstellationAmount,
+    }),
+    [orbitDurationMs, setOrbitDurationMs, constellationAmount, setConstellationAmount],
+  );
 
   return (
     <VisualSettingsContext.Provider value={value}>

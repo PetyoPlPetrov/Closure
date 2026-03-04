@@ -734,10 +734,14 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     const centerX = ORBIT_CX + ORBIT_R * Math.sin(rad);
     const centerY = ORBIT_CY + ORBIT_R * Math.cos(rad);
     // Depth: spheres behind (top) are smaller and shifted up for distance illusion
-    // cos(rad)=1 at bottom (front), -1 at top (back). (1+cos)/2 = 1→0.5→0
-    const depthScale = slot === 0 ? 1 : 0.52 + 0.48 * ((1 + Math.cos(rad)) / 2);
+    // cos(rad)=1 at bottom (front), -1 at top (back). sqrt curve: back smaller, front/sides bigger
+    const x = (1 + Math.cos(rad)) / 2;
+    const depthScale =
+      slot === 0 ? 1 : 0.38 + 0.62 * Math.sqrt(Math.max(0, x));
     // Shift back-half spheres up so they feel further away (behind circle avatar)
     const backOffsetY = slot === 0 ? 0 : Math.cos(rad) < 0 ? -48 : 0;
+    // Unfocused spheres: shift up; focused stays put
+    const unfocusedOffsetY = slot === 0 ? 0 : -28;
     return {
       position: "absolute",
       left: 0,
@@ -746,7 +750,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       height: SPHERE_CONTAINER_SIZE,
       transform: [
         { translateX: centerX - CONTAINER_HALF },
-        { translateY: centerY - CONTAINER_HALF + backOffsetY },
+        { translateY: centerY - CONTAINER_HALF + backOffsetY + unfocusedOffsetY },
         { scale: depthScale },
       ],
     };

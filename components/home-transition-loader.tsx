@@ -3,7 +3,7 @@
  * (e.g. entity select or back from entity wheel). Fills left-to-right over 1 second.
  */
 
-import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
+import { useHomeTransitionLoaderVisibility } from "@/utils/home-transition-loader-context";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import React, { useEffect } from "react";
 import { Platform, StyleSheet, View } from "react-native";
@@ -59,8 +59,8 @@ export function HomeTransitionLoader({
 
 /** Renders the loader above tab bar when visible. Use as sibling of main content for correct stacking. */
 export function HomeTransitionLoaderOverlay() {
-  const ctx = useHomeTransitionLoader();
-  const isVisible = ctx?.isVisible ?? false;
+  const visibility = useHomeTransitionLoaderVisibility();
+  const isVisible = visibility?.isVisible ?? false;
   if (!isVisible) return null;
   return (
     <View

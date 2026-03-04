@@ -1,11 +1,19 @@
 import React, { createContext, useCallback, useContext, useRef, useState } from "react";
 
-type HomeTransitionLoaderContextValue = {
-  isVisible: boolean;
+/** Stable API for triggering the loader. Consumers do NOT re-render when isVisible changes. */
+type HomeTransitionLoaderActions = {
   showLoader: () => void;
 };
 
-const HomeTransitionLoaderContext = createContext<HomeTransitionLoaderContextValue | null>(null);
+/** Visibility state. Only the overlay consumes this so it re-renders when visible. */
+type HomeTransitionLoaderVisibility = {
+  isVisible: boolean;
+};
+
+const HomeTransitionLoaderActionsContext =
+  createContext<HomeTransitionLoaderActions | null>(null);
+const HomeTransitionLoaderVisibilityContext =
+  createContext<HomeTransitionLoaderVisibility | null>(null);
 
 export function HomeTransitionLoaderProvider({ children }: { children: React.ReactNode }) {
   const [isVisible, setIsVisible] = useState(false);
@@ -26,19 +34,24 @@ export function HomeTransitionLoaderProvider({ children }: { children: React.Rea
     };
   }, []);
 
-  const value = React.useMemo(
-    () => ({ isVisible, showLoader }),
-    [isVisible, showLoader],
-  );
+  const actionsValue = React.useMemo(() => ({ showLoader }), [showLoader]);
+  const visibilityValue = React.useMemo(() => ({ isVisible }), [isVisible]);
 
   return (
-    <HomeTransitionLoaderContext.Provider value={value}>
-      {children}
-    </HomeTransitionLoaderContext.Provider>
+    <HomeTransitionLoaderActionsContext.Provider value={actionsValue}>
+      <HomeTransitionLoaderVisibilityContext.Provider value={visibilityValue}>
+        {children}
+      </HomeTransitionLoaderVisibilityContext.Provider>
+    </HomeTransitionLoaderActionsContext.Provider>
   );
 }
 
+/** Use for triggering the loader. Stable reference – does not cause re-renders when loader shows/hides. */
 export function useHomeTransitionLoader() {
-  const ctx = useContext(HomeTransitionLoaderContext);
-  return ctx;
+  return useContext(HomeTransitionLoaderActionsContext);
+}
+
+/** Use only in the overlay – subscribes to visibility and re-renders when it changes. */
+export function useHomeTransitionLoaderVisibility() {
+  return useContext(HomeTransitionLoaderVisibilityContext);
 }
