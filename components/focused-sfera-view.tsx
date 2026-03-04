@@ -79,8 +79,8 @@ const BG_SPHERE_SIZE_LEFT_BELOW = 76;
 const BG_SPHERE_SIZE_RIGHT_BELOW = 82;
 /** Sfera above the Sunny Life circle on the right (slot 2) — slightly smaller */
 const BG_SPHERE_SIZE_TOP_RIGHT = 46;
-/** Sfera above the Sunny Life circle on the left (slot 3) — slightly bigger */
-const BG_SPHERE_SIZE_TOP_LEFT = 62;
+/** Sfera above the Sunny Life circle on the left (slot 3) — a bit bigger */
+const BG_SPHERE_SIZE_TOP_LEFT = 82;
 const SLOT_ANGLE = 72; // 360 / 5
 
 /** Slot 0 = focus (bottom), slots 1-4 go clockwise. Returns angle in degrees (0 = bottom). */
@@ -764,6 +764,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     const rightBelowExtraOffsetY = slot === 1 ? -8 : 0;
     // Top pair above the Sunny Life circle (slots 2 & 3) sit a bit lower so they are closer to the avatar
     const topPairOffsetY = slot === 2 || slot === 3 ? 10 : 0;
+    // Top-left (slot 3) sfera specifically — lower so it sits better above the circle avatar
+    const topLeftExtraOffsetY = slot === 3 ? 18 : 0;
     return {
       position: "absolute",
       left: 0,
@@ -780,7 +782,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             unfocusedOffsetY +
             rightSideOffsetY +
             rightBelowExtraOffsetY +
-            topPairOffsetY,
+            topPairOffsetY +
+            topLeftExtraOffsetY,
         },
         { scale: depthScale },
       ],

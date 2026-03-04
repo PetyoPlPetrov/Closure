@@ -65,7 +65,6 @@ import {
   AppState,
   BackHandler,
   Dimensions,
-  InteractionManager,
   Modal,
   PanResponder,
   Pressable,
@@ -11661,6 +11660,12 @@ export default function HomeScreen() {
       setAiEncouragementError(false);
       setAiEncouragementLoading(true);
 
+      // Yield to main thread so view transitions (e.g. switching to Classic) are not blocked.
+      // Heavy flatMap runs after yield; run() always starts so we never lose the nudge to a cancelled timeout.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      if (cancelled) return;
+
       // Derive signal for prompt
       const sunnyMoments = (idealizedMemories || []).flatMap((m: any) =>
         (m.goodFacts || []).map((x: any) => x.text).filter(Boolean),
@@ -15968,13 +15973,18 @@ export default function HomeScreen() {
               onSwitchToClassic={() => {
                 // Sunny Life avatar tap - switch to Classic view (wheel of life)
                 startTransitionLoader();
-                // Defer heavy state update until after in-flight interactions complete.
-                // runAfterInteractions alone can fire very late when app is busy (e.g. after sphere
-                // navigations), so use a short timeout fallback so we never block for long.
-                let didRun = false;
-                const run = () => {
-                  if (didRun) return;
-                  didRun = true;
+                // useFocusEffect only runs on tab focus, not when switching view modes. After dismiss,
+                // isEncouragementVisible stays false. Re-enable nudge when opening Classic so it can show again.
+                setTimeout(
+                  () => setIsEncouragementVisible(true),
+                  ENCOURAGEMENT_DELAY_MS,
+                );
+                // Run immediately on next tick. Previously used InteractionManager.runAfterInteractions
+                // which could block for several seconds when the focused view has many Reanimated
+                // animations (orbiting spheres, floating moments, pulse). With notification nudge
+                // enabled, the parent has more state/effects and runAfterInteractions would fire
+                // very late or the main thread stayed busy. setTimeout(0) ensures we switch promptly.
+                requestAnimationFrame(() => {
                   setFocusedMemory(null);
                   setFocusedProfileId(null);
                   setFocusedJobId(null);
@@ -15986,11 +15996,6 @@ export default function HomeScreen() {
                   setShowMomentTypeSelector(true);
                   setHomeViewMode("classic");
                   hideLoader();
-                };
-                const t = setTimeout(run, 120);
-                InteractionManager.runAfterInteractions(() => {
-                  run();
-                  clearTimeout(t);
                 });
               }}
               colorScheme={colorScheme ?? "dark"}
