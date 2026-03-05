@@ -2,10 +2,10 @@
  * Thin progress line shown above the tab bar when home view is transitioning
  * (e.g. entity select or back from entity wheel). First second fills to 80%;
  * if redirect hasn't happened, second second fills remainder to 95%. Hides when view changes.
+ * Always renders as a green progress line.
  */
 
 import { useHomeTransitionLoaderVisibility } from "@/utils/home-transition-loader-context";
-import { useMomentColors } from "@/utils/MomentColorsProvider";
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, {
@@ -21,10 +21,11 @@ const PHASE1_TARGET = 0.8;
 const PHASE2_TARGET = 0.95;
 const PHASE_DURATION_MS = 1000;
 
+const LOADER_GREEN = "#22C55E"; // Always green progress line
+
 export function HomeTransitionLoader({
   anchor = "bottom",
 }: { anchor?: "top" | "bottom" } = {}) {
-  const { momentColors } = useMomentColors();
   const progress = useSharedValue(0);
 
   useEffect(() => {
@@ -60,7 +61,7 @@ export function HomeTransitionLoader({
         style={[
           styles.fill,
           fillStyle,
-          { backgroundColor: momentColors.sunny.background },
+          { backgroundColor: LOADER_GREEN },
         ]}
       />
     </View>

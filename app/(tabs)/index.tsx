@@ -494,6 +494,8 @@ const FloatingAvatar = React.memo(
   }) {
     const { momentColors } = useMomentColors();
     const aiConsent = useAIInsightsConsent();
+    const { showLoader: startTransitionLoader, hideLoader } =
+      useHomeTransitionLoader() ?? { showLoader: () => {}, hideLoader: () => {} };
     const { hasAIEntitlement } = useSubscription();
     const { appUsabilityHints } = useVisualSettings();
     const t = useTranslate();
@@ -568,8 +570,17 @@ const FloatingAvatar = React.memo(
         batchSize: number;
         cycleId: number; // Rotate positions each restart so they're not always the same
         angleJitter: number; // Random offset within slot arc for non-overlapping random positions
+        spawnTime: number; // When moment spawned - for resume timing when collapsed
+        entityId: string;
+        sphere: LifeSphere;
       }[]
     >([]);
+    const [expandedMomentId, setExpandedMomentId] = React.useState<
+      number | null
+    >(null);
+    const expandedMomentIdRef = useRef<number | null>(null);
+    expandedMomentIdRef.current = expandedMomentId;
+    const expandedAtTimestampRef = useRef<number | null>(null);
     const momentIdCounter = useRef(0);
     const floatingMomentsTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>(
       [],
@@ -1573,6 +1584,7 @@ const FloatingAvatar = React.memo(
       // Only spawn when entity wheel is active and not spinning
       // Also don't spawn if selectedWheelMoment popup is displayed
       // When hints enabled, wait until spin hint (finger) is dismissed
+      // Don't spawn new moments when one is expanded (pause) - keep existing moments visible
       if (
         !showEntityWheel ||
         !isFocused ||
@@ -1580,7 +1592,11 @@ const FloatingAvatar = React.memo(
         selectedWheelMoment ||
         (appUsabilityHints && !entityWheelSpinLabelDismissed)
       ) {
-        setFloatingMoments([]);
+        if (!showEntityWheel || !isFocused) {
+          setFloatingMoments([]);
+          setExpandedMomentId(null);
+          expandedAtTimestampRef.current = null;
+        }
         return;
       }
 
@@ -1723,6 +1739,9 @@ const FloatingAvatar = React.memo(
             batchSize,
             cycleId: currentCycleId,
             angleJitter,
+            spawnTime: Date.now(),
+            entityId: profile.id,
+            sphere: profile.sphere,
           };
 
           setFloatingMoments((prev) => {
@@ -1743,6 +1762,8 @@ const FloatingAvatar = React.memo(
               );
               return;
             }
+            // Skip removal when a moment is expanded - keep all visible until collapse
+            if (expandedMomentIdRef.current !== null) return;
             momentAnimationStateMap.delete(momentIdentity);
 
             setFloatingMoments((prev) =>
@@ -1786,6 +1807,8 @@ const FloatingAvatar = React.memo(
                   return;
                 }
                 isSpawningNextRef.current = false;
+                // Don't spawn next when a moment is expanded
+                if (expandedMomentIdRef.current !== null) return;
                 if (!selectedWheelMoment) spawnSingleMoment(nextIndex, 0);
               }, delayAfterShrink);
               floatingMomentsTimeoutsRef.current.push(nextSpawnTimeout);
@@ -3967,7 +3990,8 @@ const FloatingAvatar = React.memo(
                   icons.map((item, index) => {
                     const x = SCREEN_WIDTH / 2 - spacing + index * spacing;
                     const y = iconY;
-                const isDisabled = item.count === 0;
+                const isDisabled =
+                  item.count === 0 || expandedMomentId !== null;
 
                 return (
                   <Animated.View
@@ -4121,6 +4145,48 @@ const FloatingAvatar = React.memo(
                   Math.round(78 * fontScale) +
                   Math.max(12, insets.bottom + 12 - 20 * fontScale)
                 }
+                momentId={moment.id}
+                isExpanded={expandedMomentId === moment.id}
+                momentsFrozen={expandedMomentId !== null}
+                spawnTime={moment.spawnTime}
+                expandedAtTimestamp={expandedAtTimestampRef.current}
+                onExpand={(id) => {
+                  expandedAtTimestampRef.current = Date.now();
+                  setExpandedMomentId(id);
+                }}
+                onCollapse={() => setExpandedMomentId(null)}
+                onMemoryImagePress={
+                  onMemoryFocus && moment.entityId && moment.memoryId && moment.sphere
+                    ? () => {
+                        startTransitionLoader();
+                        requestAnimationFrame(() => {
+                          setTimeout(() => {
+                            setExpandedMomentId(null);
+                            onMemoryFocus(
+                              moment.entityId!,
+                              moment.memoryId,
+                              moment.sphere,
+                              undefined,
+                            );
+                            setShowEntityWheel(false);
+                            if (onEntityWheelChange) {
+                              onEntityWheelChange(false);
+                            }
+                            hideLoader();
+                          }, 120);
+                        });
+                      }
+                    : undefined
+                }
+                entityId={moment.entityId}
+                memoryId={moment.memoryId}
+                sphere={moment.sphere}
+                memoryImageUri={moment.memoryImageUri}
+                onComplete={() => {
+                  setFloatingMoments((prev) =>
+                    prev.filter((m) => m.id !== moment.id),
+                  );
+                }}
               />
             ))}
 
@@ -9787,6 +9853,19 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   cycleId = 0,
   angleJitter = 0,
   bottomInset = 0,
+  momentId,
+  isExpanded = false,
+  momentsFrozen = false,
+  spawnTime,
+  expandedAtTimestamp,
+  onExpand,
+  onCollapse,
+  onMemoryImagePress,
+  onComplete,
+  entityId,
+  memoryId,
+  sphere,
+  memoryImageUri,
 }: {
   memoryIndex: number;
   momentIndex: number;
@@ -9795,7 +9874,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   colorScheme: "light" | "dark";
   text?: string;
   isTablet: boolean;
-  isLargeDevice: boolean;
+  isLargeDevice?: boolean;
   orbitAngle: Animated.SharedValue<number>;
   starCenterX: Animated.SharedValue<number>;
   starCenterY: Animated.SharedValue<number>;
@@ -9813,12 +9892,34 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   cycleId?: number;
   angleJitter?: number;
   bottomInset?: number;
+  momentId?: number;
+  isExpanded?: boolean;
+  momentsFrozen?: boolean;
+  spawnTime?: number;
+  expandedAtTimestamp?: number | null;
+  onExpand?: (id: number) => void;
+  onCollapse?: () => void;
+  onMemoryImagePress?: () => void;
+  onComplete?: () => void;
+  entityId?: string;
+  memoryId?: string;
+  sphere?: LifeSphere;
+  memoryImageUri?: string;
 }) {
   const positionIndex = batchSize > 0 ? spawnSlot % batchSize : 0;
   const totalConcurrent = Math.max(1, batchSize);
   const angleOffset = (cycleId * 0.618) % (2 * Math.PI);
   const fontScale = useFontScale();
   const { momentColors } = useMomentColors();
+
+  // Expand/collapse on tap (matches main wheel PulsingFloatingMomentIcon)
+  const expandProgress = useSharedValue(0);
+  const hasExpandHandlers = useSharedValue(!!(onExpand || onCollapse));
+  const prevMomentsFrozenRef = React.useRef(false);
+  const onCompleteRef = React.useRef(onComplete);
+  const momentsFrozenRef = React.useRef(false);
+  onCompleteRef.current = onComplete;
+  momentsFrozenRef.current = momentsFrozen;
 
   // Track the initial scale value to ensure we can always reset correctly
   const initialScaleRef = React.useRef<number | null>(null);
@@ -9834,15 +9935,15 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   const textLength = text?.length || 0;
 
   // Base sizes for floating moments - scaled so "bigger amount of letters = bigger element"
-  const baseSunSize = isTablet ? 180 : isLargeDevice ? 160 : 130;
+  const baseSunSize = isTablet ? 180 : (isLargeDevice ?? false) ? 160 : 130;
   const baseCloudWidth = isTablet ? 220 : 180;
   const baseCloudHeight = isTablet ? 135 : 110;
   const baseLessonSize = isTablet ? 180 : 140;
 
-  // Scale aggressively with text length so long text never overflows
+  // Sunny moments only: scale with text length to fit full text
   const dynamicSunSize = Math.min(
-    isTablet ? 440 : 400,
-    Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 2.5)),
+    isTablet ? 300 : 280,
+    Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 2.8)),
   );
 
   const cloudWidthMultiplier = Math.min(
@@ -10022,7 +10123,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
       () => {
         if (
           animationInitializedRef.current &&
-          momentIdentityRef.current === effectMomentIdentity
+          momentIdentityRef.current === effectMomentIdentity &&
+          !momentsFrozenRef.current
         ) {
           scale.value = withTiming(initialScale, {
             duration: SHRINK_DURATION,
@@ -10045,6 +10147,87 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
       }
     };
   }, [initialScale, finalScale, scale, growPulseScale, currentMomentIdentity]);
+
+  const HOLD_END_MS = 400 + 1400 + 3200; // GROW_DELAY + GROW_DURATION + HOLD_DURATION
+
+  // When momentsFrozen (another moment expanded): hold at full size, cancel shrink
+  // When collapsing: resume with remaining hold time, then shrink and call onComplete
+  React.useEffect(() => {
+    if (momentsFrozen && !isExpanded) {
+      cancelAnimation(scale);
+      cancelAnimation(growPulseScale);
+      scale.value = finalScale;
+      growPulseScale.value = 1;
+    }
+
+    let resumeTimeout: ReturnType<typeof setTimeout> | null = null;
+    if (
+      prevMomentsFrozenRef.current &&
+      !momentsFrozen &&
+      !isExpanded &&
+      onCompleteRef.current &&
+      spawnTime != null &&
+      expandedAtTimestamp != null
+    ) {
+      const remainingBeforeShrink = Math.max(
+        0,
+        HOLD_END_MS - (expandedAtTimestamp - spawnTime),
+      );
+      resumeTimeout = setTimeout(() => {
+        scale.value = withTiming(initialScale, {
+          duration: 1200,
+          easing: Easing.in(Easing.ease),
+        });
+        const cb = onCompleteRef.current;
+        setTimeout(() => {
+          cb?.();
+        }, 1200);
+      }, remainingBeforeShrink);
+    }
+    prevMomentsFrozenRef.current = momentsFrozen;
+
+    return () => {
+      if (resumeTimeout != null) clearTimeout(resumeTimeout);
+    };
+  }, [
+    momentsFrozen,
+    isExpanded,
+    scale,
+    growPulseScale,
+    finalScale,
+    initialScale,
+    spawnTime,
+    expandedAtTimestamp,
+  ]);
+
+  // Smooth expand animation when user taps
+  React.useEffect(() => {
+    if (onExpand || onCollapse) {
+      expandProgress.value = withSpring(isExpanded ? 1 : 0, {
+        damping: 18,
+        stiffness: 140,
+      });
+    }
+  }, [isExpanded, expandProgress, onExpand, onCollapse]);
+
+  React.useEffect(() => {
+    hasExpandHandlers.value = !!(onExpand || onCollapse);
+  }, [onExpand, onCollapse, hasExpandHandlers]);
+
+  // Text scales ~20% when expanded (vs container 50%) - matches main wheel
+  const textScaleStyle = useAnimatedStyle(() => {
+    const expandScale = hasExpandHandlers.value
+      ? 1 + 0.5 * expandProgress.value
+      : 1;
+    const textScale = 1 + 0.2 * (hasExpandHandlers.value ? expandProgress.value : 0);
+    return { transform: [{ scale: textScale / expandScale }] };
+  });
+
+  // Lesson bulb gets ~3x bigger when expanded - matches main wheel
+  const lessonBulbScaleStyle = useAnimatedStyle(() => {
+    const s = hasExpandHandlers.value ? 1 + 2 * expandProgress.value : 1;
+    return { transform: [{ scale: s }] };
+  });
 
   // Calculate position dynamically based on current orbit angle
   // This MUST be reactive to all changes: focusedX, focusedY, orbitAngle, showEntityWheelShared
@@ -10077,7 +10260,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     const viewportPadding = isTablet ? 24 : 20;
 
     // Use conservative max size so fully grown clouds (widest) never overlap
-    const layoutMomentSize = isTablet ? 620 : 530;
+    const layoutMomentSize = isTablet ? 340 : 320;
     const minCenterToCenter = layoutMomentSize + (isTablet ? 60 : 50);
     const minRadius =
       avatarSize / 2 + layoutMomentSize / 2 + (isTablet ? 35 : 28);
@@ -10156,17 +10339,26 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
       momentY = avatarY - R;
     }
 
+    // Expand-on-tap scale: 1 -> 1.5 when user taps (matches main wheel)
+    const expandScale = hasExpandHandlers.value
+      ? 1 + 0.5 * expandProgress.value
+      : 1;
+
     return {
       position: "absolute",
       left: momentX - halfW,
       top: momentY - halfH,
-      transform: [{ scale: scale.value * growPulseScale.value }],
-      zIndex: 1005,
+      transform: [
+        { scale: scale.value * growPulseScale.value * expandScale },
+      ],
+      zIndex: expandProgress.value > 0.5 ? 1060 : 1005,
     };
   }, [
     focusedX,
     focusedY,
     showEntityWheelShared,
+    expandProgress,
+    hasExpandHandlers,
     memoryIndex,
     momentIndex,
     momentType,
@@ -10182,13 +10374,26 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     bottomInset,
   ]);
 
+  const canInteract = !!(onExpand || onCollapse);
+
   // Render using the EXACT same visualization as selectedWheelMoment (post-spin moments)
   // This matches the wheel of life moment display exactly
   if (momentType === "sunny") {
     const sunnyBg = momentColors.sunny.background;
     const sunnyText = momentColors.sunny.text;
     return (
-      <Animated.View style={animatedStyle}>
+      <Animated.View style={animatedStyle} pointerEvents={canInteract ? "auto" : "none"}>
+        <Pressable
+          onPress={() => {
+            if (!canInteract) return;
+            if (isExpanded && momentId != null) {
+              onCollapse?.();
+            } else if (momentId != null) {
+              onExpand?.(momentId);
+            }
+          }}
+          style={{ width: finalWidth, height: finalHeight }}
+        >
         <View
           style={{
             width: finalWidth,
@@ -10261,30 +10466,32 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
               fill={`url(#floatingSunGradient-${memoryIndex}-${momentIndex})`}
             />
           </Svg>
-          <View
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: finalWidth,
-              height: finalHeight,
-              justifyContent: "center",
-              alignItems: "center",
-              paddingHorizontal: (finalWidth / 160) * 48 * 0.85,
-              paddingVertical: (finalWidth / 160) * 48 * 0.55,
-            }}
+          <Animated.View
+            style={[
+              {
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: finalWidth,
+                height: finalHeight,
+                justifyContent: "center",
+                alignItems: "center",
+                paddingHorizontal: (finalWidth / 160) * 40,
+                paddingVertical: (finalWidth / 160) * 40,
+              },
+              textScaleStyle,
+            ]}
           >
             <ThemedText
               style={{
                 color: sunnyText,
                 fontSize:
-                  Math.max(10, Math.min(14, 13 - textLength / 50)) * fontScale,
+                  Math.max(12, Math.min(15, 14 - textLength / 100)) * fontScale,
                 textAlign: "center",
                 fontWeight: "700",
-                lineHeight: Math.max(12, Math.min(16, 14 - textLength / 50)) * fontScale,
-                maxWidth: (finalWidth / 160) * 90,
+                lineHeight: Math.max(16, Math.min(20, 18 - textLength / 100)) * fontScale,
+                maxWidth: (finalWidth / 160) * 110,
               }}
-              numberOfLines={textLength > 50 ? 3 : 2}
             >
               {text?.split("\n")[0] || text}
             </ThemedText>
@@ -10293,18 +10500,39 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
                 style={{
                   color: sunnyText,
                   fontSize:
-                    Math.max(8, Math.min(11, 9 - textLength / 80)) * fontScale,
+                    Math.max(11, Math.min(13, 12 - textLength / 120)) * fontScale,
                   textAlign: "center",
                   fontWeight: "600",
-                  maxWidth: (finalWidth / 160) * 90,
+                  lineHeight: Math.max(14, Math.min(16, 15 - textLength / 120)) * fontScale,
+                  maxWidth: (finalWidth / 160) * 110,
                 }}
-                numberOfLines={2}
               >
                 {text.split("\n")[1]}
               </ThemedText>
             )}
-          </View>
+            {isExpanded && memoryImageUri && onMemoryImagePress && (
+              <Pressable
+                onPress={onMemoryImagePress}
+                style={{
+                  marginTop: 12,
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  overflow: "hidden",
+                  borderWidth: 2,
+                  borderColor: sunnyBg,
+                }}
+              >
+                <Image
+                  source={{ uri: memoryImageUri }}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit="cover"
+                />
+              </Pressable>
+            )}
+          </Animated.View>
         </View>
+        </Pressable>
       </Animated.View>
     );
   }
@@ -10313,7 +10541,18 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     const cloudyBg = momentColors.cloudy.background;
     const cloudyText = momentColors.cloudy.text;
     return (
-      <Animated.View style={animatedStyle}>
+      <Animated.View style={animatedStyle} pointerEvents={canInteract ? "auto" : "none"}>
+        <Pressable
+          onPress={() => {
+            if (!canInteract) return;
+            if (isExpanded && momentId != null) {
+              onCollapse?.();
+            } else if (momentId != null) {
+              onExpand?.(momentId);
+            }
+          }}
+          style={{ width: finalWidth, height: finalHeight }}
+        >
         <View
           style={{
             width: finalWidth,
@@ -10372,18 +10611,21 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
               strokeWidth={1.5}
             />
           </Svg>
-          <View
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: finalWidth,
-              height: finalHeight,
-              justifyContent: "center",
-              alignItems: "center",
-              paddingHorizontal: Math.max(28, finalWidth * 0.18),
-              paddingVertical: Math.max(16, finalHeight * 0.16),
-            }}
+          <Animated.View
+            style={[
+              {
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: finalWidth,
+                height: finalHeight,
+                justifyContent: "center",
+                alignItems: "center",
+                paddingHorizontal: Math.max(28, finalWidth * 0.18),
+                paddingVertical: Math.max(16, finalHeight * 0.16),
+              },
+              textScaleStyle,
+            ]}
           >
             <ThemedText
               style={{
@@ -10400,64 +10642,131 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
             >
               {text}
             </ThemedText>
-          </View>
+            {isExpanded && memoryImageUri && onMemoryImagePress && (
+              <Pressable
+                onPress={onMemoryImagePress}
+                style={{
+                  marginTop: 12,
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  overflow: "hidden",
+                  borderWidth: 2,
+                  borderColor: cloudyBg,
+                }}
+              >
+                <Image
+                  source={{ uri: memoryImageUri }}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit="cover"
+                />
+              </Pressable>
+            )}
+          </Animated.View>
         </View>
+        </Pressable>
       </Animated.View>
     );
   }
 
-  // Lesson - lightbulb with text below it (no circle background)
+  // Lesson - lightbulb with text below it, memory image at bottom when expanded
   const lessonBg = momentColors.lesson.background;
   const lessonText = momentColors.lesson.text;
   return (
-    <Animated.View style={animatedStyle}>
-      <View
+    <Animated.View style={animatedStyle} pointerEvents={canInteract ? "auto" : "none"}>
+      <Pressable
+        onPress={() => {
+          if (!canInteract) return;
+          if (isExpanded && momentId != null) {
+            onCollapse?.();
+          } else if (momentId != null) {
+            onExpand?.(momentId);
+          }
+        }}
         style={{
           width: finalWidth,
           height: finalHeight,
-          shadowColor: lessonBg,
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.7,
-          shadowRadius: isTablet ? 12 : 9,
-          elevation: 10,
           justifyContent: "center",
           alignItems: "center",
         }}
       >
-        <MaterialIcons
-          name="lightbulb"
-          size={finalWidth * 0.4}
-          color={lessonBg}
-        />
-        {/* Text below lightbulb */}
-        {text && (
-          <View
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              paddingHorizontal: 15,
-              paddingBottom: 10,
-            }}
+        <View
+          style={{
+            width: finalWidth,
+            height: finalHeight,
+            shadowColor: lessonBg,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.7,
+            shadowRadius: isTablet ? 12 : 9,
+            elevation: 10,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Animated.View style={[{ justifyContent: "center", alignItems: "center" }, lessonBulbScaleStyle]}>
+            <MaterialIcons
+              name="lightbulb"
+              size={finalWidth * 0.4}
+              color={lessonBg}
+            />
+          </Animated.View>
+          <Animated.View
+            style={[
+              {
+                position: "absolute",
+                bottom: isExpanded && memoryImageUri ? 100 : 0,
+                left: 0,
+                right: 0,
+                paddingHorizontal: 15,
+                paddingBottom: 10,
+                justifyContent: "center",
+                alignItems: "center",
+              },
+              textScaleStyle,
+            ]}
           >
-            <ThemedText
+            {text && (
+              <ThemedText
+                style={{
+                  color: lessonText,
+                  fontSize:
+                    Math.max(10, Math.min(14, 12 - textLength / 80)) * fontScale,
+                  textAlign: "center",
+                  fontWeight: "600",
+                  lineHeight:
+                    Math.max(12, Math.min(16, 14 - textLength / 80)) * fontScale,
+                }}
+                numberOfLines={textLength > 60 ? 4 : 3}
+              >
+                {text}
+              </ThemedText>
+            )}
+          </Animated.View>
+          {isExpanded && memoryImageUri && onMemoryImagePress && (
+            <Pressable
+              onPress={onMemoryImagePress}
               style={{
-                color: lessonText,
-                fontSize:
-                  Math.max(10, Math.min(14, 12 - textLength / 80)) * fontScale,
-                textAlign: "center",
-                fontWeight: "600",
-                lineHeight:
-                  Math.max(12, Math.min(16, 14 - textLength / 80)) * fontScale,
+                position: "absolute",
+                bottom: 0,
+                left: "50%",
+                marginLeft: -32,
+                width: 64,
+                height: 64,
+                borderRadius: 32,
+                overflow: "hidden",
+                borderWidth: 2,
+                borderColor: lessonBg,
               }}
-              numberOfLines={textLength > 60 ? 4 : 3}
             >
-              {text}
-            </ThemedText>
-          </View>
-        )}
-      </View>
+              <Image
+                source={{ uri: memoryImageUri }}
+                style={{ width: "100%", height: "100%" }}
+                contentFit="cover"
+              />
+            </Pressable>
+          )}
+        </View>
+      </Pressable>
     </Animated.View>
   );
 };
@@ -10475,18 +10784,42 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
   selectedMomentType,
   shouldGrowToFull = false,
   text = "",
+  momentId,
+  isExpanded = false,
+  onExpand,
+  onCollapse,
+  onMemoryImagePress,
+  entityId,
+  memoryId,
+  sphere,
+  memoryImageUri,
+  momentsFrozen = false,
+  spawnTime,
+  expandedAtTimestamp,
 }: {
   centerX: number;
   centerY: number;
-  angle: number; // Angle around the center avatar (0 to 2π)
-  radius: number; // Distance from center avatar
+  angle: number;
+  radius: number;
   momentType: "lessons" | "hardTruths" | "sunnyMoments";
   colorScheme: "light" | "dark";
   delay?: number;
   onComplete?: () => void;
   selectedMomentType?: "lessons" | "hardTruths" | "sunnyMoments";
-  shouldGrowToFull?: boolean; // Whether to grow to full popup size instead of just pulsing
-  text?: string; // The moment text to display inside the element
+  shouldGrowToFull?: boolean;
+  text?: string;
+  momentId?: number;
+  isExpanded?: boolean;
+  onExpand?: (id: number) => void;
+  onCollapse?: (momentIdToRemove: number) => void;
+  onMemoryImagePress?: () => void;
+  entityId?: string;
+  memoryId?: string;
+  sphere?: LifeSphere;
+  memoryImageUri?: string;
+  momentsFrozen?: boolean;
+  spawnTime?: number;
+  expandedAtTimestamp?: number | null;
 }) {
   // Initialize shared values - these will be fresh for each component instance
   const opacity = useSharedValue(0);
@@ -10494,6 +10827,8 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
   const pulseScale = useSharedValue(1);
   const growPulseScale = useSharedValue(1); // Pulse animation when fully grown
   const floatOffset = useSharedValue(0);
+  const expandProgress = useSharedValue(0); // 0 = collapsed, 1 = expanded (smooth tap-to-grow)
+  const hasExpandHandlers = useSharedValue(!!(onExpand || onCollapse));
   const fadeOutTimerRef = useRef<NodeJS.Timeout | null>(null);
   const textRef = useRef(text); // Store text in ref to avoid re-renders
   const hasStartedGrowAnimation = useRef(false); // Track if grow animation has started
@@ -10509,19 +10844,84 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
   const x = centerX + radius * Math.cos(angle);
   const y = centerY + radius * Math.sin(angle);
 
-  // Animation effect for shouldGrowToFull moments - runs once on mount
+  // When expanded, keep at full size and cancel shrink
   React.useEffect(() => {
-    if (!shouldGrowToFull) return;
+    if (isExpanded && shouldGrowToFull) {
+      cancelAnimation(scale);
+      cancelAnimation(opacity);
+      scale.value = 1;
+      opacity.value = 1;
+      growPulseScale.value = 1;
+    }
+  }, [isExpanded, shouldGrowToFull, scale, opacity, growPulseScale]);
 
-    // For grow-to-full moments: always start animation on mount
-    // Explicitly set starting values
+  const prevMomentsFrozenRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const remainingAtPauseRef = useRef<number>(0);
+
+  // When another moment is expanded (momentsFrozen), hold all at full size - prevent shrink/disappear
+  React.useEffect(() => {
+    if (momentsFrozen && shouldGrowToFull && !isExpanded) {
+      cancelAnimation(scale);
+      cancelAnimation(opacity);
+      scale.value = 1;
+      opacity.value = 1;
+      growPulseScale.value = 1;
+    }
+
+    // When user collapses (momentsFrozen: true -> false), resume - use expandedAtTimestamp so time while expanded doesn't count
+    let resumeTimeout: ReturnType<typeof setTimeout> | null = null;
+    if (prevMomentsFrozenRef.current && !momentsFrozen && shouldGrowToFull && !isExpanded && onCompleteRef.current) {
+      const HOLD_END_MS = 4800;
+      const remainingBeforeShrink =
+        expandedAtTimestamp != null && spawnTime != null
+          ? Math.max(0, HOLD_END_MS - (expandedAtTimestamp - spawnTime))
+          : remainingAtPauseRef.current;
+
+      resumeTimeout = setTimeout(() => {
+        const cb = onCompleteRef.current;
+        scale.value = withTiming(0, { duration: 800, easing: Easing.in(Easing.ease) });
+        opacity.value = withTiming(
+          0,
+          { duration: 800 },
+          (finished) => {
+            if (finished && cb) runOnJS(cb)();
+          },
+        );
+      }, remainingBeforeShrink);
+    }
+    prevMomentsFrozenRef.current = momentsFrozen;
+
+    return () => {
+      if (resumeTimeout != null) clearTimeout(resumeTimeout);
+    };
+  }, [momentsFrozen, shouldGrowToFull, isExpanded, scale, opacity, growPulseScale, spawnTime, expandedAtTimestamp]);
+
+  // Smooth expand/collapse animation when user taps moment
+  React.useEffect(() => {
+    if (onExpand || onCollapse) {
+      expandProgress.value = withSpring(isExpanded ? 1 : 0, {
+        damping: 18,
+        stiffness: 140,
+      });
+    }
+  }, [isExpanded, expandProgress, onExpand, onCollapse]);
+
+  React.useEffect(() => {
+    hasExpandHandlers.value = !!(onExpand || onCollapse);
+  }, [onExpand, onCollapse, hasExpandHandlers]);
+
+  // Animation effect for shouldGrowToFull moments - runs once on mount (skip if already expanded)
+  React.useEffect(() => {
+    if (!shouldGrowToFull || isExpanded) return;
+
     scale.value = 0;
     opacity.value = 0;
     growPulseScale.value = 1;
 
-    const HOLD_DURATION = 4000; // Hold for 4 seconds while pulsing
+    const HOLD_DURATION = 4000;
 
-    // Start the animation sequence
     scale.value = withSequence(
       withTiming(1, { duration: 800, easing: Easing.out(Easing.ease) }),
       withDelay(
@@ -10534,24 +10934,17 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
       withDelay(HOLD_DURATION, withTiming(0, { duration: 800 })),
     );
 
-    // Start pulsing animation after growing completes (800ms delay)
-    // Pulse for the duration of the hold period
     setTimeout(() => {
       growPulseScale.value = withRepeat(
         withSequence(
-          withTiming(1.08, {
-            duration: 600,
-            easing: Easing.inOut(Easing.ease),
-          }),
+          withTiming(1.08, { duration: 600, easing: Easing.inOut(Easing.ease) }),
           withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) }),
         ),
-        Math.floor(HOLD_DURATION / 1200), // Number of pulse cycles that fit in hold duration
+        Math.floor(HOLD_DURATION / 1200),
         false,
       );
     }, 800);
-
-    // No cleanup - let animation complete naturally
-  }, [shouldGrowToFull]); // Only depend on shouldGrowToFull to avoid re-animations
+  }, [shouldGrowToFull, isExpanded]);
 
   // Animation effect for regular pulsing moments
   React.useEffect(() => {
@@ -10637,10 +11030,36 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
       ? scale.value * growPulseScale.value
       : scale.value * pulseScale.value;
 
+    // Smooth expand-on-tap scale: 1 (collapsed) -> 1.5 (expanded) when user taps
+    const expandScale = hasExpandHandlers.value
+      ? 1 + 0.5 * expandProgress.value
+      : 1;
+
     return {
-      transform: [{ translateY: floatY }, { scale: finalScale }],
+      transform: [
+        { translateY: floatY },
+        { scale: finalScale * expandScale },
+      ],
       opacity: opacity.value,
     };
+  });
+
+  // Text scales up a bit when moment grows (not as much as the container)
+  const textScaleStyle = useAnimatedStyle(() => {
+    const expandScale = hasExpandHandlers.value
+      ? 1 + 0.5 * expandProgress.value
+      : 1;
+    // Text grows ~20% when expanded: 1x -> 1.2x (vs container 1x -> 1.5x)
+    const textScale = 1 + 0.2 * (hasExpandHandlers.value ? expandProgress.value : 0);
+    return {
+      transform: [{ scale: textScale / expandScale }],
+    };
+  });
+
+  // Lesson bulb gets ~4.5x bigger when expanded (moment 1.5x × bulb scale 3 = 4.5x total)
+  const lessonBulbScaleStyle = useAnimatedStyle(() => {
+    const scale = hasExpandHandlers.value ? 1 + 2 * expandProgress.value : 1;
+    return { transform: [{ scale }] };
   });
 
   // Icon properties based on moment type (uses custom moment colors)
@@ -10670,16 +11089,31 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
     // Calculate size based on text length for better fit
     const textLength = text?.length || 0;
 
-    // For suns and lessons: scale based on text length
-    // Base size + additional size based on character count
-    const minSunSize = isTablet ? 200 : 140;
-    const maxSunSize = isTablet ? 320 : 220;
-    const sunSizeIncrement = isTablet ? 0.6 : 0.4; // px per character
-    const calculatedSunSize = Math.min(
-      maxSunSize,
-      minSunSize + textLength * sunSizeIncrement,
+    // For sunny moments only: scale with text length - grow to fit full text (lessons keep original)
+    const minSunnySize = isTablet ? 150 : 120;
+    const maxSunnySize = isTablet ? 300 : 280;
+    const calculatedSunnySize =
+      momentType === "sunnyMoments"
+        ? Math.min(
+            maxSunnySize,
+            Math.max(
+              minSunnySize,
+              minSunnySize + Math.floor(textLength * 2.8),
+            ),
+          )
+        : 0;
+
+    // For lessons: original formula (revert)
+    const minLessonSize = isTablet ? 200 : 140;
+    const maxLessonSize = isTablet ? 320 : 220;
+    const sunSizeIncrement = isTablet ? 0.6 : 0.4;
+    const calculatedLessonSize = Math.min(
+      maxLessonSize,
+      minLessonSize + textLength * sunSizeIncrement,
     );
-    const baseSunSize = calculatedSunSize;
+
+    const baseSunSize =
+      momentType === "sunnyMoments" ? calculatedSunnySize : calculatedLessonSize;
 
     // For clouds: scale width and height based on text length
     const minCloudWidth = isTablet ? 320 : 250;
@@ -10702,6 +11136,9 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
     const baseCloudWidth = calculatedCloudWidth;
     const baseCloudHeight = calculatedCloudHeight;
 
+    const canInteract =
+      shouldGrowToFull && (onExpand || onCollapse);
+
     return (
       <Animated.View
         style={[
@@ -10717,15 +11154,26 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                 : y - baseSunSize / 2,
             justifyContent: "center",
             alignItems: "center",
-            zIndex: 55,
+            zIndex: isExpanded ? 60 : 55,
           },
           animatedStyle,
         ]}
-        pointerEvents="none"
+        pointerEvents={canInteract ? "auto" : "none"}
       >
         {momentType === "sunnyMoments" ? (
-          // Render full sun element
-          <View
+          <Pressable
+            onPress={() => {
+              if (!canInteract) return;
+              if (isExpanded && momentId != null) {
+                onCollapse?.(momentId);
+              } else if (momentId != null) {
+                onExpand?.(momentId);
+              }
+            }}
+            style={{ width: baseSunSize, height: baseSunSize }}
+            pointerEvents={canInteract ? "auto" : "none"}
+          >
+            <View
             style={{
               width: baseSunSize,
               height: baseSunSize,
@@ -10799,33 +11247,34 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                 fill={`url(#pulsingSunGradient-${centerX}-${centerY}-${angle})`}
               />
             </Svg>
-            {/* Text overlay */}
-            <View
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: baseSunSize,
-                height: baseSunSize,
-                justifyContent: "center",
-                alignItems: "center",
-                paddingHorizontal: (baseSunSize / 160) * 52 * 0.8,
-                paddingVertical: (baseSunSize / 160) * 48 * 0.5,
-              }}
+            {/* Text overlay - grows a bit when moment expands */}
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: baseSunSize,
+                  height: baseSunSize,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  paddingHorizontal: (baseSunSize / 160) * 40,
+                  paddingVertical: (baseSunSize / 160) * 40,
+                },
+                textScaleStyle,
+              ]}
             >
               <ThemedText
                 style={{
                   color: momentColors.sunny.text,
                   fontSize:
-                    Math.max(10, Math.min(14, 13 - textLength / 50)) *
-                    fontScale,
+                    Math.max(12, Math.min(15, 14 - textLength / 100)) * fontScale,
                   textAlign: "center",
                   fontWeight: "700",
                   lineHeight:
-                    Math.max(12, Math.min(16, 14 - textLength / 50)) *
-                    fontScale,
+                    Math.max(16, Math.min(20, 18 - textLength / 100)) * fontScale,
+                  maxWidth: (baseSunSize / 160) * 110,
                 }}
-                numberOfLines={textLength > 50 ? 3 : 2}
               >
                 {text?.split("\n")[0] || text}
               </ThemedText>
@@ -10834,20 +11283,51 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                   style={{
                     color: momentColors.sunny.text,
                     fontSize:
-                      Math.max(8, Math.min(10, 9 - textLength / 100)) * fontScale,
+                      Math.max(11, Math.min(13, 12 - textLength / 120)) * fontScale,
                     textAlign: "center",
                     fontWeight: "600",
+                    lineHeight:
+                      Math.max(14, Math.min(16, 15 - textLength / 120)) * fontScale,
+                    maxWidth: (baseSunSize / 160) * 110,
                   }}
-                  numberOfLines={2}
                 >
                   {text.split("\n")[1]}
                 </ThemedText>
               )}
-            </View>
+              {isExpanded && memoryImageUri && onMemoryImagePress && (
+                <Pressable
+                  onPress={onMemoryImagePress}
+                  style={{
+                    marginTop: 12,
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    overflow: "hidden",
+                    borderWidth: 2,
+                    borderColor: momentColors.sunny.background,
+                  }}
+                >
+                  <Image
+                    source={{ uri: memoryImageUri }}
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit="cover"
+                  />
+                </Pressable>
+              )}
+            </Animated.View>
           </View>
+          </Pressable>
         ) : momentType === "hardTruths" ? (
           // Render full cloud element
-          <View
+          <Pressable
+            onPress={() => {
+              if (!canInteract) return;
+              if (isExpanded && momentId != null) {
+                onCollapse?.(momentId);
+              } else if (momentId != null) {
+                onExpand?.(momentId);
+              }
+            }}
             style={{
               width: baseCloudWidth,
               height: baseCloudHeight,
@@ -10905,19 +11385,22 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                 strokeWidth={1.5}
               />
             </Svg>
-            {/* Text overlay */}
-            <View
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: baseCloudWidth,
-                height: baseCloudHeight,
-                justifyContent: "center",
-                alignItems: "center",
-                paddingHorizontal: 28,
-                paddingVertical: 12,
-              }}
+            {/* Text overlay - grows a bit when moment expands */}
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: baseCloudWidth,
+                  height: baseCloudHeight,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  paddingHorizontal: 28,
+                  paddingVertical: 12,
+                },
+                textScaleStyle,
+              ]}
             >
               <ThemedText
                 style={{
@@ -10936,11 +11419,39 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               >
                 {text}
               </ThemedText>
-            </View>
-          </View>
+              {isExpanded && memoryImageUri && onMemoryImagePress && (
+                <Pressable
+                  onPress={onMemoryImagePress}
+                  style={{
+                    marginTop: 12,
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    overflow: "hidden",
+                    borderWidth: 2,
+                    borderColor: momentColors.cloudy.background,
+                  }}
+                >
+                  <Image
+                    source={{ uri: memoryImageUri }}
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit="cover"
+                  />
+                </Pressable>
+              )}
+            </Animated.View>
+          </Pressable>
         ) : (
           // Render full lightbulb element (lessons) - lightbulb with text below, no circle background
-          <View
+          <Pressable
+            onPress={() => {
+              if (!canInteract) return;
+              if (isExpanded && momentId != null) {
+                onCollapse?.(momentId);
+              } else if (momentId != null) {
+                onExpand?.(momentId);
+              }
+            }}
             style={{
               width: baseSunSize,
               height: baseSunSize,
@@ -10953,21 +11464,42 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               alignItems: "center",
             }}
           >
-            <MaterialIcons
-              name="lightbulb"
-              size={baseSunSize * 0.4}
-              color={momentColors.lesson.background}
-            />
-            {/* Text below lightbulb */}
-            <View
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                paddingHorizontal: 15,
-                paddingBottom: 10,
-              }}
+            {/* Lightbulb gets ~4.5x bigger when expanded */}
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  justifyContent: "center",
+                  alignItems: "center",
+                },
+                lessonBulbScaleStyle,
+              ]}
+            >
+              <MaterialIcons
+                name="lightbulb"
+                size={baseSunSize * 0.4}
+                color={momentColors.lesson.background}
+              />
+            </Animated.View>
+            {/* Text overlay - sits below bulb; when expanded, pushed up to make room for image */}
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  bottom: isExpanded && memoryImageUri ? 100 : 0,
+                  left: 0,
+                  right: 0,
+                  paddingHorizontal: 15,
+                  paddingBottom: 10,
+                  justifyContent: "center",
+                  alignItems: "center",
+                },
+                textScaleStyle,
+              ]}
             >
               <ThemedText
                 style={{
@@ -10984,8 +11516,32 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               >
                 {text}
               </ThemedText>
-            </View>
-          </View>
+            </Animated.View>
+            {/* Memory image - positioned at very bottom, below bulb and text */}
+            {isExpanded && memoryImageUri && onMemoryImagePress && (
+              <Pressable
+                onPress={onMemoryImagePress}
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: "50%",
+                  marginLeft: -32,
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  overflow: "hidden",
+                  borderWidth: 2,
+                  borderColor: momentColors.lesson.background,
+                }}
+              >
+                <Image
+                  source={{ uri: memoryImageUri }}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit="cover"
+                />
+              </Pressable>
+            )}
+          </Pressable>
         )}
       </Animated.View>
     );
@@ -12992,10 +13548,21 @@ export default function HomeScreen() {
       angle: number;
       radius: number;
       momentType: "lessons" | "hardTruths" | "sunnyMoments";
-      shouldGrowToFull?: boolean; // Whether this moment should grow to full popup size
-      text?: string; // The actual moment text to display
+      shouldGrowToFull?: boolean;
+      text?: string;
+      entityId?: string;
+      memoryId?: string;
+      sphere?: LifeSphere;
+      memoryImageUri?: string;
+      momentId?: string;
+      spawnTime?: number;
     }[]
   >([]);
+  const [expandedMomentId, setExpandedMomentId] = useState<number | null>(null);
+  const expandedMomentIdRef = useRef<number | null>(null);
+  expandedMomentIdRef.current = expandedMomentId;
+  const expandedAtTimestampRef = useRef<number | null>(null);
+  const prevExpandedMomentIdRef = useRef<number | null>(null);
   const momentIdCounter = useRef(0);
 
   // Track the current index for each moment type's sequential growth
@@ -13101,6 +13668,8 @@ export default function HomeScreen() {
         entityId: string;
         memoryId: string;
         sphere: LifeSphere;
+        memoryImageUri?: string;
+        momentId?: string;
       }[] = [];
 
       // Determine which property to access based on moment type
@@ -13117,13 +13686,15 @@ export default function HomeScreen() {
         memories.forEach((memory) => {
           const items = memory[propertyName];
           if (items && Array.isArray(items)) {
-            items.forEach((item: { text: string }) => {
+            items.forEach((item: { id?: string; text: string }) => {
               if (item.text && item.text.trim()) {
                 moments.push({
                   text: item.text,
                   entityId: profile.id,
                   memoryId: memory.id,
                   sphere: "relationships" as LifeSphere,
+                  memoryImageUri: memory.imageUri,
+                  momentId: item.id,
                 });
               }
             });
@@ -13137,13 +13708,15 @@ export default function HomeScreen() {
         memories.forEach((memory) => {
           const items = memory[propertyName];
           if (items && Array.isArray(items)) {
-            items.forEach((item: { text: string }) => {
+            items.forEach((item: { id?: string; text: string }) => {
               if (item.text && item.text.trim()) {
                 moments.push({
                   text: item.text,
                   entityId: job.id,
                   memoryId: memory.id,
                   sphere: "career" as LifeSphere,
+                  memoryImageUri: memory.imageUri,
+                  momentId: item.id,
                 });
               }
             });
@@ -13157,13 +13730,15 @@ export default function HomeScreen() {
         memories.forEach((memory) => {
           const items = memory[propertyName];
           if (items && Array.isArray(items)) {
-            items.forEach((item: { text: string }) => {
+            items.forEach((item: { id?: string; text: string }) => {
               if (item.text && item.text.trim()) {
                 moments.push({
                   text: item.text,
                   entityId: member.id,
                   memoryId: memory.id,
                   sphere: "family" as LifeSphere,
+                  memoryImageUri: memory.imageUri,
+                  momentId: item.id,
                 });
               }
             });
@@ -13177,13 +13752,15 @@ export default function HomeScreen() {
         memories.forEach((memory) => {
           const items = memory[propertyName];
           if (items && Array.isArray(items)) {
-            items.forEach((item: { text: string }) => {
+            items.forEach((item: { id?: string; text: string }) => {
               if (item.text && item.text.trim()) {
                 moments.push({
                   text: item.text,
                   entityId: friend.id,
                   memoryId: memory.id,
                   sphere: "friends" as LifeSphere,
+                  memoryImageUri: memory.imageUri,
+                  momentId: item.id,
                 });
               }
             });
@@ -13197,13 +13774,15 @@ export default function HomeScreen() {
         memories.forEach((memory) => {
           const items = memory[propertyName];
           if (items && Array.isArray(items)) {
-            items.forEach((item: { text: string }) => {
+            items.forEach((item: { id?: string; text: string }) => {
               if (item.text && item.text.trim()) {
                 moments.push({
                   text: item.text,
                   entityId: hobby.id,
                   memoryId: memory.id,
                   sphere: "hobbies" as LifeSphere,
+                  memoryImageUri: memory.imageUri,
+                  momentId: item.id,
                 });
               }
             });
@@ -13528,11 +14107,12 @@ export default function HomeScreen() {
     const momentsAreBlocked =
       !showMomentTypeSelector ||
       (appUsabilityHints &&
-        !momentTypeSelectorDismissed) || // Don't pop lessons until spin hint (finger) animation is finished
+        !momentTypeSelectorDismissed) ||
       !isAppActive ||
       !selectedMomentType ||
       isSpinning ||
-      !!selectedLesson;
+      !!selectedLesson ||
+      expandedMomentId !== null; // Pause when a moment is expanded
 
     // Track if moment type changed
     const momentTypeChanged =
@@ -13542,16 +14122,22 @@ export default function HomeScreen() {
     const justUnblocked = prevWasMomentsBlocked.current && !momentsAreBlocked;
 
     // Clear and reset when moment type changes OR when transitioning from blocked to unblocked
+    // But NOT when unblocking due to moment collapse (user tapped outside image)
+    const unblockedByCollapse =
+      justUnblocked &&
+      prevExpandedMomentIdRef.current !== null &&
+      expandedMomentId === null;
     if (
-      (momentTypeChanged || justUnblocked) &&
+      (momentTypeChanged || (justUnblocked && !unblockedByCollapse)) &&
       selectedMomentType &&
       !momentsAreBlocked
     ) {
       setRandomMoments([]);
-      setGrowAllMomentsType(null); // So "grow all" overlay doesn't show wrong type (e.g. lessons when on sunny)
+      setGrowAllMomentsType(null);
       currentMomentIndices.current[selectedMomentType] = 0;
       prevSelectedMomentType.current = selectedMomentType;
     }
+    prevExpandedMomentIdRef.current = expandedMomentId;
 
     // Update the blocked state tracker
     prevWasMomentsBlocked.current = momentsAreBlocked;
@@ -13561,6 +14147,8 @@ export default function HomeScreen() {
       if (showMomentTypeSelector === false || isAppActive === false) {
         setRandomMoments([]);
         setGrowAllMomentsType(null); // Clear so on resume we don't show wrong type (e.g. all lessons when on sunny)
+        setExpandedMomentId(null); // Reset so re-entering doesn't think we're still paused
+        expandedAtTimestampRef.current = null;
         prevSelectedMomentType.current = null;
       }
       // Reset indices when selector is hidden or when wheel is spinning
@@ -13615,6 +14203,7 @@ export default function HomeScreen() {
         // Get the actual moment data for this index
         const momentData = allMomentsOfType[momentIndex];
 
+        const spawnTime = Date.now();
         const newMoment = {
           id: momentIdCounter.current++,
           angle,
@@ -13622,20 +14211,26 @@ export default function HomeScreen() {
           momentType: selectedMomentType,
           shouldGrowToFull: true,
           text: momentData?.text || "",
+          entityId: momentData?.entityId,
+          memoryId: momentData?.memoryId,
+          sphere: momentData?.sphere,
+          memoryImageUri: momentData?.memoryImageUri,
+          momentId: momentData?.momentId,
+          spawnTime,
         };
 
         // Add this moment to the array (use functional update to avoid stale closures)
         setRandomMoments((prev) => {
-          // Check if moment already exists to prevent duplicates
-          if (prev.some((m) => m.id === newMoment.id)) {
-            return prev;
-          }
+          if (prev.some((m) => m.id === newMoment.id)) return prev;
           return [...prev, newMoment];
         });
 
-        // Remove this moment after it completes its animation (add 100ms buffer to ensure animation finishes)
+        // Remove this moment after it completes (skip if any moment is expanded - keep all visible)
         const removeTimeout = setTimeout(() => {
-          setRandomMoments((prev) => prev.filter((m) => m.id !== newMoment.id));
+          setRandomMoments((prev) => {
+            if (expandedMomentIdRef.current !== null) return prev;
+            return prev.filter((m) => m.id !== newMoment.id);
+          });
         }, MOMENT_DURATION + 100);
         timeouts.push(removeTimeout);
 
@@ -13794,6 +14389,7 @@ export default function HomeScreen() {
     getAllMomentsByType,
     isSpinning,
     selectedLesson,
+    expandedMomentId,
   ]);
 
   // Handle moment completion (remove from array)
@@ -19175,6 +19771,59 @@ export default function HomeScreen() {
                 selectedMomentType={selectedMomentType}
                 shouldGrowToFull={moment.shouldGrowToFull}
                 text={moment.text}
+                momentId={moment.id}
+                isExpanded={expandedMomentId === moment.id}
+                momentsFrozen={expandedMomentId !== null}
+                spawnTime={moment.spawnTime}
+                expandedAtTimestamp={expandedAtTimestampRef.current}
+                onExpand={(id) => {
+                  expandedAtTimestampRef.current = Date.now();
+                  setExpandedMomentId(id);
+                }}
+                onCollapse={() => {
+                  setExpandedMomentId(null);
+                }}
+                onMemoryImagePress={
+                  moment.entityId && moment.memoryId && moment.sphere
+                    ? () => {
+                        startTransitionLoader();
+                        requestAnimationFrame(() => {
+                          setTimeout(() => {
+                            setExpandedMomentId(null);
+                            const entityId = moment.entityId!;
+                            const memoryId = moment.memoryId!;
+                            const sphere = moment.sphere!;
+                            if (sphere === "relationships") {
+                              setFocusedProfileId(entityId);
+                              setSelectedSphere("relationships");
+                              setFocusedMemory({ profileId: entityId, memoryId, sphere });
+                            } else if (sphere === "career") {
+                              setFocusedJobId(entityId);
+                              setSelectedSphere("career");
+                              setFocusedMemory({ jobId: entityId, memoryId, sphere });
+                            } else if (sphere === "family") {
+                              setFocusedFamilyMemberId(entityId);
+                              setSelectedSphere("family");
+                              setFocusedMemory({ familyMemberId: entityId, memoryId, sphere });
+                            } else if (sphere === "friends") {
+                              setFocusedFriendId(entityId);
+                              setSelectedSphere("friends");
+                              setFocusedMemory({ friendId: entityId, memoryId, sphere });
+                            } else if (sphere === "hobbies") {
+                              setFocusedHobbyId(entityId);
+                              setSelectedSphere("hobbies");
+                              setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
+                            }
+                            hideLoader();
+                          }, 120);
+                        });
+                      }
+                    : undefined
+                }
+                entityId={moment.entityId}
+                memoryId={moment.memoryId}
+                sphere={moment.sphere}
+                memoryImageUri={moment.memoryImageUri}
               />
             ))}
 
@@ -19202,6 +19851,7 @@ export default function HomeScreen() {
                   const radiusVariation =
                     (Math.random() - 0.5) * (isTablet ? 20 : 15);
                   const radius = momentRadius + radiusVariation;
+                  const growAllMomentId = 100000 + index;
 
                   return (
                     <PulsingFloatingMomentIcon
@@ -19215,7 +19865,63 @@ export default function HomeScreen() {
                       selectedMomentType={growAllMomentsType}
                       shouldGrowToFull={true}
                       text={momentData?.text || ""}
-                      delay={index * 50} // Stagger slightly for visual effect
+                      delay={index * 50}
+                      momentId={growAllMomentId}
+                      isExpanded={expandedMomentId === growAllMomentId}
+                      momentsFrozen={expandedMomentId !== null}
+                      expandedAtTimestamp={expandedAtTimestampRef.current}
+                      onExpand={(id) => {
+                        expandedAtTimestampRef.current = Date.now();
+                        setExpandedMomentId(id);
+                      }}
+                      onCollapse={(id) => {
+                        setGrowAllMomentsType(null);
+                        setExpandedMomentId(null);
+                      }}
+                      onMemoryImagePress={
+                        momentData?.entityId &&
+                        momentData?.memoryId &&
+                        momentData?.sphere
+                          ? () => {
+                              startTransitionLoader();
+                              requestAnimationFrame(() => {
+                                setTimeout(() => {
+                                  setExpandedMomentId(null);
+                                  setGrowAllMomentsType(null);
+                                  const entityId = momentData!.entityId;
+                                  const memoryId = momentData!.memoryId;
+                                  const sphere = momentData!.sphere;
+                                  if (sphere === "relationships") {
+                                    setFocusedProfileId(entityId);
+                                    setSelectedSphere("relationships");
+                                    setFocusedMemory({ profileId: entityId, memoryId, sphere });
+                                  } else if (sphere === "career") {
+                                    setFocusedJobId(entityId);
+                                    setSelectedSphere("career");
+                                    setFocusedMemory({ jobId: entityId, memoryId, sphere });
+                                  } else if (sphere === "family") {
+                                    setFocusedFamilyMemberId(entityId);
+                                    setSelectedSphere("family");
+                                    setFocusedMemory({ familyMemberId: entityId, memoryId, sphere });
+                                  } else if (sphere === "friends") {
+                                    setFocusedFriendId(entityId);
+                                    setSelectedSphere("friends");
+                                    setFocusedMemory({ friendId: entityId, memoryId, sphere });
+                                  } else if (sphere === "hobbies") {
+                                    setFocusedHobbyId(entityId);
+                                    setSelectedSphere("hobbies");
+                                    setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
+                                  }
+                                  hideLoader();
+                                }, 120);
+                              });
+                            }
+                          : undefined
+                      }
+                      entityId={momentData?.entityId}
+                      memoryId={momentData?.memoryId}
+                      sphere={momentData?.sphere}
+                      memoryImageUri={momentData?.memoryImageUri}
                     />
                   );
                 });
@@ -19304,7 +20010,12 @@ export default function HomeScreen() {
                     <Animated.View
                       style={[
                         lessonsButtonAnimatedStyle,
-                        { opacity: isSpinning ? 0.3 : 1 },
+                        {
+                          opacity:
+                            isSpinning || expandedMomentId !== null
+                              ? 0.3
+                              : 1,
+                        },
                       ]}
                     >
                       {/* Frosted glass base layer */}
@@ -19325,7 +20036,9 @@ export default function HomeScreen() {
                         onPress={() => setSelectedMomentType("lessons")}
                         onPressIn={handleLessonsButtonPressIn}
                         onPressOut={handleLessonsButtonPressOut}
-                        disabled={isSpinning}
+                        disabled={
+                          isSpinning || expandedMomentId !== null
+                        }
                         style={{
                           width: "100%",
                           height: "100%",
@@ -19333,24 +20046,26 @@ export default function HomeScreen() {
                           justifyContent: "center",
                           shadowColor: "#000",
                           shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: isSpinning
-                            ? 0
-                            : selectedMomentType === "lessons"
-                              ? 0.3
-                              : 0.1,
+                          shadowOpacity:
+                            isSpinning || expandedMomentId !== null
+                              ? 0
+                              : selectedMomentType === "lessons"
+                                ? 0.3
+                                : 0.1,
                           shadowRadius: 4,
-                          elevation: isSpinning
-                            ? 0
-                            : selectedMomentType === "lessons"
-                              ? 5
-                              : 2,
+                          elevation:
+                            isSpinning || expandedMomentId !== null
+                              ? 0
+                              : selectedMomentType === "lessons"
+                                ? 5
+                                : 2,
                         }}
                       >
                         <MaterialIcons
                           name="emoji-objects"
                           size={28}
                           color={
-                            isSpinning
+                            isSpinning || expandedMomentId !== null
                               ? "rgba(150, 150, 150, 0.5)"
                               : selectedMomentType === "lessons"
                                 ? "#fff"
@@ -19364,7 +20079,12 @@ export default function HomeScreen() {
                     <Animated.View
                       style={[
                         sunnyMomentsButtonAnimatedStyle,
-                        { opacity: isSpinning ? 0.3 : 1 },
+                        {
+                          opacity:
+                            isSpinning || expandedMomentId !== null
+                              ? 0.3
+                              : 1,
+                        },
                       ]}
                     >
                       {/* Frosted glass base layer */}
@@ -19385,7 +20105,9 @@ export default function HomeScreen() {
                         onPress={() => setSelectedMomentType("sunnyMoments")}
                         onPressIn={handleSunnyMomentsButtonPressIn}
                         onPressOut={handleSunnyMomentsButtonPressOut}
-                        disabled={isSpinning}
+                        disabled={
+                          isSpinning || expandedMomentId !== null
+                        }
                         style={{
                           width: "100%",
                           height: "100%",
@@ -19393,24 +20115,26 @@ export default function HomeScreen() {
                           justifyContent: "center",
                           shadowColor: "#000",
                           shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: isSpinning
-                            ? 0
-                            : selectedMomentType === "sunnyMoments"
-                              ? 0.3
-                              : 0.1,
+                          shadowOpacity:
+                            isSpinning || expandedMomentId !== null
+                              ? 0
+                              : selectedMomentType === "sunnyMoments"
+                                ? 0.3
+                                : 0.1,
                           shadowRadius: 4,
-                          elevation: isSpinning
-                            ? 0
-                            : selectedMomentType === "sunnyMoments"
-                              ? 5
-                              : 2,
+                          elevation:
+                            isSpinning || expandedMomentId !== null
+                              ? 0
+                              : selectedMomentType === "sunnyMoments"
+                                ? 5
+                                : 2,
                         }}
                       >
                         <MaterialIcons
                           name="wb-sunny"
                           size={28}
                           color={
-                            isSpinning
+                            isSpinning || expandedMomentId !== null
                               ? "rgba(150, 150, 150, 0.5)"
                               : selectedMomentType === "sunnyMoments"
                                 ? "#fff"
@@ -19424,7 +20148,12 @@ export default function HomeScreen() {
                     <Animated.View
                       style={[
                         hardTruthsButtonAnimatedStyle,
-                        { opacity: isSpinning ? 0.3 : 1 },
+                        {
+                          opacity:
+                            isSpinning || expandedMomentId !== null
+                              ? 0.3
+                              : 1,
+                        },
                       ]}
                     >
                       {/* Frosted glass base layer */}
@@ -19445,7 +20174,9 @@ export default function HomeScreen() {
                         onPress={() => setSelectedMomentType("hardTruths")}
                         onPressIn={handleHardTruthsButtonPressIn}
                         onPressOut={handleHardTruthsButtonPressOut}
-                        disabled={isSpinning}
+                        disabled={
+                          isSpinning || expandedMomentId !== null
+                        }
                         style={{
                           width: "100%",
                           height: "100%",
@@ -19453,24 +20184,26 @@ export default function HomeScreen() {
                           justifyContent: "center",
                           shadowColor: "#000",
                           shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: isSpinning
-                            ? 0
-                            : selectedMomentType === "hardTruths"
-                              ? 0.3
-                              : 0.1,
+                          shadowOpacity:
+                            isSpinning || expandedMomentId !== null
+                              ? 0
+                              : selectedMomentType === "hardTruths"
+                                ? 0.3
+                                : 0.1,
                           shadowRadius: 4,
-                          elevation: isSpinning
-                            ? 0
-                            : selectedMomentType === "hardTruths"
-                              ? 5
-                              : 2,
+                          elevation:
+                            isSpinning || expandedMomentId !== null
+                              ? 0
+                              : selectedMomentType === "hardTruths"
+                                ? 5
+                                : 2,
                         }}
                       >
                         <MaterialIcons
                           name="cloud-queue"
                           size={28}
                           color={
-                            isSpinning
+                            isSpinning || expandedMomentId !== null
                               ? "rgba(150, 150, 150, 0.5)"
                               : selectedMomentType === "hardTruths"
                                 ? "#fff"
