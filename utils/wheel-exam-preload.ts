@@ -84,13 +84,10 @@ async function loadMainFromStorage(): Promise<void> {
       const parsed = JSON.parse(raw) as PreloadedType[];
       if (Array.isArray(parsed)) {
         mainPreloaded = parsed;
-        if (__DEV__) {
-          console.log("[WheelExam] Loaded main from cache:", mainPreloaded.length);
-        }
       }
     }
-  } catch (e) {
-    if (__DEV__) console.warn("[WheelExam] Failed to load main cache:", e);
+  } catch {
+    // Cache load failed, continue with empty pool
   }
 }
 
@@ -103,26 +100,18 @@ async function loadEntityFromStorage(entityId: string): Promise<void> {
       const parsed = JSON.parse(raw) as PreloadedType[];
       if (Array.isArray(parsed)) {
         entityPreloaded.set(entityId, parsed);
-        if (__DEV__) {
-          console.log(
-            "[WheelExam] Loaded entity",
-            entityId,
-            "from cache:",
-            parsed.length,
-          );
-        }
       }
     }
-  } catch (e) {
-    if (__DEV__) console.warn("[WheelExam] Failed to load entity cache:", e);
+  } catch {
+    // Cache load failed, continue with empty pool
   }
 }
 
 async function saveMainToStorage(): Promise<void> {
   try {
     await AsyncStorage.setItem(MAIN_STORAGE_KEY, JSON.stringify(mainPreloaded));
-  } catch (e) {
-    if (__DEV__) console.warn("[WheelExam] Failed to save main cache:", e);
+  } catch {
+    // Cache save failed
   }
 }
 
@@ -133,8 +122,8 @@ async function saveEntityToStorage(entityId: string): Promise<void> {
       ENTITY_STORAGE_PREFIX + entityId,
       JSON.stringify(pool),
     );
-  } catch (e) {
-    if (__DEV__) console.warn("[WheelExam] Failed to save entity cache:", e);
+  } catch {
+    // Cache save failed
   }
 }
 
@@ -176,8 +165,6 @@ export async function pickAndConsumePreloadedQuestion(params: {
     // If pool is empty but preload is in flight, wait for it (with timeout).
     // Fixes race where user spins main wheel before preload finishes.
     if (pool.length === 0 && mainPreloadPromise) {
-      if (__DEV__)
-        console.log("[WheelExam] Main pool empty, awaiting in-flight preload...");
       try {
         await Promise.race([
           mainPreloadPromise,
@@ -186,27 +173,17 @@ export async function pickAndConsumePreloadedQuestion(params: {
           ),
         ]);
         pool = mainPreloaded;
-        if (__DEV__)
-          console.log("[WheelExam] Main preload awaited, pool now:", pool.length);
       } catch {
-        if (__DEV__)
-          console.warn("[WheelExam] Main preload wait failed or timed out");
+        // Preload wait failed or timed out
       }
     }
 
-    if (pool.length === 0) {
-      if (__DEV__) console.log("[WheelExam] Main pool empty, returning null");
-      return null;
-    }
+    if (pool.length === 0) return null;
     const idx = Math.floor(Math.random() * mainPreloaded.length);
     const item = mainPreloaded[idx];
     mainPreloaded.splice(idx, 1);
     await saveMainToStorage();
-    if (__DEV__) {
-      console.log("[WheelExam] Consumed main question (linked to lesson), remaining:", mainPreloaded.length);
-    }
     if (mainPreloaded.length < MAIN_REFILL_THRESHOLD && onRefetchMain) {
-      if (__DEV__) console.log("[WheelExam] Main below threshold, triggering refetch");
       void onRefetchMain();
     }
     return item;
@@ -220,12 +197,6 @@ export async function pickAndConsumePreloadedQuestion(params: {
     // Fixes race where user spins before preload finishes — exam would not show promptly.
     const inFlight = entityPreloadPromises.get(entityId);
     if (pool.length === 0 && inFlight) {
-      if (__DEV__)
-        console.log(
-          "[WheelExam] Entity",
-          entityId,
-          "pool empty, awaiting in-flight preload...",
-        );
       try {
         await Promise.race([
           inFlight,
@@ -234,37 +205,18 @@ export async function pickAndConsumePreloadedQuestion(params: {
           ),
         ]);
         pool = entityPreloaded.get(entityId) ?? [];
-        if (__DEV__)
-          console.log(
-            "[WheelExam] Entity",
-            entityId,
-            "preload awaited, pool now:",
-            pool.length,
-          );
       } catch {
-        if (__DEV__)
-          console.warn("[WheelExam] Entity preload wait failed or timed out");
+        // Preload wait failed or timed out
       }
     }
 
-    if (pool.length === 0) {
-      if (__DEV__)
-        console.log("[WheelExam] Entity", entityId, "pool empty, returning null");
-      return null;
-    }
+    if (pool.length === 0) return null;
     const idx = Math.floor(Math.random() * pool.length);
     const item = pool[idx];
     pool.splice(idx, 1);
     entityPreloaded.set(entityId, pool);
     await saveEntityToStorage(entityId);
-    if (__DEV__) {
-      console.log(
-        "[WheelExam] Consumed entity question (linked to lesson), remaining:",
-        pool.length,
-      );
-    }
     if (pool.length < ENTITY_REFILL_THRESHOLD && onRefetchEntity) {
-      if (__DEV__) console.log("[WheelExam] Entity below threshold, triggering refetch");
       void onRefetchEntity(entityId);
     }
     return item;
@@ -291,21 +243,13 @@ export async function preloadMainWheelQuestions(params: {
   } = params;
 
   await loadMainFromStorage();
-  if (appendOnly && mainPreloaded.length >= MAIN_REFILL_THRESHOLD) {
-    if (__DEV__) console.log("[WheelExam] Main append skipped, count:", mainPreloaded.length);
-    return;
-  }
-  if (!appendOnly && mainPreloaded.length >= MAIN_REFILL_THRESHOLD) {
-    if (__DEV__) console.log("[WheelExam] Main has enough from cache, skip fetch:", mainPreloaded.length);
-    return;
-  }
+  if (appendOnly && mainPreloaded.length >= MAIN_REFILL_THRESHOLD) return;
+  if (!appendOnly && mainPreloaded.length >= MAIN_REFILL_THRESHOLD) return;
   if (mainPreloadPromise) return mainPreloadPromise;
 
   mainPreloadPromise = (async () => {
-    if (__DEV__) console.log("[WheelExam] Main preload starting...");
     const all = collectLessonsFromMemories(memories);
     if (all.length === 0) {
-      if (__DEV__) console.log("[WheelExam] Main preload skipped, no lessons");
       mainPreloadPromise = null;
       return;
     }
@@ -330,15 +274,7 @@ export async function preloadMainWheelQuestions(params: {
           ? [...mainPreloaded, ...questions]
           : questions;
       await saveMainToStorage();
-      if (__DEV__) {
-        console.log(
-          "[WheelExam] Main preload done, total:",
-          mainPreloaded.length,
-          mainPreloaded.length > questions.length ? "(appended)" : "(initial)",
-        );
-      }
-    } catch (e) {
-      if (__DEV__) console.warn("[WheelExam] Main preload failed:", e);
+    } catch {
       if (!appendOnly) mainPreloaded = [];
     } finally {
       mainPreloadPromise = null;
@@ -369,32 +305,13 @@ export async function preloadEntityWheelQuestions(params: {
 
   await loadEntityFromStorage(entityId);
   const existing = entityPreloaded.get(entityId) ?? [];
-  if (appendOnly && existing.length >= ENTITY_REFILL_THRESHOLD) {
-    if (__DEV__)
-      console.log(
-        "[WheelExam] Entity",
-        entityId,
-        "append skipped, count:",
-        existing.length,
-      );
-    return;
-  }
-  if (!appendOnly && existing.length >= ENTITY_REFILL_THRESHOLD) {
-    if (__DEV__)
-      console.log(
-        "[WheelExam] Entity",
-        entityId,
-        "has enough from cache, skip fetch:",
-        existing.length,
-      );
-    return;
-  }
+  if (appendOnly && existing.length >= ENTITY_REFILL_THRESHOLD) return;
+  if (!appendOnly && existing.length >= ENTITY_REFILL_THRESHOLD) return;
 
   let promise = entityPreloadPromises.get(entityId);
   if (promise) return promise;
 
   promise = (async () => {
-    if (__DEV__) console.log("[WheelExam] Entity", entityId, "preload starting...");
     const all = collectLessonsFromMemories(memories);
     if (all.length === 0) {
       entityPreloaded.set(entityId, []);
@@ -422,17 +339,7 @@ export async function preloadEntityWheelQuestions(params: {
       const updated = appendOnly ? [...current, ...questions] : questions;
       entityPreloaded.set(entityId, updated);
       await saveEntityToStorage(entityId);
-      if (__DEV__) {
-        console.log(
-          "[WheelExam] Entity",
-          entityId,
-          "preload done, total:",
-          updated.length,
-          appendOnly ? "(appended)" : "(replaced)",
-        );
-      }
-    } catch (e) {
-      if (__DEV__) console.warn("[WheelExam] Entity preload failed:", e);
+    } catch {
       if (!appendOnly) entityPreloaded.set(entityId, []);
     } finally {
       entityPreloadPromises.delete(entityId);

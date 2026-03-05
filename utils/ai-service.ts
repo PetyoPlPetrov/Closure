@@ -435,14 +435,6 @@ Return one object per lesson with momentId (same as input) and notificationMessa
     )
     .join("\n")}`;
 
-  if (__DEV__) {
-    console.log("[AI Summary] suggestNotificationMessagesForLessons INPUT:", {
-      language,
-      lessonsCount: lessons.length,
-      lessons: lessons.map((l) => ({ id: l.id, text: l.text?.slice(0, 80), memoryTitle: l.memoryTitle })),
-    });
-  }
-
   const app = getApp();
   const ai = getAI(app, { appCheck: firebase.appCheck() });
   const model = getGenerativeModel(ai, {
@@ -468,14 +460,6 @@ Return one object per lesson with momentId (same as input) and notificationMessa
     if (item.momentId && item.notificationMessage?.trim()) {
       map[item.momentId] = item.notificationMessage.trim();
     }
-  }
-
-  if (__DEV__) {
-    console.log("[AI Summary] suggestNotificationMessagesForLessons OUTPUT:", {
-      receivedCount: parsed.momentNotificationMessages?.length ?? 0,
-      mapCount: Object.keys(map).length,
-      map: JSON.stringify(map, null, 2),
-    });
   }
 
   return map;
@@ -546,14 +530,6 @@ Return one object per moment with momentId (same as input) and notificationMessa
     )
     .join("\n")}`;
 
-  if (__DEV__) {
-    console.log("[AI Summary] suggestNotificationMessagesForSunnyMoments INPUT:", {
-      language,
-      momentsCount: moments.length,
-      moments: moments.map((m) => ({ id: m.id, text: m.text?.slice(0, 80), memoryTitle: m.memoryTitle })),
-    });
-  }
-
   const app = getApp();
   const ai = getAI(app, { appCheck: firebase.appCheck() });
   const model = getGenerativeModel(ai, {
@@ -579,14 +555,6 @@ Return one object per moment with momentId (same as input) and notificationMessa
     if (item.momentId && item.notificationMessage?.trim()) {
       map[item.momentId] = item.notificationMessage.trim();
     }
-  }
-
-  if (__DEV__) {
-    console.log("[AI Summary] suggestNotificationMessagesForSunnyMoments OUTPUT:", {
-      receivedCount: parsed.momentNotificationMessages?.length ?? 0,
-      mapCount: Object.keys(map).length,
-      map: JSON.stringify(map, null, 2),
-    });
   }
 
   return map;
@@ -716,12 +684,6 @@ Rules:
     },
   });
 
-  if (__DEV__) {
-    console.log("[AI Entity Creation] Prompt:", prompt);
-    console.log("[AI Entity Creation] Sphere:", sphere);
-    console.log("[AI Entity Creation] System prompt:", systemPrompt);
-  }
-
   const result = await model.generateContent({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     systemInstruction: systemPrompt,
@@ -729,12 +691,6 @@ Rules:
 
   const responseText = result.response.text();
   const parsed = JSON.parse(responseText);
-
-  if (__DEV__) {
-    console.log("[AI Entity Creation] Raw response:", responseText);
-    console.log("[AI Entity Creation] Parsed:", JSON.stringify(parsed, null, 2));
-  }
-
   return parsed as AIEntityCreationResponse;
 }
 
@@ -846,14 +802,6 @@ Respond in ${languageName}. JSON only. Return exactly one question per input les
     .join("\n");
   const userPrompt = `Lessons (index and text):\n${lessonsBlock}\n\nGenerate one situational question for each lesson. Return questions array with lessonIndex and question.`;
 
-  if (__DEV__) {
-    console.log("[WheelExam] generateLessonExamQuestionsBatch INPUT:", {
-      lessonCount: lessons.length,
-      language,
-      lessons: lessons.map((l) => ({ id: l.id, textPreview: l.text.slice(0, 60) + "..." })),
-    });
-  }
-
   const app = getApp();
   const ai = getAI(app, { appCheck: firebase.appCheck() });
   const model = getGenerativeModel(ai, {
@@ -891,17 +839,6 @@ Respond in ${languageName}. JSON only. Return exactly one question per input les
       };
     })
     .filter((q): q is PreloadedExamQuestion => q != null);
-
-  if (__DEV__) {
-    console.log("[WheelExam] generateLessonExamQuestionsBatch RESPONSE:", {
-      rawLength: responseText.length,
-      questionCount: resultItems.length,
-      eachLinkedToLesson: resultItems.map((r) => ({
-        lessonPreview: r.lessonText.slice(0, 40) + "...",
-        questionPreview: r.question.slice(0, 50) + "...",
-      })),
-    });
-  }
 
   return resultItems;
 }
@@ -995,15 +932,6 @@ User's answer: "${userAnswer}"
 
 Evaluate: isCorrect (boolean), feedback (short supportive sentence).`;
 
-  if (__DEV__) {
-    console.log("[WheelExam] analyzeLessonExamAnswer INPUT (AI evaluates answer vs linked lesson):", {
-      linkedLessonPreview: lessonText.slice(0, 80),
-      questionPreview: question.slice(0, 80),
-      userAnswerPreview: userAnswer.slice(0, 80),
-      language,
-    });
-  }
-
   const app = getApp();
   const ai = getAI(app, { appCheck: firebase.appCheck() });
   const model = getGenerativeModel(ai, {
@@ -1021,13 +949,6 @@ Evaluate: isCorrect (boolean), feedback (short supportive sentence).`;
 
   const responseText = result.response.text();
   const parsed = JSON.parse(responseText) as LessonExamAnalysis;
-
-  if (__DEV__) {
-    console.log("[WheelExam] analyzeLessonExamAnswer RESPONSE:", {
-      isCorrect: parsed.isCorrect,
-      feedback: parsed.feedback,
-    });
-  }
 
   return parsed;
 }

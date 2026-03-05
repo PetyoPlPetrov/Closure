@@ -1903,7 +1903,6 @@ const FloatingAvatar = React.memo(
       }
 
       if (__DEV__)
-        console.log("[EntityWheel-inline] Spin done, showing loading popup");
       // Show loading popup immediately so UI doesn't feel stuck while preload/consume runs
       setSelectedMomentType("lesson");
       setSelectedWheelMoment({
@@ -1929,7 +1928,6 @@ const FloatingAvatar = React.memo(
       });
       if (item) {
         if (__DEV__)
-          console.log("[EntityWheel-inline] Got preloaded question, showing exam");
         setSelectedWheelMoment({
           type: "lesson",
           text: item.lessonText,
@@ -1942,10 +1940,6 @@ const FloatingAvatar = React.memo(
           step: "question",
         });
       } else {
-        if (__DEV__)
-          console.log(
-            "[EntityWheel-inline] Pool empty, using fallback lesson (no AI exam)",
-          );
         setSelectedWheelMoment(chosen);
         setSelectedWheelExam({
           question: chosen.text,
@@ -11971,13 +11965,9 @@ export default function HomeScreen() {
     const today = getLocalDateString();
     try {
       const raw = await AsyncStorage.getItem(ENCOURAGEMENT_MESSAGES_KEY);
-      if (!raw) {
-        if (__DEV__) console.log("[Nudge] CACHE miss: no stored batch");
-        return null;
-      }
+      if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (parsed?.date !== today || !Array.isArray(parsed.messages)) {
-        if (__DEV__) console.log("[Nudge] CACHE miss: wrong date or invalid shape, clearing");
         await AsyncStorage.removeItem(ENCOURAGEMENT_MESSAGES_KEY);
         return null;
       }
@@ -11985,18 +11975,10 @@ export default function HomeScreen() {
         .filter((m: any) => typeof m === "string")
         .map((m: string) => m.trim())
         .filter(Boolean);
-      if (validMessages.length === 0) {
-        if (__DEV__) console.log("[Nudge] CACHE miss: no valid messages in batch");
-        return null;
-      }
+      if (validMessages.length === 0) return null;
       const idx = Math.floor(Math.random() * validMessages.length);
-      const message = validMessages[idx] || null;
-      if (__DEV__ && message) {
-        console.log("[Nudge] CACHE hit: returning cached message", JSON.stringify(message.slice(0, 60)) + (message.length > 60 ? "…" : ""));
-      }
-      return message;
+      return validMessages[idx] || null;
     } catch {
-      if (__DEV__) console.log("[Nudge] CACHE miss: read/parse error");
       return null;
     }
   };
@@ -12063,7 +12045,6 @@ export default function HomeScreen() {
       const consent = aiConsent.choice;
       if (!aiConsent.isLoaded) return;
       if (consent !== "enabled") {
-        if (__DEV__) console.log("[Nudge] AI consent not enabled — will show FALLBACK (no AI sign)");
         // Only show the prompt once automatically; otherwise silently fallback.
         if (consent === null && !aiInsightsConsentPromptedRef.current) {
           aiInsightsConsentPromptedRef.current = true;
@@ -12136,7 +12117,6 @@ export default function HomeScreen() {
               const randomMessage =
                 await getRandomTodayEncouragementMessage();
               if (randomMessage && !cancelled) {
-                if (__DEV__) console.log("[Nudge] Setting message from CACHE (threshold changed)");
                 setAiEncouragementText(randomMessage);
                 setAiEncouragementLoading(false);
                 lastEncouragementCacheKeyRef.current = thresholdKey;
@@ -12144,7 +12124,6 @@ export default function HomeScreen() {
               }
             } else if (!cancelled && aiEncouragementText) {
               // Cache bust from dismiss, we already have the "next" message—use it
-              if (__DEV__) console.log("[Nudge] Keeping current message from CACHE (dismiss cache bust)");
               setAiEncouragementLoading(false);
               lastEncouragementCacheKeyRef.current = thresholdKey;
               return;
@@ -12153,7 +12132,6 @@ export default function HomeScreen() {
               const randomMessage =
                 await getRandomTodayEncouragementMessage();
               if (randomMessage && !cancelled) {
-                if (__DEV__) console.log("[Nudge] Setting message from CACHE (cache bust, no current)");
                 setAiEncouragementText(randomMessage);
                 setAiEncouragementLoading(false);
                 lastEncouragementCacheKeyRef.current = thresholdKey;
@@ -12163,14 +12141,12 @@ export default function HomeScreen() {
           } else {
             // Same threshold, use current message (don't change it)
             if (!cancelled && aiEncouragementText) {
-              if (__DEV__) console.log("[Nudge] Keeping current message from CACHE (same threshold)");
               setAiEncouragementLoading(false);
               return;
             }
             // No current message but we have batch - pick one
             const randomMessage = await getRandomTodayEncouragementMessage();
             if (randomMessage && !cancelled) {
-              if (__DEV__) console.log("[Nudge] Setting message from CACHE (same threshold, pick one)");
               setAiEncouragementText(randomMessage);
               setAiEncouragementLoading(false);
               lastEncouragementCacheKeyRef.current = thresholdKey;
@@ -12185,12 +12161,10 @@ export default function HomeScreen() {
           // Already made today's request - try to get a random from batch
           const randomMessage = await getRandomTodayEncouragementMessage();
           if (randomMessage && !cancelled) {
-            if (__DEV__) console.log("[Nudge] Setting message from CACHE (rate limit reached, using batch)");
             setAiEncouragementText(randomMessage);
             setAiEncouragementLoading(false);
             lastEncouragementCacheKeyRef.current = thresholdKey;
           } else if (!cancelled) {
-            if (__DEV__) console.log("[Nudge] No batch available at rate limit — showing FALLBACK (no AI sign)");
             setAiEncouragementText(null);
             setAiEncouragementLoading(false);
             setAiEncouragementError(true);
@@ -12232,7 +12206,6 @@ export default function HomeScreen() {
           const randomMessage =
             messages[Math.floor(Math.random() * messages.length)];
           if (!cancelled && randomMessage) {
-            if (__DEV__) console.log("[Nudge] Setting message from FRESH AI");
             setAiEncouragementText(randomMessage);
             setAiEncouragementLoading(false);
             lastEncouragementCacheKeyRef.current = thresholdKey;
@@ -12272,13 +12245,6 @@ export default function HomeScreen() {
     aiConsent.choice,
     aiConsent.isLoaded,
   ]);
-
-  // Dev-only: log what the banner is showing (AI with sparkle vs fallback) to verify cache vs fallback when "no AI sign" appears
-  useEffect(() => {
-    if (!__DEV__ || !hasAnyMoments || !isEncouragementVisible) return;
-    const showingAi = Boolean(aiConsent.isEnabled && aiEncouragementText);
-    console.log("[Nudge] Banner display:", showingAi ? "AI (with ✨)" : "FALLBACK (no AI sign)");
-  }, [hasAnyMoments, isEncouragementVisible, aiConsent.isEnabled, aiEncouragementText]);
 
   // Message position constants
   // Badge is at top: 80, badge height ~40px, so position message slightly below badge
@@ -12999,7 +12965,6 @@ export default function HomeScreen() {
       examStep?: "question" | "analyzing" | "result";
     };
 
-    if (__DEV__) console.log("[MainWheel] Spin complete, showing loading popup");
     // Show loading popup immediately so UI doesn't feel stuck while preload/consume runs
     const fallbackLesson =
       lessons.length > 0
@@ -13059,8 +13024,6 @@ export default function HomeScreen() {
         }),
     });
     if (item) {
-      if (__DEV__)
-        console.log("[MainWheel] Got preloaded question, showing exam");
       momentToShow = {
         text: item.lessonText,
         entityId: item.entityId ?? "",
@@ -13071,8 +13034,6 @@ export default function HomeScreen() {
         examStep: "question",
       };
     } else if (lessons.length > 0) {
-      if (__DEV__)
-        console.log("[MainWheel] Pool empty, using fallback lesson (no AI exam)");
       // Fallback: pool empty, pick random lesson (no exam)
       const randomIndex = Math.floor(Math.random() * lessons.length);
       momentToShow = {
@@ -13080,7 +13041,6 @@ export default function HomeScreen() {
         momentType: "lessons",
       };
     } else {
-      if (__DEV__) console.log("[MainWheel] No lessons, showing empty message");
       momentToShow = {
         text: t("wheel.noLessons.message"),
         entityId: "",
@@ -13096,11 +13056,6 @@ export default function HomeScreen() {
       void recordWheelExamUsed();
     }
 
-    if (__DEV__)
-      console.log(
-        "[MainWheel] Updating with",
-        momentToShow.examQuestion ? "exam" : "fallback/no-lessons",
-      );
     // Update with real content (replaces loading placeholder)
     setSelectedLesson(momentToShow);
   }, [
@@ -16710,7 +16665,6 @@ export default function HomeScreen() {
                       const randomMessage =
                         await getRandomTodayEncouragementMessage();
                       if (randomMessage) {
-                        if (__DEV__) console.log("[Nudge] Dismiss: next message from CACHE for next time");
                         setAiEncouragementText(randomMessage);
                       }
                       setEncouragementCacheBust((x) => x + 1);

@@ -139,16 +139,6 @@ export function MomentNotificationProvider({ children }: { children: React.React
       const next = [...current, ...created];
       setSummaries(next);
       await AsyncStorage.setItem(STORAGE_KEY_SUMMARIES, JSON.stringify(next));
-      if (__DEV__) {
-        const type = created[0]?.momentType;
-        const sphere = created[0]?.sphere;
-        console.log('[AI Summary] Stored locally (AsyncStorage):', {
-          count: created.length,
-          momentType: type,
-          sphere,
-          momentIds: created.map((s) => s.momentId),
-        });
-      }
       return created;
     },
     [summaries]
@@ -290,16 +280,6 @@ export function MomentNotificationProvider({ children }: { children: React.React
       const existingMomentIds = new Set(matchingSummaries.map((s) => s.momentId));
       const memoriesInSphere = idealizedMemories.filter((m) => m.sphere === sphere);
 
-      if (__DEV__) {
-        console.log('[AI Summary] Cache check (per sphere):', {
-          sphere,
-          momentType,
-          totalSummaries: currentSummaries.length,
-          summariesForSphereAndType: matchingSummaries.length,
-          existingMomentIds: [...existingMomentIds],
-        });
-      }
-
       if (momentType === 'lesson') {
         const lessons: { id: string; text: string; memoryTitle?: string; sphere: LifeSphere }[] = [];
         for (const mem of memoriesInSphere) {
@@ -308,21 +288,7 @@ export function MomentNotificationProvider({ children }: { children: React.React
             lessons.push({ id: l.id, text: l.text, memoryTitle: mem.title, sphere: mem.sphere });
           }
         }
-        if (lessons.length === 0) {
-          if (__DEV__) {
-            console.log('[AI Summary] Using local cache — all lesson summaries already exist for', sphere, '- no AI request');
-          }
-          return { generated: 0 };
-        }
-        if (__DEV__) {
-          console.log('[AI Summary] Sending AI request for lesson summaries:', {
-            sphere,
-            momentType,
-            language,
-            count: lessons.length,
-            lessons: lessons.map((l) => ({ id: l.id, text: l.text?.slice(0, 80) })),
-          });
-        }
+        if (lessons.length === 0) return { generated: 0 };
         try {
           const map = await suggestNotificationMessagesForLessons(lessons, language);
           const toAdd: Omit<MomentNotificationSummary, 'id' | 'createdAt'>[] = [];
@@ -342,15 +308,7 @@ export function MomentNotificationProvider({ children }: { children: React.React
               source: 'ai_batch',
             });
           }
-          if (toAdd.length > 0) {
-            await addSummariesBatch(toAdd);
-            if (__DEV__) {
-              console.log('[AI Summary] ensureSummariesForSphereAndType STORED (lessons):', {
-                count: toAdd.length,
-                summaries: toAdd.map((s) => ({ momentId: s.momentId, notificationMessage: s.notificationMessage })),
-              });
-            }
-          }
+          if (toAdd.length > 0) await addSummariesBatch(toAdd);
           return { generated: toAdd.length };
         } catch (err) {
           return { generated: 0, error: err instanceof Error ? err.message : 'Failed to generate' };
@@ -365,21 +323,7 @@ export function MomentNotificationProvider({ children }: { children: React.React
           sunnyMoments.push({ id: g.id, text: g.text, memoryTitle: mem.title, sphere: mem.sphere });
         }
       }
-      if (sunnyMoments.length === 0) {
-        if (__DEV__) {
-          console.log('[AI Summary] Using local cache — all sunny moment summaries already exist for', sphere, '- no AI request');
-        }
-        return { generated: 0 };
-      }
-      if (__DEV__) {
-        console.log('[AI Summary] Sending AI request for sunny moment summaries:', {
-          sphere,
-          momentType,
-          language,
-          count: sunnyMoments.length,
-          moments: sunnyMoments.map((m) => ({ id: m.id, text: m.text?.slice(0, 80) })),
-        });
-      }
+      if (sunnyMoments.length === 0) return { generated: 0 };
       try {
         const map = await suggestNotificationMessagesForSunnyMoments(sunnyMoments, language);
         const toAdd: Omit<MomentNotificationSummary, 'id' | 'createdAt'>[] = [];
@@ -399,15 +343,7 @@ export function MomentNotificationProvider({ children }: { children: React.React
             source: 'ai_batch',
           });
         }
-        if (toAdd.length > 0) {
-          await addSummariesBatch(toAdd);
-          if (__DEV__) {
-            console.log('[AI Summary] ensureSummariesForSphereAndType STORED (sunny):', {
-              count: toAdd.length,
-              summaries: toAdd.map((s) => ({ momentId: s.momentId, notificationMessage: s.notificationMessage })),
-            });
-          }
-        }
+        if (toAdd.length > 0) await addSummariesBatch(toAdd);
         return { generated: toAdd.length };
       } catch (err) {
         return { generated: 0, error: err instanceof Error ? err.message : 'Failed to generate' };

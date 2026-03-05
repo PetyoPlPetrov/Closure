@@ -11,7 +11,6 @@ import { AppState, AppStateStatus, InteractionManager } from "react-native";
 import type {
   CustomerInfo,
   PurchasesOffering,
-  PurchasesOfferings,
   PurchasesPackage,
 } from "react-native-purchases";
 import { handleDevError } from "./dev-error-handler";
@@ -25,100 +24,6 @@ import { presentPaywall, presentPaywallIfNeeded } from "./revenuecat-paywall";
 import { isNativeModuleAvailable, Purchases } from "./revenuecat-wrapper";
 
 export type SubscriptionStatus = "loading" | "subscribed" | "not_subscribed";
-
-/** Serialize entitlements for readable logs (avoids [Object] in output) */
-function serializeEntitlementsForLog(entitlements: CustomerInfo["entitlements"]) {
-  const active = entitlements?.active ?? {};
-  const all = entitlements?.all ?? {};
-  return {
-    active: Object.fromEntries(
-      Object.entries(active).map(([k, v]) => [
-        k,
-        v
-          ? {
-              isActive: v.isActive,
-              expirationDate: v.expirationDate ?? null,
-              willRenew: v.willRenew ?? null,
-              productIdentifier: v.productIdentifier ?? null,
-              periodType: v.periodType ?? null,
-            }
-          : null,
-      ]),
-    ),
-    all: Object.fromEntries(
-      Object.entries(all).map(([k, v]) => [
-        k,
-        v
-          ? {
-              isActive: v.isActive,
-              expirationDate: v.expirationDate ?? null,
-              willRenew: v.willRenew ?? null,
-              productIdentifier: v.productIdentifier ?? null,
-            }
-          : null,
-      ]),
-    ),
-  };
-}
-
-function logSubscriptionInitInfo(
-  offerings: PurchasesOfferings,
-  customerInfo: CustomerInfo,
-): void {
-  const packages: {
-    identifier: string;
-    product: { identifier: string; priceString?: string };
-  }[] = [];
-  if (offerings.current?.availablePackages) {
-    for (const pkg of offerings.current.availablePackages) {
-      packages.push({
-        identifier: pkg.identifier,
-        product: {
-          identifier: pkg.product?.identifier ?? "unknown",
-          priceString: pkg.product?.priceString,
-        },
-      });
-    }
-  }
-
-  console.log(
-    "[SubscriptionProvider] Init – subscriptions, products, packages, entitlements:",
-    {
-      subscriptions: {
-        activeSubscriptions: customerInfo.activeSubscriptions ?? [],
-        allPurchasedProductIdentifiers:
-          customerInfo.allPurchasedProductIdentifiers ?? [],
-        allExpirationDates: customerInfo.allExpirationDates ?? {},
-        allPurchaseDates: customerInfo.allPurchaseDates ?? {},
-        latestExpirationDate: customerInfo.latestExpirationDate ?? null,
-        managementURL: customerInfo.managementURL ?? null,
-      },
-      entitlements: {
-        active: Object.fromEntries(
-          Object.entries(customerInfo.entitlements?.active ?? {}).map(
-            ([k, v]) => [
-              k,
-              {
-                isActive: v?.isActive,
-                expirationDate: v?.expirationDate,
-                willRenew: v?.willRenew,
-                productIdentifier: v?.productIdentifier,
-                periodType: v?.periodType,
-              },
-            ],
-          ),
-        ),
-        all: Object.keys(customerInfo.entitlements?.all ?? {}),
-      },
-      products: packages.map((p) => p.product),
-      packages,
-      offerings: {
-        currentIdentifier: offerings.current?.identifier ?? null,
-        all: Object.keys(offerings.all ?? {}),
-      },
-    },
-  );
-}
 
 export type PrimaryPlan = "ai" | "plus" | null;
 
@@ -173,7 +78,6 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   // Helper function to update state from customerInfo
   // RevenueCat best practice: Trust the isActive flag from RevenueCat
   const updateSubscriptionState = useCallback((info: CustomerInfo) => {
-    console.log("[SubscriptionProvider] updateSubscriptionState called");
     const plus = info.entitlements.active[SFERA_PLUS_ENTITLEMENT];
     const ai = info.entitlements.active[SFERA_AI_ENTITLEMENT];
     const hasPlus = plus !== undefined && plus.isActive === true;
@@ -203,38 +107,6 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     setPrimaryPlan(plan);
     setSubscriptionStatus(hasAny ? "subscribed" : "not_subscribed");
     setCustomerInfo(info);
-
-    console.log("[SubscriptionProvider] RevenueCat data received:", {
-      activeSubscriptions: info.activeSubscriptions ?? [],
-      allPurchasedProductIdentifiers: info.allPurchasedProductIdentifiers ?? [],
-      allExpirationDates: info.allExpirationDates ?? {},
-      activeEntitlements: Object.keys(info.entitlements.active ?? {}),
-      hasPlusEntitlement: hasPlus,
-      hasAIEntitlement: hasAI,
-      hasAIPlan,
-      hasPlusPlan,
-      primaryPlan: plan,
-      isSubscribed: hasAny,
-    });
-    console.log(
-      "[SubscriptionProvider] CustomerInfo (full) – permissions & plans:",
-      JSON.stringify(
-        {
-          originalAppUserId: info.originalAppUserId,
-          requestDate: info.requestDate,
-          entitlements: serializeEntitlementsForLog(info.entitlements),
-          activeSubscriptions: info.activeSubscriptions ?? [],
-          allPurchasedProductIdentifiers:
-            info.allPurchasedProductIdentifiers ?? [],
-          allExpirationDates: info.allExpirationDates ?? {},
-          allPurchaseDates: info.allPurchaseDates ?? {},
-          latestExpirationDate: info.latestExpirationDate ?? null,
-          managementURL: info.managementURL ?? null,
-        },
-        null,
-        2,
-      ),
-    );
   }, []);
 
   const checkSubscription = useCallback(
@@ -270,7 +142,6 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
 
   // Refresh customer info - can be called by screens before accessing premium content
   const refreshCustomerInfo = useCallback(async () => {
-    console.log("[SubscriptionProvider] Manually refreshing customer info...");
     await checkSubscription();
   }, [checkSubscription]);
 
@@ -366,7 +237,6 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     let listener: any = null;
 
     const initializeSubscription = async () => {
-      console.log("[SubscriptionProvider] initializeSubscription started");
       if (!isNativeModuleAvailable || !Purchases) {
         setSubscriptionStatus("not_subscribed");
         setIsSubscribed(false);
@@ -381,16 +251,8 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         // Add listener first – the React Native bridge sometimes doesn't resolve
         // getCustomerInfo() promises, but the listener reliably receives updates
         // when the native SDK gets CustomerInfo (including initial fetch).
-        console.log(
-          "[SubscriptionProvider] Adding CustomerInfo update listener",
-        );
         listener = Purchases.addCustomerInfoUpdateListener(
-          (info: CustomerInfo) => {
-            console.log(
-              "[SubscriptionProvider] CustomerInfo updated via listener",
-            );
-            updateSubscriptionState(info);
-          },
+          (info: CustomerInfo) => updateSubscriptionState(info),
         );
 
         const offerings = await Purchases.getOfferings();
@@ -401,11 +263,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         // getCustomerInfo triggers the fetch; we may get the result via the
         // listener above if the promise doesn't resolve (known bridge issue).
         const customerInfo = await Purchases.getCustomerInfo();
-        console.log(
-          "[SubscriptionProvider] getCustomerInfo resolved, updating state...",
-        );
         updateSubscriptionState(customerInfo);
-        logSubscriptionInitInfo(offerings, customerInfo);
       } catch (error) {
         handleDevError(error, "Initialize Subscription");
         setSubscriptionStatus("not_subscribed");
@@ -421,9 +279,6 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
 
     return () => {
       if (listener && typeof listener.remove === "function") {
-        console.log(
-          "[SubscriptionProvider] Removing CustomerInfo update listener",
-        );
         listener.remove();
       }
     };
@@ -438,9 +293,6 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         appState.current.match(/inactive|background/) &&
         nextAppState === "active"
       ) {
-        console.log(
-          "[SubscriptionProvider] App came to foreground, refreshing subscription status...",
-        );
         InteractionManager.runAfterInteractions(() => {
           checkSubscription();
         });

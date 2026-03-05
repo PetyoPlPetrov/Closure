@@ -241,8 +241,6 @@ export function EntityWheelOfLife({
 
   // Spawn 4 moments sequentially, each grows from its memory, stays 3s, then shrinks back
   useEffect(() => {
-    console.log('[EntityWheel] Effect triggered. isSpinning:', isSpinning, 'momentsWithPositions.length:', momentsWithPositions.length);
-
     // Don't spawn moments while spinning
     if (isSpinning) {
       setFloatingMoments([]);
@@ -251,12 +249,9 @@ export function EntityWheelOfLife({
     }
 
     if (momentsWithPositions.length === 0) {
-      console.log('[EntityWheel] No moments found for type:', selectedMomentType);
       setFloatingMoments([]);
       return;
     }
-
-    console.log('[EntityWheel] Starting to spawn moments. First 4:', momentsWithPositions.slice(0, 4).map(m => ({ type: m.momentType, text: m.text.substring(0, 20) })));
 
     const timeouts: ReturnType<typeof setTimeout>[] = [];
     const INITIAL_CONCURRENT_MOMENTS = 4; // Show 4 at a time
@@ -277,7 +272,6 @@ export function EntityWheelOfLife({
           ...momentData,
         };
 
-        console.log('[EntityWheel] Spawning moment:', { index: momentIndex, type: newMoment.momentType, text: newMoment.text.substring(0, 30), memoryX: newMoment.memoryX, memoryY: newMoment.memoryY });
         setFloatingMoments(prev => [...prev, newMoment]);
 
         // Remove this moment after it completes
@@ -373,7 +367,6 @@ export function EntityWheelOfLife({
       if (!hasAIEntitlement) {
         await recordWheelExamUsed();
       }
-      if (__DEV__) console.log("[EntityWheel] Spin done, showing loading popup");
       // Show loading popup immediately so UI doesn't feel stuck while preload/consume runs
       setSelectedMomentType('lesson');
       setSelectedMoment({
@@ -402,8 +395,6 @@ export function EntityWheelOfLife({
           }),
       });
       if (item) {
-        if (__DEV__)
-          console.log("[EntityWheel] Got preloaded question, showing exam");
         setSelectedMoment({
           type: 'lesson',
           text: item.lessonText,
@@ -411,8 +402,6 @@ export function EntityWheelOfLife({
         });
         setExamState({ question: item.question, step: 'question' });
       } else {
-        if (__DEV__)
-          console.log("[EntityWheel] Pool empty, using fallback lesson (no AI exam)");
         const randomObj = lessons[Math.floor(Math.random() * lessons.length)];
         setSelectedMoment({
           type: 'lesson',
@@ -721,9 +710,7 @@ export function EntityWheelOfLife({
         </ThemedText>
       </Pressable>
       {/* Floating moments that grow from memories */}
-      {(() => {
-        console.log('[EntityWheel] Rendering floatingMoments. Count:', floatingMoments.length);
-        return floatingMoments.map((moment, index) => (
+      {floatingMoments.map((moment, index) => (
           <FloatingMomentFromMemory
             key={`floating-moment-${moment.id}`}
             memoryX={moment.memoryX}
@@ -735,8 +722,7 @@ export function EntityWheelOfLife({
             positionIndex={index}
             totalConcurrent={floatingMoments.length}
           />
-        ));
-      })()}
+        ))}
 
       {/* Fireworks for correct exam answer */}
       {showFireworks && (
@@ -1123,8 +1109,6 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
 
   // Animation: grow from memory position, move to center, hold, then shrink back to memory
   useEffect(() => {
-    console.log('[FloatingMoment] Component mounted. Type:', momentType, 'Text:', text?.substring(0, 20), 'StartPos:', { x: startX, y: startY }, 'EndPos:', { x: endX, y: endY });
-
     const GROW_DURATION = 800;
     const HOLD_DURATION = 3000;
     const SHRINK_DURATION = 800;

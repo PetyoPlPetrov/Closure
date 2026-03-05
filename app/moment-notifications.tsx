@@ -185,14 +185,6 @@ export default function MomentNotificationsScreen() {
     }
     const lessonSummaries = summaries.filter((s) => s.momentType === "lesson");
     const sunnySummaries = summaries.filter((s) => s.momentType === "sunny");
-    console.log("[MomentNotifications] === LESSONS FROM MEMORIES ===");
-    console.log(JSON.stringify(lessons, null, 2));
-    console.log("[MomentNotifications] === SUNNY MOMENTS FROM MEMORIES ===");
-    console.log(JSON.stringify(sunnyMoments, null, 2));
-    console.log("[MomentNotifications] === AI SUMMARIES FOR LESSONS ===");
-    console.log(JSON.stringify(lessonSummaries, null, 2));
-    console.log("[MomentNotifications] === AI SUMMARIES FOR SUNNY MOMENTS ===");
-    console.log(JSON.stringify(sunnySummaries, null, 2));
   }, [isLoaded, idealizedMemories, summaries]);
 
   useEffect(() => {
@@ -210,33 +202,8 @@ export default function MomentNotificationsScreen() {
       if (type === "lesson" && !hasLessonsForSphere) return;
       if (type === "sunny" && !hasSunnyForSphere) return;
       setFormMomentType(type);
-      if (__DEV__) {
-        const memoriesInSphere = idealizedMemories.filter((m) => m.sphere === formSphere);
-        const moments =
-          type === "lesson"
-            ? memoriesInSphere.flatMap((m) =>
-                (m.lessonsLearned ?? []).map((l) => ({ id: l.id, text: l.text, memoryTitle: m.title }))
-              )
-            : memoriesInSphere.flatMap((m) =>
-                (m.goodFacts ?? []).map((g) => ({ id: g.id, text: g.text, memoryTitle: m.title }))
-              );
-        const summariesForType = getSummariesBySphereAndType(formSphere, type);
-        const summaryByMomentId = Object.fromEntries(summariesForType.map((s) => [s.momentId, s]));
-        const momentsWithSummaries = moments.map((m) => ({
-          id: m.id,
-          text: m.text?.slice(0, 60),
-          memoryTitle: m.memoryTitle,
-          hasSummary: !!summaryByMomentId[m.id],
-          notificationMessage: summaryByMomentId[m.id]?.notificationMessage,
-        }));
-        console.log(`[MomentType] Selected ${type} for sphere ${formSphere}:`, {
-          momentsCount: moments.length,
-          summariesCount: summariesForType.length,
-          momentsWithSummaries,
-        });
-      }
     },
-    [hasLessonsForSphere, hasSunnyForSphere, formSphere, idealizedMemories, getSummariesBySphereAndType]
+    [hasLessonsForSphere, hasSunnyForSphere, formSphere]
   );
 
   const getEffectiveSource = useCallback(
@@ -333,9 +300,6 @@ export default function MomentNotificationsScreen() {
     setIsSaving(true);
     try {
       if (formSource === "ai" || formSource === "both") {
-        if (__DEV__) {
-          console.log("[AI Summary] Save pressed (AI source) — sphere:", formSphere, "momentType:", formMomentType, "language:", language === "bg" ? "bg" : "en");
-        }
         const result = await ensureSummariesForSphereAndType(
           formSphere,
           formMomentType,
@@ -349,8 +313,6 @@ export default function MomentNotificationsScreen() {
           setIsSaving(false);
           return;
         }
-      } else if (__DEV__) {
-        console.log("[AI Summary] Save pressed (moments source) — using raw text, no AI summaries");
       }
 
       const hours =
