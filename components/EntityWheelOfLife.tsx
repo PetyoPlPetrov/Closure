@@ -44,6 +44,7 @@ import Animated, {
   Easing,
   cancelAnimation,
   runOnJS,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -87,6 +88,210 @@ interface EntityWheelOfLifeProps {
   colorScheme: 'light' | 'dark';
 }
 
+// Spiraling icons that flow out from avatar during wheel spin or on correct exam answer
+const EntitySpirallingStar = React.memo(function EntitySpirallingStar({
+  avatarCenterX,
+  avatarCenterY,
+  startAngle,
+  spiralOffset,
+  size,
+  delay,
+  isSpinning,
+  celebrationSpinning,
+  momentType = 'lessons',
+}: {
+  avatarCenterX: Animated.SharedValue<number>;
+  avatarCenterY: Animated.SharedValue<number>;
+  startAngle: number;
+  spiralOffset: number;
+  size: number;
+  delay: number;
+  isSpinning: Animated.SharedValue<boolean>;
+  celebrationSpinning?: Animated.SharedValue<boolean>;
+  momentType?: 'lessons' | 'hardTruths' | 'sunnyMoments';
+}) {
+  const { momentColors } = useMomentColors();
+  const progress = useSharedValue(0);
+  const opacity = useSharedValue(0);
+
+  useAnimatedReaction(
+    () => isSpinning.value,
+    (spinning, previousSpinning) => {
+      'worklet';
+      if (spinning && !previousSpinning) {
+        progress.value = 0;
+        opacity.value = 0;
+        progress.value = withDelay(
+          delay,
+          withRepeat(
+            withTiming(1, { duration: 2500, easing: Easing.out(Easing.ease) }),
+            -1,
+            false,
+          ),
+        );
+        opacity.value = withDelay(
+          delay,
+          withRepeat(
+            withSequence(
+              withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) }),
+              withTiming(0, { duration: 2000, easing: Easing.in(Easing.ease) }),
+            ),
+            -1,
+            false,
+          ),
+        );
+      } else if (!spinning && previousSpinning) {
+        cancelAnimation(progress);
+        cancelAnimation(opacity);
+        progress.value = 0;
+        opacity.value = 0;
+      }
+    },
+    [delay],
+  );
+
+  useAnimatedReaction(
+    () => celebrationSpinning?.value ?? false,
+    (celebrating, previousCelebrating) => {
+      'worklet';
+      if (celebrating && !previousCelebrating && celebrationSpinning) {
+        progress.value = 0;
+        opacity.value = 0;
+        progress.value = withDelay(
+          delay,
+          withTiming(1, { duration: 800, easing: Easing.out(Easing.ease) }),
+        );
+        opacity.value = withDelay(
+          delay,
+          withSequence(
+            withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) }),
+            withTiming(0, { duration: 600, easing: Easing.in(Easing.ease) }),
+          ),
+        );
+      } else if (!celebrating && previousCelebrating) {
+        cancelAnimation(progress);
+        cancelAnimation(opacity);
+        progress.value = 0;
+        opacity.value = 0;
+      }
+    },
+  );
+
+  const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    const centerX = avatarCenterX.value;
+    const centerY = avatarCenterY.value;
+    const maxRadius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.5;
+    const radius = progress.value * maxRadius;
+    const angle = startAngle + spiralOffset * progress.value;
+    const x = centerX + Math.cos(angle) * radius;
+    const y = centerY + Math.sin(angle) * radius;
+    const rotation = progress.value * 360;
+    return {
+      opacity: opacity.value,
+      transform: [
+        { translateX: x - size / 2 },
+        { translateY: y - size / 2 },
+        { rotate: `${rotation}deg` },
+        { scale: 1 - progress.value * 0.3 },
+      ],
+    };
+  });
+
+  const getIconConfig = () => {
+    switch (momentType) {
+      case 'lessons':
+        return { icon: '💡', color: momentColors.lesson.background };
+      case 'sunnyMoments':
+        return { icon: '☀️', color: momentColors.sunny.background };
+      case 'hardTruths':
+        return { icon: '☁️', color: momentColors.cloudy.background };
+      default:
+        return { icon: '💡', color: momentColors.lesson.background };
+    }
+  };
+
+  const { icon, color } = getIconConfig();
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          width: size,
+          height: size,
+          left: 0,
+          top: 0,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        animatedStyle,
+      ]}
+    >
+      <View
+        style={{
+          width: size,
+          height: size,
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: color,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.6,
+          shadowRadius: size,
+          elevation: 8,
+        }}
+      >
+        <ThemedText style={{ fontSize: size, lineHeight: size }}>{icon}</ThemedText>
+      </View>
+    </Animated.View>
+  );
+});
+
+const EntitySpiralingStars = React.memo(function EntitySpiralingStars({
+  avatarCenterX,
+  avatarCenterY,
+  isSpinning,
+  celebrationSpinning,
+  momentType = 'lessons',
+}: {
+  avatarCenterX: Animated.SharedValue<number>;
+  avatarCenterY: Animated.SharedValue<number>;
+  isSpinning: Animated.SharedValue<boolean>;
+  celebrationSpinning?: Animated.SharedValue<boolean>;
+  momentType?: 'lessons' | 'hardTruths' | 'sunnyMoments';
+}) {
+  const { isTablet } = useLargeDevice();
+  const particles = React.useMemo(() => {
+    const numParticles = isTablet ? 30 : 20;
+    return Array.from({ length: numParticles }, (_, i) => ({
+      id: `spiral-particle-${i}`,
+      startAngle: (i / numParticles) * Math.PI * 2,
+      spiralOffset: (i / numParticles) * Math.PI * 4,
+      size: isTablet ? 24 : 18,
+      delay: (i / numParticles) * 800,
+    }));
+  }, [isTablet]);
+
+  return (
+    <>
+      {particles.map((particle) => (
+        <EntitySpirallingStar
+          key={particle.id}
+          avatarCenterX={avatarCenterX}
+          avatarCenterY={avatarCenterY}
+          startAngle={particle.startAngle}
+          spiralOffset={particle.spiralOffset}
+          size={particle.size}
+          delay={particle.delay}
+          isSpinning={isSpinning}
+          celebrationSpinning={celebrationSpinning}
+          momentType={momentType}
+        />
+      ))}
+    </>
+  );
+});
+
 export function EntityWheelOfLife({
   entity,
   memories,
@@ -97,9 +302,19 @@ export function EntityWheelOfLife({
   const { isTablet } = useLargeDevice();
   const fontScale = useFontScale();
   const { hasAIEntitlement } = useSubscription();
+  const aiConsent = useAIInsightsConsent();
   const t = useTranslate();
   const { language } = useLanguage();
   const lang = language === 'bg' ? 'bg' : 'en';
+
+  const [aiConsentModalVisible, setAiConsentModalVisible] = useState(false);
+  const [spinLabelDismissed, setSpinLabelDismissed] = useState(false);
+
+  // Shared values for spiraling stars (synced with spinning state)
+  const wheelCenterX = useSharedValue(SCREEN_WIDTH / 2);
+  const wheelCenterY = useSharedValue(SCREEN_HEIGHT / 2 - 40);
+  const isSpinningShared = useSharedValue(false);
+  const celebrationSpinning = useSharedValue(false);
 
   // Animation values
   const entranceProgress = useSharedValue(0);
@@ -171,6 +386,29 @@ export function EntityWheelOfLife({
 
     return { lesson: lessons, sunny, cloudy };
   }, [memories]);
+
+  // Sync isSpinning to shared value for SpiralingStars
+  useEffect(() => {
+    isSpinningShared.value = isSpinning;
+  }, [isSpinning, isSpinningShared]);
+
+  // Trigger celebration sparks when exam answer is correct
+  useEffect(() => {
+    if (examState?.step === 'result' && examState?.analysis?.isCorrect) {
+      celebrationSpinning.value = true;
+      const t = setTimeout(() => {
+        celebrationSpinning.value = false;
+      }, 1000);
+      return () => clearTimeout(t);
+    }
+  }, [examState?.step, examState?.analysis?.isCorrect, celebrationSpinning]);
+
+  // Auto-dismiss "Spin the wheel" label after 3 seconds
+  useEffect(() => {
+    setSpinLabelDismissed(false);
+    const timer = setTimeout(() => setSpinLabelDismissed(true), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Entrance animation
   useEffect(() => {
@@ -591,6 +829,15 @@ export function EntityWheelOfLife({
         )}
       </AnimatedView>
 
+      {/* Spiraling icons - appears during wheel spin and on correct exam answer */}
+      <EntitySpiralingStars
+        avatarCenterX={wheelCenterX}
+        avatarCenterY={wheelCenterY}
+        isSpinning={isSpinningShared}
+        celebrationSpinning={celebrationSpinning}
+        momentType="lessons"
+      />
+
       {/* Memories in orbit */}
       <AnimatedView
         style={[
@@ -689,6 +936,40 @@ export function EntityWheelOfLife({
           );
         })}
       </View>
+      )}
+
+      {/* "Spin the wheel" label - auto-dismisses after 3 seconds */}
+      {!isSpinning && !spinLabelDismissed && (
+        <View
+          style={{
+            position: 'absolute',
+            top: SCREEN_HEIGHT / 2 + 105,
+            left: 0,
+            right: 0,
+            alignItems: 'center',
+            zIndex: 200,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <ThemedText size="sm" weight="bold" style={{ opacity: 0.7, textAlign: 'center' }}>
+              {t('wheel.spinForRandom')}
+            </ThemedText>
+            <Pressable
+              onPress={() => setSpinLabelDismissed(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <MaterialIcons name="close" size={16} color={colors.text} style={{ opacity: 0.7 }} />
+            </Pressable>
+          </View>
+        </View>
       )}
 
       {/* Spin button — enabled for any filter with moments */}

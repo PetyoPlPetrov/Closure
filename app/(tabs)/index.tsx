@@ -539,6 +539,8 @@ const FloatingAvatar = React.memo(
       userAnswer?: string;
     } | null>(null);
     const [showWheelFireworks, setShowWheelFireworks] = React.useState(false);
+    const [entityWheelSpinLabelDismissed, setEntityWheelSpinLabelDismissed] =
+      React.useState(false);
     const [examAnswerInput, setExamAnswerInput] = React.useState("");
     const [selectedMomentType, setSelectedMomentType] = React.useState<
       "lesson" | "sunny" | "cloudy"
@@ -604,6 +606,7 @@ const FloatingAvatar = React.memo(
     const popupPressScale = useSharedValue(1); // Press animation for entity wheel popup
     const orbitAngle = useSharedValue(0); // Continuous orbit angle for automatic rotation
     const showEntityWheelShared = useSharedValue(false); // Shared value for worklet reactivity
+    const entityCelebrationSparksVisible = useSharedValue(false); // Spiraling sparks on correct exam answer
 
     // Entity wheel moment type selector animation values (matching main wheel)
     const entityLessonButtonPressScale = useSharedValue(1);
@@ -1270,15 +1273,17 @@ const FloatingAvatar = React.memo(
     const targetY = normalTargetY; // Will be animated based on wheelModeProgress
 
     // Update star center to match avatar's actual visual position
+    // Must use targetX/targetY (same as animatedStyle) - NOT focusedX/focusedY.
+    // When in wheel mode we set focusedY=wheelTargetY but the avatar stays at targetY (normalTargetY),
+    // so using focusedX/focusedY would misplace sparks above the avatar.
     useAnimatedReaction(
       () => {
-        // Calculate the same interpolated position used in animatedStyle
         if (isFocused) {
-          // Use focusedX/focusedY which represent the target position
+          // Same formula as avatar's animatedStyle - interpolate toward targetX/targetY
           const currentX =
-            startX.value + (focusedX.value - startX.value) * zoomProgress.value;
+            startX.value + (targetX - startX.value) * zoomProgress.value;
           const currentY =
-            startY.value + (focusedY.value - startY.value) * zoomProgress.value;
+            startY.value + (targetY - startY.value) * zoomProgress.value;
           return { x: currentX, y: currentY };
         }
         return { x: position.x, y: position.y };
@@ -1373,6 +1378,14 @@ const FloatingAvatar = React.memo(
         onEntityWheelChange(showEntityWheel && isFocused);
       }
     }, [showEntityWheel, isFocused, onEntityWheelChange]);
+
+    // Auto-dismiss "Spin the wheel" label in entity wheel after 3 seconds
+    React.useEffect(() => {
+      if (!showEntityWheel || !isFocused) return;
+      setEntityWheelSpinLabelDismissed(false);
+      const timer = setTimeout(() => setEntityWheelSpinLabelDismissed(true), 3000);
+      return () => clearTimeout(timer);
+    }, [showEntityWheel, isFocused]);
 
     // Clear floating moments immediately when moment type changes
     React.useEffect(() => {
@@ -2087,6 +2100,10 @@ const FloatingAvatar = React.memo(
           );
           if (analysis.isCorrect) {
             setShowWheelFireworks(true);
+            entityCelebrationSparksVisible.value = true;
+            setTimeout(() => {
+              entityCelebrationSparksVisible.value = false;
+            }, 1000);
           }
         } catch (err) {
           logError(err as Error, "wheel-exam-analyze");
@@ -2105,7 +2122,7 @@ const FloatingAvatar = React.memo(
           );
         }
       },
-      [selectedWheelMoment, selectedWheelExam, lang],
+      [selectedWheelMoment, selectedWheelExam, lang, entityCelebrationSparksVisible],
     );
 
     // Animate popup entrance when selectedWheelMoment appears
@@ -3591,6 +3608,22 @@ const FloatingAvatar = React.memo(
               zIndex: 400,
             }}
           >
+            {/* Spiraling icons - appears during entity wheel spin and on correct exam answer */}
+            <SpiralingStars
+              avatarCenterX={starCenterX}
+              avatarCenterY={starCenterY}
+              isSpinning={isWheelSpinning}
+              celebrationSpinning={entityCelebrationSparksVisible}
+              colorScheme={colorScheme ?? "dark"}
+              momentType={
+                selectedMomentType === "lesson"
+                  ? "lessons"
+                  : selectedMomentType === "sunny"
+                    ? "sunnyMoments"
+                    : "hardTruths"
+              }
+            />
+
             {/* 3 moment type icons at bottom - matching wheel of life liquid glass style */}
             {(() => {
               const tabBarHeight =
@@ -3652,6 +3685,64 @@ const FloatingAvatar = React.memo(
 
               return (
                 <>
+                  {/* "Spin the wheel" label - auto-dismisses after 3 seconds */}
+                  {!isWheelSpinningState &&
+                    !entityWheelSpinLabelDismissed && (
+                      <View
+                        style={{
+                          position: "absolute",
+                          top: iconY - 40,
+                          left: 0,
+                          right: 0,
+                          alignItems: "center",
+                          zIndex: 500,
+                        }}
+                      >
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8,
+                          }}
+                        >
+                          <ThemedText
+                            size="sm"
+                            weight="bold"
+                            style={{
+                              opacity: 0.7,
+                              textAlign: "center",
+                            }}
+                          >
+                            {t("wheel.spinForRandom")}
+                          </ThemedText>
+                          <Pressable
+                            onPress={() =>
+                              setEntityWheelSpinLabelDismissed(true)
+                            }
+                            hitSlop={CLOSE_BUTTON_HITSLOP}
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: 12,
+                              backgroundColor:
+                                colorScheme === "dark"
+                                  ? "rgba(255, 255, 255, 0.1)"
+                                  : "rgba(0, 0, 0, 0.1)",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <MaterialIcons
+                              name="close"
+                              size={16}
+                              color={colors.text}
+                              style={{ opacity: 0.7 }}
+                            />
+                          </Pressable>
+                        </View>
+                      </View>
+                    )}
                   {!isWheelSpinningState &&
                   icons.map((item, index) => {
                     const x = SCREEN_WIDTH / 2 - spacing + index * spacing;
