@@ -1,0 +1,379 @@
+/**
+ * Wheel exam question preloading.
+ * - Each question is linked to a specific user lesson (one question per lesson).
+ * - Main: preload up to 20 questions on app open. Cache in AsyncStorage.
+ * - Entity: preload up to 20 questions when entity wheel opens. Cache per entity.
+ * - Remove question from cache when user sees it.
+ * - Refill when main < 5 or entity < 10: pick another set of random lessons (up to 20),
+ *   generate one new question per lesson via AI, append to pool.
+ * - AI evaluation receives user answer + question + linked lesson to decide if user learned it.
+ */
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { IdealizedMemory } from "./JourneyProvider";
+import { canSpinWheelExam } from "./wheel-exam-rate-limiter";
+import {
+  generateLessonExamQuestionsBatch,
+  type PreloadedExamQuestion as PreloadedType,
+} from "./ai-service";
+
+const MAX_PRELOAD = 20;
+const MAIN_REFILL_THRESHOLD = 5;
+const ENTITY_REFILL_THRESHOLD = 10;
+
+const MAIN_STORAGE_KEY = "@sferas:wheel_exam_main";
+const ENTITY_STORAGE_PREFIX = "@sferas:wheel_exam_entity:";
+
+/** Flatten all lessons from memories with id, text, memoryId, memoryImageUri, entityId, sphere */
+function collectLessonsFromMemories(
+  memories: IdealizedMemory[],
+): {
+  id: string;
+  text: string;
+  memoryId: string;
+  memoryImageUri?: string;
+  entityId: string;
+  sphere: IdealizedMemory["sphere"];
+}[] {
+  const out: {
+    id: string;
+    text: string;
+    memoryId: string;
+    memoryImageUri?: string;
+    entityId: string;
+    sphere: IdealizedMemory["sphere"];
+  }[] = [];
+  for (const m of memories) {
+    const list = m.lessonsLearned ?? [];
+    for (const l of list) {
+      if (l?.text?.trim()) {
+        out.push({
+          id: l.id,
+          text: l.text.trim(),
+          memoryId: m.id,
+          memoryImageUri: m.imageUri,
+          entityId: m.entityId ?? m.profileId ?? "",
+          sphere: m.sphere ?? "relationships",
+        });
+      }
+    }
+  }
+  return out;
+}
+
+/** Pick up to n random items */
+function pickRandom<T>(arr: T[], n: number): T[] {
+  if (arr.length <= n) return arr;
+  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, n);
+}
+
+let mainPreloaded: PreloadedType[] = [];
+const entityPreloaded = new Map<string, PreloadedType[]>();
+let mainLoadedFromStorage = false;
+const entityLoadedFromStorage = new Set<string>();
+let mainPreloadPromise: Promise<void> | null = null;
+const entityPreloadPromises = new Map<string, Promise<void>>();
+
+async function loadMainFromStorage(): Promise<void> {
+  if (mainLoadedFromStorage) return;
+  mainLoadedFromStorage = true;
+  try {
+    const raw = await AsyncStorage.getItem(MAIN_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as PreloadedType[];
+      if (Array.isArray(parsed)) {
+        mainPreloaded = parsed;
+        if (__DEV__) {
+          console.log("[WheelExam] Loaded main from cache:", mainPreloaded.length);
+        }
+      }
+    }
+  } catch (e) {
+    if (__DEV__) console.warn("[WheelExam] Failed to load main cache:", e);
+  }
+}
+
+async function loadEntityFromStorage(entityId: string): Promise<void> {
+  if (entityLoadedFromStorage.has(entityId)) return;
+  entityLoadedFromStorage.add(entityId);
+  try {
+    const raw = await AsyncStorage.getItem(ENTITY_STORAGE_PREFIX + entityId);
+    if (raw) {
+      const parsed = JSON.parse(raw) as PreloadedType[];
+      if (Array.isArray(parsed)) {
+        entityPreloaded.set(entityId, parsed);
+        if (__DEV__) {
+          console.log(
+            "[WheelExam] Loaded entity",
+            entityId,
+            "from cache:",
+            parsed.length,
+          );
+        }
+      }
+    }
+  } catch (e) {
+    if (__DEV__) console.warn("[WheelExam] Failed to load entity cache:", e);
+  }
+}
+
+async function saveMainToStorage(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(MAIN_STORAGE_KEY, JSON.stringify(mainPreloaded));
+  } catch (e) {
+    if (__DEV__) console.warn("[WheelExam] Failed to save main cache:", e);
+  }
+}
+
+async function saveEntityToStorage(entityId: string): Promise<void> {
+  try {
+    const pool = entityPreloaded.get(entityId) ?? [];
+    await AsyncStorage.setItem(
+      ENTITY_STORAGE_PREFIX + entityId,
+      JSON.stringify(pool),
+    );
+  } catch (e) {
+    if (__DEV__) console.warn("[WheelExam] Failed to save entity cache:", e);
+  }
+}
+
+export async function getMainPreloadedQuestions(): Promise<PreloadedType[]> {
+  await loadMainFromStorage();
+  return [...mainPreloaded];
+}
+
+export async function getEntityPreloadedQuestions(
+  entityId: string,
+): Promise<PreloadedType[]> {
+  await loadEntityFromStorage(entityId);
+  return [...(entityPreloaded.get(entityId) ?? [])];
+}
+
+export function pickRandomPreloaded(
+  pool: PreloadedType[],
+): PreloadedType | null {
+  if (pool.length === 0) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/**
+ * Pick a question and remove it from the cache. Persists. Triggers refetch if below threshold.
+ * Returns the picked item or null.
+ */
+export async function pickAndConsumePreloadedQuestion(params: {
+  type: "main" | "entity";
+  entityId?: string;
+  onRefetchMain?: () => Promise<void>;
+  onRefetchEntity?: (entityId: string) => Promise<void>;
+}): Promise<PreloadedType | null> {
+  const { type, entityId, onRefetchMain, onRefetchEntity } = params;
+
+  if (type === "main") {
+    await loadMainFromStorage();
+    if (mainPreloaded.length === 0) return null;
+    const idx = Math.floor(Math.random() * mainPreloaded.length);
+    const item = mainPreloaded[idx];
+    mainPreloaded.splice(idx, 1);
+    await saveMainToStorage();
+    if (__DEV__) {
+      console.log("[WheelExam] Consumed main question (linked to lesson), remaining:", mainPreloaded.length);
+    }
+    if (mainPreloaded.length < MAIN_REFILL_THRESHOLD && onRefetchMain) {
+      if (__DEV__) console.log("[WheelExam] Main below threshold, triggering refetch");
+      void onRefetchMain();
+    }
+    return item;
+  }
+
+  if (type === "entity" && entityId) {
+    await loadEntityFromStorage(entityId);
+    const pool = entityPreloaded.get(entityId) ?? [];
+    if (pool.length === 0) return null;
+    const idx = Math.floor(Math.random() * pool.length);
+    const item = pool[idx];
+    pool.splice(idx, 1);
+    entityPreloaded.set(entityId, pool);
+    await saveEntityToStorage(entityId);
+    if (__DEV__) {
+      console.log(
+        "[WheelExam] Consumed entity question (linked to lesson), remaining:",
+        pool.length,
+      );
+    }
+    if (pool.length < ENTITY_REFILL_THRESHOLD && onRefetchEntity) {
+      if (__DEV__) console.log("[WheelExam] Entity below threshold, triggering refetch");
+      void onRefetchEntity(entityId);
+    }
+    return item;
+  }
+
+  return null;
+}
+
+/**
+ * Preload questions for main wheel (all entities).
+ * Loads from cache first. Appends new questions. Persists.
+ */
+export async function preloadMainWheelQuestions(params: {
+  memories: IdealizedMemory[];
+  language: "en" | "bg";
+  hasAIEntitlement: boolean;
+  appendOnly?: boolean;
+}): Promise<void> {
+  const {
+    memories,
+    language,
+    hasAIEntitlement,
+    appendOnly = false,
+  } = params;
+
+  await loadMainFromStorage();
+  if (appendOnly && mainPreloaded.length >= MAIN_REFILL_THRESHOLD) {
+    if (__DEV__) console.log("[WheelExam] Main append skipped, count:", mainPreloaded.length);
+    return;
+  }
+  if (!appendOnly && mainPreloaded.length >= MAIN_REFILL_THRESHOLD) {
+    if (__DEV__) console.log("[WheelExam] Main has enough from cache, skip fetch:", mainPreloaded.length);
+    return;
+  }
+  if (mainPreloadPromise) return mainPreloadPromise;
+
+  mainPreloadPromise = (async () => {
+    const all = collectLessonsFromMemories(memories);
+    if (all.length === 0) {
+      mainPreloadPromise = null;
+      return;
+    }
+
+    const toPreload = pickRandom(all, MAX_PRELOAD);
+    const canPreload = await canSpinWheelExam(hasAIEntitlement);
+    // Skip preload when user exhausted free spins — do NOT show paywall here.
+    // Paywall should only show when user actually tries to spin the wheel.
+    if (!canPreload) {
+      mainPreloadPromise = null;
+      return;
+    }
+    // Don't record here - record when user actually spins (in index/EntityWheelOfLife)
+
+    try {
+      const questions = await generateLessonExamQuestionsBatch(
+        toPreload,
+        language,
+      );
+      mainPreloaded =
+        mainPreloaded.length > 0
+          ? [...mainPreloaded, ...questions]
+          : questions;
+      await saveMainToStorage();
+      if (__DEV__) {
+        console.log(
+          "[WheelExam] Main preload done, total:",
+          mainPreloaded.length,
+          mainPreloaded.length > questions.length ? "(appended)" : "(initial)",
+        );
+      }
+    } catch (e) {
+      if (__DEV__) console.warn("[WheelExam] Main preload failed:", e);
+      if (!appendOnly) mainPreloaded = [];
+    } finally {
+      mainPreloadPromise = null;
+    }
+  })();
+
+  return mainPreloadPromise;
+}
+
+/**
+ * Preload questions for entity wheel.
+ * Loads from cache first. Appends new questions. Persists.
+ */
+export async function preloadEntityWheelQuestions(params: {
+  entityId: string;
+  memories: IdealizedMemory[];
+  language: "en" | "bg";
+  hasAIEntitlement: boolean;
+  appendOnly?: boolean;
+}): Promise<void> {
+  const {
+    entityId,
+    memories,
+    language,
+    hasAIEntitlement,
+    appendOnly = false,
+  } = params;
+
+  await loadEntityFromStorage(entityId);
+  const existing = entityPreloaded.get(entityId) ?? [];
+  if (appendOnly && existing.length >= ENTITY_REFILL_THRESHOLD) {
+    if (__DEV__)
+      console.log(
+        "[WheelExam] Entity",
+        entityId,
+        "append skipped, count:",
+        existing.length,
+      );
+    return;
+  }
+  if (!appendOnly && existing.length >= ENTITY_REFILL_THRESHOLD) {
+    if (__DEV__)
+      console.log(
+        "[WheelExam] Entity",
+        entityId,
+        "has enough from cache, skip fetch:",
+        existing.length,
+      );
+    return;
+  }
+
+  let promise = entityPreloadPromises.get(entityId);
+  if (promise) return promise;
+
+  promise = (async () => {
+    const all = collectLessonsFromMemories(memories);
+    if (all.length === 0) {
+      entityPreloaded.set(entityId, []);
+      await saveEntityToStorage(entityId);
+      entityPreloadPromises.delete(entityId);
+      return;
+    }
+
+    const toPreload = pickRandom(all, MAX_PRELOAD);
+    const canPreload = await canSpinWheelExam(hasAIEntitlement);
+    // Skip preload when user exhausted free spins — do NOT show paywall here.
+    // Paywall should only show when user actually tries to spin the wheel.
+    if (!canPreload) {
+      entityPreloadPromises.delete(entityId);
+      return;
+    }
+    // Don't record here - record when user actually spins (in index/EntityWheelOfLife)
+
+    try {
+      const questions = await generateLessonExamQuestionsBatch(
+        toPreload,
+        language,
+      );
+      const current = entityPreloaded.get(entityId) ?? [];
+      const updated = appendOnly ? [...current, ...questions] : questions;
+      entityPreloaded.set(entityId, updated);
+      await saveEntityToStorage(entityId);
+      if (__DEV__) {
+        console.log(
+          "[WheelExam] Entity",
+          entityId,
+          "preload done, total:",
+          updated.length,
+          appendOnly ? "(appended)" : "(replaced)",
+        );
+      }
+    } catch (e) {
+      if (__DEV__) console.warn("[WheelExam] Entity preload failed:", e);
+      if (!appendOnly) entityPreloaded.set(entityId, []);
+    } finally {
+      entityPreloadPromises.delete(entityId);
+    }
+  })();
+
+  entityPreloadPromises.set(entityId, promise);
+  return promise;
+}
