@@ -29,6 +29,7 @@ import { useInAppNotification } from "@/utils/InAppNotificationProvider";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { useMomentNotifications } from "@/utils/MomentNotificationProvider";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { showPaywallForUpgradeAccess } from "@/utils/premium-access";
 import { updateStreakOnMemoryCreation } from "@/utils/streak-manager";
@@ -91,12 +92,7 @@ interface AIMemoryItem {
   id: string;
   type: "hardTruth" | "goodFact" | "lesson";
   text: string;
-}
-
-interface AIMemoryItem {
-  id: string;
-  type: "hardTruth" | "goodFact" | "lesson";
-  text: string;
+  notificationMessage?: string;
 }
 
 export function AIModal({
@@ -127,6 +123,7 @@ export function AIModal({
     addHobby,
     addProfile,
   } = useJourney();
+  const { addSummariesBatch } = useMomentNotifications();
 
   const [inputText, setInputText] = useState("");
   const [inputHeight, setInputHeight] = useState(() => 56 * fontScale);
@@ -488,12 +485,20 @@ export function AIModal({
           id: `${momentTypeMap[moment.type] || "goodFact"}-${index}`,
           type: momentTypeMap[moment.type] || "goodFact",
           text: moment.text,
+          notificationMessage:
+            (moment as { notificationMessage?: string }).notificationMessage,
         }),
       );
 
       if (__DEV__) {
         console.log("[AI Modal] Full response:", JSON.stringify(response, null, 2));
         console.log("[AI Modal] sphere:", response.sphere, "entityName:", response.entityName);
+        for (const m of response.moments || []) {
+          const nm = (m as { notificationMessage?: string }).notificationMessage;
+          if ((m.type === "sunnyMoments" || m.type === "lessonsLearned") && !nm?.trim()) {
+            console.warn("[AI Modal] Missing notificationMessage for", m.type, m.text?.slice(0, 50));
+          }
+        }
       }
 
       setAiResponse(response);
@@ -1236,6 +1241,7 @@ export function AIModal({
           hardTruths,
           goodFacts,
           lessonsLearned,
+          source: 'ai',
         },
         { bypassMemoryLimit: true }
       );
@@ -1244,6 +1250,51 @@ export function AIModal({
       if (!memoryId) {
         setIsProcessing(false);
         return;
+      }
+
+      // Persist moment notification summaries for lesson and goodFact items (batch to avoid stale state)
+      const itemsNeedingSummary = memoryItems.filter(
+        (item) => item.type === "lesson" || item.type === "goodFact"
+      );
+      const lessonsWithoutMessage = itemsNeedingSummary.filter(
+        (item) => item.type === "lesson" && !item.notificationMessage?.trim()
+      );
+      let fallbackMessages: Record<string, string> = {};
+      if (lessonsWithoutMessage.length > 0) {
+        const { suggestNotificationMessagesForLessons } = await import("@/utils/ai-service");
+        fallbackMessages = await suggestNotificationMessagesForLessons(
+          lessonsWithoutMessage.map((l) => ({
+            id: l.id,
+            text: l.text,
+            memoryTitle: aiResponse?.memory?.title,
+            sphere: finalSphere,
+          })),
+          language === "bg" ? "bg" : "en"
+        );
+      }
+      const toPersist: Parameters<typeof addSummariesBatch>[0] = [];
+      for (const item of itemsNeedingSummary) {
+        const message =
+          item.notificationMessage?.trim() ||
+          (item.type === "lesson" ? fallbackMessages[item.id] : null) ||
+          (item.type === "lesson"
+            ? "You learned something valuable from that experience."
+            : "You experienced something positive from that moment.");
+        if (message) {
+          toPersist.push({
+            momentId: item.id,
+            memoryId,
+            entityId: finalEntityId,
+            sphere: finalSphere,
+            momentType: item.type === "lesson" ? "lesson" : "sunny",
+            momentText: item.text,
+            notificationMessage: message,
+            source: "ai_suggested",
+          });
+        }
+      }
+      if (toPersist.length > 0) {
+        await addSummariesBatch(toPersist);
       }
 
       // Log analytics event for AI memory saved

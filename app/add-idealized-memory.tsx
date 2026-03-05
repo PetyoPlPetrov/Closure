@@ -1692,6 +1692,7 @@ export default function AddIdealizedMemoryScreen() {
             hardTruths,
             goodFacts,
             lessonsLearned,
+            source: 'manual',
           });
         } else if (profileId) {
           // Old signature: (profileId, memoryData) - backward compatibility
@@ -1701,6 +1702,7 @@ export default function AddIdealizedMemoryScreen() {
             hardTruths,
             goodFacts,
             lessonsLearned,
+            source: 'manual',
           });
         } else {
           throw new Error('Missing required parameters to save memory');

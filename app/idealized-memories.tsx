@@ -7,6 +7,7 @@ import { ConfirmationModal } from "@/library/components/confirmation-modal";
 import { MemoryCard } from "@/library/components/memory-card";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
+import { useMomentNotifications } from "@/utils/MomentNotificationProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -23,6 +24,7 @@ export default function IdealizedMemoriesScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, deleteIdealizedMemory } = useJourney();
+  const { deleteSummariesByMemoryId } = useMomentNotifications();
   const t = useTranslate();
   
   // Support both old (profileId) and new (entityId + sphere) parameters
@@ -208,6 +210,7 @@ export default function IdealizedMemoriesScreen() {
   const handleDeleteConfirm = async () => {
     if (selectedMemory) {
       try {
+        await deleteSummariesByMemoryId(selectedMemory.id);
         await deleteIdealizedMemory(selectedMemory.id);
         setDeleteConfirmVisible(false);
         setSelectedMemory(null);

@@ -1,4 +1,5 @@
 import { logEntityCreated, logMemoryCreated, logMemoryDeleted, logMomentCreated } from '@/utils/analytics';
+import { deleteSummariesByMemoryIds } from '@/utils/moment-notification-storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { showPaywallForPlusAccess } from '@/utils/premium-access';
@@ -127,6 +128,7 @@ export type IdealizedMemory = {
   title: string;
   description?: string;
   imageUri?: string;
+  source?: 'ai' | 'manual'; // How the memory was created (for moment notification batch)
   hardTruths: {
     id: string;
     text: string;
@@ -690,12 +692,13 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       }
       
       // Delete all memories associated with this profile (check both profileId and entityId for relationships sphere)
-      const beforeCount = existingMemories.length;
       const updatedMemories = existingMemories.filter((memory) => 
         !(memory.profileId === id || (memory.entityId === id && memory.sphere === 'relationships'))
       );
-      const deletedCount = beforeCount - updatedMemories.length;
-      
+      const deletedMemoryIds = existingMemories
+        .filter((m) => m.profileId === id || (m.entityId === id && m.sphere === 'relationships'))
+        .map((m) => m.id);
+      await deleteSummariesByMemoryIds(deletedMemoryIds);
       await saveIdealizedMemoriesToStorage(updatedMemories);
       setIdealizedMemories(updatedMemories); // Update state
       
@@ -1188,12 +1191,13 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       }
       
       // Delete all memories associated with this job (career sphere)
-      const beforeCount = existingMemories.length;
       const updatedMemories = existingMemories.filter((memory) => 
         !(memory.entityId === id && memory.sphere === 'career')
       );
-      const deletedCount = beforeCount - updatedMemories.length;
-      
+      const deletedMemoryIds = existingMemories
+        .filter((m) => m.entityId === id && m.sphere === 'career')
+        .map((m) => m.id);
+      await deleteSummariesByMemoryIds(deletedMemoryIds);
       await saveIdealizedMemoriesToStorage(updatedMemories);
       setIdealizedMemories(updatedMemories); // Update state
       
@@ -1317,12 +1321,13 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       }
       
       // Delete all memories associated with this family member (family sphere)
-      const beforeCount = existingMemories.length;
       const updatedMemories = existingMemories.filter((memory) => 
         !(memory.entityId === id && memory.sphere === 'family')
       );
-      const deletedCount = beforeCount - updatedMemories.length;
-      
+      const deletedMemoryIds = existingMemories
+        .filter((m) => m.entityId === id && m.sphere === 'family')
+        .map((m) => m.id);
+      await deleteSummariesByMemoryIds(deletedMemoryIds);
       await saveIdealizedMemoriesToStorage(updatedMemories);
       setIdealizedMemories(updatedMemories); // Update state
       
@@ -1439,7 +1444,10 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       const updatedMemories = existingMemories.filter((memory) => 
         !(memory.entityId === id && memory.sphere === 'friends')
       );
-      
+      const deletedMemoryIds = existingMemories
+        .filter((m) => m.entityId === id && m.sphere === 'friends')
+        .map((m) => m.id);
+      await deleteSummariesByMemoryIds(deletedMemoryIds);
       await saveIdealizedMemoriesToStorage(updatedMemories);
       setIdealizedMemories(updatedMemories);
       
@@ -1556,7 +1564,10 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       const updatedMemories = existingMemories.filter((memory) => 
         !(memory.entityId === id && memory.sphere === 'hobbies')
       );
-      
+      const deletedMemoryIds = existingMemories
+        .filter((m) => m.entityId === id && m.sphere === 'hobbies')
+        .map((m) => m.id);
+      await deleteSummariesByMemoryIds(deletedMemoryIds);
       await saveIdealizedMemoriesToStorage(updatedMemories);
       setIdealizedMemories(updatedMemories);
       

@@ -649,6 +649,41 @@ export interface Translations {
   "notifications.reason.lessThanJob": string;
   "notifications.reason.lessThanFriendsAvg": string;
 
+  // Moment notifications (nudges)
+  "momentNotifications.title": string;
+  "momentNotifications.addSchedule": string;
+  "momentNotifications.generateForManual": string;
+  "momentNotifications.sphere.career": string;
+  "momentNotifications.sphere.relationships": string;
+  "momentNotifications.sphere.family": string;
+  "momentNotifications.sphere.friends": string;
+  "momentNotifications.sphere.hobbies": string;
+  "momentNotifications.momentType.lesson": string;
+  "momentNotifications.momentType.sunny": string;
+  "momentNotifications.source.moments": string;
+  "momentNotifications.source.momentsHint": string;
+  "momentNotifications.source.ai": string;
+  "momentNotifications.everyHours": string;
+  "momentNotifications.newSchedule": string;
+  "momentNotifications.editSchedule": string;
+  "momentNotifications.sphereLabel": string;
+  "momentNotifications.momentTypeLabel": string;
+  "momentNotifications.frequencyLabel": string;
+  "momentNotifications.frequencyCustom": string;
+  "momentNotifications.frequencyCustomPlaceholder": string;
+  "momentNotifications.sourceLabel": string;
+  "momentNotifications.userMessagesLabel": string;
+  "momentNotifications.userMessagePlaceholder": string;
+  "momentNotifications.enabledLabel": string;
+  "momentNotifications.deleteConfirmTitle": string;
+  "momentNotifications.deleteConfirmMessage": string;
+  "momentNotifications.permissionRequired": string;
+  "momentNotifications.generateSuccess": string;
+  "momentNotifications.generateCount": string;
+  "momentNotifications.generateEmpty": string;
+  "momentNotifications.generateEmptyMessage": string;
+  "momentNotifications.scheduleCreated": string;
+
   // Onboarding
   "onboarding.skip": string;
   "onboarding.next": string;
@@ -4312,6 +4347,41 @@ const translations: Record<Language, Translations> = {
     "notifications.reason.belowAvg": "Memories below average for this sphere",
     "notifications.reason.lessThanJob": "Fewer memories than your job",
     "notifications.reason.lessThanFriendsAvg": "Fewer memories than friends average",
+
+    // Moment notifications (nudges)
+    "momentNotifications.title": "Moment nudges",
+    "momentNotifications.addSchedule": "Add moment nudge schedule",
+    "momentNotifications.generateForManual": "Generate AI suggestions for manual lessons",
+    "momentNotifications.sphere.career": "Career",
+    "momentNotifications.sphere.relationships": "Relationships",
+    "momentNotifications.sphere.family": "Family",
+    "momentNotifications.sphere.friends": "Friends",
+    "momentNotifications.sphere.hobbies": "Hobbies",
+    "momentNotifications.momentType.lesson": "Lesson",
+    "momentNotifications.momentType.sunny": "Sunny moment",
+    "momentNotifications.source.moments": "My moments",
+    "momentNotifications.source.momentsHint": "Notifications will use your lesson or sunny moment text from memories in this sphere.",
+    "momentNotifications.source.ai": "AI summaries",
+    "momentNotifications.everyHours": "Every {hours} hour(s)",
+    "momentNotifications.newSchedule": "New schedule",
+    "momentNotifications.editSchedule": "Edit schedule",
+    "momentNotifications.sphereLabel": "Sphere",
+    "momentNotifications.momentTypeLabel": "Moment type",
+    "momentNotifications.frequencyLabel": "Frequency (hours)",
+    "momentNotifications.frequencyCustom": "Custom",
+    "momentNotifications.frequencyCustomPlaceholder": "Hours (1–168)",
+    "momentNotifications.sourceLabel": "Notification message source",
+    "momentNotifications.userMessagesLabel": "Your messages",
+    "momentNotifications.userMessagePlaceholder": "Type a notification message...",
+    "momentNotifications.enabledLabel": "Enabled",
+    "momentNotifications.deleteConfirmTitle": "Delete schedule?",
+    "momentNotifications.deleteConfirmMessage": "This notification schedule will be removed.",
+    "momentNotifications.permissionRequired": "Notification permission is required.",
+    "momentNotifications.generateSuccess": "Done",
+    "momentNotifications.generateCount": "{count} notification message(s) generated.",
+    "momentNotifications.generateEmpty": "Nothing to generate",
+    "momentNotifications.generateEmptyMessage": "No manual lessons without AI suggestions found.",
+    "momentNotifications.scheduleCreated": "Schedule created successfully!",
 
     // Onboarding
     "onboarding.skip": "Skip",
@@ -8637,6 +8707,41 @@ const translations: Record<Language, Translations> = {
     "notifications.reason.belowAvg": "Спомени под средното за тази сфера",
     "notifications.reason.lessThanJob": "По-малко спомени от работата",
     "notifications.reason.lessThanFriendsAvg": "По-малко спомени от средното за приятелите",
+
+    // Moment notifications (nudges)
+    "momentNotifications.title": "Напомняния за моменти",
+    "momentNotifications.addSchedule": "Добави разписание за напомняния",
+    "momentNotifications.generateForManual": "Генерирай AI предложения за ръчни уроци",
+    "momentNotifications.sphere.career": "Кариера",
+    "momentNotifications.sphere.relationships": "Връзки",
+    "momentNotifications.sphere.family": "Семейство",
+    "momentNotifications.sphere.friends": "Приятели",
+    "momentNotifications.sphere.hobbies": "Хобита",
+    "momentNotifications.momentType.lesson": "Урок",
+    "momentNotifications.momentType.sunny": "Слънчев момент",
+    "momentNotifications.source.moments": "Моите моменти",
+    "momentNotifications.source.momentsHint": "Известията ще използват текста на вашите уроци или слънчеви моменти от спомените в тази сфера.",
+    "momentNotifications.source.ai": "AI обобщения",
+    "momentNotifications.everyHours": "На всеки {hours} час(а)",
+    "momentNotifications.newSchedule": "Ново разписание",
+    "momentNotifications.editSchedule": "Редактирай разписание",
+    "momentNotifications.sphereLabel": "Сфера",
+    "momentNotifications.momentTypeLabel": "Тип момент",
+    "momentNotifications.frequencyLabel": "Честота (часове)",
+    "momentNotifications.frequencyCustom": "Друго",
+    "momentNotifications.frequencyCustomPlaceholder": "Часове (1–168)",
+    "momentNotifications.sourceLabel": "Източник на съдържание за известия",
+    "momentNotifications.userMessagesLabel": "Ваши съобщения",
+    "momentNotifications.userMessagePlaceholder": "Въведете съобщение за известие...",
+    "momentNotifications.enabledLabel": "Включено",
+    "momentNotifications.deleteConfirmTitle": "Изтриване на разписание?",
+    "momentNotifications.deleteConfirmMessage": "Това разписание за известия ще бъде премахнато.",
+    "momentNotifications.permissionRequired": "Изисква се разрешение за известия.",
+    "momentNotifications.generateSuccess": "Готово",
+    "momentNotifications.generateCount": "Генерирани {count} съобщения за известия.",
+    "momentNotifications.generateEmpty": "Няма какво да се генерира",
+    "momentNotifications.generateEmptyMessage": "Няма ръчни уроци без AI предложения.",
+    "momentNotifications.scheduleCreated": "Разписанието е създадено успешно!",
 
     // Onboarding
     "onboarding.skip": "Пропусни",

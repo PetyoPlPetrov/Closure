@@ -29,6 +29,8 @@ const STORAGE_KEYS_TO_EXPORT = [
   "@sferas:recent_custom_colors",
   "@sferas:notification_templates",
   "@sferas:notification_assignments",
+  "@sferas:moment_notification_summaries",
+  "@sferas:moment_notification_schedules",
   "@sferas:streak_data",
   "@sferas:home_notification_nudge_enabled",
   "@sferas:ai_insights_consent",

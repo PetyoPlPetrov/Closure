@@ -26,6 +26,7 @@ import { InAppNotificationProvider } from "@/utils/InAppNotificationProvider";
 import { checkForUpdateAndReload } from "@/utils/updates";
 import { JourneyProvider } from "@/utils/JourneyProvider";
 import { MomentColorsProvider } from "@/utils/MomentColorsProvider";
+import { MomentNotificationProvider } from "@/utils/MomentNotificationProvider";
 import { VisualSettingsProvider } from "@/utils/VisualSettingsProvider";
 import { LanguageProvider } from "@/utils/languages/language-context";
 import { NotificationsProvider } from "@/utils/NotificationsProvider";
@@ -231,6 +232,19 @@ function AppContent() {
           }}
         />
         <Stack.Screen
+          name="moment-notifications"
+          options={{
+            headerShown: true,
+            headerBackTitle: "",
+            headerLeft: (props) => (
+              <HeaderBackButton
+                {...props}
+                onPress={() => router.replace("/notifications")}
+              />
+            ),
+          }}
+        />
+        <Stack.Screen
           name="modal"
           options={{ presentation: "modal", title: "Modal" }}
         />
@@ -280,6 +294,7 @@ export default function RootLayout() {
         <LanguageProvider>
           <SubscriptionProvider>
             <JourneyProvider>
+              <MomentNotificationProvider>
               <MomentColorsProvider>
                 <VisualSettingsProvider>
                 <NotificationsProvider>
@@ -293,6 +308,7 @@ export default function RootLayout() {
                 </NotificationsProvider>
                 </VisualSettingsProvider>
               </MomentColorsProvider>
+              </MomentNotificationProvider>
             </JourneyProvider>
           </SubscriptionProvider>
         </LanguageProvider>

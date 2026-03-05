@@ -90,6 +90,21 @@ export default function NotificationsScreen() {
 
   const renderSferasView = () => (
     <ScrollView contentContainerStyle={styles.content}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => router.push('/moment-notifications')}
+        activeOpacity={0.8}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <ThemedText size="l" weight="bold">
+            {t('momentNotifications.title')}
+          </ThemedText>
+          <MaterialIcons name="chevron-right" size={24 * fontScale} color={palette.text} />
+        </View>
+        <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
+          {t('momentNotifications.addSchedule')}
+        </ThemedText>
+      </TouchableOpacity>
       {renderSphereBlock(
         'friends',
         t('notifications.sphere.friends'),

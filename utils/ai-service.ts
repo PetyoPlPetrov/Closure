@@ -285,8 +285,12 @@ export async function processMemoryPrompt(
             text: Schema.string({
               description: 'Text content of the moment (first person "I")',
             }),
+            notificationMessage: Schema.string({
+              description:
+                "REQUIRED for sunnyMoments and lessonsLearned: As Sfera addressing the user. Use second person and REFLECT what they did/learned (e.g. 'You learned that...', 'You discovered...', 'You felt...'). Max 15-20 words. No imperatives. Use empty string for hardTruths.",
+            }),
           },
-          required: ["type", "text"],
+          required: ["type", "text", "notificationMessage"],
         }),
       }),
     },
@@ -310,7 +314,14 @@ Rules:
 - Use first person perspective ("I learned...", "I felt...", "My experience...")
 - Be honest about hard truths but compassionate
 - Lessons should be actionable insights
-- Sunny moments should be specific positive experiences${
+- Sunny moments should be specific positive experiences
+
+REQUIRED: For EVERY sunnyMoments and lessonsLearned moment you MUST provide notificationMessage. For hardTruths use empty string "". STRICT RULES FOR PUSH NOTIFICATIONS:
+- Format: Sfera speaks directly to the user in second person. REFLECT back what the user did/learned/felt—do not give advice or commands.
+- Start with "You...": e.g. "You learned that preparedness matters when traveling.", "You discovered you can trust your instincts.", "You felt stronger after that experience."
+- BAD (avoid): Imperatives ("Trust your instincts.", "Be prepared!"), generic praise ("You did great."), advice ("You should...").
+- GOOD: Reflect the specific moment in second person—"You realized independence matters as much as friendship."
+- Tone: Supportive, empathetic. Max 15-20 words (readable on lock screen).${
     imageUri
       ? `
 
@@ -357,6 +368,228 @@ IMAGE: If a photo is attached, analyze it with the story. Identify people, setti
   const parsed = JSON.parse(responseText);
 
   return parsed as AIMemoryResponse;
+}
+
+/**
+ * Suggest notification messages for manual-lesson moments (batch).
+ * One AI request for all lessons; returns map of momentId -> notificationMessage.
+ */
+export async function suggestNotificationMessagesForLessons(
+  lessons: {
+    id: string;
+    text: string;
+    memoryTitle?: string;
+    sphere: LifeSphere;
+  }[],
+  language: "en" | "bg" = "en"
+): Promise<{ [momentId: string]: string }> {
+  if (lessons.length === 0) return {};
+
+  if (USE_MOCK_AI_REQUEST) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const out: { [momentId: string]: string } = {};
+    for (const l of lessons) {
+      out[l.id] = "You learned something valuable from that experience.";
+    }
+    return out;
+  }
+
+  const languageName = language === "bg" ? "Bulgarian" : "English";
+  const languageCode = language === "bg" ? "bg" : "en";
+
+  const responseSchema = Schema.object({
+    properties: {
+      momentNotificationMessages: Schema.array({
+        items: Schema.object({
+          properties: {
+            momentId: Schema.string({ description: "Same id as in the input lesson" }),
+            notificationMessage: Schema.string({
+              description:
+                "As Sfera addressing the user. Use second person and REFLECT what they learned (e.g. 'You learned that...'). Max 15-20 words. No imperatives.",
+            }),
+          },
+          required: ["momentId", "notificationMessage"],
+        }),
+      }),
+    },
+    required: ["momentNotificationMessages"],
+  });
+
+  const strictRules = `STRICT RULES FOR PUSH NOTIFICATIONS:
+- Format: Sfera speaks directly to the user in second person. REFLECT back what the user learned—do not give advice or commands.
+- Start with "You...": e.g. "You learned that preparedness matters when traveling.", "You discovered you can trust your instincts."
+- BAD (avoid): Imperatives ("Trust your instincts.", "Be prepared!"), generic praise ("You did great."), advice ("You should...").
+- GOOD: Reflect the lesson in second person—"You realized independence matters as much as friendship."
+- Tone: Supportive, empathetic. Max 15-20 words (readable on lock screen).`;
+
+  const systemPrompt = `Sfera AI coach. For each lesson provided, suggest exactly one notification message that reminds the user about this insight. Respond in ${languageName} (${languageCode}). JSON only.
+
+${strictRules}
+
+Return one object per lesson with momentId (same as input) and notificationMessage.`;
+
+  const userPrompt = `Lessons:\n${lessons
+    .map(
+      (l) =>
+        `- momentId: "${l.id}", text: "${l.text.replace(/"/g, '\\"')}"${l.memoryTitle ? `, memoryTitle: "${l.memoryTitle}"` : ""}`
+    )
+    .join("\n")}`;
+
+  if (__DEV__) {
+    console.log("[AI Summary] suggestNotificationMessagesForLessons INPUT:", {
+      language,
+      lessonsCount: lessons.length,
+      lessons: lessons.map((l) => ({ id: l.id, text: l.text?.slice(0, 80), memoryTitle: l.memoryTitle })),
+    });
+  }
+
+  const app = getApp();
+  const ai = getAI(app, { appCheck: firebase.appCheck() });
+  const model = getGenerativeModel(ai, {
+    model: "gemini-2.5-flash-lite",
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema,
+    },
+  });
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    systemInstruction: systemPrompt,
+  });
+
+  const responseText = result.response.text();
+  const parsed = JSON.parse(responseText) as {
+    momentNotificationMessages: { momentId: string; notificationMessage: string }[];
+  };
+
+  const map: { [momentId: string]: string } = {};
+  for (const item of parsed.momentNotificationMessages ?? []) {
+    if (item.momentId && item.notificationMessage?.trim()) {
+      map[item.momentId] = item.notificationMessage.trim();
+    }
+  }
+
+  if (__DEV__) {
+    console.log("[AI Summary] suggestNotificationMessagesForLessons OUTPUT:", {
+      receivedCount: parsed.momentNotificationMessages?.length ?? 0,
+      mapCount: Object.keys(map).length,
+      map: JSON.stringify(map, null, 2),
+    });
+  }
+
+  return map;
+}
+
+/**
+ * Suggest notification messages for sunny-moment (goodFacts) moments (batch).
+ * One AI request for all sunny moments; returns map of momentId -> notificationMessage.
+ */
+export async function suggestNotificationMessagesForSunnyMoments(
+  moments: {
+    id: string;
+    text: string;
+    memoryTitle?: string;
+    sphere: LifeSphere;
+  }[],
+  language: "en" | "bg" = "en"
+): Promise<{ [momentId: string]: string }> {
+  if (moments.length === 0) return {};
+
+  if (USE_MOCK_AI_REQUEST) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const out: { [momentId: string]: string } = {};
+    for (const m of moments) {
+      out[m.id] = "You experienced something positive from that moment.";
+    }
+    return out;
+  }
+
+  const languageName = language === "bg" ? "Bulgarian" : "English";
+  const languageCode = language === "bg" ? "bg" : "en";
+
+  const responseSchema = Schema.object({
+    properties: {
+      momentNotificationMessages: Schema.array({
+        items: Schema.object({
+          properties: {
+            momentId: Schema.string({ description: "Same id as in the input moment" }),
+            notificationMessage: Schema.string({
+              description:
+                "As Sfera addressing the user. Use second person and REFLECT what they felt/experienced (e.g. 'You felt...'). Max 15-20 words. No imperatives.",
+            }),
+          },
+          required: ["momentId", "notificationMessage"],
+        }),
+      }),
+    },
+    required: ["momentNotificationMessages"],
+  });
+
+  const strictRules = `STRICT RULES FOR PUSH NOTIFICATIONS:
+- Format: Sfera speaks directly to the user in second person. REFLECT back what the user felt/experienced—do not give advice or commands.
+- Start with "You...": e.g. "You felt confident when...", "You discovered joy in...", "You experienced warmth with..."
+- BAD (avoid): Imperatives, generic praise ("You did great."), advice.
+- GOOD: Reflect the sunny moment in second person—"You felt stronger after that experience."
+- Tone: Supportive, empathetic. Max 15-20 words (readable on lock screen).`;
+
+  const systemPrompt = `Sfera AI coach. For each sunny moment provided, suggest exactly one notification message that reflects what the user felt or experienced. Respond in ${languageName} (${languageCode}). JSON only.
+
+${strictRules}
+
+Return one object per moment with momentId (same as input) and notificationMessage.`;
+
+  const userPrompt = `Sunny moments:\n${moments
+    .map(
+      (m) =>
+        `- momentId: "${m.id}", text: "${m.text.replace(/"/g, '\\"')}"${m.memoryTitle ? `, memoryTitle: "${m.memoryTitle}"` : ""}`
+    )
+    .join("\n")}`;
+
+  if (__DEV__) {
+    console.log("[AI Summary] suggestNotificationMessagesForSunnyMoments INPUT:", {
+      language,
+      momentsCount: moments.length,
+      moments: moments.map((m) => ({ id: m.id, text: m.text?.slice(0, 80), memoryTitle: m.memoryTitle })),
+    });
+  }
+
+  const app = getApp();
+  const ai = getAI(app, { appCheck: firebase.appCheck() });
+  const model = getGenerativeModel(ai, {
+    model: "gemini-2.5-flash-lite",
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema,
+    },
+  });
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    systemInstruction: systemPrompt,
+  });
+
+  const responseText = result.response.text();
+  const parsed = JSON.parse(responseText) as {
+    momentNotificationMessages: { momentId: string; notificationMessage: string }[];
+  };
+
+  const map: { [momentId: string]: string } = {};
+  for (const item of parsed.momentNotificationMessages ?? []) {
+    if (item.momentId && item.notificationMessage?.trim()) {
+      map[item.momentId] = item.notificationMessage.trim();
+    }
+  }
+
+  if (__DEV__) {
+    console.log("[AI Summary] suggestNotificationMessagesForSunnyMoments OUTPUT:", {
+      receivedCount: parsed.momentNotificationMessages?.length ?? 0,
+      mapCount: Object.keys(map).length,
+      map: JSON.stringify(map, null, 2),
+    });
+  }
+
+  return map;
 }
 
 /**
@@ -516,6 +749,7 @@ export interface AIMemoryResponse {
   moments: {
     type: "sunnyMoments" | "lessonsLearned" | "hardTruths";
     text: string;
+    notificationMessage?: string;
   }[];
 }
 
