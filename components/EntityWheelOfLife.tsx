@@ -1076,6 +1076,7 @@ export function EntityWheelOfLife({
                     : colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
                 width: Math.max(momentWidth, 280),
                 minWidth: 200,
+                minHeight: examState?.step === 'analyzing' ? 220 : undefined,
               },
               selectedMomentAnimatedStyle,
             ]}
@@ -1095,13 +1096,14 @@ export function EntityWheelOfLife({
                       justifyContent: 'center',
                       alignItems: 'center',
                       width: '100%',
+                      minHeight: 200,
                     }}
                   >
                     <ActivityIndicator
                       size="large"
                       color={momentColors.lesson.background}
                     />
-                    <ThemedText size="sm" style={{ marginTop: 12, opacity: 0.9 }}>
+                    <ThemedText size="sm" style={{ marginTop: 12, opacity: 0.9, textAlign: 'center' }}>
                       {t('wheel.exam.analyzing')}
                     </ThemedText>
                   </View>

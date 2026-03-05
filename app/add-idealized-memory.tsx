@@ -316,7 +316,7 @@ function AnimatedCloud({
           ref={inputRef}
           value={cloud.text}
           onChangeText={(text) => {
-            if (!viewOnly && text.length <= 50) {
+            if (!viewOnly) {
               onTextChange(cloud.id, text);
             }
           }}
@@ -324,7 +324,6 @@ function AnimatedCloud({
           placeholder={placeholder}
           placeholderTextColor="rgba(255,255,255,0.4)"
           multiline
-          maxLength={50}
           editable={!viewOnly}
           autoFocus={shouldAutoFocus}
         />
@@ -593,7 +592,7 @@ function AnimatedSun({
         </TouchableOpacity>
       )}
 
-      <View
+      <Pressable
         style={{
           position: 'absolute',
           top: 0,
@@ -603,12 +602,13 @@ function AnimatedSun({
           justifyContent: 'center',
           alignItems: 'center',
         }}
+        onPress={() => !viewOnly && inputRef?.current?.focus()}
       >
         <TextInput
           ref={inputRef}
           value={sun.text}
           onChangeText={(text) => {
-            if (!viewOnly && text.length <= 80) {
+            if (!viewOnly) {
               onTextChange(sun.id, text);
             }
           }}
@@ -627,12 +627,10 @@ function AnimatedSun({
             padding: 0,
             margin: 0,
           }]}
-          includeFontPadding={false}
           placeholder={placeholder}
           placeholderTextColor="rgba(0,0,0,0.5)"
           multiline
           numberOfLines={4}
-          maxLength={80}
           editable={!viewOnly}
           autoFocus={shouldAutoFocus}
         />
@@ -662,7 +660,7 @@ function AnimatedSun({
             <MaterialIcons name="check" size={16} color="#FFFFFF" />
           </TouchableOpacity>
         )}
-      </View>
+      </Pressable>
     </Animated.View>
   );
 }
@@ -948,7 +946,7 @@ export default function AddIdealizedMemoryScreen() {
   const memoryId = Array.isArray(params.memoryId) ? params.memoryId[0] : (params.memoryId as string | undefined);
   const viewOnly = (Array.isArray(params.viewOnly) ? params.viewOnly[0] : params.viewOnly) === 'true';
   const isEditMode = memoryId !== undefined;
-  
+
   // Determine which mode we're in: new (entityId + sphere) or old (profileId)
   const isNewMode = !!(entityId && sphere);
   const finalEntityId = entityId || profileId;
@@ -1057,151 +1055,61 @@ export default function AddIdealizedMemoryScreen() {
   const initialClouds = useRef<typeof clouds>([]);
   const initialSuns = useRef<typeof suns>([]);
   const initialLessons = useRef<typeof lessons>([]);
-  
+  const loadedMemoryIdRef = useRef<string | null>(null);
+
   // Navigation hook for intercepting back navigation
   const navigation = useNavigation();
   const isNavigatingAway = useRef(false);
   
   // Function to check if there are unsaved changes
   const hasUnsavedChanges = useCallback(() => {
-    console.log('[hasUnsavedChanges] Checking for unsaved changes...');
-    console.log('[hasUnsavedChanges] Current memoryLabel:', memoryLabel);
-    console.log('[hasUnsavedChanges] Initial memoryLabel:', initialMemoryLabel.current);
-    console.log('[hasUnsavedChanges] Current selectedImage:', selectedImage);
-    console.log('[hasUnsavedChanges] Initial selectedImage:', initialSelectedImage.current);
-    console.log('[hasUnsavedChanges] Current clouds count:', clouds.length);
-    console.log('[hasUnsavedChanges] Initial clouds count:', initialClouds.current.length);
-    console.log('[hasUnsavedChanges] Current suns count:', suns.length);
-    console.log('[hasUnsavedChanges] Initial suns count:', initialSuns.current.length);
-    console.log('[hasUnsavedChanges] Current lessons count:', lessons.length);
-    console.log('[hasUnsavedChanges] Initial lessons count:', initialLessons.current.length);
-    
     // Check if title changed
-    if (memoryLabel.trim() !== initialMemoryLabel.current.trim()) {
-      console.log('[hasUnsavedChanges] ❌ Title changed:', {
-        current: memoryLabel.trim(),
-        initial: initialMemoryLabel.current.trim()
-      });
-      return true;
-    }
-    console.log('[hasUnsavedChanges] ✅ Title unchanged');
+    if (memoryLabel.trim() !== initialMemoryLabel.current.trim()) return true;
     
     // Check if image changed
-    if (selectedImage !== initialSelectedImage.current) {
-      console.log('[hasUnsavedChanges] ❌ Image changed:', {
-        current: selectedImage,
-        initial: initialSelectedImage.current
-      });
-      return true;
-    }
-    console.log('[hasUnsavedChanges] ✅ Image unchanged');
+    if (selectedImage !== initialSelectedImage.current) return true;
     
     // Check if clouds changed (count, text, or positions)
-    if (clouds.length !== initialClouds.current.length) {
-      console.log('[hasUnsavedChanges] ❌ Clouds count changed:', {
-        current: clouds.length,
-        initial: initialClouds.current.length
-      });
-      return true;
-    }
+    if (clouds.length !== initialClouds.current.length) return true;
     
     // Check if cloud text changed (positions are not saved, so don't check them)
     for (const cloud of clouds) {
       const initialCloud = initialClouds.current.find(c => c.id === cloud.id);
-      if (!initialCloud) {
-        console.log('[hasUnsavedChanges] ❌ New cloud added:', cloud.id);
-        return true; // New cloud added
-      }
-      // Only check text changes, not position changes
-      if (cloud.text.trim() !== initialCloud.text.trim()) {
-        console.log('[hasUnsavedChanges] ❌ Cloud text changed:', {
-          id: cloud.id,
-          text: { current: cloud.text.trim(), initial: initialCloud.text.trim() }
-        });
-        return true;
-      }
+      if (!initialCloud || cloud.text.trim() !== initialCloud.text.trim()) return true;
     }
     
     // Check if any initial cloud was deleted
     for (const initialCloud of initialClouds.current) {
-      if (!clouds.find(c => c.id === initialCloud.id)) {
-        console.log('[hasUnsavedChanges] ❌ Cloud deleted:', initialCloud.id);
-        return true;
-      }
+      if (!clouds.find(c => c.id === initialCloud.id)) return true;
     }
-    console.log('[hasUnsavedChanges] ✅ Clouds unchanged');
     
     // Check if suns changed (count, text, or positions)
-    if (suns.length !== initialSuns.current.length) {
-      console.log('[hasUnsavedChanges] ❌ Suns count changed:', {
-        current: suns.length,
-        initial: initialSuns.current.length
-      });
-      return true;
-    }
+    if (suns.length !== initialSuns.current.length) return true;
     
     // Check if sun text changed (positions are not saved, so don't check them)
     for (const sun of suns) {
       const initialSun = initialSuns.current.find(s => s.id === sun.id);
-      if (!initialSun) {
-        console.log('[hasUnsavedChanges] ❌ New sun added:', sun.id);
-        return true; // New sun added
-      }
-      // Only check text changes, not position changes
-      if (sun.text.trim() !== initialSun.text.trim()) {
-        console.log('[hasUnsavedChanges] ❌ Sun text changed:', {
-          id: sun.id,
-          text: { current: sun.text.trim(), initial: initialSun.text.trim() }
-        });
-        return true;
-      }
+      if (!initialSun || sun.text.trim() !== initialSun.text.trim()) return true;
     }
     
     // Check if any initial sun was deleted
     for (const initialSun of initialSuns.current) {
-      if (!suns.find(s => s.id === initialSun.id)) {
-        console.log('[hasUnsavedChanges] ❌ Sun deleted:', initialSun.id);
-        return true;
-      }
+      if (!suns.find(s => s.id === initialSun.id)) return true;
     }
-    console.log('[hasUnsavedChanges] ✅ Suns unchanged');
 
     // Check if lessons changed (count, text, or positions)
-    if (lessons.length !== initialLessons.current.length) {
-      console.log('[hasUnsavedChanges] ❌ Lessons count changed:', {
-        current: lessons.length,
-        initial: initialLessons.current.length
-      });
-      return true;
-    }
+    if (lessons.length !== initialLessons.current.length) return true;
 
     // Check if lesson text changed (positions are not saved, so don't check them)
     for (const lesson of lessons) {
       const initialLesson = initialLessons.current.find(l => l.id === lesson.id);
-      if (!initialLesson) {
-        console.log('[hasUnsavedChanges] ❌ New lesson added:', lesson.id);
-        return true; // New lesson added
-      }
-      // Only check text changes, not position changes
-      if (lesson.text.trim() !== initialLesson.text.trim()) {
-        console.log('[hasUnsavedChanges] ❌ Lesson text changed:', {
-          id: lesson.id,
-          text: { current: lesson.text.trim(), initial: initialLesson.text.trim() }
-        });
-        return true;
-      }
+      if (!initialLesson || lesson.text.trim() !== initialLesson.text.trim()) return true;
     }
 
     // Check if any initial lesson was deleted
     for (const initialLesson of initialLessons.current) {
-      if (!lessons.find(l => l.id === initialLesson.id)) {
-        console.log('[hasUnsavedChanges] ❌ Lesson deleted:', initialLesson.id);
-        return true;
-      }
+      if (!lessons.find(l => l.id === initialLesson.id)) return true;
     }
-    console.log('[hasUnsavedChanges] ✅ Lessons unchanged');
-
-    console.log('[hasUnsavedChanges] ✅ No unsaved changes detected');
     return false;
   }, [memoryLabel, selectedImage, clouds, suns, lessons]);
   
@@ -1364,9 +1272,24 @@ export default function AddIdealizedMemoryScreen() {
     };
   }, [isLargeDevice]);
 
-  // Load existing memory data when editing
+  // Load existing memory data when editing (only once per memoryId - prevents overwriting user edits on re-render)
   useEffect(() => {
-    console.log('[LoadMemory] Loading memory data...', {
+    if (!existingMemory) {
+      loadedMemoryIdRef.current = null;
+      initialMemoryLabel.current = '';
+      initialSelectedImage.current = null;
+      initialClouds.current = [];
+      initialSuns.current = [];
+      initialLessons.current = [];
+      return;
+    }
+    if (loadedMemoryIdRef.current === existingMemory.id) {
+      return;
+    }
+    loadedMemoryIdRef.current = existingMemory.id;
+
+    const runLoad = () => {
+      console.log('[LoadMemory] Loading memory data...', {
       hasExistingMemory: !!existingMemory,
       memoryId,
       isEditMode,
@@ -1507,15 +1430,10 @@ export default function AddIdealizedMemoryScreen() {
         sunsCount: initialSuns.current.length,
         lessonsCount: initialLessons.current.length
       });
-    } else {
-      // New memory - initialize refs with empty state
-      initialMemoryLabel.current = '';
-      initialSelectedImage.current = null;
-      initialClouds.current = [];
-      initialSuns.current = [];
-      initialLessons.current = [];
-      console.log('[LoadMemory] No existing memory - initial values reset to empty');
     }
+    };
+
+    runLoad();
   }, [existingMemory, cloudWidth, cloudHeight, sunWidth, sunHeight, getInitialCloudPosition, getInitialSunPosition, getInitialLessonPosition, isLargeDevice]);
   
   // Track button positions for animation
@@ -1600,6 +1518,11 @@ export default function AddIdealizedMemoryScreen() {
       return;
     }
 
+    // In edit mode, do nothing if there are no changes (avoids redundant save)
+    if (isEditMode && !hasUnsavedChanges()) {
+      return;
+    }
+
     // Check title is required
     if (memoryLabel.trim().length === 0) {
       alert(t('memory.error.titleRequired'));
@@ -1673,23 +1596,26 @@ export default function AddIdealizedMemoryScreen() {
         ? await ensureImageInAppDocuments(selectedImage)
         : undefined;
 
+      const memoryImageUri: string | undefined =
+        resolvedImageUri != null ? resolvedImageUri : undefined;
+
       if (isEditMode && memoryId) {
         // Update existing memory
         await updateIdealizedMemory(memoryId, {
           title: memoryLabel.trim(),
-          imageUri: resolvedImageUri,
+          imageUri: memoryImageUri,
           hardTruths,
           goodFacts,
           lessonsLearned,
         });
       } else {
         // Create new memory - support both old (profileId) and new (entityId + sphere) signatures
-        let newMemoryId: string;
+        let newMemoryId: string | null;
         if (isNewMode && entityId && sphere) {
           // New signature: (entityId, sphere, memoryData)
           newMemoryId = await addIdealizedMemory(entityId, sphere, {
             title: memoryLabel.trim(),
-            imageUri: resolvedImageUri,
+            ...(memoryImageUri !== undefined && { imageUri: memoryImageUri }),
             hardTruths,
             goodFacts,
             lessonsLearned,
@@ -1699,7 +1625,7 @@ export default function AddIdealizedMemoryScreen() {
           // Old signature: (profileId, memoryData) - backward compatibility
           newMemoryId = await addIdealizedMemory(profileId, {
             title: memoryLabel.trim(),
-            imageUri: resolvedImageUri,
+            ...(memoryImageUri !== undefined && { imageUri: memoryImageUri }),
             hardTruths,
             goodFacts,
             lessonsLearned,
@@ -2041,14 +1967,11 @@ export default function AddIdealizedMemoryScreen() {
     if (panResponders.current[cloudId]) return panResponders.current[cloudId];
 
     panResponders.current[cloudId] = PanResponder.create({
-      onStartShouldSetPanResponder: (evt, gestureState) => {
-        // Allow dragging from anywhere on the cloud, including text area
-        return true;
-      },
-      onStartShouldSetPanResponderCapture: () => false, // Don't capture immediately, let TextInput handle if needed
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (evt, gestureState) => {
-        // If there's significant movement, it's a drag, not text selection
-        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+        // Only claim on intentional drag - 20px threshold avoids natural finger jitter when tapping to edit
+        return Math.abs(gestureState.dx) > 20 || Math.abs(gestureState.dy) > 20;
       },
       onPanResponderGrant: () => {
         Keyboard.dismiss();
@@ -2119,12 +2042,11 @@ export default function AddIdealizedMemoryScreen() {
     if (panResponders.current[sunKey]) return panResponders.current[sunKey];
 
     panResponders.current[sunKey] = PanResponder.create({
-      onStartShouldSetPanResponder: (evt, gestureState) => {
-        return true;
-      },
+      onStartShouldSetPanResponder: () => false,
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (evt, gestureState) => {
-        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+        // 20px threshold avoids natural finger jitter when tapping to edit
+        return Math.abs(gestureState.dx) > 20 || Math.abs(gestureState.dy) > 20;
       },
       onPanResponderGrant: () => {
         Keyboard.dismiss();
@@ -2189,12 +2111,11 @@ export default function AddIdealizedMemoryScreen() {
     if (panResponders.current[lessonKey]) return panResponders.current[lessonKey];
 
     panResponders.current[lessonKey] = PanResponder.create({
-      onStartShouldSetPanResponder: (evt, gestureState) => {
-        return true;
-      },
+      onStartShouldSetPanResponder: () => false,
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (evt, gestureState) => {
-        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+        // Only claim on intentional drag - 20px threshold avoids natural finger jitter when tapping to edit
+        return Math.abs(gestureState.dx) > 20 || Math.abs(gestureState.dy) > 20;
       },
       onPanResponderGrant: () => {
         Keyboard.dismiss();
@@ -2878,7 +2799,7 @@ export default function AddIdealizedMemoryScreen() {
                 selectionColor={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
                 caretHidden={true}
                 showSoftInputOnFocus={true}
-                onFocus={(e) => {
+                onFocus={() => {
                   setIsTitleFocused(true);
                   // Set selection to end of text to ensure cursor is visible
                   if (titleInputRef.current) {
@@ -3346,7 +3267,9 @@ export default function AddIdealizedMemoryScreen() {
                 (clouds.length + suns.length + lessons.length) > 0 &&
                 (clouds.length === 0 || clouds.every((cloud) => cloud.text.trim().length > 0)) &&
                 (suns.length === 0 || suns.every((sun) => sun.text.trim().length > 0)) &&
-                (lessons.length === 0 || lessons.every((lesson) => lesson.text.trim().length > 0))) || isSaving
+                (lessons.length === 0 || lessons.every((lesson) => lesson.text.trim().length > 0))) ||
+              isSaving ||
+              (isEditMode && !hasUnsavedChanges())
                 ? styles.floatingButtonDisabled
                 : undefined
             }

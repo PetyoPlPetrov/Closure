@@ -4467,7 +4467,10 @@ const FloatingAvatar = React.memo(
                       <View
                         style={{
                           width: Math.max(dynamicLessonSize, 280),
-                          minHeight: dynamicLessonSize,
+                          minHeight:
+                            selectedWheelExam.step === "analyzing"
+                              ? Math.max(dynamicLessonSize, 220)
+                              : dynamicLessonSize,
                           justifyContent: "center",
                           alignItems: "center",
                           backgroundColor: visuals.backgroundColor,
@@ -4489,7 +4492,11 @@ const FloatingAvatar = React.memo(
                             />
                             <ThemedText
                               size="sm"
-                              style={{ marginTop: 12, opacity: 0.9 }}
+                              style={{
+                                marginTop: 12,
+                                opacity: 0.9,
+                                textAlign: "center",
+                              }}
                             >
                               {t("wheel.exam.analyzing")}
                             </ThemedText>
@@ -17540,17 +17547,17 @@ export default function HomeScreen() {
                         />
                       </Pressable>
                     </View>
-                  ) : selectedLesson.examQuestion &&
+                    ) : selectedLesson.examQuestion &&
                     selectedLesson.examStep === "analyzing" ? (
                     <Animated.View
                       style={[
                         {
-                          width: momentWidth,
-                          height: momentHeight,
+                          width: Math.max(momentWidth, 220),
+                          height: Math.max(momentHeight, 220),
                           justifyContent: "center",
                           alignItems: "center",
                           backgroundColor: visuals.backgroundColor,
-                          borderRadius: momentWidth / 2,
+                          borderRadius: Math.max(momentWidth, 220) / 2,
                           shadowColor: visuals.shadowColor,
                           shadowOffset: { width: 0, height: 0 },
                           shadowOpacity: 0.95,
@@ -17571,6 +17578,7 @@ export default function HomeScreen() {
                         style={{
                           marginTop: 12,
                           color: momentColors.lesson.text,
+                          textAlign: "center",
                         }}
                       >
                         {t("wheel.exam.analyzing")}
