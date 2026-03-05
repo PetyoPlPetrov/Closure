@@ -29,6 +29,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Keyboard,
   KeyboardAvoidingView,
   PanResponder,
   Platform,
@@ -2050,6 +2051,7 @@ export default function AddIdealizedMemoryScreen() {
         return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
       },
       onPanResponderGrant: () => {
+        Keyboard.dismiss();
         // Use current animated position instead of state position
         const animatedVals = cloudAnimatedValues.current[cloudId];
         if (animatedVals) {
@@ -2125,6 +2127,7 @@ export default function AddIdealizedMemoryScreen() {
         return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
       },
       onPanResponderGrant: () => {
+        Keyboard.dismiss();
         const animatedVals = sunAnimatedValues.current[sunId];
         if (animatedVals) {
           dragStart.current[sunKey] = { 
@@ -2194,6 +2197,7 @@ export default function AddIdealizedMemoryScreen() {
         return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
       },
       onPanResponderGrant: () => {
+        Keyboard.dismiss();
         const animatedVals = lessonAnimatedValues.current[lessonId];
         if (animatedVals) {
           dragStart.current[lessonKey] = {
@@ -2789,7 +2793,10 @@ export default function AddIdealizedMemoryScreen() {
           nestedScrollEnabled={true}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.centerContent}>
+          <Pressable
+            style={styles.centerContent}
+            onPress={() => Keyboard.dismiss()}
+          >
           <View style={styles.uploadShadowWrap}>
             <TouchableOpacity
               ref={containerRef}
@@ -3133,7 +3140,7 @@ export default function AddIdealizedMemoryScreen() {
             </Pressable>
           </View>
           )}
-        </View>
+        </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
 

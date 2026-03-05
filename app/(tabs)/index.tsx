@@ -1901,6 +1901,20 @@ const FloatingAvatar = React.memo(
       if (!hasAIEntitlement) {
         await recordWheelExamUsed();
       }
+
+      if (__DEV__)
+        console.log("[EntityWheel-inline] Spin done, showing loading popup");
+      // Show loading popup immediately so UI doesn't feel stuck while preload/consume runs
+      setSelectedMomentType("lesson");
+      setSelectedWheelMoment({
+        type: "lesson",
+        text: "…",
+        memoryId: chosen.memoryId,
+        momentId: chosen.momentId,
+        memoryImageUri: chosen.memoryImageUri,
+      });
+      setSelectedWheelExam({ question: "", step: "question" });
+
       const item = await pickAndConsumePreloadedQuestion({
         type: "entity",
         entityId: profile.id,
@@ -1914,7 +1928,8 @@ const FloatingAvatar = React.memo(
           }),
       });
       if (item) {
-        setSelectedMomentType("lesson"); // Always show lesson filter when spin completes
+        if (__DEV__)
+          console.log("[EntityWheel-inline] Got preloaded question, showing exam");
         setSelectedWheelMoment({
           type: "lesson",
           text: item.lessonText,
@@ -1927,7 +1942,10 @@ const FloatingAvatar = React.memo(
           step: "question",
         });
       } else {
-        setSelectedMomentType("lesson"); // Always show lesson filter when spin completes
+        if (__DEV__)
+          console.log(
+            "[EntityWheel-inline] Pool empty, using fallback lesson (no AI exam)",
+          );
         setSelectedWheelMoment(chosen);
         setSelectedWheelExam({
           question: chosen.text,
@@ -12981,6 +12999,54 @@ export default function HomeScreen() {
       examStep?: "question" | "analyzing" | "result";
     };
 
+    if (__DEV__) console.log("[MainWheel] Spin complete, showing loading popup");
+    // Show loading popup immediately so UI doesn't feel stuck while preload/consume runs
+    const fallbackLesson =
+      lessons.length > 0
+        ? lessons[Math.floor(Math.random() * lessons.length)]
+        : null;
+    setSelectedMomentType("lessons");
+    setSelectedLesson({
+      text: "…",
+      entityId: fallbackLesson?.entityId ?? "",
+      memoryId: fallbackLesson?.memoryId ?? "",
+      sphere: (fallbackLesson?.sphere ?? "relationships") as LifeSphere,
+      momentType: "lessons",
+      examQuestion: "",
+      examStep: "question",
+    });
+    setShowLesson(true);
+    setMainWheelExamAnswerInput("");
+
+    // Start entrance animation immediately
+    const baseCircleSize = isTablet ? 260 : isLargeDevice ? 210 : 190;
+    const lessonSunHeight = baseCircleSize;
+    const avatarCenterX = sphereCircle.centerX;
+    const avatarCenterY = sphereCircle.centerY;
+    const finalX = SCREEN_WIDTH / 2;
+    const finalY = messageTop + lessonSunHeight / 2;
+    const startTranslateX = avatarCenterX - finalX;
+    const startTranslateY = avatarCenterY - finalY;
+    lessonOpacity.value = 0;
+    lessonScale.value = 0.3;
+    lessonTranslateX.value = startTranslateX;
+    lessonTranslateY.value = startTranslateY;
+    lessonOpacity.value = withTiming(1, {
+      duration: 500,
+      easing: Easing.out(Easing.cubic),
+    });
+    lessonScale.value = withSpring(1, { damping: 15, stiffness: 150 });
+    lessonTranslateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+    lessonTranslateY.value = withSpring(0, { damping: 15, stiffness: 150 });
+    lessonShadowPulse.value = withRepeat(
+      withSequence(
+        withTiming(1.8, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+
     // Always use preloaded exam questions (question → user answers → AI evaluates → reveal lesson)
     const item = await pickAndConsumePreloadedQuestion({
       type: "main",
@@ -12993,6 +13059,8 @@ export default function HomeScreen() {
         }),
     });
     if (item) {
+      if (__DEV__)
+        console.log("[MainWheel] Got preloaded question, showing exam");
       momentToShow = {
         text: item.lessonText,
         entityId: item.entityId ?? "",
@@ -13003,6 +13071,8 @@ export default function HomeScreen() {
         examStep: "question",
       };
     } else if (lessons.length > 0) {
+      if (__DEV__)
+        console.log("[MainWheel] Pool empty, using fallback lesson (no AI exam)");
       // Fallback: pool empty, pick random lesson (no exam)
       const randomIndex = Math.floor(Math.random() * lessons.length);
       momentToShow = {
@@ -13010,6 +13080,7 @@ export default function HomeScreen() {
         momentType: "lessons",
       };
     } else {
+      if (__DEV__) console.log("[MainWheel] No lessons, showing empty message");
       momentToShow = {
         text: t("wheel.noLessons.message"),
         entityId: "",
@@ -13025,49 +13096,13 @@ export default function HomeScreen() {
       void recordWheelExamUsed();
     }
 
-    setSelectedMomentType("lessons"); // Always show lesson filter when spin completes
+    if (__DEV__)
+      console.log(
+        "[MainWheel] Updating with",
+        momentToShow.examQuestion ? "exam" : "fallback/no-lessons",
+      );
+    // Update with real content (replaces loading placeholder)
     setSelectedLesson(momentToShow);
-    setShowLesson(true);
-    setMainWheelExamAnswerInput("");
-
-    // Calculate lesson dimensions (same as in render) - use base size for positioning calculations
-    const baseCircleSize = isTablet ? 260 : isLargeDevice ? 210 : 190;
-    const lessonSunHeight = baseCircleSize; // Use base size for positioning
-
-    // Calculate positions: start from avatar center, end at messageTop
-    const avatarCenterX = sphereCircle.centerX;
-    const avatarCenterY = sphereCircle.centerY;
-    const finalX = SCREEN_WIDTH / 2;
-    const finalY = messageTop + lessonSunHeight / 2; // Center of lesson notification
-
-    // Calculate translation needed: from avatar to final position
-    const startTranslateX = avatarCenterX - finalX;
-    const startTranslateY = avatarCenterY - finalY;
-
-    // Start from avatar position (small scale, at avatar)
-    lessonOpacity.value = 0;
-    lessonScale.value = 0.3;
-    lessonTranslateX.value = startTranslateX;
-    lessonTranslateY.value = startTranslateY;
-
-    // Animate to final position (full scale, at top)
-    lessonOpacity.value = withTiming(1, {
-      duration: 500,
-      easing: Easing.out(Easing.cubic),
-    });
-    lessonScale.value = withSpring(1, { damping: 15, stiffness: 150 });
-    lessonTranslateX.value = withSpring(0, { damping: 15, stiffness: 150 });
-    lessonTranslateY.value = withSpring(0, { damping: 15, stiffness: 150 });
-
-    // Start pulsing shadow animation after entrance completes
-    lessonShadowPulse.value = withRepeat(
-      withSequence(
-        withTiming(1.8, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1, // Infinite repeat
-      false,
-    );
   }, [
     getAllMomentsByType,
     idealizedMemories,
@@ -17300,6 +17335,56 @@ export default function HomeScreen() {
                         />
                       </Pressable>
                     </AnimatedPressable>
+                  ) : selectedLesson.examStep === "question" &&
+                    !selectedLesson.examQuestion ? (
+                    // Loading: waiting for preloaded question
+                    <View
+                      style={[
+                        {
+                          width: Math.max(momentWidth, 280),
+                          minWidth: 200,
+                          padding: 20,
+                          backgroundColor: momentColors.lesson.background + "B3",
+                          borderRadius: 20,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          minHeight: 120,
+                          position: "relative",
+                        },
+                      ]}
+                    >
+                      <ActivityIndicator
+                        size="large"
+                        color={momentColors.lesson.background}
+                      />
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setShowLesson(false);
+                          setSelectedLesson(null);
+                          setMainWheelExamAnswerInput("");
+                        }}
+                        style={{
+                          position: "absolute",
+                          top: 4,
+                          right: 4,
+                          width: 24,
+                          height: 24,
+                          borderRadius: 12,
+                          backgroundColor: momentColors.lesson.background + "CC",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          zIndex: 10,
+                        }}
+                      >
+                        <MaterialIcons
+                          name="close"
+                          size={16}
+                          color={momentColors.lesson.text}
+                          style={{ opacity: 0.9 }}
+                        />
+                      </Pressable>
+                    </View>
                   ) : selectedLesson.examQuestion &&
                     selectedLesson.examStep === "question" ? (
                     // Main wheel exam: question + answer input (colors from lesson settings)

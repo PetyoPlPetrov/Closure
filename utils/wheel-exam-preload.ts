@@ -171,7 +171,33 @@ export async function pickAndConsumePreloadedQuestion(params: {
 
   if (type === "main") {
     await loadMainFromStorage();
-    if (mainPreloaded.length === 0) return null;
+    let pool = mainPreloaded;
+
+    // If pool is empty but preload is in flight, wait for it (with timeout).
+    // Fixes race where user spins main wheel before preload finishes.
+    if (pool.length === 0 && mainPreloadPromise) {
+      if (__DEV__)
+        console.log("[WheelExam] Main pool empty, awaiting in-flight preload...");
+      try {
+        await Promise.race([
+          mainPreloadPromise,
+          new Promise<void>((_, reject) =>
+            setTimeout(() => reject(new Error("preload_timeout")), 8000),
+          ),
+        ]);
+        pool = mainPreloaded;
+        if (__DEV__)
+          console.log("[WheelExam] Main preload awaited, pool now:", pool.length);
+      } catch {
+        if (__DEV__)
+          console.warn("[WheelExam] Main preload wait failed or timed out");
+      }
+    }
+
+    if (pool.length === 0) {
+      if (__DEV__) console.log("[WheelExam] Main pool empty, returning null");
+      return null;
+    }
     const idx = Math.floor(Math.random() * mainPreloaded.length);
     const item = mainPreloaded[idx];
     mainPreloaded.splice(idx, 1);
@@ -188,8 +214,44 @@ export async function pickAndConsumePreloadedQuestion(params: {
 
   if (type === "entity" && entityId) {
     await loadEntityFromStorage(entityId);
-    const pool = entityPreloaded.get(entityId) ?? [];
-    if (pool.length === 0) return null;
+    let pool = entityPreloaded.get(entityId) ?? [];
+
+    // If pool is empty but preload is in flight, wait for it (with timeout).
+    // Fixes race where user spins before preload finishes — exam would not show promptly.
+    const inFlight = entityPreloadPromises.get(entityId);
+    if (pool.length === 0 && inFlight) {
+      if (__DEV__)
+        console.log(
+          "[WheelExam] Entity",
+          entityId,
+          "pool empty, awaiting in-flight preload...",
+        );
+      try {
+        await Promise.race([
+          inFlight,
+          new Promise<void>((_, reject) =>
+            setTimeout(() => reject(new Error("preload_timeout")), 8000),
+          ),
+        ]);
+        pool = entityPreloaded.get(entityId) ?? [];
+        if (__DEV__)
+          console.log(
+            "[WheelExam] Entity",
+            entityId,
+            "preload awaited, pool now:",
+            pool.length,
+          );
+      } catch {
+        if (__DEV__)
+          console.warn("[WheelExam] Entity preload wait failed or timed out");
+      }
+    }
+
+    if (pool.length === 0) {
+      if (__DEV__)
+        console.log("[WheelExam] Entity", entityId, "pool empty, returning null");
+      return null;
+    }
     const idx = Math.floor(Math.random() * pool.length);
     const item = pool[idx];
     pool.splice(idx, 1);
@@ -240,8 +302,10 @@ export async function preloadMainWheelQuestions(params: {
   if (mainPreloadPromise) return mainPreloadPromise;
 
   mainPreloadPromise = (async () => {
+    if (__DEV__) console.log("[WheelExam] Main preload starting...");
     const all = collectLessonsFromMemories(memories);
     if (all.length === 0) {
+      if (__DEV__) console.log("[WheelExam] Main preload skipped, no lessons");
       mainPreloadPromise = null;
       return;
     }
@@ -330,6 +394,7 @@ export async function preloadEntityWheelQuestions(params: {
   if (promise) return promise;
 
   promise = (async () => {
+    if (__DEV__) console.log("[WheelExam] Entity", entityId, "preload starting...");
     const all = collectLessonsFromMemories(memories);
     if (all.length === 0) {
       entityPreloaded.set(entityId, []);

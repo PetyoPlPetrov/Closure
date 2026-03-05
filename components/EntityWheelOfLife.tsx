@@ -373,6 +373,21 @@ export function EntityWheelOfLife({
       if (!hasAIEntitlement) {
         await recordWheelExamUsed();
       }
+      if (__DEV__) console.log("[EntityWheel] Spin done, showing loading popup");
+      // Show loading popup immediately so UI doesn't feel stuck while preload/consume runs
+      setSelectedMomentType('lesson');
+      setSelectedMoment({
+        type: 'lesson',
+        text: '…',
+        memoryImageUri: undefined,
+      });
+      setExamState({ question: '', step: 'question' });
+      selectedMomentScale.value = withSpring(1, {
+        damping: 12,
+        stiffness: 150,
+      });
+      setIsSpinning(false);
+
       const item = await pickAndConsumePreloadedQuestion({
         type: 'entity',
         entityId: entity.id,
@@ -387,7 +402,8 @@ export function EntityWheelOfLife({
           }),
       });
       if (item) {
-        setSelectedMomentType('lesson'); // Always show lesson filter when spin completes
+        if (__DEV__)
+          console.log("[EntityWheel] Got preloaded question, showing exam");
         setSelectedMoment({
           type: 'lesson',
           text: item.lessonText,
@@ -395,7 +411,8 @@ export function EntityWheelOfLife({
         });
         setExamState({ question: item.question, step: 'question' });
       } else {
-        setSelectedMomentType('lesson'); // Always show lesson filter when spin completes
+        if (__DEV__)
+          console.log("[EntityWheel] Pool empty, using fallback lesson (no AI exam)");
         const randomObj = lessons[Math.floor(Math.random() * lessons.length)];
         setSelectedMoment({
           type: 'lesson',
@@ -407,11 +424,6 @@ export function EntityWheelOfLife({
           step: 'question',
         });
       }
-      selectedMomentScale.value = withSpring(1, {
-        damping: 12,
-        stiffness: 150,
-      });
-      setIsSpinning(false);
     }, 2000);
   }, [
     isSpinning,

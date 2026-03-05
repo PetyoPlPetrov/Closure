@@ -3659,7 +3659,15 @@ export function AIModal({
                             );
                           })
                           .map((item) => (
-                            <View key={item.id} style={styles.memoryItem}>
+                            <Pressable
+                              key={item.id}
+                              style={styles.memoryItem}
+                              onPress={() => {
+                                if (isKeyboardVisible) {
+                                  Keyboard.dismiss();
+                                }
+                              }}
+                            >
                               <View style={styles.memoryItemHeader}>
                                 <MaterialIcons
                                   name={
@@ -3718,7 +3726,7 @@ export function AIModal({
                                   colors.text + "80"
                                 }
                               />
-                            </View>
+                            </Pressable>
                           ))}
                       </>
                     )}
