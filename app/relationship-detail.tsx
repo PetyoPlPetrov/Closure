@@ -1,8 +1,10 @@
+import { ConstellationBackground } from '@/components/constellation-background';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
+import { useVisualSettings } from '@/utils/VisualSettingsProvider';
 import type { ExProfile } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
@@ -11,13 +13,16 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function RelationshipDetailScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const t = useTranslate();
+  const { constellationAmount, constellationOpacity } = useVisualSettings();
   const { momentColors } = useMomentColors();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -230,6 +235,12 @@ export default function RelationshipDetailScreen() {
   if (!profile) {
     return (
       <TabScreenContainer>
+        <ConstellationBackground
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
+        />
         <View style={styles.container}>
           <View style={styles.header}>
             <TouchableOpacity
@@ -259,6 +270,12 @@ export default function RelationshipDetailScreen() {
 
   return (
     <TabScreenContainer>
+      <ConstellationBackground
+        width={SCREEN_WIDTH}
+        height={SCREEN_HEIGHT}
+        constellationAmount={constellationAmount}
+        constellationOpacity={constellationOpacity}
+      />
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>

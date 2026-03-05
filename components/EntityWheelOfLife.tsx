@@ -3,15 +3,43 @@
  * sunny/cloudy percentage ring, lesson/sunny/cloudy selector). Used when an entity
  * circle is focused (e.g. in modal or detail flow). The home tab uses an inline
  * implementation inside FloatingAvatar; this component is the standalone variant.
+ *
+ * Exam mode: When lesson filter is selected, spinning runs an AI-powered exam
+ * (question based on random lesson, user answers, AI evaluates). Fireworks on correct.
  */
+import { Fireworks } from '@/components/fireworks';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
+import { useLanguage } from '@/utils/languages/language-context';
+import { useTranslate } from '@/utils/languages/use-translate';
 import { useMomentColors } from '@/utils/MomentColorsProvider';
+import { analyzeLessonExamAnswer } from '@/utils/ai-service';
+import { showPaywallForAIAccess } from '@/utils/premium-access';
+import { useSubscription } from '@/utils/SubscriptionProvider';
+import {
+  pickAndConsumePreloadedQuestion,
+  preloadEntityWheelQuestions,
+} from '@/utils/wheel-exam-preload';
+import {
+  canSpinWheelExam,
+  recordWheelExamUsed,
+} from '@/utils/wheel-exam-rate-limiter';
+import { logWheelEntitySpin } from '@/utils/analytics';
+import { useAIInsightsConsent } from '@/utils/AIInsightsConsentProvider';
+import { AIInsightsConsentModal } from '@/components/ai-insights-consent-modal';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, Image, Pressable, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
@@ -68,14 +96,32 @@ export function EntityWheelOfLife({
 }: EntityWheelOfLifeProps) {
   const { isTablet } = useLargeDevice();
   const fontScale = useFontScale();
+  const { hasAIEntitlement } = useSubscription();
+  const t = useTranslate();
+  const { language } = useLanguage();
+  const lang = language === 'bg' ? 'bg' : 'en';
 
   // Animation values
   const entranceProgress = useSharedValue(0);
   const spinRotation = useSharedValue(0);
   const selectedMomentScale = useSharedValue(0);
   const [isSpinning, setIsSpinning] = useState(false);
-  const [selectedMoment, setSelectedMoment] = useState<{ type: 'lesson' | 'sunny' | 'cloudy'; text: string; memoryImageUri?: string } | null>(null);
-  const [selectedMomentType, setSelectedMomentType] = useState<'lesson' | 'sunny' | 'cloudy'>('lesson');
+  const [selectedMoment, setSelectedMoment] = useState<{
+    type: 'lesson' | 'sunny' | 'cloudy';
+    text: string;
+    memoryImageUri?: string;
+  } | null>(null);
+  const [selectedMomentType, setSelectedMomentType] = useState<
+    'lesson' | 'sunny' | 'cloudy'
+  >('lesson');
+  const [examState, setExamState] = useState<{
+    question: string;
+    step: 'question' | 'analyzing' | 'result';
+    analysis?: { isCorrect: boolean; feedback: string };
+    userAnswer?: string;
+  } | null>(null);
+  const [examAnswerInput, setExamAnswerInput] = useState('');
+  const [showFireworks, setShowFireworks] = useState(false);
 
   // State for floating moments that grow from memories
   const [floatingMoments, setFloatingMoments] = useState<{
@@ -274,49 +320,148 @@ export function EntityWheelOfLife({
     };
   }, [isSpinning, momentsWithPositions]);
 
-  // Handle spin
-  const handleSpin = () => {
-    if (isSpinning) return;
+  // Preload exam questions when entity wheel opens
+  useEffect(() => {
+    const lessonsCount = memories.reduce(
+      (s, m) => s + (m.lessonsLearned?.length ?? 0),
+      0,
+    );
+    if (lessonsCount > 0) {
+      void preloadEntityWheelQuestions({
+        entityId: entity.id,
+        memories,
+        language: lang,
+        hasAIEntitlement,
+      });
+    }
+  }, [entity.id, memories, lang, hasAIEntitlement]);
 
+  // Handle spin — always use lesson preloaded exam (filters hidden when spinning)
+  const handleSpin = useCallback(async () => {
+    if (isSpinning) return;
+    const lessons = momentsByType.lesson;
+    if (lessons.length === 0) return;
+
+    if (!aiConsent.isEnabled) {
+      setAiConsentModalVisible(true);
+      return;
+    }
+
+    const canSpin = await canSpinWheelExam(hasAIEntitlement);
+    if (!canSpin) {
+      const purchased = await showPaywallForAIAccess();
+      if (!purchased) return;
+    }
+
+    logWheelEntitySpin(entity.id).catch(() => {});
+    setSelectedMomentType('lesson'); // Force lesson mode when spin starts (ignore current filter)
     setIsSpinning(true);
     setSelectedMoment(null);
+    setExamState(null);
     selectedMomentScale.value = 0;
 
-    // Spin animation with multiple rotations
-    const totalRotations = 3 + Math.random() * 2; // 3-5 full rotations
+    const totalRotations = 3 + Math.random() * 2;
     spinRotation.value = withSequence(
       withTiming(totalRotations * 360, {
         duration: 2000,
         easing: Easing.bezier(0.25, 0.1, 0.25, 1),
       }),
-      withTiming(totalRotations * 360, {
-        duration: 0,
-        easing: Easing.linear,
-      })
+      withTiming(totalRotations * 360, { duration: 0, easing: Easing.linear }),
     );
 
-    // After spin completes, select random moment
-    setTimeout(() => {
-      // Randomly select a moment type that has moments
-      const availableTypes = momentTypes.filter((mt) => momentsByType[mt.type].length > 0);
-      if (availableTypes.length > 0) {
-        const randomType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
-        const moments = momentsByType[randomType.type];
-        const randomMomentObj = moments[Math.floor(Math.random() * moments.length)];
-
+    setTimeout(async () => {
+      if (!hasAIEntitlement) {
+        await recordWheelExamUsed();
+      }
+      const item = await pickAndConsumePreloadedQuestion({
+        type: 'entity',
+        entityId: entity.id,
+        onRefetchEntity: (eid) =>
+          preloadEntityWheelQuestions({
+            entityId: eid,
+            memories,
+            language: lang,
+            hasAIEntitlement,
+            onNeedPaywall: showPaywallForAIAccess,
+            appendOnly: true,
+          }),
+      });
+      if (item) {
+        setSelectedMomentType('lesson'); // Always show lesson filter when spin completes
         setSelectedMoment({
-          type: randomType.type,
-          text: randomMomentObj.text,
-          memoryImageUri: randomMomentObj.memoryImageUri
+          type: 'lesson',
+          text: item.lessonText,
+          memoryImageUri: item.memoryImageUri,
         });
-        selectedMomentScale.value = withSpring(1, {
-          damping: 12,
-          stiffness: 150,
+        setExamState({ question: item.question, step: 'question' });
+      } else {
+        setSelectedMomentType('lesson'); // Always show lesson filter when spin completes
+        const randomObj = lessons[Math.floor(Math.random() * lessons.length)];
+        setSelectedMoment({
+          type: 'lesson',
+          text: randomObj.text,
+          memoryImageUri: randomObj.memoryImageUri,
+        });
+        setExamState({
+          question: randomObj.text,
+          step: 'question',
         });
       }
+      selectedMomentScale.value = withSpring(1, {
+        damping: 12,
+        stiffness: 150,
+      });
       setIsSpinning(false);
     }, 2000);
-  };
+  }, [
+    isSpinning,
+    momentsByType.lesson,
+    entity.id,
+    hasAIEntitlement,
+    aiConsent.isEnabled,
+  ]);
+
+  const handleExamSubmit = useCallback(
+    async (userAnswer: string) => {
+      if (!selectedMoment || selectedMoment.type !== 'lesson' || !examState)
+        return;
+      setExamState((p) => (p ? { ...p, step: 'analyzing' } : null));
+      try {
+        const analysis = await analyzeLessonExamAnswer(
+          selectedMoment.text,
+          examState.question,
+          userAnswer,
+          lang,
+        );
+        setExamState((p) =>
+          p ? { ...p, step: 'result', analysis, userAnswer } : null,
+        );
+        if (analysis.isCorrect) setShowFireworks(true);
+      } catch {
+        setExamState((p) =>
+          p
+            ? {
+                ...p,
+                step: 'result',
+                analysis: {
+                  isCorrect: false,
+                  feedback: 'Something went wrong. Try again.',
+                },
+                userAnswer,
+              }
+            : null,
+        );
+      }
+    },
+    [selectedMoment, examState, lang],
+  );
+
+  const clearMomentAndExam = useCallback(() => {
+    setSelectedMoment(null);
+    setExamState(null);
+    setExamAnswerInput('');
+    setShowFireworks(false);
+  }, []);
 
   // Avatar animated style - center and scale down
   const avatarAnimatedStyle = useAnimatedStyle(() => {
@@ -489,6 +634,7 @@ export function EntityWheelOfLife({
       </AnimatedView>
 
       {/* Moment type icons below avatar - selectable to filter floating moments */}
+      {!isSpinning && (
       <View
         style={[
           styles.momentTypesContainer,
@@ -542,8 +688,9 @@ export function EntityWheelOfLife({
           );
         })}
       </View>
+      )}
 
-      {/* Spin button */}
+      {/* Spin button — enabled for any filter with moments */}
       <Pressable
         style={[
           styles.spinButton,
@@ -553,15 +700,14 @@ export function EntityWheelOfLife({
             opacity: isSpinning ? 0.5 : 1,
           },
         ]}
-        onPress={handleSpin}
-        disabled={isSpinning}
+        onPress={() => void handleSpin()}
+        disabled={isSpinning || momentsByType.lesson.length === 0}
       >
         <MaterialIcons name="refresh" size={28 * fontScale} color="#fff" />
         <ThemedText size="sm" weight="semibold" style={{ marginLeft: 8, color: '#fff' }}>
-          {isSpinning ? 'Spinning...' : 'Spin'}
+          {isSpinning ? 'Spinning...' : t('wheel.spinForRandom')}
         </ThemedText>
       </Pressable>
-
       {/* Floating moments that grow from memories */}
       {(() => {
         console.log('[EntityWheel] Rendering floatingMoments. Count:', floatingMoments.length);
@@ -580,7 +726,29 @@ export function EntityWheelOfLife({
         ));
       })()}
 
-      {/* Selected moment display */}
+      {/* Fireworks for correct exam answer */}
+      {showFireworks && (
+        <Fireworks
+          visible={showFireworks}
+          onComplete={() => setShowFireworks(false)}
+        />
+      )}
+
+      {/* AI consent modal — shown when user tries to spin without enabling AI */}
+      <AIInsightsConsentModal
+        visible={aiConsentModalVisible}
+        onEnable={() => {
+          setAiConsentModalVisible(false);
+          void aiConsent.setChoice('enabled');
+        }}
+        onMaybeLater={() => {
+          void aiConsent.setChoice('maybe_later').then(() => {
+            setAiConsentModalVisible(false);
+          });
+        }}
+      />
+
+      {/* Selected moment display — exam UI for lessons */}
       {selectedMoment && (() => {
         // Calculate dimensions dynamically based on text length for all moment types (matching main wheel rules)
         const textLength = selectedMoment.text?.length || 0;
@@ -623,49 +791,228 @@ export function EntityWheelOfLife({
               styles.selectedMomentContainer,
               {
                 top: SCREEN_HEIGHT / 2 + 220,
-                backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                width: momentWidth,
-                minWidth: 200, // Ensure minimum readable size
+                backgroundColor:
+                  selectedMoment.type === 'lesson' && examState
+                    ? momentColors.lesson.background + 'B3'
+                    : colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                width: Math.max(momentWidth, 280),
+                minWidth: 200,
               },
               selectedMomentAnimatedStyle,
             ]}
           >
-            <View style={styles.selectedMomentHeader}>
-              <MaterialIcons
-                name={momentTypes.find((mt) => mt.type === selectedMoment.type)?.icon as any}
-                size={24 * fontScale}
-                color={momentTypes.find((mt) => mt.type === selectedMoment.type)?.color}
-              />
-              <ThemedText size="sm" weight="semibold" style={{ marginLeft: 8 }}>
-                {momentTypes.find((mt) => mt.type === selectedMoment.type)?.label}
-              </ThemedText>
-            </View>
-            <ThemedText
-              size="sm"
-              style={{
-                marginTop: 8,
-                textAlign: 'center',
-                opacity: 0.9,
-                fontSize: Math.max(12, Math.min(16, 14 + (textLength / 80))) * fontScale, // Dynamic font size
-              }}
-              numberOfLines={Math.min(10, Math.max(3, Math.ceil(textLength / 40)))} // More lines for longer text
-            >
-              {selectedMoment.text}
-            </ThemedText>
-
-            {/* Memory image */}
-            {selectedMoment.memoryImageUri && (
-              <Image
-                source={{ uri: selectedMoment.memoryImageUri }}
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  marginTop: 12,
-                  borderWidth: 2,
-                  borderColor: momentTypes.find((mt) => mt.type === selectedMoment.type)?.color || colors.primary,
-                }}
-              />
+            {selectedMoment.type === 'lesson' && examState ? (
+              /* Exam flow for lessons */
+              <>
+                {examState.step === 'question' && !examState.question ? (
+                  <ActivityIndicator
+                    size="large"
+                    color={momentColors.lesson.background}
+                  />
+                ) : examState.step === 'analyzing' ? (
+                  <View
+                    style={{
+                      flex: 1,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      width: '100%',
+                    }}
+                  >
+                    <ActivityIndicator
+                      size="large"
+                      color={momentColors.lesson.background}
+                    />
+                    <ThemedText size="sm" style={{ marginTop: 12, opacity: 0.9 }}>
+                      {t('wheel.exam.analyzing')}
+                    </ThemedText>
+                  </View>
+                ) : examState.step === 'result' && examState.analysis ? (
+                  <>
+                    <MaterialIcons
+                      name={
+                        examState.analysis.isCorrect ? "check-circle" : "warning"
+                      }
+                      size={32}
+                      color={
+                        examState.analysis.isCorrect ? "#4CAF50" : "#FFA726"
+                      }
+                      style={{ marginBottom: 8 }}
+                    />
+                    <ThemedText size="l" weight="bold" style={{ marginBottom: 12, textAlign: 'center' }}>
+                      {examState.analysis.isCorrect
+                        ? t('wheel.exam.correctCelebration')
+                        : t('wheel.exam.keepPracticing')}
+                    </ThemedText>
+                    <ThemedText size="xs" style={{ marginBottom: 8, opacity: 0.9, textAlign: 'center' }}>
+                      {examState.analysis.feedback}
+                    </ThemedText>
+                    <ThemedText size="xs" weight="semibold" style={{ marginTop: 12, marginBottom: 4, opacity: 0.8 }}>
+                      {t('wheel.exam.revealLesson')}
+                    </ThemedText>
+                    <ThemedText
+                      size="sm"
+                      style={{ textAlign: 'center', fontStyle: 'italic', maxWidth: '100%' }}
+                      numberOfLines={6}
+                    >
+                      {selectedMoment.text}
+                    </ThemedText>
+                  </>
+                ) : (
+                  <>
+                    <MaterialIcons
+                      name="lightbulb"
+                      size={28}
+                      color={momentColors.lesson.background}
+                      style={{ marginBottom: 12 }}
+                    />
+                    <ThemedText
+                      size="sm"
+                      weight="semibold"
+                      style={{ marginBottom: 16, textAlign: 'center', paddingHorizontal: 8 }}
+                    >
+                      {examState.question}
+                    </ThemedText>
+                    <TextInput
+                      value={examAnswerInput}
+                      onChangeText={setExamAnswerInput}
+                      placeholder={t('wheel.exam.questionPrompt')}
+                      placeholderTextColor={momentColors.lesson.text + '99'}
+                      style={{
+                        width: '100%',
+                        minHeight: 44,
+                        backgroundColor: momentColors.lesson.background + '40',
+                        borderRadius: 12,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        color: momentColors.lesson.text,
+                        fontSize: 14 * fontScale,
+                      }}
+                      multiline
+                    />
+                    <Pressable
+                      onPress={() => {
+                        const trimmed = examAnswerInput.trim();
+                        if (trimmed) {
+                          void handleExamSubmit(trimmed);
+                          setExamAnswerInput('');
+                        }
+                      }}
+                      style={{
+                        marginTop: 12,
+                        paddingHorizontal: 24,
+                        paddingVertical: 10,
+                        backgroundColor: momentColors.lesson.background,
+                        borderRadius: 20,
+                      }}
+                    >
+                      <ThemedText size="sm" weight="semibold" style={{ color: momentColors.lesson.text }}>
+                        {t('wheel.exam.submitAnswer')}
+                      </ThemedText>
+                    </Pressable>
+                  </>
+                )}
+                <Pressable
+                  onPress={clearMomentAndExam}
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: selectedMoment.type === 'lesson' && examState
+                      ? momentColors.lesson.background + 'CC'
+                      : colorScheme === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.95)',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 999,
+                  }}
+                >
+                  <MaterialIcons
+                    name="close"
+                    size={18}
+                    color={selectedMoment.type === 'lesson' && examState ? momentColors.lesson.text : (colorScheme === 'dark' ? '#FFFFFF' : '#000000')}
+                    style={{ opacity: 0.9 }}
+                  />
+                </Pressable>
+              </>
+            ) : (
+              /* Simple moment display (lesson without exam, sunny, cloudy) */
+              <>
+                <View style={styles.selectedMomentHeader}>
+                  <MaterialIcons
+                    name={
+                      selectedMoment.type === 'sunny'
+                        ? 'wb-sunny'
+                        : selectedMoment.type === 'cloudy'
+                          ? 'cloud'
+                          : 'lightbulb'
+                    }
+                    size={24 * fontScale}
+                    color={
+                      selectedMoment.type === 'sunny'
+                        ? momentColors.sunny.background
+                        : selectedMoment.type === 'cloudy'
+                          ? momentColors.cloudy.background
+                          : momentColors.lesson.background
+                    }
+                  />
+                  <ThemedText size="sm" weight="semibold" style={{ marginLeft: 8 }}>
+                    {selectedMoment.type === 'sunny'
+                      ? 'Sunny'
+                      : selectedMoment.type === 'cloudy'
+                        ? 'Cloudy'
+                        : 'Lesson'}
+                  </ThemedText>
+                </View>
+                <ThemedText
+                  size="sm"
+                  style={{
+                    marginTop: 8,
+                    textAlign: 'center',
+                    opacity: 0.9,
+                    fontSize: Math.max(12, Math.min(16, 14 + (textLength / 80))) * fontScale,
+                  }}
+                  numberOfLines={Math.min(10, Math.max(3, Math.ceil(textLength / 40)))}
+                >
+                  {selectedMoment.text}
+                </ThemedText>
+                {selectedMoment.memoryImageUri && (
+                  <Image
+                    source={{ uri: selectedMoment.memoryImageUri }}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      marginTop: 12,
+                      borderWidth: 2,
+                      borderColor: momentColors.lesson.background,
+                    }}
+                  />
+                )}
+                <Pressable
+                  onPress={clearMomentAndExam}
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: colorScheme === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.95)',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 999,
+                  }}
+                >
+                  <MaterialIcons
+                    name="close"
+                    size={18}
+                    color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                    style={{ opacity: 0.9 }}
+                  />
+                </Pressable>
+              </>
             )}
           </AnimatedView>
         );

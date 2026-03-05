@@ -67,6 +67,7 @@ export default function MomentNotificationsScreen() {
     updateSchedule,
     deleteSchedule,
     ensureSummariesForSphereAndType,
+    getSummariesBySphereAndType,
     refreshMomentNudgeSchedules,
   } = useMomentNotifications();
 
@@ -78,10 +79,11 @@ export default function MomentNotificationsScreen() {
   const [formFrequencyHours, setFormFrequencyHours] = useState(__DEV__ ? 1 : 2);
   const [formFrequencyCustom, setFormFrequencyCustom] = useState(false);
   const [formCustomHoursInput, setFormCustomHoursInput] = useState("");
-  const [formSource, setFormSource] = useState<"moments" | "ai">("ai");
+  const [formSource, setFormSource] = useState<"moments" | "ai" | "both">("ai");
   const [formEnabled, setFormEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [aiConsentModalVisible, setAiConsentModalVisible] = useState(false);
+  const [pendingSourceAfterConsent, setPendingSourceAfterConsent] = useState<"ai" | "both" | null>(null);
 
   const countsBySphere = useMemo(() => {
     const lessons: Record<LifeSphere, number> = {
@@ -124,10 +126,14 @@ export default function MomentNotificationsScreen() {
         )
       : formFrequencyHours;
 
+  const canUseAISource = hasAIEntitlement && aiConsent.isEnabled;
+
   const hasFormChanged = editingSchedule
     ? (() => {
         const effectiveOriginalSource =
-          editingSchedule.source === "ai" && !canUseAISource ? "moments" : editingSchedule.source;
+          (editingSchedule.source === "ai" || editingSchedule.source === "both") && !canUseAISource
+            ? "moments"
+            : editingSchedule.source;
         return (
           formSphere !== editingSchedule.sphere ||
           formMomentType !== editingSchedule.momentType ||
@@ -149,6 +155,9 @@ export default function MomentNotificationsScreen() {
       border: colorScheme === "dark" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)",
       card: colorScheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
       muted: colorScheme === "dark" ? "rgba(255,255,255,0.6)" : "#4a4a4a",
+      // Elevated surface for unselected chips/buttons (WCAG 3:1 contrast)
+      surfaceElevated: colorScheme === "dark" ? "#2D3A4F" : "rgba(0,0,0,0.08)",
+      surfaceDisabled: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.04)",
     }),
     [colorScheme, colors]
   );
@@ -201,28 +210,54 @@ export default function MomentNotificationsScreen() {
       if (type === "lesson" && !hasLessonsForSphere) return;
       if (type === "sunny" && !hasSunnyForSphere) return;
       setFormMomentType(type);
+      if (__DEV__) {
+        const memoriesInSphere = idealizedMemories.filter((m) => m.sphere === formSphere);
+        const moments =
+          type === "lesson"
+            ? memoriesInSphere.flatMap((m) =>
+                (m.lessonsLearned ?? []).map((l) => ({ id: l.id, text: l.text, memoryTitle: m.title }))
+              )
+            : memoriesInSphere.flatMap((m) =>
+                (m.goodFacts ?? []).map((g) => ({ id: g.id, text: g.text, memoryTitle: m.title }))
+              );
+        const summariesForType = getSummariesBySphereAndType(formSphere, type);
+        const summaryByMomentId = Object.fromEntries(summariesForType.map((s) => [s.momentId, s]));
+        const momentsWithSummaries = moments.map((m) => ({
+          id: m.id,
+          text: m.text?.slice(0, 60),
+          memoryTitle: m.memoryTitle,
+          hasSummary: !!summaryByMomentId[m.id],
+          notificationMessage: summaryByMomentId[m.id]?.notificationMessage,
+        }));
+        console.log(`[MomentType] Selected ${type} for sphere ${formSphere}:`, {
+          momentsCount: moments.length,
+          summariesCount: summariesForType.length,
+          momentsWithSummaries,
+        });
+      }
     },
-    [hasLessonsForSphere, hasSunnyForSphere]
+    [hasLessonsForSphere, hasSunnyForSphere, formSphere, idealizedMemories, getSummariesBySphereAndType]
   );
 
-  const canUseAISource = hasAIEntitlement && aiConsent.isEnabled;
-
   const getEffectiveSource = useCallback(
-    (schedule: MomentNotificationSchedule): "moments" | "ai" =>
-      schedule.source === "ai" && !canUseAISource ? "moments" : schedule.source,
+    (schedule: MomentNotificationSchedule): "moments" | "ai" | "both" =>
+      (schedule.source === "ai" || schedule.source === "both") && !canUseAISource
+        ? "moments"
+        : schedule.source,
     [canUseAISource]
   );
 
   const handleSourcePress = useCallback(
-    (source: "moments" | "ai") => {
-      if (source === "ai") {
+    (source: "moments" | "ai" | "both") => {
+      if (source === "ai" || source === "both") {
         if (!hasAIEntitlement) {
           void showPaywallForUpgradeAccess().then((purchased) => {
-            if (purchased) setFormSource("ai");
+            if (purchased) setFormSource(source);
           });
           return;
         }
         if (!aiConsent.isEnabled) {
+          setPendingSourceAfterConsent(source);
           setAiConsentModalVisible(true);
           return;
         }
@@ -259,8 +294,8 @@ export default function MomentNotificationsScreen() {
       setFormFrequencyCustom(!isPreset);
       setFormCustomHoursInput(isPreset ? "" : String(schedule.frequencyHours));
       const baseSource =
-        schedule.source === "both" ? "ai" : schedule.source === "user" ? "moments" : schedule.source;
-      setFormSource(baseSource === "ai" && !canUseAISource ? "moments" : baseSource);
+        schedule.source === "user" ? "moments" : schedule.source;
+      setFormSource((baseSource === "ai" || baseSource === "both") && !canUseAISource ? "moments" : baseSource);
       setFormEnabled(schedule.enabled);
       setModalVisible(true);
     },
@@ -285,7 +320,7 @@ export default function MomentNotificationsScreen() {
       }
     }
 
-    if (formSource === "ai") {
+    if (formSource === "ai" || formSource === "both") {
       if (!hasAIEntitlement) {
         const purchased = await showPaywallForUpgradeAccess();
         if (!purchased) return;
@@ -297,7 +332,10 @@ export default function MomentNotificationsScreen() {
 
     setIsSaving(true);
     try {
-      if (formSource === "ai") {
+      if (formSource === "ai" || formSource === "both") {
+        if (__DEV__) {
+          console.log("[AI Summary] Save pressed (AI source) — sphere:", formSphere, "momentType:", formMomentType, "language:", language === "bg" ? "bg" : "en");
+        }
         const result = await ensureSummariesForSphereAndType(
           formSphere,
           formMomentType,
@@ -311,6 +349,8 @@ export default function MomentNotificationsScreen() {
           setIsSaving(false);
           return;
         }
+      } else if (__DEV__) {
+        console.log("[AI Summary] Save pressed (moments source) — using raw text, no AI summaries");
       }
 
       const hours =
@@ -409,10 +449,14 @@ export default function MomentNotificationsScreen() {
     const key = MOMENT_TYPE_OPTIONS.find((o) => o.value === type)?.labelKey ?? "momentNotifications.momentType.lesson";
     return t(key);
   };
-  const sourceLabel = (source: "moments" | "ai") => {
-    return source === "moments"
-      ? t("momentNotifications.source.moments")
-      : t("momentNotifications.source.ai");
+  const sourceLabel = (source: "moments" | "ai" | "both", momentType?: MomentType) => {
+    if (source === "moments") {
+      return momentType === "sunny"
+        ? t("momentNotifications.source.mySunnyMoments")
+        : t("momentNotifications.source.myLessons");
+    }
+    if (source === "both") return t("momentNotifications.source.both");
+    return t("momentNotifications.source.ai");
   };
 
   if (!isLoaded) {
@@ -431,11 +475,13 @@ export default function MomentNotificationsScreen() {
         visible={aiConsentModalVisible}
         onEnable={() => {
           setAiConsentModalVisible(false);
-          setFormSource("ai");
+          setFormSource(pendingSourceAfterConsent ?? "ai");
+          setPendingSourceAfterConsent(null);
           void aiConsent.setChoice("enabled");
         }}
         onMaybeLater={() => {
           setAiConsentModalVisible(false);
+          setPendingSourceAfterConsent(null);
           void aiConsent.setChoice("maybe_later");
         }}
       />
@@ -450,7 +496,7 @@ export default function MomentNotificationsScreen() {
                 <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4, fontSize: 16 * fontScale }}>
                   {t("momentNotifications.everyHours")?.replace("{hours}", String(schedule.frequencyHours)) ??
                     `Every ${schedule.frequencyHours} hour(s)`}{" "}
-                  · {sourceLabel(getEffectiveSource(schedule))}
+                  · {sourceLabel(getEffectiveSource(schedule), schedule.momentType)}
                 </ThemedText>
               </View>
               <TouchableOpacity
@@ -509,7 +555,11 @@ export default function MomentNotificationsScreen() {
                 <MaterialIcons name="close" size={24 * fontScale} color={palette.text} />
               </Pressable>
             </View>
-            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              style={styles.modalBody}
+              contentContainerStyle={styles.modalBodyContent}
+              keyboardShouldPersistTaps="handled"
+            >
               <ThemedText size="sm" weight="medium" style={styles.fieldLabel}>
                 {t("momentNotifications.sphereLabel") ?? "Sphere"}
               </ThemedText>
@@ -651,9 +701,12 @@ export default function MomentNotificationsScreen() {
                   <ThemedText
                     size="sm"
                     weight="medium"
-                    style={formSource === "moments" ? { color: palette.background } : {}}
+                    style={[
+                      styles.sourceToggleOptionText,
+                      formSource === "moments" ? { color: palette.background } : {},
+                    ]}
                   >
-                    {t("momentNotifications.source.moments")}
+                    {sourceLabel("moments", formMomentType)}
                   </ThemedText>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -668,6 +721,7 @@ export default function MomentNotificationsScreen() {
                     size="sm"
                     weight="medium"
                     style={[
+                      styles.sourceToggleOptionText,
                       formSource === "ai" ? { color: palette.background } : {},
                       !canUseAISource ? { color: palette.muted } : {},
                     ]}
@@ -675,12 +729,50 @@ export default function MomentNotificationsScreen() {
                     {t("momentNotifications.source.ai")}
                   </ThemedText>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.sourceToggleOption,
+                    formSource === "both" && styles.sourceToggleSelected,
+                    !canUseAISource && styles.sourceToggleOptionDisabled,
+                  ]}
+                  onPress={() => handleSourcePress("both")}
+                >
+                  <ThemedText
+                    size="sm"
+                    weight="medium"
+                    style={[
+                      styles.sourceToggleOptionText,
+                      formSource === "both" ? { color: palette.background } : {},
+                      !canUseAISource ? { color: palette.muted } : {},
+                    ]}
+                  >
+                    {t("momentNotifications.source.both")}
+                  </ThemedText>
+                </TouchableOpacity>
               </View>
 
               {formSource === "moments" && (
                 <View style={styles.hintRow}>
                   <ThemedText size="sm" style={{ color: palette.muted }}>
-                    {t("momentNotifications.source.momentsHint")}
+                    {formMomentType === "sunny"
+                      ? t("momentNotifications.source.mySunnyMomentsHint")
+                      : t("momentNotifications.source.myLessonsHint")}
+                  </ThemedText>
+                </View>
+              )}
+              {formSource === "ai" && (
+                <View style={styles.hintRow}>
+                  <ThemedText size="sm" style={{ color: palette.muted }}>
+                    {formMomentType === "sunny"
+                      ? t("momentNotifications.source.aiHintSunnyMoments")
+                      : t("momentNotifications.source.aiHintLessons")}
+                  </ThemedText>
+                </View>
+              )}
+              {formSource === "both" && (
+                <View style={styles.hintRow}>
+                  <ThemedText size="sm" style={{ color: palette.muted }}>
+                    {t("momentNotifications.source.bothHint")}
                   </ThemedText>
                 </View>
               )}
@@ -713,7 +805,16 @@ export default function MomentNotificationsScreen() {
 }
 
 function createStyles(
-  palette: { text: string; background: string; primary: string; border: string; card: string; muted: string },
+  palette: {
+    text: string;
+    background: string;
+    primary: string;
+    border: string;
+    card: string;
+    muted: string;
+    surfaceElevated: string;
+    surfaceDisabled: string;
+  },
   fontScale: number
 ) {
   return StyleSheet.create({
@@ -792,10 +893,12 @@ function createStyles(
       justifyContent: "flex-end",
     },
     modalContent: {
+      flex: 1,
       backgroundColor: palette.background,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       maxHeight: "90%",
+      minHeight: "75%",
     },
     modalHeader: {
       flexDirection: "row",
@@ -806,15 +909,21 @@ function createStyles(
       borderBottomColor: palette.border,
     },
     modalBody: {
+      flex: 1,
+    },
+    modalBodyContent: {
       padding: 16 * fontScale,
-      maxHeight: 400,
+      flexGrow: 0,
     },
     modalFooter: {
       flexDirection: "row",
       gap: 12 * fontScale,
       padding: 16 * fontScale,
+      paddingBottom: 24 * fontScale,
       borderTopWidth: 1,
       borderTopColor: palette.border,
+      flexShrink: 0,
+      marginTop: "auto",
     },
     fieldLabel: {
       marginTop: 12 * fontScale,
@@ -829,15 +938,17 @@ function createStyles(
       paddingHorizontal: 12 * fontScale,
       paddingVertical: 8 * fontScale,
       borderRadius: 20,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: palette.border,
+      backgroundColor: palette.surfaceElevated,
     },
     optionChipSelected: {
       backgroundColor: palette.primary,
       borderColor: palette.primary,
     },
     optionChipDisabled: {
-      opacity: 0.5,
+      backgroundColor: palette.surfaceDisabled,
+      opacity: 0.6,
     },
     customHoursRow: {
       marginTop: 8 * fontScale,
@@ -865,10 +976,15 @@ function createStyles(
       flex: 1,
       paddingVertical: 12 * fontScale,
       alignItems: "center",
-      backgroundColor: palette.card,
+      justifyContent: "center",
+      backgroundColor: palette.surfaceElevated,
+    },
+    sourceToggleOptionText: {
+      textAlign: "center",
     },
     sourceToggleOptionDisabled: {
-      opacity: 0.7,
+      backgroundColor: palette.surfaceDisabled,
+      opacity: 0.6,
     },
     sourceToggleSelected: {
       backgroundColor: palette.primary,
@@ -908,8 +1024,9 @@ function createStyles(
       paddingVertical: 12 * fontScale,
       alignItems: "center",
       borderRadius: 10,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: palette.border,
+      backgroundColor: palette.surfaceElevated,
     },
     saveBtn: {
       flex: 1,
@@ -919,6 +1036,7 @@ function createStyles(
       backgroundColor: palette.primary,
     },
     saveBtnDisabled: {
+      backgroundColor: palette.surfaceDisabled,
       opacity: 0.7,
     },
   });

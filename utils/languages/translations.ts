@@ -71,6 +71,16 @@ export interface Translations {
   "wheel.noHardTruths.message": string;
   "wheel.noSunnyMoments.message": string;
   "wheel.spinForRandom": string;
+  "wheel.exam.lessonOnly": string;
+  "wheel.exam.paywallPrompt": string;
+  "wheel.exam.freeLimitReached": string;
+  "wheel.exam.questionPrompt": string;
+  "wheel.exam.submitAnswer": string;
+  "wheel.exam.analyzing": string;
+  "wheel.exam.youTookTheExam": string;
+  "wheel.exam.revealLesson": string;
+  "wheel.exam.correctCelebration": string;
+  "wheel.exam.keepPracticing": string;
 
   // Streak Rules Modal
   "streakRules.title": string;
@@ -662,7 +672,16 @@ export interface Translations {
   "momentNotifications.momentType.sunny": string;
   "momentNotifications.source.moments": string;
   "momentNotifications.source.momentsHint": string;
+  "momentNotifications.source.myLessons": string;
+  "momentNotifications.source.myLessonsHint": string;
+  "momentNotifications.source.mySunnyMoments": string;
+  "momentNotifications.source.mySunnyMomentsHint": string;
   "momentNotifications.source.ai": string;
+  "momentNotifications.source.aiHint": string;
+  "momentNotifications.source.aiHintLessons": string;
+  "momentNotifications.source.aiHintSunnyMoments": string;
+  "momentNotifications.source.both": string;
+  "momentNotifications.source.bothHint": string;
   "momentNotifications.everyHours": string;
   "momentNotifications.newSchedule": string;
   "momentNotifications.editSchedule": string;
@@ -3590,6 +3609,16 @@ const translations: Record<Language, Translations> = {
     "wheel.noSunnyMoments.message":
       "Add sunny moments to your memories to see them here!",
     "wheel.spinForRandom": "Spin the wheel",
+    "wheel.exam.lessonOnly": "Select Lessons to spin the wheel and take the exam",
+    "wheel.exam.paywallPrompt": "Wheel exam requires Sfera AI",
+    "wheel.exam.freeLimitReached": "You've used your free exam today. Upgrade to Sfera AI for unlimited exams.",
+    "wheel.exam.questionPrompt": "Type your answer",
+    "wheel.exam.submitAnswer": "Submit",
+    "wheel.exam.analyzing": "Analyzing your answer…",
+    "wheel.exam.youTookTheExam": "You took the exam!",
+    "wheel.exam.revealLesson": "The lesson:",
+    "wheel.exam.correctCelebration": "You've got it! Well done.",
+    "wheel.exam.keepPracticing": "Keep practicing — you'll get there.",
 
     // Streak Rules Modal
     "streakRules.title": "How Streaks Work",
@@ -4361,7 +4390,16 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.momentType.sunny": "Sunny moment",
     "momentNotifications.source.moments": "My moments",
     "momentNotifications.source.momentsHint": "Notifications will use your lesson or sunny moment text from memories in this sphere.",
+    "momentNotifications.source.myLessons": "My lessons",
+    "momentNotifications.source.myLessonsHint": "Notifications will use your lesson text from memories in this sphere.",
+    "momentNotifications.source.mySunnyMoments": "My sunny moments",
+    "momentNotifications.source.mySunnyMomentsHint": "Notifications will use your sunny moment text from memories in this sphere.",
     "momentNotifications.source.ai": "AI summaries",
+    "momentNotifications.source.aiHint": "AI transforms your current lessons or sunny moments into a format that works well for notifications.",
+    "momentNotifications.source.aiHintLessons": "AI transforms your current lessons into a format that works well for notifications.",
+    "momentNotifications.source.aiHintSunnyMoments": "AI transforms your current sunny moments into a format that works well for notifications.",
+    "momentNotifications.source.both": "Both",
+    "momentNotifications.source.bothHint": "Notifications will pick from both AI summaries and your raw lesson or sunny moment text.",
     "momentNotifications.everyHours": "Every {hours} hour(s)",
     "momentNotifications.newSchedule": "New schedule",
     "momentNotifications.editSchedule": "Edit schedule",
@@ -7945,6 +7983,16 @@ const translations: Record<Language, Translations> = {
     "wheel.noSunnyMoments.message":
       "Добавете слънчеви моменти към вашите спомени, за да ги видите тук!",
     "wheel.spinForRandom": "Завъртете колелото",
+    "wheel.exam.lessonOnly": "Изберете Уроци, за да завъртите колелото и да направите изпита",
+    "wheel.exam.paywallPrompt": "Изпитът на колелото изисква Sfera AI",
+    "wheel.exam.freeLimitReached": "Използвахте безплатния си изпит днес. Надградете до Sfera AI за неограничени изпити.",
+    "wheel.exam.questionPrompt": "Напишете отговора си",
+    "wheel.exam.submitAnswer": "Изпрати",
+    "wheel.exam.analyzing": "Анализираме отговора ви…",
+    "wheel.exam.youTookTheExam": "Направихте изпита!",
+    "wheel.exam.revealLesson": "Урокът:",
+    "wheel.exam.correctCelebration": "Правилно! Браво.",
+    "wheel.exam.keepPracticing": "Продължавайте да практикувате — ще успеете.",
 
     // Streak Rules Modal
     "streakRules.title": "Как Работят Поредиците",
@@ -8721,7 +8769,16 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.momentType.sunny": "Слънчев момент",
     "momentNotifications.source.moments": "Моите моменти",
     "momentNotifications.source.momentsHint": "Известията ще използват текста на вашите уроци или слънчеви моменти от спомените в тази сфера.",
+    "momentNotifications.source.myLessons": "Моите уроци",
+    "momentNotifications.source.myLessonsHint": "Известията ще използват текста на вашите уроци от спомените в тази сфера.",
+    "momentNotifications.source.mySunnyMoments": "Моите слънчеви моменти",
+    "momentNotifications.source.mySunnyMomentsHint": "Известията ще използват текста на вашите слънчеви моменти от спомените в тази сфера.",
     "momentNotifications.source.ai": "AI обобщения",
+    "momentNotifications.source.aiHint": "AI преобразува вашите уроци или слънчеви моменти във формат, подходящ за известия.",
+    "momentNotifications.source.aiHintLessons": "AI преобразува вашите текущи уроци във формат, подходящ за известия.",
+    "momentNotifications.source.aiHintSunnyMoments": "AI преобразува вашите текущи слънчеви моменти във формат, подходящ за известия.",
+    "momentNotifications.source.both": "И двете",
+    "momentNotifications.source.bothHint": "Известията ще избират от AI обобщения и от вашите уроци или слънчеви моменти.",
     "momentNotifications.everyHours": "На всеки {hours} час(а)",
     "momentNotifications.newSchedule": "Ново разписание",
     "momentNotifications.editSchedule": "Редактирай разписание",

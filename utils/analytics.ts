@@ -109,6 +109,20 @@ export const logWheelSpin = async () => {
 };
 
 /**
+ * Log when the main wheel of life is rotated
+ */
+export const logWheelMainSpin = async () => {
+  await logEvent('wheel_main_spin', {});
+};
+
+/**
+ * Log when an entity wheel of life is rotated
+ */
+export const logWheelEntitySpin = async (entityId?: string) => {
+  await logEvent('wheel_entity_spin', { entity_id: entityId ?? '' });
+};
+
+/**
  * Log when an insights sphere is opened
  */
 export const logInsightsSphereOpened = async (sphere: string) => {
@@ -176,6 +190,8 @@ export default {
   logMemoryDeleted,
   logMomentCreated,
   logWheelSpin,
+  logWheelMainSpin,
+  logWheelEntitySpin,
   logInsightsSphereOpened,
   logNotificationTurnedOn,
   logAIModalSubmit,

@@ -20,7 +20,7 @@ export interface MomentNotificationSchedule {
   sphere: LifeSphere;
   momentType: MomentType;
   frequencyHours: number;
-  source: 'moments' | 'ai'; // 'moments' = raw lesson/sunny text from memories, 'ai' = AI nudge summaries
+  source: 'moments' | 'ai' | 'both'; // 'moments' = raw from memories, 'ai' = AI summaries, 'both' = both combined
   userMessages: string[]; // Deprecated for 'moments'; kept for migration
   enabled: boolean;
   createdAt: string;

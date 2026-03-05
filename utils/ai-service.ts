@@ -767,3 +767,267 @@ export interface AIEntityCreationResponse {
   sphere: "relationships" | "career" | "family" | "friends" | "hobbies";
   entities: AIEntitySuggestion[];
 }
+
+/** One preloaded exam item: each question is linked to a specific user lesson. */
+export interface PreloadedExamQuestion {
+  lessonId: string;
+  lessonText: string; // Revealed after user answers; AI uses this to evaluate
+  question: string; // Situational question based on this lesson
+  memoryId?: string;
+  memoryImageUri?: string;
+  /** For main wheel: needed for navigation to memory (entity wheel knows entity from context) */
+  entityId?: string;
+  sphere?: "relationships" | "career" | "family" | "friends" | "hobbies";
+}
+
+/** Wheel exam: pick up to 20 lessons, generate ONE question per lesson (each question linked to its lesson). */
+export async function generateLessonExamQuestionsBatch(
+  lessons: {
+    id: string;
+    text: string;
+    memoryId?: string;
+    memoryImageUri?: string;
+    entityId?: string;
+    sphere?: "relationships" | "career" | "family" | "friends" | "hobbies";
+  }[],
+  language: "en" | "bg" = "en",
+): Promise<PreloadedExamQuestion[]> {
+  if (lessons.length === 0) return [];
+
+  if (USE_MOCK_AI_REQUEST) {
+    await new Promise((r) => setTimeout(r, 1500));
+    return lessons.map((l) => ({
+      lessonId: l.id,
+      lessonText: l.text,
+      question:
+        language === "bg"
+          ? "Представи си ситуация, в която трябва да приложиш този урок. Как би реагирал?"
+          : "Imagine a situation where you'd need to apply this lesson. How would you respond?",
+      memoryId: l.memoryId,
+      memoryImageUri: l.memoryImageUri,
+      entityId: l.entityId,
+      sphere: l.sphere,
+    }));
+  }
+
+  const languageName = language === "bg" ? "Bulgarian" : "English";
+  const responseSchema = Schema.object({
+    properties: {
+      questions: Schema.array({
+        items: Schema.object({
+          properties: {
+            lessonIndex: Schema.number({
+              description: "0-based index of the lesson in the input list",
+            }),
+            question: Schema.string({
+              description:
+                "Short situational question (1-2 sentences, under 120 chars). Concrete scenario. Second person 'you'. Do NOT reveal the lesson.",
+            }),
+          },
+          required: ["lessonIndex", "question"],
+        }),
+      }),
+    },
+    required: ["questions"],
+  });
+
+  const systemPrompt = `Sfera AI coach. For each lesson provided, create ONE short situational quiz question to test if someone learned it.
+Rules per question:
+- Presents a concrete situation/scenario where the user could apply the lesson.
+- Use second person "you". Keep 1-2 sentences, under 120 characters.
+- Do NOT reveal the lesson in the question.
+Respond in ${languageName}. JSON only. Return exactly one question per input lesson, in the same order.`;
+
+  const lessonsBlock = lessons
+    .map(
+      (l, i) =>
+        `[${i}] "${l.text.substring(0, 200)}${l.text.length > 200 ? "..." : ""}"`,
+    )
+    .join("\n");
+  const userPrompt = `Lessons (index and text):\n${lessonsBlock}\n\nGenerate one situational question for each lesson. Return questions array with lessonIndex and question.`;
+
+  if (__DEV__) {
+    console.log("[WheelExam] generateLessonExamQuestionsBatch INPUT:", {
+      lessonCount: lessons.length,
+      language,
+      lessons: lessons.map((l) => ({ id: l.id, textPreview: l.text.slice(0, 60) + "..." })),
+    });
+  }
+
+  const app = getApp();
+  const ai = getAI(app, { appCheck: firebase.appCheck() });
+  const model = getGenerativeModel(ai, {
+    model: "gemini-2.5-flash-lite",
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema,
+    },
+  });
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    systemInstruction: systemPrompt,
+  });
+
+  const responseText = result.response.text();
+  const parsed = JSON.parse(responseText) as {
+    questions: { lessonIndex: number; question: string }[];
+  };
+  const questions = parsed?.questions ?? [];
+
+  const resultItems = questions
+    .filter((q) => q.lessonIndex >= 0 && q.lessonIndex < lessons.length)
+    .map((q) => {
+      const lesson = lessons[q.lessonIndex];
+      if (!lesson) return null;
+      return {
+        lessonId: lesson.id,
+        lessonText: lesson.text,
+        question: (q.question || "").trim().replace(/^["']|["']$/g, ""),
+        memoryId: lesson.memoryId,
+        memoryImageUri: lesson.memoryImageUri,
+        entityId: lesson.entityId,
+        sphere: lesson.sphere,
+      };
+    })
+    .filter((q): q is PreloadedExamQuestion => q != null);
+
+  if (__DEV__) {
+    console.log("[WheelExam] generateLessonExamQuestionsBatch RESPONSE:", {
+      rawLength: responseText.length,
+      questionCount: resultItems.length,
+      eachLinkedToLesson: resultItems.map((r) => ({
+        lessonPreview: r.lessonText.slice(0, 40) + "...",
+        questionPreview: r.question.slice(0, 50) + "...",
+      })),
+    });
+  }
+
+  return resultItems;
+}
+
+/** Wheel exam: generate a situational question based on a lesson (legacy single-call) */
+export async function generateLessonExamQuestion(
+  lessonText: string,
+  language: "en" | "bg" = "en",
+): Promise<string> {
+  if (USE_MOCK_AI_REQUEST) {
+    await new Promise((r) => setTimeout(r, 800));
+    return language === "bg"
+      ? "Представи си ситуация, в която трябва да приложиш този урок. Как би реагирал?"
+      : "Imagine a situation where you'd need to apply this lesson. How would you respond?";
+  }
+
+  const languageName = language === "bg" ? "Bulgarian" : "English";
+  const systemPrompt = `Sfera AI coach. You create short situational quiz questions to test if someone learned a personal lesson.
+Rules:
+- Output ONE question only, no quotes, no preamble.
+- The question presents a concrete situation or scenario where the user could apply the lesson.
+- Use second person "you" (e.g. "You're faced with...", "Someone says to you...", "In this situation you...").
+- Keep it 1-2 sentences, under 120 characters ideally.
+- Do NOT reveal the lesson itself in the question.
+- Respond in ${languageName}.`;
+
+  const userPrompt = `Lesson the user learned: "${lessonText}"
+
+Generate ONE situational question to test if they'd apply this lesson.`;
+
+  const app = getApp();
+  const ai = getAI(app, { appCheck: firebase.appCheck() });
+  const model = getGenerativeModel(ai, { model: "gemini-2.5-flash-lite" });
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    systemInstruction: systemPrompt,
+  });
+
+  const text = result.response.text().trim();
+  return text.replace(/^["']|["']$/g, ""); // Strip surrounding quotes if any
+}
+
+/** Wheel exam: analyze user's answer and determine if they demonstrated learning */
+export interface LessonExamAnalysis {
+  isCorrect: boolean;
+  feedback: string;
+}
+
+export async function analyzeLessonExamAnswer(
+  lessonText: string,
+  question: string,
+  userAnswer: string,
+  language: "en" | "bg" = "en",
+): Promise<LessonExamAnalysis> {
+  if (USE_MOCK_AI_REQUEST) {
+    await new Promise((r) => setTimeout(r, 1200));
+    const hasContent = userAnswer.trim().length > 5;
+    return {
+      isCorrect: hasContent,
+      feedback:
+        language === "bg"
+          ? "Добре! Показа, че си обмислил урока."
+          : "Well done! You showed you've thought about the lesson.",
+    };
+  }
+
+  const languageName = language === "bg" ? "Bulgarian" : "English";
+  const responseSchema = Schema.object({
+    properties: {
+      isCorrect: Schema.boolean({
+        description:
+          "True if the user's answer demonstrates they understood and could apply the lesson. Be generous: partial understanding, personal reflection, or situational awareness counts. False only if completely off-topic or empty.",
+      }),
+      feedback: Schema.string({
+        description:
+          "One short supportive sentence. If correct: celebrate. If not: gentle encouragement. Max 80 chars.",
+      }),
+    },
+    required: ["isCorrect", "feedback"],
+  });
+
+  const systemPrompt = `Sfera AI coach. You evaluate whether a user's answer to a situational question shows they learned a personal lesson.
+Be generous: partial understanding, personal reflection, or situational awareness counts as correct.
+Only mark isCorrect=false if the answer is completely off-topic, nonsensical, or empty.
+Respond in ${languageName}. JSON only.`;
+
+  const userPrompt = `Lesson: "${lessonText}"
+Question: "${question}"
+User's answer: "${userAnswer}"
+
+Evaluate: isCorrect (boolean), feedback (short supportive sentence).`;
+
+  if (__DEV__) {
+    console.log("[WheelExam] analyzeLessonExamAnswer INPUT (AI evaluates answer vs linked lesson):", {
+      linkedLessonPreview: lessonText.slice(0, 80),
+      questionPreview: question.slice(0, 80),
+      userAnswerPreview: userAnswer.slice(0, 80),
+      language,
+    });
+  }
+
+  const app = getApp();
+  const ai = getAI(app, { appCheck: firebase.appCheck() });
+  const model = getGenerativeModel(ai, {
+    model: "gemini-2.5-flash-lite",
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema,
+    },
+  });
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    systemInstruction: systemPrompt,
+  });
+
+  const responseText = result.response.text();
+  const parsed = JSON.parse(responseText) as LessonExamAnalysis;
+
+  if (__DEV__) {
+    console.log("[WheelExam] analyzeLessonExamAnswer RESPONSE:", {
+      isCorrect: parsed.isCorrect,
+      feedback: parsed.feedback,
+    });
+  }
+
+  return parsed;
+}

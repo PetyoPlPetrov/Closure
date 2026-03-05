@@ -3,6 +3,7 @@ import ShareModal from "@/components/ShareModal";
 import { StreakBadgeComponent } from "@/components/streak-badge";
 import { StreakModal } from "@/components/streak-modal";
 import { ConstellationBackground } from "@/components/constellation-background";
+import { Fireworks } from "@/components/fireworks";
 import { FocusedSferaView } from "@/components/focused-sfera-view";
 import { StreakRulesModal } from "@/components/streak-rules-modal";
 import { ThemedText } from "@/components/themed-text";
@@ -18,7 +19,21 @@ import {
   TabScreenContainer,
 } from "@/library/components/tab-screen-container";
 import { getLocalDateString } from "@/utils/ai-rate-limiter";
-import { processHomeEncouragementPrompt } from "@/utils/ai-service";
+import { showPaywallForAIAccess } from "@/utils/premium-access";
+import { useSubscription } from "@/utils/SubscriptionProvider";
+import { preloadMainWheelQuestions } from "@/utils/wheel-exam-preload";
+import {
+  pickAndConsumePreloadedQuestion,
+  preloadEntityWheelQuestions,
+} from "@/utils/wheel-exam-preload";
+import {
+  canSpinWheelExam,
+  recordWheelExamUsed,
+} from "@/utils/wheel-exam-rate-limiter";
+import {
+  analyzeLessonExamAnswer,
+  processHomeEncouragementPrompt,
+} from "@/utils/ai-service";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
 import { useNotificationNudgePreference } from "@/utils/NotificationNudgePreferenceProvider";
 import { logError } from "@/utils/error-logger";
@@ -61,6 +76,7 @@ import React, {
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   Alert,
   AppState,
   BackHandler,
@@ -70,6 +86,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   View,
 } from "react-native";
 import Animated, {
@@ -435,6 +452,7 @@ const FloatingAvatar = React.memo(
     externalPositionY,
     onEntityWheelChange,
     orbitDurationMs = 60000,
+    onShowAIConsentModal,
   }: {
     profile: any;
     position: { x: number; y: number };
@@ -472,8 +490,15 @@ const FloatingAvatar = React.memo(
     externalPositionY?: ReturnType<typeof useSharedValue<number>>;
     onEntityWheelChange?: (isActive: boolean) => void;
     orbitDurationMs?: number;
+    onShowAIConsentModal?: () => void;
   }) {
     const { momentColors } = useMomentColors();
+    const aiConsent = useAIInsightsConsent();
+    const { hasAIEntitlement } = useSubscription();
+    const t = useTranslate();
+    const { language } = useLanguage();
+    const lang = language === "bg" ? "bg" : "en";
+
     const { isTablet, isLargeDevice } = useLargeDevice();
     const insets = useSafeAreaInsets();
     const fontScale = useFontScale();
@@ -507,6 +532,14 @@ const FloatingAvatar = React.memo(
       momentId?: string;
       memoryImageUri?: string;
     } | null>(null);
+    const [selectedWheelExam, setSelectedWheelExam] = React.useState<{
+      question: string;
+      step: "question" | "analyzing" | "result";
+      analysis?: { isCorrect: boolean; feedback: string };
+      userAnswer?: string;
+    } | null>(null);
+    const [showWheelFireworks, setShowWheelFireworks] = React.useState(false);
+    const [examAnswerInput, setExamAnswerInput] = React.useState("");
     const [selectedMomentType, setSelectedMomentType] = React.useState<
       "lesson" | "sunny" | "cloudy"
     >("lesson");
@@ -1834,10 +1867,10 @@ const FloatingAvatar = React.memo(
       targetY,
     ]);
 
-    // Select random moment after wheel spin
-    const selectRandomMoment = React.useCallback(() => {
-      const allMoments: {
-        type: "lesson" | "sunny" | "cloudy";
+    // Select random moment after wheel spin — always use lesson preloaded exam
+    const selectRandomMoment = React.useCallback(async () => {
+      const allLessons: {
+        type: "lesson";
         text: string;
         memoryId: string;
         momentId?: string;
@@ -1845,10 +1878,10 @@ const FloatingAvatar = React.memo(
       }[] = [];
 
       memories.forEach((memory) => {
-        if (selectedMomentType === "lesson" && memory.lessonsLearned) {
+        if (memory.lessonsLearned) {
           memory.lessonsLearned.forEach(
             (lesson: { id: string; text: string }) => {
-              allMoments.push({
+              allLessons.push({
                 type: "lesson",
                 text: lesson.text,
                 memoryId: memory.id,
@@ -1858,35 +1891,146 @@ const FloatingAvatar = React.memo(
             },
           );
         }
-        if (selectedMomentType === "sunny" && memory.goodFacts) {
-          memory.goodFacts.forEach((fact: { id: string; text: string }) => {
-            allMoments.push({
-              type: "sunny",
-              text: fact.text,
-              memoryId: memory.id,
-              momentId: fact.id,
-              memoryImageUri: memory.imageUri,
-            });
-          });
-        }
-        if (selectedMomentType === "cloudy" && memory.hardTruths) {
-          memory.hardTruths.forEach((truth: { id: string; text: string }) => {
-            allMoments.push({
-              type: "cloudy",
-              text: truth.text,
-              memoryId: memory.id,
-              momentId: truth.id,
-              memoryImageUri: memory.imageUri,
-            });
-          });
-        }
       });
 
-      if (allMoments.length > 0) {
-        const randomIndex = Math.floor(Math.random() * allMoments.length);
-        setSelectedWheelMoment(allMoments[randomIndex]);
+      if (allLessons.length === 0) return;
+
+      const chosen =
+        allLessons[Math.floor(Math.random() * allLessons.length)];
+
+      if (!hasAIEntitlement) {
+        await recordWheelExamUsed();
       }
-    }, [memories, selectedMomentType]);
+      const item = await pickAndConsumePreloadedQuestion({
+        type: "entity",
+        entityId: profile.id,
+        onRefetchEntity: (eid) =>
+          preloadEntityWheelQuestions({
+            entityId: eid,
+            memories,
+            language: lang,
+            hasAIEntitlement,
+            appendOnly: true,
+          }),
+      });
+      if (item) {
+        setSelectedMomentType("lesson"); // Always show lesson filter when spin completes
+        setSelectedWheelMoment({
+          type: "lesson",
+          text: item.lessonText,
+          memoryId: item.memoryId ?? chosen.memoryId,
+          momentId: item.lessonId,
+          memoryImageUri: item.memoryImageUri ?? chosen.memoryImageUri,
+        });
+        setSelectedWheelExam({
+          question: item.question,
+          step: "question",
+        });
+      } else {
+        setSelectedMomentType("lesson"); // Always show lesson filter when spin completes
+        setSelectedWheelMoment(chosen);
+        setSelectedWheelExam({
+          question: chosen.text,
+          step: "question",
+        });
+      }
+    }, [memories, profile.id, lang, hasAIEntitlement]);
+
+    // Start entity wheel spin (used after rate-limit check for lessons)
+    const startEntityWheelSpin = React.useCallback(
+      (velocity: number) => {
+        setSelectedMomentType("lesson"); // Force lesson mode when spin starts (ignore current filter)
+        const { logWheelEntitySpin } = require("@/utils/analytics");
+        logWheelEntitySpin(profile.id).catch(() => {});
+        isWheelSpinning.value = true;
+        runOnJS(setIsWheelSpinningState)(true);
+        const velocityMagnitude = Math.abs(velocity);
+        const momentumMultiplier =
+          15.0 + Math.min(velocityMagnitude * 4, 30.0);
+        const amplifiedVelocity = velocity * momentumMultiplier;
+
+        if (Math.abs(velocity) > 0.05) {
+          const targetAngle = orbitAngle.value + amplifiedVelocity * 2.3;
+          orbitAngle.value = withSequence(
+            withTiming(targetAngle, {
+              duration: 3000,
+              easing: Easing.out(Easing.cubic),
+            }),
+            withTiming(targetAngle, { duration: 0 }, (finished) => {
+              "worklet";
+              if (finished) {
+                isWheelSpinning.value = false;
+                runOnJS(setIsWheelSpinningState)(false);
+                runOnJS(selectRandomMoment)();
+                orbitAngle.value = withRepeat(
+                  withTiming(orbitAngle.value + 360, {
+                    duration: orbitDurationMs,
+                    easing: Easing.linear,
+                  }),
+                  -1,
+                  false,
+                );
+              }
+            }),
+          );
+        } else {
+          isWheelSpinning.value = false;
+          runOnJS(setIsWheelSpinningState)(false);
+          orbitAngle.value = withRepeat(
+            withTiming(orbitAngle.value + 360, {
+              duration: orbitDurationMs,
+              easing: Easing.linear,
+            }),
+            -1,
+            false,
+          );
+        }
+        wheelVelocity.value = 0;
+      },
+      [
+        isWheelSpinning,
+        orbitAngle,
+        orbitDurationMs,
+        wheelVelocity,
+        selectRandomMoment,
+        profile.id,
+      ],
+    );
+
+    // For lesson: check AI consent first, then rate limit before spin
+    const handleEntityWheelReleaseForLesson = React.useCallback(
+      async (velocity: number) => {
+        if (!aiConsent.isEnabled) {
+          onShowAIConsentModal?.();
+          return;
+        }
+        const canSpin = await canSpinWheelExam(hasAIEntitlement);
+        if (!canSpin) {
+          const purchased = await showPaywallForAIAccess();
+          if (!purchased) return;
+        }
+        startEntityWheelSpin(velocity);
+      },
+      [aiConsent.isEnabled, hasAIEntitlement, onShowAIConsentModal, startEntityWheelSpin],
+    );
+
+    // Preload exam questions when entity wheel opens
+    React.useEffect(() => {
+      if (showEntityWheel && isFocused) {
+        const lessonsCount = memories.reduce(
+          (sum, m) => sum + (m.lessonsLearned?.length ?? 0),
+          0,
+        );
+        if (lessonsCount > 0) {
+          void preloadEntityWheelQuestions({
+            entityId: profile.id,
+            memories,
+            language: lang,
+            hasAIEntitlement,
+          });
+        }
+      }
+    }, [showEntityWheel, isFocused, profile.id, memories, lang, hasAIEntitlement]);
 
     // Clear floating moments when selectedWheelMoment popup appears
     React.useEffect(() => {
@@ -1894,6 +2038,63 @@ const FloatingAvatar = React.memo(
         setFloatingMoments([]);
       }
     }, [selectedWheelMoment]);
+
+    // Clear exam state when closing wheel moment
+    const clearWheelMomentAndExam = React.useCallback(() => {
+      setSelectedWheelMoment(null);
+      setSelectedWheelExam(null);
+      setShowWheelFireworks(false);
+      setExamAnswerInput("");
+    }, []);
+
+    const handleExamSubmit = React.useCallback(
+      async (userAnswer: string) => {
+        if (
+          !selectedWheelMoment ||
+          selectedWheelMoment.type !== "lesson" ||
+          !selectedWheelExam
+        )
+          return;
+        setSelectedWheelExam((p) => (p ? { ...p, step: "analyzing" } : null));
+        try {
+          const analysis = await analyzeLessonExamAnswer(
+            selectedWheelMoment.text,
+            selectedWheelExam.question,
+            userAnswer,
+            lang,
+          );
+          setSelectedWheelExam((p) =>
+            p
+              ? {
+                  ...p,
+                  step: "result",
+                  analysis,
+                  userAnswer,
+                }
+              : null,
+          );
+          if (analysis.isCorrect) {
+            setShowWheelFireworks(true);
+          }
+        } catch (err) {
+          logError(err as Error, "wheel-exam-analyze");
+          setSelectedWheelExam((p) =>
+            p
+              ? {
+                  ...p,
+                  step: "result",
+                  analysis: {
+                    isCorrect: false,
+                    feedback: "Something went wrong. Try again.",
+                  },
+                  userAnswer,
+                }
+              : null,
+          );
+        }
+      },
+      [selectedWheelMoment, selectedWheelExam, lang],
+    );
 
     // Animate popup entrance when selectedWheelMoment appears
     React.useEffect(() => {
@@ -2095,34 +2296,26 @@ const FloatingAvatar = React.memo(
 
       return PanResponder.create({
         onStartShouldSetPanResponder: (evt) => {
-          // Use pageX/pageY for absolute screen coordinates
           const { pageX, pageY } = evt.nativeEvent;
-
-          // Don't capture if touch is on icon buttons
           if (isTouchOnIcon(pageX, pageY)) {
             return false;
           }
           return true;
         },
         onMoveShouldSetPanResponder: (evt) => {
-          // Use pageX/pageY for absolute screen coordinates
           const { pageX, pageY } = evt.nativeEvent;
-
-          // Don't capture if touch is on icon buttons
           if (isTouchOnIcon(pageX, pageY)) {
             return false;
           }
           return true;
         },
         onPanResponderGrant: (evt) => {
-          // Stop the automatic rotation animation
           cancelAnimation(orbitAngle);
           isWheelSpinning.value = false;
           runOnJS(setIsWheelSpinningState)(false);
           wheelVelocity.value = 0;
           wheelDragFrameCount.value = 0;
 
-          // Calculate initial angle from center
           const touch = evt.nativeEvent;
           const centerX = SCREEN_WIDTH / 2;
           const centerY = wheelTargetY;
@@ -2131,8 +2324,8 @@ const FloatingAvatar = React.memo(
           wheelStartAngle.value = Math.atan2(dy, dx);
           wheelLastAngle.value = wheelStartAngle.value;
 
-          // Clear any existing popup when starting a new spin
           setSelectedWheelMoment(null);
+          setSelectedWheelExam(null);
         },
         onPanResponderMove: (evt, gestureState) => {
           const touch = evt.nativeEvent;
@@ -2174,74 +2367,10 @@ const FloatingAvatar = React.memo(
           wheelLastAngle.value = currentAngle;
         },
         onPanResponderRelease: () => {
-          // Reset frame counter
           wheelDragFrameCount.value = 0;
-
-          // Apply decay animation based on velocity
-          isWheelSpinning.value = true;
-          runOnJS(setIsWheelSpinningState)(true);
           const velocity = wheelVelocity.value;
-
-          // Reduced momentum multiplier for slower peak speed
-          const velocityMagnitude = Math.abs(velocity);
-          // Scale from 15x to 45x based on velocity (increased for more responsive spinning)
-          const momentumMultiplier =
-            15.0 + Math.min(velocityMagnitude * 4, 30.0);
-          const amplifiedVelocity = velocity * momentumMultiplier;
-
-          if (Math.abs(velocity) > 0.05) {
-            // Very low threshold - trigger on minimal movement
-            // Moderate travel distance
-            const targetAngle = orbitAngle.value + amplifiedVelocity * 2.3;
-
-            // Use a custom easing curve: slow start (ease in), fast middle, slow end (ease out)
-            orbitAngle.value = withSequence(
-              withTiming(targetAngle, {
-                duration: 3000, // Longer duration for more spinning
-                easing: Easing.out(Easing.cubic), // Decelerate smoothly
-              }),
-              withTiming(
-                targetAngle,
-                {
-                  duration: 0,
-                },
-                (finished) => {
-                  "worklet";
-                  if (finished) {
-                    isWheelSpinning.value = false;
-                    runOnJS(setIsWheelSpinningState)(false);
-                    // Select random moment on JS thread
-                    runOnJS(selectRandomMoment)();
-
-                    // Restart automatic slow orbit from current position
-                    orbitAngle.value = withRepeat(
-                      withTiming(orbitAngle.value + 360, {
-                        duration: orbitDurationMs,
-                        easing: Easing.linear,
-                      }),
-                      -1,
-                      false,
-                    );
-                  }
-                },
-              ),
-            );
-          } else {
-            isWheelSpinning.value = false;
-            runOnJS(setIsWheelSpinningState)(false);
-
-            // Restart automatic slow orbit from current position
-            orbitAngle.value = withRepeat(
-              withTiming(orbitAngle.value + 360, {
-                duration: orbitDurationMs,
-                easing: Easing.linear,
-              }),
-              -1,
-              false,
-            );
-          }
-
-          wheelVelocity.value = 0;
+          // Always use lesson exam flow (rate limit, preloaded questions)
+          void handleEntityWheelReleaseForLesson(velocity);
         },
       });
     }, [
@@ -2253,11 +2382,11 @@ const FloatingAvatar = React.memo(
       fontScale,
       insets.bottom,
       orbitAngle,
-      selectRandomMoment,
+      orbitDurationMs,
       wheelDragFrameCount,
       wheelLastAngle,
       wheelStartAngle,
-      orbitDurationMs,
+      handleEntityWheelReleaseForLesson,
     ]);
 
     // No container rotation - each memory will animate individually
@@ -3509,16 +3638,18 @@ const FloatingAvatar = React.memo(
                 },
               ];
 
-              return icons.map((item, index) => {
-                const x = SCREEN_WIDTH / 2 - spacing + index * spacing;
-                const y = iconY;
+              return (
+                <>
+                  {!isWheelSpinningState &&
+                  icons.map((item, index) => {
+                    const x = SCREEN_WIDTH / 2 - spacing + index * spacing;
+                    const y = iconY;
                 const isDisabled = item.count === 0;
-                const isSpinningDisabled = isWheelSpinningState;
 
                 return (
                   <Animated.View
                     key={item.type}
-                    pointerEvents={isSpinningDisabled ? "none" : "auto"}
+                    pointerEvents="auto"
                     style={[
                       {
                         position: "absolute",
@@ -3528,11 +3659,7 @@ const FloatingAvatar = React.memo(
                         height: iconSize,
                         borderRadius: iconSize / 2,
                         overflow: "hidden",
-                        opacity: isDisabled
-                          ? 0.3
-                          : isSpinningDisabled
-                            ? 0.4
-                            : 1,
+                        opacity: isDisabled ? 0.3 : 1,
                         zIndex: 500,
                       },
                       getButtonStyle(item.type),
@@ -3572,12 +3699,12 @@ const FloatingAvatar = React.memo(
 
                     <Pressable
                       onPress={() => {
-                        if (!isDisabled && !isSpinningDisabled) {
+                        if (!isDisabled) {
                           setSelectedMomentType(item.type);
                         }
                       }}
                       onPressIn={() => {
-                        if (!isDisabled && !isSpinningDisabled) {
+                        if (!isDisabled) {
                           getPressScaleValue(item.type).value = withTiming(
                             0.88,
                             { duration: 100, easing: Easing.out(Easing.ease) },
@@ -3589,7 +3716,7 @@ const FloatingAvatar = React.memo(
                         }
                       }}
                       onPressOut={() => {
-                        if (!isDisabled && !isSpinningDisabled) {
+                        if (!isDisabled) {
                           getPressScaleValue(item.type).value = withSpring(1, {
                             damping: 10,
                             stiffness: 300,
@@ -3600,7 +3727,7 @@ const FloatingAvatar = React.memo(
                           });
                         }
                       }}
-                      disabled={isDisabled || isSpinningDisabled}
+                      disabled={isDisabled}
                       style={{
                         width: "100%",
                         height: "100%",
@@ -3623,10 +3750,12 @@ const FloatingAvatar = React.memo(
                             : colors.text
                         }
                       />
-                    </Pressable>
+                      </Pressable>
                   </Animated.View>
                 );
-              });
+                  })}
+                </>
+              );
             })()}
 
             {/* Floating moments that grow from memories */}
@@ -4230,105 +4359,179 @@ const FloatingAvatar = React.memo(
                           />
                         </Pressable>
                       </Pressable>
-                    ) : (
-                      // For lesson moments, use the original circle design with MaterialIcons
-                      <Pressable
-                        onPressIn={() => {
-                          popupPressScale.value = withSpring(0.95, {
-                            damping: 15,
-                            stiffness: 300,
-                          });
-                        }}
-                        onPressOut={() => {
-                          popupPressScale.value = withSpring(1, {
-                            damping: 15,
-                            stiffness: 300,
-                          });
-                        }}
-                        onPress={() => {
-                          // Wait for press animation to complete before navigating
-                          setTimeout(() => {
-                            // Navigate to the focused memory
-                            if (
-                              onMemoryFocus &&
-                              selectedWheelMoment?.memoryId
-                            ) {
-                              onMemoryFocus(
-                                profile.id,
-                                selectedWheelMoment.memoryId,
-                                profile.sphere,
-                                selectedWheelMoment.momentId,
-                              );
-                              // Exit entity wheel mode
-                              setShowEntityWheel(false);
-                              if (onEntityWheelChange) {
-                                onEntityWheelChange(false);
-                              }
-                            }
-                            setSelectedWheelMoment(null);
-                          }, 200);
-                        }}
+                    ) : selectedWheelExam ? (
+                      // Wheel exam: question → answer → result (lesson moment stays, loader inside)
+                      <View
                         style={{
-                          width: dynamicLessonSize,
-                          height: dynamicLessonSize,
+                          width: Math.max(dynamicLessonSize, 280),
+                          minHeight: dynamicLessonSize,
                           justifyContent: "center",
                           alignItems: "center",
                           backgroundColor: visuals.backgroundColor,
-                          borderRadius: dynamicLessonSize / 2,
+                          borderRadius: 20,
                           shadowColor: visuals.shadowColor,
                           shadowOffset: { width: 0, height: 0 },
                           shadowOpacity: 0.95,
                           shadowRadius: isTablet ? 40 : 30,
                           elevation: 24,
-                          padding: Math.max(8, dynamicLessonSize * 0.05), // Scale padding with size
+                          padding: 20,
                           position: "relative",
                         }}
                       >
-                        <MaterialIcons
-                          name={visuals.icon}
-                          size={dynamicLessonSize * 0.25}
-                          color={visuals.iconColor}
-                          style={{ marginBottom: 8 }}
-                        />
-                        <ThemedText
-                          style={{
-                            color: momentColors.lesson.text,
-                            fontSize:
-                              Math.max(13, Math.min(16, 13 + textLength / 60)) *
-                              fontScale,
-                            textAlign: "center",
-                            fontWeight: "700",
-                            maxWidth: dynamicLessonSize * 0.75,
-                            lineHeight:
-                              Math.max(17, Math.min(20, 17 + textLength / 60)) *
-                              fontScale,
-                          }}
-                          numberOfLines={Math.min(
-                            10,
-                            Math.max(4, Math.ceil(textLength / 30)),
-                          )}
-                        >
-                          {selectedWheelMoment.text}
-                        </ThemedText>
-                        {/* Memory image */}
-                        {selectedWheelMoment.memoryImageUri && (
-                          <Image
-                            source={{ uri: selectedWheelMoment.memoryImageUri }}
-                            style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: 16,
-                              marginTop: 8,
-                              borderWidth: 2,
-                              borderColor: momentColors.lesson.background,
-                            }}
+                        {selectedWheelExam.step === "analyzing" ? (
+                          <>
+                            <ActivityIndicator
+                              size="large"
+                              color={momentColors.lesson.background}
+                            />
+                            <ThemedText
+                              size="sm"
+                              style={{ marginTop: 12, opacity: 0.9 }}
+                            >
+                              {t("wheel.exam.analyzing")}
+                            </ThemedText>
+                          </>
+                        ) : selectedWheelExam.step === "question" &&
+                        !selectedWheelExam.question ? (
+                          <ActivityIndicator
+                            size="large"
+                            color={momentColors.lesson.background}
                           />
+                        ) : selectedWheelExam.step === "result" &&
+                          selectedWheelExam.analysis ? (
+                          <>
+                            <MaterialIcons
+                              name={
+                                selectedWheelExam.analysis.isCorrect
+                                  ? "check-circle"
+                                  : "warning"
+                              }
+                              size={32}
+                              color={
+                                selectedWheelExam.analysis.isCorrect
+                                  ? "#4CAF50"
+                                  : "#FFA726"
+                              }
+                              style={{ marginBottom: 8 }}
+                            />
+                            <ThemedText
+                              size="l"
+                              weight="bold"
+                              style={{
+                                marginBottom: 12,
+                                textAlign: "center",
+                              }}
+                            >
+                              {selectedWheelExam.analysis.isCorrect
+                                ? t("wheel.exam.correctCelebration")
+                                : t("wheel.exam.keepPracticing")}
+                            </ThemedText>
+                            <ThemedText
+                              size="xs"
+                              style={{
+                                marginBottom: 8,
+                                opacity: 0.9,
+                                textAlign: "center",
+                              }}
+                            >
+                              {selectedWheelExam.analysis.feedback}
+                            </ThemedText>
+                            <ThemedText
+                              size="xs"
+                              weight="semibold"
+                              style={{
+                                marginTop: 12,
+                                marginBottom: 4,
+                                opacity: 0.8,
+                              }}
+                            >
+                              {t("wheel.exam.revealLesson")}
+                            </ThemedText>
+                            <ThemedText
+                              size="sm"
+                              style={{
+                                textAlign: "center",
+                                fontStyle: "italic",
+                                maxWidth: "100%",
+                              }}
+                              numberOfLines={6}
+                            >
+                              {selectedWheelMoment?.text}
+                            </ThemedText>
+                          </>
+                        ) : (
+                          <>
+                            <MaterialIcons
+                              name="lightbulb"
+                              size={28}
+                              color={momentColors.lesson.background}
+                              style={{ marginBottom: 12 }}
+                            />
+                            <ThemedText
+                              size="sm"
+                              weight="semibold"
+                              style={{
+                                marginBottom: 16,
+                                textAlign: "center",
+                                paddingHorizontal: 8,
+                              }}
+                            >
+                              {selectedWheelExam.question}
+                            </ThemedText>
+                            <TextInput
+                              value={examAnswerInput}
+                              onChangeText={setExamAnswerInput}
+                              placeholder={t("wheel.exam.questionPrompt")}
+                              placeholderTextColor={
+                                colorScheme === "dark"
+                                  ? "rgba(255,255,255,0.4)"
+                                  : "rgba(0,0,0,0.4)"
+                              }
+                              style={{
+                                width: "100%",
+                                minHeight: 44,
+                                backgroundColor:
+                                  colorScheme === "dark"
+                                    ? "rgba(0,0,0,0.3)"
+                                    : "rgba(0,0,0,0.08)",
+                                borderRadius: 12,
+                                paddingHorizontal: 12,
+                                paddingVertical: 10,
+                                color: colors.text,
+                                fontSize: 14 * fontScale,
+                              }}
+                              multiline
+                            />
+                            <Pressable
+                              onPress={() => {
+                                const trimmed = examAnswerInput.trim();
+                                if (trimmed) {
+                                  handleExamSubmit(trimmed);
+                                  setExamAnswerInput("");
+                                }
+                              }}
+                              style={{
+                                marginTop: 12,
+                                paddingHorizontal: 24,
+                                paddingVertical: 10,
+                                backgroundColor: momentColors.lesson.background,
+                                borderRadius: 20,
+                              }}
+                            >
+                              <ThemedText
+                                size="sm"
+                                weight="semibold"
+                                style={{ color: momentColors.lesson.text }}
+                              >
+                                {t("wheel.exam.submitAnswer")}
+                              </ThemedText>
+                            </Pressable>
+                          </>
                         )}
-                        {/* Close button for lesson - positioned at top right */}
                         <Pressable
                           onPress={(e) => {
                             e?.stopPropagation?.();
-                            setSelectedWheelMoment(null);
+                            clearWheelMomentAndExam();
                           }}
                           style={{
                             position: "absolute",
@@ -4361,11 +4564,151 @@ const FloatingAvatar = React.memo(
                             style={{ opacity: 0.9 }}
                           />
                         </Pressable>
+                        </View>
+                    ) : (
+                      // Fallback: lesson without exam (legacy)
+                      <Pressable
+                        onPressIn={() => {
+                          popupPressScale.value = withSpring(0.95, {
+                            damping: 15,
+                            stiffness: 300,
+                          });
+                        }}
+                        onPressOut={() => {
+                          popupPressScale.value = withSpring(1, {
+                            damping: 15,
+                            stiffness: 300,
+                          });
+                        }}
+                        onPress={() => {
+                          setTimeout(() => {
+                            if (
+                              onMemoryFocus &&
+                              selectedWheelMoment?.memoryId
+                            ) {
+                              onMemoryFocus(
+                                profile.id,
+                                selectedWheelMoment.memoryId,
+                                profile.sphere,
+                                selectedWheelMoment.momentId,
+                              );
+                              setShowEntityWheel(false);
+                              if (onEntityWheelChange) {
+                                onEntityWheelChange(false);
+                              }
+                            }
+                            clearWheelMomentAndExam();
+                          }, 200);
+                        }}
+                        style={{
+                          width: dynamicLessonSize,
+                          height: dynamicLessonSize,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          backgroundColor: visuals.backgroundColor,
+                          borderRadius: dynamicLessonSize / 2,
+                          shadowColor: visuals.shadowColor,
+                          shadowOffset: { width: 0, height: 0 },
+                          shadowOpacity: 0.95,
+                          shadowRadius: isTablet ? 40 : 30,
+                          elevation: 24,
+                          padding: Math.max(8, dynamicLessonSize * 0.05),
+                          position: "relative",
+                        }}
+                      >
+                        <MaterialIcons
+                          name={visuals.icon}
+                          size={dynamicLessonSize * 0.25}
+                          color={visuals.iconColor}
+                          style={{ marginBottom: 8 }}
+                        />
+                        <ThemedText
+                          style={{
+                            color: momentColors.lesson.text,
+                            fontSize:
+                              Math.max(13, Math.min(16, 13 + textLength / 60)) *
+                              fontScale,
+                            textAlign: "center",
+                            fontWeight: "700",
+                            maxWidth: dynamicLessonSize * 0.75,
+                            lineHeight:
+                              Math.max(17, Math.min(20, 17 + textLength / 60)) *
+                              fontScale,
+                          }}
+                          numberOfLines={Math.min(
+                            10,
+                            Math.max(4, Math.ceil(textLength / 30)),
+                          )}
+                        >
+                          {selectedWheelMoment?.text}
+                        </ThemedText>
+                        {selectedWheelMoment?.memoryImageUri && (
+                          <Image
+                            source={{
+                              uri: selectedWheelMoment.memoryImageUri,
+                            }}
+                            style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: 16,
+                              marginTop: 8,
+                              borderWidth: 2,
+                              borderColor: momentColors.lesson.background,
+                            }}
+                          />
+                        )}
+                        <Pressable
+                          onPress={(e) => {
+                            e?.stopPropagation?.();
+                            clearWheelMomentAndExam();
+                          }}
+                          style={{
+                            position: "absolute",
+                            top: 8,
+                            right: 8,
+                            width: 28,
+                            height: 28,
+                            borderRadius: 14,
+                            backgroundColor:
+                              colorScheme === "dark"
+                                ? "rgba(0, 0, 0, 0.6)"
+                                : "rgba(255, 255, 255, 0.95)",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            zIndex: 999,
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 2,
+                            elevation: 5,
+                          }}
+                          hitSlop={{
+                            top: 12,
+                            bottom: 12,
+                            left: 12,
+                            right: 12,
+                          }}
+                        >
+                          <MaterialIcons
+                            name="close"
+                            size={18}
+                            color={
+                              colorScheme === "dark" ? "#FFFFFF" : "#000000"
+                            }
+                            style={{ opacity: 0.9 }}
+                          />
+                        </Pressable>
                       </Pressable>
                     )}
                   </Animated.View>
                 );
               })()}
+            {showWheelFireworks && (
+              <Fireworks
+                visible={showWheelFireworks}
+                onComplete={() => setShowWheelFireworks(false)}
+              />
+            )}
           </View>
         )}
       </View>
@@ -8388,17 +8731,19 @@ const SparkledDot = React.memo(function SparkledDot({
   );
 });
 
-// Spiraling Icons Component - moment icons that flow out from avatar during wheel spin
+// Spiraling Icons Component - moment icons that flow out from avatar during wheel spin or on correct exam answer (1s)
 const SpiralingStars = React.memo(function SpiralingStars({
   avatarCenterX,
   avatarCenterY,
   isSpinning,
+  celebrationSpinning,
   colorScheme,
   momentType = "lessons",
 }: {
   avatarCenterX: ReturnType<typeof useSharedValue<number>>;
   avatarCenterY: ReturnType<typeof useSharedValue<number>>;
   isSpinning: ReturnType<typeof useSharedValue<boolean>>;
+  celebrationSpinning?: ReturnType<typeof useSharedValue<boolean>>;
   colorScheme: "light" | "dark";
   momentType?: "lessons" | "hardTruths" | "sunnyMoments";
 }) {
@@ -8432,6 +8777,7 @@ const SpiralingStars = React.memo(function SpiralingStars({
           size={particle.size}
           delay={particle.delay}
           isSpinning={isSpinning}
+          celebrationSpinning={celebrationSpinning}
           colorScheme={colorScheme}
           momentType={momentType}
         />
@@ -8449,6 +8795,7 @@ const SpirallingStar = React.memo(function SpirallingStar({
   size,
   delay,
   isSpinning,
+  celebrationSpinning,
   colorScheme,
   momentType = "lessons",
 }: {
@@ -8459,6 +8806,7 @@ const SpirallingStar = React.memo(function SpirallingStar({
   size: number;
   delay: number;
   isSpinning: ReturnType<typeof useSharedValue<boolean>>;
+  celebrationSpinning?: ReturnType<typeof useSharedValue<boolean>>;
   colorScheme: "light" | "dark";
   momentType?: "lessons" | "hardTruths" | "sunnyMoments";
 }) {
@@ -8510,6 +8858,40 @@ const SpirallingStar = React.memo(function SpirallingStar({
       }
     },
     [delay],
+  );
+
+  // React to celebrationSpinning (correct exam answer) - 1 second one-shot
+  useAnimatedReaction(
+    () => celebrationSpinning?.value ?? false,
+    (celebrating, previousCelebrating) => {
+      "worklet";
+      if (celebrating && !previousCelebrating && celebrationSpinning) {
+        progress.value = 0;
+        opacity.value = 0;
+
+        // 1 second one-shot outward animation
+        progress.value = withDelay(
+          delay,
+          withTiming(1, {
+            duration: 800,
+            easing: Easing.out(Easing.ease),
+          }),
+        );
+
+        opacity.value = withDelay(
+          delay,
+          withSequence(
+            withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) }),
+            withTiming(0, { duration: 600, easing: Easing.in(Easing.ease) }),
+          ),
+        );
+      } else if (!celebrating && previousCelebrating) {
+        cancelAnimation(progress);
+        cancelAnimation(opacity);
+        progress.value = 0;
+        opacity.value = 0;
+      }
+    },
   );
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -10946,8 +11328,27 @@ export default function HomeScreen() {
     reloadFriends,
     reloadHobbies,
   } = useJourney();
+  const { hasAIEntitlement } = useSubscription();
   const t = useTranslate();
   const { language: appLanguage } = useLanguage();
+  const appLang = appLanguage === "bg" ? "bg" : "en";
+
+  // Preload wheel exam questions on app open (main wheel pool, once when ready)
+  const mainPreloadAttemptedRef = useRef(false);
+  useEffect(() => {
+    if (
+      isLoading ||
+      idealizedMemories.length === 0 ||
+      mainPreloadAttemptedRef.current
+    )
+      return;
+    mainPreloadAttemptedRef.current = true;
+    void preloadMainWheelQuestions({
+      memories: idealizedMemories,
+      language: appLang,
+      hasAIEntitlement,
+    });
+  }, [isLoading, idealizedMemories, appLang, hasAIEntitlement]);
   // Streak feature state
   const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [currentBadge, setCurrentBadge] = useState<StreakBadge | null>(null);
@@ -12205,7 +12606,7 @@ export default function HomeScreen() {
   const spheresScale = useSharedValue(1); // Scale for floating spheres (shrink when selector is shown)
   const wheelCenterX = useSharedValue(SCREEN_WIDTH / 2); // Center X for wheel (shared value for stars)
   const wheelCenterY = useSharedValue(SCREEN_HEIGHT / 2); // Center Y for wheel (shared value for stars)
-
+  const celebrationSparksVisible = useSharedValue(false); // Triggers spiraling sparks for 1s on correct exam answer
   // State for selected moment type when spinning the wheel
   type MomentType = "lessons" | "hardTruths" | "sunnyMoments";
   const [selectedMomentType, setSelectedMomentType] =
@@ -12217,8 +12618,15 @@ export default function HomeScreen() {
     sphere: LifeSphere;
     isMock?: boolean;
     momentType?: MomentType;
+    /** Main wheel exam: question from preloaded pool, step, AI analysis, user answer */
+    examQuestion?: string;
+    examStep?: "question" | "analyzing" | "result";
+    examAnalysis?: { isCorrect: boolean; feedback: string };
+    examUserAnswer?: string;
   } | null>(null);
   const [showLesson, setShowLesson] = useState(false);
+  const [mainWheelExamAnswerInput, setMainWheelExamAnswerInput] = useState("");
+  const [showMainWheelFireworks, setShowMainWheelFireworks] = useState(false);
   const [showMomentTypeSelector, setShowMomentTypeSelector] = useState(false);
 
   // Keep tabPressNoOpRef in sync — when true, Home tab press (already on focused view) does nothing
@@ -12559,9 +12967,9 @@ export default function HomeScreen() {
     [getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId],
   );
 
-  // Handle wheel spin completion
-  const onWheelSpinComplete = useCallback(() => {
-    const moments = getAllMomentsByType(selectedMomentType);
+  // Handle wheel spin completion — always use lesson preloaded exam
+  const onWheelSpinComplete = useCallback(async () => {
+    const lessons = getAllMomentsByType("lessons");
     let momentToShow: {
       text: string;
       entityId: string;
@@ -12569,33 +12977,58 @@ export default function HomeScreen() {
       sphere: LifeSphere;
       isMock?: boolean;
       momentType: MomentType;
+      examQuestion?: string;
+      examStep?: "question" | "analyzing" | "result";
     };
 
-    if (moments.length > 0) {
-      const randomIndex = Math.floor(Math.random() * moments.length);
+    // Always use preloaded exam questions (question → user answers → AI evaluates → reveal lesson)
+    const item = await pickAndConsumePreloadedQuestion({
+      type: "main",
+      onRefetchMain: () =>
+        preloadMainWheelQuestions({
+          memories: idealizedMemories,
+          language: appLang,
+          hasAIEntitlement,
+          appendOnly: true,
+        }),
+    });
+    if (item) {
       momentToShow = {
-        ...moments[randomIndex],
-        momentType: selectedMomentType, // Capture the type at selection time
+        text: item.lessonText,
+        entityId: item.entityId ?? "",
+        memoryId: item.memoryId ?? "",
+        sphere: (item.sphere ?? "relationships") as LifeSphere,
+        momentType: "lessons",
+        examQuestion: item.question,
+        examStep: "question",
+      };
+    } else if (lessons.length > 0) {
+      // Fallback: pool empty, pick random lesson (no exam)
+      const randomIndex = Math.floor(Math.random() * lessons.length);
+      momentToShow = {
+        ...lessons[randomIndex],
+        momentType: "lessons",
       };
     } else {
-      // Show mock moment when no moments are available - use different message based on type
-      const mockMessages: Record<MomentType, string> = {
-        lessons: t("wheel.noLessons.message"),
-        hardTruths: t("wheel.noHardTruths.message"),
-        sunnyMoments: t("wheel.noSunnyMoments.message"),
-      };
       momentToShow = {
-        text: mockMessages[selectedMomentType],
+        text: t("wheel.noLessons.message"),
         entityId: "",
         memoryId: "",
         sphere: "relationships" as LifeSphere,
         isMock: true,
-        momentType: selectedMomentType, // Capture the type at selection time
+        momentType: "lessons",
       };
     }
 
+    // Record usage when user without AI completes a lesson spin (1 free per day total for main+entity)
+    if (!hasAIEntitlement) {
+      void recordWheelExamUsed();
+    }
+
+    setSelectedMomentType("lessons"); // Always show lesson filter when spin completes
     setSelectedLesson(momentToShow);
     setShowLesson(true);
+    setMainWheelExamAnswerInput("");
 
     // Calculate lesson dimensions (same as in render) - use base size for positioning calculations
     const baseCircleSize = isTablet ? 260 : isLargeDevice ? 210 : 190;
@@ -12637,7 +13070,10 @@ export default function HomeScreen() {
     );
   }, [
     getAllMomentsByType,
-    selectedMomentType,
+    idealizedMemories,
+    appLang,
+    hasAIEntitlement,
+    recordWheelExamUsed,
     lessonOpacity,
     lessonScale,
     lessonTranslateX,
@@ -12649,6 +13085,62 @@ export default function HomeScreen() {
     isLargeDevice,
     t,
   ]);
+
+  // Main wheel exam: submit answer, AI evaluates, reveal lesson
+  const handleMainWheelExamSubmit = useCallback(
+    async (userAnswer: string) => {
+      if (
+        !selectedLesson ||
+        selectedLesson.momentType !== "lessons" ||
+        !selectedLesson.examQuestion
+      )
+        return;
+      setSelectedLesson((p) =>
+        p ? { ...p, examStep: "analyzing" as const } : null
+      );
+      try {
+        const analysis = await analyzeLessonExamAnswer(
+          selectedLesson.text,
+          selectedLesson.examQuestion,
+          userAnswer,
+          appLang,
+        );
+        setSelectedLesson((p) =>
+          p
+            ? {
+                ...p,
+                examStep: "result",
+                examAnalysis: analysis,
+                examUserAnswer: userAnswer,
+              }
+            : null,
+        );
+        if (analysis.isCorrect) {
+          setShowMainWheelFireworks(true);
+          celebrationSparksVisible.value = true;
+          setTimeout(() => {
+            celebrationSparksVisible.value = false;
+          }, 1000);
+        }
+      } catch (err) {
+        logError("main-wheel-exam-analyze", err as Error);
+        setSelectedLesson((p) =>
+          p
+            ? {
+                ...p,
+                examStep: "result",
+                examAnalysis: {
+                  isCorrect: false,
+                  feedback: "Something went wrong. Try again.",
+                },
+                examUserAnswer: userAnswer,
+              }
+            : null,
+        );
+      }
+    },
+    [selectedLesson, appLang, celebrationSparksVisible],
+  );
 
   // Animate spheres scale and icon buttons when moment type selector is shown/hidden
   useEffect(() => {
@@ -12724,7 +13216,7 @@ export default function HomeScreen() {
       !isAppActive ||
       !selectedMomentType ||
       isSpinning ||
-      selectedLesson;
+      !!selectedLesson;
 
     // Track if moment type changed
     const momentTypeChanged =
@@ -13012,8 +13504,8 @@ export default function HomeScreen() {
     isWheelSpinning.value = true;
 
     // Log analytics event
-    const { logWheelSpin } = require("@/utils/analytics");
-    logWheelSpin().catch(() => {
+    const { logWheelMainSpin } = require("@/utils/analytics");
+    logWheelMainSpin().catch(() => {
       // Failed to log event
     });
   }, [isHintAnimating, hintRotation, isWheelSpinning, wheelVelocity]);
@@ -13049,8 +13541,10 @@ export default function HomeScreen() {
     lessonShadowPulse,
   ]);
 
-  // Fade out lesson notification when wheel starts spinning
+  // Fade out lesson notification and hide nudge when wheel starts spinning
   const fadeOutLesson = useCallback(() => {
+    // Hide the notification nudge on top when wheel rotates
+    setIsEncouragementVisible(false);
     // Animate lesson out smoothly
     lessonOpacity.value = withTiming(0, {
       duration: 300,
@@ -13468,15 +13962,34 @@ export default function HomeScreen() {
         onPanResponderRelease: () => {
           isDragging.value = false;
           dragFrameCount.value = 0;
-          // Start momentum spin if there's significant velocity
+          // Start momentum spin if there's significant velocity — always use lesson exam (rate limit check)
           if (Math.abs(wheelVelocity.value) > 0.01) {
-            isWheelSpinning.value = true;
-            // Amplify initial velocity based on how fast they were dragging
-            // Faster drags get more momentum (scale from 2x to ~4x)
-            const velocityMagnitude = Math.abs(wheelVelocity.value);
-            const momentumMultiplier =
-              2.0 + Math.min(velocityMagnitude * 25, 2.0);
-            wheelVelocity.value *= momentumMultiplier;
+            // Block spin if AI is not enabled — show consent modal first
+            if (!aiConsent.isEnabled) {
+              setAiInsightsConsentVisible(true);
+              return;
+            }
+            const startSpin = () => {
+              setSelectedMomentType("lessons"); // Force lesson mode when spin starts (ignore current filter)
+              isWheelSpinning.value = true;
+              const velocityMagnitude = Math.abs(wheelVelocity.value);
+              const momentumMultiplier =
+                2.0 + Math.min(velocityMagnitude * 25, 2.0);
+              wheelVelocity.value *= momentumMultiplier;
+              const { logWheelMainSpin } = require("@/utils/analytics");
+              logWheelMainSpin().catch(() => {});
+            };
+            // Always check rate limit (lesson exam flow)
+            const velocityAtRelease = wheelVelocity.value;
+            void (async () => {
+              const canSpin = await canSpinWheelExam(hasAIEntitlement);
+              if (!canSpin) {
+                const purchased = await showPaywallForAIAccess();
+                if (!purchased) return;
+              }
+              wheelVelocity.value = velocityAtRelease;
+              startSpin();
+            })();
           }
         },
       }),
@@ -13491,6 +14004,9 @@ export default function HomeScreen() {
       dragFrameCount,
       isDragging,
       showMomentTypeSelector,
+      hasAIEntitlement,
+      aiConsent.isEnabled,
+      setAiInsightsConsentVisible,
     ],
   );
 
@@ -15137,6 +15653,7 @@ export default function HomeScreen() {
             setIsAnyEntityWheelActive(isActive)
           }
           orbitDurationMs={orbitDurationMs}
+          onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
       );
     });
@@ -15284,6 +15801,7 @@ export default function HomeScreen() {
           }}
           yearSection={yearSection}
           orbitDurationMs={orbitDurationMs}
+          onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
       );
     });
@@ -15402,6 +15920,7 @@ export default function HomeScreen() {
             updateFamilyMemberPosition(member.id, { x, y });
           }}
           orbitDurationMs={orbitDurationMs}
+          onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
       );
     });
@@ -15520,6 +16039,7 @@ export default function HomeScreen() {
             updateFriendPosition(friend.id, { x, y });
           }}
           orbitDurationMs={orbitDurationMs}
+          onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
       );
     });
@@ -15635,6 +16155,7 @@ export default function HomeScreen() {
             updateHobbyPosition(hobby.id, { x, y });
           }}
           orbitDurationMs={orbitDurationMs}
+          onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
       );
     });
@@ -16093,6 +16614,14 @@ export default function HomeScreen() {
             marginTop: -insets.top + 44,
           }}
         >
+          {/* Main wheel exam fireworks */}
+          {showMainWheelFireworks && (
+            <Fireworks
+              visible={showMainWheelFireworks}
+              onComplete={() => setShowMainWheelFireworks(false)}
+            />
+          )}
+
           {/* Sparkled Dots - Always visible on all screens - full screen coverage */}
           <SparkledDots
             avatarSize={avatarSizeForDots}
@@ -16771,8 +17300,269 @@ export default function HomeScreen() {
                         />
                       </Pressable>
                     </AnimatedPressable>
+                  ) : selectedLesson.examQuestion &&
+                    selectedLesson.examStep === "question" ? (
+                    // Main wheel exam: question + answer input (colors from lesson settings)
+                    <View
+                      style={[
+                        {
+                          width: Math.max(momentWidth, 280),
+                          minWidth: 200,
+                          padding: 20,
+                          backgroundColor: momentColors.lesson.background + "B3",
+                          borderRadius: 20,
+                          shadowColor: momentColors.lesson.background,
+                          shadowOffset: { width: 0, height: 0 },
+                          shadowOpacity: 0.95,
+                          shadowRadius: isTablet ? 40 : 30,
+                          elevation: 24,
+                          alignItems: "center",
+                          position: "relative",
+                        },
+                      ]}
+                    >
+                      <MaterialIcons
+                        name={visuals.icon}
+                        size={32}
+                        color={momentColors.lesson.background}
+                        style={{ marginBottom: 12 }}
+                      />
+                      <ThemedText
+                        size="sm"
+                        weight="semibold"
+                        style={{
+                          marginBottom: 16,
+                          textAlign: "center",
+                          paddingHorizontal: 8,
+                          color: momentColors.lesson.text,
+                        }}
+                      >
+                        {selectedLesson.examQuestion}
+                      </ThemedText>
+                      <TextInput
+                        value={mainWheelExamAnswerInput}
+                        onChangeText={setMainWheelExamAnswerInput}
+                        placeholder={t("wheel.exam.questionPrompt")}
+                        placeholderTextColor={
+                          momentColors.lesson.text + "99"
+                        }
+                        style={{
+                          width: "100%",
+                          minHeight: 44,
+                          backgroundColor: momentColors.lesson.background + "40",
+                          borderRadius: 12,
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          color: momentColors.lesson.text,
+                          fontSize: 14 * fontScale,
+                        }}
+                        multiline
+                      />
+                      <Pressable
+                        onPress={() => {
+                          const trimmed = mainWheelExamAnswerInput.trim();
+                          if (trimmed) {
+                            handleMainWheelExamSubmit(trimmed);
+                            setMainWheelExamAnswerInput("");
+                          }
+                        }}
+                        style={{
+                          marginTop: 12,
+                          paddingHorizontal: 24,
+                          paddingVertical: 10,
+                          backgroundColor: momentColors.lesson.background,
+                          borderRadius: 20,
+                        }}
+                      >
+                        <ThemedText
+                          size="sm"
+                          weight="semibold"
+                          style={{ color: momentColors.lesson.text }}
+                        >
+                          {t("wheel.exam.submitAnswer")}
+                        </ThemedText>
+                      </Pressable>
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setShowLesson(false);
+                          setSelectedLesson(null);
+                          setMainWheelExamAnswerInput("");
+                        }}
+                        style={{
+                          position: "absolute",
+                          top: 4,
+                          right: 4,
+                          width: 24,
+                          height: 24,
+                          borderRadius: 12,
+                          backgroundColor: momentColors.lesson.background + "CC",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          zIndex: 10,
+                        }}
+                      >
+                        <MaterialIcons
+                          name="close"
+                          size={16}
+                          color={momentColors.lesson.text}
+                          style={{ opacity: 0.9 }}
+                        />
+                      </Pressable>
+                    </View>
+                  ) : selectedLesson.examQuestion &&
+                    selectedLesson.examStep === "analyzing" ? (
+                    <Animated.View
+                      style={[
+                        {
+                          width: momentWidth,
+                          height: momentHeight,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          backgroundColor: visuals.backgroundColor,
+                          borderRadius: momentWidth / 2,
+                          shadowColor: visuals.shadowColor,
+                          shadowOffset: { width: 0, height: 0 },
+                          shadowOpacity: 0.95,
+                          shadowRadius: isTablet ? 40 : 30,
+                          elevation: 24,
+                          padding: 8,
+                          position: "relative",
+                        },
+                        lessonShadowAnimatedStyle,
+                      ]}
+                    >
+                      <ActivityIndicator
+                        size="large"
+                        color={momentColors.lesson.background}
+                      />
+                      <ThemedText
+                        size="sm"
+                        style={{
+                          marginTop: 12,
+                          color: momentColors.lesson.text,
+                        }}
+                      >
+                        {t("wheel.exam.analyzing")}
+                      </ThemedText>
+                    </Animated.View>
+                  ) : selectedLesson.examQuestion &&
+                    selectedLesson.examStep === "result" &&
+                    selectedLesson.examAnalysis ? (
+                    <AnimatedPressable
+                      onPressIn={() => {
+                        lessonPressScale.value = withSpring(0.95, {
+                          damping: 15,
+                          stiffness: 300,
+                        });
+                      }}
+                      onPressOut={() => {
+                        lessonPressScale.value = withSpring(1, {
+                          damping: 15,
+                          stiffness: 300,
+                        });
+                      }}
+                      onPress={handlePress}
+                      style={[
+                        {
+                          width: momentWidth,
+                          height: momentHeight,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          backgroundColor: visuals.backgroundColor,
+                          borderRadius: momentWidth / 2,
+                          shadowColor: visuals.shadowColor,
+                          shadowOffset: { width: 0, height: 0 },
+                          shadowOpacity: 0.95,
+                          shadowRadius: isTablet ? 40 : 30,
+                          elevation: 24,
+                          padding: 8,
+                          position: "relative",
+                        },
+                        lessonShadowAnimatedStyle,
+                      ]}
+                    >
+                      <MaterialIcons
+                        name={
+                          selectedLesson.examAnalysis.isCorrect
+                            ? "check-circle"
+                            : "warning"
+                        }
+                        size={momentWidth * 0.2}
+                        color={
+                          selectedLesson.examAnalysis.isCorrect
+                            ? "#4CAF50"
+                            : "#FFA726"
+                        }
+                        style={{ marginBottom: 6 }}
+                      />
+                      <ThemedText
+                        size="xs"
+                        style={{
+                          marginBottom: 8,
+                          opacity: 0.9,
+                          textAlign: "center",
+                          color: momentColors.lesson.text,
+                        }}
+                      >
+                        {selectedLesson.examAnalysis.feedback}
+                      </ThemedText>
+                      <ThemedText
+                        size="xs"
+                        weight="semibold"
+                        style={{ marginTop: 12, marginBottom: 4, opacity: 0.8 }}
+                      >
+                        {t("wheel.exam.revealLesson")}
+                      </ThemedText>
+                      <ThemedText
+                        style={{
+                          color: momentColors.lesson.text,
+                          fontSize:
+                            Math.max(12, Math.min(15, 12 + textLength / 80)) *
+                            fontScale,
+                          textAlign: "center",
+                          fontWeight: "600",
+                          maxWidth: momentWidth * 0.85,
+                        }}
+                        numberOfLines={6}
+                      >
+                        {selectedLesson.text}
+                      </ThemedText>
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setShowLesson(false);
+                          setSelectedLesson(null);
+                          setShowMainWheelFireworks(false);
+                        }}
+                        style={{
+                          position: "absolute",
+                          top: 4,
+                          right: 4,
+                          width: 24,
+                          height: 24,
+                          borderRadius: 12,
+                          backgroundColor:
+                            colorScheme === "dark"
+                              ? "rgba(0, 0, 0, 0.6)"
+                              : "rgba(255, 255, 255, 0.95)",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          zIndex: 10,
+                        }}
+                      >
+                        <MaterialIcons
+                          name="close"
+                          size={16}
+                          color={
+                            colorScheme === "dark" ? "#FFFFFF" : "#000000"
+                          }
+                          style={{ opacity: 0.8 }}
+                        />
+                      </Pressable>
+                    </AnimatedPressable>
                   ) : (
-                    // For lessons, use the original circle design with MaterialIcons
+                    // For lessons without exam, use the original circle design
                     <AnimatedPressable
                       onPressIn={() => {
                         lessonPressScale.value = withSpring(0.95, {
@@ -16992,11 +17782,12 @@ export default function HomeScreen() {
             );
           })()}
 
-          {/* Spiraling Icons - appears during wheel spin */}
+          {/* Spiraling Icons - appears during wheel spin and on correct exam answer (1s) */}
           <SpiralingStars
             avatarCenterX={wheelCenterX}
             avatarCenterY={wheelCenterY}
             isSpinning={isWheelSpinning}
+            celebrationSpinning={celebrationSparksVisible}
             colorScheme={colorScheme ?? "dark"}
             momentType={selectedMomentType}
           />
@@ -17456,9 +18247,10 @@ export default function HomeScreen() {
             </>
           )}
 
-          {/* Floating moment icons - show around entities when moment type selector is visible */}
+          {/* Floating moment icons - show around entities when moment type selector is visible (hide when spinning) */}
           {animationsReady &&
             showMomentTypeSelector &&
+            !isSpinning &&
             (() => {
               const momentIconRadius = isTablet ? 28 : 20; // Distance from entity center
               const icons: React.ReactElement[] = [];
@@ -17890,9 +18682,10 @@ export default function HomeScreen() {
               return <>{icons}</>;
             })()}
 
-          {/* Pulsing Floating Moments - Randomly spawn around center avatar during moment type selection */}
+          {/* Pulsing Floating Moments - Randomly spawn around center avatar during moment type selection (hide when spinning) */}
           {animationsReady &&
             showMomentTypeSelector &&
+            !isSpinning &&
             randomMoments.map((moment) => (
               <PulsingFloatingMomentIcon
                 key={`pulsing-moment-${moment.id}`}
@@ -17952,10 +18745,11 @@ export default function HomeScreen() {
                 });
             })()}
 
-          {/* Moment Type Selector Label - Below the wheel */}
+          {/* Moment Type Selector Label - Below the wheel (hide when spinning) */}
           {animationsReady &&
             showMomentTypeSelector &&
             !momentTypeSelectorDismissed &&
+            !isSpinning &&
             (() => {
               // Calculate position below the wheel
               const wheelCenterY = SCREEN_HEIGHT / 2 + 20;
@@ -18024,9 +18818,10 @@ export default function HomeScreen() {
               );
             })()}
 
-          {/* Moment Type Selector Icon Buttons - Fixed position, animated scale */}
+          {/* Moment Type Selector Icon Buttons - Fixed position, animated scale (hide when spinning) */}
           {animationsReady &&
             showMomentTypeSelector &&
+            !isSpinning &&
             (() => {
               // Calculate fixed position below the wheel
               const wheelCenterY = SCREEN_HEIGHT / 2 + 20;
@@ -18262,6 +19057,12 @@ export default function HomeScreen() {
     // Use the existing sortedProfiles and year sections logic
     return (
       <TabScreenContainer>
+        <ConstellationBackground
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
+        />
         <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
           {/* Sparkled Dots - Always visible on all screens - full screen coverage */}
           <SparkledDots
@@ -18601,6 +19402,7 @@ export default function HomeScreen() {
                     memorySlideOffset={memorySlideOffset}
                     animationsComplete={animationsComplete}
                     orbitDurationMs={orbitDurationMs}
+                    onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
                   />
                 );
               }
@@ -18636,6 +19438,12 @@ export default function HomeScreen() {
   if (selectedSphere === "career") {
     return (
       <TabScreenContainer>
+        <ConstellationBackground
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
+        />
         <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
           {/* Sparkled Dots - Always visible on all screens */}
           <SparkledDots
@@ -19157,6 +19965,7 @@ export default function HomeScreen() {
                               }}
                               yearSection={section}
                               orbitDurationMs={orbitDurationMs}
+                              onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
                             />
                           </NonFocusedZone>
                         );
@@ -19196,6 +20005,12 @@ export default function HomeScreen() {
   if (selectedSphere === "family") {
     return (
       <TabScreenContainer>
+        <ConstellationBackground
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
+        />
         <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
           {/* Sparkled Dots - Always visible on all screens */}
           <SparkledDots
@@ -19620,6 +20435,7 @@ export default function HomeScreen() {
                         externalPositionX={focusedFamilyMemberPositionX}
                         externalPositionY={focusedFamilyMemberPositionY}
                         orbitDurationMs={orbitDurationMs}
+                        onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
                       />
                     </NonFocusedZone>
                   );
@@ -19656,6 +20472,12 @@ export default function HomeScreen() {
   if (selectedSphere === "friends") {
     return (
       <TabScreenContainer>
+        <ConstellationBackground
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
+        />
         <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
           {/* Sparkled Dots - Always visible on all screens */}
           <SparkledDots
@@ -20077,6 +20899,7 @@ export default function HomeScreen() {
                         externalPositionX={focusedFriendPositionX}
                         externalPositionY={focusedFriendPositionY}
                         orbitDurationMs={orbitDurationMs}
+                        onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
                       />
                     </NonFocusedZone>
                   );
@@ -20113,6 +20936,12 @@ export default function HomeScreen() {
   if (selectedSphere === "hobbies") {
     return (
       <TabScreenContainer>
+        <ConstellationBackground
+          width={SCREEN_WIDTH}
+          height={SCREEN_HEIGHT}
+          constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
+        />
         <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
           {/* Sparkled Dots - Always visible on all screens */}
           <SparkledDots
@@ -20534,6 +21363,7 @@ export default function HomeScreen() {
                         externalPositionX={focusedHobbyPositionX}
                         externalPositionY={focusedHobbyPositionY}
                         orbitDurationMs={orbitDurationMs}
+                        onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
                       />
                     </NonFocusedZone>
                   );
@@ -20605,6 +21435,7 @@ export default function HomeScreen() {
               memorySlideOffset={memorySlideOffset}
               animationsComplete={animationsComplete}
               orbitDurationMs={orbitDurationMs}
+              onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
             />
           )}
 
@@ -20657,6 +21488,7 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
   memorySlideOffset,
   animationsComplete,
   orbitDurationMs = 60000,
+  onShowAIConsentModal,
 }: {
   yearSections: Map<
     string,
@@ -20705,6 +21537,7 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
   memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
   animationsComplete: boolean;
   orbitDurationMs?: number;
+  onShowAIConsentModal?: () => void;
 }) {
   // CRITICAL: Only use focusedMemory if it's from relationships sphere
   // This ensures cross-sphere focusedMemory (e.g., from career) doesn't affect relationships rendering
@@ -20873,6 +21706,7 @@ const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
                     animationsComplete={animationsComplete}
                     focusedProfileId={focusedProfileId}
                     orbitDurationMs={orbitDurationMs}
+                    onShowAIConsentModal={onShowAIConsentModal}
                   />
                 );
               },
@@ -21099,6 +21933,7 @@ const ProfileRenderer = React.memo(
     animationsComplete,
     focusedProfileId,
     orbitDurationMs = 60000,
+    onShowAIConsentModal,
   }: {
     profile: any;
     index: number;
@@ -21143,6 +21978,7 @@ const ProfileRenderer = React.memo(
     animationsComplete: boolean;
     focusedProfileId: string | null;
     orbitDurationMs?: number;
+    onShowAIConsentModal?: () => void;
   }) {
     // Determine slide direction for non-focused zones
     const centerX = SCREEN_WIDTH / 2;
@@ -21231,6 +22067,7 @@ const ProfileRenderer = React.memo(
           }
           yearSection={getProfileYearSection(profile)}
           orbitDurationMs={orbitDurationMs}
+          onShowAIConsentModal={onShowAIConsentModal}
         />
       </NonFocusedZone>
     );

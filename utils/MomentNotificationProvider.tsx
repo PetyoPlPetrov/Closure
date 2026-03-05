@@ -9,6 +9,10 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import {
+  suggestNotificationMessagesForLessons,
+  suggestNotificationMessagesForSunnyMoments,
+} from './ai-service';
 import { isAIInsightsEnabled } from './ai-insights-consent';
 import type { LifeSphere } from './JourneyProvider';
 import { useJourney } from './JourneyProvider';
@@ -74,7 +78,6 @@ export function MomentNotificationProvider({ children }: { children: React.React
         if (schedulesRaw) {
           const parsed = JSON.parse(schedulesRaw) as MomentNotificationSchedule[];
           const migrated = parsed.map((s) => {
-            if (s.source === 'both') return { ...s, source: 'ai' as const };
             if (s.source === 'user') return { ...s, source: 'moments' as const };
             return s;
           });
@@ -106,7 +109,12 @@ export function MomentNotificationProvider({ children }: { children: React.React
         id: generateId(),
         createdAt: new Date().toISOString(),
       };
-      const next = [...summaries, created];
+      let current: MomentNotificationSummary[] = summaries;
+      try {
+        const raw = await AsyncStorage.getItem(STORAGE_KEY_SUMMARIES);
+        if (raw) current = JSON.parse(raw);
+      } catch { /* use state */ }
+      const next = [...current, created];
       setSummaries(next);
       await AsyncStorage.setItem(STORAGE_KEY_SUMMARIES, JSON.stringify(next));
       return created;
@@ -122,9 +130,25 @@ export function MomentNotificationProvider({ children }: { children: React.React
         id: generateId(),
         createdAt: new Date().toISOString(),
       }));
-      const next = [...summaries, ...created];
+      // Read latest from AsyncStorage before appending (summaries state can be stale)
+      let current: MomentNotificationSummary[] = summaries;
+      try {
+        const raw = await AsyncStorage.getItem(STORAGE_KEY_SUMMARIES);
+        if (raw) current = JSON.parse(raw);
+      } catch { /* use state */ }
+      const next = [...current, ...created];
       setSummaries(next);
       await AsyncStorage.setItem(STORAGE_KEY_SUMMARIES, JSON.stringify(next));
+      if (__DEV__) {
+        const type = created[0]?.momentType;
+        const sphere = created[0]?.sphere;
+        console.log('[AI Summary] Stored locally (AsyncStorage):', {
+          count: created.length,
+          momentType: type,
+          sphere,
+          momentIds: created.map((s) => s.momentId),
+        });
+      }
       return created;
     },
     [summaries]
@@ -189,7 +213,6 @@ export function MomentNotificationProvider({ children }: { children: React.React
 
   const generateBatchSuggestionsForManualLessons = useCallback(
     async (language: 'en' | 'bg'): Promise<{ generated: number; error?: string }> => {
-      const { suggestNotificationMessagesForLessons } = await import('./ai-service');
       const existingMomentIds = new Set(summaries.map((s) => s.momentId));
       const manualMemories = idealizedMemories.filter((m) => m.source === 'manual');
       const lessons: { id: string; text: string; memoryTitle?: string; sphere: LifeSphere }[] = [];
@@ -248,10 +271,34 @@ export function MomentNotificationProvider({ children }: { children: React.React
       let currentSummaries: MomentNotificationSummary[] = summaries;
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY_SUMMARIES);
-        if (raw) currentSummaries = JSON.parse(raw);
+        if (raw) {
+          const fromStorage = JSON.parse(raw) as MomentNotificationSummary[] | null;
+          const fromState = summaries;
+          // Use whichever has more (handles: storage empty but state has recent adds, or vice versa)
+          if (Array.isArray(fromStorage) && fromStorage.length >= (fromState?.length ?? 0)) {
+            currentSummaries = fromStorage;
+          } else if (Array.isArray(fromState) && fromState.length > 0) {
+            currentSummaries = fromState;
+          } else if (Array.isArray(fromStorage)) {
+            currentSummaries = fromStorage;
+          }
+        }
       } catch { /* use state fallback */ }
-      const existingMomentIds = new Set(currentSummaries.map((s) => s.momentId));
+      const matchingSummaries = currentSummaries.filter(
+        (s) => s.sphere === sphere && s.momentType === momentType
+      );
+      const existingMomentIds = new Set(matchingSummaries.map((s) => s.momentId));
       const memoriesInSphere = idealizedMemories.filter((m) => m.sphere === sphere);
+
+      if (__DEV__) {
+        console.log('[AI Summary] Cache check (per sphere):', {
+          sphere,
+          momentType,
+          totalSummaries: currentSummaries.length,
+          summariesForSphereAndType: matchingSummaries.length,
+          existingMomentIds: [...existingMomentIds],
+        });
+      }
 
       if (momentType === 'lesson') {
         const lessons: { id: string; text: string; memoryTitle?: string; sphere: LifeSphere }[] = [];
@@ -261,21 +308,22 @@ export function MomentNotificationProvider({ children }: { children: React.React
             lessons.push({ id: l.id, text: l.text, memoryTitle: mem.title, sphere: mem.sphere });
           }
         }
+        if (lessons.length === 0) {
+          if (__DEV__) {
+            console.log('[AI Summary] Using local cache — all lesson summaries already exist for', sphere, '- no AI request');
+          }
+          return { generated: 0 };
+        }
         if (__DEV__) {
-          console.log('[AI Summary] ensureSummariesForSphereAndType INPUT:', {
+          console.log('[AI Summary] Sending AI request for lesson summaries:', {
             sphere,
             momentType,
             language,
-            lessonsNeedingSummaries: lessons.length,
-            lessons: lessons.map((l) => ({ id: l.id, text: l.text?.slice(0, 60) })),
+            count: lessons.length,
+            lessons: lessons.map((l) => ({ id: l.id, text: l.text?.slice(0, 80) })),
           });
         }
-        if (lessons.length === 0) {
-          if (__DEV__) console.log('[AI Summary] All lessons already have summaries — skipping AI, saving schedule directly');
-          return { generated: 0 };
-        }
         try {
-          const { suggestNotificationMessagesForLessons } = await import('./ai-service');
           const map = await suggestNotificationMessagesForLessons(lessons, language);
           const toAdd: Omit<MomentNotificationSummary, 'id' | 'createdAt'>[] = [];
           for (const lesson of lessons) {
@@ -317,21 +365,22 @@ export function MomentNotificationProvider({ children }: { children: React.React
           sunnyMoments.push({ id: g.id, text: g.text, memoryTitle: mem.title, sphere: mem.sphere });
         }
       }
+      if (sunnyMoments.length === 0) {
+        if (__DEV__) {
+          console.log('[AI Summary] Using local cache — all sunny moment summaries already exist for', sphere, '- no AI request');
+        }
+        return { generated: 0 };
+      }
       if (__DEV__) {
-        console.log('[AI Summary] ensureSummariesForSphereAndType INPUT (sunny):', {
+        console.log('[AI Summary] Sending AI request for sunny moment summaries:', {
           sphere,
           momentType,
           language,
-          momentsNeedingSummaries: sunnyMoments.length,
-          moments: sunnyMoments.map((m) => ({ id: m.id, text: m.text?.slice(0, 60) })),
+          count: sunnyMoments.length,
+          moments: sunnyMoments.map((m) => ({ id: m.id, text: m.text?.slice(0, 80) })),
         });
       }
-      if (sunnyMoments.length === 0) {
-        if (__DEV__) console.log('[AI Summary] All sunny moments already have summaries — skipping AI, saving schedule directly');
-        return { generated: 0 };
-      }
       try {
-        const { suggestNotificationMessagesForSunnyMoments } = await import('./ai-service');
         const map = await suggestNotificationMessagesForSunnyMoments(sunnyMoments, language);
         const toAdd: Omit<MomentNotificationSummary, 'id' | 'createdAt'>[] = [];
         for (const m of sunnyMoments) {
@@ -375,7 +424,27 @@ export function MomentNotificationProvider({ children }: { children: React.React
           await Notifications.cancelScheduledNotificationAsync(req.identifier);
         }
       }
-      const enabled = schedules.filter((s) => s.enabled);
+      // Read fresh from AsyncStorage so we use the latest data after add/update/delete
+      // (React state may not have updated yet when called from handleSave)
+      let schedulesToUse = schedules;
+      let summariesToUse = summaries;
+      try {
+        const [schedulesRaw, summariesRaw] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEY_SCHEDULES),
+          AsyncStorage.getItem(STORAGE_KEY_SUMMARIES),
+        ]);
+        if (schedulesRaw) {
+          const parsed = JSON.parse(schedulesRaw) as MomentNotificationSchedule[];
+          const migrated = parsed.map((s) => {
+            if (s.source === 'user') return { ...s, source: 'moments' as const };
+            return s;
+          });
+          schedulesToUse = migrated;
+        }
+        if (summariesRaw) summariesToUse = JSON.parse(summariesRaw) as MomentNotificationSummary[];
+      } catch { /* fallback to state */ }
+
+      const enabled = schedulesToUse.filter((s) => s.enabled);
       const { status } = await Notifications.getPermissionsAsync();
       if (status !== 'granted') return;
       const minSeconds = __DEV__ ? 60 : 3600;
@@ -383,8 +452,9 @@ export function MomentNotificationProvider({ children }: { children: React.React
       const canUseAI = hasAIEntitlement && aiEnabled;
       for (const schedule of enabled) {
         const messages: string[] = [];
-        const effectiveSource = schedule.source === 'ai' && !canUseAI ? 'moments' : schedule.source;
-        if (effectiveSource === 'moments') {
+        const effectiveSource =
+          (schedule.source === 'ai' || schedule.source === 'both') && !canUseAI ? 'moments' : schedule.source;
+        if (effectiveSource === 'moments' || effectiveSource === 'both') {
           for (const mem of idealizedMemories) {
             if (mem.sphere !== schedule.sphere) continue;
             if (schedule.momentType === 'lesson') {
@@ -398,8 +468,10 @@ export function MomentNotificationProvider({ children }: { children: React.React
             }
           }
         }
-        if (effectiveSource === 'ai') {
-          const list = getSummariesBySphereAndType(schedule.sphere, schedule.momentType);
+        if (effectiveSource === 'ai' || effectiveSource === 'both') {
+          const list = summariesToUse.filter(
+            (s) => s.sphere === schedule.sphere && s.momentType === schedule.momentType
+          );
           messages.push(...list.map((s) => s.notificationMessage));
         }
         const fallback = 'A little nudge from your journey.';
@@ -438,7 +510,7 @@ export function MomentNotificationProvider({ children }: { children: React.React
     } catch (_) {
       // ignore
     }
-  }, [schedules, getSummariesBySphereAndType, idealizedMemories, hasAIEntitlement]);
+  }, [schedules, summaries, idealizedMemories, hasAIEntitlement]);
 
   useEffect(() => {
     if (!isLoaded) return;
