@@ -33,7 +33,12 @@ export default function PersonalizationScreen() {
   const fontScale = useFontScale();
   const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
-  const { constellationAmount, constellationOpacity } = useVisualSettings();
+  const {
+    constellationAmount,
+    constellationOpacity,
+    appUsabilityHints,
+    setAppUsabilityHints,
+  } = useVisualSettings();
   const aiConsent = useAIInsightsConsent();
   const notificationNudge = useNotificationNudgePreference();
   const [infoPopupKey, setInfoPopupKey] = useState<"aiInsights" | "notificationNudge" | null>(null);
@@ -220,6 +225,36 @@ export default function PersonalizationScreen() {
               <Switch
                 value={aiConsent.isEnabled}
                 onValueChange={handleToggleAIInsights}
+                trackColor={{
+                  false: "rgba(150,150,150,0.35)",
+                  true: colors.primary,
+                }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+          </View>
+
+          {/* App usability hints: finger + wheel wiggle when opening wheel of life */}
+          <View style={styles.section}>
+            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+              {t("settings.appUsabilityHints.title")}
+            </ThemedText>
+
+            <View style={styles.aiToggleRow}>
+              <View style={styles.aiToggleTextWrap}>
+                <ThemedText size="l" weight="medium" style={{ flex: 1 }}>
+                  {t("settings.appUsabilityHints.enable")}
+                </ThemedText>
+                <ThemedText
+                  size="s"
+                  style={{ opacity: 0.75, marginTop: 4 }}
+                >
+                  {t("settings.appUsabilityHints.description")}
+                </ThemedText>
+              </View>
+              <Switch
+                value={appUsabilityHints}
+                onValueChange={setAppUsabilityHints}
                 trackColor={{
                   false: "rgba(150,150,150,0.35)",
                   true: colors.primary,

@@ -42,6 +42,9 @@ export interface Translations {
   "settings.feedback.addFeedback": string;
   "settings.notificationNudge.title": string;
   "settings.notificationNudge.description": string;
+  "settings.appUsabilityHints.title": string;
+  "settings.appUsabilityHints.enable": string;
+  "settings.appUsabilityHints.description": string;
   "settings.aiInsights.title": string;
   "settings.aiInsights.enable": string;
   "settings.aiInsights.description": string;
@@ -3575,6 +3578,10 @@ const translations: Record<Language, Translations> = {
     "settings.notificationNudge.title": "Encouragement nudge on Home",
     "settings.notificationNudge.description":
       "Show or hide the motivational message banner on the Home tab.",
+    "settings.appUsabilityHints.title": "App usability hints",
+    "settings.appUsabilityHints.enable": "Show usability hints",
+    "settings.appUsabilityHints.description":
+      "When enabled, shows hints like the finger and gentle rotation when you open the Wheel of Life, to suggest you can drag to spin it.",
     "settings.aiInsights.title": "AI Insights",
     "settings.aiInsights.enable": "Enable AI Insights",
     "settings.aiInsights.description":
@@ -7949,6 +7956,10 @@ const translations: Record<Language, Translations> = {
     "settings.notificationNudge.title": "Подсказка за насърчение на Начало",
     "settings.notificationNudge.description":
       "Показване или скриване на мотивационното съобщение в раздела Начало.",
+    "settings.appUsabilityHints.title": "Подсказки за използване",
+    "settings.appUsabilityHints.enable": "Показвай подсказки",
+    "settings.appUsabilityHints.description":
+      "Когато е включено, показва подсказки като пръста и леко въртене при отваряне на Колелото на живота, за да подскаже, че можете да го завъртите с плъзгане.",
     "settings.aiInsights.title": "AI Инсайти",
     "settings.aiInsights.enable": "Включи AI Инсайти",
     "settings.aiInsights.description":

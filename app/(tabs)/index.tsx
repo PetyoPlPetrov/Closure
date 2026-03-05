@@ -11418,7 +11418,12 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { momentColors } = useMomentColors();
-  const { orbitDurationMs, constellationAmount, constellationOpacity } = useVisualSettings();
+  const {
+    orbitDurationMs,
+    constellationAmount,
+    constellationOpacity,
+    appUsabilityHints,
+  } = useVisualSettings();
   const {
     profiles,
     jobs,
@@ -12812,6 +12817,9 @@ export default function HomeScreen() {
   const lessonsButtonHighlight = useSharedValue(0);
   const hardTruthsButtonHighlight = useSharedValue(0);
   const sunnyMomentsButtonHighlight = useSharedValue(0);
+  const spinHintPointerTranslateX = useSharedValue(0);
+  const spinHintPointerTranslateY = useSharedValue(0);
+  const spinHintPointerOpacity = useSharedValue(0);
 
   // Constants for sphere circle
   const sphereCircle = useMemo(() => {
@@ -13255,26 +13263,25 @@ export default function HomeScreen() {
     }
   }, [showMomentTypeSelector, spheresScale, iconButtonScale]);
 
-  // Auto-dismiss "Spin the wheel" label after 3 seconds
+  // Auto-dismiss spin hint (finger + wiggle) after 3 seconds — when hints disabled, dismiss immediately
   useEffect(() => {
     if (!showMomentTypeSelector) {
-      // Reset dismissed state when selector is hidden
       setMomentTypeSelectorDismissed(false);
       return;
     }
 
-    // Reset dismissed state when selector is shown
-    setMomentTypeSelectorDismissed(false);
+    if (!appUsabilityHints) {
+      setMomentTypeSelectorDismissed(true);
+      return;
+    }
 
-    // Auto-dismiss after 3 seconds
+    setMomentTypeSelectorDismissed(false);
     const autoDismissTimer = setTimeout(() => {
       setMomentTypeSelectorDismissed(true);
     }, 3000);
 
-    return () => {
-      clearTimeout(autoDismissTimer);
-    };
-  }, [showMomentTypeSelector]);
+    return () => clearTimeout(autoDismissTimer);
+  }, [showMomentTypeSelector, appUsabilityHints]);
 
   // Note: We no longer clear moments when selectedMomentType changes
   // All moment types remain visible, but only the selected type will pulse
@@ -13301,6 +13308,8 @@ export default function HomeScreen() {
     // Check if moments are currently blocked from showing
     const momentsAreBlocked =
       !showMomentTypeSelector ||
+      (appUsabilityHints &&
+        !momentTypeSelectorDismissed) || // Don't pop lessons until spin hint (finger) animation is finished
       !isAppActive ||
       !selectedMomentType ||
       isSpinning ||
@@ -13558,6 +13567,8 @@ export default function HomeScreen() {
     };
   }, [
     showMomentTypeSelector,
+    appUsabilityHints,
+    momentTypeSelectorDismissed,
     selectedMomentType,
     isTablet,
     isAppActive,
@@ -13797,6 +13808,14 @@ export default function HomeScreen() {
     transform: [{ scale: iconButtonScale.value }],
   }));
 
+  const spinHintPointerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: spinHintPointerOpacity.value,
+    transform: [
+      { translateX: spinHintPointerTranslateX.value },
+      { translateY: spinHintPointerTranslateY.value },
+    ],
+  }));
+
   // Animated styles for individual button press effects with liquid glass
   const lessonsButtonAnimatedStyle = useAnimatedStyle(() => {
     const backgroundColor = interpolateColor(
@@ -13894,7 +13913,7 @@ export default function HomeScreen() {
     };
   });
 
-  // Gentle continuous rotation hint animation
+  // Gentle continuous rotation hint animation (suppressed during initial spin hint)
   useEffect(() => {
     // Don't run interval when app is backgrounded
     if (!isAppActive) {
@@ -13902,8 +13921,18 @@ export default function HomeScreen() {
     }
 
     // Start hint animation when wheel is idle (not spinning, not dragging)
+    // Skip when initial "spin hint" is shown (wiggle + pointer) — that uses hintRotation for wiggle
     const checkIdleState = () => {
+      const inSpinHintPhase =
+        appUsabilityHints &&
+        showMomentTypeSelector &&
+        !momentTypeSelectorDismissed;
       const isIdle = !isWheelSpinning.value && !isDragging.value;
+
+      if (inSpinHintPhase) {
+        // Don't start slow rotation — spin hint wiggle effect owns hintRotation
+        return;
+      }
 
       if (isIdle && !isHintAnimating.value) {
         // Start gentle continuous rotation hint (counter-clockwise)
@@ -13934,7 +13963,90 @@ export default function HomeScreen() {
       cancelAnimation(hintRotation);
       isHintAnimating.value = false;
     };
-  }, [isAppActive]); // Re-run when app state changes
+  }, [
+    isAppActive,
+    appUsabilityHints,
+    showMomentTypeSelector,
+    momentTypeSelectorDismissed,
+  ]);
+
+  // Initial spin hint: wiggle rotation + pointer when moment type selector first appears (suggests wheel is spinnable)
+  useEffect(() => {
+    if (
+      !appUsabilityHints ||
+      !showMomentTypeSelector ||
+      momentTypeSelectorDismissed ||
+      !isAppActive
+    ) {
+      cancelAnimation(hintRotation);
+      hintRotation.value = withTiming(0, { duration: 200 });
+      spinHintPointerOpacity.value = withTiming(0, { duration: 200 });
+      spinHintPointerTranslateX.value = withTiming(0, { duration: 200 });
+      spinHintPointerTranslateY.value = withTiming(0, { duration: 200 });
+      return;
+    }
+
+    // Fade in pointer
+    spinHintPointerOpacity.value = withTiming(0.85, {
+      duration: 400,
+      easing: Easing.out(Easing.ease),
+    });
+
+    // Start finger at top (for top→down clockwise drag motion)
+    spinHintPointerTranslateX.value = 0;
+    spinHintPointerTranslateY.value = -14;
+
+    // Small back-and-forth wiggle to suggest rotation (~15° each way)
+    const WIGGLE_RAD = 0.26; // ~15 degrees
+    hintRotation.value = withRepeat(
+      withSequence(
+        withTiming(WIGGLE_RAD, {
+          duration: 500,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        withTiming(-WIGGLE_RAD, {
+          duration: 500,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        withTiming(0, {
+          duration: 400,
+          easing: Easing.inOut(Easing.ease),
+        })
+      ),
+      3, // Repeat ~3 times over ~4.2s (visible for the auto-dismiss period)
+      false
+    );
+
+    // Pointer moves top → down + left to imitate clockwise drag (arc on right side)
+    spinHintPointerTranslateX.value = withRepeat(
+      withSequence(
+        withTiming(-12, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 600, easing: Easing.inOut(Easing.ease) })
+      ),
+      3,
+      false
+    );
+    spinHintPointerTranslateY.value = withRepeat(
+      withSequence(
+        withTiming(14, { duration: 700, easing: Easing.inOut(Easing.ease) }), // top → down
+        withTiming(-14, { duration: 600, easing: Easing.inOut(Easing.ease) }) // back to top
+      ),
+      3,
+      false
+    );
+
+    return () => {
+      cancelAnimation(hintRotation);
+      cancelAnimation(spinHintPointerTranslateX);
+      cancelAnimation(spinHintPointerTranslateY);
+      cancelAnimation(spinHintPointerOpacity);
+    };
+  }, [
+    appUsabilityHints,
+    showMomentTypeSelector,
+    momentTypeSelectorDismissed,
+    isAppActive,
+  ]);
 
   // Wheel rotation animation with deceleration
   // Use ref to store latest callback to avoid recreating interval when callback changes
@@ -18883,76 +18995,46 @@ export default function HomeScreen() {
                 });
             })()}
 
-          {/* Moment Type Selector Label - Below the wheel (hide when spinning) */}
+          {/* Spin hint: animated pointer + wheel wiggle (visible ~3s, suggests drag to spin) */}
           {animationsReady &&
+            appUsabilityHints &&
             showMomentTypeSelector &&
             !momentTypeSelectorDismissed &&
             !isSpinning &&
             (() => {
-              // Calculate position below the wheel
-              const wheelCenterY = SCREEN_HEIGHT / 2 + 20;
-              const avatarSize = isTablet ? 180 : 140;
-              const avatarRadius = avatarSize / 2;
-
-              // Position below the wheel: wheel center + avatar radius + spacing
-              const topPosition = wheelCenterY + avatarRadius + 60;
+              const pointerSize = isTablet ? 88 : 78;
+              const iconSize = 60;
+              const iconGap = 16;
+              const bottomGap = 20;
+              const cloudyCenterX = SCREEN_WIDTH / 2 + iconSize + iconGap;
+              const pointerX = cloudyCenterX + 10 - pointerSize / 2;
+              const iconRowHeight = iconSize;
+              const fingerBottomFromScreenBottom =
+                bottomGap + iconRowHeight + 50;
 
               return (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: topPosition,
-                    left: 0,
-                    right: 0,
-                    alignItems: "center",
-                    zIndex: 200,
-                  }}
-                >
-                  {/* "Spin the wheel" text with dismiss button */}
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    {
+                      position: "absolute",
+                      left: pointerX,
+                      bottom: fingerBottomFromScreenBottom,
+                      width: pointerSize,
+                      height: pointerSize,
                       justifyContent: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <ThemedText
-                      size="sm"
-                      weight="bold"
-                      style={{
-                        opacity: 0.7,
-                        textAlign: "center",
-                      }}
-                    >
-                      {t("wheel.spinForRandom")}
-                    </ThemedText>
-                    <Pressable
-                      onPress={() => {
-                        setMomentTypeSelectorDismissed(true);
-                      }}
-                      hitSlop={CLOSE_BUTTON_HITSLOP}
-                      style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: 12,
-                        backgroundColor:
-                          colorScheme === "dark"
-                            ? "rgba(255, 255, 255, 0.1)"
-                            : "rgba(0, 0, 0, 0.1)",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <MaterialIcons
-                        name="close"
-                        size={16}
-                        color={colors.text}
-                        style={{ opacity: 0.7 }}
-                      />
-                    </Pressable>
-                  </View>
-                </View>
+                      alignItems: "center",
+                      zIndex: 200,
+                    },
+                    spinHintPointerAnimatedStyle,
+                  ]}
+                >
+                  <MaterialIcons
+                    name="touch-app"
+                    size={pointerSize}
+                    color={colors.primary}
+                  />
+                </Animated.View>
               );
             })()}
 

@@ -10,6 +10,7 @@ const ORBIT_DURATION_KEY = "@sferas:orbit_duration_ms";
 const CONSTELLATION_AMOUNT_KEY = "@sferas:constellation_amount";
 const CONSTELLATION_OPACITY_KEY = "@sferas:constellation_opacity";
 const COSMIC_BACKGROUND_OPACITY_KEY = "@sferas:cosmic_background_opacity";
+const APP_USABILITY_HINTS_KEY = "@sferas:app_usability_hints";
 
 const DEFAULT_ORBIT_DURATION_MS = 60000;
 const MIN_ORBIT_DURATION_MS = 20000;
@@ -36,6 +37,8 @@ type VisualSettingsContextValue = {
   setConstellationOpacity: (value: number) => void;
   cosmicBackgroundOpacity: number;
   setCosmicBackgroundOpacity: (value: number) => void;
+  appUsabilityHints: boolean;
+  setAppUsabilityHints: (value: boolean) => void;
 };
 
 const VisualSettingsContext = createContext<VisualSettingsContextValue | null>(null);
@@ -45,6 +48,7 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
   const [constellationAmount, setConstellationState] = useState(DEFAULT_CONSTELLATION_AMOUNT);
   const [constellationOpacity, setConstellationOpacityState] = useState(DEFAULT_CONSTELLATION_OPACITY);
   const [cosmicBackgroundOpacity, setCosmicOpacityState] = useState(DEFAULT_COSMIC_BACKGROUND_OPACITY);
+  const [appUsabilityHints, setAppUsabilityHintsState] = useState(true);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -53,7 +57,8 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       CONSTELLATION_AMOUNT_KEY,
       CONSTELLATION_OPACITY_KEY,
       COSMIC_BACKGROUND_OPACITY_KEY,
-    ]).then(([[, orbit], [, constellation], [, constellationOp], [, cosmic]]) => {
+      APP_USABILITY_HINTS_KEY,
+    ]).then(([[, orbit], [, constellation], [, constellationOp], [, cosmic], [, hints]]) => {
         if (orbit != null) {
           const n = parseInt(orbit, 10);
           if (Number.isFinite(n) && n >= MIN_ORBIT_DURATION_MS && n <= MAX_ORBIT_DURATION_MS) {
@@ -77,6 +82,11 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
           if (Number.isFinite(n) && n >= MIN_COSMIC_BACKGROUND_OPACITY && n <= MAX_COSMIC_BACKGROUND_OPACITY) {
             setCosmicOpacityState(n);
           }
+        }
+        if (hints != null && hints !== "true" && hints !== "false") {
+          // Legacy or invalid
+        } else if (hints === "false") {
+          setAppUsabilityHintsState(false);
         }
         setLoaded(true);
       },
@@ -111,6 +121,11 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
     AsyncStorage.setItem(COSMIC_BACKGROUND_OPACITY_KEY, String(clamped));
   }, []);
 
+  const setAppUsabilityHints = useCallback((value: boolean) => {
+    setAppUsabilityHintsState(value);
+    AsyncStorage.setItem(APP_USABILITY_HINTS_KEY, String(value));
+  }, []);
+
   const value = useMemo<VisualSettingsContextValue>(
     () => ({
       orbitDurationMs,
@@ -121,6 +136,8 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       setConstellationOpacity,
       cosmicBackgroundOpacity,
       setCosmicBackgroundOpacity,
+      appUsabilityHints,
+      setAppUsabilityHints,
     }),
     [
       orbitDurationMs,
@@ -131,6 +148,8 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       setConstellationOpacity,
       cosmicBackgroundOpacity,
       setCosmicBackgroundOpacity,
+      appUsabilityHints,
+      setAppUsabilityHints,
     ],
   );
 
@@ -153,6 +172,8 @@ export function useVisualSettings(): VisualSettingsContextValue {
       setConstellationOpacity: () => {},
       cosmicBackgroundOpacity: DEFAULT_COSMIC_BACKGROUND_OPACITY,
       setCosmicBackgroundOpacity: () => {},
+      appUsabilityHints: true,
+      setAppUsabilityHints: () => {},
     };
   }
   return ctx;
