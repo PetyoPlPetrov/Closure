@@ -3581,7 +3581,7 @@ const translations: Record<Language, Translations> = {
     "settings.appUsabilityHints.title": "App usability hints",
     "settings.appUsabilityHints.enable": "Show usability hints",
     "settings.appUsabilityHints.description":
-      "When enabled, shows hints like the finger and gentle rotation when you open the Wheel of Life, to suggest you can drag to spin it.",
+      "When enabled, shows visual hints to suggest tap and drag gestures for app control.",
     "settings.aiInsights.title": "AI Insights",
     "settings.aiInsights.enable": "Enable AI Insights",
     "settings.aiInsights.description":
@@ -7959,7 +7959,7 @@ const translations: Record<Language, Translations> = {
     "settings.appUsabilityHints.title": "Подсказки за използване",
     "settings.appUsabilityHints.enable": "Показвай подсказки",
     "settings.appUsabilityHints.description":
-      "Когато е включено, показва подсказки като пръста и леко въртене при отваряне на Колелото на живота, за да подскаже, че можете да го завъртите с плъзгане.",
+      "Когато е включено, показва визуални подсказки за допир и плъзгане при управление на приложението.",
     "settings.aiInsights.title": "AI Инсайти",
     "settings.aiInsights.enable": "Включи AI Инсайти",
     "settings.aiInsights.description":

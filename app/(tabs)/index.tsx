@@ -495,6 +495,7 @@ const FloatingAvatar = React.memo(
     const { momentColors } = useMomentColors();
     const aiConsent = useAIInsightsConsent();
     const { hasAIEntitlement } = useSubscription();
+    const { appUsabilityHints } = useVisualSettings();
     const t = useTranslate();
     const { language } = useLanguage();
     const lang = language === "bg" ? "bg" : "en";
@@ -540,6 +541,8 @@ const FloatingAvatar = React.memo(
     } | null>(null);
     const [showWheelFireworks, setShowWheelFireworks] = React.useState(false);
     const [entityWheelSpinLabelDismissed, setEntityWheelSpinLabelDismissed] =
+      React.useState(false);
+    const [avatarClickHintDismissed, setAvatarClickHintDismissed] =
       React.useState(false);
     const [examAnswerInput, setExamAnswerInput] = React.useState("");
     const [selectedMomentType, setSelectedMomentType] = React.useState<
@@ -618,6 +621,12 @@ const FloatingAvatar = React.memo(
     const entityLessonButtonHighlight = useSharedValue(0);
     const entitySunnyButtonHighlight = useSharedValue(0);
     const entityCloudyButtonHighlight = useSharedValue(0);
+    const entitySpinHintPointerTranslateX = useSharedValue(0);
+    const entitySpinHintPointerTranslateY = useSharedValue(0);
+    const entitySpinHintPointerOpacity = useSharedValue(0);
+    const entityHintRotation = useSharedValue(0); // Wiggle when spin hint is shown
+    const avatarClickHintOpacity = useSharedValue(0);
+    const avatarClickHintScale = useSharedValue(1);
 
     // Avatar pulse animation for indicating clickability when entering focused view
     const avatarPulseScale = useSharedValue(1);
@@ -1379,13 +1388,180 @@ const FloatingAvatar = React.memo(
       }
     }, [showEntityWheel, isFocused, onEntityWheelChange]);
 
-    // Auto-dismiss "Spin the wheel" label in entity wheel after 3 seconds
+    // Entity wheel spin hint: finger + wiggle — dismiss when wiggle completes (no timer)
     React.useEffect(() => {
       if (!showEntityWheel || !isFocused) return;
+      if (!appUsabilityHints) {
+        setEntityWheelSpinLabelDismissed(true);
+        entityHintRotation.value = withTiming(0, { duration: 200 });
+        return;
+      }
       setEntityWheelSpinLabelDismissed(false);
-      const timer = setTimeout(() => setEntityWheelSpinLabelDismissed(true), 3000);
-      return () => clearTimeout(timer);
-    }, [showEntityWheel, isFocused]);
+    }, [showEntityWheel, isFocused, appUsabilityHints, entityHintRotation]);
+
+    // Avatar click hint: dismiss when pulse stops (handled in pulse callback) or when leaving focused view
+    // Do NOT show when exiting from entity wheel mode — only when first entering individual entity view
+    const prevShowEntityWheelForHintRef = useRef(showEntityWheel);
+    React.useEffect(() => {
+      const wasWheelVisible = prevShowEntityWheelForHintRef.current;
+      prevShowEntityWheelForHintRef.current = showEntityWheel;
+
+      if (!isFocused || showEntityWheel) {
+        if (!showEntityWheel) setAvatarClickHintDismissed(false);
+        return;
+      }
+      if (!appUsabilityHints) {
+        setAvatarClickHintDismissed(true);
+        return;
+      }
+      // Exiting wheel mode -> individual view: don't show hint
+      if (wasWheelVisible) {
+        setAvatarClickHintDismissed(true);
+        return;
+      }
+      setAvatarClickHintDismissed(false);
+    }, [isFocused, showEntityWheel, appUsabilityHints]);
+
+    // Avatar click hint animation: finger above avatar, appears after delay, scales like pressing
+    React.useEffect(() => {
+      if (
+        !appUsabilityHints ||
+        !isFocused ||
+        showEntityWheel ||
+        avatarClickHintDismissed
+      ) {
+        cancelAnimation(avatarClickHintOpacity);
+        cancelAnimation(avatarClickHintScale);
+        avatarClickHintOpacity.value = withTiming(0, { duration: 200 });
+        avatarClickHintScale.value = withTiming(1, { duration: 200 });
+        return;
+      }
+
+      // Appear at 0.85 after avatar movement (1200ms), then fade to 0 from the moment it appears
+      const pulseTotalMs = 1200 + 5 * (500 + 500); // delay + 5 pulse cycles
+      const fingerVisibleMs = pulseTotalMs - 1200; // time finger is on screen
+      avatarClickHintOpacity.value = withDelay(
+        1200,
+        withSequence(
+          withTiming(0.85, { duration: 100, easing: Easing.out(Easing.ease) }),
+          withTiming(0, {
+            duration: fingerVisibleMs - 100,
+            easing: Easing.linear,
+          }, (finished) => {
+            "worklet";
+            if (finished) runOnJS(setAvatarClickHintDismissed)(true);
+          })
+        )
+      );
+      // Scale: bigger -> smaller (pressing) -> bigger, like tapping
+      avatarClickHintScale.value = withDelay(
+        1200,
+        withRepeat(
+        withSequence(
+          withTiming(1, { duration: 0 }),
+          withTiming(0.9, {
+            duration: 350,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          withTiming(1.05, {
+            duration: 250,
+            easing: Easing.out(Easing.ease),
+          }),
+          withTiming(1, {
+            duration: 200,
+            easing: Easing.inOut(Easing.ease),
+          })
+        ),
+        5,
+        false
+        )
+      );
+
+      return () => {
+        cancelAnimation(avatarClickHintOpacity);
+        cancelAnimation(avatarClickHintScale);
+      };
+    }, [
+      appUsabilityHints,
+      isFocused,
+      showEntityWheel,
+      avatarClickHintDismissed,
+    ]);
+
+    // Entity wheel spin hint: finger + wheel wiggle (longer wiggle, finger dismisses when wiggle stops)
+    React.useEffect(() => {
+      if (
+        !appUsabilityHints ||
+        !showEntityWheel ||
+        !isFocused ||
+        entityWheelSpinLabelDismissed
+      ) {
+        cancelAnimation(entitySpinHintPointerTranslateX);
+        cancelAnimation(entitySpinHintPointerTranslateY);
+        cancelAnimation(entitySpinHintPointerOpacity);
+        cancelAnimation(entityHintRotation);
+        entitySpinHintPointerOpacity.value = withTiming(0, { duration: 200 });
+        entitySpinHintPointerTranslateX.value = withTiming(0, { duration: 200 });
+        entitySpinHintPointerTranslateY.value = withTiming(0, { duration: 200 });
+        entityHintRotation.value = withTiming(0, { duration: 200 });
+        return;
+      }
+
+      // Finger appears at 0.85, then fades to 0 from the moment it appears
+      const entityWheelHintDurationMs = 1100 + 1100 + 900;
+      entitySpinHintPointerOpacity.value = withSequence(
+        withTiming(0.85, { duration: 100, easing: Easing.out(Easing.ease) }),
+        withTiming(0, {
+          duration: entityWheelHintDurationMs - 100,
+          easing: Easing.linear,
+        }, (finished) => {
+          "worklet";
+          if (finished) runOnJS(setEntityWheelSpinLabelDismissed)(true);
+        })
+      );
+      entitySpinHintPointerTranslateX.value = 0;
+      entitySpinHintPointerTranslateY.value = -14;
+
+      // Short wiggle: 1 cycle, ~3.5s total, smooth stop; finger fades during final phase
+      const WIGGLE_RAD = 0.26; // ~15 degrees
+      entityHintRotation.value = withSequence(
+        withTiming(WIGGLE_RAD, {
+          duration: 1100,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        withTiming(-WIGGLE_RAD, {
+          duration: 1100,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        withTiming(0, {
+          duration: 900,
+          easing: Easing.out(Easing.cubic),
+        })
+      );
+
+      // Finger arc: match wiggle duration (~3.5s total)
+      entitySpinHintPointerTranslateX.value = withSequence(
+        withTiming(-12, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 1100, easing: Easing.inOut(Easing.ease) })
+      );
+      entitySpinHintPointerTranslateY.value = withSequence(
+        withTiming(14, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
+        withTiming(-14, { duration: 1100, easing: Easing.inOut(Easing.ease) })
+      );
+
+      return () => {
+        cancelAnimation(entitySpinHintPointerTranslateX);
+        cancelAnimation(entitySpinHintPointerTranslateY);
+        cancelAnimation(entitySpinHintPointerOpacity);
+        cancelAnimation(entityHintRotation);
+      };
+    }, [
+      appUsabilityHints,
+      showEntityWheel,
+      isFocused,
+      entityWheelSpinLabelDismissed,
+      setEntityWheelSpinLabelDismissed,
+    ]);
 
     // Clear floating moments immediately when moment type changes
     React.useEffect(() => {
@@ -1396,11 +1572,13 @@ const FloatingAvatar = React.memo(
     React.useEffect(() => {
       // Only spawn when entity wheel is active and not spinning
       // Also don't spawn if selectedWheelMoment popup is displayed
+      // When hints enabled, wait until spin hint (finger) is dismissed
       if (
         !showEntityWheel ||
         !isFocused ||
         isWheelSpinningState ||
-        selectedWheelMoment
+        selectedWheelMoment ||
+        (appUsabilityHints && !entityWheelSpinLabelDismissed)
       ) {
         setFloatingMoments([]);
         return;
@@ -1666,6 +1844,8 @@ const FloatingAvatar = React.memo(
       orbitAngle,
       isTablet,
       selectedWheelMoment,
+      appUsabilityHints,
+      entityWheelSpinLabelDismissed,
     ]);
 
     // Pulse animation when entering focused view to indicate avatar is clickable
@@ -1680,14 +1860,25 @@ const FloatingAvatar = React.memo(
         isFocused &&
         (!previousIsFocused.current || !hasInitialPulseRun.current)
       ) {
-        // Pulse 3 times: scale up slightly then back to normal
-        avatarPulseScale.value = withSequence(
-          withTiming(1.08, { duration: 300, easing: Easing.out(Easing.ease) }),
-          withTiming(1, { duration: 300, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1.08, { duration: 300, easing: Easing.out(Easing.ease) }),
-          withTiming(1, { duration: 300, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1.08, { duration: 300, easing: Easing.out(Easing.ease) }),
-          withTiming(1, { duration: 300, easing: Easing.inOut(Easing.ease) }),
+        // Pulse 3 times: start after avatar movement (1200ms) has finished
+        // When pulse completes, dismiss the finger hint
+        avatarPulseScale.value = withDelay(
+          1200,
+          withSequence(
+          withTiming(1.08, { duration: 500, easing: Easing.out(Easing.ease) }),
+          withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.08, { duration: 500, easing: Easing.out(Easing.ease) }),
+          withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.08, { duration: 500, easing: Easing.out(Easing.ease) }),
+          withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) }, (finished) => {
+            "worklet";
+            if (finished) {
+              cancelAnimation(avatarClickHintScale);
+              avatarClickHintScale.value = 1;
+              // Dismiss is handled when opacity fade completes (in parallel)
+            }
+          }),
+          )
         );
         hasInitialPulseRun.current = true;
       } else if (!isFocused) {
@@ -1698,7 +1889,7 @@ const FloatingAvatar = React.memo(
 
       // Update ref for next render
       previousIsFocused.current = isFocused;
-    }, [isFocused, avatarPulseScale]);
+    }, [isFocused, avatarPulseScale, setAvatarClickHintDismissed]);
 
     // Use a ref to track previous isFocused state to detect transitions
     // CRITICAL: Don't initialize with current value - track the actual previous value from last effect run
@@ -1940,7 +2131,6 @@ const FloatingAvatar = React.memo(
           }),
       });
       if (item) {
-        if (__DEV__)
         setSelectedWheelMoment({
           type: "lesson",
           text: item.lessonText,
@@ -2273,6 +2463,19 @@ const FloatingAvatar = React.memo(
     const entityCloudyHighlightStyle = useAnimatedStyle(() => {
       return { opacity: entityCloudyButtonHighlight.value * 0.4 };
     });
+
+    const entitySpinHintPointerAnimatedStyle = useAnimatedStyle(() => ({
+      opacity: entitySpinHintPointerOpacity.value,
+      transform: [
+        { translateX: entitySpinHintPointerTranslateX.value },
+        { translateY: entitySpinHintPointerTranslateY.value },
+      ],
+    }));
+
+    const avatarClickHintAnimatedStyle = useAnimatedStyle(() => ({
+      opacity: avatarClickHintOpacity.value,
+      transform: [{ scale: avatarClickHintScale.value }],
+    }));
 
     // Popup animated style - must be defined at top level, not inside conditional
     const popupAnimatedStyle = useAnimatedStyle(() => {
@@ -3408,6 +3611,7 @@ const FloatingAvatar = React.memo(
                       offsetY={memPosData.offsetY}
                       baseOrbitAngle={memPosData.angle} // Base angle for this memory's orbit position
                       orbitAngle={orbitAngle} // Animated orbit angle shared by all memories
+                      entityHintRotation={entityHintRotation}
                       showEntityWheelShared={showEntityWheelShared}
                       isFocused={isFocused}
                       colorScheme={colorScheme}
@@ -3595,6 +3799,46 @@ const FloatingAvatar = React.memo(
           </View>
         </Modal>
 
+        {/* Avatar click hint: finger below avatar pointing at its bottom (individual entity view, pre-wheel) */}
+        {isFocused &&
+          !showEntityWheel &&
+          appUsabilityHints &&
+          !avatarClickHintDismissed &&
+          (() => {
+            const normalTargetY = SCREEN_HEIGHT / 2 + 80;
+            const focusedAvatarSize = isTablet ? 150 : 120;
+            const pointerSize = isTablet ? 88 : 78;
+            const avatarTop =
+              normalTargetY - (focusedAvatarSize + 12) / 2;
+            const avatarBottom = avatarTop + (focusedAvatarSize + 12);
+            const fingerTop = avatarBottom - pointerSize + 55;
+
+            return (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  {
+                    position: "absolute",
+                    left: SCREEN_WIDTH / 2 - pointerSize / 2,
+                    top: fingerTop,
+                    width: pointerSize,
+                    height: pointerSize,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    zIndex: 395,
+                  },
+                  avatarClickHintAnimatedStyle,
+                ]}
+              >
+                <MaterialIcons
+                  name="touch-app"
+                  size={pointerSize}
+                  color={colors.primary}
+                />
+              </Animated.View>
+            );
+          })()}
+
         {/* Entity Wheel of Life — wheel mode when entity circle is focused (orbit + sunny/cloudy % + lesson/sunny/cloudy buttons) */}
         {/* Wheel Mode UI - moment type icons positioned around entity like wheel of life */}
         {showEntityWheel && isFocused && (
@@ -3685,63 +3929,39 @@ const FloatingAvatar = React.memo(
 
               return (
                 <>
-                  {/* "Spin the wheel" label - auto-dismisses after 3 seconds */}
+                  {/* Entity wheel spin hint: finger (visible ~3s, suggests drag to spin) */}
                   {!isWheelSpinningState &&
+                    appUsabilityHints &&
                     !entityWheelSpinLabelDismissed && (
-                      <View
-                        style={{
-                          position: "absolute",
-                          top: iconY - 40,
-                          left: 0,
-                          right: 0,
-                          alignItems: "center",
-                          zIndex: 500,
-                        }}
-                      >
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
+                      <Animated.View
+                        pointerEvents="none"
+                        style={[
+                          {
+                            position: "absolute",
+                            left:
+                              SCREEN_WIDTH / 2 +
+                              spacing -
+                              (isTablet ? 56 : 52) / 2 +
+                              10,
+                            bottom:
+                              tabBarHeight +
+                              60 +
+                              50,
+                            width: isTablet ? 56 : 52,
+                            height: isTablet ? 56 : 52,
                             justifyContent: "center",
-                            gap: 8,
-                          }}
-                        >
-                          <ThemedText
-                            size="sm"
-                            weight="bold"
-                            style={{
-                              opacity: 0.7,
-                              textAlign: "center",
-                            }}
-                          >
-                            {t("wheel.spinForRandom")}
-                          </ThemedText>
-                          <Pressable
-                            onPress={() =>
-                              setEntityWheelSpinLabelDismissed(true)
-                            }
-                            hitSlop={CLOSE_BUTTON_HITSLOP}
-                            style={{
-                              width: 24,
-                              height: 24,
-                              borderRadius: 12,
-                              backgroundColor:
-                                colorScheme === "dark"
-                                  ? "rgba(255, 255, 255, 0.1)"
-                                  : "rgba(0, 0, 0, 0.1)",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            <MaterialIcons
-                              name="close"
-                              size={16}
-                              color={colors.text}
-                              style={{ opacity: 0.7 }}
-                            />
-                          </Pressable>
-                        </View>
-                      </View>
+                            alignItems: "center",
+                            zIndex: 500,
+                          },
+                          entitySpinHintPointerAnimatedStyle,
+                        ]}
+                      >
+                        <MaterialIcons
+                          name="touch-app"
+                          size={isTablet ? 56 : 52}
+                          color={colors.primary}
+                        />
+                      </Animated.View>
                     )}
                   {!isWheelSpinningState &&
                   icons.map((item, index) => {
@@ -6279,6 +6499,7 @@ const FloatingMemory = React.memo(
     offsetY,
     baseOrbitAngle,
     orbitAngle,
+    entityHintRotation,
     showEntityWheelShared,
     showEntityWheel,
     showEntityWheelRef,
@@ -6309,6 +6530,7 @@ const FloatingMemory = React.memo(
     offsetY: number;
     baseOrbitAngle?: number; // Base angle for this memory's orbit position
     orbitAngle?: ReturnType<typeof useSharedValue<number>>; // Animated orbit angle
+    entityHintRotation?: ReturnType<typeof useSharedValue<number>>; // Wiggle when spin hint shown
     showEntityWheelShared?: ReturnType<typeof useSharedValue<boolean>>; // Shared value for worklet reactivity
     showEntityWheel?: boolean; // Boolean state for synchronous checking
     showEntityWheelRef?: React.MutableRefObject<boolean>; // Ref for absolute latest value
@@ -6907,8 +7129,10 @@ const FloatingMemory = React.memo(
         // Calculate the current angle for this memory
         // baseOrbitAngle is this memory's starting position in radians
         // currentOrbitAngle is the current rotation offset in degrees
+        // entityHintRotation adds wiggle when spin hint is shown
+        const hintRot = entityHintRotation?.value ?? 0;
         const currentAngleRad =
-          baseOrbitAngle + (currentOrbitAngle * Math.PI) / 180;
+          baseOrbitAngle + (currentOrbitAngle * Math.PI) / 180 + hintRot;
 
         // Calculate orbital radius (distance from entity center)
         // Add random offset to create slight variation during spin
@@ -13263,7 +13487,7 @@ export default function HomeScreen() {
     }
   }, [showMomentTypeSelector, spheresScale, iconButtonScale]);
 
-  // Auto-dismiss spin hint (finger + wiggle) after 3 seconds — when hints disabled, dismiss immediately
+  // Reset spin hint when selector hides; dismiss driven by animation completion (smooth finger fade)
   useEffect(() => {
     if (!showMomentTypeSelector) {
       setMomentTypeSelectorDismissed(false);
@@ -13276,11 +13500,6 @@ export default function HomeScreen() {
     }
 
     setMomentTypeSelectorDismissed(false);
-    const autoDismissTimer = setTimeout(() => {
-      setMomentTypeSelectorDismissed(true);
-    }, 3000);
-
-    return () => clearTimeout(autoDismissTimer);
   }, [showMomentTypeSelector, appUsabilityHints]);
 
   // Note: We no longer clear moments when selectedMomentType changes
@@ -13986,35 +14205,42 @@ export default function HomeScreen() {
       return;
     }
 
-    // Fade in pointer
-    spinHintPointerOpacity.value = withTiming(0.85, {
-      duration: 400,
-      easing: Easing.out(Easing.ease),
-    });
+    // Finger appears at 0.85, then fades to 0 from the moment it appears
+    const mainWheelTotalMs = 3 * 1600 + 400; // 3 cycles + settle
+    spinHintPointerOpacity.value = withSequence(
+      withTiming(0.85, { duration: 100, easing: Easing.out(Easing.ease) }),
+      withTiming(0, {
+        duration: mainWheelTotalMs - 100,
+        easing: Easing.linear,
+      }, (finished) => {
+        "worklet";
+        if (finished) runOnJS(setMomentTypeSelectorDismissed)(true);
+      })
+    );
 
     // Start finger at top (for top→down clockwise drag motion)
     spinHintPointerTranslateX.value = 0;
     spinHintPointerTranslateY.value = -14;
 
-    // Small back-and-forth wiggle to suggest rotation (~15° each way)
+    // Small back-and-forth wiggle to suggest rotation (~15° each way), smooth stop; finger fades during final phase
     const WIGGLE_RAD = 0.26; // ~15 degrees
-    hintRotation.value = withRepeat(
-      withSequence(
-        withTiming(WIGGLE_RAD, {
-          duration: 500,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        withTiming(-WIGGLE_RAD, {
-          duration: 500,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        withTiming(0, {
-          duration: 400,
-          easing: Easing.inOut(Easing.ease),
-        })
-      ),
-      3, // Repeat ~3 times over ~4.2s (visible for the auto-dismiss period)
-      false
+    const wiggleCycle = withSequence(
+      withTiming(WIGGLE_RAD, {
+        duration: 500,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      withTiming(-WIGGLE_RAD, {
+        duration: 500,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      withTiming(0, {
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+      })
+    );
+    hintRotation.value = withSequence(
+      withRepeat(wiggleCycle, 3, false),
+      withTiming(0, { duration: 400, easing: Easing.out(Easing.cubic) })
     );
 
     // Pointer moves top → down + left to imitate clockwise drag (arc on right side)
