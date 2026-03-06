@@ -320,6 +320,9 @@ export function EntityWheelOfLife({
   const entranceProgress = useSharedValue(0);
   const spinRotation = useSharedValue(0);
   const selectedMomentScale = useSharedValue(0);
+  const examSubmitPressScale = useSharedValue(1);
+  const examInputPulseScale = useSharedValue(1);
+  const examAnswerInputRef = useRef('');
   const [isSpinning, setIsSpinning] = useState(false);
   const [selectedMoment, setSelectedMoment] = useState<{
     type: 'lesson' | 'sunny' | 'cloudy';
@@ -336,6 +339,7 @@ export function EntityWheelOfLife({
     userAnswer?: string;
   } | null>(null);
   const [examAnswerInput, setExamAnswerInput] = useState('');
+  examAnswerInputRef.current = examAnswerInput;
   const [showFireworks, setShowFireworks] = useState(false);
 
   // State for floating moments that grow from memories
@@ -733,6 +737,14 @@ export function EntityWheelOfLife({
       opacity: selectedMomentScale.value,
     };
   });
+
+  const examSubmitButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: examSubmitPressScale.value }],
+  }));
+
+  const examInputPulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: examInputPulseScale.value }],
+  }));
 
   // Calculate progress for sunny percentage
   const sunnyPercentage = useMemo(() => {
@@ -1149,47 +1161,73 @@ export function EntityWheelOfLife({
                     <ThemedText
                       size="sm"
                       weight="semibold"
-                      style={{ marginBottom: 16, textAlign: 'center', paddingHorizontal: 8 }}
+                      style={{ marginBottom: 16, textAlign: 'center', paddingHorizontal: 8, color: momentColors.lesson.text }}
                     >
                       {examState.question}
                     </ThemedText>
-                    <TextInput
-                      value={examAnswerInput}
-                      onChangeText={setExamAnswerInput}
-                      placeholder={t('wheel.exam.questionPrompt')}
-                      placeholderTextColor={momentColors.lesson.text + '99'}
-                      style={{
-                        width: '100%',
-                        minHeight: 44,
-                        backgroundColor: momentColors.lesson.background + '40',
-                        borderRadius: 12,
-                        paddingHorizontal: 12,
-                        paddingVertical: 10,
-                        color: momentColors.lesson.text,
-                        fontSize: 14 * fontScale,
-                      }}
-                      multiline
-                    />
-                    <Pressable
-                      onPress={() => {
-                        const trimmed = examAnswerInput.trim();
-                        if (trimmed) {
-                          void handleExamSubmit(trimmed);
-                          setExamAnswerInput('');
-                        }
-                      }}
-                      style={{
-                        marginTop: 12,
-                        paddingHorizontal: 24,
-                        paddingVertical: 10,
-                        backgroundColor: momentColors.lesson.background,
-                        borderRadius: 20,
-                      }}
-                    >
-                      <ThemedText size="sm" weight="semibold" style={{ color: momentColors.lesson.text }}>
-                        {t('wheel.exam.submitAnswer')}
-                      </ThemedText>
-                    </Pressable>
+                    <Animated.View style={[{ width: '100%' }, examInputPulseStyle]}>
+                      <TextInput
+                        value={examAnswerInput}
+                        onChangeText={setExamAnswerInput}
+                        placeholder={t('wheel.exam.questionPrompt')}
+                        placeholderTextColor={momentColors.lesson.text}
+                        style={{
+                          width: '100%',
+                          minHeight: 44,
+                          backgroundColor: momentColors.lesson.background + '40',
+                          borderRadius: 12,
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          color: momentColors.lesson.text,
+                          fontSize: 14 * fontScale,
+                        }}
+                        multiline
+                      />
+                    </Animated.View>
+                    <Animated.View style={examSubmitButtonStyle}>
+                      <Pressable
+                        onPressIn={() => {
+                          if (examAnswerInputRef.current.trim().length >= 2) {
+                            cancelAnimation(examSubmitPressScale);
+                            examSubmitPressScale.value = withTiming(0.82, {
+                              duration: 80,
+                              easing: Easing.out(Easing.ease),
+                            });
+                          }
+                        }}
+                        onPressOut={() => {
+                          cancelAnimation(examSubmitPressScale);
+                          examSubmitPressScale.value = withSpring(1, {
+                            damping: 12,
+                            stiffness: 400,
+                          });
+                        }}
+                        onPress={() => {
+                          const trimmed = examAnswerInput.trim();
+                          if (trimmed.length >= 2) {
+                            void handleExamSubmit(trimmed);
+                            setExamAnswerInput('');
+                          } else {
+                            cancelAnimation(examInputPulseScale);
+                            examInputPulseScale.value = withSequence(
+                              withTiming(1.04, { duration: 80, easing: Easing.out(Easing.ease) }),
+                              withSpring(1, { damping: 12, stiffness: 400 })
+                            );
+                          }
+                        }}
+                        style={{
+                          marginTop: 12,
+                          paddingHorizontal: 24,
+                          paddingVertical: 10,
+                          backgroundColor: momentColors.lesson.background,
+                          borderRadius: 20,
+                        }}
+                      >
+                        <ThemedText size="sm" weight="semibold" style={{ color: momentColors.lesson.text }}>
+                          {t('wheel.exam.submitAnswer')}
+                        </ThemedText>
+                      </Pressable>
+                    </Animated.View>
                   </>
                 )}
                 <Pressable

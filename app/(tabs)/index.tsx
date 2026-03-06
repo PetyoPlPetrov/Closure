@@ -547,6 +547,8 @@ const FloatingAvatar = React.memo(
     const [avatarClickHintDismissed, setAvatarClickHintDismissed] =
       React.useState(false);
     const [examAnswerInput, setExamAnswerInput] = React.useState("");
+    const entityExamAnswerInputRef = React.useRef("");
+    (entityExamAnswerInputRef as React.MutableRefObject<string>).current = examAnswerInput;
     const [selectedMomentType, setSelectedMomentType] = React.useState<
       "lesson" | "sunny" | "cloudy"
     >("lesson");
@@ -626,6 +628,8 @@ const FloatingAvatar = React.memo(
     const entityLessonButtonPressScale = useSharedValue(1);
     const entitySunnyButtonPressScale = useSharedValue(1);
     const entityCloudyButtonPressScale = useSharedValue(1);
+    const entityExamSubmitPressScale = useSharedValue(1);
+    const entityExamInputPulseScale = useSharedValue(1);
     const entityLessonButtonSelection = useSharedValue(1); // Start with lesson selected
     const entitySunnyButtonSelection = useSharedValue(0);
     const entityCloudyButtonSelection = useSharedValue(0);
@@ -2256,11 +2260,20 @@ const FloatingAvatar = React.memo(
         const canSpin = await canSpinWheelExam(hasAIEntitlement);
         if (!canSpin) {
           const purchased = await showPaywallForAIAccess();
-          if (!purchased) return;
+          if (!purchased) {
+            cancelAnimation(orbitAngle);
+            return;
+          }
         }
         startEntityWheelSpin(velocity);
       },
-      [aiConsent.isEnabled, hasAIEntitlement, onShowAIConsentModal, startEntityWheelSpin],
+      [
+        aiConsent.isEnabled,
+        hasAIEntitlement,
+        onShowAIConsentModal,
+        startEntityWheelSpin,
+        orbitAngle,
+      ],
     );
 
     // Preload exam questions when entity wheel opens
@@ -2395,6 +2408,7 @@ const FloatingAvatar = React.memo(
       cancelAnimation(entityLessonButtonPressScale);
       cancelAnimation(entitySunnyButtonPressScale);
       cancelAnimation(entityCloudyButtonPressScale);
+      cancelAnimation(entityExamSubmitPressScale);
 
       entityLessonButtonHighlight.value = 0;
       entitySunnyButtonHighlight.value = 0;
@@ -2402,6 +2416,7 @@ const FloatingAvatar = React.memo(
       entityLessonButtonPressScale.value = 1;
       entitySunnyButtonPressScale.value = 1;
       entityCloudyButtonPressScale.value = 1;
+      entityExamSubmitPressScale.value = 1;
     }, [
       selectedMomentType,
       entityLessonButtonSelection,
@@ -2413,6 +2428,7 @@ const FloatingAvatar = React.memo(
       entityLessonButtonPressScale,
       entitySunnyButtonPressScale,
       entityCloudyButtonPressScale,
+      entityExamSubmitPressScale,
     ]);
 
     // Avatar pulse animated style for indicating clickability
@@ -2497,6 +2513,14 @@ const FloatingAvatar = React.memo(
     const entityCloudyHighlightStyle = useAnimatedStyle(() => {
       return { opacity: entityCloudyButtonHighlight.value * 0.4 };
     });
+
+    const entityExamSubmitButtonStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: entityExamSubmitPressScale.value }],
+    }));
+
+    const entityExamInputPulseStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: entityExamInputPulseScale.value }],
+    }));
 
     const entitySpinHintPointerAnimatedStyle = useAnimatedStyle(() => ({
       opacity: entitySpinHintPointerOpacity.value,
@@ -4886,58 +4910,81 @@ const FloatingAvatar = React.memo(
                                 marginBottom: 16,
                                 textAlign: "center",
                                 paddingHorizontal: 8,
+                                color: momentColors.lesson.text,
                               }}
                             >
                               {selectedWheelExam.question}
                             </ThemedText>
-                            <TextInput
-                              value={examAnswerInput}
-                              onChangeText={setExamAnswerInput}
-                              placeholder={t("wheel.exam.questionPrompt")}
-                              placeholderTextColor={
-                                colorScheme === "dark"
-                                  ? "rgba(255,255,255,0.4)"
-                                  : "rgba(0,0,0,0.4)"
-                              }
-                              style={{
-                                width: "100%",
-                                minHeight: 44,
-                                backgroundColor:
-                                  colorScheme === "dark"
-                                    ? "rgba(0,0,0,0.3)"
-                                    : "rgba(0,0,0,0.08)",
-                                borderRadius: 12,
-                                paddingHorizontal: 12,
-                                paddingVertical: 10,
-                                color: colors.text,
-                                fontSize: 14 * fontScale,
-                              }}
-                              multiline
-                            />
-                            <Pressable
-                              onPress={() => {
-                                const trimmed = examAnswerInput.trim();
-                                if (trimmed) {
-                                  handleExamSubmit(trimmed);
-                                  setExamAnswerInput("");
-                                }
-                              }}
-                              style={{
-                                marginTop: 12,
-                                paddingHorizontal: 24,
-                                paddingVertical: 10,
-                                backgroundColor: momentColors.lesson.background,
-                                borderRadius: 20,
-                              }}
-                            >
-                              <ThemedText
-                                size="sm"
-                                weight="semibold"
-                                style={{ color: momentColors.lesson.text }}
+                            <Animated.View style={[{ width: "100%" }, entityExamInputPulseStyle]}>
+                              <TextInput
+                                value={examAnswerInput}
+                                onChangeText={setExamAnswerInput}
+                                placeholder={t("wheel.exam.questionPrompt")}
+                                placeholderTextColor={momentColors.lesson.text}
+                                style={{
+                                  width: "100%",
+                                  minHeight: 44,
+                                  backgroundColor:
+                                    colorScheme === "dark"
+                                      ? "rgba(0,0,0,0.3)"
+                                      : "rgba(0,0,0,0.08)",
+                                  borderRadius: 12,
+                                  paddingHorizontal: 12,
+                                  paddingVertical: 10,
+                                  color: momentColors.lesson.text,
+                                  fontSize: 14 * fontScale,
+                                }}
+                                multiline
+                              />
+                            </Animated.View>
+                            <Animated.View style={entityExamSubmitButtonStyle}>
+                              <Pressable
+                                onPressIn={() => {
+                                  if (entityExamAnswerInputRef.current.trim().length >= 2) {
+                                    cancelAnimation(entityExamSubmitPressScale);
+                                    entityExamSubmitPressScale.value = withTiming(0.82, {
+                                      duration: 80,
+                                      easing: Easing.out(Easing.ease),
+                                    });
+                                  }
+                                }}
+                                onPressOut={() => {
+                                  cancelAnimation(entityExamSubmitPressScale);
+                                  entityExamSubmitPressScale.value = withSpring(1, {
+                                    damping: 12,
+                                    stiffness: 400,
+                                  });
+                                }}
+                                onPress={() => {
+                                  const trimmed = examAnswerInput.trim();
+                                  if (trimmed.length >= 2) {
+                                    handleExamSubmit(trimmed);
+                                    setExamAnswerInput("");
+                                  } else {
+                                    cancelAnimation(entityExamInputPulseScale);
+                                    entityExamInputPulseScale.value = withSequence(
+                                      withTiming(1.04, { duration: 80, easing: Easing.out(Easing.ease) }),
+                                      withSpring(1, { damping: 12, stiffness: 400 })
+                                    );
+                                  }
+                                }}
+                                style={{
+                                  marginTop: 12,
+                                  paddingHorizontal: 24,
+                                  paddingVertical: 10,
+                                  backgroundColor: momentColors.lesson.background,
+                                  borderRadius: 20,
+                                }}
                               >
-                                {t("wheel.exam.submitAnswer")}
-                              </ThemedText>
-                            </Pressable>
+                                <ThemedText
+                                  size="sm"
+                                  weight="semibold"
+                                  style={{ color: momentColors.lesson.text }}
+                                >
+                                  {t("wheel.exam.submitAnswer")}
+                                </ThemedText>
+                              </Pressable>
+                            </Animated.View>
                           </>
                         )}
                         <Pressable
@@ -10526,7 +10573,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
                 {text.split("\n")[1]}
               </ThemedText>
             )}
-            {isExpanded && memoryImageUri && onMemoryImagePress && (
+            {isExpanded && onMemoryImagePress && (
               <Pressable
                 onPress={onMemoryImagePress}
                 style={{
@@ -10537,13 +10584,20 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
                   overflow: "hidden",
                   borderWidth: 2,
                   borderColor: sunnyBg,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: "rgba(0,0,0,0.2)",
                 }}
               >
-                <Image
-                  source={{ uri: memoryImageUri }}
-                  style={{ width: "100%", height: "100%" }}
-                  contentFit="cover"
-                />
+                {memoryImageUri ? (
+                  <Image
+                    source={{ uri: memoryImageUri }}
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <MaterialIcons name="photo" size={28} color={sunnyBg} />
+                )}
               </Pressable>
             )}
           </Animated.View>
@@ -10658,7 +10712,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
             >
               {text}
             </ThemedText>
-            {isExpanded && memoryImageUri && onMemoryImagePress && (
+            {isExpanded && onMemoryImagePress && (
               <Pressable
                 onPress={onMemoryImagePress}
                 style={{
@@ -10669,13 +10723,20 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
                   overflow: "hidden",
                   borderWidth: 2,
                   borderColor: cloudyBg,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: "rgba(0,0,0,0.2)",
                 }}
               >
-                <Image
-                  source={{ uri: memoryImageUri }}
-                  style={{ width: "100%", height: "100%" }}
-                  contentFit="cover"
-                />
+                {memoryImageUri ? (
+                  <Image
+                    source={{ uri: memoryImageUri }}
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <MaterialIcons name="photo" size={28} color={cloudyBg} />
+                )}
               </Pressable>
             )}
           </Animated.View>
@@ -10730,7 +10791,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
             style={[
               {
                 position: "absolute",
-                bottom: isExpanded && memoryImageUri ? 100 : 0,
+                bottom: isExpanded && onMemoryImagePress ? 100 : 0,
                 left: 0,
                 right: 0,
                 paddingHorizontal: 15,
@@ -10758,7 +10819,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
               </ThemedText>
             )}
           </Animated.View>
-          {isExpanded && memoryImageUri && onMemoryImagePress && (
+          {isExpanded && onMemoryImagePress && (
             <Pressable
               onPress={onMemoryImagePress}
               style={{
@@ -10772,13 +10833,20 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
                 overflow: "hidden",
                 borderWidth: 2,
                 borderColor: lessonBg,
+                backgroundColor: "rgba(0,0,0,0.2)",
+                justifyContent: "center",
+                alignItems: "center",
               }}
             >
-              <Image
-                source={{ uri: memoryImageUri }}
-                style={{ width: "100%", height: "100%" }}
-                contentFit="cover"
-              />
+              {memoryImageUri ? (
+                <Image
+                  source={{ uri: memoryImageUri }}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit="cover"
+                />
+              ) : (
+                <MaterialIcons name="photo" size={28} color={lessonBg} />
+              )}
             </Pressable>
           )}
         </View>
@@ -11310,7 +11378,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                   {text.split("\n")[1]}
                 </ThemedText>
               )}
-              {isExpanded && memoryImageUri && onMemoryImagePress && (
+              {isExpanded && onMemoryImagePress && (
                 <Pressable
                   onPress={onMemoryImagePress}
                   style={{
@@ -11321,13 +11389,20 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                     overflow: "hidden",
                     borderWidth: 2,
                     borderColor: momentColors.sunny.background,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "rgba(0,0,0,0.2)",
                   }}
                 >
-                  <Image
-                    source={{ uri: memoryImageUri }}
-                    style={{ width: "100%", height: "100%" }}
-                    contentFit="cover"
-                  />
+                  {memoryImageUri ? (
+                    <Image
+                      source={{ uri: memoryImageUri }}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <MaterialIcons name="photo" size={28} color={momentColors.sunny.background} />
+                  )}
                 </Pressable>
               )}
             </Animated.View>
@@ -11435,7 +11510,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               >
                 {text}
               </ThemedText>
-              {isExpanded && memoryImageUri && onMemoryImagePress && (
+              {isExpanded && onMemoryImagePress && (
                 <Pressable
                   onPress={onMemoryImagePress}
                   style={{
@@ -11446,13 +11521,20 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                     overflow: "hidden",
                     borderWidth: 2,
                     borderColor: momentColors.cloudy.background,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "rgba(0,0,0,0.2)",
                   }}
                 >
-                  <Image
-                    source={{ uri: memoryImageUri }}
-                    style={{ width: "100%", height: "100%" }}
-                    contentFit="cover"
-                  />
+                  {memoryImageUri ? (
+                    <Image
+                      source={{ uri: memoryImageUri }}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <MaterialIcons name="photo" size={28} color={momentColors.cloudy.background} />
+                  )}
                 </Pressable>
               )}
             </Animated.View>
@@ -11506,7 +11588,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               style={[
                 {
                   position: "absolute",
-                  bottom: isExpanded && memoryImageUri ? 100 : 0,
+                  bottom: isExpanded && onMemoryImagePress ? 100 : 0,
                   left: 0,
                   right: 0,
                   paddingHorizontal: 15,
@@ -11534,7 +11616,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               </ThemedText>
             </Animated.View>
             {/* Memory image - positioned at very bottom, below bulb and text */}
-            {isExpanded && memoryImageUri && onMemoryImagePress && (
+            {isExpanded && onMemoryImagePress && (
               <Pressable
                 onPress={onMemoryImagePress}
                 style={{
@@ -11548,13 +11630,20 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                   overflow: "hidden",
                   borderWidth: 2,
                   borderColor: momentColors.lesson.background,
+                  backgroundColor: "rgba(0,0,0,0.2)",
+                  justifyContent: "center",
+                  alignItems: "center",
                 }}
               >
-                <Image
-                  source={{ uri: memoryImageUri }}
-                  style={{ width: "100%", height: "100%" }}
-                  contentFit="cover"
-                />
+                {memoryImageUri ? (
+                  <Image
+                    source={{ uri: memoryImageUri }}
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <MaterialIcons name="photo" size={28} color={momentColors.lesson.background} />
+                )}
               </Pressable>
             )}
           </Pressable>
@@ -13498,8 +13587,13 @@ export default function HomeScreen() {
   } | null>(null);
   const [showLesson, setShowLesson] = useState(false);
   const [mainWheelExamAnswerInput, setMainWheelExamAnswerInput] = useState("");
+  const mainWheelExamAnswerInputRef = useRef("");
+  (mainWheelExamAnswerInputRef as React.MutableRefObject<string>).current = mainWheelExamAnswerInput;
   const [showMainWheelFireworks, setShowMainWheelFireworks] = useState(false);
   const [showMomentTypeSelector, setShowMomentTypeSelector] = useState(false);
+
+  const mainWheelExamSubmitPressScale = useSharedValue(1);
+  const mainWheelExamInputPulseScale = useSharedValue(1);
 
   // Keep tabPressNoOpRef in sync — when true, Home tab press (already on focused view) does nothing
   useEffect(() => {
@@ -13581,6 +13675,7 @@ export default function HomeScreen() {
   const prevSelectedMomentType = useRef<MomentType | null>(null);
   const prevWasMomentsBlocked = useRef<boolean>(false); // Track if moments were previously blocked
   const milestoneInProgress = useRef(false); // Track if milestone is currently being handled
+  const growAllShownAtRef = useRef<number>(0); // When grow-all was displayed (for spawnTime so moments can shrink individually on collapse)
 
   // Track if we should trigger "all at once" growth for a type
   const [growAllMomentsType, setGrowAllMomentsType] =
@@ -13677,6 +13772,12 @@ export default function HomeScreen() {
         momentId?: string;
       }[] = [];
 
+      // Normalize image URI: use imageUri if it's a non-empty string (handles legacy/edge cases)
+      const getMemoryImageUri = (m: { imageUri?: string }) =>
+        typeof m?.imageUri === "string" && m.imageUri.trim()
+          ? m.imageUri.trim()
+          : undefined;
+
       // Determine which property to access based on moment type
       const propertyName =
         momentType === "lessons"
@@ -13698,7 +13799,7 @@ export default function HomeScreen() {
                   entityId: profile.id,
                   memoryId: memory.id,
                   sphere: "relationships" as LifeSphere,
-                  memoryImageUri: memory.imageUri,
+                  memoryImageUri: getMemoryImageUri(memory),
                   momentId: item.id,
                 });
               }
@@ -13720,7 +13821,7 @@ export default function HomeScreen() {
                   entityId: job.id,
                   memoryId: memory.id,
                   sphere: "career" as LifeSphere,
-                  memoryImageUri: memory.imageUri,
+                  memoryImageUri: getMemoryImageUri(memory),
                   momentId: item.id,
                 });
               }
@@ -13742,7 +13843,7 @@ export default function HomeScreen() {
                   entityId: member.id,
                   memoryId: memory.id,
                   sphere: "family" as LifeSphere,
-                  memoryImageUri: memory.imageUri,
+                  memoryImageUri: getMemoryImageUri(memory),
                   momentId: item.id,
                 });
               }
@@ -13764,7 +13865,7 @@ export default function HomeScreen() {
                   entityId: friend.id,
                   memoryId: memory.id,
                   sphere: "friends" as LifeSphere,
-                  memoryImageUri: memory.imageUri,
+                  memoryImageUri: getMemoryImageUri(memory),
                   momentId: item.id,
                 });
               }
@@ -13786,7 +13887,7 @@ export default function HomeScreen() {
                   entityId: hobby.id,
                   memoryId: memory.id,
                   sphere: "hobbies" as LifeSphere,
-                  memoryImageUri: memory.imageUri,
+                  memoryImageUri: getMemoryImageUri(memory),
                   momentId: item.id,
                 });
               }
@@ -14126,12 +14227,16 @@ export default function HomeScreen() {
     // Check if we're transitioning from blocked to unblocked (returning to the view)
     const justUnblocked = prevWasMomentsBlocked.current && !momentsAreBlocked;
 
-    // Clear and reset when moment type changes OR when transitioning from blocked to unblocked
-    // But NOT when unblocking due to moment collapse (user tapped outside image)
+    // When unblocking by collapse: user tapped to close expanded moment - keep existing moments
+    // so they can each run their individual remaining hold time + shrink (don't clear them).
+    // When unblocking by other means (type change, app resume): clear and restart from beginning.
     const unblockedByCollapse =
       justUnblocked &&
       prevExpandedMomentIdRef.current !== null &&
       expandedMomentId === null;
+
+    // Clear and reset when moment type changes OR when transitioning from blocked to unblocked
+    // But when unblocked by collapse: don't clear randomMoments - let each moment shrink individually
     if (
       (momentTypeChanged || (justUnblocked && !unblockedByCollapse)) &&
       selectedMomentType &&
@@ -14140,7 +14245,13 @@ export default function HomeScreen() {
       setRandomMoments([]);
       setGrowAllMomentsType(null);
       currentMomentIndices.current[selectedMomentType] = 0;
+      milestoneInProgress.current = false; // Reset so next cycle can spawn (was stuck if growAllTimeout was cleared)
       prevSelectedMomentType.current = selectedMomentType;
+    }
+    // When unblocked by collapse: still reset indices and milestone so cycle can continue after moments shrink
+    if (unblockedByCollapse && selectedMomentType && !momentsAreBlocked) {
+      currentMomentIndices.current[selectedMomentType] = 0;
+      milestoneInProgress.current = false;
     }
     prevExpandedMomentIdRef.current = expandedMomentId;
 
@@ -14180,6 +14291,16 @@ export default function HomeScreen() {
       setGrowAllMomentsType(null);
       return;
     }
+
+    // Safeguard: if indices are at/past end (e.g. growAllTimeout was cleared), reset so popping never stops
+    const currentIdx = currentMomentIndices.current[selectedMomentType];
+    if (currentIdx >= totalCount) {
+      currentMomentIndices.current[selectedMomentType] = 0;
+      milestoneInProgress.current = false; // Was stuck if growAllTimeout was cleared (e.g. user expanded during grow-all)
+    }
+
+    // Reset milestone flag when effect runs unblocked - ensures we never get stuck from a previous aborted grow-all
+    milestoneInProgress.current = false;
 
     const timeouts: ReturnType<typeof setTimeout>[] = [];
 
@@ -14279,65 +14400,50 @@ export default function HomeScreen() {
           if (wouldReachMilestone || isAtEnd) {
             milestoneInProgress.current = true;
 
-            // Grow all moments at once (except clouds)
-            if (selectedMomentType !== "hardTruths") {
-              setGrowAllMomentsType(selectedMomentType);
-              // Wait for complete animation cycle: 800ms grow + 4000ms hold (with pulsing) + 800ms shrink = 5600ms total
-              const GROW_ALL_DURATION = 5600;
-              const growAllTimeout = setTimeout(() => {
-                setGrowAllMomentsType(null);
+            // Grow all moments at once (all types: sunny, lessons, clouds) - then restart so popping never stops
+            growAllShownAtRef.current = Date.now();
+            setGrowAllMomentsType(selectedMomentType);
+            // Wait for complete animation cycle: 800ms grow + 4000ms hold (with pulsing) + 800ms shrink = 5600ms total
+            const GROW_ALL_DURATION = 5600;
+            const growAllTimeout = setTimeout(() => {
+              setGrowAllMomentsType(null);
 
-                // Reset milestone flag AFTER the grow-all completes
-                milestoneInProgress.current = false;
-
-                if (isAtEnd) {
-                  // At 100%, restart from beginning
-                  currentMomentIndices.current[selectedMomentType] = 0;
-
-                  // Wait 400ms before restarting with initial batch
-                  const continueTimeout = setTimeout(() => {
-                    startInitialBatch();
-                  }, NEXT_MOMENT_DELAY);
-                  timeouts.push(continueTimeout);
-                } else {
-                  // At milestone (not at end), continue spawning from the next index
-                  // Spawn the initial batch starting from nextMomentIndex
-                  const continueTimeout = setTimeout(() => {
-                    const startIndex =
-                      currentMomentIndices.current[selectedMomentType];
-                    if (startIndex < totalCount) {
-                      // Spawn the initial batch of concurrent moments
-                      const momentsToSpawn = Math.min(
-                        INITIAL_CONCURRENT_MOMENTS,
-                        totalCount - startIndex,
-                      );
-                      for (let i = 0; i < momentsToSpawn; i++) {
-                        const momentIndex = startIndex + i;
-                        if (momentIndex >= totalCount) break;
-                        spawnSingleMoment(
-                          momentIndex,
-                          i * INITIAL_STAGGER_DELAY,
-                        );
-                      }
-                    }
-                  }, NEXT_MOMENT_DELAY);
-                  timeouts.push(continueTimeout);
-                }
-              }, GROW_ALL_DURATION);
-              timeouts.push(growAllTimeout);
-            } else {
-              // For clouds, just continue without the "all at once" effect
-              // Reset milestone flag immediately for clouds (no grow-all animation)
+              // Reset milestone flag AFTER the grow-all completes
               milestoneInProgress.current = false;
 
               if (isAtEnd) {
+                // At 100%, restart from beginning so popping never stops
                 currentMomentIndices.current[selectedMomentType] = 0;
+
+                // Wait before restarting with initial batch
+                const continueTimeout = setTimeout(() => {
+                  startInitialBatch();
+                }, NEXT_MOMENT_DELAY);
+                timeouts.push(continueTimeout);
+              } else {
+                // At milestone (not at end), continue spawning from the next index
+                const continueTimeout = setTimeout(() => {
+                  const startIndex =
+                    currentMomentIndices.current[selectedMomentType];
+                  if (startIndex < totalCount) {
+                    const momentsToSpawn = Math.min(
+                      INITIAL_CONCURRENT_MOMENTS,
+                      totalCount - startIndex,
+                    );
+                    for (let i = 0; i < momentsToSpawn; i++) {
+                      const momentIndex = startIndex + i;
+                      if (momentIndex >= totalCount) break;
+                      spawnSingleMoment(
+                        momentIndex,
+                        i * INITIAL_STAGGER_DELAY,
+                      );
+                    }
+                  }
+                }, NEXT_MOMENT_DELAY);
+                timeouts.push(continueTimeout);
               }
-              // Continue spawning with 400ms delay
-              if (nextMomentIndex < totalCount) {
-                spawnSingleMoment(nextMomentIndex, NEXT_MOMENT_DELAY);
-              }
-            }
+            }, GROW_ALL_DURATION);
+            timeouts.push(growAllTimeout);
           } else {
             // No milestone, spawn the next moment after 400ms delay
             // This maintains 4 concurrent moments: when moment X finishes, spawn moment X + 4
@@ -14634,6 +14740,14 @@ export default function HomeScreen() {
       { translateX: spinHintPointerTranslateX.value },
       { translateY: spinHintPointerTranslateY.value },
     ],
+  }));
+
+  const mainWheelExamSubmitButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: mainWheelExamSubmitPressScale.value }],
+  }));
+
+  const mainWheelExamInputPulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: mainWheelExamInputPulseScale.value }],
   }));
 
   // Animated styles for individual button press effects with liquid glass
@@ -15021,7 +15135,11 @@ export default function HomeScreen() {
               const canSpin = await canSpinWheelExam(hasAIEntitlement);
               if (!canSpin) {
                 const purchased = await showPaywallForAIAccess();
-                if (!purchased) return;
+                if (!purchased) {
+                  isWheelSpinning.value = false;
+                  wheelVelocity.value = 0;
+                  return;
+                }
               }
               wheelVelocity.value = velocityAtRelease;
               startSpin();
@@ -18444,49 +18562,76 @@ export default function HomeScreen() {
                       >
                         {selectedLesson.examQuestion}
                       </ThemedText>
-                      <TextInput
-                        value={mainWheelExamAnswerInput}
-                        onChangeText={setMainWheelExamAnswerInput}
-                        placeholder={t("wheel.exam.questionPrompt")}
-                        placeholderTextColor={
-                          momentColors.lesson.text + "99"
-                        }
-                        style={{
-                          width: "100%",
-                          minHeight: 44,
-                          backgroundColor: momentColors.lesson.background + "40",
-                          borderRadius: 12,
-                          paddingHorizontal: 12,
-                          paddingVertical: 10,
-                          color: momentColors.lesson.text,
-                          fontSize: 14 * fontScale,
-                        }}
-                        multiline
-                      />
-                      <Pressable
-                        onPress={() => {
-                          const trimmed = mainWheelExamAnswerInput.trim();
-                          if (trimmed) {
-                            handleMainWheelExamSubmit(trimmed);
-                            setMainWheelExamAnswerInput("");
-                          }
-                        }}
-                        style={{
-                          marginTop: 12,
-                          paddingHorizontal: 24,
-                          paddingVertical: 10,
-                          backgroundColor: momentColors.lesson.background,
-                          borderRadius: 20,
-                        }}
-                      >
-                        <ThemedText
-                          size="sm"
-                          weight="semibold"
-                          style={{ color: momentColors.lesson.text }}
+                      <Animated.View style={[{ width: "100%" }, mainWheelExamInputPulseStyle]}>
+                        <TextInput
+                          value={mainWheelExamAnswerInput}
+                          onChangeText={setMainWheelExamAnswerInput}
+                          placeholder={t("wheel.exam.questionPrompt")}
+                          placeholderTextColor={momentColors.lesson.text}
+                          style={{
+                            width: "100%",
+                            minHeight: 44,
+                            backgroundColor: momentColors.lesson.background + "40",
+                            borderRadius: 12,
+                            paddingHorizontal: 12,
+                            paddingVertical: 10,
+                            color: momentColors.lesson.text,
+                            fontSize: 14 * fontScale,
+                          }}
+                          multiline
+                        />
+                      </Animated.View>
+                      <Animated.View style={mainWheelExamSubmitButtonStyle}>
+                        <Pressable
+                          onPressIn={() => {
+                            if (mainWheelExamAnswerInputRef.current.trim().length >= 2) {
+                              cancelAnimation(mainWheelExamSubmitPressScale);
+                              mainWheelExamSubmitPressScale.value = withTiming(
+                                0.82,
+                                {
+                                  duration: 80,
+                                  easing: Easing.out(Easing.ease),
+                                },
+                              );
+                            }
+                          }}
+                          onPressOut={() => {
+                            cancelAnimation(mainWheelExamSubmitPressScale);
+                            mainWheelExamSubmitPressScale.value = withSpring(1, {
+                              damping: 12,
+                              stiffness: 400,
+                            });
+                          }}
+                          onPress={() => {
+                            const trimmed = mainWheelExamAnswerInput.trim();
+                            if (trimmed.length >= 2) {
+                              handleMainWheelExamSubmit(trimmed);
+                              setMainWheelExamAnswerInput("");
+                            } else {
+                              cancelAnimation(mainWheelExamInputPulseScale);
+                              mainWheelExamInputPulseScale.value = withSequence(
+                                withTiming(1.04, { duration: 80, easing: Easing.out(Easing.ease) }),
+                                withSpring(1, { damping: 12, stiffness: 400 })
+                              );
+                            }
+                          }}
+                          style={{
+                            marginTop: 12,
+                            paddingHorizontal: 24,
+                            paddingVertical: 10,
+                            backgroundColor: momentColors.lesson.background,
+                            borderRadius: 20,
+                          }}
                         >
-                          {t("wheel.exam.submitAnswer")}
-                        </ThemedText>
-                      </Pressable>
+                          <ThemedText
+                            size="sm"
+                            weight="semibold"
+                            style={{ color: momentColors.lesson.text }}
+                          >
+                            {t("wheel.exam.submitAnswer")}
+                          </ThemedText>
+                        </Pressable>
+                      </Animated.View>
                       <Pressable
                         onPress={(e) => {
                           e.stopPropagation();
@@ -19899,14 +20044,16 @@ export default function HomeScreen() {
                       momentId={growAllMomentId}
                       isExpanded={expandedMomentId === growAllMomentId}
                       momentsFrozen={expandedMomentId !== null}
+                      spawnTime={growAllShownAtRef.current + index * 50}
                       expandedAtTimestamp={expandedAtTimestampRef.current}
                       onExpand={(id) => {
                         expandedAtTimestampRef.current = Date.now();
                         setExpandedMomentId(id);
                       }}
-                      onCollapse={(id) => {
-                        setGrowAllMomentsType(null);
+                      onCollapse={() => {
                         setExpandedMomentId(null);
+                        // Delay clearing so each moment can shrink individually (HOLD_END_MS 4800 + max stagger 550 + shrink 800 ≈ 6s)
+                        setTimeout(() => setGrowAllMomentsType(null), 6200);
                       }}
                       onMemoryImagePress={
                         momentData?.entityId &&

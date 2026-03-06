@@ -33,7 +33,6 @@ import {
 import Animated, {
   cancelAnimation,
   Easing,
-  interpolate,
   SharedValue,
   useAnimatedStyle,
   useSharedValue,
@@ -1521,36 +1520,35 @@ export function FocusedSferaView({
   const avatarCenterX = SW / 2;
   const avatarCenterY = SH * 0.48;
 
-  const chevronPulseProgress = useSharedValue(0);
+  const leftChevronScale = useSharedValue(1);
+  const rightChevronScale = useSharedValue(1);
 
-  useEffect(() => {
-    chevronPulseProgress.value = withDelay(
-      600,
-      withRepeat(
-        withSequence(
-          withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) }),
-          withTiming(0, { duration: 350, easing: Easing.inOut(Easing.ease) }),
-          withDelay(800, withTiming(0, { duration: 0 })),
-        ),
-        2,
-        false,
-      ),
-    );
-    return () => {
-      cancelAnimation(chevronPulseProgress);
-      chevronPulseProgress.value = 0;
-    };
-  }, [chevronPulseProgress]);
+  const leftChevronStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: leftChevronScale.value }],
+  }));
+  const rightChevronStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: rightChevronScale.value }],
+  }));
 
-  const chevronPulseStyle = useAnimatedStyle(() => {
-    const p = chevronPulseProgress.value;
-    const scale = 1 + p * 0.15;
-    const opacity = interpolate(p, [0, 1], [0.82, 1]);
-    return {
-      transform: [{ scale }],
-      opacity,
-    };
-  });
+  const chevronPressIn = useCallback(
+    (side: "left" | "right") => {
+      const scale = side === "left" ? leftChevronScale : rightChevronScale;
+      cancelAnimation(scale);
+      scale.value = withTiming(0.82, {
+        duration: 80,
+        easing: Easing.out(Easing.ease),
+      });
+    },
+    [leftChevronScale, rightChevronScale],
+  );
+  const chevronPressOut = useCallback(
+    (side: "left" | "right") => {
+      const scale = side === "left" ? leftChevronScale : rightChevronScale;
+      cancelAnimation(scale);
+      scale.value = withSpring(1, { damping: 12, stiffness: 400 });
+    },
+    [leftChevronScale, rightChevronScale],
+  );
 
   return (
     <View
@@ -1609,10 +1607,12 @@ export function FocusedSferaView({
 
       {/* ─── Chevron buttons: left = prev, right = next (orbital cycle) ─── */}
       <Animated.View
-        style={[styles.chevron, styles.chevronLeft, chevronPulseStyle]}
+        style={[styles.chevron, styles.chevronLeft, leftChevronStyle]}
       >
         <Pressable
           style={{ padding: 8 }}
+          onPressIn={() => chevronPressIn("left")}
+          onPressOut={() => chevronPressOut("left")}
           onPress={() => goToSphere((focusedIdx - 1 + N) % N)}
         >
           <MaterialIcons
@@ -1623,10 +1623,12 @@ export function FocusedSferaView({
         </Pressable>
       </Animated.View>
       <Animated.View
-        style={[styles.chevron, styles.chevronRight, chevronPulseStyle]}
+        style={[styles.chevron, styles.chevronRight, rightChevronStyle]}
       >
         <Pressable
           style={{ padding: 8 }}
+          onPressIn={() => chevronPressIn("right")}
+          onPressOut={() => chevronPressOut("right")}
           onPress={() => goToSphere((focusedIdx + 1) % N)}
         >
           <MaterialIcons
