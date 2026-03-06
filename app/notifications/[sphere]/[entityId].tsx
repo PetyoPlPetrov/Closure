@@ -396,17 +396,36 @@ export default function NotificationDetailScreen() {
     <TabScreenContainer>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
-          <TouchableOpacity
+          <Pressable
             onPress={handleBackPress}
             hitSlop={10}
-            style={styles.backButton}
+            android_ripple={null}
+            style={[
+              styles.backButton,
+              {
+                width: 44,
+                height: 44,
+                justifyContent: "center",
+                alignItems: "center",
+              },
+            ]}
           >
-            <MaterialIcons
-              name="arrow-back"
-              size={24 * fontScale}
-              color={palette.text}
-            />
-          </TouchableOpacity>
+            <View
+              style={{
+                width: 24 * fontScale,
+                height: 24 * fontScale,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+              pointerEvents="none"
+            >
+              <MaterialIcons
+                name={Platform.OS === "ios" ? "arrow-back-ios" : "arrow-back"}
+                size={Platform.OS === "ios" ? 22 * fontScale : 24 * fontScale}
+                color={palette.text}
+              />
+            </View>
+          </Pressable>
           <ThemedText size="xl" weight="bold" style={styles.title}>
             {entityName}
           </ThemedText>

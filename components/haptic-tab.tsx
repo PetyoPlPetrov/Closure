@@ -13,6 +13,7 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import { useEffect, useRef } from 'react';
+import { emitHomeTabPress } from '@/utils/home-tab-press';
 import { emitSpheresTabPress } from '@/utils/spheres-tab-press';
 import { onSpheresTabPulseRequest } from '@/utils/spheres-tab-pulse';
 import { useSegments } from 'expo-router';
@@ -75,6 +76,8 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
 
   // Simple approach: always animate on press, the navigation system will handle whether to navigate
   const handlePress = (ev: any) => {
+    // Emit so Home screen can show loader even when already focused (tabPress may not fire)
+    emitHomeTabPress();
     // Always animate when pressed
     pressScale.value = withSequence(
       // Press down

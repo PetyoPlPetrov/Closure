@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router, useNavigation } from 'expo-router';
-import { useLayoutEffect, useMemo } from 'react';
+import { router } from 'expo-router';
+import { useMemo } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -16,6 +16,7 @@ export default function NotificationsScreen() {
   const t = useTranslate();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
+  const fontScale = useFontScale();
   const palette = useMemo(
     () => ({
       text: colors.text,
@@ -28,18 +29,10 @@ export default function NotificationsScreen() {
     }),
     [colorScheme, colors]
   );
-  const fontScale = useFontScale();
   const styles = useMemo(() => createStyles(palette, fontScale), [palette, fontScale]);
 
   const { friends, familyMembers, profiles } = useJourney();
   const { assignments } = useNotificationsManager();
-  const navigation = useNavigation();
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      title: t('notifications.title'),
-    });
-  }, [navigation, t]);
 
   const renderSphereBlock = (sphere: 'friends' | 'family' | 'relationships', title: string, entityNames: { id: string; name: string }[]) => {
     const assignment = assignments[sphere];
@@ -89,7 +82,7 @@ export default function NotificationsScreen() {
   };
 
   const renderSferasView = () => (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <TouchableOpacity
         style={styles.card}
         onPress={() => router.push('/moment-notifications')}
@@ -125,6 +118,23 @@ export default function NotificationsScreen() {
 
   return (
     <TabScreenContainer>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons
+            name="arrow-back-ios"
+            size={24 * fontScale}
+            color={colors.text}
+          />
+        </TouchableOpacity>
+        <ThemedText size="l" weight="bold" style={styles.headerTitle}>
+          {t('notifications.title')}
+        </ThemedText>
+        <View style={styles.headerButton} />
+      </View>
       {renderSferasView()}
     </TabScreenContainer>
   );
@@ -143,6 +153,23 @@ const createStyles = (
   fontScale: number
 ) =>
   StyleSheet.create({
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16 * fontScale,
+      paddingTop: 50,
+      paddingBottom: 12 * fontScale,
+    },
+    headerButton: {
+      width: 40 * fontScale,
+      height: 40 * fontScale,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: {
+      flex: 1,
+      textAlign: 'center',
+    },
     content: {
       padding: 16 * fontScale,
       paddingBottom: 32 * fontScale,

@@ -16,30 +16,44 @@ const HomeTransitionLoaderActionsContext =
 const HomeTransitionLoaderVisibilityContext =
   createContext<HomeTransitionLoaderVisibility | null>(null);
 
+const MIN_DISPLAY_MS = 250; // Ensure loader is visible long enough to paint
+
 export function HomeTransitionLoaderProvider({ children }: { children: React.ReactNode }) {
   const [isVisible, setIsVisible] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shownAtRef = useRef<number>(0);
 
   const hideLoader = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
+    if (fallbackRef.current) {
+      clearTimeout(fallbackRef.current);
+      fallbackRef.current = null;
     }
-    setIsVisible(false);
+    const elapsed = Date.now() - shownAtRef.current;
+    const remaining = Math.max(0, MIN_DISPLAY_MS - elapsed);
+    if (remaining > 0) {
+      fallbackRef.current = setTimeout(() => {
+        fallbackRef.current = null;
+        setIsVisible(false);
+      }, remaining);
+    } else {
+      setIsVisible(false);
+    }
   }, []);
 
+  /** Show loader immediately. Only used for: Focused↔Classic (circle avatar), Home tab press. */
   const showLoader = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+    if (fallbackRef.current) clearTimeout(fallbackRef.current);
+    shownAtRef.current = Date.now();
     setIsVisible(true);
-    timerRef.current = setTimeout(() => {
+    fallbackRef.current = setTimeout(() => {
+      fallbackRef.current = null;
       setIsVisible(false);
-      timerRef.current = null;
-    }, 2500); // fallback if hideLoader never called
+    }, 2500);
   }, []);
 
   React.useEffect(() => {
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (fallbackRef.current) clearTimeout(fallbackRef.current);
     };
   }, []);
 

@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
+import Svg, { Line, Circle } from 'react-native-svg';
 import { useLargeDevice } from '@/hooks/use-large-device';
 import Animated, {
     Easing,
@@ -90,6 +91,97 @@ const SparkledDot = React.memo(function SparkledDot({
         animatedStyle,
       ]}
     />
+  );
+});
+
+// Constellation patterns: stars in normalized coords (0-1), connections as [from, to] indices
+const CONSTELLATIONS: Array<{ stars: Array<{ x: number; y: number }>; connections: Array<[number, number]> }> = [
+  // Big Dipper (Ursa Major) - simplified
+  {
+    stars: [
+      { x: 0.08, y: 0.12 }, { x: 0.12, y: 0.08 }, { x: 0.18, y: 0.1 }, { x: 0.22, y: 0.06 },
+      { x: 0.28, y: 0.08 }, { x: 0.32, y: 0.14 }, { x: 0.38, y: 0.18 },
+    ],
+    connections: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [1, 4]],
+  },
+  // Orion's Belt
+  {
+    stars: [
+      { x: 0.72, y: 0.22 }, { x: 0.78, y: 0.2 }, { x: 0.84, y: 0.24 },
+      { x: 0.78, y: 0.32 }, { x: 0.78, y: 0.4 },
+    ],
+    connections: [[0, 1], [1, 2], [1, 3], [3, 4]],
+  },
+  // Cassiopeia (W shape)
+  {
+    stars: [
+      { x: 0.88, y: 0.55 }, { x: 0.82, y: 0.62 }, { x: 0.86, y: 0.68 },
+      { x: 0.8, y: 0.74 }, { x: 0.84, y: 0.8 },
+    ],
+    connections: [[0, 1], [1, 2], [2, 3], [3, 4]],
+  },
+  // Small triangle (Lyra-like)
+  {
+    stars: [
+      { x: 0.15, y: 0.72 }, { x: 0.22, y: 0.68 }, { x: 0.18, y: 0.78 },
+    ],
+    connections: [[0, 1], [1, 2], [2, 0]],
+  },
+  // Cross pattern
+  {
+    stars: [
+      { x: 0.92, y: 0.15 }, { x: 0.9, y: 0.2 }, { x: 0.94, y: 0.2 }, { x: 0.92, y: 0.25 },
+    ],
+    connections: [[0, 3], [1, 2]],
+  },
+];
+
+const ConstellationBackground = React.memo(function ConstellationBackground() {
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    opacity.value = withDelay(200, withTiming(0.35, { duration: 1200, easing: Easing.out(Easing.ease) }));
+  }, [opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]} pointerEvents="none">
+      <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={StyleSheet.absoluteFill}>
+        {CONSTELLATIONS.map((constellation, cIdx) =>
+          constellation.connections.map(([from, to], connIdx) => {
+            const s1 = constellation.stars[from];
+            const s2 = constellation.stars[to];
+            if (!s1 || !s2) return null;
+            return (
+              <Line
+                key={`c${cIdx}-${connIdx}`}
+                x1={s1.x * SCREEN_WIDTH}
+                y1={s1.y * SCREEN_HEIGHT}
+                x2={s2.x * SCREEN_WIDTH}
+                y2={s2.y * SCREEN_HEIGHT}
+                stroke="rgba(255, 255, 255, 0.2)"
+                strokeWidth={1}
+                strokeLinecap="round"
+              />
+            );
+          })
+        )}
+        {CONSTELLATIONS.flatMap((constellation, cIdx) =>
+          constellation.stars.map((star, sIdx) => (
+            <Circle
+              key={`c${cIdx}-s${sIdx}`}
+              cx={star.x * SCREEN_WIDTH}
+              cy={star.y * SCREEN_HEIGHT}
+              r={1.5}
+              fill="rgba(255, 255, 255, 0.5)"
+            />
+          ))
+        )}
+      </Svg>
+    </Animated.View>
   );
 });
 
@@ -583,6 +675,9 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
           <View style={styles.container}>
         {/* Solid background matching home screen dark mode */}
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1A2332' }]} />
+
+            {/* Constellation background */}
+            <ConstellationBackground />
 
             {/* Sparkled Dots */}
             {sparkledDots.map((dot) => (

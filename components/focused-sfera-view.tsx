@@ -24,6 +24,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
+  InteractionManager,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -136,6 +137,8 @@ export type FocusedSferaViewProps = {
   constellationAmount?: number;
   /** Constellation opacity 0–10. From Personalization settings. */
   constellationOpacity?: number;
+  /** When true, component stays mounted and runs calcs but is invisible (opacity 0, no pointer events). Used for instant back from entity detail. */
+  hidden?: boolean;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -294,9 +297,17 @@ const SparkledDots = React.memo(function SparkledDots({
   sunnyBackground: string;
 }) {
   const { isTablet } = useLargeDevice();
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const handle = InteractionManager.runAfterInteractions(() => {
+      setIsReady(true);
+    });
+    return () => handle.cancel();
+  }, []);
 
   const dots = useMemo(() => {
-    const numDots = isTablet ? 80 : 60;
+    const numDots = isTablet ? 55 : 40;
     const padding = 20;
 
     return Array.from({ length: numDots }, (_, i) => {
@@ -324,6 +335,8 @@ const SparkledDots = React.memo(function SparkledDots({
       return { x, y, size, delay, duration, id: i };
     });
   }, [avatarSize, avatarCenterX, avatarCenterY, isTablet]);
+
+  if (!isReady) return null;
 
   return (
     <>
@@ -444,6 +457,7 @@ const EntityRing = React.memo(function EntityRing({
   showFloatingMoments = false,
   rotateOrbit = false,
   orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
+  randomPulseIndex = null,
 }: {
   uris: string[];
   entityIds: string[];
@@ -459,6 +473,7 @@ const EntityRing = React.memo(function EntityRing({
   showFloatingMoments?: boolean;
   rotateOrbit?: boolean;
   orbitDurationMs?: number;
+  randomPulseIndex?: number | null;
 }) {
   const { isTablet } = useLargeDevice();
   const orbitAngle = useSharedValue(0);
@@ -466,10 +481,8 @@ const EntityRing = React.memo(function EntityRing({
   useEffect(() => {
     if (!rotateOrbit) {
       cancelAnimation(orbitAngle);
-      orbitAngle.value = 0;
       return;
     }
-    cancelAnimation(orbitAngle);
     orbitAngle.value = 0;
     orbitAngle.value = withRepeat(
       withTiming(2 * Math.PI, {
@@ -518,6 +531,7 @@ const EntityRing = React.memo(function EntityRing({
             sphere={sphere}
             orbitAngle={orbitAngle}
             rotateOrbit={rotateOrbit}
+            shouldDoRandomPulse={randomPulseIndex === i}
           />
         );
       })}
@@ -545,6 +559,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   sphere,
   orbitAngle,
   rotateOrbit,
+  shouldDoRandomPulse,
 }: {
   uri: string;
   entityId: string;
@@ -565,9 +580,24 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   sphere: LifeSphere;
   orbitAngle: SharedValue<number>;
   rotateOrbit: boolean;
+  shouldDoRandomPulse: boolean;
 }) {
+  const scale = useSharedValue(1);
+
+  // One-shot pulse when this entity is randomly chosen for periodic pulse
+  useEffect(() => {
+    if (shouldDoRandomPulse) {
+      cancelAnimation(scale);
+      scale.value = withSequence(
+        withSpring(1.1, { damping: 12, stiffness: 150 }),
+        withSpring(1, { damping: 12, stiffness: 150 }),
+      );
+    }
+  }, [shouldDoRandomPulse, scale]);
+
   const animatedStyle = useAnimatedStyle(() => {
-    const angle = baseAngle + (rotateOrbit ? orbitAngle.value : 0);
+    // Always use orbitAngle.value: when orbit stops, it retains last value so entity stays in place
+    const angle = baseAngle + orbitAngle.value;
     const x = centerX + Math.cos(angle) * orbitRadius - avatarSize / 2;
     const y = centerY + Math.sin(angle) * orbitRadius - avatarSize / 2;
     return {
@@ -576,6 +606,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
       top: y,
       width: avatarSize,
       height: avatarSize,
+      transform: [{ scale: scale.value }],
     };
   });
 
@@ -604,7 +635,17 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
           height: avatarSize,
           borderRadius: avatarSize / 2,
         }}
-        onPress={() => entityId && onEntitySelect(entityId, sphere)}
+        onPress={() => {
+          if (entityId) {
+            // Fast one-shot pulse for tap feedback (orbit keeps rotating)
+            cancelAnimation(scale);
+            scale.value = withSequence(
+              withTiming(1.18, { duration: 80, easing: Easing.out(Easing.ease) }),
+              withTiming(1, { duration: 100, easing: Easing.inOut(Easing.ease) }),
+            );
+            onEntitySelect(entityId, sphere);
+          }
+        }}
       >
         {uri ? (
           <Image
@@ -656,6 +697,8 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
 const SPHERE_CONTAINER_SIZE = 320; // Fits orbit extent
 const ORBIT_SLIDE_DURATION = 420;
 
+const RANDOM_ENTITY_PULSE_INTERVAL_MS = 4200;
+
 const AnimatedSphere = React.memo(function AnimatedSphere({
   sphereIdx,
   sphere,
@@ -686,6 +729,21 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   const { isTablet } = useLargeDevice();
   const target = getSphereTarget(sphereIdx, focusedIdx);
   const isFocused = sphereIdx === focusedIdx;
+
+  const [randomPulseIndex, setRandomPulseIndex] = useState<number | null>(null);
+
+  // Periodically pick a random entity to pulse (only when focused)
+  const entityCount = Math.min(entityIds.length, 8);
+  useEffect(() => {
+    if (!isFocused || entityCount === 0) {
+      setRandomPulseIndex(null);
+      return;
+    }
+    const id = setInterval(() => {
+      setRandomPulseIndex(Math.floor(Math.random() * entityCount));
+    }, RANDOM_ENTITY_PULSE_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [isFocused, entityCount]);
 
   const angle = useSharedValue(target.angle);
   const size = useSharedValue(target.size);
@@ -946,6 +1004,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
           showFloatingMoments={isFocused}
           rotateOrbit={isFocused}
           orbitDurationMs={orbitDurationMs}
+          randomPulseIndex={randomPulseIndex}
         />
       </View>
     </Animated.View>
@@ -1398,6 +1457,7 @@ export function FocusedSferaView({
   orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
   constellationAmount = 10,
   constellationOpacity = 10,
+  hidden = false,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
@@ -1494,8 +1554,12 @@ export function FocusedSferaView({
 
   return (
     <View
-      style={[styles.root, { marginTop: rootMarginTop }]}
-      {...panResponder.panHandlers}
+      style={[
+        styles.root,
+        { marginTop: rootMarginTop },
+        hidden && { opacity: 0, pointerEvents: "none" as const },
+      ]}
+      {...(hidden ? {} : panResponder.panHandlers)}
     >
       <ConstellationBackground
         width={SW}

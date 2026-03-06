@@ -4,7 +4,6 @@ import {
     LOG_LEVEL,
     Purchases,
 } from "@/utils/revenuecat-wrapper";
-import { HeaderBackButton } from "@react-navigation/elements";
 import {
     DarkTheme,
     DefaultTheme,
@@ -14,14 +13,16 @@ import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useRef } from "react";
-import { AppState, type AppStateStatus, InteractionManager, Platform } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { AppState, type AppStateStatus, InteractionManager, Platform, View } from "react-native";
 import "react-native-reanimated";
 
+import { HomeTransitionLoaderOverlay } from "@/components/home-transition-loader";
 import { AIInsightsConsentProvider } from "@/utils/AIInsightsConsentProvider";
 import { NotificationNudgePreferenceProvider } from "@/utils/NotificationNudgePreferenceProvider";
 import { initializeAppCheckService, verifyAppCheck } from "@/utils/app-check";
 import { handleDevError } from "@/utils/dev-error-handler";
+import { HomeTransitionLoaderProvider } from "@/utils/home-transition-loader-context";
 import { InAppNotificationProvider } from "@/utils/InAppNotificationProvider";
 import { checkForUpdateAndReload } from "@/utils/updates";
 import { JourneyProvider } from "@/utils/JourneyProvider";
@@ -210,39 +211,18 @@ function AppContent() {
         <Stack.Screen name="insights" options={{ headerShown: false }} />
         <Stack.Screen
           name="notifications"
-          options={{
-            headerShown: true,
-            // Title will be set dynamically in the screen component
-            headerBackTitle: "", // Remove "(tabs)" text from back button
-            headerLeft: (props) => (
-              <HeaderBackButton
-                {...props}
-                onPress={() => {
-                  // Always return to Settings tab
-                  router.replace("/settings");
-                }}
-              />
-            ),
-          }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="notifications/[sphere]/[entityId]"
           options={{
             headerShown: false,
+            animation: "none",
           }}
         />
         <Stack.Screen
           name="moment-notifications"
-          options={{
-            headerShown: true,
-            headerBackTitle: "",
-            headerLeft: (props) => (
-              <HeaderBackButton
-                {...props}
-                onPress={() => router.replace("/notifications")}
-              />
-            ),
-          }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="modal"
@@ -300,9 +280,14 @@ export default function RootLayout() {
                 <NotificationsProvider>
                   <AIInsightsConsentProvider>
                     <NotificationNudgePreferenceProvider>
-                    <InAppNotificationProvider>
-                      <AppContent />
-                    </InAppNotificationProvider>
+                    <HomeTransitionLoaderProvider>
+                      <View style={{ flex: 1 }}>
+                        <InAppNotificationProvider>
+                          <AppContent />
+                        </InAppNotificationProvider>
+                        <HomeTransitionLoaderOverlay />
+                      </View>
+                    </HomeTransitionLoaderProvider>
                     </NotificationNudgePreferenceProvider>
                   </AIInsightsConsentProvider>
                 </NotificationsProvider>

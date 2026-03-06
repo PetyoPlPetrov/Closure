@@ -1,4 +1,5 @@
 import { AIInsightsConsentModal } from "@/components/ai-insights-consent-modal";
+import { PulsingPressable } from "@/components/pulsing-pressable";
 import ShareModal from "@/components/ShareModal";
 import { StreakBadgeComponent } from "@/components/streak-badge";
 import { StreakModal } from "@/components/streak-modal";
@@ -48,6 +49,7 @@ import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
+import { onHomeTabPress } from "@/utils/home-tab-press";
 import {
   requestSpheresTabPulse,
   stopSpheresTabPulse,
@@ -494,8 +496,6 @@ const FloatingAvatar = React.memo(
   }) {
     const { momentColors } = useMomentColors();
     const aiConsent = useAIInsightsConsent();
-    const { showLoader: startTransitionLoader, hideLoader } =
-      useHomeTransitionLoader() ?? { showLoader: () => {}, hideLoader: () => {} };
     const { hasAIEntitlement } = useSubscription();
     const { appUsabilityHints } = useVisualSettings();
     const t = useTranslate();
@@ -1392,8 +1392,8 @@ const FloatingAvatar = React.memo(
     ]);
     // Note: selectedMomentType is intentionally NOT in dependencies to avoid restarting animations when icon selection changes
 
-    // Notify parent when entity wheel state changes
-    React.useEffect(() => {
+    // Notify parent when entity wheel state changes (useLayoutEffect so scroll is disabled before paint)
+    React.useLayoutEffect(() => {
       if (onEntityWheelChange) {
         onEntityWheelChange(showEntityWheel && isFocused);
       }
@@ -2175,6 +2175,7 @@ const FloatingAvatar = React.memo(
     }, [memories, profile.id, lang, hasAIEntitlement]);
 
     // Start entity wheel spin (used after rate-limit check for lessons)
+    // Even smallest drag triggers a smooth 2.5s+ spin; larger drags scale up rotation
     const startEntityWheelSpin = React.useCallback(
       (velocity: number) => {
         setSelectedMomentType("lesson"); // Force lesson mode when spin starts (ignore current filter)
@@ -2183,46 +2184,56 @@ const FloatingAvatar = React.memo(
         isWheelSpinning.value = true;
         runOnJS(setIsWheelSpinningState)(true);
         const velocityMagnitude = Math.abs(velocity);
-        const momentumMultiplier =
-          15.0 + Math.min(velocityMagnitude * 4, 30.0);
-        const amplifiedVelocity = velocity * momentumMultiplier;
+        const sign = velocity >= 0 ? 1 : -1;
 
-        if (Math.abs(velocity) > 0.05) {
-          const targetAngle = orbitAngle.value + amplifiedVelocity * 2.3;
-          orbitAngle.value = withSequence(
-            withTiming(targetAngle, {
-              duration: 3000,
-              easing: Easing.out(Easing.cubic),
-            }),
-            withTiming(targetAngle, { duration: 0 }, (finished) => {
-              "worklet";
-              if (finished) {
-                isWheelSpinning.value = false;
-                runOnJS(setIsWheelSpinningState)(false);
-                runOnJS(selectRandomMoment)();
-                orbitAngle.value = withRepeat(
-                  withTiming(orbitAngle.value + 360, {
-                    duration: orbitDurationMs,
-                    easing: Easing.linear,
-                  }),
-                  -1,
-                  false,
-                );
-              }
-            }),
+        const MIN_ROTATION_DEG = 540; // 1.5 full rotations for tiny drags
+        const MIN_DURATION_MS = 2500;
+
+        let targetRotation: number;
+        let durationMs: number;
+
+        if (velocityMagnitude > 0.01) {
+          const momentumMultiplier =
+            20.0 + Math.min(velocityMagnitude * 8, 50.0);
+          const amplifiedVelocity = velocity * momentumMultiplier;
+          const rawRotation = amplifiedVelocity * 3.0;
+          targetRotation =
+            Math.abs(rawRotation) >= MIN_ROTATION_DEG
+              ? rawRotation
+              : sign * MIN_ROTATION_DEG;
+          durationMs = Math.max(
+            MIN_DURATION_MS,
+            Math.min(4500, 2500 + velocityMagnitude * 120),
           );
         } else {
-          isWheelSpinning.value = false;
-          runOnJS(setIsWheelSpinningState)(false);
-          orbitAngle.value = withRepeat(
-            withTiming(orbitAngle.value + 360, {
-              duration: orbitDurationMs,
-              easing: Easing.linear,
-            }),
-            -1,
-            false,
-          );
+          // Smallest drag or tap: guaranteed satisfying spin (1.5 rotations, 2.5s)
+          targetRotation = sign * MIN_ROTATION_DEG;
+          durationMs = MIN_DURATION_MS;
         }
+
+        const targetAngle = orbitAngle.value + targetRotation;
+        orbitAngle.value = withSequence(
+          withTiming(targetAngle, {
+            duration: durationMs,
+            easing: Easing.out(Easing.cubic), // Start at release speed, decelerate to stop — feels like continuation of drag
+          }),
+          withTiming(targetAngle, { duration: 0 }, (finished) => {
+            "worklet";
+            if (finished) {
+              isWheelSpinning.value = false;
+              runOnJS(setIsWheelSpinningState)(false);
+              runOnJS(selectRandomMoment)();
+              orbitAngle.value = withRepeat(
+                withTiming(orbitAngle.value + 360, {
+                  duration: orbitDurationMs,
+                  easing: Easing.linear,
+                }),
+                -1,
+                false,
+              );
+            }
+          }),
+        );
         wheelVelocity.value = 0;
       },
       [
@@ -2600,19 +2611,16 @@ const FloatingAvatar = React.memo(
           // Increment frame counter for acceleration
           wheelDragFrameCount.value += 1;
 
-          // Acceleration curve: start slow, then speed up (same as main wheel)
-          // Use frame count to simulate time (assuming ~60fps, 45 frames = ~750ms)
-          const targetFrames = 45; // Frames to reach full speed (slower acceleration)
+          // Reach full sensitivity in ~80ms so wheel feels directly connected to finger
+          const targetFrames = 5;
           const accelerationFactor = Math.min(
             1,
             wheelDragFrameCount.value / targetFrames,
           );
-          // Apply easing curve for smoother acceleration (ease-out cubic)
           const easedAcceleration = 1 - Math.pow(1 - accelerationFactor, 3);
 
-          // Apply acceleration to delta angle
-          // Start at 30% speed, gradually reach 80% over ~750ms (reduced max speed)
-          const acceleratedDelta = deltaAngle * (0.3 + easedAcceleration * 0.5);
+          // Start at 80%, reach 100% in 5 frames — immediate response, smooth continuation
+          const acceleratedDelta = deltaAngle * (0.8 + easedAcceleration * 0.2);
 
           // Convert to degrees for orbitAngle
           const deltaDeg = (acceleratedDelta * 180) / Math.PI;
@@ -2624,7 +2632,14 @@ const FloatingAvatar = React.memo(
         onPanResponderRelease: () => {
           wheelDragFrameCount.value = 0;
           const velocity = wheelVelocity.value;
-          // Always use lesson exam flow (rate limit, preloaded questions)
+          // Immediate continuation: keep wheel moving at release velocity while async runs
+          // Use higher multiplier so small drags also feel continuous (avoids "slow then sudden" handoff)
+          const continuationDeg = velocity * 250;
+          orbitAngle.value = withTiming(orbitAngle.value + continuationDeg, {
+            duration: 400,
+            easing: Easing.linear,
+          });
+          // Lesson exam flow (rate limit, paywall) — startEntityWheelSpin will take over when ready
           void handleEntityWheelReleaseForLesson(velocity);
         },
       });
@@ -3028,7 +3043,10 @@ const FloatingAvatar = React.memo(
                   if (!dragStartedRef.current && !isDragging.value) {
                     // If entity is focused, toggle entity wheel mode
                     if (isFocused) {
-                      setShowEntityWheel(!showEntityWheel);
+                      const nextWheelState = !showEntityWheel;
+                      setShowEntityWheel(nextWheelState);
+                      // Disable scroll immediately so wheel drag works (avoids ScrollView capturing vertical gestures)
+                      onEntityWheelChange?.(nextWheelState);
                     } else {
                       onPress();
                     }
@@ -4155,10 +4173,9 @@ const FloatingAvatar = React.memo(
                   setExpandedMomentId(id);
                 }}
                 onCollapse={() => setExpandedMomentId(null)}
-                onMemoryImagePress={
+                  onMemoryImagePress={
                   onMemoryFocus && moment.entityId && moment.memoryId && moment.sphere
                     ? () => {
-                        startTransitionLoader();
                         requestAnimationFrame(() => {
                           setTimeout(() => {
                             setExpandedMomentId(null);
@@ -4172,7 +4189,6 @@ const FloatingAvatar = React.memo(
                             if (onEntityWheelChange) {
                               onEntityWheelChange(false);
                             }
-                            hideLoader();
                           }, 120);
                         });
                       }
@@ -12551,6 +12567,17 @@ export default function HomeScreen() {
   const [isAnyEntityWheelActive, setIsAnyEntityWheelActive] =
     useState<boolean>(false);
 
+  // Disable scroll when any entity is focused OR wheel is active (avoids ScrollView stealing wheel drag gestures)
+  const hasFocusedEntity =
+    !!(
+      focusedProfileId ||
+      focusedJobId ||
+      focusedFamilyMemberId ||
+      focusedFriendId ||
+      focusedHobbyId
+    );
+  const scrollEnabledForSphere = !hasFocusedEntity && !isAnyEntityWheelActive;
+
   const hasFocusedView =
     !!(
       focusedMemory ||
@@ -12568,9 +12595,7 @@ export default function HomeScreen() {
     prevHasFocusedViewRef.current = hasFocusedView;
     if (wasFocused && !hasFocusedView && cameFromFocusedSferaForEntityRef.current) {
       cameFromFocusedSferaForEntityRef.current = false;
-      startTransitionLoader();
       setHomeViewMode("focused");
-      hideLoader();
     }
   }, [
     hasFocusedView,
@@ -12581,97 +12606,64 @@ export default function HomeScreen() {
     focusedFamilyMemberId,
     focusedFriendId,
     focusedHobbyId,
-    startTransitionLoader,
-    hideLoader,
   ]);
 
-  // Track if home screen was already focused to detect when user presses home tab while already on home
-  const isHomeFocusedRef = useRef<boolean>(false);
   // When true: already on focused view with no selection — tab press should no-op (no loader, no state updates)
   const tabPressNoOpRef = useRef(false);
-  const navigation = useNavigation();
 
-  // Listen for tab press events using navigation listeners
-  useFocusEffect(
-    React.useCallback(() => {
-      // Listen for tab press events
-      const unsubscribe = navigation.addListener("tabPress" as any, () => {
-        // When Home tab is pressed (including when already on Home), always show Focused view
-        const hasFocusedView = !!(
-          focusedMemory ||
-          selectedSphere ||
-          focusedProfileId ||
-          focusedJobId ||
-          focusedFamilyMemberId ||
-          focusedFriendId ||
-          focusedHobbyId
-        );
+  // Subscribe to Home tab button press (fires even when already on Home — tabPress may not)
+  useEffect(() => {
+    const handleHomeTabPress = () => {
+      const hasFocusedView = !!(
+        focusedMemory ||
+        selectedSphere ||
+        focusedProfileId ||
+        focusedJobId ||
+        focusedFamilyMemberId ||
+        focusedFriendId ||
+        focusedHobbyId
+      );
 
-        if (hasFocusedView) {
-          // Clear entity selection and show Focused view
-          startTransitionLoader();
-          requestAnimationFrame(() => {
-            setTimeout(() => {
-              setFocusedMemory(null);
-              setSelectedSphere(null);
-              setFocusedProfileId(null);
-              setFocusedJobId(null);
-              setFocusedFamilyMemberId(null);
-              setFocusedFriendId(null);
-              setFocusedHobbyId(null);
-              setAnimationsComplete(false);
-              setShowMomentTypeSelector(false);
-              setHomeViewMode("focused");
-              router.replace("/");
-              hideLoader();
-            }, 80);
-          });
-        } else {
-          // Already on Home with no selection — if we're already showing Focused view, no work needed.
-          // Just let the Home tab button's pulse animation provide feedback; skip loader and state updates.
-          if (tabPressNoOpRef.current) {
-            return;
-          }
-          // Not yet in focused view — transition to it
-          startTransitionLoader();
-          requestAnimationFrame(() => {
-            setTimeout(() => {
-              setHomeViewMode("focused");
-              setShowMomentTypeSelector(false);
-              hideLoader();
-            }, 80);
-          });
-        }
-      });
-
-      // Mark that home screen is now focused
-      isHomeFocusedRef.current = true;
-
-      return () => {
-        unsubscribe();
-        // When leaving home tab, reset the ref
-        isHomeFocusedRef.current = false;
-      };
-    }, [
-      navigation,
-      startTransitionLoader,
-      hideLoader,
-      focusedMemory,
-      selectedSphere,
-      focusedProfileId,
-      focusedJobId,
-      focusedFamilyMemberId,
-      focusedFriendId,
-      focusedHobbyId,
-    ]),
-  );
+      if (hasFocusedView) {
+        startTransitionLoader();
+        setFocusedMemory(null);
+        setSelectedSphere(null);
+        setFocusedProfileId(null);
+        setFocusedJobId(null);
+        setFocusedFamilyMemberId(null);
+        setFocusedFriendId(null);
+        setFocusedHobbyId(null);
+        setAnimationsComplete(false);
+        setShowMomentTypeSelector(false);
+        setHomeViewMode("focused");
+        router.replace("/");
+        hideLoader();
+      } else {
+        if (tabPressNoOpRef.current) return;
+        startTransitionLoader();
+        setHomeViewMode("focused");
+        setShowMomentTypeSelector(false);
+        hideLoader();
+      }
+    };
+    return onHomeTabPress(handleHomeTabPress);
+  }, [
+    startTransitionLoader,
+    hideLoader,
+    focusedMemory,
+    selectedSphere,
+    focusedProfileId,
+    focusedJobId,
+    focusedFamilyMemberId,
+    focusedFriendId,
+    focusedHobbyId,
+  ]);
 
   // Handle hardware back button when in Focused view - stay in Focused (clear any selection, or let default back happen)
   useEffect(() => {
     if (homeViewMode !== "focused") return;
 
     const handleBackPress = () => {
-      startTransitionLoader();
       requestAnimationFrame(() => {
         setTimeout(() => {
           setFocusedMemory(null);
@@ -12684,15 +12676,14 @@ export default function HomeScreen() {
           setAnimationsComplete(false);
           setShowMomentTypeSelector(false);
           setHomeViewMode("focused");
-          hideLoader();
-        }, 80);
+        }, 0);
       });
       return true; // Prevent default (e.g. exiting app or going back in stack)
     };
 
     const sub = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
     return () => sub.remove();
-  }, [homeViewMode, startTransitionLoader, hideLoader, focusedSphereIndex]);
+  }, [homeViewMode, focusedSphereIndex]);
 
   // Zoom progress for sphere animations (0 = normal view, 1 = zoomed in/out)
   const sphereZoomProgress = useSharedValue(0);
@@ -12813,6 +12804,15 @@ export default function HomeScreen() {
     return nextCount;
   };
 
+  /** Reset today's request count when cache was lost (allows retry). */
+  const resetEncouragementRequestCountForToday = async () => {
+    const today = getLocalDateString();
+    await AsyncStorage.setItem(
+      ENCOURAGEMENT_REQUESTS_KEY,
+      JSON.stringify({ date: today, count: 0 }),
+    );
+  };
+
   /**
    * Store today's batch of AI encouragement messages (from single daily request).
    * Messages are automatically cleared when the date changes to avoid unneeded storage.
@@ -12917,7 +12917,9 @@ export default function HomeScreen() {
     let cancelled = false;
 
     const run = async () => {
-      if (!hasAnyMoments || !isEncouragementVisible || !notificationNudgeEnabled) return;
+      if (!hasAnyMoments || !isEncouragementVisible || !notificationNudgeEnabled) {
+        return;
+      }
 
       // Prevent duplicate concurrent calls
       if (encouragementRequestInProgressRef.current) {
@@ -12926,7 +12928,9 @@ export default function HomeScreen() {
 
       // Gate AI usage behind explicit consent.
       const consent = aiConsent.choice;
-      if (!aiConsent.isLoaded) return;
+      if (!aiConsent.isLoaded) {
+        return;
+      }
       if (consent !== "enabled") {
         // Only show the prompt once automatically; otherwise silently fallback.
         if (consent === null && !aiInsightsConsentPromptedRef.current) {
@@ -13048,19 +13052,17 @@ export default function HomeScreen() {
             setAiEncouragementLoading(false);
             lastEncouragementCacheKeyRef.current = thresholdKey;
           } else if (!cancelled) {
-            setAiEncouragementText(null);
-            setAiEncouragementLoading(false);
-            setAiEncouragementError(true);
+            // Cache lost (e.g. request failed before store, or storage cleared) — reset count and retry
+            await resetEncouragementRequestCountForToday();
+            // Fall through to make a new request
+          } else {
+            return;
           }
-          return;
         }
 
         encouragementRequestInProgressRef.current = true;
 
         try {
-          // Count this as today's AI request before calling the model
-          await incrementEncouragementRequestCount();
-
           const resp = await processHomeEncouragementPrompt({
             overallSunnyPercentage,
             sunnyMomentsCount: sunnyMoments.length,
@@ -13084,6 +13086,9 @@ export default function HomeScreen() {
 
           // Store all messages from today's batch
           await storeTodayEncouragementMessages(messages);
+
+          // Only count the request after successful store (avoids count=1 with no cache if request failed)
+          await incrementEncouragementRequestCount();
 
           // Pick a random message to display now
           const randomMessage =
@@ -14963,19 +14968,16 @@ export default function HomeScreen() {
           // Increment frame counter for acceleration
           dragFrameCount.value += 1;
 
-          // Acceleration curve: start slow, then speed up
-          // Use frame count to simulate time (assuming ~60fps, 30 frames = ~500ms)
-          const targetFrames = 30; // Frames to reach full speed
+          // Reach full sensitivity in ~80ms so wheel feels directly connected to finger (matches entity wheel)
+          const targetFrames = 5;
           const accelerationFactor = Math.min(
             1,
             dragFrameCount.value / targetFrames,
           );
-          // Apply easing curve for smoother acceleration (ease-out cubic)
           const easedAcceleration = 1 - Math.pow(1 - accelerationFactor, 3);
 
-          // Apply acceleration to delta angle
-          // Start at 40% speed, gradually reach 100% over ~500ms
-          const acceleratedDelta = deltaAngle * (0.4 + easedAcceleration * 0.6);
+          // Start at 80%, reach 100% in 5 frames — immediate response, smooth continuation
+          const acceleratedDelta = deltaAngle * (0.8 + easedAcceleration * 0.2);
 
           wheelRotation.value += acceleratedDelta;
           wheelVelocity.value = acceleratedDelta; // Track velocity for momentum
@@ -14984,8 +14986,20 @@ export default function HomeScreen() {
         onPanResponderRelease: () => {
           isDragging.value = false;
           dragFrameCount.value = 0;
-          // Start momentum spin if there's significant velocity — always use lesson exam (rate limit check)
-          if (Math.abs(wheelVelocity.value) > 0.01) {
+          let velocity = wheelVelocity.value;
+          // Minimum velocity for tiny drags — ensures satisfying spin (matches entity wheel)
+          const MIN_VELOCITY = 0.02;
+          if (Math.abs(velocity) > 0.001 && Math.abs(velocity) < MIN_VELOCITY) {
+            velocity = (velocity >= 0 ? 1 : -1) * MIN_VELOCITY;
+          }
+          // Immediate continuation: keep wheel moving at release velocity while async runs (matches entity wheel)
+          const continuationMultiplier = 2.0;
+          if (Math.abs(velocity) > 0.001) {
+            isWheelSpinning.value = true;
+            wheelVelocity.value = velocity * continuationMultiplier;
+          }
+          // Start momentum spin — even smallest drag gets minimum boost; always use lesson exam (rate limit check)
+          if (Math.abs(velocity) > 0.001) {
             // Block spin if AI is not enabled — show consent modal first
             if (!aiConsent.isEnabled) {
               setAiInsightsConsentVisible(true);
@@ -16822,6 +16836,9 @@ export default function HomeScreen() {
             });
           }}
           yearSection={yearSection}
+          onEntityWheelChange={(isActive) =>
+            setIsAnyEntityWheelActive(isActive)
+          }
           orbitDurationMs={orbitDurationMs}
           onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
@@ -16941,6 +16958,9 @@ export default function HomeScreen() {
             }
             updateFamilyMemberPosition(member.id, { x, y });
           }}
+          onEntityWheelChange={(isActive) =>
+            setIsAnyEntityWheelActive(isActive)
+          }
           orbitDurationMs={orbitDurationMs}
           onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
@@ -17060,6 +17080,9 @@ export default function HomeScreen() {
             }
             updateFriendPosition(friend.id, { x, y });
           }}
+          onEntityWheelChange={(isActive) =>
+            setIsAnyEntityWheelActive(isActive)
+          }
           orbitDurationMs={orbitDurationMs}
           onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
@@ -17176,6 +17199,9 @@ export default function HomeScreen() {
             }
             updateHobbyPosition(hobby.id, { x, y });
           }}
+          onEntityWheelChange={(isActive) =>
+            setIsAnyEntityWheelActive(isActive)
+          }
           orbitDurationMs={orbitDurationMs}
           onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
@@ -17436,6 +17462,86 @@ export default function HomeScreen() {
   const baseAvatarSize = isTablet ? 180 : 140; // Increased from 120 to 140
   const avatarSizeForDots = baseAvatarSize; // Use base size for dots positioning
 
+  // Keep FocusedSferaView mounted when in entity detail so back press is instant (no remount).
+  const showEntityDetail = !!selectedSphere;
+  const keepFocusedSferaMounted = homeViewMode === "focused" || showEntityDetail;
+  const focusedSferaLayer = keepFocusedSferaMounted ? (
+    <View
+      key="focused-sfera-layer"
+      style={[
+        StyleSheet.absoluteFillObject,
+        { zIndex: showEntityDetail ? 0 : 10 },
+        showEntityDetail && { opacity: 0, pointerEvents: "none" as const },
+      ]}
+      collapsable={false}
+    >
+      <View style={{ flex: 1 }}>
+        <FocusedSferaView
+          overallSunnyPercentage={overallSunnyPercentage}
+          onSphereSelect={(sphere) => {
+            setFocusedMemory(null);
+            setFocusedProfileId(null);
+            setFocusedJobId(null);
+            setFocusedFamilyMemberId(null);
+            setFocusedFriendId(null);
+            setFocusedHobbyId(null);
+            setAnimationsComplete(false);
+            setSelectedSphere(sphere);
+          }}
+          onEntitySelect={(entityId, sphere) => {
+            cameFromFocusedSferaForEntityRef.current = true;
+            setFocusedMemory(null);
+            setSelectedSphere(sphere);
+            setFocusedProfileId(sphere === "relationships" ? entityId : null);
+            setFocusedJobId(sphere === "career" ? entityId : null);
+            setFocusedFamilyMemberId(sphere === "family" ? entityId : null);
+            setFocusedFriendId(sphere === "friends" ? entityId : null);
+            setFocusedHobbyId(sphere === "hobbies" ? entityId : null);
+            setAnimationsComplete(false);
+            setHomeViewMode("focused");
+          }}
+          onSwitchToClassic={() => {
+            startTransitionLoader();
+            setTimeout(
+              () => setIsEncouragementVisible(true),
+              ENCOURAGEMENT_DELAY_MS,
+            );
+            // Defer heavy state updates so loader can paint and main thread doesn't block.
+            // Mounting the full Classic view synchronously can freeze the app on real devices (TestFlight).
+            // rAF + setTimeout(0) yields to event loop so loader paints before heavy mount.
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                setFocusedMemory(null);
+                setFocusedProfileId(null);
+                setFocusedJobId(null);
+                setFocusedFamilyMemberId(null);
+                setFocusedFriendId(null);
+                setFocusedHobbyId(null);
+                setSelectedSphere(null);
+                setAnimationsComplete(false);
+                setShowMomentTypeSelector(true);
+                setHomeViewMode("classic");
+                hideLoader();
+              }, 0);
+            });
+          }}
+          colorScheme={colorScheme ?? "dark"}
+          getSphereSunnyPercentage={getSphereSunnyPercentage}
+          entityImageUrisBySphere={entityImageUrisBySphere}
+          entityIdsBySphere={entityIdsBySphere}
+          entityNamesBySphere={entityNamesBySphere}
+          memoriesPerEntityBySphere={memoriesPerEntityBySphere}
+          initialFocusedIdx={focusedSphereIndex}
+          onFocusedSphereChange={handleFocusedSphereChange}
+          orbitDurationMs={orbitDurationMs}
+          constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
+          hidden={showEntityDetail}
+        />
+      </View>
+    </View>
+  ) : null;
+
   if (!selectedSphere) {
     // ─── FocusedSferas view: one sphere in focus, others on orbit ───
     // When focused, only this branch is rendered; classic view (wheel of life) is not in the tree.
@@ -17481,79 +17587,7 @@ export default function HomeScreen() {
               nextBadge={nextBadge}
             />
           )}
-          <View style={{ flex: 1 }}>
-            <FocusedSferaView
-              overallSunnyPercentage={overallSunnyPercentage}
-              onSphereSelect={(sphere) => {
-                setFocusedMemory(null);
-                setFocusedProfileId(null);
-                setFocusedJobId(null);
-                setFocusedFamilyMemberId(null);
-                setFocusedFriendId(null);
-                setFocusedHobbyId(null);
-                setAnimationsComplete(false);
-                setSelectedSphere(sphere);
-              }}
-              onEntitySelect={(entityId, sphere) => {
-                // Start loader first so it's visible and animating before the redirect
-                startTransitionLoader();
-                requestAnimationFrame(() => {
-                  setTimeout(() => {
-                    cameFromFocusedSferaForEntityRef.current = true;
-                    setFocusedMemory(null);
-                    setSelectedSphere(sphere);
-                    setFocusedProfileId(sphere === "relationships" ? entityId : null);
-                    setFocusedJobId(sphere === "career" ? entityId : null);
-                    setFocusedFamilyMemberId(sphere === "family" ? entityId : null);
-                    setFocusedFriendId(sphere === "friends" ? entityId : null);
-                    setFocusedHobbyId(sphere === "hobbies" ? entityId : null);
-                    setAnimationsComplete(false);
-                    setHomeViewMode("focused");
-                    hideLoader();
-                  }, 80);
-                });
-              }}
-              onSwitchToClassic={() => {
-                // Sunny Life avatar tap - switch to Classic view (wheel of life)
-                startTransitionLoader();
-                // useFocusEffect only runs on tab focus, not when switching view modes. After dismiss,
-                // isEncouragementVisible stays false. Re-enable nudge when opening Classic so it can show again.
-                setTimeout(
-                  () => setIsEncouragementVisible(true),
-                  ENCOURAGEMENT_DELAY_MS,
-                );
-                // Run immediately on next tick. Previously used InteractionManager.runAfterInteractions
-                // which could block for several seconds when the focused view has many Reanimated
-                // animations (orbiting spheres, floating moments, pulse). With notification nudge
-                // enabled, the parent has more state/effects and runAfterInteractions would fire
-                // very late or the main thread stayed busy. setTimeout(0) ensures we switch promptly.
-                requestAnimationFrame(() => {
-                  setFocusedMemory(null);
-                  setFocusedProfileId(null);
-                  setFocusedJobId(null);
-                  setFocusedFamilyMemberId(null);
-                  setFocusedFriendId(null);
-                  setFocusedHobbyId(null);
-                  setSelectedSphere(null);
-                  setAnimationsComplete(false);
-                  setShowMomentTypeSelector(true);
-                  setHomeViewMode("classic");
-                  hideLoader();
-                });
-              }}
-              colorScheme={colorScheme ?? "dark"}
-              getSphereSunnyPercentage={getSphereSunnyPercentage}
-              entityImageUrisBySphere={entityImageUrisBySphere}
-              entityIdsBySphere={entityIdsBySphere}
-              entityNamesBySphere={entityNamesBySphere}
-              memoriesPerEntityBySphere={memoriesPerEntityBySphere}
-              initialFocusedIdx={focusedSphereIndex}
-              onFocusedSphereChange={handleFocusedSphereChange}
-              orbitDurationMs={orbitDurationMs}
-              constellationAmount={constellationAmount}
-              constellationOpacity={constellationOpacity}
-            />
-          </View>
+          {focusedSferaLayer}
 
           {/* Onboarding Stepper - same as Classic view when no entities */}
           <OnboardingStepper
@@ -18833,11 +18867,9 @@ export default function HomeScreen() {
                   onPress={() => {
                     // Switch to FocusedSferas view after press feedback
                     startTransitionLoader();
-                    requestAnimationFrame(() => {
-                      setShowMomentTypeSelector(false);
-                      setHomeViewMode("focused");
-                      hideLoader();
-                    });
+                    setShowMomentTypeSelector(false);
+                    setHomeViewMode("focused");
+                    hideLoader();
                   }}
                   style={{
                     width: "100%",
@@ -19786,7 +19818,6 @@ export default function HomeScreen() {
                 onMemoryImagePress={
                   moment.entityId && moment.memoryId && moment.sphere
                     ? () => {
-                        startTransitionLoader();
                         requestAnimationFrame(() => {
                           setTimeout(() => {
                             setExpandedMomentId(null);
@@ -19814,7 +19845,6 @@ export default function HomeScreen() {
                               setSelectedSphere("hobbies");
                               setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
                             }
-                            hideLoader();
                           }, 120);
                         });
                       }
@@ -19883,7 +19913,6 @@ export default function HomeScreen() {
                         momentData?.memoryId &&
                         momentData?.sphere
                           ? () => {
-                              startTransitionLoader();
                               requestAnimationFrame(() => {
                                 setTimeout(() => {
                                   setExpandedMomentId(null);
@@ -19912,7 +19941,6 @@ export default function HomeScreen() {
                                     setSelectedSphere("hobbies");
                                     setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
                                   }
-                                  hideLoader();
                                 }, 120);
                               });
                             }
@@ -20236,6 +20264,44 @@ export default function HomeScreen() {
     // Use the existing sortedProfiles and year sections logic
     return (
       <TabScreenContainer>
+        {hasAnyMoments && (
+          <AIInsightsConsentModal
+            visible={aiInsightsConsentVisible}
+            onEnable={() => {
+              setAiInsightsConsentVisible(false);
+              setAiEncouragementText(null);
+              setEncouragementCacheBust((x) => x + 1);
+              void aiConsent.setChoice("enabled");
+            }}
+            onMaybeLater={() => {
+              setAiInsightsConsentVisible(false);
+              setAiEncouragementText(null);
+              setAiEncouragementLoading(false);
+            }}
+          />
+        )}
+        {streakData && (
+          <StreakBadgeComponent
+            currentStreak={streakData.currentStreak}
+            currentBadge={currentBadge}
+            onPress={() => setStreakRulesModalVisible(true)}
+            onLongPress={() => setStreakModalVisible(true)}
+          />
+        )}
+        <StreakRulesModal
+          visible={streakRulesModalVisible}
+          onClose={() => setStreakRulesModalVisible(false)}
+        />
+        {streakData && (
+          <StreakModal
+            visible={streakModalVisible}
+            onClose={() => setStreakModalVisible(false)}
+            streakData={streakData}
+            currentBadge={currentBadge}
+            nextBadge={nextBadge}
+          />
+        )}
+        {focusedSferaLayer}
         <ConstellationBackground
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
@@ -20253,7 +20319,7 @@ export default function HomeScreen() {
           />
 
           {/* Back button to return to sphere view */}
-          <Pressable
+          <PulsingPressable
             onPress={() => {
               // Check if we came from a detail view (insights)
               const returnTo = params.returnTo as string | undefined;
@@ -20265,8 +20331,6 @@ export default function HomeScreen() {
                 return;
               }
 
-              // Start loader before the redirect so it's visible during the slow calc
-              startTransitionLoader();
               requestAnimationFrame(() => {
                 setTimeout(() => {
                   // Default behavior - unfocus memory/profile
@@ -20289,8 +20353,7 @@ export default function HomeScreen() {
                     setFocusedJobId(null);
                     setSelectedSphere(null);
                   }
-                  hideLoader();
-                }, 80);
+                }, 0);
               });
             }}
             style={{
@@ -20316,7 +20379,7 @@ export default function HomeScreen() {
               size={isTablet ? 36 : 24}
               color={colors.text}
             />
-          </Pressable>
+          </PulsingPressable>
 
           {/* Year title below back arrow - shown when partner/job is focused */}
           {!focusedMemory &&
@@ -20525,7 +20588,7 @@ export default function HomeScreen() {
             })()}
 
           <ScrollView
-            scrollEnabled={!isAnyEntityWheelActive}
+            scrollEnabled={scrollEnabledForSphere}
             style={[
               styles.content,
               {
@@ -20617,6 +20680,7 @@ export default function HomeScreen() {
   if (selectedSphere === "career") {
     return (
       <TabScreenContainer>
+        {focusedSferaLayer}
         <ConstellationBackground
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
@@ -20633,7 +20697,7 @@ export default function HomeScreen() {
           />
 
           {/* Back button to return to sphere view */}
-          <Pressable
+          <PulsingPressable
             onPress={() => {
               // Check if we came from a detail view (insights)
               const returnTo = params.returnTo as string | undefined;
@@ -20644,7 +20708,6 @@ export default function HomeScreen() {
                 return;
               }
 
-              startTransitionLoader();
               requestAnimationFrame(() => {
                 setTimeout(() => {
                   if (focusedMemory) {
@@ -20660,8 +20723,7 @@ export default function HomeScreen() {
                   } else {
                     setSelectedSphere(null);
                   }
-                  hideLoader();
-                }, 80);
+                }, 0);
               });
             }}
             style={{
@@ -20687,7 +20749,7 @@ export default function HomeScreen() {
               size={isTablet ? 36 : 24}
               color={colors.text}
             />
-          </Pressable>
+          </PulsingPressable>
 
           {/* Year title below back arrow - shown when partner/job is focused */}
           {!focusedMemory &&
@@ -20896,7 +20958,7 @@ export default function HomeScreen() {
             })()}
 
           <ScrollView
-            scrollEnabled={!isAnyEntityWheelActive}
+            scrollEnabled={scrollEnabledForSphere}
             style={[
               styles.content,
               {
@@ -21184,6 +21246,7 @@ export default function HomeScreen() {
   if (selectedSphere === "family") {
     return (
       <TabScreenContainer>
+        {focusedSferaLayer}
         <ConstellationBackground
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
@@ -21208,7 +21271,7 @@ export default function HomeScreen() {
           />
 
           {/* Back button to return to sphere view */}
-          <Pressable
+          <PulsingPressable
             onPress={() => {
               // Check if we came from a detail view (insights)
               const returnTo = params.returnTo as string | undefined;
@@ -21219,7 +21282,6 @@ export default function HomeScreen() {
                 return;
               }
 
-              startTransitionLoader();
               requestAnimationFrame(() => {
                 setTimeout(() => {
                   if (focusedMemory) {
@@ -21243,8 +21305,7 @@ export default function HomeScreen() {
                     setFocusedFamilyMemberId(null);
                     setSelectedSphere(null);
                   }
-                  hideLoader();
-                }, 80);
+                }, 0);
               });
             }}
             style={{
@@ -21270,7 +21331,7 @@ export default function HomeScreen() {
               size={isTablet ? 36 : 24}
               color={colors.text}
             />
-          </Pressable>
+          </PulsingPressable>
 
           {/* Year title below back arrow - shown when partner/job is focused */}
           {!focusedMemory &&
@@ -21651,6 +21712,7 @@ export default function HomeScreen() {
   if (selectedSphere === "friends") {
     return (
       <TabScreenContainer>
+        {focusedSferaLayer}
         <ConstellationBackground
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
@@ -21671,7 +21733,7 @@ export default function HomeScreen() {
           />
 
           {/* Back button to return to sphere view */}
-          <Pressable
+          <PulsingPressable
             onPress={() => {
               const returnTo = params.returnTo as string | undefined;
               const returnToId = params.returnToId as string | undefined;
@@ -21681,7 +21743,6 @@ export default function HomeScreen() {
                 return;
               }
 
-              startTransitionLoader();
               requestAnimationFrame(() => {
                 setTimeout(() => {
                   if (focusedMemory) {
@@ -21705,8 +21766,7 @@ export default function HomeScreen() {
                     setFocusedHobbyId(null);
                     setSelectedSphere(null);
                   }
-                  hideLoader();
-                }, 80);
+                }, 0);
               });
             }}
             style={{
@@ -21732,7 +21792,7 @@ export default function HomeScreen() {
               size={isTablet ? 36 : 24}
               color={colors.text}
             />
-          </Pressable>
+          </PulsingPressable>
 
           {/* Year title below back arrow - shown when partner/job is focused */}
           {!focusedMemory &&
@@ -22115,6 +22175,7 @@ export default function HomeScreen() {
   if (selectedSphere === "hobbies") {
     return (
       <TabScreenContainer>
+        {focusedSferaLayer}
         <ConstellationBackground
           width={SCREEN_WIDTH}
           height={SCREEN_HEIGHT}
@@ -22135,7 +22196,7 @@ export default function HomeScreen() {
           />
 
           {/* Back button to return to sphere view */}
-          <Pressable
+          <PulsingPressable
             onPress={() => {
               const returnTo = params.returnTo as string | undefined;
               const returnToId = params.returnToId as string | undefined;
@@ -22145,7 +22206,6 @@ export default function HomeScreen() {
                 return;
               }
 
-              startTransitionLoader();
               requestAnimationFrame(() => {
                 setTimeout(() => {
                   if (focusedMemory) {
@@ -22169,8 +22229,7 @@ export default function HomeScreen() {
                     setFocusedHobbyId(null);
                     setSelectedSphere(null);
                   }
-                  hideLoader();
-                }, 80);
+                }, 0);
               });
             }}
             style={{
@@ -22196,7 +22255,7 @@ export default function HomeScreen() {
               size={isTablet ? 36 : 24}
               color={colors.text}
             />
-          </Pressable>
+          </PulsingPressable>
 
           {/* Year title below back arrow - shown when partner/job is focused */}
           {!focusedMemory &&
@@ -22579,7 +22638,7 @@ export default function HomeScreen() {
     <TabScreenContainer>
       <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
         <ScrollView
-          scrollEnabled={!isAnyEntityWheelActive}
+          scrollEnabled={scrollEnabledForSphere}
           style={[
             styles.content,
             {

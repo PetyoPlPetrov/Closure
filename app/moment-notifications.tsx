@@ -1,7 +1,7 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Notifications from "expo-notifications";
-import { useNavigation } from "expo-router";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { router } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -53,7 +53,6 @@ export default function MomentNotificationsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
-  const navigation = useNavigation();
 
   const { idealizedMemories } = useJourney();
   const { showNotification } = useInAppNotification();
@@ -162,12 +161,6 @@ export default function MomentNotificationsScreen() {
     [colorScheme, colors]
   );
   const styles = useMemo(() => createStyles(palette, fontScale), [palette, fontScale]);
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      title: t("momentNotifications.title"),
-    });
-  }, [navigation, t]);
 
   // Debug: print current lessons and AI summaries when screen loads
   useEffect(() => {
@@ -433,6 +426,23 @@ export default function MomentNotificationsScreen() {
 
   return (
     <TabScreenContainer>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons
+            name="arrow-back-ios"
+            size={24 * fontScale}
+            color={colors.text}
+          />
+        </TouchableOpacity>
+        <ThemedText size="l" weight="bold" style={styles.headerTitle}>
+          {t("momentNotifications.title")}
+        </ThemedText>
+        <View style={styles.headerButton} />
+      </View>
       <AIInsightsConsentModal
         visible={aiConsentModalVisible}
         onEnable={() => {
@@ -780,6 +790,23 @@ function createStyles(
   fontScale: number
 ) {
   return StyleSheet.create({
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16 * fontScale,
+      paddingTop: 50,
+      paddingBottom: 12 * fontScale,
+    },
+    headerButton: {
+      width: 40 * fontScale,
+      height: 40 * fontScale,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerTitle: {
+      flex: 1,
+      textAlign: "center",
+    },
     content: {
       padding: 16 * fontScale,
       paddingBottom: 110 * fontScale, // Extra space for FAB
