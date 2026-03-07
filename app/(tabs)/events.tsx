@@ -1,3 +1,4 @@
+import { AIModal } from "@/components/ai-modal";
 import { ConstellationBackground } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
@@ -6,26 +7,42 @@ import { useLargeDevice } from "@/hooks/use-large-device";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
+import {
+  getPendingAIResponse,
+  type PendingAIResponse,
+} from "@/utils/ai-background-processor";
+import { scheduleEventMemoryReminders } from "@/utils/event-memory-reminders";
+import { onEventsTabPress } from "@/utils/events-tab-press";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useSferaEventsBadge } from "@/utils/SferaEventsBadgeProvider";
-import { onEventsTabPress } from "@/utils/events-tab-press";
 import {
+  cancelEventMemoryReminders,
+} from "@/utils/event-memory-reminders";
+import {
+  addAttendedEventSnapshot,
   addAttendingEventId,
   addUnlockedVipCode,
+  clearEventReminderInAppForEvent,
   getAttendingEventIds,
+  getEventGoldenMemoryUsedIds,
+  getPastAttendedEvents,
   getSeenEventIds,
   getUnlockedVipCodes,
   isPrivateSectionUnlocked,
   isVipSectionUnlocked,
+  removeAttendedEventSnapshotsByIds,
   removeAttendingEventId,
+  removeEventGoldenMemoryUsedIds,
+  removeEventReminderScheduledIds,
   requestLocationPermission,
+  syncAttendedSnapshotsFromActiveEvents,
   validateCodeForSection,
   type SferaEvent,
   type SferaEventType,
 } from "@/utils/sfera-events";
 import { updateEventStatus } from "@/utils/sfera-event-attendance";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -728,9 +745,11 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
   colorScheme,
   colors,
   onFocusPress,
+  onDeletePress,
   isLocked = false,
   isUnseen = false,
   isAttending = false,
+  isPastEvent = false,
 }: {
   event: SferaEvent;
   eventIndex: number;
@@ -741,10 +760,13 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
   colorScheme: "light" | "dark";
   colors: Record<string, string>;
   onFocusPress?: (event: SferaEvent) => void;
+  onDeletePress?: (event: SferaEvent) => void;
   isLocked?: boolean;
   isUnseen?: boolean;
   isAttending?: boolean;
+  isPastEvent?: boolean;
 }) {
+  const t = useTranslate();
   const isFocused =
     (eventIndex - focusedEventIndex + totalCount) % totalCount === 0;
 
@@ -828,13 +850,41 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
             <MaterialIcons name="lock" size={14} color="#fff" />
           </View>
         ) : null}
+        {isPastEvent && onDeletePress ? (
+          <Pressable
+            style={styles.eventCardDeleteBadge}
+            onPress={(e) => {
+              e.stopPropagation();
+              Alert.alert(
+                t("events.removePastEventTitle"),
+                t("events.removePastEventMessage"),
+                [
+                  { text: t("common.cancel"), style: "cancel" },
+                  { text: t("common.delete"), style: "destructive", onPress: () => onDeletePress(event) },
+                ],
+              );
+            }}
+          >
+            <MaterialIcons name="delete-outline" size={18} color="#fff" />
+          </Pressable>
+        ) : null}
         {isUnseen && !isLocked ? (
           <View style={styles.eventCardUnseenBadge} />
         ) : null}
-        {isAttending && !isLocked ? (
-          <View style={styles.eventCardAttendingBadge}>
-            <MaterialIcons name="check-circle" size={16} color="#fff" />
-          </View>
+        {!isLocked ? (
+          isAttending ? (
+            <View style={[styles.eventCardAttendingBadge, isPastEvent && styles.eventCardPastAttendedBadge]}>
+              <MaterialIcons
+                name={isPastEvent ? "event-available" : "check-circle"}
+                size={isPastEvent ? 18 : 16}
+                color="#fff"
+              />
+            </View>
+          ) : (
+            <View style={[styles.eventCardUpcomingBadge, { backgroundColor: colors.primary }]}>
+              <MaterialIcons name="event" size={22} color="#fff" />
+            </View>
+          )
         ) : null}
         {isFocused && onFocusPress ? (
           <LearnMoreIcon colors={colors} onPress={() => onFocusPress(event)} />
@@ -878,7 +928,15 @@ export default function EventsTab() {
   const [expandedImageError, setExpandedImageError] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const [pastEvents, setPastEvents] = useState<SferaEvent[]>([]);
+  const [goldenUsedIds, setGoldenUsedIds] = useState<Set<string>>(new Set());
+  const [showPastEvents, setShowPastEvents] = useState(true);
+  const [aiModalVisible, setAiModalVisible] = useState(false);
+  const [pendingAIResponse, setPendingAIResponse] =
+    useState<PendingAIResponse | null>(null);
+  const [goldenEventIdForModal, setGoldenEventIdForModal] = useState<string | null>(null);
 
+  const params = useLocalSearchParams<{ eventIdForMemory?: string }>();
   const insets = useSafeAreaInsets();
   const orbitAngle = useSharedValue(0);
   const orbExitProgress = useSharedValue(0); // 0 = all visible, 1 = selected orb at center, others exited
@@ -898,9 +956,24 @@ export default function EventsTab() {
       getSeenEventIds(),
       getAttendingEventIds(),
     ]);
+    await syncAttendedSnapshotsFromActiveEvents(list, attending);
+    const [past, goldenUsed] = await Promise.all([
+      getPastAttendedEvents(),
+      getEventGoldenMemoryUsedIds(),
+    ]);
     setEvents(list);
     setSeenIds(seen);
     setAttendingIds(attending);
+    setPastEvents(past);
+    setGoldenUsedIds(goldenUsed);
+    if (__DEV__) {
+      console.log(
+        "[Events tab] loadEvents: past attended count =",
+        past.length,
+        past.length ? past.map((e) => ({ id: e.id, name: e.name, startDate: e.startDate })) : [],
+      );
+    }
+    void scheduleEventMemoryReminders();
   }, [refreshEvents]);
 
   useEffect(() => {
@@ -980,6 +1053,18 @@ export default function EventsTab() {
     setExpandedImageError(false);
   }, [expandedEventId]);
 
+  // Open Create memory modal when navigated from event memory reminder notification
+  useEffect(() => {
+    const eventId = params.eventIdForMemory;
+    if (!eventId) return;
+    const past = pastEvents.find((e) => e.id === eventId);
+    if (!past || goldenUsedIds.has(eventId)) return;
+    setGoldenEventIdForModal(eventId);
+    setAiModalVisible(true);
+    getPendingAIResponse().then(setPendingAIResponse);
+    router.setParams({ eventIdForMemory: undefined });
+  }, [params.eventIdForMemory, pastEvents, goldenUsedIds]);
+
   const privateUnlocked = isPrivateSectionUnlocked(events, unlockedCodes);
   const vipUnlocked = isVipSectionUnlocked(events, unlockedCodes);
 
@@ -1024,8 +1109,27 @@ export default function EventsTab() {
     () => [publicEvents, privateSlotList, vipEvents],
     [publicEvents, privateSlotList, vipEvents],
   );
-  const listForPhase =
-    phase === "orbs" ? [] : (communityEvents[focusedCommunityIndex] ?? []);
+  /** Orbit list: upcoming events for this community + past attended (same type) when toggle on. */
+  const listForPhase = useMemo(() => {
+    if (phase === "orbs") return [];
+    const base = communityEvents[focusedCommunityIndex] ?? [];
+    if (!showPastEvents) return base;
+    const pastForCommunity = pastEvents.filter((e) => e.type === phase);
+    return [...base, ...pastForCommunity];
+  }, [phase, focusedCommunityIndex, communityEvents, showPastEvents, pastEvents]);
+
+  const pastEventIds = useMemo(() => new Set(pastEvents.map((e) => e.id)), [pastEvents]);
+
+  const removePastEventFromOrbit = useCallback(async (eventId: string) => {
+    await removeAttendedEventSnapshotsByIds([eventId]);
+    await removeAttendingEventId(eventId);
+    await removeEventReminderScheduledIds([eventId]);
+    await removeEventGoldenMemoryUsedIds([eventId]);
+    await clearEventReminderInAppForEvent(eventId);
+    await cancelEventMemoryReminders(eventId);
+    setExpandedEventId(null);
+    void loadEvents();
+  }, [loadEvents]);
 
   // When entering community or list length changes: clamp focused index and set orbit angle (do not run when only focus changes so left/right can animate)
   useEffect(() => {
@@ -1280,6 +1384,8 @@ export default function EventsTab() {
                       isLocked={isMockLockedEvent(event)}
                       isUnseen={!seenIds.has(event.id)}
                       isAttending={attendingIds.has(event.id)}
+                      isPastEvent={pastEventIds.has(event.id)}
+                      onDeletePress={(ev) => removePastEventFromOrbit(ev.id)}
                     />
                   );
                 })}
@@ -1326,6 +1432,8 @@ export default function EventsTab() {
                       isLocked={isMockLockedEvent(event)}
                       isUnseen={!seenIds.has(event.id)}
                       isAttending={attendingIds.has(event.id)}
+                      isPastEvent={pastEventIds.has(event.id)}
+                      onDeletePress={(ev) => removePastEventFromOrbit(ev.id)}
                       onFocusPress={(e) => {
                         if (phase === "private" && !privateUnlocked)
                           openCodeModal("private");
@@ -1388,6 +1496,30 @@ export default function EventsTab() {
                   />
                 </Pressable>
               ) : null}
+
+              {/* Toggle: show/hide past events (top right) */}
+              <Pressable
+                onPress={() => setShowPastEvents((v) => !v)}
+                style={[
+                  styles.pastEventsToggle,
+                  {
+                    top: 8 + insets.top,
+                    right: 16 + insets.right,
+                    backgroundColor: colors.background,
+                    borderColor: colors.text + "40",
+                  },
+                ]}
+              >
+                <MaterialIcons
+                  name={showPastEvents ? "visibility-off" : "history"}
+                  size={20}
+                  color={colors.primary}
+                />
+                <ThemedText size="xs" weight="medium" style={{ color: colors.text, marginLeft: 6 }}>
+                  {showPastEvents ? t("events.hidePastEvents") : t("events.showPastEvents")}
+                </ThemedText>
+              </Pressable>
+
             </Animated.View>
           </View>
         )}
@@ -1531,7 +1663,33 @@ export default function EventsTab() {
                     </Pressable>
                   ) : null}
                   <View style={styles.expandedActions}>
-                    {attendingIds.has(expandedEvent.id) ? (
+                    {pastEventIds.has(expandedEvent.id) ? (
+                      goldenUsedIds.has(expandedEvent.id) ? (
+                        <ThemedText size="sm" weight="medium" style={{ color: colors.textMediumEmphasis }}>
+                          {t("events.memoryCreated")}
+                        </ThemedText>
+                      ) : (
+                        <Pressable
+                          style={[styles.expandedJoinBtn, { backgroundColor: colors.primary }]}
+                          onPress={() => {
+                            setGoldenEventIdForModal(expandedEvent.id);
+                            setAiModalVisible(true);
+                            getPendingAIResponse().then(setPendingAIResponse);
+                            setExpandedEventId(null);
+                            setExpandedImageError(false);
+                          }}
+                        >
+                          <MaterialIcons name="auto-awesome" size={18} color="#1A2332" />
+                          <ThemedText
+                            size="sm"
+                            weight="bold"
+                            style={[styles.createMemoryBtnText, { marginLeft: 6 }]}
+                          >
+                            {t("events.createMemoryForEvent")}
+                          </ThemedText>
+                        </Pressable>
+                      )
+                    ) : attendingIds.has(expandedEvent.id) ? (
                       <Pressable
                         style={[
                           styles.expandedLeaveBtn,
@@ -1550,6 +1708,7 @@ export default function EventsTab() {
                             );
                             if (ok) {
                               await removeAttendingEventId(expandedEvent.id);
+                              await removeAttendedEventSnapshotsByIds([expandedEvent.id]);
                               setAttendingIds((prev) => {
                                 const next = new Set(prev);
                                 next.delete(expandedEvent.id);
@@ -1581,6 +1740,34 @@ export default function EventsTab() {
                           </ThemedText>
                         )}
                       </Pressable>
+                    ) : (expandedEvent.status ?? "open") === "closed" ? (
+                      <View
+                        style={[
+                          styles.expandedJoinBtn,
+                          {
+                            backgroundColor: colors.background,
+                            borderWidth: 1,
+                            borderColor: colors.text + "40",
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 6,
+                          },
+                        ]}
+                      >
+                        <MaterialIcons
+                          name="event-busy"
+                          size={18}
+                          color={colors.textMediumEmphasis}
+                        />
+                        <ThemedText
+                          size="sm"
+                          weight="medium"
+                          style={{ color: colors.textMediumEmphasis }}
+                        >
+                          {t("events.eventFilled")}
+                        </ThemedText>
+                      </View>
                     ) : (
                       <Pressable
                         style={[
@@ -1597,7 +1784,9 @@ export default function EventsTab() {
                             );
                             if (ok) {
                               await addAttendingEventId(expandedEvent.id);
+                              await addAttendedEventSnapshot(expandedEvent);
                               setAttendingIds((prev) => new Set(prev).add(expandedEvent.id));
+                              void loadEvents();
                             } else {
                               Alert.alert(
                                 t("events.joinError"),
@@ -1752,6 +1941,25 @@ export default function EventsTab() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* AI Create memory modal (golden event AI access when goldenEventIdForModal is set) */}
+      {aiModalVisible && (
+        <AIModal
+          visible={aiModalVisible}
+          onClose={() => {
+            setAiModalVisible(false);
+            setGoldenEventIdForModal(null);
+            setPendingAIResponse(null);
+            void loadEvents();
+            if (params.eventIdForMemory) {
+              router.setParams({ eventIdForMemory: undefined });
+            }
+          }}
+          pendingResponse={pendingAIResponse}
+          onSend={async () => {}}
+          goldenEventId={goldenEventIdForModal}
+        />
+      )}
     </TabScreenContainer>
   );
 }
@@ -1891,6 +2099,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  eventCardDeleteBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(180,0,0,0.85)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 5,
+  },
   eventCardUnseenBadge: {
     position: "absolute",
     top: 6,
@@ -1902,12 +2122,28 @@ const styles = StyleSheet.create({
   },
   eventCardAttendingBadge: {
     position: "absolute",
-    bottom: 8,
+    bottom: 2,
     left: 6,
     width: 22,
     height: 22,
     borderRadius: 11,
     backgroundColor: "rgba(76, 175, 80, 0.95)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  eventCardPastAttendedBadge: {
+    backgroundColor: "rgba(96, 125, 139, 0.95)",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  eventCardUpcomingBadge: {
+    position: "absolute",
+    bottom: 2,
+    left: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1999,4 +2235,64 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   modalBtn: { paddingVertical: 8, paddingHorizontal: 16 },
+  pastEventsToggle: {
+    position: "absolute",
+    zIndex: 25,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  pastEventsSection: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+  },
+  pastEventsSectionTitle: {
+    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  pastEventsScrollContent: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  pastEventCard: {
+    width: 160,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    paddingBottom: 10,
+  },
+  pastEventCardImage: {
+    width: "100%",
+    height: 88,
+  },
+  pastEventCardImagePlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pastEventCardName: {
+    marginTop: 6,
+    paddingHorizontal: 8,
+  },
+  pastEventCardAction: {
+    marginTop: 8,
+    paddingHorizontal: 8,
+    alignItems: "center",
+  },
+  createMemoryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    gap: 6,
+  },
+  createMemoryBtnText: {
+    color: "#1A2332",
+  },
 });

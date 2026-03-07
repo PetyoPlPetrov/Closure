@@ -13,17 +13,26 @@ import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, type AppStateStatus, InteractionManager, Platform, View } from "react-native";
 import "react-native-reanimated";
 
+import { AIModal } from "@/components/ai-modal";
 import { HomeTransitionLoaderOverlay } from "@/components/home-transition-loader";
+import { getPendingAIResponse, type PendingAIResponse } from "@/utils/ai-background-processor";
 import { AIInsightsConsentProvider } from "@/utils/AIInsightsConsentProvider";
 import { NotificationNudgePreferenceProvider } from "@/utils/NotificationNudgePreferenceProvider";
 import { initializeAppCheckService, verifyAppCheck } from "@/utils/app-check";
 import { handleDevError } from "@/utils/dev-error-handler";
+import { scheduleEventMemoryReminders, seedMockPastEventsForDev } from "@/utils/event-memory-reminders";
+import {
+  getEventGoldenMemoryUsedIds,
+  getOrCreateEventReminderSchedule,
+  getPastAttendedEvents,
+  incrementEventReminderInAppShownCount,
+} from "@/utils/sfera-events";
 import { HomeTransitionLoaderProvider } from "@/utils/home-transition-loader-context";
-import { InAppNotificationProvider } from "@/utils/InAppNotificationProvider";
+import { InAppNotificationProvider, useInAppNotification } from "@/utils/InAppNotificationProvider";
 import { SferaEventsBadgeProvider } from "@/utils/SferaEventsBadgeProvider";
 import { checkForUpdateAndReload } from "@/utils/updates";
 import { JourneyProvider } from "@/utils/JourneyProvider";
@@ -59,8 +68,13 @@ export const unstable_settings = {
 function AppContent() {
   const { hideSplash, isAnimationComplete } = useSplash();
   const { colorScheme } = useTheme();
-  const notificationListener = useRef<Notifications.Subscription | null>(null);
+  const { showNotification: showInAppNotification } = useInAppNotification();
   const responseListener = useRef<Notifications.Subscription | null>(null);
+  const lastEventReminderShownAtRef = useRef<number>(0);
+  const nextReminderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** When set, show AI Create memory modal with golden access (from event memory reminder). No navigation to Events tab. */
+  const [goldenEventIdForMemoryModal, setGoldenEventIdForMemoryModal] = useState<string | null>(null);
+  const [pendingAIResponseForModal, setPendingAIResponseForModal] = useState<PendingAIResponse | null>(null);
 
   useEffect(() => {
     const initializeServices = async () => {
@@ -80,6 +94,12 @@ function AppContent() {
     initializeServices();
   }, []);
 
+  // Dev: seed mock past events for in-app reminder testing (up to 3 reminders per event)
+  useEffect(() => {
+    if (!__DEV__) return;
+    seedMockPastEventsForDev().catch((e) => console.warn("[Event memory reminders] Dev: seed error:", e));
+  }, []);
+
   // EAS Update: check for OTA on launch (after splash) and when app comes to foreground
   useEffect(() => {
     if (!isAnimationComplete) return;
@@ -89,11 +109,93 @@ function AppContent() {
     return () => clearTimeout(t);
   }, [isAnimationComplete]);
 
+  const showEventMemoryReminderIfNeeded = useCallback((skipThrottle?: boolean) => {
+    const now = Date.now();
+    if (!skipThrottle && now - lastEventReminderShownAtRef.current < 10_000) return; // throttle 10s unless showing next at due time
+    getPastAttendedEvents()
+      .then((past) => Promise.all([Promise.resolve(past), getEventGoldenMemoryUsedIds()]))
+      .then(async ([past, goldenUsed]) => {
+        for (const event of past) {
+          if (goldenUsed.has(event.id)) {
+            if (__DEV__) console.log("[Event memory] Skipping event", event.id, `"${event.name}" – already linked with memory (no notifications)`);
+            continue;
+          }
+          const { schedule } = await getOrCreateEventReminderSchedule(event);
+          if (schedule.shownCount >= 3) {
+            if (__DEV__) console.log("[Event memory] Skipping event", event.id, `"${event.name}" – already shown 3/3 reminders`);
+            continue;
+          }
+          const nextDue = schedule.dueTimes[schedule.shownCount];
+          if (now < nextDue) {
+            // Not yet due (e.g. dev: first reminder in 1 min). Schedule check at due time.
+            const delay = Math.max(0, nextDue - now);
+            if (__DEV__) console.log("[Event memory] Next reminder for", event.id, `"${event.name}" in ${Math.round(delay / 1000)}s (reminder ${schedule.shownCount + 1}/3)`);
+            if (nextReminderTimeoutRef.current) clearTimeout(nextReminderTimeoutRef.current);
+            nextReminderTimeoutRef.current = setTimeout(() => {
+              nextReminderTimeoutRef.current = null;
+              showEventMemoryReminderIfNeeded(true);
+            }, delay);
+            return;
+          }
+          lastEventReminderShownAtRef.current = now;
+          const newCount = await incrementEventReminderInAppShownCount(event.id);
+          if (__DEV__) console.log("[Event memory] Showing in-app reminder for event:", event.id, `"${event.name}" (reminder ${newCount}/3)`);
+          const title = "Create a memory for your event";
+          const message = `You attended "${event.name}". Create a memory with AI.`;
+          showInAppNotification({
+            title,
+            message,
+            emoji: "📅",
+            duration: 0,
+            dismissOnPress: false,
+            onPress: () => {
+              InteractionManager.runAfterInteractions(() => {
+                setGoldenEventIdForMemoryModal(event.id);
+                getPendingAIResponse().then(setPendingAIResponseForModal);
+              });
+            },
+            onDismiss: undefined, // next reminder fires at its due time (timeout or next app active)
+          });
+          // Schedule the next reminder at its due time (dev: 1 min later; prod: next day 10:00)
+          if (newCount < 3) {
+            const delay = Math.max(0, schedule.dueTimes[newCount] - Date.now());
+            if (nextReminderTimeoutRef.current) clearTimeout(nextReminderTimeoutRef.current);
+            nextReminderTimeoutRef.current = setTimeout(() => {
+              nextReminderTimeoutRef.current = null;
+              showEventMemoryReminderIfNeeded(true);
+            }, delay);
+          }
+          return;
+        }
+      });
+  }, [showInAppNotification]);
+
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
-      if (state === "active") void checkForUpdateAndReload();
+      if (state === "active") {
+        void checkForUpdateAndReload();
+        void scheduleEventMemoryReminders();
+        showEventMemoryReminderIfNeeded();
+      }
     });
     return () => sub.remove();
+  }, [showEventMemoryReminderIfNeeded]);
+
+  // On first app open, show reminder after a short delay (AppState may not fire "change" on initial load)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      showEventMemoryReminderIfNeeded();
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [showEventMemoryReminderIfNeeded]);
+
+  useEffect(() => {
+    return () => {
+      if (nextReminderTimeoutRef.current) {
+        clearTimeout(nextReminderTimeoutRef.current);
+        nextReminderTimeoutRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -115,12 +217,15 @@ function AppContent() {
     }
   }, [hideSplash, isAnimationComplete]);
 
-  // Handle notification deep linking (tap when app in background) and cold start (app opened from killed state by tap).
-  // Navigate to the entity's notification (edit) screen so the user lands in the right place.
+  // Handle notification deep linking (tap when app in background) and cold start (entity reminders only; event memory is in-app only).
   useEffect(() => {
     const handleNotificationResponse = (response: Notifications.NotificationResponse) => {
       const content = response.notification.request.content;
-      const data = content.data as { type?: string; entityId?: string; sphere?: string };
+      const data = content.data as {
+        type?: string;
+        entityId?: string;
+        sphere?: string;
+      };
       if (data.type === "entity_reminder" && data.entityId && data.sphere) {
         InteractionManager.runAfterInteractions(() => {
           router.replace(`/notifications/${data.sphere}/${data.entityId}`);
@@ -128,7 +233,6 @@ function AppContent() {
       }
     };
 
-    // Cold start: app was killed and user opened it by tapping a notification.
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (response) {
         handleNotificationResponse(response);
@@ -136,22 +240,19 @@ function AppContent() {
       }
     });
 
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener(() => {});
-
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
         handleNotificationResponse(response);
       });
 
     return () => {
-      notificationListener.current?.remove();
       responseListener.current?.remove();
     };
   }, []);
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="add-ex-profile" options={{ headerShown: false }} />
@@ -237,6 +338,19 @@ function AppContent() {
         <Stack.Screen name="backup/import" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
+      {goldenEventIdForMemoryModal != null && (
+        <AIModal
+          visible
+          onClose={() => {
+            setGoldenEventIdForMemoryModal(null);
+            setPendingAIResponseForModal(null);
+          }}
+          onSend={async () => {}}
+          pendingResponse={pendingAIResponseForModal}
+          goldenEventId={goldenEventIdForMemoryModal}
+        />
+      )}
+      </>
     </ThemeProvider>
   );
 }

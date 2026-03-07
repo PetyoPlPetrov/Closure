@@ -24,7 +24,13 @@ interface InAppNotificationProps {
   message: string;
   emoji?: string;
   onHide: () => void;
-  duration?: number; // How long to show in ms (default 3000)
+  duration?: number; // How long to show in ms (default 3000). Use 0 for manual dismiss only.
+  /** When set, tapping the notification content opens this action. If dismissOnPress is true (default), the notification is hidden after. */
+  onPress?: () => void;
+  /** If true (default), tapping the content hides the notification after onPress. If false, it stays until close button or hideNotification. */
+  dismissOnPress?: boolean;
+  /** Called when the user taps the X button (before onHide). Use to show the next in a sequence. */
+  onDismiss?: () => void;
 }
 
 export function InAppNotification({
@@ -34,6 +40,9 @@ export function InAppNotification({
   emoji,
   onHide,
   duration = 3000,
+  onPress,
+  dismissOnPress = true,
+  onDismiss,
 }: InAppNotificationProps) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -53,17 +62,22 @@ export function InAppNotification({
       opacity.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) });
       scale.value = withSpring(1, { damping: 12, stiffness: 100 });
 
-      // Auto-hide after duration
-      const timer = setTimeout(() => {
-        // Animate out
-        translateY.value = withTiming(-200, { duration: 300, easing: Easing.in(Easing.ease) });
-        opacity.value = withTiming(0, { duration: 300 });
-        scale.value = withTiming(0.8, { duration: 300 });
+      // Auto-hide after duration (skip timer when duration is 0 = manual dismiss only)
+      const timer =
+        duration > 0
+          ? setTimeout(() => {
+              // Animate out
+              translateY.value = withTiming(-200, { duration: 300, easing: Easing.in(Easing.ease) });
+              opacity.value = withTiming(0, { duration: 300 });
+              scale.value = withTiming(0.8, { duration: 300 });
 
-        setTimeout(onHide, 300);
-      }, duration);
+              setTimeout(onHide, 300);
+            }, duration)
+          : undefined;
 
-      return () => clearTimeout(timer);
+      return () => {
+        if (timer != null) clearTimeout(timer);
+      };
     } else {
       translateY.value = -200;
       opacity.value = 0;
@@ -97,6 +111,13 @@ export function InAppNotification({
 
   if (!visible) return null;
 
+  const handleContentPress = () => {
+    if (onPress) {
+      onPress();
+      if (dismissOnPress) onHide();
+    }
+  };
+
   return (
     <Animated.View
       style={[
@@ -109,20 +130,32 @@ export function InAppNotification({
         animatedStyle,
       ]}
     >
-      {emoji && (
-        <ThemedText style={styles.emoji} size="xl">
-          {emoji}
-        </ThemedText>
-      )}
-      <Animated.View style={styles.textContainer}>
-        <ThemedText size="l" weight="bold" style={[styles.title, { color: titleColor }]}>
-          {title}
-        </ThemedText>
-        <ThemedText size="sm" style={[styles.message, { color: messageColor }]}>
-          {message}
-        </ThemedText>
-      </Animated.View>
-      <Pressable onPress={onHide} style={styles.closeButton}>
+      <Pressable
+        style={styles.contentPressable}
+        onPress={onPress ? handleContentPress : undefined}
+      >
+        {emoji && (
+          <ThemedText style={styles.emoji} size="xl">
+            {emoji}
+          </ThemedText>
+        )}
+        <Animated.View style={styles.textContainer}>
+          <ThemedText size="l" weight="bold" style={[styles.title, { color: titleColor }]}>
+            {title}
+          </ThemedText>
+          <ThemedText size="sm" style={[styles.message, { color: messageColor }]}>
+            {message}
+          </ThemedText>
+        </Animated.View>
+      </Pressable>
+      <Pressable
+        onPress={() => {
+          onDismiss?.();
+          onHide();
+        }}
+        style={styles.closeButton}
+        hitSlop={8}
+      >
         <MaterialIcons 
           name="close" 
           size={20} 
@@ -143,7 +176,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     paddingLeft: 16,
-    paddingRight: 20, // Extra padding on right to space button from edge
+    paddingRight: 48, // Space for close button in top-right corner
     borderRadius: 16,
     borderWidth: 1,
     shadowOffset: { width: 0, height: 4 },
@@ -166,7 +199,16 @@ const styles = StyleSheet.create({
   message: {
     lineHeight: 18,
   },
+  contentPressable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 0,
+  },
   closeButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
     width: 32,
     height: 32,
     borderRadius: 16,

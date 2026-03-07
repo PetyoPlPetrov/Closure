@@ -16,7 +16,7 @@ import {
     stopBackgroundEntityProcessing,
     type PendingEntityResponse,
 } from "@/utils/ai-background-processor";
-import { canMakeAIRequest, recordAIRequest } from "@/utils/ai-rate-limiter";
+import { consumeAIRequestIfAvailable } from "@/utils/ai-rate-limiter";
 import {
     processEntityCreationPrompt,
     type AIEntityCreationResponse,
@@ -429,25 +429,20 @@ export function AIEntityCreationModal({
         selectedSphere,
       )
     ) {
-      // In dev mode, bypass subscription and rate-limit checks
-      if (!__DEV__) {
-        // Check rate limiting: 3/day for free, 30/day for Sfera AI (memory + entity creation share pool)
-        const canMakeRequest = await canMakeAIRequest(hasAIEntitlement);
-        if (!canMakeRequest) {
-          if (!hasAIEntitlement) {
-            // Free requests exhausted – show the Sferas AI offering paywall
-            await showPaywallForUpgradeAccess();
-          } else {
-            Alert.alert(
-              t("ai.rateLimit.title") || "AI Request Limit Reached",
-              t("ai.rateLimit.premiumMessage") ||
-                "You've reached the daily limit. Try again tomorrow.",
-              [{ text: t("common.ok") || "OK", style: "default" }],
-            );
-          }
-          return;
+      // Enforce 3/day for free, 30/day for Sfera AI (memory + entity creation share pool). Atomic consume to avoid race.
+      const consumed = await consumeAIRequestIfAvailable(hasAIEntitlement);
+      if (!consumed) {
+        if (!hasAIEntitlement) {
+          await showPaywallForUpgradeAccess();
+        } else {
+          Alert.alert(
+            t("ai.rateLimit.title") || "AI Request Limit Reached",
+            t("ai.rateLimit.premiumMessage") ||
+              "You've reached the daily limit. Try again tomorrow.",
+            [{ text: t("common.ok") || "OK", style: "default" }],
+          );
         }
-        await recordAIRequest();
+        return;
       }
       await logAIEntityModalSubmit();
 

@@ -11,10 +11,17 @@ interface NotificationData {
   message: string;
   emoji?: string;
   duration?: number;
+  /** When set, tapping the notification (not the close button) calls this. If dismissOnPress is true, notification is hidden after. */
+  onPress?: () => void;
+  /** If true (default), tapping the notification content hides it after onPress. If false, notification stays until user dismisses or you call hideNotification. */
+  dismissOnPress?: boolean;
+  /** When set, called when the user dismisses via the X button (before hiding). Use to e.g. show the next reminder in a sequence. */
+  onDismiss?: () => void;
 }
 
 interface InAppNotificationContextType {
   showNotification: (data: NotificationData) => void;
+  hideNotification: () => void;
 }
 
 const InAppNotificationContext = createContext<InAppNotificationContextType | undefined>(undefined);
@@ -35,7 +42,7 @@ export function InAppNotificationProvider({ children }: { children: ReactNode })
   }, []);
 
   return (
-    <InAppNotificationContext.Provider value={{ showNotification }}>
+    <InAppNotificationContext.Provider value={{ showNotification, hideNotification }}>
       {children}
       {notification && (
         <InAppNotification
@@ -45,6 +52,9 @@ export function InAppNotificationProvider({ children }: { children: ReactNode })
           emoji={notification.emoji}
           onHide={hideNotification}
           duration={notification.duration}
+          onPress={notification.onPress}
+          dismissOnPress={notification.dismissOnPress}
+          onDismiss={notification.onDismiss}
         />
       )}
     </InAppNotificationContext.Provider>

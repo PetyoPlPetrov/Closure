@@ -14,7 +14,7 @@ const isIOSSimulator = false;
 const STORAGE_KEY_TEMPLATES = '@sferas:notification_templates';
 const STORAGE_KEY_ASSIGNMENTS = '@sferas:notification_assignments';
 
-// Configure notification handler
+// Event memory reminders are in-app only (no system notifications).
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,

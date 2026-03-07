@@ -21,6 +21,12 @@ const EVENTS_CACHE_KEY = "@sferas:sfera_events_cache";
 const LAST_KNOWN_PUBLIC_VIP_IDS_KEY = "@sferas:last_known_public_vip_event_ids";
 const SEEN_EVENT_IDS_KEY = "@sferas:seen_event_ids";
 const ATTENDING_EVENT_IDS_KEY = "@sferas:attending_event_ids";
+const ATTENDED_EVENT_SNAPSHOTS_KEY = "@sferas:attended_event_snapshots";
+/** Golden event AI access: one-time Create memory per event (official name). */
+const EVENT_GOLDEN_MEMORY_USED_KEY = "@sferas:event_golden_memory_used";
+const EVENT_REMINDER_SCHEDULED_IDS_KEY = "@sferas:event_reminder_scheduled_ids";
+/** In-app reminder: 3 time-based reminders per event. No phone notifications. */
+const EVENT_REMINDER_INAPP_SCHEDULE_KEY = "@sferas:event_reminder_inapp_schedule";
 
 /** Published CSV export for SferaEvents sheet. File → Share → Publish to web → CSV, gid=0 */
 const DEFAULT_EVENTS_SHEET_URL =
@@ -47,6 +53,8 @@ export interface SferaEvent {
   eventLink: string;
   country: string;
   town: string;
+  /** "open" = can join; "closed" = event is filled (no seats left), active and upcoming. Omitted in old cache. */
+  status?: "open" | "closed";
 }
 
 function parseCsvLine(line: string): string[] {
@@ -92,6 +100,9 @@ function rowToEvent(
   const code = get("code");
   const startDateRaw = get("startdate") || get("date") || "";
   const dateDisplay = get("date") || startDateRaw;
+  const statusRaw = (get("status") || "open").toLowerCase();
+  const status: "open" | "closed" =
+    statusRaw === "closed" ? "closed" : "open";
   return {
     id:
       get("id") ||
@@ -113,6 +124,7 @@ function rowToEvent(
     eventLink: get("eventlink") || get("event link") || "",
     country,
     town,
+    status,
   };
 }
 
@@ -145,6 +157,11 @@ function getStartOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+/** Start of day (midnight) in local time – exported for reminder scheduling. */
+export function getStartOfDayExport(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
 /** Event is active if today is on or before StartDate (by calendar day; hours are ignored). */
 function isEventActive(event: SferaEvent): boolean {
   if (!event.startDate || !event.startDate.trim()) return true;
@@ -153,6 +170,16 @@ function isEventActive(event: SferaEvent): boolean {
   const today = getStartOfDay(new Date());
   const startDay = getStartOfDay(start);
   return today <= startDay;
+}
+
+/** Event has passed if its start date is before today (by calendar day). */
+export function isEventPassed(event: SferaEvent): boolean {
+  return !isEventActive(event);
+}
+
+/** Parse date string from sheet (M/D/YYYY, etc.) – exported for reminder scheduling. */
+export function parseEventStartDate(s: string): Date | null {
+  return parseStartDate(s);
 }
 
 /** Check if user previously tapped "Close" on the location modal (don't show modal again until cleared). */
@@ -462,6 +489,234 @@ export async function removeAttendingEventId(eventId: string): Promise<void> {
   );
 }
 
+// --- Attended event snapshots (for past attended events when cache only has active events) ---
+
+export async function getAttendedEventSnapshots(): Promise<SferaEvent[]> {
+  try {
+    const raw = await AsyncStorage.getItem(ATTENDED_EVENT_SNAPSHOTS_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw) as SferaEvent[];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function addAttendedEventSnapshot(event: SferaEvent): Promise<void> {
+  const list = await getAttendedEventSnapshots();
+  const existing = list.findIndex((e) => e.id === event.id);
+  const next = existing >= 0 ? list.map((e, i) => (i === existing ? event : e)) : [...list, event];
+  await AsyncStorage.setItem(ATTENDED_EVENT_SNAPSHOTS_KEY, JSON.stringify(next));
+}
+
+/** Remove attended snapshots by IDs (e.g. when user leaves or dev mock cleanup). */
+export async function removeAttendedEventSnapshotsByIds(eventIds: string[]): Promise<void> {
+  if (eventIds.length === 0) return;
+  const list = await getAttendedEventSnapshots();
+  const idsSet = new Set(eventIds);
+  const next = list.filter((e) => !idsSet.has(e.id));
+  await AsyncStorage.setItem(ATTENDED_EVENT_SNAPSHOTS_KEY, JSON.stringify(next));
+}
+
+/**
+ * Sync attended snapshots from the active Sfera events list: only for events the user has joined
+ * (attending_event_ids) and that have passed. Call after loading events so past-attended storage
+ * is derived from current event data and the joined flag.
+ */
+export async function syncAttendedSnapshotsFromActiveEvents(
+  events: SferaEvent[],
+  attendingIds: Set<string>,
+): Promise<void> {
+  for (const event of events) {
+    if (!attendingIds.has(event.id)) continue;
+    if (!isEventPassed(event)) continue;
+    await addAttendedEventSnapshot(event);
+  }
+}
+
+/** Past attended events: snapshots that have passed and are still in attending (user joined). */
+export async function getPastAttendedEvents(): Promise<SferaEvent[]> {
+  const [list, attending] = await Promise.all([
+    getAttendedEventSnapshots(),
+    getAttendingEventIds(),
+  ]);
+  const past = list.filter((e) => isEventPassed(e) && attending.has(e.id));
+  if (__DEV__ && (list.length > 0 || past.length > 0)) {
+    console.log("[sfera-events] getPastAttendedEvents: snapshots =", list.length, "attending =", attending.size, "past (passed+joined) =", past.length, past.map((e) => ({ id: e.id, name: e.name, startDate: e.startDate })));
+  }
+  return past;
+}
+
+// --- Golden event AI access (one-time Create memory per event; official name) ---
+
+export async function getEventGoldenMemoryUsedIds(): Promise<Set<string>> {
+  try {
+    const raw = await AsyncStorage.getItem(EVENT_GOLDEN_MEMORY_USED_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw) as string[];
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export async function isEventGoldenMemoryUsed(eventId: string): Promise<boolean> {
+  const set = await getEventGoldenMemoryUsedIds();
+  return set.has(eventId);
+}
+
+export async function markEventGoldenMemoryUsed(eventId: string): Promise<void> {
+  const set = await getEventGoldenMemoryUsedIds();
+  set.add(eventId);
+  await AsyncStorage.setItem(EVENT_GOLDEN_MEMORY_USED_KEY, JSON.stringify([...set]));
+}
+
+/** Remove golden-memory-used entries by IDs (e.g. for dev mock cleanup). */
+export async function removeEventGoldenMemoryUsedIds(eventIds: string[]): Promise<void> {
+  if (eventIds.length === 0) return;
+  const set = await getEventGoldenMemoryUsedIds();
+  eventIds.forEach((id) => set.delete(id));
+  await AsyncStorage.setItem(EVENT_GOLDEN_MEMORY_USED_KEY, JSON.stringify([...set]));
+}
+
+// --- Event memory reminder scheduling (first = day+1, second = day+4) ---
+
+export async function getEventReminderScheduledIds(): Promise<Set<string>> {
+  try {
+    const raw = await AsyncStorage.getItem(EVENT_REMINDER_SCHEDULED_IDS_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw) as string[];
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export async function addEventReminderScheduled(eventId: string): Promise<void> {
+  const set = await getEventReminderScheduledIds();
+  set.add(eventId);
+  await AsyncStorage.setItem(EVENT_REMINDER_SCHEDULED_IDS_KEY, JSON.stringify([...set]));
+}
+
+/** Remove one or more event IDs from reminder-scheduled set (e.g. for dev mock cleanup). */
+export async function removeEventReminderScheduledIds(eventIds: string[]): Promise<void> {
+  if (eventIds.length === 0) return;
+  const set = await getEventReminderScheduledIds();
+  eventIds.forEach((id) => set.delete(id));
+  await AsyncStorage.setItem(EVENT_REMINDER_SCHEDULED_IDS_KEY, JSON.stringify([...set]));
+}
+
+// --- In-app event memory reminder (3 time-based reminders per event; clear when user saves memory) ---
+// Prod: 1 reminder per day for the next 3 days (day+1, day+2, day+3 at 10:00). Dev: 1 per minute (1min, 2min, 3min from now).
+
+const REMINDER_HOUR = 10;
+const REMINDER_MINUTE = 0;
+const DEV_REMINDER_INTERVAL_MS = 60 * 1000; // 1 minute
+const NUM_REMINDERS_PER_EVENT = 3;
+
+export interface EventReminderInAppSchedule {
+  dueTimes: number[]; // 3 timestamps (ms)
+  shownCount: number; // 0..3
+}
+
+function computeReminderDueTimes(event: SferaEvent): number[] {
+  const now = Date.now();
+  if (__DEV__) {
+    return [
+      now + 1 * DEV_REMINDER_INTERVAL_MS,
+      now + 2 * DEV_REMINDER_INTERVAL_MS,
+      now + 3 * DEV_REMINDER_INTERVAL_MS,
+    ];
+  }
+  const startDate = parseEventStartDate(event.startDate);
+  if (!startDate) {
+    const fallback = new Date(now);
+    fallback.setDate(fallback.getDate() - 1);
+    return computeDueTimesFromStartDay(getStartOfDayExport(fallback));
+  }
+  const startDay = getStartOfDayExport(startDate);
+  return computeDueTimesFromStartDay(startDay);
+}
+
+function computeDueTimesFromStartDay(startDay: Date): number[] {
+  const due1 = new Date(startDay);
+  due1.setDate(due1.getDate() + 1);
+  due1.setHours(REMINDER_HOUR, REMINDER_MINUTE, 0, 0);
+  const due2 = new Date(startDay);
+  due2.setDate(due2.getDate() + 2);
+  due2.setHours(REMINDER_HOUR, REMINDER_MINUTE, 0, 0);
+  const due3 = new Date(startDay);
+  due3.setDate(due3.getDate() + 3);
+  due3.setHours(REMINDER_HOUR, REMINDER_MINUTE, 0, 0);
+  return [due1.getTime(), due2.getTime(), due3.getTime()];
+}
+
+async function getEventReminderScheduleMap(): Promise<Record<string, EventReminderInAppSchedule>> {
+  try {
+    const raw = await AsyncStorage.getItem(EVENT_REMINDER_INAPP_SCHEDULE_KEY);
+    if (!raw) return {};
+    const map = JSON.parse(raw) as Record<string, EventReminderInAppSchedule>;
+    return typeof map === "object" && map !== null ? map : {};
+  } catch {
+    return {};
+  }
+}
+
+async function setEventReminderScheduleMap(map: Record<string, EventReminderInAppSchedule>): Promise<void> {
+  await AsyncStorage.setItem(EVENT_REMINDER_INAPP_SCHEDULE_KEY, JSON.stringify(map));
+}
+
+/** Get schedule for event, or null if not yet scheduled. */
+export async function getEventReminderInAppSchedule(eventId: string): Promise<EventReminderInAppSchedule | null> {
+  const map = await getEventReminderScheduleMap();
+  const entry = map[eventId];
+  if (!entry || !Array.isArray(entry.dueTimes) || entry.dueTimes.length !== NUM_REMINDERS_PER_EVENT) return null;
+  const shownCount = typeof entry.shownCount === "number" ? Math.min(entry.shownCount, NUM_REMINDERS_PER_EVENT) : 0;
+  return { dueTimes: entry.dueTimes, shownCount };
+}
+
+/** Get or create schedule for event (creates with due times from event.startDate). Returns schedule and whether it was just created. */
+export async function getOrCreateEventReminderSchedule(event: SferaEvent): Promise<{ schedule: EventReminderInAppSchedule; created: boolean }> {
+  const existing = await getEventReminderInAppSchedule(event.id);
+  if (existing) return { schedule: existing, created: false };
+  const dueTimes = computeReminderDueTimes(event);
+  const schedule: EventReminderInAppSchedule = { dueTimes, shownCount: 0 };
+  const map = await getEventReminderScheduleMap();
+  map[event.id] = schedule;
+  await setEventReminderScheduleMap(map);
+  return { schedule, created: true };
+}
+
+/** After showing a reminder, increment shown count. Returns new count. */
+export async function incrementEventReminderInAppShownCount(eventId: string): Promise<number> {
+  const map = await getEventReminderScheduleMap();
+  const entry = map[eventId];
+  if (!entry) return 0;
+  const next = Math.min((entry.shownCount ?? 0) + 1, NUM_REMINDERS_PER_EVENT);
+  map[eventId] = { ...entry, shownCount: next };
+  await setEventReminderScheduleMap(map);
+  return next;
+}
+
+export async function getEventReminderInAppShownCount(eventId: string): Promise<number> {
+  const s = await getEventReminderInAppSchedule(eventId);
+  return s?.shownCount ?? 0;
+}
+
+/** Remove all in-app reminders for this event (e.g. after user saved memory or removed from orbit). */
+export async function clearEventReminderInAppForEvent(eventId: string): Promise<void> {
+  const map = await getEventReminderScheduleMap();
+  delete map[eventId];
+  await setEventReminderScheduleMap(map);
+}
+
+export async function clearEventReminderInAppForEvents(eventIds: string[]): Promise<void> {
+  if (eventIds.length === 0) return;
+  const map = await getEventReminderScheduleMap();
+  eventIds.forEach((id) => delete map[id]);
+  await setEventReminderScheduleMap(map);
+}
+
 // --- Code unlock (stored locally; used for both Private and VIP) ---
 
 export async function getUnlockedVipCodes(): Promise<Set<string>> {
@@ -528,7 +783,7 @@ export async function isVipEventUnlocked(event: SferaEvent): Promise<boolean> {
   return unlocked.has(event.vipCode.trim().toLowerCase());
 }
 
-/** Clear all locally stored events data (cache, seen, last known, unlocked codes, sheet URL, location declined flag, attending). */
+/** Clear all locally stored events data (cache, seen, last known, unlocked codes, sheet URL, location declined flag, attending, snapshots, golden memory, reminders). */
 export async function clearSferaEventsStorage(): Promise<void> {
   await Promise.all([
     AsyncStorage.removeItem(EVENTS_SHEET_URL_KEY),
@@ -537,6 +792,10 @@ export async function clearSferaEventsStorage(): Promise<void> {
     AsyncStorage.removeItem(LAST_KNOWN_PUBLIC_VIP_IDS_KEY),
     AsyncStorage.removeItem(SEEN_EVENT_IDS_KEY),
     AsyncStorage.removeItem(ATTENDING_EVENT_IDS_KEY),
+    AsyncStorage.removeItem(ATTENDED_EVENT_SNAPSHOTS_KEY),
+    AsyncStorage.removeItem(EVENT_GOLDEN_MEMORY_USED_KEY),
+    AsyncStorage.removeItem(EVENT_REMINDER_SCHEDULED_IDS_KEY),
+    AsyncStorage.removeItem(EVENT_REMINDER_INAPP_SCHEDULE_KEY),
     AsyncStorage.removeItem(LOCATION_DECLINED_KEY),
     AsyncStorage.removeItem(LAST_KNOWN_REGION_KEY),
     AsyncStorage.removeItem(LAST_KNOWN_CITY_KEY),

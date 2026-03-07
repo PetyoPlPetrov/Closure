@@ -16,7 +16,7 @@ import {
     stopBackgroundAIProcessing,
     type PendingAIResponse,
 } from "@/utils/ai-background-processor";
-import { canMakeAIRequest, recordAIRequest } from "@/utils/ai-rate-limiter";
+import { consumeAIRequestIfAvailable } from "@/utils/ai-rate-limiter";
 import { processMemoryPrompt, type AIMemoryResponse } from "@/utils/ai-service";
 import {
     logAIMemoryDiscarded,
@@ -31,6 +31,13 @@ import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useMomentNotifications } from "@/utils/MomentNotificationProvider";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
+import { cancelEventMemoryReminders } from "@/utils/event-memory-reminders";
+import {
+  clearEventReminderInAppForEvent,
+  getEventReminderInAppSchedule,
+  getEventGoldenMemoryUsedIds,
+  markEventGoldenMemoryUsed,
+} from "@/utils/sfera-events";
 import { showPaywallForUpgradeAccess } from "@/utils/premium-access";
 import { updateStreakOnMemoryCreation } from "@/utils/streak-manager";
 import { useSubscription } from "@/utils/SubscriptionProvider";
@@ -86,6 +93,8 @@ interface AIModalProps {
   onMinimize?: () => void;
   onSend: (message: string) => Promise<void>;
   pendingResponse?: PendingAIResponse | null;
+  /** Golden event AI access: one-time Create memory per event (bypasses paywall/rate limit; official name). */
+  goldenEventId?: string | null;
 }
 
 interface AIMemoryItem {
@@ -101,6 +110,7 @@ export function AIModal({
   onMinimize,
   onSend,
   pendingResponse,
+  goldenEventId = null,
 }: AIModalProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
@@ -108,7 +118,7 @@ export function AIModal({
   const fontScale = useFontScale();
   const t = useTranslate();
   const { language } = useLanguage();
-  const { showNotification } = useInAppNotification();
+  const { showNotification, hideNotification } = useInAppNotification();
   const { hasAIEntitlement } = useSubscription();
   const {
     profiles,
@@ -491,8 +501,6 @@ export function AIModal({
       );
 
       if (__DEV__) {
-        console.log("[AI Modal] Full response:", JSON.stringify(response, null, 2));
-        console.log("[AI Modal] sphere:", response.sphere, "entityName:", response.entityName);
         for (const m of response.moments || []) {
           const nm = (m as { notificationMessage?: string }).notificationMessage;
           if ((m.type === "sunnyMoments" || m.type === "lessonsLearned") && !nm?.trim()) {
@@ -844,13 +852,14 @@ export function AIModal({
       return;
     }
 
-    // In dev mode, bypass subscription and rate-limit checks
-    if (!__DEV__) {
-      // Check rate limiting: 3/day for free, 30/day for Sfera AI (memory + entity creation share pool)
-      const canMakeRequest = await canMakeAIRequest(hasAIEntitlement);
-      if (!canMakeRequest) {
+    // Golden event AI access: bypass paywall and rate limit when modal opened from passed Sfera event or notification.
+    const isGoldenEventAccess = Boolean(goldenEventId);
+
+    if (!isGoldenEventAccess) {
+      // Enforce 3/day for free, 30/day for Sfera AI (memory + entity creation share pool). Atomic consume to avoid race.
+      const consumed = await consumeAIRequestIfAvailable(hasAIEntitlement);
+      if (!consumed) {
         if (!hasAIEntitlement) {
-          // Free requests exhausted – show the Sferas AI offering paywall
           await showPaywallForUpgradeAccess();
         } else {
           Alert.alert(
@@ -863,9 +872,6 @@ export function AIModal({
         return;
       }
     }
-
-    // Count this submit toward the daily limit (before firing the request)
-    await recordAIRequest();
 
     // Log analytics event for AI modal submit
     await logAIModalSubmit();
@@ -1382,6 +1388,22 @@ export function AIModal({
       await clearPendingAIResponse();
       await clearPendingAIRequest();
       await stopBackgroundAIProcessing();
+
+      // Golden event AI access: mark one-time use as consumed and clear all reminders for this event
+      if (goldenEventId) {
+        await markEventGoldenMemoryUsed(goldenEventId);
+        console.log("[Event memory] Marked event as linked with memory (golden used):", goldenEventId);
+        await cancelEventMemoryReminders(goldenEventId);
+        console.log("[Event memory] Cancelled any system reminders for event:", goldenEventId);
+        await clearEventReminderInAppForEvent(goldenEventId);
+        console.log("[Event memory] Cleared in-app reminder schedule for event:", goldenEventId);
+        const [goldenUsedIds, scheduleAfter] = await Promise.all([
+          getEventGoldenMemoryUsedIds(),
+          getEventReminderInAppSchedule(goldenEventId),
+        ]);
+        console.log("[Event memory] Verify – event linked (in golden used):", goldenUsedIds.has(goldenEventId), "| remaining in-app reminders for this event:", scheduleAfter == null ? "none (schedule removed – no more notifications)" : `${scheduleAfter.shownCount}/3 left`);
+        hideNotification(); // dismiss the event memory reminder toast now that a memory was created
+      }
 
       // Close the modal first
       onClose();

@@ -43,9 +43,17 @@ export interface Translations {
   "events.privateEnterCode": string;
   "events.join": string;
   "events.leave": string;
+  "events.eventFilled": string;
   "events.attendingBadge": string;
   "events.joinError": string;
   "events.leaveError": string;
+  "events.pastEvents": string;
+  "events.showPastEvents": string;
+  "events.hidePastEvents": string;
+  "events.createMemoryForEvent": string;
+  "events.memoryCreated": string;
+  "events.removePastEventTitle": string;
+  "events.removePastEventMessage": string;
   "avatar.sunnyLife": string;
 
   // Settings
@@ -3606,9 +3614,17 @@ const translations: Record<Language, Translations> = {
     "events.privateEnterCode": "Enter code for Private events",
     "events.join": "Join",
     "events.leave": "Leave",
+    "events.eventFilled": "Filled",
     "events.attendingBadge": "Going",
     "events.joinError": "Could not join the event. Please try again.",
     "events.leaveError": "Could not leave the event. Please try again.",
+    "events.pastEvents": "Past events",
+    "events.showPastEvents": "Show past events",
+    "events.hidePastEvents": "Hide past events",
+    "events.createMemoryForEvent": "Create memory",
+    "events.memoryCreated": "Memory created",
+    "events.removePastEventTitle": "Remove from orbit",
+    "events.removePastEventMessage": "This past event will be removed from the community. You can still create memories from Spheres.",
 
     // Settings
     "settings.title": "Settings",
@@ -8018,9 +8034,17 @@ const translations: Record<Language, Translations> = {
     "events.privateEnterCode": "Въведете код за частни събития",
     "events.join": "Присъединете се",
     "events.leave": "Отпишете се",
+    "events.eventFilled": "Няма свободни места",
     "events.attendingBadge": "Идвам",
     "events.joinError": "Неуспешно присъединяване. Моля, опитайте отново.",
     "events.leaveError": "Неуспешно отписване. Моля, опитайте отново.",
+    "events.pastEvents": "Минали събития",
+    "events.showPastEvents": "Покажи минали събития",
+    "events.hidePastEvents": "Скрий минали събития",
+    "events.createMemoryForEvent": "Създай спомен",
+    "events.memoryCreated": "Споменът е създаден",
+    "events.removePastEventTitle": "Премахни от орбитата",
+    "events.removePastEventMessage": "Това минало събитие ще бъде премахнато от общността. Можете да създавате спомени от Сферите.",
 
     // Settings
     "settings.title": "Настройки",

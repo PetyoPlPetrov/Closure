@@ -107,6 +107,39 @@ export async function recordAIRequest(): Promise<void> {
 }
 
 /**
+ * Atomically consume one AI request slot if under the daily limit.
+ * Use this instead of canMakeAIRequest + recordAIRequest to avoid race conditions
+ * (e.g. double-tap or multiple quick submits counting as one).
+ * @param isSubscribed - Whether user has Sfera AI entitlement (premium AI)
+ * @returns true if a slot was consumed and the request can proceed, false if limit reached
+ */
+export async function consumeAIRequestIfAvailable(
+  isSubscribed: boolean,
+): Promise<boolean> {
+  const records = await getAIRequestRecords();
+  const today = getLocalDateString();
+  const limit = isSubscribed ? REQUESTS_PER_DAY_PREMIUM : REQUESTS_PER_DAY_FREE;
+
+  const todayRecordIndex = records.findIndex((record) => record.date === today);
+  const currentCount =
+    todayRecordIndex >= 0 ? records[todayRecordIndex].count : 0;
+
+  if (currentCount >= limit) {
+    return false;
+  }
+
+  if (todayRecordIndex >= 0) {
+    records[todayRecordIndex].count += 1;
+  } else {
+    records.push({ date: today, count: 1 });
+  }
+
+  await saveAIRequestRecords(records);
+  await cleanupOldRecords();
+  return true;
+}
+
+/**
  * Get remaining AI requests for today
  * @param isSubscribed - Whether user has Sfera AI entitlement (premium AI)
  * @returns Number of remaining requests
