@@ -24,6 +24,7 @@ import { initializeAppCheckService, verifyAppCheck } from "@/utils/app-check";
 import { handleDevError } from "@/utils/dev-error-handler";
 import { HomeTransitionLoaderProvider } from "@/utils/home-transition-loader-context";
 import { InAppNotificationProvider } from "@/utils/InAppNotificationProvider";
+import { SferaEventsBadgeProvider } from "@/utils/SferaEventsBadgeProvider";
 import { checkForUpdateAndReload } from "@/utils/updates";
 import { JourneyProvider } from "@/utils/JourneyProvider";
 import { MomentColorsProvider } from "@/utils/MomentColorsProvider";
@@ -283,7 +284,9 @@ export default function RootLayout() {
                     <HomeTransitionLoaderProvider>
                       <View style={{ flex: 1 }}>
                         <InAppNotificationProvider>
-                          <AppContent />
+                          <SferaEventsBadgeProvider>
+                            <AppContent />
+                          </SferaEventsBadgeProvider>
                         </InAppNotificationProvider>
                         <HomeTransitionLoaderOverlay />
                       </View>

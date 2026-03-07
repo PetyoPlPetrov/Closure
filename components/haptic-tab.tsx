@@ -13,6 +13,7 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import { useEffect, useRef } from 'react';
+import { emitEventsTabPress } from '@/utils/events-tab-press';
 import { emitHomeTabPress } from '@/utils/home-tab-press';
 import { emitSpheresTabPress } from '@/utils/spheres-tab-press';
 import { onSpheresTabPulseRequest } from '@/utils/spheres-tab-pulse';
@@ -120,6 +121,34 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
         {...props}
         onPress={handlePress}
       />
+    </Animated.View>
+  );
+}
+
+// Custom events tab button – emits on press so the events screen can return to main view when already focused
+export function EventsTabButton(props: BottomTabBarButtonProps) {
+  const pressScale = useSharedValue(1);
+
+  const handlePress = (ev: any) => {
+    emitEventsTabPress();
+    pressScale.value = withSequence(
+      withTiming(0.92, { duration: 150, easing: Easing.out(Easing.ease) }),
+      withTiming(1.02, { duration: 250, easing: Easing.out(Easing.ease) }),
+      withTiming(1, { duration: 200, easing: Easing.inOut(Easing.ease) })
+    );
+    if (Platform.OS === 'ios' && Device.isDevice) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    props.onPress?.(ev);
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }],
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <PlatformPressable {...props} onPress={handlePress} />
     </Animated.View>
   );
 }

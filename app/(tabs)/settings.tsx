@@ -11,32 +11,30 @@ import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { showPaywallForPlusAccess } from "@/utils/premium-access";
 import { presentPaywallWithOffering } from "@/utils/revenuecat-paywall";
+import { clearSferaEventsStorage } from "@/utils/sfera-events";
+import { useSferaEventsBadge } from "@/utils/SferaEventsBadgeProvider";
 import { resetStreakData } from "@/utils/streak-manager";
 import { useSubscription } from "@/utils/SubscriptionProvider";
-import {
-  type AppVersionInfo,
-  getAppVersionInfo,
-} from "@/utils/updates";
+import { type AppVersionInfo, getAppVersionInfo } from "@/utils/updates";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Asset } from "expo-asset";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    Alert,
-    Dimensions,
-    DimensionValue,
-    Linking,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle,
+  Alert,
+  Dimensions,
+  DimensionValue,
+  Linking,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from "react-native";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -78,6 +76,7 @@ export default function SettingsScreen() {
     primaryPlan,
   } = useSubscription();
   const hasBackupAccess = hasPlusEntitlement || hasAIEntitlement;
+  const { refreshEvents, resetEventsState } = useSferaEventsBadge();
   const t = useTranslate();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
@@ -1214,13 +1213,17 @@ export default function SettingsScreen() {
                   memoryTitles[i % memoryTitles.length] + ` (${i + 1})`;
 
                 // Use explicit sphere parameter to ensure memories are created for relationships
-                const memoryId = await addIdealizedMemory(profileId, "relationships", {
-                  title: memoryTitle,
-                  imageUri: getRandomMemoryImage(),
-                  hardTruths,
-                  goodFacts,
-                  lessonsLearned,
-                });
+                const memoryId = await addIdealizedMemory(
+                  profileId,
+                  "relationships",
+                  {
+                    title: memoryTitle,
+                    imageUri: getRandomMemoryImage(),
+                    hardTruths,
+                    goodFacts,
+                    lessonsLearned,
+                  },
+                );
 
                 if (memoryId) {
                   createdMemories++;
@@ -1846,6 +1849,9 @@ export default function SettingsScreen() {
               const AVATAR_POSITIONS_KEY = "@sferas:avatar_positions";
               const WALKTHROUGH_SHOWN_KEY = "@sferas:walkthrough_shown";
 
+              await clearSferaEventsStorage();
+              resetEventsState();
+
               await Promise.all([
                 AsyncStorage.removeItem(STORAGE_KEY),
                 AsyncStorage.removeItem(IDEALIZED_MEMORIES_KEY),
@@ -1857,6 +1863,9 @@ export default function SettingsScreen() {
                 AsyncStorage.removeItem(WALKTHROUGH_SHOWN_KEY), // Clear walkthrough flag so it shows again
                 resetStreakData(), // Reset streak data
               ]);
+
+              // Re-fetch events (cache was cleared; with no location only global events will be stored)
+              await refreshEvents();
 
               // Reload all data from storage to update state immediately
               await Promise.all([
@@ -2071,7 +2080,9 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={styles.dropdown}
-            onPress={() => Linking.openURL("https://forms.gle/6JGAWe2BAMety8m26")}
+            onPress={() =>
+              Linking.openURL("https://forms.gle/6JGAWe2BAMety8m26")
+            }
             activeOpacity={0.7}
           >
             <View style={styles.dropdownContent}>
@@ -2189,8 +2200,7 @@ export default function SettingsScreen() {
                     },
                   ]}
                   onPress={async () => {
-                    const ok =
-                      await presentPaywallWithOffering("Sferas AI");
+                    const ok = await presentPaywallWithOffering("Sferas AI");
                     if (ok) await checkSubscription();
                   }}
                   activeOpacity={0.7}
@@ -2236,8 +2246,8 @@ export default function SettingsScreen() {
         {versionInfo && (
           <View style={[styles.section, { marginTop: 8 * fontScale }]}>
             <ThemedText
-              size="s"
-              style={{ color: colors.icon, marginBottom: 4 }}
+              size="sm"
+              style={{ color: colors.icon }}
             >
               {t("settings.appVersion")} {versionInfo.nativeVersion}
               {versionInfo.updateId && !versionInfo.isEmbeddedLaunch

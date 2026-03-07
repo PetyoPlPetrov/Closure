@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sferas",
     "slug": "sphere",
-    "version": "1.0.147",
+    "version": "1.0.152",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-v2.png",
     "scheme": "sphere",
@@ -28,7 +28,7 @@
           "com.petyoplpetrov.Sphere.ai-processing"
         ]
       },
-      "buildNumber": "1.0.148",
+      "buildNumber": "1.0.153",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
@@ -51,7 +51,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 151,
+      "versionCode": 156,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -95,6 +95,12 @@
       "./plugins/with-firebase-appdelegate",
       "./plugins/withAnalyticsSourcePatch.js",
       "./plugins/with-video-composer.js",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Sferas uses your location to show events in your region. Without it, only global events (no country filter) will be shown."
+        }
+      ],
       [
         "expo-speech-recognition",
         {

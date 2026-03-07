@@ -37,6 +37,9 @@ const STORAGE_KEYS_TO_EXPORT = [
   "@sferas:language",
   "@sferas:ai_encouragement_requests",
   "@sferas:ai_encouragement_messages",
+  "@sferas:unlocked_vip_event_codes",
+  "@sferas:events_sheet_url",
+  "@sferas:sfera_events_cache",
 ] as const;
 
 export type ExportResult = { success: true; fileUri: string } | { success: false; error: string };

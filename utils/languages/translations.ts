@@ -11,7 +11,41 @@ export interface Translations {
   "tab.exProfiles": string;
   "tab.spheres": string;
   "tab.settings": string;
+  "tab.events": string;
   "home.emptyState": string;
+  // Events tab (Sfera Community / Events)
+  "events.section.public": string;
+  "events.section.private": string;
+  "events.section.vip": string;
+  "events.loading": string;
+  "events.empty": string;
+  "events.vipEnterCode": string;
+  "events.vipCodePlaceholder": string;
+  "events.vipCodeRequired": string;
+  "events.vipCodeInvalid": string;
+  "events.cancel": string;
+  "events.unlock": string;
+  "events.back": string;
+  "events.learnMore": string;
+  "events.newEventsTitle": string;
+  "events.newEventsMessage": string;
+  "events.newEventInCommunity": string;
+  "events.noUpcomingEvents": string;
+  "events.sferaCommunities": string;
+  "events.locationDeclinedAlertTitle": string;
+  "events.locationDeclinedAlertMessage": string;
+  "events.locationModalTitle": string;
+  "events.locationModalMessage": string;
+  "events.locationModalEnable": string;
+  "events.locationModalClose": string;
+  "events.locationOpenSettingsMessage": string;
+  "events.locationOpenSettingsButton": string;
+  "events.privateEnterCode": string;
+  "events.join": string;
+  "events.leave": string;
+  "events.attendingBadge": string;
+  "events.joinError": string;
+  "events.leaveError": string;
   "avatar.sunnyLife": string;
 
   // Settings
@@ -60,6 +94,8 @@ export interface Translations {
   "settings.devTools.clearData.button": string;
   "settings.devTools.clearData.deleting": string;
   "settings.appVersion": string;
+  "settings.deviceRegion": string;
+  "settings.deviceRegionTown": string;
   "settings.backup.title": string;
   "settings.backup.export": string;
   "settings.backup.import": string;
@@ -3537,9 +3573,42 @@ const translations: Record<Language, Translations> = {
     "tab.exProfiles": "Ex Profiles",
     "tab.spheres": "Sferas",
     "tab.settings": "Settings",
+    "tab.events": "Events",
     "home.emptyState":
       "No profiles yet. Add your first ex-profile to get started.",
     "avatar.sunnyLife": "Sunny Life",
+    "events.section.public": "Sfera Public",
+    "events.section.private": "Sfera Private",
+    "events.section.vip": "Sfera VIP",
+    "events.loading": "Loading events…",
+    "events.empty": "No events yet. Check back later or add a sheet URL in settings.",
+    "events.vipEnterCode": "Enter VIP code",
+    "events.vipCodePlaceholder": "Code",
+    "events.vipCodeRequired": "Please enter a code.",
+    "events.vipCodeInvalid": "This code doesn't unlock any event.",
+    "events.cancel": "Cancel",
+    "events.unlock": "Unlock",
+    "events.back": "Back",
+    "events.learnMore": "Learn more",
+    "events.newEventsTitle": "New events",
+    "events.newEventsMessage": "New events available in Sfera Community",
+    "events.newEventInCommunity": "New event in Sfera Community: {community}",
+    "events.noUpcomingEvents": "No upcoming events",
+    "events.sferaCommunities": "Sfera Communities",
+    "events.locationDeclinedAlertTitle": "Location not enabled",
+    "events.locationDeclinedAlertMessage": "Without location access, you'll only see global events (no country filter). You can enable location in Settings later.",
+    "events.locationModalTitle": "Location access",
+    "events.locationModalMessage": "Without location, from now on you'll only see global events (no country filter). Tap Enable to allow location and see events in your region.",
+    "events.locationModalEnable": "Enable",
+    "events.locationModalClose": "Close",
+    "events.locationOpenSettingsMessage": "Location was denied. To see events in your region, enable location for Sferas in Settings.",
+    "events.locationOpenSettingsButton": "Open Settings",
+    "events.privateEnterCode": "Enter code for Private events",
+    "events.join": "Join",
+    "events.leave": "Leave",
+    "events.attendingBadge": "Going",
+    "events.joinError": "Could not join the event. Please try again.",
+    "events.leaveError": "Could not leave the event. Please try again.",
 
     // Settings
     "settings.title": "Settings",
@@ -3600,6 +3669,8 @@ const translations: Record<Language, Translations> = {
     "settings.devTools.clearData.button": "Clear All App Data",
     "settings.devTools.clearData.deleting": "Deleting...",
     "settings.appVersion": "App version",
+    "settings.deviceRegion": "Device region",
+    "settings.deviceRegionTown": "Town",
     "settings.backup.title": "Backup",
     "settings.backup.export": "Export data (ZIP)",
     "settings.backup.import": "Import from backup",
@@ -7914,9 +7985,42 @@ const translations: Record<Language, Translations> = {
     "tab.exProfiles": "Партньори",
     "tab.spheres": "Sferas",
     "tab.settings": "Настройки",
+    "tab.events": "Събития",
     "home.emptyState":
       "Няма профили все още. Добавете първи партньор, за да започнете.",
     "avatar.sunnyLife": "Слънчев живот",
+    "events.section.public": "Sfera Public",
+    "events.section.private": "Sfera Private",
+    "events.section.vip": "Sfera VIP",
+    "events.loading": "Зареждане на събития…",
+    "events.empty": "Все още няма събития. Проверете по-късно или добавете URL на таблица в настройките.",
+    "events.vipEnterCode": "Въведете VIP код",
+    "events.vipCodePlaceholder": "Код",
+    "events.vipCodeRequired": "Моля, въведете код.",
+    "events.vipCodeInvalid": "Този код не отключва събитие.",
+    "events.cancel": "Отказ",
+    "events.unlock": "Отключи",
+    "events.back": "Назад",
+    "events.learnMore": "Научи повече",
+    "events.newEventsTitle": "Нови събития",
+    "events.newEventsMessage": "Нови събития в Sfera Community",
+    "events.newEventInCommunity": "Ново събитие в Sfera Community: {community}",
+    "events.noUpcomingEvents": "Няма предстоящи събития",
+    "events.sferaCommunities": "Sfera общности",
+    "events.locationDeclinedAlertTitle": "Местоположението е изключено",
+    "events.locationDeclinedAlertMessage": "Без достъп до местоположение ще виждате само глобални събития. Можете да активирате местоположението в Настройки по-късно.",
+    "events.locationModalTitle": "Достъп до местоположение",
+    "events.locationModalMessage": "Без местоположение от сега нататък ще виждате само глобални събития. Натиснете Включи за да разрешите местоположение и да виждате събития във вашия регион.",
+    "events.locationModalEnable": "Включи",
+    "events.locationModalClose": "Затвори",
+    "events.locationOpenSettingsMessage": "Местоположението е отказано. За да виждате събития във вашия регион, включете местоположението за Sferas в Настройки.",
+    "events.locationOpenSettingsButton": "Отвори Настройки",
+    "events.privateEnterCode": "Въведете код за частни събития",
+    "events.join": "Присъединете се",
+    "events.leave": "Отпишете се",
+    "events.attendingBadge": "Идвам",
+    "events.joinError": "Неуспешно присъединяване. Моля, опитайте отново.",
+    "events.leaveError": "Неуспешно отписване. Моля, опитайте отново.",
 
     // Settings
     "settings.title": "Настройки",
@@ -7978,6 +8082,8 @@ const translations: Record<Language, Translations> = {
     "settings.devTools.clearData.button": "Изтриване на Всички Данни",
     "settings.devTools.clearData.deleting": "Изтриване...",
     "settings.appVersion": "Версия на приложението",
+    "settings.deviceRegion": "Регион на устройството",
+    "settings.deviceRegionTown": "Град",
     "settings.backup.title": "Резервно копие",
     "settings.backup.export": "Експорт на данни (ZIP)",
     "settings.backup.import": "Импорт от резервно копие",

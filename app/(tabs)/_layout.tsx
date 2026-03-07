@@ -5,11 +5,12 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HapticTab, HomeTabButton, SpheresTabButton } from '@/components/haptic-tab';
+import { EventsTabButton, HapticTab, HomeTabButton, SpheresTabButton } from '@/components/haptic-tab';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import { useSferaEventsBadge } from '@/utils/SferaEventsBadgeProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 
 export default function TabLayout() {
@@ -18,6 +19,7 @@ export default function TabLayout() {
   const fontScale = useFontScale();
   const t = useTranslate();
   const insets = useSafeAreaInsets();
+  const { hasNewEvents, unseenCount } = useSferaEventsBadge();
   
   // Scale icon size: 28 base size, 30% larger on tablets (28 * 1.3 = 36.4, round to 36)
   const iconSize = Math.round(28 * fontScale);
@@ -132,6 +134,34 @@ export default function TabLayout() {
             );
           },
           tabBarButton: SpheresTabButton,
+        }}
+      />
+      <Tabs.Screen
+        name="events"
+        options={{
+          title: 'Events',
+          tabBarBadge: hasNewEvents ? unseenCount : undefined,
+          tabBarButton: EventsTabButton,
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons name="event" size={iconSize} color={color} />
+          ),
+          tabBarLabel: ({ focused, color }) => {
+            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : '#666666';
+            return (
+              <ThemedText
+                size="xs"
+                weight={focused ? 'bold' : 'medium'}
+                letterSpacing="l"
+                style={{
+                  color: focused ? color : inactiveColor,
+                  marginTop: 6 * fontScale,
+                  lineHeight: 18 * fontScale
+                }}
+              >
+                {t('tab.events')}
+              </ThemedText>
+            );
+          },
         }}
       />
       <Tabs.Screen
