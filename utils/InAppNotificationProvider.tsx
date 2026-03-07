@@ -10,6 +10,10 @@ interface NotificationData {
   title: string;
   message: string;
   emoji?: string;
+  /** When set, show a calendar tile with this date (event date) instead of emoji */
+  eventDate?: Date;
+  /** MaterialIcons name to show at the end of the message (e.g. "auto-awesome" for AI) */
+  trailingIcon?: string;
   duration?: number;
   /** When set, tapping the notification (not the close button) calls this. If dismissOnPress is true, notification is hidden after. */
   onPress?: () => void;
@@ -50,6 +54,8 @@ export function InAppNotificationProvider({ children }: { children: ReactNode })
           title={notification.title}
           message={notification.message}
           emoji={notification.emoji}
+          eventDate={notification.eventDate}
+          trailingIcon={notification.trailingIcon}
           onHide={hideNotification}
           duration={notification.duration}
           onPress={notification.onPress}

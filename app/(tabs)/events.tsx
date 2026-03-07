@@ -42,6 +42,7 @@ import {
 } from "@/utils/sfera-events";
 import { updateEventStatus } from "@/utils/sfera-event-attendance";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { BlurView } from "expo-blur";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -57,6 +58,7 @@ import {
   StyleSheet,
   TextInput,
   View,
+  type ViewStyle,
 } from "react-native";
 import Animated, {
   Easing,
@@ -85,12 +87,18 @@ const ORB_SIZE = 140;
 const FOCUSED_ORB_SIZE = Math.round(170 / 1.4);
 const EVENT_ORBIT_RADIUS = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.36;
 const EVENT_BELOW_ORB_GAP = 16;
-const FOCUSED_EVENT_SIZE = 208;
+const FOCUSED_EVENT_SIZE = 228;
 const SMALL_EVENT_SIZE = 88;
+/** Non-focused cards above the orb (top half of orbit) */
+const SMALL_EVENT_SIZE_ABOVE = 72;
+/** Non-focused card above and to the right – even smaller */
+const SMALL_EVENT_SIZE_ABOVE_RIGHT = 58;
 const EVENT_SLIDE_OFFSET = SCREEN_WIDTH * 0.5;
 const FOCUSED_EVENT_BOTTOM_Y =
   CENTER_Y + FOCUSED_ORB_SIZE / 2 + EVENT_BELOW_ORB_GAP + FOCUSED_EVENT_SIZE;
-const CHEVRON_TOP = FOCUSED_EVENT_BOTTOM_Y - 56;
+const CHEVRON_HEIGHT = 56;
+const CHEVRON_TOP =
+  FOCUSED_EVENT_BOTTOM_Y - FOCUSED_EVENT_SIZE / 2 - CHEVRON_HEIGHT / 2;
 
 const ORB_ANGLES = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3]; // 0°, 120°, 240°
 
@@ -706,35 +714,55 @@ const CenterOrbPlaceholder = React.memo(function CenterOrbPlaceholder({
 
 const EVENT_ORBIT_DURATION = 320;
 
-/** Event card positioned by shared orbit angle so all events move smoothly along the circle (no jumping). */
-/** Small pulsing icon (arrow-forward) for "learn more"; shown on focused event card. */
-const LearnMoreIcon = React.memo(function LearnMoreIcon({
+/** Left/right chevron with tiny pulse and color feedback on press */
+const ChevronNavButton = React.memo(function ChevronNavButton({
+  direction,
   onPress,
   colors,
+  style,
 }: {
+  direction: "left" | "right";
   onPress: () => void;
   colors: Record<string, string>;
+  style: ViewStyle | ViewStyle[];
 }) {
-  const pulseScale = useSharedValue(1);
-  useEffect(() => {
-    pulseScale.value = withRepeat(
-      withTiming(1.12, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true,
-    );
-  }, [pulseScale]);
+  const scale = useSharedValue(1);
+  const [pressed, setPressed] = useState(false);
+  const iconColor = pressed ? colors.primaryLight : colors.primary;
+
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseScale.value }],
+    transform: [{ scale: scale.value }],
   }));
+
+  const handlePressIn = useCallback(() => {
+    setPressed(true);
+    scale.value = withTiming(0.96, { duration: 50 });
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    setPressed(false);
+    scale.value = withTiming(1, { duration: 80 });
+  }, [scale]);
+
   return (
-    <Animated.View style={[styles.learnMoreIcon, animatedStyle]}>
-      <Pressable onPress={onPress} style={StyleSheet.absoluteFill}>
-        <MaterialIcons name="arrow-forward" size={20} color={colors.primary} />
+    <Animated.View style={[style, animatedStyle]}>
+      <Pressable
+        style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+      >
+        <MaterialIcons
+          name={direction === "left" ? "chevron-left" : "chevron-right"}
+          size={36}
+          color={iconColor}
+        />
       </Pressable>
     </Animated.View>
   );
 });
 
+/** Event card positioned by shared orbit angle so all events move smoothly along the circle (no jumping). */
 const OrbitalEventCard = React.memo(function OrbitalEventCard({
   event,
   eventIndex,
@@ -770,6 +798,12 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
   const isFocused =
     (eventIndex - focusedEventIndex + totalCount) % totalCount === 0;
 
+  // Nominal angle when focused event is at bottom: event is "above" orb when in top half
+  const nominalAngle =
+    Math.PI / 2 +
+    (focusedEventIndex - eventIndex) * ((2 * Math.PI) / Math.max(1, totalCount));
+  const isAboveOrb = Math.sin(nominalAngle) < -0.15;
+
   const animatedStyle = useAnimatedStyle(() => {
     const n = totalCount;
     if (n <= 0)
@@ -780,14 +814,36 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
         width: SMALL_EVENT_SIZE,
         height: SMALL_EVENT_SIZE,
       };
-    // All events on one circle: event i at angle = π/2 (bottom) - i*(2π/n) + orbitAngle. So orbitAngle=0 puts event 0 at bottom.
+    // Orbit: event i at angle = π/2 (bottom) - i*(2π/n) + orbitAngle. Different levels via radius + vertical offset.
     const angle =
       Math.PI / 2 - eventIndex * ((2 * Math.PI) / n) + eventOrbitAngle.value;
     const focused = focusedEventIndexShared.value === eventIndex;
-    const w = focused ? FOCUSED_EVENT_SIZE : SMALL_EVENT_SIZE;
+    const sinA = Math.sin(angle);
+    const cosA = Math.cos(angle);
+
+    // Size: focused = big; above orb = smaller; above and right = even smaller
+    let w: number;
+    if (focused) {
+      w = FOCUSED_EVENT_SIZE;
+    } else {
+      const above = sinA < -0.15;
+      const right = cosA > 0.25;
+      if (above && right) w = SMALL_EVENT_SIZE_ABOVE_RIGHT;
+      else if (above) w = SMALL_EVENT_SIZE_ABOVE;
+      else w = SMALL_EVENT_SIZE;
+    }
     const h = w;
-    const x = CENTER_X + Math.cos(angle) * EVENT_ORBIT_RADIUS - w / 2;
-    const y = CENTER_Y + Math.sin(angle) * EVENT_ORBIT_RADIUS - h / 2;
+
+    // Different levels: vary radius by angle (top = smaller radius = closer/higher), and nudge top cards up
+    const radiusMultiplier = 0.8 + 0.2 * (1 + sinA);
+    const r = EVENT_ORBIT_RADIUS * radiusMultiplier;
+    const above = sinA < -0.15;
+    const right = cosA > 0.25;
+    const yOffset =
+      above && right ? -26 : sinA < 0 ? -14 : 4;
+    const x = CENTER_X + cosA * r - w / 2;
+    const y = CENTER_Y + sinA * r + yOffset - h / 2;
+
     return {
       position: "absolute" as const,
       left: x,
@@ -797,60 +853,102 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
     };
   });
 
-  return (
-    <Animated.View style={animatedStyle}>
+  const dateDisplay = event.startDate || event.date;
+
+  const cardContent = (
+    <View style={styles.eventCardGlowWrap}>
       <Pressable
         onPress={() => isFocused && onFocusPress?.(event)}
-        style={[
-          styles.eventCard,
-          {
-            backgroundColor:
-              colorScheme === "dark"
-                ? "rgba(255,255,255,0.08)"
-                : "rgba(0,0,0,0.06)",
-          },
-        ]}
+        style={[styles.eventCard, { borderColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)" }]}
       >
-        {event.imageUrl ? (
-          <Image
-            source={{ uri: event.imageUrl }}
-            style={styles.eventCardImage}
-            contentFit="cover"
-          />
-        ) : (
-          <View
-            style={[
-              styles.eventCardImage,
-              styles.eventCardImagePlaceholder,
-              { backgroundColor: colors.primary + "25" },
-            ]}
-          >
-            <MaterialIcons
-              name={isLocked ? "lock" : "event"}
-              size={isFocused ? 40 : 24}
-              color={colors.primary}
+      <BlurView
+          intensity={colorScheme === "dark" ? 40 : 60}
+          tint={colorScheme === "dark" ? "dark" : "light"}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[styles.eventCardGlassOverlay, { backgroundColor: colorScheme === "dark" ? "rgba(26,35,50,0.5)" : "rgba(255,255,255,0.4)" }]} pointerEvents="none" />
+        <View style={styles.eventCardContent}>
+          {event.imageUrl ? (
+            <Image
+              source={{ uri: event.imageUrl }}
+              style={styles.eventCardImage}
+              contentFit="cover"
             />
-          </View>
-        )}
-        <ThemedText
-          size={isFocused ? "sm" : "xxs"}
-          weight="medium"
-          numberOfLines={isFocused ? 3 : 2}
-          style={styles.eventCardName}
-        >
-          {event.name}
-        </ThemedText>
-        {event.date && !isLocked ? (
-          <ThemedText size="xxs" emphasis="medium" numberOfLines={1}>
-            {event.date}
-          </ThemedText>
-        ) : null}
-        {isLocked ? (
+          ) : (
+            <View
+              style={[
+                styles.eventCardImage,
+                styles.eventCardImagePlaceholder,
+                { backgroundColor: colors.primary + "25" },
+              ]}
+            >
+              <MaterialIcons
+                name={isLocked ? "lock" : "event"}
+                size={isFocused ? 40 : 24}
+                color={colors.primary}
+              />
+            </View>
+          )}
+          {isFocused ? (
+            <View style={styles.eventCardDetails}>
+              <ThemedText
+                size="sm"
+                weight="bold"
+                numberOfLines={3}
+                style={styles.eventCardName}
+              >
+                {event.name}
+              </ThemedText>
+              {dateDisplay && !isLocked ? (
+                <ThemedText size="xxs" emphasis="medium" numberOfLines={1} style={styles.eventCardDate}>
+                  {dateDisplay}
+                </ThemedText>
+              ) : null}
+              <View style={styles.eventCardActions}>
+                <View style={styles.eventCardCalendarBtnWrapper}>
+                  <View style={[styles.eventCardActionBtn, { backgroundColor: colors.primary + "40", borderColor: "rgba(255,255,255,0.25)" }]}>
+                    <MaterialIcons name="event" size={18} color="#fff" />
+                  </View>
+                  {!isLocked && isAttending ? (
+                    <View style={[styles.eventCardCalendarBadge, isPastEvent && styles.eventCardCalendarBadgePast]}>
+                      <MaterialIcons
+                        name={isPastEvent ? "event-available" : "check-circle"}
+                        size={10}
+                        color="#fff"
+                      />
+                    </View>
+                  ) : null}
+                </View>
+                {onFocusPress ? (
+                  <Pressable
+                    style={[styles.eventCardActionBtn, { backgroundColor: colors.primary + "40", borderColor: "rgba(255,255,255,0.25)" }]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      onFocusPress(event);
+                    }}
+                  >
+                    <MaterialIcons name="arrow-forward" size={18} color="#fff" />
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+          ) : !isAboveOrb ? (
+            <ThemedText
+              size="xxs"
+              weight="medium"
+              numberOfLines={1}
+              style={styles.eventCardNameOnly}
+            >
+              {event.name}
+            </ThemedText>
+          ) : null}
+        </View>
+        {isFocused && isLocked ? (
           <View style={styles.eventCardLockBadge}>
             <MaterialIcons name="lock" size={14} color="#fff" />
           </View>
         ) : null}
-        {isPastEvent && onDeletePress ? (
+        {isFocused && isPastEvent && onDeletePress ? (
           <Pressable
             style={styles.eventCardDeleteBadge}
             onPress={(e) => {
@@ -868,28 +966,24 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
             <MaterialIcons name="delete-outline" size={18} color="#fff" />
           </Pressable>
         ) : null}
-        {isUnseen && !isLocked ? (
+        {isFocused && isUnseen && !isLocked ? (
           <View style={styles.eventCardUnseenBadge} />
         ) : null}
-        {!isLocked ? (
-          isAttending ? (
-            <View style={[styles.eventCardAttendingBadge, isPastEvent && styles.eventCardPastAttendedBadge]}>
-              <MaterialIcons
-                name={isPastEvent ? "event-available" : "check-circle"}
-                size={isPastEvent ? 18 : 16}
-                color="#fff"
-              />
-            </View>
-          ) : (
-            <View style={[styles.eventCardUpcomingBadge, { backgroundColor: colors.primary }]}>
-              <MaterialIcons name="event" size={22} color="#fff" />
-            </View>
-          )
-        ) : null}
-        {isFocused && onFocusPress ? (
-          <LearnMoreIcon colors={colors} onPress={() => onFocusPress(event)} />
-        ) : null}
       </Pressable>
+    </View>
+  );
+
+  return (
+    <Animated.View style={animatedStyle}>
+      {isFocused ? (
+        <View style={[styles.eventCardOuterFrame, { borderColor: colorScheme === "dark" ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.12)" }]}>
+          <View style={styles.eventCardTilt}>
+            {cardContent}
+          </View>
+        </View>
+      ) : (
+        cardContent
+      )}
     </Animated.View>
   );
 });
@@ -1451,26 +1545,18 @@ export default function EventsTab() {
               {/* Left/right to focus prev/next Sfera Event – positioned lower on screen */}
               {listForPhase.length > 1 ? (
                 <>
-              <Pressable
-                style={[styles.chevron, styles.chevronLeft]}
-                onPress={goToNextEvent}
-              >
-                <MaterialIcons
-                  name="chevron-left"
-                  size={36}
-                  color={colors.primary}
-                />
-              </Pressable>
-              <Pressable
-                style={[styles.chevron, styles.chevronRight]}
-                onPress={goToPrevEvent}
-              >
-                <MaterialIcons
-                  name="chevron-right"
-                  size={36}
-                  color={colors.primary}
-                />
-              </Pressable>
+                  <ChevronNavButton
+                    direction="left"
+                    onPress={goToNextEvent}
+                    colors={colors}
+                    style={[styles.chevron, styles.chevronLeft]}
+                  />
+                  <ChevronNavButton
+                    direction="right"
+                    onPress={goToPrevEvent}
+                    colors={colors}
+                    style={[styles.chevron, styles.chevronRight]}
+                  />
                 </>
               ) : null}
 
@@ -2042,7 +2128,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: CHEVRON_TOP,
     width: 48,
-    height: 56,
+    height: CHEVRON_HEIGHT,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -2068,25 +2154,106 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: "center",
   },
+  eventCardOuterFrame: {
+    width: "100%",
+    height: "100%",
+    padding: 6,
+    borderRadius: 22,
+    borderWidth: 3,
+    overflow: "hidden",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 4, height: 5 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  eventCardTilt: {
+    flex: 1,
+    transform: [{ perspective: 500 }, { rotateX: "7deg" }],
+  },
+  eventCardGlowWrap: {
+    width: "100%",
+    height: "100%",
+    shadowColor: "rgba(100, 181, 246, 0.45)",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 4,
+  },
   eventCard: {
     width: "100%",
     height: "100%",
-    borderRadius: 12,
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 2, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  eventCardGlassOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
+  },
+  eventCardContent: {
+    flex: 1,
     overflow: "hidden",
     padding: 6,
-    paddingBottom: 34,
   },
-  eventCardImage: { width: "100%", flex: 1, minHeight: 24, borderRadius: 8 },
+  eventCardImage: {
+    width: "100%",
+    flex: 1,
+    minHeight: 24,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
   eventCardImagePlaceholder: { alignItems: "center", justifyContent: "center" },
-  eventCardName: { marginTop: 4 },
-  learnMoreIcon: {
-    position: "absolute",
-    bottom: 6,
-    right: 6,
-    width: 28,
-    height: 28,
+  eventCardDetails: {
+    paddingHorizontal: 10,
+    paddingTop: 4,
+    paddingBottom: 6,
+  },
+  eventCardName: { marginBottom: 2, textAlign: "left" },
+  eventCardNameOnly: {
+    paddingHorizontal: 6,
+    paddingTop: 4,
+    paddingBottom: 4,
+    textAlign: "left",
+  },
+  eventCardDate: { opacity: 0.85, textAlign: "left" },
+  eventCardActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  eventCardActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  eventCardCalendarBtnWrapper: {
+    position: "relative",
+  },
+  eventCardCalendarBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "rgba(76, 175, 80, 0.95)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  eventCardCalendarBadgePast: {
+    backgroundColor: "rgba(96, 125, 139, 0.95)",
   },
   eventCardLockBadge: {
     position: "absolute",
@@ -2119,33 +2286,6 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: "#64B5F6",
-  },
-  eventCardAttendingBadge: {
-    position: "absolute",
-    bottom: 2,
-    left: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "rgba(76, 175, 80, 0.95)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  eventCardPastAttendedBadge: {
-    backgroundColor: "rgba(96, 125, 139, 0.95)",
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-  },
-  eventCardUpcomingBadge: {
-    position: "absolute",
-    bottom: 2,
-    left: 6,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
   },
   backBtn: {
     position: "absolute",

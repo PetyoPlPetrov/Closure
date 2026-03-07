@@ -30,6 +30,7 @@ import {
   getOrCreateEventReminderSchedule,
   getPastAttendedEvents,
   incrementEventReminderInAppShownCount,
+  parseEventStartDate,
 } from "@/utils/sfera-events";
 import { HomeTransitionLoaderProvider } from "@/utils/home-transition-loader-context";
 import { InAppNotificationProvider, useInAppNotification } from "@/utils/InAppNotificationProvider";
@@ -142,10 +143,12 @@ function AppContent() {
           if (__DEV__) console.log("[Event memory] Showing in-app reminder for event:", event.id, `"${event.name}" (reminder ${newCount}/3)`);
           const title = "Create a memory for your event";
           const message = `You attended "${event.name}". Create a memory with AI.`;
+          const eventDate = parseEventStartDate(event.startDate) ?? undefined;
           showInAppNotification({
             title,
             message,
-            emoji: "📅",
+            ...(eventDate ? { eventDate } : { emoji: "📅" }),
+            trailingIcon: "auto-awesome",
             duration: 0,
             dismissOnPress: false,
             onPress: () => {

@@ -8,7 +8,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useEffect } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
     Easing,
     useAnimatedStyle,
@@ -23,6 +23,10 @@ interface InAppNotificationProps {
   title: string;
   message: string;
   emoji?: string;
+  /** When set, show a calendar tile (month + day) instead of emoji; use the event's date. */
+  eventDate?: Date;
+  /** MaterialIcons name to show at the end of the message (e.g. "auto-awesome" for AI). */
+  trailingIcon?: string;
   onHide: () => void;
   duration?: number; // How long to show in ms (default 3000). Use 0 for manual dismiss only.
   /** When set, tapping the notification content opens this action. If dismissOnPress is true (default), the notification is hidden after. */
@@ -33,11 +37,15 @@ interface InAppNotificationProps {
   onDismiss?: () => void;
 }
 
+const MONTH_ABBREV = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'] as const;
+
 export function InAppNotification({
   visible,
   title,
   message,
   emoji,
+  eventDate,
+  trailingIcon,
   onHide,
   duration = 3000,
   onPress,
@@ -134,18 +142,37 @@ export function InAppNotification({
         style={styles.contentPressable}
         onPress={onPress ? handleContentPress : undefined}
       >
-        {emoji && (
+        {eventDate != null ? (
+          <View style={[styles.calendarTile, { backgroundColor: colorScheme === 'dark' ? '#4A2C2A' : '#FEE2E2' }]}>
+            <ThemedText size="xs" weight="medium" style={[styles.calendarMonth, { color: colorScheme === 'dark' ? '#E57373' : '#B91C1C' }]}>
+              {MONTH_ABBREV[eventDate.getMonth()]}
+            </ThemedText>
+            <ThemedText size="l" weight="bold" style={[styles.calendarDay, { color: colorScheme === 'dark' ? '#FFFFFF' : '#1A2332' }]}>
+              {eventDate.getDate()}
+            </ThemedText>
+          </View>
+        ) : emoji ? (
           <ThemedText style={styles.emoji} size="xl">
             {emoji}
           </ThemedText>
-        )}
+        ) : null}
         <Animated.View style={styles.textContainer}>
           <ThemedText size="l" weight="bold" style={[styles.title, { color: titleColor }]}>
             {title}
           </ThemedText>
-          <ThemedText size="sm" style={[styles.message, { color: messageColor }]}>
-            {message}
-          </ThemedText>
+          <View style={styles.messageRow}>
+            <ThemedText size="sm" style={[styles.message, { color: messageColor }]}>
+              {message}
+            </ThemedText>
+            {trailingIcon ? (
+              <MaterialIcons
+                name={trailingIcon as keyof typeof MaterialIcons.glyphMap}
+                size={16}
+                color={messageColor}
+                style={styles.messageTrailingIcon}
+              />
+            ) : null}
+          </View>
         </Animated.View>
       </Pressable>
       <Pressable
@@ -188,6 +215,30 @@ const styles = StyleSheet.create({
   emoji: {
     marginRight: 12,
     fontSize: 32,
+  },
+  calendarTile: {
+    width: 44,
+    marginRight: 12,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarMonth: {
+    fontSize: 10,
+    marginBottom: 2,
+  },
+  calendarDay: {
+    fontSize: 18,
+  },
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  messageTrailingIcon: {
+    marginLeft: 4,
   },
   textContainer: {
     flex: 1,
