@@ -6,7 +6,6 @@ import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
-import { useNotificationNudgePreference } from "@/utils/NotificationNudgePreferenceProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import { router } from "expo-router";
@@ -35,8 +34,7 @@ export default function PersonalizationScreen() {
   const t = useTranslate();
   const { constellationAmount, constellationOpacity } = useVisualSettings();
   const aiConsent = useAIInsightsConsent();
-  const notificationNudge = useNotificationNudgePreference();
-  const [infoPopupKey, setInfoPopupKey] = useState<"aiInsights" | "notificationNudge" | null>(null);
+  const [infoPopupKey, setInfoPopupKey] = useState<"aiInsights" | null>(null);
 
   const handleToggleAIInsights = useCallback(
     async (next: boolean) => {
@@ -258,44 +256,6 @@ export default function PersonalizationScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Home section: show/hide encouragement nudge (not AI participation) */}
-          <View style={styles.section}>
-            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-              {t("personalization.homeSection")}
-            </ThemedText>
-
-            <View style={styles.aiToggleRow}>
-              <View style={styles.aiToggleTextWrap}>
-                <View style={styles.aiToggleTitleRow}>
-                  <ThemedText size="l" weight="medium" style={{ flex: 1 }}>
-                    {t("settings.notificationNudge.title")}
-                  </ThemedText>
-                  <TouchableOpacity
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    style={styles.infoIconButton}
-                    onPress={() => setInfoPopupKey("notificationNudge")}
-                  >
-                    <MaterialIcons
-                      name="info-outline"
-                      size={20 * fontScale}
-                      color={colors.text}
-                      style={{ opacity: 0.6 }}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <Switch
-                value={notificationNudge.enabled}
-                onValueChange={(v) => void notificationNudge.setEnabled(v)}
-                trackColor={{
-                  false: "rgba(150,150,150,0.35)",
-                  true: colors.primary,
-                }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-          </View>
-
           {/* Look / Visual section: Moment Colors + Cosmic app look */}
           <View style={styles.section}>
             <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
@@ -371,9 +331,7 @@ export default function PersonalizationScreen() {
             <ThemedText size="sm" style={{ lineHeight: 22, opacity: 0.9 }}>
               {infoPopupKey === "aiInsights"
                 ? t("settings.aiInsights.description")
-                : infoPopupKey === "notificationNudge"
-                  ? t("settings.notificationNudge.description")
-                  : ""}
+                : ""}
             </ThemedText>
           </Pressable>
         </Pressable>

@@ -3710,7 +3710,7 @@ const translations: Record<Language, Translations> = {
     "settings.notifications.manage": "Manage notifications",
     "settings.feedback.title": "Feedback",
     "settings.feedback.addFeedback": "Add feedback",
-    "settings.notificationNudge.title": "Encouragement nudge on Home",
+    "settings.notificationNudge.title": "Encouragement nudges",
     "settings.notificationNudge.description":
       "Show or hide the motivational message banner on the Home tab.",
     "settings.appUsabilityHints.title": "App usability hints",
@@ -8197,7 +8197,7 @@ const translations: Record<Language, Translations> = {
     "settings.notifications.manage": "Управление на известия",
     "settings.feedback.title": "Обратна връзка",
     "settings.feedback.addFeedback": "Добави обратна връзка",
-    "settings.notificationNudge.title": "Подсказка за насърчение на Начало",
+    "settings.notificationNudge.title": "Подсказки за насърчение",
     "settings.notificationNudge.description":
       "Показване или скриване на мотивационното съобщение в раздела Начало.",
     "settings.appUsabilityHints.title": "Подсказки за използване",

@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
@@ -9,6 +9,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useNotificationNudgePreference } from '@/utils/NotificationNudgePreferenceProvider';
 import { useNotificationsManager } from '@/utils/NotificationsProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 
@@ -33,8 +34,10 @@ export default function NotificationsScreen() {
 
   const { friends, familyMembers, profiles } = useJourney();
   const { assignments } = useNotificationsManager();
+  const notificationNudge = useNotificationNudgePreference();
 
   const renderSphereBlock = (sphere: 'friends' | 'family' | 'relationships', title: string, entityNames: { id: string; name: string }[]) => {
+    if (entityNames.length === 0) return null;
     const assignment = assignments[sphere];
     return (
       <View key={sphere} style={styles.card}>
@@ -83,6 +86,28 @@ export default function NotificationsScreen() {
 
   const renderSferasView = () => (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Encouragement nudges: show/hide motivational banner on Home tab */}
+      <View style={styles.card}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flex: 1 }}>
+            <ThemedText size="l" weight="bold">
+              {t('settings.notificationNudge.title')}
+            </ThemedText>
+            <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
+              {t('settings.notificationNudge.description')}
+            </ThemedText>
+          </View>
+          <Switch
+            value={notificationNudge.enabled}
+            onValueChange={(v) => void notificationNudge.setEnabled(v)}
+            trackColor={{
+              false: 'rgba(150,150,150,0.35)',
+              true: colors.primary,
+            }}
+            thumbColor="#FFFFFF"
+          />
+        </View>
+      </View>
       <TouchableOpacity
         style={styles.card}
         onPress={() => router.push('/moment-notifications')}

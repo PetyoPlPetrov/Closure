@@ -66,6 +66,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import Animated, {
+  cancelAnimation,
   Easing,
   runOnJS,
   useAnimatedStyle,
@@ -1076,7 +1077,11 @@ export default function EventsTab() {
   const t = useTranslate();
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
-  const { constellationAmount, constellationOpacity } = useVisualSettings();
+  const {
+    constellationAmount,
+    constellationOpacity,
+    appUsabilityHints,
+  } = useVisualSettings();
   const { momentColors } = useMomentColors();
   const { markEventAsSeen, refreshEvents } = useSferaEventsBadge();
   const { hasPlusEntitlement, hasAIEntitlement } = useSubscription();
@@ -1117,10 +1122,14 @@ export default function EventsTab() {
     useState<PendingAIResponse | null>(null);
   const [goldenEventIdForModal, setGoldenEventIdForModal] = useState<string | null>(null);
   const [discountRevealed, setDiscountRevealed] = useState(false);
+  const [eventsCommunitiesRotationStarted, setEventsCommunitiesRotationStarted] = useState(false);
+  const fingerHintShownRef = useRef(false);
 
   const params = useLocalSearchParams<{ eventIdForMemory?: string }>();
   const insets = useSafeAreaInsets();
   const orbitAngle = useSharedValue(0);
+  const eventsFingerOpacity = useSharedValue(0);
+  const eventsFingerScale = useSharedValue(1);
   const orbExitProgress = useSharedValue(0); // 0 = all visible, 1 = selected orb at center, others exited
   const selectedOrbIndex = useSharedValue(-1); // 0=social, 1=private, 2=plus
   const hideCenteredOrb = useSharedValue(0); // 1 when community selected so we show CenterOrbPlaceholder instead
@@ -1169,13 +1178,70 @@ export default function EventsTab() {
     };
   }, [loadUnlocked, loadEvents]);
 
+  // Start orbit rotation only after finger hint has faded (or immediately if usability hints off).
+  // When hints are on and finger not yet done: stop orbit so orbs stay still.
   useEffect(() => {
+    if (appUsabilityHints && !eventsCommunitiesRotationStarted) {
+      cancelAnimation(orbitAngle);
+      orbitAngle.value = 0;
+      return;
+    }
     orbitAngle.value = withRepeat(
       withTiming(2 * Math.PI, { duration: 24000, easing: Easing.linear }),
       -1,
       false,
     );
-  }, [orbitAngle]);
+    if (!appUsabilityHints) {
+      setEventsCommunitiesRotationStarted(true);
+    }
+  }, [orbitAngle, appUsabilityHints, eventsCommunitiesRotationStarted]);
+
+  // Finger hint over Sfera Social: appear after location/notification modal is dismissed (if any), then pulse, fade out, then start rotation
+  useEffect(() => {
+    if (
+      phase !== "orbs" ||
+      !appUsabilityHints ||
+      eventsCommunitiesRotationStarted ||
+      fingerHintShownRef.current ||
+      locationModalVisible
+    ) {
+      return;
+    }
+    fingerHintShownRef.current = true;
+    const fadeDurationMs = 3000;
+    eventsFingerOpacity.value = withSequence(
+      withTiming(1, { duration: 150, easing: Easing.out(Easing.ease) }),
+      withTiming(0, {
+        duration: fadeDurationMs - 150,
+        easing: Easing.linear,
+      }, (finished) => {
+        "worklet";
+        if (finished) {
+          cancelAnimation(eventsFingerScale);
+          runOnJS(setEventsCommunitiesRotationStarted)(true);
+        }
+      }),
+    );
+    eventsFingerScale.value = withRepeat(
+      withSequence(
+        withTiming(1.22, { duration: 450, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 450, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      true,
+    );
+    return () => {
+      cancelAnimation(eventsFingerOpacity);
+      cancelAnimation(eventsFingerScale);
+    };
+  }, [
+    phase,
+    appUsabilityHints,
+    eventsCommunitiesRotationStarted,
+    locationModalVisible,
+    eventsFingerOpacity,
+    eventsFingerScale,
+  ]);
 
   useEffect(() => {
     if (phase === "orbs") {
@@ -1484,6 +1550,13 @@ export default function EventsTab() {
     useCallback(() => {
       void loadEvents();
 
+      // Reset finger-hint state after a short delay so the location/notification modal can show first (400ms) if needed
+      const delayMs = 500;
+      const resetTimeoutId = setTimeout(() => {
+        fingerHintShownRef.current = false;
+        setEventsCommunitiesRotationStarted(false);
+      }, delayMs);
+
       (async () => {
         const status = await requestLocationPermission();
         if (status === "denied") {
@@ -1496,7 +1569,10 @@ export default function EventsTab() {
       const unsubscribe = onEventsTabPress(() => {
         if (phaseRef.current !== "orbs") goBackToOrbs();
       });
-      return () => unsubscribe();
+      return () => {
+        clearTimeout(resetTimeoutId);
+        unsubscribe();
+      };
     }, [loadEvents, goBackToOrbs]),
   );
 
@@ -1546,6 +1622,11 @@ export default function EventsTab() {
     opacity: eventsRevealProgress.value,
   }));
 
+  const eventsFingerHintStyle = useAnimatedStyle(() => ({
+    opacity: eventsFingerOpacity.value,
+    transform: [{ scale: eventsFingerScale.value }],
+  }));
+
   if (loading && events.length === 0) {
     return (
       <TabScreenContainer>
@@ -1589,6 +1670,37 @@ export default function EventsTab() {
         sunnyBackground={momentColors.sunny.background}
       />
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        {/* Finger hint over Sfera Social (before rotation starts), controlled by Personalization → Usability */}
+        {phase === "orbs" &&
+          appUsabilityHints &&
+          !eventsCommunitiesRotationStarted && (() => {
+            const fingerSize = 56 * fontScale;
+            const fingerOffsetFromOrbTop = 98 * fontScale;
+            return (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  {
+                    position: "absolute",
+                    left: CENTER_X + ORB_RADIUS - fingerSize / 2,
+                    top: CENTER_Y - ORB_SIZE / 2 + fingerOffsetFromOrbTop,
+                    width: fingerSize,
+                    height: fingerSize,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    zIndex: 100,
+                  },
+                  eventsFingerHintStyle,
+                ]}
+              >
+                <MaterialIcons
+                  name="touch-app"
+                  size={fingerSize}
+                  color={colorScheme === "dark" ? "#FFFFFF" : "#1A237E"}
+                />
+              </Animated.View>
+            );
+          })()}
         {/* ─── Phase: 3 orbs floating ─── */}
         {ORB_ANGLES.map((baseAngle, index) => {
           const type: SferaEventType =

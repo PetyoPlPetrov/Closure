@@ -423,15 +423,18 @@ export async function setLastKnownPublicVipEventIds(
   );
 }
 
+/** Result of fetchAndCheckForNewEvents: events list, count of new ones, and which communities have new events. */
+export type FetchAndCheckForNewEventsResult = {
+  events: SferaEvent[];
+  newCount: number;
+  newCommunities: Array<"social" | "plus">;
+};
+
 /**
  * Fetch events, compare social+Plus IDs with last known; return events, count of new ones, and which communities have new events.
  * On first run (no last known), newCount is 0. On fetch failure, returns cached events and newCount 0.
  */
-export async function fetchAndCheckForNewEvents(): Promise<{
-  events: SferaEvent[];
-  newCount: number;
-  newCommunities: Array<"social" | "plus">;
-}> {
+export async function fetchAndCheckForNewEvents(): Promise<FetchAndCheckForNewEventsResult> {
   const { events } = await fetchSferaEvents();
   const socialEvents = events.filter((e) => e.type === "social");
   const plusEvents = events.filter((e) => e.type === "plus");
@@ -561,9 +564,7 @@ export async function getPastAttendedEvents(): Promise<SferaEvent[]> {
     getAttendingEventIds(),
   ]);
   const past = list.filter((e) => isEventPassed(e) && attending.has(e.id));
-  if (__DEV__ && (list.length > 0 || past.length > 0)) {
-    console.log("[sfera-events] getPastAttendedEvents: snapshots =", list.length, "attending =", attending.size, "past (passed+joined) =", past.length, past.map((e) => ({ id: e.id, name: e.name, startDate: e.startDate })));
-  }
+
   return past;
 }
 
