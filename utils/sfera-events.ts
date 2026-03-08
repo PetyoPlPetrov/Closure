@@ -141,7 +141,7 @@ function rowToEvent(
     discountCode: type === "plus" ? discountCode : null,
     date: dateDisplay,
     startDate: startDateRaw,
-    eventLink: get("eventlink") || get("event link") || "",
+    eventLink: get("eventlink") || get("event link") || get("link") || get("url") || "",
     country,
     town,
     status,

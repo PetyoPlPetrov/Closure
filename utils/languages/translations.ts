@@ -32,6 +32,7 @@ export interface Translations {
   "events.unlock": string;
   "events.back": string;
   "events.learnMore": string;
+  "events.showLess": string;
   "events.newEventsTitle": string;
   "events.newEventsMessage": string;
   "events.newEventInCommunity": string;
@@ -3642,6 +3643,7 @@ const translations: Record<Language, Translations> = {
     "events.unlock": "Unlock",
     "events.back": "Back",
     "events.learnMore": "Learn more",
+    "events.showLess": "Show less",
     "events.newEventsTitle": "New events",
     "events.newEventsMessage": "New events available in Sfera Community",
     "events.newEventInCommunity": "New event in Sfera Community: {community}",
@@ -8128,6 +8130,7 @@ const translations: Record<Language, Translations> = {
     "events.unlock": "Отключи",
     "events.back": "Назад",
     "events.learnMore": "Научи повече",
+    "events.showLess": "Покажи по-малко",
     "events.newEventsTitle": "Нови събития",
     "events.newEventsMessage": "Нови събития в Sfera Community",
     "events.newEventInCommunity": "Ново събитие в Sfera Community: {community}",

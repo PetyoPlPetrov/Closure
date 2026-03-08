@@ -59,6 +59,7 @@ import {
   getPastAttendedEvents,
   incrementEventReminderInAppShownCount,
   parseEventStartDate,
+  type SferaEvent,
 } from "@/utils/sfera-events";
 import { SferaEventsBadgeProvider } from "@/utils/SferaEventsBadgeProvider";
 import {
@@ -201,7 +202,8 @@ function AppContent() {
         .then((past) =>
           Promise.all([Promise.resolve(past), getEventGoldenMemoryUsedIds()]),
         )
-        .then(async ([past, goldenUsed]) => {
+        .then(async (result) => {
+          const [past, goldenUsed] = result as [SferaEvent[], Set<string>];
           for (const event of past) {
             if (goldenUsed.has(event.id)) {
               if (__DEV__)

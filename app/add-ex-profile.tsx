@@ -69,6 +69,7 @@ export default function AddExProfileScreen() {
   const initialEndDate = useRef<Date | null>(null);
   const initialIsOngoing = useRef(false);
   const initialImage = useRef<string | null>(null);
+  const initialProfileCount = useRef<number | null>(null);
   const isNavigatingAway = useRef(false);
   const isSaving = useRef(false);
 

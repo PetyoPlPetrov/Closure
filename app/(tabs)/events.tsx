@@ -7,20 +7,21 @@ import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
+import { useSferaEventsBadge } from "@/utils/SferaEventsBadgeProvider";
+import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import {
   getPendingAIResponse,
   type PendingAIResponse,
 } from "@/utils/ai-background-processor";
-import { scheduleEventMemoryReminders } from "@/utils/event-memory-reminders";
+import {
+  cancelEventMemoryReminders,
+  scheduleEventMemoryReminders,
+} from "@/utils/event-memory-reminders";
 import { onEventsTabPress } from "@/utils/events-tab-press";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { showPaywallForPlusAccess } from "@/utils/premium-access";
-import { useSferaEventsBadge } from "@/utils/SferaEventsBadgeProvider";
-import { useSubscription } from "@/utils/SubscriptionProvider";
-import {
-  cancelEventMemoryReminders,
-} from "@/utils/event-memory-reminders";
+import { updateEventStatus } from "@/utils/sfera-event-attendance";
 import {
   addAttendedEventSnapshot,
   addAttendingEventId,
@@ -32,8 +33,8 @@ import {
   getPastAttendedEvents,
   getSeenEventIds,
   getUnlockedVipCodes,
-  isPrivateSectionUnlocked,
   isPlusSectionUnlocked,
+  isPrivateSectionUnlocked,
   removeAttendedEventSnapshotsByIds,
   removeAttendingEventId,
   removeEventGoldenMemoryUsedIds,
@@ -44,12 +45,18 @@ import {
   type SferaEvent,
   type SferaEventType,
 } from "@/utils/sfera-events";
-import { updateEventStatus } from "@/utils/sfera-event-attendance";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { BlurView } from "expo-blur";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -65,6 +72,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import type { SharedValue as ReanimatedSharedValue } from "react-native-reanimated";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -77,7 +85,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import type { SharedValue as ReanimatedSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, {
   Defs,
@@ -540,7 +547,10 @@ const FloatingOrb = React.memo(function FloatingOrb({
               size="xs"
               weight="medium"
               numberOfLines={hasNoEvents ? 2 : 1}
-              style={[styles.orbLabel, { color: getCommunityTextColor(type, colorScheme) }]}
+              style={[
+                styles.orbLabel,
+                { color: getCommunityTextColor(type, colorScheme) },
+              ]}
             >
               {hasNoEvents ? noUpcomingEventsLabel : label}
             </ThemedText>
@@ -705,14 +715,15 @@ const CenterOrbPlaceholder = React.memo(function CenterOrbPlaceholder({
               size="xs"
               weight="medium"
               numberOfLines={1}
-              style={[styles.orbLabel, { color: getCommunityTextColor(type, colorScheme) }]}
+              style={[
+                styles.orbLabel,
+                { color: getCommunityTextColor(type, colorScheme) },
+              ]}
             >
               {label}
             </ThemedText>
           </View>
-          {hasUnseenEvents && (
-            <View style={styles.orbUnseenBadge} />
-          )}
+          {hasUnseenEvents && <View style={styles.orbUnseenBadge} />}
         </View>
       </Pressable>
     </Animated.View>
@@ -754,7 +765,10 @@ const ChevronNavButton = React.memo(function ChevronNavButton({
   return (
     <Animated.View style={[style, animatedStyle]}>
       <Pressable
-        style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}
+        style={[
+          StyleSheet.absoluteFill,
+          { alignItems: "center", justifyContent: "center" },
+        ]}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -825,7 +839,8 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
   // Nominal angle when focused event is at bottom: event is "above" orb when in top half
   const nominalAngle =
     Math.PI / 2 +
-    (focusedEventIndex - eventIndex) * ((2 * Math.PI) / Math.max(1, totalCount));
+    (focusedEventIndex - eventIndex) *
+      ((2 * Math.PI) / Math.max(1, totalCount));
   const isAboveOrb = Math.sin(nominalAngle) < -0.15;
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -864,7 +879,11 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
     const above = sinA < -0.15;
     const right = cosA > 0.25;
     const yOffset =
-      above && right ? scaled.yOffsetAboveRight : sinA < 0 ? scaled.yOffsetAbove : scaled.yOffsetBelow;
+      above && right
+        ? scaled.yOffsetAboveRight
+        : sinA < 0
+          ? scaled.yOffsetAbove
+          : scaled.yOffsetBelow;
     const x = CENTER_X + cosA * r - w / 2;
     const y = CENTER_Y + sinA * r + yOffset - h / 2;
 
@@ -883,14 +902,33 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
     <View style={styles.eventCardGlowWrap}>
       <Pressable
         onPress={() => isFocused && onFocusPress?.(event)}
-        style={[styles.eventCard, { borderColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)" }]}
+        style={[
+          styles.eventCard,
+          {
+            borderColor:
+              colorScheme === "dark"
+                ? "rgba(255,255,255,0.12)"
+                : "rgba(0,0,0,0.08)",
+          },
+        ]}
       >
-      <BlurView
+        <BlurView
           intensity={colorScheme === "dark" ? 40 : 60}
           tint={colorScheme === "dark" ? "dark" : "light"}
           style={StyleSheet.absoluteFill}
         />
-        <View style={[styles.eventCardGlassOverlay, { backgroundColor: colorScheme === "dark" ? "rgba(26,35,50,0.5)" : "rgba(255,255,255,0.4)" }]} pointerEvents="none" />
+        <View
+          style={[
+            styles.eventCardGlassOverlay,
+            {
+              backgroundColor:
+                colorScheme === "dark"
+                  ? "rgba(26,35,50,0.5)"
+                  : "rgba(255,255,255,0.4)",
+            },
+          ]}
+          pointerEvents="none"
+        />
         <View style={styles.eventCardContent}>
           {(() => {
             const imageUrls = getEventImageUrls(event);
@@ -938,9 +976,9 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
                 style={[styles.eventCardImage, { width: carouselWidth }]}
                 contentContainerStyle={{ flexDirection: "row" }}
               >
-                {imageUrls.map((uri) => (
+                {imageUrls.map((uri, idx) => (
                   <Image
-                    key={uri}
+                    key={`${event.id}-img-${idx}`}
                     source={{ uri }}
                     style={[styles.eventCardImage, { width: carouselWidth }]}
                     contentFit="cover"
@@ -960,17 +998,39 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
                 {event.name}
               </ThemedText>
               {dateDisplay && !isLocked ? (
-                <ThemedText size="xxs" emphasis="medium" numberOfLines={1} style={styles.eventCardDate}>
+                <ThemedText
+                  size="xxs"
+                  emphasis="medium"
+                  numberOfLines={1}
+                  style={styles.eventCardDate}
+                >
                   {dateDisplay}
                 </ThemedText>
               ) : null}
               <View style={styles.eventCardActions}>
                 <View style={styles.eventCardCalendarBtnWrapper}>
-                  <View style={[styles.eventCardActionBtn, { backgroundColor: colors.primary + "40", borderColor: "rgba(255,255,255,0.25)" }]}>
-                    <MaterialIcons name="event" size={18 * fontScale} color="#fff" />
+                  <View
+                    style={[
+                      styles.eventCardActionBtn,
+                      {
+                        backgroundColor: colors.primary + "40",
+                        borderColor: "rgba(255,255,255,0.25)",
+                      },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="event"
+                      size={18 * fontScale}
+                      color="#fff"
+                    />
                   </View>
                   {!isLocked && isAttending ? (
-                    <View style={[styles.eventCardCalendarBadge, isPastEvent && styles.eventCardCalendarBadgePast]}>
+                    <View
+                      style={[
+                        styles.eventCardCalendarBadge,
+                        isPastEvent && styles.eventCardCalendarBadgePast,
+                      ]}
+                    >
                       <MaterialIcons
                         name={isPastEvent ? "event-available" : "check-circle"}
                         size={10 * fontScale}
@@ -981,13 +1041,23 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
                 </View>
                 {onFocusPress ? (
                   <Pressable
-                    style={[styles.eventCardActionBtn, { backgroundColor: colors.primary + "40", borderColor: "rgba(255,255,255,0.25)" }]}
+                    style={[
+                      styles.eventCardActionBtn,
+                      {
+                        backgroundColor: colors.primary + "40",
+                        borderColor: "rgba(255,255,255,0.25)",
+                      },
+                    ]}
                     onPress={(e) => {
                       e.stopPropagation();
                       onFocusPress(event);
                     }}
                   >
-                    <MaterialIcons name="arrow-forward" size={18 * fontScale} color="#fff" />
+                    <MaterialIcons
+                      name="arrow-forward"
+                      size={18 * fontScale}
+                      color="#fff"
+                    />
                   </Pressable>
                 ) : null}
               </View>
@@ -1018,12 +1088,20 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
                 t("events.removePastEventMessage"),
                 [
                   { text: t("common.cancel"), style: "cancel" },
-                  { text: t("common.delete"), style: "destructive", onPress: () => onDeletePress(event) },
+                  {
+                    text: t("common.delete"),
+                    style: "destructive",
+                    onPress: () => onDeletePress(event),
+                  },
                 ],
               );
             }}
           >
-            <MaterialIcons name="delete-outline" size={18 * fontScale} color="#fff" />
+            <MaterialIcons
+              name="delete-outline"
+              size={18 * fontScale}
+              color="#fff"
+            />
           </Pressable>
         ) : null}
         {isFocused && isUnseen && !isLocked ? (
@@ -1036,10 +1114,18 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
   return (
     <Animated.View style={animatedStyle}>
       {isFocused ? (
-        <View style={[styles.eventCardOuterFrame, { borderColor: colorScheme === "dark" ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.12)" }]}>
-          <View style={styles.eventCardTilt}>
-            {cardContent}
-          </View>
+        <View
+          style={[
+            styles.eventCardOuterFrame,
+            {
+              borderColor:
+                colorScheme === "dark"
+                  ? "rgba(255,255,255,0.22)"
+                  : "rgba(0,0,0,0.12)",
+            },
+          ]}
+        >
+          <View style={styles.eventCardTilt}>{cardContent}</View>
         </View>
       ) : (
         cardContent
@@ -1055,7 +1141,6 @@ const EXPANDED_IMAGE_HEIGHT = 200;
 const EXPANDED_IMAGE_RADIUS = 12;
 const EXPANDED_LABEL_MARGIN_TOP = 8;
 const EXPANDED_DESC_MARGIN_TOP = 12;
-const EXPANDED_DESC_MAX_HEIGHT = 200;
 const EXPANDED_DISCOUNT_SECTION_MARGIN_TOP = 12;
 const EXPANDED_DISCOUNT_HINT_MARGIN_BOTTOM = 8;
 const EXPANDED_DISCOUNT_CODE_PADDING = 12;
@@ -1071,17 +1156,16 @@ const EXPANDED_BTN_MIN_WIDTH = 100;
 const JOIN_IMAGE_WIDTH = 240;
 const JOIN_IMAGE_HEIGHT = 80;
 const EXPANDED_CARD_RADIUS = 20;
+/** Space reserved at bottom of scroll content for absolutely positioned buttons (discount, link, actions). */
+const EXPANDED_BOTTOM_BUTTONS_HEIGHT = 200;
 
 export default function EventsTab() {
   const colorScheme = useColorScheme();
   const t = useTranslate();
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
-  const {
-    constellationAmount,
-    constellationOpacity,
-    appUsabilityHints,
-  } = useVisualSettings();
+  const { constellationAmount, constellationOpacity, appUsabilityHints } =
+    useVisualSettings();
   const { momentColors } = useMomentColors();
   const { markEventAsSeen, refreshEvents } = useSferaEventsBadge();
   const { hasPlusEntitlement, hasAIEntitlement } = useSubscription();
@@ -1120,9 +1204,26 @@ export default function EventsTab() {
   const [aiModalVisible, setAiModalVisible] = useState(false);
   const [pendingAIResponse, setPendingAIResponse] =
     useState<PendingAIResponse | null>(null);
-  const [goldenEventIdForModal, setGoldenEventIdForModal] = useState<string | null>(null);
+  const [goldenEventIdForModal, setGoldenEventIdForModal] = useState<
+    string | null
+  >(null);
   const [discountRevealed, setDiscountRevealed] = useState(false);
-  const [eventsCommunitiesRotationStarted, setEventsCommunitiesRotationStarted] = useState(false);
+  const [expandedCardSize, setExpandedCardSize] = useState<{
+    w: number;
+    h: number;
+  } | null>(null);
+  const [expandedImageIndex, setExpandedImageIndex] = useState(0);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const expandedImageScrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    setDescriptionExpanded(false);
+  }, [expandedEventId]);
+  const joinPulseScale = useSharedValue(1);
+  const [
+    eventsCommunitiesRotationStarted,
+    setEventsCommunitiesRotationStarted,
+  ] = useState(false);
   const fingerHintShownRef = useRef(false);
 
   const params = useLocalSearchParams<{ eventIdForMemory?: string }>();
@@ -1161,8 +1262,26 @@ export default function EventsTab() {
       console.log(
         "[Events tab] loadEvents: past attended count =",
         past.length,
-        past.length ? past.map((e) => ({ id: e.id, name: e.name, startDate: e.startDate })) : [],
+        past.length
+          ? past.map((e) => ({
+              id: e.id,
+              name: e.name,
+              startDate: e.startDate,
+            }))
+          : [],
       );
+      const plusPrivate = list.filter(
+        (e) => e.type === "plus" || e.type === "private",
+      );
+      if (plusPrivate.length > 0) {
+        plusPrivate.forEach((e) => {
+          const urls = getEventImageUrls(e);
+          console.log(
+            `[Events tab] ${e.type} event "${e.name}" (${e.id}): imageUrl="${e.imageUrl}" -> getEventImageUrls count=${urls.length}`,
+            urls,
+          );
+        });
+      }
     }
     void scheduleEventMemoryReminders();
   }, [refreshEvents]);
@@ -1211,16 +1330,20 @@ export default function EventsTab() {
     const fadeDurationMs = 3000;
     eventsFingerOpacity.value = withSequence(
       withTiming(1, { duration: 150, easing: Easing.out(Easing.ease) }),
-      withTiming(0, {
-        duration: fadeDurationMs - 150,
-        easing: Easing.linear,
-      }, (finished) => {
-        "worklet";
-        if (finished) {
-          cancelAnimation(eventsFingerScale);
-          runOnJS(setEventsCommunitiesRotationStarted)(true);
-        }
-      }),
+      withTiming(
+        0,
+        {
+          duration: fadeDurationMs - 150,
+          easing: Easing.linear,
+        },
+        (finished) => {
+          "worklet";
+          if (finished) {
+            cancelAnimation(eventsFingerScale);
+            runOnJS(setEventsCommunitiesRotationStarted)(true);
+          }
+        },
+      ),
     );
     eventsFingerScale.value = withRepeat(
       withSequence(
@@ -1280,7 +1403,31 @@ export default function EventsTab() {
   useEffect(() => {
     setExpandedImageError(false);
     setDiscountRevealed(false);
+    setExpandedImageIndex(0);
   }, [expandedEventId]);
+
+  // Subtle pulse on Join button when expanded card is open
+  useEffect(() => {
+    if (!expandedEventId) {
+      joinPulseScale.value = 1;
+      cancelAnimation(joinPulseScale);
+      return;
+    }
+    joinPulseScale.value = 1;
+    joinPulseScale.value = withRepeat(
+      withSequence(
+        withTiming(1.04, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+    return () => cancelAnimation(joinPulseScale);
+  }, [expandedEventId, joinPulseScale]);
+
+  const joinPulseAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: joinPulseScale.value }],
+  }));
 
   // Open Create memory modal when navigated from event memory reminder notification
   useEffect(() => {
@@ -1301,9 +1448,10 @@ export default function EventsTab() {
     () =>
       privateEvents.filter(
         (e) =>
-          e.vipCode && unlockedCodes.has((e.vipCode || "").trim().toLowerCase())
+          e.vipCode &&
+          unlockedCodes.has((e.vipCode || "").trim().toLowerCase()),
       ),
-    [privateEvents, unlockedCodes]
+    [privateEvents, unlockedCodes],
   );
 
   const hasNoEvents = useMemo(
@@ -1312,7 +1460,12 @@ export default function EventsTab() {
       privateUnlocked && realPrivateEvents.length === 0,
       plusUnlocked && plusEvents.length === 0,
     ],
-    [privateUnlocked, realPrivateEvents.length, plusUnlocked, plusEvents.length]
+    [
+      privateUnlocked,
+      realPrivateEvents.length,
+      plusUnlocked,
+      plusEvents.length,
+    ],
   );
 
   const hasUnseenEvents = useMemo(
@@ -1321,7 +1474,7 @@ export default function EventsTab() {
       realPrivateEvents.some((e) => !seenIds.has(e.id)),
       plusEvents.some((e) => !seenIds.has(e.id)),
     ],
-    [socialEvents, realPrivateEvents, plusEvents, seenIds]
+    [socialEvents, realPrivateEvents, plusEvents, seenIds],
   );
 
   /** Private orbit: real unlocked events fill first slots; remaining slots are mock placeholders. */
@@ -1348,17 +1501,31 @@ export default function EventsTab() {
     if (!showPastEvents) return base;
     const pastForCommunity = pastEvents.filter((e) => e.type === phase);
     return [...base, ...pastForCommunity];
-  }, [phase, focusedCommunityIndex, communityEvents, showPastEvents, hideFilledEvents, pastEvents]);
+  }, [
+    phase,
+    focusedCommunityIndex,
+    communityEvents,
+    showPastEvents,
+    hideFilledEvents,
+    pastEvents,
+  ]);
 
-  const pastEventIds = useMemo(() => new Set(pastEvents.map((e) => e.id)), [pastEvents]);
+  const pastEventIds = useMemo(
+    () => new Set(pastEvents.map((e) => e.id)),
+    [pastEvents],
+  );
 
   /** Scaled orbit layout (chevron position/size, no-upcoming overlay) so they match scaled event card size. */
   const orbitScaledLayout = useMemo(() => {
     const focusedEventSize = FOCUSED_EVENT_SIZE * fontScale;
     const chevronHeight = CHEVRON_HEIGHT * fontScale;
     const focusedEventBottomY =
-      CENTER_Y + FOCUSED_ORB_SIZE / 2 + EVENT_BELOW_ORB_GAP * fontScale + focusedEventSize;
-    const chevronTop = focusedEventBottomY - focusedEventSize / 2 - chevronHeight / 2;
+      CENTER_Y +
+      FOCUSED_ORB_SIZE / 2 +
+      EVENT_BELOW_ORB_GAP * fontScale +
+      focusedEventSize;
+    const chevronTop =
+      focusedEventBottomY - focusedEventSize / 2 - chevronHeight / 2;
     const noUpcomingTop = CENTER_Y + FOCUSED_ORB_SIZE / 2 + 24 * fontScale;
     return {
       chevronTop,
@@ -1386,10 +1553,12 @@ export default function EventsTab() {
         paddingLeft: 0,
         marginLeft: 0,
       },
-      label: { marginTop: EXPANDED_LABEL_MARGIN_TOP * fontScale, paddingLeft: 0 },
+      label: {
+        marginTop: EXPANDED_LABEL_MARGIN_TOP * fontScale,
+        paddingLeft: 0,
+      },
       description: {
         marginTop: EXPANDED_DESC_MARGIN_TOP * fontScale,
-        maxHeight: EXPANDED_DESC_MAX_HEIGHT * fontScale,
         paddingLeft: 0,
       },
       discountSection: {
@@ -1400,7 +1569,9 @@ export default function EventsTab() {
         alignItems: "flex-start" as const,
         width: "100%" as const,
       },
-      discountHint: { marginBottom: EXPANDED_DISCOUNT_HINT_MARGIN_BOTTOM * fontScale },
+      discountHint: {
+        marginBottom: EXPANDED_DISCOUNT_HINT_MARGIN_BOTTOM * fontScale,
+      },
       discountCode: {
         padding: EXPANDED_DISCOUNT_CODE_PADDING * fontScale,
         borderRadius: EXPANDED_DISCOUNT_CODE_RADIUS * fontScale,
@@ -1415,7 +1586,10 @@ export default function EventsTab() {
         height: EXPANDED_DISCOUNT_BADGE_HEIGHT * fontScale,
         marginLeft: -48 * fontScale,
       },
-      eventLink: { marginTop: EXPANDED_EVENT_LINK_MARGIN_TOP * fontScale, paddingLeft: 0 },
+      eventLink: {
+        marginTop: EXPANDED_EVENT_LINK_MARGIN_TOP * fontScale,
+        paddingLeft: 0,
+      },
       actions: {
         marginTop: EXPANDED_ACTIONS_MARGIN_TOP * fontScale,
         alignSelf: "stretch" as const,
@@ -1448,16 +1622,19 @@ export default function EventsTab() {
     [fontScale],
   );
 
-  const removePastEventFromOrbit = useCallback(async (eventId: string) => {
-    await removeAttendedEventSnapshotsByIds([eventId]);
-    await removeAttendingEventId(eventId);
-    await removeEventReminderScheduledIds([eventId]);
-    await removeEventGoldenMemoryUsedIds([eventId]);
-    await clearEventReminderInAppForEvent(eventId);
-    await cancelEventMemoryReminders(eventId);
-    setExpandedEventId(null);
-    void loadEvents();
-  }, [loadEvents]);
+  const removePastEventFromOrbit = useCallback(
+    async (eventId: string) => {
+      await removeAttendedEventSnapshotsByIds([eventId]);
+      await removeAttendingEventId(eventId);
+      await removeEventReminderScheduledIds([eventId]);
+      await removeEventGoldenMemoryUsedIds([eventId]);
+      await clearEventReminderInAppForEvent(eventId);
+      await cancelEventMemoryReminders(eventId);
+      setExpandedEventId(null);
+      void loadEvents();
+    },
+    [loadEvents],
+  );
 
   // When entering community or list length changes: clamp focused index and set orbit angle (do not run when only focus changes so left/right can animate)
   useEffect(() => {
@@ -1469,8 +1646,6 @@ export default function EventsTab() {
     eventOrbitAngle.value = nextFocus * step;
     focusedEventIndexShared.value = nextFocus;
   }, [phase, listForPhase.length]); // exclude focusedEventIndex so next/prev don't overwrite the running animation
-
- 
 
   const openCodeModal = useCallback((forSection: "private" | "plus") => {
     setCodeModal({ visible: true, for: forSection });
@@ -1500,7 +1675,7 @@ export default function EventsTab() {
     await addUnlockedVipCode(code);
     await loadUnlocked();
     closeCodeModal();
-      if (forSection === "plus") {
+    if (forSection === "plus") {
       const idx = 2;
       selectedOrbIndex.value = idx;
       runOnJS(setFocusedCommunityIndex)(idx);
@@ -1673,7 +1848,8 @@ export default function EventsTab() {
         {/* Finger hint over Sfera Social (before rotation starts), controlled by Personalization → Usability */}
         {phase === "orbs" &&
           appUsabilityHints &&
-          !eventsCommunitiesRotationStarted && (() => {
+          !eventsCommunitiesRotationStarted &&
+          (() => {
             const fingerSize = 56 * fontScale;
             const fingerOffsetFromOrbTop = 98 * fontScale;
             return (
@@ -1778,8 +1954,17 @@ export default function EventsTab() {
                 hasUnseenEvents={hasUnseenEvents[focusedCommunityIndex]}
               />
               {listForPhase.length === 0 ? (
-                <View style={[styles.noUpcomingEventsOverlay, { top: orbitScaledLayout.noUpcomingTop }]}>
-                  <ThemedText size="sm" weight="medium" style={styles.noUpcomingEventsText}>
+                <View
+                  style={[
+                    styles.noUpcomingEventsOverlay,
+                    { top: orbitScaledLayout.noUpcomingTop },
+                  ]}
+                >
+                  <ThemedText
+                    size="sm"
+                    weight="medium"
+                    style={styles.noUpcomingEventsText}
+                  >
                     {t("events.noUpcomingEvents")}
                   </ThemedText>
                 </View>
@@ -1831,13 +2016,29 @@ export default function EventsTab() {
                     direction="left"
                     onPress={goToNextEvent}
                     colors={colors}
-                    style={[styles.chevron, styles.chevronLeft, { top: orbitScaledLayout.chevronTop, width: orbitScaledLayout.chevronWidth, height: orbitScaledLayout.chevronHeight }]}
+                    style={[
+                      styles.chevron,
+                      styles.chevronLeft,
+                      {
+                        top: orbitScaledLayout.chevronTop,
+                        width: orbitScaledLayout.chevronWidth,
+                        height: orbitScaledLayout.chevronHeight,
+                      },
+                    ]}
                   />
                   <ChevronNavButton
                     direction="right"
                     onPress={goToPrevEvent}
                     colors={colors}
-                    style={[styles.chevron, styles.chevronRight, { top: orbitScaledLayout.chevronTop, width: orbitScaledLayout.chevronWidth, height: orbitScaledLayout.chevronHeight }]}
+                    style={[
+                      styles.chevron,
+                      styles.chevronRight,
+                      {
+                        top: orbitScaledLayout.chevronTop,
+                        width: orbitScaledLayout.chevronWidth,
+                        height: orbitScaledLayout.chevronHeight,
+                      },
+                    ]}
                   />
                 </>
               ) : null}
@@ -1884,7 +2085,6 @@ export default function EventsTab() {
                   color={colors.primary}
                 />
               </Pressable>
-
             </Animated.View>
           </View>
         )}
@@ -1907,424 +2107,692 @@ export default function EventsTab() {
           onRequestClose={() => {
             setExpandedEventId(null);
             setExpandedImageError(false);
+            setExpandedCardSize(null);
+            setDescriptionExpanded(false);
           }}
           onShow={() => setExpandedImageError(false)}
         >
           {(() => {
-              const expandedEvent = listForPhase.find(
-                (e) => e.id === expandedEventId,
-              );
-              if (!expandedEvent) return null;
-              const expandedImageUrls = getEventImageUrls(expandedEvent);
-              const hasImages = expandedImageUrls.length > 0 && !expandedImageError;
-              return (
-                <Pressable
-                  style={styles.expandedBackdrop}
-                  onPress={() => {
-                    setExpandedEventId(null);
-                    setExpandedImageError(false);
-                  }}
-                >
+            const expandedEvent = listForPhase.find(
+              (e) => e.id === expandedEventId,
+            );
+            if (!expandedEvent) return null;
+            const expandedImageUrls = getEventImageUrls(expandedEvent);
+            const hasImages =
+              expandedImageUrls.length > 0 && !expandedImageError;
+
+            const renderExpandedActions = () => (
+              <View
+                style={[
+                  styles.expandedActions,
+                  expandedCardScaledStyles.actions,
+                ]}
+              >
+                {pastEventIds.has(expandedEvent.id) ? (
+                  goldenUsedIds.has(expandedEvent.id) ? (
+                    <ThemedText
+                      size="sm"
+                      weight="medium"
+                      style={{ color: colors.textMediumEmphasis }}
+                    >
+                      {t("events.memoryCreated")}
+                    </ThemedText>
+                  ) : (
+                    <Pressable
+                      style={[
+                        styles.expandedJoinBtn,
+                        expandedCardScaledStyles.joinBtn,
+                        { backgroundColor: colors.primary },
+                      ]}
+                      onPress={() => {
+                        setGoldenEventIdForModal(expandedEvent.id);
+                        setAiModalVisible(true);
+                        getPendingAIResponse().then(setPendingAIResponse);
+                        setExpandedEventId(null);
+                        setExpandedImageError(false);
+                      }}
+                    >
+                      <MaterialIcons
+                        name="auto-awesome"
+                        size={18 * fontScale}
+                        color="#1A2332"
+                      />
+                      <ThemedText
+                        size="sm"
+                        weight="bold"
+                        style={[
+                          styles.createMemoryBtnText,
+                          { marginLeft: 6 * fontScale },
+                        ]}
+                      >
+                        {t("events.createMemoryForEvent")}
+                      </ThemedText>
+                    </Pressable>
+                  )
+                ) : attendingIds.has(expandedEvent.id) ? (
+                  <Pressable
+                    style={[
+                      styles.expandedLeaveBtn,
+                      expandedCardScaledStyles.leaveBtn,
+                      {
+                        backgroundColor: colors.background,
+                        borderColor: colors.text + "40",
+                      },
+                    ]}
+                    onPress={async () => {
+                      if (attendanceLoading) return;
+                      setAttendanceLoading(true);
+                      try {
+                        const ok = await updateEventStatus(
+                          expandedEvent.id,
+                          "leave",
+                        );
+                        if (ok) {
+                          await removeAttendingEventId(expandedEvent.id);
+                          await removeAttendedEventSnapshotsByIds([
+                            expandedEvent.id,
+                          ]);
+                          setAttendingIds((prev) => {
+                            const next = new Set(prev);
+                            next.delete(expandedEvent.id);
+                            return next;
+                          });
+                          setExpandedEventId(null);
+                          setExpandedImageError(false);
+                        } else {
+                          Alert.alert(
+                            t("events.leaveError"),
+                            undefined,
+                            [{ text: "OK" }],
+                          );
+                        }
+                      } finally {
+                        setAttendanceLoading(false);
+                      }
+                    }}
+                    disabled={attendanceLoading}
+                  >
+                    {attendanceLoading ? (
+                      <ActivityIndicator size="small" color={colors.text} />
+                    ) : (
+                      <ThemedText size="sm" weight="medium">
+                        {t("events.leave")}
+                      </ThemedText>
+                    )}
+                  </Pressable>
+                ) : (expandedEvent.status ?? "open") === "closed" ? (
+                  <View
+                    style={[
+                      styles.expandedJoinBtn,
+                      expandedCardScaledStyles.joinBtn,
+                      {
+                        backgroundColor: colors.background,
+                        borderWidth: 1,
+                        borderColor: colors.text + "40",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 6 * fontScale,
+                      },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="event-busy"
+                      size={18 * fontScale}
+                      color={colors.textMediumEmphasis}
+                    />
+                    <ThemedText
+                      size="sm"
+                      weight="medium"
+                      style={{ color: colors.textMediumEmphasis }}
+                    >
+                      {t("events.eventFilled")}
+                    </ThemedText>
+                  </View>
+                ) : (
+                  <Pressable
+                    style={[
+                      styles.expandedJoinBtn,
+                      expandedCardScaledStyles.joinBtn,
+                      { overflow: "hidden", alignSelf: "flex-end" },
+                    ]}
+                    onPress={async () => {
+                      if (attendanceLoading) return;
+                      setAttendanceLoading(true);
+                      try {
+                        const ok = await updateEventStatus(
+                          expandedEvent.id,
+                          "join",
+                        );
+                        if (ok) {
+                          await addAttendingEventId(expandedEvent.id);
+                          await addAttendedEventSnapshot(expandedEvent);
+                          setAttendingIds((prev) =>
+                            new Set(prev).add(expandedEvent.id),
+                          );
+                          void loadEvents();
+                        } else {
+                          Alert.alert(
+                            t("events.joinError"),
+                            undefined,
+                            [{ text: "OK" }],
+                          );
+                        }
+                      } finally {
+                        setAttendanceLoading(false);
+                      }
+                    }}
+                    disabled={attendanceLoading}
+                  >
+                    {attendanceLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Animated.View style={joinPulseAnimatedStyle}>
+                        <LinearGradient
+                          colors={["#64B5F6", "#42A5F5", "#1E88E5"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={[
+                            styles.expandedJoinBtn,
+                            expandedCardScaledStyles.joinBtn,
+                            {
+                              flexDirection: "row",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 8 * fontScale,
+                              paddingVertical:
+                                EXPANDED_BTN_PADDING_V * fontScale,
+                              paddingHorizontal:
+                                EXPANDED_BTN_PADDING_H * fontScale,
+                            },
+                          ]}
+                        >
+                          <MaterialIcons
+                            name="event-available"
+                            size={20 * fontScale}
+                            color="#fff"
+                          />
+                          <ThemedText
+                            size="sm"
+                            weight="bold"
+                            style={{ color: "#fff" }}
+                          >
+                            {t("events.join")}
+                          </ThemedText>
+                        </LinearGradient>
+                      </Animated.View>
+                    )}
+                  </Pressable>
+                )}
+              </View>
+            );
+
+            return (
+              <Pressable
+                style={styles.expandedBackdrop}
+                onPress={() => {
+                  setExpandedEventId(null);
+                  setExpandedImageError(false);
+                  setExpandedCardSize(null);
+                  setDescriptionExpanded(false);
+                }}
+              >
                 <Pressable
                   style={[
                     styles.expandedCard,
                     expandedCardScaledStyles.card,
                     { backgroundColor: colors.background },
+                    descriptionExpanded && styles.expandedCardFullScreen,
+                    descriptionExpanded && {
+                      paddingTop: 24 + insets.top,
+                      paddingBottom: 24 + insets.bottom,
+                    },
                   ]}
                   onLayout={(e) => {
+                    const { width, height } = e.nativeEvent.layout;
+                    setExpandedCardSize({ w: width, h: height });
                     if (__DEV__) {
-                      const { x, y, width, height } = e.nativeEvent.layout;
+                      const { x, y } = e.nativeEvent.layout;
                       const right = x + width;
-                      console.log("[Events card layout] expandedCard   ", { left: x, right, width, height, y, padding: EXPANDED_CARD_PADDING * fontScale });
+                      console.log("[Events card layout] expandedCard   ", {
+                        left: x,
+                        right,
+                        width,
+                        height,
+                        y,
+                        padding: EXPANDED_CARD_PADDING * fontScale,
+                      });
                     }
                   }}
                   onPress={(e) => e.stopPropagation()}
                 >
-                  <View style={[styles.expandedCardHeader, expandedCardScaledStyles.cardHeader]}>
-                    <ThemedText size="l" weight="bold" numberOfLines={2}>
-                      {expandedEvent.name}
-                    </ThemedText>
-                    <Pressable
-                      onPress={() => {
-                        setExpandedEventId(null);
-                        setExpandedImageError(false);
-                      }}
-                      hitSlop={12}
-                    >
-                      <MaterialIcons
-                        name="close"
-                        size={28}
-                        color={colors.text}
-                      />
-                    </Pressable>
-                  </View>
-                  {hasImages ? (
-                    expandedImageUrls.length === 1 ? (
-                      <Image
-                        source={{ uri: expandedImageUrls[0]! }}
-                        style={[styles.expandedCardImage, expandedCardScaledStyles.cardImage]}
-                        contentFit="cover"
-                        onError={() => setExpandedImageError(true)}
-                      />
-                    ) : (
-                      <ScrollView
-                        horizontal
-                        pagingEnabled
-                        showsHorizontalScrollIndicator={false}
-                        style={[styles.expandedCardImage, expandedCardScaledStyles.cardImage]}
-                      >
-                        {expandedImageUrls.map((uri) => (
-                          <Image
-                            key={uri}
-                            source={{ uri }}
-                            style={[styles.expandedCardImage, expandedCardScaledStyles.cardImage, { width: SCREEN_WIDTH - 48 * fontScale }]}
-                            contentFit="cover"
-                            onError={() => setExpandedImageError(true)}
-                          />
-                        ))}
-                      </ScrollView>
-                    )
-                  ) : (
+                  {/* Subtle universe/constellation layer behind card content */}
+                  {expandedCardSize &&
+                  expandedCardSize.w > 0 &&
+                  expandedCardSize.h > 0 ? (
                     <View
                       style={[
-                        styles.expandedCardImage,
-                        styles.expandedCardImagePlaceholder,
-                        expandedCardScaledStyles.cardImage,
-                        { backgroundColor: colors.primary + "20" },
+                        StyleSheet.absoluteFill,
+                        {
+                          overflow: "hidden",
+                          borderRadius: EXPANDED_CARD_RADIUS * fontScale,
+                          opacity: 0.12,
+                        },
                       ]}
+                      pointerEvents="none"
                     >
-                      <MaterialIcons
-                        name="event"
-                        size={64 * fontScale}
-                        color={colors.primary}
+                      <ConstellationBackground
+                        width={expandedCardSize.w}
+                        height={expandedCardSize.h}
+                        constellationAmount={4}
+                        constellationOpacity={13}
+                        linesOpacityScale={0.35}
+                        starFieldMultiplier={0.5}
                       />
                     </View>
-                  )}
-                  <View
-                    style={expandedCardScaledStyles.leftAlignedContent}
-                    onLayout={(e) => {
-                      if (__DEV__) {
-                        const { x, y, width, height } = e.nativeEvent.layout;
-                        const right = x + width;
-                        console.log("[Events card layout] content area  ", { left: x, right, width, height, y });
-                      }
-                    }}
-                  >
-                    {expandedEvent.location ? (
-                      <ThemedText
-                        size="sm"
-                        emphasis="medium"
-                        style={[styles.expandedLabel, expandedCardScaledStyles.label]}
-                      >
-                        {expandedEvent.location}
-                      </ThemedText>
-                    ) : null}
-                    {expandedEvent.date ? (
-                      <ThemedText
-                        size="sm"
-                        emphasis="medium"
-                        style={[styles.expandedLabel, expandedCardScaledStyles.label]}
-                      >
-                        {expandedEvent.date}
-                      </ThemedText>
-                    ) : null}
-                    {expandedEvent.description ? (
-                      <ScrollView
-                        style={[styles.expandedDescription, expandedCardScaledStyles.description]}
-                        contentContainerStyle={{ paddingLeft: 0 }}
-                        showsVerticalScrollIndicator={false}
-                        onLayout={(e) => {
-                          if (__DEV__) {
-                            const { x, y, width, height } = e.nativeEvent.layout;
-                            const right = x + width;
-                            console.log("[Events card layout] description    ", { left: x, right, width, height, y });
-                          }
-                        }}
-                      >
-                        <ThemedText size="sm">
-                          {expandedEvent.description}
-                        </ThemedText>
-                      </ScrollView>
-                    ) : null}
-                    {expandedEvent.type === "plus" &&
-                  (hasPlusEntitlement || hasAIEntitlement || (expandedEvent.discountCode ?? "").trim()) ? (
-                    <View
-                      style={[styles.expandedDiscountSection, expandedCardScaledStyles.discountSection]}
-                      onLayout={(e) => {
-                        if (__DEV__) {
-                          const { x, y, width, height } = e.nativeEvent.layout;
-                          const right = x + width;
-                          console.log("[Events card layout] discount section", { left: x, right, width, height, y });
-                        }
-                      }}
-                    >
-                      {(expandedEvent.discountCode ?? "").trim() ? (
-                        discountRevealed && (hasPlusEntitlement || hasAIEntitlement) ? (
-                          <View
-                            style={[
-                              styles.expandedDiscountCode,
-                              expandedCardScaledStyles.discountCode,
-                              {
-                                backgroundColor: colors.background,
-                                borderColor: colors.text + "40",
-                              },
-                            ]}
-                          >
-                            <ThemedText size="xs" style={{ color: colors.textMediumEmphasis }}>
-                              {t("events.discountRevealed")}
-                            </ThemedText>
-                            <ThemedText size="sm" weight="bold" style={{ marginTop: 4 * fontScale }}>
-                              {expandedEvent.discountCode}
-                            </ThemedText>
-                          </View>
-                        ) : (
-                          <>
-                            <ThemedText
-                              size="sm"
-                              style={[styles.expandedDiscountHint, expandedCardScaledStyles.discountHint, { color: colors.textMediumEmphasis }]}
-                            >
-                              {t("events.enterVipCodeToReveal")}
-                            </ThemedText>
-                            <Pressable
-                              style={[styles.expandedDiscountBadgeWrap, expandedCardScaledStyles.discountBadgeWrap]}
-                              onLayout={(e) => {
-                                if (__DEV__) {
-                                  const { x, y, width, height } = e.nativeEvent.layout;
-                                  const right = x + width;
-                                  console.log("[Events card layout] discount image ", { left: x, right, width, height, y });
-                                }
-                              }}
-                              onPress={async () => {
-                                if (hasPlusEntitlement || hasAIEntitlement) {
-                                  setDiscountRevealed(true);
-                                } else {
-                                  await showPaywallForPlusAccess();
-                                }
-                              }}
-                            >
-                              <Image
-                                source={require("@/SferaDiscountBadge.png")}
-                                style={[styles.expandedDiscountBadgeImage, expandedCardScaledStyles.discountBadgeImage]}
-                                contentFit="contain"
-                              />
-                            </Pressable>
-                          </>
-                        )
-                      ) : (hasPlusEntitlement || hasAIEntitlement) ? (
-                        <ThemedText size="xs" style={{ color: colors.textMediumEmphasis }}>
-                          {t("events.noDiscountForEvent")}
-                        </ThemedText>
-                      ) : null}
-                    </View>
                   ) : null}
-                    {expandedEvent.eventLink ? (
-                      <Pressable
-                        style={[styles.expandedEventLink, expandedCardScaledStyles.eventLink]}
-                        onLayout={(e) => {
-                          if (__DEV__) {
-                            const { x, y, width, height } = e.nativeEvent.layout;
-                            const right = x + width;
-                            console.log("[Events card layout] external link ", { left: x, right, width, height, y });
-                          }
-                        }}
-                        onPress={() => {
-                          try {
-                            const url = expandedEvent.eventLink.trim();
-                            if (
-                              url.startsWith("http://") ||
-                              url.startsWith("https://")
-                            ) {
-                              Linking.openURL(url);
-                            }
-                          } catch {}
-                        }}
+                  <View
+                    style={[styles.expandedCardBody, { flex: 1, zIndex: 1 }]}
+                  >
+                    <View
+                      style={[
+                        styles.expandedCardHeader,
+                        expandedCardScaledStyles.cardHeader,
+                      ]}
+                    >
+                      <ThemedText
+                        size="l"
+                        weight="bold"
+                        numberOfLines={descriptionExpanded ? 1 : 2}
                       >
-                        <MaterialIcons
-                          name="open-in-new"
-                          size={18 * fontScale}
-                          color={colors.primary}
-                        />
-                        <ThemedText
-                          size="sm"
-                          weight="medium"
-                          numberOfLines={1}
-                          style={{
-                            color: colors.primary,
-                            marginLeft: 6 * fontScale,
-                            flex: 1,
-                          }}
-                        ></ThemedText>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                  <View style={[styles.expandedActions, expandedCardScaledStyles.actions]}>
-                    {pastEventIds.has(expandedEvent.id) ? (
-                      goldenUsedIds.has(expandedEvent.id) ? (
-                        <ThemedText size="sm" weight="medium" style={{ color: colors.textMediumEmphasis }}>
-                          {t("events.memoryCreated")}
-                        </ThemedText>
-                      ) : (
+                        {expandedEvent.name}
+                      </ThemedText>
+                      {!descriptionExpanded ? (
                         <Pressable
-                          style={[styles.expandedJoinBtn, expandedCardScaledStyles.joinBtn, { backgroundColor: colors.primary }]}
                           onPress={() => {
-                            setGoldenEventIdForModal(expandedEvent.id);
-                            setAiModalVisible(true);
-                            getPendingAIResponse().then(setPendingAIResponse);
                             setExpandedEventId(null);
                             setExpandedImageError(false);
+                            setExpandedCardSize(null);
+                            setDescriptionExpanded(false);
                           }}
+                          hitSlop={12}
                         >
-                          <MaterialIcons name="auto-awesome" size={18 * fontScale} color="#1A2332" />
-                          <ThemedText
-                            size="sm"
-                            weight="bold"
-                            style={[styles.createMemoryBtnText, { marginLeft: 6 * fontScale }]}
-                          >
-                            {t("events.createMemoryForEvent")}
-                          </ThemedText>
-                        </Pressable>
-                      )
-                    ) : attendingIds.has(expandedEvent.id) ? (
-                      <Pressable
-                        style={[
-                          styles.expandedLeaveBtn,
-                          expandedCardScaledStyles.leaveBtn,
-                          {
-                            backgroundColor: colors.background,
-                            borderColor: colors.text + "40",
-                          },
-                        ]}
-                        onPress={async () => {
-                          if (attendanceLoading) return;
-                          setAttendanceLoading(true);
-                          try {
-                            const ok = await updateEventStatus(
-                              expandedEvent.id,
-                              "leave",
-                            );
-                            if (ok) {
-                              await removeAttendingEventId(expandedEvent.id);
-                              await removeAttendedEventSnapshotsByIds([expandedEvent.id]);
-                              setAttendingIds((prev) => {
-                                const next = new Set(prev);
-                                next.delete(expandedEvent.id);
-                                return next;
-                              });
-                              setExpandedEventId(null);
-                              setExpandedImageError(false);
-                            } else {
-                              Alert.alert(
-                                t("events.leaveError"),
-                                undefined,
-                                [{ text: "OK" }],
-                              );
-                            }
-                          } finally {
-                            setAttendanceLoading(false);
-                          }
-                        }}
-                        disabled={attendanceLoading}
-                      >
-                        {attendanceLoading ? (
-                          <ActivityIndicator
-                            size="small"
+                          <MaterialIcons
+                            name="close"
+                            size={28}
                             color={colors.text}
                           />
-                        ) : (
-                          <ThemedText size="sm" weight="medium">
-                            {t("events.leave")}
-                          </ThemedText>
-                        )}
-                      </Pressable>
-                    ) : (expandedEvent.status ?? "open") === "closed" ? (
-                      <View
-                        style={[
-                          styles.expandedJoinBtn,
-                          expandedCardScaledStyles.joinBtn,
-                          {
-                            backgroundColor: colors.background,
-                            borderWidth: 1,
-                            borderColor: colors.text + "40",
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 6 * fontScale,
-                          },
-                        ]}
-                      >
-                        <MaterialIcons
-                          name="event-busy"
-                          size={18 * fontScale}
-                          color={colors.textMediumEmphasis}
-                        />
-                        <ThemedText
-                          size="sm"
-                          weight="medium"
-                          style={{ color: colors.textMediumEmphasis }}
+                        </Pressable>
+                      ) : null}
+                    </View>
+                    {descriptionExpanded ? (
+                      <>
+                        <ScrollView
+                          style={styles.expandedDescriptionScroll}
+                          contentContainerStyle={
+                            styles.expandedDescriptionScrollContent
+                          }
+                          showsVerticalScrollIndicator={true}
                         >
-                          {t("events.eventFilled")}
-                        </ThemedText>
-                      </View>
+                          <ThemedText
+                            size="sm"
+                            selectable={false}
+                            style={styles.expandedDescriptionFull}
+                          >
+                            {expandedEvent.description}
+                          </ThemedText>
+                        </ScrollView>
+                        <Pressable
+                          onPress={() => setDescriptionExpanded(false)}
+                          style={[
+                            styles.showLessBtn,
+                            { borderColor: colors.text + "40" },
+                          ]}
+                        >
+                          <ThemedText size="sm" weight="medium">
+                            {t("events.showLess")}
+                          </ThemedText>
+                        </Pressable>
+                        {renderExpandedActions()}
+                      </>
                     ) : (
-                      <Pressable
-                        style={[
-                          styles.expandedJoinBtn,
-                          expandedCardScaledStyles.joinBtn,
-                          expandedCardScaledStyles.joinBtnImageWrap,
-                          { backgroundColor: "transparent", overflow: "hidden" },
-                        ]}
-                        onLayout={(e) => {
-                          if (__DEV__) {
-                            const { x, y, width, height } = e.nativeEvent.layout;
-                            const right = x + width;
-                            console.log("[Events card layout] join button   ", { left: x, right, width, height, y });
-                          }
-                        }}
-                        onPress={async () => {
-                          if (attendanceLoading) return;
-                          setAttendanceLoading(true);
-                          try {
-                            const ok = await updateEventStatus(
-                              expandedEvent.id,
-                              "join",
-                            );
-                            if (ok) {
-                              await addAttendingEventId(expandedEvent.id);
-                              await addAttendedEventSnapshot(expandedEvent);
-                              setAttendingIds((prev) => new Set(prev).add(expandedEvent.id));
-                              void loadEvents();
-                            } else {
-                              Alert.alert(
-                                t("events.joinError"),
-                                undefined,
-                                [{ text: "OK" }],
-                              );
-                            }
-                          } finally {
-                            setAttendanceLoading(false);
-                          }
-                        }}
-                        disabled={attendanceLoading}
-                      >
-                        {attendanceLoading ? (
-                          <ActivityIndicator
-                            size="small"
-                            color="#fff"
-                          />
-                        ) : (
-                          <Image
-                            source={require("@/button-removebg-preview.png")}
-                            style={expandedCardScaledStyles.joinBtnImage}
-                            contentFit="contain"
-                          />
-                        )}
-                      </Pressable>
+                      <>
+                        <ScrollView
+                          style={[
+                            styles.expandedCardScroll,
+                            { minHeight: EXPANDED_IMAGE_HEIGHT * fontScale },
+                          ]}
+                          contentContainerStyle={{ paddingBottom: 24 }}
+                          showsVerticalScrollIndicator={true}
+                        >
+                          {hasImages ? (
+                            expandedImageUrls.length === 1 ? (
+                              <Image
+                                source={{ uri: expandedImageUrls[0]! }}
+                                style={[
+                                  styles.expandedCardImage,
+                                  expandedCardScaledStyles.cardImage,
+                                ]}
+                                contentFit="cover"
+                                onError={() => setExpandedImageError(true)}
+                              />
+                            ) : (
+                              <View style={styles.expandedCarouselWrap}>
+                                <ScrollView
+                                  ref={expandedImageScrollRef}
+                                  horizontal
+                                  pagingEnabled
+                                  showsHorizontalScrollIndicator={false}
+                                  style={[
+                                    styles.expandedCardImage,
+                                    expandedCardScaledStyles.cardImage,
+                                  ]}
+                                  onMomentumScrollEnd={(e) => {
+                                    const offset =
+                                      e.nativeEvent.contentOffset.x;
+                                    const pageWidth =
+                                      SCREEN_WIDTH - 48 * fontScale;
+                                    const idx = Math.round(offset / pageWidth);
+                                    setExpandedImageIndex(
+                                      Math.min(
+                                        idx,
+                                        expandedImageUrls.length - 1,
+                                      ),
+                                    );
+                                  }}
+                                >
+                                  {expandedImageUrls.map((uri, idx) => (
+                                    <Image
+                                      key={`${expandedEvent.id}-img-${idx}`}
+                                      source={{ uri }}
+                                      style={[
+                                        styles.expandedCardImage,
+                                        expandedCardScaledStyles.cardImage,
+                                        {
+                                          width: SCREEN_WIDTH - 48 * fontScale,
+                                        },
+                                      ]}
+                                      contentFit="cover"
+                                      onError={() =>
+                                        setExpandedImageError(true)
+                                      }
+                                    />
+                                  ))}
+                                </ScrollView>
+                                <Pressable
+                                  style={[
+                                    styles.expandedCarouselArrow,
+                                    styles.expandedCarouselArrowLeft,
+                                  ]}
+                                  onPress={() => {
+                                    const next = Math.max(
+                                      0,
+                                      expandedImageIndex - 1,
+                                    );
+                                    setExpandedImageIndex(next);
+                                    const pageWidth =
+                                      SCREEN_WIDTH - 48 * fontScale;
+                                    expandedImageScrollRef.current?.scrollTo({
+                                      x: next * pageWidth,
+                                      animated: true,
+                                    });
+                                  }}
+                                  hitSlop={12}
+                                >
+                                  <MaterialIcons
+                                    name="chevron-left"
+                                    size={32 * fontScale}
+                                    color="rgba(255,255,255,0.9)"
+                                  />
+                                </Pressable>
+                                <Pressable
+                                  style={[
+                                    styles.expandedCarouselArrow,
+                                    styles.expandedCarouselArrowRight,
+                                  ]}
+                                  onPress={() => {
+                                    const next = Math.min(
+                                      expandedImageUrls.length - 1,
+                                      expandedImageIndex + 1,
+                                    );
+                                    setExpandedImageIndex(next);
+                                    const pageWidth =
+                                      SCREEN_WIDTH - 48 * fontScale;
+                                    expandedImageScrollRef.current?.scrollTo({
+                                      x: next * pageWidth,
+                                      animated: true,
+                                    });
+                                  }}
+                                  hitSlop={12}
+                                >
+                                  <MaterialIcons
+                                    name="chevron-right"
+                                    size={32 * fontScale}
+                                    color="rgba(255,255,255,0.9)"
+                                  />
+                                </Pressable>
+                              </View>
+                            )
+                          ) : (
+                            <View
+                              style={[
+                                styles.expandedCardImage,
+                                styles.expandedCardImagePlaceholder,
+                                expandedCardScaledStyles.cardImage,
+                                { backgroundColor: colors.primary + "20" },
+                              ]}
+                            >
+                              <MaterialIcons
+                                name="event"
+                                size={64 * fontScale}
+                                color={colors.primary}
+                              />
+                            </View>
+                          )}
+                          <View
+                            style={[
+                              expandedCardScaledStyles.leftAlignedContent,
+                              { paddingTop: 12 * fontScale },
+                            ]}
+                          >
+                            {expandedEvent.location ? (
+                              <ThemedText
+                                size="sm"
+                                emphasis="medium"
+                                style={[
+                                  styles.expandedLabel,
+                                  expandedCardScaledStyles.label,
+                                ]}
+                              >
+                                {expandedEvent.location}
+                              </ThemedText>
+                            ) : null}
+                            {expandedEvent.date ? (
+                              <ThemedText
+                                size="sm"
+                                emphasis="medium"
+                                style={[
+                                  styles.expandedLabel,
+                                  expandedCardScaledStyles.label,
+                                ]}
+                              >
+                                {expandedEvent.date}
+                              </ThemedText>
+                            ) : null}
+                            {expandedEvent.description ? (
+                              <ThemedText
+                                size="sm"
+                                emphasis="high"
+                                selectable={false}
+                                numberOfLines={5}
+                                style={[
+                                  styles.expandedDescription,
+                                  expandedCardScaledStyles.description,
+                                  { color: colors.text },
+                                ]}
+                              >
+                                {expandedEvent.description.length > 100
+                                  ? expandedEvent.description.slice(0, 100) +
+                                    "…"
+                                  : expandedEvent.description}
+                                {expandedEvent.description.length > 100 ? (
+                                  <ThemedText
+                                    onPress={() => setDescriptionExpanded(true)}
+                                    size="sm"
+                                    weight="medium"
+                                    style={{ color: colors.primary }}
+                                  >
+                                    {" "}
+                                    {t("events.learnMore")}
+                                  </ThemedText>
+                                ) : null}
+                              </ThemedText>
+                            ) : null}
+                          </View>
+                        </ScrollView>
+                        <View
+                          style={{
+                            height: EXPANDED_BOTTOM_BUTTONS_HEIGHT * fontScale,
+                          }}
+                        />
+                        <View
+                          style={[
+                            styles.expandedBottomButtons,
+                            { backgroundColor: colors.background },
+                          ]}
+                        >
+                          {expandedEvent.type === "plus" &&
+                          (hasPlusEntitlement ||
+                            hasAIEntitlement ||
+                            (expandedEvent.discountCode ?? "").trim()) ? (
+                            <View
+                              style={[
+                                styles.expandedDiscountSection,
+                                expandedCardScaledStyles.discountSection,
+                              ]}
+                            >
+                              {(expandedEvent.discountCode ?? "").trim() ? (
+                                discountRevealed &&
+                                (hasPlusEntitlement || hasAIEntitlement) ? (
+                                  <View
+                                    style={[
+                                      styles.expandedDiscountCode,
+                                      expandedCardScaledStyles.discountCode,
+                                      {
+                                        backgroundColor: colors.background,
+                                        borderColor: colors.text + "40",
+                                      },
+                                    ]}
+                                  >
+                                    <ThemedText
+                                      size="xs"
+                                      style={{
+                                        color: colors.textMediumEmphasis,
+                                      }}
+                                    >
+                                      {t("events.discountRevealed")}
+                                    </ThemedText>
+                                    <ThemedText
+                                      size="sm"
+                                      weight="bold"
+                                      style={{ marginTop: 4 * fontScale }}
+                                    >
+                                      {expandedEvent.discountCode}
+                                    </ThemedText>
+                                  </View>
+                                ) : (
+                                  <Pressable
+                                    style={[
+                                      {
+                                        backgroundColor: colors.primary + "20",
+                                        borderWidth: 1,
+                                        borderColor: colors.primary + "50",
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        paddingVertical: 10 * fontScale,
+                                        paddingHorizontal: 14 * fontScale,
+                                        borderRadius: 12,
+                                        gap: 8 * fontScale,
+                                      },
+                                    ]}
+                                    onPress={async () => {
+                                      if (
+                                        hasPlusEntitlement ||
+                                        hasAIEntitlement
+                                      ) {
+                                        setDiscountRevealed(true);
+                                      } else {
+                                        await showPaywallForPlusAccess();
+                                      }
+                                    }}
+                                  >
+                                    <MaterialIcons
+                                      name="local-offer"
+                                      size={22 * fontScale}
+                                      color={colors.primary}
+                                    />
+                                    <ThemedText
+                                      size="sm"
+                                      weight="semibold"
+                                      style={{ color: colors.primary }}
+                                    >
+                                      {t("events.getDiscount")}
+                                    </ThemedText>
+                                  </Pressable>
+                                )
+                              ) : hasPlusEntitlement || hasAIEntitlement ? (
+                                <ThemedText
+                                  size="xs"
+                                  style={{ color: colors.textMediumEmphasis }}
+                                >
+                                  {t("events.noDiscountForEvent")}
+                                </ThemedText>
+                              ) : null}
+                            </View>
+                          ) : null}
+                          {expandedEvent.type === "plus" ||
+                          (expandedEvent.eventLink ?? "").trim() ? (
+                            <Pressable
+                              style={[
+                                styles.expandedEventLink,
+                                expandedCardScaledStyles.eventLink,
+                              ]}
+                              onPress={() => {
+                                const url = (
+                                  expandedEvent.eventLink ?? ""
+                                ).trim();
+                                if (
+                                  url.startsWith("http://") ||
+                                  url.startsWith("https://")
+                                ) {
+                                  try {
+                                    Linking.openURL(url);
+                                  } catch {}
+                                }
+                              }}
+                              hitSlop={12}
+                              disabled={!(expandedEvent.eventLink ?? "").trim()}
+                            >
+                              <MaterialIcons
+                                name="open-in-new"
+                                size={22 * fontScale}
+                                color={
+                                  (expandedEvent.eventLink ?? "").trim()
+                                    ? colors.primary
+                                    : colors.textMediumEmphasis
+                                }
+                              />
+                            </Pressable>
+                          ) : null}
+                          {renderExpandedActions()}
+                        </View>
+                      </>
                     )}
                   </View>
                 </Pressable>
               </Pressable>
-              );
-            })()}
+            );
+          })()}
         </Modal>
       ) : null}
 
@@ -2472,7 +2940,10 @@ export default function EventsTab() {
               <Switch
                 value={!showPastEvents}
                 onValueChange={(v) => setShowPastEvents(!v)}
-                trackColor={{ false: colors.text + "40", true: colors.primary + "80" }}
+                trackColor={{
+                  false: colors.text + "40",
+                  true: colors.primary + "80",
+                }}
                 thumbColor={colors.primary}
               />
             </View>
@@ -2483,7 +2954,10 @@ export default function EventsTab() {
               <Switch
                 value={hideFilledEvents}
                 onValueChange={setHideFilledEvents}
-                trackColor={{ false: colors.text + "40", true: colors.primary + "80" }}
+                trackColor={{
+                  false: colors.text + "40",
+                  true: colors.primary + "80",
+                }}
                 thumbColor={colors.primary}
               />
             </View>
@@ -2778,11 +3252,26 @@ const styles = StyleSheet.create({
   },
   expandedCard: {
     width: "100%",
-    maxWidth: 400,
-    maxHeight: "85%",
+    maxWidth: 420,
+    height: Math.min(700, SCREEN_HEIGHT * 0.85),
+    maxHeight: "78%",
     borderRadius: 20,
     overflow: "hidden",
     padding: 20,
+    flexDirection: "column",
+  },
+  expandedCardFullScreen: {
+    flex: 1,
+    alignSelf: "stretch",
+    maxWidth: "100%",
+    width: "100%",
+    maxHeight: "100%",
+  },
+  expandedCardBody: {
+    flex: 1,
+    minHeight: 0,
+    flexDirection: "column",
+    position: "relative",
   },
   expandedCardHeader: {
     flexDirection: "row",
@@ -2790,15 +3279,56 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 12,
   },
+  expandedCardScroll: {
+    flex: 1,
+    minHeight: 0,
+  },
+  expandedCarouselWrap: {
+    position: "relative",
+    width: "100%",
+  },
+  expandedCarouselArrow: {
+    position: "absolute",
+    top: "50%",
+    marginTop: -24,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 5,
+  },
+  expandedCarouselArrowLeft: { left: 8 },
+  expandedCarouselArrowRight: { right: 8 },
   expandedCardImage: { width: "100%", height: 200, borderRadius: 12 },
   expandedCardImagePlaceholder: {
     alignItems: "center",
     justifyContent: "center",
   },
   expandedLabel: { marginTop: 8 },
-  expandedDescription: { marginTop: 12, maxHeight: 200 },
+  expandedDescription: { marginTop: 12 },
+  expandedDescriptionScroll: { flex: 1, minHeight: 0 },
+  expandedDescriptionScrollContent: { paddingBottom: 24 },
+  expandedDescriptionFull: { lineHeight: 22 },
+  showLessBtn: {
+    alignSelf: "flex-start",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 16,
+  },
+  expandedBottomButtons: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 12,
+    alignItems: "flex-start",
+  },
   expandedDiscountSection: {
-    marginTop: 12,
+    marginTop: 0,
     alignSelf: "stretch",
     alignItems: "flex-start",
   },
@@ -2822,7 +3352,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   expandedActions: {
     flexDirection: "row",
