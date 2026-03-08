@@ -112,6 +112,10 @@ function getSphereTarget(
 
 export type FocusedSferaViewProps = {
   overallSunnyPercentage: number;
+  /** When false, circle avatar shows "Add memories" and tap navigates to Sfera tab. */
+  hasMemories: boolean;
+  /** Called when user taps "Add memories" (when hasMemories is false). Typically navigates to Sfera tab. */
+  onAddMemoriesPress?: () => void;
   onSphereSelect: (sphere: LifeSphere) => void;
   /** Switch back to Classic view (wheel of life). */
   onSwitchToClassic: () => void;
@@ -1037,21 +1041,27 @@ const BADGE_GRADIENT_LIGHT = [
 
 const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   percentage,
+  hasMemories,
+  onPress,
+  onAddMemoriesPress,
   colorScheme,
   x,
   y,
-  onPress,
 }: {
   percentage: number;
+  hasMemories: boolean;
+  /** When set, tapping the avatar (when hasMemories) switches to Classic view (wheel of life). */
+  onPress?: () => void;
+  /** When set, tapping "Add memories" (when !hasMemories) navigates to Sfera tab. */
+  onAddMemoriesPress?: () => void;
   colorScheme: "light" | "dark";
   x: number;
   y: number;
-  /** When set, tapping the avatar switches to Classic view (wheel of life). */
-  onPress?: () => void;
 }) {
   const { momentColors } = useMomentColors();
   const t = useTranslate();
   const { language } = useLanguage();
+  const handlePress = hasMemories ? onPress : onAddMemoriesPress;
 
   const avatarSize = 100;
   const borderWidth = 8;
@@ -1109,7 +1119,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={wrapperStyle}
@@ -1302,55 +1312,87 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
             />
           </Svg>
 
-          <View style={{ alignItems: "center", marginTop: -8 }}>
-            <ThemedText
-              size="xl"
-              weight="bold"
-              style={{ color: momentColors.sunny.background, fontSize: 24 }}
-            >
-              {Math.round(percentage)}%
-            </ThemedText>
-            {language === "bg" ? (
-              <View style={{ alignItems: "center" }}>
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+            pointerEvents="box-none"
+          >
+            {hasMemories ? (
+              <>
                 <ThemedText
-                  size="sm"
-                  weight="medium"
-                  style={{
-                    color: momentColors.sunny.background,
-                    fontSize: 10,
-                    marginTop: -2,
-                    textAlign: "center",
-                    lineHeight: 10,
-                  }}
+                  size="xl"
+                  weight="bold"
+                  style={{ color: momentColors.sunny.background, fontSize: 24 }}
                 >
-                  Слънчев
+                  {Math.round(percentage)}%
                 </ThemedText>
-                <ThemedText
-                  size="sm"
-                  weight="medium"
-                  style={{
-                    color: momentColors.sunny.background,
-                    fontSize: 10,
-                    textAlign: "center",
-                    lineHeight: 10,
-                    marginTop: -1,
-                  }}
-                >
-                  живот
-                </ThemedText>
-              </View>
+                {language === "bg" ? (
+                  <View style={{ alignItems: "center" }}>
+                    <ThemedText
+                      size="sm"
+                      weight="medium"
+                      style={{
+                        color: momentColors.sunny.background,
+                        fontSize: 10,
+                        marginTop: -2,
+                        textAlign: "center",
+                        lineHeight: 10,
+                      }}
+                    >
+                      Слънчев
+                    </ThemedText>
+                    <ThemedText
+                      size="sm"
+                      weight="medium"
+                      style={{
+                        color: momentColors.sunny.background,
+                        fontSize: 10,
+                        textAlign: "center",
+                        lineHeight: 10,
+                        marginTop: -1,
+                      }}
+                    >
+                      живот
+                    </ThemedText>
+                  </View>
+                ) : (
+                  <ThemedText
+                    size="sm"
+                    weight="medium"
+                    style={{
+                      color: momentColors.sunny.background,
+                      fontSize: 12,
+                      marginTop: -2,
+                    }}
+                  >
+                    {t("avatar.sunnyLife")}
+                  </ThemedText>
+                )}
+              </>
             ) : (
-              <ThemedText
-                size="sm"
-                weight="medium"
+              <View
                 style={{
-                  color: momentColors.sunny.background,
-                  fontSize: 12,
-                  marginTop: -2,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: `${momentColors.sunny.background}30`,
+                  justifyContent: "center",
+                  alignItems: "center",
                 }}
               >
-                {t("avatar.sunnyLife")}
-              </ThemedText>
+                <MaterialIcons
+                  name="add"
+                  size={28}
+                  color={momentColors.sunny.background}
+                />
+              </View>
             )}
           </View>
         </View>
@@ -1442,6 +1484,8 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
 
 export function FocusedSferaView({
   overallSunnyPercentage,
+  hasMemories,
+  onAddMemoriesPress,
   onSphereSelect,
   onSwitchToClassic,
   onEntitySelect,
@@ -1599,10 +1643,12 @@ export function FocusedSferaView({
       {/* ─── Sunny Life avatar (floating in the distance, center of the gap between spheres) ─── */}
       <SunnyLifeAvatar
         percentage={overallSunnyPercentage}
+        hasMemories={hasMemories}
+        onPress={handleSwitchToClassic}
+        onAddMemoriesPress={onAddMemoriesPress}
         colorScheme={colorScheme}
         x={SW * 0.45}
         y={SH * 0.38}
-        onPress={handleSwitchToClassic}
       />
 
       {/* ─── Chevron buttons: left = prev, right = next (orbital cycle) ─── */}

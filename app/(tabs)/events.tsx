@@ -14,7 +14,9 @@ import {
 import { scheduleEventMemoryReminders } from "@/utils/event-memory-reminders";
 import { onEventsTabPress } from "@/utils/events-tab-press";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { showPaywallForPlusAccess } from "@/utils/premium-access";
 import { useSferaEventsBadge } from "@/utils/SferaEventsBadgeProvider";
+import { useSubscription } from "@/utils/SubscriptionProvider";
 import {
   cancelEventMemoryReminders,
 } from "@/utils/event-memory-reminders";
@@ -25,11 +27,12 @@ import {
   clearEventReminderInAppForEvent,
   getAttendingEventIds,
   getEventGoldenMemoryUsedIds,
+  getEventImageUrls,
   getPastAttendedEvents,
   getSeenEventIds,
   getUnlockedVipCodes,
   isPrivateSectionUnlocked,
-  isVipSectionUnlocked,
+  isPlusSectionUnlocked,
   removeAttendedEventSnapshotsByIds,
   removeAttendingEventId,
   removeEventGoldenMemoryUsedIds,
@@ -128,7 +131,7 @@ function logEventPositions(
   });
 }
 
-const COMMUNITY_TYPES: SferaEventType[] = ["public", "private", "vip"];
+const COMMUNITY_TYPES: SferaEventType[] = ["social", "private", "plus"];
 
 /** Number of orbit slots for Sfera Private. Real unlocked events fill first slots; rest are mock placeholders. */
 const PRIVATE_SLOT_COUNT = 5;
@@ -165,9 +168,9 @@ function getCommunity3DColors(
 ): { highlight: string; base: string; shadow: string } {
   if (colorScheme === "light") {
     const bases = {
-      public: "rgb(150,200,255)",
+      social: "rgb(150,200,255)",
       private: "rgb(180,150,220)",
-      vip: "rgb(255,200,100)",
+      plus: "rgb(255,200,100)",
     };
     const b = bases[type];
     const lighter = (s: string) => {
@@ -183,9 +186,9 @@ function getCommunity3DColors(
     return { highlight: lighter(b), base: b, shadow: darker(b) };
   }
   const bases = {
-    public: "rgba(140,190,245,0.55)",
+    social: "rgba(140,190,245,0.55)",
     private: "rgba(160,120,230,0.55)",
-    vip: "rgba(255,180,80,0.55)",
+    plus: "rgba(255,180,80,0.55)",
   };
   const b = bases[type];
   const lighter = (s: string) => {
@@ -206,7 +209,7 @@ function getCommunityShadowColor(
   colorScheme: "light" | "dark",
 ): string {
   if (colorScheme === "light") return "#000";
-  const colors = { public: "#96CAFF", private: "#B39DDB", vip: "#FFB74D" };
+  const colors = { social: "#96CAFF", private: "#B39DDB", plus: "#FFB74D" };
   return colors[type];
 }
 
@@ -220,11 +223,11 @@ function getCommunityIconColor(
 ): string {
   if (colorScheme === "light") {
     // Light mode: dark icons on light gradient bases
-    const dark = { public: "#1565C0", private: "#5E35B1", vip: "#E65100" };
+    const dark = { social: "#1565C0", private: "#5E35B1", plus: "#E65100" };
     return dark[type];
   }
   // Dark mode: dark icons on semi-transparent pastel gradients
-  const dark = { public: "#0D47A1", private: "#4A148C", vip: "#BF360C" };
+  const dark = { social: "#0D47A1", private: "#4A148C", plus: "#BF360C" };
   return dark[type];
 }
 
@@ -396,7 +399,7 @@ const FloatingOrb = React.memo(function FloatingOrb({
 }: {
   index: number;
   baseAngle: number;
-  type: "public" | "private" | "vip";
+  type: "social" | "private" | "plus";
   isLocked: boolean;
   label: string;
   orbitAngle: SharedNum;
@@ -868,27 +871,63 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
         />
         <View style={[styles.eventCardGlassOverlay, { backgroundColor: colorScheme === "dark" ? "rgba(26,35,50,0.5)" : "rgba(255,255,255,0.4)" }]} pointerEvents="none" />
         <View style={styles.eventCardContent}>
-          {event.imageUrl ? (
-            <Image
-              source={{ uri: event.imageUrl }}
-              style={styles.eventCardImage}
-              contentFit="cover"
-            />
-          ) : (
-            <View
-              style={[
-                styles.eventCardImage,
-                styles.eventCardImagePlaceholder,
-                { backgroundColor: colors.primary + "25" },
-              ]}
-            >
-              <MaterialIcons
-                name={isLocked ? "lock" : "event"}
-                size={isFocused ? 40 : 24}
-                color={colors.primary}
-              />
-            </View>
-          )}
+          {(() => {
+            const imageUrls = getEventImageUrls(event);
+            if (imageUrls.length === 0) {
+              return (
+                <View
+                  style={[
+                    styles.eventCardImage,
+                    styles.eventCardImagePlaceholder,
+                    { backgroundColor: colors.primary + "25" },
+                  ]}
+                >
+                  <MaterialIcons
+                    name={isLocked ? "lock" : "event"}
+                    size={isFocused ? 40 : 24}
+                    color={colors.primary}
+                  />
+                </View>
+              );
+            }
+            if (imageUrls.length === 1) {
+              return (
+                <Image
+                  source={{ uri: imageUrls[0]! }}
+                  style={styles.eventCardImage}
+                  contentFit="cover"
+                />
+              );
+            }
+            if (!isFocused) {
+              return (
+                <Image
+                  source={{ uri: imageUrls[0]! }}
+                  style={styles.eventCardImage}
+                  contentFit="cover"
+                />
+              );
+            }
+            const carouselWidth = FOCUSED_EVENT_SIZE - 12;
+            return (
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                style={[styles.eventCardImage, { width: carouselWidth }]}
+                contentContainerStyle={{ flexDirection: "row" }}
+              >
+                {imageUrls.map((uri) => (
+                  <Image
+                    key={uri}
+                    source={{ uri }}
+                    style={[styles.eventCardImage, { width: carouselWidth }]}
+                    contentFit="cover"
+                  />
+                ))}
+              </ScrollView>
+            );
+          })()}
           {isFocused ? (
             <View style={styles.eventCardDetails}>
               <ThemedText
@@ -995,13 +1034,14 @@ export default function EventsTab() {
   const { constellationAmount, constellationOpacity } = useVisualSettings();
   const { momentColors } = useMomentColors();
   const { markEventAsSeen, refreshEvents } = useSferaEventsBadge();
+  const { hasPlusEntitlement, hasAIEntitlement } = useSubscription();
 
   const [events, setEvents] = useState<SferaEvent[]>([]);
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const [attendingIds, setAttendingIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [unlockedCodes, setUnlockedCodes] = useState<Set<string>>(new Set());
-  const [phase, setPhase] = useState<"orbs" | "public" | "private" | "vip">(
+  const [phase, setPhase] = useState<"orbs" | "social" | "private" | "plus">(
     "orbs",
   );
   const phaseRef = useRef(phase);
@@ -1011,7 +1051,7 @@ export default function EventsTab() {
   const [focusedEventIndex, setFocusedEventIndex] = useState(0);
   const [codeModal, setCodeModal] = useState<{
     visible: boolean;
-    for: "private" | "vip" | null;
+    for: "private" | "plus" | null;
   }>({
     visible: false,
     for: null,
@@ -1029,12 +1069,13 @@ export default function EventsTab() {
   const [pendingAIResponse, setPendingAIResponse] =
     useState<PendingAIResponse | null>(null);
   const [goldenEventIdForModal, setGoldenEventIdForModal] = useState<string | null>(null);
+  const [discountRevealed, setDiscountRevealed] = useState(false);
 
   const params = useLocalSearchParams<{ eventIdForMemory?: string }>();
   const insets = useSafeAreaInsets();
   const orbitAngle = useSharedValue(0);
   const orbExitProgress = useSharedValue(0); // 0 = all visible, 1 = selected orb at center, others exited
-  const selectedOrbIndex = useSharedValue(-1); // 0=public, 1=private, 2=vip
+  const selectedOrbIndex = useSharedValue(-1); // 0=social, 1=private, 2=plus
   const hideCenteredOrb = useSharedValue(0); // 1 when community selected so we show CenterOrbPlaceholder instead
   const eventsRevealProgress = useSharedValue(0); // 0 -> 1 after orb settles, so events fade in
   const eventOrbitAngle = useSharedValue(0); // shared orbit angle so all event cards move smoothly along the circle
@@ -1110,16 +1151,16 @@ export default function EventsTab() {
     hideCenteredOrb,
   ]);
 
-  const publicEvents = useMemo(
-    () => events.filter((e) => e.type === "public"),
+  const socialEvents = useMemo(
+    () => events.filter((e) => e.type === "social"),
     [events],
   );
   const privateEvents = useMemo(
     () => events.filter((e) => e.type === "private"),
     [events],
   );
-  const vipEvents = useMemo(
-    () => events.filter((e) => e.type === "vip"),
+  const plusEvents = useMemo(
+    () => events.filter((e) => e.type === "plus"),
     [events],
   );
 
@@ -1128,23 +1169,24 @@ export default function EventsTab() {
       console.log(
         "[Events tab] events:",
         events.length,
-        "public:",
-        publicEvents.length,
+        "social:",
+        socialEvents.length,
         "private:",
         privateEvents.length,
-        "vip:",
-        vipEvents.length,
+        "plus:",
+        plusEvents.length,
       );
     }
   }, [
     events.length,
-    publicEvents.length,
+    socialEvents.length,
     privateEvents.length,
-    vipEvents.length,
+    plusEvents.length,
   ]);
 
   useEffect(() => {
     setExpandedImageError(false);
+    setDiscountRevealed(false);
   }, [expandedEventId]);
 
   // Open Create memory modal when navigated from event memory reminder notification
@@ -1160,7 +1202,7 @@ export default function EventsTab() {
   }, [params.eventIdForMemory, pastEvents, goldenUsedIds]);
 
   const privateUnlocked = isPrivateSectionUnlocked(events, unlockedCodes);
-  const vipUnlocked = isVipSectionUnlocked(events, unlockedCodes);
+  const plusUnlocked = isPlusSectionUnlocked(events, unlockedCodes);
 
   const realPrivateEvents = useMemo(
     () =>
@@ -1173,20 +1215,20 @@ export default function EventsTab() {
 
   const hasNoEvents = useMemo(
     () => [
-      false, // public: never disable orb; let user tap to see "No upcoming events" overlay (same as VIP)
+      false, // social: never disable orb; let user tap to see "No upcoming events" overlay (same as Plus)
       privateUnlocked && realPrivateEvents.length === 0,
-      vipUnlocked && vipEvents.length === 0,
+      plusUnlocked && plusEvents.length === 0,
     ],
-    [privateUnlocked, realPrivateEvents.length, vipUnlocked, vipEvents.length]
+    [privateUnlocked, realPrivateEvents.length, plusUnlocked, plusEvents.length]
   );
 
   const hasUnseenEvents = useMemo(
     () => [
-      publicEvents.some((e) => !seenIds.has(e.id)),
+      socialEvents.some((e) => !seenIds.has(e.id)),
       realPrivateEvents.some((e) => !seenIds.has(e.id)),
-      vipEvents.some((e) => !seenIds.has(e.id)),
+      plusEvents.some((e) => !seenIds.has(e.id)),
     ],
-    [publicEvents, realPrivateEvents, vipEvents, seenIds]
+    [socialEvents, realPrivateEvents, plusEvents, seenIds]
   );
 
   /** Private orbit: real unlocked events fill first slots; remaining slots are mock placeholders. */
@@ -1200,8 +1242,8 @@ export default function EventsTab() {
   }, [privateEvents, unlockedCodes]);
 
   const communityEvents = useMemo(
-    () => [publicEvents, privateSlotList, vipEvents],
-    [publicEvents, privateSlotList, vipEvents],
+    () => [socialEvents, privateSlotList, plusEvents],
+    [socialEvents, privateSlotList, plusEvents],
   );
   /** Orbit list: upcoming events for this community + past attended (same type) when toggle on. */
   const listForPhase = useMemo(() => {
@@ -1238,7 +1280,7 @@ export default function EventsTab() {
 
  
 
-  const openCodeModal = useCallback((forSection: "private" | "vip") => {
+  const openCodeModal = useCallback((forSection: "private" | "plus") => {
     setCodeModal({ visible: true, for: forSection });
     setCodeInput("");
     setCodeError(null);
@@ -1266,7 +1308,7 @@ export default function EventsTab() {
     await addUnlockedVipCode(code);
     await loadUnlocked();
     closeCodeModal();
-    if (forSection === "vip") {
+      if (forSection === "plus") {
       const idx = 2;
       selectedOrbIndex.value = idx;
       runOnJS(setFocusedCommunityIndex)(idx);
@@ -1291,7 +1333,7 @@ export default function EventsTab() {
   const selectOrb = useCallback(
     (index: number) => {
       const type: SferaEventType =
-        index === 0 ? "public" : index === 1 ? "private" : "vip";
+        index === 0 ? "social" : index === 1 ? "private" : "plus";
       selectedOrbIndex.value = index;
       runOnJS(setFocusedCommunityIndex)(index);
       runOnJS(setFocusedEventIndex)(0);
@@ -1398,11 +1440,11 @@ export default function EventsTab() {
   }
 
   const sectionLabel = (type: SferaEventType) =>
-    type === "public"
-      ? t("events.section.public")
+    type === "social"
+      ? t("events.section.social")
       : type === "private"
         ? t("events.section.private")
-        : t("events.section.vip");
+        : t("events.section.plus");
   const focusedCommunityType = COMMUNITY_TYPES[focusedCommunityIndex];
 
   return (
@@ -1424,7 +1466,7 @@ export default function EventsTab() {
         {/* ─── Phase: 3 orbs floating ─── */}
         {ORB_ANGLES.map((baseAngle, index) => {
           const type: SferaEventType =
-            index === 0 ? "public" : index === 1 ? "private" : "vip";
+            index === 0 ? "social" : index === 1 ? "private" : "plus";
           const isLocked = type === "private" && !privateUnlocked;
           return (
             <FloatingOrb
@@ -1626,7 +1668,8 @@ export default function EventsTab() {
             (e) => e.id === expandedEventId,
           );
           if (!expandedEvent) return null;
-          const showImage = expandedEvent.imageUrl && !expandedImageError;
+          const expandedImageUrls = getEventImageUrls(expandedEvent);
+          const hasImages = expandedImageUrls.length > 0 && !expandedImageError;
           return (
             <Modal
               visible
@@ -1666,13 +1709,32 @@ export default function EventsTab() {
                       />
                     </Pressable>
                   </View>
-                  {showImage ? (
-                    <Image
-                      source={{ uri: expandedEvent.imageUrl }}
-                      style={styles.expandedCardImage}
-                      contentFit="cover"
-                      onError={() => setExpandedImageError(true)}
-                    />
+                  {hasImages ? (
+                    expandedImageUrls.length === 1 ? (
+                      <Image
+                        source={{ uri: expandedImageUrls[0]! }}
+                        style={styles.expandedCardImage}
+                        contentFit="cover"
+                        onError={() => setExpandedImageError(true)}
+                      />
+                    ) : (
+                      <ScrollView
+                        horizontal
+                        pagingEnabled
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.expandedCardImage}
+                      >
+                        {expandedImageUrls.map((uri) => (
+                          <Image
+                            key={uri}
+                            source={{ uri }}
+                            style={[styles.expandedCardImage, { width: SCREEN_WIDTH - 48 }]}
+                            contentFit="cover"
+                            onError={() => setExpandedImageError(true)}
+                          />
+                        ))}
+                      </ScrollView>
+                    )
                   ) : (
                     <View
                       style={[
@@ -1715,6 +1777,57 @@ export default function EventsTab() {
                         {expandedEvent.description}
                       </ThemedText>
                     </ScrollView>
+                  ) : null}
+                  {expandedEvent.type === "plus" &&
+                  (expandedEvent.discountCode ?? "").trim() ? (
+                    <View style={styles.expandedDiscountSection}>
+                      {discountRevealed &&
+                      (hasPlusEntitlement || hasAIEntitlement) ? (
+                        <View
+                          style={[
+                            styles.expandedDiscountCode,
+                            {
+                              backgroundColor: colors.background,
+                              borderColor: colors.text + "40",
+                            },
+                          ]}
+                        >
+                          <ThemedText size="xs" style={{ color: colors.textMediumEmphasis }}>
+                            {t("events.discountRevealed")}
+                          </ThemedText>
+                          <ThemedText size="sm" weight="bold" style={{ marginTop: 4 }}>
+                            {expandedEvent.discountCode}
+                          </ThemedText>
+                        </View>
+                      ) : (
+                        <Pressable
+                          style={[
+                            styles.expandedGetDiscountBtn,
+                            { backgroundColor: colors.primary },
+                          ]}
+                          onPress={async () => {
+                            if (hasPlusEntitlement || hasAIEntitlement) {
+                              setDiscountRevealed(true);
+                            } else {
+                              await showPaywallForPlusAccess();
+                            }
+                          }}
+                        >
+                          <MaterialIcons
+                            name="local-offer"
+                            size={18}
+                            color="#1A2332"
+                          />
+                          <ThemedText
+                            size="sm"
+                            weight="bold"
+                            style={[styles.createMemoryBtnText, { marginLeft: 6 }]}
+                          >
+                            {t("events.getDiscount")}
+                          </ThemedText>
+                        </Pressable>
+                      )}
+                    </View>
                   ) : null}
                   {expandedEvent.eventLink ? (
                     <Pressable
@@ -1918,7 +2031,7 @@ export default function EventsTab() {
             <ThemedText size="l" weight="bold" style={styles.modalTitle}>
               {codeModal.for === "private"
                 ? t("events.privateEnterCode")
-                : t("events.vipEnterCode")}
+                : t("events.plusEnterCode")}
             </ThemedText>
             <TextInput
               value={codeInput}
@@ -2323,7 +2436,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   expandedLabel: { marginTop: 8 },
-  expandedDescription: { marginTop: 12, maxHeight: 160 },
+  expandedDescription: { marginTop: 12, maxHeight: 200 },
+  expandedDiscountSection: { marginTop: 12 },
+  expandedDiscountCode: {
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  expandedGetDiscountBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
   expandedEventLink: {
     flexDirection: "row",
     alignItems: "center",

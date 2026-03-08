@@ -30,6 +30,9 @@ type AIEntityResultsViewProps = {
   entities: AIEntitySuggestion[];
   onSave: (entities: AIEntitySuggestion[]) => Promise<void>;
   onCancel: () => void;
+  /** When true, hide Save/Cancel buttons and report edits via onEntitiesChange. Parent handles save. */
+  embedded?: boolean;
+  onEntitiesChange?: (entities: AIEntitySuggestion[]) => void;
 };
 
 export function AIEntityResultsView({
@@ -37,6 +40,8 @@ export function AIEntityResultsView({
   entities: initialEntities,
   onSave,
   onCancel,
+  embedded = false,
+  onEntitiesChange,
 }: AIEntityResultsViewProps) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
@@ -243,6 +248,7 @@ export function AIEntityResultsView({
     const updated = [...entities];
     updated[index] = { ...updated[index], ...updates };
     setEntities(updated);
+    if (embedded && onEntitiesChange) onEntitiesChange(updated);
   };
 
 
@@ -270,6 +276,7 @@ export function AIEntityResultsView({
             if (index >= 0) {
               const updated = entities.filter((_, i) => i !== index);
               setEntities(updated);
+              if (embedded && onEntitiesChange) onEntitiesChange(updated);
             }
           },
         },
@@ -300,7 +307,11 @@ export function AIEntityResultsView({
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        updateEntity(index, { imageUri: result.assets[0].uri });
+        const pickedUri = result.assets[0].uri;
+        const uriToStore = embedded
+          ? await ensureImageInAppDocuments(pickedUri)
+          : pickedUri;
+        updateEntity(index, { imageUri: uriToStore });
       }
     } catch (error) {
       Alert.alert(
@@ -536,14 +547,19 @@ export function AIEntityResultsView({
     }
   };
 
+  const ScrollContainer = embedded ? View : ScrollView;
+  const scrollProps = embedded
+    ? { style: styles.scrollContent }
+    : {
+        style: styles.scrollContent,
+        showsVerticalScrollIndicator: true,
+        keyboardShouldPersistTaps: "handled" as const,
+        nestedScrollEnabled: Platform.OS === "android",
+      };
+
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollContent}
-        showsVerticalScrollIndicator={true}
-        keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled={Platform.OS === 'android'}
-      >
+      <ScrollContainer {...scrollProps}>
         {sortedEntities.map((entity, displayIndex) => {
           const entityIndex = findEntityIndex(entity);
           const index = entityIndex >= 0 ? entityIndex : displayIndex;
@@ -917,7 +933,7 @@ export function AIEntityResultsView({
             </ThemedText>
           </View>
         )}
-      </ScrollView>
+      </ScrollContainer>
 
       {/* Date Picker */}
       {datePickerEntityIndex !== null && datePickerField && (Platform.OS === 'ios' ? (
@@ -1037,7 +1053,8 @@ export function AIEntityResultsView({
         />
       ))}
 
-      {/* Save Button */}
+      {/* Save Button (hidden in embedded mode) */}
+      {!embedded && (
       <View style={styles.saveButtonContainer}>
         <TouchableOpacity
           style={[
@@ -1066,6 +1083,7 @@ export function AIEntityResultsView({
           </ThemedText>
         </TouchableOpacity>
       </View>
+      )}
     </View>
   );
 }

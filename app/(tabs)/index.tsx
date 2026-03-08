@@ -38,6 +38,10 @@ import {
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
 import { useNotificationNudgePreference } from "@/utils/NotificationNudgePreferenceProvider";
 import { logError } from "@/utils/error-logger";
+import {
+  getShowWalkthroughAfterOnboarding,
+  setShowWalkthroughAfterOnboarding,
+} from "@/utils/onboarding-storage";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import {
   getSphereGradientColors,
@@ -8540,10 +8544,12 @@ const FloatingLesson = React.memo(function FloatingLesson({
 // Overall Percentage Avatar Component (center display)
 const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   percentage,
+  hasMemories,
   colorScheme,
   colors,
 }: {
   percentage: number;
+  hasMemories: boolean;
   colorScheme: "light" | "dark";
   colors: any;
 }) {
@@ -8781,55 +8787,97 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
           />
         </Svg>
 
-        <View style={{ alignItems: "center", marginTop: -8 }}>
-          <ThemedText
-            size="xl"
-            weight="bold"
-            style={{ color: momentColors.sunny.background, fontSize: 24 }}
-          >
-            {Math.round(percentage)}%
-          </ThemedText>
-          {language === "bg" ? (
-            <View style={{ alignItems: "center" }}>
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+          pointerEvents="box-none"
+        >
+          {hasMemories ? (
+            <>
               <ThemedText
-                size="sm"
-                weight="medium"
-                style={{
-                  color: momentColors.sunny.background,
-                  fontSize: 10,
-                  marginTop: -2,
-                  textAlign: "center",
-                  lineHeight: 10,
-                }}
+                size="xl"
+                weight="bold"
+                style={{ color: momentColors.sunny.background, fontSize: 24 }}
               >
-                Слънчев
+                {Math.round(percentage)}%
               </ThemedText>
-              <ThemedText
-                size="sm"
-                weight="medium"
-                style={{
-                  color: momentColors.sunny.background,
-                  fontSize: 10,
-                  textAlign: "center",
-                  lineHeight: 10,
-                  marginTop: -1,
-                }}
-              >
-                живот
-              </ThemedText>
-            </View>
+              {language === "bg" ? (
+                <View style={{ alignItems: "center" }}>
+                  <ThemedText
+                    size="sm"
+                    weight="medium"
+                    style={{
+                      color: momentColors.sunny.background,
+                      fontSize: 10,
+                      marginTop: -2,
+                      textAlign: "center",
+                      lineHeight: 10,
+                    }}
+                  >
+                    Слънчев
+                  </ThemedText>
+                  <ThemedText
+                    size="sm"
+                    weight="medium"
+                    style={{
+                      color: momentColors.sunny.background,
+                      fontSize: 10,
+                      textAlign: "center",
+                      lineHeight: 10,
+                      marginTop: -1,
+                    }}
+                  >
+                    живот
+                  </ThemedText>
+                </View>
+              ) : (
+                <ThemedText
+                  size="sm"
+                  weight="medium"
+                  style={{
+                    color: momentColors.sunny.background,
+                    fontSize: 12,
+                    marginTop: -2,
+                  }}
+                >
+                  {t("avatar.sunnyLife")}
+                </ThemedText>
+              )}
+            </>
           ) : (
-            <ThemedText
-              size="sm"
-              weight="medium"
-              style={{
-                color: momentColors.sunny.background,
-                fontSize: 12,
-                marginTop: -2,
-              }}
+            <Pressable
+              onPress={() => router.push("/(tabs)/spheres")}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.7 : 1,
+                justifyContent: "center",
+                alignItems: "center",
+              })}
             >
-              {t("avatar.sunnyLife")}
-            </ThemedText>
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: `${momentColors.sunny.background}30`,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <MaterialIcons
+                  name="add"
+                  size={28}
+                  color={momentColors.sunny.background}
+                />
+              </View>
+            </Pressable>
           )}
         </View>
       </View>
@@ -12359,6 +12407,7 @@ export default function HomeScreen() {
   // Walkthrough modal state
   const [walkthroughVisible, setWalkthroughVisible] = useState(false);
   const walkthroughCheckedRef = useRef(false);
+  const walkthroughAfterOnboardingRef = useRef(false);
   const { isAnimationComplete, isVisible: isSplashVisible } = useSplash();
 
   // Load streak data on mount and when screen focuses
@@ -12410,7 +12459,7 @@ export default function HomeScreen() {
       walkthroughCheckedRef.current = false;
 
       // Function to check and show walkthrough
-      const checkWalkthrough = () => {
+      const checkWalkthrough = async () => {
         // Only check once per focus
         if (walkthroughCheckedRef.current) {
           return;
@@ -12432,6 +12481,16 @@ export default function HomeScreen() {
             isFirstLaunchRef.current = false;
           }
 
+          // Check if coming from onboarding - show walkthrough and clear flag
+          const showAfterOnboarding = await getShowWalkthroughAfterOnboarding();
+          if (showAfterOnboarding) {
+            await setShowWalkthroughAfterOnboarding(false);
+            walkthroughAfterOnboardingRef.current = true;
+            setWalkthroughVisible(true);
+            requestSpheresTabPulse(true); // pulse once
+            return;
+          }
+
           // Check if there are any entities or memories
           const totalEntities =
             profiles.length +
@@ -12451,7 +12510,7 @@ export default function HomeScreen() {
       };
 
       // Check immediately on focus
-      checkWalkthrough();
+      void checkWalkthrough();
 
       return () => {
         // Cleanup: stop pulse when leaving the screen
@@ -12474,6 +12533,15 @@ export default function HomeScreen() {
     try {
       // Don't save to AsyncStorage - we want modal to reappear if user navigates back
       setWalkthroughVisible(false);
+
+      // If walkthrough was shown after onboarding (Save and continue), redirect to Sferas tab
+      if (walkthroughAfterOnboardingRef.current) {
+        walkthroughAfterOnboardingRef.current = false;
+        setTimeout(() => {
+          router.push("/(tabs)/spheres");
+        }, 300);
+        return;
+      }
 
       // Check if there are no entities - if so, redirect to spheres tab
       const totalEntities =
@@ -17596,6 +17664,8 @@ export default function HomeScreen() {
       <View style={{ flex: 1 }}>
         <FocusedSferaView
           overallSunnyPercentage={overallSunnyPercentage}
+          hasMemories={idealizedMemories.length > 0}
+          onAddMemoriesPress={() => router.push("/(tabs)/spheres")}
           onSphereSelect={(sphere) => {
             setFocusedMemory(null);
             setFocusedProfileId(null);
@@ -19023,6 +19093,7 @@ export default function HomeScreen() {
                 >
                   <OverallPercentageAvatar
                     percentage={overallSunnyPercentage}
+                    hasMemories={idealizedMemories.length > 0}
                     colorScheme={colorScheme ?? "dark"}
                     colors={colors}
                   />

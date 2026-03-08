@@ -25,6 +25,8 @@ const STORAGE_KEYS_TO_EXPORT = [
   "@sferas:friend_positions",
   "@sferas:hobby_positions",
   "@sferas:walkthrough_shown",
+  "@sferas:onboarding_completed",
+  "@sferas:show_walkthrough_after_onboarding",
   "@sferas:moment_colors",
   "@sferas:recent_custom_colors",
   "@sferas:notification_templates",

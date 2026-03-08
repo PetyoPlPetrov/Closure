@@ -14,6 +14,11 @@ import { presentPaywallWithOffering } from "@/utils/revenuecat-paywall";
 import { clearSferaEventsStorage } from "@/utils/sfera-events";
 import { useSferaEventsBadge } from "@/utils/SferaEventsBadgeProvider";
 import { resetStreakData } from "@/utils/streak-manager";
+import { useOnboardingGate } from "@/utils/OnboardingGateContext";
+import {
+  clearCachedOnboardingResponse,
+  setShowWalkthroughAfterOnboarding,
+} from "@/utils/onboarding-storage";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { type AppVersionInfo, getAppVersionInfo } from "@/utils/updates";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -57,6 +62,7 @@ export default function SettingsScreen() {
     familyMembers,
     friends,
     hobbies,
+    idealizedMemories,
     getIdealizedMemoriesByProfileId,
     getIdealizedMemoriesByEntityId,
     reloadIdealizedMemories,
@@ -77,13 +83,35 @@ export default function SettingsScreen() {
   } = useSubscription();
   const hasBackupAccess = hasPlusEntitlement || hasAIEntitlement;
   const { refreshEvents, resetEventsState } = useSferaEventsBadge();
+  const onboardingGate = useOnboardingGate();
   const t = useTranslate();
+
+  const totalEntities =
+    profiles.length +
+    jobs.length +
+    familyMembers.length +
+    friends.length +
+    hobbies.length;
+  const totalMemories = idealizedMemories.length;
+  const hasAppData = totalEntities > 0 || totalMemories > 0;
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [isCleaningMemories, setIsCleaningMemories] = useState(false);
   const [onboardingVisible, setOnboardingVisible] = useState(false);
+  const [initialOnboardingRequesting, setInitialOnboardingRequesting] =
+    useState(false);
   const [versionInfo, setVersionInfo] = useState<AppVersionInfo | null>(null);
+
+  const requestInitialOnboarding = useCallback(async () => {
+    if (hasAppData || !onboardingGate) return;
+    setInitialOnboardingRequesting(true);
+    try {
+      await onboardingGate.requestShowOnboarding();
+    } finally {
+      setInitialOnboardingRequesting(false);
+    }
+  }, [hasAppData, onboardingGate]);
 
   useEffect(() => {
     getAppVersionInfo().then(setVersionInfo);
@@ -1861,6 +1889,8 @@ export default function SettingsScreen() {
                 AsyncStorage.removeItem(HOBBIES_STORAGE_KEY),
                 AsyncStorage.removeItem(AVATAR_POSITIONS_KEY),
                 AsyncStorage.removeItem(WALKTHROUGH_SHOWN_KEY), // Clear walkthrough flag so it shows again
+                clearCachedOnboardingResponse(),
+                setShowWalkthroughAfterOnboarding(false),
                 resetStreakData(), // Reset streak data
               ]);
 
@@ -2391,6 +2421,54 @@ export default function SettingsScreen() {
               />
             )}
           </TouchableOpacity>
+
+          <View style={{ marginTop: 12 * fontScale }}>
+            <TouchableOpacity
+              style={[
+                styles.dropdown,
+                (hasAppData || initialOnboardingRequesting) && {
+                  opacity: 0.5,
+                },
+              ]}
+              onPress={requestInitialOnboarding}
+              activeOpacity={0.7}
+              disabled={hasAppData || initialOnboardingRequesting}
+            >
+              <View style={styles.dropdownContent}>
+                <MaterialIcons
+                  name="school"
+                  size={24 * fontScale}
+                  color={hasAppData ? colors.textMediumEmphasis : colors.primary}
+                />
+                <ThemedText
+                  size="l"
+                  weight="medium"
+                  style={styles.dropdownText}
+                >
+                  {initialOnboardingRequesting
+                    ? t("settings.devTools.initialOnboarding.loading")
+                    : t("settings.devTools.initialOnboarding.button")}
+                </ThemedText>
+                <Pressable
+                  onPress={() =>
+                    Alert.alert(
+                      t("settings.devTools.initialOnboarding.button"),
+                      t("settings.devTools.initialOnboarding.hint"),
+                      [{ text: t("common.ok") }],
+                    )
+                  }
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+                >
+                  <MaterialIcons
+                    name="info-outline"
+                    size={22 * fontScale}
+                    color={colors.textMediumEmphasis}
+                  />
+                </Pressable>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 

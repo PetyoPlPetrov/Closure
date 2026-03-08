@@ -2,9 +2,11 @@
  * Sfera Events – community events loaded from a published Google Sheet.
  * No backend: app fetches CSV from a public "Publish to web" URL.
  *
- * Sheet columns (header row): ID, Name, ImageLink, StartDate, Country, Town, Location, Description, Date, Privacy, Code
- * - Privacy: "Public" | "Private" | "VIP"
- * - Code: required to unlock Private/VIP events (validated against sheet rows)
+ * Sheet columns (header row): ID, Name, ImageLink, StartDate, Country, Town, Location, Description, Date, Privacy, Code, Discount_Code
+ * - Privacy: "Social" | "Plus" | "Private"
+ * - Code: required to unlock Private/Plus events (validated against sheet rows)
+ * - Discount_Code: voucher code for Plus events; shown to Sfera Plus or Sfera AI subscribers
+ * - ImageLink: single URL or comma-separated URLs for image carousel
  * - StartDate: event is active when current date is before StartDate; only active events are stored locally.
  * - Country: event is active when it matches the device region (from location + reverse geocode); events with empty Country are shown for all regions.
  */
@@ -32,7 +34,7 @@ const EVENT_REMINDER_INAPP_SCHEDULE_KEY = "@sferas:event_reminder_inapp_schedule
 const DEFAULT_EVENTS_SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1MmK5LCisFoBhyx1Jwt8kWk3YixDlSMl5sYuIrnJHmiE/export?format=csv&gid=0";
 
-export type SferaEventType = "public" | "private" | "vip";
+export type SferaEventType = "social" | "private" | "plus";
 
 export interface SferaEvent {
   id: string;
@@ -40,11 +42,13 @@ export interface SferaEvent {
   /** Display: e.g. "Sofia, South Park" from Town + Location */
   location: string;
   description: string;
-  /** Image URL from sheet (ImageLink column); shown above event name in the card */
+  /** Image URL(s) from sheet (ImageLink column): single URL or comma-separated. Use getEventImageUrls() for carousel. */
   imageUrl: string;
   type: SferaEventType;
-  /** Code from sheet; user must enter this to unlock Private/VIP section */
+  /** Code from sheet; user must enter this to unlock Private/Plus section */
   vipCode: string | null;
+  /** Discount/voucher code from Discount_Code column; shown to Sfera Plus or Sfera AI subscribers for Plus events. Omitted in old cache. */
+  discountCode?: string | null;
   /** Display date string from sheet */
   date: string;
   /** Start date from sheet (StartDate); event is active when current date is before this */
@@ -55,6 +59,14 @@ export interface SferaEvent {
   town: string;
   /** "open" = can join; "closed" = event is filled (no seats left), active and upcoming. Omitted in old cache. */
   status?: "open" | "closed";
+}
+
+/** Parse imageUrl: single URL or comma-separated URLs. Returns array of trimmed non-empty URLs. */
+export function getEventImageUrls(event: SferaEvent): string[] {
+  const raw = (event.imageUrl ?? "").trim();
+  if (!raw) return [];
+  const urls = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  return urls;
 }
 
 function parseCsvLine(line: string): string[] {
@@ -89,9 +101,11 @@ function rowToEvent(
   };
   const name = get("name");
   if (!name) return null;
-  const privacyRaw = (get("privacy") || "public").toLowerCase();
-  const type: SferaEventType =
-    privacyRaw === "private" || privacyRaw === "vip" ? privacyRaw : "public";
+  const privacyRaw = (get("privacy") || "social").toLowerCase();
+  let type: SferaEventType;
+  if (privacyRaw === "private") type = "private";
+  else if (privacyRaw === "plus" || privacyRaw === "vip") type = "plus";
+  else type = "social"; // "public" or "social"
   const country = get("country");
   const town = get("town");
   const loc = get("location");
@@ -103,6 +117,9 @@ function rowToEvent(
   const statusRaw = (get("status") || "open").toLowerCase();
   const status: "open" | "closed" =
     statusRaw === "closed" ? "closed" : "open";
+  const discountCodeRaw = get("discount_code") || get("discountcode") || "";
+  const discountCode = discountCodeRaw.trim() || null;
+
   return {
     id:
       get("id") ||
@@ -118,7 +135,8 @@ function rowToEvent(
       get("imageUrl") ||
       "",
     type,
-    vipCode: type !== "public" && code ? code : null,
+    vipCode: type !== "social" && code ? code : null,
+    discountCode: type === "plus" ? discountCode : null,
     date: dateDisplay,
     startDate: startDateRaw,
     eventLink: get("eventlink") || get("event link") || "",
@@ -404,35 +422,35 @@ export async function setLastKnownPublicVipEventIds(
 }
 
 /**
- * Fetch events, compare public+VIP IDs with last known; return events, count of new ones, and which communities have new events.
+ * Fetch events, compare social+Plus IDs with last known; return events, count of new ones, and which communities have new events.
  * On first run (no last known), newCount is 0. On fetch failure, returns cached events and newCount 0.
  */
 export async function fetchAndCheckForNewEvents(): Promise<{
   events: SferaEvent[];
   newCount: number;
-  newCommunities: Array<"public" | "vip">;
+  newCommunities: Array<"social" | "plus">;
 }> {
   const { events } = await fetchSferaEvents();
-  const publicEvents = events.filter((e) => e.type === "public");
-  const vipEvents = events.filter((e) => e.type === "vip");
-  const publicVip = [...publicEvents, ...vipEvents];
-  const currentIds = new Set(publicVip.map((e) => e.id));
+  const socialEvents = events.filter((e) => e.type === "social");
+  const plusEvents = events.filter((e) => e.type === "plus");
+  const socialPlus = [...socialEvents, ...plusEvents];
+  const currentIds = new Set(socialPlus.map((e) => e.id));
   const lastKnown = await getLastKnownPublicVipEventIds();
 
-  const newCommunities: Array<"public" | "vip"> = [];
+  const newCommunities: Array<"social" | "plus"> = [];
   let newCount = 0;
   if (lastKnown.size > 0) {
-    let hasNewPublic = false;
-    let hasNewVip = false;
-    for (const e of publicVip) {
+    let hasNewSocial = false;
+    let hasNewPlus = false;
+    for (const e of socialPlus) {
       if (!lastKnown.has(e.id)) {
         newCount++;
-        if (e.type === "public") hasNewPublic = true;
-        else hasNewVip = true;
+        if (e.type === "social") hasNewSocial = true;
+        else hasNewPlus = true;
       }
     }
-    if (hasNewPublic) newCommunities.push("public");
-    if (hasNewVip) newCommunities.push("vip");
+    if (hasNewSocial) newCommunities.push("social");
+    if (hasNewPlus) newCommunities.push("plus");
   }
 
   await setLastKnownPublicVipEventIds(currentIds);
@@ -736,10 +754,10 @@ export async function addUnlockedVipCode(code: string): Promise<void> {
   await AsyncStorage.setItem(UNLOCKED_VIP_CODES_KEY, JSON.stringify([...set]));
 }
 
-/** Returns true if the entered code matches any event in the given section (Private or VIP). */
+/** Returns true if the entered code matches any event in the given section (Private or Plus). */
 export function validateCodeForSection(
   events: SferaEvent[],
-  sectionType: "private" | "vip",
+  sectionType: "private" | "plus",
   code: string,
 ): boolean {
   const normalized = code.trim().toLowerCase();
@@ -764,21 +782,21 @@ export function isPrivateSectionUnlocked(
   );
 }
 
-/** Check if the VIP section is unlocked (user has a code that matches any VIP event). */
-export function isVipSectionUnlocked(
+/** Check if the Plus section is unlocked (user has a code that matches any Plus event). */
+export function isPlusSectionUnlocked(
   events: SferaEvent[],
   unlockedCodes: Set<string>,
 ): boolean {
   return events.some(
     (e) =>
-      e.type === "vip" &&
+      e.type === "plus" &&
       e.vipCode &&
       unlockedCodes.has((e.vipCode || "").trim().toLowerCase()),
   );
 }
 
-export async function isVipEventUnlocked(event: SferaEvent): Promise<boolean> {
-  if (event.type !== "vip" || !event.vipCode) return false;
+export async function isPlusEventUnlocked(event: SferaEvent): Promise<boolean> {
+  if (event.type !== "plus" || !event.vipCode) return false;
   const unlocked = await getUnlockedVipCodes();
   return unlocked.has(event.vipCode.trim().toLowerCase());
 }

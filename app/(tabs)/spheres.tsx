@@ -3089,7 +3089,6 @@ export default function SpheresScreen() {
             visible={aiActionModalVisible}
             onClose={() => setAiActionModalVisible(false)}
             onSelectCreateMemory={handleSelectCreateMemory}
-            onSelectCreateEntity={handleSelectCreateEntity}
             hasEntities={
               profiles.length +
                 jobs.length +

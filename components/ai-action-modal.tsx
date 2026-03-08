@@ -26,7 +26,6 @@ type AIActionModalProps = {
   visible: boolean;
   onClose: () => void;
   onSelectCreateMemory: () => void;
-  onSelectCreateEntity: () => void;
   hasEntities: boolean;
 };
 
@@ -34,7 +33,6 @@ export function AIActionModal({
   visible,
   onClose,
   onSelectCreateMemory,
-  onSelectCreateEntity,
   hasEntities,
 }: AIActionModalProps) {
   const colorScheme = useColorScheme();
@@ -334,29 +332,6 @@ export function AIActionModal({
                       </ThemedText>
                     </View>
                   )}
-
-                  <View>
-                    <TouchableOpacity
-                      onPress={() => {
-                        onClose();
-                        onSelectCreateEntity();
-                      }}
-                      activeOpacity={0.8}
-                      style={styles.button}
-                    >
-                      <LinearGradient
-                        colors={['#4A90E2', '#357ABD', '#2E6DA4']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={StyleSheet.absoluteFill}
-                        borderRadius={16 * fontScale}
-                      />
-                      <MaterialIcons name="person-add" size={24 * fontScale} color="#FFFFFF" />
-                      <ThemedText size="l" weight="bold" style={styles.buttonText}>
-                        {t('ai.action.createEntity')}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  </View>
                 </View>
               </View>
             </Animated.View>

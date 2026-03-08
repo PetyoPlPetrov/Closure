@@ -114,6 +114,47 @@ export function getSphere3DGradientColors(
 }
 
 /**
+ * Solid color that matches the floating sfera (the gradient ball) for use in badges, chips, etc.
+ * Derived from the sphere gradient so badges match the orb color the user sees.
+ */
+export function getSphereSferaColor(
+  sphereType: LifeSphere,
+  colorScheme: "light" | "dark",
+): string {
+  if (colorScheme === "light") {
+    switch (sphereType) {
+      case "relationships":
+        return "#D32F2F";
+      case "career":
+        return "#1976D2";
+      case "family":
+        return "#388E3C";
+      case "friends":
+        return "#7B1FA2";
+      case "hobbies":
+        return "#F57C00";
+      default:
+        return "#1976D2";
+    }
+  }
+  // Dark: use RGB from the sfera gradient base (sunny) so it matches the floating orb
+  switch (sphereType) {
+    case "relationships":
+      return "#FF9696"; // from rgba(255,150,150)
+    case "career":
+      return "#96C8FF"; // from rgba(150,200,255)
+    case "family":
+      return "#C896FF"; // from rgba(200,150,255) — lavender, matches family sfera
+    case "friends":
+      return "#8B5CF6"; // from rgba(139,92,246) — violet, matches friends sfera
+    case "hobbies":
+      return "#F97B16"; // from rgba(249,115,22)
+    default:
+      return "#96C8FF";
+  }
+}
+
+/**
  * Shadow/glow color for sphere (used for shadowColor in dark mode).
  * Matches the loading border color from classic SphereAvatar.
  */

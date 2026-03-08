@@ -197,6 +197,8 @@ export function ConstellationBackground({
   height,
   constellationAmount = 10,
   constellationOpacity = 10,
+  linesOpacityScale = 1,
+  starFieldMultiplier = 1,
 }: {
   width: number;
   height: number;
@@ -204,6 +206,10 @@ export function ConstellationBackground({
   constellationAmount?: number;
   /** 0–10, controls visibility (opacity) of constellations, stars, nebula. Default 10 = full. */
   constellationOpacity?: number;
+  /** 0–1, scale for constellation lines and connected stars (makes lines more subtle). Default 1. */
+  linesOpacityScale?: number;
+  /** Multiply star field dot count (more scattered stars). Default 1. */
+  starFieldMultiplier?: number;
 }) {
   const { allStars, allLines, scatteredDots } = getConstellationDataWithAmount(width, height, constellationAmount);
   // Slider 0–10: max visibility (10) = former level 2. Linear distribution.
@@ -216,7 +222,7 @@ export function ConstellationBackground({
   const starFieldCount =
     constellationAmount <= 0
       ? 0
-      : Math.max(10, Math.round((constellationAmount / 10) * TOTAL_STARS));
+      : Math.max(10, Math.round((constellationAmount / 10) * TOTAL_STARS * starFieldMultiplier));
 
   const starField = useMemo(
     () => generateStarField(width, height, starFieldCount),
@@ -293,7 +299,7 @@ export function ConstellationBackground({
           />
         ))}
 
-        {/* ── Constellation lines (higher base opacity for visibility on cosmic image BG) ── */}
+        {/* ── Constellation lines (linesOpacityScale makes them more subtle) ── */}
         {allLines.map((line, i) => (
           <Line
             key={`line-${i}`}
@@ -301,7 +307,7 @@ export function ConstellationBackground({
             y1={line.y1}
             x2={line.x2}
             y2={line.y2}
-            stroke={`rgba(255,255,255,${(0.72 * opacityMult).toFixed(3)})`}
+            stroke={`rgba(255,255,255,${(0.72 * opacityMult * linesOpacityScale).toFixed(3)})`}
             strokeWidth={1.5}
           />
         ))}
@@ -317,14 +323,14 @@ export function ConstellationBackground({
           />
         ))}
 
-        {/* ── Constellation stars ── */}
+        {/* ── Constellation stars (linesOpacityScale makes them more subtle) ── */}
         {allStars.map((s, i) => (
           <SvgCircle
             key={`star-${i}`}
             cx={s.x}
             cy={s.y}
             r={1.2}
-            fill={`rgba(255,255,255,${(0.72 * opacityMult).toFixed(3)})`}
+            fill={`rgba(255,255,255,${(0.72 * opacityMult * linesOpacityScale).toFixed(3)})`}
           />
         ))}
       </Svg>

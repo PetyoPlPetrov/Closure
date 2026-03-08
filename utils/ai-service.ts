@@ -724,6 +724,145 @@ export interface AIEntityCreationResponse {
   entities: AIEntitySuggestion[];
 }
 
+/** Onboarding: extract entities across ALL spheres from one story */
+export interface AIOnboardingResponse {
+  entitiesBySphere: {
+    relationships?: AIEntitySuggestion[];
+    career?: AIEntitySuggestion[];
+    family?: AIEntitySuggestion[];
+    friends?: AIEntitySuggestion[];
+    hobbies?: AIEntitySuggestion[];
+  };
+}
+
+/**
+ * Process onboarding prompt - extract entities from ALL life spheres based on user's story.
+ * User introduces themselves (family, friends, job, hobbies, relationships) and AI suggests entities for each sphere.
+ */
+export async function processOnboardingPrompt(
+  story: string,
+  language: string = "en",
+): Promise<AIOnboardingResponse> {
+  if (USE_MOCK_AI_REQUEST) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    return {
+      entitiesBySphere: {
+        family: [{ name: "Family Member", description: story.substring(0, 80), relationship: "parent" }],
+        friends: [{ name: "Friend", description: story.substring(0, 80) }],
+        hobbies: [{ name: "Hobby", description: story.substring(0, 80) }],
+      },
+    };
+  }
+
+  const languageName = language === "bg" ? "Bulgarian" : "English";
+  const languageCode = language === "bg" ? "bg" : "en";
+
+  const entitySchema = Schema.object({
+    properties: {
+      name: Schema.string({ description: "Name of the entity" }),
+      description: Schema.string({ description: "Brief description" }),
+      isCurrent: Schema.boolean({ description: "For relationships/career: whether current (true) or past (false)" }),
+      startDate: Schema.string({ description: "For relationships/career: approximate start date YYYY-MM-DD" }),
+      endDate: Schema.string({ description: "For relationships/career: end date YYYY-MM-DD if past" }),
+      relationship: Schema.string({ description: "For family only: relationship type (mother, father, sister, etc.)" }),
+    },
+    required: ["name", "description"],
+  });
+
+  const responseSchema = Schema.object({
+    properties: {
+      entitiesBySphere: Schema.object({
+        properties: {
+          relationships: Schema.array({
+            items: entitySchema,
+            description: "Ex-partners, current/past romantic relationships mentioned",
+          }),
+          career: Schema.array({
+            items: entitySchema,
+            description: "Jobs, companies, career roles mentioned",
+          }),
+          family: Schema.array({
+            items: entitySchema,
+            description: "Family members (parents, siblings, etc.) mentioned",
+          }),
+          friends: Schema.array({
+            items: entitySchema,
+            description: "Friends mentioned",
+          }),
+          hobbies: Schema.array({
+            items: entitySchema,
+            description: "Hobbies, interests, activities mentioned",
+          }),
+        },
+      }),
+    },
+    required: ["entitiesBySphere"],
+  });
+
+  const systemPrompt = `Sfera AI coach. Analyze the user's personal story and extract ALL possible entities across their life spheres.
+
+The user is introducing themselves to Sfera - their universe of life spheres and memories. They may mention:
+- Family: parents, siblings, children, relatives
+- Friends: close friends, social circle
+- Career: jobs, companies, roles, work history
+- Relationships: romantic partners, ex-partners, current/past relationships
+- Hobbies: interests, activities, things they enjoy
+
+CRITICAL: Extract EVERY entity mentioned. Return entities grouped by sphere. For each sphere that has mentions, include an array of entities. Omit spheres with no mentions (or use empty array).
+
+Rules:
+- relationships: Include isCurrent, startDate, endDate (if past). Do NOT suggest a relationship entity for being single—e.g. never create "Self" or similar when the user only says they are or have been single. This sphere is for actual romantic partners or ex-partners only; leave relationships array empty if none are mentioned.
+- career: Include isCurrent, startDate, endDate (if past)
+- family: Include relationship (mother, father, sister, brother, etc.)
+- friends, hobbies: Just name and description
+
+Respond in ${languageName} (${languageCode}). JSON only.`;
+
+  const app = getApp();
+  const ai = getAI(app, { appCheck: firebase.appCheck() });
+  const model = getGenerativeModel(ai, {
+    model: "gemini-2.5-flash-lite",
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema,
+    },
+  });
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: story }] }],
+    systemInstruction: systemPrompt,
+  });
+
+  const responseText = result.response.text();
+  const parsed = JSON.parse(responseText);
+
+  const raw = parsed?.entitiesBySphere ?? {};
+  const normalized: AIOnboardingResponse["entitiesBySphere"] = {};
+  const spheres: Array<keyof typeof normalized> = ["relationships", "career", "family", "friends", "hobbies"];
+  for (const sphere of spheres) {
+    const arr = raw[sphere];
+    if (Array.isArray(arr) && arr.length > 0) {
+      normalized[sphere] = arr.map((e: any) => {
+        const out: AIEntitySuggestion = {
+          name: String(e?.name ?? "").trim() || "Unknown",
+          description: e?.description != null ? String(e.description).trim() : "",
+        };
+        if (sphere === "relationships" || sphere === "career") {
+          out.isCurrent = e?.isCurrent;
+          out.startDate = e?.startDate ? String(e.startDate).trim() : undefined;
+          out.endDate = e?.endDate ? String(e.endDate).trim() : undefined;
+        }
+        if (sphere === "family") {
+          out.relationship = e?.relationship ? String(e.relationship).trim() : undefined;
+        }
+        return out;
+      });
+    }
+  }
+
+  return { entitiesBySphere: normalized };
+}
+
 /** One preloaded exam item: each question is linked to a specific user lesson. */
 export interface PreloadedExamQuestion {
   lessonId: string;

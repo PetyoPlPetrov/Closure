@@ -1,4 +1,3 @@
-import * as Localization from 'expo-localization';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { languageManager } from './language-manager';
 import { Language } from './translations';
@@ -27,43 +26,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Try to detect from device locale (may not be available until app is rebuilt)
-        try {
-          const locales = Localization.getLocales();
-          const locale = locales[0];
-          
-          if (locale) {
-            // Check country code first (BG for Bulgaria)
-            const countryCode = locale.regionCode || locale.countryCode || '';
-            const languageCode = locale.languageCode || '';
-            
-            // Check if device is in Bulgaria or uses Bulgarian language
-            if (countryCode === 'BG' || languageCode === 'bg' || locale.languageTag?.toLowerCase().includes('bg')) {
-              setLanguageState('bg');
-              setIsDetecting(false);
-              return;
-            } else {
-              setLanguageState('en');
-              setIsDetecting(false);
-              return;
-            }
-          }
-        } catch (localizationError) {
-          // expo-localization not available yet (needs rebuild), try fallback
-        }
-
-        // Fallback: check locale string if available
-        try {
-          const localeString = Localization.locale || '';
-          if (localeString.toLowerCase().includes('bg') || localeString.toLowerCase().includes('bulgaria')) {
-            setLanguageState('bg');
-          } else {
-            setLanguageState('en');
-          }
-        } catch {
-          // If all else fails, default to English
-          setLanguageState('en');
-        }
+        // First app open: default to English. User chooses language on onboarding step 0.
+        setLanguageState('en');
       } catch (error) {
         setLanguageState('en');
       } finally {

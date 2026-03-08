@@ -1,8 +1,8 @@
 /**
  * Sfera Events Badge Provider
  * Fetches events on app open and when app comes to foreground.
- * Badge stays until all public/VIP events are seen (user opened expanded modal).
- * When new events arrive, shows in-app notification with community name (Public or VIP).
+ * Badge stays until all social/Plus events are seen (user opened expanded modal).
+ * When new events arrive, shows in-app notification with community name (Social or Plus Events).
  */
 
 import React, {
@@ -15,6 +15,7 @@ import React, {
 import { AppState, type AppStateStatus, InteractionManager } from "react-native";
 
 import { useInAppNotification } from "@/utils/InAppNotificationProvider";
+import { getOnboardingCompleted } from "@/utils/onboarding-storage";
 import {
   fetchAndCheckForNewEvents,
   getSeenEventIds,
@@ -52,7 +53,7 @@ export function SferaEventsBadgeProvider({
   const computeUnseenCount = useCallback(
     (evts: SferaEvent[], seen: Set<string>) =>
       evts
-        .filter((e) => e.type === "public" || e.type === "vip")
+        .filter((e) => e.type === "social" || e.type === "plus")
         .filter((e) => !seen.has(e.id)).length,
     [],
   );
@@ -67,6 +68,13 @@ export function SferaEventsBadgeProvider({
 
   const checkAndNotify = useCallback(
     async (fromForeground = false) => {
+      const completed = await getOnboardingCompleted();
+      if (!completed) {
+        setEvents([]);
+        setUnseenCount(0);
+        setHasNewEvents(false);
+        return [];
+      }
       const { events: fetched, newCount, newCommunities } =
         await fetchAndCheckForNewEvents();
       setEvents(fetched);
@@ -78,7 +86,7 @@ export function SferaEventsBadgeProvider({
 
       if (newCount > 0 && newCommunities.length > 0) {
         const communityName = newCommunities
-          .map((c) => (c === "public" ? t("events.section.public") : t("events.section.vip")))
+          .map((c) => (c === "social" ? t("events.section.social") : t("events.section.plus")))
           .join(", ");
         const show = () =>
           showNotification({

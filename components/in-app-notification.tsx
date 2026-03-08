@@ -144,7 +144,7 @@ export function InAppNotification({
       >
         {eventDate != null ? (
           <View style={[styles.calendarTile, { backgroundColor: colorScheme === 'dark' ? '#4A2C2A' : '#FEE2E2' }]}>
-            <ThemedText size="xs" weight="medium" style={[styles.calendarMonth, { color: colorScheme === 'dark' ? '#E57373' : '#B91C1C' }]}>
+            <ThemedText size="xs" weight="medium" style={[styles.calendarMonth, { color: colorScheme === 'dark' ? '#FFFFFF' : '#B91C1C' }]}>
               {MONTH_ABBREV[eventDate.getMonth()]}
             </ThemedText>
             <ThemedText size="l" weight="bold" style={[styles.calendarDay, { color: colorScheme === 'dark' ? '#FFFFFF' : '#1A2332' }]}>
@@ -163,8 +163,9 @@ export function InAppNotification({
           <View style={styles.messageRow}>
             <ThemedText size="sm" style={[styles.message, { color: messageColor }]}>
               {message}
+              {trailingIcon === 'auto-awesome' ? ' ✨' : ''}
             </ThemedText>
-            {trailingIcon ? (
+            {trailingIcon && trailingIcon !== 'auto-awesome' ? (
               <MaterialIcons
                 name={trailingIcon as keyof typeof MaterialIcons.glyphMap}
                 size={16}

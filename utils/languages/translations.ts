@@ -14,12 +14,15 @@ export interface Translations {
   "tab.events": string;
   "home.emptyState": string;
   // Events tab (Sfera Community / Events)
-  "events.section.public": string;
+  "events.section.social": string;
   "events.section.private": string;
-  "events.section.vip": string;
+  "events.section.plus": string;
   "events.loading": string;
   "events.empty": string;
   "events.vipEnterCode": string;
+  "events.plusEnterCode": string;
+  "events.getDiscount": string;
+  "events.discountRevealed": string;
   "events.vipCodePlaceholder": string;
   "events.vipCodeRequired": string;
   "events.vipCodeInvalid": string;
@@ -55,6 +58,7 @@ export interface Translations {
   "events.removePastEventTitle": string;
   "events.removePastEventMessage": string;
   "avatar.sunnyLife": string;
+  "avatar.addMemories": string;
 
   // Settings
   "settings.title": string;
@@ -101,6 +105,9 @@ export interface Translations {
   "settings.devTools.viewPlusFeatures": string;
   "settings.devTools.clearData.button": string;
   "settings.devTools.clearData.deleting": string;
+  "settings.devTools.initialOnboarding.button": string;
+  "settings.devTools.initialOnboarding.hint": string;
+  "settings.devTools.initialOnboarding.loading": string;
   "settings.appVersion": string;
   "settings.deviceRegion": string;
   "settings.deviceRegionTown": string;
@@ -207,6 +214,27 @@ export interface Translations {
   "walkthrough.title": string;
   "walkthrough.message": string;
   "walkthrough.button": string;
+
+  // Onboarding
+  "onboarding.language.title": string;
+  "onboarding.language.subtitle": string;
+  "onboarding.title": string;
+  "onboarding.subtitle": string;
+  "onboarding.placeholder": string;
+  "onboarding.analyze": string;
+  "onboarding.analyzing": string;
+  "onboarding.sferaAnalyzing": string;
+  "onboarding.review": string;
+  "onboarding.reviewSubtitle": string;
+  "onboarding.saveAll": string;
+  "onboarding.startOver": string;
+  "onboarding.sphere.relationships": string;
+  "onboarding.sphere.career": string;
+  "onboarding.sphere.family": string;
+  "onboarding.sphere.friends": string;
+  "onboarding.sphere.hobbies": string;
+  "onboarding.speakYourStory": string;
+  "onboarding.encouragement": string;
 
   // Profile screens
   "profile.add": string;
@@ -3585,12 +3613,17 @@ const translations: Record<Language, Translations> = {
     "home.emptyState":
       "No profiles yet. Add your first ex-profile to get started.",
     "avatar.sunnyLife": "Sunny Life",
-    "events.section.public": "Sfera Public",
+    "avatar.addMemories": "Add memories",
+    "events.section.social": "Sfera Social",
     "events.section.private": "Sfera Private",
-    "events.section.vip": "Sfera VIP",
+    "events.section.plus": "Sfera Plus Events",
     "events.loading": "Loading events…",
-    "events.empty": "No events yet. Check back later or add a sheet URL in settings.",
+    "events.empty":
+      "No events yet. Check back later or add a sheet URL in settings.",
     "events.vipEnterCode": "Enter VIP code",
+    "events.plusEnterCode": "Enter code for Plus events",
+    "events.getDiscount": "Get discount",
+    "events.discountRevealed": "Your voucher code",
     "events.vipCodePlaceholder": "Code",
     "events.vipCodeRequired": "Please enter a code.",
     "events.vipCodeInvalid": "This code doesn't unlock any event.",
@@ -3604,12 +3637,15 @@ const translations: Record<Language, Translations> = {
     "events.noUpcomingEvents": "No upcoming events",
     "events.sferaCommunities": "Sfera Communities",
     "events.locationDeclinedAlertTitle": "Location not enabled",
-    "events.locationDeclinedAlertMessage": "Without location access, you'll only see global events (no country filter). You can enable location in Settings later.",
+    "events.locationDeclinedAlertMessage":
+      "Without location access, you'll only see global events (no country filter). You can enable location in Settings later.",
     "events.locationModalTitle": "Location access",
-    "events.locationModalMessage": "Without location, from now on you'll only see global events (no country filter). Tap Enable to allow location and see events in your region.",
+    "events.locationModalMessage":
+      "Without location, from now on you'll only see global events (no country filter). Tap Enable to allow location and see events in your region.",
     "events.locationModalEnable": "Enable",
     "events.locationModalClose": "Close",
-    "events.locationOpenSettingsMessage": "Location was denied. To see events in your region, enable location for Sferas in Settings.",
+    "events.locationOpenSettingsMessage":
+      "Location was denied. To see events in your region, enable location for Sferas in Settings.",
     "events.locationOpenSettingsButton": "Open Settings",
     "events.privateEnterCode": "Enter code for Private events",
     "events.join": "Join",
@@ -3624,7 +3660,8 @@ const translations: Record<Language, Translations> = {
     "events.createMemoryForEvent": "Create memory",
     "events.memoryCreated": "Memory created",
     "events.removePastEventTitle": "Remove from orbit",
-    "events.removePastEventMessage": "This past event will be removed from the community. You can still create memories from Spheres.",
+    "events.removePastEventMessage":
+      "This past event will be removed from the community. You can still create memories from Spheres.",
 
     // Settings
     "settings.title": "Settings",
@@ -3684,14 +3721,20 @@ const translations: Record<Language, Translations> = {
     "settings.devTools.viewPlusFeatures": "View Plus features",
     "settings.devTools.clearData.button": "Clear All App Data",
     "settings.devTools.clearData.deleting": "Deleting...",
+    "settings.devTools.initialOnboarding.button": "Initial onboarding",
+    "settings.devTools.initialOnboarding.hint":
+      "Delete all app data to enable this button. When enabled, tap to start the initial onboarding flow.",
+    "settings.devTools.initialOnboarding.loading": "Loading...",
     "settings.appVersion": "App version",
     "settings.deviceRegion": "Device region",
     "settings.deviceRegionTown": "Town",
     "settings.backup.title": "Backup",
     "settings.backup.export": "Export data (ZIP)",
     "settings.backup.import": "Import from backup",
-    "settings.backup.exportSuccess": "Backup created. You can save or share the file.",
-    "settings.backup.importSuccess": "Data imported. Restart the app to see your content.",
+    "settings.backup.exportSuccess":
+      "Backup created. You can save or share the file.",
+    "settings.backup.importSuccess":
+      "Data imported. Restart the app to see your content.",
     "settings.backup.importError": "Import failed",
     "settings.backup.exportError": "Export failed",
     "settings.backup.description":
@@ -3703,9 +3746,11 @@ const translations: Record<Language, Translations> = {
     "wheel.noSunnyMoments.message":
       "Add sunny moments to your memories to see them here!",
     "wheel.spinForRandom": "Spin the wheel",
-    "wheel.exam.lessonOnly": "Select Lessons to spin the wheel and take the exam",
+    "wheel.exam.lessonOnly":
+      "Select Lessons to spin the wheel and take the exam",
     "wheel.exam.paywallPrompt": "Wheel exam requires Sfera AI",
-    "wheel.exam.freeLimitReached": "You've used your free exam today. Upgrade to Sfera AI for unlimited exams.",
+    "wheel.exam.freeLimitReached":
+      "You've used your free exam today. Upgrade to Sfera AI for unlimited exams.",
     "wheel.exam.questionPrompt": "Type your answer",
     "wheel.exam.submitAnswer": "Submit",
     "wheel.exam.analyzing": "Analyzing your answer…",
@@ -3798,6 +3843,29 @@ const translations: Record<Language, Translations> = {
     "walkthrough.message":
       "Create records in each sphere to track the cloudy and sunny moments of your life. Start by adding a partner, job, family member, friend, or hobby!",
     "walkthrough.button": "Got it!",
+
+    "onboarding.language.title": "Choose your language",
+    "onboarding.language.subtitle": "You can change this later in Settings.",
+    "onboarding.title": "Introduce yourself to Sferas",
+    "onboarding.subtitle":
+      "Let's personalize your life spheres. Tell us a few words about your world...",
+    "onboarding.placeholder":
+      "My name is... In my family I have... we're close and...\n\nI work as... I've been there for...\n\nMy closest friends are... we met... and still...\n\nI love... on weekends I usually...\n\nI'm in a relationship with... we've been together for...",
+    "onboarding.analyze": "Analyze my story",
+    "onboarding.analyzing": "Analyzing your story...",
+    "onboarding.sferaAnalyzing": "Sfera AI is analyzing...",
+    "onboarding.review": "Review & edit your entities",
+    "onboarding.reviewSubtitle":
+      "Edit names, descriptions, and fill in any required fields.",
+    "onboarding.saveAll": "Save & Continue",
+    "onboarding.startOver": "Start from scratch again",
+    "onboarding.sphere.relationships": "Relationships",
+    "onboarding.sphere.career": "Career",
+    "onboarding.sphere.family": "Family",
+    "onboarding.sphere.friends": "Friends",
+    "onboarding.sphere.hobbies": "Hobbies",
+    "onboarding.speakYourStory": "Speak your story",
+    "onboarding.encouragement": "You're doing great! Take your time.",
 
     // Profile screens
     "profile.add": "Add Partner",
@@ -4466,15 +4534,18 @@ const translations: Record<Language, Translations> = {
     "notifications.settings.condition.lessThanFriendsAvg.body":
       "Notify when this relationship has fewer moments than the average of your friendships. This helps maintain balance between romantic relationships and friendships.",
     "notifications.settings.sphere": "Sfera",
-    "notifications.reason.noRecent": "No memories logged in the past {days} days",
+    "notifications.reason.noRecent":
+      "No memories logged in the past {days} days",
     "notifications.reason.belowAvg": "Memories below average for this sphere",
     "notifications.reason.lessThanJob": "Fewer memories than your job",
-    "notifications.reason.lessThanFriendsAvg": "Fewer memories than friends average",
+    "notifications.reason.lessThanFriendsAvg":
+      "Fewer memories than friends average",
 
     // Moment notifications (nudges)
     "momentNotifications.title": "Moment nudges",
     "momentNotifications.addSchedule": "Add moment nudge schedule",
-    "momentNotifications.generateForManual": "Generate AI suggestions for manual lessons",
+    "momentNotifications.generateForManual":
+      "Generate AI suggestions for manual lessons",
     "momentNotifications.sphere.career": "Career",
     "momentNotifications.sphere.relationships": "Relationships",
     "momentNotifications.sphere.family": "Family",
@@ -4483,17 +4554,24 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.momentType.lesson": "Lesson",
     "momentNotifications.momentType.sunny": "Sunny moment",
     "momentNotifications.source.moments": "My moments",
-    "momentNotifications.source.momentsHint": "Notifications will use your lesson or sunny moment text from memories in this sphere.",
+    "momentNotifications.source.momentsHint":
+      "Notifications will use your lesson or sunny moment text from memories in this sphere.",
     "momentNotifications.source.myLessons": "My lessons",
-    "momentNotifications.source.myLessonsHint": "Notifications will use your lesson text from memories in this sphere.",
+    "momentNotifications.source.myLessonsHint":
+      "Notifications will use your lesson text from memories in this sphere.",
     "momentNotifications.source.mySunnyMoments": "My sunny moments",
-    "momentNotifications.source.mySunnyMomentsHint": "Notifications will use your sunny moment text from memories in this sphere.",
+    "momentNotifications.source.mySunnyMomentsHint":
+      "Notifications will use your sunny moment text from memories in this sphere.",
     "momentNotifications.source.ai": "AI summaries",
-    "momentNotifications.source.aiHint": "AI transforms your current lessons or sunny moments into a format that works well for notifications.",
-    "momentNotifications.source.aiHintLessons": "AI transforms your current lessons into a format that works well for notifications.",
-    "momentNotifications.source.aiHintSunnyMoments": "AI transforms your current sunny moments into a format that works well for notifications.",
+    "momentNotifications.source.aiHint":
+      "AI transforms your current lessons or sunny moments into a format that works well for notifications.",
+    "momentNotifications.source.aiHintLessons":
+      "AI transforms your current lessons into a format that works well for notifications.",
+    "momentNotifications.source.aiHintSunnyMoments":
+      "AI transforms your current sunny moments into a format that works well for notifications.",
     "momentNotifications.source.both": "Both",
-    "momentNotifications.source.bothHint": "Notifications will pick from both AI summaries and your raw lesson or sunny moment text.",
+    "momentNotifications.source.bothHint":
+      "Notifications will pick from both AI summaries and your raw lesson or sunny moment text.",
     "momentNotifications.everyHours": "Every {hours} hour(s)",
     "momentNotifications.newSchedule": "New schedule",
     "momentNotifications.editSchedule": "Edit schedule",
@@ -4504,15 +4582,20 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.frequencyCustomPlaceholder": "Hours (1–168)",
     "momentNotifications.sourceLabel": "Notification message source",
     "momentNotifications.userMessagesLabel": "Your messages",
-    "momentNotifications.userMessagePlaceholder": "Type a notification message...",
+    "momentNotifications.userMessagePlaceholder":
+      "Type a notification message...",
     "momentNotifications.enabledLabel": "Enabled",
     "momentNotifications.deleteConfirmTitle": "Delete schedule?",
-    "momentNotifications.deleteConfirmMessage": "This notification schedule will be removed.",
-    "momentNotifications.permissionRequired": "Notification permission is required.",
+    "momentNotifications.deleteConfirmMessage":
+      "This notification schedule will be removed.",
+    "momentNotifications.permissionRequired":
+      "Notification permission is required.",
     "momentNotifications.generateSuccess": "Done",
-    "momentNotifications.generateCount": "{count} notification message(s) generated.",
+    "momentNotifications.generateCount":
+      "{count} notification message(s) generated.",
     "momentNotifications.generateEmpty": "Nothing to generate",
-    "momentNotifications.generateEmptyMessage": "No manual lessons without AI suggestions found.",
+    "momentNotifications.generateEmptyMessage":
+      "No manual lessons without AI suggestions found.",
     "momentNotifications.scheduleCreated": "Schedule created successfully!",
 
     // Onboarding
@@ -4566,7 +4649,8 @@ const translations: Record<Language, Translations> = {
     "settings.momentColors.preview": "Preview",
     "settings.momentColors.save": "Save",
     "settings.momentColors.saved": "Saved!",
-    "settings.momentColors.sampleSunny": "A beautiful day at the park with family",
+    "settings.momentColors.sampleSunny":
+      "A beautiful day at the park with family",
     "settings.momentColors.sampleCloudy": "That difficult conversation we had",
     "settings.momentColors.sampleLesson": "I learned to trust my instincts",
     "settings.momentColors.custom": "Custom",
@@ -8005,12 +8089,17 @@ const translations: Record<Language, Translations> = {
     "home.emptyState":
       "Няма профили все още. Добавете първи партньор, за да започнете.",
     "avatar.sunnyLife": "Слънчев живот",
-    "events.section.public": "Sfera Public",
+    "avatar.addMemories": "Добави спомени",
+    "events.section.social": "Sfera Social",
     "events.section.private": "Sfera Private",
-    "events.section.vip": "Sfera VIP",
+    "events.section.plus": "Sfera Plus Events",
     "events.loading": "Зареждане на събития…",
-    "events.empty": "Все още няма събития. Проверете по-късно или добавете URL на таблица в настройките.",
+    "events.empty":
+      "Все още няма събития. Проверете по-късно или добавете URL на таблица в настройките.",
     "events.vipEnterCode": "Въведете VIP код",
+    "events.plusEnterCode": "Въведете код за Plus събития",
+    "events.getDiscount": "Получи отстъпка",
+    "events.discountRevealed": "Вашият ваучер код",
     "events.vipCodePlaceholder": "Код",
     "events.vipCodeRequired": "Моля, въведете код.",
     "events.vipCodeInvalid": "Този код не отключва събитие.",
@@ -8024,12 +8113,15 @@ const translations: Record<Language, Translations> = {
     "events.noUpcomingEvents": "Няма предстоящи събития",
     "events.sferaCommunities": "Sfera общности",
     "events.locationDeclinedAlertTitle": "Местоположението е изключено",
-    "events.locationDeclinedAlertMessage": "Без достъп до местоположение ще виждате само глобални събития. Можете да активирате местоположението в Настройки по-късно.",
+    "events.locationDeclinedAlertMessage":
+      "Без достъп до местоположение ще виждате само глобални събития. Можете да активирате местоположението в Настройки по-късно.",
     "events.locationModalTitle": "Достъп до местоположение",
-    "events.locationModalMessage": "Без местоположение от сега нататък ще виждате само глобални събития. Натиснете Включи за да разрешите местоположение и да виждате събития във вашия регион.",
+    "events.locationModalMessage":
+      "Без местоположение от сега нататък ще виждате само глобални събития. Натиснете Включи за да разрешите местоположение и да виждате събития във вашия регион.",
     "events.locationModalEnable": "Включи",
     "events.locationModalClose": "Затвори",
-    "events.locationOpenSettingsMessage": "Местоположението е отказано. За да виждате събития във вашия регион, включете местоположението за Sferas в Настройки.",
+    "events.locationOpenSettingsMessage":
+      "Местоположението е отказано. За да виждате събития във вашия регион, включете местоположението за Sferas в Настройки.",
     "events.locationOpenSettingsButton": "Отвори Настройки",
     "events.privateEnterCode": "Въведете код за частни събития",
     "events.join": "Присъединете се",
@@ -8044,7 +8136,8 @@ const translations: Record<Language, Translations> = {
     "events.createMemoryForEvent": "Създай спомен",
     "events.memoryCreated": "Споменът е създаден",
     "events.removePastEventTitle": "Премахни от орбитата",
-    "events.removePastEventMessage": "Това минало събитие ще бъде премахнато от общността. Можете да създавате спомени от Сферите.",
+    "events.removePastEventMessage":
+      "Това минало събитие ще бъде премахнато от общността. Можете да създавате спомени от Сферите.",
 
     // Settings
     "settings.title": "Настройки",
@@ -8105,14 +8198,20 @@ const translations: Record<Language, Translations> = {
     "settings.devTools.viewPlusFeatures": "Преглед на Plus функциите",
     "settings.devTools.clearData.button": "Изтриване на Всички Данни",
     "settings.devTools.clearData.deleting": "Изтриване...",
+    "settings.devTools.initialOnboarding.button": "Начално въвеждане",
+    "settings.devTools.initialOnboarding.hint":
+      "Изтрийте всички данни от приложението, за да активирате този бутон. Когато е активиран, натиснете, за да стартирате началното въвеждане.",
+    "settings.devTools.initialOnboarding.loading": "Зареждане...",
     "settings.appVersion": "Версия на приложението",
     "settings.deviceRegion": "Регион на устройството",
     "settings.deviceRegionTown": "Град",
     "settings.backup.title": "Резервно копие",
     "settings.backup.export": "Експорт на данни (ZIP)",
     "settings.backup.import": "Импорт от резервно копие",
-    "settings.backup.exportSuccess": "Резервното копие е създадено. Можете да запазите или споделите файла.",
-    "settings.backup.importSuccess": "Данните са импортирани. Рестартирайте приложението, за да видите съдържанието.",
+    "settings.backup.exportSuccess":
+      "Резервното копие е създадено. Можете да запазите или споделите файла.",
+    "settings.backup.importSuccess":
+      "Данните са импортирани. Рестартирайте приложението, за да видите съдържанието.",
     "settings.backup.importError": "Импортът не успя",
     "settings.backup.exportError": "Експортът не успя",
     "settings.backup.description":
@@ -8124,9 +8223,11 @@ const translations: Record<Language, Translations> = {
     "wheel.noSunnyMoments.message":
       "Добавете слънчеви моменти към вашите спомени, за да ги видите тук!",
     "wheel.spinForRandom": "Завъртете колелото",
-    "wheel.exam.lessonOnly": "Изберете Уроци, за да завъртите колелото и да направите изпита",
+    "wheel.exam.lessonOnly":
+      "Изберете Уроци, за да завъртите колелото и да направите изпита",
     "wheel.exam.paywallPrompt": "Изпитът на колелото изисква Sfera AI",
-    "wheel.exam.freeLimitReached": "Използвахте безплатния си изпит днес. Надградете до Sfera AI за неограничени изпити.",
+    "wheel.exam.freeLimitReached":
+      "Използвахте безплатния си изпит днес. Надградете до Sfera AI за неограничени изпити.",
     "wheel.exam.questionPrompt": "Напишете отговора си",
     "wheel.exam.submitAnswer": "Изпрати",
     "wheel.exam.analyzing": "Анализираме отговора ви…",
@@ -8212,6 +8313,30 @@ const translations: Record<Language, Translations> = {
     "walkthrough.message":
       "Създайте записи във всяка сфера, за да проследявате облачните и слънчевите моменти от живота си. Започнете като добавите партньор, работа, член на семейството, приятел или хоби!",
     "walkthrough.button": "Разбрах!",
+
+    "onboarding.language.title": "Изберете език",
+    "onboarding.language.subtitle":
+      "Можете да го промените по-късно в Настройки.",
+    "onboarding.title": "Представете се пред Sferas",
+    "onboarding.subtitle":
+      "Персонализираме вашите жизнени сфери. Кажете ни няколко думи за света ви...",
+    "onboarding.placeholder":
+      "Казвам се... В семейството ми има... ние сме близки и...\n\nРаботя като... там съм от...\n\nНай-добрите ми приятели са... срещнахме се... и все още...\n\nОбичам... в почивните дни обикновено...\n\nВъв връзка съм с... ние сме заедно от...",
+    "onboarding.analyze": "Анализирай историята ми",
+    "onboarding.analyzing": "Анализираме историята ви...",
+    "onboarding.sferaAnalyzing": "Sfera AI анализира...",
+    "onboarding.review": "Преглед и редакция на записите",
+    "onboarding.reviewSubtitle":
+      "Редактирайте имената, описанията и попълнете задължителните полета.",
+    "onboarding.saveAll": "Запази и продължи",
+    "onboarding.startOver": "Започни отново от началото",
+    "onboarding.sphere.relationships": "Връзки",
+    "onboarding.sphere.career": "Кариера",
+    "onboarding.sphere.family": "Семейство",
+    "onboarding.sphere.friends": "Приятели",
+    "onboarding.sphere.hobbies": "Хобита",
+    "onboarding.speakYourStory": "Разкажете историята си",
+    "onboarding.encouragement": "Справяте се чудесно! Не бързайте.",
 
     // Profile screens
     "profile.add": "Добави Партньор",
@@ -8895,12 +9020,14 @@ const translations: Record<Language, Translations> = {
     "notifications.reason.noRecent": "Няма спомени през последните {days} дни",
     "notifications.reason.belowAvg": "Спомени под средното за тази сфера",
     "notifications.reason.lessThanJob": "По-малко спомени от работата",
-    "notifications.reason.lessThanFriendsAvg": "По-малко спомени от средното за приятелите",
+    "notifications.reason.lessThanFriendsAvg":
+      "По-малко спомени от средното за приятелите",
 
     // Moment notifications (nudges)
     "momentNotifications.title": "Напомняния за моменти",
     "momentNotifications.addSchedule": "Добави разписание за напомняния",
-    "momentNotifications.generateForManual": "Генерирай AI предложения за ръчни уроци",
+    "momentNotifications.generateForManual":
+      "Генерирай AI предложения за ръчни уроци",
     "momentNotifications.sphere.career": "Кариера",
     "momentNotifications.sphere.relationships": "Връзки",
     "momentNotifications.sphere.family": "Семейство",
@@ -8909,17 +9036,24 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.momentType.lesson": "Урок",
     "momentNotifications.momentType.sunny": "Слънчев момент",
     "momentNotifications.source.moments": "Моите моменти",
-    "momentNotifications.source.momentsHint": "Известията ще използват текста на вашите уроци или слънчеви моменти от спомените в тази сфера.",
+    "momentNotifications.source.momentsHint":
+      "Известията ще използват текста на вашите уроци или слънчеви моменти от спомените в тази сфера.",
     "momentNotifications.source.myLessons": "Моите уроци",
-    "momentNotifications.source.myLessonsHint": "Известията ще използват текста на вашите уроци от спомените в тази сфера.",
+    "momentNotifications.source.myLessonsHint":
+      "Известията ще използват текста на вашите уроци от спомените в тази сфера.",
     "momentNotifications.source.mySunnyMoments": "Моите слънчеви моменти",
-    "momentNotifications.source.mySunnyMomentsHint": "Известията ще използват текста на вашите слънчеви моменти от спомените в тази сфера.",
+    "momentNotifications.source.mySunnyMomentsHint":
+      "Известията ще използват текста на вашите слънчеви моменти от спомените в тази сфера.",
     "momentNotifications.source.ai": "AI обобщения",
-    "momentNotifications.source.aiHint": "AI преобразува вашите уроци или слънчеви моменти във формат, подходящ за известия.",
-    "momentNotifications.source.aiHintLessons": "AI преобразува вашите текущи уроци във формат, подходящ за известия.",
-    "momentNotifications.source.aiHintSunnyMoments": "AI преобразува вашите текущи слънчеви моменти във формат, подходящ за известия.",
+    "momentNotifications.source.aiHint":
+      "AI преобразува вашите уроци или слънчеви моменти във формат, подходящ за известия.",
+    "momentNotifications.source.aiHintLessons":
+      "AI преобразува вашите текущи уроци във формат, подходящ за известия.",
+    "momentNotifications.source.aiHintSunnyMoments":
+      "AI преобразува вашите текущи слънчеви моменти във формат, подходящ за известия.",
     "momentNotifications.source.both": "И двете",
-    "momentNotifications.source.bothHint": "Известията ще избират от AI обобщения и от вашите уроци или слънчеви моменти.",
+    "momentNotifications.source.bothHint":
+      "Известията ще избират от AI обобщения и от вашите уроци или слънчеви моменти.",
     "momentNotifications.everyHours": "На всеки {hours} час(а)",
     "momentNotifications.newSchedule": "Ново разписание",
     "momentNotifications.editSchedule": "Редактирай разписание",
@@ -8930,15 +9064,20 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.frequencyCustomPlaceholder": "Часове (1–168)",
     "momentNotifications.sourceLabel": "Източник на съдържание за известия",
     "momentNotifications.userMessagesLabel": "Ваши съобщения",
-    "momentNotifications.userMessagePlaceholder": "Въведете съобщение за известие...",
+    "momentNotifications.userMessagePlaceholder":
+      "Въведете съобщение за известие...",
     "momentNotifications.enabledLabel": "Включено",
     "momentNotifications.deleteConfirmTitle": "Изтриване на разписание?",
-    "momentNotifications.deleteConfirmMessage": "Това разписание за известия ще бъде премахнато.",
-    "momentNotifications.permissionRequired": "Изисква се разрешение за известия.",
+    "momentNotifications.deleteConfirmMessage":
+      "Това разписание за известия ще бъде премахнато.",
+    "momentNotifications.permissionRequired":
+      "Изисква се разрешение за известия.",
     "momentNotifications.generateSuccess": "Готово",
-    "momentNotifications.generateCount": "Генерирани {count} съобщения за известия.",
+    "momentNotifications.generateCount":
+      "Генерирани {count} съобщения за известия.",
     "momentNotifications.generateEmpty": "Няма какво да се генерира",
-    "momentNotifications.generateEmptyMessage": "Няма ръчни уроци без AI предложения.",
+    "momentNotifications.generateEmptyMessage":
+      "Няма ръчни уроци без AI предложения.",
     "momentNotifications.scheduleCreated": "Разписанието е създадено успешно!",
 
     // Onboarding
@@ -8994,7 +9133,8 @@ const translations: Record<Language, Translations> = {
     "settings.momentColors.saved": "Запазено!",
     "settings.momentColors.sampleSunny": "Красив ден в парка със семейството",
     "settings.momentColors.sampleCloudy": "Онзи труден разговор, който водихме",
-    "settings.momentColors.sampleLesson": "Научих се да вярвам на инстинктите си",
+    "settings.momentColors.sampleLesson":
+      "Научих се да вярвам на инстинктите си",
     "settings.momentColors.custom": "Собствен",
     "settings.momentColors.pickColor": "Избери цвят",
     "settings.momentColors.confirm": "Потвърди",
@@ -9004,7 +9144,8 @@ const translations: Record<Language, Translations> = {
     "settings.personalization.rotationSpeed": "Скорост на въртене",
     "settings.personalization.constellationAmount": "Съзвездия",
     "settings.personalization.constellationOpacity": "Видимост на съзвездията",
-    "settings.personalization.cosmicAppLookTitle": "Космически вид на приложението",
+    "settings.personalization.cosmicAppLookTitle":
+      "Космически вид на приложението",
     "settings.personalization.cosmicBackgroundOpacity": "Космически фон",
     "settings.personalization.cosmicBackgroundOff": "Изключено",
     "personalization.homeSection": "Начало",
