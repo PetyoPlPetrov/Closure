@@ -55,6 +55,8 @@ export interface Translations {
   "events.pastEvents": string;
   "events.showPastEvents": string;
   "events.hidePastEvents": string;
+  "events.filterTitle": string;
+  "events.hideFilledEvents": string;
   "events.createMemoryForEvent": string;
   "events.memoryCreated": string;
   "events.removePastEventTitle": string;
@@ -93,6 +95,11 @@ export interface Translations {
   "settings.appUsabilityHints.title": string;
   "settings.appUsabilityHints.enable": string;
   "settings.appUsabilityHints.description": string;
+  "settings.usability.title": string;
+  "settings.usability.sectionTitle": string;
+  "settings.usability.showHints": string;
+  "settings.usability.stopPulsingAnimations": string;
+  "settings.usability.stopPulsingAnimationsDescription": string;
   "settings.aiInsights.title": string;
   "settings.aiInsights.enable": string;
   "settings.aiInsights.description": string;
@@ -3661,6 +3668,8 @@ const translations: Record<Language, Translations> = {
     "events.pastEvents": "Past events",
     "events.showPastEvents": "Show past events",
     "events.hidePastEvents": "Hide past events",
+    "events.filterTitle": "Filters",
+    "events.hideFilledEvents": "Hide events that are full",
     "events.createMemoryForEvent": "Create memory",
     "events.memoryCreated": "Memory created",
     "events.removePastEventTitle": "Remove from orbit",
@@ -3708,6 +3717,12 @@ const translations: Record<Language, Translations> = {
     "settings.appUsabilityHints.enable": "Show usability hints",
     "settings.appUsabilityHints.description":
       "When enabled, shows visual hints to suggest tap and drag gestures for app control.",
+    "settings.usability.title": "Usability",
+    "settings.usability.sectionTitle": "Usability",
+    "settings.usability.showHints": "Show usability hints",
+    "settings.usability.stopPulsingAnimations": "Stop pulsing animations",
+    "settings.usability.stopPulsingAnimationsDescription":
+      "When enabled, the insight and AI Sfera buttons on the Sferas tab will not pulse.",
     "settings.aiInsights.title": "AI Insights",
     "settings.aiInsights.enable": "Enable AI Insights",
     "settings.aiInsights.description":
@@ -8139,6 +8154,8 @@ const translations: Record<Language, Translations> = {
     "events.pastEvents": "Минали събития",
     "events.showPastEvents": "Покажи минали събития",
     "events.hidePastEvents": "Скрий минали събития",
+    "events.filterTitle": "Филтри",
+    "events.hideFilledEvents": "Скрий пълни събития",
     "events.createMemoryForEvent": "Създай спомен",
     "events.memoryCreated": "Споменът е създаден",
     "events.removePastEventTitle": "Премахни от орбитата",
@@ -8187,6 +8204,12 @@ const translations: Record<Language, Translations> = {
     "settings.appUsabilityHints.enable": "Показвай подсказки",
     "settings.appUsabilityHints.description":
       "Когато е включено, показва визуални подсказки за допир и плъзгане при управление на приложението.",
+    "settings.usability.title": "Удобство",
+    "settings.usability.sectionTitle": "Удобство",
+    "settings.usability.showHints": "Показвай подсказки за използване",
+    "settings.usability.stopPulsingAnimations": "Спри пулсиращите анимации",
+    "settings.usability.stopPulsingAnimationsDescription":
+      "Когато е включено, бутоните за инсайти и AI сфера в раздела Сфери няма да пулсират.",
     "settings.aiInsights.title": "AI Инсайти",
     "settings.aiInsights.enable": "Включи AI Инсайти",
     "settings.aiInsights.description":

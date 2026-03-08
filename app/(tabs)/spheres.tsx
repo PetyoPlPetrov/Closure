@@ -66,11 +66,14 @@ import {
     View,
 } from "react-native";
 import Animated, {
+    cancelAnimation,
     Easing,
+    runOnJS,
     useAnimatedStyle,
     useSharedValue,
     withDelay,
     withRepeat,
+    withSequence,
     withSpring,
     withTiming,
 } from "react-native-reanimated";
@@ -248,7 +251,11 @@ export default function SpheresScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const { momentColors } = useMomentColors();
-  const { constellationAmount, constellationOpacity } = useVisualSettings();
+  const {
+    constellationAmount,
+    constellationOpacity,
+    stopPulsingAnimations,
+  } = useVisualSettings();
   const fontScale = useFontScale();
   const iconScale = useIconScale();
   const { maxContentWidth, isLargeDevice, isTablet } = useLargeDevice();
@@ -302,25 +309,87 @@ export default function SpheresScreen() {
   });
   const [sevenLetterWidth, setSevenLetterWidth] = useState<number>(0);
 
-  // Pulse animation for Insights button
-  const pulseScale = useSharedValue(1);
+  // Pulse: AI Sfera pulses non-stop (slight). When insight button pulses, AI Sfera stops; after insight stops, AI Sfera resumes.
+  const insightPulseScale = useSharedValue(1);
+  const aiSferaPulseScale = useSharedValue(1);
+  const pulseEasing = Easing.inOut(Easing.ease);
+  const insightPulseDuration = 1000;
+  const aiSferaPulseDuration = 1400; // one full cycle (up + down) for subtle continuous pulse
 
-  useEffect(() => {
-    pulseScale.value = withRepeat(
-      withTiming(1.35, {
-        duration: 2000,
-        easing: Easing.inOut(Easing.ease),
-      }),
+  const startAiSferaContinuousPulse = useCallback(() => {
+    aiSferaPulseScale.value = withRepeat(
+      withSequence(
+        withTiming(1.07, {
+          duration: aiSferaPulseDuration / 2,
+          easing: pulseEasing,
+        }),
+        withTiming(1, {
+          duration: aiSferaPulseDuration / 2,
+          easing: pulseEasing,
+        }),
+      ),
       -1,
       true,
     );
-  }, []);
+  }, [aiSferaPulseScale]);
 
-  const pulseAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: pulseScale.value }],
+  useEffect(() => {
+    if (stopPulsingAnimations) {
+      cancelAnimation(aiSferaPulseScale);
+      cancelAnimation(insightPulseScale);
+      aiSferaPulseScale.value = 1;
+      insightPulseScale.value = 1;
+      return;
+    }
+    startAiSferaContinuousPulse();
+    return () => cancelAnimation(aiSferaPulseScale);
+  }, [aiSferaPulseScale, insightPulseScale, startAiSferaContinuousPulse, stopPulsingAnimations]);
+
+  useEffect(() => {
+    if (stopPulsingAnimations) return;
+    const runInsightPulse = () => {
+      cancelAnimation(aiSferaPulseScale);
+      aiSferaPulseScale.value = withTiming(1, { duration: 150 });
+      insightPulseScale.value = withSequence(
+        withTiming(1.2, {
+          duration: insightPulseDuration,
+          easing: pulseEasing,
+        }),
+        withTiming(1, {
+          duration: insightPulseDuration,
+          easing: pulseEasing,
+        }, (finished) => {
+          "worklet";
+          if (finished) {
+            runOnJS(startAiSferaContinuousPulse)();
+          }
+        }),
+      );
     };
-  });
+    // Rarely trigger insight pulse: first after 8s, then every 20–30s
+    const initialDelay = 8000;
+    const minInterval = 20000;
+    const maxInterval = 30000;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const scheduleNext = (useInitialDelay: boolean) => {
+      const delay = useInitialDelay
+        ? initialDelay
+        : minInterval + Math.random() * (maxInterval - minInterval);
+      timeoutId = setTimeout(() => {
+        runInsightPulse();
+        scheduleNext(false);
+      }, delay);
+    };
+    scheduleNext(true);
+    return () => clearTimeout(timeoutId);
+  }, [insightPulseScale, aiSferaPulseScale, startAiSferaContinuousPulse, stopPulsingAnimations]);
+
+  const insightPulseAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: insightPulseScale.value }],
+  }));
+  const aiSferaPulseAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: aiSferaPulseScale.value }],
+  }));
 
   // Reload memories when screen comes into focus (e.g., after running mock data script)
   useFocusEffect(
@@ -2691,7 +2760,7 @@ export default function SpheresScreen() {
                         sunnyBackground={momentColors.sunny.background}
                       />
 
-                      {/* Insights button in the center - circular */}
+                      {/* Insights button in the center - circular (pulses rarely) */}
                       <AnimatedView
                         style={[
                           styles.insightsButtonContainerCentered,
@@ -2699,7 +2768,7 @@ export default function SpheresScreen() {
                             left: centerX - 24 * fontScale, // Adjusted for smaller button (was 30)
                             top: centerY - 20 * fontScale, // Elevated button position
                           },
-                          pulseAnimatedStyle,
+                          insightPulseAnimatedStyle,
                         ]}
                       >
                         <TouchableOpacity
@@ -2832,7 +2901,7 @@ export default function SpheresScreen() {
                         ] as const;
 
                         return (
-                          <TouchableOpacity
+                          <AnimatedView
                             key="ai-square"
                             style={[
                               styles.sphereCard,
@@ -2843,12 +2912,16 @@ export default function SpheresScreen() {
                                 width: aiCardWidth,
                                 height: aiCardWidth,
                               },
+                              aiSferaPulseAnimatedStyle,
                             ]}
-                            onPress={() => {
-                              handleAIModalOpen();
-                            }}
-                            activeOpacity={0.8}
                           >
+                            <TouchableOpacity
+                              style={{ width: "100%", height: "100%" }}
+                              onPress={() => {
+                                handleAIModalOpen();
+                              }}
+                              activeOpacity={0.8}
+                            >
                             <LinearGradient
                               colors={
                                 colorScheme === "dark"
@@ -2882,7 +2955,8 @@ export default function SpheresScreen() {
                                 </ThemedText>
                               </View>
                             </LinearGradient>
-                          </TouchableOpacity>
+                            </TouchableOpacity>
+                          </AnimatedView>
                         );
                       })()}
 

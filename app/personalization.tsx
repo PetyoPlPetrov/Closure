@@ -33,12 +33,7 @@ export default function PersonalizationScreen() {
   const fontScale = useFontScale();
   const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
-  const {
-    constellationAmount,
-    constellationOpacity,
-    appUsabilityHints,
-    setAppUsabilityHints,
-  } = useVisualSettings();
+  const { constellationAmount, constellationOpacity } = useVisualSettings();
   const aiConsent = useAIInsightsConsent();
   const notificationNudge = useNotificationNudgePreference();
   const [infoPopupKey, setInfoPopupKey] = useState<"aiInsights" | "notificationNudge" | null>(null);
@@ -234,34 +229,33 @@ export default function PersonalizationScreen() {
             </View>
           </View>
 
-          {/* App usability hints: finger + wheel wiggle when opening wheel of life */}
+          {/* Usability: opens dedicated screen (hints + stop pulsing) */}
           <View style={styles.section}>
             <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-              {t("settings.appUsabilityHints.title")}
+              {t("settings.usability.sectionTitle")}
             </ThemedText>
 
-            <View style={styles.aiToggleRow}>
-              <View style={styles.aiToggleTextWrap}>
-                <ThemedText size="l" weight="medium" style={{ flex: 1 }}>
-                  {t("settings.appUsabilityHints.enable")}
-                </ThemedText>
-                <ThemedText
-                  size="s"
-                  style={{ opacity: 0.75, marginTop: 4 }}
-                >
-                  {t("settings.appUsabilityHints.description")}
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => router.push("/usability")}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dropdownContent}>
+                <MaterialIcons
+                  name="touch-app"
+                  size={24 * fontScale}
+                  color={colors.primary}
+                />
+                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                  {t("settings.usability.title")}
                 </ThemedText>
               </View>
-              <Switch
-                value={appUsabilityHints}
-                onValueChange={setAppUsabilityHints}
-                trackColor={{
-                  false: "rgba(150,150,150,0.35)",
-                  true: colors.primary,
-                }}
-                thumbColor="#FFFFFF"
+              <MaterialIcons
+                name="arrow-forward-ios"
+                size={20 * fontScale}
+                color={colors.text}
               />
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* Home section: show/hide encouragement nudge (not AI participation) */}

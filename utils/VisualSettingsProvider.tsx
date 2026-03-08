@@ -11,6 +11,7 @@ const CONSTELLATION_AMOUNT_KEY = "@sferas:constellation_amount";
 const CONSTELLATION_OPACITY_KEY = "@sferas:constellation_opacity";
 const COSMIC_BACKGROUND_OPACITY_KEY = "@sferas:cosmic_background_opacity";
 const APP_USABILITY_HINTS_KEY = "@sferas:app_usability_hints";
+const STOP_PULSING_ANIMATIONS_KEY = "@sferas:stop_pulsing_animations";
 
 const DEFAULT_ORBIT_DURATION_MS = 60000;
 const MIN_ORBIT_DURATION_MS = 20000;
@@ -39,6 +40,8 @@ type VisualSettingsContextValue = {
   setCosmicBackgroundOpacity: (value: number) => void;
   appUsabilityHints: boolean;
   setAppUsabilityHints: (value: boolean) => void;
+  stopPulsingAnimations: boolean;
+  setStopPulsingAnimations: (value: boolean) => void;
 };
 
 const VisualSettingsContext = createContext<VisualSettingsContextValue | null>(null);
@@ -49,6 +52,7 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
   const [constellationOpacity, setConstellationOpacityState] = useState(DEFAULT_CONSTELLATION_OPACITY);
   const [cosmicBackgroundOpacity, setCosmicOpacityState] = useState(DEFAULT_COSMIC_BACKGROUND_OPACITY);
   const [appUsabilityHints, setAppUsabilityHintsState] = useState(true);
+  const [stopPulsingAnimations, setStopPulsingAnimationsState] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -58,7 +62,8 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       CONSTELLATION_OPACITY_KEY,
       COSMIC_BACKGROUND_OPACITY_KEY,
       APP_USABILITY_HINTS_KEY,
-    ]).then(([[, orbit], [, constellation], [, constellationOp], [, cosmic], [, hints]]) => {
+      STOP_PULSING_ANIMATIONS_KEY,
+    ]).then(([[, orbit], [, constellation], [, constellationOp], [, cosmic], [, hints], [, stopPulsing]]) => {
         if (orbit != null) {
           const n = parseInt(orbit, 10);
           if (Number.isFinite(n) && n >= MIN_ORBIT_DURATION_MS && n <= MAX_ORBIT_DURATION_MS) {
@@ -87,6 +92,9 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
           // Legacy or invalid
         } else if (hints === "false") {
           setAppUsabilityHintsState(false);
+        }
+        if (stopPulsing === "true") {
+          setStopPulsingAnimationsState(true);
         }
         setLoaded(true);
       },
@@ -126,6 +134,11 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
     AsyncStorage.setItem(APP_USABILITY_HINTS_KEY, String(value));
   }, []);
 
+  const setStopPulsingAnimations = useCallback((value: boolean) => {
+    setStopPulsingAnimationsState(value);
+    AsyncStorage.setItem(STOP_PULSING_ANIMATIONS_KEY, String(value));
+  }, []);
+
   const value = useMemo<VisualSettingsContextValue>(
     () => ({
       orbitDurationMs,
@@ -138,6 +151,8 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       setCosmicBackgroundOpacity,
       appUsabilityHints,
       setAppUsabilityHints,
+      stopPulsingAnimations,
+      setStopPulsingAnimations,
     }),
     [
       orbitDurationMs,
@@ -150,6 +165,8 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       setCosmicBackgroundOpacity,
       appUsabilityHints,
       setAppUsabilityHints,
+      stopPulsingAnimations,
+      setStopPulsingAnimations,
     ],
   );
 
@@ -174,6 +191,8 @@ export function useVisualSettings(): VisualSettingsContextValue {
       setCosmicBackgroundOpacity: () => {},
       appUsabilityHints: true,
       setAppUsabilityHints: () => {},
+      stopPulsingAnimations: false,
+      setStopPulsingAnimations: () => {},
     };
   }
   return ctx;

@@ -472,6 +472,7 @@ function AppContent() {
             name="personalization"
             options={{ headerShown: false }}
           />
+          <Stack.Screen name="usability" options={{ headerShown: false }} />
           <Stack.Screen name="backup" options={{ headerShown: false }} />
           <Stack.Screen name="backup/import" options={{ headerShown: false }} />
         </Stack>

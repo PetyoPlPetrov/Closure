@@ -60,6 +60,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   TextInput,
   View,
   type ViewStyle,
@@ -1109,6 +1110,8 @@ export default function EventsTab() {
   const [pastEvents, setPastEvents] = useState<SferaEvent[]>([]);
   const [goldenUsedIds, setGoldenUsedIds] = useState<Set<string>>(new Set());
   const [showPastEvents, setShowPastEvents] = useState(true);
+  const [hideFilledEvents, setHideFilledEvents] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [aiModalVisible, setAiModalVisible] = useState(false);
   const [pendingAIResponse, setPendingAIResponse] =
     useState<PendingAIResponse | null>(null);
@@ -1272,11 +1275,14 @@ export default function EventsTab() {
   /** Orbit list: upcoming events for this community + past attended (same type) when toggle on. */
   const listForPhase = useMemo(() => {
     if (phase === "orbs") return [];
-    const base = communityEvents[focusedCommunityIndex] ?? [];
+    let base = communityEvents[focusedCommunityIndex] ?? [];
+    if (hideFilledEvents) {
+      base = base.filter((e) => e.status !== "closed");
+    }
     if (!showPastEvents) return base;
     const pastForCommunity = pastEvents.filter((e) => e.type === phase);
     return [...base, ...pastForCommunity];
-  }, [phase, focusedCommunityIndex, communityEvents, showPastEvents, pastEvents]);
+  }, [phase, focusedCommunityIndex, communityEvents, showPastEvents, hideFilledEvents, pastEvents]);
 
   const pastEventIds = useMemo(() => new Set(pastEvents.map((e) => e.id)), [pastEvents]);
 
@@ -1747,11 +1753,11 @@ export default function EventsTab() {
                 </Pressable>
               ) : null}
 
-              {/* Toggle: show/hide past events (top right) */}
+              {/* Filter icon: opens modal with past events + filled events toggles */}
               <Pressable
-                onPress={() => setShowPastEvents((v) => !v)}
+                onPress={() => setFilterModalVisible(true)}
                 style={[
-                  styles.pastEventsToggle,
+                  styles.filterIconButton,
                   {
                     top: 8 + insets.top,
                     right: 16 + insets.right,
@@ -1761,13 +1767,10 @@ export default function EventsTab() {
                 ]}
               >
                 <MaterialIcons
-                  name={showPastEvents ? "visibility-off" : "history"}
-                  size={20}
+                  name="filter-list"
+                  size={24}
                   color={colors.primary}
                 />
-                <ThemedText size="xs" weight="medium" style={{ color: colors.text, marginLeft: 6 }}>
-                  {showPastEvents ? t("events.hidePastEvents") : t("events.showPastEvents")}
-                </ThemedText>
               </Pressable>
 
             </Animated.View>
@@ -2332,6 +2335,60 @@ export default function EventsTab() {
         </Pressable>
       </Modal>
 
+      {/* Events filter modal: past events + filled events toggles */}
+      <Modal
+        visible={filterModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setFilterModalVisible(false)}
+        >
+          <Pressable
+            style={[styles.modalBox, { backgroundColor: colors.background }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <ThemedText size="l" weight="bold" style={styles.modalTitle}>
+              {t("events.filterTitle")}
+            </ThemedText>
+            <View style={styles.filterRow}>
+              <ThemedText size="sm" style={{ flex: 1, color: colors.text }}>
+                {t("events.hidePastEvents")}
+              </ThemedText>
+              <Switch
+                value={!showPastEvents}
+                onValueChange={(v) => setShowPastEvents(!v)}
+                trackColor={{ false: colors.text + "40", true: colors.primary + "80" }}
+                thumbColor={colors.primary}
+              />
+            </View>
+            <View style={styles.filterRow}>
+              <ThemedText size="sm" style={{ flex: 1, color: colors.text }}>
+                {t("events.hideFilledEvents")}
+              </ThemedText>
+              <Switch
+                value={hideFilledEvents}
+                onValueChange={setHideFilledEvents}
+                trackColor={{ false: colors.text + "40", true: colors.primary + "80" }}
+                thumbColor={colors.primary}
+              />
+            </View>
+            <View style={[styles.modalActions, { marginTop: 24 }]}>
+              <Pressable
+                onPress={() => setFilterModalVisible(false)}
+                style={styles.modalBtn}
+              >
+                <ThemedText size="sm" weight="medium">
+                  {t("common.done")}
+                </ThemedText>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* AI Create memory modal (golden event AI access when goldenEventIdForModal is set) */}
       {aiModalVisible && (
         <AIModal
@@ -2701,6 +2758,22 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   modalBtn: { paddingVertical: 8, paddingHorizontal: 16 },
+  filterIconButton: {
+    position: "absolute",
+    zIndex: 25,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
   pastEventsToggle: {
     position: "absolute",
     zIndex: 25,
