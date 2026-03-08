@@ -111,7 +111,7 @@ function AppContent() {
   const [pendingAIResponseForModal, setPendingAIResponseForModal] =
     useState<PendingAIResponse | null>(null);
 
-  // Onboarding gate: show onboarding when no data and not yet completed
+  // Onboarding gate: show onboarding only when we have no data AND onboarding not completed
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
@@ -124,7 +124,8 @@ function AppContent() {
         friends.length +
         hobbies.length;
       const totalMemories = idealizedMemories.length;
-      const shouldShow = !completed;
+      const hasNoData = totalEntities === 0 && totalMemories === 0;
+      const shouldShow = !completed && hasNoData;
       if (__DEV__) {
         console.log("[OnboardingGate] Data check:", {
           getOnboardingCompleted: completed,
@@ -135,6 +136,7 @@ function AppContent() {
           hobbies: hobbies.length,
           totalEntities,
           idealizedMemories: totalMemories,
+          hasNoData,
           shouldShowOnboarding: shouldShow,
         });
       }
@@ -144,7 +146,15 @@ function AppContent() {
     return () => {
       cancelled = true;
     };
-  }, [onboardingRequestTrigger]);
+  }, [
+    onboardingRequestTrigger,
+    profiles.length,
+    jobs.length,
+    familyMembers.length,
+    friends.length,
+    hobbies.length,
+    idealizedMemories.length,
+  ]);
 
   useEffect(() => {
     const initializeServices = async () => {

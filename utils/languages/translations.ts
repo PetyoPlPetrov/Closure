@@ -23,6 +23,8 @@ export interface Translations {
   "events.plusEnterCode": string;
   "events.getDiscount": string;
   "events.discountRevealed": string;
+  "events.noDiscountForEvent": string;
+  "events.enterVipCodeToReveal": string;
   "events.vipCodePlaceholder": string;
   "events.vipCodeRequired": string;
   "events.vipCodeInvalid": string;
@@ -3624,6 +3626,8 @@ const translations: Record<Language, Translations> = {
     "events.plusEnterCode": "Enter code for Plus events",
     "events.getDiscount": "Get discount",
     "events.discountRevealed": "Your voucher code",
+    "events.noDiscountForEvent": "No discount code for this event",
+    "events.enterVipCodeToReveal": "Enter the VIP code to reveal",
     "events.vipCodePlaceholder": "Code",
     "events.vipCodeRequired": "Please enter a code.",
     "events.vipCodeInvalid": "This code doesn't unlock any event.",
@@ -3856,7 +3860,7 @@ const translations: Record<Language, Translations> = {
     "onboarding.sferaAnalyzing": "Sfera AI is analyzing...",
     "onboarding.review": "Review & edit your entities",
     "onboarding.reviewSubtitle":
-      "Edit names, descriptions, and fill in any required fields.",
+      "These are initial suggestions—edit what you like and add more anytime later.",
     "onboarding.saveAll": "Save & Continue",
     "onboarding.startOver": "Start from scratch again",
     "onboarding.sphere.relationships": "Relationships",
@@ -8100,6 +8104,8 @@ const translations: Record<Language, Translations> = {
     "events.plusEnterCode": "Въведете код за Plus събития",
     "events.getDiscount": "Получи отстъпка",
     "events.discountRevealed": "Вашият ваучер код",
+    "events.noDiscountForEvent": "Няма код за отстъпка за това събитие",
+    "events.enterVipCodeToReveal": "Въведете VIP кода, за да разкриете",
     "events.vipCodePlaceholder": "Код",
     "events.vipCodeRequired": "Моля, въведете код.",
     "events.vipCodeInvalid": "Този код не отключва събитие.",
@@ -8327,7 +8333,7 @@ const translations: Record<Language, Translations> = {
     "onboarding.sferaAnalyzing": "Sfera AI анализира...",
     "onboarding.review": "Преглед и редакция на записите",
     "onboarding.reviewSubtitle":
-      "Редактирайте имената, описанията и попълнете задължителните полета.",
+      "Това са първоначални предложения—редактирайте каквото искате и добавяйте още по-късно по всяко време.",
     "onboarding.saveAll": "Запази и продължи",
     "onboarding.startOver": "Започни отново от началото",
     "onboarding.sphere.relationships": "Връзки",

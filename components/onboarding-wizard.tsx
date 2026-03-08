@@ -878,7 +878,7 @@ export function OnboardingWizard() {
             style={{ marginTop: 8 * fontScale, opacity: 0.8 }}
           >
             {t("onboarding.reviewSubtitle") ??
-              "Edit names, descriptions, and fill in any required fields."}
+              "These are initial suggestions—edit what you like and add more anytime later."}
           </ThemedText>
         </View>
 

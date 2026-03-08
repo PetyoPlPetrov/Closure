@@ -2,10 +2,10 @@
  * Sfera Events – community events loaded from a published Google Sheet.
  * No backend: app fetches CSV from a public "Publish to web" URL.
  *
- * Sheet columns (header row): ID, Name, ImageLink, StartDate, Country, Town, Location, Description, Date, Privacy, Code, Discount_Code
+ * Sheet columns (header row): ID, Name, ImageLink, StartDate, Country, Town, Location, Description, Date, Privacy, Code, DiscountCode
  * - Privacy: "Social" | "Plus" | "Private"
  * - Code: required to unlock Private/Plus events (validated against sheet rows)
- * - Discount_Code: voucher code for Plus events; shown to Sfera Plus or Sfera AI subscribers
+ * - DiscountCode: voucher code for Plus events; shown to Sfera Plus or Sfera AI subscribers
  * - ImageLink: single URL or comma-separated URLs for image carousel
  * - StartDate: event is active when current date is before StartDate; only active events are stored locally.
  * - Country: event is active when it matches the device region (from location + reverse geocode); events with empty Country are shown for all regions.
@@ -117,7 +117,9 @@ function rowToEvent(
   const statusRaw = (get("status") || "open").toLowerCase();
   const status: "open" | "closed" =
     statusRaw === "closed" ? "closed" : "open";
-  const discountCodeRaw = get("discount_code") || get("discountcode") || "";
+  // Sheet column: DiscountCode (or Discount_Code). Headers are lowercased when building headerIndex.
+  const discountCodeRaw =
+    get("discountcode") || get("discount_code") || get("discount code") || "";
   const discountCode = discountCodeRaw.trim() || null;
 
   return {
