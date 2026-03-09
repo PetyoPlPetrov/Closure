@@ -19,6 +19,7 @@ import {
   type AppStateStatus,
   InteractionManager,
   Platform,
+  StyleSheet,
   View,
 } from "react-native";
 import "react-native-reanimated";
@@ -45,6 +46,10 @@ import {
 import { JourneyProvider, useJourney } from "@/utils/JourneyProvider";
 import { LanguageProvider } from "@/utils/languages/language-context";
 import { MomentColorsProvider } from "@/utils/MomentColorsProvider";
+import {
+  EventInAppNotificationPreferenceProvider,
+  useEventInAppNotificationPreference,
+} from "@/utils/EventInAppNotificationPreferenceProvider";
 import { MomentNotificationProvider } from "@/utils/MomentNotificationProvider";
 import { NotificationNudgePreferenceProvider } from "@/utils/NotificationNudgePreferenceProvider";
 import { NotificationsProvider } from "@/utils/NotificationsProvider";
@@ -92,6 +97,8 @@ function AppContent() {
   const { hideSplash, isAnimationComplete } = useSplash();
   const { colorScheme } = useTheme();
   const { showNotification: showInAppNotification } = useInAppNotification();
+  const { enabled: eventInAppNotificationsEnabled, isLoaded: eventInAppPrefLoaded } =
+    useEventInAppNotificationPreference();
   const { profiles, jobs, familyMembers, friends, hobbies, idealizedMemories } =
     useJourney();
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
@@ -195,6 +202,8 @@ function AppContent() {
   // In-app reminders for past attended Sfera events (dev and prod). __DEV__ only wraps console.log; due times are 1/2/3 min in dev, next-day 10:00 in prod.
   const showEventMemoryReminderIfNeeded = useCallback(
     (skipThrottle?: boolean) => {
+      // Don't show until preference is loaded (avoids showing on default true before AsyncStorage read)
+      if (!eventInAppPrefLoaded || !eventInAppNotificationsEnabled) return;
       const now = Date.now();
       if (!skipThrottle && now - lastEventReminderShownAtRef.current < 10_000)
         return; // throttle 10s unless showing next at due time
@@ -287,7 +296,7 @@ function AppContent() {
           }
         });
     },
-    [showInAppNotification],
+    [showInAppNotification, eventInAppNotificationsEnabled, eventInAppPrefLoaded],
   );
 
   useEffect(() => {
@@ -372,21 +381,14 @@ function AppContent() {
     };
   }, []);
 
-  // Show onboarding when no data and not completed
-  if (showOnboarding === true) {
-    return (
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <OnboardingWizard />
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    );
-  }
+  const isReRun = onboardingRequestTrigger > 0;
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <OnboardingGateContext.Provider
-        value={{ requestShowOnboarding }}
-      >
+      <View style={styles.appContainer}>
+        <OnboardingGateContext.Provider
+          value={{ requestShowOnboarding }}
+        >
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
@@ -476,7 +478,6 @@ function AppContent() {
           />
           <Stack.Screen name="usability" options={{ headerShown: false }} />
           <Stack.Screen name="backup" options={{ headerShown: false }} />
-          <Stack.Screen name="backup/import" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />
         {goldenEventIdForMemoryModal != null && (
@@ -492,9 +493,34 @@ function AppContent() {
           />
         )}
       </OnboardingGateContext.Provider>
+
+        {showOnboarding === true && (
+          <View
+            style={StyleSheet.absoluteFillObject}
+            pointerEvents="box-none"
+          >
+            <OnboardingWizard
+              canExitEarly={isReRun}
+              onExit={
+                isReRun
+                  ? async () => {
+                      await setOnboardingCompleted(true);
+                      setOnboardingRequestTrigger((t) => t + 1);
+                      router.replace("/(tabs)/spheres" as any);
+                    }
+                  : undefined
+              }
+            />
+          </View>
+        )}
+      </View>
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  appContainer: { flex: 1 },
+});
 
 export default function RootLayout() {
   // Configure RevenueCat first so it's ready before SubscriptionProvider's useEffect runs.
@@ -536,16 +562,18 @@ export default function RootLayout() {
                     <NotificationsProvider>
                       <AIInsightsConsentProvider>
                         <NotificationNudgePreferenceProvider>
-                          <HomeTransitionLoaderProvider>
-                            <View style={{ flex: 1 }}>
-                              <InAppNotificationProvider>
-                                <SferaEventsBadgeProvider>
-                                  <AppContent />
-                                </SferaEventsBadgeProvider>
-                              </InAppNotificationProvider>
-                              <HomeTransitionLoaderOverlay />
-                            </View>
-                          </HomeTransitionLoaderProvider>
+                          <EventInAppNotificationPreferenceProvider>
+                            <HomeTransitionLoaderProvider>
+                              <View style={{ flex: 1 }}>
+                                <InAppNotificationProvider>
+                                  <SferaEventsBadgeProvider>
+                                    <AppContent />
+                                  </SferaEventsBadgeProvider>
+                                </InAppNotificationProvider>
+                                <HomeTransitionLoaderOverlay />
+                              </View>
+                            </HomeTransitionLoaderProvider>
+                          </EventInAppNotificationPreferenceProvider>
                         </NotificationNudgePreferenceProvider>
                       </AIInsightsConsentProvider>
                     </NotificationsProvider>

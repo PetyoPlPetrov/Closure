@@ -14,6 +14,7 @@ import React, {
 } from "react";
 import { AppState, type AppStateStatus, InteractionManager } from "react-native";
 
+import { useEventInAppNotificationPreference } from "@/utils/EventInAppNotificationPreferenceProvider";
 import { useInAppNotification } from "@/utils/InAppNotificationProvider";
 import { getOnboardingCompleted } from "@/utils/onboarding-storage";
 import {
@@ -48,6 +49,8 @@ export function SferaEventsBadgeProvider({
   const [events, setEvents] = useState<SferaEvent[]>([]);
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const { showNotification } = useInAppNotification();
+  const { enabled: eventInAppNotificationsEnabled, isLoaded: eventInAppPrefLoaded } =
+    useEventInAppNotificationPreference();
   const t = useTranslate();
 
   const computeUnseenCount = useCallback(
@@ -83,8 +86,13 @@ export function SferaEventsBadgeProvider({
       const count = computeUnseenCount(fetched, seen);
       setUnseenCount(count);
       setHasNewEvents(count > 0);
-
-      if (newCount > 0 && newCommunities.length > 0) {
+      // Badge on Events tab always reflects unseen count; only the in-app popup is gated by preference
+      if (
+        eventInAppPrefLoaded &&
+        eventInAppNotificationsEnabled &&
+        newCount > 0 &&
+        newCommunities.length > 0
+      ) {
         const communityName = newCommunities
           .map((c) => (c === "social" ? t("events.section.social") : t("events.section.plus")))
           .join(", ");
@@ -105,7 +113,7 @@ export function SferaEventsBadgeProvider({
       }
       return fetched;
     },
-    [showNotification, t, computeUnseenCount],
+    [showNotification, t, computeUnseenCount, eventInAppNotificationsEnabled, eventInAppPrefLoaded],
   );
 
   const markEventAsSeen = useCallback(

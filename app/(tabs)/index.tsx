@@ -27,10 +27,7 @@ import {
   pickAndConsumePreloadedQuestion,
   preloadEntityWheelQuestions,
 } from "@/utils/wheel-exam-preload";
-import {
-  canSpinWheelExam,
-  recordWheelExamUsed,
-} from "@/utils/wheel-exam-rate-limiter";
+import { consumeWheelExamIfAvailable } from "@/utils/wheel-exam-rate-limiter";
 import {
   analyzeLessonExamAnswer,
   processHomeEncouragementPrompt,
@@ -2133,9 +2130,7 @@ const FloatingAvatar = React.memo(
       const chosen =
         allLessons[Math.floor(Math.random() * allLessons.length)];
 
-      if (!hasAIEntitlement) {
-        await recordWheelExamUsed();
-      }
+      // Free spin already consumed at spin start (consumeWheelExamIfAvailable)
 
       if (__DEV__)
       // Show loading popup immediately so UI doesn't feel stuck while preload/consume runs
@@ -2261,8 +2256,8 @@ const FloatingAvatar = React.memo(
           onShowAIConsentModal?.();
           return;
         }
-        const canSpin = await canSpinWheelExam(hasAIEntitlement);
-        if (!canSpin) {
+        const consumed = await consumeWheelExamIfAvailable(hasAIEntitlement);
+        if (!consumed) {
           const purchased = await showPaywallForAIAccess();
           if (!purchased) {
             cancelAnimation(orbitAngle);
@@ -14134,10 +14129,7 @@ export default function HomeScreen() {
       };
     }
 
-    // Record usage when user without AI completes a lesson spin (1 free per day total for main+entity)
-    if (!hasAIEntitlement) {
-      void recordWheelExamUsed();
-    }
+    // Free spin already consumed at spin start (consumeWheelExamIfAvailable)
 
     // Update with real content (replaces loading placeholder)
     setSelectedLesson(momentToShow);
@@ -14146,7 +14138,6 @@ export default function HomeScreen() {
     idealizedMemories,
     appLang,
     hasAIEntitlement,
-    recordWheelExamUsed,
     lessonOpacity,
     lessonScale,
     lessonTranslateX,
@@ -15200,8 +15191,8 @@ export default function HomeScreen() {
             // Always check rate limit (lesson exam flow)
             const velocityAtRelease = wheelVelocity.value;
             void (async () => {
-              const canSpin = await canSpinWheelExam(hasAIEntitlement);
-              if (!canSpin) {
+              const consumed = await consumeWheelExamIfAvailable(hasAIEntitlement);
+              if (!consumed) {
                 const purchased = await showPaywallForAIAccess();
                 if (!purchased) {
                   isWheelSpinning.value = false;

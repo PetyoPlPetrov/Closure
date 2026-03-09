@@ -93,6 +93,8 @@ export interface Translations {
   "settings.feedback.addFeedback": string;
   "settings.notificationNudge.title": string;
   "settings.notificationNudge.description": string;
+  "settings.eventInAppNotifications.title": string;
+  "settings.eventInAppNotifications.description": string;
   "settings.appUsabilityHints.title": string;
   "settings.appUsabilityHints.enable": string;
   "settings.appUsabilityHints.description": string;
@@ -3715,6 +3717,9 @@ const translations: Record<Language, Translations> = {
     "settings.notificationNudge.title": "Encouragement nudges",
     "settings.notificationNudge.description":
       "Show or hide the motivational message banner on the Home tab.",
+    "settings.eventInAppNotifications.title": "In-app notifications for events",
+    "settings.eventInAppNotifications.description":
+      "When on, the app can show in-app reminders for Sfera events (e.g. create a memory for an event you attended, or new events in your community).",
     "settings.appUsabilityHints.title": "App usability hints",
     "settings.appUsabilityHints.enable": "Show usability hints",
     "settings.appUsabilityHints.description":
@@ -8203,6 +8208,9 @@ const translations: Record<Language, Translations> = {
     "settings.notificationNudge.title": "Подсказки за насърчение",
     "settings.notificationNudge.description":
       "Показване или скриване на мотивационното съобщение в раздела Начало.",
+    "settings.eventInAppNotifications.title": "Вътреприложни известия за събития",
+    "settings.eventInAppNotifications.description":
+      "Когато е включено, приложението може да показва вътреприложни напомняния за събития на Sfera (напр. създаване на спомен за посещено събитие или нови събития в общността ви).",
     "settings.appUsabilityHints.title": "Подсказки за използване",
     "settings.appUsabilityHints.enable": "Показвай подсказки",
     "settings.appUsabilityHints.description":

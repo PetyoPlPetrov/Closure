@@ -22,10 +22,7 @@ import {
   pickAndConsumePreloadedQuestion,
   preloadEntityWheelQuestions,
 } from '@/utils/wheel-exam-preload';
-import {
-  canSpinWheelExam,
-  recordWheelExamUsed,
-} from '@/utils/wheel-exam-rate-limiter';
+import { consumeWheelExamIfAvailable } from '@/utils/wheel-exam-rate-limiter';
 import { logWheelEntitySpin } from '@/utils/analytics';
 import { useAIInsightsConsent } from '@/utils/AIInsightsConsentProvider';
 import { AIInsightsConsentModal } from '@/components/ai-insights-consent-modal';
@@ -583,8 +580,8 @@ export function EntityWheelOfLife({
       return;
     }
 
-    const canSpin = await canSpinWheelExam(hasAIEntitlement);
-    if (!canSpin) {
+    const consumed = await consumeWheelExamIfAvailable(hasAIEntitlement);
+    if (!consumed) {
       const purchased = await showPaywallForAIAccess();
       if (!purchased) return;
     }
@@ -606,9 +603,7 @@ export function EntityWheelOfLife({
     );
 
     setTimeout(async () => {
-      if (!hasAIEntitlement) {
-        await recordWheelExamUsed();
-      }
+      // Free spin already consumed at spin start (consumeWheelExamIfAvailable)
       // Show loading popup immediately so UI doesn't feel stuck while preload/consume runs
       setSelectedMomentType('lesson');
       setSelectedMoment({

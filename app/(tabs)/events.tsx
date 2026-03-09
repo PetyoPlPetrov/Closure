@@ -1297,22 +1297,34 @@ export default function EventsTab() {
     };
   }, [loadUnlocked, loadEvents]);
 
-  // Start orbit rotation only after finger hint has faded (or immediately if usability hints off).
-  // When hints are on and finger not yet done: stop orbit so orbs stay still.
+  // Orbit rotation: very slow while finger hint is visible, normal speed after finger fades.
+  // If usability hints off, start normal rotation immediately.
+  const NORMAL_ROTATION_DURATION_MS = 24000;
+  const SLOW_ROTATION_DURATION_MS = 96000; // ~4x slower while finger is on
   useEffect(() => {
-    if (appUsabilityHints && !eventsCommunitiesRotationStarted) {
-      cancelAnimation(orbitAngle);
-      orbitAngle.value = 0;
+    if (!appUsabilityHints) {
+      orbitAngle.value = withRepeat(
+        withTiming(2 * Math.PI, {
+          duration: NORMAL_ROTATION_DURATION_MS,
+          easing: Easing.linear,
+        }),
+        -1,
+        false,
+      );
+      setEventsCommunitiesRotationStarted(true);
       return;
     }
+    const isFingerVisible = !eventsCommunitiesRotationStarted;
     orbitAngle.value = withRepeat(
-      withTiming(2 * Math.PI, { duration: 24000, easing: Easing.linear }),
+      withTiming(2 * Math.PI, {
+        duration: isFingerVisible
+          ? SLOW_ROTATION_DURATION_MS
+          : NORMAL_ROTATION_DURATION_MS,
+        easing: Easing.linear,
+      }),
       -1,
       false,
     );
-    if (!appUsabilityHints) {
-      setEventsCommunitiesRotationStarted(true);
-    }
   }, [orbitAngle, appUsabilityHints, eventsCommunitiesRotationStarted]);
 
   // Finger hint over Sfera Social: appear after location/notification modal is dismissed (if any), then pulse, fade out, then start rotation
@@ -1699,6 +1711,13 @@ export default function EventsTab() {
 
   const selectOrb = useCallback(
     (index: number) => {
+      // Dismiss finger hint immediately when user taps any sfera
+      if (appUsabilityHints && !eventsCommunitiesRotationStarted) {
+        cancelAnimation(eventsFingerOpacity);
+        cancelAnimation(eventsFingerScale);
+        eventsFingerOpacity.value = 0;
+        setEventsCommunitiesRotationStarted(true);
+      }
       const type: SferaEventType =
         index === 0 ? "social" : index === 1 ? "private" : "plus";
       selectedOrbIndex.value = index;
@@ -1709,7 +1728,14 @@ export default function EventsTab() {
         runOnJS(setSelectedType)(type);
       });
     },
-    [selectedOrbIndex, orbExitProgress],
+    [
+      selectedOrbIndex,
+      orbExitProgress,
+      appUsabilityHints,
+      eventsCommunitiesRotationStarted,
+      eventsFingerOpacity,
+      eventsFingerScale,
+    ],
   );
 
   const goBackToOrbs = useCallback(() => {
@@ -2453,7 +2479,6 @@ export default function EventsTab() {
                             {t("events.showLess")}
                           </ThemedText>
                         </Pressable>
-                        {renderExpandedActions()}
                       </>
                     ) : (
                       <>

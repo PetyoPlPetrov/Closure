@@ -9,6 +9,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
+import { useEventInAppNotificationPreference } from '@/utils/EventInAppNotificationPreferenceProvider';
 import { useNotificationNudgePreference } from '@/utils/NotificationNudgePreferenceProvider';
 import { useNotificationsManager } from '@/utils/NotificationsProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
@@ -35,6 +36,7 @@ export default function NotificationsScreen() {
   const { friends, familyMembers, profiles } = useJourney();
   const { assignments } = useNotificationsManager();
   const notificationNudge = useNotificationNudgePreference();
+  const eventInAppPref = useEventInAppNotificationPreference();
 
   const renderSphereBlock = (sphere: 'friends' | 'family' | 'relationships', title: string, entityNames: { id: string; name: string }[]) => {
     if (entityNames.length === 0) return null;
@@ -100,6 +102,27 @@ export default function NotificationsScreen() {
           <Switch
             value={notificationNudge.enabled}
             onValueChange={(v) => void notificationNudge.setEnabled(v)}
+            trackColor={{
+              false: 'rgba(150,150,150,0.35)',
+              true: colors.primary,
+            }}
+            thumbColor="#FFFFFF"
+          />
+        </View>
+      </View>
+      <View style={styles.card}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flex: 1 }}>
+            <ThemedText size="l" weight="bold">
+              {t('settings.eventInAppNotifications.title')}
+            </ThemedText>
+            <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
+              {t('settings.eventInAppNotifications.description')}
+            </ThemedText>
+          </View>
+          <Switch
+            value={eventInAppPref.enabled}
+            onValueChange={(v) => void eventInAppPref.setEnabled(v)}
             trackColor={{
               false: 'rgba(150,150,150,0.35)',
               true: colors.primary,

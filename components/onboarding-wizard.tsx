@@ -57,7 +57,17 @@ function formatDateToYMD(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
-export function OnboardingWizard() {
+export type OnboardingWizardProps = {
+  /** When true (e.g. re-run from Settings), back arrow exits onboarding instead of going to previous step. */
+  canExitEarly?: boolean;
+  /** Called when user taps back to exit onboarding. Redirects to Sferas tab. */
+  onExit?: () => void;
+};
+
+export function OnboardingWizard({
+  canExitEarly = false,
+  onExit,
+}: OnboardingWizardProps = {}) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
   const colors = Colors[colorScheme ?? "dark"];
@@ -431,15 +441,57 @@ export function OnboardingWizard() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <View style={styles.stepper}>
-            <View style={[styles.stepDot, styles.stepDotActive]} />
-            <View style={styles.stepLine} />
-            <View style={styles.stepDot} />
-            <View style={styles.stepLine} />
-            <View style={styles.stepDot} />
-            <View style={styles.stepLine} />
-            <View style={styles.stepDot} />
-          </View>
+          {(canExitEarly && onExit ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 16 * fontScale,
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => onExit()}
+                style={{
+                  width: 44 * fontScale,
+                  height: 44 * fontScale,
+                  borderRadius: 22 * fontScale,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 8 * fontScale,
+                  backgroundColor:
+                    colorScheme === "dark"
+                      ? "rgba(255, 255, 255, 0.08)"
+                      : "rgba(0, 0, 0, 0.06)",
+                }}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons
+                  name="arrow-back"
+                  size={24 * fontScale}
+                  color={colorScheme === "dark" ? "#E8D5B7" : "#8B6914"}
+                />
+              </TouchableOpacity>
+              <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
+                <View style={[styles.stepDot, styles.stepDotActive]} />
+                <View style={styles.stepLine} />
+                <View style={styles.stepDot} />
+                <View style={styles.stepLine} />
+                <View style={styles.stepDot} />
+                <View style={styles.stepLine} />
+                <View style={styles.stepDot} />
+              </View>
+            </View>
+          ) : (
+            <View style={styles.stepper}>
+              <View style={[styles.stepDot, styles.stepDotActive]} />
+              <View style={styles.stepLine} />
+              <View style={styles.stepDot} />
+              <View style={styles.stepLine} />
+              <View style={styles.stepDot} />
+              <View style={styles.stepLine} />
+              <View style={styles.stepDot} />
+            </View>
+          ))}
           <ThemedText
             size="xl"
             weight="bold"
@@ -560,7 +612,9 @@ export function OnboardingWizard() {
             }}
           >
             <TouchableOpacity
-              onPress={() => setStep(0)}
+              onPress={() =>
+                canExitEarly && onExit ? onExit() : setStep(0)
+              }
               style={{
                 width: 44 * fontScale,
                 height: 44 * fontScale,
@@ -616,7 +670,7 @@ export function OnboardingWizard() {
                   "Let's personalize your life spheres. Tell us a few words about your world..."}
               </ThemedText>
 
-              {/* Sfera badges - dark bg, golden border, per-category icon colors */}
+              {/* Sfera badges - dark bg, per-category icon colors (no border to avoid selected-state look) */}
               <View
             style={{
               flexDirection: "row",
@@ -672,8 +726,6 @@ export function OnboardingWizard() {
                     colorScheme === "dark"
                       ? "rgba(42, 37, 32, 0.95)"
                       : "rgba(60, 55, 50, 0.15)",
-                  borderWidth: 1.5,
-                  borderColor: colorScheme === "dark" ? "#C9A227" : "#B8860B",
                 }}
               >
                 <MaterialIcons
@@ -855,21 +907,69 @@ export function OnboardingWizard() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <View style={styles.stepper}>
-            <View style={[styles.stepDot, styles.stepDotActive]} />
+          {canExitEarly && onExit ? (
             <View
-              style={[styles.stepLine, { backgroundColor: colors.primary }]}
-            />
-            <View style={[styles.stepDot, styles.stepDotActive]} />
-            <View
-              style={[styles.stepLine, { backgroundColor: colors.primary }]}
-            />
-            <View style={[styles.stepDot, styles.stepDotActive]} />
-            <View
-              style={[styles.stepLine, { backgroundColor: colors.primary }]}
-            />
-            <View style={[styles.stepDot, styles.stepDotActive]} />
-          </View>
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 16 * fontScale,
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => onExit()}
+                style={{
+                  width: 44 * fontScale,
+                  height: 44 * fontScale,
+                  borderRadius: 22 * fontScale,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 8 * fontScale,
+                  backgroundColor:
+                    colorScheme === "dark"
+                      ? "rgba(255, 255, 255, 0.08)"
+                      : "rgba(0, 0, 0, 0.06)",
+                }}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons
+                  name="arrow-back"
+                  size={24 * fontScale}
+                  color={colorScheme === "dark" ? "#E8D5B7" : "#8B6914"}
+                />
+              </TouchableOpacity>
+              <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
+                <View style={[styles.stepDot, styles.stepDotActive]} />
+                <View
+                  style={[styles.stepLine, { backgroundColor: colors.primary }]}
+                />
+                <View style={[styles.stepDot, styles.stepDotActive]} />
+                <View
+                  style={[styles.stepLine, { backgroundColor: colors.primary }]}
+                />
+                <View style={[styles.stepDot, styles.stepDotActive]} />
+                <View
+                  style={[styles.stepLine, { backgroundColor: colors.primary }]}
+                />
+                <View style={[styles.stepDot, styles.stepDotActive]} />
+              </View>
+            </View>
+          ) : (
+            <View style={styles.stepper}>
+              <View style={[styles.stepDot, styles.stepDotActive]} />
+              <View
+                style={[styles.stepLine, { backgroundColor: colors.primary }]}
+              />
+              <View style={[styles.stepDot, styles.stepDotActive]} />
+              <View
+                style={[styles.stepLine, { backgroundColor: colors.primary }]}
+              />
+              <View style={[styles.stepDot, styles.stepDotActive]} />
+              <View
+                style={[styles.stepLine, { backgroundColor: colors.primary }]}
+              />
+              <View style={[styles.stepDot, styles.stepDotActive]} />
+            </View>
+          )}
           <ThemedText size="xl" weight="bold">
             {t("onboarding.review") ?? "Review & edit your entities"}
           </ThemedText>

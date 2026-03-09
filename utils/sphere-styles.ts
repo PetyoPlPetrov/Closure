@@ -128,11 +128,13 @@ export function getSphereSferaColor(
       case "career":
         return "#1976D2";
       case "family":
-        return "#388E3C";
+        // #2E7D32: darker green for ≥3:1 contrast on light badge bg
+        return "#2E7D32";
       case "friends":
         return "#7B1FA2";
       case "hobbies":
-        return "#F57C00";
+        // #D84315: deep orange for ≥3:1 contrast on light badge bg
+        return "#D84315";
       default:
         return "#1976D2";
     }
