@@ -31,8 +31,10 @@ import {
   getEventGoldenMemoryUsedIds,
   getEventImageUrls,
   getPastAttendedEvents,
+  getSeatsLeft,
   getSeenEventIds,
   getUnlockedVipCodes,
+  isEventFilled,
   isPlusSectionUnlocked,
   isPrivateSectionUnlocked,
   removeAttendedEventSnapshotsByIds,
@@ -1508,7 +1510,7 @@ export default function EventsTab() {
     if (phase === "orbs") return [];
     let base = communityEvents[focusedCommunityIndex] ?? [];
     if (hideFilledEvents) {
-      base = base.filter((e) => e.status !== "closed");
+      base = base.filter((e) => !isEventFilled(e));
     }
     if (!showPastEvents) return base;
     const pastForCommunity = pastEvents.filter((e) => e.type === phase);
@@ -2246,7 +2248,7 @@ export default function EventsTab() {
                       </ThemedText>
                     )}
                   </Pressable>
-                ) : (expandedEvent.status ?? "open") === "closed" ? (
+                ) : isEventFilled(expandedEvent) ? (
                   <View
                     style={[
                       styles.expandedJoinBtn,
@@ -2333,17 +2335,24 @@ export default function EventsTab() {
                             },
                           ]}
                         >
-                          <MaterialIcons
-                            name="event-available"
-                            size={20 * fontScale}
-                            color="#fff"
-                          />
+                        <MaterialIcons
+                          name="event-available"
+                          size={20 * fontScale}
+                          color="#fff"
+                        />
                           <ThemedText
                             size="sm"
                             weight="bold"
                             style={{ color: "#fff" }}
                           >
-                            {t("events.join")}
+                            {(() => {
+                              const seatsLeft = getSeatsLeft(expandedEvent);
+                              const joinText = t("events.join");
+                              if (seatsLeft != null) {
+                                return `${joinText} • ${t("events.seatsLeft").replace("{count}", String(seatsLeft))}`;
+                              }
+                              return joinText;
+                            })()}
                           </ThemedText>
                         </LinearGradient>
                       </Animated.View>

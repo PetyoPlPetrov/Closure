@@ -49,6 +49,7 @@ export interface Translations {
   "events.privateEnterCode": string;
   "events.join": string;
   "events.leave": string;
+  "events.seatsLeft": string;
   "events.eventFilled": string;
   "events.attendingBadge": string;
   "events.joinError": string;
@@ -3665,6 +3666,7 @@ const translations: Record<Language, Translations> = {
     "events.privateEnterCode": "Enter code for Private events",
     "events.join": "Join",
     "events.leave": "Leave",
+    "events.seatsLeft": "{count} seats left",
     "events.eventFilled": "Filled",
     "events.attendingBadge": "Going",
     "events.joinError": "Could not join the event. Please try again.",
@@ -8155,6 +8157,7 @@ const translations: Record<Language, Translations> = {
     "events.privateEnterCode": "Въведете код за частни събития",
     "events.join": "Присъединете се",
     "events.leave": "Отпишете се",
+    "events.seatsLeft": "{count} свободни места",
     "events.eventFilled": "Няма свободни места",
     "events.attendingBadge": "Идвам",
     "events.joinError": "Неуспешно присъединяване. Моля, опитайте отново.",

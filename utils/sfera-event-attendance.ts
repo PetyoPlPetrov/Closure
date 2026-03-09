@@ -9,7 +9,7 @@ import { Platform } from "react-native";
 const DEVICE_ID_KEY = "@sferas:device_id";
 
 const SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbwfl_IY0dT1NuZD3Ltk9HHapdRvQxxdn-QQARWdkJ0ADW0ZsOBDEdIytMD17oYi1_TL/exec";
+  "https://script.google.com/macros/s/AKfycbwS7jVlXxCsS0y0cnJ136K_Zl0JwnOz4evHdHTsi-cmG7j6FcukoT5loeXk6W0hAZSB9w/exec";
 function generateUUID(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
@@ -48,11 +48,6 @@ export async function updateEventStatus(
   try {
     const deviceId = await getDeviceId();
     const body = { eventId, deviceId, action };
-    console.log("[Sfera attendance] Leave event request", {
-      url: SCRIPT_URL,
-      method: "POST",
-      body,
-    });
 
     const response = await fetch(SCRIPT_URL, {
       method: "POST",
@@ -61,34 +56,13 @@ export async function updateEventStatus(
     const result = (await response.json()) as {
       status?: string;
       message?: string;
+      [key: string]: unknown;
     };
-    console.log("result event attendance", result);
     if (result.status === "success") {
-      if (action === "leave") {
-        console.log("[Sfera attendance] Leave event success", {
-          eventId,
-          result,
-        });
-      }
       return true;
     }
-    if (result.message) {
-      console.warn("[Sfera attendance]", result.message);
-    }
-    console.log("[Sfera attendance] Leave event non-success response", {
-      eventId,
-      result,
-      status: response.status,
-    });
-
     return false;
-  } catch (error) {
-    console.error("[Sfera attendance] Network error:", error);
-    if (action === "leave") {
-      console.log("[Sfera attendance] Leave event failed (thrown)", {
-        eventId,
-      });
-    }
+  } catch {
     return false;
   }
 }

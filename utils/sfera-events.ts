@@ -28,11 +28,12 @@ const ATTENDED_EVENT_SNAPSHOTS_KEY = "@sferas:attended_event_snapshots";
 const EVENT_GOLDEN_MEMORY_USED_KEY = "@sferas:event_golden_memory_used";
 const EVENT_REMINDER_SCHEDULED_IDS_KEY = "@sferas:event_reminder_scheduled_ids";
 /** In-app reminder: 3 time-based reminders per event. No phone notifications. */
-const EVENT_REMINDER_INAPP_SCHEDULE_KEY = "@sferas:event_reminder_inapp_schedule";
+const EVENT_REMINDER_INAPP_SCHEDULE_KEY =
+  "@sferas:event_reminder_inapp_schedule";
 
-/** Published CSV export for SferaEvents sheet. File → Share → Publish to web → CSV, gid=0 */
-const DEFAULT_EVENTS_SHEET_URL =
-  "https://docs.google.com/spreadsheets/d/1MmK5LCisFoBhyx1Jwt8kWk3YixDlSMl5sYuIrnJHmiE/export?format=csv&gid=0";
+/** Google Apps Script URL for events (returns JSON: { status, data: [...] }). */
+const DEFAULT_EVENTS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbwS7jVlXxCsS0y0cnJ136K_Zl0JwnOz4evHdHTsi-cmG7j6FcukoT5loeXk6W0hAZSB9w/exec";
 
 export type SferaEventType = "social" | "private" | "plus";
 
@@ -59,13 +60,172 @@ export interface SferaEvent {
   town: string;
   /** "open" = can join; "closed" = event is filled (no seats left), active and upcoming. Omitted in old cache. */
   status?: "open" | "closed";
+  /** Current number of attendees (from script). When MaxAttendees is set, used to compute seats left. */
+  currentAmountAttendees?: number;
+  /** Max capacity. When empty, no restrictions. When set, event is filled when currentAmountAttendees >= maxAttendees. */
+  maxAttendees?: number | string;
+}
+
+/** Event is filled when: (1) status === "closed", or (2) maxAttendees is set and currentAmountAttendees >= maxAttendees. */
+export function isEventFilled(event: SferaEvent): boolean {
+  if ((event.status ?? "open") === "closed") return true;
+  const max = event.maxAttendees;
+  if (max == null || (typeof max === "number" && isNaN(max))) return false;
+  const maxNum =
+    typeof max === "number" ? max : parseInt(String(max).trim(), 10);
+  if (isNaN(maxNum) || maxNum <= 0) return false;
+  const current = event.currentAmountAttendees ?? 0;
+  const currentNum =
+    typeof current === "number" ? current : parseInt(String(current), 10) || 0;
+  return currentNum >= maxNum;
+}
+
+/** Seats left when maxAttendees is set; null when no cap. */
+export function getSeatsLeft(event: SferaEvent): number | null {
+  const max = event.maxAttendees;
+  if (max == null || (typeof max === "number" && isNaN(max))) return null;
+  const maxNum =
+    typeof max === "number" ? max : parseInt(String(max).trim(), 10);
+  if (isNaN(maxNum) || maxNum <= 0) return null;
+  const current = event.currentAmountAttendees ?? 0;
+  const currentNum =
+    typeof current === "number" ? current : parseInt(String(current), 10) || 0;
+  const left = maxNum - currentNum;
+  return left >= 0 ? left : 0;
+}
+
+/** Find value in object by trying exact keys or case-insensitive match. */
+function getByKey(raw: Record<string, unknown>, keys: string[]): unknown {
+  const lowerMap = new Map<string, unknown>();
+  for (const [k, v] of Object.entries(raw)) {
+    lowerMap.set(k.toLowerCase(), v);
+  }
+  for (const k of keys) {
+    const v = raw[k] ?? lowerMap.get(k.toLowerCase());
+    if (v != null) return v;
+  }
+  return undefined;
+}
+
+/** Map raw JSON event (from script) to SferaEvent. Handles both sheet schema (name, location, etc.) and script schema (eventId, status as location, currentAttendees, maxAttendees). */
+function jsonToEvent(
+  raw: Record<string, unknown>,
+  index: number,
+): SferaEvent | null {
+  const get = (keys: string[]) => {
+    const v = getByKey(raw, keys);
+    if (v == null || v === "") return "";
+    return String(v).trim();
+  };
+  const getNum = (keys: string[]) => {
+    const v = getByKey(raw, keys);
+    if (v == null) return undefined;
+    const n = typeof v === "number" ? v : parseInt(String(v).trim(), 10);
+    return !isNaN(n) ? n : undefined;
+  };
+  const name =
+    get(["name", "Name", "eventId", "eventid"]) || get(["eventId", "eventid"]);
+  if (!name) return null;
+  const privacyRaw = (get(["privacy", "Privacy"]) || "social").toLowerCase();
+  let type: SferaEventType;
+  if (privacyRaw === "private") type = "private";
+  else if (privacyRaw === "plus" || privacyRaw === "vip") type = "plus";
+  else type = "social";
+  const town = get(["town", "Town"]);
+  const loc = get(["location", "Location"]);
+  const country = get(["country", "Country"]);
+  const scriptStatus = get(["status", "Status"]);
+  const scriptStatusIsLocation =
+    scriptStatus && !["open", "closed"].includes(scriptStatus.toLowerCase());
+  const locationDisplay =
+    [town, loc].filter(Boolean).join(", ") ||
+    country ||
+    (scriptStatusIsLocation ? scriptStatus : "") ||
+    "";
+  const code = get(["code", "Code"]);
+  const startDateRaw = get(["startDate", "StartDate"]) || get(["date", "Date"]);
+  const dateDisplay = get(["date", "Date"]) || startDateRaw;
+  const statusRaw = (get(["status", "Status"]) || "open").toLowerCase();
+  const status: "open" | "closed" = statusRaw === "closed" ? "closed" : "open";
+
+  const currentAmountAttendees = getNum([
+    "currentAmountAttendees",
+    "CurrentAmountAttendees",
+    "currentAttendees",
+    "currentattendees",
+    "current_amount_attendees",
+  ]);
+  const maxAttendeesVal = getByKey(raw, [
+    "maxAttendees",
+    "MaxAttendees",
+    "MaxAttendies",
+    "max attendees",
+    "max attendies",
+    "maxattendees",
+    "maxattendies",
+  ]);
+  let maxAttendees: number | undefined;
+  let descriptionFromMax = "";
+  if (maxAttendeesVal != null && maxAttendeesVal !== "") {
+    const n =
+      typeof maxAttendeesVal === "number"
+        ? maxAttendeesVal
+        : parseInt(String(maxAttendeesVal).trim(), 10);
+    if (!isNaN(n) && n > 0) {
+      maxAttendees = n;
+    } else if (
+      typeof maxAttendeesVal === "string" &&
+      maxAttendeesVal.length > 10
+    ) {
+      descriptionFromMax = maxAttendeesVal.trim();
+    }
+  }
+
+  const description = get(["description", "Description"]) || descriptionFromMax;
+
+  if (__DEV__ && (maxAttendees != null || currentAmountAttendees != null)) {
+    console.log(
+      `[Sfera events] Parsed "${name}": maxAttendees=${maxAttendees}, currentAmountAttendees=${currentAmountAttendees}`,
+    );
+  }
+
+  return {
+    id:
+      get(["id", "ID"]) ||
+      `evt-${index}-${name.replace(/\s+/g, "-").toLowerCase()}`,
+    name,
+    location: locationDisplay,
+    description,
+    imageUrl:
+      get(["imageUrl", "ImageUrl"]) ||
+      get(["imageLink", "ImageLink"]) ||
+      get(["imagelink", "image link"]) ||
+      "",
+    type,
+    vipCode: type !== "social" && code ? code : null,
+    discountCode:
+      type === "plus"
+        ? get(["discountCode", "DiscountCode", "discount_code"]) || null
+        : null,
+    date: dateDisplay,
+    startDate: startDateRaw,
+    eventLink: get(["eventLink", "EventLink", "link", "url"]) || "",
+    country,
+    town,
+    status,
+    currentAmountAttendees,
+    maxAttendees,
+  };
 }
 
 /** Parse imageUrl: single URL or comma-separated URLs. Returns array of trimmed non-empty URLs. */
 export function getEventImageUrls(event: SferaEvent): string[] {
   const raw = (event.imageUrl ?? "").trim();
   if (!raw) return [];
-  const urls = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const urls = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   return urls;
 }
 
@@ -115,12 +275,28 @@ function rowToEvent(
   const startDateRaw = get("startdate") || get("date") || "";
   const dateDisplay = get("date") || startDateRaw;
   const statusRaw = (get("status") || "open").toLowerCase();
-  const status: "open" | "closed" =
-    statusRaw === "closed" ? "closed" : "open";
+  const status: "open" | "closed" = statusRaw === "closed" ? "closed" : "open";
   // Sheet column: DiscountCode (or Discount_Code). Headers are lowercased when building headerIndex.
   const discountCodeRaw =
     get("discountcode") || get("discount_code") || get("discount code") || "";
   const discountCode = discountCodeRaw.trim() || null;
+
+  const currentAmountAttendeesRaw =
+    get("currentamountattendees") ||
+    get("current_amount_attendees") ||
+    get("current amount attendees") ||
+    "";
+  const ca = currentAmountAttendeesRaw
+    ? parseInt(currentAmountAttendeesRaw, 10)
+    : NaN;
+  const maxAttendeesRaw =
+    get("maxattendees") ||
+    get("max_attendees") ||
+    get("maxattendies") ||
+    get("max attendees") ||
+    get("max attendies") ||
+    "";
+  const ma = maxAttendeesRaw ? parseInt(maxAttendeesRaw, 10) : NaN;
 
   return {
     id:
@@ -141,10 +317,13 @@ function rowToEvent(
     discountCode: type === "plus" ? discountCode : null,
     date: dateDisplay,
     startDate: startDateRaw,
-    eventLink: get("eventlink") || get("event link") || get("link") || get("url") || "",
+    eventLink:
+      get("eventlink") || get("event link") || get("link") || get("url") || "",
     country,
     town,
     status,
+    currentAmountAttendees: !isNaN(ca) && ca >= 0 ? ca : undefined,
+    maxAttendees: !isNaN(ma) && ma > 0 ? ma : undefined,
   };
 }
 
@@ -266,10 +445,15 @@ export async function getUserRegionCodeAsync(): Promise<{
     const iso = address?.isoCountryCode;
     const regionCode = iso ? String(iso).trim().toUpperCase() : null;
     const city =
-      (address?.city ?? address?.subregion ?? address?.region ?? null)?.trim() ||
-      null;
+      (
+        address?.city ??
+        address?.subregion ??
+        address?.region ??
+        null
+      )?.trim() || null;
 
-    if (regionCode) await AsyncStorage.setItem(LAST_KNOWN_REGION_KEY, regionCode);
+    if (regionCode)
+      await AsyncStorage.setItem(LAST_KNOWN_REGION_KEY, regionCode);
     if (city) await AsyncStorage.setItem(LAST_KNOWN_CITY_KEY, city);
 
     return { regionCode, city };
@@ -341,8 +525,13 @@ async function getCachedEvents(): Promise<SferaEvent[]> {
   }
 }
 
+/** Whether the URL is a Google Apps Script (returns JSON). */
+function isScriptUrl(url: string): boolean {
+  return url.includes("script.google.com/macros");
+}
+
 /**
- * Fetch events from the configured Google Sheet (CSV export).
+ * Fetch events from the configured URL (script JSON or CSV sheet).
  * Only active events are kept and stored locally; each fetch overrides the cache.
  * On fetch failure (network error, etc.), returns previously cached events so users still see content.
  * Active = (1) today on or before StartDate, and (2) for public/VIP only, event Country matches device region.
@@ -353,22 +542,77 @@ export async function fetchSferaEvents(): Promise<{ events: SferaEvent[] }> {
   const url = await getEventsSheetUrl();
   if (!url) return { events: await getCachedEvents() };
   try {
+    if (__DEV__) {
+      console.log(
+        "[Sfera fetch] Source:",
+        isScriptUrl(url) ? "script (JSON)" : "CSV",
+        "| URL:",
+        url.slice(0, 80) + (url.length > 80 ? "..." : ""),
+      );
+    }
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return { events: await getCachedEvents() };
+    if (!res.ok) {
+      if (__DEV__)
+        console.log(
+          "[Sfera fetch] Request failed:",
+          res.status,
+          url.slice(0, 60) + "...",
+        );
+      return { events: await getCachedEvents() };
+    }
     const text = await res.text();
-    const lines = text.split(/\r?\n/).filter((l) => l.trim());
-    if (lines.length < 2) return { events: await getCachedEvents() };
 
-    const header = parseCsvLine(lines[0]);
-    const headerIndex: Record<string, number> = {};
-    header.forEach((h, i) => {
-      headerIndex[h.trim().toLowerCase()] = i;
-    });
-    const events: SferaEvent[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const row = parseCsvLine(lines[i]);
-      const evt = rowToEvent(row, headerIndex, i);
-      if (evt) events.push(evt);
+    let events: SferaEvent[] = [];
+    if (isScriptUrl(url)) {
+      const data = JSON.parse(text) as unknown;
+      let arr: unknown[] | undefined;
+      if (Array.isArray(data)) {
+        arr = data;
+      } else if (data && typeof data === "object") {
+        const obj = data as Record<string, unknown>;
+        arr =
+          (obj.events as unknown[]) ??
+          (obj.rows as unknown[]) ??
+          (obj.data as unknown[]) ??
+          (obj.items as unknown[]);
+      }
+      if (!Array.isArray(arr)) {
+        if (__DEV__) {
+          console.log(
+            "[Sfera fetch] Script returned no events array. Keys:",
+            data && typeof data === "object"
+              ? Object.keys(data as object)
+              : "n/a",
+          );
+        }
+        return { events: await getCachedEvents() };
+      }
+      for (let i = 0; i < arr.length; i++) {
+        const raw = arr[i] as Record<string, unknown>;
+        if (raw && typeof raw === "object") {
+          if (__DEV__ && i === 0) {
+            console.log(
+              "[Sfera fetch] First event raw keys:",
+              Object.keys(raw),
+            );
+          }
+          const evt = jsonToEvent(raw, i);
+          if (evt) events.push(evt);
+        }
+      }
+    } else {
+      const lines = text.split(/\r?\n/).filter((l) => l.trim());
+      if (lines.length < 2) return { events: await getCachedEvents() };
+      const header = parseCsvLine(lines[0]);
+      const headerIndex: Record<string, number> = {};
+      header.forEach((h, i) => {
+        headerIndex[h.trim().toLowerCase()] = i;
+      });
+      for (let i = 1; i < lines.length; i++) {
+        const row = parseCsvLine(lines[i]);
+        const evt = rowToEvent(row, headerIndex, i);
+        if (evt) events.push(evt);
+      }
     }
 
     const { regionCode: userRegion } = await getUserRegionCodeAsync();
@@ -392,7 +636,7 @@ export async function getEventsSheetUrl(): Promise<string | null> {
     const stored = await AsyncStorage.getItem(EVENTS_SHEET_URL_KEY);
     if (stored && stored.startsWith("http")) return stored;
   } catch {}
-  return DEFAULT_EVENTS_SHEET_URL;
+  return DEFAULT_EVENTS_SCRIPT_URL;
 }
 
 /** Set a custom sheet URL (e.g. from settings). */
@@ -427,7 +671,7 @@ export async function setLastKnownPublicVipEventIds(
 export type FetchAndCheckForNewEventsResult = {
   events: SferaEvent[];
   newCount: number;
-  newCommunities: Array<"social" | "plus">;
+  newCommunities: ("social" | "plus")[];
 };
 
 /**
@@ -442,7 +686,7 @@ export async function fetchAndCheckForNewEvents(): Promise<FetchAndCheckForNewEv
   const currentIds = new Set(socialPlus.map((e) => e.id));
   const lastKnown = await getLastKnownPublicVipEventIds();
 
-  const newCommunities: Array<"social" | "plus"> = [];
+  const newCommunities: ("social" | "plus")[] = [];
   let newCount = 0;
   if (lastKnown.size > 0) {
     let hasNewSocial = false;
@@ -497,19 +741,13 @@ export async function getAttendingEventIds(): Promise<Set<string>> {
 export async function addAttendingEventId(eventId: string): Promise<void> {
   const set = await getAttendingEventIds();
   set.add(eventId);
-  await AsyncStorage.setItem(
-    ATTENDING_EVENT_IDS_KEY,
-    JSON.stringify([...set]),
-  );
+  await AsyncStorage.setItem(ATTENDING_EVENT_IDS_KEY, JSON.stringify([...set]));
 }
 
 export async function removeAttendingEventId(eventId: string): Promise<void> {
   const set = await getAttendingEventIds();
   set.delete(eventId);
-  await AsyncStorage.setItem(
-    ATTENDING_EVENT_IDS_KEY,
-    JSON.stringify([...set]),
-  );
+  await AsyncStorage.setItem(ATTENDING_EVENT_IDS_KEY, JSON.stringify([...set]));
 }
 
 // --- Attended event snapshots (for past attended events when cache only has active events) ---
@@ -525,20 +763,33 @@ export async function getAttendedEventSnapshots(): Promise<SferaEvent[]> {
   }
 }
 
-export async function addAttendedEventSnapshot(event: SferaEvent): Promise<void> {
+export async function addAttendedEventSnapshot(
+  event: SferaEvent,
+): Promise<void> {
   const list = await getAttendedEventSnapshots();
   const existing = list.findIndex((e) => e.id === event.id);
-  const next = existing >= 0 ? list.map((e, i) => (i === existing ? event : e)) : [...list, event];
-  await AsyncStorage.setItem(ATTENDED_EVENT_SNAPSHOTS_KEY, JSON.stringify(next));
+  const next =
+    existing >= 0
+      ? list.map((e, i) => (i === existing ? event : e))
+      : [...list, event];
+  await AsyncStorage.setItem(
+    ATTENDED_EVENT_SNAPSHOTS_KEY,
+    JSON.stringify(next),
+  );
 }
 
 /** Remove attended snapshots by IDs (e.g. when user leaves or dev mock cleanup). */
-export async function removeAttendedEventSnapshotsByIds(eventIds: string[]): Promise<void> {
+export async function removeAttendedEventSnapshotsByIds(
+  eventIds: string[],
+): Promise<void> {
   if (eventIds.length === 0) return;
   const list = await getAttendedEventSnapshots();
   const idsSet = new Set(eventIds);
   const next = list.filter((e) => !idsSet.has(e.id));
-  await AsyncStorage.setItem(ATTENDED_EVENT_SNAPSHOTS_KEY, JSON.stringify(next));
+  await AsyncStorage.setItem(
+    ATTENDED_EVENT_SNAPSHOTS_KEY,
+    JSON.stringify(next),
+  );
 }
 
 /**
@@ -581,23 +832,35 @@ export async function getEventGoldenMemoryUsedIds(): Promise<Set<string>> {
   }
 }
 
-export async function isEventGoldenMemoryUsed(eventId: string): Promise<boolean> {
+export async function isEventGoldenMemoryUsed(
+  eventId: string,
+): Promise<boolean> {
   const set = await getEventGoldenMemoryUsedIds();
   return set.has(eventId);
 }
 
-export async function markEventGoldenMemoryUsed(eventId: string): Promise<void> {
+export async function markEventGoldenMemoryUsed(
+  eventId: string,
+): Promise<void> {
   const set = await getEventGoldenMemoryUsedIds();
   set.add(eventId);
-  await AsyncStorage.setItem(EVENT_GOLDEN_MEMORY_USED_KEY, JSON.stringify([...set]));
+  await AsyncStorage.setItem(
+    EVENT_GOLDEN_MEMORY_USED_KEY,
+    JSON.stringify([...set]),
+  );
 }
 
 /** Remove golden-memory-used entries by IDs (e.g. for dev mock cleanup). */
-export async function removeEventGoldenMemoryUsedIds(eventIds: string[]): Promise<void> {
+export async function removeEventGoldenMemoryUsedIds(
+  eventIds: string[],
+): Promise<void> {
   if (eventIds.length === 0) return;
   const set = await getEventGoldenMemoryUsedIds();
   eventIds.forEach((id) => set.delete(id));
-  await AsyncStorage.setItem(EVENT_GOLDEN_MEMORY_USED_KEY, JSON.stringify([...set]));
+  await AsyncStorage.setItem(
+    EVENT_GOLDEN_MEMORY_USED_KEY,
+    JSON.stringify([...set]),
+  );
 }
 
 // --- Event memory reminder scheduling (first = day+1, second = day+4) ---
@@ -613,18 +876,28 @@ export async function getEventReminderScheduledIds(): Promise<Set<string>> {
   }
 }
 
-export async function addEventReminderScheduled(eventId: string): Promise<void> {
+export async function addEventReminderScheduled(
+  eventId: string,
+): Promise<void> {
   const set = await getEventReminderScheduledIds();
   set.add(eventId);
-  await AsyncStorage.setItem(EVENT_REMINDER_SCHEDULED_IDS_KEY, JSON.stringify([...set]));
+  await AsyncStorage.setItem(
+    EVENT_REMINDER_SCHEDULED_IDS_KEY,
+    JSON.stringify([...set]),
+  );
 }
 
 /** Remove one or more event IDs from reminder-scheduled set (e.g. for dev mock cleanup). */
-export async function removeEventReminderScheduledIds(eventIds: string[]): Promise<void> {
+export async function removeEventReminderScheduledIds(
+  eventIds: string[],
+): Promise<void> {
   if (eventIds.length === 0) return;
   const set = await getEventReminderScheduledIds();
   eventIds.forEach((id) => set.delete(id));
-  await AsyncStorage.setItem(EVENT_REMINDER_SCHEDULED_IDS_KEY, JSON.stringify([...set]));
+  await AsyncStorage.setItem(
+    EVENT_REMINDER_SCHEDULED_IDS_KEY,
+    JSON.stringify([...set]),
+  );
 }
 
 // --- In-app event memory reminder (3 time-based reminders per event; clear when user saves memory) ---
@@ -672,7 +945,9 @@ function computeDueTimesFromStartDay(startDay: Date): number[] {
   return [due1.getTime(), due2.getTime(), due3.getTime()];
 }
 
-async function getEventReminderScheduleMap(): Promise<Record<string, EventReminderInAppSchedule>> {
+async function getEventReminderScheduleMap(): Promise<
+  Record<string, EventReminderInAppSchedule>
+> {
   try {
     const raw = await AsyncStorage.getItem(EVENT_REMINDER_INAPP_SCHEDULE_KEY);
     if (!raw) return {};
@@ -683,21 +958,38 @@ async function getEventReminderScheduleMap(): Promise<Record<string, EventRemind
   }
 }
 
-async function setEventReminderScheduleMap(map: Record<string, EventReminderInAppSchedule>): Promise<void> {
-  await AsyncStorage.setItem(EVENT_REMINDER_INAPP_SCHEDULE_KEY, JSON.stringify(map));
+async function setEventReminderScheduleMap(
+  map: Record<string, EventReminderInAppSchedule>,
+): Promise<void> {
+  await AsyncStorage.setItem(
+    EVENT_REMINDER_INAPP_SCHEDULE_KEY,
+    JSON.stringify(map),
+  );
 }
 
 /** Get schedule for event, or null if not yet scheduled. */
-export async function getEventReminderInAppSchedule(eventId: string): Promise<EventReminderInAppSchedule | null> {
+export async function getEventReminderInAppSchedule(
+  eventId: string,
+): Promise<EventReminderInAppSchedule | null> {
   const map = await getEventReminderScheduleMap();
   const entry = map[eventId];
-  if (!entry || !Array.isArray(entry.dueTimes) || entry.dueTimes.length !== NUM_REMINDERS_PER_EVENT) return null;
-  const shownCount = typeof entry.shownCount === "number" ? Math.min(entry.shownCount, NUM_REMINDERS_PER_EVENT) : 0;
+  if (
+    !entry ||
+    !Array.isArray(entry.dueTimes) ||
+    entry.dueTimes.length !== NUM_REMINDERS_PER_EVENT
+  )
+    return null;
+  const shownCount =
+    typeof entry.shownCount === "number"
+      ? Math.min(entry.shownCount, NUM_REMINDERS_PER_EVENT)
+      : 0;
   return { dueTimes: entry.dueTimes, shownCount };
 }
 
 /** Get or create schedule for event (creates with due times from event.startDate). Returns schedule and whether it was just created. */
-export async function getOrCreateEventReminderSchedule(event: SferaEvent): Promise<{ schedule: EventReminderInAppSchedule; created: boolean }> {
+export async function getOrCreateEventReminderSchedule(
+  event: SferaEvent,
+): Promise<{ schedule: EventReminderInAppSchedule; created: boolean }> {
   const existing = await getEventReminderInAppSchedule(event.id);
   if (existing) return { schedule: existing, created: false };
   const dueTimes = computeReminderDueTimes(event);
@@ -709,7 +1001,9 @@ export async function getOrCreateEventReminderSchedule(event: SferaEvent): Promi
 }
 
 /** After showing a reminder, increment shown count. Returns new count. */
-export async function incrementEventReminderInAppShownCount(eventId: string): Promise<number> {
+export async function incrementEventReminderInAppShownCount(
+  eventId: string,
+): Promise<number> {
   const map = await getEventReminderScheduleMap();
   const entry = map[eventId];
   if (!entry) return 0;
@@ -719,19 +1013,25 @@ export async function incrementEventReminderInAppShownCount(eventId: string): Pr
   return next;
 }
 
-export async function getEventReminderInAppShownCount(eventId: string): Promise<number> {
+export async function getEventReminderInAppShownCount(
+  eventId: string,
+): Promise<number> {
   const s = await getEventReminderInAppSchedule(eventId);
   return s?.shownCount ?? 0;
 }
 
 /** Remove all in-app reminders for this event (e.g. after user saved memory or removed from orbit). */
-export async function clearEventReminderInAppForEvent(eventId: string): Promise<void> {
+export async function clearEventReminderInAppForEvent(
+  eventId: string,
+): Promise<void> {
   const map = await getEventReminderScheduleMap();
   delete map[eventId];
   await setEventReminderScheduleMap(map);
 }
 
-export async function clearEventReminderInAppForEvents(eventIds: string[]): Promise<void> {
+export async function clearEventReminderInAppForEvents(
+  eventIds: string[],
+): Promise<void> {
   if (eventIds.length === 0) return;
   const map = await getEventReminderScheduleMap();
   eventIds.forEach((id) => delete map[id]);
