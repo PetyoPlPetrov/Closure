@@ -16,7 +16,12 @@ import {
     stopBackgroundAIProcessing,
     type PendingAIResponse,
 } from "@/utils/ai-background-processor";
-import { consumeAIRequestIfAvailable } from "@/utils/ai-rate-limiter";
+import {
+  consumeAIRequestIfAvailable,
+  getRemainingAIRequests,
+  REQUESTS_PER_DAY_FREE,
+  REQUESTS_PER_DAY_PREMIUM,
+} from "@/utils/ai-rate-limiter";
 import { processMemoryPrompt, type AIMemoryResponse } from "@/utils/ai-service";
 import {
     logAIMemoryDiscarded,
@@ -180,6 +185,9 @@ export function AIModal({
     AppState.currentState,
   );
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [remainingAIRequests, setRemainingAIRequests] = useState<number | null>(
+    null,
+  );
 
   // Wrapper for setText that enforces max length limit
   const setInputTextWithLimit = (text: string) => {
@@ -347,6 +355,15 @@ export function AIModal({
       checkAndRestore();
     }
   }, [visible, pendingResponse]);
+
+  // Fetch remaining free AI memory creations when modal is open on input view (not golden event)
+  useEffect(() => {
+    if (visible && currentView === "input" && !goldenEventId) {
+      getRemainingAIRequests(hasAIEntitlement).then(setRemainingAIRequests);
+    } else if (!visible) {
+      setRemainingAIRequests(null);
+    }
+  }, [visible, currentView, hasAIEntitlement, goldenEventId]);
 
   // Watch for pendingResponse prop changes while modal is open (for when background task completes)
   useEffect(() => {
@@ -2206,6 +2223,29 @@ export function AIModal({
                       {t("ai.subtitle") ||
                         "Share your story and AI will form a memory with moments and lessons"}
                     </ThemedText>
+                    {remainingAIRequests !== null && (
+                      <ThemedText
+                        size="xs"
+                        style={[
+                          styles.headerSubtitle,
+                          {
+                            marginTop: 4 * fontScale,
+                            opacity: 0.8,
+                          },
+                        ]}
+                      >
+                        {(t("ai.remainingCreations") || "{count} of {limit} free AI memory creations left today")
+                          .replace("{count}", String(remainingAIRequests))
+                          .replace(
+                            "{limit}",
+                            String(
+                              hasAIEntitlement
+                                ? REQUESTS_PER_DAY_PREMIUM
+                                : REQUESTS_PER_DAY_FREE,
+                            ),
+                          )}
+                      </ThemedText>
+                    )}
                   </View>
                   <Pressable
                     onPress={() => {

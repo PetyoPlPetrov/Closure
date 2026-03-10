@@ -914,6 +914,7 @@ export interface Translations {
   "ai.rateLimit.message": string;
   "ai.rateLimit.premiumMessage": string;
   "ai.rateLimit.upgrade": string;
+  "ai.remainingCreations": string;
   "ai.error.title": string;
   "ai.error.message": string;
   "ai.noEntities.title": string;
@@ -4773,6 +4774,7 @@ const translations: Record<Language, Translations> = {
     "ai.rateLimit.premiumMessage":
       "You've reached the daily limit. Try again tomorrow.",
     "ai.rateLimit.upgrade": "Upgrade to Premium",
+    "ai.remainingCreations": "{count} of {limit} free AI memory creations left today",
     "ai.error.title": "AI Processing Failed",
     "ai.error.message":
       "Failed to process your request: {error}. Please try again.",
@@ -9274,6 +9276,7 @@ const translations: Record<Language, Translations> = {
     "ai.rateLimit.premiumMessage":
       "Достигнахте дневния лимит. Опитайте отново утре.",
     "ai.rateLimit.upgrade": "Надграждане до Premium",
+    "ai.remainingCreations": "{count} от {limit} безплатни AI създавания на спомени остават днес",
     "ai.error.title": "AI обработката неуспешна",
     "ai.error.message":
       "Неуспешно обработване на заявката: {error}. Моля, опитайте отново.",

@@ -2,10 +2,16 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
+import {
+  getRemainingAIRequests,
+  REQUESTS_PER_DAY_FREE,
+  REQUESTS_PER_DAY_PREMIUM,
+} from '@/utils/ai-rate-limiter';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { useSubscription } from '@/utils/SubscriptionProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   StyleSheet,
@@ -39,6 +45,16 @@ export function AIActionModal({
   const fontScale = useFontScale();
   const colors = Colors[colorScheme ?? 'dark'];
   const t = useTranslate();
+  const { hasAIEntitlement } = useSubscription();
+  const [remainingAIRequests, setRemainingAIRequests] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (visible) {
+      getRemainingAIRequests(hasAIEntitlement).then(setRemainingAIRequests);
+    } else {
+      setRemainingAIRequests(null);
+    }
+  }, [visible, hasAIEntitlement]);
 
   // Pulse animation for the modal (container, glow, icon only — no button pulsing)
   const pulseScale = useSharedValue(1);
@@ -289,6 +305,27 @@ export function AIActionModal({
                     : t('ai.action.message.noEntities')
                   }
                 </ThemedText>
+
+                {/* Remaining free AI memory creations */}
+                {remainingAIRequests !== null && (
+                  <ThemedText
+                    size="xs"
+                    style={[
+                      styles.hintText,
+                      {
+                        marginBottom: 16 * fontScale,
+                        color: colorScheme === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+                      },
+                    ]}
+                  >
+                    {(t('ai.remainingCreations') || '{count} of {limit} free AI memory creations left today')
+                      .replace('{count}', String(remainingAIRequests))
+                      .replace(
+                        '{limit}',
+                        String(hasAIEntitlement ? REQUESTS_PER_DAY_PREMIUM : REQUESTS_PER_DAY_FREE),
+                      )}
+                  </ThemedText>
+                )}
 
                 {/* Buttons */}
                 <View style={styles.buttonContainer}>
