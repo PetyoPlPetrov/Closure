@@ -50,9 +50,15 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Cosmic palette for floating moment bubbles (nebula / space vibe)
+const COSMIC_GLOW = '#5CE1E6';
+const NEBULA_DARK = '#0f1219';
+const NEBULA_MID = '#1a2332';
+const NEBULA_EDGE_ALPHA = 0.28;
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedView = Animated.View;
@@ -1020,10 +1026,11 @@ export function EntityWheelOfLife({
           {isSpinning ? 'Spinning...' : t('wheel.spinForRandom')}
         </ThemedText>
       </Pressable>
-      {/* Floating moments that grow from memories */}
+      {/* Floating moments that grow from memories (cosmic nebula-style bubbles) */}
       {floatingMoments.map((moment, index) => (
           <FloatingMomentFromMemory
             key={`floating-moment-${moment.id}`}
+            momentId={moment.id}
             memoryX={moment.memoryX}
             memoryY={moment.memoryY}
             momentType={moment.momentType}
@@ -1372,8 +1379,9 @@ function blendHex(hex1: string, hex2: string, t: number): string {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b_.toString(16).padStart(2, '0')}`;
 }
 
-// Pulsing Floating Moment Icon Component (grows from memory, stays grown, shrinks back)
+// Cosmic floating moment bubbles (nebula-style: radial/linear gradients + soft glow)
 const FloatingMomentFromMemory = function FloatingMomentFromMemory({
+  momentId,
   memoryX,
   memoryY,
   momentType,
@@ -1383,6 +1391,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   positionIndex = 0,
   totalConcurrent = 1,
 }: {
+  momentId: number;
   memoryX: number;
   memoryY: number;
   momentType: 'lesson' | 'sunny' | 'cloudy';
@@ -1547,47 +1556,79 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     );
   }
 
+  // Cloudy — nebula-style: linear gradient (deep space → cloudy color → cosmic teal edge)
   if (momentType === 'cloudy') {
+    const gradId = `floating-cloudy-${momentId}`;
     return (
-      <Animated.View style={animatedStyle}>
-        <View
-          style={{
-            width: finalWidth,
-            height: finalHeight,
-            borderRadius: finalWidth * 0.3,
-            backgroundColor: momentColors.cloudy.background + 'F2',
-            shadowColor: momentColors.cloudy.background,
+      <Animated.View
+        style={[
+          animatedStyle,
+          {
+            shadowColor: COSMIC_GLOW,
             shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.7,
-            shadowRadius: 10,
-            elevation: 8,
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingHorizontal: Math.max(20, finalWidth * 0.1),
-            paddingVertical: finalHeight * 0.2,
-          }}
-        >
-          <MaterialIcons name="cloud" size={finalHeight * 0.3} color={momentColors.cloudy.text} />
-          {text && (
-            <ThemedText
-              style={{
-                color: momentColors.cloudy.text,
-                fontSize: Math.max(12, Math.min(16, 14 + (textLength / 80))) * fontScale,
-                textAlign: 'center',
-                fontWeight: '500',
-                marginTop: 4,
-              }}
-              numberOfLines={Math.min(6, Math.max(3, Math.ceil(textLength / 40)))}
-            >
-              {text}
-            </ThemedText>
-          )}
+            shadowOpacity: 0.3,
+            shadowRadius: isTablet ? 16 : 12,
+            elevation: 12,
+          },
+        ]}
+      >
+        <View style={{ width: finalWidth, height: finalHeight, position: 'relative' }}>
+          <Svg width={finalWidth} height={finalHeight} style={{ position: 'absolute', left: 0, top: 0 }}>
+            <Defs>
+              <LinearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                <Stop offset="0%" stopColor={NEBULA_DARK} stopOpacity="0.98" />
+                <Stop offset="18%" stopColor={NEBULA_MID} stopOpacity="0.97" />
+                <Stop offset="35%" stopColor={momentColors.cloudy.background} stopOpacity="0.95" />
+                <Stop offset="70%" stopColor={momentColors.cloudy.background} stopOpacity="0.9" />
+                <Stop offset="100%" stopColor={COSMIC_GLOW} stopOpacity={NEBULA_EDGE_ALPHA} />
+              </LinearGradient>
+            </Defs>
+            <Rect
+              x={2}
+              y={2}
+              width={finalWidth - 4}
+              height={finalHeight - 4}
+              rx={finalWidth * 0.28}
+              ry={finalHeight * 0.22}
+              fill={`url(#${gradId})`}
+            />
+          </Svg>
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              right: 0,
+              bottom: 0,
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingHorizontal: Math.max(20, finalWidth * 0.1),
+              paddingVertical: finalHeight * 0.2,
+            }}
+            pointerEvents="box-none"
+          >
+            <MaterialIcons name="cloud" size={finalHeight * 0.22} color={momentColors.cloudy.text} />
+            {text && (
+              <ThemedText
+                style={{
+                  color: momentColors.cloudy.text,
+                  fontSize: Math.max(12, Math.min(16, 14 + (textLength / 80))) * fontScale,
+                  textAlign: 'center',
+                  fontWeight: '500',
+                  marginTop: 4,
+                }}
+                numberOfLines={Math.min(6, Math.max(3, Math.ceil(textLength / 40)))}
+              >
+                {text}
+              </ThemedText>
+            )}
+          </View>
         </View>
       </Animated.View>
     );
   }
 
-  // Lesson (bulb) - cosmic-tinted from lesson color in settings
+  // Lesson (bulb) — original style
   const bulbColor = blendHex(momentColors.lesson.background, '#5CE1E6', 0.28);
   return (
     <Animated.View style={animatedStyle}>

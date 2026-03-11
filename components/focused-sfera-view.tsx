@@ -109,6 +109,15 @@ function getSphereTarget(
   return { angle, size };
 }
 
+/** Depth scale for entity ring (floating entities) per slot — illusion of distance: higher/further = smaller. Slot 2 (top-right) smallest. */
+function getEntityDepthScale(slot: number): number {
+  if (slot === 0) return 1;
+  if (slot === 2) return 0.5;   // top-right, furthest → smallest entities
+  if (slot === 3) return 0.62;  // top-left, high → smaller
+  if (slot === 1) return 0.78;   // right below
+  return 0.78;                   // slot 4, left below
+}
+
 // ───────────────────────────── types ─────────────────────────────
 
 export type FocusedSferaViewProps = {
@@ -859,9 +868,14 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   );
   const iconColor = getSphereIconColor(sphere.type, colorScheme, sunnyPercentage);
   const shadowColor = getSphereShadowColor(sphere.type, colorScheme);
-  const entityAvatarSize = isFocused
+  const depthScale = getEntityDepthScale(slot);
+  const baseEntityAvatarSize = isFocused
     ? 40
     : Math.max(22, Math.round(target.size * 0.3));
+  const entityAvatarSize = isFocused
+    ? baseEntityAvatarSize
+    : Math.max(10, Math.round(baseEntityAvatarSize * depthScale));
+  // Keep orbit radius unscaled by depth so entities stay in a ring *around* the sfera, not on top of it
   const orbitRadius =
     target.size / 2 + entityAvatarSize / 2 + (isFocused ? 8 : 6);
 
