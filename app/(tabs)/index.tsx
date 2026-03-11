@@ -587,6 +587,15 @@ const FloatingAvatar = React.memo(
     expandedMomentIdRef.current = expandedMomentId;
     const expandedAtTimestampRef = useRef<number | null>(null);
     const momentIdCounter = useRef(0);
+    // When user taps a floating moment in entity wheel, show card instead of expanding bubble
+    const [entityWheelMomentCard, setEntityWheelMomentCard] = React.useState<{
+      type: "lesson" | "sunny" | "cloudy";
+      text: string;
+      memoryId: string;
+      memoryImageUri?: string;
+      entityId: string;
+      sphere: LifeSphere;
+    } | null>(null);
     const floatingMomentsTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>(
       [],
     );
@@ -605,6 +614,8 @@ const FloatingAvatar = React.memo(
       showEntityWheelRef.current = showEntityWheel;
     }, [showEntityWheel]);
 
+    // Prevent double fire of entity wheel release (same as main wheel) so we don't consume free spin then show paywall
+    const entityWheelReleaseInProgressRef = useRef(false);
     // Track previous showEntityWheel state to detect transitions
     const previousShowEntityWheel = useRef(showEntityWheel);
 
@@ -2258,15 +2269,21 @@ const FloatingAvatar = React.memo(
           onShowAIConsentModal?.();
           return;
         }
-        const consumed = await consumeWheelExamIfAvailable(hasAIEntitlement);
-        if (!consumed) {
-          const purchased = await showPaywallForAIAccess();
-          if (!purchased) {
-            cancelAnimation(orbitAngle);
-            return;
+        if (entityWheelReleaseInProgressRef.current) return;
+        entityWheelReleaseInProgressRef.current = true;
+        try {
+          const consumed = await consumeWheelExamIfAvailable(hasAIEntitlement);
+          if (!consumed) {
+            const purchased = await showPaywallForAIAccess();
+            if (!purchased) {
+              cancelAnimation(orbitAngle);
+              return;
+            }
           }
+          startEntityWheelSpin(velocity);
+        } finally {
+          entityWheelReleaseInProgressRef.current = false;
         }
-        startEntityWheelSpin(velocity);
       },
       [
         aiConsent.isEnabled,
@@ -2985,10 +3002,16 @@ const FloatingAvatar = React.memo(
         const offsetX = variedRadius * cosAngle;
         const offsetY = variedRadius * sinAngle;
 
+        // Position-based size: below avatar = full, left/right = bit smaller, above = smallest
+        // Angle π/2 = bottom, 0/π = sides, -π/2 (3π/2) = top
+        const towardBottom = (1 + Math.cos(variedAngle - Math.PI / 2)) / 2;
+        const sizeMultiplier = 0.65 + 0.35 * towardBottom;
+
         return {
           angle: variedAngle,
           offsetX: offsetX,
           offsetY: offsetY,
+          sizeMultiplier,
         };
       });
     }, [
@@ -3669,10 +3692,9 @@ const FloatingAvatar = React.memo(
                     baseMemorySize = isTablet ? 75 : 40; // Smaller on non-tablet devices
                   }
 
-                  const memorySize = Math.min(
-                    baseMemorySize,
-                    calculatedMaxMemorySize,
-                  );
+                  const memorySize =
+                    Math.min(baseMemorySize, calculatedMaxMemorySize) *
+                    (memPosData.sizeMultiplier ?? 1);
 
                   return (
                     <FloatingMemory
@@ -4240,11 +4262,25 @@ const FloatingAvatar = React.memo(
                 momentsFrozen={expandedMomentId !== null}
                 spawnTime={moment.spawnTime}
                 expandedAtTimestamp={expandedAtTimestampRef.current}
+                suppressExpandAnimation={
+                  entityWheelMomentCard !== null || selectedWheelMoment !== null
+                }
                 onExpand={(id) => {
                   expandedAtTimestampRef.current = Date.now();
                   setExpandedMomentId(id);
+                  setEntityWheelMomentCard({
+                    type: moment.momentType,
+                    text: moment.text ?? "",
+                    memoryId: moment.memoryId,
+                    memoryImageUri: moment.memoryImageUri,
+                    entityId: moment.entityId ?? profile.id,
+                    sphere: moment.sphere ?? profile.sphere,
+                  });
                 }}
-                onCollapse={() => setExpandedMomentId(null)}
+                onCollapse={() => {
+                  setExpandedMomentId(null);
+                  setEntityWheelMomentCard(null);
+                }}
                   onMemoryImagePress={
                   onMemoryFocus && moment.entityId && moment.memoryId && moment.sphere
                     ? () => {
@@ -4278,6 +4314,219 @@ const FloatingAvatar = React.memo(
                 }}
               />
             ))}
+
+            {/* Entity wheel moment card: shown when user taps a floating moment (same design as main wheel card) */}
+            {entityWheelMomentCard &&
+              (() => {
+                const iconName =
+                  entityWheelMomentCard.type === "sunny"
+                    ? "wb-sunny"
+                    : entityWheelMomentCard.type === "cloudy"
+                      ? "cloud"
+                      : "lightbulb";
+                const accentColor =
+                  entityWheelMomentCard.type === "sunny"
+                    ? momentColors.sunny.background
+                    : entityWheelMomentCard.type === "cloudy"
+                      ? momentColors.cloudy.background
+                      : momentColors.lesson.background;
+                const openMemory = () => {
+                  const { entityId, memoryId, sphere } = entityWheelMomentCard;
+                  if (!entityId || !memoryId || !sphere) {
+                    setEntityWheelMomentCard(null);
+                    setExpandedMomentId(null);
+                    return;
+                  }
+                  startTransitionLoader();
+                  requestAnimationFrame(() => {
+                    setTimeout(() => {
+                      setEntityWheelMomentCard(null);
+                      setExpandedMomentId(null);
+                      onMemoryFocus?.(entityId, memoryId, sphere);
+                      setShowEntityWheel(false);
+                      onEntityWheelChange?.(false);
+                    }, 120);
+                  });
+                };
+                const CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
+                const CARD_HEIGHT = 400;
+                return (
+                  <Pressable
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      zIndex: 1100,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: "rgba(0,0,0,0.85)",
+                    }}
+                    onPress={() => {
+                      setEntityWheelMomentCard(null);
+                      setExpandedMomentId(null);
+                    }}
+                  >
+                    <Pressable
+                      onPress={(e) => e.stopPropagation()}
+                      style={{
+                        width: CARD_WIDTH,
+                        minHeight: CARD_HEIGHT,
+                        borderRadius: 24,
+                        overflow: "hidden",
+                        backgroundColor:
+                          colorScheme === "dark"
+                            ? "rgba(26, 35, 50, 0.98)"
+                            : "rgba(255, 255, 255, 0.98)",
+                        borderWidth: 1,
+                        borderColor: `${accentColor}40`,
+                        shadowColor: accentColor,
+                        shadowOffset: { width: 0, height: 8 },
+                        shadowOpacity: 0.35,
+                        shadowRadius: 24,
+                        elevation: 12,
+                      }}
+                    >
+                      <Pressable
+                        onPress={() => {
+                          setEntityWheelMomentCard(null);
+                          setExpandedMomentId(null);
+                        }}
+                        hitSlop={12}
+                        style={{
+                          position: "absolute",
+                          top: 12,
+                          right: 12,
+                          zIndex: 10,
+                          width: 36,
+                          height: 36,
+                          borderRadius: 18,
+                          backgroundColor:
+                            colorScheme === "dark"
+                              ? "rgba(255,255,255,0.12)"
+                              : "rgba(0,0,0,0.08)",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <MaterialIcons
+                          name="close"
+                          size={22}
+                          color={colorScheme === "dark" ? "#fff" : "#333"}
+                        />
+                      </Pressable>
+                      <Pressable
+                        onPress={openMemory}
+                        style={{
+                          flex: 1,
+                          paddingTop: 20,
+                          paddingHorizontal: 20,
+                          paddingBottom: 20,
+                          alignItems: "center",
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 56,
+                            height: 56,
+                            borderRadius: 28,
+                            backgroundColor: `${accentColor}28`,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            marginBottom: 14,
+                          }}
+                        >
+                          <MaterialIcons
+                            name={iconName}
+                            size={32}
+                            color={accentColor}
+                          />
+                        </View>
+                        <ThemedText
+                          numberOfLines={3}
+                          ellipsizeMode="tail"
+                          style={{
+                            fontSize: 15 * fontScale,
+                            lineHeight: 22 * fontScale,
+                            textAlign: "center",
+                            marginBottom: 16,
+                            paddingHorizontal: 8,
+                          }}
+                        >
+                          {entityWheelMomentCard.text || " "}
+                        </ThemedText>
+                        {entityWheelMomentCard.memoryImageUri ? (
+                          <View
+                            style={{
+                              width: CARD_WIDTH - 40,
+                              height: 160,
+                              borderRadius: 16,
+                              overflow: "hidden",
+                              backgroundColor:
+                                colorScheme === "dark"
+                                  ? "rgba(255,255,255,0.06)"
+                                  : "rgba(0,0,0,0.06)",
+                            }}
+                          >
+                            <Image
+                              source={{
+                                uri: entityWheelMomentCard.memoryImageUri,
+                              }}
+                              style={{ width: "100%", height: "100%" }}
+                              contentFit="cover"
+                            />
+                          </View>
+                        ) : (
+                          <View
+                            style={{
+                              width: CARD_WIDTH - 40,
+                              height: 100,
+                              borderRadius: 16,
+                              backgroundColor:
+                                colorScheme === "dark"
+                                  ? "rgba(255,255,255,0.06)"
+                                  : "rgba(0,0,0,0.06)",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <MaterialIcons
+                              name="photo-library"
+                              size={36}
+                              color={
+                                colorScheme === "dark"
+                                  ? "rgba(255,255,255,0.3)"
+                                  : "rgba(0,0,0,0.2)"
+                              }
+                            />
+                          </View>
+                        )}
+                        <View
+                          style={{
+                            marginTop: 14,
+                            width: 44,
+                            height: 44,
+                            borderRadius: 22,
+                            backgroundColor:
+                              colorScheme === "dark"
+                                ? "rgba(255,255,255,0.12)"
+                                : "rgba(0,0,0,0.08)",
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          <MaterialIcons
+                            name="open-in-full"
+                            size={22}
+                            color={colors.primary}
+                          />
+                        </View>
+                      </Pressable>
+                    </Pressable>
+                  </Pressable>
+                );
+              })()}
 
             {/* Selected moment floating display - large circular popup matching main wheel of life */}
             {selectedWheelMoment &&
@@ -8633,6 +8882,14 @@ function blendHex(hex1: string, hex2: string, t: number): string {
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b_.toString(16).padStart(2, "0")}`;
 }
 
+/** Hex to RGB 0–1 for FeColorMatrix (glow uses theme primary from personalization) */
+function hexToRgbNorm(hex: string): { r: number; g: number; b: number } {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  return { r, g, b };
+}
+
 // Overall Percentage Avatar Component (center display)
 const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   percentage,
@@ -8649,6 +8906,13 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   const { isTablet } = useLargeDevice();
   const t = useTranslate();
   const { language } = useLanguage();
+  const primaryHex = colors.primary ?? "#64B5F6";
+  const glowMatrixValues = React.useMemo(() => {
+    const rgb = hexToRgbNorm(primaryHex);
+    const m = (a: number) =>
+      `${rgb.r} 0 0 0 0   0 ${rgb.g} 0 0 0   0 0 ${rgb.b} 0 0   0 0 0 ${a} 0`;
+    return { m05: m(0.5), m07: m(0.7), m085: m(0.85), m08: m(0.8), m09: m(0.9), m1: m(1) };
+  }, [primaryHex]);
 
   // Calculate if floating entities intersect with main circle and adjust size accordingly
   // Floating entities are positioned: spherePosition + (cos(angle) * entityRadius, sin(angle) * entityRadius)
@@ -8733,10 +8997,10 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               fx="50%"
               fy="50%"
             >
-              <Stop offset="0%" stopColor={COSMIC_RING_END} stopOpacity="0" />
-              <Stop offset="50%" stopColor={COSMIC_RING_MID} stopOpacity="0.08" />
-              <Stop offset="85%" stopColor={COSMIC_RING_START} stopOpacity="0.2" />
-              <Stop offset="100%" stopColor={COSMIC_RING_END} stopOpacity="0.35" />
+              <Stop offset="0%" stopColor={colors.primary} stopOpacity="0" />
+              <Stop offset="50%" stopColor={colors.primaryLight ?? colors.primary} stopOpacity="0.08" />
+              <Stop offset="85%" stopColor={colors.primary} stopOpacity="0.2" />
+              <Stop offset="100%" stopColor={colors.primaryDark ?? colors.primary} stopOpacity="0.35" />
             </RadialGradient>
             <Filter id="overallNebulaBlur" x="-80%" y="-80%" width="260%" height="260%">
               <FeGaussianBlur in="SourceGraphic" stdDeviation="12" result="nebulaBlurred" />
@@ -8751,9 +9015,9 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               x2="100%"
               y2="100%"
             >
-              <Stop offset="0%" stopColor={COSMIC_RING_START} stopOpacity="0.9" />
-              <Stop offset="50%" stopColor={COSMIC_RING_MID} stopOpacity="1" />
-              <Stop offset="100%" stopColor={COSMIC_RING_END} stopOpacity="1" />
+              <Stop offset="0%" stopColor={colors.primary} stopOpacity="0.9" />
+              <Stop offset="50%" stopColor={colors.primaryLight ?? colors.primary} stopOpacity="1" />
+              <Stop offset="100%" stopColor={colors.primaryDark ?? colors.primary} stopOpacity="1" />
             </SvgLinearGradient>
             <Filter
               id="outerYellowGlow"
@@ -8770,7 +9034,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               <FeColorMatrix
                 in="outerBlurLarge"
                 type="matrix"
-                values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.5 0"
+                values={glowMatrixValues.m05}
                 result="outerGlowLarge"
               />
               <FeGaussianBlur
@@ -8781,7 +9045,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               <FeColorMatrix
                 in="outerBlurMedium"
                 type="matrix"
-                values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.7 0"
+                values={glowMatrixValues.m07}
                 result="outerGlowMedium"
               />
               <FeGaussianBlur
@@ -8792,7 +9056,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               <FeColorMatrix
                 in="outerBlurSmall"
                 type="matrix"
-                values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.9 0"
+                values={glowMatrixValues.m09}
                 result="outerGlowSmall"
               />
               <FeMerge>
@@ -8816,7 +9080,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               <FeColorMatrix
                 in="outerBlur"
                 type="matrix"
-                values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 1.0 0"
+                values={glowMatrixValues.m1}
                 result="outerGlow"
               />
               <FeGaussianBlur
@@ -8827,7 +9091,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               <FeColorMatrix
                 in="outerBlurMedium"
                 type="matrix"
-                values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.85 0"
+                values={glowMatrixValues.m085}
                 result="outerGlowMedium"
               />
               <FeGaussianBlur
@@ -8838,7 +9102,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               <FeColorMatrix
                 in="innerBlur"
                 type="matrix"
-                values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.8 0"
+                values={glowMatrixValues.m08}
                 result="innerGlow"
               />
               <FeMerge>
@@ -8865,7 +9129,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
             strokeWidth={borderWidth}
             fill="none"
           />
-          {/* Outer glow layer - extends outward from the circle */}
+          {/* Outer glow layer - uses theme primary from personalization */}
           <Circle
             cx={avatarSize / 2}
             cy={avatarSize / 2}
@@ -8879,7 +9143,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
             filter="url(#outerYellowGlow)"
             transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
           />
-          {/* Glowing yellow progress ring with enhanced shine (inner + outer glow) */}
+          {/* Glowing progress ring (theme primary from personalization) */}
           <Circle
             cx={avatarSize / 2}
             cy={avatarSize / 2}
@@ -8997,7 +9261,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                   width: 44,
                   height: 44,
                   borderRadius: 22,
-                  backgroundColor: `${COSMIC_RING_START}40`,
+                  backgroundColor: `${colors.primary}40`,
                   justifyContent: "center",
                   alignItems: "center",
                 }}
@@ -9005,7 +9269,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                 <MaterialIcons
                   name="add"
                   size={28}
-                  color={COSMIC_TEXT}
+                  color={colors.primaryLight ?? colors.primary}
                 />
               </View>
             </Pressable>
@@ -10107,6 +10371,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   memoryId,
   sphere,
   memoryImageUri,
+  suppressExpandAnimation = false,
 }: {
   memoryIndex: number;
   momentIndex: number;
@@ -10146,6 +10411,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   memoryId?: string;
   sphere?: LifeSphere;
   memoryImageUri?: string;
+  /** When true, show card overlay instead of scaling this element on tap */
+  suppressExpandAnimation?: boolean;
 }) {
   const positionIndex = batchSize > 0 ? spawnSlot % batchSize : 0;
   const totalConcurrent = Math.max(1, batchSize);
@@ -10443,13 +10710,17 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
 
   // Smooth expand animation when user taps
   React.useEffect(() => {
+    if (suppressExpandAnimation) {
+      expandProgress.value = 0;
+      return;
+    }
     if (onExpand || onCollapse) {
       expandProgress.value = withSpring(isExpanded ? 1 : 0, {
         damping: 18,
         stiffness: 140,
       });
     }
-  }, [isExpanded, expandProgress, onExpand, onCollapse]);
+  }, [isExpanded, expandProgress, onExpand, onCollapse, suppressExpandAnimation]);
 
   React.useEffect(() => {
     hasExpandHandlers.value = !!(onExpand || onCollapse);
@@ -11068,6 +11339,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
   momentsFrozen = false,
   spawnTime,
   expandedAtTimestamp,
+  suppressExpandAnimation = false,
 }: {
   centerX: number;
   centerY: number;
@@ -11092,6 +11364,8 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
   momentsFrozen?: boolean;
   spawnTime?: number;
   expandedAtTimestamp?: number | null;
+  /** When true, tapping shows a card overlay instead of scaling this element */
+  suppressExpandAnimation?: boolean;
 }) {
   // Initialize shared values - these will be fresh for each component instance
   const opacity = useSharedValue(0);
@@ -11170,15 +11444,19 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
     };
   }, [momentsFrozen, shouldGrowToFull, isExpanded, scale, opacity, growPulseScale, spawnTime, expandedAtTimestamp]);
 
-  // Smooth expand/collapse animation when user taps moment
+  // Smooth expand/collapse animation when user taps moment (skip when card overlay is shown)
   React.useEffect(() => {
+    if (suppressExpandAnimation) {
+      expandProgress.value = 0;
+      return;
+    }
     if (onExpand || onCollapse) {
       expandProgress.value = withSpring(isExpanded ? 1 : 0, {
         damping: 18,
         stiffness: 140,
       });
     }
-  }, [isExpanded, expandProgress, onExpand, onCollapse]);
+  }, [isExpanded, expandProgress, onExpand, onCollapse, suppressExpandAnimation]);
 
   React.useEffect(() => {
     hasExpandHandlers.value = !!(onExpand || onCollapse);
@@ -13828,6 +14106,8 @@ export default function HomeScreen() {
 
   // Track wheel spinning state for disabling icon buttons
   const [isSpinning, setIsSpinning] = useState(false);
+  // Prevent double fire of release handler (e.g. duplicate events) so we don't consume free spin then show paywall
+  const mainWheelReleaseInProgressRef = useRef(false);
 
   // Trigger glow effect when moment type changes - DISABLED
   // React.useEffect(() => {
@@ -13884,6 +14164,17 @@ export default function HomeScreen() {
   const expandedAtTimestampRef = useRef<number | null>(null);
   const prevExpandedMomentIdRef = useRef<number | null>(null);
   const momentIdCounter = useRef(0);
+
+  // When user taps a growing moment, show this card instead of scaling the element
+  const [momentCard, setMomentCard] = useState<{
+    momentType: "lessons" | "hardTruths" | "sunnyMoments";
+    text: string;
+    entityId?: string;
+    memoryId?: string;
+    sphere?: LifeSphere;
+    memoryImageUri?: string;
+    momentId?: string;
+  } | null>(null);
 
   // Track the current index for each moment type's sequential growth
   const currentMomentIndices = useRef<{ [key in MomentType]: number }>({
@@ -15334,6 +15625,9 @@ export default function HomeScreen() {
               setAiInsightsConsentVisible(true);
               return;
             }
+            // Prevent double fire: if release handler runs twice, only one consume runs (avoids free spin + paywall)
+            if (mainWheelReleaseInProgressRef.current) return;
+            mainWheelReleaseInProgressRef.current = true;
             const startSpin = () => {
               setSelectedMomentType("lessons"); // Force lesson mode when spin starts (ignore current filter)
               isWheelSpinning.value = true;
@@ -15347,17 +15641,21 @@ export default function HomeScreen() {
             // Always check rate limit (lesson exam flow)
             const velocityAtRelease = wheelVelocity.value;
             void (async () => {
-              const consumed = await consumeWheelExamIfAvailable(hasAIEntitlement);
-              if (!consumed) {
-                const purchased = await showPaywallForAIAccess();
-                if (!purchased) {
-                  isWheelSpinning.value = false;
-                  wheelVelocity.value = 0;
-                  return;
+              try {
+                const consumed = await consumeWheelExamIfAvailable(hasAIEntitlement);
+                if (!consumed) {
+                  const purchased = await showPaywallForAIAccess();
+                  if (!purchased) {
+                    isWheelSpinning.value = false;
+                    wheelVelocity.value = 0;
+                    return;
+                  }
                 }
+                wheelVelocity.value = velocityAtRelease;
+                startSpin();
+              } finally {
+                mainWheelReleaseInProgressRef.current = false;
               }
-              wheelVelocity.value = velocityAtRelease;
-              startSpin();
             })();
           }
         },
@@ -17827,15 +18125,22 @@ export default function HomeScreen() {
           }}
           onEntitySelect={(entityId, sphere) => {
             cameFromFocusedSferaForEntityRef.current = true;
-            setFocusedMemory(null);
-            setSelectedSphere(sphere);
-            setFocusedProfileId(sphere === "relationships" ? entityId : null);
-            setFocusedJobId(sphere === "career" ? entityId : null);
-            setFocusedFamilyMemberId(sphere === "family" ? entityId : null);
-            setFocusedFriendId(sphere === "friends" ? entityId : null);
-            setFocusedHobbyId(sphere === "hobbies" ? entityId : null);
-            setAnimationsComplete(false);
-            setHomeViewMode("focused");
+            startTransitionLoader();
+            // Defer heavy state updates so loader can paint before entity detail mounts (same pattern as Classic transition).
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                setFocusedMemory(null);
+                setSelectedSphere(sphere);
+                setFocusedProfileId(sphere === "relationships" ? entityId : null);
+                setFocusedJobId(sphere === "career" ? entityId : null);
+                setFocusedFamilyMemberId(sphere === "family" ? entityId : null);
+                setFocusedFriendId(sphere === "friends" ? entityId : null);
+                setFocusedHobbyId(sphere === "hobbies" ? entityId : null);
+                setAnimationsComplete(false);
+                setHomeViewMode("focused");
+                hideLoader();
+              }, 0);
+            });
           }}
           onSwitchToClassic={() => {
             startTransitionLoader();
@@ -20195,7 +20500,7 @@ export default function HomeScreen() {
             })()}
 
           {/* Pulsing Floating Moments - Randomly spawn around center avatar during moment type selection (hide when spinning) */}
-          {animationsReady &&
+            {animationsReady &&
             showMomentTypeSelector &&
             !isSpinning &&
             randomMoments.map((moment) => (
@@ -20216,12 +20521,23 @@ export default function HomeScreen() {
                 momentsFrozen={expandedMomentId !== null}
                 spawnTime={moment.spawnTime}
                 expandedAtTimestamp={expandedAtTimestampRef.current}
+                suppressExpandAnimation={momentCard !== null}
                 onExpand={(id) => {
                   expandedAtTimestampRef.current = Date.now();
                   setExpandedMomentId(id);
+                  setMomentCard({
+                    momentType: moment.momentType,
+                    text: moment.text ?? "",
+                    entityId: moment.entityId,
+                    memoryId: moment.memoryId,
+                    sphere: moment.sphere,
+                    memoryImageUri: moment.memoryImageUri,
+                    momentId: moment.momentId,
+                  });
                 }}
                 onCollapse={() => {
                   setExpandedMomentId(null);
+                  setMomentCard(null);
                 }}
                 onMemoryImagePress={
                   moment.entityId && moment.memoryId && moment.sphere
@@ -20310,12 +20626,25 @@ export default function HomeScreen() {
                       momentsFrozen={expandedMomentId !== null}
                       spawnTime={growAllShownAtRef.current + index * 50}
                       expandedAtTimestamp={expandedAtTimestampRef.current}
+                      suppressExpandAnimation={momentCard !== null}
                       onExpand={(id) => {
                         expandedAtTimestampRef.current = Date.now();
                         setExpandedMomentId(id);
+                        if (momentData) {
+                          setMomentCard({
+                            momentType: growAllMomentsType,
+                            text: momentData.text ?? "",
+                            entityId: momentData.entityId,
+                            memoryId: momentData.memoryId,
+                            sphere: momentData.sphere,
+                            memoryImageUri: momentData.memoryImageUri,
+                            momentId: momentData.momentId,
+                          });
+                        }
                       }}
                       onCollapse={() => {
                         setExpandedMomentId(null);
+                        setMomentCard(null);
                         // Delay clearing so each moment can shrink individually (HOLD_END_MS 4800 + max stagger 550 + shrink 800 ≈ 6s)
                         setTimeout(() => setGrowAllMomentsType(null), 6200);
                       }}
@@ -20366,6 +20695,264 @@ export default function HomeScreen() {
                   );
                 });
             })()}
+
+          {/* Moment card overlay: shown when user taps a growing moment (fixed size, icon, truncated text, image; tap card opens memory) */}
+          {momentCard && (() => {
+            const iconName =
+              momentCard.momentType === "sunnyMoments"
+                ? "wb-sunny"
+                : momentCard.momentType === "hardTruths"
+                  ? "cloud"
+                  : "lightbulb";
+            const accentColor =
+              momentCard.momentType === "sunnyMoments"
+                ? momentColors.sunny.background
+                : momentCard.momentType === "hardTruths"
+                  ? momentColors.cloudy.background
+                  : momentColors.lesson.background;
+            const openMemory = () => {
+              const entityId = momentCard.entityId;
+              const memoryId = momentCard.memoryId;
+              const sphere = momentCard.sphere;
+              if (!entityId || !memoryId || !sphere) {
+                setMomentCard(null);
+                setExpandedMomentId(null);
+                return;
+              }
+              startTransitionLoader();
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  setMomentCard(null);
+                  setExpandedMomentId(null);
+                  setGrowAllMomentsType(null);
+                  if (sphere === "relationships") {
+                    setFocusedProfileId(entityId);
+                    setSelectedSphere("relationships");
+                    setFocusedMemory({ profileId: entityId, memoryId, sphere });
+                  } else if (sphere === "career") {
+                    setFocusedJobId(entityId);
+                    setSelectedSphere("career");
+                    setFocusedMemory({ jobId: entityId, memoryId, sphere });
+                  } else if (sphere === "family") {
+                    setFocusedFamilyMemberId(entityId);
+                    setSelectedSphere("family");
+                    setFocusedMemory({
+                      familyMemberId: entityId,
+                      memoryId,
+                      sphere,
+                    });
+                  } else if (sphere === "friends") {
+                    setFocusedFriendId(entityId);
+                    setSelectedSphere("friends");
+                    setFocusedMemory({
+                      friendId: entityId,
+                      memoryId,
+                      sphere,
+                    });
+                  } else if (sphere === "hobbies") {
+                    setFocusedHobbyId(entityId);
+                    setSelectedSphere("hobbies");
+                    setFocusedMemory({
+                      hobbyId: entityId,
+                      memoryId,
+                      sphere,
+                    });
+                  }
+                }, 120);
+              });
+            };
+            const CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
+            const CARD_HEIGHT = 400;
+            return (
+              <Pressable
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  zIndex: 1100,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: "rgba(0,0,0,0.85)",
+                }}
+                onPress={() => {
+                  setMomentCard(null);
+                  setExpandedMomentId(null);
+                  setGrowAllMomentsType(null);
+                }}
+              >
+                <Pressable
+                  onPress={(e) => e.stopPropagation()}
+                  style={{
+                    width: CARD_WIDTH,
+                    minHeight: CARD_HEIGHT,
+                    borderRadius: 24,
+                    overflow: "hidden",
+                    backgroundColor:
+                      colorScheme === "dark"
+                        ? "rgba(26, 35, 50, 0.98)"
+                        : "rgba(255, 255, 255, 0.98)",
+                    borderWidth: 1,
+                    borderColor: `${accentColor}40`,
+                    shadowColor: accentColor,
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.35,
+                    shadowRadius: 24,
+                    elevation: 12,
+                  }}
+                >
+                  {/* Close button */}
+                  <Pressable
+                    onPress={() => {
+                      setMomentCard(null);
+                      setExpandedMomentId(null);
+                      setGrowAllMomentsType(null);
+                    }}
+                    hitSlop={12}
+                    style={{
+                      position: "absolute",
+                      top: 12,
+                      right: 12,
+                      zIndex: 10,
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor:
+                        colorScheme === "dark"
+                          ? "rgba(255,255,255,0.12)"
+                          : "rgba(0,0,0,0.08)",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <MaterialIcons
+                      name="close"
+                      size={22}
+                      color={colorScheme === "dark" ? "#fff" : "#333"}
+                    />
+                  </Pressable>
+
+                  {/* Tappable content: opens memory on press */}
+                  <Pressable
+                    onPress={openMemory}
+                    style={{
+                      flex: 1,
+                      paddingTop: 20,
+                      paddingHorizontal: 20,
+                      paddingBottom: 20,
+                      alignItems: "center",
+                    }}
+                  >
+                    {/* Icon */}
+                    <View
+                      style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 28,
+                        backgroundColor: `${accentColor}28`,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginBottom: 14,
+                      }}
+                    >
+                      <MaterialIcons
+                        name={iconName}
+                        size={32}
+                        color={accentColor}
+                      />
+                    </View>
+
+                    {/* Truncated description */}
+                    <ThemedText
+                      numberOfLines={3}
+                      ellipsizeMode="tail"
+                      style={{
+                        fontSize: 15 * fontScale,
+                        lineHeight: 22 * fontScale,
+                        textAlign: "center",
+                        marginBottom: 16,
+                        paddingHorizontal: 8,
+                      }}
+                    >
+                      {momentCard.text || " "}
+                    </ThemedText>
+
+                    {/* Memory image */}
+                    {momentCard.memoryImageUri ? (
+                      <View
+                        style={{
+                          width: CARD_WIDTH - 40,
+                          height: 160,
+                          borderRadius: 16,
+                          overflow: "hidden",
+                          backgroundColor:
+                            colorScheme === "dark"
+                              ? "rgba(255,255,255,0.06)"
+                              : "rgba(0,0,0,0.06)",
+                        }}
+                      >
+                        <Image
+                          source={{ uri: momentCard.memoryImageUri }}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                          }}
+                          contentFit="cover"
+                        />
+                      </View>
+                    ) : (
+                      <View
+                        style={{
+                          width: CARD_WIDTH - 40,
+                          height: 100,
+                          borderRadius: 16,
+                          backgroundColor:
+                            colorScheme === "dark"
+                              ? "rgba(255,255,255,0.06)"
+                              : "rgba(0,0,0,0.06)",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <MaterialIcons
+                          name="photo-library"
+                          size={36}
+                          color={
+                            colorScheme === "dark"
+                              ? "rgba(255,255,255,0.3)"
+                              : "rgba(0,0,0,0.2)"
+                          }
+                        />
+                      </View>
+                    )}
+
+                    {/* Open-memory affordance: icon-only, fixed color across moment types */}
+                    <View
+                      style={{
+                        marginTop: 14,
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        backgroundColor:
+                          colorScheme === "dark"
+                            ? "rgba(255,255,255,0.12)"
+                            : "rgba(0,0,0,0.08)",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <MaterialIcons
+                        name="open-in-full"
+                        size={22}
+                        color={colors.primary}
+                      />
+                    </View>
+                  </Pressable>
+                </Pressable>
+              </Pressable>
+            );
+          })()}
 
           {/* Spin hint: animated pointer + wheel wiggle (visible ~3s, suggests drag to spin) */}
           {animationsReady &&

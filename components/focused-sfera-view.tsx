@@ -7,6 +7,7 @@
 
 import { ConstellationBackground } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
+import { Colors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
@@ -708,7 +709,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
 // ───────────────────── Animated sphere (orbital transition: spheres slide along orbit like beads on a string) ─────────────────────
 
 const SPHERE_CONTAINER_SIZE = 320; // Fits orbit extent
-const ORBIT_SLIDE_DURATION = 420;
+const ORBIT_SPRING_CONFIG = { damping: 22, stiffness: 180 };
 
 const RANDOM_ENTITY_PULSE_INTERVAL_MS = 4200;
 
@@ -797,20 +798,18 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     if (delta > 180) delta -= 360;
     else if (delta < -180) delta += 360;
     const targetAngle = raw + delta;
-    angle.value = withTiming(
+    angle.value = withSpring(
       targetAngle,
-      { duration: ORBIT_SLIDE_DURATION, easing: Easing.inOut(Easing.ease) },
-      () => {
+      ORBIT_SPRING_CONFIG,
+      (finished) => {
         "worklet";
-        // Keep angle in [0,360) to prevent unbounded drift after many cycles
-        const v = angle.value;
-        angle.value = ((v % 360) + 360) % 360;
+        if (finished) {
+          const v = angle.value;
+          angle.value = ((v % 360) + 360) % 360;
+        }
       },
     );
-    size.value = withTiming(next.size, {
-      duration: ORBIT_SLIDE_DURATION,
-      easing: Easing.inOut(Easing.ease),
-    });
+    size.value = withSpring(next.size, ORBIT_SPRING_CONFIG);
   }, [sphereIdx, focusedIdx]);
 
   const CONTAINER_HALF = SPHERE_CONTAINER_SIZE / 2;
@@ -820,11 +819,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     const rad = (angle.value * Math.PI) / 180;
     const centerX = ORBIT_CX + ORBIT_R * Math.sin(rad);
     const centerY = ORBIT_CY + ORBIT_R * Math.cos(rad);
-    // Depth: spheres behind (top) are smaller and shifted up for distance illusion
-    // cos(rad)=1 at bottom (front), -1 at top (back). sqrt curve: back smaller, front/sides bigger
+    // Depth from actual position on orbit (angle), not from slot — avoids "grow then move" pop on swipe
+    // cos(rad)=1 at bottom (front), -1 at top (back). Smooth scale as spheres slide along orbit.
     const x = (1 + Math.cos(rad)) / 2;
-    const depthScale =
-      slot === 0 ? 1 : 0.38 + 0.62 * Math.sqrt(Math.max(0, x));
+    const depthScale = 0.38 + 0.62 * Math.sqrt(Math.max(0, x));
     // Shift back-half spheres up so they feel further away (behind circle avatar)
     const backOffsetY = slot === 0 ? 0 : Math.cos(rad) < 0 ? -48 : 0;
     // Unfocused spheres: shift up; focused stays put
@@ -1089,6 +1087,14 @@ function blendHex(hex1: string, hex2: string, t: number): string {
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b_.toString(16).padStart(2, "0")}`;
 }
 
+/** Hex to RGB 0–1 for FeColorMatrix (glow uses theme primary from personalization) */
+function hexToRgbNorm(hex: string): { r: number; g: number; b: number } {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  return { r, g, b };
+}
+
 const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   percentage,
   hasMemories,
@@ -1112,6 +1118,14 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   const t = useTranslate();
   const { language } = useLanguage();
   const handlePress = hasMemories ? onPress : onAddMemoriesPress;
+  const colors = Colors[colorScheme] as { primary: string; primaryLight?: string; primaryDark?: string };
+  const primaryHex = colors.primary ?? "#64B5F6";
+  const glowMatrixValues = React.useMemo(() => {
+    const rgb = hexToRgbNorm(primaryHex);
+    const m = (a: number) =>
+      `${rgb.r} 0 0 0 0   0 ${rgb.g} 0 0 0   0 0 ${rgb.b} 0 0   0 0 0 ${a} 0`;
+    return { m05: m(0.5), m07: m(0.7), m085: m(0.85), m08: m(0.8), m09: m(0.9), m1: m(1) };
+  }, [primaryHex]);
 
   const avatarSize = 100;
   const borderWidth = 8;
@@ -1214,10 +1228,10 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 fx="50%"
                 fy="50%"
               >
-                <Stop offset="0%" stopColor={COSMIC_RING_END} stopOpacity="0" />
-                <Stop offset="50%" stopColor={COSMIC_RING_MID} stopOpacity="0.08" />
-                <Stop offset="85%" stopColor={COSMIC_RING_START} stopOpacity="0.2" />
-                <Stop offset="100%" stopColor={COSMIC_RING_END} stopOpacity="0.35" />
+                <Stop offset="0%" stopColor={colors.primary} stopOpacity="0" />
+                <Stop offset="50%" stopColor={colors.primaryLight ?? colors.primary} stopOpacity="0.08" />
+                <Stop offset="85%" stopColor={colors.primary} stopOpacity="0.2" />
+                <Stop offset="100%" stopColor={colors.primaryDark ?? colors.primary} stopOpacity="0.35" />
               </RadialGradient>
               <Filter id="nebulaBlur" x="-80%" y="-80%" width="260%" height="260%">
                 <FeGaussianBlur in="SourceGraphic" stdDeviation="12" result="nebulaBlurred" />
@@ -1232,9 +1246,9 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 x2="100%"
                 y2="100%"
               >
-                <Stop offset="0%" stopColor={COSMIC_RING_START} stopOpacity="0.9" />
-                <Stop offset="50%" stopColor={COSMIC_RING_MID} stopOpacity="1" />
-                <Stop offset="100%" stopColor={COSMIC_RING_END} stopOpacity="1" />
+                <Stop offset="0%" stopColor={colors.primary} stopOpacity="0.9" />
+                <Stop offset="50%" stopColor={colors.primaryLight ?? colors.primary} stopOpacity="1" />
+                <Stop offset="100%" stopColor={colors.primaryDark ?? colors.primary} stopOpacity="1" />
               </SvgLinearGradient>
               <Filter
                 id="focusedOuterGlow"
@@ -1251,7 +1265,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <FeColorMatrix
                   in="outerBlurLarge"
                   type="matrix"
-                  values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.5 0"
+                  values={glowMatrixValues.m05}
                   result="outerGlowLarge"
                 />
                 <FeGaussianBlur
@@ -1262,7 +1276,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <FeColorMatrix
                   in="outerBlurMedium"
                   type="matrix"
-                  values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.7 0"
+                  values={glowMatrixValues.m07}
                   result="outerGlowMedium"
                 />
                 <FeGaussianBlur
@@ -1273,7 +1287,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <FeColorMatrix
                   in="outerBlurSmall"
                   type="matrix"
-                  values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.9 0"
+                  values={glowMatrixValues.m09}
                   result="outerGlowSmall"
                 />
                 <FeMerge>
@@ -1297,7 +1311,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <FeColorMatrix
                   in="outerBlur"
                   type="matrix"
-                  values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 1.0 0"
+                  values={glowMatrixValues.m1}
                   result="outerGlow"
                 />
                 <FeGaussianBlur
@@ -1308,7 +1322,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <FeColorMatrix
                   in="outerBlurMed"
                   type="matrix"
-                  values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.85 0"
+                  values={glowMatrixValues.m085}
                   result="outerGlowMed"
                 />
                 <FeGaussianBlur
@@ -1319,7 +1333,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <FeColorMatrix
                   in="innerBlur"
                   type="matrix"
-                  values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.8 0"
+                  values={glowMatrixValues.m08}
                   result="innerGlow"
                 />
                 <FeMerge>
@@ -1417,7 +1431,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <ThemedText
                   size="xl"
                   weight="bold"
-                  style={{ color: COSMIC_TEXT, fontSize: 24 }}
+                  style={{ color: colors.primaryLight ?? colors.primary, fontSize: 24 }}
                 >
                   {Math.round(percentage)}%
                 </ThemedText>
@@ -1427,7 +1441,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                       size="sm"
                       weight="medium"
                       style={{
-                        color: COSMIC_TEXT,
+                        color: colors.primaryLight ?? colors.primary,
                         fontSize: 10,
                         marginTop: -2,
                         textAlign: "center",
@@ -1440,7 +1454,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                       size="sm"
                       weight="medium"
                       style={{
-                        color: COSMIC_TEXT,
+                        color: colors.primaryLight ?? colors.primary,
                         fontSize: 10,
                         textAlign: "center",
                         lineHeight: 10,
@@ -1455,7 +1469,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                     size="sm"
                     weight="medium"
                     style={{
-                      color: COSMIC_TEXT,
+                      color: colors.primaryLight ?? colors.primary,
                       fontSize: 12,
                       marginTop: -2,
                     }}
@@ -1470,7 +1484,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                   width: 44,
                   height: 44,
                   borderRadius: 22,
-                  backgroundColor: `${COSMIC_RING_START}40`,
+                  backgroundColor: `${colors.primary}40`,
                   justifyContent: "center",
                   alignItems: "center",
                 }}
@@ -1478,7 +1492,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <MaterialIcons
                   name="add"
                   size={28}
-                  color={COSMIC_TEXT}
+                  color={colors.primaryLight ?? colors.primary}
                 />
               </View>
             )}
@@ -1613,17 +1627,40 @@ export function FocusedSferaView({
     [onFocusedSphereChange],
   );
 
+  // Left/right sfera regions: vertical drag. Right: up = prev, down = next. Left: up = next, down = prev. Center: horizontal swipe.
+  const SIDE_REGION_WIDTH = 0.35; // left 35%, right 35%; center 30% uses horizontal
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_, g) =>
-          Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy * 1.5),
+        onMoveShouldSetPanResponder: (_, g) => {
+          const startX = g.moveX - g.dx;
+          const inSideRegion = startX < SW * SIDE_REGION_WIDTH || startX > SW * (1 - SIDE_REGION_WIDTH);
+          if (inSideRegion) {
+            return Math.abs(g.dy) > 20 && Math.abs(g.dy) > Math.abs(g.dx * 1.5);
+          }
+          return Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy * 1.5);
+        },
+        // Only capture in side regions so taps on center entity avatars are never stolen (entity tap → redirect works).
+        onMoveShouldSetPanResponderCapture: (_, g) => {
+          const startX = g.moveX - g.dx;
+          const inSideRegion = startX < SW * SIDE_REGION_WIDTH || startX > SW * (1 - SIDE_REGION_WIDTH);
+          if (!inSideRegion) return false;
+          return Math.abs(g.dy) > 20 && Math.abs(g.dy) > Math.abs(g.dx * 1.5);
+        },
         onPanResponderRelease: (_, g) => {
-          if (g.dx < -50) {
-            goToSphere((focusedIdx + 1) % N);
-          } else if (g.dx > 50) {
-            goToSphere((focusedIdx - 1 + N) % N);
+          const startX = g.moveX - g.dx;
+          const isLeftRegion = startX < SW * SIDE_REGION_WIDTH;
+          const isRightRegion = startX > SW * (1 - SIDE_REGION_WIDTH);
+          const inSideRegion = isLeftRegion || isRightRegion;
+          if (inSideRegion) {
+            // Vertical: right sfera = up prev / down next; left sfera = reversed (up next / down prev)
+            if (g.dy < -50) goToSphere(isLeftRegion ? (focusedIdx + 1) % N : (focusedIdx - 1 + N) % N);
+            else if (g.dy > 50) goToSphere(isLeftRegion ? (focusedIdx - 1 + N) % N : (focusedIdx + 1) % N);
+          } else {
+            // Horizontal in center (focused sfera below avatar): left = prev, right = next (reversed vs orbit)
+            if (g.dx < -50) goToSphere((focusedIdx - 1 + N) % N);
+            else if (g.dx > 50) goToSphere((focusedIdx + 1) % N);
           }
         },
       }),
@@ -1744,7 +1781,7 @@ export function FocusedSferaView({
         y={SH * 0.38}
       />
 
-      {/* ─── Chevron buttons: left = prev, right = next (orbital cycle) ─── */}
+      {/* ─── Chevron buttons: left = next, right = prev (orbit style; focused sfera swipe is reversed) ─── */}
       <Animated.View
         style={[styles.chevron, styles.chevronLeft, leftChevronStyle]}
       >
@@ -1752,7 +1789,7 @@ export function FocusedSferaView({
           style={{ padding: 8 }}
           onPressIn={() => chevronPressIn("left")}
           onPressOut={() => chevronPressOut("left")}
-          onPress={() => goToSphere((focusedIdx - 1 + N) % N)}
+          onPress={() => goToSphere((focusedIdx + 1) % N)}
         >
           <MaterialIcons
             name="chevron-left"
@@ -1768,7 +1805,7 @@ export function FocusedSferaView({
           style={{ padding: 8 }}
           onPressIn={() => chevronPressIn("right")}
           onPressOut={() => chevronPressOut("right")}
-          onPress={() => goToSphere((focusedIdx + 1) % N)}
+          onPress={() => goToSphere((focusedIdx - 1 + N) % N)}
         >
           <MaterialIcons
             name="chevron-right"

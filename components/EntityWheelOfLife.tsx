@@ -351,6 +351,7 @@ export function EntityWheelOfLife({
     memoryId: string;
     memoryX: number;
     memoryY: number;
+    memorySizeMultiplier: number;
     momentType: 'lesson' | 'sunny' | 'cloudy';
     text: string;
     memoryImageUri?: string;
@@ -363,6 +364,13 @@ export function EntityWheelOfLife({
   const memorySize = isTablet ? 50 : 40;
   const momentIconSize = isTablet ? 60 : 50;
   const orbitRadius = isTablet ? 180 : 140;
+
+  // Memory size by position: below avatar = full, left/right = bit smaller, above = smallest (stays in orbit)
+  const getMemorySizeMultiplier = useCallback((angle: number) => {
+    // Standard circle: angle 0 = right, π/2 = bottom, π = left, 3π/2 = top
+    const towardBottom = (1 + Math.cos(angle - Math.PI / 2)) / 2; // 1 at bottom, 0 at top, ~0.5 at sides
+    return 0.65 + 0.35 * towardBottom; // 1 at bottom, ~0.825 at sides, 0.65 at top
+  }, []);
 
   const { momentColors } = useMomentColors();
 
@@ -429,7 +437,7 @@ export function EntityWheelOfLife({
     });
   }, [entranceProgress]);
 
-  // Collect all moments of selected type with their source memory positions
+  // Collect all moments of selected type with their source memory positions and size scale
   const momentsWithPositions = useMemo(() => {
     const centerX = SCREEN_WIDTH / 2;
     const centerY = SCREEN_HEIGHT / 2 - 40;
@@ -437,16 +445,19 @@ export function EntityWheelOfLife({
       memoryId: string;
       memoryX: number;
       memoryY: number;
+      memorySizeMultiplier: number;
       momentType: 'lesson' | 'sunny' | 'cloudy';
       text: string;
       memoryImageUri?: string;
     }> = [];
 
     memories.forEach((memory, index) => {
-      // Calculate memory position on orbit
-      const angle = (index / Math.min(memories.length, 8)) * 2 * Math.PI;
+      // Calculate memory position on orbit and size multiplier (below=1, sides=~0.82, above=~0.65)
+      const count = Math.min(memories.length, 8);
+      const angle = (index / count) * 2 * Math.PI;
       const memoryX = centerX + Math.cos(angle) * orbitRadius;
       const memoryY = centerY + Math.sin(angle) * orbitRadius;
+      const memorySizeMultiplier = getMemorySizeMultiplier(angle);
 
       // Add moments based on selected type
       if (selectedMomentType === 'lesson' && memory.lessonsLearned) {
@@ -455,6 +466,7 @@ export function EntityWheelOfLife({
             memoryId: memory.id,
             memoryX,
             memoryY,
+            memorySizeMultiplier,
             momentType: 'lesson',
             text: lesson.text,
             memoryImageUri: memory.imageUri,
@@ -466,6 +478,7 @@ export function EntityWheelOfLife({
             memoryId: memory.id,
             memoryX,
             memoryY,
+            memorySizeMultiplier,
             momentType: 'sunny',
             text: sunny.text,
             memoryImageUri: memory.imageUri,
@@ -477,6 +490,7 @@ export function EntityWheelOfLife({
             memoryId: memory.id,
             memoryX,
             memoryY,
+            memorySizeMultiplier,
             momentType: 'cloudy',
             text: cloudy.text,
             memoryImageUri: memory.imageUri,
@@ -486,7 +500,7 @@ export function EntityWheelOfLife({
     });
 
     return result;
-  }, [memories, selectedMomentType, orbitRadius]);
+  }, [memories, selectedMomentType, orbitRadius, getMemorySizeMultiplier]);
 
   // Spawn 4 moments sequentially, each grows from its memory, stays 3s, then shrinks back
   useEffect(() => {
@@ -855,7 +869,7 @@ export function EntityWheelOfLife({
         momentType="lessons"
       />
 
-      {/* Memories in orbit */}
+      {/* Memories in orbit — size by position: below = full, left/right = smaller, above = smallest */}
       <AnimatedView
         style={[
           styles.memoriesOrbit,
@@ -868,9 +882,12 @@ export function EntityWheelOfLife({
         pointerEvents="box-none"
       >
         {memories.slice(0, 8).map((memory, index) => {
-          const angle = (index / Math.min(memories.length, 8)) * 2 * Math.PI;
-          const x = orbitRadius + Math.cos(angle) * orbitRadius - memorySize / 2;
-          const y = orbitRadius + Math.sin(angle) * orbitRadius - memorySize / 2;
+          const count = Math.min(memories.length, 8);
+          const angle = (index / count) * 2 * Math.PI;
+          const sizeMultiplier = getMemorySizeMultiplier(angle);
+          const size = memorySize * sizeMultiplier;
+          const x = orbitRadius + Math.cos(angle) * orbitRadius - size / 2;
+          const y = orbitRadius + Math.sin(angle) * orbitRadius - size / 2;
 
           return (
             <Animated.View
@@ -878,19 +895,19 @@ export function EntityWheelOfLife({
               style={[
                 styles.memoryIcon,
                 {
-                  width: memorySize,
-                  height: memorySize,
-                  borderRadius: memorySize / 2,
+                  width: size,
+                  height: size,
+                  borderRadius: size / 2,
                   left: x,
                   top: y,
                 },
               ]}
             >
               {memory.imageUri ? (
-                <Image source={{ uri: memory.imageUri }} style={[styles.memoryImage, { borderRadius: memorySize / 2 }]} />
+                <Image source={{ uri: memory.imageUri }} style={[styles.memoryImage, { borderRadius: size / 2 }]} />
               ) : (
-                <View style={[styles.memoryPlaceholder, { backgroundColor: colors.primary, borderRadius: memorySize / 2 }]}>
-                  <MaterialIcons name="photo" size={memorySize * 0.5} color="#fff" />
+                <View style={[styles.memoryPlaceholder, { backgroundColor: colors.primary, borderRadius: size / 2 }]}>
+                  <MaterialIcons name="photo" size={size * 0.5} color="#fff" />
                 </View>
               )}
             </Animated.View>
@@ -1026,13 +1043,14 @@ export function EntityWheelOfLife({
           {isSpinning ? 'Spinning...' : t('wheel.spinForRandom')}
         </ThemedText>
       </Pressable>
-      {/* Floating moments that grow from memories (cosmic nebula-style bubbles) */}
+      {/* Floating moments that grow from memories (cosmic nebula-style bubbles); scale by memory position */}
       {floatingMoments.map((moment, index) => (
           <FloatingMomentFromMemory
             key={`floating-moment-${moment.id}`}
             momentId={moment.id}
             memoryX={moment.memoryX}
             memoryY={moment.memoryY}
+            memorySizeMultiplier={moment.memorySizeMultiplier}
             momentType={moment.momentType}
             colorScheme={colorScheme}
             text={moment.text}
@@ -1101,6 +1119,16 @@ export function EntityWheelOfLife({
           ? dynamicCloudHeight
           : dynamicLessonSize;
 
+        const CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
+        const CARD_HEIGHT = 400;
+        const isSimpleCard = !(selectedMoment.type === 'lesson' && examState);
+        const simpleCardAccent =
+          selectedMoment.type === 'sunny'
+            ? momentColors.sunny.background
+            : selectedMoment.type === 'cloudy'
+              ? momentColors.cloudy.background
+              : momentColors.lesson.background;
+
         return (
           <AnimatedView
             style={[
@@ -1110,10 +1138,23 @@ export function EntityWheelOfLife({
                 backgroundColor:
                   selectedMoment.type === 'lesson' && examState
                     ? momentColors.lesson.background + 'B3'
-                    : colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                width: Math.max(momentWidth, 280),
-                minWidth: 200,
-                minHeight: examState?.step === 'analyzing' ? 220 : undefined,
+                    : isSimpleCard
+                      ? colorScheme === 'dark'
+                        ? 'rgba(26, 35, 50, 0.98)'
+                        : 'rgba(255, 255, 255, 0.98)'
+                      : colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                width: isSimpleCard ? CARD_WIDTH : Math.max(momentWidth, 280),
+                minWidth: isSimpleCard ? undefined : 200,
+                minHeight: isSimpleCard ? CARD_HEIGHT : examState?.step === 'analyzing' ? 220 : undefined,
+                borderRadius: isSimpleCard ? 24 : undefined,
+                overflow: isSimpleCard ? 'hidden' : undefined,
+                borderWidth: isSimpleCard ? 1 : undefined,
+                borderColor: isSimpleCard ? `${simpleCardAccent}40` : undefined,
+                shadowColor: isSimpleCard ? simpleCardAccent : undefined,
+                shadowOffset: isSimpleCard ? { width: 0, height: 8 } : undefined,
+                shadowOpacity: isSimpleCard ? 0.35 : undefined,
+                shadowRadius: isSimpleCard ? 24 : undefined,
+                elevation: isSimpleCard ? 12 : undefined,
               },
               selectedMomentAnimatedStyle,
             ]}
@@ -1281,80 +1322,143 @@ export function EntityWheelOfLife({
                 </Pressable>
               </>
             ) : (
-              /* Simple moment display (lesson without exam, sunny, cloudy) */
+              /* Simple moment display: new card design (fixed size, close, icon, truncated text, image, open icon) */
               <>
-                <View style={styles.selectedMomentHeader}>
-                  <MaterialIcons
-                    name={
-                      selectedMoment.type === 'sunny'
-                        ? 'wb-sunny'
-                        : selectedMoment.type === 'cloudy'
-                          ? 'cloud'
-                          : 'lightbulb'
-                    }
-                    size={24 * fontScale}
-                    color={
-                      selectedMoment.type === 'sunny'
-                        ? momentColors.sunny.background
-                        : selectedMoment.type === 'cloudy'
-                          ? momentColors.cloudy.background
-                          : momentColors.lesson.background
-                    }
-                  />
-                  <ThemedText size="sm" weight="semibold" style={{ marginLeft: 8 }}>
-                    {selectedMoment.type === 'sunny'
-                      ? 'Sunny'
-                      : selectedMoment.type === 'cloudy'
-                        ? 'Cloudy'
-                        : 'Lesson'}
-                  </ThemedText>
-                </View>
-                <ThemedText
-                  size="sm"
-                  style={{
-                    marginTop: 8,
-                    textAlign: 'center',
-                    opacity: 0.9,
-                    fontSize: Math.max(12, Math.min(16, 14 + (textLength / 80))) * fontScale,
-                  }}
-                  numberOfLines={Math.min(10, Math.max(3, Math.ceil(textLength / 40)))}
-                >
-                  {selectedMoment.text}
-                </ThemedText>
-                {selectedMoment.memoryImageUri && (
-                  <Image
-                    source={{ uri: selectedMoment.memoryImageUri }}
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 20,
-                      marginTop: 12,
-                      borderWidth: 2,
-                      borderColor: momentColors.lesson.background,
-                    }}
-                  />
-                )}
                 <Pressable
                   onPress={clearMomentAndExam}
+                  hitSlop={12}
                   style={{
                     position: 'absolute',
-                    top: 8,
-                    right: 8,
-                    width: 28,
-                    height: 28,
-                    borderRadius: 14,
-                    backgroundColor: colorScheme === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.95)',
+                    top: 12,
+                    right: 12,
+                    zIndex: 10,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor:
+                      colorScheme === 'dark'
+                        ? 'rgba(255,255,255,0.12)'
+                        : 'rgba(0,0,0,0.08)',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    zIndex: 999,
                   }}
                 >
                   <MaterialIcons
                     name="close"
-                    size={18}
-                    color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
-                    style={{ opacity: 0.9 }}
+                    size={22}
+                    color={colorScheme === 'dark' ? '#fff' : '#333'}
                   />
+                </Pressable>
+                <Pressable
+                  onPress={onClose}
+                  style={{
+                    flex: 1,
+                    paddingTop: 20,
+                    paddingHorizontal: 20,
+                    paddingBottom: 20,
+                    alignItems: 'center',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 28,
+                      backgroundColor: `${simpleCardAccent}28`,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginBottom: 14,
+                    }}
+                  >
+                    <MaterialIcons
+                      name={
+                        selectedMoment.type === 'sunny'
+                          ? 'wb-sunny'
+                          : selectedMoment.type === 'cloudy'
+                            ? 'cloud'
+                            : 'lightbulb'
+                      }
+                      size={32}
+                      color={simpleCardAccent}
+                    />
+                  </View>
+                  <ThemedText
+                    numberOfLines={3}
+                    ellipsizeMode="tail"
+                    style={{
+                      fontSize: 15 * fontScale,
+                      lineHeight: 22 * fontScale,
+                      textAlign: 'center',
+                      marginBottom: 16,
+                      paddingHorizontal: 8,
+                    }}
+                  >
+                    {selectedMoment.text || ' '}
+                  </ThemedText>
+                  {selectedMoment.memoryImageUri ? (
+                    <View
+                      style={{
+                        width: CARD_WIDTH - 40,
+                        height: 160,
+                        borderRadius: 16,
+                        overflow: 'hidden',
+                        backgroundColor:
+                          colorScheme === 'dark'
+                            ? 'rgba(255,255,255,0.06)'
+                            : 'rgba(0,0,0,0.06)',
+                      }}
+                    >
+                      <Image
+                        source={{ uri: selectedMoment.memoryImageUri }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                    </View>
+                  ) : (
+                    <View
+                      style={{
+                        width: CARD_WIDTH - 40,
+                        height: 100,
+                        borderRadius: 16,
+                        backgroundColor:
+                          colorScheme === 'dark'
+                            ? 'rgba(255,255,255,0.06)'
+                            : 'rgba(0,0,0,0.06)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <MaterialIcons
+                        name="photo-library"
+                        size={36}
+                        color={
+                          colorScheme === 'dark'
+                            ? 'rgba(255,255,255,0.3)'
+                            : 'rgba(0,0,0,0.2)'
+                        }
+                      />
+                    </View>
+                  )}
+                  <View
+                    style={{
+                      marginTop: 14,
+                      width: 44,
+                      height: 44,
+                      borderRadius: 22,
+                      backgroundColor:
+                        colorScheme === 'dark'
+                          ? 'rgba(255,255,255,0.12)'
+                          : 'rgba(0,0,0,0.08)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <MaterialIcons
+                      name="open-in-full"
+                      size={22}
+                      color={colors.primary}
+                    />
+                  </View>
                 </Pressable>
               </>
             )}
@@ -1380,10 +1484,12 @@ function blendHex(hex1: string, hex2: string, t: number): string {
 }
 
 // Cosmic floating moment bubbles (nebula-style: radial/linear gradients + soft glow)
+// Smaller memories (e.g. above wheel) have smaller floating moments; they still orbit from memory position.
 const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   momentId,
   memoryX,
   memoryY,
+  memorySizeMultiplier = 1,
   momentType,
   colorScheme,
   text = '',
@@ -1394,6 +1500,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   momentId: number;
   memoryX: number;
   memoryY: number;
+  memorySizeMultiplier?: number;
   momentType: 'lesson' | 'sunny' | 'cloudy';
   colorScheme: 'light' | 'dark';
   text?: string;
@@ -1428,17 +1535,19 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   const lessonSizeMultiplier = Math.min(1.8, Math.max(1.0, 1.0 + (textLength / 120)));
   const dynamicLessonSize = baseLessonSize * lessonSizeMultiplier;
 
-  // Get final size based on type
-  const finalWidth = momentType === 'sunny'
+  // Get final size based on type, then scale by memory position (smaller memory → smaller moment, still in orbit)
+  const baseWidth = momentType === 'sunny'
     ? dynamicSunSize
     : momentType === 'cloudy'
     ? dynamicCloudWidth
     : dynamicLessonSize;
-  const finalHeight = momentType === 'sunny'
+  const baseHeight = momentType === 'sunny'
     ? dynamicSunSize
     : momentType === 'cloudy'
     ? dynamicCloudHeight
     : dynamicLessonSize;
+  const finalWidth = baseWidth * memorySizeMultiplier;
+  const finalHeight = baseHeight * memorySizeMultiplier;
 
   // Start position is at memory
   const startX = memoryX;

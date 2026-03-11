@@ -563,7 +563,16 @@ const FloatingOrb = React.memo(function FloatingOrb({
             </View>
           )}
           {hasUnseenEvents && !isLocked && (
-            <View style={styles.orbUnseenBadge} />
+            <View style={styles.orbUnseenBadge}>
+              <ThemedText
+                size="xxs"
+                weight="bold"
+                style={styles.orbUnseenText}
+                numberOfLines={1}
+              >
+                NEW
+              </ThemedText>
+            </View>
           )}
         </View>
       </Pressable>
@@ -725,7 +734,7 @@ const CenterOrbPlaceholder = React.memo(function CenterOrbPlaceholder({
               {label}
             </ThemedText>
           </View>
-          {hasUnseenEvents && <View style={styles.orbUnseenBadge} />}
+          {hasUnseenEvents && <View style={styles.centerOrbUnseenDot} />}
         </View>
       </Pressable>
     </Animated.View>
@@ -1106,8 +1115,25 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
             />
           </Pressable>
         ) : null}
-        {isFocused && isUnseen && !isLocked ? (
-          <View style={styles.eventCardUnseenBadge} />
+        {isUnseen && !isLocked ? (
+          <View
+            style={[
+              styles.eventCardUnseenBadge,
+              !isFocused && styles.eventCardUnseenBadgeSmall,
+            ]}
+          >
+            <ThemedText
+              size="xxs"
+              weight="bold"
+              style={[
+                styles.eventCardUnseenText,
+                !isFocused && styles.eventCardUnseenTextSmall,
+              ]}
+              numberOfLines={1}
+            >
+              NEW
+            </ThemedText>
+          </View>
         ) : null}
       </Pressable>
     </View>
@@ -1803,19 +1829,47 @@ export default function EventsTab() {
     });
   }, [eventCount, focusedEventIndex, eventOrbitAngle, focusedEventIndexShared]);
 
+  // Left/right card regions: vertical drag (up = prev, down = next). Center: horizontal swipe (left = next, right = prev).
+  const SIDE_REGION_WIDTH = 0.35;
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_, g) =>
-          phase !== "orbs" &&
-          eventCount > 1 &&
-          Math.abs(g.dx) > 20 &&
-          Math.abs(g.dx) > Math.abs(g.dy * 1.5),
+        onMoveShouldSetPanResponder: (_, g) => {
+          if (phase === "orbs" || eventCount <= 1) return false;
+          const startX = g.moveX - g.dx;
+          const inSideRegion =
+            startX < SCREEN_WIDTH * SIDE_REGION_WIDTH ||
+            startX > SCREEN_WIDTH * (1 - SIDE_REGION_WIDTH);
+          if (inSideRegion) {
+            return Math.abs(g.dy) > 20 && Math.abs(g.dy) > Math.abs(g.dx * 1.5);
+          }
+          return Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy * 1.5);
+        },
+        onMoveShouldSetPanResponderCapture: (_, g) => {
+          if (phase === "orbs" || eventCount <= 1) return false;
+          const startX = g.moveX - g.dx;
+          const inSideRegion =
+            startX < SCREEN_WIDTH * SIDE_REGION_WIDTH ||
+            startX > SCREEN_WIDTH * (1 - SIDE_REGION_WIDTH);
+          if (inSideRegion) {
+            return Math.abs(g.dy) > 20 && Math.abs(g.dy) > Math.abs(g.dx * 1.5);
+          }
+          return Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy * 1.5);
+        },
         onPanResponderRelease: (_, g) => {
           if (phase === "orbs" || eventCount <= 1) return;
-          if (g.dx < -50) goToNextEvent();
-          else if (g.dx > 50) goToPrevEvent();
+          const startX = g.moveX - g.dx;
+          const inSideRegion =
+            startX < SCREEN_WIDTH * SIDE_REGION_WIDTH ||
+            startX > SCREEN_WIDTH * (1 - SIDE_REGION_WIDTH);
+          if (inSideRegion) {
+            if (g.dy < -50) goToPrevEvent();
+            else if (g.dy > 50) goToNextEvent();
+          } else {
+            if (g.dx < -50) goToNextEvent();
+            else if (g.dx > 50) goToPrevEvent();
+          }
         },
       }),
     [phase, eventCount, goToPrevEvent, goToNextEvent],
@@ -2073,9 +2127,9 @@ export default function EventsTab() {
 
               {phase === "private" ? (
                 <Pressable
-                  onPress={async () => {
-                    await loadEvents();
+                  onPress={() => {
                     openCodeModal("private");
+                    void loadEvents(); // refetch in background without blocking the modal
                   }}
                   style={[
                     styles.unlockPlusButton,
@@ -2093,6 +2147,26 @@ export default function EventsTab() {
                   />
                 </Pressable>
               ) : null}
+
+              {/* Back arrow: return to main view with 3 floating Sfera communities */}
+              <Pressable
+                onPress={goBackToOrbs}
+                style={[
+                  styles.filterIconButton,
+                  {
+                    top: 8 + insets.top,
+                    left: 16 + insets.left,
+                    backgroundColor: colors.background,
+                    borderColor: colors.text + "40",
+                  },
+                ]}
+              >
+                <MaterialIcons
+                  name="arrow-back"
+                  size={24}
+                  color={colors.primary}
+                />
+              </Pressable>
 
               {/* Filter icon: opens modal with past events + filled events toggles */}
               <Pressable
@@ -3070,11 +3144,29 @@ const styles = StyleSheet.create({
   },
   orbUnseenBadge: {
     position: "absolute",
+    top: 22,
+    left: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.9)",
+    zIndex: 2,
+  },
+  orbUnseenText: {
+    color: "#FF5252",
+    textTransform: "uppercase",
+    fontSize: 9,
+    letterSpacing: 0.5,
+  },
+  centerOrbUnseenDot: {
+    position: "absolute",
     top: 26,
     left: 15,
     width: 16,
     height: 16,
-    borderRadius: 7,
+    borderRadius: 8,
     backgroundColor: "#FF5252",
     borderWidth: 2,
     borderColor: "rgba(255,255,255,0.9)",
@@ -3261,12 +3353,28 @@ const styles = StyleSheet.create({
   },
   eventCardUnseenBadge: {
     position: "absolute",
-    top: 6,
-    left: 6,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#64B5F6",
+    top: 8,
+    left: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    zIndex: 5,
+  },
+  eventCardUnseenBadgeSmall: {
+    top: 4,
+    left: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  eventCardUnseenText: {
+    color: "#FF5252",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  eventCardUnseenTextSmall: {
+    fontSize: 8,
   },
   backBtn: {
     position: "absolute",
