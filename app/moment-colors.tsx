@@ -254,7 +254,7 @@ const CLOUDY_BG_SUGGESTED = [
 // Lesson: wisdom, growth, insight — clarity, “aha”, learning
 const LESSON_BG_SUGGESTED = [
   DEFAULT_MOMENT_COLORS.lesson.background,
-  "#FFA000", "#64B5F6", "#81C784", "#CE93D8", "#4DB6AC", "#7986CB", "#F48FB1",
+  "#5CE1E6", "#FFD700", "#FFA000", "#64B5F6", "#81C784", "#CE93D8", "#4DB6AC", "#7986CB", "#F48FB1",
 ];
 
 const SUNNY_TEXT_SUGGESTED = [

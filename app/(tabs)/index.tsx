@@ -118,6 +118,7 @@ import Svg, {
   FeMerge,
   FeMergeNode,
   Filter,
+  Line,
   Path,
   RadialGradient,
   Stop,
@@ -495,6 +496,7 @@ const FloatingAvatar = React.memo(
     orbitDurationMs?: number;
     onShowAIConsentModal?: () => void;
   }) {
+    const { showLoader: startTransitionLoader } = useHomeTransitionLoader() ?? { showLoader: () => {} };
     const { momentColors } = useMomentColors();
     const aiConsent = useAIInsightsConsent();
     const { hasAIEntitlement } = useSubscription();
@@ -2385,20 +2387,24 @@ const FloatingAvatar = React.memo(
       }
     }, [selectedWheelMoment, popupAnimProgress, popupScale, popupOpacity]);
 
-    // Update entity wheel button selection states when selectedMomentType changes
+    // Update entity wheel button selection states when selectedMomentType changes (fast timing so old selection doesn't linger)
     React.useEffect(() => {
-      entityLessonButtonSelection.value = withSpring(
-        selectedMomentType === "lesson" ? 1 : 0,
-        { damping: 15, stiffness: 150 },
-      );
-      entitySunnyButtonSelection.value = withSpring(
-        selectedMomentType === "sunny" ? 1 : 0,
-        { damping: 15, stiffness: 150 },
-      );
-      entityCloudyButtonSelection.value = withSpring(
-        selectedMomentType === "cloudy" ? 1 : 0,
-        { damping: 15, stiffness: 150 },
-      );
+      cancelAnimation(entityLessonButtonSelection);
+      cancelAnimation(entitySunnyButtonSelection);
+      cancelAnimation(entityCloudyButtonSelection);
+
+      entityLessonButtonSelection.value = withTiming(selectedMomentType === "lesson" ? 1 : 0, {
+        duration: 150,
+        easing: Easing.out(Easing.ease),
+      });
+      entitySunnyButtonSelection.value = withTiming(selectedMomentType === "sunny" ? 1 : 0, {
+        duration: 150,
+        easing: Easing.out(Easing.ease),
+      });
+      entityCloudyButtonSelection.value = withTiming(selectedMomentType === "cloudy" ? 1 : 0, {
+        duration: 150,
+        easing: Easing.out(Easing.ease),
+      });
 
       // Cancel any ongoing animations and reset all highlight and press scale values to prevent lingering press effects
       cancelAnimation(entityLessonButtonHighlight);
@@ -2437,17 +2443,14 @@ const FloatingAvatar = React.memo(
       };
     });
 
-    // Entity wheel button animated styles (matching main wheel liquid glass effect)
+    // Entity wheel button animated styles (match main wheel transparency)
+    const cosmicUnselected = "rgba(26, 36, 64, 0.06)"; // Extra transparent to match main wheel
+    const cosmicSelected = "rgba(92, 225, 230, 0.45)"; // Muted cyan - less bright
     const entityLessonButtonStyle = useAnimatedStyle(() => {
       const backgroundColor = interpolateColor(
         entityLessonButtonSelection.value,
         [0, 1],
-        [
-          colorScheme === "dark"
-            ? "rgba(255, 255, 255, 0.1)"
-            : "rgba(0, 0, 0, 0.1)",
-          colors.primary,
-        ],
+        [cosmicUnselected, cosmicSelected],
       );
       const borderWidth = entityLessonButtonSelection.value * 2;
 
@@ -2455,7 +2458,7 @@ const FloatingAvatar = React.memo(
         transform: [{ scale: entityLessonButtonPressScale.value }],
         backgroundColor,
         borderWidth,
-        borderColor: colors.primary,
+        borderColor: cosmicSelected,
       };
     });
 
@@ -2467,12 +2470,7 @@ const FloatingAvatar = React.memo(
       const backgroundColor = interpolateColor(
         entitySunnyButtonSelection.value,
         [0, 1],
-        [
-          colorScheme === "dark"
-            ? "rgba(255, 255, 255, 0.1)"
-            : "rgba(0, 0, 0, 0.1)",
-          colors.primary,
-        ],
+        [cosmicUnselected, cosmicSelected],
       );
       const borderWidth = entitySunnyButtonSelection.value * 2;
 
@@ -2480,7 +2478,7 @@ const FloatingAvatar = React.memo(
         transform: [{ scale: entitySunnyButtonPressScale.value }],
         backgroundColor,
         borderWidth,
-        borderColor: colors.primary,
+        borderColor: cosmicSelected,
       };
     });
 
@@ -2492,12 +2490,7 @@ const FloatingAvatar = React.memo(
       const backgroundColor = interpolateColor(
         entityCloudyButtonSelection.value,
         [0, 1],
-        [
-          colorScheme === "dark"
-            ? "rgba(255, 255, 255, 0.1)"
-            : "rgba(0, 0, 0, 0.1)",
-          colors.primary,
-        ],
+        [cosmicUnselected, cosmicSelected],
       );
       const borderWidth = entityCloudyButtonSelection.value * 2;
 
@@ -2505,13 +2498,32 @@ const FloatingAvatar = React.memo(
         transform: [{ scale: entityCloudyButtonPressScale.value }],
         backgroundColor,
         borderWidth,
-        borderColor: colors.primary,
+        borderColor: cosmicSelected,
       };
     });
 
     const entityCloudyHighlightStyle = useAnimatedStyle(() => {
       return { opacity: entityCloudyButtonHighlight.value * 0.4 };
     });
+
+    // Avatar ring gradient overlay (fades in when selected, muted like main wheel)
+    const entityLessonGradientOverlayStyle = useAnimatedStyle(() => ({
+      opacity: entityLessonButtonSelection.value * 0.4,
+    }));
+    const entitySunnyGradientOverlayStyle = useAnimatedStyle(() => ({
+      opacity: entitySunnyButtonSelection.value * 0.4,
+    }));
+    const entityCloudyGradientOverlayStyle = useAnimatedStyle(() => ({
+      opacity: entityCloudyButtonSelection.value * 0.4,
+    }));
+
+    const getGradientOverlayStyle = (
+      type: "lesson" | "sunny" | "cloudy",
+    ) => {
+      if (type === "lesson") return entityLessonGradientOverlayStyle;
+      if (type === "sunny") return entitySunnyGradientOverlayStyle;
+      return entityCloudyGradientOverlayStyle;
+    };
 
     const entityExamSubmitButtonStyle = useAnimatedStyle(() => ({
       transform: [{ scale: entityExamSubmitPressScale.value }],
@@ -4023,7 +4035,7 @@ const FloatingAvatar = React.memo(
                         <MaterialIcons
                           name="touch-app"
                           size={isTablet ? 56 : 52}
-                          color={colors.primary}
+                          color={COSMIC_RING_START}
                         />
                       </Animated.View>
                     )}
@@ -4053,19 +4065,52 @@ const FloatingAvatar = React.memo(
                       getButtonStyle(item.type),
                     ]}
                   >
-                    {/* Frosted glass base layer */}
+                    {/* Cosmic frosted glass - lighter when unselected (match main wheel) */}
                     <View style={StyleSheet.absoluteFillObject}>
                       <LinearGradient
-                        colors={[
-                          "rgba(255, 255, 255, 0.15)",
-                          "rgba(255, 255, 255, 0.05)",
-                          "rgba(255, 255, 255, 0.1)",
-                        ]}
+                        colors={
+                          selectedMomentType ===
+                          (item.type === "lesson"
+                            ? "lessons"
+                            : item.type === "sunny"
+                              ? "sunnyMoments"
+                              : "hardTruths")
+                            ? [
+                                "rgba(92, 225, 230, 0.12)",
+                                "rgba(92, 225, 230, 0.04)",
+                                "rgba(157, 123, 219, 0.08)",
+                              ]
+                            : [
+                                "rgba(92, 225, 230, 0.015)",
+                                "rgba(92, 225, 230, 0.005)",
+                                "rgba(157, 123, 219, 0.01)",
+                              ]
+                        }
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={StyleSheet.absoluteFillObject}
                       />
                     </View>
+
+                    {/* Avatar ring gradient overlay */}
+                    <Animated.View
+                      style={[
+                        StyleSheet.absoluteFillObject,
+                        getGradientOverlayStyle(item.type),
+                      ]}
+                      pointerEvents="none"
+                    >
+                      <LinearGradient
+                        colors={[
+                          COSMIC_RING_START,
+                          COSMIC_RING_MID,
+                          COSMIC_RING_END,
+                        ]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFillObject}
+                      />
+                    </Animated.View>
 
                     {/* Specular highlight overlay (liquid glass shine) */}
                     <Animated.View
@@ -4134,8 +4179,12 @@ const FloatingAvatar = React.memo(
                         size={28}
                         color={
                           selectedMomentType === item.type
-                            ? "#fff"
-                            : colors.text
+                            ? item.type === "lesson"
+                              ? momentColors.lesson.background
+                              : item.type === "sunny"
+                                ? momentColors.sunny.background
+                                : momentColors.cloudy.background
+                            : "rgba(184, 232, 236, 0.95)"
                         }
                       />
                       </Pressable>
@@ -4199,6 +4248,7 @@ const FloatingAvatar = React.memo(
                   onMemoryImagePress={
                   onMemoryFocus && moment.entityId && moment.memoryId && moment.sphere
                     ? () => {
+                        startTransitionLoader();
                         requestAnimationFrame(() => {
                           setTimeout(() => {
                             setExpandedMomentId(null);
@@ -4788,7 +4838,7 @@ const FloatingAvatar = React.memo(
                         </Pressable>
                       </Pressable>
                     ) : selectedWheelExam ? (
-                      // Wheel exam: question → answer → result (lesson moment stays, loader inside)
+                      // Entity wheel exam: cosmic question → answer → result
                       <View
                         style={{
                           width: Math.max(dynamicLessonSize, 280),
@@ -4798,22 +4848,30 @@ const FloatingAvatar = React.memo(
                               : dynamicLessonSize,
                           justifyContent: "center",
                           alignItems: "center",
-                          backgroundColor: visuals.backgroundColor,
-                          borderRadius: 20,
-                          shadowColor: visuals.shadowColor,
+                          borderRadius: 24,
+                          overflow: "hidden",
+                          shadowColor: COSMIC_RING_START,
                           shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.95,
-                          shadowRadius: isTablet ? 40 : 30,
+                          shadowOpacity: 0.5,
+                          shadowRadius: isTablet ? 24 : 20,
                           elevation: 24,
                           padding: 20,
                           position: "relative",
+                          borderWidth: 1,
+                          borderColor: "rgba(92, 225, 230, 0.2)",
                         }}
                       >
+                        <LinearGradient
+                          colors={["#0A0E1A", "#0F1422", "#151C2E", "#1A2440"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={StyleSheet.absoluteFillObject}
+                        />
                         {selectedWheelExam.step === "analyzing" ? (
                           <>
                             <ActivityIndicator
                               size="large"
-                              color={momentColors.lesson.background}
+                              color={COSMIC_RING_START}
                             />
                             <ThemedText
                               size="sm"
@@ -4821,6 +4879,7 @@ const FloatingAvatar = React.memo(
                                 marginTop: 12,
                                 opacity: 0.9,
                                 textAlign: "center",
+                                color: COSMIC_TEXT,
                               }}
                             >
                               {t("wheel.exam.analyzing")}
@@ -4830,7 +4889,7 @@ const FloatingAvatar = React.memo(
                         !selectedWheelExam.question ? (
                           <ActivityIndicator
                             size="large"
-                            color={momentColors.lesson.background}
+                            color={COSMIC_RING_START}
                           />
                         ) : selectedWheelExam.step === "result" &&
                           selectedWheelExam.analysis ? (
@@ -4855,6 +4914,7 @@ const FloatingAvatar = React.memo(
                               style={{
                                 marginBottom: 12,
                                 textAlign: "center",
+                                color: COSMIC_TEXT,
                               }}
                             >
                               {selectedWheelExam.analysis.isCorrect
@@ -4867,6 +4927,7 @@ const FloatingAvatar = React.memo(
                                 marginBottom: 8,
                                 opacity: 0.9,
                                 textAlign: "center",
+                                color: COSMIC_TEXT,
                               }}
                             >
                               {selectedWheelExam.analysis.feedback}
@@ -4878,6 +4939,7 @@ const FloatingAvatar = React.memo(
                                 marginTop: 12,
                                 marginBottom: 4,
                                 opacity: 0.8,
+                                color: COSMIC_TEXT,
                               }}
                             >
                               {t("wheel.exam.revealLesson")}
@@ -4888,6 +4950,8 @@ const FloatingAvatar = React.memo(
                                 textAlign: "center",
                                 fontStyle: "italic",
                                 maxWidth: "100%",
+                                color: COSMIC_TEXT,
+                                opacity: 0.95,
                               }}
                               numberOfLines={6}
                             >
@@ -4897,10 +4961,10 @@ const FloatingAvatar = React.memo(
                         ) : (
                           <>
                             <MaterialIcons
-                              name="lightbulb"
-                              size={28}
+                              name="emoji-objects"
+                              size={36}
                               color={momentColors.lesson.background}
-                              style={{ marginBottom: 12 }}
+                              style={{ marginBottom: 14, opacity: 0.95 }}
                             />
                             <ThemedText
                               size="sm"
@@ -4909,7 +4973,8 @@ const FloatingAvatar = React.memo(
                                 marginBottom: 16,
                                 textAlign: "center",
                                 paddingHorizontal: 8,
-                                color: momentColors.lesson.text,
+                                color: COSMIC_TEXT,
+                                lineHeight: 22,
                               }}
                             >
                               {selectedWheelExam.question}
@@ -4919,24 +4984,23 @@ const FloatingAvatar = React.memo(
                                 value={examAnswerInput}
                                 onChangeText={setExamAnswerInput}
                                 placeholder={t("wheel.exam.questionPrompt")}
-                                placeholderTextColor={momentColors.lesson.text}
+                                placeholderTextColor="rgba(184, 232, 236, 0.5)"
                                 style={{
                                   width: "100%",
-                                  minHeight: 44,
-                                  backgroundColor:
-                                    colorScheme === "dark"
-                                      ? "rgba(0,0,0,0.3)"
-                                      : "rgba(0,0,0,0.08)",
-                                  borderRadius: 12,
-                                  paddingHorizontal: 12,
-                                  paddingVertical: 10,
-                                  color: momentColors.lesson.text,
+                                  minHeight: 48,
+                                  backgroundColor: "rgba(13, 21, 37, 0.8)",
+                                  borderRadius: 14,
+                                  paddingHorizontal: 14,
+                                  paddingVertical: 12,
+                                  color: COSMIC_TEXT,
                                   fontSize: 14 * fontScale,
+                                  borderWidth: 1,
+                                  borderColor: "rgba(92, 225, 230, 0.2)",
                                 }}
                                 multiline
                               />
                             </Animated.View>
-                            <Animated.View style={entityExamSubmitButtonStyle}>
+                            <Animated.View style={[entityExamSubmitButtonStyle, { width: "100%", marginTop: 16 }]}>
                               <Pressable
                                 onPressIn={() => {
                                   if (entityExamAnswerInputRef.current.trim().length >= 2) {
@@ -4967,21 +5031,27 @@ const FloatingAvatar = React.memo(
                                     );
                                   }
                                 }}
-                                style={{
-                                  marginTop: 12,
-                                  paddingHorizontal: 24,
-                                  paddingVertical: 10,
-                                  backgroundColor: momentColors.lesson.background,
-                                  borderRadius: 20,
-                                }}
+                                style={{ width: "100%", borderRadius: 14, overflow: "hidden" }}
                               >
-                                <ThemedText
-                                  size="sm"
-                                  weight="semibold"
-                                  style={{ color: momentColors.lesson.text }}
+                                <LinearGradient
+                                  colors={[COSMIC_RING_START, COSMIC_RING_MID]}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 0 }}
+                                  style={{
+                                    paddingVertical: 14,
+                                    paddingHorizontal: 24,
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}
                                 >
-                                  {t("wheel.exam.submitAnswer")}
-                                </ThemedText>
+                                  <ThemedText
+                                    size="sm"
+                                    weight="semibold"
+                                    style={{ color: "#0A0E1A" }}
+                                  >
+                                    {t("wheel.exam.submitAnswer")}
+                                  </ThemedText>
+                                </LinearGradient>
                               </Pressable>
                             </Animated.View>
                           </>
@@ -4993,32 +5063,24 @@ const FloatingAvatar = React.memo(
                           }}
                           style={{
                             position: "absolute",
-                            top: 8,
-                            right: 8,
+                            top: 12,
+                            right: 12,
                             width: 28,
                             height: 28,
                             borderRadius: 14,
-                            backgroundColor:
-                              colorScheme === "dark"
-                                ? "rgba(0, 0, 0, 0.6)"
-                                : "rgba(255, 255, 255, 0.95)",
+                            backgroundColor: "rgba(92, 225, 230, 0.15)",
                             justifyContent: "center",
                             alignItems: "center",
                             zIndex: 999,
-                            shadowColor: "#000",
-                            shadowOffset: { width: 0, height: 1 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 2,
-                            elevation: 5,
+                            borderWidth: 1,
+                            borderColor: "rgba(92, 225, 230, 0.3)",
                           }}
                           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                         >
                           <MaterialIcons
                             name="close"
-                            size={18}
-                            color={
-                              colorScheme === "dark" ? "#FFFFFF" : "#000000"
-                            }
+                            size={16}
+                            color={COSMIC_TEXT}
                             style={{ opacity: 0.9 }}
                           />
                         </Pressable>
@@ -8536,6 +8598,41 @@ const FloatingLesson = React.memo(function FloatingLesson({
   );
 });
 
+// Cosmic avatar palette (aligned with SunnyLifeAvatar in focused-sfera-view)
+const COSMIC_RING_START = "#5CE1E6";
+const COSMIC_RING_MID = "#9D7BDB";
+const COSMIC_RING_END = "#7B68EE";
+const COSMIC_TEXT = "#B8E8EC";
+const COSMIC_TRACK = "#0D1525";
+const COSMIC_INNER_DARK = ["#0A0E1A", "#0F1422", "#151C2E", "#1A2440", "#1E2A4A"] as const;
+const COSMIC_INNER_LIGHT = ["#2A2A3A", "#3A3A4E", "#4A4A62", "#5A5A76", "#6A6A8A"] as const;
+
+// Constellation inside avatar circle (same pattern as SunnyLifeAvatar)
+const AVATAR_STARS = [
+  { x: 0.82, y: 0.5 }, { x: 0.726, y: 0.726 }, { x: 0.5, y: 0.82 }, { x: 0.274, y: 0.726 },
+  { x: 0.18, y: 0.5 }, { x: 0.274, y: 0.274 }, { x: 0.5, y: 0.18 }, { x: 0.726, y: 0.274 },
+  { x: 0.62, y: 0.38 }, { x: 0.38, y: 0.62 }, { x: 0.38, y: 0.38 }, { x: 0.62, y: 0.62 },
+] as const;
+const AVATAR_CONSTELLATION_LINES: [number, number][] = [
+  [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 0], [8, 9], [10, 11],
+];
+const AVATAR_STAR_COLOR = "rgba(184, 232, 236, 0.35)";
+const AVATAR_LINE_COLOR = "rgba(184, 232, 236, 0.12)";
+
+function blendHex(hex1: string, hex2: string, t: number): string {
+  const parse = (h: string) => ({
+    r: parseInt(h.slice(1, 3), 16),
+    g: parseInt(h.slice(3, 5), 16),
+    b: parseInt(h.slice(5, 7), 16),
+  });
+  const a = parse(hex1);
+  const b = parse(hex2);
+  const r = Math.round(a.r * (1 - t) + b.r * t);
+  const g = Math.round(a.g * (1 - t) + b.g * t);
+  const b_ = Math.round(a.b * (1 - t) + b.b * t);
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b_.toString(16).padStart(2, "0")}`;
+}
+
 // Overall Percentage Avatar Component (center display)
 const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   percentage,
@@ -8588,9 +8685,8 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
-  // Use the same gradient colors as the screen background
   const gradientColors =
-    colorScheme === "dark" ? DARK_GRADIENT_COLORS : LIGHT_GRADIENT_COLORS;
+    colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
 
   return (
     <View
@@ -8629,6 +8725,25 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
           style={{ position: "absolute", top: 0, left: 0 }}
         >
           <Defs>
+            <RadialGradient
+              id="overallNebulaHalo"
+              cx="50%"
+              cy="50%"
+              r="65%"
+              fx="50%"
+              fy="50%"
+            >
+              <Stop offset="0%" stopColor={COSMIC_RING_END} stopOpacity="0" />
+              <Stop offset="50%" stopColor={COSMIC_RING_MID} stopOpacity="0.08" />
+              <Stop offset="85%" stopColor={COSMIC_RING_START} stopOpacity="0.2" />
+              <Stop offset="100%" stopColor={COSMIC_RING_END} stopOpacity="0.35" />
+            </RadialGradient>
+            <Filter id="overallNebulaBlur" x="-80%" y="-80%" width="260%" height="260%">
+              <FeGaussianBlur in="SourceGraphic" stdDeviation="12" result="nebulaBlurred" />
+              <FeMerge>
+                <FeMergeNode in="nebulaBlurred" />
+              </FeMerge>
+            </Filter>
             <SvgLinearGradient
               id="overallBorderGradient"
               x1="0%"
@@ -8636,11 +8751,10 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               x2="100%"
               y2="100%"
             >
-              <Stop offset="0%" stopColor={momentColors.sunny.background} stopOpacity="0.7" />
-              <Stop offset="50%" stopColor={momentColors.sunny.background} stopOpacity="1" />
-              <Stop offset="100%" stopColor={momentColors.sunny.background} stopOpacity="1" />
+              <Stop offset="0%" stopColor={COSMIC_RING_START} stopOpacity="0.9" />
+              <Stop offset="50%" stopColor={COSMIC_RING_MID} stopOpacity="1" />
+              <Stop offset="100%" stopColor={COSMIC_RING_END} stopOpacity="1" />
             </SvgLinearGradient>
-            {/* Strong outer glow filter - extends outward prominently */}
             <Filter
               id="outerYellowGlow"
               x="-200%"
@@ -8648,7 +8762,6 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               width="500%"
               height="500%"
             >
-              {/* Large outer glow layer - very spread out */}
               <FeGaussianBlur
                 in="SourceGraphic"
                 stdDeviation="20"
@@ -8657,10 +8770,9 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               <FeColorMatrix
                 in="outerBlurLarge"
                 type="matrix"
-                values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.5 0"
+                values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.5 0"
                 result="outerGlowLarge"
               />
-              {/* Medium outer glow layer */}
               <FeGaussianBlur
                 in="SourceGraphic"
                 stdDeviation="12"
@@ -8669,10 +8781,9 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               <FeColorMatrix
                 in="outerBlurMedium"
                 type="matrix"
-                values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.7 0"
+                values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.7 0"
                 result="outerGlowMedium"
               />
-              {/* Smaller outer glow layer for definition */}
               <FeGaussianBlur
                 in="SourceGraphic"
                 stdDeviation="6"
@@ -8681,17 +8792,15 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               <FeColorMatrix
                 in="outerBlurSmall"
                 type="matrix"
-                values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.9 0"
+                values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.9 0"
                 result="outerGlowSmall"
               />
-              {/* Merge all outer glow layers */}
               <FeMerge>
                 <FeMergeNode in="outerGlowLarge" />
                 <FeMergeNode in="outerGlowMedium" />
                 <FeMergeNode in="outerGlowSmall" />
               </FeMerge>
             </Filter>
-            {/* Enhanced glow filter with both inner and outer glow */}
             <Filter
               id="yellowGlow"
               x="-200%"
@@ -8699,7 +8808,6 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               width="500%"
               height="500%"
             >
-              {/* Strong outer glow - larger blur that extends outward prominently */}
               <FeGaussianBlur
                 in="SourceGraphic"
                 stdDeviation="16"
@@ -8708,10 +8816,9 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               <FeColorMatrix
                 in="outerBlur"
                 type="matrix"
-                values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 1.0 0"
+                values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 1.0 0"
                 result="outerGlow"
               />
-              {/* Medium outer glow for more spread */}
               <FeGaussianBlur
                 in="SourceGraphic"
                 stdDeviation="10"
@@ -8720,10 +8827,9 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               <FeColorMatrix
                 in="outerBlurMedium"
                 type="matrix"
-                values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.85 0"
+                values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.85 0"
                 result="outerGlowMedium"
               />
-              {/* Inner glow - smaller blur that extends inward */}
               <FeGaussianBlur
                 in="SourceGraphic"
                 stdDeviation="4"
@@ -8732,10 +8838,9 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               <FeColorMatrix
                 in="innerBlur"
                 type="matrix"
-                values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.8 0"
+                values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.8 0"
                 result="innerGlow"
               />
-              {/* Merge: outer glows (behind), inner glow (middle), source (front) */}
               <FeMerge>
                 <FeMergeNode in="outerGlow" />
                 <FeMergeNode in="outerGlowMedium" />
@@ -8744,11 +8849,19 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               </FeMerge>
             </Filter>
           </Defs>
+          {/* Nebula halo - soft glow around outer part of circle */}
+          <Circle
+            cx={avatarSize / 2}
+            cy={avatarSize / 2}
+            r={radius + 18}
+            fill="url(#overallNebulaHalo)"
+            filter="url(#overallNebulaBlur)"
+          />
           <Circle
             cx={avatarSize / 2}
             cy={avatarSize / 2}
             r={radius}
-            stroke="#000000"
+            stroke={COSMIC_TRACK}
             strokeWidth={borderWidth}
             fill="none"
           />
@@ -8780,6 +8893,29 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
             filter="url(#yellowGlow)"
             transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
           />
+          {/* Constellation lines */}
+          {AVATAR_CONSTELLATION_LINES.map(([i, j], k) => (
+            <Line
+              key={`line-${k}`}
+              x1={AVATAR_STARS[i].x * avatarSize}
+              y1={AVATAR_STARS[i].y * avatarSize}
+              x2={AVATAR_STARS[j].x * avatarSize}
+              y2={AVATAR_STARS[j].y * avatarSize}
+              stroke={AVATAR_LINE_COLOR}
+              strokeWidth={1}
+              strokeLinecap="round"
+            />
+          ))}
+          {/* Constellation dots */}
+          {AVATAR_STARS.map((star, k) => (
+            <Circle
+              key={`star-${k}`}
+              cx={star.x * avatarSize}
+              cy={star.y * avatarSize}
+              r={avatarSize < 120 ? 1 : 1.4}
+              fill={AVATAR_STAR_COLOR}
+            />
+          ))}
         </Svg>
 
         <View
@@ -8799,7 +8935,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               <ThemedText
                 size="xl"
                 weight="bold"
-                style={{ color: momentColors.sunny.background, fontSize: 24 }}
+                style={{ color: COSMIC_TEXT, fontSize: 24 }}
               >
                 {Math.round(percentage)}%
               </ThemedText>
@@ -8809,7 +8945,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                     size="sm"
                     weight="medium"
                     style={{
-                      color: momentColors.sunny.background,
+                      color: COSMIC_TEXT,
                       fontSize: 10,
                       marginTop: -2,
                       textAlign: "center",
@@ -8822,7 +8958,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                     size="sm"
                     weight="medium"
                     style={{
-                      color: momentColors.sunny.background,
+                      color: COSMIC_TEXT,
                       fontSize: 10,
                       textAlign: "center",
                       lineHeight: 10,
@@ -8837,7 +8973,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                   size="sm"
                   weight="medium"
                   style={{
-                    color: momentColors.sunny.background,
+                    color: COSMIC_TEXT,
                     fontSize: 12,
                     marginTop: -2,
                   }}
@@ -8861,7 +8997,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                   width: 44,
                   height: 44,
                   borderRadius: 22,
-                  backgroundColor: `${momentColors.sunny.background}30`,
+                  backgroundColor: `${COSMIC_RING_START}40`,
                   justifyContent: "center",
                   alignItems: "center",
                 }}
@@ -8869,7 +9005,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                 <MaterialIcons
                   name="add"
                   size={28}
-                  color={momentColors.sunny.background}
+                  color={COSMIC_TEXT}
                 />
               </View>
             </Pressable>
@@ -8877,22 +9013,21 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
         </View>
       </View>
 
-      {/* Sun icon - positioned in the middle of the yellow (sunny) arc */}
+      {/* Sun icon - darker shade of sunny color from settings */}
       {percentage > 0 &&
         (() => {
-          // Calculate angle for middle of sunny arc
-          // Arc starts at -90° (top) and goes clockwise by percentage
-          // Middle of sunny arc is at: -90° + (percentage/100 * 360°) / 2
           const sunnyArcAngle = -90 + ((percentage / 100) * 360) / 2;
           const sunnyAngleRad = (sunnyArcAngle * Math.PI) / 180;
-          const iconRadius = avatarSize / 2; // Position on the circle edge
-
-          // Calculate position
+          const iconRadius = avatarSize / 2;
           const sunX =
             avatarSize / 2 + iconRadius * Math.cos(sunnyAngleRad) - 12;
           const sunY =
             avatarSize / 2 + iconRadius * Math.sin(sunnyAngleRad) - 12;
-
+          const sunShade = blendHex(
+            momentColors.sunny.background,
+            COSMIC_TRACK,
+            0.22,
+          );
           return (
             <View
               pointerEvents="none"
@@ -8904,24 +9039,24 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                 height: 24,
                 justifyContent: "center",
                 alignItems: "center",
-                backgroundColor: momentColors.sunny.background,
+                backgroundColor: sunShade,
                 borderRadius: 12,
                 borderWidth: 2,
-                borderColor: momentColors.sunny.background,
+                borderColor: sunShade,
                 zIndex: 999,
                 elevation: 30,
-                shadowColor: "#000",
+                shadowColor: sunShade,
                 shadowOffset: { width: 0, height: 3 },
-                shadowOpacity: 0.6,
-                shadowRadius: 4,
+                shadowOpacity: 0.5,
+                shadowRadius: 6,
               }}
             >
-              <MaterialIcons name="wb-sunny" size={14} color="#FFFFFF" />
+              <MaterialIcons name="wb-sunny" size={14} color={momentColors.sunny.text} />
             </View>
           );
         })()}
 
-      {/* Cloud icon - positioned in the middle of the black (cloudy) arc */}
+      {/* Cloud icon - positioned in the middle of the cloudy arc */}
       {percentage < 100 &&
         percentage > 0 &&
         (() => {
@@ -8953,19 +9088,19 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                 height: 24,
                 justifyContent: "center",
                 alignItems: "center",
-                backgroundColor: "#555555",
+                backgroundColor: momentColors.cloudy.background,
                 borderRadius: 12,
                 borderWidth: 2,
-                borderColor: "#222222",
+                borderColor: momentColors.cloudy.background,
                 zIndex: 999,
                 elevation: 30,
-                shadowColor: "#000",
+                shadowColor: momentColors.cloudy.background,
                 shadowOffset: { width: 0, height: 3 },
-                shadowOpacity: 0.6,
+                shadowOpacity: 0.5,
                 shadowRadius: 4,
               }}
             >
-              <MaterialIcons name="cloud" size={14} color="#FFFFFF" />
+              <MaterialIcons name="cloud" size={14} color={momentColors.cloudy.text} />
             </View>
           );
         })()}
@@ -10619,18 +10754,21 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
             {isExpanded && onMemoryImagePress && (
               <Pressable
                 onPress={onMemoryImagePress}
-                style={{
-                  marginTop: 12,
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  overflow: "hidden",
-                  borderWidth: 2,
+                style={({ pressed }) => [
+                  {
+                    marginTop: 12,
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    overflow: "hidden",
+                    borderWidth: 2,
                   borderColor: sunnyBg,
                   justifyContent: "center",
                   alignItems: "center",
                   backgroundColor: "rgba(0,0,0,0.2)",
-                }}
+                  },
+                  { transform: [{ scale: pressed ? 0.9 : 1 }] },
+                ]}
               >
                 {memoryImageUri ? (
                   <Image
@@ -10758,18 +10896,21 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
             {isExpanded && onMemoryImagePress && (
               <Pressable
                 onPress={onMemoryImagePress}
-                style={{
-                  marginTop: 12,
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  overflow: "hidden",
-                  borderWidth: 2,
+                style={({ pressed }) => [
+                  {
+                    marginTop: 12,
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    overflow: "hidden",
+                    borderWidth: 2,
                   borderColor: cloudyBg,
                   justifyContent: "center",
                   alignItems: "center",
                   backgroundColor: "rgba(0,0,0,0.2)",
-                }}
+                  },
+                  { transform: [{ scale: pressed ? 0.9 : 1 }] },
+                ]}
               >
                 {memoryImageUri ? (
                   <Image
@@ -10789,9 +10930,10 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     );
   }
 
-  // Lesson - lightbulb with text below it, memory image at bottom when expanded
+  // Lesson - lightbulb with text below it, cosmic-tinted (blend of lesson color from settings)
   const lessonBg = momentColors.lesson.background;
   const lessonText = momentColors.lesson.text;
+  const bulbColor = blendHex(momentColors.lesson.background, COSMIC_RING_START, 0.28);
   return (
     <Animated.View style={animatedStyle} pointerEvents={canInteract ? "auto" : "none"}>
       <Pressable
@@ -10827,7 +10969,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
             <MaterialIcons
               name="lightbulb"
               size={finalWidth * 0.4}
-              color={lessonBg}
+              color={bulbColor}
             />
           </Animated.View>
           <Animated.View
@@ -10865,21 +11007,24 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
           {isExpanded && onMemoryImagePress && (
             <Pressable
               onPress={onMemoryImagePress}
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: "50%",
-                marginLeft: -32,
-                width: 64,
-                height: 64,
-                borderRadius: 32,
-                overflow: "hidden",
-                borderWidth: 2,
-                borderColor: lessonBg,
-                backgroundColor: "rgba(0,0,0,0.2)",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
+              style={({ pressed }) => [
+                {
+                  position: "absolute",
+                  bottom: 0,
+                  left: "50%",
+                  marginLeft: -32,
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  overflow: "hidden",
+                  borderWidth: 2,
+                  borderColor: lessonBg,
+                  backgroundColor: "rgba(0,0,0,0.2)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                },
+                { transform: [{ scale: pressed ? 0.9 : 1 }] },
+              ]}
             >
               {memoryImageUri ? (
                 <Image
@@ -11424,18 +11569,21 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               {isExpanded && onMemoryImagePress && (
                 <Pressable
                   onPress={onMemoryImagePress}
-                  style={{
-                    marginTop: 12,
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    overflow: "hidden",
-                    borderWidth: 2,
-                    borderColor: momentColors.sunny.background,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    backgroundColor: "rgba(0,0,0,0.2)",
-                  }}
+                  style={({ pressed }) => [
+                    {
+                      marginTop: 12,
+                      width: 64,
+                      height: 64,
+                      borderRadius: 32,
+                      overflow: "hidden",
+                      borderWidth: 2,
+                      borderColor: momentColors.sunny.background,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: "rgba(0,0,0,0.2)",
+                    },
+                    { transform: [{ scale: pressed ? 0.9 : 1 }] },
+                  ]}
                 >
                   {memoryImageUri ? (
                     <Image
@@ -11556,18 +11704,21 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               {isExpanded && onMemoryImagePress && (
                 <Pressable
                   onPress={onMemoryImagePress}
-                  style={{
-                    marginTop: 12,
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    overflow: "hidden",
-                    borderWidth: 2,
-                    borderColor: momentColors.cloudy.background,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    backgroundColor: "rgba(0,0,0,0.2)",
-                  }}
+                  style={({ pressed }) => [
+                    {
+                      marginTop: 12,
+                      width: 64,
+                      height: 64,
+                      borderRadius: 32,
+                      overflow: "hidden",
+                      borderWidth: 2,
+                      borderColor: momentColors.cloudy.background,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: "rgba(0,0,0,0.2)",
+                    },
+                    { transform: [{ scale: pressed ? 0.9 : 1 }] },
+                  ]}
                 >
                   {memoryImageUri ? (
                     <Image
@@ -11605,7 +11756,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               alignItems: "center",
             }}
           >
-            {/* Lightbulb gets ~4.5x bigger when expanded */}
+            {/* Lightbulb - cosmic tint, no circle */}
             <Animated.View
               style={[
                 {
@@ -11623,7 +11774,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               <MaterialIcons
                 name="lightbulb"
                 size={baseSunSize * 0.4}
-                color={momentColors.lesson.background}
+                color={blendHex(momentColors.lesson.background, COSMIC_RING_START, 0.28)}
               />
             </Animated.View>
             {/* Text overlay - sits below bulb; when expanded, pushed up to make room for image */}
@@ -11662,21 +11813,24 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
             {isExpanded && onMemoryImagePress && (
               <Pressable
                 onPress={onMemoryImagePress}
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: "50%",
-                  marginLeft: -32,
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  overflow: "hidden",
-                  borderWidth: 2,
-                  borderColor: momentColors.lesson.background,
-                  backgroundColor: "rgba(0,0,0,0.2)",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
+                style={({ pressed }) => [
+                  {
+                    position: "absolute",
+                    bottom: 0,
+                    left: "50%",
+                    marginLeft: -32,
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    overflow: "hidden",
+                    borderWidth: 2,
+                    borderColor: momentColors.lesson.background,
+                    backgroundColor: "rgba(0,0,0,0.2)",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  },
+                  { transform: [{ scale: pressed ? 0.9 : 1 }] },
+                ]}
               >
                 {memoryImageUri ? (
                   <Image
@@ -12777,7 +12931,9 @@ export default function HomeScreen() {
       );
 
       if (hasFocusedView) {
-        startTransitionLoader();
+        // Skip loader: React Native Modal can leave an invisible blocking layer on iOS
+        // when rapidly shown then hidden (e.g. entity wheel -> Home). See:
+        // https://github.com/facebook/react-native/issues/50152
         setFocusedMemory(null);
         setSelectedSphere(null);
         setFocusedProfileId(null);
@@ -12785,17 +12941,17 @@ export default function HomeScreen() {
         setFocusedFamilyMemberId(null);
         setFocusedFriendId(null);
         setFocusedHobbyId(null);
+        setExpandedMomentId(null);
+        setIsAnyEntityWheelActive(false);
         setAnimationsComplete(false);
         setShowMomentTypeSelector(false);
         setHomeViewMode("focused");
         router.replace("/");
-        hideLoader();
       } else {
         if (tabPressNoOpRef.current) return;
-        startTransitionLoader();
+        // Skip loader to avoid Modal touch-blocking bug on iOS
         setHomeViewMode("focused");
         setShowMomentTypeSelector(false);
-        hideLoader();
       }
     };
     return onHomeTabPress(handleHomeTabPress);
@@ -12825,6 +12981,8 @@ export default function HomeScreen() {
           setFocusedFriendId(null);
           setFocusedHobbyId(null);
           setSelectedSphere(null);
+          setExpandedMomentId(null);
+          setIsAnyEntityWheelActive(false);
           setAnimationsComplete(false);
           setShowMomentTypeSelector(false);
           setHomeViewMode("focused");
@@ -14809,17 +14967,14 @@ export default function HomeScreen() {
     transform: [{ scale: mainWheelExamInputPulseScale.value }],
   }));
 
-  // Animated styles for individual button press effects with liquid glass
+  // Animated styles for individual button press effects (match circle avatar ring)
+  const mainWheelCosmicUnselected = "rgba(26, 36, 64, 0.12)"; // Very transparent - see-through
+  const mainWheelCosmicSelected = "rgba(92, 225, 230, 0.45)"; // Muted cyan - less bright
   const lessonsButtonAnimatedStyle = useAnimatedStyle(() => {
     const backgroundColor = interpolateColor(
       lessonsButtonSelection.value,
       [0, 1],
-      [
-        colorScheme === "dark"
-          ? "rgba(255, 255, 255, 0.1)"
-          : "rgba(0, 0, 0, 0.1)",
-        colors.primary,
-      ],
+      [mainWheelCosmicUnselected, mainWheelCosmicSelected],
     );
     const borderWidth = lessonsButtonSelection.value * 2; // Animate from 0 to 2
 
@@ -14827,7 +14982,7 @@ export default function HomeScreen() {
       transform: [{ scale: lessonsButtonPressScale.value }],
       backgroundColor,
       borderWidth,
-      borderColor: colors.primary,
+      borderColor: mainWheelCosmicSelected,
       borderRadius: 30,
       width: 60,
       height: 60,
@@ -14846,12 +15001,7 @@ export default function HomeScreen() {
     const backgroundColor = interpolateColor(
       hardTruthsButtonSelection.value,
       [0, 1],
-      [
-        colorScheme === "dark"
-          ? "rgba(255, 255, 255, 0.1)"
-          : "rgba(0, 0, 0, 0.1)",
-        colors.primary,
-      ],
+      [mainWheelCosmicUnselected, mainWheelCosmicSelected],
     );
     const borderWidth = hardTruthsButtonSelection.value * 2; // Animate from 0 to 2
 
@@ -14859,7 +15009,7 @@ export default function HomeScreen() {
       transform: [{ scale: hardTruthsButtonPressScale.value }],
       backgroundColor,
       borderWidth,
-      borderColor: colors.primary,
+      borderColor: mainWheelCosmicSelected,
       borderRadius: 30,
       width: 60,
       height: 60,
@@ -14878,12 +15028,7 @@ export default function HomeScreen() {
     const backgroundColor = interpolateColor(
       sunnyMomentsButtonSelection.value,
       [0, 1],
-      [
-        colorScheme === "dark"
-          ? "rgba(255, 255, 255, 0.1)"
-          : "rgba(0, 0, 0, 0.1)",
-        colors.primary,
-      ],
+      [mainWheelCosmicUnselected, mainWheelCosmicSelected],
     );
     const borderWidth = sunnyMomentsButtonSelection.value * 2; // Animate from 0 to 2
 
@@ -14891,7 +15036,7 @@ export default function HomeScreen() {
       transform: [{ scale: sunnyMomentsButtonPressScale.value }],
       backgroundColor,
       borderWidth,
-      borderColor: colors.primary,
+      borderColor: mainWheelCosmicSelected,
       borderRadius: 30,
       width: 60,
       height: 60,
@@ -14905,6 +15050,17 @@ export default function HomeScreen() {
       opacity: sunnyMomentsButtonHighlight.value * 0.4, // Max 40% opacity
     };
   });
+
+  // Avatar ring gradient overlay (fades in when selected, muted)
+  const lessonsGradientOverlayStyle = useAnimatedStyle(() => ({
+    opacity: lessonsButtonSelection.value * 0.4,
+  }));
+  const sunnyMomentsGradientOverlayStyle = useAnimatedStyle(() => ({
+    opacity: sunnyMomentsButtonSelection.value * 0.4,
+  }));
+  const hardTruthsGradientOverlayStyle = useAnimatedStyle(() => ({
+    opacity: hardTruthsButtonSelection.value * 0.4,
+  }));
 
   // Gentle continuous rotation hint animation (suppressed during initial spin hint)
   useEffect(() => {
@@ -17648,7 +17804,9 @@ export default function HomeScreen() {
       style={[
         StyleSheet.absoluteFillObject,
         { zIndex: showEntityDetail ? 0 : 10 },
-        showEntityDetail && { opacity: 0, pointerEvents: "none" as const },
+        showEntityDetail
+          ? { opacity: 0, pointerEvents: "none" as const }
+          : { pointerEvents: "auto" as const },
       ]}
       collapsable={false}
     >
@@ -18314,8 +18472,8 @@ export default function HomeScreen() {
                         }}
                         style={{
                           position: "absolute",
-                          top: 4,
-                          right: 4,
+                          top: 12,
+                          right: 12,
                           width: 24,
                           height: 24,
                           borderRadius: 12,
@@ -18511,8 +18669,8 @@ export default function HomeScreen() {
                         }}
                         style={{
                           position: "absolute",
-                          top: 4,
-                          right: 4,
+                          top: 12,
+                          right: 12,
                           width: 24,
                           height: 24,
                           borderRadius: 12,
@@ -18536,25 +18694,38 @@ export default function HomeScreen() {
                     </AnimatedPressable>
                   ) : selectedLesson.examStep === "question" &&
                     !selectedLesson.examQuestion ? (
-                    // Loading: waiting for preloaded question
+                    // Loading: cosmic exam UI
                     <View
                       style={[
                         {
                           width: Math.max(momentWidth, 280),
                           minWidth: 200,
                           padding: 20,
-                          backgroundColor: momentColors.lesson.background + "B3",
-                          borderRadius: 20,
+                          borderRadius: 24,
+                          overflow: "hidden",
                           alignItems: "center",
                           justifyContent: "center",
                           minHeight: 120,
                           position: "relative",
+                          borderWidth: 1,
+                          borderColor: "rgba(92, 225, 230, 0.25)",
+                          shadowColor: COSMIC_RING_START,
+                          shadowOffset: { width: 0, height: 0 },
+                          shadowOpacity: 0.4,
+                          shadowRadius: 20,
+                          elevation: 24,
                         },
                       ]}
                     >
+                      <LinearGradient
+                        colors={["#0A0E1A", "#0F1422", "#151C2E", "#1A2440"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFillObject}
+                      />
                       <ActivityIndicator
                         size="large"
-                        color={momentColors.lesson.background}
+                        color={COSMIC_RING_START}
                       />
                       <Pressable
                         onPress={(e) => {
@@ -18565,51 +18736,61 @@ export default function HomeScreen() {
                         }}
                         style={{
                           position: "absolute",
-                          top: 4,
-                          right: 4,
-                          width: 24,
-                          height: 24,
-                          borderRadius: 12,
-                          backgroundColor: momentColors.lesson.background + "CC",
+                          top: 12,
+                          right: 12,
+                          width: 28,
+                          height: 28,
+                          borderRadius: 14,
+                          backgroundColor: "rgba(92, 225, 230, 0.15)",
                           justifyContent: "center",
                           alignItems: "center",
                           zIndex: 10,
+                          borderWidth: 1,
+                          borderColor: "rgba(92, 225, 230, 0.3)",
                         }}
                       >
                         <MaterialIcons
                           name="close"
                           size={16}
-                          color={momentColors.lesson.text}
+                          color={COSMIC_TEXT}
                           style={{ opacity: 0.9 }}
                         />
                       </Pressable>
                     </View>
                   ) : selectedLesson.examQuestion &&
                     selectedLesson.examStep === "question" ? (
-                    // Main wheel exam: question + answer input (colors from lesson settings)
+                    // Main wheel exam: cosmic question + answer UI
                     <View
                       style={[
                         {
                           width: Math.max(momentWidth, 280),
                           minWidth: 200,
-                          padding: 20,
-                          backgroundColor: momentColors.lesson.background + "B3",
-                          borderRadius: 20,
-                          shadowColor: momentColors.lesson.background,
+                          padding: 24,
+                          borderRadius: 24,
+                          overflow: "hidden",
+                          shadowColor: COSMIC_RING_START,
                           shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.95,
-                          shadowRadius: isTablet ? 40 : 30,
+                          shadowOpacity: 0.5,
+                          shadowRadius: isTablet ? 24 : 20,
                           elevation: 24,
                           alignItems: "center",
                           position: "relative",
+                          borderWidth: 1,
+                          borderColor: "rgba(92, 225, 230, 0.2)",
                         },
                       ]}
                     >
+                      <LinearGradient
+                        colors={["#0A0E1A", "#0F1422", "#151C2E", "#1A2440"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFillObject}
+                      />
                       <MaterialIcons
-                        name={visuals.icon}
-                        size={32}
+                        name="emoji-objects"
+                        size={36}
                         color={momentColors.lesson.background}
-                        style={{ marginBottom: 12 }}
+                        style={{ marginBottom: 14, opacity: 0.95 }}
                       />
                       <ThemedText
                         size="sm"
@@ -18618,7 +18799,8 @@ export default function HomeScreen() {
                           marginBottom: 16,
                           textAlign: "center",
                           paddingHorizontal: 8,
-                          color: momentColors.lesson.text,
+                          color: COSMIC_TEXT,
+                          lineHeight: 22,
                         }}
                       >
                         {selectedLesson.examQuestion}
@@ -18628,21 +18810,23 @@ export default function HomeScreen() {
                           value={mainWheelExamAnswerInput}
                           onChangeText={setMainWheelExamAnswerInput}
                           placeholder={t("wheel.exam.questionPrompt")}
-                          placeholderTextColor={momentColors.lesson.text}
+                          placeholderTextColor="rgba(184, 232, 236, 0.5)"
                           style={{
                             width: "100%",
-                            minHeight: 44,
-                            backgroundColor: momentColors.lesson.background + "40",
-                            borderRadius: 12,
-                            paddingHorizontal: 12,
-                            paddingVertical: 10,
-                            color: momentColors.lesson.text,
+                            minHeight: 48,
+                            backgroundColor: "rgba(13, 21, 37, 0.8)",
+                            borderRadius: 14,
+                            paddingHorizontal: 14,
+                            paddingVertical: 12,
+                            color: COSMIC_TEXT,
                             fontSize: 14 * fontScale,
+                            borderWidth: 1,
+                            borderColor: "rgba(92, 225, 230, 0.2)",
                           }}
                           multiline
                         />
                       </Animated.View>
-                      <Animated.View style={mainWheelExamSubmitButtonStyle}>
+                      <Animated.View style={[mainWheelExamSubmitButtonStyle, { width: "100%", marginTop: 16 }]}>
                         <Pressable
                           onPressIn={() => {
                             if (mainWheelExamAnswerInputRef.current.trim().length >= 2) {
@@ -18676,21 +18860,27 @@ export default function HomeScreen() {
                               );
                             }
                           }}
-                          style={{
-                            marginTop: 12,
-                            paddingHorizontal: 24,
-                            paddingVertical: 10,
-                            backgroundColor: momentColors.lesson.background,
-                            borderRadius: 20,
-                          }}
+                          style={{ width: "100%", borderRadius: 14, overflow: "hidden" }}
                         >
-                          <ThemedText
-                            size="sm"
-                            weight="semibold"
-                            style={{ color: momentColors.lesson.text }}
+                          <LinearGradient
+                            colors={[COSMIC_RING_START, COSMIC_RING_MID]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={{
+                              paddingVertical: 14,
+                              paddingHorizontal: 24,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
                           >
-                            {t("wheel.exam.submitAnswer")}
-                          </ThemedText>
+                            <ThemedText
+                              size="sm"
+                              weight="semibold"
+                              style={{ color: "#0A0E1A" }}
+                            >
+                              {t("wheel.exam.submitAnswer")}
+                            </ThemedText>
+                          </LinearGradient>
                         </Pressable>
                       </Animated.View>
                       <Pressable
@@ -18702,21 +18892,23 @@ export default function HomeScreen() {
                         }}
                         style={{
                           position: "absolute",
-                          top: 4,
-                          right: 4,
-                          width: 24,
-                          height: 24,
-                          borderRadius: 12,
-                          backgroundColor: momentColors.lesson.background + "CC",
+                          top: 12,
+                          right: 12,
+                          width: 28,
+                          height: 28,
+                          borderRadius: 14,
+                          backgroundColor: "rgba(92, 225, 230, 0.15)",
                           justifyContent: "center",
                           alignItems: "center",
                           zIndex: 10,
+                          borderWidth: 1,
+                          borderColor: "rgba(92, 225, 230, 0.3)",
                         }}
                       >
                         <MaterialIcons
                           name="close"
                           size={16}
-                          color={momentColors.lesson.text}
+                          color={COSMIC_TEXT}
                           style={{ opacity: 0.9 }}
                         />
                       </Pressable>
@@ -18726,33 +18918,42 @@ export default function HomeScreen() {
                     <Animated.View
                       style={[
                         {
-                          width: Math.max(momentWidth, 220),
-                          height: Math.max(momentHeight, 220),
+                          width: Math.max(momentWidth, 200),
+                          height: Math.max(momentHeight, 200),
                           justifyContent: "center",
                           alignItems: "center",
-                          backgroundColor: visuals.backgroundColor,
-                          borderRadius: Math.max(momentWidth, 220) / 2,
-                          shadowColor: visuals.shadowColor,
+                          borderRadius: Math.max(momentWidth, 200) / 2,
+                          overflow: "hidden",
+                          shadowColor: COSMIC_RING_START,
                           shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.95,
-                          shadowRadius: isTablet ? 40 : 30,
+                          shadowOpacity: 0.45,
+                          shadowRadius: isTablet ? 28 : 24,
                           elevation: 24,
                           padding: 8,
                           position: "relative",
+                          borderWidth: 1,
+                          borderColor: "rgba(92, 225, 230, 0.25)",
                         },
                         lessonShadowAnimatedStyle,
                       ]}
                     >
+                      <LinearGradient
+                        colors={["#0A0E1A", "#0F1422", "#151C2E", "#1A2440"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFillObject}
+                      />
                       <ActivityIndicator
                         size="large"
-                        color={momentColors.lesson.background}
+                        color={COSMIC_RING_START}
                       />
                       <ThemedText
                         size="sm"
                         style={{
                           marginTop: 12,
-                          color: momentColors.lesson.text,
+                          color: COSMIC_TEXT,
                           textAlign: "center",
+                          opacity: 0.9,
                         }}
                       >
                         {t("wheel.exam.analyzing")}
@@ -18849,8 +19050,8 @@ export default function HomeScreen() {
                         }}
                         style={{
                           position: "absolute",
-                          top: 4,
-                          right: 4,
+                          top: 12,
+                          right: 12,
                           width: 24,
                           height: 24,
                           borderRadius: 12,
@@ -18989,8 +19190,8 @@ export default function HomeScreen() {
                         }}
                         style={{
                           position: "absolute",
-                          top: 4,
-                          right: 4,
+                          top: 12,
+                          right: 12,
                           width: 24,
                           height: 24,
                           borderRadius: 12,
@@ -20025,6 +20226,7 @@ export default function HomeScreen() {
                 onMemoryImagePress={
                   moment.entityId && moment.memoryId && moment.sphere
                     ? () => {
+                        startTransitionLoader();
                         requestAnimationFrame(() => {
                           setTimeout(() => {
                             setExpandedMomentId(null);
@@ -20122,6 +20324,7 @@ export default function HomeScreen() {
                         momentData?.memoryId &&
                         momentData?.sphere
                           ? () => {
+                              startTransitionLoader();
                               requestAnimationFrame(() => {
                                 setTimeout(() => {
                                   setExpandedMomentId(null);
@@ -20255,19 +20458,47 @@ export default function HomeScreen() {
                         },
                       ]}
                     >
-                      {/* Frosted glass base layer */}
+                      {/* Cosmic frosted glass - lighter when unselected for see-through effect */}
                       <View style={StyleSheet.absoluteFillObject}>
                         <LinearGradient
-                          colors={[
-                            "rgba(255, 255, 255, 0.15)",
-                            "rgba(255, 255, 255, 0.05)",
-                            "rgba(255, 255, 255, 0.1)",
-                          ]}
+                          colors={
+                            selectedMomentType === "lessons"
+                              ? [
+                                  "rgba(92, 225, 230, 0.12)",
+                                  "rgba(92, 225, 230, 0.04)",
+                                  "rgba(157, 123, 219, 0.08)",
+                                ]
+                              : [
+                                  "rgba(92, 225, 230, 0.03)",
+                                  "rgba(92, 225, 230, 0.01)",
+                                  "rgba(157, 123, 219, 0.02)",
+                                ]
+                          }
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                           style={StyleSheet.absoluteFillObject}
                         />
                       </View>
+
+                      {/* Avatar ring gradient overlay */}
+                      <Animated.View
+                        style={[
+                          StyleSheet.absoluteFillObject,
+                          lessonsGradientOverlayStyle,
+                        ]}
+                        pointerEvents="none"
+                      >
+                        <LinearGradient
+                          colors={[
+                            COSMIC_RING_START,
+                            COSMIC_RING_MID,
+                            COSMIC_RING_END,
+                          ]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={StyleSheet.absoluteFillObject}
+                        />
+                      </Animated.View>
 
                       <Pressable
                         onPress={() => setSelectedMomentType("lessons")}
@@ -20305,8 +20536,8 @@ export default function HomeScreen() {
                             isSpinning || expandedMomentId !== null
                               ? "rgba(150, 150, 150, 0.5)"
                               : selectedMomentType === "lessons"
-                                ? "#fff"
-                                : colors.text
+                                ? momentColors.lesson.background
+                                : "rgba(184, 232, 236, 0.95)"
                           }
                         />
                       </Pressable>
@@ -20324,19 +20555,47 @@ export default function HomeScreen() {
                         },
                       ]}
                     >
-                      {/* Frosted glass base layer */}
+                      {/* Cosmic frosted glass - lighter when unselected for see-through effect */}
                       <View style={StyleSheet.absoluteFillObject}>
                         <LinearGradient
-                          colors={[
-                            "rgba(255, 255, 255, 0.15)",
-                            "rgba(255, 255, 255, 0.05)",
-                            "rgba(255, 255, 255, 0.1)",
-                          ]}
+                          colors={
+                            selectedMomentType === "sunnyMoments"
+                              ? [
+                                  "rgba(92, 225, 230, 0.12)",
+                                  "rgba(92, 225, 230, 0.04)",
+                                  "rgba(157, 123, 219, 0.08)",
+                                ]
+                              : [
+                                  "rgba(92, 225, 230, 0.03)",
+                                  "rgba(92, 225, 230, 0.01)",
+                                  "rgba(157, 123, 219, 0.02)",
+                                ]
+                          }
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                           style={StyleSheet.absoluteFillObject}
                         />
                       </View>
+
+                      {/* Avatar ring gradient overlay */}
+                      <Animated.View
+                        style={[
+                          StyleSheet.absoluteFillObject,
+                          sunnyMomentsGradientOverlayStyle,
+                        ]}
+                        pointerEvents="none"
+                      >
+                        <LinearGradient
+                          colors={[
+                            COSMIC_RING_START,
+                            COSMIC_RING_MID,
+                            COSMIC_RING_END,
+                          ]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={StyleSheet.absoluteFillObject}
+                        />
+                      </Animated.View>
 
                       <Pressable
                         onPress={() => setSelectedMomentType("sunnyMoments")}
@@ -20374,8 +20633,8 @@ export default function HomeScreen() {
                             isSpinning || expandedMomentId !== null
                               ? "rgba(150, 150, 150, 0.5)"
                               : selectedMomentType === "sunnyMoments"
-                                ? "#fff"
-                                : colors.text
+                                ? momentColors.sunny.background
+                                : "rgba(184, 232, 236, 0.95)"
                           }
                         />
                       </Pressable>
@@ -20393,19 +20652,47 @@ export default function HomeScreen() {
                         },
                       ]}
                     >
-                      {/* Frosted glass base layer */}
+                      {/* Cosmic frosted glass - lighter when unselected for see-through effect */}
                       <View style={StyleSheet.absoluteFillObject}>
                         <LinearGradient
-                          colors={[
-                            "rgba(255, 255, 255, 0.15)",
-                            "rgba(255, 255, 255, 0.05)",
-                            "rgba(255, 255, 255, 0.1)",
-                          ]}
+                          colors={
+                            selectedMomentType === "hardTruths"
+                              ? [
+                                  "rgba(92, 225, 230, 0.12)",
+                                  "rgba(92, 225, 230, 0.04)",
+                                  "rgba(157, 123, 219, 0.08)",
+                                ]
+                              : [
+                                  "rgba(92, 225, 230, 0.03)",
+                                  "rgba(92, 225, 230, 0.01)",
+                                  "rgba(157, 123, 219, 0.02)",
+                                ]
+                          }
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                           style={StyleSheet.absoluteFillObject}
                         />
                       </View>
+
+                      {/* Avatar ring gradient overlay */}
+                      <Animated.View
+                        style={[
+                          StyleSheet.absoluteFillObject,
+                          hardTruthsGradientOverlayStyle,
+                        ]}
+                        pointerEvents="none"
+                      >
+                        <LinearGradient
+                          colors={[
+                            COSMIC_RING_START,
+                            COSMIC_RING_MID,
+                            COSMIC_RING_END,
+                          ]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={StyleSheet.absoluteFillObject}
+                        />
+                      </Animated.View>
 
                       <Pressable
                         onPress={() => setSelectedMomentType("hardTruths")}
@@ -20443,8 +20730,8 @@ export default function HomeScreen() {
                             isSpinning || expandedMomentId !== null
                               ? "rgba(150, 150, 150, 0.5)"
                               : selectedMomentType === "hardTruths"
-                                ? "#fff"
-                                : colors.text
+                                ? momentColors.cloudy.background
+                                : "rgba(184, 232, 236, 0.95)"
                           }
                         />
                       </Pressable>

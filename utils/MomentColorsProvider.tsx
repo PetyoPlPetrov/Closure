@@ -22,10 +22,11 @@ export interface MomentColors {
   lesson: MomentColorSet;
 }
 
+// Lesson default: cosmic-tinted gold (blend of #FFD700 + #5CE1E6 at 28%) — the "growing bulb" color
 export const DEFAULT_MOMENT_COLORS: MomentColors = {
   sunny: { background: "#FFD700", text: "#000000" },
   cloudy: { background: "#2C3E50", text: "#FFFFFFE6" },
-  lesson: { background: "#FFD700", text: "#FFFFFF" },
+  lesson: { background: "#D1DA40", text: "#FFFFFF" },
 };
 
 interface MomentColorsContextValue {
@@ -54,16 +55,33 @@ export function MomentColorsProvider({
   const [colors, setColors] = useState<MomentColors>(DEFAULT_MOMENT_COLORS);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  const LEGACY_LESSON_TEXT = "#1A1A1A"; // old default; migrate to new default (#FFFFFF)
+
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((raw) => {
         if (raw) {
           try {
             const parsed = JSON.parse(raw);
+            const lesson = { ...DEFAULT_MOMENT_COLORS.lesson, ...parsed.lesson };
+            // Migrate old default lesson text to new default (white)
+            if (
+              lesson.text?.toUpperCase() === LEGACY_LESSON_TEXT.toUpperCase()
+            ) {
+              lesson.text = DEFAULT_MOMENT_COLORS.lesson.text;
+              AsyncStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify({
+                  sunny: { ...DEFAULT_MOMENT_COLORS.sunny, ...parsed.sunny },
+                  cloudy: { ...DEFAULT_MOMENT_COLORS.cloudy, ...parsed.cloudy },
+                  lesson,
+                }),
+              ).catch(() => {});
+            }
             setColors({
               sunny: { ...DEFAULT_MOMENT_COLORS.sunny, ...parsed.sunny },
               cloudy: { ...DEFAULT_MOMENT_COLORS.cloudy, ...parsed.cloudy },
-              lesson: { ...DEFAULT_MOMENT_COLORS.lesson, ...parsed.lesson },
+              lesson,
             });
           } catch {
             // corrupt data — keep defaults

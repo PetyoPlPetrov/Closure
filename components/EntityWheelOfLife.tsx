@@ -361,10 +361,14 @@ export function EntityWheelOfLife({
   const { momentColors } = useMomentColors();
 
   // Moment types configuration (uses custom colors)
+  // Cosmic accent (aligned with circle avatar and home wheel selectors)
+  const COSMIC_SELECTOR = '#5CE1E6';
+  const COSMIC_UNSELECTED_BG = 'rgba(26, 36, 64, 0.9)';
+  const COSMIC_ICON_UNSELECTED = 'rgba(184, 232, 236, 0.75)';
   const momentTypes: MomentType[] = [
-    { type: 'lesson', icon: 'lightbulb', color: momentColors.lesson.background, label: 'Lesson' },
-    { type: 'sunny', icon: 'wb-sunny', color: momentColors.sunny.background, label: 'Sunny' },
-    { type: 'cloudy', icon: 'cloud', color: momentColors.cloudy.background, label: 'Cloudy' },
+    { type: 'lesson', icon: 'lightbulb', color: COSMIC_SELECTOR, label: 'Lesson' },
+    { type: 'sunny', icon: 'wb-sunny', color: COSMIC_SELECTOR, label: 'Sunny' },
+    { type: 'cloudy', icon: 'cloud', color: COSMIC_SELECTOR, label: 'Cloudy' },
   ];
 
   // Collect all moments by type
@@ -912,9 +916,9 @@ export function EntityWheelOfLife({
                   width: momentIconSize,
                   height: momentIconSize,
                   borderRadius: momentIconSize / 2,
-                  backgroundColor: isSelected ? momentType.color + '40' : 'rgba(0, 0, 0, 0.3)',
+                  backgroundColor: isSelected ? COSMIC_SELECTOR : COSMIC_UNSELECTED_BG,
                   borderWidth: isSelected ? 2 : 0,
-                  borderColor: isSelected ? momentType.color : 'transparent',
+                  borderColor: isSelected ? COSMIC_SELECTOR : 'transparent',
                   opacity: isDisabled ? 0.3 : 1,
                 },
               ]}
@@ -928,13 +932,32 @@ export function EntityWheelOfLife({
               <MaterialIcons
                 name={momentType.icon as any}
                 size={momentIconSize * 0.5}
-                color={isDisabled ? colors.textTertiary : momentType.color}
+                color={
+                  isDisabled
+                    ? colors.textTertiary
+                    : isSelected
+                      ? momentType.type === 'lesson'
+                        ? momentColors.lesson.background
+                        : momentType.type === 'sunny'
+                          ? momentColors.sunny.background
+                          : momentColors.cloudy.background
+                      : COSMIC_ICON_UNSELECTED
+                }
               />
               <ThemedText
                 size="xs"
                 style={{
                   marginTop: 4,
-                  color: isDisabled ? colors.textTertiary : momentType.color
+                  color:
+                    isDisabled
+                      ? colors.textTertiary
+                      : isSelected
+                        ? momentType.type === 'lesson'
+                          ? momentColors.lesson.background
+                          : momentType.type === 'sunny'
+                            ? momentColors.sunny.background
+                            : momentColors.cloudy.background
+                        : COSMIC_ICON_UNSELECTED
                 }}
               >
                 {count}
@@ -1150,7 +1173,7 @@ export function EntityWheelOfLife({
                     <MaterialIcons
                       name="lightbulb"
                       size={28}
-                      color={momentColors.lesson.background}
+                      color={blendHex(momentColors.lesson.background, '#5CE1E6', 0.28)}
                       style={{ marginBottom: 12 }}
                     />
                     <ThemedText
@@ -1333,6 +1356,20 @@ export function EntityWheelOfLife({
       })()}
     </View>
   );
+}
+
+function blendHex(hex1: string, hex2: string, t: number): string {
+  const parse = (h: string) => ({
+    r: parseInt(h.slice(1, 3), 16),
+    g: parseInt(h.slice(3, 5), 16),
+    b: parseInt(h.slice(5, 7), 16),
+  });
+  const a = parse(hex1);
+  const b = parse(hex2);
+  const r = Math.round(a.r * (1 - t) + b.r * t);
+  const g = Math.round(a.g * (1 - t) + b.g * t);
+  const b_ = Math.round(a.b * (1 - t) + b.b * t);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b_.toString(16).padStart(2, '0')}`;
 }
 
 // Pulsing Floating Moment Icon Component (grows from memory, stays grown, shrinks back)
@@ -1550,7 +1587,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     );
   }
 
-  // Lesson
+  // Lesson (bulb) - cosmic-tinted from lesson color in settings
+  const bulbColor = blendHex(momentColors.lesson.background, '#5CE1E6', 0.28);
   return (
     <Animated.View style={animatedStyle}>
       <View
@@ -1569,7 +1607,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
           padding: Math.max(8, finalWidth * 0.05),
         }}
       >
-        <MaterialIcons name="lightbulb" size={finalWidth * 0.25} color={momentColors.lesson.background} />
+        <MaterialIcons name="lightbulb" size={finalWidth * 0.25} color={bulbColor} />
         {text && (
           <ThemedText
             style={{

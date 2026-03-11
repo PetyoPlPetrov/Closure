@@ -49,6 +49,7 @@ import Svg, {
   FeMerge,
   FeMergeNode,
   Filter,
+  Line,
   RadialGradient,
   Stop,
   Circle as SvgCircle,
@@ -1039,6 +1040,41 @@ const BADGE_GRADIENT_LIGHT = [
   "#F0F0F0",
 ] as const;
 
+// Cosmic avatar palette: nebula-inspired cyan → purple
+const COSMIC_RING_START = "#5CE1E6";   // soft cyan
+const COSMIC_RING_MID = "#9D7BDB";     // lavender
+const COSMIC_RING_END = "#7B68EE";     // medium slate blue
+const COSMIC_TEXT = "#B8E8EC";         // soft cyan-white for percentage & label
+const COSMIC_TRACK = "#0D1525";        // dark cosmic blue (progress track)
+const COSMIC_INNER_DARK = ["#0A0E1A", "#0F1422", "#151C2E", "#1A2440", "#1E2A4A"] as const;  // deep space fill
+const COSMIC_INNER_LIGHT = ["#2A2A3A", "#3A3A4E", "#4A4A62", "#5A5A76", "#6A6A8A"] as const; // light theme cosmic
+
+// Constellation: star positions (normalized 0–1) and line pairs (indices into AVATAR_STARS)
+const AVATAR_STARS = [
+  { x: 0.82, y: 0.5 }, { x: 0.726, y: 0.726 }, { x: 0.5, y: 0.82 }, { x: 0.274, y: 0.726 },
+  { x: 0.18, y: 0.5 }, { x: 0.274, y: 0.274 }, { x: 0.5, y: 0.18 }, { x: 0.726, y: 0.274 },
+  { x: 0.62, y: 0.38 }, { x: 0.38, y: 0.62 }, { x: 0.38, y: 0.38 }, { x: 0.62, y: 0.62 },
+] as const;
+const AVATAR_CONSTELLATION_LINES: [number, number][] = [
+  [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 0], [8, 9], [10, 11],
+];
+const AVATAR_STAR_COLOR = "rgba(184, 232, 236, 0.35)";
+const AVATAR_LINE_COLOR = "rgba(184, 232, 236, 0.12)";
+
+function blendHex(hex1: string, hex2: string, t: number): string {
+  const parse = (h: string) => ({
+    r: parseInt(h.slice(1, 3), 16),
+    g: parseInt(h.slice(3, 5), 16),
+    b: parseInt(h.slice(5, 7), 16),
+  });
+  const a = parse(hex1);
+  const b = parse(hex2);
+  const r = Math.round(a.r * (1 - t) + b.r * t);
+  const g = Math.round(a.g * (1 - t) + b.g * t);
+  const b_ = Math.round(a.b * (1 - t) + b.b * t);
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b_.toString(16).padStart(2, "0")}`;
+}
+
 const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   percentage,
   hasMemories,
@@ -1070,7 +1106,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   const gradientColors =
-    colorScheme === "dark" ? BADGE_GRADIENT_DARK : BADGE_GRADIENT_LIGHT;
+    colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
 
   // Pulse animation for circle avatar (percentage) — every 12s, offset so not in sync with focused sphere
   const avatarPulseScale = useSharedValue(1);
@@ -1156,6 +1192,25 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
             style={{ position: "absolute", top: 0, left: 0 }}
           >
             <Defs>
+              <RadialGradient
+                id="nebulaHalo"
+                cx="50%"
+                cy="50%"
+                r="65%"
+                fx="50%"
+                fy="50%"
+              >
+                <Stop offset="0%" stopColor={COSMIC_RING_END} stopOpacity="0" />
+                <Stop offset="50%" stopColor={COSMIC_RING_MID} stopOpacity="0.08" />
+                <Stop offset="85%" stopColor={COSMIC_RING_START} stopOpacity="0.2" />
+                <Stop offset="100%" stopColor={COSMIC_RING_END} stopOpacity="0.35" />
+              </RadialGradient>
+              <Filter id="nebulaBlur" x="-80%" y="-80%" width="260%" height="260%">
+                <FeGaussianBlur in="SourceGraphic" stdDeviation="12" result="nebulaBlurred" />
+                <FeMerge>
+                  <FeMergeNode in="nebulaBlurred" />
+                </FeMerge>
+              </Filter>
               <SvgLinearGradient
                 id="focusedBorderGradient"
                 x1="0%"
@@ -1163,21 +1218,9 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 x2="100%"
                 y2="100%"
               >
-                <Stop
-                  offset="0%"
-                  stopColor={momentColors.sunny.background}
-                  stopOpacity="0.7"
-                />
-                <Stop
-                  offset="50%"
-                  stopColor={momentColors.sunny.background}
-                  stopOpacity="1"
-                />
-                <Stop
-                  offset="100%"
-                  stopColor={momentColors.sunny.background}
-                  stopOpacity="1"
-                />
+                <Stop offset="0%" stopColor={COSMIC_RING_START} stopOpacity="0.9" />
+                <Stop offset="50%" stopColor={COSMIC_RING_MID} stopOpacity="1" />
+                <Stop offset="100%" stopColor={COSMIC_RING_END} stopOpacity="1" />
               </SvgLinearGradient>
               <Filter
                 id="focusedOuterGlow"
@@ -1194,7 +1237,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <FeColorMatrix
                   in="outerBlurLarge"
                   type="matrix"
-                  values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.5 0"
+                  values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.5 0"
                   result="outerGlowLarge"
                 />
                 <FeGaussianBlur
@@ -1205,7 +1248,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <FeColorMatrix
                   in="outerBlurMedium"
                   type="matrix"
-                  values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.7 0"
+                  values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.7 0"
                   result="outerGlowMedium"
                 />
                 <FeGaussianBlur
@@ -1216,7 +1259,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <FeColorMatrix
                   in="outerBlurSmall"
                   type="matrix"
-                  values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.9 0"
+                  values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.9 0"
                   result="outerGlowSmall"
                 />
                 <FeMerge>
@@ -1240,7 +1283,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <FeColorMatrix
                   in="outerBlur"
                   type="matrix"
-                  values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 1.0 0"
+                  values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 1.0 0"
                   result="outerGlow"
                 />
                 <FeGaussianBlur
@@ -1251,7 +1294,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <FeColorMatrix
                   in="outerBlurMed"
                   type="matrix"
-                  values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.85 0"
+                  values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.85 0"
                   result="outerGlowMed"
                 />
                 <FeGaussianBlur
@@ -1262,7 +1305,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <FeColorMatrix
                   in="innerBlur"
                   type="matrix"
-                  values="0 0 0 0 1   0 0 0 0 0.843   0 0 0 0 0   0 0 0 0.8 0"
+                  values="0 0 0 0 0.36   0 0 0 0 0.88   0 0 0 0 0.9   0 0 0 0.8 0"
                   result="innerGlow"
                 />
                 <FeMerge>
@@ -1273,12 +1316,20 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 </FeMerge>
               </Filter>
             </Defs>
-            {/* Dark ring track */}
+            {/* Nebula halo - soft glow around outer part of circle */}
+            <SvgCircle
+              cx={avatarSize / 2}
+              cy={avatarSize / 2}
+              r={radius + 18}
+              fill="url(#nebulaHalo)"
+              filter="url(#nebulaBlur)"
+            />
+            {/* Cosmic dark ring track */}
             <SvgCircle
               cx={avatarSize / 2}
               cy={avatarSize / 2}
               r={radius}
-              stroke="#000000"
+              stroke={COSMIC_TRACK}
               strokeWidth={borderWidth}
               fill="none"
             />
@@ -1310,6 +1361,29 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
               filter="url(#focusedYellowGlow)"
               transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
             />
+            {/* Constellation lines */}
+            {AVATAR_CONSTELLATION_LINES.map(([i, j], k) => (
+              <Line
+                key={`line-${k}`}
+                x1={AVATAR_STARS[i].x * avatarSize}
+                y1={AVATAR_STARS[i].y * avatarSize}
+                x2={AVATAR_STARS[j].x * avatarSize}
+                y2={AVATAR_STARS[j].y * avatarSize}
+                stroke={AVATAR_LINE_COLOR}
+                strokeWidth={1}
+                strokeLinecap="round"
+              />
+            ))}
+            {/* Constellation dots */}
+            {AVATAR_STARS.map((star, k) => (
+              <SvgCircle
+                key={`star-${k}`}
+                cx={star.x * avatarSize}
+                cy={star.y * avatarSize}
+                r={k < 8 ? 1.2 : 0.9}
+                fill={AVATAR_STAR_COLOR}
+              />
+            ))}
           </Svg>
 
           <View
@@ -1329,7 +1403,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <ThemedText
                   size="xl"
                   weight="bold"
-                  style={{ color: momentColors.sunny.background, fontSize: 24 }}
+                  style={{ color: COSMIC_TEXT, fontSize: 24 }}
                 >
                   {Math.round(percentage)}%
                 </ThemedText>
@@ -1339,7 +1413,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                       size="sm"
                       weight="medium"
                       style={{
-                        color: momentColors.sunny.background,
+                        color: COSMIC_TEXT,
                         fontSize: 10,
                         marginTop: -2,
                         textAlign: "center",
@@ -1352,7 +1426,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                       size="sm"
                       weight="medium"
                       style={{
-                        color: momentColors.sunny.background,
+                        color: COSMIC_TEXT,
                         fontSize: 10,
                         textAlign: "center",
                         lineHeight: 10,
@@ -1367,7 +1441,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                     size="sm"
                     weight="medium"
                     style={{
-                      color: momentColors.sunny.background,
+                      color: COSMIC_TEXT,
                       fontSize: 12,
                       marginTop: -2,
                     }}
@@ -1382,7 +1456,7 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                   width: 44,
                   height: 44,
                   borderRadius: 22,
-                  backgroundColor: `${momentColors.sunny.background}30`,
+                  backgroundColor: `${COSMIC_RING_START}40`,
                   justifyContent: "center",
                   alignItems: "center",
                 }}
@@ -1390,14 +1464,14 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <MaterialIcons
                   name="add"
                   size={28}
-                  color={momentColors.sunny.background}
+                  color={COSMIC_TEXT}
                 />
               </View>
             )}
           </View>
         </View>
 
-        {/* Sun icon on the sunny arc */}
+        {/* Sun icon on the sunny arc - darker shade of sunny color from settings */}
         {percentage > 0 &&
           (() => {
             const sunnyArcAngle = -90 + ((percentage / 100) * 360) / 2;
@@ -1407,6 +1481,11 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
               avatarSize / 2 + iconRadius * Math.cos(sunnyAngleRad) - 12;
             const sunY =
               avatarSize / 2 + iconRadius * Math.sin(sunnyAngleRad) - 12;
+            const sunShade = blendHex(
+              momentColors.sunny.background,
+              COSMIC_TRACK,
+              0.22,
+            );
             return (
               <View
                 pointerEvents="none"
@@ -1418,19 +1497,19 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                   height: 24,
                   justifyContent: "center",
                   alignItems: "center",
-                  backgroundColor: momentColors.sunny.background,
+                  backgroundColor: sunShade,
                   borderRadius: 12,
                   borderWidth: 2,
-                  borderColor: momentColors.sunny.background,
+                  borderColor: sunShade,
                   zIndex: 999,
                   elevation: 30,
-                  shadowColor: "#000",
+                  shadowColor: sunShade,
                   shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.6,
-                  shadowRadius: 4,
+                  shadowOpacity: 0.5,
+                  shadowRadius: 6,
                 }}
               >
-                <MaterialIcons name="wb-sunny" size={14} color="#FFFFFF" />
+                <MaterialIcons name="wb-sunny" size={14} color={momentColors.sunny.text} />
               </View>
             );
           })()}
@@ -1459,19 +1538,19 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                   height: 24,
                   justifyContent: "center",
                   alignItems: "center",
-                  backgroundColor: "#555555",
+                  backgroundColor: momentColors.cloudy.background,
                   borderRadius: 12,
                   borderWidth: 2,
-                  borderColor: "#222222",
+                  borderColor: momentColors.cloudy.background,
                   zIndex: 999,
                   elevation: 30,
-                  shadowColor: "#000",
+                  shadowColor: momentColors.cloudy.background,
                   shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.6,
+                  shadowOpacity: 0.5,
                   shadowRadius: 4,
                 }}
               >
-                <MaterialIcons name="cloud" size={14} color="#FFFFFF" />
+                <MaterialIcons name="cloud" size={14} color={momentColors.cloudy.text} />
               </View>
             );
           })()}
@@ -1599,7 +1678,7 @@ export function FocusedSferaView({
       style={[
         styles.root,
         { marginTop: rootMarginTop },
-        hidden && { opacity: 0, pointerEvents: "none" as const },
+        hidden ? { opacity: 0, pointerEvents: "none" as const } : { pointerEvents: "auto" as const },
       ]}
       {...(hidden ? {} : panResponder.panHandlers)}
     >
