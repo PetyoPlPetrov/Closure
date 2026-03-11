@@ -1,3 +1,4 @@
+import { ConstellationBackground } from '@/components/constellation-background';
 import { ThemedText } from '@/components/themed-text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
@@ -5,6 +6,7 @@ import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS } from '@/library/component
 import { createVideoFromFrames } from '@/modules/video-composer';
 import type { IdealizedMemory } from '@/utils/JourneyProvider';
 import { useMomentColors } from '@/utils/MomentColorsProvider';
+import { useVisualSettings } from '@/utils/VisualSettingsProvider';
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const h = hex.replace('#', '');
@@ -18,7 +20,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Dimensions, Image as RNImage, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   runOnUI,
@@ -33,6 +35,8 @@ import Svg, { Circle, Defs, Path, RadialGradient, Stop, LinearGradient as SvgLin
 import { captureRef } from 'react-native-view-shot';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const cosmicBackground = require('@/assets/images/cosmic-background.png');
 
 type Entity = {
   id: string;
@@ -945,6 +949,7 @@ function PopUpMoment({
 
 export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationPreviewProps) {
   const colorScheme = useColorScheme();
+  const { cosmicBackgroundOpacity, constellationAmount, constellationOpacity } = useVisualSettings();
   const viewShotRef = useRef<View>(null);
   const [isCapturing, setIsCapturing] = React.useState(false);
   const [captureProgress, setCaptureProgress] = React.useState(0);
@@ -1464,40 +1469,69 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
         collapsable={false}
         style={styles.container}
       >
-        {/* Subtle gradient background */}
+        {/* Same cosmic background image as other screens (dark mode), respects user opacity setting */}
+        {colorScheme === 'dark' && (
+          <RNImage
+            source={cosmicBackground}
+            style={[StyleSheet.absoluteFill, { opacity: cosmicBackgroundOpacity / 10 }]}
+            resizeMode="cover"
+            pointerEvents="none"
+          />
+        )}
+
+        {/* Constellation layer driven by cosmic look settings (amount & visibility) */}
+        {colorScheme === 'dark' && (
+          <ConstellationBackground
+            width={SCREEN_WIDTH}
+            height={SCREEN_HEIGHT}
+            constellationAmount={constellationAmount}
+            constellationOpacity={constellationOpacity}
+            linesOpacityScale={0.75}
+            starFieldMultiplier={1}
+          />
+        )}
+
+        {/* Extra sparkled dots – opacity scaled by constellation visibility setting */}
+        {colorScheme === 'dark' && constellationOpacity > 0 && (
+          <Svg
+            width={SCREEN_WIDTH}
+            height={SCREEN_HEIGHT}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          >
+            <Defs>
+              <RadialGradient id="storyDotGradient" cx="50%" cy="50%">
+                <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.85" />
+                <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+              </RadialGradient>
+            </Defs>
+            {Array.from({ length: Math.max(0, Math.round(70 * (constellationAmount / 10))) }).map((_, i) => {
+              const x = (Math.sin(i * 1.3) * 0.5 + 0.5) * SCREEN_WIDTH;
+              const y = (Math.cos(i * 1.7) * 0.5 + 0.5) * SCREEN_HEIGHT;
+              const radius = 1 + (i % 3) * 0.5;
+              const baseOpacity = 0.28 + (i % 5) * 0.1;
+              const opacity = baseOpacity * (constellationOpacity / 10);
+              return (
+                <Circle
+                  key={i}
+                  cx={x}
+                  cy={y}
+                  r={radius}
+                  fill="url(#storyDotGradient)"
+                  opacity={opacity}
+                />
+              );
+            })}
+          </Svg>
+        )}
+
+        {/* Gradient overlay (matches tab screens) */}
         <LinearGradient
           colors={colorScheme === 'dark' ? DARK_GRADIENT_COLORS : LIGHT_GRADIENT_COLORS}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-
-        {/* Sparkled dots scattered around */}
-        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Defs>
-            <RadialGradient id="dotGradient" cx="50%" cy="50%">
-              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.8" />
-              <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
-            </RadialGradient>
-          </Defs>
-          {/* Generate random sparkled dots */}
-          {Array.from({ length: 60 }).map((_, i) => {
-            const x = (Math.sin(i * 1.3) * 0.5 + 0.5) * SCREEN_WIDTH;
-            const y = (Math.cos(i * 1.7) * 0.5 + 0.5) * SCREEN_HEIGHT;
-            const radius = 1 + (i % 3);
-            const opacity = 0.2 + (i % 5) * 0.1;
-            return (
-              <Circle
-                key={i}
-                cx={x}
-                cy={y}
-                r={radius}
-                fill="url(#dotGradient)"
-                opacity={opacity}
-              />
-            );
-          })}
-        </Svg>
 
       {/* Avatar at center */}
       <View

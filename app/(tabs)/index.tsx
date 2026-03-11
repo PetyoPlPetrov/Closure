@@ -3283,7 +3283,9 @@ const FloatingAvatar = React.memo(
                         shadowOpacity: colorScheme === "dark" ? 0.4 : 0.25,
                         shadowRadius: 16,
                         elevation: 12,
-                        width: 200,
+                        minWidth: 200,
+                        maxWidth: SCREEN_WIDTH - 48,
+                        overflow: "hidden",
                       }}
                     >
                       <Pressable
@@ -3398,12 +3400,16 @@ const FloatingAvatar = React.memo(
                             color="#64B5F6"
                           />
                         </View>
-                        <ThemedText
-                          size="sm"
-                          style={{ marginLeft: 12, fontWeight: "500" }}
-                        >
-                          Share as Text
-                        </ThemedText>
+                        <View style={{ flex: 1, flexShrink: 1, minWidth: 0, marginLeft: 12, justifyContent: "center" }}>
+                          <ThemedText
+                            size="sm"
+                            style={{ fontWeight: "500" }}
+                            numberOfLines={2}
+                            ellipsizeMode="tail"
+                          >
+                            Share as Text
+                          </ThemedText>
+                        </View>
                       </Pressable>
 
                       <View
@@ -3461,12 +3467,16 @@ const FloatingAvatar = React.memo(
                             color="#64B5F6"
                           />
                         </View>
-                        <ThemedText
-                          size="sm"
-                          style={{ marginLeft: 12, fontWeight: "500" }}
-                        >
-                          View {profile.name}'s Story
-                        </ThemedText>
+                        <View style={{ flex: 1, flexShrink: 1, minWidth: 0, marginLeft: 12, justifyContent: "center" }}>
+                          <ThemedText
+                            size="sm"
+                            style={{ fontWeight: "500" }}
+                            numberOfLines={2}
+                            ellipsizeMode="tail"
+                          >
+                            View {profile.name}'s Story
+                          </ThemedText>
+                        </View>
                       </Pressable>
                     </View>
                   )}

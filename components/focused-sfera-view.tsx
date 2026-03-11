@@ -1658,9 +1658,9 @@ export function FocusedSferaView({
             if (g.dy < -50) goToSphere(isLeftRegion ? (focusedIdx + 1) % N : (focusedIdx - 1 + N) % N);
             else if (g.dy > 50) goToSphere(isLeftRegion ? (focusedIdx - 1 + N) % N : (focusedIdx + 1) % N);
           } else {
-            // Horizontal in center (focused sfera below avatar): left = prev, right = next (reversed vs orbit)
-            if (g.dx < -50) goToSphere((focusedIdx - 1 + N) % N);
-            else if (g.dx > 50) goToSphere((focusedIdx + 1) % N);
+            // Horizontal in center (focused sfera below avatar): left = next, right = prev
+            if (g.dx < -50) goToSphere((focusedIdx + 1) % N);
+            else if (g.dx > 50) goToSphere((focusedIdx - 1 + N) % N);
           }
         },
       }),
