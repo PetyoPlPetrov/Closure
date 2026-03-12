@@ -1,11 +1,12 @@
 import { AIInsightsConsentModal } from "@/components/ai-insights-consent-modal";
+import { ConstellationBackground } from "@/components/constellation-background";
+import { Fireworks } from "@/components/fireworks";
+import { FocusedEntitiesView } from "@/components/focused-entities-view";
+import { FocusedSferaView } from "@/components/focused-sfera-view";
 import { PulsingPressable } from "@/components/pulsing-pressable";
 import ShareModal from "@/components/ShareModal";
 import { StreakBadgeComponent } from "@/components/streak-badge";
 import { StreakModal } from "@/components/streak-modal";
-import { ConstellationBackground } from "@/components/constellation-background";
-import { Fireworks } from "@/components/fireworks";
-import { FocusedSferaView } from "@/components/focused-sfera-view";
 import { StreakRulesModal } from "@/components/streak-rules-modal";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
@@ -14,43 +15,31 @@ import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import { GifAnimationPreview } from "@/library/components/gif-animation-preview";
 import { OnboardingStepper } from "@/library/components/onboarding-stepper";
-import {
-  DARK_GRADIENT_COLORS,
-  LIGHT_GRADIENT_COLORS,
-  TabScreenContainer,
-} from "@/library/components/tab-screen-container";
+import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { getLocalDateString } from "@/utils/ai-rate-limiter";
-import { showPaywallForAIAccess } from "@/utils/premium-access";
-import { useSubscription } from "@/utils/SubscriptionProvider";
-import { preloadMainWheelQuestions } from "@/utils/wheel-exam-preload";
-import {
-  pickAndConsumePreloadedQuestion,
-  preloadEntityWheelQuestions,
-} from "@/utils/wheel-exam-preload";
-import { consumeWheelExamIfAvailable } from "@/utils/wheel-exam-rate-limiter";
 import {
   analyzeLessonExamAnswer,
   processHomeEncouragementPrompt,
 } from "@/utils/ai-service";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
-import { useNotificationNudgePreference } from "@/utils/NotificationNudgePreferenceProvider";
 import { logError } from "@/utils/error-logger";
+import { onHomeTabPress } from "@/utils/home-tab-press";
+import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
+import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
+import { useLanguage } from "@/utils/languages/language-context";
+import { useTranslate } from "@/utils/languages/use-translate";
+import { useMomentColors } from "@/utils/MomentColorsProvider";
+import { useNotificationNudgePreference } from "@/utils/NotificationNudgePreferenceProvider";
 import {
   getShowWalkthroughAfterOnboarding,
   setShowWalkthroughAfterOnboarding,
 } from "@/utils/onboarding-storage";
-import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
+import { showPaywallForAIAccess } from "@/utils/premium-access";
 import {
   getSphereGradientColors,
   getSphereIconColor,
   getSphereShadowColor,
 } from "@/utils/sphere-styles";
-import { useMomentColors } from "@/utils/MomentColorsProvider";
-import { useVisualSettings } from "@/utils/VisualSettingsProvider";
-import { useLanguage } from "@/utils/languages/language-context";
-import { useTranslate } from "@/utils/languages/use-translate";
-import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
-import { onHomeTabPress } from "@/utils/home-tab-press";
 import {
   requestSpheresTabPulse,
   stopSpheresTabPulse,
@@ -63,9 +52,16 @@ import {
 } from "@/utils/streak-manager";
 import { refreshStreakNotifications } from "@/utils/streak-notifications";
 import type { StreakBadge, StreakData } from "@/utils/streak-types";
+import { useSubscription } from "@/utils/SubscriptionProvider";
+import { useVisualSettings } from "@/utils/VisualSettingsProvider";
+import {
+  pickAndConsumePreloadedQuestion,
+  preloadEntityWheelQuestions,
+  preloadMainWheelQuestions,
+} from "@/utils/wheel-exam-preload";
+import { consumeWheelExamIfAvailable } from "@/utils/wheel-exam-rate-limiter";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useNavigation } from "@react-navigation/native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -80,7 +76,6 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
-  Alert,
   AppState,
   BackHandler,
   Dimensions,
@@ -96,7 +91,6 @@ import Animated, {
   cancelAnimation,
   createAnimatedComponent,
   Easing,
-  interpolate,
   interpolateColor,
   runOnJS,
   useAnimatedProps,
@@ -140,7 +134,15 @@ const CLOSE_BUTTON_HITSLOP = { top: 8, bottom: 8, left: 8, right: 8 };
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const h = hex.replace("#", "");
-  const num = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+  const num = parseInt(
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h,
+    16,
+  );
   return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
 }
 
@@ -496,7 +498,9 @@ const FloatingAvatar = React.memo(
     orbitDurationMs?: number;
     onShowAIConsentModal?: () => void;
   }) {
-    const { showLoader: startTransitionLoader } = useHomeTransitionLoader() ?? { showLoader: () => {} };
+    const { showLoader: startTransitionLoader } = useHomeTransitionLoader() ?? {
+      showLoader: () => {},
+    };
     const { momentColors } = useMomentColors();
     const aiConsent = useAIInsightsConsent();
     const { hasAIEntitlement } = useSubscription();
@@ -551,7 +555,8 @@ const FloatingAvatar = React.memo(
       React.useState(false);
     const [examAnswerInput, setExamAnswerInput] = React.useState("");
     const entityExamAnswerInputRef = React.useRef("");
-    (entityExamAnswerInputRef as React.MutableRefObject<string>).current = examAnswerInput;
+    (entityExamAnswerInputRef as React.MutableRefObject<string>).current =
+      examAnswerInput;
     const [selectedMomentType, setSelectedMomentType] = React.useState<
       "lesson" | "sunny" | "cloudy"
     >("lesson");
@@ -1473,37 +1478,41 @@ const FloatingAvatar = React.memo(
         1200,
         withSequence(
           withTiming(0.85, { duration: 100, easing: Easing.out(Easing.ease) }),
-          withTiming(0, {
-            duration: fingerVisibleMs - 100,
-            easing: Easing.linear,
-          }, (finished) => {
-            "worklet";
-            if (finished) runOnJS(setAvatarClickHintDismissed)(true);
-          })
-        )
+          withTiming(
+            0,
+            {
+              duration: fingerVisibleMs - 100,
+              easing: Easing.linear,
+            },
+            (finished) => {
+              "worklet";
+              if (finished) runOnJS(setAvatarClickHintDismissed)(true);
+            },
+          ),
+        ),
       );
       // Scale: bigger -> smaller (pressing) -> bigger, like tapping
       avatarClickHintScale.value = withDelay(
         1200,
         withRepeat(
-        withSequence(
-          withTiming(1, { duration: 0 }),
-          withTiming(0.9, {
-            duration: 350,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          withTiming(1.05, {
-            duration: 250,
-            easing: Easing.out(Easing.ease),
-          }),
-          withTiming(1, {
-            duration: 200,
-            easing: Easing.inOut(Easing.ease),
-          })
+          withSequence(
+            withTiming(1, { duration: 0 }),
+            withTiming(0.9, {
+              duration: 350,
+              easing: Easing.inOut(Easing.ease),
+            }),
+            withTiming(1.05, {
+              duration: 250,
+              easing: Easing.out(Easing.ease),
+            }),
+            withTiming(1, {
+              duration: 200,
+              easing: Easing.inOut(Easing.ease),
+            }),
+          ),
+          5,
+          false,
         ),
-        5,
-        false
-        )
       );
 
       return () => {
@@ -1530,8 +1539,12 @@ const FloatingAvatar = React.memo(
         cancelAnimation(entitySpinHintPointerOpacity);
         cancelAnimation(entityHintRotation);
         entitySpinHintPointerOpacity.value = withTiming(0, { duration: 200 });
-        entitySpinHintPointerTranslateX.value = withTiming(0, { duration: 200 });
-        entitySpinHintPointerTranslateY.value = withTiming(0, { duration: 200 });
+        entitySpinHintPointerTranslateX.value = withTiming(0, {
+          duration: 200,
+        });
+        entitySpinHintPointerTranslateY.value = withTiming(0, {
+          duration: 200,
+        });
         entityHintRotation.value = withTiming(0, { duration: 200 });
         return;
       }
@@ -1540,13 +1553,17 @@ const FloatingAvatar = React.memo(
       const entityWheelHintDurationMs = 1100 + 1100 + 900;
       entitySpinHintPointerOpacity.value = withSequence(
         withTiming(0.85, { duration: 100, easing: Easing.out(Easing.ease) }),
-        withTiming(0, {
-          duration: entityWheelHintDurationMs - 100,
-          easing: Easing.linear,
-        }, (finished) => {
-          "worklet";
-          if (finished) runOnJS(setEntityWheelSpinLabelDismissed)(true);
-        })
+        withTiming(
+          0,
+          {
+            duration: entityWheelHintDurationMs - 100,
+            easing: Easing.linear,
+          },
+          (finished) => {
+            "worklet";
+            if (finished) runOnJS(setEntityWheelSpinLabelDismissed)(true);
+          },
+        ),
       );
       entitySpinHintPointerTranslateX.value = 0;
       entitySpinHintPointerTranslateY.value = -14;
@@ -1565,17 +1582,17 @@ const FloatingAvatar = React.memo(
         withTiming(0, {
           duration: 900,
           easing: Easing.out(Easing.cubic),
-        })
+        }),
       );
 
       // Finger arc: match wiggle duration (~3.5s total)
       entitySpinHintPointerTranslateX.value = withSequence(
         withTiming(-12, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 1100, easing: Easing.inOut(Easing.ease) })
+        withTiming(0, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
       );
       entitySpinHintPointerTranslateY.value = withSequence(
         withTiming(14, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-14, { duration: 1100, easing: Easing.inOut(Easing.ease) })
+        withTiming(-14, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
       );
 
       return () => {
@@ -1906,20 +1923,33 @@ const FloatingAvatar = React.memo(
         avatarPulseScale.value = withDelay(
           1200,
           withSequence(
-          withTiming(1.08, { duration: 500, easing: Easing.out(Easing.ease) }),
-          withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1.08, { duration: 500, easing: Easing.out(Easing.ease) }),
-          withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1.08, { duration: 500, easing: Easing.out(Easing.ease) }),
-          withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) }, (finished) => {
-            "worklet";
-            if (finished) {
-              cancelAnimation(avatarClickHintScale);
-              avatarClickHintScale.value = 1;
-              // Dismiss is handled when opacity fade completes (in parallel)
-            }
-          }),
-          )
+            withTiming(1.08, {
+              duration: 500,
+              easing: Easing.out(Easing.ease),
+            }),
+            withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) }),
+            withTiming(1.08, {
+              duration: 500,
+              easing: Easing.out(Easing.ease),
+            }),
+            withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) }),
+            withTiming(1.08, {
+              duration: 500,
+              easing: Easing.out(Easing.ease),
+            }),
+            withTiming(
+              1,
+              { duration: 500, easing: Easing.inOut(Easing.ease) },
+              (finished) => {
+                "worklet";
+                if (finished) {
+                  cancelAnimation(avatarClickHintScale);
+                  avatarClickHintScale.value = 1;
+                  // Dismiss is handled when opacity fade completes (in parallel)
+                }
+              },
+            ),
+          ),
         );
         hasInitialPulseRun.current = true;
       } else if (!isFocused) {
@@ -2140,14 +2170,13 @@ const FloatingAvatar = React.memo(
 
       if (allLessons.length === 0) return;
 
-      const chosen =
-        allLessons[Math.floor(Math.random() * allLessons.length)];
+      const chosen = allLessons[Math.floor(Math.random() * allLessons.length)];
 
       // Free spin already consumed at spin start (consumeWheelExamIfAvailable)
 
       if (__DEV__)
-      // Show loading popup immediately so UI doesn't feel stuck while preload/consume runs
-      setSelectedMomentType("lesson");
+        // Show loading popup immediately so UI doesn't feel stuck while preload/consume runs
+        setSelectedMomentType("lesson");
       setSelectedWheelMoment({
         type: "lesson",
         text: "…",
@@ -2310,7 +2339,14 @@ const FloatingAvatar = React.memo(
           });
         }
       }
-    }, [showEntityWheel, isFocused, profile.id, memories, lang, hasAIEntitlement]);
+    }, [
+      showEntityWheel,
+      isFocused,
+      profile.id,
+      memories,
+      lang,
+      hasAIEntitlement,
+    ]);
 
     // Clear floating moments when selectedWheelMoment popup appears
     React.useEffect(() => {
@@ -2377,7 +2413,12 @@ const FloatingAvatar = React.memo(
           );
         }
       },
-      [selectedWheelMoment, selectedWheelExam, lang, entityCelebrationSparksVisible],
+      [
+        selectedWheelMoment,
+        selectedWheelExam,
+        lang,
+        entityCelebrationSparksVisible,
+      ],
     );
 
     // Animate popup entrance when selectedWheelMoment appears
@@ -2410,18 +2451,27 @@ const FloatingAvatar = React.memo(
       cancelAnimation(entitySunnyButtonSelection);
       cancelAnimation(entityCloudyButtonSelection);
 
-      entityLessonButtonSelection.value = withTiming(selectedMomentType === "lesson" ? 1 : 0, {
-        duration: 150,
-        easing: Easing.out(Easing.ease),
-      });
-      entitySunnyButtonSelection.value = withTiming(selectedMomentType === "sunny" ? 1 : 0, {
-        duration: 150,
-        easing: Easing.out(Easing.ease),
-      });
-      entityCloudyButtonSelection.value = withTiming(selectedMomentType === "cloudy" ? 1 : 0, {
-        duration: 150,
-        easing: Easing.out(Easing.ease),
-      });
+      entityLessonButtonSelection.value = withTiming(
+        selectedMomentType === "lesson" ? 1 : 0,
+        {
+          duration: 150,
+          easing: Easing.out(Easing.ease),
+        },
+      );
+      entitySunnyButtonSelection.value = withTiming(
+        selectedMomentType === "sunny" ? 1 : 0,
+        {
+          duration: 150,
+          easing: Easing.out(Easing.ease),
+        },
+      );
+      entityCloudyButtonSelection.value = withTiming(
+        selectedMomentType === "cloudy" ? 1 : 0,
+        {
+          duration: 150,
+          easing: Easing.out(Easing.ease),
+        },
+      );
 
       // Cancel any ongoing animations and reset all highlight and press scale values to prevent lingering press effects
       cancelAnimation(entityLessonButtonHighlight);
@@ -2534,9 +2584,7 @@ const FloatingAvatar = React.memo(
       opacity: entityCloudyButtonSelection.value * 0.4,
     }));
 
-    const getGradientOverlayStyle = (
-      type: "lesson" | "sunny" | "cloudy",
-    ) => {
+    const getGradientOverlayStyle = (type: "lesson" | "sunny" | "cloudy") => {
       if (type === "lesson") return entityLessonGradientOverlayStyle;
       if (type === "sunny") return entitySunnyGradientOverlayStyle;
       return entityCloudyGradientOverlayStyle;
@@ -3400,7 +3448,15 @@ const FloatingAvatar = React.memo(
                             color="#64B5F6"
                           />
                         </View>
-                        <View style={{ flex: 1, flexShrink: 1, minWidth: 0, marginLeft: 12, justifyContent: "center" }}>
+                        <View
+                          style={{
+                            flex: 1,
+                            flexShrink: 1,
+                            minWidth: 0,
+                            marginLeft: 12,
+                            justifyContent: "center",
+                          }}
+                        >
                           <ThemedText
                             size="sm"
                             style={{ fontWeight: "500" }}
@@ -3467,7 +3523,15 @@ const FloatingAvatar = React.memo(
                             color="#64B5F6"
                           />
                         </View>
-                        <View style={{ flex: 1, flexShrink: 1, minWidth: 0, marginLeft: 12, justifyContent: "center" }}>
+                        <View
+                          style={{
+                            flex: 1,
+                            flexShrink: 1,
+                            minWidth: 0,
+                            marginLeft: 12,
+                            justifyContent: "center",
+                          }}
+                        >
                           <ThemedText
                             size="sm"
                             style={{ fontWeight: "500" }}
@@ -3916,8 +3980,7 @@ const FloatingAvatar = React.memo(
             const normalTargetY = SCREEN_HEIGHT / 2 + 80;
             const focusedAvatarSize = isTablet ? 150 : 120;
             const pointerSize = isTablet ? 88 : 78;
-            const avatarTop =
-              normalTargetY - (focusedAvatarSize + 12) / 2;
+            const avatarTop = normalTargetY - (focusedAvatarSize + 12) / 2;
             const avatarBottom = avatarTop + (focusedAvatarSize + 12);
             const fingerTop = avatarBottom - pointerSize + 55;
 
@@ -4051,10 +4114,7 @@ const FloatingAvatar = React.memo(
                               spacing -
                               (isTablet ? 56 : 52) / 2 +
                               10,
-                            bottom:
-                              tabBarHeight +
-                              60 +
-                              50,
+                            bottom: tabBarHeight + 60 + 50,
                             width: isTablet ? 56 : 52,
                             height: isTablet ? 56 : 52,
                             justifyContent: "center",
@@ -4072,157 +4132,166 @@ const FloatingAvatar = React.memo(
                       </Animated.View>
                     )}
                   {!isWheelSpinningState &&
-                  icons.map((item, index) => {
-                    const x = SCREEN_WIDTH / 2 - spacing + index * spacing;
-                    const y = iconY;
-                const isDisabled =
-                  item.count === 0 || expandedMomentId !== null;
+                    icons.map((item, index) => {
+                      const x = SCREEN_WIDTH / 2 - spacing + index * spacing;
+                      const y = iconY;
+                      const isDisabled =
+                        item.count === 0 || expandedMomentId !== null;
 
-                return (
-                  <Animated.View
-                    key={item.type}
-                    pointerEvents="auto"
-                    style={[
-                      {
-                        position: "absolute",
-                        left: x - iconSize / 2,
-                        top: y - iconSize / 2,
-                        width: iconSize,
-                        height: iconSize,
-                        borderRadius: iconSize / 2,
-                        overflow: "hidden",
-                        opacity: isDisabled ? 0.3 : 1,
-                        zIndex: 500,
-                      },
-                      getButtonStyle(item.type),
-                    ]}
-                  >
-                    {/* Cosmic frosted glass - lighter when unselected (match main wheel) */}
-                    <View style={StyleSheet.absoluteFillObject}>
-                      <LinearGradient
-                        colors={
-                          selectedMomentType ===
-                          (item.type === "lesson"
-                            ? "lessons"
-                            : item.type === "sunny"
-                              ? "sunnyMoments"
-                              : "hardTruths")
-                            ? [
-                                "rgba(92, 225, 230, 0.12)",
-                                "rgba(92, 225, 230, 0.04)",
-                                "rgba(157, 123, 219, 0.08)",
-                              ]
-                            : [
-                                "rgba(92, 225, 230, 0.015)",
-                                "rgba(92, 225, 230, 0.005)",
-                                "rgba(157, 123, 219, 0.01)",
-                              ]
-                        }
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFillObject}
-                      />
-                    </View>
+                      return (
+                        <Animated.View
+                          key={item.type}
+                          pointerEvents="auto"
+                          style={[
+                            {
+                              position: "absolute",
+                              left: x - iconSize / 2,
+                              top: y - iconSize / 2,
+                              width: iconSize,
+                              height: iconSize,
+                              borderRadius: iconSize / 2,
+                              overflow: "hidden",
+                              opacity: isDisabled ? 0.3 : 1,
+                              zIndex: 500,
+                            },
+                            getButtonStyle(item.type),
+                          ]}
+                        >
+                          {/* Cosmic frosted glass - lighter when unselected (match main wheel) */}
+                          <View style={StyleSheet.absoluteFillObject}>
+                            <LinearGradient
+                              colors={
+                                selectedMomentType ===
+                                (item.type === "lesson"
+                                  ? "lessons"
+                                  : item.type === "sunny"
+                                    ? "sunnyMoments"
+                                    : "hardTruths")
+                                  ? [
+                                      "rgba(92, 225, 230, 0.12)",
+                                      "rgba(92, 225, 230, 0.04)",
+                                      "rgba(157, 123, 219, 0.08)",
+                                    ]
+                                  : [
+                                      "rgba(92, 225, 230, 0.015)",
+                                      "rgba(92, 225, 230, 0.005)",
+                                      "rgba(157, 123, 219, 0.01)",
+                                    ]
+                              }
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={StyleSheet.absoluteFillObject}
+                            />
+                          </View>
 
-                    {/* Avatar ring gradient overlay */}
-                    <Animated.View
-                      style={[
-                        StyleSheet.absoluteFillObject,
-                        getGradientOverlayStyle(item.type),
-                      ]}
-                      pointerEvents="none"
-                    >
-                      <LinearGradient
-                        colors={[
-                          COSMIC_RING_START,
-                          COSMIC_RING_MID,
-                          COSMIC_RING_END,
-                        ]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFillObject}
-                      />
-                    </Animated.View>
+                          {/* Avatar ring gradient overlay */}
+                          <Animated.View
+                            style={[
+                              StyleSheet.absoluteFillObject,
+                              getGradientOverlayStyle(item.type),
+                            ]}
+                            pointerEvents="none"
+                          >
+                            <LinearGradient
+                              colors={[
+                                COSMIC_RING_START,
+                                COSMIC_RING_MID,
+                                COSMIC_RING_END,
+                              ]}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={StyleSheet.absoluteFillObject}
+                            />
+                          </Animated.View>
 
-                    {/* Specular highlight overlay (liquid glass shine) */}
-                    <Animated.View
-                      style={[
-                        StyleSheet.absoluteFillObject,
-                        getHighlightStyle(item.type),
-                      ]}
-                    >
-                      <LinearGradient
-                        colors={[
-                          "rgba(255,255,255,0.6)",
-                          "rgba(255,255,255,0)",
-                        ]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFillObject}
-                      />
-                    </Animated.View>
+                          {/* Specular highlight overlay (liquid glass shine) */}
+                          <Animated.View
+                            style={[
+                              StyleSheet.absoluteFillObject,
+                              getHighlightStyle(item.type),
+                            ]}
+                          >
+                            <LinearGradient
+                              colors={[
+                                "rgba(255,255,255,0.6)",
+                                "rgba(255,255,255,0)",
+                              ]}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={StyleSheet.absoluteFillObject}
+                            />
+                          </Animated.View>
 
-                    <Pressable
-                      onPress={() => {
-                        if (!isDisabled) {
-                          setSelectedMomentType(item.type);
-                        }
-                      }}
-                      onPressIn={() => {
-                        if (!isDisabled) {
-                          getPressScaleValue(item.type).value = withTiming(
-                            0.88,
-                            { duration: 100, easing: Easing.out(Easing.ease) },
-                          );
-                          getHighlightValue(item.type).value = withTiming(1, {
-                            duration: 150,
-                            easing: Easing.out(Easing.ease),
-                          });
-                        }
-                      }}
-                      onPressOut={() => {
-                        if (!isDisabled) {
-                          getPressScaleValue(item.type).value = withSpring(1, {
-                            damping: 10,
-                            stiffness: 300,
-                          });
-                          getHighlightValue(item.type).value = withTiming(0, {
-                            duration: 300,
-                            easing: Easing.out(Easing.ease),
-                          });
-                        }
-                      }}
-                      disabled={isDisabled}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        shadowColor: "#000",
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity:
-                          selectedMomentType === item.type ? 0.3 : 0.1,
-                        shadowRadius: 4,
-                        elevation: selectedMomentType === item.type ? 5 : 2,
-                      }}
-                    >
-                      <MaterialIcons
-                        name={item.icon}
-                        size={28}
-                        color={
-                          selectedMomentType === item.type
-                            ? item.type === "lesson"
-                              ? momentColors.lesson.background
-                              : item.type === "sunny"
-                                ? momentColors.sunny.background
-                                : momentColors.cloudy.background
-                            : "rgba(184, 232, 236, 0.95)"
-                        }
-                      />
-                      </Pressable>
-                  </Animated.View>
-                );
-                  })}
+                          <Pressable
+                            onPress={() => {
+                              if (!isDisabled) {
+                                setSelectedMomentType(item.type);
+                              }
+                            }}
+                            onPressIn={() => {
+                              if (!isDisabled) {
+                                getPressScaleValue(item.type).value =
+                                  withTiming(0.88, {
+                                    duration: 100,
+                                    easing: Easing.out(Easing.ease),
+                                  });
+                                getHighlightValue(item.type).value = withTiming(
+                                  1,
+                                  {
+                                    duration: 150,
+                                    easing: Easing.out(Easing.ease),
+                                  },
+                                );
+                              }
+                            }}
+                            onPressOut={() => {
+                              if (!isDisabled) {
+                                getPressScaleValue(item.type).value =
+                                  withSpring(1, {
+                                    damping: 10,
+                                    stiffness: 300,
+                                  });
+                                getHighlightValue(item.type).value = withTiming(
+                                  0,
+                                  {
+                                    duration: 300,
+                                    easing: Easing.out(Easing.ease),
+                                  },
+                                );
+                              }
+                            }}
+                            disabled={isDisabled}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              shadowColor: "#000",
+                              shadowOffset: { width: 0, height: 2 },
+                              shadowOpacity:
+                                selectedMomentType === item.type ? 0.3 : 0.1,
+                              shadowRadius: 4,
+                              elevation:
+                                selectedMomentType === item.type ? 5 : 2,
+                            }}
+                          >
+                            <MaterialIcons
+                              name={item.icon}
+                              size={28}
+                              color={
+                                selectedMomentType === item.type
+                                  ? item.type === "lesson"
+                                    ? momentColors.lesson.background
+                                    : item.type === "sunny"
+                                      ? momentColors.sunny.background
+                                      : momentColors.cloudy.background
+                                  : "rgba(184, 232, 236, 0.95)"
+                              }
+                            />
+                          </Pressable>
+                        </Animated.View>
+                      );
+                    })}
                 </>
               );
             })()}
@@ -4291,8 +4360,11 @@ const FloatingAvatar = React.memo(
                   setExpandedMomentId(null);
                   setEntityWheelMomentCard(null);
                 }}
-                  onMemoryImagePress={
-                  onMemoryFocus && moment.entityId && moment.memoryId && moment.sphere
+                onMemoryImagePress={
+                  onMemoryFocus &&
+                  moment.entityId &&
+                  moment.memoryId &&
+                  moment.sphere
                     ? () => {
                         startTransitionLoader();
                         requestAnimationFrame(() => {
@@ -5145,7 +5217,7 @@ const FloatingAvatar = React.memo(
                             </ThemedText>
                           </>
                         ) : selectedWheelExam.step === "question" &&
-                        !selectedWheelExam.question ? (
+                          !selectedWheelExam.question ? (
                           <ActivityIndicator
                             size="large"
                             color={COSMIC_RING_START}
@@ -5238,7 +5310,12 @@ const FloatingAvatar = React.memo(
                             >
                               {selectedWheelExam.question}
                             </ThemedText>
-                            <Animated.View style={[{ width: "100%" }, entityExamInputPulseStyle]}>
+                            <Animated.View
+                              style={[
+                                { width: "100%" },
+                                entityExamInputPulseStyle,
+                              ]}
+                            >
                               <TextInput
                                 value={examAnswerInput}
                                 onChangeText={setExamAnswerInput}
@@ -5259,23 +5336,35 @@ const FloatingAvatar = React.memo(
                                 multiline
                               />
                             </Animated.View>
-                            <Animated.View style={[entityExamSubmitButtonStyle, { width: "100%", marginTop: 16 }]}>
+                            <Animated.View
+                              style={[
+                                entityExamSubmitButtonStyle,
+                                { width: "100%", marginTop: 16 },
+                              ]}
+                            >
                               <Pressable
                                 onPressIn={() => {
-                                  if (entityExamAnswerInputRef.current.trim().length >= 2) {
+                                  if (
+                                    entityExamAnswerInputRef.current.trim()
+                                      .length >= 2
+                                  ) {
                                     cancelAnimation(entityExamSubmitPressScale);
-                                    entityExamSubmitPressScale.value = withTiming(0.82, {
-                                      duration: 80,
-                                      easing: Easing.out(Easing.ease),
-                                    });
+                                    entityExamSubmitPressScale.value =
+                                      withTiming(0.82, {
+                                        duration: 80,
+                                        easing: Easing.out(Easing.ease),
+                                      });
                                   }
                                 }}
                                 onPressOut={() => {
                                   cancelAnimation(entityExamSubmitPressScale);
-                                  entityExamSubmitPressScale.value = withSpring(1, {
-                                    damping: 12,
-                                    stiffness: 400,
-                                  });
+                                  entityExamSubmitPressScale.value = withSpring(
+                                    1,
+                                    {
+                                      damping: 12,
+                                      stiffness: 400,
+                                    },
+                                  );
                                 }}
                                 onPress={() => {
                                   const trimmed = examAnswerInput.trim();
@@ -5284,13 +5373,24 @@ const FloatingAvatar = React.memo(
                                     setExamAnswerInput("");
                                   } else {
                                     cancelAnimation(entityExamInputPulseScale);
-                                    entityExamInputPulseScale.value = withSequence(
-                                      withTiming(1.04, { duration: 80, easing: Easing.out(Easing.ease) }),
-                                      withSpring(1, { damping: 12, stiffness: 400 })
-                                    );
+                                    entityExamInputPulseScale.value =
+                                      withSequence(
+                                        withTiming(1.04, {
+                                          duration: 80,
+                                          easing: Easing.out(Easing.ease),
+                                        }),
+                                        withSpring(1, {
+                                          damping: 12,
+                                          stiffness: 400,
+                                        }),
+                                      );
                                   }
                                 }}
-                                style={{ width: "100%", borderRadius: 14, overflow: "hidden" }}
+                                style={{
+                                  width: "100%",
+                                  borderRadius: 14,
+                                  overflow: "hidden",
+                                }}
                               >
                                 <LinearGradient
                                   colors={[COSMIC_RING_START, COSMIC_RING_MID]}
@@ -5343,7 +5443,7 @@ const FloatingAvatar = React.memo(
                             style={{ opacity: 0.9 }}
                           />
                         </Pressable>
-                        </View>
+                      </View>
                     ) : (
                       // Fallback: lesson without exam (legacy)
                       <Pressable
@@ -5748,7 +5848,11 @@ const MemoryMomentsRenderer = React.memo(
                         stopColor={momentColors.cloudy.background}
                         stopOpacity="0.98"
                       />
-                      <Stop offset="100%" stopColor={momentColors.cloudy.background} stopOpacity="1" />
+                      <Stop
+                        offset="100%"
+                        stopColor={momentColors.cloudy.background}
+                        stopOpacity="1"
+                      />
                     </SvgLinearGradient>
                   </Defs>
                   <Path
@@ -5981,9 +6085,21 @@ const MemoryMomentsRenderer = React.memo(
                       fy="80"
                       gradientUnits="userSpaceOnUse"
                     >
-                      <Stop offset="0%" stopColor={momentColors.sunny.background} stopOpacity="0.9" />
-                      <Stop offset="60%" stopColor={momentColors.sunny.background} stopOpacity="1" />
-                      <Stop offset="100%" stopColor={momentColors.sunny.background} stopOpacity="1" />
+                      <Stop
+                        offset="0%"
+                        stopColor={momentColors.sunny.background}
+                        stopOpacity="0.9"
+                      />
+                      <Stop
+                        offset="60%"
+                        stopColor={momentColors.sunny.background}
+                        stopOpacity="1"
+                      />
+                      <Stop
+                        offset="100%"
+                        stopColor={momentColors.sunny.background}
+                        stopOpacity="1"
+                      />
                     </RadialGradient>
                   </Defs>
                   {/* Sun rays - triangular rays */}
@@ -6862,7 +6978,11 @@ const MemoryActionButtons = React.memo(
                   ]}
                 >
                   <LinearGradient
-                    colors={[momentColors.sunny.background, momentColors.sunny.background, momentColors.sunny.background]}
+                    colors={[
+                      momentColors.sunny.background,
+                      momentColors.sunny.background,
+                      momentColors.sunny.background,
+                    ]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={{
@@ -8029,7 +8149,9 @@ const FloatingMemory = React.memo(
                         colors={
                           sunnyPercentage >= 50
                             ? (() => {
-                                const { r, g, b } = hexToRgb(momentColors.sunny.background);
+                                const { r, g, b } = hexToRgb(
+                                  momentColors.sunny.background,
+                                );
                                 return [
                                   `rgba(${r}, ${g}, ${b}, 0.4)`,
                                   `rgba(${r}, ${g}, ${b}, 0.5)`,
@@ -8645,9 +8767,21 @@ const FloatingSun = React.memo(function FloatingSun({
                 fy="11"
                 gradientUnits="userSpaceOnUse"
               >
-                <Stop offset="0%" stopColor={momentColors.sunny.background} stopOpacity="0.9" />
-                <Stop offset="50%" stopColor={momentColors.sunny.background} stopOpacity="1" />
-                <Stop offset="100%" stopColor={momentColors.sunny.background} stopOpacity="1" />
+                <Stop
+                  offset="0%"
+                  stopColor={momentColors.sunny.background}
+                  stopOpacity="0.9"
+                />
+                <Stop
+                  offset="50%"
+                  stopColor={momentColors.sunny.background}
+                  stopOpacity="1"
+                />
+                <Stop
+                  offset="100%"
+                  stopColor={momentColors.sunny.background}
+                  stopOpacity="1"
+                />
               </RadialGradient>
             </Defs>
             {/* Sun rays - 16 triangular rays for smaller version */}
@@ -8863,17 +8997,47 @@ const COSMIC_RING_MID = "#9D7BDB";
 const COSMIC_RING_END = "#7B68EE";
 const COSMIC_TEXT = "#B8E8EC";
 const COSMIC_TRACK = "#0D1525";
-const COSMIC_INNER_DARK = ["#0A0E1A", "#0F1422", "#151C2E", "#1A2440", "#1E2A4A"] as const;
-const COSMIC_INNER_LIGHT = ["#2A2A3A", "#3A3A4E", "#4A4A62", "#5A5A76", "#6A6A8A"] as const;
+const COSMIC_INNER_DARK = [
+  "#0A0E1A",
+  "#0F1422",
+  "#151C2E",
+  "#1A2440",
+  "#1E2A4A",
+] as const;
+const COSMIC_INNER_LIGHT = [
+  "#2A2A3A",
+  "#3A3A4E",
+  "#4A4A62",
+  "#5A5A76",
+  "#6A6A8A",
+] as const;
 
 // Constellation inside avatar circle (same pattern as SunnyLifeAvatar)
 const AVATAR_STARS = [
-  { x: 0.82, y: 0.5 }, { x: 0.726, y: 0.726 }, { x: 0.5, y: 0.82 }, { x: 0.274, y: 0.726 },
-  { x: 0.18, y: 0.5 }, { x: 0.274, y: 0.274 }, { x: 0.5, y: 0.18 }, { x: 0.726, y: 0.274 },
-  { x: 0.62, y: 0.38 }, { x: 0.38, y: 0.62 }, { x: 0.38, y: 0.38 }, { x: 0.62, y: 0.62 },
+  { x: 0.82, y: 0.5 },
+  { x: 0.726, y: 0.726 },
+  { x: 0.5, y: 0.82 },
+  { x: 0.274, y: 0.726 },
+  { x: 0.18, y: 0.5 },
+  { x: 0.274, y: 0.274 },
+  { x: 0.5, y: 0.18 },
+  { x: 0.726, y: 0.274 },
+  { x: 0.62, y: 0.38 },
+  { x: 0.38, y: 0.62 },
+  { x: 0.38, y: 0.38 },
+  { x: 0.62, y: 0.62 },
 ] as const;
 const AVATAR_CONSTELLATION_LINES: [number, number][] = [
-  [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 0], [8, 9], [10, 11],
+  [0, 1],
+  [1, 2],
+  [2, 3],
+  [3, 4],
+  [4, 5],
+  [5, 6],
+  [6, 7],
+  [7, 0],
+  [8, 9],
+  [10, 11],
 ];
 const AVATAR_STAR_COLOR = "rgba(184, 232, 236, 0.35)";
 const AVATAR_LINE_COLOR = "rgba(184, 232, 236, 0.12)";
@@ -8921,7 +9085,14 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
     const rgb = hexToRgbNorm(primaryHex);
     const m = (a: number) =>
       `${rgb.r} 0 0 0 0   0 ${rgb.g} 0 0 0   0 0 ${rgb.b} 0 0   0 0 0 ${a} 0`;
-    return { m05: m(0.5), m07: m(0.7), m085: m(0.85), m08: m(0.8), m09: m(0.9), m1: m(1) };
+    return {
+      m05: m(0.5),
+      m07: m(0.7),
+      m085: m(0.85),
+      m08: m(0.8),
+      m09: m(0.9),
+      m1: m(1),
+    };
   }, [primaryHex]);
 
   // Calculate if floating entities intersect with main circle and adjust size accordingly
@@ -9008,12 +9179,30 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               fy="50%"
             >
               <Stop offset="0%" stopColor={colors.primary} stopOpacity="0" />
-              <Stop offset="50%" stopColor={colors.primaryLight ?? colors.primary} stopOpacity="0.08" />
+              <Stop
+                offset="50%"
+                stopColor={colors.primaryLight ?? colors.primary}
+                stopOpacity="0.08"
+              />
               <Stop offset="85%" stopColor={colors.primary} stopOpacity="0.2" />
-              <Stop offset="100%" stopColor={colors.primaryDark ?? colors.primary} stopOpacity="0.35" />
+              <Stop
+                offset="100%"
+                stopColor={colors.primaryDark ?? colors.primary}
+                stopOpacity="0.35"
+              />
             </RadialGradient>
-            <Filter id="overallNebulaBlur" x="-80%" y="-80%" width="260%" height="260%">
-              <FeGaussianBlur in="SourceGraphic" stdDeviation="12" result="nebulaBlurred" />
+            <Filter
+              id="overallNebulaBlur"
+              x="-80%"
+              y="-80%"
+              width="260%"
+              height="260%"
+            >
+              <FeGaussianBlur
+                in="SourceGraphic"
+                stdDeviation="12"
+                result="nebulaBlurred"
+              />
               <FeMerge>
                 <FeMergeNode in="nebulaBlurred" />
               </FeMerge>
@@ -9026,8 +9215,16 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
               y2="100%"
             >
               <Stop offset="0%" stopColor={colors.primary} stopOpacity="0.9" />
-              <Stop offset="50%" stopColor={colors.primaryLight ?? colors.primary} stopOpacity="1" />
-              <Stop offset="100%" stopColor={colors.primaryDark ?? colors.primary} stopOpacity="1" />
+              <Stop
+                offset="50%"
+                stopColor={colors.primaryLight ?? colors.primary}
+                stopOpacity="1"
+              />
+              <Stop
+                offset="100%"
+                stopColor={colors.primaryDark ?? colors.primary}
+                stopOpacity="1"
+              />
             </SvgLinearGradient>
             <Filter
               id="outerYellowGlow"
@@ -9325,7 +9522,11 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                 shadowRadius: 6,
               }}
             >
-              <MaterialIcons name="wb-sunny" size={14} color={momentColors.sunny.text} />
+              <MaterialIcons
+                name="wb-sunny"
+                size={14}
+                color={momentColors.sunny.text}
+              />
             </View>
           );
         })()}
@@ -9374,7 +9575,11 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                 shadowRadius: 4,
               }}
             >
-              <MaterialIcons name="cloud" size={14} color={momentColors.cloudy.text} />
+              <MaterialIcons
+                name="cloud"
+                size={14}
+                color={momentColors.cloudy.text}
+              />
             </View>
           );
         })()}
@@ -10730,7 +10935,13 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
         stiffness: 140,
       });
     }
-  }, [isExpanded, expandProgress, onExpand, onCollapse, suppressExpandAnimation]);
+  }, [
+    isExpanded,
+    expandProgress,
+    onExpand,
+    onCollapse,
+    suppressExpandAnimation,
+  ]);
 
   React.useEffect(() => {
     hasExpandHandlers.value = !!(onExpand || onCollapse);
@@ -10741,7 +10952,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     const expandScale = hasExpandHandlers.value
       ? 1 + 0.5 * expandProgress.value
       : 1;
-    const textScale = 1 + 0.2 * (hasExpandHandlers.value ? expandProgress.value : 0);
+    const textScale =
+      1 + 0.2 * (hasExpandHandlers.value ? expandProgress.value : 0);
     return { transform: [{ scale: textScale / expandScale }] };
   });
 
@@ -10870,9 +11082,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
       position: "absolute",
       left: momentX - halfW,
       top: momentY - halfH,
-      transform: [
-        { scale: scale.value * growPulseScale.value * expandScale },
-      ],
+      transform: [{ scale: scale.value * growPulseScale.value * expandScale }],
       zIndex: expandProgress.value > 0.5 ? 1060 : 1005,
     };
   }, [
@@ -10904,7 +11114,10 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     const sunnyBg = momentColors.sunny.background;
     const sunnyText = momentColors.sunny.text;
     return (
-      <Animated.View style={animatedStyle} pointerEvents={canInteract ? "auto" : "none"}>
+      <Animated.View
+        style={animatedStyle}
+        pointerEvents={canInteract ? "auto" : "none"}
+      >
         <Pressable
           onPress={() => {
             if (!canInteract) return;
@@ -10916,154 +11129,162 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
           }}
           style={{ width: finalWidth, height: finalHeight }}
         >
-        <View
-          style={{
-            width: finalWidth,
-            height: finalHeight,
-            shadowColor: sunnyBg,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.8,
-            shadowRadius: isTablet ? 12 : 9,
-            elevation: 10,
-          }}
-        >
-          <Svg
-            width={finalWidth}
-            height={finalHeight}
-            viewBox="0 0 160 160"
-            preserveAspectRatio="xMidYMid meet"
-            style={{ position: "absolute", top: 0, left: 0 }}
+          <View
+            style={{
+              width: finalWidth,
+              height: finalHeight,
+              shadowColor: sunnyBg,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.8,
+              shadowRadius: isTablet ? 12 : 9,
+              elevation: 10,
+            }}
           >
-            <Defs>
-              <RadialGradient
-                id={`floatingSunGradient-${memoryIndex}-${momentIndex}`}
+            <Svg
+              width={finalWidth}
+              height={finalHeight}
+              viewBox="0 0 160 160"
+              preserveAspectRatio="xMidYMid meet"
+              style={{ position: "absolute", top: 0, left: 0 }}
+            >
+              <Defs>
+                <RadialGradient
+                  id={`floatingSunGradient-${memoryIndex}-${momentIndex}`}
+                  cx="80"
+                  cy="80"
+                  rx="48"
+                  ry="48"
+                  fx="80"
+                  fy="80"
+                  gradientUnits="userSpaceOnUse"
+                >
+                  <Stop offset="0%" stopColor={sunnyBg} stopOpacity="0.9" />
+                  <Stop offset="30%" stopColor={sunnyBg} stopOpacity="0.95" />
+                  <Stop offset="60%" stopColor={sunnyBg} stopOpacity="1" />
+                  <Stop offset="100%" stopColor={sunnyBg} stopOpacity="1" />
+                </RadialGradient>
+              </Defs>
+              {/* Sun rays - triangular rays */}
+              {Array.from({ length: 12 }).map((_, i) => {
+                const angle = (i * 360) / 12;
+                const radian = (angle * Math.PI) / 180;
+                const centerX = 80;
+                const centerY = 80;
+                const innerRadius = 48;
+                const outerRadius = 72;
+                const rayWidth = 3;
+
+                const innerX = centerX + Math.cos(radian) * innerRadius;
+                const innerY = centerY + Math.sin(radian) * innerRadius;
+                const outerX = centerX + Math.cos(radian) * outerRadius;
+                const outerY = centerY + Math.sin(radian) * outerRadius;
+                const perpAngle = radian + Math.PI / 2;
+                const halfWidth = rayWidth / 2;
+                const leftX = outerX + Math.cos(perpAngle) * halfWidth;
+                const leftY = outerY + Math.sin(perpAngle) * halfWidth;
+                const rightX =
+                  outerX + Math.cos(perpAngle + Math.PI) * halfWidth;
+                const rightY =
+                  outerY + Math.sin(perpAngle + Math.PI) * halfWidth;
+
+                return (
+                  <Path
+                    key={`floatingSunRay-${i}`}
+                    d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
+                    fill={sunnyBg}
+                  />
+                );
+              })}
+              {/* Central circle */}
+              <Circle
                 cx="80"
                 cy="80"
-                rx="48"
-                ry="48"
-                fx="80"
-                fy="80"
-                gradientUnits="userSpaceOnUse"
-              >
-                <Stop offset="0%" stopColor={sunnyBg} stopOpacity="0.9" />
-                <Stop offset="30%" stopColor={sunnyBg} stopOpacity="0.95" />
-                <Stop offset="60%" stopColor={sunnyBg} stopOpacity="1" />
-                <Stop offset="100%" stopColor={sunnyBg} stopOpacity="1" />
-              </RadialGradient>
-            </Defs>
-            {/* Sun rays - triangular rays */}
-            {Array.from({ length: 12 }).map((_, i) => {
-              const angle = (i * 360) / 12;
-              const radian = (angle * Math.PI) / 180;
-              const centerX = 80;
-              const centerY = 80;
-              const innerRadius = 48;
-              const outerRadius = 72;
-              const rayWidth = 3;
-
-              const innerX = centerX + Math.cos(radian) * innerRadius;
-              const innerY = centerY + Math.sin(radian) * innerRadius;
-              const outerX = centerX + Math.cos(radian) * outerRadius;
-              const outerY = centerY + Math.sin(radian) * outerRadius;
-              const perpAngle = radian + Math.PI / 2;
-              const halfWidth = rayWidth / 2;
-              const leftX = outerX + Math.cos(perpAngle) * halfWidth;
-              const leftY = outerY + Math.sin(perpAngle) * halfWidth;
-              const rightX = outerX + Math.cos(perpAngle + Math.PI) * halfWidth;
-              const rightY = outerY + Math.sin(perpAngle + Math.PI) * halfWidth;
-
-              return (
-                <Path
-                  key={`floatingSunRay-${i}`}
-                  d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
-                  fill={sunnyBg}
-                />
-              );
-            })}
-            {/* Central circle */}
-            <Circle
-              cx="80"
-              cy="80"
-              r="48"
-              fill={`url(#floatingSunGradient-${memoryIndex}-${momentIndex})`}
-            />
-          </Svg>
-          <Animated.View
-            style={[
-              {
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: finalWidth,
-                height: finalHeight,
-                justifyContent: "center",
-                alignItems: "center",
-                paddingHorizontal: (finalWidth / 160) * 40,
-                paddingVertical: (finalWidth / 160) * 40,
-              },
-              textScaleStyle,
-            ]}
-          >
-            <ThemedText
-              style={{
-                color: sunnyText,
-                fontSize:
-                  Math.max(12, Math.min(15, 14 - textLength / 100)) * fontScale,
-                textAlign: "center",
-                fontWeight: "700",
-                lineHeight: Math.max(16, Math.min(20, 18 - textLength / 100)) * fontScale,
-                maxWidth: (finalWidth / 160) * 110,
-              }}
+                r="48"
+                fill={`url(#floatingSunGradient-${memoryIndex}-${momentIndex})`}
+              />
+            </Svg>
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: finalWidth,
+                  height: finalHeight,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  paddingHorizontal: (finalWidth / 160) * 40,
+                  paddingVertical: (finalWidth / 160) * 40,
+                },
+                textScaleStyle,
+              ]}
             >
-              {text?.split("\n")[0] || text}
-            </ThemedText>
-            {text?.includes("\n") && (
               <ThemedText
                 style={{
                   color: sunnyText,
                   fontSize:
-                    Math.max(11, Math.min(13, 12 - textLength / 120)) * fontScale,
+                    Math.max(12, Math.min(15, 14 - textLength / 100)) *
+                    fontScale,
                   textAlign: "center",
-                  fontWeight: "600",
-                  lineHeight: Math.max(14, Math.min(16, 15 - textLength / 120)) * fontScale,
+                  fontWeight: "700",
+                  lineHeight:
+                    Math.max(16, Math.min(20, 18 - textLength / 100)) *
+                    fontScale,
                   maxWidth: (finalWidth / 160) * 110,
                 }}
               >
-                {text.split("\n")[1]}
+                {text?.split("\n")[0] || text}
               </ThemedText>
-            )}
-            {isExpanded && onMemoryImagePress && (
-              <Pressable
-                onPress={onMemoryImagePress}
-                style={({ pressed }) => [
-                  {
-                    marginTop: 12,
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    overflow: "hidden",
-                    borderWidth: 2,
-                  borderColor: sunnyBg,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: "rgba(0,0,0,0.2)",
-                  },
-                  { transform: [{ scale: pressed ? 0.9 : 1 }] },
-                ]}
-              >
-                {memoryImageUri ? (
-                  <Image
-                    source={{ uri: memoryImageUri }}
-                    style={{ width: "100%", height: "100%" }}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <MaterialIcons name="photo" size={28} color={sunnyBg} />
-                )}
-              </Pressable>
-            )}
-          </Animated.View>
-        </View>
+              {text?.includes("\n") && (
+                <ThemedText
+                  style={{
+                    color: sunnyText,
+                    fontSize:
+                      Math.max(11, Math.min(13, 12 - textLength / 120)) *
+                      fontScale,
+                    textAlign: "center",
+                    fontWeight: "600",
+                    lineHeight:
+                      Math.max(14, Math.min(16, 15 - textLength / 120)) *
+                      fontScale,
+                    maxWidth: (finalWidth / 160) * 110,
+                  }}
+                >
+                  {text.split("\n")[1]}
+                </ThemedText>
+              )}
+              {isExpanded && onMemoryImagePress && (
+                <Pressable
+                  onPress={onMemoryImagePress}
+                  style={({ pressed }) => [
+                    {
+                      marginTop: 12,
+                      width: 64,
+                      height: 64,
+                      borderRadius: 32,
+                      overflow: "hidden",
+                      borderWidth: 2,
+                      borderColor: sunnyBg,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: "rgba(0,0,0,0.2)",
+                    },
+                    { transform: [{ scale: pressed ? 0.9 : 1 }] },
+                  ]}
+                >
+                  {memoryImageUri ? (
+                    <Image
+                      source={{ uri: memoryImageUri }}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <MaterialIcons name="photo" size={28} color={sunnyBg} />
+                  )}
+                </Pressable>
+              )}
+            </Animated.View>
+          </View>
         </Pressable>
       </Animated.View>
     );
@@ -11073,7 +11294,10 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     const cloudyBg = momentColors.cloudy.background;
     const cloudyText = momentColors.cloudy.text;
     return (
-      <Animated.View style={animatedStyle} pointerEvents={canInteract ? "auto" : "none"}>
+      <Animated.View
+        style={animatedStyle}
+        pointerEvents={canInteract ? "auto" : "none"}
+      >
         <Pressable
           onPress={() => {
             if (!canInteract) return;
@@ -11085,39 +11309,39 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
           }}
           style={{ width: finalWidth, height: finalHeight }}
         >
-        <View
-          style={{
-            width: finalWidth,
-            height: finalHeight,
-            shadowColor: cloudyBg,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.7,
-            shadowRadius: 10,
-            elevation: 8,
-          }}
-        >
-          <Svg
-            width={finalWidth}
-            height={finalHeight}
-            viewBox="0 0 320 100"
-            preserveAspectRatio="xMidYMid meet"
-            style={{ position: "absolute", top: 0, left: 0 }}
+          <View
+            style={{
+              width: finalWidth,
+              height: finalHeight,
+              shadowColor: cloudyBg,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.7,
+              shadowRadius: 10,
+              elevation: 8,
+            }}
           >
-            <Defs>
-              <SvgLinearGradient
-                id={`floatingCloudGradient-${memoryIndex}-${momentIndex}`}
-                x1="0%"
-                y1="0%"
-                x2="0%"
-                y2="100%"
-              >
-                <Stop offset="0%" stopColor={cloudyBg} stopOpacity="0.95" />
-                <Stop offset="50%" stopColor={cloudyBg} stopOpacity="0.98" />
-                <Stop offset="100%" stopColor={cloudyBg} stopOpacity="1" />
-              </SvgLinearGradient>
-            </Defs>
-            <Path
-              d="M50,50
+            <Svg
+              width={finalWidth}
+              height={finalHeight}
+              viewBox="0 0 320 100"
+              preserveAspectRatio="xMidYMid meet"
+              style={{ position: "absolute", top: 0, left: 0 }}
+            >
+              <Defs>
+                <SvgLinearGradient
+                  id={`floatingCloudGradient-${memoryIndex}-${momentIndex}`}
+                  x1="0%"
+                  y1="0%"
+                  x2="0%"
+                  y2="100%"
+                >
+                  <Stop offset="0%" stopColor={cloudyBg} stopOpacity="0.95" />
+                  <Stop offset="50%" stopColor={cloudyBg} stopOpacity="0.98" />
+                  <Stop offset="100%" stopColor={cloudyBg} stopOpacity="1" />
+                </SvgLinearGradient>
+              </Defs>
+              <Path
+                d="M50,50
                  Q40,35 50,25
                  Q60,15 75,20
                  Q85,10 100,20
@@ -11138,74 +11362,76 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
                  Q85,90 75,80
                  Q60,85 50,75
                  Q40,65 50,50 Z"
-              fill={`url(#floatingCloudGradient-${memoryIndex}-${momentIndex})`}
-              stroke="rgba(0,0,0,0.7)"
-              strokeWidth={1.5}
-            />
-          </Svg>
-          <Animated.View
-            style={[
-              {
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: finalWidth,
-                height: finalHeight,
-                justifyContent: "center",
-                alignItems: "center",
-                paddingHorizontal: Math.max(28, finalWidth * 0.18),
-                paddingVertical: Math.max(16, finalHeight * 0.16),
-              },
-              textScaleStyle,
-            ]}
-          >
-            <ThemedText
-              style={{
-                color: cloudyText,
-                fontSize:
-                  Math.max(10, Math.min(14, 13 - textLength / 60)) * fontScale,
-                textAlign: "center",
-                fontWeight: "500",
-                lineHeight:
-                  Math.max(12, Math.min(16, 14 - textLength / 60)) * fontScale,
-                maxWidth: finalWidth * 0.8,
-              }}
-              numberOfLines={textLength > 70 ? 5 : 4}
-            >
-              {text}
-            </ThemedText>
-            {isExpanded && onMemoryImagePress && (
-              <Pressable
-                onPress={onMemoryImagePress}
-                style={({ pressed }) => [
-                  {
-                    marginTop: 12,
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    overflow: "hidden",
-                    borderWidth: 2,
-                  borderColor: cloudyBg,
+                fill={`url(#floatingCloudGradient-${memoryIndex}-${momentIndex})`}
+                stroke="rgba(0,0,0,0.7)"
+                strokeWidth={1.5}
+              />
+            </Svg>
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: finalWidth,
+                  height: finalHeight,
                   justifyContent: "center",
                   alignItems: "center",
-                  backgroundColor: "rgba(0,0,0,0.2)",
-                  },
-                  { transform: [{ scale: pressed ? 0.9 : 1 }] },
-                ]}
+                  paddingHorizontal: Math.max(28, finalWidth * 0.18),
+                  paddingVertical: Math.max(16, finalHeight * 0.16),
+                },
+                textScaleStyle,
+              ]}
+            >
+              <ThemedText
+                style={{
+                  color: cloudyText,
+                  fontSize:
+                    Math.max(10, Math.min(14, 13 - textLength / 60)) *
+                    fontScale,
+                  textAlign: "center",
+                  fontWeight: "500",
+                  lineHeight:
+                    Math.max(12, Math.min(16, 14 - textLength / 60)) *
+                    fontScale,
+                  maxWidth: finalWidth * 0.8,
+                }}
+                numberOfLines={textLength > 70 ? 5 : 4}
               >
-                {memoryImageUri ? (
-                  <Image
-                    source={{ uri: memoryImageUri }}
-                    style={{ width: "100%", height: "100%" }}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <MaterialIcons name="photo" size={28} color={cloudyBg} />
-                )}
-              </Pressable>
-            )}
-          </Animated.View>
-        </View>
+                {text}
+              </ThemedText>
+              {isExpanded && onMemoryImagePress && (
+                <Pressable
+                  onPress={onMemoryImagePress}
+                  style={({ pressed }) => [
+                    {
+                      marginTop: 12,
+                      width: 64,
+                      height: 64,
+                      borderRadius: 32,
+                      overflow: "hidden",
+                      borderWidth: 2,
+                      borderColor: cloudyBg,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: "rgba(0,0,0,0.2)",
+                    },
+                    { transform: [{ scale: pressed ? 0.9 : 1 }] },
+                  ]}
+                >
+                  {memoryImageUri ? (
+                    <Image
+                      source={{ uri: memoryImageUri }}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <MaterialIcons name="photo" size={28} color={cloudyBg} />
+                  )}
+                </Pressable>
+              )}
+            </Animated.View>
+          </View>
         </Pressable>
       </Animated.View>
     );
@@ -11214,9 +11440,16 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   // Lesson - lightbulb with text below it, cosmic-tinted (blend of lesson color from settings)
   const lessonBg = momentColors.lesson.background;
   const lessonText = momentColors.lesson.text;
-  const bulbColor = blendHex(momentColors.lesson.background, COSMIC_RING_START, 0.28);
+  const bulbColor = blendHex(
+    momentColors.lesson.background,
+    COSMIC_RING_START,
+    0.28,
+  );
   return (
-    <Animated.View style={animatedStyle} pointerEvents={canInteract ? "auto" : "none"}>
+    <Animated.View
+      style={animatedStyle}
+      pointerEvents={canInteract ? "auto" : "none"}
+    >
       <Pressable
         onPress={() => {
           if (!canInteract) return;
@@ -11246,7 +11479,12 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
             alignItems: "center",
           }}
         >
-          <Animated.View style={[{ justifyContent: "center", alignItems: "center" }, lessonBulbScaleStyle]}>
+          <Animated.View
+            style={[
+              { justifyContent: "center", alignItems: "center" },
+              lessonBulbScaleStyle,
+            ]}
+          >
             <MaterialIcons
               name="lightbulb"
               size={finalWidth * 0.4}
@@ -11273,11 +11511,13 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
                 style={{
                   color: lessonText,
                   fontSize:
-                    Math.max(10, Math.min(14, 12 - textLength / 80)) * fontScale,
+                    Math.max(10, Math.min(14, 12 - textLength / 80)) *
+                    fontScale,
                   textAlign: "center",
                   fontWeight: "600",
                   lineHeight:
-                    Math.max(12, Math.min(16, 14 - textLength / 80)) * fontScale,
+                    Math.max(12, Math.min(16, 14 - textLength / 80)) *
+                    fontScale,
                 }}
                 numberOfLines={textLength > 60 ? 4 : 3}
               >
@@ -11428,7 +11668,13 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
 
     // When user collapses (momentsFrozen: true -> false), resume - use expandedAtTimestamp so time while expanded doesn't count
     let resumeTimeout: ReturnType<typeof setTimeout> | null = null;
-    if (prevMomentsFrozenRef.current && !momentsFrozen && shouldGrowToFull && !isExpanded && onCompleteRef.current) {
+    if (
+      prevMomentsFrozenRef.current &&
+      !momentsFrozen &&
+      shouldGrowToFull &&
+      !isExpanded &&
+      onCompleteRef.current
+    ) {
       const HOLD_END_MS = 4800;
       const remainingBeforeShrink =
         expandedAtTimestamp != null && spawnTime != null
@@ -11437,14 +11683,13 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
 
       resumeTimeout = setTimeout(() => {
         const cb = onCompleteRef.current;
-        scale.value = withTiming(0, { duration: 800, easing: Easing.in(Easing.ease) });
-        opacity.value = withTiming(
-          0,
-          { duration: 800 },
-          (finished) => {
-            if (finished && cb) runOnJS(cb)();
-          },
-        );
+        scale.value = withTiming(0, {
+          duration: 800,
+          easing: Easing.in(Easing.ease),
+        });
+        opacity.value = withTiming(0, { duration: 800 }, (finished) => {
+          if (finished && cb) runOnJS(cb)();
+        });
       }, remainingBeforeShrink);
     }
     prevMomentsFrozenRef.current = momentsFrozen;
@@ -11452,7 +11697,16 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
     return () => {
       if (resumeTimeout != null) clearTimeout(resumeTimeout);
     };
-  }, [momentsFrozen, shouldGrowToFull, isExpanded, scale, opacity, growPulseScale, spawnTime, expandedAtTimestamp]);
+  }, [
+    momentsFrozen,
+    shouldGrowToFull,
+    isExpanded,
+    scale,
+    opacity,
+    growPulseScale,
+    spawnTime,
+    expandedAtTimestamp,
+  ]);
 
   // Smooth expand/collapse animation when user taps moment (skip when card overlay is shown)
   React.useEffect(() => {
@@ -11466,7 +11720,13 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
         stiffness: 140,
       });
     }
-  }, [isExpanded, expandProgress, onExpand, onCollapse, suppressExpandAnimation]);
+  }, [
+    isExpanded,
+    expandProgress,
+    onExpand,
+    onCollapse,
+    suppressExpandAnimation,
+  ]);
 
   React.useEffect(() => {
     hasExpandHandlers.value = !!(onExpand || onCollapse);
@@ -11497,7 +11757,10 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
     setTimeout(() => {
       growPulseScale.value = withRepeat(
         withSequence(
-          withTiming(1.08, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.08, {
+            duration: 600,
+            easing: Easing.inOut(Easing.ease),
+          }),
           withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) }),
         ),
         Math.floor(HOLD_DURATION / 1200),
@@ -11596,10 +11859,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
       : 1;
 
     return {
-      transform: [
-        { translateY: floatY },
-        { scale: finalScale * expandScale },
-      ],
+      transform: [{ translateY: floatY }, { scale: finalScale * expandScale }],
       opacity: opacity.value,
     };
   });
@@ -11610,7 +11870,8 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
       ? 1 + 0.5 * expandProgress.value
       : 1;
     // Text grows ~20% when expanded: 1x -> 1.2x (vs container 1x -> 1.5x)
-    const textScale = 1 + 0.2 * (hasExpandHandlers.value ? expandProgress.value : 0);
+    const textScale =
+      1 + 0.2 * (hasExpandHandlers.value ? expandProgress.value : 0);
     return {
       transform: [{ scale: textScale / expandScale }],
     };
@@ -11656,10 +11917,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
       momentType === "sunnyMoments"
         ? Math.min(
             maxSunnySize,
-            Math.max(
-              minSunnySize,
-              minSunnySize + Math.floor(textLength * 2.8),
-            ),
+            Math.max(minSunnySize, minSunnySize + Math.floor(textLength * 2.8)),
           )
         : 0;
 
@@ -11673,7 +11931,9 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
     );
 
     const baseSunSize =
-      momentType === "sunnyMoments" ? calculatedSunnySize : calculatedLessonSize;
+      momentType === "sunnyMoments"
+        ? calculatedSunnySize
+        : calculatedLessonSize;
 
     // For clouds: scale width and height based on text length
     const minCloudWidth = isTablet ? 320 : 250;
@@ -11696,8 +11956,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
     const baseCloudWidth = calculatedCloudWidth;
     const baseCloudHeight = calculatedCloudHeight;
 
-    const canInteract =
-      shouldGrowToFull && (onExpand || onCollapse);
+    const canInteract = shouldGrowToFull && (onExpand || onCollapse);
 
     return (
       <Animated.View
@@ -11734,158 +11993,182 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
             pointerEvents={canInteract ? "auto" : "none"}
           >
             <View
-            style={{
-              width: baseSunSize,
-              height: baseSunSize,
-              shadowColor: momentColors.sunny.background,
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.8,
-              shadowRadius: isTablet ? 12 : 9,
-              elevation: 10,
-            }}
-          >
-            <Svg
-              width={baseSunSize}
-              height={baseSunSize}
-              viewBox="0 0 160 160"
-              preserveAspectRatio="xMidYMid meet"
-              style={{ position: "absolute", top: 0, left: 0 }}
+              style={{
+                width: baseSunSize,
+                height: baseSunSize,
+                shadowColor: momentColors.sunny.background,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.8,
+                shadowRadius: isTablet ? 12 : 9,
+                elevation: 10,
+              }}
             >
-              <Defs>
-                <RadialGradient
-                  id={`pulsingSunGradient-${centerX}-${centerY}-${angle}`}
+              <Svg
+                width={baseSunSize}
+                height={baseSunSize}
+                viewBox="0 0 160 160"
+                preserveAspectRatio="xMidYMid meet"
+                style={{ position: "absolute", top: 0, left: 0 }}
+              >
+                <Defs>
+                  <RadialGradient
+                    id={`pulsingSunGradient-${centerX}-${centerY}-${angle}`}
+                    cx="80"
+                    cy="80"
+                    rx="48"
+                    ry="48"
+                    fx="80"
+                    fy="80"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <Stop
+                      offset="0%"
+                      stopColor={momentColors.sunny.background}
+                      stopOpacity="0.9"
+                    />
+                    <Stop
+                      offset="30%"
+                      stopColor={momentColors.sunny.background}
+                      stopOpacity="0.95"
+                    />
+                    <Stop
+                      offset="60%"
+                      stopColor={momentColors.sunny.background}
+                      stopOpacity="1"
+                    />
+                    <Stop
+                      offset="100%"
+                      stopColor={momentColors.sunny.background}
+                      stopOpacity="1"
+                    />
+                  </RadialGradient>
+                </Defs>
+                {/* Sun rays */}
+                {Array.from({ length: 12 }).map((_, i) => {
+                  const rayAngle = (i * 360) / 12;
+                  const radian = (rayAngle * Math.PI) / 180;
+                  const centerX = 80;
+                  const centerY = 80;
+                  const innerRadius = 48;
+                  const outerRadius = 72;
+                  const rayWidth = 3;
+
+                  const innerX = centerX + Math.cos(radian) * innerRadius;
+                  const innerY = centerY + Math.sin(radian) * innerRadius;
+                  const outerX = centerX + Math.cos(radian) * outerRadius;
+                  const outerY = centerY + Math.sin(radian) * outerRadius;
+
+                  const perpAngle = radian + Math.PI / 2;
+                  const halfWidth = rayWidth / 2;
+                  const leftX = outerX + Math.cos(perpAngle) * halfWidth;
+                  const leftY = outerY + Math.sin(perpAngle) * halfWidth;
+                  const rightX =
+                    outerX + Math.cos(perpAngle + Math.PI) * halfWidth;
+                  const rightY =
+                    outerY + Math.sin(perpAngle + Math.PI) * halfWidth;
+
+                  return (
+                    <Path
+                      key={`pulsingRay-${i}`}
+                      d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
+                      fill={momentColors.sunny.background}
+                    />
+                  );
+                })}
+                <Circle
                   cx="80"
                   cy="80"
-                  rx="48"
-                  ry="48"
-                  fx="80"
-                  fy="80"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <Stop offset="0%" stopColor={momentColors.sunny.background} stopOpacity="0.9" />
-                  <Stop offset="30%" stopColor={momentColors.sunny.background} stopOpacity="0.95" />
-                  <Stop offset="60%" stopColor={momentColors.sunny.background} stopOpacity="1" />
-                  <Stop offset="100%" stopColor={momentColors.sunny.background} stopOpacity="1" />
-                </RadialGradient>
-              </Defs>
-              {/* Sun rays */}
-              {Array.from({ length: 12 }).map((_, i) => {
-                const rayAngle = (i * 360) / 12;
-                const radian = (rayAngle * Math.PI) / 180;
-                const centerX = 80;
-                const centerY = 80;
-                const innerRadius = 48;
-                const outerRadius = 72;
-                const rayWidth = 3;
-
-                const innerX = centerX + Math.cos(radian) * innerRadius;
-                const innerY = centerY + Math.sin(radian) * innerRadius;
-                const outerX = centerX + Math.cos(radian) * outerRadius;
-                const outerY = centerY + Math.sin(radian) * outerRadius;
-
-                const perpAngle = radian + Math.PI / 2;
-                const halfWidth = rayWidth / 2;
-                const leftX = outerX + Math.cos(perpAngle) * halfWidth;
-                const leftY = outerY + Math.sin(perpAngle) * halfWidth;
-                const rightX =
-                  outerX + Math.cos(perpAngle + Math.PI) * halfWidth;
-                const rightY =
-                  outerY + Math.sin(perpAngle + Math.PI) * halfWidth;
-
-                return (
-                  <Path
-                    key={`pulsingRay-${i}`}
-                    d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
-                    fill={momentColors.sunny.background}
-                  />
-                );
-              })}
-              <Circle
-                cx="80"
-                cy="80"
-                r="48"
-                fill={`url(#pulsingSunGradient-${centerX}-${centerY}-${angle})`}
-              />
-            </Svg>
-            {/* Text overlay - grows a bit when moment expands */}
-            <Animated.View
-              style={[
-                {
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: baseSunSize,
-                  height: baseSunSize,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  paddingHorizontal: (baseSunSize / 160) * 40,
-                  paddingVertical: (baseSunSize / 160) * 40,
-                },
-                textScaleStyle,
-              ]}
-            >
-              <ThemedText
-                style={{
-                  color: momentColors.sunny.text,
-                  fontSize:
-                    Math.max(12, Math.min(15, 14 - textLength / 100)) * fontScale,
-                  textAlign: "center",
-                  fontWeight: "700",
-                  lineHeight:
-                    Math.max(16, Math.min(20, 18 - textLength / 100)) * fontScale,
-                  maxWidth: (baseSunSize / 160) * 110,
-                }}
+                  r="48"
+                  fill={`url(#pulsingSunGradient-${centerX}-${centerY}-${angle})`}
+                />
+              </Svg>
+              {/* Text overlay - grows a bit when moment expands */}
+              <Animated.View
+                style={[
+                  {
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: baseSunSize,
+                    height: baseSunSize,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    paddingHorizontal: (baseSunSize / 160) * 40,
+                    paddingVertical: (baseSunSize / 160) * 40,
+                  },
+                  textScaleStyle,
+                ]}
               >
-                {text?.split("\n")[0] || text}
-              </ThemedText>
-              {text?.includes("\n") && (
                 <ThemedText
                   style={{
                     color: momentColors.sunny.text,
                     fontSize:
-                      Math.max(11, Math.min(13, 12 - textLength / 120)) * fontScale,
+                      Math.max(12, Math.min(15, 14 - textLength / 100)) *
+                      fontScale,
                     textAlign: "center",
-                    fontWeight: "600",
+                    fontWeight: "700",
                     lineHeight:
-                      Math.max(14, Math.min(16, 15 - textLength / 120)) * fontScale,
+                      Math.max(16, Math.min(20, 18 - textLength / 100)) *
+                      fontScale,
                     maxWidth: (baseSunSize / 160) * 110,
                   }}
                 >
-                  {text.split("\n")[1]}
+                  {text?.split("\n")[0] || text}
                 </ThemedText>
-              )}
-              {isExpanded && onMemoryImagePress && (
-                <Pressable
-                  onPress={onMemoryImagePress}
-                  style={({ pressed }) => [
-                    {
-                      marginTop: 12,
-                      width: 64,
-                      height: 64,
-                      borderRadius: 32,
-                      overflow: "hidden",
-                      borderWidth: 2,
-                      borderColor: momentColors.sunny.background,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      backgroundColor: "rgba(0,0,0,0.2)",
-                    },
-                    { transform: [{ scale: pressed ? 0.9 : 1 }] },
-                  ]}
-                >
-                  {memoryImageUri ? (
-                    <Image
-                      source={{ uri: memoryImageUri }}
-                      style={{ width: "100%", height: "100%" }}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <MaterialIcons name="photo" size={28} color={momentColors.sunny.background} />
-                  )}
-                </Pressable>
-              )}
-            </Animated.View>
-          </View>
+                {text?.includes("\n") && (
+                  <ThemedText
+                    style={{
+                      color: momentColors.sunny.text,
+                      fontSize:
+                        Math.max(11, Math.min(13, 12 - textLength / 120)) *
+                        fontScale,
+                      textAlign: "center",
+                      fontWeight: "600",
+                      lineHeight:
+                        Math.max(14, Math.min(16, 15 - textLength / 120)) *
+                        fontScale,
+                      maxWidth: (baseSunSize / 160) * 110,
+                    }}
+                  >
+                    {text.split("\n")[1]}
+                  </ThemedText>
+                )}
+                {isExpanded && onMemoryImagePress && (
+                  <Pressable
+                    onPress={onMemoryImagePress}
+                    style={({ pressed }) => [
+                      {
+                        marginTop: 12,
+                        width: 64,
+                        height: 64,
+                        borderRadius: 32,
+                        overflow: "hidden",
+                        borderWidth: 2,
+                        borderColor: momentColors.sunny.background,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        backgroundColor: "rgba(0,0,0,0.2)",
+                      },
+                      { transform: [{ scale: pressed ? 0.9 : 1 }] },
+                    ]}
+                  >
+                    {memoryImageUri ? (
+                      <Image
+                        source={{ uri: memoryImageUri }}
+                        style={{ width: "100%", height: "100%" }}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <MaterialIcons
+                        name="photo"
+                        size={28}
+                        color={momentColors.sunny.background}
+                      />
+                    )}
+                  </Pressable>
+                )}
+              </Animated.View>
+            </View>
           </Pressable>
         ) : momentType === "hardTruths" ? (
           // Render full cloud element
@@ -11923,9 +12206,21 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                   x2="0%"
                   y2="100%"
                 >
-                  <Stop offset="0%" stopColor={momentColors.cloudy.background} stopOpacity="0.95" />
-                  <Stop offset="50%" stopColor={momentColors.cloudy.background} stopOpacity="0.98" />
-                  <Stop offset="100%" stopColor={momentColors.cloudy.background} stopOpacity="1" />
+                  <Stop
+                    offset="0%"
+                    stopColor={momentColors.cloudy.background}
+                    stopOpacity="0.95"
+                  />
+                  <Stop
+                    offset="50%"
+                    stopColor={momentColors.cloudy.background}
+                    stopOpacity="0.98"
+                  />
+                  <Stop
+                    offset="100%"
+                    stopColor={momentColors.cloudy.background}
+                    stopOpacity="1"
+                  />
                 </SvgLinearGradient>
               </Defs>
               <Path
@@ -12015,7 +12310,11 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                       contentFit="cover"
                     />
                   ) : (
-                    <MaterialIcons name="photo" size={28} color={momentColors.cloudy.background} />
+                    <MaterialIcons
+                      name="photo"
+                      size={28}
+                      color={momentColors.cloudy.background}
+                    />
                   )}
                 </Pressable>
               )}
@@ -12062,7 +12361,11 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
               <MaterialIcons
                 name="lightbulb"
                 size={baseSunSize * 0.4}
-                color={blendHex(momentColors.lesson.background, COSMIC_RING_START, 0.28)}
+                color={blendHex(
+                  momentColors.lesson.background,
+                  COSMIC_RING_START,
+                  0.28,
+                )}
               />
             </Animated.View>
             {/* Text overlay - sits below bulb; when expanded, pushed up to make room for image */}
@@ -12085,7 +12388,8 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                 style={{
                   color: momentColors.lesson.text,
                   fontSize:
-                    Math.max(10, Math.min(14, 12 - textLength / 80)) * fontScale,
+                    Math.max(10, Math.min(14, 12 - textLength / 80)) *
+                    fontScale,
                   textAlign: "center",
                   fontWeight: "600",
                   lineHeight:
@@ -12127,7 +12431,11 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                     contentFit="cover"
                   />
                 ) : (
-                  <MaterialIcons name="photo" size={28} color={momentColors.lesson.background} />
+                  <MaterialIcons
+                    name="photo"
+                    size={28}
+                    color={momentColors.lesson.background}
+                  />
                 )}
               </Pressable>
             )}
@@ -12440,7 +12748,11 @@ const SphereAvatar = React.memo(function SphereAvatar({
     () => getSphereGradientColors(sphere, sunnyPercentage, colorScheme),
     [sphere, sunnyPercentage, colorScheme],
   );
-  const sphereIconColor = getSphereIconColor(sphere, colorScheme, sunnyPercentage);
+  const sphereIconColor = getSphereIconColor(
+    sphere,
+    colorScheme,
+    sunnyPercentage,
+  );
   const sphereShadowColor = getSphereShadowColor(sphere, colorScheme);
 
   // Create subtle floating animation similar to floating memories
@@ -13096,7 +13408,9 @@ export default function HomeScreen() {
   // Press feedback for Classic view circle avatar (scale down on press, spring back on release)
   const classicAvatarPressScale = useSharedValue(1);
   const classicAvatarStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: avatarPulseScale.value * classicAvatarPressScale.value }],
+    transform: [
+      { scale: avatarPulseScale.value * classicAvatarPressScale.value },
+    ],
   }));
 
   // Track selected sphere (null = showing all spheres, otherwise showing focused sphere)
@@ -13118,18 +13432,22 @@ export default function HomeScreen() {
   // Home view mode: "Classic" = Classic view (wheel of life); "focused" = FocusedSferas view (one sphere in focus, swipe to change).
   // When FocusedSferas view is active, only FocusedSferaView is mounted — Classic view components are not in the tree.
   const FOCUSED_SPHERE_INDEX_KEY = "@sferas:focused_sphere_index";
-  const [homeViewMode, setHomeViewMode] = useState<"classic" | "focused">("focused");
+  const [homeViewMode, setHomeViewMode] = useState<"classic" | "focused">(
+    "focused",
+  );
   const [focusedSphereIndex, setFocusedSphereIndex] = useState(0);
   const cameFromFocusedSferaForEntityRef = useRef(false);
-  const { showLoader: startTransitionLoader, hideLoader } = useHomeTransitionLoader() ?? {
-    showLoader: () => {},
-    hideLoader: () => {},
-  };
+  const { showLoader: startTransitionLoader, hideLoader } =
+    useHomeTransitionLoader() ?? {
+      showLoader: () => {},
+      hideLoader: () => {},
+    };
 
   useEffect(() => {
     AsyncStorage.getItem(FOCUSED_SPHERE_INDEX_KEY).then((v) => {
       const idx = v != null ? parseInt(v, 10) : NaN;
-      if (Number.isFinite(idx) && idx >= 0 && idx <= 4) setFocusedSphereIndex(idx);
+      if (Number.isFinite(idx) && idx >= 0 && idx <= 4)
+        setFocusedSphereIndex(idx);
     });
   }, []);
 
@@ -13162,32 +13480,34 @@ export default function HomeScreen() {
     useState<boolean>(false);
 
   // Disable scroll when any entity is focused OR wheel is active (avoids ScrollView stealing wheel drag gestures)
-  const hasFocusedEntity =
-    !!(
-      focusedProfileId ||
-      focusedJobId ||
-      focusedFamilyMemberId ||
-      focusedFriendId ||
-      focusedHobbyId
-    );
+  const hasFocusedEntity = !!(
+    focusedProfileId ||
+    focusedJobId ||
+    focusedFamilyMemberId ||
+    focusedFriendId ||
+    focusedHobbyId
+  );
   const scrollEnabledForSphere = !hasFocusedEntity && !isAnyEntityWheelActive;
 
-  const hasFocusedView =
-    !!(
-      focusedMemory ||
-      selectedSphere ||
-      focusedProfileId ||
-      focusedJobId ||
-      focusedFamilyMemberId ||
-      focusedFriendId ||
-      focusedHobbyId
-    );
+  const hasFocusedView = !!(
+    focusedMemory ||
+    selectedSphere ||
+    focusedProfileId ||
+    focusedJobId ||
+    focusedFamilyMemberId ||
+    focusedFriendId ||
+    focusedHobbyId
+  );
   const prevHasFocusedViewRef = useRef(hasFocusedView);
 
   useLayoutEffect(() => {
     const wasFocused = prevHasFocusedViewRef.current;
     prevHasFocusedViewRef.current = hasFocusedView;
-    if (wasFocused && !hasFocusedView && cameFromFocusedSferaForEntityRef.current) {
+    if (
+      wasFocused &&
+      !hasFocusedView &&
+      cameFromFocusedSferaForEntityRef.current
+    ) {
       cameFromFocusedSferaForEntityRef.current = false;
       setHomeViewMode("focused");
     }
@@ -13279,7 +13599,10 @@ export default function HomeScreen() {
       return true; // Prevent default (e.g. exiting app or going back in stack)
     };
 
-    const sub = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+    const sub = BackHandler.addEventListener(
+      "hardwareBackPress",
+      handleBackPress,
+    );
     return () => sub.remove();
   }, [homeViewMode, focusedSphereIndex]);
 
@@ -13358,7 +13681,8 @@ export default function HomeScreen() {
   // Track if encouragement request is in progress to prevent duplicate calls
   const encouragementRequestInProgressRef = useRef(false);
   const aiConsent = useAIInsightsConsent();
-  const { enabled: notificationNudgeEnabled } = useNotificationNudgePreference();
+  const { enabled: notificationNudgeEnabled } =
+    useNotificationNudgePreference();
   // When user closes the banner, bump this to force a new AI message next time it shows.
   const [encouragementCacheBust, setEncouragementCacheBust] = useState(0);
   const lastEncouragementCacheKeyRef = useRef<string | null>(null);
@@ -13515,7 +13839,11 @@ export default function HomeScreen() {
     let cancelled = false;
 
     const run = async () => {
-      if (!hasAnyMoments || !isEncouragementVisible || !notificationNudgeEnabled) {
+      if (
+        !hasAnyMoments ||
+        !isEncouragementVisible ||
+        !notificationNudgeEnabled
+      ) {
         return;
       }
 
@@ -13599,8 +13927,7 @@ export default function HomeScreen() {
             // Threshold changed: content changed, pick new message.
             // Cache bust only (from dismiss): we already set new message in dismiss handler—don't re-pick to avoid blink on tab return.
             if (thresholdChanged) {
-              const randomMessage =
-                await getRandomTodayEncouragementMessage();
+              const randomMessage = await getRandomTodayEncouragementMessage();
               if (randomMessage && !cancelled) {
                 setAiEncouragementText(randomMessage);
                 setAiEncouragementLoading(false);
@@ -13614,8 +13941,7 @@ export default function HomeScreen() {
               return;
             } else {
               // Cache bust but no current message—pick one
-              const randomMessage =
-                await getRandomTodayEncouragementMessage();
+              const randomMessage = await getRandomTodayEncouragementMessage();
               if (randomMessage && !cancelled) {
                 setAiEncouragementText(randomMessage);
                 setAiEncouragementLoading(false);
@@ -13740,7 +14066,10 @@ export default function HomeScreen() {
 
   // Static styles for encouragement message (no animation)
   const encouragementStaticStyle = {
-    opacity: notificationNudgeEnabled && isEncouragementVisible && hasAnyMoments ? 1 : 0,
+    opacity:
+      notificationNudgeEnabled && isEncouragementVisible && hasAnyMoments
+        ? 1
+        : 0,
   };
 
   // Memoized styles for encouragement message section to avoid recreating on every render
@@ -14049,11 +14378,19 @@ export default function HomeScreen() {
 
   const memoriesPerEntityBySphere = useMemo(
     () => ({
-      relationships: profiles.map((p) => getIdealizedMemoriesByEntityId(p.id, "relationships")),
+      relationships: profiles.map((p) =>
+        getIdealizedMemoriesByEntityId(p.id, "relationships"),
+      ),
       career: jobs.map((j) => getIdealizedMemoriesByEntityId(j.id, "career")),
-      family: familyMembers.map((m) => getIdealizedMemoriesByEntityId(m.id, "family")),
-      friends: friends.map((f) => getIdealizedMemoriesByEntityId(f.id, "friends")),
-      hobbies: hobbies.map((h) => getIdealizedMemoriesByEntityId(h.id, "hobbies")),
+      family: familyMembers.map((m) =>
+        getIdealizedMemoriesByEntityId(m.id, "family"),
+      ),
+      friends: friends.map((f) =>
+        getIdealizedMemoriesByEntityId(f.id, "friends"),
+      ),
+      hobbies: hobbies.map((h) =>
+        getIdealizedMemoriesByEntityId(h.id, "hobbies"),
+      ),
     }),
     [
       profiles,
@@ -14097,7 +14434,8 @@ export default function HomeScreen() {
   const [showLesson, setShowLesson] = useState(false);
   const [mainWheelExamAnswerInput, setMainWheelExamAnswerInput] = useState("");
   const mainWheelExamAnswerInputRef = useRef("");
-  (mainWheelExamAnswerInputRef as React.MutableRefObject<string>).current = mainWheelExamAnswerInput;
+  (mainWheelExamAnswerInputRef as React.MutableRefObject<string>).current =
+    mainWheelExamAnswerInput;
   const [showMainWheelFireworks, setShowMainWheelFireworks] = useState(false);
   const [showMomentTypeSelector, setShowMomentTypeSelector] = useState(false);
 
@@ -14619,7 +14957,7 @@ export default function HomeScreen() {
       )
         return;
       setSelectedLesson((p) =>
-        p ? { ...p, examStep: "analyzing" as const } : null
+        p ? { ...p, examStep: "analyzing" as const } : null,
       );
       try {
         const analysis = await analyzeLessonExamAnswer(
@@ -14711,7 +15049,10 @@ export default function HomeScreen() {
   // When user switches tab (e.g. to sunny moments), hide "grow all" overlay for other types
   // so lessons don't keep pulsing when we're on sunny moments
   useEffect(() => {
-    if (growAllMomentsType !== null && growAllMomentsType !== selectedMomentType) {
+    if (
+      growAllMomentsType !== null &&
+      growAllMomentsType !== selectedMomentType
+    ) {
       setGrowAllMomentsType(null);
     }
   }, [selectedMomentType, growAllMomentsType]);
@@ -14730,8 +15071,7 @@ export default function HomeScreen() {
     // Check if moments are currently blocked from showing
     const momentsAreBlocked =
       !showMomentTypeSelector ||
-      (appUsabilityHints &&
-        !momentTypeSelectorDismissed) ||
+      (appUsabilityHints && !momentTypeSelectorDismissed) ||
       !isAppActive ||
       !selectedMomentType ||
       isSpinning ||
@@ -14951,10 +15291,7 @@ export default function HomeScreen() {
                     for (let i = 0; i < momentsToSpawn; i++) {
                       const momentIndex = startIndex + i;
                       if (momentIndex >= totalCount) break;
-                      spawnSingleMoment(
-                        momentIndex,
-                        i * INITIAL_STAGGER_DELAY,
-                      );
+                      spawnSingleMoment(momentIndex, i * INITIAL_STAGGER_DELAY);
                     }
                   }
                 }, NEXT_MOMENT_DELAY);
@@ -15440,13 +15777,17 @@ export default function HomeScreen() {
     const mainWheelTotalMs = 3 * 1600 + 400; // 3 cycles + settle
     spinHintPointerOpacity.value = withSequence(
       withTiming(0.85, { duration: 100, easing: Easing.out(Easing.ease) }),
-      withTiming(0, {
-        duration: mainWheelTotalMs - 100,
-        easing: Easing.linear,
-      }, (finished) => {
-        "worklet";
-        if (finished) runOnJS(setMomentTypeSelectorDismissed)(true);
-      })
+      withTiming(
+        0,
+        {
+          duration: mainWheelTotalMs - 100,
+          easing: Easing.linear,
+        },
+        (finished) => {
+          "worklet";
+          if (finished) runOnJS(setMomentTypeSelectorDismissed)(true);
+        },
+      ),
     );
 
     // Start finger at top (for top→down clockwise drag motion)
@@ -15467,29 +15808,29 @@ export default function HomeScreen() {
       withTiming(0, {
         duration: 600,
         easing: Easing.out(Easing.cubic),
-      })
+      }),
     );
     hintRotation.value = withSequence(
       withRepeat(wiggleCycle, 3, false),
-      withTiming(0, { duration: 400, easing: Easing.out(Easing.cubic) })
+      withTiming(0, { duration: 400, easing: Easing.out(Easing.cubic) }),
     );
 
     // Pointer moves top → down + left to imitate clockwise drag (arc on right side)
     spinHintPointerTranslateX.value = withRepeat(
       withSequence(
         withTiming(-12, { duration: 700, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 600, easing: Easing.inOut(Easing.ease) })
+        withTiming(0, { duration: 600, easing: Easing.inOut(Easing.ease) }),
       ),
       3,
-      false
+      false,
     );
     spinHintPointerTranslateY.value = withRepeat(
       withSequence(
         withTiming(14, { duration: 700, easing: Easing.inOut(Easing.ease) }), // top → down
-        withTiming(-14, { duration: 600, easing: Easing.inOut(Easing.ease) }) // back to top
+        withTiming(-14, { duration: 600, easing: Easing.inOut(Easing.ease) }), // back to top
       ),
       3,
-      false
+      false,
     );
 
     return () => {
@@ -15652,7 +15993,8 @@ export default function HomeScreen() {
             const velocityAtRelease = wheelVelocity.value;
             void (async () => {
               try {
-                const consumed = await consumeWheelExamIfAvailable(hasAIEntitlement);
+                const consumed =
+                  await consumeWheelExamIfAvailable(hasAIEntitlement);
                 if (!consumed) {
                   const purchased = await showPaywallForAIAccess();
                   if (!purchased) {
@@ -16968,167 +17310,6 @@ export default function HomeScreen() {
   ]);
 
   // Create stable callbacks for runOnJS
-  const handleSlideOutComplete = useCallback(() => {
-    setAnimationsComplete(true);
-  }, []);
-
-  const handleSlideInComplete = useCallback(() => {
-    setAnimationsComplete(false);
-  }, []);
-
-  // Animated value for sliding other EX zones off-screen - only create when animations are ready
-  const slideOffset = useSharedValue(0); // For relationships
-  // Separate slideOffset values for each sphere
-  const careerSlideOffset = useSharedValue(0);
-  const familySlideOffset = useSharedValue(0);
-  const friendsSlideOffset = useSharedValue(0);
-  const hobbiesSlideOffset = useSharedValue(0);
-
-  // CRITICAL: Immediately reset slideOffset when sphere changes to ensure profiles are visible
-  // This must run before the animation logic to prevent profiles from staying hidden
-  React.useLayoutEffect(() => {
-    // When sphere changes, immediately reset all slideOffsets to 0 to make entities visible
-    // This fixes the issue where entities stay hidden after drilling into a memory and switching spheres
-    slideOffset.value = 0;
-    careerSlideOffset.value = 0;
-    familySlideOffset.value = 0;
-    friendsSlideOffset.value = 0;
-    hobbiesSlideOffset.value = 0;
-  }, [
-    selectedSphere,
-    slideOffset,
-    careerSlideOffset,
-    familySlideOffset,
-    friendsSlideOffset,
-    hobbiesSlideOffset,
-  ]);
-
-  // Use useLayoutEffect to start animation synchronously before paint to prevent flash
-  React.useLayoutEffect(() => {
-    if (animationsReady) {
-      // Animate smoothly when focusing or unfocusing
-      // Keep other ex-es hidden if either profile OR memory is focused
-      const easingConfig = Easing.bezier(0.4, 0.0, 0.2, 1); // Smooth ease-in-out curve
-      const targetValue = SCREEN_WIDTH * 2;
-
-      // Helper function to animate slideOffset
-      const animateSlideOffset = (
-        offset: ReturnType<typeof useSharedValue<number>>,
-        shouldSlideOut: boolean,
-      ) => {
-        const currentValue = offset.value;
-        if (shouldSlideOut) {
-          if (Math.abs(currentValue - targetValue) > 1) {
-            offset.value = withTiming(targetValue, {
-              duration: 1200,
-              easing: easingConfig,
-            });
-          }
-        } else {
-          if (Math.abs(currentValue - 0) > 1) {
-            offset.value = withTiming(0, {
-              duration: 600,
-              easing: easingConfig,
-            });
-          }
-        }
-      };
-
-      // Relationships slideOffset
-      const shouldSlideOutRelationships =
-        focusedProfileId ||
-        (focusedMemory && focusedMemory.sphere === "relationships");
-      if (shouldSlideOutRelationships) {
-        const currentValue = slideOffset.value;
-        if (Math.abs(currentValue - targetValue) > 1) {
-          slideOffset.value = withTiming(
-            targetValue,
-            {
-              duration: 1200,
-              easing: easingConfig,
-            },
-            (finished) => {
-              "worklet";
-              if (finished) {
-                runOnJS(handleSlideOutComplete)();
-              }
-            },
-          );
-        }
-      } else {
-        const currentValue = slideOffset.value;
-        if (Math.abs(currentValue - 0) > 1) {
-          slideOffset.value = withTiming(
-            0,
-            {
-              duration: 600,
-              easing: easingConfig,
-            },
-            (finished) => {
-              "worklet";
-              if (finished) {
-                runOnJS(handleSlideInComplete)();
-              }
-            },
-          );
-        } else {
-          runOnJS(handleSlideInComplete)();
-        }
-      }
-
-      // Career slideOffset
-      animateSlideOffset(
-        careerSlideOffset,
-        !!(
-          focusedJobId ||
-          (focusedMemory && focusedMemory.sphere === "career")
-        ),
-      );
-
-      // Family slideOffset
-      animateSlideOffset(
-        familySlideOffset,
-        !!(
-          focusedFamilyMemberId ||
-          (focusedMemory && focusedMemory.sphere === "family")
-        ),
-      );
-
-      // Friends slideOffset
-      animateSlideOffset(
-        friendsSlideOffset,
-        !!(
-          focusedFriendId ||
-          (focusedMemory && focusedMemory.sphere === "friends")
-        ),
-      );
-
-      // Hobbies slideOffset
-      animateSlideOffset(
-        hobbiesSlideOffset,
-        !!(
-          focusedHobbyId ||
-          (focusedMemory && focusedMemory.sphere === "hobbies")
-        ),
-      );
-    }
-  }, [
-    focusedProfileId,
-    focusedJobId,
-    focusedFamilyMemberId,
-    focusedFriendId,
-    focusedHobbyId,
-    focusedMemory,
-    animationsReady,
-    handleSlideOutComplete,
-    handleSlideInComplete,
-    slideOffset,
-    careerSlideOffset,
-    familySlideOffset,
-    friendsSlideOffset,
-    hobbiesSlideOffset,
-  ]);
-
   // Slide offset for non-focused memories when a memory is focused
   const memorySlideOffset = useSharedValue(0);
 
@@ -17150,8 +17331,7 @@ export default function HomeScreen() {
   // Keep all profiles in render tree for smooth animations
   // Don't filter them out - let the animation handle visibility
   const visibleProfiles = React.useMemo(() => {
-    // Always return all profiles so they can animate out smoothly
-    // The NonFocusedZone component will handle the animation
+    // All profiles available for focused entity render (one shown when focused)
     return sortedProfiles;
   }, [sortedProfiles]);
 
@@ -17249,38 +17429,22 @@ export default function HomeScreen() {
   ]);
 
   // Memoize focused profiles render - must be called unconditionally
-  // This renders profiles when they're focused, and also handles the unfocus animation
-  // Changed to match career pattern: use FloatingAvatar directly instead of ProfileRenderer
+  // Renders the focused profile (FloatingAvatar) when user selects one from FocusedEntitiesView.
+  // Only when a profile is focused (no "wasJustFocused" avatar so back returns to orbit only).
   const focusedProfilesRender = useMemo(() => {
     if (!animationsReady || focusedMemory) return null;
 
-    // Only render if there's a focused profile OR if we need to handle unfocus animation
-    if (!focusedProfileId && !previousFocusedIdRef.current) return null;
+    if (!focusedProfileId) return null;
 
     return visibleProfiles.map((profile, index) => {
       const memories = getIdealizedMemoriesByProfileId(profile.id);
       const isFocused = focusedProfileId === profile.id;
-      const wasJustFocused =
-        previousFocusedIdRef.current === profile.id && !focusedProfileId;
 
-      // Render focused profile OR profile that was just unfocused (for animation)
-      if (!isFocused && !wasJustFocused) return null;
+      if (!isFocused) return null;
 
-      // Get the profile's year section to calculate original position
+      // Get the profile's year section to calculate position for the focused card
       const yearSection = getProfileYearSection(profile);
-      let currentPosition: { x: number; y: number };
-
-      if (isFocused) {
-        // When focused, use original position - the animation will move it to center
-        // Calculate original position from year section
-        currentPosition = getAvatarPosition(profile.id, index);
-      } else if (wasJustFocused) {
-        // When just unfocused, use original position from year section
-        currentPosition = getAvatarPosition(profile.id, index);
-      } else {
-        // Fallback
-        currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
-      }
+      const currentPosition = getAvatarPosition(profile.id, index);
 
       return (
         <FloatingAvatar
@@ -17342,7 +17506,6 @@ export default function HomeScreen() {
     getIdealizedMemoriesByProfileId,
     getAvatarPosition,
     getProfileYearSection,
-    previousFocusedIdRef,
     setFocusedProfileId,
     setFocusedMemory,
     colors,
@@ -17351,62 +17514,22 @@ export default function HomeScreen() {
   ]);
 
   // Memoize focused jobs render - must be called unconditionally
-  // This renders jobs when they're focused, and also handles the unfocus animation
+  // Renders the focused job when user selects one from FocusedEntitiesView. Only when focused (no wasJustFocused so back returns to orbit only).
   const focusedJobsRender = useMemo(() => {
     if (!animationsReady || focusedMemory) return null;
 
-    // Only render if there's a focused job OR if we need to handle unfocus animation
-    if (!focusedJobId && !previousFocusedJobIdRef.current) return null;
+    if (!focusedJobId) return null;
 
     return sortedJobs.map((job, index) => {
       const memories = getIdealizedMemoriesByEntityId(job.id, "career");
       const isFocused = focusedJobId === job.id;
-      const wasJustFocused =
-        previousFocusedJobIdRef.current === job.id && !focusedJobId;
 
-      // Render focused job OR job that was just unfocused (for animation)
-      if (!isFocused && !wasJustFocused) return null;
+      if (!isFocused) return null;
 
-      // Get the job's year section to calculate original position
       const yearSection = getJobYearSection(job);
       let currentPosition: { x: number; y: number };
 
-      if (isFocused) {
-        // When focused, use original position - the animation will move it to center
-        // Calculate original position from year section
-        if (yearSection) {
-          const sectionKey = getJobSectionKey(job);
-          const jobsInSection = sectionKey
-            ? jobsBySection.get(sectionKey)
-            : undefined;
-          if (jobsInSection) {
-            const jobIndexInSection = jobsInSection.findIndex(
-              ({ job: j }) => j.id === job.id,
-            );
-            const totalJobsInSection = jobsInSection.length;
-            const sectionCenterY = yearSection.top + yearSection.height / 2;
-            const verticalSpacing =
-              totalJobsInSection > 1
-                ? Math.min(yearSection.height / (totalJobsInSection + 1), 150)
-                : 0;
-            currentPosition = {
-              x: SCREEN_WIDTH / 2,
-              y:
-                totalJobsInSection === 1
-                  ? sectionCenterY
-                  : yearSection.top + verticalSpacing * (jobIndexInSection + 1),
-            };
-          } else {
-            // Fallback to center if section not found
-            currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
-          }
-        } else {
-          // Fallback to center if no year section
-          currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
-        }
-      } else if (wasJustFocused && yearSection) {
-        // When just unfocused, use original position from year section
-        // Find the job's position in its section
+      if (yearSection) {
         const sectionKey = getJobSectionKey(job);
         const jobsInSection = sectionKey
           ? jobsBySection.get(sectionKey)
@@ -17432,7 +17555,6 @@ export default function HomeScreen() {
           currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
         }
       } else {
-        // Fallback
         currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
       }
 
@@ -17494,7 +17616,6 @@ export default function HomeScreen() {
     getJobYearSection,
     getJobSectionKey,
     jobsBySection,
-    previousFocusedJobIdRef,
     setFocusedJobId,
     setFocusedMemory,
     colors,
@@ -17503,50 +17624,23 @@ export default function HomeScreen() {
   ]);
 
   // Memoize focused family members render - must be called unconditionally
-  // This renders family members when they're focused, and also handles the unfocus animation
+  // Renders the focused family member when user selects one from FocusedEntitiesView. Only when focused (no wasJustFocused so back returns to orbit only).
   const focusedFamilyMembersRender = useMemo(() => {
     if (!animationsReady || focusedMemory) return null;
 
-    // Only render if there's a focused family member OR if we need to handle unfocus animation
-    if (!focusedFamilyMemberId && !previousFocusedFamilyMemberIdRef.current)
-      return null;
+    if (!focusedFamilyMemberId) return null;
 
     return familyMembers.map((member, index) => {
       const memories = getIdealizedMemoriesByEntityId(member.id, "family");
       const isFocused = focusedFamilyMemberId === member.id;
-      const wasJustFocused =
-        previousFocusedFamilyMemberIdRef.current === member.id &&
-        !focusedFamilyMemberId;
 
-      // Render focused family member OR family member that was just unfocused (for animation)
-      if (!isFocused && !wasJustFocused) return null;
+      if (!isFocused) return null;
 
-      // Get the family member's section and position
       const section = familyYearSections.get("all");
-      let currentPosition: { x: number; y: number };
-
-      // Check if we have a saved position
       const savedPosition = familyPositionsState.get(member.id);
-
-      if (wasJustFocused && savedPosition) {
-        // When unfocusing, use the saved position so it animates from where it was last placed
-        currentPosition = savedPosition;
-      } else if (isFocused || wasJustFocused) {
-        // When focusing or no saved position, use the pre-calculated collision-free position
-        const calculatedPosition =
-          familyMemberPositions && familyMemberPositions[index];
-        if (calculatedPosition) {
-          currentPosition = calculatedPosition;
-        } else if (savedPosition) {
-          // Fallback to saved position if no calculated position
-          currentPosition = savedPosition;
-        } else {
-          // Final fallback to center
-          currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
-        }
-      } else {
-        currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
-      }
+      const currentPosition: { x: number; y: number } = savedPosition
+        ? savedPosition
+        : { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
 
       return (
         <FloatingAvatar
@@ -17614,7 +17708,7 @@ export default function HomeScreen() {
     familyMembers,
     getIdealizedMemoriesByEntityId,
     familyYearSections,
-    previousFocusedFamilyMemberIdRef.current,
+    familyPositionsState,
     setFocusedFamilyMemberId,
     setFocusedMemory,
     colors,
@@ -17626,49 +17720,23 @@ export default function HomeScreen() {
   ]);
 
   // Memoize focused friends render - must be called unconditionally
-  // This renders friends when they're focused, and also handles the unfocus animation
+  // Renders the focused friend when user selects one from FocusedEntitiesView. Only when focused (no wasJustFocused so back returns to orbit only).
   const focusedFriendsRender = useMemo(() => {
     if (!animationsReady || focusedMemory) return null;
 
-    // Only render if there's a focused friend OR if we need to handle unfocus animation
-    if (!focusedFriendId && !previousFocusedFriendIdRef.current) return null;
+    if (!focusedFriendId) return null;
 
     return friends.map((friend, index) => {
       const memories = getIdealizedMemoriesByEntityId(friend.id, "friends");
       const isFocused = focusedFriendId === friend.id;
-      const wasJustFocused =
-        previousFocusedFriendIdRef.current === friend.id && !focusedFriendId;
 
-      // Render focused friend OR friend that was just unfocused (for animation)
-      if (!isFocused && !wasJustFocused) {
-        return null;
-      }
+      if (!isFocused) return null;
 
-      // Get the friend's section and position
       const section = friendsYearSections.get("all");
-      let currentPosition: { x: number; y: number };
-
-      // Check if we have a saved position
       const savedPosition = friendPositionsState.get(friend.id);
-
-      if (wasJustFocused && savedPosition) {
-        // When unfocusing, use the saved position so it animates from where it was last placed
-        currentPosition = savedPosition;
-      } else if (isFocused || wasJustFocused) {
-        // When focusing or no saved position, use the pre-calculated collision-free position
-        const calculatedPosition = friendPositions && friendPositions[index];
-        if (calculatedPosition) {
-          currentPosition = calculatedPosition;
-        } else if (savedPosition) {
-          // Fallback to saved position if no calculated position
-          currentPosition = savedPosition;
-        } else {
-          // Final fallback to center
-          currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
-        }
-      } else {
-        currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
-      }
+      const currentPosition: { x: number; y: number } = savedPosition
+        ? savedPosition
+        : { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
 
       return (
         <FloatingAvatar
@@ -17736,7 +17804,7 @@ export default function HomeScreen() {
     friends,
     getIdealizedMemoriesByEntityId,
     friendsYearSections,
-    previousFocusedFriendIdRef.current,
+    friendPositionsState,
     setFocusedFriendId,
     setFocusedMemory,
     colors,
@@ -17748,47 +17816,23 @@ export default function HomeScreen() {
   ]);
 
   // Memoize focused hobbies render - must be called unconditionally
-  // This renders hobbies when they're focused, and also handles the unfocus animation
+  // Renders the focused hobby when user selects one from FocusedEntitiesView. Only when focused (no wasJustFocused so back returns to orbit only).
   const focusedHobbiesRender = useMemo(() => {
     if (!animationsReady || focusedMemory) return null;
 
-    // Only render if there's a focused hobby OR if we need to handle unfocus animation
-    if (!focusedHobbyId && !previousFocusedHobbyIdRef.current) return null;
+    if (!focusedHobbyId) return null;
 
     return hobbies.map((hobby, index) => {
       const memories = getIdealizedMemoriesByEntityId(hobby.id, "hobbies");
       const isFocused = focusedHobbyId === hobby.id;
-      const wasJustFocused =
-        previousFocusedHobbyIdRef.current === hobby.id && !focusedHobbyId;
 
-      // Render focused hobby OR hobby that was just unfocused (for animation)
-      if (!isFocused && !wasJustFocused) return null;
+      if (!isFocused) return null;
 
-      // Get the hobby's section and position
       const section = hobbiesYearSections.get("all");
-      let currentPosition: { x: number; y: number };
-
-      // Check if we have a saved position
       const savedPosition = hobbyPositionsState.get(hobby.id);
-
-      if (wasJustFocused && savedPosition) {
-        // When unfocusing, use the saved position so it animates from where it was last placed
-        currentPosition = savedPosition;
-      } else if (isFocused || wasJustFocused) {
-        // When focusing or no saved position, use the pre-calculated collision-free position
-        const calculatedPosition = hobbyPositions && hobbyPositions[index];
-        if (calculatedPosition) {
-          currentPosition = calculatedPosition;
-        } else if (savedPosition) {
-          // Fallback to saved position if no calculated position
-          currentPosition = savedPosition;
-        } else {
-          // Final fallback to center
-          currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
-        }
-      } else {
-        currentPosition = { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
-      }
+      const currentPosition: { x: number; y: number } = savedPosition
+        ? savedPosition
+        : { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 };
 
       return (
         <FloatingAvatar
@@ -17855,7 +17899,7 @@ export default function HomeScreen() {
     hobbies,
     getIdealizedMemoriesByEntityId,
     hobbiesYearSections,
-    previousFocusedHobbyIdRef.current,
+    hobbyPositionsState,
     setFocusedHobbyId,
     setFocusedMemory,
     colors,
@@ -18105,7 +18149,8 @@ export default function HomeScreen() {
 
   // Keep FocusedSferaView mounted when in entity detail so back press is instant (no remount).
   const showEntityDetail = !!selectedSphere;
-  const keepFocusedSferaMounted = homeViewMode === "focused" || showEntityDetail;
+  const keepFocusedSferaMounted =
+    homeViewMode === "focused" || showEntityDetail;
   const focusedSferaLayer = keepFocusedSferaMounted ? (
     <View
       key="focused-sfera-layer"
@@ -18141,7 +18186,9 @@ export default function HomeScreen() {
               setTimeout(() => {
                 setFocusedMemory(null);
                 setSelectedSphere(sphere);
-                setFocusedProfileId(sphere === "relationships" ? entityId : null);
+                setFocusedProfileId(
+                  sphere === "relationships" ? entityId : null,
+                );
                 setFocusedJobId(sphere === "career" ? entityId : null);
                 setFocusedFamilyMemberId(sphere === "family" ? entityId : null);
                 setFocusedFriendId(sphere === "friends" ? entityId : null);
@@ -19120,7 +19167,12 @@ export default function HomeScreen() {
                       >
                         {selectedLesson.examQuestion}
                       </ThemedText>
-                      <Animated.View style={[{ width: "100%" }, mainWheelExamInputPulseStyle]}>
+                      <Animated.View
+                        style={[
+                          { width: "100%" },
+                          mainWheelExamInputPulseStyle,
+                        ]}
+                      >
                         <TextInput
                           value={mainWheelExamAnswerInput}
                           onChangeText={setMainWheelExamAnswerInput}
@@ -19141,10 +19193,18 @@ export default function HomeScreen() {
                           multiline
                         />
                       </Animated.View>
-                      <Animated.View style={[mainWheelExamSubmitButtonStyle, { width: "100%", marginTop: 16 }]}>
+                      <Animated.View
+                        style={[
+                          mainWheelExamSubmitButtonStyle,
+                          { width: "100%", marginTop: 16 },
+                        ]}
+                      >
                         <Pressable
                           onPressIn={() => {
-                            if (mainWheelExamAnswerInputRef.current.trim().length >= 2) {
+                            if (
+                              mainWheelExamAnswerInputRef.current.trim()
+                                .length >= 2
+                            ) {
                               cancelAnimation(mainWheelExamSubmitPressScale);
                               mainWheelExamSubmitPressScale.value = withTiming(
                                 0.82,
@@ -19157,10 +19217,13 @@ export default function HomeScreen() {
                           }}
                           onPressOut={() => {
                             cancelAnimation(mainWheelExamSubmitPressScale);
-                            mainWheelExamSubmitPressScale.value = withSpring(1, {
-                              damping: 12,
-                              stiffness: 400,
-                            });
+                            mainWheelExamSubmitPressScale.value = withSpring(
+                              1,
+                              {
+                                damping: 12,
+                                stiffness: 400,
+                              },
+                            );
                           }}
                           onPress={() => {
                             const trimmed = mainWheelExamAnswerInput.trim();
@@ -19170,12 +19233,19 @@ export default function HomeScreen() {
                             } else {
                               cancelAnimation(mainWheelExamInputPulseScale);
                               mainWheelExamInputPulseScale.value = withSequence(
-                                withTiming(1.04, { duration: 80, easing: Easing.out(Easing.ease) }),
-                                withSpring(1, { damping: 12, stiffness: 400 })
+                                withTiming(1.04, {
+                                  duration: 80,
+                                  easing: Easing.out(Easing.ease),
+                                }),
+                                withSpring(1, { damping: 12, stiffness: 400 }),
                               );
                             }
                           }}
-                          style={{ width: "100%", borderRadius: 14, overflow: "hidden" }}
+                          style={{
+                            width: "100%",
+                            borderRadius: 14,
+                            overflow: "hidden",
+                          }}
                         >
                           <LinearGradient
                             colors={[COSMIC_RING_START, COSMIC_RING_MID]}
@@ -19228,7 +19298,7 @@ export default function HomeScreen() {
                         />
                       </Pressable>
                     </View>
-                    ) : selectedLesson.examQuestion &&
+                  ) : selectedLesson.examQuestion &&
                     selectedLesson.examStep === "analyzing" ? (
                     <Animated.View
                       style={[
@@ -19382,9 +19452,7 @@ export default function HomeScreen() {
                         <MaterialIcons
                           name="close"
                           size={16}
-                          color={
-                            colorScheme === "dark" ? "#FFFFFF" : "#000000"
-                          }
+                          color={colorScheme === "dark" ? "#FFFFFF" : "#000000"}
                           style={{ opacity: 0.8 }}
                         />
                       </Pressable>
@@ -20510,7 +20578,7 @@ export default function HomeScreen() {
             })()}
 
           {/* Pulsing Floating Moments - Randomly spawn around center avatar during moment type selection (hide when spinning) */}
-            {animationsReady &&
+          {animationsReady &&
             showMomentTypeSelector &&
             !isSpinning &&
             randomMoments.map((moment) => (
@@ -20562,23 +20630,43 @@ export default function HomeScreen() {
                             if (sphere === "relationships") {
                               setFocusedProfileId(entityId);
                               setSelectedSphere("relationships");
-                              setFocusedMemory({ profileId: entityId, memoryId, sphere });
+                              setFocusedMemory({
+                                profileId: entityId,
+                                memoryId,
+                                sphere,
+                              });
                             } else if (sphere === "career") {
                               setFocusedJobId(entityId);
                               setSelectedSphere("career");
-                              setFocusedMemory({ jobId: entityId, memoryId, sphere });
+                              setFocusedMemory({
+                                jobId: entityId,
+                                memoryId,
+                                sphere,
+                              });
                             } else if (sphere === "family") {
                               setFocusedFamilyMemberId(entityId);
                               setSelectedSphere("family");
-                              setFocusedMemory({ familyMemberId: entityId, memoryId, sphere });
+                              setFocusedMemory({
+                                familyMemberId: entityId,
+                                memoryId,
+                                sphere,
+                              });
                             } else if (sphere === "friends") {
                               setFocusedFriendId(entityId);
                               setSelectedSphere("friends");
-                              setFocusedMemory({ friendId: entityId, memoryId, sphere });
+                              setFocusedMemory({
+                                friendId: entityId,
+                                memoryId,
+                                sphere,
+                              });
                             } else if (sphere === "hobbies") {
                               setFocusedHobbyId(entityId);
                               setSelectedSphere("hobbies");
-                              setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
+                              setFocusedMemory({
+                                hobbyId: entityId,
+                                memoryId,
+                                sphere,
+                              });
                             }
                           }, 120);
                         });
@@ -20674,23 +20762,43 @@ export default function HomeScreen() {
                                   if (sphere === "relationships") {
                                     setFocusedProfileId(entityId);
                                     setSelectedSphere("relationships");
-                                    setFocusedMemory({ profileId: entityId, memoryId, sphere });
+                                    setFocusedMemory({
+                                      profileId: entityId,
+                                      memoryId,
+                                      sphere,
+                                    });
                                   } else if (sphere === "career") {
                                     setFocusedJobId(entityId);
                                     setSelectedSphere("career");
-                                    setFocusedMemory({ jobId: entityId, memoryId, sphere });
+                                    setFocusedMemory({
+                                      jobId: entityId,
+                                      memoryId,
+                                      sphere,
+                                    });
                                   } else if (sphere === "family") {
                                     setFocusedFamilyMemberId(entityId);
                                     setSelectedSphere("family");
-                                    setFocusedMemory({ familyMemberId: entityId, memoryId, sphere });
+                                    setFocusedMemory({
+                                      familyMemberId: entityId,
+                                      memoryId,
+                                      sphere,
+                                    });
                                   } else if (sphere === "friends") {
                                     setFocusedFriendId(entityId);
                                     setSelectedSphere("friends");
-                                    setFocusedMemory({ friendId: entityId, memoryId, sphere });
+                                    setFocusedMemory({
+                                      friendId: entityId,
+                                      memoryId,
+                                      sphere,
+                                    });
                                   } else if (sphere === "hobbies") {
                                     setFocusedHobbyId(entityId);
                                     setSelectedSphere("hobbies");
-                                    setFocusedMemory({ hobbyId: entityId, memoryId, sphere });
+                                    setFocusedMemory({
+                                      hobbyId: entityId,
+                                      memoryId,
+                                      sphere,
+                                    });
                                   }
                                 }, 120);
                               });
@@ -20707,243 +20815,132 @@ export default function HomeScreen() {
             })()}
 
           {/* Moment card overlay: shown when user taps a growing moment (fixed size, icon, truncated text, image; tap card opens memory) */}
-          {momentCard && (() => {
-            const iconName =
-              momentCard.momentType === "sunnyMoments"
-                ? "wb-sunny"
-                : momentCard.momentType === "hardTruths"
-                  ? "cloud"
-                  : "lightbulb";
-            const accentColor =
-              momentCard.momentType === "sunnyMoments"
-                ? momentColors.sunny.background
-                : momentCard.momentType === "hardTruths"
-                  ? momentColors.cloudy.background
-                  : momentColors.lesson.background;
-            const openMemory = () => {
-              const entityId = momentCard.entityId;
-              const memoryId = momentCard.memoryId;
-              const sphere = momentCard.sphere;
-              if (!entityId || !memoryId || !sphere) {
-                setMomentCard(null);
-                setExpandedMomentId(null);
-                return;
-              }
-              startTransitionLoader();
-              requestAnimationFrame(() => {
-                setTimeout(() => {
+          {momentCard &&
+            (() => {
+              const iconName =
+                momentCard.momentType === "sunnyMoments"
+                  ? "wb-sunny"
+                  : momentCard.momentType === "hardTruths"
+                    ? "cloud"
+                    : "lightbulb";
+              const accentColor =
+                momentCard.momentType === "sunnyMoments"
+                  ? momentColors.sunny.background
+                  : momentCard.momentType === "hardTruths"
+                    ? momentColors.cloudy.background
+                    : momentColors.lesson.background;
+              const openMemory = () => {
+                const entityId = momentCard.entityId;
+                const memoryId = momentCard.memoryId;
+                const sphere = momentCard.sphere;
+                if (!entityId || !memoryId || !sphere) {
                   setMomentCard(null);
                   setExpandedMomentId(null);
-                  setGrowAllMomentsType(null);
-                  if (sphere === "relationships") {
-                    setFocusedProfileId(entityId);
-                    setSelectedSphere("relationships");
-                    setFocusedMemory({ profileId: entityId, memoryId, sphere });
-                  } else if (sphere === "career") {
-                    setFocusedJobId(entityId);
-                    setSelectedSphere("career");
-                    setFocusedMemory({ jobId: entityId, memoryId, sphere });
-                  } else if (sphere === "family") {
-                    setFocusedFamilyMemberId(entityId);
-                    setSelectedSphere("family");
-                    setFocusedMemory({
-                      familyMemberId: entityId,
-                      memoryId,
-                      sphere,
-                    });
-                  } else if (sphere === "friends") {
-                    setFocusedFriendId(entityId);
-                    setSelectedSphere("friends");
-                    setFocusedMemory({
-                      friendId: entityId,
-                      memoryId,
-                      sphere,
-                    });
-                  } else if (sphere === "hobbies") {
-                    setFocusedHobbyId(entityId);
-                    setSelectedSphere("hobbies");
-                    setFocusedMemory({
-                      hobbyId: entityId,
-                      memoryId,
-                      sphere,
-                    });
-                  }
-                }, 120);
-              });
-            };
-            const CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
-            const CARD_HEIGHT = 400;
-            return (
-              <Pressable
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  zIndex: 1100,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: "rgba(0,0,0,0.85)",
-                }}
-                onPress={() => {
-                  setMomentCard(null);
-                  setExpandedMomentId(null);
-                  setGrowAllMomentsType(null);
-                }}
-              >
+                  return;
+                }
+                startTransitionLoader();
+                requestAnimationFrame(() => {
+                  setTimeout(() => {
+                    setMomentCard(null);
+                    setExpandedMomentId(null);
+                    setGrowAllMomentsType(null);
+                    if (sphere === "relationships") {
+                      setFocusedProfileId(entityId);
+                      setSelectedSphere("relationships");
+                      setFocusedMemory({
+                        profileId: entityId,
+                        memoryId,
+                        sphere,
+                      });
+                    } else if (sphere === "career") {
+                      setFocusedJobId(entityId);
+                      setSelectedSphere("career");
+                      setFocusedMemory({ jobId: entityId, memoryId, sphere });
+                    } else if (sphere === "family") {
+                      setFocusedFamilyMemberId(entityId);
+                      setSelectedSphere("family");
+                      setFocusedMemory({
+                        familyMemberId: entityId,
+                        memoryId,
+                        sphere,
+                      });
+                    } else if (sphere === "friends") {
+                      setFocusedFriendId(entityId);
+                      setSelectedSphere("friends");
+                      setFocusedMemory({
+                        friendId: entityId,
+                        memoryId,
+                        sphere,
+                      });
+                    } else if (sphere === "hobbies") {
+                      setFocusedHobbyId(entityId);
+                      setSelectedSphere("hobbies");
+                      setFocusedMemory({
+                        hobbyId: entityId,
+                        memoryId,
+                        sphere,
+                      });
+                    }
+                  }, 120);
+                });
+              };
+              const CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
+              const CARD_HEIGHT = 400;
+              return (
                 <Pressable
-                  onPress={(e) => e.stopPropagation()}
                   style={{
-                    width: CARD_WIDTH,
-                    minHeight: CARD_HEIGHT,
-                    borderRadius: 24,
-                    overflow: "hidden",
-                    backgroundColor:
-                      colorScheme === "dark"
-                        ? "rgba(26, 35, 50, 0.98)"
-                        : "rgba(255, 255, 255, 0.98)",
-                    borderWidth: 1,
-                    borderColor: `${accentColor}40`,
-                    shadowColor: accentColor,
-                    shadowOffset: { width: 0, height: 8 },
-                    shadowOpacity: 0.35,
-                    shadowRadius: 24,
-                    elevation: 12,
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    zIndex: 1100,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "rgba(0,0,0,0.85)",
+                  }}
+                  onPress={() => {
+                    setMomentCard(null);
+                    setExpandedMomentId(null);
+                    setGrowAllMomentsType(null);
                   }}
                 >
-                  {/* Close button */}
                   <Pressable
-                    onPress={() => {
-                      setMomentCard(null);
-                      setExpandedMomentId(null);
-                      setGrowAllMomentsType(null);
-                    }}
-                    hitSlop={12}
+                    onPress={(e) => e.stopPropagation()}
                     style={{
-                      position: "absolute",
-                      top: 12,
-                      right: 12,
-                      zIndex: 10,
-                      width: 36,
-                      height: 36,
-                      borderRadius: 18,
+                      width: CARD_WIDTH,
+                      minHeight: CARD_HEIGHT,
+                      borderRadius: 24,
+                      overflow: "hidden",
                       backgroundColor:
                         colorScheme === "dark"
-                          ? "rgba(255,255,255,0.12)"
-                          : "rgba(0,0,0,0.08)",
-                      justifyContent: "center",
-                      alignItems: "center",
+                          ? "rgba(26, 35, 50, 0.98)"
+                          : "rgba(255, 255, 255, 0.98)",
+                      borderWidth: 1,
+                      borderColor: `${accentColor}40`,
+                      shadowColor: accentColor,
+                      shadowOffset: { width: 0, height: 8 },
+                      shadowOpacity: 0.35,
+                      shadowRadius: 24,
+                      elevation: 12,
                     }}
                   >
-                    <MaterialIcons
-                      name="close"
-                      size={22}
-                      color={colorScheme === "dark" ? "#fff" : "#333"}
-                    />
-                  </Pressable>
-
-                  {/* Tappable content: opens memory on press */}
-                  <Pressable
-                    onPress={openMemory}
-                    style={{
-                      flex: 1,
-                      paddingTop: 20,
-                      paddingHorizontal: 20,
-                      paddingBottom: 20,
-                      alignItems: "center",
-                    }}
-                  >
-                    {/* Icon */}
-                    <View
-                      style={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: 28,
-                        backgroundColor: `${accentColor}28`,
-                        justifyContent: "center",
-                        alignItems: "center",
-                        marginBottom: 14,
+                    {/* Close button */}
+                    <Pressable
+                      onPress={() => {
+                        setMomentCard(null);
+                        setExpandedMomentId(null);
+                        setGrowAllMomentsType(null);
                       }}
-                    >
-                      <MaterialIcons
-                        name={iconName}
-                        size={32}
-                        color={accentColor}
-                      />
-                    </View>
-
-                    {/* Truncated description */}
-                    <ThemedText
-                      numberOfLines={3}
-                      ellipsizeMode="tail"
+                      hitSlop={12}
                       style={{
-                        fontSize: 15 * fontScale,
-                        lineHeight: 22 * fontScale,
-                        textAlign: "center",
-                        marginBottom: 16,
-                        paddingHorizontal: 8,
-                      }}
-                    >
-                      {momentCard.text || " "}
-                    </ThemedText>
-
-                    {/* Memory image */}
-                    {momentCard.memoryImageUri ? (
-                      <View
-                        style={{
-                          width: CARD_WIDTH - 40,
-                          height: 160,
-                          borderRadius: 16,
-                          overflow: "hidden",
-                          backgroundColor:
-                            colorScheme === "dark"
-                              ? "rgba(255,255,255,0.06)"
-                              : "rgba(0,0,0,0.06)",
-                        }}
-                      >
-                        <Image
-                          source={{ uri: momentCard.memoryImageUri }}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                          }}
-                          contentFit="cover"
-                        />
-                      </View>
-                    ) : (
-                      <View
-                        style={{
-                          width: CARD_WIDTH - 40,
-                          height: 100,
-                          borderRadius: 16,
-                          backgroundColor:
-                            colorScheme === "dark"
-                              ? "rgba(255,255,255,0.06)"
-                              : "rgba(0,0,0,0.06)",
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                      >
-                        <MaterialIcons
-                          name="photo-library"
-                          size={36}
-                          color={
-                            colorScheme === "dark"
-                              ? "rgba(255,255,255,0.3)"
-                              : "rgba(0,0,0,0.2)"
-                          }
-                        />
-                      </View>
-                    )}
-
-                    {/* Open-memory affordance: icon-only, fixed color across moment types */}
-                    <View
-                      style={{
-                        marginTop: 14,
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
+                        position: "absolute",
+                        top: 12,
+                        right: 12,
+                        zIndex: 10,
+                        width: 36,
+                        height: 36,
+                        borderRadius: 18,
                         backgroundColor:
                           colorScheme === "dark"
                             ? "rgba(255,255,255,0.12)"
@@ -20953,16 +20950,132 @@ export default function HomeScreen() {
                       }}
                     >
                       <MaterialIcons
-                        name="open-in-full"
+                        name="close"
                         size={22}
-                        color={colors.primary}
+                        color={colorScheme === "dark" ? "#fff" : "#333"}
                       />
-                    </View>
+                    </Pressable>
+
+                    {/* Tappable content: opens memory on press */}
+                    <Pressable
+                      onPress={openMemory}
+                      style={{
+                        flex: 1,
+                        paddingTop: 20,
+                        paddingHorizontal: 20,
+                        paddingBottom: 20,
+                        alignItems: "center",
+                      }}
+                    >
+                      {/* Icon */}
+                      <View
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: 28,
+                          backgroundColor: `${accentColor}28`,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          marginBottom: 14,
+                        }}
+                      >
+                        <MaterialIcons
+                          name={iconName}
+                          size={32}
+                          color={accentColor}
+                        />
+                      </View>
+
+                      {/* Truncated description */}
+                      <ThemedText
+                        numberOfLines={3}
+                        ellipsizeMode="tail"
+                        style={{
+                          fontSize: 15 * fontScale,
+                          lineHeight: 22 * fontScale,
+                          textAlign: "center",
+                          marginBottom: 16,
+                          paddingHorizontal: 8,
+                        }}
+                      >
+                        {momentCard.text || " "}
+                      </ThemedText>
+
+                      {/* Memory image */}
+                      {momentCard.memoryImageUri ? (
+                        <View
+                          style={{
+                            width: CARD_WIDTH - 40,
+                            height: 160,
+                            borderRadius: 16,
+                            overflow: "hidden",
+                            backgroundColor:
+                              colorScheme === "dark"
+                                ? "rgba(255,255,255,0.06)"
+                                : "rgba(0,0,0,0.06)",
+                          }}
+                        >
+                          <Image
+                            source={{ uri: momentCard.memoryImageUri }}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                            }}
+                            contentFit="cover"
+                          />
+                        </View>
+                      ) : (
+                        <View
+                          style={{
+                            width: CARD_WIDTH - 40,
+                            height: 100,
+                            borderRadius: 16,
+                            backgroundColor:
+                              colorScheme === "dark"
+                                ? "rgba(255,255,255,0.06)"
+                                : "rgba(0,0,0,0.06)",
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          <MaterialIcons
+                            name="photo-library"
+                            size={36}
+                            color={
+                              colorScheme === "dark"
+                                ? "rgba(255,255,255,0.3)"
+                                : "rgba(0,0,0,0.2)"
+                            }
+                          />
+                        </View>
+                      )}
+
+                      {/* Open-memory affordance: icon-only, fixed color across moment types */}
+                      <View
+                        style={{
+                          marginTop: 14,
+                          width: 44,
+                          height: 44,
+                          borderRadius: 22,
+                          backgroundColor:
+                            colorScheme === "dark"
+                              ? "rgba(255,255,255,0.12)"
+                              : "rgba(0,0,0,0.08)",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <MaterialIcons
+                          name="open-in-full"
+                          size={22}
+                          color={colors.primary}
+                        />
+                      </View>
+                    </Pressable>
                   </Pressable>
                 </Pressable>
-              </Pressable>
-            );
-          })()}
+              );
+            })()}
 
           {/* Spin hint: animated pointer + wheel wiggle (visible ~3s, suggests drag to spin) */}
           {animationsReady &&
@@ -21001,7 +21114,7 @@ export default function HomeScreen() {
                   <MaterialIcons
                     name="touch-app"
                     size={pointerSize}
-                    color={colors.primary}
+                    color={colors.primaryDark}
                   />
                 </Animated.View>
               );
@@ -21049,9 +21162,7 @@ export default function HomeScreen() {
                         lessonsButtonAnimatedStyle,
                         {
                           opacity:
-                            isSpinning || expandedMomentId !== null
-                              ? 0.3
-                              : 1,
+                            isSpinning || expandedMomentId !== null ? 0.3 : 1,
                         },
                       ]}
                     >
@@ -21101,9 +21212,7 @@ export default function HomeScreen() {
                         onPress={() => setSelectedMomentType("lessons")}
                         onPressIn={handleLessonsButtonPressIn}
                         onPressOut={handleLessonsButtonPressOut}
-                        disabled={
-                          isSpinning || expandedMomentId !== null
-                        }
+                        disabled={isSpinning || expandedMomentId !== null}
                         style={{
                           width: "100%",
                           height: "100%",
@@ -21146,9 +21255,7 @@ export default function HomeScreen() {
                         sunnyMomentsButtonAnimatedStyle,
                         {
                           opacity:
-                            isSpinning || expandedMomentId !== null
-                              ? 0.3
-                              : 1,
+                            isSpinning || expandedMomentId !== null ? 0.3 : 1,
                         },
                       ]}
                     >
@@ -21198,9 +21305,7 @@ export default function HomeScreen() {
                         onPress={() => setSelectedMomentType("sunnyMoments")}
                         onPressIn={handleSunnyMomentsButtonPressIn}
                         onPressOut={handleSunnyMomentsButtonPressOut}
-                        disabled={
-                          isSpinning || expandedMomentId !== null
-                        }
+                        disabled={isSpinning || expandedMomentId !== null}
                         style={{
                           width: "100%",
                           height: "100%",
@@ -21243,9 +21348,7 @@ export default function HomeScreen() {
                         hardTruthsButtonAnimatedStyle,
                         {
                           opacity:
-                            isSpinning || expandedMomentId !== null
-                              ? 0.3
-                              : 1,
+                            isSpinning || expandedMomentId !== null ? 0.3 : 1,
                         },
                       ]}
                     >
@@ -21295,9 +21398,7 @@ export default function HomeScreen() {
                         onPress={() => setSelectedMomentType("hardTruths")}
                         onPressIn={handleHardTruthsButtonPressIn}
                         onPressOut={handleHardTruthsButtonPressOut}
-                        disabled={
-                          isSpinning || expandedMomentId !== null
-                        }
+                        disabled={isSpinning || expandedMomentId !== null}
                         style={{
                           width: "100%",
                           height: "100%",
@@ -21350,11 +21451,9 @@ export default function HomeScreen() {
   }
 
   // When a sphere is focused, show entities for that sphere
-  // For relationships: show year sections with partners (the original home view)
-  // For career: show jobs
+  // For relationships: circle avatar + orbiting ex-partners (same as other spheres)
+  // For career: circle avatar + orbiting jobs
   if (selectedSphere === "relationships") {
-    // Show the original year sections view with partners
-    // Use the existing sortedProfiles and year sections logic
     return (
       <TabScreenContainer>
         {hasAnyMoments && (
@@ -21621,7 +21720,7 @@ export default function HomeScreen() {
                   numberOfLines={1}
                   style={{
                     position: "absolute",
-                    top: 82,
+                    top: "15%",
                     right: 20,
                     zIndex: 1000,
                     color: colors.text,
@@ -21696,53 +21795,24 @@ export default function HomeScreen() {
             }}
             showsVerticalScrollIndicator={false}
           >
-            {/* Render year sections with profiles inside - hidden when focused */}
-            {(() => {
-              // CRITICAL: Only use focusedMemory if it's from relationships sphere
-              const relevantFocusedMemory =
-                getFocusedMemoryForSphere("relationships");
-              // Allow year sections to render when no profile is focused (even if one was just unfocused)
-              // The ProfileRenderer will hide the specific profile that was just unfocused
-              const shouldRender =
-                animationsReady &&
-                !focusedProfileId &&
-                !relevantFocusedMemory &&
-                sortedProfiles.length > 0 &&
-                profilesBySection.size > 0;
-              const totalProfilesInSections = Array.from(
-                profilesBySection.values(),
-              ).flat().length;
-
-              if (shouldRender) {
-                const renderKey = `year-sections-relationships-${selectedSphere}-${sortedProfiles.length}-${sphereRenderKeyRef.current}`;
-                return (
-                  <YearSectionsRenderer
-                    key={renderKey}
-                    yearSections={yearSections}
-                    profilesBySection={profilesBySection}
-                    colorScheme={colorScheme ?? "dark"}
-                    getIdealizedMemoriesByProfileId={
-                      getIdealizedMemoriesByProfileId
-                    }
-                    getAvatarPosition={getAvatarPosition}
-                    focusedProfileId={focusedProfileId}
-                    focusedMemory={relevantFocusedMemory}
-                    previousFocusedId={previousFocusedIdRef.current}
-                    slideOffset={slideOffset}
-                    getProfileYearSection={getProfileYearSection}
-                    updateAvatarPosition={updateAvatarPosition}
-                    setFocusedProfileId={setFocusedProfileId}
-                    setFocusedMemory={setFocusedMemory}
-                    colors={colors}
-                    memorySlideOffset={memorySlideOffset}
-                    animationsComplete={animationsComplete}
-                    orbitDurationMs={orbitDurationMs}
-                    onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
-                  />
-                );
-              }
-              return null;
-            })()}
+            {/* Render entities in orbital view (circle avatar + floating entities) when no profile/memory is focused */}
+            {animationsReady && !focusedProfileId && !focusedMemory && (
+              <FocusedEntitiesView
+                sphere="relationships"
+                sphereSunnyPercentage={relationshipsSunnyPercentage}
+                entities={sortedProfiles}
+                memoriesPerEntity={sortedProfiles.map((p) =>
+                  getIdealizedMemoriesByEntityId(p.id, "relationships"),
+                )}
+                onEntitySelect={(entityId) => {
+                  setFocusedProfileId(entityId);
+                }}
+                colorScheme={colorScheme ?? "dark"}
+                orbitDurationMs={orbitDurationMs}
+                constellationAmount={constellationAmount}
+                constellationOpacity={constellationOpacity}
+              />
+            )}
 
             {/* Render focused profiles separately when focused (but hide profile when memory is focused) */}
             {focusedProfilesRender}
@@ -21807,7 +21877,8 @@ export default function HomeScreen() {
                     setFocusedMemory(null);
                     if (
                       !focusedJobId ||
-                      (focusedMemory.jobId && focusedJobId !== focusedMemory.jobId)
+                      (focusedMemory.jobId &&
+                        focusedJobId !== focusedMemory.jobId)
                     ) {
                       setFocusedJobId(focusedMemory.jobId || null);
                     }
@@ -21991,7 +22062,7 @@ export default function HomeScreen() {
                   numberOfLines={1}
                   style={{
                     position: "absolute",
-                    top: 82,
+                    top: 108,
                     right: 20,
                     zIndex: 1000,
                     color: colors.text,
@@ -22066,252 +22137,28 @@ export default function HomeScreen() {
             }}
             showsVerticalScrollIndicator={false}
           >
-            {/* Render year sections with jobs inside */}
+            {/* Render entities in orbital view when no entity is focused */}
             {animationsReady && !focusedJobId && !focusedMemory && (
-              <>
-                {/* Year titles below back arrow - shown for each year section in listing view */}
-                {!focusedJobId &&
-                  Array.from(jobYearSections.entries()).map(
-                    ([key, section]) => {
-                      const displayYear =
-                        typeof section.year === "string"
-                          ? section.year === "Ongoing"
-                            ? t("profile.ongoing")
-                            : section.year === "Current"
-                              ? t("job.current")
-                              : section.year
-                          : section.year;
-
-                      // Position year title below back arrow, aligned with section top
-                      const backArrowBottom =
-                        (isTablet ? 70 : 50) + (isTablet ? 70 : 50);
-                      const yearTitleTop =
-                        section.top < backArrowBottom + 10
-                          ? backArrowBottom + 10 // Position below back arrow
-                          : section.top + 8; // Position at section top if section is far below
-
-                      return (
-                        <ThemedText
-                          key={`job-year-title-${key}`}
-                          size="l"
-                          weight="bold"
-                          numberOfLines={1}
-                          style={{
-                            position: "absolute",
-                            top: yearTitleTop,
-                            left: 20, // Align with back arrow
-                            zIndex: 1000,
-                            color: colors.text,
-                            opacity: 0.6,
-                          }}
-                        >
-                          {displayYear}
-                        </ThemedText>
-                      );
-                    },
-                  )}
-
-                {/* Year section backgrounds */}
-                {Array.from(jobYearSections.entries()).map(([key, section]) => {
-                  // Get the name of the job(s) in this year section
-                  const jobsInSection = jobsBySection.get(key);
-                  const sectionJobName =
-                    jobsInSection && jobsInSection.length > 0
-                      ? jobsInSection[0].job.name
-                      : null;
-                  // Check if this section contains the focused job
-                  const isFocusedSection =
-                    jobsInSection?.some(({ job }) => job.id === focusedJobId) ??
-                    false;
-                  // Hide title if memory is focused OR if a job is focused (but show it if this is the focused job's section)
-                  // Don't show focusedEntityName in year section - it's now shown below back arrow
-                  const shouldHideTitle =
-                    !!focusedMemory || (!!focusedJobId && !isFocusedSection);
-
-                  return (
-                    <YearSectionBackground
-                      key={`job-year-section-bg-${key}`}
-                      section={section}
-                      colorScheme={colorScheme ?? "dark"}
-                      hideTitle={shouldHideTitle}
-                      focusedEntityName={null} // Don't show entity name in year section - it's shown below back arrow
-                    />
-                  );
-                })}
-
-                {/* Render jobs in their year sections */}
-                {Array.from(jobsBySection.entries()).map(
-                  ([sectionKey, jobsData]) => {
-                    const section = jobYearSections.get(sectionKey);
-                    if (!section) {
-                      return null;
-                    }
-
-                    // Sort jobs within the section: ongoing first, then by index (most recent first)
-                    const sortedJobsInSection = [...jobsData].sort((a, b) => {
-                      // First, ensure ongoing items come first
-                      const aIsOngoing =
-                        a.job.endDate === null ||
-                        a.job.endDate === undefined ||
-                        a.job.endDate === "";
-                      const bIsOngoing =
-                        b.job.endDate === null ||
-                        b.job.endDate === undefined ||
-                        b.job.endDate === "";
-
-                      if (aIsOngoing && !bIsOngoing) return -1; // a is ongoing, b is not - a comes first
-                      if (!aIsOngoing && bIsOngoing) return 1; // b is ongoing, a is not - b comes first
-
-                      // Both are ongoing or both are ended - sort by index (most recent first)
-                      return a.index - b.index;
-                    });
-
-                    return sortedJobsInSection.map(
-                      ({ job, index: jobIndexInSorted }, jobIndexInSection) => {
-                        const memories = getIdealizedMemoriesByEntityId(
-                          job.id,
-                          "career",
-                        );
-
-                        // Distribute jobs vertically within the section (most recent on top)
-                        // Each job gets a position based on its index in the section
-                        const totalJobsInSection = sortedJobsInSection.length;
-                        const sectionCenterY = section.top + section.height / 2;
-                        const verticalSpacing =
-                          totalJobsInSection > 1
-                            ? Math.min(
-                                section.height / (totalJobsInSection + 1),
-                                150,
-                              ) // Space between jobs
-                            : 0;
-
-                        // Position jobs from top to bottom (most recent first), centered horizontally
-                        // For jobs in year sections, center them horizontally (no random X offset)
-                        // Only add small Y offset for multiple jobs to avoid perfect vertical alignment
-                        const getJobOffset = (jobId: string, range: number) => {
-                          let hash = 0;
-                          for (let i = 0; i < jobId.length; i++) {
-                            hash = (hash << 5) - hash + jobId.charCodeAt(i);
-                            hash = hash & hash;
-                          }
-                          return ((hash % 1000) / 1000) * range;
-                        };
-                        const centerOffsetX = 0; // Always center horizontally in year sections
-                        // For single jobs, place them exactly at center (no Y offset)
-                        // For multiple jobs, add small random offset to avoid perfect alignment
-                        const centerOffsetY =
-                          totalJobsInSection === 1
-                            ? 0 // Exact center for single jobs
-                            : getJobOffset(job.id + "_y", section.height * 0.1); // ±5% of section height for multiple jobs
-                        const baseY =
-                          totalJobsInSection === 1
-                            ? sectionCenterY
-                            : section.top +
-                              verticalSpacing * (jobIndexInSection + 1);
-
-                        const position = {
-                          x: SCREEN_WIDTH / 2 + centerOffsetX, // Always use screen center for X
-                          y: baseY + centerOffsetY,
-                        };
-
-                        // Clamp to ensure avatar stays in central area
-                        const centerAreaMinX = SCREEN_WIDTH * 0.2;
-                        const centerAreaMaxX = SCREEN_WIDTH * 0.8;
-                        position.x = Math.max(
-                          centerAreaMinX,
-                          Math.min(centerAreaMaxX, position.x),
-                        );
-                        position.y = Math.max(
-                          section.top + 50,
-                          Math.min(section.bottom - 50, position.y),
-                        );
-
-                        const isFocused = focusedJobId === job.id;
-                        const wasJustFocused =
-                          previousFocusedJobIdRef.current === job.id &&
-                          !focusedJobId;
-
-                        // Hide unfocused jobs when a job is focused
-                        // Also hide job that was just unfocused (it's being animated in focusedJobsRender)
-                        if ((focusedJobId && !isFocused) || wasJustFocused) {
-                          return null;
-                        }
-
-                        // Calculate slide direction for slide-in animation
-                        const centerX = SCREEN_WIDTH / 2;
-                        const centerY = SCREEN_HEIGHT / 2;
-                        const dx = position.x - centerX;
-                        const dy = position.y - centerY;
-                        const slideDirectionX = dx > 0 ? 1 : -1;
-                        const slideDirectionY = dy > 0 ? 1 : -1;
-
-                        return (
-                          <NonFocusedZone
-                            key={`job-zone-${job.id}`}
-                            isFocused={isFocused}
-                            wasJustFocused={wasJustFocused}
-                            slideOffset={careerSlideOffset}
-                            slideDirectionX={slideDirectionX}
-                            slideDirectionY={slideDirectionY}
-                          >
-                            <FloatingAvatar
-                              key={`job-${job.id}`}
-                              profile={job}
-                              position={position}
-                              memories={memories}
-                              onPress={() => {
-                                const newFocusedId =
-                                  focusedJobId === job.id ? null : job.id;
-                                setFocusedJobId(newFocusedId);
-                                setFocusedMemory(null);
-                              }}
-                              colors={colors}
-                              colorScheme={colorScheme ?? "dark"}
-                              isFocused={isFocused}
-                              focusedMemory={(() => {
-                                if (!focusedMemory) return null;
-                                const mem = focusedMemory as {
-                                  profileId?: string;
-                                  jobId?: string;
-                                  memoryId: string;
-                                  sphere: LifeSphere;
-                                };
-                                if (
-                                  mem.jobId === job.id &&
-                                  mem.sphere === "career"
-                                ) {
-                                  return mem;
-                                }
-                                return null;
-                              })()}
-                              onMemoryFocus={(
-                                entityId: string,
-                                memoryId: string,
-                                sphere: LifeSphere = "career",
-                                momentId?: string,
-                              ) => {
-                                setFocusedMemory({
-                                  jobId: entityId,
-                                  memoryId,
-                                  sphere,
-                                  momentToShowId: momentId,
-                                });
-                              }}
-                              yearSection={section}
-                              orbitDurationMs={orbitDurationMs}
-                              onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
-                            />
-                          </NonFocusedZone>
-                        );
-                      },
-                    );
-                  },
+              <FocusedEntitiesView
+                sphere="career"
+                sphereSunnyPercentage={careerSunnyPercentage}
+                entities={sortedJobs}
+                memoriesPerEntity={sortedJobs.map((j) =>
+                  getIdealizedMemoriesByEntityId(j.id, "career"),
                 )}
-              </>
+                onEntitySelect={(entityId) => {
+                  setFocusedJobId(entityId);
+                }}
+                colorScheme={colorScheme ?? "dark"}
+                orbitDurationMs={orbitDurationMs}
+                constellationAmount={constellationAmount}
+                constellationOpacity={constellationOpacity}
+              />
             )}
 
             {/* Render focused jobs separately when focused (but hide job when memory is focused) */}
-            {focusedJobsRender}
+            {/* Only render if there's actually a focused job - not when showing orbital view */}
+            {focusedJobId && focusedJobsRender}
 
             {/* Render focused memory separately when memory is focused */}
             {focusedMemory && animationsReady && (
@@ -22573,7 +22420,7 @@ export default function HomeScreen() {
                   numberOfLines={1}
                   style={{
                     position: "absolute",
-                    top: 82,
+                    top: 108,
                     right: 20,
                     zIndex: 1000,
                     color: colors.text,
@@ -22643,141 +22490,28 @@ export default function HomeScreen() {
               },
             ]}
           >
-            {/* Render family members with year section backgrounds (titles hidden) */}
+            {/* Render entities in orbital view when no entity is focused */}
             {animationsReady && !focusedFamilyMemberId && !focusedMemory && (
-              <>
-                {/* Year section backgrounds - titles are hidden */}
-                {Array.from(familyYearSections.entries()).map(
-                  ([key, section]) => (
-                    <YearSectionBackground
-                      key={`family-year-section-bg-${key}`}
-                      section={section}
-                      colorScheme={colorScheme ?? "dark"}
-                      hideTitle={true}
-                    />
-                  ),
+              <FocusedEntitiesView
+                sphere="family"
+                sphereSunnyPercentage={familySunnyPercentage}
+                entities={familyMembers}
+                memoriesPerEntity={familyMembers.map((m) =>
+                  getIdealizedMemoriesByEntityId(m.id, "family"),
                 )}
-
-                {/* Show family members distributed within the section */}
-                {familyMembers.map((member, index) => {
-                  const memories = getIdealizedMemoriesByEntityId(
-                    member.id,
-                    "family",
-                  );
-
-                  // Get the section for family members
-                  const section = familyYearSections.get("all");
-
-                  // Use the pre-calculated position with collision detection
-                  const position = familyMemberPositions[index];
-
-                  // Clamp position to ensure avatar is fully visible in viewport
-                  const baseAvatarSize = isTablet ? 120 : 100;
-                  const clampedCalculatedPosition = clampPositionToViewport(
-                    position,
-                    baseAvatarSize,
-                  );
-
-                  const isFocused = focusedFamilyMemberId === member.id;
-                  const wasJustFocused =
-                    previousFocusedFamilyMemberIdRef.current === member.id &&
-                    !focusedFamilyMemberId;
-
-                  // Hide unfocused family members when a family member is focused
-                  // Also hide family member that was just unfocused (it's being animated in focusedFamilyMembersRender)
-                  if ((focusedFamilyMemberId && !isFocused) || wasJustFocused) {
-                    return null;
-                  }
-
-                  // Get saved position or use calculated position - clamp saved position if it exists
-                  const savedPosition = familyPositionsState.get(member.id);
-                  const clampedSavedPosition = savedPosition
-                    ? clampPositionToViewport(savedPosition, baseAvatarSize)
-                    : null;
-                  const finalPosition =
-                    clampedSavedPosition || clampedCalculatedPosition;
-
-                  // Calculate slide direction for slide-in animation
-                  const centerX = SCREEN_WIDTH / 2;
-                  const centerY = SCREEN_HEIGHT / 2;
-                  const dx = finalPosition.x - centerX;
-                  const dy = finalPosition.y - centerY;
-                  const slideDirectionX = dx > 0 ? 1 : -1;
-                  const slideDirectionY = dy > 0 ? 1 : -1;
-
-                  return (
-                    <NonFocusedZone
-                      key={`family-zone-${member.id}`}
-                      isFocused={isFocused}
-                      wasJustFocused={wasJustFocused}
-                      slideOffset={familySlideOffset}
-                      slideDirectionX={slideDirectionX}
-                      slideDirectionY={slideDirectionY}
-                    >
-                      <FloatingAvatar
-                        key={`family-member-${member.id}`}
-                        profile={member}
-                        position={finalPosition}
-                        memories={memories}
-                        onPress={() => {
-                          const newFocusedId =
-                            focusedFamilyMemberId === member.id
-                              ? null
-                              : member.id;
-                          setFocusedFamilyMemberId(newFocusedId);
-                          setFocusedMemory(null);
-                        }}
-                        colors={colors}
-                        colorScheme={colorScheme ?? "dark"}
-                        isFocused={isFocused}
-                        focusedMemory={(() => {
-                          if (!focusedMemory) return null;
-                          const mem = focusedMemory as {
-                            profileId?: string;
-                            jobId?: string;
-                            familyMemberId?: string;
-                            memoryId: string;
-                            sphere: LifeSphere;
-                          };
-                          if (
-                            mem.familyMemberId === member.id &&
-                            mem.sphere === "family"
-                          ) {
-                            return mem;
-                          }
-                          return null;
-                        })()}
-                        onMemoryFocus={(
-                          entityId: string,
-                          memoryId: string,
-                          sphere: LifeSphere = "family",
-                          momentId?: string,
-                        ) => {
-                          setFocusedMemory({
-                            familyMemberId: entityId,
-                            memoryId,
-                            sphere,
-                            momentToShowId: momentId,
-                          });
-                        }}
-                        yearSection={section}
-                        enableDragging={!isFocused}
-                        onPositionChange={(x, y) =>
-                          updateFamilyMemberPosition(member.id, { x, y })
-                        }
-                        externalPositionX={focusedFamilyMemberPositionX}
-                        externalPositionY={focusedFamilyMemberPositionY}
-                        orbitDurationMs={orbitDurationMs}
-                        onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
-                      />
-                    </NonFocusedZone>
-                  );
-                })}
-              </>
+                onEntitySelect={(entityId) => {
+                  setFocusedFamilyMemberId(entityId);
+                }}
+                colorScheme={colorScheme ?? "dark"}
+                orbitDurationMs={orbitDurationMs}
+                constellationAmount={constellationAmount}
+                constellationOpacity={constellationOpacity}
+              />
             )}
 
             {/* Render focused family members separately when focused (but hide family member when memory is focused) */}
-            {focusedFamilyMembersRender}
+            {/* Only render if there's actually a focused family member - not when showing orbital view */}
+            {focusedFamilyMemberId && focusedFamilyMembersRender}
 
             {/* Render focused memory separately when memory is focused */}
             {focusedMemory && animationsReady && (
@@ -23034,7 +22768,7 @@ export default function HomeScreen() {
                   numberOfLines={1}
                   style={{
                     position: "absolute",
-                    top: 82,
+                    top: 108,
                     right: 20,
                     zIndex: 1000,
                     color: colors.text,
@@ -23106,141 +22840,28 @@ export default function HomeScreen() {
               },
             ]}
           >
-            {/* Render friends with year section backgrounds (titles hidden) */}
+            {/* Render entities in orbital view when no entity is focused */}
             {animationsReady && !focusedFriendId && !focusedMemory && (
-              <>
-                {/* Year section backgrounds - titles are hidden */}
-                {Array.from(friendsYearSections.entries()).map(
-                  ([key, section]) => (
-                    <YearSectionBackground
-                      key={`friends-year-section-bg-${key}`}
-                      section={section}
-                      colorScheme={colorScheme ?? "dark"}
-                      hideTitle={true}
-                    />
-                  ),
+              <FocusedEntitiesView
+                sphere="friends"
+                sphereSunnyPercentage={friendsSunnyPercentage}
+                entities={friends}
+                memoriesPerEntity={friends.map((f) =>
+                  getIdealizedMemoriesByEntityId(f.id, "friends"),
                 )}
-
-                {/* Show friends distributed within the section */}
-                {friends.map((friend, index) => {
-                  const memories = getIdealizedMemoriesByEntityId(
-                    friend.id,
-                    "friends",
-                  );
-
-                  // Get the section for friends
-                  const section = friendsYearSections.get("all");
-
-                  // Use the pre-calculated position with collision detection
-                  const position = friendPositions[index];
-
-                  // Clamp position to ensure avatar is fully visible in viewport
-                  const baseAvatarSize = isTablet ? 120 : 100;
-                  const clampedCalculatedPosition = clampPositionToViewport(
-                    position,
-                    baseAvatarSize,
-                  );
-
-                  const isFocused = focusedFriendId === friend.id;
-                  const wasJustFocused =
-                    previousFocusedFriendIdRef.current === friend.id &&
-                    !focusedFriendId;
-
-                  // Hide unfocused friends when a friend is focused
-                  // Also hide friend that was just unfocused (it's being animated in focusedFriendsRender)
-                  if ((focusedFriendId && !isFocused) || wasJustFocused) {
-                    return null;
-                  }
-
-                  // Get saved position or use calculated position - clamp saved position if it exists
-                  const savedPosition = friendPositionsState.get(friend.id);
-                  const clampedSavedPosition = savedPosition
-                    ? clampPositionToViewport(savedPosition, baseAvatarSize)
-                    : null;
-                  const finalPosition =
-                    clampedSavedPosition || clampedCalculatedPosition;
-
-                  // Calculate slide direction for slide-in animation
-                  const centerX = SCREEN_WIDTH / 2;
-                  const centerY = SCREEN_HEIGHT / 2;
-                  const dx = finalPosition.x - centerX;
-                  const dy = finalPosition.y - centerY;
-                  const slideDirectionX = dx > 0 ? 1 : -1;
-                  const slideDirectionY = dy > 0 ? 1 : -1;
-
-                  return (
-                    <NonFocusedZone
-                      key={`friend-zone-${friend.id}`}
-                      isFocused={isFocused}
-                      wasJustFocused={wasJustFocused}
-                      slideOffset={friendsSlideOffset}
-                      slideDirectionX={slideDirectionX}
-                      slideDirectionY={slideDirectionY}
-                    >
-                      <FloatingAvatar
-                        key={`friend-${friend.id}`}
-                        profile={friend}
-                        position={finalPosition}
-                        memories={memories}
-                        onPress={() => {
-                          const newFocusedId =
-                            focusedFriendId === friend.id ? null : friend.id;
-                          setFocusedFriendId(newFocusedId);
-                          setFocusedMemory(null);
-                        }}
-                        colors={colors}
-                        colorScheme={colorScheme ?? "dark"}
-                        isFocused={isFocused}
-                        focusedMemory={(() => {
-                          if (!focusedMemory) return null;
-                          const mem = focusedMemory as {
-                            profileId?: string;
-                            jobId?: string;
-                            familyMemberId?: string;
-                            friendId?: string;
-                            hobbyId?: string;
-                            memoryId: string;
-                            sphere: LifeSphere;
-                          };
-                          if (
-                            mem.friendId === friend.id &&
-                            mem.sphere === "friends"
-                          ) {
-                            return mem;
-                          }
-                          return null;
-                        })()}
-                        onMemoryFocus={(
-                          entityId: string,
-                          memoryId: string,
-                          sphere: LifeSphere = "friends",
-                          momentId?: string,
-                        ) => {
-                          setFocusedMemory({
-                            friendId: entityId,
-                            memoryId,
-                            sphere,
-                            momentToShowId: momentId,
-                          });
-                        }}
-                        yearSection={section}
-                        enableDragging={!isFocused}
-                        onPositionChange={(x, y) =>
-                          updateFriendPosition(friend.id, { x, y })
-                        }
-                        externalPositionX={focusedFriendPositionX}
-                        externalPositionY={focusedFriendPositionY}
-                        orbitDurationMs={orbitDurationMs}
-                        onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
-                      />
-                    </NonFocusedZone>
-                  );
-                })}
-              </>
+                onEntitySelect={(entityId) => {
+                  setFocusedFriendId(entityId);
+                }}
+                colorScheme={colorScheme ?? "dark"}
+                orbitDurationMs={orbitDurationMs}
+                constellationAmount={constellationAmount}
+                constellationOpacity={constellationOpacity}
+              />
             )}
 
             {/* Render focused friends separately when focused (but hide friend when memory is focused) */}
-            {focusedFriendsRender}
+            {/* Only render if there's actually a focused friend - not when showing orbital view */}
+            {focusedFriendId && focusedFriendsRender}
 
             {/* Render focused memory separately when memory is focused */}
             {focusedMemory && animationsReady && (
@@ -23497,7 +23118,7 @@ export default function HomeScreen() {
                   numberOfLines={1}
                   style={{
                     position: "absolute",
-                    top: 82,
+                    top: 108,
                     right: 20,
                     zIndex: 1000,
                     color: colors.text,
@@ -23569,141 +23190,28 @@ export default function HomeScreen() {
               },
             ]}
           >
-            {/* Render hobbies with year section backgrounds (titles hidden) */}
+            {/* Render entities in orbital view when no entity is focused */}
             {animationsReady && !focusedHobbyId && !focusedMemory && (
-              <>
-                {/* Year section backgrounds - titles are hidden */}
-                {Array.from(hobbiesYearSections.entries()).map(
-                  ([key, section]) => (
-                    <YearSectionBackground
-                      key={`hobbies-year-section-bg-${key}`}
-                      section={section}
-                      colorScheme={colorScheme ?? "dark"}
-                      hideTitle={true}
-                    />
-                  ),
+              <FocusedEntitiesView
+                sphere="hobbies"
+                sphereSunnyPercentage={hobbiesSunnyPercentage}
+                entities={hobbies}
+                memoriesPerEntity={hobbies.map((h) =>
+                  getIdealizedMemoriesByEntityId(h.id, "hobbies"),
                 )}
-
-                {/* Show hobbies distributed within the section */}
-                {hobbies.map((hobby, index) => {
-                  const memories = getIdealizedMemoriesByEntityId(
-                    hobby.id,
-                    "hobbies",
-                  );
-
-                  // Get the section for hobbies
-                  const section = hobbiesYearSections.get("all");
-
-                  // Use the pre-calculated position with collision detection
-                  const position = hobbyPositions[index];
-
-                  // Clamp position to ensure avatar is fully visible in viewport
-                  const baseAvatarSize = isTablet ? 120 : 100;
-                  const clampedCalculatedPosition = clampPositionToViewport(
-                    position,
-                    baseAvatarSize,
-                  );
-
-                  const isFocused = focusedHobbyId === hobby.id;
-                  const wasJustFocused =
-                    previousFocusedHobbyIdRef.current === hobby.id &&
-                    !focusedHobbyId;
-
-                  // Hide unfocused hobbies when a hobby is focused
-                  // Also hide hobby that was just unfocused (it's being animated in focusedHobbiesRender)
-                  if ((focusedHobbyId && !isFocused) || wasJustFocused) {
-                    return null;
-                  }
-
-                  // Get saved position or use calculated position - clamp saved position if it exists
-                  const savedPosition = hobbyPositionsState.get(hobby.id);
-                  const clampedSavedPosition = savedPosition
-                    ? clampPositionToViewport(savedPosition, baseAvatarSize)
-                    : null;
-                  const finalPosition =
-                    clampedSavedPosition || clampedCalculatedPosition;
-
-                  // Calculate slide direction for slide-in animation
-                  const centerX = SCREEN_WIDTH / 2;
-                  const centerY = SCREEN_HEIGHT / 2;
-                  const dx = finalPosition.x - centerX;
-                  const dy = finalPosition.y - centerY;
-                  const slideDirectionX = dx > 0 ? 1 : -1;
-                  const slideDirectionY = dy > 0 ? 1 : -1;
-
-                  return (
-                    <NonFocusedZone
-                      key={`hobby-zone-${hobby.id}`}
-                      isFocused={isFocused}
-                      wasJustFocused={wasJustFocused}
-                      slideOffset={hobbiesSlideOffset}
-                      slideDirectionX={slideDirectionX}
-                      slideDirectionY={slideDirectionY}
-                    >
-                      <FloatingAvatar
-                        key={`hobby-${hobby.id}`}
-                        profile={hobby}
-                        position={finalPosition}
-                        memories={memories}
-                        onPress={() => {
-                          const newFocusedId =
-                            focusedHobbyId === hobby.id ? null : hobby.id;
-                          setFocusedHobbyId(newFocusedId);
-                          setFocusedMemory(null);
-                        }}
-                        colors={colors}
-                        colorScheme={colorScheme ?? "dark"}
-                        isFocused={isFocused}
-                        focusedMemory={(() => {
-                          if (!focusedMemory) return null;
-                          const mem = focusedMemory as {
-                            profileId?: string;
-                            jobId?: string;
-                            familyMemberId?: string;
-                            friendId?: string;
-                            hobbyId?: string;
-                            memoryId: string;
-                            sphere: LifeSphere;
-                          };
-                          if (
-                            mem.hobbyId === hobby.id &&
-                            mem.sphere === "hobbies"
-                          ) {
-                            return mem;
-                          }
-                          return null;
-                        })()}
-                        onMemoryFocus={(
-                          entityId: string,
-                          memoryId: string,
-                          sphere: LifeSphere = "hobbies",
-                          momentId?: string,
-                        ) => {
-                          setFocusedMemory({
-                            hobbyId: entityId,
-                            memoryId,
-                            sphere,
-                            momentToShowId: momentId,
-                          });
-                        }}
-                        yearSection={section}
-                        enableDragging={!isFocused}
-                        onPositionChange={(x, y) =>
-                          updateHobbyPosition(hobby.id, { x, y })
-                        }
-                        externalPositionX={focusedHobbyPositionX}
-                        externalPositionY={focusedHobbyPositionY}
-                        orbitDurationMs={orbitDurationMs}
-                        onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
-                      />
-                    </NonFocusedZone>
-                  );
-                })}
-              </>
+                onEntitySelect={(entityId) => {
+                  setFocusedHobbyId(entityId);
+                }}
+                colorScheme={colorScheme ?? "dark"}
+                orbitDurationMs={orbitDurationMs}
+                constellationAmount={constellationAmount}
+                constellationOpacity={constellationOpacity}
+              />
             )}
 
             {/* Render focused hobbies separately when focused (but hide hobby when memory is focused) */}
-            {focusedHobbiesRender}
+            {/* Only render if there's actually a focused hobby - not when showing orbital view */}
+            {focusedHobbyId && focusedHobbiesRender}
 
             {/* Render focused memory separately when memory is focused */}
             {focusedMemory && animationsReady && (
@@ -23746,32 +23254,28 @@ export default function HomeScreen() {
           }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Render year sections with profiles inside - hidden when focused */}
+          {/* Render entities in orbital view when no entity is focused */}
           {animationsReady && !focusedProfileId && !focusedMemory && (
-            <YearSectionsRenderer
-              yearSections={yearSections}
-              profilesBySection={profilesBySection}
+            <FocusedEntitiesView
+              sphere="relationships"
+              sphereSunnyPercentage={relationshipsSunnyPercentage}
+              entities={sortedProfiles}
+              memoriesPerEntity={sortedProfiles.map((p) =>
+                getIdealizedMemoriesByEntityId(p.id, "relationships"),
+              )}
+              onEntitySelect={(entityId) => {
+                setFocusedProfileId(entityId);
+              }}
               colorScheme={colorScheme ?? "dark"}
-              getIdealizedMemoriesByProfileId={getIdealizedMemoriesByProfileId}
-              getAvatarPosition={getAvatarPosition}
-              focusedProfileId={focusedProfileId}
-              focusedMemory={focusedMemory}
-              previousFocusedId={previousFocusedIdRef.current}
-              slideOffset={slideOffset}
-              getProfileYearSection={getProfileYearSection}
-              updateAvatarPosition={updateAvatarPosition}
-              setFocusedProfileId={setFocusedProfileId}
-              setFocusedMemory={setFocusedMemory}
-              colors={colors}
-              memorySlideOffset={memorySlideOffset}
-              animationsComplete={animationsComplete}
               orbitDurationMs={orbitDurationMs}
-              onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
+              constellationAmount={constellationAmount}
+              constellationOpacity={constellationOpacity}
             />
           )}
 
           {/* Render focused profiles separately when focused (but hide profile when memory is focused) */}
-          {focusedProfilesRender}
+          {/* Only render if there's actually a focused profile - not when showing orbital view */}
+          {focusedProfileId && focusedProfilesRender}
 
           {/* Render focused memory separately when memory is focused */}
           {focusedMemory && animationsReady && (
@@ -23799,336 +23303,6 @@ export default function HomeScreen() {
     </TabScreenContainer>
   );
 }
-
-// Year Sections Renderer Component
-const YearSectionsRenderer = React.memo(function YearSectionsRenderer({
-  yearSections,
-  profilesBySection,
-  colorScheme,
-  getIdealizedMemoriesByProfileId,
-  getAvatarPosition,
-  focusedProfileId,
-  focusedMemory,
-  previousFocusedId,
-  slideOffset,
-  getProfileYearSection,
-  updateAvatarPosition,
-  setFocusedProfileId,
-  setFocusedMemory,
-  colors,
-  memorySlideOffset,
-  animationsComplete,
-  orbitDurationMs = 60000,
-  onShowAIConsentModal,
-}: {
-  yearSections: Map<
-    string,
-    { year: number | string; top: number; bottom: number; height: number }
-  >;
-  profilesBySection: Map<string, any[]>;
-  colorScheme: "light" | "dark";
-  getIdealizedMemoriesByProfileId: (profileId: string) => any[];
-  getAvatarPosition: (
-    profileId: string,
-    index: number,
-  ) => { x: number; y: number };
-  focusedProfileId: string | null;
-  focusedMemory: {
-    profileId?: string;
-    jobId?: string;
-    familyMemberId?: string;
-    friendId?: string;
-    hobbyId?: string;
-    memoryId: string;
-    sphere: LifeSphere;
-    momentToShowId?: string;
-  } | null;
-  previousFocusedId: string | null;
-  slideOffset: ReturnType<typeof useSharedValue<number>>;
-  getProfileYearSection: (
-    profile: any,
-  ) =>
-    | { year: number | string; top: number; bottom: number; height: number }
-    | undefined;
-  updateAvatarPosition: (
-    profileId: string,
-    newPosition: { x: number; y: number },
-  ) => void;
-  setFocusedProfileId: (id: string | null) => void;
-  setFocusedMemory: (
-    memory: {
-      profileId?: string;
-      jobId?: string;
-      memoryId: string;
-      sphere: LifeSphere;
-      momentToShowId?: string;
-    } | null,
-  ) => void;
-  colors: any;
-  memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
-  animationsComplete: boolean;
-  orbitDurationMs?: number;
-  onShowAIConsentModal?: () => void;
-}) {
-  // CRITICAL: Only use focusedMemory if it's from relationships sphere
-  // This ensures cross-sphere focusedMemory (e.g., from career) doesn't affect relationships rendering
-  const safeFocusedMemory =
-    focusedMemory?.sphere === "relationships" ? focusedMemory : null;
-
-  // Memoize memories and positions for all profiles to prevent unnecessary re-renders
-  // Reuse previous references when data hasn't changed to prevent cascading re-renders
-  const profileDataMapRef = useRef<
-    Map<string, { memories: any[]; position: { x: number; y: number } }>
-  >(new Map());
-  const profileDataMap = useMemo(() => {
-    const dataMap = new Map<
-      string,
-      { memories: any[]; position: { x: number; y: number } }
-    >();
-    const allProfilesInSections = Array.from(profilesBySection.values()).flat();
-
-    allProfilesInSections.forEach(({ profile, index: profileIndex }) => {
-      const memories = getIdealizedMemoriesByProfileId(profile.id);
-      const position = getAvatarPosition(profile.id, profileIndex);
-
-      // Check if data actually changed for this profile
-      const prevData = profileDataMapRef.current.get(profile.id);
-      if (
-        prevData &&
-        prevData.memories.length === memories.length &&
-        prevData.position.x === position.x &&
-        prevData.position.y === position.y
-      ) {
-        // Reuse previous reference if data is the same (check memory IDs to be sure)
-        const prevMemoryIds = prevData.memories.map((m) => m?.id).join(",");
-        const currentMemoryIds = memories.map((m) => m?.id).join(",");
-        if (prevMemoryIds === currentMemoryIds) {
-          dataMap.set(profile.id, prevData);
-          return; // Reuse previous reference
-        }
-      }
-
-      // Data changed or first time - create new reference
-      dataMap.set(profile.id, { memories, position });
-    });
-    profileDataMapRef.current = dataMap;
-    return dataMap;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profilesBySection]); // Only profilesBySection - functions are stable via useCallback
-
-  // Get the name of the partner in each year section (show first/primary partner name per section)
-  const getSectionEntityName = (sectionKey: string) => {
-    const sectionProfiles = profilesBySection.get(sectionKey);
-    if (sectionProfiles && sectionProfiles.length > 0) {
-      // Return the name of the first partner in this section
-      return sectionProfiles[0].profile.name;
-    }
-    return null;
-  };
-
-  const t = useTranslate();
-  const { isTablet } = useLargeDevice();
-
-  return (
-    <>
-      {/* Year titles below back arrow - shown for each year section in listing view */}
-      {!focusedProfileId &&
-        Array.from(yearSections.entries()).map(([key, section]) => {
-          const displayYear =
-            typeof section.year === "string"
-              ? section.year === "Ongoing"
-                ? t("profile.ongoing")
-                : section.year === "Current"
-                  ? t("job.current")
-                  : section.year
-              : section.year;
-
-          // Position year title below back arrow, aligned with section top
-          const backArrowBottom = (isTablet ? 70 : 50) + (isTablet ? 70 : 50);
-          const yearTitleTop =
-            section.top < backArrowBottom + 10
-              ? backArrowBottom + 10 // Position below back arrow
-              : section.top + 8; // Position at section top if section is far below
-
-          return (
-            <ThemedText
-              key={`year-title-${key}`}
-              size="l"
-              weight="bold"
-              numberOfLines={1}
-              style={{
-                position: "absolute",
-                top: yearTitleTop,
-                left: 20, // Align with back arrow
-                zIndex: 1000,
-                color: colors.text,
-                opacity: 0.6,
-              }}
-            >
-              {displayYear}
-            </ThemedText>
-          );
-        })}
-
-      {/* Render section backgrounds */}
-      {Array.from(yearSections.entries()).map(([key, section]) => {
-        const sectionEntityName = getSectionEntityName(key);
-        // Check if this section contains the focused profile
-        const sectionProfiles = profilesBySection.get(key);
-        const isFocusedSection =
-          sectionProfiles?.some(
-            ({ profile }) => profile.id === focusedProfileId,
-          ) ?? false;
-        // Hide title if memory is focused OR if a profile is focused (but show it if this is the focused profile's section)
-        const shouldHideTitle =
-          !!safeFocusedMemory || (!!focusedProfileId && !isFocusedSection);
-        return (
-          <YearSectionBackground
-            key={`year-section-bg-${key}`}
-            section={section}
-            colorScheme={colorScheme}
-            hideTitle={shouldHideTitle}
-            focusedEntityName={null} // Don't show entity name in year section - it's shown below back arrow
-          />
-        );
-      })}
-
-      {/* Render profiles at the same level (not nested in sections) */}
-      {(() => {
-        return Array.from(profilesBySection.entries()).flatMap(
-          ([key, sectionProfilesData]) => {
-            return sectionProfilesData.map(
-              ({ profile, index: profileIndex }) => {
-                const profileData = profileDataMap.get(profile.id);
-                if (!profileData) {
-                  return null; // Should not happen, but safety check
-                }
-
-                const { memories, position: currentPosition } = profileData;
-                const isFocused = focusedProfileId === profile.id;
-                // Use safeFocusedMemory (already filtered by sphere) - only relationships memories
-                const isProfileFocusedForMemory =
-                  safeFocusedMemory?.profileId === profile.id;
-                // Calculate wasJustFocused here to avoid passing previousFocusedId to all profiles
-                const wasJustFocused =
-                  previousFocusedId === profile.id &&
-                  !focusedProfileId &&
-                  !safeFocusedMemory;
-
-                return (
-                  <ProfileRenderer
-                    key={profile.id}
-                    profile={profile}
-                    index={profileIndex}
-                    memories={memories}
-                    currentPosition={currentPosition}
-                    isFocused={isFocused}
-                    isProfileFocusedForMemory={isProfileFocusedForMemory}
-                    wasJustFocused={wasJustFocused}
-                    focusedMemory={safeFocusedMemory}
-                    slideOffset={slideOffset}
-                    getProfileYearSection={getProfileYearSection}
-                    updateAvatarPosition={updateAvatarPosition}
-                    setFocusedProfileId={setFocusedProfileId}
-                    setFocusedMemory={setFocusedMemory}
-                    colors={colors}
-                    colorScheme={colorScheme}
-                    memorySlideOffset={memorySlideOffset}
-                    animationsComplete={animationsComplete}
-                    focusedProfileId={focusedProfileId}
-                    orbitDurationMs={orbitDurationMs}
-                    onShowAIConsentModal={onShowAIConsentModal}
-                  />
-                );
-              },
-            );
-          },
-        );
-      })()}
-    </>
-  );
-});
-
-// Year Section Background Component (just the visual container)
-const YearSectionBackground = React.memo(
-  function YearSectionBackground({
-    section,
-    colorScheme,
-    hideTitle = false,
-    focusedEntityName,
-  }: {
-    section: {
-      year: number | string;
-      top: number;
-      bottom: number;
-      height: number;
-    };
-    colorScheme: "light" | "dark";
-    hideTitle?: boolean;
-    focusedEntityName?: string | null;
-  }) {
-    const t = useTranslate();
-    const { isTablet } = useLargeDevice();
-
-    // Translate section year if it's a string, otherwise display the number
-    const displayYear =
-      typeof section.year === "string"
-        ? section.year === "Ongoing"
-          ? t("profile.ongoing")
-          : section.year === "Current"
-            ? t("job.current")
-            : section.year
-        : section.year;
-
-    // Combine year and entity name if entity is focused
-    const displayText = focusedEntityName
-      ? `${displayYear} - ${focusedEntityName}`
-      : displayYear;
-
-    // Back arrow button position: top: 70, height: isTablet ? 70 : 50
-    // So bottom of button is at: 70 + (isTablet ? 70 : 50) = 120 or 140
-    // Position year title below the back arrow button
-    const backArrowBottom = 70 + (isTablet ? 70 : 50);
-    const backArrowLeft = 20;
-    // Calculate vertical position: if section starts below back arrow, position at section top + small offset
-    // Otherwise, position just below back arrow
-    const yearTitleTop =
-      section.top < backArrowBottom + 10
-        ? backArrowBottom + 10 - section.top // Position below back arrow relative to section
-        : 8; // Default position if section is far below
-
-    return (
-      <View
-        style={{
-          position: "absolute",
-          left: 0,
-          top: section.top,
-          width: SCREEN_WIDTH,
-          height: section.height,
-          backgroundColor:
-            colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.02)"
-              : "rgba(0, 0, 0, 0.02)",
-          zIndex: 0, // Behind avatars
-          pointerEvents: "none", // Allow touches to pass through
-        }}
-      >
-        {/* Year label removed - now shown below back arrow when entity is focused */}
-      </View>
-    );
-  },
-  (prevProps, nextProps) => {
-    return (
-      prevProps.section.year === nextProps.section.year &&
-      prevProps.section.top === nextProps.section.top &&
-      prevProps.section.bottom === nextProps.section.bottom &&
-      prevProps.section.height === nextProps.section.height &&
-      prevProps.colorScheme === nextProps.colorScheme &&
-      prevProps.hideTitle === nextProps.hideTitle &&
-      prevProps.focusedEntityName === nextProps.focusedEntityName
-    );
-  },
-);
 
 // Focused Memory Renderer Component
 const FocusedMemoryRenderer = React.memo(
@@ -24238,302 +23412,6 @@ const FocusedMemoryRenderer = React.memo(
           nextProps.focusedMemory.familyMemberId) &&
       prevProps.focusedMemory.memoryId === nextProps.focusedMemory.memoryId &&
       prevProps.colorScheme === nextProps.colorScheme
-    );
-  },
-);
-
-// Profile Renderer Component
-const ProfileRenderer = React.memo(
-  function ProfileRenderer({
-    profile,
-    index,
-    memories,
-    currentPosition,
-    isFocused,
-    isProfileFocusedForMemory,
-    wasJustFocused,
-    focusedMemory,
-    slideOffset,
-    getProfileYearSection,
-    updateAvatarPosition,
-    setFocusedProfileId,
-    setFocusedMemory,
-    colors,
-    colorScheme,
-    memorySlideOffset,
-    animationsComplete,
-    focusedProfileId,
-    orbitDurationMs = 60000,
-    onShowAIConsentModal,
-  }: {
-    profile: any;
-    index: number;
-    memories: any[];
-    currentPosition: { x: number; y: number };
-    isFocused: boolean;
-    isProfileFocusedForMemory: boolean;
-    wasJustFocused: boolean;
-    focusedMemory: {
-      profileId?: string;
-      jobId?: string;
-      familyMemberId?: string;
-      friendId?: string;
-      hobbyId?: string;
-      memoryId: string;
-      sphere: LifeSphere;
-      momentToShowId?: string;
-    } | null;
-    slideOffset: ReturnType<typeof useSharedValue<number>>;
-    getProfileYearSection: (
-      profile: any,
-    ) =>
-      | { year: number | string; top: number; bottom: number; height: number }
-      | undefined;
-    updateAvatarPosition: (
-      profileId: string,
-      newPosition: { x: number; y: number },
-    ) => void;
-    setFocusedProfileId: (id: string | null) => void;
-    setFocusedMemory: (
-      memory: {
-        profileId?: string;
-        jobId?: string;
-        memoryId: string;
-        sphere: LifeSphere;
-        momentToShowId?: string;
-      } | null,
-    ) => void;
-    colors: any;
-    colorScheme: "light" | "dark";
-    memorySlideOffset?: ReturnType<typeof useSharedValue<number>>;
-    animationsComplete: boolean;
-    focusedProfileId: string | null;
-    orbitDurationMs?: number;
-    onShowAIConsentModal?: () => void;
-  }) {
-    // Determine slide direction for non-focused zones
-    const centerX = SCREEN_WIDTH / 2;
-    const centerY = SCREEN_HEIGHT / 2;
-    const dx = currentPosition.x - centerX;
-    const dy = currentPosition.y - centerY;
-    const slideDirectionX = dx > 0 ? 1 : -1;
-    const slideDirectionY = dy > 0 ? 1 : -1;
-
-    // Memoize callbacks to prevent unnecessary re-renders
-    const handlePress = useCallback(() => {
-      const newFocusedId = isFocused ? null : profile.id;
-      // Don't use startTransition - it defers the update and causes flash
-      // Update state immediately so useLayoutEffect can run synchronously
-      setFocusedProfileId(newFocusedId);
-      setFocusedMemory(null);
-    }, [profile.id, isFocused, setFocusedProfileId, setFocusedMemory]);
-
-    const handleMemoryFocus = useCallback(
-      (
-        entityId: string,
-        memoryId: string,
-        sphere: LifeSphere = "relationships",
-        momentId?: string,
-      ) => {
-        if (sphere === "relationships") {
-          setFocusedMemory({
-            profileId: entityId,
-            memoryId,
-            sphere,
-            momentToShowId: momentId,
-          });
-        } else if (sphere === "career") {
-          setFocusedMemory({
-            jobId: entityId,
-            memoryId,
-            sphere,
-            momentToShowId: momentId,
-          });
-        } else {
-          setFocusedMemory({
-            profileId: entityId,
-            memoryId,
-            sphere,
-            momentToShowId: momentId,
-          });
-        }
-      },
-      [setFocusedMemory],
-    );
-
-    // Don't render the profile at all when a memory is focused (it's rendered separately)
-    if (isProfileFocusedForMemory) {
-      return null;
-    }
-
-    // Hide unfocused profiles immediately when a profile is focused
-    // Also hide profile that was just unfocused (it's being animated in focusedProfilesRender)
-    // This prevents showing both start and end positions simultaneously
-    // Note: focusedMemory is already filtered by sphere in YearSectionsRenderer, so we can safely check it here
-    if ((focusedProfileId && !isFocused) || wasJustFocused) {
-      return null;
-    }
-
-    return (
-      <NonFocusedZone
-        key={profile.id}
-        isFocused={isFocused}
-        wasJustFocused={wasJustFocused}
-        slideOffset={slideOffset}
-        slideDirectionX={slideDirectionX}
-        slideDirectionY={slideDirectionY}
-      >
-        <FloatingAvatar
-          profile={profile}
-          position={currentPosition}
-          memories={memories}
-          onPress={handlePress}
-          isFocused={isFocused}
-          colors={colors}
-          colorScheme={colorScheme ?? "dark"}
-          focusedMemory={focusedMemory}
-          memorySlideOffset={memorySlideOffset}
-          onMemoryFocus={(entityId: string, memoryId: string) =>
-            handleMemoryFocus(entityId, memoryId, "relationships")
-          }
-          yearSection={getProfileYearSection(profile)}
-          orbitDurationMs={orbitDurationMs}
-          onShowAIConsentModal={onShowAIConsentModal}
-        />
-      </NonFocusedZone>
-    );
-  },
-  (prevProps, nextProps) => {
-    // Quick reference check first
-    if (prevProps.memories === nextProps.memories) {
-      // Same reference, check other props
-      // Note: We don't check focusedProfileId directly - isFocused already captures focus changes
-      return (
-        prevProps.profile.id === nextProps.profile.id &&
-        prevProps.currentPosition.x === nextProps.currentPosition.x &&
-        prevProps.currentPosition.y === nextProps.currentPosition.y &&
-        prevProps.isFocused === nextProps.isFocused &&
-        prevProps.isProfileFocusedForMemory ===
-          nextProps.isProfileFocusedForMemory &&
-        prevProps.wasJustFocused === nextProps.wasJustFocused &&
-        prevProps.focusedMemory?.profileId ===
-          nextProps.focusedMemory?.profileId &&
-        prevProps.focusedMemory?.memoryId ===
-          nextProps.focusedMemory?.memoryId &&
-        prevProps.animationsComplete === nextProps.animationsComplete &&
-        prevProps.focusedProfileId === nextProps.focusedProfileId
-      );
-    }
-
-    // Different reference - check if contents are the same (shallow comparison by ID)
-    if (prevProps.memories.length !== nextProps.memories.length) {
-      return false;
-    }
-
-    // Compare memory IDs to see if contents changed
-    const prevIds = prevProps.memories.map((m) => m?.id).join(",");
-    const nextIds = nextProps.memories.map((m) => m?.id).join(",");
-    if (prevIds !== nextIds) {
-      return false;
-    }
-
-    // Memories are the same, check other props
-    // Note: We don't check focusedProfileId directly - isFocused already captures focus changes
-    return (
-      prevProps.profile.id === nextProps.profile.id &&
-      prevProps.currentPosition.x === nextProps.currentPosition.x &&
-      prevProps.currentPosition.y === nextProps.currentPosition.y &&
-      prevProps.isFocused === nextProps.isFocused &&
-      prevProps.isProfileFocusedForMemory ===
-        nextProps.isProfileFocusedForMemory &&
-      prevProps.wasJustFocused === nextProps.wasJustFocused &&
-      prevProps.focusedMemory?.profileId ===
-        nextProps.focusedMemory?.profileId &&
-      prevProps.focusedMemory?.memoryId === nextProps.focusedMemory?.memoryId &&
-      prevProps.animationsComplete === nextProps.animationsComplete &&
-      prevProps.focusedProfileId === nextProps.focusedProfileId
-    );
-  },
-);
-
-// Component to handle non-focused zone animation
-const NonFocusedZone = React.memo(
-  function NonFocusedZone({
-    children,
-    isFocused,
-    wasJustFocused,
-    slideOffset,
-    slideDirectionX,
-    slideDirectionY,
-  }: {
-    children: React.ReactNode;
-    isFocused: boolean;
-    wasJustFocused: boolean;
-    slideOffset: ReturnType<typeof useSharedValue<number>>;
-    slideDirectionX: number;
-    slideDirectionY: number;
-  }) {
-    // Create animated style for this specific profile
-    const nonFocusedStyle = useAnimatedStyle(() => {
-      // If this profile is currently focused, it always stays in place
-      if (isFocused) {
-        return {
-          transform: [{ translateX: 0 }, { translateY: 0 }, { scale: 1 }],
-          opacity: 1,
-        };
-      }
-
-      // If this profile was just focused (now unfocused), keep it visible and in place
-      // It will shrink back to normal size via the FloatingAvatar's own scale animation
-      if (wasJustFocused) {
-        return {
-          transform: [{ translateX: 0 }, { translateY: 0 }, { scale: 1 }],
-          opacity: 1,
-        };
-      }
-
-      // For other non-focused profiles, animate based on slideOffset
-      // When slideOffset is 0, they're in normal position
-      // When slideOffset is large, they slide off-screen with fade and scale
-      const offset = slideOffset.value;
-      // Normalize offset to 0-1 range for smooth fade and scale
-      const normalizedOffset = Math.min(offset / (SCREEN_WIDTH * 2), 1); // 0 to 1
-      // Fade out and scale down as they slide away
-      const opacity = 1 - normalizedOffset; // Fade from 1 to 0
-      const scale = 1 - normalizedOffset * 0.3; // Scale down from 1 to 0.7
-
-      return {
-        transform: [
-          { translateX: offset * slideDirectionX },
-          { translateY: offset * slideDirectionY * 0.5 }, // Less vertical movement
-          { scale: scale }, // Scale down as they disappear
-        ],
-        opacity: opacity, // Smooth fade out
-      };
-    });
-
-    return (
-      <Animated.View
-        style={[
-          {
-            position: "absolute",
-            width: SCREEN_WIDTH,
-            height: SCREEN_HEIGHT,
-            pointerEvents: "box-none", // Allow touches to pass through to children
-          },
-          nonFocusedStyle,
-        ]}
-      >
-        {children}
-      </Animated.View>
-    );
-  },
-  (prevProps, nextProps) => {
-    return (
-      prevProps.isFocused === nextProps.isFocused &&
-      prevProps.wasJustFocused === nextProps.wasJustFocused &&
-      prevProps.slideDirectionX === nextProps.slideDirectionX &&
-      prevProps.slideDirectionY === nextProps.slideDirectionY
     );
   },
 );

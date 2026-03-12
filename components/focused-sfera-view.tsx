@@ -112,19 +112,19 @@ function getSphereTarget(
         ? BG_SPHERE_SIZE_RIGHT_BELOW
         : slot === 4
           ? BG_SPHERE_SIZE_LEFT_BELOW
-        : slot === 2
-          ? BG_SPHERE_SIZE_TOP_RIGHT
-          : BG_SPHERE_SIZE_TOP_LEFT;
+          : slot === 2
+            ? BG_SPHERE_SIZE_TOP_RIGHT
+            : BG_SPHERE_SIZE_TOP_LEFT;
   return { angle, size };
 }
 
 /** Depth scale for entity ring (floating entities) per slot — illusion of distance: higher/further = smaller. Slot 2 (top-right) smallest. */
 function getEntityDepthScale(slot: number): number {
   if (slot === 0) return 1;
-  if (slot === 2) return 0.5;   // top-right, furthest → smallest entities
-  if (slot === 3) return 0.62;  // top-left, high → smaller
-  if (slot === 1) return 0.78;   // right below
-  return 0.78;                   // slot 4, left below
+  if (slot === 2) return 0.5; // top-right, furthest → smallest entities
+  if (slot === 3) return 0.62; // top-left, high → smaller
+  if (slot === 1) return 0.78; // right below
+  return 0.78; // slot 4, left below
 }
 
 // ───────────────────────────── types ─────────────────────────────
@@ -166,7 +166,7 @@ export type FocusedSferaViewProps = {
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
 
 const MOMENT_ICON_SIZE = 16;
-const MOMENT_ORBIT_RADIUS = 26; // outside entity avatar (avatar radius ~20 for focused)
+const MOMENT_ORBIT_RADIUS = 32; // outside entity avatar (entity radius ~20 for focused; +12 gap so memories sit clearly away)
 
 /** Compute sunny % for a memory from goodFacts vs hardTruths; 50 = neutral, 100 = all sunny, 0 = all cloudy */
 function getMemorySunnyPercentage(memory: IdealizedMemory): number {
@@ -662,8 +662,14 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
             // Fast one-shot pulse for tap feedback (orbit keeps rotating)
             cancelAnimation(scale);
             scale.value = withSequence(
-              withTiming(1.18, { duration: 80, easing: Easing.out(Easing.ease) }),
-              withTiming(1, { duration: 100, easing: Easing.inOut(Easing.ease) }),
+              withTiming(1.18, {
+                duration: 80,
+                easing: Easing.out(Easing.ease),
+              }),
+              withTiming(1, {
+                duration: 100,
+                easing: Easing.inOut(Easing.ease),
+              }),
             );
             onEntitySelect(entityId, sphere);
           }
@@ -806,17 +812,13 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     if (delta > 180) delta -= 360;
     else if (delta < -180) delta += 360;
     const targetAngle = raw + delta;
-    angle.value = withSpring(
-      targetAngle,
-      ORBIT_SPRING_CONFIG,
-      (finished) => {
-        "worklet";
-        if (finished) {
-          const v = angle.value;
-          angle.value = ((v % 360) + 360) % 360;
-        }
-      },
-    );
+    angle.value = withSpring(targetAngle, ORBIT_SPRING_CONFIG, (finished) => {
+      "worklet";
+      if (finished) {
+        const v = angle.value;
+        angle.value = ((v % 360) + 360) % 360;
+      }
+    });
     size.value = withSpring(next.size, ORBIT_SPRING_CONFIG);
   }, [sphereIdx, focusedIdx]);
 
@@ -872,7 +874,11 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     sunnyPercentage,
     colorScheme,
   );
-  const iconColor = getSphereIconColor(sphere.type, colorScheme, sunnyPercentage);
+  const iconColor = getSphereIconColor(
+    sphere.type,
+    colorScheme,
+    sunnyPercentage,
+  );
   const shadowColor = getSphereShadowColor(sphere.type, colorScheme);
   const depthScale = getEntityDepthScale(slot);
   const baseEntityAvatarSize = isFocused
@@ -1061,22 +1067,52 @@ const BADGE_GRADIENT_LIGHT = [
 ] as const;
 
 // Cosmic avatar palette: nebula-inspired cyan → purple
-const COSMIC_RING_START = "#5CE1E6";   // soft cyan
-const COSMIC_RING_MID = "#9D7BDB";     // lavender
-const COSMIC_RING_END = "#7B68EE";     // medium slate blue
-const COSMIC_TEXT = "#B8E8EC";         // soft cyan-white for percentage & label
-const COSMIC_TRACK = "#0D1525";        // dark cosmic blue (progress track)
-const COSMIC_INNER_DARK = ["#0A0E1A", "#0F1422", "#151C2E", "#1A2440", "#1E2A4A"] as const;  // deep space fill
-const COSMIC_INNER_LIGHT = ["#2A2A3A", "#3A3A4E", "#4A4A62", "#5A5A76", "#6A6A8A"] as const; // light theme cosmic
+const COSMIC_RING_START = "#5CE1E6"; // soft cyan
+const COSMIC_RING_MID = "#9D7BDB"; // lavender
+const COSMIC_RING_END = "#7B68EE"; // medium slate blue
+const COSMIC_TEXT = "#B8E8EC"; // soft cyan-white for percentage & label
+const COSMIC_TRACK = "#0D1525"; // dark cosmic blue (progress track)
+const COSMIC_INNER_DARK = [
+  "#0A0E1A",
+  "#0F1422",
+  "#151C2E",
+  "#1A2440",
+  "#1E2A4A",
+] as const; // deep space fill
+const COSMIC_INNER_LIGHT = [
+  "#2A2A3A",
+  "#3A3A4E",
+  "#4A4A62",
+  "#5A5A76",
+  "#6A6A8A",
+] as const; // light theme cosmic
 
 // Constellation: star positions (normalized 0–1) and line pairs (indices into AVATAR_STARS)
 const AVATAR_STARS = [
-  { x: 0.82, y: 0.5 }, { x: 0.726, y: 0.726 }, { x: 0.5, y: 0.82 }, { x: 0.274, y: 0.726 },
-  { x: 0.18, y: 0.5 }, { x: 0.274, y: 0.274 }, { x: 0.5, y: 0.18 }, { x: 0.726, y: 0.274 },
-  { x: 0.62, y: 0.38 }, { x: 0.38, y: 0.62 }, { x: 0.38, y: 0.38 }, { x: 0.62, y: 0.62 },
+  { x: 0.82, y: 0.5 },
+  { x: 0.726, y: 0.726 },
+  { x: 0.5, y: 0.82 },
+  { x: 0.274, y: 0.726 },
+  { x: 0.18, y: 0.5 },
+  { x: 0.274, y: 0.274 },
+  { x: 0.5, y: 0.18 },
+  { x: 0.726, y: 0.274 },
+  { x: 0.62, y: 0.38 },
+  { x: 0.38, y: 0.62 },
+  { x: 0.38, y: 0.38 },
+  { x: 0.62, y: 0.62 },
 ] as const;
 const AVATAR_CONSTELLATION_LINES: [number, number][] = [
-  [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 0], [8, 9], [10, 11],
+  [0, 1],
+  [1, 2],
+  [2, 3],
+  [3, 4],
+  [4, 5],
+  [5, 6],
+  [6, 7],
+  [7, 0],
+  [8, 9],
+  [10, 11],
 ];
 const AVATAR_STAR_COLOR = "rgba(184, 232, 236, 0.35)";
 const AVATAR_LINE_COLOR = "rgba(184, 232, 236, 0.12)";
@@ -1126,13 +1162,24 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   const t = useTranslate();
   const { language } = useLanguage();
   const handlePress = hasMemories ? onPress : onAddMemoriesPress;
-  const colors = Colors[colorScheme] as { primary: string; primaryLight?: string; primaryDark?: string };
+  const colors = Colors[colorScheme] as {
+    primary: string;
+    primaryLight?: string;
+    primaryDark?: string;
+  };
   const primaryHex = colors.primary ?? "#64B5F6";
   const glowMatrixValues = React.useMemo(() => {
     const rgb = hexToRgbNorm(primaryHex);
     const m = (a: number) =>
       `${rgb.r} 0 0 0 0   0 ${rgb.g} 0 0 0   0 0 ${rgb.b} 0 0   0 0 0 ${a} 0`;
-    return { m05: m(0.5), m07: m(0.7), m085: m(0.85), m08: m(0.8), m09: m(0.9), m1: m(1) };
+    return {
+      m05: m(0.5),
+      m07: m(0.7),
+      m085: m(0.85),
+      m08: m(0.8),
+      m09: m(0.9),
+      m1: m(1),
+    };
   }, [primaryHex]);
 
   const avatarSize = 100;
@@ -1237,12 +1284,34 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 fy="50%"
               >
                 <Stop offset="0%" stopColor={colors.primary} stopOpacity="0" />
-                <Stop offset="50%" stopColor={colors.primaryLight ?? colors.primary} stopOpacity="0.08" />
-                <Stop offset="85%" stopColor={colors.primary} stopOpacity="0.2" />
-                <Stop offset="100%" stopColor={colors.primaryDark ?? colors.primary} stopOpacity="0.35" />
+                <Stop
+                  offset="50%"
+                  stopColor={colors.primaryLight ?? colors.primary}
+                  stopOpacity="0.08"
+                />
+                <Stop
+                  offset="85%"
+                  stopColor={colors.primary}
+                  stopOpacity="0.2"
+                />
+                <Stop
+                  offset="100%"
+                  stopColor={colors.primaryDark ?? colors.primary}
+                  stopOpacity="0.35"
+                />
               </RadialGradient>
-              <Filter id="nebulaBlur" x="-80%" y="-80%" width="260%" height="260%">
-                <FeGaussianBlur in="SourceGraphic" stdDeviation="12" result="nebulaBlurred" />
+              <Filter
+                id="nebulaBlur"
+                x="-80%"
+                y="-80%"
+                width="260%"
+                height="260%"
+              >
+                <FeGaussianBlur
+                  in="SourceGraphic"
+                  stdDeviation="12"
+                  result="nebulaBlurred"
+                />
                 <FeMerge>
                   <FeMergeNode in="nebulaBlurred" />
                 </FeMerge>
@@ -1254,9 +1323,21 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 x2="100%"
                 y2="100%"
               >
-                <Stop offset="0%" stopColor={colors.primary} stopOpacity="0.9" />
-                <Stop offset="50%" stopColor={colors.primaryLight ?? colors.primary} stopOpacity="1" />
-                <Stop offset="100%" stopColor={colors.primaryDark ?? colors.primary} stopOpacity="1" />
+                <Stop
+                  offset="0%"
+                  stopColor={colors.primary}
+                  stopOpacity="0.9"
+                />
+                <Stop
+                  offset="50%"
+                  stopColor={colors.primaryLight ?? colors.primary}
+                  stopOpacity="1"
+                />
+                <Stop
+                  offset="100%"
+                  stopColor={colors.primaryDark ?? colors.primary}
+                  stopOpacity="1"
+                />
               </SvgLinearGradient>
               <Filter
                 id="focusedOuterGlow"
@@ -1439,7 +1520,10 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 <ThemedText
                   size="xl"
                   weight="bold"
-                  style={{ color: colors.primaryLight ?? colors.primary, fontSize: 24 }}
+                  style={{
+                    color: colors.primaryLight ?? colors.primary,
+                    fontSize: 24,
+                  }}
                 >
                   {Math.round(percentage)}%
                 </ThemedText>
@@ -1545,7 +1629,11 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                   shadowRadius: 6,
                 }}
               >
-                <MaterialIcons name="wb-sunny" size={14} color={momentColors.sunny.text} />
+                <MaterialIcons
+                  name="wb-sunny"
+                  size={14}
+                  color={momentColors.sunny.text}
+                />
               </View>
             );
           })()}
@@ -1586,7 +1674,11 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                   shadowRadius: 4,
                 }}
               >
-                <MaterialIcons name="cloud" size={14} color={momentColors.cloudy.text} />
+                <MaterialIcons
+                  name="cloud"
+                  size={14}
+                  color={momentColors.cloudy.text}
+                />
               </View>
             );
           })()}
@@ -1643,7 +1735,9 @@ export function FocusedSferaView({
         onStartShouldSetPanResponder: () => false,
         onMoveShouldSetPanResponder: (_, g) => {
           const startX = g.moveX - g.dx;
-          const inSideRegion = startX < SW * SIDE_REGION_WIDTH || startX > SW * (1 - SIDE_REGION_WIDTH);
+          const inSideRegion =
+            startX < SW * SIDE_REGION_WIDTH ||
+            startX > SW * (1 - SIDE_REGION_WIDTH);
           if (inSideRegion) {
             return Math.abs(g.dy) > 20 && Math.abs(g.dy) > Math.abs(g.dx * 1.5);
           }
@@ -1652,7 +1746,9 @@ export function FocusedSferaView({
         // Only capture in side regions so taps on center entity avatars are never stolen (entity tap → redirect works).
         onMoveShouldSetPanResponderCapture: (_, g) => {
           const startX = g.moveX - g.dx;
-          const inSideRegion = startX < SW * SIDE_REGION_WIDTH || startX > SW * (1 - SIDE_REGION_WIDTH);
+          const inSideRegion =
+            startX < SW * SIDE_REGION_WIDTH ||
+            startX > SW * (1 - SIDE_REGION_WIDTH);
           if (!inSideRegion) return false;
           return Math.abs(g.dy) > 20 && Math.abs(g.dy) > Math.abs(g.dx * 1.5);
         },
@@ -1663,8 +1759,14 @@ export function FocusedSferaView({
           const inSideRegion = isLeftRegion || isRightRegion;
           if (inSideRegion) {
             // Vertical: right sfera = up prev / down next; left sfera = reversed (up next / down prev)
-            if (g.dy < -50) goToSphere(isLeftRegion ? (focusedIdx + 1) % N : (focusedIdx - 1 + N) % N);
-            else if (g.dy > 50) goToSphere(isLeftRegion ? (focusedIdx - 1 + N) % N : (focusedIdx + 1) % N);
+            if (g.dy < -50)
+              goToSphere(
+                isLeftRegion ? (focusedIdx + 1) % N : (focusedIdx - 1 + N) % N,
+              );
+            else if (g.dy > 50)
+              goToSphere(
+                isLeftRegion ? (focusedIdx - 1 + N) % N : (focusedIdx + 1) % N,
+              );
           } else {
             // Horizontal in center (focused sfera below avatar): left = next, right = prev
             if (g.dx < -50) goToSphere((focusedIdx + 1) % N);
@@ -1692,7 +1794,6 @@ export function FocusedSferaView({
     focusedSphere.type,
     colorScheme,
   );
-  const focusedUris = entityImageUrisBySphere[focusedSphere.type] ?? [];
 
   const handleSwitchToClassic = useCallback(() => {
     onSwitchToClassic();
@@ -1738,7 +1839,9 @@ export function FocusedSferaView({
       style={[
         styles.root,
         { marginTop: rootMarginTop },
-        hidden ? { opacity: 0, pointerEvents: "none" as const } : { pointerEvents: "auto" as const },
+        hidden
+          ? { opacity: 0, pointerEvents: "none" as const }
+          : { pointerEvents: "auto" as const },
       ]}
       {...(hidden ? {} : panResponder.panHandlers)}
     >
@@ -1795,11 +1898,7 @@ export function FocusedSferaView({
         style={[
           styles.focusedLabelContainer,
           {
-            top:
-              ORBIT_CY +
-              ORBIT_R +
-              FOCUSED_ENTITY_ORBIT_R +
-              FOCUSED_LABEL_GAP,
+            top: "87%",
           },
         ]}
         pointerEvents="none"
@@ -1807,7 +1906,9 @@ export function FocusedSferaView({
         <ThemedText style={styles.focusedLabelText}>
           {t(`spheres.${focusedSphere.type}`)}
         </ThemedText>
-        <View style={[styles.focusedLabelDotsRow, { marginTop: LABEL_TO_DOTS_GAP }]}>
+        <View
+          style={[styles.focusedLabelDotsRow, { marginTop: LABEL_TO_DOTS_GAP }]}
+        >
           {SPHERE_LIST.map((_, i) => (
             <View
               key={i}
