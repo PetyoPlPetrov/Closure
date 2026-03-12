@@ -11,7 +11,7 @@ import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForPlusAccess } from "@/utils/premium-access";
+import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
@@ -245,7 +245,7 @@ export default function AddJobScreen() {
       const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
       if (!hasEntityLimitEntitlement) {
-        const subscribed = await showPaywallForPlusAccess();
+        const subscribed = await showPaywallForAnySubscriptionAccess();
         if (!subscribed) return;
       }
     }

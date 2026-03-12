@@ -31,7 +31,7 @@ import {
 } from "@/utils/NotificationsProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForPlusAccess } from "@/utils/premium-access";
+import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 
 // Note: Header title is set in _layout.tsx
 export const options = {
@@ -190,7 +190,7 @@ export default function NotificationDetailScreen() {
       const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
       if (!hasEntityLimitEntitlement) {
-        const subscribed = await showPaywallForPlusAccess();
+        const subscribed = await showPaywallForAnySubscriptionAccess();
         if (!subscribed) return;
       }
 

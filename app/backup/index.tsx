@@ -5,7 +5,7 @@ import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForPlusAccess } from "@/utils/premium-access";
+import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 import {
   exportToZip,
   shareExportedFile,
@@ -40,7 +40,7 @@ export default function BackupScreen() {
   useEffect(() => {
     if (hasBackupAccess) return;
     let cancelled = false;
-    showPaywallForPlusAccess().then((purchased) => {
+    showPaywallForAnySubscriptionAccess().then((purchased) => {
       if (!cancelled && !purchased) router.back();
     });
     return () => {

@@ -20,7 +20,7 @@ import {
 } from "@/utils/event-memory-reminders";
 import { onEventsTabPress } from "@/utils/events-tab-press";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForPlusAccess } from "@/utils/premium-access";
+import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 import { updateEventStatus } from "@/utils/sfera-event-attendance";
 import {
   addAttendedEventSnapshot,
@@ -2830,7 +2830,7 @@ export default function EventsTab() {
                                       ) {
                                         setDiscountRevealed(true);
                                       } else {
-                                        await showPaywallForPlusAccess();
+                                        await showPaywallForAnySubscriptionAccess();
                                       }
                                     }}
                                   >

@@ -12,7 +12,7 @@ import {
 } from "@/utils/MomentColorsProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForPlusAccess } from "@/utils/premium-access";
+import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
@@ -678,7 +678,7 @@ export default function MomentColorsScreen() {
     async (key: keyof MomentColors) => {
       // Show paywall only if no subscription (Plus or AI both allow saving)
       if (!isSubscribed) {
-        const purchased = await showPaywallForPlusAccess();
+        const purchased = await showPaywallForAnySubscriptionAccess();
         if (!purchased) return;
       }
       setMomentColor(key, "background", draftColors[key].background);

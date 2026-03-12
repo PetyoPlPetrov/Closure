@@ -7,7 +7,7 @@ import type { LifeSphere } from "@/utils/JourneyProvider";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
-import { showPaywallForPlusAccess } from "@/utils/premium-access";
+import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
@@ -941,7 +941,7 @@ export default function InsightsScreen() {
     // Check subscription before navigating to comparison screens
     const { hasEntityLimitEntitlement } = await ensureSubscriptionResolved();
     if (!hasEntityLimitEntitlement) {
-      const subscribed = await showPaywallForPlusAccess();
+      const subscribed = await showPaywallForAnySubscriptionAccess();
       if (!subscribed) return;
     }
 
@@ -1346,7 +1346,7 @@ export default function InsightsScreen() {
                       const { hasPlusEntitlement: hasPlus } =
                         await ensureSubscriptionResolved();
                       if (!hasPlus) {
-                        const subscribed = await showPaywallForPlusAccess();
+                        const subscribed = await showPaywallForAnySubscriptionAccess();
                         if (!subscribed) return;
                       }
 

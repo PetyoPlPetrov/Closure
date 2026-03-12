@@ -2,7 +2,7 @@ import { logEntityCreated, logMemoryCreated, logMemoryDeleted, logMomentCreated 
 import { deleteSummariesByMemoryIds } from '@/utils/moment-notification-storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
-import { showPaywallForPlusAccess } from '@/utils/premium-access';
+import { showPaywallForAnySubscriptionAccess } from '@/utils/premium-access';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 
 /** Max memories per entity for users without Sfera AI plan. */
@@ -812,7 +812,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         !hasEntityLimitEntitlement &&
         memoryCountForEntity >= MEMORY_LIMIT_PER_ENTITY_FREE
       ) {
-        const purchased = await showPaywallForPlusAccess();
+        const purchased = await showPaywallForAnySubscriptionAccess();
         if (!purchased) {
           return null;
         }

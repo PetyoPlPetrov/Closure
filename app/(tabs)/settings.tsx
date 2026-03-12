@@ -9,7 +9,7 @@ import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForPlusAccess } from "@/utils/premium-access";
+import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 import { presentPaywallWithOffering } from "@/utils/revenuecat-paywall";
 import { clearSferaEventsStorage } from "@/utils/sfera-events";
 import { useSferaEventsBadge } from "@/utils/SferaEventsBadgeProvider";
@@ -2141,7 +2141,7 @@ export default function SettingsScreen() {
             style={styles.dropdown}
             onPress={async () => {
               if (!hasBackupAccess) {
-                const purchased = await showPaywallForPlusAccess();
+                const purchased = await showPaywallForAnySubscriptionAccess();
                 if (!purchased) return;
               }
               router.push("/backup");
