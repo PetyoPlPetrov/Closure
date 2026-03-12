@@ -278,8 +278,17 @@ export function AIModal({
   const exceedsMaxLength = characterCount > MAX_INPUT_LENGTH;
   const hasMinWords = wordCount >= MIN_WORDS;
 
+  // Premium users with 0 remaining: disable submit and show daily limit message (no paywall)
+  const hasRemainingRequests =
+    goldenEventId ||
+    remainingAIRequests === null ||
+    (remainingAIRequests !== null && remainingAIRequests > 0);
   const canSubmit =
-    hasMinWords && !exceedsMaxLength && !isProcessing && !isRecording;
+    hasMinWords &&
+    !exceedsMaxLength &&
+    !isProcessing &&
+    !isRecording &&
+    hasRemainingRequests;
 
   // Loading messages that rotate
   const loadingMessages = [
@@ -2223,29 +2232,45 @@ export function AIModal({
                       {t("ai.subtitle") ||
                         "Share your story and AI will form a memory with moments and lessons"}
                     </ThemedText>
-                    {remainingAIRequests !== null && (
-                      <ThemedText
-                        size="xs"
-                        style={[
-                          styles.headerSubtitle,
-                          {
-                            marginTop: 4 * fontScale,
-                            opacity: 0.8,
-                          },
-                        ]}
-                      >
-                        {(t("ai.remainingCreations") || "{count} of {limit} free AI memory creations left today")
-                          .replace("{count}", String(remainingAIRequests))
-                          .replace(
-                            "{limit}",
-                            String(
-                              hasAIEntitlement
-                                ? REQUESTS_PER_DAY_PREMIUM
-                                : REQUESTS_PER_DAY_FREE,
-                            ),
-                          )}
-                      </ThemedText>
-                    )}
+                    {remainingAIRequests !== null &&
+                      (hasAIEntitlement && remainingAIRequests === 0 ? (
+                        <ThemedText
+                          size="xs"
+                          style={[
+                            styles.headerSubtitle,
+                            {
+                              marginTop: 4 * fontScale,
+                              opacity: 0.8,
+                            },
+                          ]}
+                        >
+                          {t("ai.rateLimit.premiumMessage") ||
+                            "You've reached the daily limit. Try again tomorrow."}
+                        </ThemedText>
+                      ) : (
+                        <ThemedText
+                          size="xs"
+                          style={[
+                            styles.headerSubtitle,
+                            {
+                              marginTop: 4 * fontScale,
+                              opacity: 0.8,
+                            },
+                          ]}
+                        >
+                          {(t("ai.remainingCreations") ||
+                            "{count} of {limit} free AI memory creations left today")
+                            .replace("{count}", String(remainingAIRequests))
+                            .replace(
+                              "{limit}",
+                              String(
+                                hasAIEntitlement
+                                  ? REQUESTS_PER_DAY_PREMIUM
+                                  : REQUESTS_PER_DAY_FREE,
+                              ),
+                            )}
+                        </ThemedText>
+                      ))}
                   </View>
                   <Pressable
                     onPress={() => {

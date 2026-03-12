@@ -306,30 +306,45 @@ export function AIActionModal({
                   }
                 </ThemedText>
 
-                {/* Remaining free AI memory creations */}
-                {remainingAIRequests !== null && (
-                  <ThemedText
-                    size="xs"
-                    style={[
-                      styles.hintText,
-                      {
-                        marginBottom: 16 * fontScale,
-                        color: colorScheme === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
-                      },
-                    ]}
-                  >
-                    {(t('ai.remainingCreations') || '{count} of {limit} free AI memory creations left today')
-                      .replace('{count}', String(remainingAIRequests))
-                      .replace(
-                        '{limit}',
-                        String(hasAIEntitlement ? REQUESTS_PER_DAY_PREMIUM : REQUESTS_PER_DAY_FREE),
-                      )}
-                  </ThemedText>
-                )}
+                {/* Remaining free AI memory creations, or daily limit reached (premium) */}
+                {remainingAIRequests !== null &&
+                  (hasAIEntitlement && remainingAIRequests === 0 ? (
+                    <ThemedText
+                      size="xs"
+                      style={[
+                        styles.hintText,
+                        {
+                          marginBottom: 16 * fontScale,
+                          color: colorScheme === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+                        },
+                      ]}
+                    >
+                      {t('ai.rateLimit.premiumMessage') ||
+                        "You've reached the daily limit. Try again tomorrow."}
+                    </ThemedText>
+                  ) : (
+                    <ThemedText
+                      size="xs"
+                      style={[
+                        styles.hintText,
+                        {
+                          marginBottom: 16 * fontScale,
+                          color: colorScheme === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+                        },
+                      ]}
+                    >
+                      {(t('ai.remainingCreations') || '{count} of {limit} free AI memory creations left today')
+                        .replace('{count}', String(remainingAIRequests))
+                        .replace(
+                          '{limit}',
+                          String(hasAIEntitlement ? REQUESTS_PER_DAY_PREMIUM : REQUESTS_PER_DAY_FREE),
+                        )}
+                    </ThemedText>
+                  ))}
 
                 {/* Buttons */}
                 <View style={styles.buttonContainer}>
-                  {hasEntities ? (
+                  {hasEntities && !(hasAIEntitlement && remainingAIRequests === 0) ? (
                     <View>
                       <TouchableOpacity
                         onPress={() => {
@@ -365,7 +380,9 @@ export function AIActionModal({
                         </ThemedText>
                       </TouchableOpacity>
                       <ThemedText size="xs" style={[styles.hintText, { color: colorScheme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }]}>
-                        {t('ai.action.createMemoryHint')}
+                        {hasAIEntitlement && remainingAIRequests === 0
+                          ? (t('ai.rateLimit.premiumMessage') || "You've reached the daily limit. Try again tomorrow.")
+                          : t('ai.action.createMemoryHint')}
                       </ThemedText>
                     </View>
                   )}

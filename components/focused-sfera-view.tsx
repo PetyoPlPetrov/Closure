@@ -75,6 +75,14 @@ const ORBIT_CX = SW / 2;
 // Slightly lower than center to keep space for the badge + toggle
 const ORBIT_CY = SH * 0.46;
 const ORBIT_R = 135;
+
+/** Scalable gap between rotating entities and the label block (3% of screen height) */
+const FOCUSED_LABEL_GAP = SH * 0.03;
+/** Gap between label text and pagination dots (0.8% of screen height) */
+const LABEL_TO_DOTS_GAP = SH * 0.008;
+/** Entity orbit radius when this sphere is focused (sphere radius + entity radius + padding) */
+const FOCUSED_ENTITY_ORBIT_R = FOCUSED_SIZE / 2 + 20 + 8;
+
 /** Left just above the focused sfera (slot 4) — slightly bigger */
 const BG_SPHERE_SIZE_LEFT_BELOW = 76;
 /** Right just above / below-right of the circle avatar (slot 1) — a bit bigger */
@@ -1667,6 +1675,7 @@ export function FocusedSferaView({
     [focusedIdx, goToSphere, N],
   );
 
+  const t = useTranslate();
   const focusedSphere = SPHERE_LIST[focusedIdx];
   const focusedSunnyPct = getSphereSunnyPercentage(focusedSphere.type);
   const focusedGradientColors = getSphereGradientColors(
@@ -1781,6 +1790,36 @@ export function FocusedSferaView({
         y={SH * 0.38}
       />
 
+      {/* ─── Focused sfera label + pagination dots (below rotating entities) ─── */}
+      <View
+        style={[
+          styles.focusedLabelContainer,
+          {
+            top:
+              ORBIT_CY +
+              ORBIT_R +
+              FOCUSED_ENTITY_ORBIT_R +
+              FOCUSED_LABEL_GAP,
+          },
+        ]}
+        pointerEvents="none"
+      >
+        <ThemedText style={styles.focusedLabelText}>
+          {t(`spheres.${focusedSphere.type}`)}
+        </ThemedText>
+        <View style={[styles.focusedLabelDotsRow, { marginTop: LABEL_TO_DOTS_GAP }]}>
+          {SPHERE_LIST.map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.focusedLabelDot,
+                i === focusedIdx && styles.focusedLabelDotActive,
+              ]}
+            />
+          ))}
+        </View>
+      </View>
+
       {/* ─── Chevron buttons: left = next, right = prev (orbit style; focused sfera swipe is reversed) ─── */}
       <Animated.View
         style={[styles.chevron, styles.chevronLeft, leftChevronStyle]}
@@ -1824,6 +1863,37 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: "transparent",
+  },
+  focusedLabelContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  focusedLabelText: {
+    fontSize: 18,
+    fontWeight: "600",
+    opacity: 0.95,
+    letterSpacing: 0.3,
+  },
+  focusedLabelDotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SW * 0.025,
+  },
+  focusedLabelDot: {
+    width: SW * 0.016,
+    height: SW * 0.016,
+    borderRadius: SW * 0.008,
+    backgroundColor: "rgba(255,255,255,0.25)",
+  },
+  focusedLabelDotActive: {
+    width: SW * 0.022,
+    height: SW * 0.022,
+    borderRadius: SW * 0.011,
+    backgroundColor: "rgba(255,255,255,0.85)",
   },
   chevron: {
     position: "absolute",

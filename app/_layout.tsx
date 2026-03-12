@@ -34,10 +34,7 @@ import {
 import { AIInsightsConsentProvider } from "@/utils/AIInsightsConsentProvider";
 import { initializeAppCheckService, verifyAppCheck } from "@/utils/app-check";
 import { handleDevError } from "@/utils/dev-error-handler";
-import {
-  scheduleEventMemoryReminders,
-  seedMockPastEventsForDev,
-} from "@/utils/event-memory-reminders";
+import { scheduleEventMemoryReminders } from "@/utils/event-memory-reminders";
 import { HomeTransitionLoaderProvider } from "@/utils/home-transition-loader-context";
 import {
   InAppNotificationProvider,
@@ -180,14 +177,6 @@ function AppContent() {
     };
 
     initializeServices();
-  }, []);
-
-  // Dev: seed mock past events for in-app reminder testing (up to 3 reminders per event)
-  useEffect(() => {
-    if (!__DEV__) return;
-    seedMockPastEventsForDev().catch((e) =>
-      console.warn("[Event memory reminders] Dev: seed error:", e),
-    );
   }, []);
 
   // EAS Update: check for OTA on launch (after splash) and when app comes to foreground

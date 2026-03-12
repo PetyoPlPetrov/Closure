@@ -16,7 +16,10 @@ import {
     stopBackgroundEntityProcessing,
     type PendingEntityResponse,
 } from "@/utils/ai-background-processor";
-import { consumeAIRequestIfAvailable } from "@/utils/ai-rate-limiter";
+import {
+    consumeAIRequestIfAvailable,
+    getRemainingAIRequests,
+} from "@/utils/ai-rate-limiter";
 import {
     processEntityCreationPrompt,
     type AIEntityCreationResponse,
@@ -113,6 +116,9 @@ export function AIEntityCreationModal({
     null,
   );
   const [appState, setAppState] = useState(AppState.currentState);
+  const [remainingAIRequests, setRemainingAIRequests] = useState<number | null>(
+    null,
+  );
   const isMinimizingRef = useRef(false);
   const closeConfirmVisibleRef = useRef(false);
 
@@ -141,7 +147,14 @@ export function AIEntityCreationModal({
   const exceedsMaxLength = characterCount > MAX_INPUT_LENGTH;
   const hasMinWords = wordCount >= MIN_WORDS;
 
-  const canSubmit = hasMinWords && !exceedsMaxLength && !isProcessing;
+  // Premium users with 0 remaining: disable submit and show daily limit message (no paywall)
+  const hasRemainingRequests =
+    remainingAIRequests === null || remainingAIRequests > 0;
+  const canSubmit =
+    hasMinWords &&
+    !exceedsMaxLength &&
+    !isProcessing &&
+    hasRemainingRequests;
 
   // Loading messages that rotate
   const loadingMessages = [
@@ -183,6 +196,15 @@ export function AIEntityCreationModal({
     });
     return () => subscription.remove();
   }, []);
+
+  // Fetch remaining AI requests when modal is open (for premium: disable submit at 0)
+  useEffect(() => {
+    if (visible) {
+      getRemainingAIRequests(hasAIEntitlement).then(setRemainingAIRequests);
+    } else {
+      setRemainingAIRequests(null);
+    }
+  }, [visible, hasAIEntitlement]);
 
   // Rotate loading messages when processing
   useEffect(() => {
@@ -1856,6 +1878,24 @@ export function AIEntityCreationModal({
                         {characterCount}/{MAX_INPUT_LENGTH}
                       </ThemedText>
                     </View>
+
+                    {/* Premium user daily limit reached: show message, submit is already disabled */}
+                    {remainingAIRequests !== null &&
+                      hasAIEntitlement &&
+                      remainingAIRequests === 0 && (
+                        <ThemedText
+                          size="xs"
+                          style={{
+                            paddingHorizontal: 16 * fontScale,
+                            marginBottom: 12 * fontScale,
+                            opacity: 0.8,
+                            color: colors.textMediumEmphasis || colors.text + "CC",
+                          }}
+                        >
+                          {t("ai.rateLimit.premiumMessage") ||
+                            "You've reached the daily limit. Try again tomorrow."}
+                        </ThemedText>
+                      )}
 
                     <TouchableOpacity
                       style={[
