@@ -18,6 +18,7 @@ import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'reac
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function RelationshipDetailScreen() {
+  console.log("[relationship-detail] 🏠 Screen MOUNTED/RENDERED");
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
@@ -132,7 +133,7 @@ export default function RelationshipDetailScreen() {
         : 'rgba(0, 0, 0, 0.1)',
     },
     headerButton: {
-      padding: 8 * fontScale,
+      padding: 16 * fontScale,
       minWidth: 42 * fontScale,
     },
     headerTitle: {

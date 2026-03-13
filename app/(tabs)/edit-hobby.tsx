@@ -132,7 +132,14 @@ export default function EditHobbyScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            console.log('[edit-hobby.tsx] 🔙 BACK ARROW PRESSED');
+            console.log('[edit-hobby.tsx] 🔙 NAVIGATING back to spheres (hobbies sphere)');
+            router.navigate({
+              pathname: '/(tabs)/spheres',
+              params: { selectedSphere: 'hobbies' }
+            });
+          }}
           activeOpacity={0.7}
         >
           <MaterialIcons

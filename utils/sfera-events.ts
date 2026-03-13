@@ -184,9 +184,9 @@ function jsonToEvent(
   const description = get(["description", "Description"]) || descriptionFromMax;
 
   if (__DEV__ && (maxAttendees != null || currentAmountAttendees != null)) {
-    console.log(
-      `[Sfera events] Parsed "${name}": maxAttendees=${maxAttendees}, currentAmountAttendees=${currentAmountAttendees}`,
-    );
+    // console.log(
+    //   `[Sfera events] Parsed "${name}": maxAttendees=${maxAttendees}, currentAmountAttendees=${currentAmountAttendees}`,
+    // );
   }
 
   return {
@@ -905,9 +905,9 @@ export async function removeEventReminderScheduledIds(
 // Reminders are staggered at different times (9 AM, 2 PM, 7 PM) to avoid overlaps when users attend events on consecutive days.
 
 const REMINDER_TIMES = [
-  { hour: 9, minute: 0 },   // Reminder 1: 9:00 AM
-  { hour: 14, minute: 0 },  // Reminder 2: 2:00 PM
-  { hour: 19, minute: 0 },  // Reminder 3: 7:00 PM
+  { hour: 9, minute: 0 }, // Reminder 1: 9:00 AM
+  { hour: 14, minute: 0 }, // Reminder 2: 2:00 PM
+  { hour: 19, minute: 0 }, // Reminder 3: 7:00 PM
 ];
 const DEV_REMINDER_INTERVAL_MS = 60 * 1000; // 1 minute
 const NUM_REMINDERS_PER_EVENT = 3;
@@ -1011,7 +1011,10 @@ export async function scheduleEventRemindersOnJoin(
   const existing = await getEventReminderInAppSchedule(event.id);
   if (existing) {
     if (__DEV__)
-      console.log('[Event reminders] Schedule already exists for event:', event.id);
+      console.log(
+        "[Event reminders] Schedule already exists for event:",
+        event.id,
+      );
     return;
   }
 
@@ -1022,7 +1025,12 @@ export async function scheduleEventRemindersOnJoin(
   await setEventReminderScheduleMap(map);
 
   if (__DEV__)
-    console.log('[Event reminders] Scheduled reminders on join for event:', event.id, 'due times:', dueTimes);
+    console.log(
+      "[Event reminders] Scheduled reminders on join for event:",
+      event.id,
+      "due times:",
+      dueTimes,
+    );
 }
 
 /** After showing a reminder, increment shown count. Returns new count. */
@@ -1072,7 +1080,9 @@ export interface EventReminderInfo {
 }
 
 /** Get all events that have scheduled reminders (includes upcoming and past events user has joined). */
-export async function getAllScheduledEventReminders(): Promise<EventReminderInfo[]> {
+export async function getAllScheduledEventReminders(): Promise<
+  EventReminderInfo[]
+> {
   const [map, attendedEvents, goldenUsed] = await Promise.all([
     getEventReminderScheduleMap(),
     getAttendedEventSnapshots(), // Get ALL attended events (not just past)
@@ -1086,13 +1096,18 @@ export async function getAllScheduledEventReminders(): Promise<EventReminderInfo
     if (goldenUsed.has(event.id)) continue;
 
     const schedule = map[event.id];
-    if (!schedule || !Array.isArray(schedule.dueTimes) || schedule.dueTimes.length !== NUM_REMINDERS_PER_EVENT) {
+    if (
+      !schedule ||
+      !Array.isArray(schedule.dueTimes) ||
+      schedule.dueTimes.length !== NUM_REMINDERS_PER_EVENT
+    ) {
       continue;
     }
 
-    const shownCount = typeof schedule.shownCount === 'number'
-      ? Math.min(schedule.shownCount, NUM_REMINDERS_PER_EVENT)
-      : 0;
+    const shownCount =
+      typeof schedule.shownCount === "number"
+        ? Math.min(schedule.shownCount, NUM_REMINDERS_PER_EVENT)
+        : 0;
 
     // Skip if all reminders have been shown
     if (shownCount >= NUM_REMINDERS_PER_EVENT) continue;

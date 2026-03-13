@@ -132,7 +132,14 @@ export default function EditFriendScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            console.log('[edit-friend.tsx] 🔙 BACK ARROW PRESSED');
+            console.log('[edit-friend.tsx] 🔙 NAVIGATING back to spheres (friends sphere)');
+            router.navigate({
+              pathname: '/(tabs)/spheres',
+              params: { selectedSphere: 'friends' }
+            });
+          }}
           activeOpacity={0.7}
         >
           <MaterialIcons

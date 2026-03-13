@@ -1804,7 +1804,7 @@ export function FocusedSferaView({
   // Check if the FOCUSED sfera has memories (not overall)
   const focusedSferaHasMemories = useMemo(() => {
     const focusedMemories = memoriesPerEntityBySphere[focusedSphere.type] ?? [];
-    return focusedMemories.some(entityMemories => entityMemories.length > 0);
+    return focusedMemories.some((entityMemories) => entityMemories.length > 0);
   }, [memoriesPerEntityBySphere, focusedSphere.type]);
 
   // Circle avatar percentage logic:
@@ -1818,50 +1818,12 @@ export function FocusedSferaView({
       // Individual sfera view: show focused sfera % if it has memories, otherwise overall
       return focusedSferaHasMemories ? focusedSunnyPct : overallSunnyPercentage;
     }
-  }, [selectedSphere, focusedSferaHasMemories, focusedSunnyPct, overallSunnyPercentage]);
-
-  // DEBUG: Log percentages to verify correct calculation
-  useEffect(() => {
-    // Calculate sunny/cloudy counts for the focused sfera
-    const focusedMemories = memoriesPerEntityBySphere[focusedSphere.type] ?? [];
-    let focusedSunnyCount = 0;
-    let focusedCloudyCount = 0;
-
-    focusedMemories.forEach((entityMemories) => {
-      entityMemories.forEach((memory) => {
-        focusedSunnyCount += (memory.goodFacts || []).length;
-        focusedCloudyCount += (memory.hardTruths || []).length;
-      });
-    });
-
-    const focusedTotalMoments = focusedSunnyCount + focusedCloudyCount;
-    const focusedCalculatedPct = focusedTotalMoments > 0
-      ? (focusedSunnyCount / focusedTotalMoments) * 100
-      : 0;
-
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🔍 FOCUSED SFERA VIEW - Percentage Debug');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`📍 Focused Sphere: ${focusedSphere.type}`);
-    console.log(`🎯 Selected Sphere: ${selectedSphere ?? 'null (initial view - all sferas)'}`);
-    console.log(`\n📊 OVERALL (all sferas combined):`);
-    console.log(`   Sunny %: ${overallSunnyPercentage.toFixed(1)}%`);
-    console.log(`\n📊 FOCUSED SFERA (${focusedSphere.type} only):`);
-    console.log(`   ☀️  Sunny moments: ${focusedSunnyCount}`);
-    console.log(`   ☁️  Cloudy moments: ${focusedCloudyCount}`);
-    console.log(`   📈 Total moments: ${focusedTotalMoments}`);
-    console.log(`   📊 Calculated %: ${focusedCalculatedPct.toFixed(1)}%`);
-    console.log(`   📊 getSphereSunnyPercentage returned: ${focusedSunnyPct.toFixed(1)}%`);
-    console.log(`\n🎯 CIRCLE AVATAR DISPLAY:`);
-    console.log(`   Showing: ${circleAvatarPercentage.toFixed(1)}%`);
-    console.log(`   hasMemories (global): ${hasMemories}`);
-    console.log(`   focusedSferaHasMemories: ${focusedSferaHasMemories}`);
-    const source = selectedSphere === null
-      ? '🌍 Overall % (initial view)'
-      : (focusedSferaHasMemories ? '✅ Focused Sfera %' : '❌ Overall % (no memories in this sfera)');
-    console.log(`   Source: ${source}`);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-  }, [focusedSphere.type, selectedSphere, overallSunnyPercentage, focusedSunnyPct, circleAvatarPercentage, hasMemories, focusedSferaHasMemories, memoriesPerEntityBySphere]);
+  }, [
+    selectedSphere,
+    focusedSferaHasMemories,
+    focusedSunnyPct,
+    overallSunnyPercentage,
+  ]);
 
   // When circle avatar is pressed: if onClearSelection is provided, call it; otherwise switch to classic view
   const handleCircleAvatarPress = useCallback(() => {

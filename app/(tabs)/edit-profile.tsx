@@ -132,7 +132,14 @@ export default function EditProfileScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            console.log('[edit-profile.tsx] 🔙 BACK ARROW PRESSED');
+            console.log('[edit-profile.tsx] 🔙 NAVIGATING back to spheres (relationships sphere)');
+            router.navigate({
+              pathname: '/(tabs)/spheres',
+              params: { selectedSphere: 'relationships' }
+            });
+          }}
           activeOpacity={0.7}
         >
           <MaterialIcons

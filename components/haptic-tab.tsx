@@ -23,36 +23,48 @@ import { useTranslate } from '@/utils/languages/use-translate';
 
 export function HapticTab(props: BottomTabBarButtonProps) {
   const pressScale = useSharedValue(1);
-  const { checkUnsavedChanges } = useUnsavedChanges();
+  const segments = useSegments();
+  const { checkUnsavedChanges, resetScreen } = useUnsavedChanges();
   const t = useTranslate();
+
+  // Check if we're on any edit/add screen that might have unsaved changes
+  const editScreens = [
+    'add-ex-profile', 'add-job', 'add-family-member', 'add-friend', 'add-hobby',
+    'add-idealized-memory', 'edit-profile', 'edit-job', 'edit-family-member',
+    'edit-friend', 'edit-hobby', 'idealized-memories'
+  ];
+  const isOnEditScreen = Array.isArray(segments) &&
+    segments.length > 0 &&
+    editScreens.includes(segments[segments.length - 1]);
 
   // Simple approach: always animate on press
   const handlePress = (ev: any) => {
-    console.log('[HapticTab] Press detected');
-
-    // Check for unsaved changes before navigating
-    const { hasChanges } = checkUnsavedChanges();
-    if (hasChanges) {
-      // Show confirmation dialog
-      Alert.alert(
-        t('memory.unsavedChanges.title'),
-        t('memory.unsavedChanges.message'),
-        [
-          {
-            text: t('common.cancel'),
-            style: 'cancel',
-          },
-          {
-            text: t('common.discard'),
-            style: 'destructive',
-            onPress: () => {
-              // User confirmed, proceed with navigation
-              props.onPress?.(ev);
+    // Check for unsaved changes when navigating away from edit/add screens
+    if (isOnEditScreen) {
+      const { hasChanges, screenId } = checkUnsavedChanges();
+      if (hasChanges) {
+        Alert.alert(
+          t('memory.unsavedChanges.title'),
+          t('memory.unsavedChanges.message'),
+          [
+            {
+              text: t('common.cancel'),
+              style: 'cancel',
             },
-          },
-        ]
-      );
-      return;
+            {
+              text: t('common.discard'),
+              style: 'destructive',
+              onPress: () => {
+                if (screenId) {
+                  resetScreen(screenId);
+                }
+                props.onPress?.(ev);
+              },
+            },
+          ]
+        );
+        return;
+      }
     }
 
     // Always animate when pressed
@@ -104,15 +116,25 @@ export function HapticTab(props: BottomTabBarButtonProps) {
 // Custom home tab button that intercepts presses even when already focused
 export function HomeTabButton(props: BottomTabBarButtonProps) {
   const pressScale = useSharedValue(1);
-  const { checkUnsavedChanges } = useUnsavedChanges();
+  const segments = useSegments();
+  const { checkUnsavedChanges, resetScreen } = useUnsavedChanges();
   const t = useTranslate();
 
-  // Simple approach: always animate on press, the navigation system will handle whether to navigate
+  // Check if we're on any edit/add screen that might have unsaved changes
+  const editScreens = [
+    'add-ex-profile', 'add-job', 'add-family-member', 'add-friend', 'add-hobby',
+    'add-idealized-memory', 'edit-profile', 'edit-job', 'edit-family-member',
+    'edit-friend', 'edit-hobby', 'idealized-memories'
+  ];
+  const isOnEditScreen = Array.isArray(segments) &&
+    segments.length > 0 &&
+    editScreens.includes(segments[segments.length - 1]);
+
   const handlePress = (ev: any) => {
-    // Check for unsaved changes before navigating
-    const { hasChanges } = checkUnsavedChanges();
-    if (hasChanges) {
-      Alert.alert(
+    if (isOnEditScreen) {
+      const { hasChanges, screenId } = checkUnsavedChanges();
+      if (hasChanges) {
+        Alert.alert(
         t('memory.unsavedChanges.title'),
         t('memory.unsavedChanges.message'),
         [
@@ -124,13 +146,17 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
             text: t('common.discard'),
             style: 'destructive',
             onPress: () => {
+              if (screenId) {
+                resetScreen(screenId);
+              }
               emitHomeTabPress();
               props.onPress?.(ev);
             },
           },
         ]
-      );
-      return;
+        );
+        return;
+      }
     }
 
     // Emit so Home screen can show loader even when already focused (tabPress may not fire)
@@ -184,14 +210,25 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
 // Custom events tab button – emits on press so the events screen can return to main view when already focused
 export function EventsTabButton(props: BottomTabBarButtonProps) {
   const pressScale = useSharedValue(1);
-  const { checkUnsavedChanges } = useUnsavedChanges();
+  const segments = useSegments();
+  const { checkUnsavedChanges, resetScreen } = useUnsavedChanges();
   const t = useTranslate();
 
+  // Check if we're on any edit/add screen that might have unsaved changes
+  const editScreens = [
+    'add-ex-profile', 'add-job', 'add-family-member', 'add-friend', 'add-hobby',
+    'add-idealized-memory', 'edit-profile', 'edit-job', 'edit-family-member',
+    'edit-friend', 'edit-hobby', 'idealized-memories'
+  ];
+  const isOnEditScreen = Array.isArray(segments) &&
+    segments.length > 0 &&
+    editScreens.includes(segments[segments.length - 1]);
+
   const handlePress = (ev: any) => {
-    // Check for unsaved changes before navigating
-    const { hasChanges } = checkUnsavedChanges();
-    if (hasChanges) {
-      Alert.alert(
+    if (isOnEditScreen) {
+      const { hasChanges, screenId } = checkUnsavedChanges();
+      if (hasChanges) {
+        Alert.alert(
         t('memory.unsavedChanges.title'),
         t('memory.unsavedChanges.message'),
         [
@@ -203,13 +240,17 @@ export function EventsTabButton(props: BottomTabBarButtonProps) {
             text: t('common.discard'),
             style: 'destructive',
             onPress: () => {
+              if (screenId) {
+                resetScreen(screenId);
+              }
               emitEventsTabPress();
               props.onPress?.(ev);
             },
           },
         ]
-      );
-      return;
+        );
+        return;
+      }
     }
 
     emitEventsTabPress();
@@ -238,8 +279,19 @@ export function EventsTabButton(props: BottomTabBarButtonProps) {
 // Custom spheres tab button that intercepts presses even when already focused
 export function SpheresTabButton(props: BottomTabBarButtonProps) {
   const pulseScale = useSharedValue(1);
-  const { checkUnsavedChanges } = useUnsavedChanges();
+  const segments = useSegments();
+  const { checkUnsavedChanges, resetScreen } = useUnsavedChanges();
   const t = useTranslate();
+
+  // Check if we're on any edit/add screen that might have unsaved changes
+  const editScreens = [
+    'add-ex-profile', 'add-job', 'add-family-member', 'add-friend', 'add-hobby',
+    'add-idealized-memory', 'edit-profile', 'edit-job', 'edit-family-member',
+    'edit-friend', 'edit-hobby', 'idealized-memories'
+  ];
+  const isOnEditScreen = Array.isArray(segments) &&
+    segments.length > 0 &&
+    editScreens.includes(segments[segments.length - 1]);
 
   useEffect(() => {
     // Subscribe to pulse animation requests
@@ -306,30 +358,42 @@ export function SpheresTabButton(props: BottomTabBarButtonProps) {
     props.onPress?.(ev);
   };
 
-  // Modified press handler to include animation
+  // Modified press handler to include animation and unsaved changes check
   const handlePressWithAnimation = (ev: any) => {
-    // Check for unsaved changes before navigating
-    const { hasChanges } = checkUnsavedChanges();
-    if (hasChanges) {
-      Alert.alert(
-        t('memory.unsavedChanges.title'),
-        t('memory.unsavedChanges.message'),
-        [
-          {
-            text: t('common.cancel'),
-            style: 'cancel',
-          },
-          {
-            text: t('common.discard'),
-            style: 'destructive',
-            onPress: () => {
-              emitSpheresTabPress();
-              props.onPress?.(ev);
+    // Check for unsaved changes when navigating away from edit/add screens
+    if (isOnEditScreen) {
+      const { hasChanges, screenId } = checkUnsavedChanges();
+      if (hasChanges) {
+        Alert.alert(
+          t('memory.unsavedChanges.title'),
+          t('memory.unsavedChanges.message'),
+          [
+            {
+              text: t('common.cancel'),
+              style: 'cancel',
             },
-          },
-        ]
-      );
-      return;
+            {
+              text: t('common.discard'),
+              style: 'destructive',
+              onPress: () => {
+                // Stop pulsing animation
+                cancelAnimation(pulseScale);
+                pulseScale.value = withTiming(1, {
+                  duration: 300,
+                  easing: Easing.inOut(Easing.ease),
+                });
+
+                if (screenId) {
+                  resetScreen(screenId);
+                }
+                emitSpheresTabPress();
+                props.onPress?.(ev);
+              },
+            },
+          ]
+        );
+        return;
+      }
     }
 
     // Stop pulsing animation when tab is pressed

@@ -283,7 +283,7 @@ export default function CareerComparisonScreen() {
         : 'rgba(0, 0, 0, 0.1)',
     },
     headerButton: {
-      padding: 8 * fontScale,
+      padding: 16 * fontScale,
       minWidth: 42 * fontScale,
     },
     headerTitle: {

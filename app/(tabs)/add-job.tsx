@@ -12,11 +12,12 @@ import { useJourney } from "@/utils/JourneyProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
+import { useUnsavedChanges } from "@/utils/UnsavedChangesContext";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Modal,
@@ -36,6 +37,8 @@ export default function AddJobScreen() {
   const params = useLocalSearchParams();
   const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
+  const { registerScreen, resetScreen } = useUnsavedChanges();
+  const navigation = useNavigation();
 
   const isEditMode = params.edit === "true" && params.jobId;
   const jobId = params.jobId as string | undefined;
@@ -59,6 +62,15 @@ export default function AddJobScreen() {
 
   // Track initial job count to prevent redirect after saving first job
   const isSaving = useRef(false);
+  const isNavigatingAway = useRef(false);
+
+  // Refs to track initial values for unsaved changes detection
+  const initialName = useRef("");
+  const initialDescription = useRef("");
+  const initialImage = useRef<string | null>(null);
+  const initialStartDate = useRef<Date | null>(null);
+  const initialEndDate = useRef<Date | null>(null);
+  const initialIsCurrent = useRef(false);
 
   // Load existing job data when in edit mode
   useEffect(() => {
@@ -83,6 +95,14 @@ export default function AddJobScreen() {
       setOriginalStartDate(existingJob.startDate || "");
       setOriginalEndDate(existingJob.endDate || "");
       setOriginalIsCurrent(current);
+
+      // Store initial values in refs for unsaved changes detection
+      initialName.current = jobName;
+      initialDescription.current = jobDescription;
+      initialImage.current = jobImage;
+      initialStartDate.current = start;
+      initialEndDate.current = end;
+      initialIsCurrent.current = current;
     } else {
       // Reset values when not in edit mode
       setOriginalName("");
@@ -95,6 +115,14 @@ export default function AddJobScreen() {
       setOriginalStartDate("");
       setOriginalEndDate("");
       setOriginalIsCurrent(false);
+
+      // Reset initial values
+      initialName.current = "";
+      initialDescription.current = "";
+      initialImage.current = null;
+      initialStartDate.current = null;
+      initialEndDate.current = null;
+      initialIsCurrent.current = false;
     }
   }, [existingJob, isEditMode]);
 
@@ -145,6 +173,149 @@ export default function AddJobScreen() {
   ]);
 
   const isSaveEnabled = isFormValid && hasChanges;
+
+  // Function to check if there are unsaved changes (for navigation interception)
+  const hasUnsavedChanges = useCallback(() => {
+    // Check if name changed
+    if (name.trim() !== initialName.current.trim()) {
+      return true;
+    }
+
+    // Check if description changed
+    if (description.trim() !== initialDescription.current.trim()) {
+      return true;
+    }
+
+    // Check if image changed
+    if (selectedImage !== initialImage.current) {
+      return true;
+    }
+
+    // Check if start date changed
+    const currentStartDateStr = startDate
+      ? startDate.toISOString().split("T")[0]
+      : "";
+    const initialStartDateStr = initialStartDate.current
+      ? initialStartDate.current.toISOString().split("T")[0]
+      : "";
+    if (currentStartDateStr !== initialStartDateStr) {
+      return true;
+    }
+
+    // Check if end date changed
+    const currentEndDateStr = isCurrent
+      ? null
+      : endDate
+        ? endDate.toISOString().split("T")[0]
+        : "";
+    const initialEndDateStr = initialIsCurrent.current
+      ? null
+      : initialEndDate.current
+        ? initialEndDate.current.toISOString().split("T")[0]
+        : "";
+    if (currentEndDateStr !== initialEndDateStr) {
+      return true;
+    }
+
+    // Check if current status changed
+    if (isCurrent !== initialIsCurrent.current) {
+      return true;
+    }
+
+    return false;
+  }, [name, description, selectedImage, startDate, endDate, isCurrent]);
+
+  // Register this screen with unsaved changes context
+  useEffect(() => {
+    const screenId = "add-job";
+
+    const resetToInitialState = () => {
+      setName(initialName.current);
+      setDescription(initialDescription.current);
+      setSelectedImage(initialImage.current);
+      setStartDate(initialStartDate.current);
+      setEndDate(initialEndDate.current);
+      setIsCurrent(initialIsCurrent.current);
+    };
+
+    const unregister = registerScreen(
+      screenId,
+      () => {
+        // Return true if there are unsaved changes AND we're not navigating away or saving
+        const result = !isNavigatingAway.current && !isSaving.current && hasUnsavedChanges();
+        return result;
+      },
+      resetToInitialState
+    );
+
+    return () => {
+      unregister();
+    };
+  }, [registerScreen, hasUnsavedChanges]);
+
+  // Listen for navigation events to show confirmation dialog
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
+      if (
+        isNavigatingAway.current ||
+        isSaving.current ||
+        !hasUnsavedChanges()
+      ) {
+        return; // Don't show dialog
+      }
+
+      e.preventDefault();
+      Alert.alert(
+        t("memory.unsavedChanges.title"),
+        t("memory.unsavedChanges.message"),
+        [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("common.discard"),
+            style: "destructive",
+            onPress: () => {
+              resetScreen("add-job");
+              isNavigatingAway.current = true;
+              router.back();
+            },
+          },
+        ]
+      );
+    });
+
+    return unsubscribe;
+  }, [navigation, hasUnsavedChanges, t]);
+
+  // Reset navigation flag and sync state with initial values when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      // Reset the navigating away flag
+      isNavigatingAway.current = false;
+
+      // If we navigated away and came back, reset state to match initial values
+      // This prevents showing the unsaved changes dialog for old changes after discarding
+      if (isEditMode && existingJob) {
+        // In edit mode, reset to existing job values
+        setName(initialName.current);
+        setDescription(initialDescription.current);
+        setSelectedImage(initialImage.current);
+        setStartDate(initialStartDate.current);
+        setEndDate(initialEndDate.current);
+        setIsCurrent(initialIsCurrent.current);
+      } else {
+        // In create mode, reset to empty values
+        setName(initialName.current);
+        setDescription(initialDescription.current);
+        setSelectedImage(initialImage.current);
+        setStartDate(initialStartDate.current);
+        setEndDate(initialEndDate.current);
+        setIsCurrent(initialIsCurrent.current);
+      }
+
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const styles = useMemo(
     () =>
@@ -309,7 +480,14 @@ export default function AddJobScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            console.log('[add-job.tsx] 🔙 BACK ARROW PRESSED');
+            console.log('[add-job.tsx] 🔙 NAVIGATING back to spheres (career sphere)');
+            router.navigate({
+              pathname: '/(tabs)/spheres',
+              params: { selectedSphere: 'career' }
+            });
+          }}
           activeOpacity={0.7}
         >
           <MaterialIcons

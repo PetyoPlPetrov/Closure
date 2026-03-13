@@ -12,10 +12,11 @@ import { useJourney } from "@/utils/JourneyProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
+import { useUnsavedChanges } from "@/utils/UnsavedChangesContext";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as ImagePicker from "expo-image-picker";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -39,6 +40,8 @@ export default function AddFamilyMemberScreen() {
   const params = useLocalSearchParams();
   const { isLargeDevice, maxContentWidth } = useLargeDevice();
   const t = useTranslate();
+  const { registerScreen, resetScreen } = useUnsavedChanges();
+  const navigation = useNavigation();
 
   const isEditMode = params.edit === "true" && params.memberId;
   const memberId = params.memberId as string | undefined;
@@ -51,14 +54,38 @@ export default function AddFamilyMemberScreen() {
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Refs for navigation and initial values tracking
+  const isNavigatingAway = useRef(false);
+  const initialName = useRef("");
+  const initialDescription = useRef("");
+  const initialRelationship = useRef("");
+  const initialImage = useRef<string | null>(null);
+
   // Track initial family member count to prevent redirect after saving first member
   // Load existing member data when in edit mode
   useEffect(() => {
     if (isEditMode && existingMember) {
-      setName(existingMember.name || "");
-      setDescription(existingMember.description || "");
-      setRelationship(existingMember.relationship || "");
-      setSelectedImage(existingMember.imageUri || null);
+      const memberName = existingMember.name || "";
+      const memberDesc = existingMember.description || "";
+      const memberRel = existingMember.relationship || "";
+      const memberImg = existingMember.imageUri || null;
+
+      setName(memberName);
+      setDescription(memberDesc);
+      setRelationship(memberRel);
+      setSelectedImage(memberImg);
+
+      // Store initial values in refs
+      initialName.current = memberName;
+      initialDescription.current = memberDesc;
+      initialRelationship.current = memberRel;
+      initialImage.current = memberImg;
+    } else {
+      // Reset initial values
+      initialName.current = "";
+      initialDescription.current = "";
+      initialRelationship.current = "";
+      initialImage.current = null;
     }
   }, [isEditMode, existingMember]);
 
@@ -96,6 +123,76 @@ export default function AddFamilyMemberScreen() {
 
   const isSaveEnabled =
     name.trim().length > 0 && relationship.trim().length > 0 && !isSaving;
+
+  // Function to check if there are unsaved changes (for navigation interception)
+  const hasUnsavedChanges = useCallback(() => {
+    if (name.trim() !== initialName.current.trim()) return true;
+    if (description.trim() !== initialDescription.current.trim()) return true;
+    if (relationship.trim() !== initialRelationship.current.trim()) return true;
+    if (selectedImage !== initialImage.current) return true;
+    return false;
+  }, [name, description, relationship, selectedImage]);
+
+  // Register this screen with unsaved changes context
+  useEffect(() => {
+    const screenId = "add-family-member";
+
+    const resetToInitialState = () => {
+      setName(initialName.current);
+      setDescription(initialDescription.current);
+      setRelationship(initialRelationship.current);
+      setSelectedImage(initialImage.current);
+    };
+
+    const unregister = registerScreen(
+      screenId,
+      () => {
+        return !isNavigatingAway.current && !isSaving && hasUnsavedChanges();
+      },
+      resetToInitialState
+    );
+    return unregister;
+  }, [registerScreen, hasUnsavedChanges, isSaving]);
+
+  // Listen for navigation events to show confirmation dialog
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
+      if (isNavigatingAway.current || isSaving || !hasUnsavedChanges()) {
+        return;
+      }
+      e.preventDefault();
+      Alert.alert(
+        t("memory.unsavedChanges.title"),
+        t("memory.unsavedChanges.message"),
+        [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("common.discard"),
+            style: "destructive",
+            onPress: () => {
+              resetScreen("add-family-member");
+              isNavigatingAway.current = true;
+              router.back();
+            },
+          },
+        ]
+      );
+    });
+    return unsubscribe;
+  }, [navigation, hasUnsavedChanges, isSaving, t]);
+
+  // Reset navigation flag and sync state with initial values when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      isNavigatingAway.current = false;
+      // Reset state to match initial values to prevent stale unsaved changes
+      setName(initialName.current);
+      setDescription(initialDescription.current);
+      setRelationship(initialRelationship.current);
+      setSelectedImage(initialImage.current);
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -167,7 +264,14 @@ export default function AddFamilyMemberScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            console.log('[add-family-member.tsx] 🔙 BACK ARROW PRESSED');
+            console.log('[add-family-member.tsx] 🔙 NAVIGATING back to spheres (family sphere)');
+            router.navigate({
+              pathname: '/(tabs)/spheres',
+              params: { selectedSphere: 'family' }
+            });
+          }}
           activeOpacity={0.7}
         >
           <MaterialIcons

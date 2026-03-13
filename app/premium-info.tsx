@@ -209,7 +209,7 @@ function createStyles(
         : "rgba(0, 0, 0, 0.1)",
     } as ViewStyle,
     backButton: {
-      padding: 8 * fontScale,
+      padding: 16 * fontScale,
       minWidth: 40 * fontScale,
       alignItems: "center",
     } as ViewStyle,

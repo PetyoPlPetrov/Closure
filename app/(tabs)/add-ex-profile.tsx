@@ -76,7 +76,7 @@ export default function AddExProfileScreen() {
 
   // Navigation hook for intercepting back navigation
   const navigation = useNavigation();
-  const { registerScreen } = useUnsavedChanges();
+  const { registerScreen, resetScreen } = useUnsavedChanges();
 
   // Load existing profile data when in edit mode
   useEffect(() => {
@@ -271,10 +271,24 @@ export default function AddExProfileScreen() {
   // Register this screen with the unsaved changes context
   useEffect(() => {
     const screenId = 'add-ex-profile';
-    const unregister = registerScreen(screenId, () => {
-      // Return true if there are unsaved changes AND we're not navigating away or saving
-      return !isNavigatingAway.current && !isSaving.current && hasUnsavedChanges();
-    });
+
+    const resetToInitialState = () => {
+      setName(initialName.current);
+      setDescription(initialDescription.current);
+      setRelationshipStartDate(initialStartDate.current);
+      setRelationshipEndDate(initialEndDate.current);
+      setIsOngoing(initialIsOngoing.current);
+      setSelectedImage(initialImage.current);
+    };
+
+    const unregister = registerScreen(
+      screenId,
+      () => {
+        // Return true if there are unsaved changes AND we're not navigating away or saving
+        return !isNavigatingAway.current && !isSaving.current && hasUnsavedChanges();
+      },
+      resetToInitialState
+    );
 
     return unregister;
   }, [registerScreen, hasUnsavedChanges]);
@@ -316,10 +330,11 @@ export default function AddExProfileScreen() {
             text: t("common.discard"),
             style: "destructive",
             onPress: () => {
+              resetScreen("add-ex-profile");
               // Mark as intentionally navigating away
               isNavigatingAway.current = true;
-              // Dispatch the original navigation action that was prevented
-              navigation.dispatch(e.data.action);
+              // Go back to previous screen
+              router.back();
             },
           },
         ],
@@ -542,14 +557,23 @@ export default function AddExProfileScreen() {
                     text: t("common.discard"),
                     style: "destructive",
                     onPress: () => {
+                      console.log('[add-ex-profile.tsx] 🔙 BACK ARROW PRESSED - Discard clicked');
+                      resetScreen("add-ex-profile");
                       isNavigatingAway.current = true;
-                      router.back();
+                      router.navigate({
+                        pathname: '/(tabs)/spheres',
+                        params: { selectedSphere: 'relationships' }
+                      });
                     },
                   },
                 ],
               );
             } else {
-              router.back();
+              console.log('[add-ex-profile.tsx] 🔙 BACK ARROW PRESSED - No unsaved changes');
+              router.navigate({
+                pathname: '/(tabs)/spheres',
+                params: { selectedSphere: 'relationships' }
+              });
             }
           }}
           activeOpacity={0.7}

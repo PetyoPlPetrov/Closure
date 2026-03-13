@@ -13093,6 +13093,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
 });
 
 export default function HomeScreen() {
+  console.log('[index.tsx] 🏠 HOME SCREEN RENDERED');
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();

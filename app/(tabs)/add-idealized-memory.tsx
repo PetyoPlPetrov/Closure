@@ -24,7 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useSegments } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -934,6 +934,10 @@ export default function AddIdealizedMemoryScreen() {
   const sunWidth = isLargeDevice ? 150 : 100;
   const sunHeight = isLargeDevice ? 150 : 100;
   const params = useLocalSearchParams();
+  const segments = useSegments();
+  console.log('[add-idealized-memory.tsx] 💭 ADD/EDIT MEMORY SCREEN RENDERED');
+  console.log('[add-idealized-memory.tsx] Raw params:', params);
+  console.log('[add-idealized-memory.tsx] Current segments:', segments);
   const { addIdealizedMemory, updateIdealizedMemory, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
   const t = useTranslate();
   const { language } = useLanguage();
@@ -947,6 +951,7 @@ export default function AddIdealizedMemoryScreen() {
   const memoryId = Array.isArray(params.memoryId) ? params.memoryId[0] : (params.memoryId as string | undefined);
   const viewOnly = (Array.isArray(params.viewOnly) ? params.viewOnly[0] : params.viewOnly) === 'true';
   const isEditMode = memoryId !== undefined;
+  console.log('[add-idealized-memory.tsx] Parsed - entityId:', entityId, 'sphere:', sphere, 'memoryId:', memoryId, 'isEditMode:', isEditMode);
 
   // Determine which mode we're in: new (entityId + sphere) or old (profileId)
   const isNewMode = !!(entityId && sphere);
@@ -1061,39 +1066,47 @@ export default function AddIdealizedMemoryScreen() {
   // Navigation hook for intercepting back navigation
   const navigation = useNavigation();
   const isNavigatingAway = useRef(false);
-  const { registerScreen } = useUnsavedChanges();
+  const { registerScreen, resetScreen } = useUnsavedChanges();
   
   // Function to check if there are unsaved changes
   const hasUnsavedChanges = useCallback(() => {
     // Check if title changed
-    if (memoryLabel.trim() !== initialMemoryLabel.current.trim()) return true;
-    
+    if (memoryLabel.trim() !== initialMemoryLabel.current.trim()) {
+      return true;
+    }
+
     // Check if image changed
-    if (selectedImage !== initialSelectedImage.current) return true;
-    
+    if (selectedImage !== initialSelectedImage.current) {
+      return true;
+    }
+
     // Check if clouds changed (count, text, or positions)
-    if (clouds.length !== initialClouds.current.length) return true;
-    
+    if (clouds.length !== initialClouds.current.length) {
+      return true;
+    }
+
     // Check if cloud text changed (positions are not saved, so don't check them)
     for (const cloud of clouds) {
       const initialCloud = initialClouds.current.find(c => c.id === cloud.id);
       if (!initialCloud || cloud.text.trim() !== initialCloud.text.trim()) return true;
     }
-    
+
     // Check if any initial cloud was deleted
     for (const initialCloud of initialClouds.current) {
       if (!clouds.find(c => c.id === initialCloud.id)) return true;
     }
-    
+
     // Check if suns changed (count, text, or positions)
-    if (suns.length !== initialSuns.current.length) return true;
-    
+    if (suns.length !== initialSuns.current.length) {
+      return true;
+    }
+
     // Check if sun text changed (positions are not saved, so don't check them)
     for (const sun of suns) {
       const initialSun = initialSuns.current.find(s => s.id === sun.id);
       if (!initialSun || sun.text.trim() !== initialSun.text.trim()) return true;
     }
-    
+
     // Check if any initial sun was deleted
     for (const initialSun of initialSuns.current) {
       if (!suns.find(s => s.id === initialSun.id)) return true;
@@ -1112,6 +1125,7 @@ export default function AddIdealizedMemoryScreen() {
     for (const initialLesson of initialLessons.current) {
       if (!lessons.find(l => l.id === initialLesson.id)) return true;
     }
+
     return false;
   }, [memoryLabel, selectedImage, clouds, suns, lessons]);
 
@@ -1122,10 +1136,24 @@ export default function AddIdealizedMemoryScreen() {
     }
 
     const screenId = 'add-idealized-memory';
-    const unregister = registerScreen(screenId, () => {
-      // Return true if there are unsaved changes AND we're not navigating away
-      return !isNavigatingAway.current && hasUnsavedChanges();
-    });
+
+    // Reset function to restore initial state
+    const resetToInitialState = () => {
+      setMemoryLabel(initialMemoryLabel.current);
+      setSelectedImage(initialSelectedImage.current);
+      setClouds(JSON.parse(JSON.stringify(initialClouds.current)));
+      setSuns(JSON.parse(JSON.stringify(initialSuns.current)));
+      setLessons(JSON.parse(JSON.stringify(initialLessons.current)));
+    };
+
+    const unregister = registerScreen(
+      screenId,
+      () => {
+        // Return true if there are unsaved changes AND we're not navigating away
+        return !isNavigatingAway.current && hasUnsavedChanges();
+      },
+      resetToInitialState
+    );
 
     return unregister;
   }, [registerScreen, hasUnsavedChanges, viewOnly, isSaving]);
@@ -1149,19 +1177,15 @@ export default function AddIdealizedMemoryScreen() {
       }
       
       // Don't show dialog if there are no unsaved changes
-      console.log('[Navigation] beforeRemove event triggered, checking for unsaved changes...');
       const hasChanges = hasUnsavedChanges();
-      console.log('[Navigation] hasUnsavedChanges result:', hasChanges);
-      
+
       if (!hasChanges) {
-        console.log('[Navigation] No unsaved changes, allowing navigation');
         return;
       }
-      
-      console.log('[Navigation] Unsaved changes detected, preventing navigation and showing alert');
+
       // Prevent default behavior of leaving the screen
       e.preventDefault();
-      
+
       // Show confirmation dialog
       Alert.alert(
         t('memory.unsavedChanges.title'),
@@ -1170,18 +1194,37 @@ export default function AddIdealizedMemoryScreen() {
           {
             text: t('common.cancel'),
             style: 'cancel',
-            onPress: () => {
-              // Do nothing, stay on screen
-            },
           },
           {
             text: t('common.discard'),
             style: 'destructive',
             onPress: () => {
+              console.log('[add-idealized-memory] 🔙 Back button discard pressed');
+              console.log('[add-idealized-memory] Params:', { entityId, profileId, sphere });
+
+              // Reset via context
+              resetScreen('add-idealized-memory');
+
               // Mark as intentionally navigating away
               isNavigatingAway.current = true;
-              // Dispatch the original navigation action that was prevented
-              navigation.dispatch(e.data.action);
+
+              // Navigate back to idealized-memories list if we have entityId/profileId, otherwise go to home
+              if (entityId && sphere) {
+                console.log('[add-idealized-memory] Navigating back to idealized-memories with entityId');
+                router.replace({
+                  pathname: '/idealized-memories',
+                  params: { entityId, sphere }
+                });
+              } else if (profileId) {
+                console.log('[add-idealized-memory] Navigating back to idealized-memories with profileId');
+                router.replace({
+                  pathname: '/idealized-memories',
+                  params: { profileId }
+                });
+              } else {
+                console.log('[add-idealized-memory] No entity/profile params, using router.back()');
+                router.back();
+              }
             },
           },
         ]
@@ -1190,6 +1233,40 @@ export default function AddIdealizedMemoryScreen() {
 
     return unsubscribe;
   }, [navigation, hasUnsavedChanges, isSaving, t, viewOnly]);
+
+  // Reset navigation flag and sync state with initial values when screen comes into focus
+  useEffect(() => {
+    const resetState = () => {
+      // Only reset if we were previously navigating away (meaning we discarded changes)
+      if (!isNavigatingAway.current) {
+        return;
+      }
+
+      // Reset the navigating away flag FIRST
+      isNavigatingAway.current = false;
+
+      // Force complete reset by creating new array instances
+      const resetClouds = JSON.parse(JSON.stringify(initialClouds.current));
+      const resetSuns = JSON.parse(JSON.stringify(initialSuns.current));
+      const resetLessons = JSON.parse(JSON.stringify(initialLessons.current));
+
+      setMemoryLabel(initialMemoryLabel.current);
+      setSelectedImage(initialSelectedImage.current);
+      setClouds(resetClouds);
+      setSuns(resetSuns);
+      setLessons(resetLessons);
+    };
+
+    const unsubscribeFocus = navigation.addListener('focus', () => {
+      console.log('[add-idealized-memory] 🎯 Screen FOCUSED');
+      console.log('[add-idealized-memory] isNavigatingAway:', isNavigatingAway.current);
+      resetState();
+    });
+
+    return () => {
+      unsubscribeFocus();
+    };
+  }, [navigation]);
 
   // Function to get initial cloud position (center of screen with small random offset)
   const getInitialCloudPosition = useCallback(() => {
@@ -1306,16 +1383,7 @@ export default function AddIdealizedMemoryScreen() {
     loadedMemoryIdRef.current = existingMemory.id;
 
     const runLoad = () => {
-      console.log('[LoadMemory] Loading memory data...', {
-      hasExistingMemory: !!existingMemory,
-      memoryId,
-      isEditMode,
-      existingMemoryTitle: existingMemory?.title,
-      existingMemoryImageUri: existingMemory?.imageUri
-    });
-    
     if (existingMemory) {
-      console.log('[LoadMemory] Setting initial values from existing memory');
       setMemoryLabel(existingMemory.title || '');
       setSelectedImage(existingMemory.imageUri || null);
       initialMemoryLabel.current = existingMemory.title || '';
@@ -1357,7 +1425,6 @@ export default function AddIdealizedMemoryScreen() {
         
         setClouds(initialCloudsData);
         initialClouds.current = initialCloudsData.map(c => ({ ...c }));
-        console.log('[LoadMemory] Initialized clouds:', initialClouds.current.length);
       }
 
       // Initialize suns from existing memory
@@ -1396,7 +1463,6 @@ export default function AddIdealizedMemoryScreen() {
         
         setSuns(initialSunsData);
         initialSuns.current = initialSunsData.map(s => ({ ...s }));
-        console.log('[LoadMemory] Initialized suns:', initialSuns.current.length);
       }
 
       // Initialize lessons from existing memory
@@ -1437,16 +1503,7 @@ export default function AddIdealizedMemoryScreen() {
 
         setLessons(initialLessonsData);
         initialLessons.current = initialLessonsData.map(l => ({ ...l }));
-        console.log('[LoadMemory] Initialized lessons:', initialLessons.current.length);
       }
-      
-      console.log('[LoadMemory] Final initial values set:', {
-        memoryLabel: initialMemoryLabel.current,
-        selectedImage: initialSelectedImage.current,
-        cloudsCount: initialClouds.current.length,
-        sunsCount: initialSuns.current.length,
-        lessonsCount: initialLessons.current.length
-      });
     }
     };
 
@@ -1715,14 +1772,6 @@ export default function AddIdealizedMemoryScreen() {
       }
       
       // Update initial state after saving to prevent false positives
-      console.log('[SaveMemory] Updating initial values after save:', {
-        memoryLabel: memoryLabel.trim(),
-        selectedImage,
-        cloudsCount: clouds.length,
-        sunsCount: suns.length,
-        lessonsCount: lessons.length
-      });
-      
       initialMemoryLabel.current = memoryLabel.trim();
       initialSelectedImage.current = selectedImage;
       initialClouds.current = clouds.map(c => ({ ...c }));
@@ -2697,15 +2746,54 @@ export default function AddIdealizedMemoryScreen() {
                     text: t('common.discard'),
                     style: 'destructive',
                     onPress: () => {
+                      console.log('[add-idealized-memory.tsx] 🔙 BACK ARROW PRESSED - Discard button clicked');
+                      console.log('[add-idealized-memory.tsx] 🔙 NAVIGATING back to idealized-memories');
+                      resetScreen('add-idealized-memory');
                       isNavigatingAway.current = true;
-                      router.back();
+
+                      // Navigate to idealized-memories list with params if available
+                      if (entityId && sphere) {
+                        console.log('[add-idealized-memory.tsx] Using router.navigate with entityId:', entityId, 'sphere:', sphere);
+                        router.navigate({
+                          pathname: '/idealized-memories',
+                          params: { entityId, sphere }
+                        });
+                      } else if (profileId) {
+                        console.log('[add-idealized-memory.tsx] Using router.navigate with profileId:', profileId);
+                        router.navigate({
+                          pathname: '/idealized-memories',
+                          params: { profileId }
+                        });
+                      } else {
+                        console.log('[add-idealized-memory.tsx] Using router.navigate with no params');
+                        router.navigate('/idealized-memories');
+                      }
                     },
                   },
                 ]
               );
             } else {
+              console.log('[add-idealized-memory.tsx] 🔙 BACK ARROW PRESSED - No unsaved changes');
+              console.log('[add-idealized-memory.tsx] 🔙 NAVIGATING back to idealized-memories');
               isNavigatingAway.current = true;
-              router.back();
+
+              // Navigate to idealized-memories list with params if available
+              if (entityId && sphere) {
+                console.log('[add-idealized-memory.tsx] Using router.navigate with entityId:', entityId, 'sphere:', sphere);
+                router.navigate({
+                  pathname: '/idealized-memories',
+                  params: { entityId, sphere }
+                });
+              } else if (profileId) {
+                console.log('[add-idealized-memory.tsx] Using router.navigate with profileId:', profileId);
+                router.navigate({
+                  pathname: '/idealized-memories',
+                  params: { profileId }
+                });
+              } else {
+                console.log('[add-idealized-memory.tsx] Using router.navigate with no params');
+                router.navigate('/idealized-memories');
+              }
             }
           }}
         >

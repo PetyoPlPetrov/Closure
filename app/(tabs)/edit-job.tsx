@@ -133,16 +133,25 @@ export default function EditJobScreen() {
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => {
+            console.log('[edit-job.tsx] 🔙 BACK ARROW PRESSED');
             const returnTo = params.returnTo as string | undefined;
             const returnSphere = params.returnSphere as string | undefined;
 
             if (returnTo === 'spheres' && returnSphere) {
-              // Navigate back to spheres screen - just use router.back() since we came from there
-              router.back();
+              console.log('[edit-job.tsx] 🔙 NAVIGATING back to spheres (career sphere)');
+              router.navigate({
+                pathname: '/(tabs)/spheres',
+                params: { selectedSphere: returnSphere }
+              });
             } else if (returnTo === 'career-comparison') {
-              router.replace('/career-comparison');
+              console.log('[edit-job.tsx] 🔙 NAVIGATING back to career-comparison');
+              router.navigate('/career-comparison');
             } else {
-              router.back();
+              console.log('[edit-job.tsx] 🔙 NAVIGATING back to spheres (career sphere - default)');
+              router.navigate({
+                pathname: '/(tabs)/spheres',
+                params: { selectedSphere: 'career' }
+              });
             }
           }}
           activeOpacity={0.7}

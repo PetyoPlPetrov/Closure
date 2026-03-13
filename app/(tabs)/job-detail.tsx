@@ -18,6 +18,7 @@ import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'reac
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function JobDetailScreen() {
+  console.log("[job-detail] 🏠 Screen MOUNTED/RENDERED");
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
@@ -133,7 +134,7 @@ export default function JobDetailScreen() {
         : 'rgba(0, 0, 0, 0.1)',
     },
     headerButton: {
-      padding: 8 * fontScale,
+      padding: 16 * fontScale,
       minWidth: 42 * fontScale,
     },
     headerTitle: {

@@ -248,6 +248,7 @@ const SparkledDot = React.memo(function SparkledDot({
 });
 
 export default function SpheresScreen() {
+  console.log('[spheres.tsx] 🌐 SPHERES SCREEN RENDERED');
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const { momentColors } = useMomentColors();
