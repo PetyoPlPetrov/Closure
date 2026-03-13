@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -13,6 +13,10 @@ import { useEventInAppNotificationPreference } from '@/utils/EventInAppNotificat
 import { useNotificationNudgePreference } from '@/utils/NotificationNudgePreferenceProvider';
 import { useNotificationsManager } from '@/utils/NotificationsProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
+import {
+  getAllScheduledEventReminders,
+  type EventReminderInfo,
+} from '@/utils/sfera-events';
 
 export default function NotificationsScreen() {
   const t = useTranslate();
@@ -37,6 +41,54 @@ export default function NotificationsScreen() {
   const { assignments } = useNotificationsManager();
   const notificationNudge = useNotificationNudgePreference();
   const eventInAppPref = useEventInAppNotificationPreference();
+
+  const [eventReminders, setEventReminders] = useState<EventReminderInfo[]>([]);
+  const [loadingReminders, setLoadingReminders] = useState(true);
+
+  const loadEventReminders = useCallback(async () => {
+    setLoadingReminders(true);
+    try {
+      const reminders = await getAllScheduledEventReminders();
+      setEventReminders(reminders);
+    } catch (error) {
+      console.error('[Notifications] Failed to load event reminders:', error);
+    } finally {
+      setLoadingReminders(false);
+    }
+  }, []);
+
+  // Refresh reminders when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      void loadEventReminders();
+    }, [loadEventReminders])
+  );
+
+  const renderEventRemindersSection = () => {
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => router.push('/event-reminders')}
+        activeOpacity={0.8}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flex: 1 }}>
+            <ThemedText size="l" weight="bold">
+              {t('notifications.eventReminders.title')}
+            </ThemedText>
+            <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
+              {loadingReminders
+                ? t('common.loading')
+                : eventReminders.length === 0
+                ? t('notifications.eventReminders.noScheduled')
+                : t('notifications.eventReminders.count', { count: eventReminders.length })}
+            </ThemedText>
+          </View>
+          <MaterialIcons name="chevron-right" size={24 * fontScale} color={palette.text} />
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderSphereBlock = (sphere: 'friends' | 'family' | 'relationships', title: string, entityNames: { id: string; name: string }[]) => {
     if (entityNames.length === 0) return null;
@@ -131,6 +183,8 @@ export default function NotificationsScreen() {
           />
         </View>
       </View>
+      {/* Event memory reminders section */}
+      {renderEventRemindersSection()}
       <TouchableOpacity
         style={styles.card}
         onPress={() => router.push('/moment-notifications')}

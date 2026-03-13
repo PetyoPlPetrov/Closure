@@ -703,6 +703,22 @@ export interface Translations {
   "notifications.sphere.relationships": string;
   "notifications.status.on": string;
   "notifications.status.off": string;
+  "notifications.eventReminders.title": string;
+  "notifications.eventReminders.description": string;
+  "notifications.eventReminders.nextReminder": string;
+  "notifications.eventReminders.remaining": string;
+  "notifications.eventReminders.overdue": string;
+  "notifications.eventReminders.lessThanMinute": string;
+  "notifications.eventReminders.inMinutes": string;
+  "notifications.eventReminders.inHours": string;
+  "notifications.eventReminders.inDays": string;
+  "notifications.eventReminders.noMoreReminders": string;
+  "notifications.eventReminders.cancelTitle": string;
+  "notifications.eventReminders.cancelMessage": string;
+  "notifications.eventReminders.cancelError": string;
+  "notifications.eventReminders.noScheduled": string;
+  "notifications.eventReminders.count": string;
+  "notifications.eventReminders.reminderNumber": string;
   "notifications.settings.title": string;
   "notifications.settings.turnOn": string;
   "notifications.settings.turnOnDescription": string;
@@ -3853,6 +3869,7 @@ const translations: Record<Language, Translations> = {
     "common.ok": "OK",
     "common.success": "Success",
     "common.error": "Error",
+    "common.loading": "Loading...",
     "common.retry": "Retry",
     "common.name": "Name",
     "common.description": "Description",
@@ -4517,6 +4534,24 @@ const translations: Record<Language, Translations> = {
     "notifications.sphere.relationships": "Relationships",
     "notifications.status.on": "On",
     "notifications.status.off": "Off",
+    "notifications.eventReminders.title": "Event Memory Reminders",
+    "notifications.eventReminders.description":
+      "Scheduled reminders to create memories for events you joined",
+    "notifications.eventReminders.nextReminder": "Next reminder",
+    "notifications.eventReminders.remaining": "{count} reminder(s) remaining",
+    "notifications.eventReminders.overdue": "Overdue",
+    "notifications.eventReminders.lessThanMinute": "Less than a minute",
+    "notifications.eventReminders.inMinutes": "In {count} minute(s)",
+    "notifications.eventReminders.inHours": "In {count} hour(s)",
+    "notifications.eventReminders.inDays": "In {count} day(s)",
+    "notifications.eventReminders.noMoreReminders": "No more reminders",
+    "notifications.eventReminders.cancelTitle": "Cancel Reminders",
+    "notifications.eventReminders.cancelMessage":
+      "Are you sure you want to stop all reminders for '{eventName}'?",
+    "notifications.eventReminders.cancelError": "Failed to cancel reminders",
+    "notifications.eventReminders.noScheduled": "No reminders scheduled. Join an event to receive reminders to create memories.",
+    "notifications.eventReminders.count": "{count} event reminder(s) scheduled",
+    "notifications.eventReminders.reminderNumber": "Reminder {number}",
     "notifications.settings.title": "Notification settings",
     "notifications.settings.turnOn": "Turn on",
     "notifications.settings.turnOnDescription":
@@ -8345,6 +8380,7 @@ const translations: Record<Language, Translations> = {
     "common.success": "Успех",
     "common.done": "Готово",
     "common.error": "Грешка",
+    "common.loading": "Зареждане...",
     "common.retry": "Опитай отново",
     "common.photo": "Снимка",
     "common.addPhoto": "Добави снимка",
@@ -9015,6 +9051,24 @@ const translations: Record<Language, Translations> = {
     "notifications.sphere.relationships": "Връзки",
     "notifications.status.on": "Вкл",
     "notifications.status.off": "Изкл",
+    "notifications.eventReminders.title": "Напомняния за спомени от събития",
+    "notifications.eventReminders.description":
+      "Планирани напомняния за създаване на спомени от събития, към които сте се присъединили",
+    "notifications.eventReminders.nextReminder": "Следващо напомняне",
+    "notifications.eventReminders.remaining": "{count} напомняния остават",
+    "notifications.eventReminders.overdue": "Просрочено",
+    "notifications.eventReminders.lessThanMinute": "По-малко от минута",
+    "notifications.eventReminders.inMinutes": "След {count} минути",
+    "notifications.eventReminders.inHours": "След {count} часа",
+    "notifications.eventReminders.inDays": "След {count} дни",
+    "notifications.eventReminders.noMoreReminders": "Няма повече напомняния",
+    "notifications.eventReminders.cancelTitle": "Отмяна на напомняния",
+    "notifications.eventReminders.cancelMessage":
+      "Сигурни ли сте, че искате да спрете всички напомняния за '{eventName}'?",
+    "notifications.eventReminders.cancelError": "Грешка при отмяна на напомнянията",
+    "notifications.eventReminders.noScheduled": "Няма планирани напомняния. Присъединете се към събитие, за да получавате напомняния за създаване на спомени.",
+    "notifications.eventReminders.count": "{count} планирани напомняния за събития",
+    "notifications.eventReminders.reminderNumber": "Напомняне {number}",
     "notifications.settings.title": "Настройки за известия",
     "notifications.settings.turnOn": "Включи",
     "notifications.settings.turnOnDescription":

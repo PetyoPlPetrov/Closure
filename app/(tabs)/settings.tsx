@@ -1940,6 +1940,7 @@ export default function SettingsScreen() {
           {t("settings.title")}
         </ThemedText>
 
+        {/* CORE PERSONALIZATION */}
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
             {t("settings.language")}
@@ -2103,26 +2104,25 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* LEARNING & HELP */}
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            {t("settings.feedback.title")}
+            {t("settings.help.title")}
           </ThemedText>
 
           <TouchableOpacity
             style={styles.dropdown}
-            onPress={() =>
-              Linking.openURL("https://forms.gle/6JGAWe2BAMety8m26")
-            }
+            onPress={() => setOnboardingVisible(true)}
             activeOpacity={0.7}
           >
             <View style={styles.dropdownContent}>
               <MaterialIcons
-                name="feedback"
+                name="help-outline"
                 size={24 * fontScale}
                 color={colors.primary}
               />
               <ThemedText size="l" weight="medium" style={styles.dropdownText}>
-                {t("settings.feedback.addFeedback")}
+                {t("settings.help.viewGuide")}
               </ThemedText>
             </View>
             <MaterialIcons
@@ -2133,39 +2133,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            {t("settings.backup.title")}
-          </ThemedText>
-          <TouchableOpacity
-            style={styles.dropdown}
-            onPress={async () => {
-              if (!hasBackupAccess) {
-                const purchased = await showPaywallForAnySubscriptionAccess();
-                if (!purchased) return;
-              }
-              router.push("/backup");
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={styles.dropdownContent}>
-              <MaterialIcons
-                name="backup"
-                size={24 * fontScale}
-                color={colors.primary}
-              />
-              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
-                {t("settings.backup.title")}
-              </ThemedText>
-            </View>
-            <MaterialIcons
-              name="arrow-forward-ios"
-              size={20 * fontScale}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-        </View>
-
+        {/* PREMIUM FEATURES */}
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
             {t("settings.subscriptions.title")}
@@ -2246,22 +2214,58 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            {t("settings.help.title")}
+            {t("settings.backup.title")}
           </ThemedText>
-
           <TouchableOpacity
             style={styles.dropdown}
-            onPress={() => setOnboardingVisible(true)}
+            onPress={async () => {
+              if (!hasBackupAccess) {
+                const purchased = await showPaywallForAnySubscriptionAccess();
+                if (!purchased) return;
+              }
+              router.push("/backup");
+            }}
             activeOpacity={0.7}
           >
             <View style={styles.dropdownContent}>
               <MaterialIcons
-                name="help-outline"
+                name="backup"
                 size={24 * fontScale}
                 color={colors.primary}
               />
               <ThemedText size="l" weight="medium" style={styles.dropdownText}>
-                {t("settings.help.viewGuide")}
+                {t("settings.backup.title")}
+              </ThemedText>
+            </View>
+            <MaterialIcons
+              name="arrow-forward-ios"
+              size={20 * fontScale}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* COMMUNITY & SUPPORT */}
+        <View style={styles.section}>
+          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            {t("settings.feedback.title")}
+          </ThemedText>
+
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={() =>
+              Linking.openURL("https://forms.gle/6JGAWe2BAMety8m26")
+            }
+            activeOpacity={0.7}
+          >
+            <View style={styles.dropdownContent}>
+              <MaterialIcons
+                name="feedback"
+                size={24 * fontScale}
+                color={colors.primary}
+              />
+              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                {t("settings.feedback.addFeedback")}
               </ThemedText>
             </View>
             <MaterialIcons

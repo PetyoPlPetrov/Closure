@@ -901,10 +901,14 @@ export async function removeEventReminderScheduledIds(
 }
 
 // --- In-app event memory reminder (3 time-based reminders per event; clear when user saves memory) ---
-// Prod: 1 reminder per day for the next 3 days (day+1, day+2, day+3 at 10:00). Dev: 1 per minute (1min, 2min, 3min from now).
+// Prod: 1 reminder per day for the next 3 days (day+1, day+2, day+3). Dev: 1 per minute (1min, 2min, 3min from now).
+// Reminders are staggered at different times (9 AM, 2 PM, 7 PM) to avoid overlaps when users attend events on consecutive days.
 
-const REMINDER_HOUR = 10;
-const REMINDER_MINUTE = 0;
+const REMINDER_TIMES = [
+  { hour: 9, minute: 0 },   // Reminder 1: 9:00 AM
+  { hour: 14, minute: 0 },  // Reminder 2: 2:00 PM
+  { hour: 19, minute: 0 },  // Reminder 3: 7:00 PM
+];
 const DEV_REMINDER_INTERVAL_MS = 60 * 1000; // 1 minute
 const NUM_REMINDERS_PER_EVENT = 3;
 
@@ -933,16 +937,16 @@ function computeReminderDueTimes(event: SferaEvent): number[] {
 }
 
 function computeDueTimesFromStartDay(startDay: Date): number[] {
-  const due1 = new Date(startDay);
-  due1.setDate(due1.getDate() + 1);
-  due1.setHours(REMINDER_HOUR, REMINDER_MINUTE, 0, 0);
-  const due2 = new Date(startDay);
-  due2.setDate(due2.getDate() + 2);
-  due2.setHours(REMINDER_HOUR, REMINDER_MINUTE, 0, 0);
-  const due3 = new Date(startDay);
-  due3.setDate(due3.getDate() + 3);
-  due3.setHours(REMINDER_HOUR, REMINDER_MINUTE, 0, 0);
-  return [due1.getTime(), due2.getTime(), due3.getTime()];
+  const dueTimes: number[] = [];
+
+  for (let i = 0; i < NUM_REMINDERS_PER_EVENT; i++) {
+    const dueDate = new Date(startDay);
+    dueDate.setDate(dueDate.getDate() + i + 1); // day+1, day+2, day+3
+    dueDate.setHours(REMINDER_TIMES[i].hour, REMINDER_TIMES[i].minute, 0, 0);
+    dueTimes.push(dueDate.getTime());
+  }
+
+  return dueTimes;
 }
 
 async function getEventReminderScheduleMap(): Promise<
@@ -1000,6 +1004,27 @@ export async function getOrCreateEventReminderSchedule(
   return { schedule, created: true };
 }
 
+/** Schedule reminder when user joins event (immediately, regardless of event timing). */
+export async function scheduleEventRemindersOnJoin(
+  event: SferaEvent,
+): Promise<void> {
+  const existing = await getEventReminderInAppSchedule(event.id);
+  if (existing) {
+    if (__DEV__)
+      console.log('[Event reminders] Schedule already exists for event:', event.id);
+    return;
+  }
+
+  const dueTimes = computeReminderDueTimes(event);
+  const schedule: EventReminderInAppSchedule = { dueTimes, shownCount: 0 };
+  const map = await getEventReminderScheduleMap();
+  map[event.id] = schedule;
+  await setEventReminderScheduleMap(map);
+
+  if (__DEV__)
+    console.log('[Event reminders] Scheduled reminders on join for event:', event.id, 'due times:', dueTimes);
+}
+
 /** After showing a reminder, increment shown count. Returns new count. */
 export async function incrementEventReminderInAppShownCount(
   eventId: string,
@@ -1036,6 +1061,64 @@ export async function clearEventReminderInAppForEvents(
   const map = await getEventReminderScheduleMap();
   eventIds.forEach((id) => delete map[id]);
   await setEventReminderScheduleMap(map);
+}
+
+export interface EventReminderInfo {
+  event: SferaEvent;
+  schedule: EventReminderInAppSchedule;
+  nextReminderIndex: number; // 0, 1, or 2 (which reminder is next)
+  nextReminderTime: number | null; // timestamp of next reminder, or null if all shown
+  remainingCount: number; // how many reminders left (0-3)
+}
+
+/** Get all events that have scheduled reminders (includes upcoming and past events user has joined). */
+export async function getAllScheduledEventReminders(): Promise<EventReminderInfo[]> {
+  const [map, attendedEvents, goldenUsed] = await Promise.all([
+    getEventReminderScheduleMap(),
+    getAttendedEventSnapshots(), // Get ALL attended events (not just past)
+    getEventGoldenMemoryUsedIds(),
+  ]);
+
+  const results: EventReminderInfo[] = [];
+
+  for (const event of attendedEvents) {
+    // Skip events that already have memories created
+    if (goldenUsed.has(event.id)) continue;
+
+    const schedule = map[event.id];
+    if (!schedule || !Array.isArray(schedule.dueTimes) || schedule.dueTimes.length !== NUM_REMINDERS_PER_EVENT) {
+      continue;
+    }
+
+    const shownCount = typeof schedule.shownCount === 'number'
+      ? Math.min(schedule.shownCount, NUM_REMINDERS_PER_EVENT)
+      : 0;
+
+    // Skip if all reminders have been shown
+    if (shownCount >= NUM_REMINDERS_PER_EVENT) continue;
+
+    const nextReminderIndex = shownCount;
+    const nextReminderTime = schedule.dueTimes[nextReminderIndex];
+    const remainingCount = NUM_REMINDERS_PER_EVENT - shownCount;
+
+    results.push({
+      event,
+      schedule,
+      nextReminderIndex,
+      nextReminderTime,
+      remainingCount,
+    });
+  }
+
+  // Sort by next reminder time (soonest first)
+  results.sort((a, b) => {
+    if (a.nextReminderTime === null && b.nextReminderTime === null) return 0;
+    if (a.nextReminderTime === null) return 1;
+    if (b.nextReminderTime === null) return -1;
+    return a.nextReminderTime - b.nextReminderTime;
+  });
+
+  return results;
 }
 
 // --- Code unlock (stored locally; used for both Private and VIP) ---

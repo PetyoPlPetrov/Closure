@@ -42,6 +42,7 @@ import {
   removeEventGoldenMemoryUsedIds,
   removeEventReminderScheduledIds,
   requestLocationPermission,
+  scheduleEventRemindersOnJoin,
   syncAttendedSnapshotsFromActiveEvents,
   validateCodeForSection,
   type SferaEvent,
@@ -2294,6 +2295,9 @@ export default function EventsTab() {
                           await removeAttendedEventSnapshotsByIds([
                             expandedEvent.id,
                           ]);
+                          // Cancel all scheduled reminders for this event
+                          await clearEventReminderInAppForEvent(expandedEvent.id);
+                          await cancelEventMemoryReminders(expandedEvent.id);
                           setAttendingIds((prev) => {
                             const next = new Set(prev);
                             next.delete(expandedEvent.id);
@@ -2372,6 +2376,8 @@ export default function EventsTab() {
                           setAttendingIds((prev) =>
                             new Set(prev).add(expandedEvent.id),
                           );
+                          // Schedule reminder notifications immediately
+                          await scheduleEventRemindersOnJoin(expandedEvent);
                           void loadEvents();
                         } else {
                           Alert.alert(

@@ -212,7 +212,16 @@ function AppContent() {
                 );
               continue;
             }
-            const { schedule } = await getOrCreateEventReminderSchedule(event);
+            // Get or create schedule for this past event
+            const { schedule, created } = await getOrCreateEventReminderSchedule(event);
+            if (created && __DEV__) {
+              console.log(
+                "[Event memory] Created new schedule for past event",
+                event.id,
+                `"${event.name}" with due times:`,
+                schedule.dueTimes,
+              );
+            }
             if (schedule.shownCount >= 3) {
               if (__DEV__)
                 console.log(
@@ -449,6 +458,10 @@ function AppContent() {
           />
           <Stack.Screen
             name="moment-notifications"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="event-reminders"
             options={{ headerShown: false }}
           />
           <Stack.Screen
