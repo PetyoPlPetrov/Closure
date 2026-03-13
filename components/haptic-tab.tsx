@@ -2,7 +2,7 @@ import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { PlatformPressable } from '@react-navigation/elements';
 import * as Haptics from 'expo-haptics';
 import * as Device from 'expo-device';
-import { Platform, View } from 'react-native';
+import { Alert, Platform, View } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -18,13 +18,43 @@ import { emitHomeTabPress } from '@/utils/home-tab-press';
 import { emitSpheresTabPress } from '@/utils/spheres-tab-press';
 import { onSpheresTabPulseRequest } from '@/utils/spheres-tab-pulse';
 import { useSegments } from 'expo-router';
+import { useUnsavedChanges } from '@/utils/UnsavedChangesContext';
+import { useTranslate } from '@/utils/languages/use-translate';
 
 export function HapticTab(props: BottomTabBarButtonProps) {
   const pressScale = useSharedValue(1);
+  const { checkUnsavedChanges } = useUnsavedChanges();
+  const t = useTranslate();
 
   // Simple approach: always animate on press
   const handlePress = (ev: any) => {
     console.log('[HapticTab] Press detected');
+
+    // Check for unsaved changes before navigating
+    const { hasChanges } = checkUnsavedChanges();
+    if (hasChanges) {
+      // Show confirmation dialog
+      Alert.alert(
+        t('memory.unsavedChanges.title'),
+        t('memory.unsavedChanges.message'),
+        [
+          {
+            text: t('common.cancel'),
+            style: 'cancel',
+          },
+          {
+            text: t('common.discard'),
+            style: 'destructive',
+            onPress: () => {
+              // User confirmed, proceed with navigation
+              props.onPress?.(ev);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     // Always animate when pressed
     pressScale.value = withSequence(
       // Press down
@@ -74,9 +104,35 @@ export function HapticTab(props: BottomTabBarButtonProps) {
 // Custom home tab button that intercepts presses even when already focused
 export function HomeTabButton(props: BottomTabBarButtonProps) {
   const pressScale = useSharedValue(1);
+  const { checkUnsavedChanges } = useUnsavedChanges();
+  const t = useTranslate();
 
   // Simple approach: always animate on press, the navigation system will handle whether to navigate
   const handlePress = (ev: any) => {
+    // Check for unsaved changes before navigating
+    const { hasChanges } = checkUnsavedChanges();
+    if (hasChanges) {
+      Alert.alert(
+        t('memory.unsavedChanges.title'),
+        t('memory.unsavedChanges.message'),
+        [
+          {
+            text: t('common.cancel'),
+            style: 'cancel',
+          },
+          {
+            text: t('common.discard'),
+            style: 'destructive',
+            onPress: () => {
+              emitHomeTabPress();
+              props.onPress?.(ev);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     // Emit so Home screen can show loader even when already focused (tabPress may not fire)
     emitHomeTabPress();
     // Always animate when pressed
@@ -128,8 +184,34 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
 // Custom events tab button – emits on press so the events screen can return to main view when already focused
 export function EventsTabButton(props: BottomTabBarButtonProps) {
   const pressScale = useSharedValue(1);
+  const { checkUnsavedChanges } = useUnsavedChanges();
+  const t = useTranslate();
 
   const handlePress = (ev: any) => {
+    // Check for unsaved changes before navigating
+    const { hasChanges } = checkUnsavedChanges();
+    if (hasChanges) {
+      Alert.alert(
+        t('memory.unsavedChanges.title'),
+        t('memory.unsavedChanges.message'),
+        [
+          {
+            text: t('common.cancel'),
+            style: 'cancel',
+          },
+          {
+            text: t('common.discard'),
+            style: 'destructive',
+            onPress: () => {
+              emitEventsTabPress();
+              props.onPress?.(ev);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     emitEventsTabPress();
     pressScale.value = withSequence(
       withTiming(0.92, { duration: 150, easing: Easing.out(Easing.ease) }),
@@ -156,6 +238,8 @@ export function EventsTabButton(props: BottomTabBarButtonProps) {
 // Custom spheres tab button that intercepts presses even when already focused
 export function SpheresTabButton(props: BottomTabBarButtonProps) {
   const pulseScale = useSharedValue(1);
+  const { checkUnsavedChanges } = useUnsavedChanges();
+  const t = useTranslate();
 
   useEffect(() => {
     // Subscribe to pulse animation requests
@@ -224,6 +308,30 @@ export function SpheresTabButton(props: BottomTabBarButtonProps) {
 
   // Modified press handler to include animation
   const handlePressWithAnimation = (ev: any) => {
+    // Check for unsaved changes before navigating
+    const { hasChanges } = checkUnsavedChanges();
+    if (hasChanges) {
+      Alert.alert(
+        t('memory.unsavedChanges.title'),
+        t('memory.unsavedChanges.message'),
+        [
+          {
+            text: t('common.cancel'),
+            style: 'cancel',
+          },
+          {
+            text: t('common.discard'),
+            style: 'destructive',
+            onPress: () => {
+              emitSpheresTabPress();
+              props.onPress?.(ev);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     // Stop pulsing animation when tab is pressed
     cancelAnimation(pulseScale);
     pulseScale.value = withTiming(1, {

@@ -176,7 +176,7 @@ export default function TabLayout() {
                 size="xs"
                 weight={focused ? 'bold' : 'medium'}
                 letterSpacing="l"
-                style={{ 
+                style={{
                   color: focused ? color : inactiveColor,
                   marginTop: 6 * fontScale,
                   lineHeight: 18 * fontScale
@@ -188,6 +188,25 @@ export default function TabLayout() {
           },
         }}
       />
+
+      {/* Entity detail and edit screens - hidden from tab bar but keep tabs visible */}
+      <Tabs.Screen name="add-ex-profile" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="edit-profile" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="add-job" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="edit-job" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="add-family-member" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="edit-family-member" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="edit-friend" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="edit-hobby" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="add-friend" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="add-hobby" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="idealized-memories" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="add-idealized-memory" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="relationship-detail" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="job-detail" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="family-member-detail" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="friend-detail" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="hobby-detail" options={{ href: null, headerShown: false }} />
     </Tabs>
     </View>
   );

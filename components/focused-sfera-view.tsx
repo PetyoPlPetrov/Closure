@@ -138,8 +138,12 @@ export type FocusedSferaViewProps = {
   onSphereSelect: (sphere: LifeSphere) => void;
   /** Switch back to Classic view (wheel of life). */
   onSwitchToClassic: () => void;
+  /** Called when user taps circle avatar to clear sfera selection and return to initial view showing all sferas. */
+  onClearSelection?: () => void;
   /** Called when user taps a floating entity avatar; navigates to entity detail. */
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
+  /** Currently selected sphere (null = initial view with all sferas, non-null = individual sfera view). Used to determine if circle avatar shows overall or focused sfera percentage. */
+  selectedSphere?: LifeSphere | null;
   colorScheme: "light" | "dark";
   getSphereSunnyPercentage: (sphere: LifeSphere) => number;
   entityImageUrisBySphere: Record<LifeSphere, string[]>;
@@ -1695,7 +1699,9 @@ export function FocusedSferaView({
   onAddMemoriesPress,
   onSphereSelect,
   onSwitchToClassic,
+  onClearSelection,
   onEntitySelect,
+  selectedSphere,
   colorScheme,
   getSphereSunnyPercentage,
   entityImageUrisBySphere,
@@ -1795,9 +1801,76 @@ export function FocusedSferaView({
     colorScheme,
   );
 
-  const handleSwitchToClassic = useCallback(() => {
-    onSwitchToClassic();
-  }, [onSwitchToClassic]);
+  // Check if the FOCUSED sfera has memories (not overall)
+  const focusedSferaHasMemories = useMemo(() => {
+    const focusedMemories = memoriesPerEntityBySphere[focusedSphere.type] ?? [];
+    return focusedMemories.some(entityMemories => entityMemories.length > 0);
+  }, [memoriesPerEntityBySphere, focusedSphere.type]);
+
+  // Circle avatar percentage logic:
+  // - Initial view (selectedSphere === null): Show overall percentage across all sferas
+  // - Individual sfera view (selectedSphere !== null): Show that sfera's percentage if it has memories, otherwise overall
+  const circleAvatarPercentage = useMemo(() => {
+    if (selectedSphere === null) {
+      // Initial view: always show overall percentage
+      return overallSunnyPercentage;
+    } else {
+      // Individual sfera view: show focused sfera % if it has memories, otherwise overall
+      return focusedSferaHasMemories ? focusedSunnyPct : overallSunnyPercentage;
+    }
+  }, [selectedSphere, focusedSferaHasMemories, focusedSunnyPct, overallSunnyPercentage]);
+
+  // DEBUG: Log percentages to verify correct calculation
+  useEffect(() => {
+    // Calculate sunny/cloudy counts for the focused sfera
+    const focusedMemories = memoriesPerEntityBySphere[focusedSphere.type] ?? [];
+    let focusedSunnyCount = 0;
+    let focusedCloudyCount = 0;
+
+    focusedMemories.forEach((entityMemories) => {
+      entityMemories.forEach((memory) => {
+        focusedSunnyCount += (memory.goodFacts || []).length;
+        focusedCloudyCount += (memory.hardTruths || []).length;
+      });
+    });
+
+    const focusedTotalMoments = focusedSunnyCount + focusedCloudyCount;
+    const focusedCalculatedPct = focusedTotalMoments > 0
+      ? (focusedSunnyCount / focusedTotalMoments) * 100
+      : 0;
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔍 FOCUSED SFERA VIEW - Percentage Debug');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`📍 Focused Sphere: ${focusedSphere.type}`);
+    console.log(`🎯 Selected Sphere: ${selectedSphere ?? 'null (initial view - all sferas)'}`);
+    console.log(`\n📊 OVERALL (all sferas combined):`);
+    console.log(`   Sunny %: ${overallSunnyPercentage.toFixed(1)}%`);
+    console.log(`\n📊 FOCUSED SFERA (${focusedSphere.type} only):`);
+    console.log(`   ☀️  Sunny moments: ${focusedSunnyCount}`);
+    console.log(`   ☁️  Cloudy moments: ${focusedCloudyCount}`);
+    console.log(`   📈 Total moments: ${focusedTotalMoments}`);
+    console.log(`   📊 Calculated %: ${focusedCalculatedPct.toFixed(1)}%`);
+    console.log(`   📊 getSphereSunnyPercentage returned: ${focusedSunnyPct.toFixed(1)}%`);
+    console.log(`\n🎯 CIRCLE AVATAR DISPLAY:`);
+    console.log(`   Showing: ${circleAvatarPercentage.toFixed(1)}%`);
+    console.log(`   hasMemories (global): ${hasMemories}`);
+    console.log(`   focusedSferaHasMemories: ${focusedSferaHasMemories}`);
+    const source = selectedSphere === null
+      ? '🌍 Overall % (initial view)'
+      : (focusedSferaHasMemories ? '✅ Focused Sfera %' : '❌ Overall % (no memories in this sfera)');
+    console.log(`   Source: ${source}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  }, [focusedSphere.type, selectedSphere, overallSunnyPercentage, focusedSunnyPct, circleAvatarPercentage, hasMemories, focusedSferaHasMemories, memoriesPerEntityBySphere]);
+
+  // When circle avatar is pressed: if onClearSelection is provided, call it; otherwise switch to classic view
+  const handleCircleAvatarPress = useCallback(() => {
+    if (onClearSelection) {
+      onClearSelection();
+    } else {
+      onSwitchToClassic();
+    }
+  }, [onClearSelection, onSwitchToClassic]);
 
   const { momentColors } = useMomentColors();
   const avatarSizeForDots = 100;
@@ -1884,9 +1957,9 @@ export function FocusedSferaView({
 
       {/* ─── Sunny Life avatar (floating in the distance, center of the gap between spheres) ─── */}
       <SunnyLifeAvatar
-        percentage={overallSunnyPercentage}
+        percentage={circleAvatarPercentage}
         hasMemories={hasMemories}
-        onPress={handleSwitchToClassic}
+        onPress={handleCircleAvatarPress}
         onAddMemoriesPress={onAddMemoriesPress}
         colorScheme={colorScheme}
         x={SW * 0.45}
@@ -1926,7 +1999,7 @@ export function FocusedSferaView({
         style={[styles.chevron, styles.chevronLeft, leftChevronStyle]}
       >
         <Pressable
-          style={{ padding: 8 }}
+          style={styles.chevronPressable}
           onPressIn={() => chevronPressIn("left")}
           onPressOut={() => chevronPressOut("left")}
           onPress={() => goToSphere((focusedIdx + 1) % N)}
@@ -1942,7 +2015,7 @@ export function FocusedSferaView({
         style={[styles.chevron, styles.chevronRight, rightChevronStyle]}
       >
         <Pressable
-          style={{ padding: 8 }}
+          style={styles.chevronPressable}
           onPressIn={() => chevronPressIn("right")}
           onPressOut={() => chevronPressOut("right")}
           onPress={() => goToSphere((focusedIdx - 1 + N) % N)}
@@ -2006,5 +2079,10 @@ const styles = StyleSheet.create({
   },
   chevronRight: {
     right: 6,
+  },
+  chevronPressable: {
+    padding: 20,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

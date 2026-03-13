@@ -73,6 +73,7 @@ import {
   ThemeProvider as AppThemeProvider,
   useTheme,
 } from "@/utils/ThemeContext";
+import { UnsavedChangesProvider } from "@/utils/UnsavedChangesContext";
 import { checkForUpdateAndReload } from "@/utils/updates";
 import { VisualSettingsProvider } from "@/utils/VisualSettingsProvider";
 // Firebase is automatically initialized via Expo plugin (@react-native-firebase/app)
@@ -390,33 +391,6 @@ function AppContent() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
-            name="add-ex-profile"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
-          <Stack.Screen name="add-job" options={{ headerShown: false }} />
-          <Stack.Screen name="edit-job" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="add-family-member"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="edit-family-member"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen name="edit-friend" options={{ headerShown: false }} />
-          <Stack.Screen name="edit-hobby" options={{ headerShown: false }} />
-          <Stack.Screen name="add-friend" options={{ headerShown: false }} />
-          <Stack.Screen name="add-hobby" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="idealized-memories"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="add-idealized-memory"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
             name="relationships-comparison"
             options={{ headerShown: false }}
           />
@@ -436,17 +410,6 @@ function AppContent() {
             name="hobbies-comparison"
             options={{ headerShown: false }}
           />
-          <Stack.Screen
-            name="relationship-detail"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen name="job-detail" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="family-member-detail"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen name="friend-detail" options={{ headerShown: false }} />
-          <Stack.Screen name="hobby-detail" options={{ headerShown: false }} />
           <Stack.Screen name="insights" options={{ headerShown: false }} />
           <Stack.Screen name="notifications" options={{ headerShown: false }} />
           <Stack.Screen
@@ -566,14 +529,16 @@ export default function RootLayout() {
                         <NotificationNudgePreferenceProvider>
                           <EventInAppNotificationPreferenceProvider>
                             <HomeTransitionLoaderProvider>
-                              <View style={{ flex: 1 }}>
-                                <InAppNotificationProvider>
-                                  <SferaEventsBadgeProvider>
-                                    <AppContent />
-                                  </SferaEventsBadgeProvider>
-                                </InAppNotificationProvider>
-                                <HomeTransitionLoaderOverlay />
-                              </View>
+                              <UnsavedChangesProvider>
+                                <View style={{ flex: 1 }}>
+                                  <InAppNotificationProvider>
+                                    <SferaEventsBadgeProvider>
+                                      <AppContent />
+                                    </SferaEventsBadgeProvider>
+                                  </InAppNotificationProvider>
+                                  <HomeTransitionLoaderOverlay />
+                                </View>
+                              </UnsavedChangesProvider>
                             </HomeTransitionLoaderProvider>
                           </EventInAppNotificationPreferenceProvider>
                         </NotificationNudgePreferenceProvider>

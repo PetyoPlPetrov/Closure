@@ -18,6 +18,7 @@ import {
 } from '@/utils/moment-suggestions';
 import { useMomentColors } from '@/utils/MomentColorsProvider';
 import { updateStreakOnMemoryCreation } from '@/utils/streak-manager';
+import { useUnsavedChanges } from '@/utils/UnsavedChangesContext';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
@@ -1060,6 +1061,7 @@ export default function AddIdealizedMemoryScreen() {
   // Navigation hook for intercepting back navigation
   const navigation = useNavigation();
   const isNavigatingAway = useRef(false);
+  const { registerScreen } = useUnsavedChanges();
   
   // Function to check if there are unsaved changes
   const hasUnsavedChanges = useCallback(() => {
@@ -1112,7 +1114,22 @@ export default function AddIdealizedMemoryScreen() {
     }
     return false;
   }, [memoryLabel, selectedImage, clouds, suns, lessons]);
-  
+
+  // Register this screen with the unsaved changes context
+  useEffect(() => {
+    if (viewOnly || isSaving) {
+      return;
+    }
+
+    const screenId = 'add-idealized-memory';
+    const unregister = registerScreen(screenId, () => {
+      // Return true if there are unsaved changes AND we're not navigating away
+      return !isNavigatingAway.current && hasUnsavedChanges();
+    });
+
+    return unregister;
+  }, [registerScreen, hasUnsavedChanges, viewOnly, isSaving]);
+
   // Intercept navigation to show confirmation dialog if there are unsaved changes
   useEffect(() => {
     // Don't intercept navigation in view-only mode
@@ -1163,14 +1180,14 @@ export default function AddIdealizedMemoryScreen() {
             onPress: () => {
               // Mark as intentionally navigating away
               isNavigatingAway.current = true;
-              // Navigate away
-              router.back();
+              // Dispatch the original navigation action that was prevented
+              navigation.dispatch(e.data.action);
             },
           },
         ]
       );
     });
-    
+
     return unsubscribe;
   }, [navigation, hasUnsavedChanges, isSaving, t, viewOnly]);
 

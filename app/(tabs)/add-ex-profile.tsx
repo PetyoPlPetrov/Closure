@@ -11,6 +11,7 @@ import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney, type ExProfile } from "@/utils/JourneyProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { UnsavedChangesProvider, useUnsavedChanges } from "@/utils/UnsavedChangesContext";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -75,6 +76,7 @@ export default function AddExProfileScreen() {
 
   // Navigation hook for intercepting back navigation
   const navigation = useNavigation();
+  const { registerScreen } = useUnsavedChanges();
 
   // Load existing profile data when in edit mode
   useEffect(() => {
@@ -266,6 +268,17 @@ export default function AddExProfileScreen() {
     isOngoing,
   ]);
 
+  // Register this screen with the unsaved changes context
+  useEffect(() => {
+    const screenId = 'add-ex-profile';
+    const unregister = registerScreen(screenId, () => {
+      // Return true if there are unsaved changes AND we're not navigating away or saving
+      return !isNavigatingAway.current && !isSaving.current && hasUnsavedChanges();
+    });
+
+    return unregister;
+  }, [registerScreen, hasUnsavedChanges]);
+
   // Intercept navigation to show confirmation dialog if there are unsaved changes
   useEffect(() => {
     const unsubscribe = navigation.addListener("beforeRemove", (e) => {
@@ -305,8 +318,8 @@ export default function AddExProfileScreen() {
             onPress: () => {
               // Mark as intentionally navigating away
               isNavigatingAway.current = true;
-              // Navigate away
-              router.back();
+              // Dispatch the original navigation action that was prevented
+              navigation.dispatch(e.data.action);
             },
           },
         ],

@@ -18167,6 +18167,7 @@ export default function HomeScreen() {
         <FocusedSferaView
           overallSunnyPercentage={overallSunnyPercentage}
           hasMemories={idealizedMemories.length > 0}
+          selectedSphere={selectedSphere}
           onAddMemoriesPress={() => router.push("/(tabs)/spheres")}
           onSphereSelect={(sphere) => {
             setFocusedMemory(null);
@@ -18223,6 +18224,10 @@ export default function HomeScreen() {
                 hideLoader();
               }, 0);
             });
+          }}
+          onClearSelection={() => {
+            // Clear selected sphere to return to initial focused view showing all sferas
+            setSelectedSphere(null);
           }}
           colorScheme={colorScheme ?? "dark"}
           getSphereSunnyPercentage={getSphereSunnyPercentage}
