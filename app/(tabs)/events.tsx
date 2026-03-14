@@ -777,6 +777,25 @@ const ChevronNavButton = React.memo(function ChevronNavButton({
   );
 });
 
+/** Helper function to format event dates into user-friendly strings */
+function formatEventDate(dateString: string): string {
+  if (!dateString) return "";
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return dateString;
+  }
+}
+
 /** Event card positioned by shared orbit angle so all events move smoothly along the circle (no jumping). */
 const OrbitalEventCard = React.memo(function OrbitalEventCard({
   event,
@@ -890,7 +909,7 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
     };
   }, [fontScale, totalCount, eventIndex]);
 
-  const dateDisplay = event.startDate || event.date;
+  const dateDisplay = formatEventDate(event.startDate || event.date);
 
   const cardContent = (
     <View style={styles.eventCardGlowWrap}>
@@ -1173,7 +1192,7 @@ const JOIN_IMAGE_WIDTH = 240;
 const JOIN_IMAGE_HEIGHT = 80;
 const EXPANDED_CARD_RADIUS = 20;
 /** Space reserved at bottom of scroll content for absolutely positioned buttons (discount, link, actions). */
-const EXPANDED_BOTTOM_BUTTONS_HEIGHT = 200;
+const EXPANDED_BOTTOM_BUTTONS_HEIGHT = 60;
 
 export default function EventsTab() {
   const colorScheme = useColorScheme();
@@ -1212,7 +1231,8 @@ export default function EventsTab() {
   const [expandedImageError, setExpandedImageError] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
-  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+  const [locationPermissionDenied, setLocationPermissionDenied] =
+    useState(false);
   const [pastEvents, setPastEvents] = useState<SferaEvent[]>([]);
   const [goldenUsedIds, setGoldenUsedIds] = useState<Set<string>>(new Set());
   const [showPastEvents, setShowPastEvents] = useState(true);
@@ -1654,19 +1674,24 @@ export default function EventsTab() {
     [fontScale],
   );
 
-  const removePastEventFromOrbit = useCallback(
-    async (eventId: string) => {
-      await removeAttendedEventSnapshotsByIds([eventId]);
-      await removeAttendingEventId(eventId);
-      await removeEventReminderScheduledIds([eventId]);
-      await removeEventGoldenMemoryUsedIds([eventId]);
-      await clearEventReminderInAppForEvent(eventId);
-      await cancelEventMemoryReminders(eventId);
-      setExpandedEventId(null);
-      void loadEvents();
-    },
-    [loadEvents],
-  );
+  const removePastEventFromOrbit = useCallback(async (eventId: string) => {
+    // Optimistic update: immediately remove from UI
+    setPastEvents((prev) => prev.filter((e) => e.id !== eventId));
+    setAttendingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(eventId);
+      return next;
+    });
+    setExpandedEventId(null);
+
+    // Perform async cleanup in background
+    await removeAttendedEventSnapshotsByIds([eventId]);
+    await removeAttendingEventId(eventId);
+    await removeEventReminderScheduledIds([eventId]);
+    await removeEventGoldenMemoryUsedIds([eventId]);
+    await clearEventReminderInAppForEvent(eventId);
+    await cancelEventMemoryReminders(eventId);
+  }, []);
 
   // When entering community or list length changes: clamp focused index and set orbit angle (do not run when only focus changes so left/right can animate)
   useEffect(() => {
@@ -2394,7 +2419,9 @@ export default function EventsTab() {
                             expandedEvent.id,
                           ]);
                           // Cancel all scheduled reminders for this event
-                          await clearEventReminderInAppForEvent(expandedEvent.id);
+                          await clearEventReminderInAppForEvent(
+                            expandedEvent.id,
+                          );
                           await cancelEventMemoryReminders(expandedEvent.id);
                           setAttendingIds((prev) => {
                             const next = new Set(prev);
@@ -2404,11 +2431,9 @@ export default function EventsTab() {
                           setExpandedEventId(null);
                           setExpandedImageError(false);
                         } else {
-                          Alert.alert(
-                            t("events.leaveError"),
-                            undefined,
-                            [{ text: "OK" }],
-                          );
+                          Alert.alert(t("events.leaveError"), undefined, [
+                            { text: "OK" },
+                          ]);
                         }
                       } finally {
                         setAttendanceLoading(false);
@@ -2478,11 +2503,9 @@ export default function EventsTab() {
                           await scheduleEventRemindersOnJoin(expandedEvent);
                           void loadEvents();
                         } else {
-                          Alert.alert(
-                            t("events.joinError"),
-                            undefined,
-                            [{ text: "OK" }],
-                          );
+                          Alert.alert(t("events.joinError"), undefined, [
+                            { text: "OK" },
+                          ]);
                         }
                       } finally {
                         setAttendanceLoading(false);
@@ -2513,11 +2536,11 @@ export default function EventsTab() {
                             },
                           ]}
                         >
-                        <MaterialIcons
-                          name="event-available"
-                          size={20 * fontScale}
-                          color="#fff"
-                        />
+                          <MaterialIcons
+                            name="event-available"
+                            size={20 * fontScale}
+                            color="#fff"
+                          />
                           <ThemedText
                             size="sm"
                             weight="bold"
@@ -2674,7 +2697,7 @@ export default function EventsTab() {
                             styles.expandedCardScroll,
                             { minHeight: EXPANDED_IMAGE_HEIGHT * fontScale },
                           ]}
-                          contentContainerStyle={{ paddingBottom: 24 }}
+                          contentContainerStyle={{ paddingBottom: 120 }}
                           showsVerticalScrollIndicator={true}
                         >
                           {hasImages ? (
@@ -2819,7 +2842,7 @@ export default function EventsTab() {
                                 {expandedEvent.location}
                               </ThemedText>
                             ) : null}
-                            {expandedEvent.date ? (
+                            {expandedEvent.date || expandedEvent.startDate ? (
                               <ThemedText
                                 size="sm"
                                 emphasis="medium"
@@ -2828,7 +2851,9 @@ export default function EventsTab() {
                                   expandedCardScaledStyles.label,
                                 ]}
                               >
-                                {expandedEvent.date}
+                                {formatEventDate(
+                                  expandedEvent.startDate || expandedEvent.date,
+                                )}
                               </ThemedText>
                             ) : null}
                             {expandedEvent.description ? (
@@ -2836,35 +2861,49 @@ export default function EventsTab() {
                                 size="sm"
                                 emphasis="high"
                                 selectable={false}
-                                numberOfLines={5}
+                                numberOfLines={expandedEvent.type === "plus" ? 5 : 10}
                                 style={[
                                   styles.expandedDescription,
                                   expandedCardScaledStyles.description,
                                   { color: colors.text },
                                 ]}
                               >
-                                {expandedEvent.description.length > 100
-                                  ? expandedEvent.description.slice(0, 100) +
-                                    "…"
-                                  : expandedEvent.description}
-                                {expandedEvent.description.length > 100 ? (
-                                  <ThemedText
-                                    onPress={() => setDescriptionExpanded(true)}
-                                    size="sm"
-                                    weight="medium"
-                                    style={{ color: colors.primary }}
-                                  >
-                                    {" "}
-                                    {t("events.learnMore")}
-                                  </ThemedText>
-                                ) : null}
+                                {(() => {
+                                  const charLimit =
+                                    expandedEvent.type === "plus" ? 100 : 200;
+                                  return expandedEvent.description.length >
+                                    charLimit
+                                    ? expandedEvent.description.slice(
+                                        0,
+                                        charLimit,
+                                      ) + "…"
+                                    : expandedEvent.description;
+                                })()}
+                                {(() => {
+                                  const charLimit =
+                                    expandedEvent.type === "plus" ? 100 : 150;
+                                  return expandedEvent.description.length >
+                                    charLimit ? (
+                                    <ThemedText
+                                      onPress={() =>
+                                        setDescriptionExpanded(true)
+                                      }
+                                      size="sm"
+                                      weight="medium"
+                                      style={{ color: colors.primary }}
+                                    >
+                                      {" "}
+                                      {t("events.learnMore")}
+                                    </ThemedText>
+                                  ) : null;
+                                })()}
                               </ThemedText>
                             ) : null}
                           </View>
                         </ScrollView>
                         <View
                           style={{
-                            height: EXPANDED_BOTTOM_BUTTONS_HEIGHT * fontScale,
+                            height: 8,
                           }}
                         />
                         <View
@@ -3465,8 +3504,8 @@ const styles = StyleSheet.create({
   },
   eventCardPrivateBadge: {
     position: "absolute",
-    bottom: 6,
-    left: 6,
+    top: 6,
+    right: 6,
     width: 20,
     height: 20,
     borderRadius: 10,
@@ -3548,6 +3587,7 @@ const styles = StyleSheet.create({
   expandedCardScroll: {
     flex: 1,
     minHeight: 0,
+    marginBottom: 100,
   },
   expandedCarouselWrap: {
     position: "relative",
@@ -3590,7 +3630,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingTop: 12,
+    paddingTop: 4,
     alignItems: "flex-start",
   },
   expandedDiscountSection: {
@@ -3618,7 +3658,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    paddingVertical: 8,
+    paddingVertical: 0,
     paddingHorizontal: 4,
   },
   expandedActions: {

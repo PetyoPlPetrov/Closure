@@ -1941,7 +1941,7 @@ export function FocusedSferaView({
         style={[
           styles.focusedLabelContainer,
           {
-            top: "87%",
+            top: ORBIT_CY + ORBIT_R + FOCUSED_LABEL_GAP * 5.5,
           },
         ]}
         pointerEvents="none"
