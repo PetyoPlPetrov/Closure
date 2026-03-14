@@ -30,9 +30,13 @@ interface SferaEventsBadgeContextType {
   /** Count of public+VIP events the user has not yet seen (opened full details). */
   unseenCount: number;
   markEventAsSeen: (eventId: string) => Promise<void>;
-  refreshEvents: () => Promise<SferaEvent[]>;
+  refreshEvents: (silent?: boolean) => Promise<SferaEvent[]>;
+  /** Get cached events without refetching from network */
+  getCachedEvents: () => SferaEvent[];
   /** Clear in-memory events state and badge (e.g. after Clear all app data). Call before refreshEvents() to avoid stale UI/badges. */
   resetEventsState: () => void;
+  /** True while initial events fetch is in progress (on app open). */
+  isLoadingEvents: boolean;
 }
 
 const SferaEventsBadgeContext = createContext<
@@ -48,6 +52,7 @@ export function SferaEventsBadgeProvider({
   const [unseenCount, setUnseenCount] = useState(0);
   const [events, setEvents] = useState<SferaEvent[]>([]);
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const { showNotification } = useInAppNotification();
   const { enabled: eventInAppNotificationsEnabled, isLoaded: eventInAppPrefLoaded } =
     useEventInAppNotificationPreference();
@@ -70,48 +75,53 @@ export function SferaEventsBadgeProvider({
   }, [events, computeUnseenCount]);
 
   const checkAndNotify = useCallback(
-    async (fromForeground = false) => {
-      const completed = await getOnboardingCompleted();
-      if (!completed) {
-        setEvents([]);
-        setUnseenCount(0);
-        setHasNewEvents(false);
-        return [];
-      }
-      const { events: fetched, newCount, newCommunities } =
-        await fetchAndCheckForNewEvents();
-      setEvents(fetched);
-      const seen = await getSeenEventIds();
-      setSeenIds(seen);
-      const count = computeUnseenCount(fetched, seen);
-      setUnseenCount(count);
-      setHasNewEvents(count > 0);
-      // Badge on Events tab always reflects unseen count; only the in-app popup is gated by preference
-      if (
-        eventInAppPrefLoaded &&
-        eventInAppNotificationsEnabled &&
-        newCount > 0 &&
-        newCommunities.length > 0
-      ) {
-        const communityName = newCommunities
-          .map((c) => (c === "social" ? t("events.section.social") : t("events.section.plus")))
-          .join(", ");
-        const show = () =>
-          showNotification({
-            title: t("events.newEventsTitle"),
-            message: t("events.newEventInCommunity").replace("{community}", communityName),
-            emoji: "✨",
-            duration: 4000,
-          });
-        if (fromForeground) {
-          InteractionManager.runAfterInteractions(() => {
-            setTimeout(show, 600);
-          });
-        } else {
-          show();
+    async (fromForeground = false, silent = false) => {
+      if (!silent) setIsLoadingEvents(true);
+      try {
+        const completed = await getOnboardingCompleted();
+        if (!completed) {
+          setEvents([]);
+          setUnseenCount(0);
+          setHasNewEvents(false);
+          return [];
         }
+        const { events: fetched, newCount, newCommunities } =
+          await fetchAndCheckForNewEvents();
+        setEvents(fetched);
+        const seen = await getSeenEventIds();
+        setSeenIds(seen);
+        const count = computeUnseenCount(fetched, seen);
+        setUnseenCount(count);
+        setHasNewEvents(count > 0);
+        // Badge on Events tab always reflects unseen count; only the in-app popup is gated by preference
+        if (
+          eventInAppPrefLoaded &&
+          eventInAppNotificationsEnabled &&
+          newCount > 0 &&
+          newCommunities.length > 0
+        ) {
+          const communityName = newCommunities
+            .map((c) => (c === "social" ? t("events.section.social") : t("events.section.plus")))
+            .join(", ");
+          const show = () =>
+            showNotification({
+              title: t("events.newEventsTitle"),
+              message: t("events.newEventInCommunity").replace("{community}", communityName),
+              emoji: "✨",
+              duration: 4000,
+            });
+          if (fromForeground) {
+            InteractionManager.runAfterInteractions(() => {
+              setTimeout(show, 600);
+            });
+          } else {
+            show();
+          }
+        }
+        return fetched;
+      } finally {
+        if (!silent) setIsLoadingEvents(false);
       }
-      return fetched;
     },
     [showNotification, t, computeUnseenCount, eventInAppNotificationsEnabled, eventInAppPrefLoaded],
   );
@@ -132,15 +142,18 @@ export function SferaEventsBadgeProvider({
   );
 
   const refreshEvents = useCallback(
-    async () => checkAndNotify(false),
+    async (silent = false) => checkAndNotify(false, silent),
     [checkAndNotify],
   );
+
+  const getCachedEvents = useCallback(() => events, [events]);
 
   const resetEventsState = useCallback(() => {
     setEvents([]);
     setSeenIds(new Set());
     setUnseenCount(0);
     setHasNewEvents(false);
+    setIsLoadingEvents(true);
   }, []);
 
   useEffect(() => {
@@ -169,7 +182,9 @@ export function SferaEventsBadgeProvider({
         unseenCount,
         markEventAsSeen,
         refreshEvents,
+        getCachedEvents,
         resetEventsState,
+        isLoadingEvents,
       }}
     >
       {children}

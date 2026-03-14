@@ -1202,13 +1202,12 @@ export default function EventsTab() {
   const { constellationAmount, constellationOpacity, appUsabilityHints } =
     useVisualSettings();
   const { momentColors } = useMomentColors();
-  const { markEventAsSeen, refreshEvents } = useSferaEventsBadge();
+  const { markEventAsSeen, refreshEvents, getCachedEvents, isLoadingEvents } = useSferaEventsBadge();
   const { hasPlusEntitlement, hasAIEntitlement } = useSubscription();
 
   const [events, setEvents] = useState<SferaEvent[]>([]);
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const [attendingIds, setAttendingIds] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
   const [unlockedCodes, setUnlockedCodes] = useState<Set<string>>(new Set());
   const [phase, setPhase] = useState<"orbs" | "social" | "private" | "plus">(
     "orbs",
@@ -1280,9 +1279,9 @@ export default function EventsTab() {
     setUnlockedCodes(set);
   }, []);
 
-  const loadEvents = useCallback(async () => {
-    const [list, seen, attending] = await Promise.all([
-      refreshEvents(),
+  // Sync local state from storage without fetching from network
+  const syncLocalState = useCallback(async (list: SferaEvent[]) => {
+    const [seen, attending] = await Promise.all([
       getSeenEventIds(),
       getAttendingEventIds(),
     ]);
@@ -1298,7 +1297,7 @@ export default function EventsTab() {
     setGoldenUsedIds(goldenUsed);
     if (__DEV__) {
       console.log(
-        "[Events tab] loadEvents: past attended count =",
+        "[Events tab] syncLocalState: past attended count =",
         past.length,
         past.length
           ? past.map((e) => ({
@@ -1322,18 +1321,40 @@ export default function EventsTab() {
       }
     }
     void scheduleEventMemoryReminders();
-  }, [refreshEvents]);
+  }, []);
 
+  // Fetch events from network and sync local state
+  const loadEvents = useCallback(async (silent = false) => {
+    const list = await refreshEvents(silent);
+    await syncLocalState(list);
+  }, [refreshEvents, syncLocalState]);
+
+  // Load unlocked codes on mount
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      await Promise.all([loadUnlocked(), loadEvents()]);
-      if (!cancelled) setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadUnlocked, loadEvents]);
+    void loadUnlocked();
+  }, [loadUnlocked]);
+
+  // When provider finishes loading events, sync local state
+  const initialSyncDone = useRef(false);
+  useEffect(() => {
+    if (!isLoadingEvents && !initialSyncDone.current) {
+      const cached = getCachedEvents();
+      if (cached.length > 0) {
+        void syncLocalState(cached);
+        initialSyncDone.current = true;
+      }
+    }
+  }, [isLoadingEvents, getCachedEvents, syncLocalState]);
+
+  // Silently refresh events when tab becomes focused (after initial load)
+  useFocusEffect(
+    useCallback(() => {
+      // Only refresh if we've already done the initial sync
+      if (initialSyncDone.current) {
+        void loadEvents(true);
+      }
+    }, [loadEvents])
+  );
 
   // Orbit rotation: very slow while finger hint is visible, normal speed after finger fades.
   // If usability hints off, start normal rotation immediately.
@@ -1945,7 +1966,7 @@ export default function EventsTab() {
     transform: [{ scale: eventsFingerScale.value }],
   }));
 
-  if (loading && events.length === 0) {
+  if (isLoadingEvents && events.length === 0) {
     return (
       <TabScreenContainer>
         <ConstellationBackground
@@ -2637,12 +2658,14 @@ export default function EventsTab() {
                       style={[
                         styles.expandedCardHeader,
                         expandedCardScaledStyles.cardHeader,
+                        { paddingTop: 20 * fontScale, paddingBottom: 16 * fontScale },
                       ]}
                     >
                       <ThemedText
                         size="l"
                         weight="bold"
                         numberOfLines={descriptionExpanded ? 1 : 2}
+                        style={{ flex: 1, paddingRight: 12 * fontScale }}
                       >
                         {expandedEvent.name}
                       </ThemedText>
@@ -2833,31 +2856,45 @@ export default function EventsTab() {
                               { paddingTop: 12 * fontScale },
                             ]}
                           >
-                            {expandedEvent.location ? (
-                              <ThemedText
-                                size="sm"
-                                emphasis="medium"
-                                style={[
-                                  styles.expandedLabel,
-                                  expandedCardScaledStyles.label,
-                                ]}
-                              >
-                                {expandedEvent.location}
-                              </ThemedText>
-                            ) : null}
                             {expandedEvent.date || expandedEvent.startDate ? (
-                              <ThemedText
-                                size="sm"
-                                emphasis="medium"
-                                style={[
-                                  styles.expandedLabel,
-                                  expandedCardScaledStyles.label,
-                                ]}
-                              >
-                                {formatEventDate(
-                                  expandedEvent.startDate || expandedEvent.date,
-                                )}
-                              </ThemedText>
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 * fontScale }}>
+                                <MaterialIcons
+                                  name="event"
+                                  size={18 * fontScale}
+                                  color={colors.textMediumEmphasis}
+                                />
+                                <ThemedText
+                                  size="sm"
+                                  emphasis="medium"
+                                  style={[
+                                    styles.expandedLabel,
+                                    expandedCardScaledStyles.label,
+                                  ]}
+                                >
+                                  {formatEventDate(
+                                    expandedEvent.startDate || expandedEvent.date,
+                                  )}
+                                </ThemedText>
+                              </View>
+                            ) : null}
+                            {expandedEvent.location ? (
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 * fontScale }}>
+                                <MaterialIcons
+                                  name="location-on"
+                                  size={18 * fontScale}
+                                  color={colors.textMediumEmphasis}
+                                />
+                                <ThemedText
+                                  size="sm"
+                                  emphasis="medium"
+                                  style={[
+                                    styles.expandedLabel,
+                                    expandedCardScaledStyles.label,
+                                  ]}
+                                >
+                                  {expandedEvent.location}
+                                </ThemedText>
+                              </View>
                             ) : null}
                             {expandedEvent.description ? (
                               <ThemedText
@@ -2915,130 +2952,137 @@ export default function EventsTab() {
                             { backgroundColor: colors.background },
                           ]}
                         >
-                          {expandedEvent.type === "plus" &&
-                          (hasPlusEntitlement ||
-                            hasAIEntitlement ||
-                            (expandedEvent.discountCode ?? "").trim()) ? (
-                            <View
-                              style={[
-                                styles.expandedDiscountSection,
-                                expandedCardScaledStyles.discountSection,
-                              ]}
-                            >
-                              {(expandedEvent.discountCode ?? "").trim() ? (
-                                discountRevealed &&
-                                (hasPlusEntitlement || hasAIEntitlement) ? (
-                                  <View
-                                    style={[
-                                      styles.expandedDiscountCode,
-                                      expandedCardScaledStyles.discountCode,
-                                      {
-                                        backgroundColor: colors.background,
-                                        borderColor: colors.text + "40",
-                                      },
-                                    ]}
-                                  >
-                                    <ThemedText
-                                      size="xs"
-                                      style={{
-                                        color: colors.textMediumEmphasis,
+                          {renderExpandedActions()}
+                          <View style={{ flexDirection: "row", gap: 12 * fontScale, marginTop: 12 * fontScale }}>
+                            {expandedEvent.type === "plus" &&
+                            (hasPlusEntitlement ||
+                              hasAIEntitlement ||
+                              (expandedEvent.discountCode ?? "").trim()) ? (
+                              <View style={{ flex: 1 }}>
+                                {(expandedEvent.discountCode ?? "").trim() ? (
+                                  discountRevealed &&
+                                  (hasPlusEntitlement || hasAIEntitlement) ? (
+                                    <View
+                                      style={[
+                                        styles.expandedDiscountCode,
+                                        expandedCardScaledStyles.discountCode,
+                                        {
+                                          backgroundColor: colors.background,
+                                          borderColor: colors.text + "40",
+                                        },
+                                      ]}
+                                    >
+                                      <ThemedText
+                                        size="xs"
+                                        style={{
+                                          color: colors.textMediumEmphasis,
+                                        }}
+                                      >
+                                        {t("events.discountRevealed")}
+                                      </ThemedText>
+                                      <ThemedText
+                                        size="sm"
+                                        weight="bold"
+                                        style={{ marginTop: 4 * fontScale }}
+                                      >
+                                        {expandedEvent.discountCode}
+                                      </ThemedText>
+                                    </View>
+                                  ) : (
+                                    <Pressable
+                                      style={[
+                                        {
+                                          backgroundColor: colors.primary + "20",
+                                          borderWidth: 1,
+                                          borderColor: colors.primary + "50",
+                                          flexDirection: "row",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          paddingVertical: 12 * fontScale,
+                                          paddingHorizontal: 14 * fontScale,
+                                          borderRadius: 12,
+                                          gap: 8 * fontScale,
+                                          flex: 1,
+                                        },
+                                      ]}
+                                      onPress={async () => {
+                                        if (
+                                          hasPlusEntitlement ||
+                                          hasAIEntitlement
+                                        ) {
+                                          setDiscountRevealed(true);
+                                        } else {
+                                          await showPaywallForAnySubscriptionAccess();
+                                        }
                                       }}
                                     >
-                                      {t("events.discountRevealed")}
-                                    </ThemedText>
-                                    <ThemedText
-                                      size="sm"
-                                      weight="bold"
-                                      style={{ marginTop: 4 * fontScale }}
-                                    >
-                                      {expandedEvent.discountCode}
-                                    </ThemedText>
-                                  </View>
-                                ) : (
-                                  <Pressable
-                                    style={[
-                                      {
-                                        backgroundColor: colors.primary + "20",
-                                        borderWidth: 1,
-                                        borderColor: colors.primary + "50",
-                                        flexDirection: "row",
-                                        alignItems: "center",
-                                        paddingVertical: 10 * fontScale,
-                                        paddingHorizontal: 14 * fontScale,
-                                        borderRadius: 12,
-                                        gap: 8 * fontScale,
-                                      },
-                                    ]}
-                                    onPress={async () => {
-                                      if (
-                                        hasPlusEntitlement ||
-                                        hasAIEntitlement
-                                      ) {
-                                        setDiscountRevealed(true);
-                                      } else {
-                                        await showPaywallForAnySubscriptionAccess();
-                                      }
-                                    }}
+                                      <MaterialIcons
+                                        name="local-offer"
+                                        size={20 * fontScale}
+                                        color={colors.primary}
+                                      />
+                                      <ThemedText
+                                        size="sm"
+                                        weight="semibold"
+                                        style={{ color: colors.primary }}
+                                      >
+                                        {t("events.getDiscount")}
+                                      </ThemedText>
+                                    </Pressable>
+                                  )
+                                ) : hasPlusEntitlement || hasAIEntitlement ? (
+                                  <ThemedText
+                                    size="xs"
+                                    style={{ color: colors.textMediumEmphasis }}
                                   >
-                                    <MaterialIcons
-                                      name="local-offer"
-                                      size={22 * fontScale}
-                                      color={colors.primary}
-                                    />
-                                    <ThemedText
-                                      size="sm"
-                                      weight="semibold"
-                                      style={{ color: colors.primary }}
-                                    >
-                                      {t("events.getDiscount")}
-                                    </ThemedText>
-                                  </Pressable>
-                                )
-                              ) : hasPlusEntitlement || hasAIEntitlement ? (
-                                <ThemedText
-                                  size="xs"
-                                  style={{ color: colors.textMediumEmphasis }}
-                                >
-                                  {t("events.noDiscountForEvent")}
-                                </ThemedText>
-                              ) : null}
-                            </View>
-                          ) : null}
-                          {expandedEvent.type === "plus" ||
-                          (expandedEvent.eventLink ?? "").trim() ? (
-                            <Pressable
-                              style={[
-                                styles.expandedEventLink,
-                                expandedCardScaledStyles.eventLink,
-                              ]}
-                              onPress={() => {
-                                const url = (
-                                  expandedEvent.eventLink ?? ""
-                                ).trim();
-                                if (
-                                  url.startsWith("http://") ||
-                                  url.startsWith("https://")
-                                ) {
-                                  try {
-                                    Linking.openURL(url);
-                                  } catch {}
-                                }
-                              }}
-                              hitSlop={12}
-                              disabled={!(expandedEvent.eventLink ?? "").trim()}
-                            >
-                              <MaterialIcons
-                                name="open-in-new"
-                                size={22 * fontScale}
-                                color={
-                                  (expandedEvent.eventLink ?? "").trim()
-                                    ? colors.primary
-                                    : colors.textMediumEmphasis
-                                }
-                              />
-                            </Pressable>
-                          ) : null}
-                          {renderExpandedActions()}
+                                    {t("events.noDiscountForEvent")}
+                                  </ThemedText>
+                                ) : null}
+                              </View>
+                            ) : null}
+                            {expandedEvent.type === "plus" ||
+                            (expandedEvent.eventLink ?? "").trim() ? (
+                              <Pressable
+                                style={[
+                                  {
+                                    backgroundColor: colors.primary + "20",
+                                    borderWidth: 1,
+                                    borderColor: colors.primary + "50",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    paddingVertical: 12 * fontScale,
+                                    paddingHorizontal: 16 * fontScale,
+                                    borderRadius: 12,
+                                  },
+                                ]}
+                                onPress={() => {
+                                  const url = (
+                                    expandedEvent.eventLink ?? ""
+                                  ).trim();
+                                  if (
+                                    url.startsWith("http://") ||
+                                    url.startsWith("https://")
+                                  ) {
+                                    try {
+                                      Linking.openURL(url);
+                                    } catch {}
+                                  }
+                                }}
+                                hitSlop={12}
+                                disabled={!(expandedEvent.eventLink ?? "").trim()}
+                              >
+                                <MaterialIcons
+                                  name="open-in-new"
+                                  size={22 * fontScale}
+                                  color={
+                                    (expandedEvent.eventLink ?? "").trim()
+                                      ? colors.primary
+                                      : colors.textMediumEmphasis
+                                  }
+                                />
+                              </Pressable>
+                            ) : null}
+                          </View>
                         </View>
                       </>
                     )}
