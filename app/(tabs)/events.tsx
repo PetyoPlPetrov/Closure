@@ -2577,7 +2577,10 @@ export default function EventsTab() {
                   style={[
                     styles.expandedCard,
                     expandedCardScaledStyles.card,
-                    { backgroundColor: colors.background },
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colorScheme === "dark" ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)",
+                    },
                     descriptionExpanded && styles.expandedCardFullScreen,
                     descriptionExpanded && {
                       paddingTop: 24 + insets.top,
@@ -3424,7 +3427,9 @@ const styles = StyleSheet.create({
   eventCardContent: {
     flex: 1,
     overflow: "hidden",
-    padding: 6,
+    paddingTop: 3,
+    paddingBottom: 6,
+    paddingHorizontal: 6,
   },
   eventCardImage: {
     width: "100%",
@@ -3564,6 +3569,12 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     padding: 20,
     flexDirection: "column",
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 2, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
   },
   expandedCardFullScreen: {
     flex: 1,
