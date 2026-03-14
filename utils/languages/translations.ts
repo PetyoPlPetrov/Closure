@@ -44,6 +44,7 @@ export interface Translations {
   "events.locationModalMessage": string;
   "events.locationModalEnable": string;
   "events.locationModalClose": string;
+  "events.globalEventsOnly": string;
   "events.locationOpenSettingsMessage": string;
   "events.locationOpenSettingsButton": string;
   "events.privateEnterCode": string;
@@ -3677,6 +3678,7 @@ const translations: Record<Language, Translations> = {
       "Without location, from now on you'll only see global events (no country filter). Tap Enable to allow location and see events in your region.",
     "events.locationModalEnable": "Enable",
     "events.locationModalClose": "Close",
+    "events.globalEventsOnly": "Showing global events only • Tap to enable location",
     "events.locationOpenSettingsMessage":
       "Location was denied. To see events in your region, enable location for Sferas in Settings.",
     "events.locationOpenSettingsButton": "Open Settings",
@@ -8188,6 +8190,7 @@ const translations: Record<Language, Translations> = {
       "Без местоположение от сега нататък ще виждате само глобални събития. Натиснете Включи за да разрешите местоположение и да виждате събития във вашия регион.",
     "events.locationModalEnable": "Включи",
     "events.locationModalClose": "Затвори",
+    "events.globalEventsOnly": "Показване само на глобални събития • Докоснете за активиране на местоположението",
     "events.locationOpenSettingsMessage":
       "Местоположението е отказано. За да виждате събития във вашия регион, включете местоположението за Sferas в Настройки.",
     "events.locationOpenSettingsButton": "Отвори Настройки",

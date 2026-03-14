@@ -27,6 +27,7 @@ import {
   addAttendingEventId,
   addUnlockedVipCode,
   clearEventReminderInAppForEvent,
+  clearLocationDeclinedByUser,
   getAttendingEventIds,
   getEventGoldenMemoryUsedIds,
   getEventImageUrls,
@@ -35,6 +36,7 @@ import {
   getSeenEventIds,
   getUnlockedVipCodes,
   isEventFilled,
+  isLocationDeclinedByUser,
   isPlusSectionUnlocked,
   isPrivateSectionUnlocked,
   removeAttendedEventSnapshotsByIds,
@@ -43,6 +45,7 @@ import {
   removeEventReminderScheduledIds,
   requestLocationPermission,
   scheduleEventRemindersOnJoin,
+  setLocationDeclinedByUser,
   syncAttendedSnapshotsFromActiveEvents,
   validateCodeForSection,
   type SferaEvent,
@@ -118,6 +121,11 @@ const CHEVRON_TOP =
   FOCUSED_EVENT_BOTTOM_Y - FOCUSED_EVENT_SIZE / 2 - CHEVRON_HEIGHT / 2;
 
 const ORB_ANGLES = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3]; // 0°, 120°, 240°
+
+// UX Improvement: Hero card for featured events (larger, more prominent)
+const HERO_CARD_HEIGHT = 320;
+const CARD_SPACING = 12;
+const HORIZONTAL_CARD_WIDTH = SCREEN_WIDTH * 0.75;
 
 /** Log Sfera event orbit positions (angle°, screen x,y) for debugging. Uses same orbital formula as UI. */
 function logEventPositions(
@@ -1225,6 +1233,7 @@ export default function EventsTab() {
   const [expandedImageError, setExpandedImageError] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
   const [pastEvents, setPastEvents] = useState<SferaEvent[]>([]);
   const [goldenUsedIds, setGoldenUsedIds] = useState<Set<string>>(new Set());
   const [showPastEvents, setShowPastEvents] = useState(true);
@@ -1776,6 +1785,29 @@ export default function EventsTab() {
     orbExitProgress.value = withTiming(0, { duration: 280 });
   }, [orbExitProgress]);
 
+  const handleLocationIndicatorPress = useCallback(async () => {
+    const status = await requestLocationPermission();
+    if (status === "granted") {
+      // Clear the decline flag since user granted permission
+      await clearLocationDeclinedByUser();
+      setLocationPermissionDenied(false);
+      void loadEvents();
+    } else if (status === "denied") {
+      // Permission still denied, show alert to go to Settings
+      Alert.alert(
+        t("events.locationModalTitle"),
+        t("events.locationOpenSettingsMessage"),
+        [
+          { text: t("common.cancel") },
+          {
+            text: t("events.locationOpenSettingsButton"),
+            onPress: () => Linking.openSettings(),
+          },
+        ],
+      );
+    }
+  }, [loadEvents, t]);
+
   useFocusEffect(
     useCallback(() => {
       void loadEvents();
@@ -1788,11 +1820,24 @@ export default function EventsTab() {
       }, delayMs);
 
       (async () => {
-        const status = await requestLocationPermission();
-        if (status === "denied") {
-          setTimeout(() => setLocationModalVisible(true), 400);
-        } else if (status === "granted") {
-          void loadEvents();
+        // Check if user previously declined location permission
+        const declined = await isLocationDeclinedByUser();
+
+        if (!declined) {
+          // Only request permission if user hasn't declined before
+          const status = await requestLocationPermission();
+          if (status === "denied") {
+            setTimeout(() => setLocationModalVisible(true), 400);
+            setLocationPermissionDenied(true);
+          } else if (status === "granted") {
+            // Clear decline flag if it was set and user has now granted permission
+            await clearLocationDeclinedByUser();
+            setLocationPermissionDenied(false);
+            void loadEvents();
+          }
+        } else {
+          // User declined before, just update state to show indicator
+          setLocationPermissionDenied(true);
         }
       })();
 
@@ -1927,6 +1972,54 @@ export default function EventsTab() {
         colorScheme={colorScheme ?? "dark"}
         sunnyBackground={momentColors.sunny.background}
       />
+
+      {/* Location permission denied indicator */}
+      {locationPermissionDenied && (
+        <View
+          style={{
+            position: "absolute",
+            top: insets.top + 12,
+            left: 16,
+            right: 16,
+            zIndex: 999,
+          }}
+        >
+          <Pressable
+            onPress={handleLocationIndicatorPress}
+            style={[
+              {
+                backgroundColor: colors.surface,
+                borderRadius: 12,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+                borderWidth: 1,
+                borderColor: colors.primary + "40",
+              },
+            ]}
+          >
+            <MaterialIcons
+              name="location-off"
+              size={20}
+              color={colors.primary}
+            />
+            <ThemedText
+              size="xs"
+              style={{ flex: 1, color: colors.textMediumEmphasis }}
+            >
+              {t("events.globalEventsOnly")}
+            </ThemedText>
+            <MaterialIcons
+              name="chevron-right"
+              size={20}
+              color={colors.textDisabled}
+            />
+          </Pressable>
+        </View>
+      )}
+
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
         {/* Finger hint over Sfera Social (before rotation starts), controlled by Personalization → Usability */}
         {phase === "orbs" &&
@@ -1952,10 +2045,21 @@ export default function EventsTab() {
                   eventsFingerHintStyle,
                 ]}
               >
+                {/* Shadow layer for better contrast */}
                 <MaterialIcons
                   name="touch-app"
                   size={fingerSize}
-                  color={colorScheme === "dark" ? "#FFFFFF" : "#1A237E"}
+                  color="rgba(0, 0, 0, 0.4)"
+                  style={{
+                    position: "absolute",
+                    left: 2,
+                    top: 2,
+                  }}
+                />
+                <MaterialIcons
+                  name="touch-app"
+                  size={fingerSize}
+                  color={colorScheme === "dark" ? "#FFFFFF" : "#FFFFFF"}
                 />
               </Animated.View>
             );
@@ -2987,7 +3091,12 @@ export default function EventsTab() {
             </ThemedText>
             <View style={styles.modalActions}>
               <Pressable
-                onPress={() => setLocationModalVisible(false)}
+                onPress={async () => {
+                  // User chose to close - remember they declined
+                  await setLocationDeclinedByUser();
+                  setLocationPermissionDenied(true);
+                  setLocationModalVisible(false);
+                }}
                 style={styles.modalBtn}
               >
                 <ThemedText size="sm" weight="medium">
@@ -2998,6 +3107,9 @@ export default function EventsTab() {
                 onPress={async () => {
                   const status = await requestLocationPermission();
                   if (status === "granted") {
+                    // Clear the decline flag since user granted permission
+                    await clearLocationDeclinedByUser();
+                    setLocationPermissionDenied(false);
                     setLocationModalVisible(false);
                     void loadEvents();
                   } else if (status === "denied") {

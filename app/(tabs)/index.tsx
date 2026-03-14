@@ -4001,10 +4001,21 @@ const FloatingAvatar = React.memo(
                   avatarClickHintAnimatedStyle,
                 ]}
               >
+                {/* Shadow layer for better contrast */}
                 <MaterialIcons
                   name="touch-app"
                   size={pointerSize}
-                  color={colors.primary}
+                  color="rgba(0, 0, 0, 0.5)"
+                  style={{
+                    position: "absolute",
+                    left: 2,
+                    top: 2,
+                  }}
+                />
+                <MaterialIcons
+                  name="touch-app"
+                  size={pointerSize}
+                  color="#FFFFFF"
                 />
               </Animated.View>
             );
@@ -4124,10 +4135,21 @@ const FloatingAvatar = React.memo(
                           entitySpinHintPointerAnimatedStyle,
                         ]}
                       >
+                        {/* Shadow layer for better contrast */}
                         <MaterialIcons
                           name="touch-app"
                           size={isTablet ? 56 : 52}
-                          color={COSMIC_RING_START}
+                          color="rgba(0, 0, 0, 0.5)"
+                          style={{
+                            position: "absolute",
+                            left: 2,
+                            top: 2,
+                          }}
+                        />
+                        <MaterialIcons
+                          name="touch-app"
+                          size={isTablet ? 56 : 52}
+                          color="#FFFFFF"
                         />
                       </Animated.View>
                     )}
@@ -21117,10 +21139,21 @@ export default function HomeScreen() {
                     spinHintPointerAnimatedStyle,
                   ]}
                 >
+                  {/* Shadow layer for better contrast */}
                   <MaterialIcons
                     name="touch-app"
                     size={pointerSize}
-                    color={colors.primaryDark}
+                    color="rgba(0, 0, 0, 0.5)"
+                    style={{
+                      position: "absolute",
+                      left: 2,
+                      top: 2,
+                    }}
+                  />
+                  <MaterialIcons
+                    name="touch-app"
+                    size={pointerSize}
+                    color="#FFFFFF"
                   />
                 </Animated.View>
               );

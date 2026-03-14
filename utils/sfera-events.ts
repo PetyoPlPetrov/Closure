@@ -396,6 +396,11 @@ export async function setLocationDeclinedByUser(): Promise<void> {
   await AsyncStorage.setItem(LOCATION_DECLINED_KEY, "1");
 }
 
+/** Clear the location declined flag (e.g., when user grants permission). */
+export async function clearLocationDeclinedByUser(): Promise<void> {
+  await AsyncStorage.removeItem(LOCATION_DECLINED_KEY);
+}
+
 /** Get current location permission status (does not request). */
 export async function getLocationPermissionStatus(): Promise<
   "granted" | "denied" | "undetermined"
