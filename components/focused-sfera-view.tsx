@@ -1825,14 +1825,22 @@ export function FocusedSferaView({
     overallSunnyPercentage,
   ]);
 
-  // When circle avatar is pressed: if onClearSelection is provided, call it; otherwise switch to classic view
+  // When circle avatar is pressed:
+  // - Initial view (selectedSphere === null): switch to classic view
+  // - Individual sfera view (selectedSphere !== null): clear selection to return to initial view
   const handleCircleAvatarPress = useCallback(() => {
-    if (onClearSelection) {
-      onClearSelection();
-    } else {
+    if (selectedSphere === null) {
+      // Initial view: switch to classic wheel of life
       onSwitchToClassic();
+    } else {
+      // Individual sfera view: clear selection to return to initial view
+      if (onClearSelection) {
+        onClearSelection();
+      } else {
+        onSwitchToClassic();
+      }
     }
-  }, [onClearSelection, onSwitchToClassic]);
+  }, [selectedSphere, onClearSelection, onSwitchToClassic]);
 
   const { momentColors } = useMomentColors();
   const avatarSizeForDots = 100;

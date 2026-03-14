@@ -155,32 +155,6 @@ function logEventPositions(
 
 const COMMUNITY_TYPES: SferaEventType[] = ["social", "private", "plus"];
 
-/** Number of orbit slots for Sfera Private. Real unlocked events fill first slots; rest are mock placeholders. */
-const PRIVATE_SLOT_COUNT = 5;
-
-/** Mock events used to fill Private orbit slots that aren't yet unlocked. */
-const MOCK_LOCKED_PRIVATE_EVENTS: SferaEvent[] = Array.from(
-  { length: PRIVATE_SLOT_COUNT },
-  (_, i) => ({
-    id: `mock-private-${i + 1}`,
-    name: "Private Event",
-    location: "",
-    description: "",
-    imageUrl: "",
-    type: "private" as const,
-    vipCode: null,
-    date: "",
-    startDate: "",
-    eventLink: "",
-    country: "",
-    town: "",
-  }),
-);
-
-function isMockLockedEvent(event: SferaEvent): boolean {
-  return event.id.startsWith("mock-private-");
-}
-
 type SharedNum = ReanimatedSharedValue<number>;
 
 /** 3D sphere gradient for Sfera Community orbs (highlight top-left, shadow bottom-right). */
@@ -1124,7 +1098,12 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
             />
           </Pressable>
         ) : null}
-        {isUnseen && !isLocked ? (
+        {event.type === "private" && !isLocked ? (
+          <View style={styles.eventCardPrivateBadge}>
+            <MaterialIcons name="lock" size={12 * fontScale} color="#fff" />
+          </View>
+        ) : null}
+        {isUnseen ? (
           <View
             style={[
               styles.eventCardUnseenBadge,
@@ -1274,6 +1253,7 @@ export default function EventsTab() {
   const hideCenteredOrb = useSharedValue(0); // 1 when community selected so we show CenterOrbPlaceholder instead
   const eventsRevealProgress = useSharedValue(0); // 0 -> 1 after orb settles, so events fade in
   const eventOrbitAngle = useSharedValue(0); // shared orbit angle so all event cards move smoothly along the circle
+  const locationBannerOpacity = useSharedValue(1); // 1 on orbs view, fades to 0 when entering community
   const focusedEventIndexShared = useSharedValue(0); // synced with focusedEventIndex for worklets
   const loadUnlocked = useCallback(async () => {
     const set = await getUnlockedVipCodes();
@@ -1479,6 +1459,10 @@ export default function EventsTab() {
     transform: [{ scale: joinPulseScale.value }],
   }));
 
+  const locationBannerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: locationBannerOpacity.value,
+  }));
+
   // Open Create memory modal when navigated from event memory reminder notification
   useEffect(() => {
     const eventId = params.eventIdForMemory;
@@ -1527,14 +1511,12 @@ export default function EventsTab() {
     [socialEvents, realPrivateEvents, plusEvents, seenIds],
   );
 
-  /** Private orbit: real unlocked events fill first slots; remaining slots are mock placeholders. */
+  /** Private orbit: only real unlocked events (no mock placeholders). */
   const privateSlotList = useMemo(() => {
-    const realUnlocked = privateEvents.filter(
+    return privateEvents.filter(
       (e) =>
         e.vipCode && unlockedCodes.has((e.vipCode || "").trim().toLowerCase()),
     );
-    const mockCount = Math.max(0, PRIVATE_SLOT_COUNT - realUnlocked.length);
-    return [...realUnlocked, ...MOCK_LOCKED_PRIVATE_EVENTS.slice(0, mockCount)];
   }, [privateEvents, unlockedCodes]);
 
   const communityEvents = useMemo(
@@ -1765,10 +1747,16 @@ export default function EventsTab() {
         runOnJS(setPhase)(type);
         runOnJS(setSelectedType)(type);
       });
+      // Fade out location banner when entering community view
+      locationBannerOpacity.value = withDelay(
+        500,
+        withTiming(0, { duration: 2000 }),
+      );
     },
     [
       selectedOrbIndex,
       orbExitProgress,
+      locationBannerOpacity,
       appUsabilityHints,
       eventsCommunitiesRotationStarted,
       eventsFingerOpacity,
@@ -1783,7 +1771,9 @@ export default function EventsTab() {
     setFocusedCommunityIndex(0);
     setFocusedEventIndex(0);
     orbExitProgress.value = withTiming(0, { duration: 280 });
-  }, [orbExitProgress]);
+    // Fade in location banner when returning to orbs view
+    locationBannerOpacity.value = withTiming(1, { duration: 400 });
+  }, [orbExitProgress, locationBannerOpacity]);
 
   const handleLocationIndicatorPress = useCallback(async () => {
     const status = await requestLocationPermission();
@@ -1975,14 +1965,18 @@ export default function EventsTab() {
 
       {/* Location permission denied indicator */}
       {locationPermissionDenied && (
-        <View
-          style={{
-            position: "absolute",
-            top: insets.top + 12,
-            left: 16,
-            right: 16,
-            zIndex: 999,
-          }}
+        <Animated.View
+          style={[
+            {
+              position: "absolute",
+              top: insets.top + 12,
+              left: 16,
+              right: 16,
+              zIndex: 999,
+            },
+            locationBannerAnimatedStyle,
+          ]}
+          pointerEvents={phase === "orbs" ? "auto" : "none"}
         >
           <Pressable
             onPress={handleLocationIndicatorPress}
@@ -2017,7 +2011,7 @@ export default function EventsTab() {
               color={colors.textDisabled}
             />
           </Pressable>
-        </View>
+        </Animated.View>
       )}
 
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -2118,7 +2112,7 @@ export default function EventsTab() {
                       focusedEventIndexShared={focusedEventIndexShared}
                       colorScheme={colorScheme ?? "dark"}
                       colors={colors}
-                      isLocked={isMockLockedEvent(event)}
+                      isLocked={false}
                       isUnseen={!seenIds.has(event.id)}
                       isAttending={attendingIds.has(event.id)}
                       isPastEvent={pastEventIds.has(event.id)}
@@ -2176,7 +2170,7 @@ export default function EventsTab() {
                       focusedEventIndexShared={focusedEventIndexShared}
                       colorScheme={colorScheme ?? "dark"}
                       colors={colors}
-                      isLocked={isMockLockedEvent(event)}
+                      isLocked={false}
                       isUnseen={!seenIds.has(event.id)}
                       isAttending={attendingIds.has(event.id)}
                       isPastEvent={pastEventIds.has(event.id)}
@@ -3465,6 +3459,18 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     backgroundColor: "rgba(180,0,0,0.85)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 5,
+  },
+  eventCardPrivateBadge: {
+    position: "absolute",
+    bottom: 6,
+    left: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(160,120,230,0.85)",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 5,

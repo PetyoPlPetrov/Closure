@@ -255,12 +255,14 @@ export async function preloadMainWheelQuestions(params: {
     }
 
     const toPreload = pickRandom(all, MAX_PRELOAD);
-    const canPreload = await canSpinWheelExam(hasAIEntitlement);
-    // Skip preload when user exhausted free spins — do NOT show paywall here.
-    // Paywall should only show when user actually tries to spin the wheel.
-    if (!canPreload) {
-      mainPreloadPromise = null;
-      return;
+    // Skip preload only for free users who exhausted their daily spin.
+    // Always preload for users with AI entitlement (unlimited spins).
+    if (!hasAIEntitlement) {
+      const canPreload = await canSpinWheelExam(hasAIEntitlement);
+      if (!canPreload) {
+        mainPreloadPromise = null;
+        return;
+      }
     }
     // Don't record here - record when user actually spins (in index/EntityWheelOfLife)
 
@@ -321,12 +323,14 @@ export async function preloadEntityWheelQuestions(params: {
     }
 
     const toPreload = pickRandom(all, MAX_PRELOAD);
-    const canPreload = await canSpinWheelExam(hasAIEntitlement);
-    // Skip preload when user exhausted free spins — do NOT show paywall here.
-    // Paywall should only show when user actually tries to spin the wheel.
-    if (!canPreload) {
-      entityPreloadPromises.delete(entityId);
-      return;
+    // Skip preload only for free users who exhausted their daily spin.
+    // Always preload for users with AI entitlement (unlimited spins).
+    if (!hasAIEntitlement) {
+      const canPreload = await canSpinWheelExam(hasAIEntitlement);
+      if (!canPreload) {
+        entityPreloadPromises.delete(entityId);
+        return;
+      }
     }
     // Don't record here - record when user actually spins (in index/EntityWheelOfLife)
 
