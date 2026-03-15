@@ -393,6 +393,7 @@ export interface Translations {
   // Insights
   "insights.wheelOfLife.title": string;
   "insights.wheelOfLife.subtitle": string;
+  "insights.wheelOfLife.emptyState": string;
   "insights.wheelOfLife.distributionExplanation": string;
   "insights.wheelOfLife.percentageExplanation": string;
   "insights.recommendations.title": string;
@@ -423,6 +424,8 @@ export interface Translations {
   "insights.comparison.relationships.chartTitle": string;
   "insights.comparison.relationships.subtitle": string;
   "insights.comparison.relationships.requiresEntities": string;
+  "insights.comparison.relationships.onlyOneEntity.title": string;
+  "insights.comparison.relationships.onlyOneEntity.message": string;
   "insights.comparison.relationships.goodMoments": string;
   "insights.comparison.relationships.badMoments": string;
   "insights.comparison.relationships.you": string;
@@ -447,6 +450,8 @@ export interface Translations {
   "insights.comparison.career.chartTitle": string;
   "insights.comparison.career.subtitle": string;
   "insights.comparison.career.requiresEntities": string;
+  "insights.comparison.career.onlyOneEntity.title": string;
+  "insights.comparison.career.onlyOneEntity.message": string;
   "insights.comparison.career.goodMoments": string;
   "insights.comparison.career.badMoments": string;
   "insights.comparison.career.warning.lower": string;
@@ -469,6 +474,8 @@ export interface Translations {
   "insights.comparison.family.cloudy": string;
   "insights.comparison.family.noData": string;
   "insights.comparison.family.requiresEntities": string;
+  "insights.comparison.family.onlyOneEntity.title": string;
+  "insights.comparison.family.onlyOneEntity.message": string;
   "insights.comparison.family.insight.moreFamilyTime": string;
   "insights.comparison.family.insight.moreCareerTime": string;
   "insights.comparison.family.insight.balancedTime": string;
@@ -484,6 +491,8 @@ export interface Translations {
   "insights.comparison.friends.subtitle": string;
   "insights.comparison.friends.noData": string;
   "insights.comparison.friends.requiresEntities": string;
+  "insights.comparison.friends.onlyOneEntity.title": string;
+  "insights.comparison.friends.onlyOneEntity.message": string;
   "insights.comparison.friends.otherSpheres": string;
   "insights.comparison.friends.insight.moreFriendsTime": string;
   "insights.comparison.friends.insight.moreOtherSpheresTime": string;
@@ -498,6 +507,8 @@ export interface Translations {
   "insights.comparison.hobbies.subtitle": string;
   "insights.comparison.hobbies.noData": string;
   "insights.comparison.hobbies.requiresEntities": string;
+  "insights.comparison.hobbies.onlyOneEntity.title": string;
+  "insights.comparison.hobbies.onlyOneEntity.message": string;
   "insights.comparison.hobbies.otherSpheres": string;
   "insights.comparison.hobbies.insight.moreHobbiesTime": string;
   "insights.comparison.hobbies.insight.moreOtherSpheresTime": string;
@@ -4087,6 +4098,8 @@ const translations: Record<Language, Translations> = {
     "insights.wheelOfLife.title": "Insights",
     "insights.wheelOfLife.subtitle":
       "Analyze your life balance across different sferas",
+    "insights.wheelOfLife.emptyState":
+      "Add memories and moments on other sferas to see data insights",
     "insights.wheelOfLife.distributionExplanation":
       "The percentages show how much time you dedicate to each sphere in terms of total moments. They represent the proportion of all your moments that belong to each sphere compared to the others.",
     "insights.wheelOfLife.percentageExplanation":
@@ -4154,6 +4167,10 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.relationships.quality": "sunny",
     "insights.comparison.relationships.requiresEntities":
       "Add memories and moments on other sferas to see relationships comparison insights.",
+    "insights.comparison.relationships.onlyOneEntity.title":
+      "Need More Relationships to Compare",
+    "insights.comparison.relationships.onlyOneEntity.message":
+      "Add more relationships and their memories to see meaningful comparison insights and patterns across your connections.",
     "insights.comparison.relationships.sphereComparison.moreRelationshipTime":
       "Relationships prevail in your life, with significantly more moments recorded compared to career. Your personal connections are a priority.",
     "insights.comparison.relationships.sphereComparison.moreCareerTime":
@@ -4174,6 +4191,10 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.career.subtitle": "Overall amount of moments",
     "insights.comparison.career.requiresEntities":
       "Add memories and moments on other sferas to see career comparison insights.",
+    "insights.comparison.career.onlyOneEntity.title":
+      "Need More Jobs to Compare",
+    "insights.comparison.career.onlyOneEntity.message":
+      "Add more career experiences and their memories to see meaningful comparison insights and patterns across your jobs.",
     "insights.comparison.career.goodMoments": "Sunny Facts",
     "insights.comparison.career.badMoments": "Cloudy Moments",
     "insights.comparison.career.warning.lower":
@@ -4207,6 +4228,10 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.family.noData": "No data available for comparison",
     "insights.comparison.family.requiresEntities":
       "Add memories and moments on other sferas to see family comparison insights.",
+    "insights.comparison.family.onlyOneEntity.title":
+      "Need More Family Members to Compare",
+    "insights.comparison.family.onlyOneEntity.message":
+      "Add more family members and their memories to see meaningful comparison insights and patterns across your family relationships.",
     "insights.comparison.family.insight.moreFamilyTime":
       "You spend more time with family than on your career.",
     "insights.comparison.family.insight.moreCareerTime":
@@ -4233,6 +4258,10 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.friends.noData": "No data available for comparison",
     "insights.comparison.friends.requiresEntities":
       "Add memories and moments on other sferas to see friends comparison insights.",
+    "insights.comparison.friends.onlyOneEntity.title":
+      "Need More Friends to Compare",
+    "insights.comparison.friends.onlyOneEntity.message":
+      "Add more friends and their memories to see meaningful comparison insights and patterns across your friendships.",
     "insights.comparison.friends.otherSpheres": "Other Sferas",
     "insights.comparison.friends.insight.moreFriendsTime":
       "You spend more time with friends than on average with other sferas.",
@@ -4256,6 +4285,10 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.hobbies.noData": "No data available for comparison",
     "insights.comparison.hobbies.requiresEntities":
       "Add memories and moments on other sferas to see hobbies comparison insights.",
+    "insights.comparison.hobbies.onlyOneEntity.title":
+      "Need More Hobbies to Compare",
+    "insights.comparison.hobbies.onlyOneEntity.message":
+      "Add more hobbies and their memories to see meaningful comparison insights and patterns across your interests.",
     "insights.comparison.hobbies.otherSpheres": "Other Sferas",
     "insights.comparison.hobbies.insight.moreHobbiesTime":
       "You spend more time on hobbies than on average with other sferas.",
@@ -8599,6 +8632,8 @@ const translations: Record<Language, Translations> = {
     "insights.wheelOfLife.title": "Прозрения",
     "insights.wheelOfLife.subtitle":
       "Анализирайте жизнения си баланс в различните сфери",
+    "insights.wheelOfLife.emptyState":
+      "Добавете спомени и моменти в други сфери, за да видите анализи на данните",
     "insights.wheelOfLife.distributionExplanation":
       "Процентите показват колко време отделяте на всяка сфера по отношение на общите моменти. Те представляват пропорцията на всичките ви моменти, които принадлежат на всяка сфера, в сравнение с останалите.",
     "insights.wheelOfLife.percentageExplanation":
@@ -8666,6 +8701,10 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.relationships.quality": "слънчеви",
     "insights.comparison.relationships.requiresEntities":
       "Добавете спомени и моменти в други сфери, за да видите анализи на сравнение на връзките.",
+    "insights.comparison.relationships.onlyOneEntity.title":
+      "Нужни са Повече Връзки за Сравнение",
+    "insights.comparison.relationships.onlyOneEntity.message":
+      "Добавете повече връзки и техните спомени, за да видите смислени анализи на сравнение и модели във вашите връзки.",
     "insights.comparison.relationships.sphereComparison.moreRelationshipTime":
       "Връзките преобладават в живота ви, с значително повече записани моменти в сравнение с кариерата. Личните ви връзки са приоритет.",
     "insights.comparison.relationships.sphereComparison.moreCareerTime":
@@ -8700,6 +8739,10 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.career.quality": "слънчеви",
     "insights.comparison.career.requiresEntities":
       "Добавете спомени и моменти в други сфери, за да видите анализи на сравнение на кариерата.",
+    "insights.comparison.career.onlyOneEntity.title":
+      "Нужни са Повече Работи за Сравнение",
+    "insights.comparison.career.onlyOneEntity.message":
+      "Добавете повече кариерни преживявания и техните спомени, за да видите смислени анализи на сравнение и модели във вашите работи.",
     "insights.comparison.career.sphereComparison.moreCareerTime":
       "Кариерата преобладава в живота ви, с значително повече записани моменти в сравнение с връзките. Помислете за балансиране на фокуса между работа и лични връзки.",
     "insights.comparison.career.sphereComparison.moreRelationshipTime":
@@ -8719,6 +8762,10 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.family.noData": "Няма налични данни за сравнение",
     "insights.comparison.family.requiresEntities":
       "Добавете спомени и моменти в други сфери, за да видите анализи на сравнение на семейството.",
+    "insights.comparison.family.onlyOneEntity.title":
+      "Нужни са Повече Членове на Семейството за Сравнение",
+    "insights.comparison.family.onlyOneEntity.message":
+      "Добавете повече членове на семейството и техните спомени, за да видите смислени анализи на сравнение и модели във вашите семейни взаимоотношения.",
     "insights.comparison.family.insight.moreFamilyTime":
       "Отделяте повече време за семейството, отколкото за кариерата.",
     "insights.comparison.family.insight.moreCareerTime":
@@ -8745,6 +8792,10 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.friends.noData": "Няма налични данни за сравнение",
     "insights.comparison.friends.requiresEntities":
       "Добавете спомени и моменти в други сфери, за да видите анализи на сравнение на приятелите.",
+    "insights.comparison.friends.onlyOneEntity.title":
+      "Нужни са Повече Приятели за Сравнение",
+    "insights.comparison.friends.onlyOneEntity.message":
+      "Добавете повече приятели и техните спомени, за да видите смислени анализи на сравнение и модели във вашите приятелства.",
     "insights.comparison.friends.otherSpheres": "Други Сфери",
     "insights.comparison.friends.insight.moreFriendsTime":
       "Отделяте повече време за приятели, отколкото средно за други сфери.",
@@ -8768,6 +8819,10 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.hobbies.noData": "Няма налични данни за сравнение",
     "insights.comparison.hobbies.requiresEntities":
       "Добавете спомени и моменти в други сфери, за да видите анализи на сравнение на хобитата.",
+    "insights.comparison.hobbies.onlyOneEntity.title":
+      "Нужни са Повече Хобита за Сравнение",
+    "insights.comparison.hobbies.onlyOneEntity.message":
+      "Добавете повече хобита и техните спомени, за да видите смислени анализи на сравнение и модели във вашите интереси.",
     "insights.comparison.hobbies.otherSpheres": "Други Сфери",
     "insights.comparison.hobbies.insight.moreHobbiesTime":
       "Отделяте повече време за хобита, отколкото средно за други сфери.",

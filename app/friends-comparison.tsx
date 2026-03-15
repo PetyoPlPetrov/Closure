@@ -24,8 +24,52 @@ export default function FriendsComparisonScreen() {
 
   // Statistics should only be enabled when there's at least 1 entity per sphere being compared
   // Friends comparison compares friends vs other spheres, so we need at least 1 friend AND at least 1 entity in other spheres
-  const hasOtherSpheresEntities = profiles.length > 0 || jobs.length > 0 || familyMembers.length > 0;
-  const hasRequiredEntities = friends.length > 0 && hasOtherSpheresEntities;
+  // IMPORTANT: Only count entities that have memories, as entities without memories have no meaning for comparison
+  const hasRequiredEntities = useMemo(() => {
+    // Check if we have at least one friend with memories
+    const friendsWithMemories = friends.filter(friend => {
+      const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
+      return memories.some(memory =>
+        ((memory.hardTruths || []).length > 0) || ((memory.goodFacts || []).length > 0)
+      );
+    });
+
+    // Check if we have at least one entity in other spheres with memories
+    const profilesWithMemories = profiles.filter(profile => {
+      const memories = getIdealizedMemoriesByProfileId(profile.id);
+      return memories.some(memory =>
+        ((memory.hardTruths || []).length > 0) || ((memory.goodFacts || []).length > 0)
+      );
+    });
+
+    const jobsWithMemories = jobs.filter(job => {
+      const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
+      return memories.some(memory =>
+        ((memory.hardTruths || []).length > 0) || ((memory.goodFacts || []).length > 0)
+      );
+    });
+
+    const familyWithMemories = familyMembers.filter(member => {
+      const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
+      return memories.some(memory =>
+        ((memory.hardTruths || []).length > 0) || ((memory.goodFacts || []).length > 0)
+      );
+    });
+
+    const hasOtherSpheresEntities = profilesWithMemories.length > 0 || jobsWithMemories.length > 0 || familyWithMemories.length > 0;
+    return friendsWithMemories.length > 0 && hasOtherSpheresEntities;
+  }, [friends, profiles, jobs, familyMembers, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
+
+  // Check if there's only one entity in this sphere (that has memories)
+  const hasOnlyOneEntity = useMemo(() => {
+    const friendsWithMemories = friends.filter(friend => {
+      const memories = getIdealizedMemoriesByEntityId(friend.id, 'friends');
+      return memories.some(memory =>
+        ((memory.hardTruths || []).length > 0) || ((memory.goodFacts || []).length > 0)
+      );
+    });
+    return friendsWithMemories.length === 1;
+  }, [friends, getIdealizedMemoriesByEntityId]);
 
   // Calculate sphere data for friends and other spheres (relationships, career, family)
   const sphereData = useMemo(() => {
@@ -482,11 +526,11 @@ export default function FriendsComparisonScreen() {
             >
               <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
             </TouchableOpacity>
-            
+
             <ThemedText size="l" weight="bold" style={styles.headerTitle}>
               {t('insights.comparison.friends.title')}
             </ThemedText>
-            
+
             <View style={styles.headerButton} />
           </View>
 
@@ -498,8 +542,8 @@ export default function FriendsComparisonScreen() {
               justifyContent: 'center',
               alignItems: 'center',
               marginBottom: 24 * fontScale,
-              backgroundColor: colorScheme === 'dark' 
-                ? 'rgba(123, 31, 162, 0.2)' 
+              backgroundColor: colorScheme === 'dark'
+                ? 'rgba(123, 31, 162, 0.2)'
                 : 'rgba(123, 31, 162, 0.1)',
             }}>
               <MaterialIcons
@@ -557,6 +601,57 @@ export default function FriendsComparisonScreen() {
             </View>
             <ThemedText size="l" style={{ textAlign: 'center', opacity: 0.7, paddingHorizontal: 32 * fontScale }}>
               {t('insights.comparison.friends.noData')}
+            </ThemedText>
+          </View>
+        </View>
+      </TabScreenContainer>
+    );
+  }
+
+  // If only one entity in this sphere, show nudge to add more
+  if (hasOnlyOneEntity) {
+    return (
+      <TabScreenContainer>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
+            </TouchableOpacity>
+
+            <ThemedText size="l" weight="bold" style={styles.headerTitle}>
+              {t('insights.comparison.friends.title')}
+            </ThemedText>
+
+            <View style={styles.headerButton} />
+          </View>
+
+          <View style={[styles.content, { justifyContent: 'center', alignItems: 'center', flex: 1 }]}>
+            <View style={{
+              width: 100 * fontScale,
+              height: 100 * fontScale,
+              borderRadius: 50 * fontScale,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 24 * fontScale,
+              backgroundColor: colorScheme === 'dark'
+                ? 'rgba(100, 181, 246, 0.2)'
+                : 'rgba(100, 181, 246, 0.1)',
+            }}>
+              <MaterialIcons
+                name="insights"
+                size={50 * fontScale}
+                color={colors.primary}
+              />
+            </View>
+            <ThemedText size="l" weight="semibold" style={{ textAlign: 'center', marginBottom: 12 * fontScale, paddingHorizontal: 32 * fontScale }}>
+              {t('insights.comparison.friends.onlyOneEntity.title')}
+            </ThemedText>
+            <ThemedText size="sm" style={{ textAlign: 'center', opacity: 0.7, paddingHorizontal: 32 * fontScale }}>
+              {t('insights.comparison.friends.onlyOneEntity.message')}
             </ThemedText>
           </View>
         </View>

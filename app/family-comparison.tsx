@@ -24,7 +24,37 @@ export default function FamilyComparisonScreen() {
 
   // Statistics should only be enabled when there's at least 1 entity per sphere being compared
   // Family comparison compares family vs career, so we need at least 1 family member AND 1 job
-  const hasRequiredEntities = familyMembers.length > 0 && jobs.length > 0;
+  // IMPORTANT: Only count entities that have memories, as entities without memories have no meaning for comparison
+  const hasRequiredEntities = useMemo(() => {
+    // Check if we have at least one family member with memories
+    const familyWithMemories = familyMembers.filter(member => {
+      const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
+      return memories.some(memory =>
+        ((memory.hardTruths || []).length > 0) || ((memory.goodFacts || []).length > 0)
+      );
+    });
+
+    // Check if we have at least one job with memories
+    const jobsWithMemories = jobs.filter(job => {
+      const memories = getIdealizedMemoriesByEntityId(job.id, 'career');
+      return memories.some(memory =>
+        ((memory.hardTruths || []).length > 0) || ((memory.goodFacts || []).length > 0)
+      );
+    });
+
+    return familyWithMemories.length > 0 && jobsWithMemories.length > 0;
+  }, [familyMembers, jobs, getIdealizedMemoriesByEntityId]);
+
+  // Check if there's only one entity in this sphere (that has memories)
+  const hasOnlyOneEntity = useMemo(() => {
+    const familyWithMemories = familyMembers.filter(member => {
+      const memories = getIdealizedMemoriesByEntityId(member.id, 'family');
+      return memories.some(memory =>
+        ((memory.hardTruths || []).length > 0) || ((memory.goodFacts || []).length > 0)
+      );
+    });
+    return familyWithMemories.length === 1;
+  }, [familyMembers, getIdealizedMemoriesByEntityId]);
 
   // Calculate sphere data for family and career
   const sphereData = useMemo(() => {
@@ -584,8 +614,8 @@ export default function FamilyComparisonScreen() {
     );
   }
 
-  // If not enough entities, show message and return early
-  if (!hasRequiredEntities) {
+  // If only one entity in this sphere, show nudge to add more
+  if (hasOnlyOneEntity) {
     return (
       <TabScreenContainer>
         <View style={styles.container}>
@@ -602,9 +632,29 @@ export default function FamilyComparisonScreen() {
             </ThemedText>
             <View style={styles.headerButton} />
           </View>
-          <ScrollView style={styles.content} contentContainerStyle={{ paddingTop: 40 * fontScale, alignItems: 'center' }}>
-            <ThemedText size="l" style={{ textAlign: 'center', opacity: 0.7 }}>
-              {t('insights.comparison.requiresEntities')}
+          <ScrollView style={styles.content} contentContainerStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 40 * fontScale }}>
+            <View style={{
+              width: 100 * fontScale,
+              height: 100 * fontScale,
+              borderRadius: 50 * fontScale,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 24 * fontScale,
+              backgroundColor: colorScheme === 'dark'
+                ? 'rgba(100, 181, 246, 0.2)'
+                : 'rgba(100, 181, 246, 0.1)',
+            }}>
+              <MaterialIcons
+                name="insights"
+                size={50 * fontScale}
+                color={colors.primary}
+              />
+            </View>
+            <ThemedText size="l" weight="semibold" style={{ textAlign: 'center', marginBottom: 12 * fontScale, paddingHorizontal: 32 * fontScale }}>
+              {t('insights.comparison.family.onlyOneEntity.title')}
+            </ThemedText>
+            <ThemedText size="sm" style={{ textAlign: 'center', opacity: 0.7, paddingHorizontal: 32 * fontScale }}>
+              {t('insights.comparison.family.onlyOneEntity.message')}
             </ThemedText>
           </ScrollView>
         </View>

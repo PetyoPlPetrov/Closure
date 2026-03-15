@@ -470,7 +470,7 @@ function WheelOfLifeVisualization({
               color: colors.text,
             }}
           >
-            Add memories and moments on other sferas to see data insights
+            {t("insights.wheelOfLife.emptyState")}
           </ThemedText>
         </View>
       </View>
@@ -971,13 +971,15 @@ export default function InsightsScreen() {
   };
 
   // Calculate sphere data: total moments (for distribution) and sunny percentage (for quality)
+  // IMPORTANT: Only count entities that actually have memories
   const sphereData = useMemo(() => {
     const calculateSphereData = (sphereType: LifeSphere) => {
       const entities = getEntitiesBySphere(sphereType);
-      if (entities.length === 0) return { totalMoments: 0, sunnyPercentage: 0 };
+      if (entities.length === 0) return { totalMoments: 0, sunnyPercentage: 0, entitiesWithMemories: 0 };
 
       let totalClouds = 0;
       let totalSuns = 0;
+      let entitiesWithMemories = 0;
 
       entities.forEach((entity) => {
         const memories =
@@ -985,10 +987,19 @@ export default function InsightsScreen() {
             ? getIdealizedMemoriesByProfileId(entity.id)
             : getIdealizedMemoriesByEntityId(entity.id, sphereType);
 
+        let entityMoments = 0;
         memories.forEach((memory) => {
-          totalClouds += (memory.hardTruths || []).length;
-          totalSuns += (memory.goodFacts || []).length;
+          const clouds = (memory.hardTruths || []).length;
+          const suns = (memory.goodFacts || []).length;
+          totalClouds += clouds;
+          totalSuns += suns;
+          entityMoments += clouds + suns;
         });
+
+        // Only count this entity if it has at least one moment
+        if (entityMoments > 0) {
+          entitiesWithMemories++;
+        }
       });
 
       const totalMoments = totalClouds + totalSuns;
@@ -1001,6 +1012,7 @@ export default function InsightsScreen() {
           0,
           Math.min(100, isNaN(sunnyPercentage) ? 0 : sunnyPercentage),
         ),
+        entitiesWithMemories,
       };
     };
 
@@ -1343,9 +1355,9 @@ export default function InsightsScreen() {
                     onPress={async () => {
                       if (!hasEntities) return;
 
-                      const { hasPlusEntitlement: hasPlus } =
+                      const { hasEntityLimitEntitlement } =
                         await ensureSubscriptionResolved();
-                      if (!hasPlus) {
+                      if (!hasEntityLimitEntitlement) {
                         const subscribed = await showPaywallForAnySubscriptionAccess();
                         if (!subscribed) return;
                       }
