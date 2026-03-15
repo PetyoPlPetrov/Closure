@@ -16,15 +16,15 @@ import { Platform } from 'react-native';
 export const Colors = {
   light: {
     text: '#11181C',
-    background: '#B0B0B0', // Darker grey background for light mode
-    tint: '#34C759',
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: '#34C759',
-    primary: '#34C759',
+    background: '#F2F2F2', // Light grey background (was #B0B0B0 - too dark for accent contrast)
+    tint: '#166E2D',       // Darkened green for AA contrast on light bg (was #34C759)
+    icon: '#404548',       // Darkened icons for AA contrast on light bg (was #687076)
+    tabIconDefault: '#404548',
+    tabIconSelected: '#166E2D',
+    primary: '#166E2D',    // Darkened primary for AA contrast on light bg (was #34C759)
     primaryLight: '#7dd3fc',
     primaryDark: '#0c4a6e',
-    error: '#ff4444',
+    error: '#C41E1E',      // Darkened error for AA contrast on light bg (was #ff4444)
   },
   dark: {
     // Base colors
@@ -38,9 +38,10 @@ export const Colors = {
     
     // Desaturated accent colors (less vibrant for dark theme)
     tint: '#64B5F6', // Desaturated blue (was #38bdf8)
-    primary: '#64B5F6', // Desaturated blue primary
+    primary: '#64B5F6', // Desaturated blue primary (use dark text on this, not white)
     primaryLight: '#90CAF9', // Lighter desaturated blue
     primaryDark: '#42A5F5', // Darker desaturated blue
+    primaryText: '#1A2332', // Dark text for use ON primary buttons (replaces white - ratio 7.13:1)
     
     // Icon colors (desaturated)
     icon: 'rgba(255, 255, 255, 0.60)', // Medium emphasis for icons
