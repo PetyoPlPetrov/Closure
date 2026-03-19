@@ -13,7 +13,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import type { AIOnboardingResponse } from "@/utils/ai-service";
-import { processOnboardingPrompt } from "@/utils/ai-service";
+import { processOnboardingPrompt, AISafetyViolationError, AISafetyBlockedError, getDailySafetyViolationCount } from "@/utils/ai-service";
 import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
@@ -168,11 +168,20 @@ export function OnboardingWizard({
       setStep(3);
     } catch (err) {
       if (__DEV__) console.log("[Onboarding] handleSubmit: API error", err);
-      setErrorMessage(
-        err instanceof Error
-          ? err.message
-          : (t("ai.error.send") ?? "Failed to process"),
-      );
+      if (err instanceof AISafetyBlockedError) {
+        setErrorMessage(t("ai.safetyBlocked.title") + "\n\n" + t("ai.safetyBlocked.message"));
+      } else if (err instanceof AISafetyViolationError) {
+        const count = await getDailySafetyViolationCount();
+        const remaining = Math.max(0, 3 - count);
+        setErrorMessage(
+          t("ai.safetyViolation.title") + "\n\n" +
+          t("ai.safetyViolation.message").replace("{remaining}", String(remaining))
+        );
+      } else {
+        setErrorMessage(
+          err instanceof Error ? err.message : (t("ai.error.send") ?? "Failed to process"),
+        );
+      }
     } finally {
       if (__DEV__) console.log("[Onboarding] handleSubmit: finally, setIsProcessing(false)");
       setIsProcessing(false);

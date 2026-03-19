@@ -48,6 +48,7 @@ import {
 import React, {
     useCallback,
     useEffect,
+    useImperativeHandle,
     useMemo,
     useRef,
     useState,
@@ -68,7 +69,6 @@ import {
 import Animated, {
     cancelAnimation,
     Easing,
-    runOnJS,
     useAnimatedStyle,
     useSharedValue,
     withDelay,
@@ -247,8 +247,16 @@ const SparkledDot = React.memo(function SparkledDot({
   );
 });
 
-export default function SpheresScreen() {
-  console.log('[spheres.tsx] 🌐 SPHERES SCREEN RENDERED');
+export type SpheresScreenHandle = { openAIModal: () => void };
+
+export const SpheresScreen = React.forwardRef<SpheresScreenHandle, { embedded?: boolean; onSubViewOpen?: (isOpen: boolean) => void }>(
+function SpheresScreen({ embedded, onSubViewOpen }: { embedded?: boolean; onSubViewOpen?: (isOpen: boolean) => void }, ref: React.Ref<SpheresScreenHandle>) {
+  if (__DEV__) {
+    console.log("[SferasNav] SpheresScreen render", {
+      embedded,
+      context: embedded ? "sferas tab edit view" : "spheres route (overlay)",
+    });
+  }
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const { momentColors } = useMomentColors();
@@ -310,47 +318,17 @@ export default function SpheresScreen() {
   });
   const [sevenLetterWidth, setSevenLetterWidth] = useState<number>(0);
 
-  // Pulse: AI Sfera pulses non-stop (slight). When insight button pulses, AI Sfera stops; after insight stops, AI Sfera resumes.
   const insightPulseScale = useSharedValue(1);
-  const aiSferaPulseScale = useSharedValue(1);
   const pulseEasing = Easing.inOut(Easing.ease);
   const insightPulseDuration = 1000;
-  const aiSferaPulseDuration = 1400; // one full cycle (up + down) for subtle continuous pulse
-
-  const startAiSferaContinuousPulse = useCallback(() => {
-    aiSferaPulseScale.value = withRepeat(
-      withSequence(
-        withTiming(1.07, {
-          duration: aiSferaPulseDuration / 2,
-          easing: pulseEasing,
-        }),
-        withTiming(1, {
-          duration: aiSferaPulseDuration / 2,
-          easing: pulseEasing,
-        }),
-      ),
-      -1,
-      true,
-    );
-  }, [aiSferaPulseScale]);
 
   useEffect(() => {
     if (stopPulsingAnimations) {
-      cancelAnimation(aiSferaPulseScale);
       cancelAnimation(insightPulseScale);
-      aiSferaPulseScale.value = 1;
       insightPulseScale.value = 1;
       return;
     }
-    startAiSferaContinuousPulse();
-    return () => cancelAnimation(aiSferaPulseScale);
-  }, [aiSferaPulseScale, insightPulseScale, startAiSferaContinuousPulse, stopPulsingAnimations]);
-
-  useEffect(() => {
-    if (stopPulsingAnimations) return;
     const runInsightPulse = () => {
-      cancelAnimation(aiSferaPulseScale);
-      aiSferaPulseScale.value = withTiming(1, { duration: 150 });
       insightPulseScale.value = withSequence(
         withTiming(1.2, {
           duration: insightPulseDuration,
@@ -359,11 +337,6 @@ export default function SpheresScreen() {
         withTiming(1, {
           duration: insightPulseDuration,
           easing: pulseEasing,
-        }, (finished) => {
-          "worklet";
-          if (finished) {
-            runOnJS(startAiSferaContinuousPulse)();
-          }
         }),
       );
     };
@@ -383,13 +356,10 @@ export default function SpheresScreen() {
     };
     scheduleNext(true);
     return () => clearTimeout(timeoutId);
-  }, [insightPulseScale, aiSferaPulseScale, startAiSferaContinuousPulse, stopPulsingAnimations]);
+  }, [insightPulseScale, stopPulsingAnimations]);
 
   const insightPulseAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: insightPulseScale.value }],
-  }));
-  const aiSferaPulseAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: aiSferaPulseScale.value }],
   }));
 
   // Reload memories when screen comes into focus (e.g., after running mock data script)
@@ -416,7 +386,10 @@ export default function SpheresScreen() {
 
   // Sync params to state immediately when they change
   // This runs on every render to catch param changes that useEffect might miss
+  // Skip entirely when embedded — embedded mode never uses URL params, so reading
+  // params here would incorrectly reset state set by user interaction.
   React.useLayoutEffect(() => {
+    if (embedded) return;
     const currentSphereParam = params.selectedSphere as LifeSphere | undefined;
 
     // Only sync FROM URL params TO state when URL params actually change
@@ -686,13 +659,14 @@ export default function SpheresScreen() {
     const pendingResponse = await getPendingAIResponse();
     if (pendingResponse) {
       setPendingAIResponse(pendingResponse);
-      // If there's a pending response, open the AI modal directly
       openMemoryAIModal();
     } else {
-      // Otherwise, show the action modal to let user choose
       setAiActionModalVisible(true);
     }
   };
+
+
+  useImperativeHandle(ref, () => ({ openAIModal: handleAIModalOpen }));
 
   const handleSelectCreateMemory = () => {
     openMemoryAIModal();
@@ -709,8 +683,10 @@ export default function SpheresScreen() {
 
   // Update selectedSphere when params change (e.g., when navigating back from edit screen)
   // Use useFocusEffect to ensure it runs every time the screen is focused
+  // Skip when embedded — params are never used in embedded mode.
   useFocusEffect(
     React.useCallback(() => {
+      if (embedded) return;
       const currentSphere = params.selectedSphere as LifeSphere | undefined;
 
       // Always update if params have changed or if state doesn't match params
@@ -725,11 +701,13 @@ export default function SpheresScreen() {
         prevParamsRef.current = undefined;
         setSelectedSphere(null);
       }
-    }, [params, selectedSphere]),
+    }, [embedded, params, selectedSphere]),
   );
 
   // Also update when params change (backup for when screen is already focused)
+  // Skip when embedded — params are never used in embedded mode.
   React.useEffect(() => {
+    if (embedded) return;
     const currentSphere = params.selectedSphere as LifeSphere | undefined;
 
     // Always update if params have changed or if state doesn't match params
@@ -744,45 +722,43 @@ export default function SpheresScreen() {
       prevParamsRef.current = undefined;
       setSelectedSphere(null);
     }
-  }, [params.selectedSphere, selectedSphere]);
+  }, [embedded, params.selectedSphere, selectedSphere]);
 
   // Use a ref to always get the current selectedSphere value in the callback
   const selectedSphereRef = React.useRef<LifeSphere | null>(null);
 
-  // Keep ref in sync with state
+  // Keep ref in sync with state; notify parent when a subview opens/closes
   React.useEffect(() => {
     selectedSphereRef.current = selectedSphere;
-  }, [selectedSphere]);
+    onSubViewOpen?.(selectedSphere !== null);
+  }, [selectedSphere, onSubViewOpen]);
 
   // Function to clear selected sphere and params
   const clearSelectedSphere = React.useCallback(() => {
-    // Update state first
     setSelectedSphere(null);
     prevParamsRef.current = undefined;
 
-    // Use router.replace to navigate to the same route without params
-    // This should clear the selectedSphere param from the URL
-    router.replace("/(tabs)/spheres" as any);
-  }, []);
+    // When used as a standalone route, clear the selectedSphere URL param.
+    // When embedded inside sferas.tsx, skip navigation — it would wrongly switch routes.
+    if (!embedded) {
+      router.replace("/(tabs)/spheres" as any);
+    }
+  }, [embedded]);
 
-  // Listen for spheres tab press events - only when screen is focused
-  useFocusEffect(
-    React.useCallback(() => {
-      // Listen for tab press events
-      const unsubscribe = onSpheresTabPress(() => {
-        const currentSelectedSphere = selectedSphereRef.current;
+  // Listen for spheres tab press events - use plain useEffect so this works both
+  // when SpheresScreen is the routed screen and when rendered as a child inside sferas.tsx
+  useEffect(() => {
+    const unsubscribe = onSpheresTabPress(() => {
+      const currentSelectedSphere = selectedSphereRef.current;
 
-        // Check if there's a selected sphere - if so, clear it to return to main view
-        if (currentSelectedSphere) {
-          clearSelectedSphere();
-        }
-      });
+      // Check if there's a selected sphere - if so, clear it to return to main view
+      if (currentSelectedSphere) {
+        clearSelectedSphere();
+      }
+    });
 
-      return () => {
-        unsubscribe();
-      };
-    }, [clearSelectedSphere]), // Include clearSelectedSphere in deps
-  );
+    return unsubscribe;
+  }, [clearSelectedSphere]);
 
   // Get navigation object for handling back button on iOS
   const navigation = useNavigation();
@@ -1800,16 +1776,18 @@ export default function SpheresScreen() {
     setSelectedSphere(newSelectedSphere);
     prevParamsRef.current = newSelectedSphere || undefined;
 
-    // Update URL params to match state
-    if (newSelectedSphere) {
-      router.push({
-        pathname: "/(tabs)/spheres" as const,
-        params: { selectedSphere: newSelectedSphere },
-      });
-    } else {
-      router.push({
-        pathname: "/(tabs)/spheres" as const,
-      });
+    // When embedded inside sferas.tsx, skip URL navigation — it would switch the active tab route.
+    if (!embedded) {
+      if (newSelectedSphere) {
+        router.push({
+          pathname: "/(tabs)/spheres" as const,
+          params: { selectedSphere: newSelectedSphere },
+        });
+      } else {
+        router.push({
+          pathname: "/(tabs)/spheres" as const,
+        });
+      }
     }
   };
 
@@ -2866,101 +2844,6 @@ export default function SpheresScreen() {
                         ))}
                       </View>
 
-                      {/* AI Square - positioned in perfect orbit */}
-                      {(() => {
-                        // Use similar sizing logic as other spheres
-                        const aiCardWidth = isTablet
-                          ? 120 * fontScale
-                          : 100 * fontScale * phoneViewportScale;
-                        const aiCardHalfWidth = aiCardWidth / 2;
-                        const aiCardHalfHeight = aiCardWidth / 2;
-                        // Position in perfect orbit: 90° (top) - 60° spacing from Relationships at -90°
-                        // Adjust radius smaller and add offset to ensure it's fully visible at the top
-                        const aiRadius = radius * 0.85; // Smaller radius to prevent cutoff
-                        const aiAngle = 90 * (Math.PI / 180); // 90 degrees (straight up)
-                        const aiX =
-                          centerX +
-                          aiRadius * Math.cos(aiAngle) -
-                          aiCardHalfWidth;
-                        // Add padding from top to ensure icon isn't cut off (account for header/status bar)
-                        const topPadding = 20 * fontScale;
-                        const aiY =
-                          centerY +
-                          aiRadius * Math.sin(aiAngle) -
-                          aiCardHalfHeight +
-                          topPadding;
-
-                        const darkGradientColors = [
-                          "#223041",
-                          "#243041",
-                          "#263041",
-                        ] as const;
-                        const lightGradientColors = [
-                          "rgb(170, 170, 170)",
-                          "rgb(180, 180, 180)",
-                          "rgb(175, 175, 175)",
-                        ] as const;
-
-                        return (
-                          <AnimatedView
-                            key="ai-square"
-                            style={[
-                              styles.sphereCard,
-                              styles.sphereCardPositioned,
-                              {
-                                left: aiX,
-                                top: aiY,
-                                width: aiCardWidth,
-                                height: aiCardWidth,
-                              },
-                              aiSferaPulseAnimatedStyle,
-                            ]}
-                          >
-                            <TouchableOpacity
-                              style={{ width: "100%", height: "100%" }}
-                              onPress={() => {
-                                handleAIModalOpen();
-                              }}
-                              activeOpacity={0.8}
-                            >
-                            <LinearGradient
-                              colors={
-                                colorScheme === "dark"
-                                  ? darkGradientColors
-                                  : lightGradientColors
-                              }
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 1, y: 1 }}
-                              style={styles.sphereCardContent}
-                            >
-                              <View
-                                style={{
-                                  justifyContent: "center",
-                                  alignItems: "center",
-                                  flex: 1,
-                                }}
-                              >
-                                <ThemedText
-                                  style={{
-                                    fontSize: 40 * fontScale * iconScale,
-                                    color:
-                                      colorScheme === "dark"
-                                        ? momentColors.sunny.background
-                                        : momentColors.sunny.background,
-                                    textAlign: "center",
-                                    lineHeight: 40 * fontScale * iconScale,
-                                    includeFontPadding: false,
-                                  }}
-                                >
-                                  ✨
-                                </ThemedText>
-                              </View>
-                            </LinearGradient>
-                            </TouchableOpacity>
-                          </AnimatedView>
-                        );
-                      })()}
-
                       {/* Sphere boxes arranged in a circle around the Insights button */}
                       <View style={styles.sphereGrid}>
                         {spheres.map((sphere, index) => {
@@ -3236,4 +3119,6 @@ export default function SpheresScreen() {
       </View>
     </TabScreenContainer>
   );
-}
+});
+
+export default SpheresScreen;

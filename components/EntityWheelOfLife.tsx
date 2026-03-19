@@ -15,8 +15,9 @@ import { useLargeDevice } from '@/hooks/use-large-device';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useMomentColors } from '@/utils/MomentColorsProvider';
-import { analyzeLessonExamAnswer } from '@/utils/ai-service';
+import { analyzeLessonExamAnswer, moderateLessonForUniverse } from '@/utils/ai-service';
 import { showPaywallForAIAccess } from '@/utils/premium-access';
+import { isShareBannedToday, recordShareRejection, submitLessonToUniverse } from '@/utils/universe-lessons';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 import {
   pickAndConsumePreloadedQuestion,
@@ -30,10 +31,16 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
+  Text,
   TextInput,
   View,
 } from 'react-native';
@@ -344,6 +351,9 @@ export function EntityWheelOfLife({
   const [examAnswerInput, setExamAnswerInput] = useState('');
   examAnswerInputRef.current = examAnswerInput;
   const [showFireworks, setShowFireworks] = useState(false);
+  const [lessonShareState, setLessonShareState] = useState<'idle' | 'moderating' | 'sharing' | 'shared'>('idle');
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [shareNickname, setShareNickname] = useState('');
 
   // State for floating moments that grow from memories
   const [floatingMoments, setFloatingMoments] = useState<{
@@ -723,7 +733,54 @@ export function EntityWheelOfLife({
     setExamState(null);
     setExamAnswerInput('');
     setShowFireworks(false);
+    setLessonShareState('idle');
   }, []);
+
+  const handleShareLessonToUniverse = useCallback(async (lessonText: string, nickname: string) => {
+    const hasAccess = await showPaywallForAIAccess();
+    if (!hasAccess) return;
+
+    const banned = await isShareBannedToday();
+    if (banned) {
+      Alert.alert(t('lesson_share_banned_title'), t('lesson_share_banned'), [{ text: 'OK' }]);
+      return;
+    }
+
+    try {
+      setLessonShareState('moderating');
+      const moderation = await moderateLessonForUniverse(lessonText);
+      if (!moderation.approved) {
+        const rejectionCount = await recordShareRejection();
+        setLessonShareState('idle');
+        if (rejectionCount >= 3) {
+          Alert.alert(t('lesson_share_banned_title'), t('lesson_share_banned'), [{ text: 'OK' }]);
+        } else {
+          Alert.alert(
+            t('share_to_universe'),
+            t('lesson_moderation_rejected'),
+            [{ text: 'OK' }],
+          );
+        }
+        return;
+      }
+
+      setLessonShareState('sharing');
+      const authorId = nickname.trim() || undefined;
+      const result = await submitLessonToUniverse(lessonText, authorId);
+      if (result.success) {
+        setLessonShareState('shared');
+        Alert.alert(t('share_to_universe'), t('lesson_shared_success'), [
+          { text: 'OK', onPress: () => setLessonShareState('idle') },
+        ]);
+      } else {
+        setLessonShareState('idle');
+        Alert.alert(t('share_to_universe'), t('lesson_shared_error'), [{ text: 'OK' }]);
+      }
+    } catch {
+      setLessonShareState('idle');
+      Alert.alert(t('share_to_universe'), t('lesson_shared_error'), [{ text: 'OK' }]);
+    }
+  }, [t]);
 
   // Avatar animated style - center and scale down
   const avatarAnimatedStyle = useAnimatedStyle(() => {
@@ -1324,6 +1381,49 @@ export function EntityWheelOfLife({
             ) : (
               /* Simple moment display: new card design (fixed size, close, icon, truncated text, image, open icon) */
               <>
+                {/* Share to Universe button — only for lesson cards, top left */}
+                {selectedMoment.type === 'lesson' && (
+                  <View style={{ position: 'absolute', top: 8, left: 8, zIndex: 10, alignItems: 'center', gap: 4 }}>
+                    <Pressable
+                      onPress={() => {
+                        setShareNickname('');
+                        setShareModalVisible(true);
+                      }}
+                      disabled={lessonShareState !== 'idle' && lessonShareState !== 'shared'}
+                      hitSlop={12}
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 18,
+                        backgroundColor:
+                          colorScheme === 'dark'
+                            ? 'rgba(255,255,255,0.12)'
+                            : 'rgba(0,0,0,0.08)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      {lessonShareState === 'moderating' || lessonShareState === 'sharing' ? (
+                        <ActivityIndicator size={16} color={simpleCardAccent} />
+                      ) : lessonShareState === 'shared' ? (
+                        <MaterialIcons name="check" size={18} color={simpleCardAccent} style={{ opacity: 0.9 }} />
+                      ) : (
+                        <MaterialIcons
+                          name="share"
+                          size={18}
+                          color={colorScheme === 'dark' ? '#fff' : '#333'}
+                          style={{ opacity: 0.7 }}
+                        />
+                      )}
+                    </Pressable>
+                    {(lessonShareState === 'moderating' || lessonShareState === 'sharing') && (
+                      <Text style={{ fontSize: 9, color: simpleCardAccent, textAlign: 'center', maxWidth: 60 }} numberOfLines={2}>
+                        {lessonShareState === 'moderating' ? t('lesson_share_analyzing') : t('lesson_share_sharing')}
+                      </Text>
+                    )}
+                  </View>
+                )}
+
                 <Pressable
                   onPress={clearMomentAndExam}
                   hitSlop={12}
@@ -1465,6 +1565,161 @@ export function EntityWheelOfLife({
           </AnimatedView>
         );
       })()}
+
+      {/* Share to Universe modal */}
+      <Modal
+        visible={shareModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShareModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }}
+        >
+          <View
+            style={{
+              width: '92%',
+              maxWidth: 480,
+              backgroundColor: colors.background,
+              borderRadius: 24,
+              paddingHorizontal: 24,
+              paddingTop: 24,
+              paddingBottom: 28,
+            }}
+          >
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}>
+              <MaterialIcons name="auto-awesome" size={20} color={colors.primary} style={{ marginRight: 8 }} />
+              <Text style={{ flex: 1, fontSize: 17, fontWeight: '700', color: colors.text }}>
+                {t('share_to_universe')}
+              </Text>
+              <Pressable
+                onPress={() => setShareModalVisible(false)}
+                hitSlop={12}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <MaterialIcons name="close" size={18} color={colors.text} />
+              </Pressable>
+            </View>
+
+            {/* Lesson text preview */}
+            {selectedMoment && (
+              <ScrollView
+                style={{
+                  maxHeight: 140,
+                  backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                  borderRadius: 12,
+                  marginBottom: 16,
+                }}
+                contentContainerStyle={{ padding: 14 }}
+                showsVerticalScrollIndicator={false}
+              >
+                <Text
+                  style={{
+                    fontSize: 15,
+                    lineHeight: 22,
+                    color: colorScheme === 'dark' ? 'rgba(255,255,255,0.87)' : 'rgba(0,0,0,0.87)',
+                  }}
+                >
+                  {selectedMoment.text.length > 300
+                    ? selectedMoment.text.slice(0, 300) + '…'
+                    : selectedMoment.text}
+                </Text>
+              </ScrollView>
+            )}
+
+            {/* Description */}
+            <Text
+              style={{
+                fontSize: 13,
+                lineHeight: 19,
+                color: colorScheme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
+                marginBottom: 18,
+              }}
+            >
+              {t('share_to_universe_confirm')}
+            </Text>
+
+            {/* Nickname field */}
+            <Text
+              style={{
+                fontSize: 13,
+                color: colorScheme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
+                marginBottom: 6,
+              }}
+            >
+              {t('share_to_universe_author_label')}
+            </Text>
+            <TextInput
+              value={shareNickname}
+              onChangeText={setShareNickname}
+              placeholder={t('share_to_universe_author_placeholder')}
+              placeholderTextColor={colorScheme === 'dark' ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'}
+              maxLength={40}
+              style={{
+                backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                borderWidth: 1,
+                borderColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                borderRadius: 12,
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                fontSize: 15,
+                color: colors.text,
+                marginBottom: 22,
+              }}
+              returnKeyType="done"
+            />
+
+            {/* Action buttons */}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Pressable
+                onPress={() => setShareModalVisible(false)}
+                style={{
+                  flex: 1,
+                  height: 48,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colorScheme === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)' }}>
+                  {t('cancel')}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setShareModalVisible(false);
+                  if (selectedMoment) {
+                    void handleShareLessonToUniverse(selectedMoment.text, shareNickname);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  height: 48,
+                  borderRadius: 14,
+                  backgroundColor: colors.primary,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>
+                  {t('share')}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }

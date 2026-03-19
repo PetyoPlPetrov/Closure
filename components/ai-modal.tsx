@@ -22,7 +22,7 @@ import {
   REQUESTS_PER_DAY_FREE,
   REQUESTS_PER_DAY_PREMIUM,
 } from "@/utils/ai-rate-limiter";
-import { processMemoryPrompt, type AIMemoryResponse } from "@/utils/ai-service";
+import { processMemoryPrompt, type AIMemoryResponse, AISafetyViolationError, AISafetyBlockedError, getDailySafetyViolationCount } from "@/utils/ai-service";
 import {
     logAIMemoryDiscarded,
     logAIMemorySaved,
@@ -955,9 +955,19 @@ export function AIModal({
           await processAIResponse(response);
         } catch (error) {
           setIsProcessing(false);
-          const errorMsg =
-            error instanceof Error ? error.message : String(error);
-          setErrorMessage(errorMsg);
+          if (error instanceof AISafetyBlockedError) {
+            setErrorMessage(t("ai.safetyBlocked.title") + "\n\n" + t("ai.safetyBlocked.message"));
+          } else if (error instanceof AISafetyViolationError) {
+            const count = await getDailySafetyViolationCount();
+            const remaining = Math.max(0, 3 - count);
+            setErrorMessage(
+              t("ai.safetyViolation.title") + "\n\n" +
+              t("ai.safetyViolation.message").replace("{remaining}", String(remaining))
+            );
+          } else {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            setErrorMessage(errorMsg);
+          }
           setCurrentView("error");
           // Stop background processing if it was started
           if (backgroundRequestId) {
@@ -977,9 +987,19 @@ export function AIModal({
       }
     } catch (error) {
       setIsProcessing(false);
-      const errorMsg =
-        error instanceof Error ? error.message : "Failed to process AI request";
-      setErrorMessage(errorMsg);
+      if (error instanceof AISafetyBlockedError) {
+        setErrorMessage(t("ai.safetyBlocked.title") + "\n\n" + t("ai.safetyBlocked.message"));
+      } else if (error instanceof AISafetyViolationError) {
+        const count = await getDailySafetyViolationCount();
+        const remaining = Math.max(0, 3 - count);
+        setErrorMessage(
+          t("ai.safetyViolation.title") + "\n\n" +
+          t("ai.safetyViolation.message").replace("{remaining}", String(remaining))
+        );
+      } else {
+        const errorMsg = error instanceof Error ? error.message : "Failed to process AI request";
+        setErrorMessage(errorMsg);
+      }
       setCurrentView("error");
       // Stop background processing if it was started
       if (backgroundRequestId) {

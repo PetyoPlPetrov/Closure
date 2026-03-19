@@ -943,6 +943,10 @@ export interface Translations {
   "ai.rateLimit.premiumMessage": string;
   "ai.rateLimit.upgrade": string;
   "ai.remainingCreations": string;
+  "ai.safetyViolation.title": string;
+  "ai.safetyViolation.message": string;
+  "ai.safetyBlocked.title": string;
+  "ai.safetyBlocked.message": string;
   "ai.error.title": string;
   "ai.error.message": string;
   "ai.noEntities.title": string;
@@ -3642,6 +3646,35 @@ export interface Translations {
   "suggestions.liberation.lessons.2": string;
   "suggestions.liberation.lessons.3": string;
   "suggestions.liberation.lessons.4": string;
+
+  // Universe Lessons Feed
+  "universe_lessons": string;
+  "loading_lessons": string;
+  "no_lessons_yet": string;
+  "liked": string;
+  "like": string;
+  "saved": string;
+  "save_to_memory": string;
+  "save_to_entity": string;
+  "failed_to_load_lessons": string;
+  "lesson_saved_to_memory": string;
+  "universe_lesson_title": string;
+  "shared_by": string;
+  "share_to_universe": string;
+  "sharing_lesson": string;
+  "lesson_shared_success": string;
+  "lesson_shared_error": string;
+  "lesson_moderation_rejected": string;
+  "lesson_moderating": string;
+  "lesson_share_banned": string;
+  "lesson_share_banned_title": string;
+  "lesson_share_analyzing": string;
+  "lesson_share_sharing": string;
+  "share_to_universe_confirm": string;
+  "share_to_universe_author_label": string;
+  "share_to_universe_author_placeholder": string;
+  "share": string;
+  "cancel": string;
 }
 
 const translations: Record<Language, Translations> = {
@@ -4845,6 +4878,12 @@ const translations: Record<Language, Translations> = {
       "You've reached the daily limit. Try again tomorrow.",
     "ai.rateLimit.upgrade": "Upgrade to Premium",
     "ai.remainingCreations": "{count} of {limit} free AI memory creations left today",
+    "ai.safetyViolation.title": "Prompt Not Accepted",
+    "ai.safetyViolation.message":
+      "Your request doesn't comply with Sfera's privacy and terms of use. Please keep stories moral and constructive. {remaining} violation(s) remaining before AI is restricted for today.",
+    "ai.safetyBlocked.title": "AI Access Restricted",
+    "ai.safetyBlocked.message":
+      "AI features for creating memories and entities have been restricted for today due to repeated policy violations. Please try again tomorrow.",
     "ai.error.title": "AI Processing Failed",
     "ai.error.message":
       "Failed to process your request: {error}. Please try again.",
@@ -8178,6 +8217,35 @@ const translations: Record<Language, Translations> = {
     "suggestions.liberation.lessons.2": "I'm free from their control",
     "suggestions.liberation.lessons.3": "Liberation brings peace",
     "suggestions.liberation.lessons.4": "I deserve to live a liberated life",
+
+    // Universe Lessons Feed
+    universe_lessons: "Universe Lessons",
+    loading_lessons: "Loading lessons from the universe...",
+    no_lessons_yet: "No lessons in the universe yet.\nBe the first to share your wisdom!",
+    liked: "Liked",
+    like: "Like",
+    saved: "Saved",
+    save_to_memory: "Save to Memory",
+    save_to_entity: "Save to {entity}",
+    failed_to_load_lessons: "Failed to load lessons. Please try again.",
+    lesson_saved_to_memory: "Lesson saved to memory!",
+    universe_lesson_title: "Lesson from the Universe",
+    shared_by: "Shared by {author}",
+    share_to_universe: "Share to Universe",
+    sharing_lesson: "Sharing your wisdom...",
+    lesson_shared_success: "Your lesson has been shared with the universe!",
+    lesson_shared_error: "Failed to share lesson. Please try again.",
+    lesson_moderation_rejected: "This lesson doesn't meet our community guidelines. Only constructive life insights that encourage growth and learning can be shared.",
+    lesson_moderating: "Checking your lesson...",
+    lesson_share_banned_title: "Sharing paused for today",
+    lesson_share_banned: "You've had 3 lessons declined today. Sharing is paused until tomorrow. Take time to reflect on what makes a positive, universally uplifting lesson.",
+    lesson_share_analyzing: "AI is reviewing your lesson...",
+    lesson_share_sharing: "Sharing with the universe...",
+    share_to_universe_confirm: "Your lesson will be visible to all Sfera users in the Universe feed. Our AI will review it to make sure it's a positive, uplifting insight before it goes live.",
+    share_to_universe_author_label: "Your nickname (optional)",
+    share_to_universe_author_placeholder: "Anonymous",
+    share: "Share",
+    cancel: "Cancel",
   },
   bg: {
     // Tab labels
@@ -9389,6 +9457,12 @@ const translations: Record<Language, Translations> = {
       "Достигнахте дневния лимит. Опитайте отново утре.",
     "ai.rateLimit.upgrade": "Надграждане до Premium",
     "ai.remainingCreations": "{count} от {limit} безплатни AI създавания на спомени остават днес",
+    "ai.safetyViolation.title": "Заявката не е приета",
+    "ai.safetyViolation.message":
+      "Вашата заявка не отговаря на правилата за поверителност и условията за ползване на Sfera. Моля, споделяйте истории, които са морални и градивни. Остават {remaining} нарушение(я) преди AI да бъде ограничен за днес.",
+    "ai.safetyBlocked.title": "AI достъпът е ограничен",
+    "ai.safetyBlocked.message":
+      "AI функциите за създаване на спомени и обекти са ограничени за днес поради повторни нарушения на правилата. Моля, опитайте отново утре.",
     "ai.error.title": "AI обработката неуспешна",
     "ai.error.message":
       "Неуспешно обработване на заявката: {error}. Моля, опитайте отново.",
@@ -12968,6 +13042,35 @@ const translations: Record<Language, Translations> = {
     "suggestions.liberation.lessons.2": "Свободен съм от техния контрол",
     "suggestions.liberation.lessons.3": "Освобождението носи мир",
     "suggestions.liberation.lessons.4": "Заслужавам да живея освободен живот",
+
+    // Universe Lessons Feed
+    universe_lessons: "Уроци от Вселената",
+    loading_lessons: "Зареждане на уроци от вселената...",
+    no_lessons_yet: "Все още няма уроци във вселената.\nБъдете първи, които споделят мъдростта си!",
+    liked: "Харесано",
+    like: "Харесай",
+    saved: "Запазено",
+    save_to_memory: "Запази в спомен",
+    save_to_entity: "Запази в {entity}",
+    failed_to_load_lessons: "Неуспешно зареждане на уроци. Моля, опитайте отново.",
+    lesson_saved_to_memory: "Урокът е запазен в спомените!",
+    universe_lesson_title: "Урок от Вселената",
+    shared_by: "Споделено от {author}",
+    share_to_universe: "Сподели с Вселената",
+    sharing_lesson: "Споделяне на вашата мъдрост...",
+    lesson_shared_success: "Вашият урок е споделен с вселената!",
+    lesson_shared_error: "Неуспешно споделяне на урок. Моля, опитайте отново.",
+    lesson_moderation_rejected: "Този урок не отговаря на насоките на нашата общност. Могат да се споделят само градивни житейски поуки, които насърчават растежа и ученето.",
+    lesson_moderating: "Проверка на урока...",
+    lesson_share_banned_title: "Споделянето е спряно за днес",
+    lesson_share_banned: "Три урока бяха отхвърлени днес. Споделянето е спряно до утре. Помисли какво прави един урок положителен и вдъхновяващ за всички.",
+    lesson_share_analyzing: "ИИ преглежда урока ти...",
+    lesson_share_sharing: "Споделяне с вселената...",
+    share_to_universe_confirm: "Урокът ти ще бъде видим за всички потребители на Sfera в лентата на Вселената. Нашият ИИ ще го прегледа, за да се увери, че е положителна и вдъхновяваща поука.",
+    share_to_universe_author_label: "Твоят псевдоним (по избор)",
+    share_to_universe_author_placeholder: "Анонимен",
+    share: "Сподели",
+    cancel: "Отказ",
   },
 };
 

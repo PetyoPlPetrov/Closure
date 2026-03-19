@@ -23,6 +23,9 @@ import {
 import {
     processEntityCreationPrompt,
     type AIEntityCreationResponse,
+    AISafetyViolationError,
+    AISafetyBlockedError,
+    getDailySafetyViolationCount,
 } from "@/utils/ai-service";
 import { logAIEntityModalSubmit } from "@/utils/analytics";
 import { LifeSphere, useJourney } from "@/utils/JourneyProvider";
@@ -512,9 +515,18 @@ export function AIEntityCreationModal({
             const currentAppState = AppState.currentState;
             if (currentAppState === "active") {
               setIsProcessing(false);
-              const errorMsg =
-                error instanceof Error ? error.message : String(error);
-              setErrorMessage(errorMsg);
+              if (error instanceof AISafetyBlockedError) {
+                setErrorMessage(t("ai.safetyBlocked.title") + "\n\n" + t("ai.safetyBlocked.message"));
+              } else if (error instanceof AISafetyViolationError) {
+                const count = await getDailySafetyViolationCount();
+                const remaining = Math.max(0, 3 - count);
+                setErrorMessage(
+                  t("ai.safetyViolation.title") + "\n\n" +
+                  t("ai.safetyViolation.message").replace("{remaining}", String(remaining))
+                );
+              } else {
+                setErrorMessage(error instanceof Error ? error.message : String(error));
+              }
               // Stop background processing if it was started
               await stopBackgroundEntityProcessing();
               setBackgroundRequestId(null);
@@ -523,11 +535,18 @@ export function AIEntityCreationModal({
         }
       } catch (error: any) {
         setIsProcessing(false);
-        const errorMsg =
-          error instanceof Error
-            ? error.message
-            : t("ai.error.send") || "Failed to process request";
-        setErrorMessage(errorMsg);
+        if (error instanceof AISafetyBlockedError) {
+          setErrorMessage(t("ai.safetyBlocked.title") + "\n\n" + t("ai.safetyBlocked.message"));
+        } else if (error instanceof AISafetyViolationError) {
+          const count = await getDailySafetyViolationCount();
+          const remaining = Math.max(0, 3 - count);
+          setErrorMessage(
+            t("ai.safetyViolation.title") + "\n\n" +
+            t("ai.safetyViolation.message").replace("{remaining}", String(remaining))
+          );
+        } else {
+          setErrorMessage(error instanceof Error ? error.message : t("ai.error.send") || "Failed to process request");
+        }
         // Stop background processing if it was started
         await stopBackgroundEntityProcessing();
         setBackgroundRequestId(null);

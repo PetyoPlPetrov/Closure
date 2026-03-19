@@ -5,11 +5,91 @@
 import { getAI, getGenerativeModel, Schema } from "@react-native-firebase/ai";
 import { getApp } from "@react-native-firebase/app";
 import { firebase } from "@react-native-firebase/app-check";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 import type { LifeSphere } from "./JourneyProvider";
 
 // Runtime flag for mock AI requests (set to true to use slow mock requests for testing)
 const USE_MOCK_AI_REQUEST = __DEV__ && false; // Set to true to enable mock requests
+
+// ─── Safety Violation Tracking ───────────────────────────────────────────────
+
+const SAFETY_VIOLATIONS_KEY = "@sferas:ai_safety_violations";
+const MAX_DAILY_VIOLATIONS = 3;
+
+/** Thrown when a prompt violates Sfera's content policy. */
+export class AISafetyViolationError extends Error {
+  constructor() {
+    super("AI_SAFETY_VIOLATION");
+    this.name = "AISafetyViolationError";
+  }
+}
+
+/** Thrown when the user is blocked for the rest of the day after too many violations. */
+export class AISafetyBlockedError extends Error {
+  constructor() {
+    super("AI_SAFETY_BLOCKED");
+    this.name = "AISafetyBlockedError";
+  }
+}
+
+interface SafetyViolationRecord {
+  date: string; // YYYY-MM-DD
+  count: number;
+}
+
+function todayDateString(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Returns the number of safety violations recorded today. */
+export async function getDailySafetyViolationCount(): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(SAFETY_VIOLATIONS_KEY);
+    if (!raw) return 0;
+    const record: SafetyViolationRecord = JSON.parse(raw);
+    if (record.date !== todayDateString()) return 0;
+    return record.count;
+  } catch {
+    return 0;
+  }
+}
+
+/** Returns true if the user is blocked from making AI entity/memory requests today. */
+export async function isAISafetyBlocked(): Promise<boolean> {
+  return (await getDailySafetyViolationCount()) >= MAX_DAILY_VIOLATIONS;
+}
+
+/**
+ * Records a safety violation. After MAX_DAILY_VIOLATIONS the user is blocked for the day.
+ * Returns the new violation count.
+ */
+export async function recordAISafetyViolation(): Promise<number> {
+  try {
+    const today = todayDateString();
+    const raw = await AsyncStorage.getItem(SAFETY_VIOLATIONS_KEY);
+    let record: SafetyViolationRecord = { date: today, count: 0 };
+    if (raw) {
+      const parsed: SafetyViolationRecord = JSON.parse(raw);
+      if (parsed.date === today) record = parsed;
+    }
+    record.count = Math.min(record.count + 1, MAX_DAILY_VIOLATIONS);
+    await AsyncStorage.setItem(SAFETY_VIOLATIONS_KEY, JSON.stringify(record));
+    return record.count;
+  } catch {
+    return 1;
+  }
+}
+
+// ─── Content Safety Rules ─────────────────────────────────────────────────────
+
+// Safety content policy injected into all entity and memory prompts
+const CONTENT_SAFETY_RULES = `
+CONTENT SAFETY (NON-NEGOTIABLE):
+- NEVER process prompts that involve: violence, illegal activities, death, self-harm, disturbing or graphic events, political topics, hate speech, or anything immoral or harmful.
+- Stories and memories may be sad or emotionally difficult—but must remain moral and constructive.
+- If the user's input contains ANY forbidden content, you MUST set safetyViolation: true in your response and return nothing else. Do NOT extract any partial content. Reject the entire prompt.
+- All content must support personal growth, healing, and well-being.`;
 
 export interface AIMessage {
   role: "user" | "assistant" | "system";
@@ -128,7 +208,7 @@ export async function processHomeEncouragementPrompt(params: {
   });
 
   const systemPrompt = `Sfera AI coach. Create 8-12 short, encouraging, premium-sounding home-banner messages for the day. Respond in ${languageName} (${languageCode}). JSON only, each message ~${targetCharCount} chars (±15%), no newlines, no emojis.
-Rules: Motivational, second-person "you". No shaming, no advice overload, no numbers/stats/clinical language. Reflect tone from whether sunny or cloudy prevails (implicitly). Always acknowledge love and lessons; if cloudy prevails, gently encourage more sunny moments. Vary the messages so they feel fresh when shown randomly throughout the day.`;
+Rules: Motivational, second-person "you". No shaming, no advice overload, no numbers/stats/clinical language. Reflect tone from whether sunny or cloudy prevails (implicitly). Always acknowledge love and lessons; if cloudy prevails, gently encourage more sunny moments. Vary the messages so they feel fresh when shown randomly throughout the day.${CONTENT_SAFETY_RULES}`;
 
   const tone =
     overallSunnyPercentage >= 55 ? "sunny prevails" : "cloudy prevails";
@@ -225,6 +305,11 @@ export async function processMemoryPrompt(
   const requestId = `memory_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const timestamp = Date.now();
 
+  // Block if the user has exceeded daily safety violations
+  if (await isAISafetyBlocked()) {
+    throw new AISafetyBlockedError();
+  }
+
   // If using mock requests, return mock data
   if (USE_MOCK_AI_REQUEST) {
     await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate delay
@@ -293,6 +378,9 @@ export async function processMemoryPrompt(
           required: ["type", "text", "notificationMessage"],
         }),
       }),
+      safetyViolation: Schema.boolean({
+        description: "Set to true ONLY if the prompt violates content safety rules. When true, omit all other fields.",
+      }),
     },
     required: ["memory", "sphere", "entityName", "moments"],
   });
@@ -327,7 +415,7 @@ REQUIRED: For EVERY sunnyMoments and lessonsLearned moment you MUST provide noti
 
 IMAGE: If a photo is attached, analyze it with the story. Identify people, setting, occasion, mood. The image is the memory's picture—use it to suggest more specific moments.`
       : ""
-  }`;
+  }${CONTENT_SAFETY_RULES}`;
 
   const sferasContext = context.sferas
     ? `\n\nUser's Sferas context:\n${JSON.stringify(context.sferas, null, 2)}`
@@ -366,6 +454,11 @@ IMAGE: If a photo is attached, analyze it with the story. Identify people, setti
 
   const responseText = result.response.text();
   const parsed = JSON.parse(responseText);
+
+  if (parsed?.safetyViolation === true) {
+    await recordAISafetyViolation();
+    throw new AISafetyViolationError();
+  }
 
   return parsed as AIMemoryResponse;
 }
@@ -569,6 +662,11 @@ export async function processEntityCreationPrompt(
   language: string = "en",
 ): Promise<AIEntityCreationResponse> {
 
+  // Block if the user has exceeded daily safety violations
+  if (await isAISafetyBlocked()) {
+    throw new AISafetyBlockedError();
+  }
+
   // If using mock requests, return mock data
   if (USE_MOCK_AI_REQUEST) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -644,6 +742,9 @@ export async function processEntityCreationPrompt(
           required: requiredFields,
         }),
       }),
+      safetyViolation: Schema.boolean({
+        description: "Set to true ONLY if the prompt violates content safety rules. When true, omit all other fields.",
+      }),
     },
     required: ["sphere", "entities"],
   });
@@ -669,7 +770,7 @@ Rules:
 - You MUST always create at least 1 entity from the user's text
 - For each entity provide a name and brief description
 - Set sphere to "${sphere}"${dateGuidance}${familyGuidance}
-- Be honest but compassionate`;
+- Be honest but compassionate${CONTENT_SAFETY_RULES}`;
 
   const app = getApp();
   const ai = getAI(app, {
@@ -691,6 +792,12 @@ Rules:
 
   const responseText = result.response.text();
   const parsed = JSON.parse(responseText);
+
+  if (parsed?.safetyViolation === true) {
+    await recordAISafetyViolation();
+    throw new AISafetyViolationError();
+  }
+
   return parsed as AIEntityCreationResponse;
 }
 
@@ -743,6 +850,11 @@ export async function processOnboardingPrompt(
   story: string,
   language: string = "en",
 ): Promise<AIOnboardingResponse> {
+  // Block if the user has exceeded daily safety violations
+  if (await isAISafetyBlocked()) {
+    throw new AISafetyBlockedError();
+  }
+
   if (USE_MOCK_AI_REQUEST) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
     return {
@@ -795,6 +907,9 @@ export async function processOnboardingPrompt(
           }),
         },
       }),
+      safetyViolation: Schema.boolean({
+        description: "Set to true ONLY if the prompt violates content safety rules. When true, omit entitiesBySphere.",
+      }),
     },
     required: ["entitiesBySphere"],
   });
@@ -815,7 +930,7 @@ Rules:
 - career: Include isCurrent, startDate, endDate (if past)
 - family: Include relationship (mother, father, sister, brother, etc.)
 - friends, hobbies: Just name and description
-
+${CONTENT_SAFETY_RULES}
 Respond in ${languageName} (${languageCode}). JSON only.`;
 
   const app = getApp();
@@ -835,6 +950,11 @@ Respond in ${languageName} (${languageCode}). JSON only.`;
 
   const responseText = result.response.text();
   const parsed = JSON.parse(responseText);
+
+  if (parsed?.safetyViolation === true) {
+    await recordAISafetyViolation();
+    throw new AISafetyViolationError();
+  }
 
   const raw = parsed?.entitiesBySphere ?? {};
   const normalized: AIOnboardingResponse["entitiesBySphere"] = {};
@@ -1088,6 +1208,93 @@ Evaluate: isCorrect (boolean), feedback (short supportive sentence).`;
 
   const responseText = result.response.text();
   const parsed = JSON.parse(responseText) as LessonExamAnalysis;
+
+  return parsed;
+}
+
+export interface LessonModerationResult {
+  approved: boolean;
+  reason: string;
+}
+
+/**
+ * Moderate a user-submitted lesson before sharing to the Universe feed.
+ * Checks for hostile, rude, offensive, vulgar, or malicious content.
+ * Only pure life lessons that encourage growth and learning are approved.
+ */
+export async function moderateLessonForUniverse(
+  lessonText: string,
+): Promise<LessonModerationResult> {
+  if (USE_MOCK_AI_REQUEST) {
+    await new Promise((r) => setTimeout(r, 800));
+    return { approved: true, reason: "Mock: approved for testing." };
+  }
+
+  const responseSchema = Schema.object({
+    properties: {
+      approved: Schema.boolean({
+        description:
+          "True if the lesson is a constructive, positive life insight free of any hostility, vulgarity, offensive, or malicious content. False otherwise.",
+      }),
+      reason: Schema.string({
+        description:
+          "One short sentence explaining the decision. If approved, briefly confirm it's a positive life lesson. If rejected, briefly explain what rule it violates.",
+      }),
+    },
+    required: ["approved", "reason"],
+  });
+
+  const systemPrompt = `You are a content moderator for Sfera, a personal growth app.
+Your job is to approve or reject user-submitted life lessons for the Universe community feed.
+
+The Universe feed is a safe, uplifting space where people from all backgrounds share personal growth wisdom.
+Every lesson must be universally positive — something that genuinely helps people heal, grow, and thrive.
+
+APPROVE only if ALL of the following are true:
+- The lesson is a genuine personal insight about growth, healing, resilience, self-awareness, or positive change
+- The message is constructive, kind, and uplifting in tone
+- The lesson is universally applicable — it does not target or alienate any group of people
+- The lesson motivates and empowers — it leaves the reader feeling hopeful, capable, or wiser
+
+REJECT if the lesson contains ANY of the following:
+- Violence, threats, aggression, or references to murder, harm, or physical danger
+- Suicidal thoughts, self-harm encouragement, or content that romanticizes death or suffering
+- Gambling, betting, casino references, or encouragement of addictive behaviours
+- References to illegal activities, drug use, substance abuse, or criminal behaviour
+- Vulgarity, profanity, sexual content, or explicit language
+- Malicious intent, manipulation tactics, or advice that could cause harm
+- Demotivating, nihilistic, hopeless, or discouraging messages (e.g. "nothing matters", "you will always fail")
+- Dark, disturbing, or morbid content that leaves the reader feeling worse
+- Religious doctrine, proselytizing, or content that implies one religion is superior or inferior
+- Political opinions, partisan statements, or content that promotes or attacks any political party, ideology, or figure
+- Discrimination or prejudice based on race, gender, nationality, religion, sexual orientation, age, or any other characteristic
+- Divisive "us vs them" framing that could make any group feel excluded or attacked
+- Spam, advertising, personal promotion, or nonsensical/gibberish text
+- Content that shames, blames, or attacks any specific person (even unnamed)
+
+When in doubt, REJECT. The standard is high: only pure, positive, universally human wisdom belongs in the Universe feed.
+
+Respond with JSON only.`;
+
+  const userPrompt = `Lesson to moderate: "${lessonText}"`;
+
+  const app = getApp();
+  const ai = getAI(app, { appCheck: firebase.appCheck() });
+  const model = getGenerativeModel(ai, {
+    model: "gemini-2.5-flash-lite",
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema,
+    },
+  });
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    systemInstruction: systemPrompt,
+  });
+
+  const responseText = result.response.text();
+  const parsed = JSON.parse(responseText) as LessonModerationResult;
 
   return parsed;
 }

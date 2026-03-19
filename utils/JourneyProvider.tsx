@@ -302,6 +302,7 @@ type JourneyContextType = {
   deleteIdealizedMemory: (id: string) => Promise<void>;
   getIdealizedMemoriesByEntityId: (entityId: string, sphere: LifeSphere) => IdealizedMemory[];
   getIdealizedMemoriesByProfileId: (profileId: string) => IdealizedMemory[]; // Deprecated but kept for backward compatibility
+  addUniverseLessonToMemory: (entityId: string, sphere: LifeSphere, memoryId: string, lessonText: string) => Promise<void>;
   
   // Helper functions
   getEntitiesBySphere: (sphere: LifeSphere) => (ExProfile | Job | FamilyMember | Friend | Hobby)[];
@@ -1076,11 +1077,49 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
 
   const getIdealizedMemoriesByEntityId = useCallback(
     (entityId: string, sphere: LifeSphere) => {
-      return idealizedMemories.filter((memory) => 
+      return idealizedMemories.filter((memory) =>
         memory.entityId === entityId && memory.sphere === sphere
       );
     },
     [idealizedMemories]
+  );
+
+  /**
+   * Add a universe lesson to an existing memory.
+   * @param entityId - The entity (profile/job/family/friend/hobby) ID
+   * @param sphere - The life sphere
+   * @param memoryId - The memory ID to add the lesson to
+   * @param lessonText - The lesson text from the universe
+   */
+  const addUniverseLessonToMemory = useCallback(
+    async (entityId: string, sphere: LifeSphere, memoryId: string, lessonText: string) => {
+      // Find the memory
+      const memory = idealizedMemories.find(m => m.id === memoryId && m.entityId === entityId && m.sphere === sphere);
+
+      if (!memory) {
+        console.error(`[JourneyProvider] Memory not found: ${memoryId} for entity ${entityId} in sphere ${sphere}`);
+        return;
+      }
+
+      // Create new lesson with unique ID
+      const newLesson = {
+        id: `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        text: lessonText,
+        x: undefined,
+        y: undefined,
+      };
+
+      // Update memory with new lesson
+      const updatedLessons = [...(memory.lessonsLearned || []), newLesson];
+
+      await updateIdealizedMemory(memoryId, {
+        lessonsLearned: updatedLessons,
+      });
+
+      // Log analytics event for new lesson
+      await logMomentCreated(sphere, 'lesson');
+    },
+    [idealizedMemories, updateIdealizedMemory]
   );
 
   // Job management functions
@@ -1870,6 +1909,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     deleteIdealizedMemory,
     getIdealizedMemoriesByEntityId,
     getIdealizedMemoriesByProfileId, // Backward compatibility
+    addUniverseLessonToMemory,
     getEntitiesBySphere,
     getOverallSunnyPercentage,
     reloadIdealizedMemories: loadIdealizedMemories,

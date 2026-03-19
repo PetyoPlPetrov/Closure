@@ -75,6 +75,7 @@ import {
 } from "@/utils/ThemeContext";
 import { UnsavedChangesProvider } from "@/utils/UnsavedChangesContext";
 import { checkForUpdateAndReload } from "@/utils/updates";
+import { fetchUniverseLessons } from "@/utils/universe-lessons";
 import { VisualSettingsProvider } from "@/utils/VisualSettingsProvider";
 // Firebase is automatically initialized via Expo plugin (@react-native-firebase/app)
 // App Check is initialized in AppContent component
@@ -187,6 +188,15 @@ function AppContent() {
       void checkForUpdateAndReload();
     }, 2000);
     return () => clearTimeout(t);
+  }, [isAnimationComplete]);
+
+  // Prefetch Universe Lessons as soon as the splash is done so the cache is
+  // warm before the user navigates to the Home tab — no spinner on first open.
+  useEffect(() => {
+    if (!isAnimationComplete) return;
+    InteractionManager.runAfterInteractions(() => {
+      void fetchUniverseLessons(false);
+    });
   }, [isAnimationComplete]);
 
   // In-app reminders for past attended Sfera events (dev and prod). __DEV__ only wraps console.log; due times are 1/2/3 min in dev, next-day 10:00 in prod.

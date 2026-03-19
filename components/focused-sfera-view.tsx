@@ -7,6 +7,7 @@
 
 import { ConstellationBackground } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
+import { UniverseLessonsFeed } from "@/components/UniverseLessonsFeed";
 import { Colors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
@@ -165,6 +166,8 @@ export type FocusedSferaViewProps = {
   constellationOpacity?: number;
   /** When true, component stays mounted and runs calcs but is invisible (opacity 0, no pointer events). Used for instant back from entity detail. */
   hidden?: boolean;
+  /** Override the circle avatar press when selectedSphere === null (initial view). If not provided, opens Universe Lessons Feed. */
+  onAvatarPress?: () => void;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -1714,9 +1717,11 @@ export function FocusedSferaView({
   constellationAmount = 10,
   constellationOpacity = 10,
   hidden = false,
+  onAvatarPress,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
+  const [showUniverseFeed, setShowUniverseFeed] = useState(false);
   const N = SPHERE_LIST.length;
   // Keep root aligned with TabScreenContainer; we shift spheres via ORBIT_CY instead.
   const rootMarginTop = 0;
@@ -1830,8 +1835,12 @@ export function FocusedSferaView({
   // - Individual sfera view (selectedSphere !== null): clear selection to return to initial view
   const handleCircleAvatarPress = useCallback(() => {
     if (selectedSphere === null) {
-      // Initial view: switch to classic wheel of life
-      onSwitchToClassic();
+      if (onAvatarPress) {
+        onAvatarPress();
+      } else {
+        // Initial view: open Universe Lessons Feed
+        setShowUniverseFeed(true);
+      }
     } else {
       // Individual sfera view: clear selection to return to initial view
       if (onClearSelection) {
@@ -1840,7 +1849,7 @@ export function FocusedSferaView({
         onSwitchToClassic();
       }
     }
-  }, [selectedSphere, onClearSelection, onSwitchToClassic]);
+  }, [selectedSphere, onAvatarPress, onClearSelection, onSwitchToClassic]);
 
   const { momentColors } = useMomentColors();
   const avatarSizeForDots = 100;
@@ -1997,6 +2006,12 @@ export function FocusedSferaView({
           />
         </Pressable>
       </Animated.View>
+
+      <UniverseLessonsFeed
+        visible={showUniverseFeed}
+        onClose={() => setShowUniverseFeed(false)}
+        onSaveToMemory={() => {}}
+      />
     </View>
   );
 }

@@ -360,6 +360,12 @@ export function SpheresTabButton(props: BottomTabBarButtonProps) {
 
   // Modified press handler to include animation and unsaved changes check
   const handlePressWithAnimation = (ev: any) => {
+    console.log('[SferasNav] Sferas tab pressed (tab bar)', {
+      segments: segments?.slice?.(),
+      isOnEditScreen,
+      focused: (props as { focused?: boolean }).focused,
+      routeName: (props as { route?: { name?: string } }).route?.name,
+    });
     // Check for unsaved changes when navigating away from edit/add screens
     if (isOnEditScreen) {
       const { hasChanges, screenId } = checkUnsavedChanges();
