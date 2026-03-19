@@ -31,7 +31,10 @@ import {
   getPendingAIResponse,
   type PendingAIResponse,
 } from "@/utils/ai-background-processor";
-import { AIInsightsConsentProvider } from "@/utils/AIInsightsConsentProvider";
+import { onAIButtonPress } from "@/utils/ai-button-press";
+import { sendToAI } from "@/utils/ai-service";
+import { AIInsightsConsentProvider, useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
+import { AIMemoryModalContext } from "@/utils/AIMemoryModalContext";
 import { initializeAppCheckService, verifyAppCheck } from "@/utils/app-check";
 import { handleDevError } from "@/utils/dev-error-handler";
 import { scheduleEventMemoryReminders } from "@/utils/event-memory-reminders";
@@ -99,13 +102,70 @@ function AppContent() {
     useEventInAppNotificationPreference();
   const { profiles, jobs, familyMembers, friends, hobbies, idealizedMemories } =
     useJourney();
+  const aiConsent = useAIInsightsConsent();
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const [onboardingRequestTrigger, setOnboardingRequestTrigger] = useState(0);
   const responseListener = useRef<Notifications.Subscription | null>(null);
+  const [aiMemoryModalVisible, setAiMemoryModalVisible] = useState(false);
+  const [pendingAIResponseForButton, setPendingAIResponseForButton] =
+    useState<PendingAIResponse | null>(null);
 
   const requestShowOnboarding = useCallback(async () => {
     await setOnboardingCompleted(false);
     setOnboardingRequestTrigger((t) => t + 1);
+  }, []);
+
+  const openMemoryModal = useCallback(() => {
+    setAiMemoryModalVisible(true);
+  }, []);
+
+  // Handle AI button press from any tab
+  useEffect(() => {
+    const unsubscribe = onAIButtonPress(async () => {
+      if (!aiConsent.isEnabled) {
+        // Consent not given yet — let Spheres handle the consent flow if it's active;
+        // otherwise, just open the modal (AIModal itself handles unauthenticated state).
+        // For simplicity from non-Spheres tabs, open the modal directly.
+        openMemoryModal();
+        return;
+      }
+      const pendingResponse = await getPendingAIResponse();
+      if (pendingResponse) {
+        setPendingAIResponseForButton(pendingResponse);
+      }
+      openMemoryModal();
+    });
+    return () => unsubscribe();
+  }, [aiConsent.isEnabled, openMemoryModal]);
+
+  // Auto-open modal when a pending AI response is detected (app resume / cold start)
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      "change",
+      async (nextAppState: AppStateStatus) => {
+        if (nextAppState === "active") {
+          const pendingResponse = await getPendingAIResponse();
+          if (pendingResponse) {
+            setPendingAIResponseForButton(pendingResponse);
+            if (!aiMemoryModalVisible) {
+              openMemoryModal();
+            }
+          }
+        }
+      },
+    );
+    const checkPending = async () => {
+      const pendingResponse = await getPendingAIResponse();
+      if (pendingResponse) {
+        setPendingAIResponseForButton(pendingResponse);
+        if (!aiMemoryModalVisible) {
+          openMemoryModal();
+        }
+      }
+    };
+    checkPending();
+    return () => subscription.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const lastEventReminderShownAtRef = useRef<number>(0);
   const nextReminderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -385,6 +445,7 @@ function AppContent() {
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <View style={styles.appContainer}>
+        <AIMemoryModalContext.Provider value={{ openMemoryModal }}>
         <OnboardingGateContext.Provider
           value={{ requestShowOnboarding }}
         >
@@ -457,7 +518,32 @@ function AppContent() {
             goldenEventId={goldenEventIdForMemoryModal}
           />
         )}
+        {aiMemoryModalVisible && (
+          <AIModal
+            visible={aiMemoryModalVisible}
+            onClose={() => {
+              setAiMemoryModalVisible(false);
+              setPendingAIResponseForButton(null);
+            }}
+            onMinimize={() => {
+              setAiMemoryModalVisible(false);
+            }}
+            pendingResponse={pendingAIResponseForButton}
+            onSend={async (message: string) => {
+              const sphereTypes = [
+                ...profiles.map(() => "relationships" as const),
+                ...jobs.map(() => "career" as const),
+                ...familyMembers.map(() => "family" as const),
+                ...friends.map(() => "friends" as const),
+                ...hobbies.map(() => "hobbies" as const),
+              ];
+              const uniqueSpheres = [...new Set(sphereTypes)];
+              await sendToAI(message, { spheres: uniqueSpheres });
+            }}
+          />
+        )}
       </OnboardingGateContext.Provider>
+      </AIMemoryModalContext.Provider>
 
         {showOnboarding === true && (
           <View

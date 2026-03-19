@@ -5,7 +5,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { EventsTabButton, HapticTab, HomeTabButton, SpheresTabButton } from '@/components/haptic-tab';
+import { AITabButton, EventsTabButton, HapticTab, HomeTabButton, SpheresTabButton } from '@/components/haptic-tab';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -45,6 +45,9 @@ export default function TabLayout() {
       />
     );
   };
+
+  const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+  const aiButtonSize = Math.round(52 * fontScale);
 
   return (
     <View style={styles.container}>
@@ -208,6 +211,22 @@ export default function TabLayout() {
       <Tabs.Screen name="friend-detail" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="hobby-detail" options={{ href: null, headerShown: false }} />
     </Tabs>
+    {/* Central AI button floating above the tab bar between Spheres and Events */}
+    <View
+      style={{
+        position: 'absolute',
+        bottom: tabBarHeight - aiButtonSize * 0.5,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        pointerEvents: 'box-none',
+        zIndex: 100,
+      }}
+    >
+      <View style={{ pointerEvents: 'auto' }}>
+        <AITabButton size={aiButtonSize} />
+      </View>
+    </View>
     </View>
   );
 }

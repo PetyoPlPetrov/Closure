@@ -2,7 +2,7 @@ import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { PlatformPressable } from '@react-navigation/elements';
 import * as Haptics from 'expo-haptics';
 import * as Device from 'expo-device';
-import { Alert, Platform, View } from 'react-native';
+import { Alert, Platform, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -12,11 +12,12 @@ import Animated, {
   Easing,
   cancelAnimation,
 } from 'react-native-reanimated';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { emitEventsTabPress } from '@/utils/events-tab-press';
 import { emitHomeTabPress } from '@/utils/home-tab-press';
 import { emitSpheresTabPress } from '@/utils/spheres-tab-press';
 import { onSpheresTabPulseRequest } from '@/utils/spheres-tab-pulse';
+import { emitAIButtonPress } from '@/utils/ai-button-press';
 import { useSegments } from 'expo-router';
 import { useUnsavedChanges } from '@/utils/UnsavedChangesContext';
 import { useTranslate } from '@/utils/languages/use-translate';
@@ -448,6 +449,80 @@ export function SpheresTabButton(props: BottomTabBarButtonProps) {
         {...props}
         onPress={handlePressWithAnimation}
       />
+    </Animated.View>
+  );
+}
+
+// Central AI button rendered between Spheres and Events tabs
+export function AITabButton({ size }: { size: number }) {
+  const pressScale = useSharedValue(1);
+  const pulseScale = useSharedValue(1);
+
+  useEffect(() => {
+    pulseScale.value = withRepeat(
+      withSequence(
+        withTiming(1.08, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      true,
+    );
+    return () => cancelAnimation(pulseScale);
+  }, [pulseScale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value * pressScale.value }],
+  }));
+
+  const handlePress = () => {
+    cancelAnimation(pulseScale);
+    pulseScale.value = 1;
+    pressScale.value = withSequence(
+      withTiming(0.88, { duration: 120, easing: Easing.out(Easing.ease) }),
+      withTiming(1.06, { duration: 200, easing: Easing.out(Easing.ease) }),
+      withTiming(1, { duration: 180, easing: Easing.inOut(Easing.ease) }),
+    );
+    // Resume pulse after animation
+    setTimeout(() => {
+      pulseScale.value = withRepeat(
+        withSequence(
+          withTiming(1.08, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        true,
+      );
+    }, 520);
+
+    if (Platform.OS === 'ios' && Device.isDevice) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
+    emitAIButtonPress();
+  };
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <TouchableOpacity
+        onPress={handlePress}
+        activeOpacity={1}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: '#1A2F4A',
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: '#64B5F6',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.6,
+          shadowRadius: 12,
+          elevation: 10,
+          borderWidth: 1.5,
+          borderColor: 'rgba(100, 181, 246, 0.5)',
+        }}
+      >
+        <Animated.Text style={{ fontSize: size * 0.42, lineHeight: size * 0.5 }}>✨</Animated.Text>
+      </TouchableOpacity>
     </Animated.View>
   );
 }
