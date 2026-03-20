@@ -1050,7 +1050,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
 
 // ───────────────────── Main Component ─────────────────────
 
-export function FocusedEntitiesView({
+export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
   sphere,
   sphereSunnyPercentage,
   entities: rawEntities,
@@ -1192,4 +1192,4 @@ export function FocusedEntitiesView({
       />
     </View>
   );
-}
+});

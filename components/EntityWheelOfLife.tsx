@@ -295,6 +295,17 @@ const EntitySpiralingStars = React.memo(function EntitySpiralingStars({
   );
 });
 
+// Moment types configuration (uses custom colors)
+// Cosmic accent (aligned with circle avatar and home wheel selectors)
+const COSMIC_SELECTOR = '#5CE1E6';
+const COSMIC_UNSELECTED_BG = 'rgba(26, 36, 64, 0.9)';
+const COSMIC_ICON_UNSELECTED = 'rgba(184, 232, 236, 0.75)';
+const MOMENT_TYPES: MomentType[] = [
+  { type: 'lesson', icon: 'lightbulb', color: COSMIC_SELECTOR, label: 'Lesson' },
+  { type: 'sunny', icon: 'wb-sunny', color: COSMIC_SELECTOR, label: 'Sunny' },
+  { type: 'cloudy', icon: 'cloud', color: COSMIC_SELECTOR, label: 'Cloudy' },
+];
+
 export function EntityWheelOfLife({
   entity,
   memories,
@@ -381,16 +392,6 @@ export function EntityWheelOfLife({
 
   const { momentColors } = useMomentColors();
 
-  // Moment types configuration (uses custom colors)
-  // Cosmic accent (aligned with circle avatar and home wheel selectors)
-  const COSMIC_SELECTOR = '#5CE1E6';
-  const COSMIC_UNSELECTED_BG = 'rgba(26, 36, 64, 0.9)';
-  const COSMIC_ICON_UNSELECTED = 'rgba(184, 232, 236, 0.75)';
-  const momentTypes: MomentType[] = [
-    { type: 'lesson', icon: 'lightbulb', color: COSMIC_SELECTOR, label: 'Lesson' },
-    { type: 'sunny', icon: 'wb-sunny', color: COSMIC_SELECTOR, label: 'Sunny' },
-    { type: 'cloudy', icon: 'cloud', color: COSMIC_SELECTOR, label: 'Cloudy' },
-  ];
 
   // Collect all moments by type
   const momentsByType = useMemo(() => {
@@ -932,7 +933,7 @@ export function EntityWheelOfLife({
           },
         ]}
       >
-        {momentTypes.map((momentType, index) => {
+        {MOMENT_TYPES.map((momentType, index) => {
           const count = momentsByType[momentType.type].length;
           const isDisabled = count === 0;
           const isSelected = selectedMomentType === momentType.type;

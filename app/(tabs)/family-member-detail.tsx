@@ -12,7 +12,7 @@ import { useMomentColors } from '@/utils/MomentColorsProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -235,6 +235,20 @@ export default function FamilyMemberDetailScreen() {
     },
   }), [fontScale, colorScheme, colors]);
 
+  const handleBack = useCallback(() => router.back(), []);
+  const handleMemoryPress = useCallback((memoryId: string) => {
+    router.push({
+      pathname: '/(tabs)',
+      params: {
+        focusedMemoryId: memoryId,
+        familyMemberId: id,
+        sphere: 'family',
+        returnTo: 'family-member-detail',
+        returnToId: id,
+      },
+    });
+  }, [id]);
+
   if (!familyMember) {
     return (
       <TabScreenContainer>
@@ -248,7 +262,7 @@ export default function FamilyMemberDetailScreen() {
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() => router.back()}
+              onPress={handleBack}
               activeOpacity={0.7}
             >
               <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
@@ -284,7 +298,7 @@ export default function FamilyMemberDetailScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => router.back()}
+            onPress={handleBack}
             activeOpacity={0.7}
           >
             <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
@@ -362,16 +376,7 @@ export default function FamilyMemberDetailScreen() {
                     <TouchableOpacity 
                       key={memory.id} 
                       style={styles.memoryCard}
-                      onPress={() => router.push({
-                        pathname: '/(tabs)',
-                        params: {
-                          focusedMemoryId: memory.id,
-                          familyMemberId: id,
-                          sphere: 'family',
-                          returnTo: 'family-member-detail',
-                          returnToId: id,
-                        },
-                      })}
+                      onPress={() => handleMemoryPress(memory.id)}
                       activeOpacity={0.7}
                     >
                       <View style={styles.memoryCardContent}>

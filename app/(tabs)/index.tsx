@@ -13182,6 +13182,22 @@ export default function HomeScreen() {
   const nextBadge = streakState.nextBadge;
   const [streakModalVisible, setStreakModalVisible] = useState(false);
   const [streakRulesModalVisible, setStreakRulesModalVisible] = useState(false);
+  const handleStreakBadgePress = useCallback(
+    () => setStreakRulesModalVisible(true),
+    []
+  );
+  const handleStreakBadgeLongPress = useCallback(
+    () => setStreakModalVisible(true),
+    []
+  );
+  const handleStreakRulesModalClose = useCallback(
+    () => setStreakRulesModalVisible(false),
+    []
+  );
+  const handleStreakModalClose = useCallback(
+    () => setStreakModalVisible(false),
+    []
+  );
 
   // Walkthrough modal state
   const [walkthroughVisible, setWalkthroughVisible] = useState(false);
@@ -18407,18 +18423,18 @@ export default function HomeScreen() {
             <StreakBadgeComponent
               currentStreak={streakData.currentStreak}
               currentBadge={currentBadge}
-              onPress={() => setStreakRulesModalVisible(true)}
-              onLongPress={() => setStreakModalVisible(true)}
+              onPress={handleStreakBadgePress}
+              onLongPress={handleStreakBadgeLongPress}
             />
           )}
           <StreakRulesModal
             visible={streakRulesModalVisible}
-            onClose={() => setStreakRulesModalVisible(false)}
+            onClose={handleStreakRulesModalClose}
           />
           {streakData && (
             <StreakModal
               visible={streakModalVisible}
-              onClose={() => setStreakModalVisible(false)}
+              onClose={handleStreakModalClose}
               streakData={streakData}
               currentBadge={currentBadge}
               nextBadge={nextBadge}
@@ -18475,22 +18491,22 @@ export default function HomeScreen() {
           <StreakBadgeComponent
             currentStreak={streakData.currentStreak}
             currentBadge={currentBadge}
-            onPress={() => setStreakRulesModalVisible(true)}
-            onLongPress={() => setStreakModalVisible(true)}
+            onPress={handleStreakBadgePress}
+            onLongPress={handleStreakBadgeLongPress}
           />
         )}
 
         {/* Streak Rules Modal */}
         <StreakRulesModal
           visible={streakRulesModalVisible}
-          onClose={() => setStreakRulesModalVisible(false)}
+          onClose={handleStreakRulesModalClose}
         />
 
         {/* Streak Stats Modal */}
         {streakData && (
           <StreakModal
             visible={streakModalVisible}
-            onClose={() => setStreakModalVisible(false)}
+            onClose={handleStreakModalClose}
             streakData={streakData}
             currentBadge={currentBadge}
             nextBadge={nextBadge}
@@ -21625,18 +21641,18 @@ export default function HomeScreen() {
           <StreakBadgeComponent
             currentStreak={streakData.currentStreak}
             currentBadge={currentBadge}
-            onPress={() => setStreakRulesModalVisible(true)}
-            onLongPress={() => setStreakModalVisible(true)}
+            onPress={handleStreakBadgePress}
+            onLongPress={handleStreakBadgeLongPress}
           />
         )}
         <StreakRulesModal
           visible={streakRulesModalVisible}
-          onClose={() => setStreakRulesModalVisible(false)}
+          onClose={handleStreakRulesModalClose}
         />
         {streakData && (
           <StreakModal
             visible={streakModalVisible}
-            onClose={() => setStreakModalVisible(false)}
+            onClose={handleStreakModalClose}
             streakData={streakData}
             currentBadge={currentBadge}
             nextBadge={nextBadge}
