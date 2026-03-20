@@ -13287,9 +13287,6 @@ const SphereAvatar = React.memo(function SphereAvatar({
 });
 
 export default function HomeScreen() {
-  if (__DEV__) {
-    console.log("[render] HomeScreen");
-  }
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
@@ -13714,111 +13711,6 @@ export default function HomeScreen() {
   ) : null;
 
   const prevHasFocusedViewRef = useRef(hasFocusedView);
-  const mainWheelOpenTraceRef = useRef<{
-    startedAt: number;
-    reason: string;
-  } | null>(null);
-  const previousMainWheelStateRef = useRef<{
-    homeViewMode: "classic" | "focused";
-    selectedSphere: LifeSphere | null;
-    focusedProfileId: string | null;
-    focusedJobId: string | null;
-    focusedFamilyMemberId: string | null;
-    focusedFriendId: string | null;
-    focusedHobbyId: string | null;
-    focusedMemoryId: string | null;
-    isAnyEntityWheelActive: boolean;
-  } | null>(null);
-
-  const markMainWheelOpenStart = useCallback(
-    (reason: string) => {
-      if (!__DEV__) return;
-      const startedAt = Date.now();
-      mainWheelOpenTraceRef.current = { startedAt, reason };
-      console.log("[perf][main-wheel] open-start", {
-        reason,
-        startedAt,
-        homeViewMode,
-        selectedSphere,
-        focusedProfileId,
-        focusedJobId,
-        focusedFamilyMemberId,
-        focusedFriendId,
-        focusedHobbyId,
-        focusedMemoryId: focusedMemory?.memoryId ?? null,
-        isAnyEntityWheelActive,
-      });
-    },
-    [
-      focusedFamilyMemberId,
-      focusedFriendId,
-      focusedHobbyId,
-      focusedJobId,
-      focusedMemory,
-      focusedProfileId,
-      homeViewMode,
-      isAnyEntityWheelActive,
-      selectedSphere,
-    ],
-  );
-
-  useEffect(() => {
-    if (!__DEV__) return;
-    const nextState = {
-      homeViewMode,
-      selectedSphere,
-      focusedProfileId,
-      focusedJobId,
-      focusedFamilyMemberId,
-      focusedFriendId,
-      focusedHobbyId,
-      focusedMemoryId: focusedMemory?.memoryId ?? null,
-      isAnyEntityWheelActive,
-    };
-    const prev = previousMainWheelStateRef.current;
-    if (prev) {
-      const changedKeys = Object.keys(nextState).filter(
-        (key) =>
-          (prev as Record<string, unknown>)[key] !==
-          (nextState as Record<string, unknown>)[key],
-      );
-      if (changedKeys.length > 0) {
-        console.log("[perf][main-wheel] state-change", {
-          changedKeys,
-          prev,
-          next: nextState,
-        });
-      }
-    } else {
-      console.log("[perf][main-wheel] state-init", nextState);
-    }
-    previousMainWheelStateRef.current = nextState;
-  }, [
-    focusedFamilyMemberId,
-    focusedFriendId,
-    focusedHobbyId,
-    focusedJobId,
-    focusedMemory,
-    focusedProfileId,
-    homeViewMode,
-    isAnyEntityWheelActive,
-    selectedSphere,
-  ]);
-
-  useEffect(() => {
-    if (!__DEV__) return;
-    if (homeViewMode !== "classic") return;
-    const trace = mainWheelOpenTraceRef.current;
-    if (!trace) {
-      console.log("[perf][main-wheel] classic-active (no trace)");
-      return;
-    }
-    const elapsedMs = Date.now() - trace.startedAt;
-    console.log("[perf][main-wheel] classic-active", {
-      reason: trace.reason,
-      elapsedMs,
-    });
-  }, [homeViewMode]);
 
   useLayoutEffect(() => {
     const wasFocused = prevHasFocusedViewRef.current;
@@ -18593,7 +18485,6 @@ export default function HomeScreen() {
             });
           }}
           onSwitchToClassic={() => {
-            markMainWheelOpenStart("FocusedSferaView.onSwitchToClassic");
             startTransitionLoader();
             setTimeout(
               () => setIsEncouragementVisible(true),

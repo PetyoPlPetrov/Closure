@@ -36,9 +36,6 @@ function TabBarBackground() {
 }
 
 export default function TabLayout() {
-  if (__DEV__) {
-    console.log("[render] TabLayout");
-  }
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();

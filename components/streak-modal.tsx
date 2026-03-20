@@ -30,9 +30,6 @@ export const StreakModal = React.memo(function StreakModal({
   currentBadge,
   nextBadge,
 }: StreakModalProps) {
-  if (__DEV__) {
-    console.log("[render] StreakModal");
-  }
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();

@@ -22,9 +22,6 @@ import { useUnsavedChanges } from '@/utils/UnsavedChangesContext';
 import { useTranslate } from '@/utils/languages/use-translate';
 
 export function HapticTab(props: BottomTabBarButtonProps) {
-  if (__DEV__) {
-    console.log("[render] HapticTab");
-  }
   const pressScale = useSharedValue(1);
   const segments = useSegments();
   const { checkUnsavedChanges, resetScreen } = useUnsavedChanges();
@@ -118,9 +115,6 @@ export function HapticTab(props: BottomTabBarButtonProps) {
 
 // Custom home tab button that intercepts presses even when already focused
 export function HomeTabButton(props: BottomTabBarButtonProps) {
-  if (__DEV__) {
-    console.log("[render] HomeTabButton");
-  }
   const pressScale = useSharedValue(1);
   const segments = useSegments();
   const { checkUnsavedChanges, resetScreen } = useUnsavedChanges();
@@ -271,9 +265,6 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
 
 // Custom events tab button – emits on press so the events screen can return to main view when already focused
 export function EventsTabButton(props: BottomTabBarButtonProps) {
-  if (__DEV__) {
-    console.log("[render] EventsTabButton");
-  }
   const pressScale = useSharedValue(1);
   const segments = useSegments();
   const { checkUnsavedChanges, resetScreen } = useUnsavedChanges();
@@ -343,9 +334,6 @@ export function EventsTabButton(props: BottomTabBarButtonProps) {
 
 // Central AI button rendered between Spheres and Events tabs
 export function AITabButton({ size }: { size: number }) {
-  if (__DEV__) {
-    console.log("[render] AITabButton");
-  }
   const pressScale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
 

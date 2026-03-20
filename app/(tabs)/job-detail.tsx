@@ -18,9 +18,6 @@ import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'reac
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function JobDetailScreen() {
-  if (__DEV__) {
-    console.log("[render] JobDetailScreen");
-  }
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();

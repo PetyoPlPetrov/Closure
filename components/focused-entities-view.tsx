@@ -1063,9 +1063,6 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
   constellationOpacity = 5,
   hidden = false,
 }: FocusedEntitiesViewProps) {
-  if (__DEV__) {
-    console.log("[render] FocusedEntitiesView");
-  }
   const t = useTranslate();
   const { isTablet } = useLargeDevice();
 

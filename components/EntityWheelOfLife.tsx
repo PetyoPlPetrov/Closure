@@ -316,13 +316,6 @@ export function EntityWheelOfLife({
   colors,
   colorScheme,
 }: EntityWheelOfLifeProps) {
-  if (__DEV__) {
-    console.log("[render] EntityWheelOfLife", {
-      entityId: entity.id,
-      sphere: entity.sphere,
-      memoriesCount: memories.length,
-    });
-  }
   const { isTablet } = useLargeDevice();
   const fontScale = useFontScale();
   const { hasAIEntitlement } = useSubscription();
@@ -421,7 +414,7 @@ export function EntityWheelOfLife({
   // Sync isSpinning to shared value for SpiralingStars
   useEffect(() => {
     isSpinningShared.value = isSpinning;
-  }, [isSpinning, isSpinningShared]);
+  }, [isSpinning]);
 
   // Trigger celebration sparks when exam answer is correct
   useEffect(() => {
@@ -432,7 +425,7 @@ export function EntityWheelOfLife({
       }, 1000);
       return () => clearTimeout(t);
     }
-  }, [examState?.step, examState?.analysis?.isCorrect, celebrationSpinning]);
+  }, [examState?.step, examState?.analysis?.isCorrect]);
 
   // Auto-dismiss "Spin the wheel" label after 3 seconds
   useEffect(() => {
@@ -447,7 +440,7 @@ export function EntityWheelOfLife({
       damping: 15,
       stiffness: 100,
     });
-  }, [entranceProgress]);
+  }, []);
 
   // Reset spin state on unmount so re-entering the wheel works correctly
   useEffect(() => {
@@ -459,7 +452,7 @@ export function EntityWheelOfLife({
       setSelectedMoment(null);
       setExamState(null);
     };
-  }, [spinRotation, isSpinningShared, celebrationSpinning]);
+  }, []);
 
   // Collect all moments of selected type with their source memory positions and size scale
   const momentsWithPositions = useMemo(() => {
