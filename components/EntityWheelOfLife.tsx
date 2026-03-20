@@ -302,6 +302,13 @@ export function EntityWheelOfLife({
   colors,
   colorScheme,
 }: EntityWheelOfLifeProps) {
+  if (__DEV__) {
+    console.log("[render] EntityWheelOfLife", {
+      entityId: entity.id,
+      sphere: entity.sphere,
+      memoriesCount: memories.length,
+    });
+  }
   const { isTablet } = useLargeDevice();
   const fontScale = useFontScale();
   const { hasAIEntitlement } = useSubscription();

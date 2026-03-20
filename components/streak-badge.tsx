@@ -33,6 +33,9 @@ export const StreakBadgeComponent = React.memo(function StreakBadgeComponent({
   onPress,
   onLongPress,
 }: StreakBadgeProps) {
+  if (__DEV__) {
+    console.log("[render] StreakBadgeComponent");
+  }
   const fontScale = useFontScale();
   const t = useTranslate();
   const insets = useSafeAreaInsets();

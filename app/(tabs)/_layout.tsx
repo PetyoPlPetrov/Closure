@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,98 +13,135 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { useSferaEventsBadge } from '@/utils/SferaEventsBadgeProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 
+function TabBarBackground() {
+  const colorScheme = useColorScheme();
+  if (colorScheme === 'dark') {
+    return (
+      <LinearGradient
+        colors={['#243041', '#1F2A3A', '#1A2332', '#151D2A', '#0F1620']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+    );
+  }
+  return (
+    <LinearGradient
+      colors={['#F0F0F0', '#E0E0E0', '#D0D0D0', '#C0C0C0', '#B0B0B0']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={StyleSheet.absoluteFill}
+    />
+  );
+}
+
 export default function TabLayout() {
+  if (__DEV__) {
+    console.log("[render] TabLayout");
+  }
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const t = useTranslate();
   const insets = useSafeAreaInsets();
   const { hasNewEvents, unseenCount } = useSferaEventsBadge();
-  
-  // Scale icon size: 28 base size, 30% larger on tablets (28 * 1.3 = 36.4, round to 36)
+
   const iconSize = Math.round(28 * fontScale);
-
-  // Custom tab bar background with gradient
-  const TabBarBackground = () => {
-    if (colorScheme === 'dark') {
-      return (
-        <LinearGradient
-          colors={['#243041', '#1F2A3A', '#1A2332', '#151D2A', '#0F1620']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-      );
-    }
-    return (
-      <LinearGradient
-        colors={['#F0F0F0', '#E0E0E0', '#D0D0D0', '#C0C0C0', '#B0B0B0']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-    );
-  };
-
   const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
   const aiButtonSize = Math.round(52 * fontScale);
+
+  const inactiveColor = colorScheme === 'dark' ? '#ffffff' : '#666666';
+  const activeTintColor = colorScheme === 'dark' ? colors.primaryLight : '#1976D2';
+  const borderTopColor = colorScheme === 'dark'
+    ? 'rgba(255, 255, 255, 0.1)'
+    : 'rgba(150, 150, 150, 0.6)';
+
+  const screenOptions = useMemo(() => ({
+    tabBarActiveTintColor: activeTintColor,
+    tabBarInactiveTintColor: inactiveColor,
+    headerShown: false,
+    tabBarButton: HapticTab,
+    tabBarLabelPosition: 'below-icon' as const,
+    tabBarBackground: TabBarBackground,
+    tabBarStyle: {
+      backgroundColor: 'transparent' as const,
+      borderTopColor,
+      borderTopWidth: 1,
+      paddingBottom: Math.max(32 * fontScale, insets.bottom + 12),
+      paddingTop: 8 * fontScale,
+      height: tabBarHeight,
+      flexDirection: 'row' as const,
+    },
+    tabBarItemStyle: {
+      flexDirection: 'column' as const,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+    },
+    tabBarLabelStyle: {
+      fontSize: Math.round(12 * fontScale),
+      fontWeight: '500' as const,
+      letterSpacing: 0.015,
+      marginTop: 4 * fontScale,
+    },
+  }), [activeTintColor, inactiveColor, borderTopColor, fontScale, insets.bottom, tabBarHeight]);
+
+  const homeIcon = useCallback(({ color }: { color: string }) =>
+    <MaterialIcons name="home" size={iconSize} color={color} />,
+  [iconSize]);
+
+  const homeLabel = useCallback(({ focused, color }: { focused: boolean; color: string }) => (
+    <ThemedText size="xs" weight={focused ? 'bold' : 'medium'} letterSpacing="l"
+      style={{ color: focused ? color : inactiveColor, marginTop: 6 * fontScale, lineHeight: 18 * fontScale }}>
+      {t('tab.home')}
+    </ThemedText>
+  ), [inactiveColor, fontScale, t]);
+
+  const spheresIcon = useCallback(({ color }: { color: string }) =>
+    <MaterialIcons name="category" size={iconSize} color={color} />,
+  [iconSize]);
+
+  const spheresLabel = useCallback(({ focused, color }: { focused: boolean; color: string }) => (
+    <ThemedText size="xs" weight={focused ? 'bold' : 'medium'} letterSpacing="l"
+      style={{ color: focused ? color : inactiveColor, marginTop: 6 * fontScale, lineHeight: 18 * fontScale }}>
+      {t('tab.spheres')}
+    </ThemedText>
+  ), [inactiveColor, fontScale, t]);
+
+  const eventsIcon = useCallback(({ color }: { color: string }) =>
+    <MaterialIcons name="event" size={iconSize} color={color} />,
+  [iconSize]);
+
+  const eventsLabel = useCallback(({ focused, color }: { focused: boolean; color: string }) => (
+    <ThemedText size="xs" weight={focused ? 'bold' : 'medium'} letterSpacing="l"
+      style={{ color: focused ? color : inactiveColor, marginTop: 6 * fontScale, lineHeight: 18 * fontScale }}>
+      {t('tab.events')}
+    </ThemedText>
+  ), [inactiveColor, fontScale, t]);
+
+  const settingsIcon = useCallback(({ color }: { color: string }) =>
+    <MaterialIcons name="settings" size={iconSize} color={color} />,
+  [iconSize]);
+
+  const settingsLabel = useCallback(({ focused, color }: { focused: boolean; color: string }) => (
+    <ThemedText size="xs" weight={focused ? 'bold' : 'medium'} letterSpacing="l"
+      style={{ color: focused ? color : inactiveColor, marginTop: 6 * fontScale, lineHeight: 18 * fontScale }}>
+      {t('tab.settings')}
+    </ThemedText>
+  ), [inactiveColor, fontScale, t]);
+
+  const eventsTabBadge = hasNewEvents ? unseenCount : undefined;
 
   return (
     <View style={styles.container}>
     <Tabs
       initialRouteName="index"
-      screenOptions={{
-        tabBarActiveTintColor: colorScheme === 'dark' ? colors.primaryLight : '#1976D2', // Darker blue for better contrast on white
-        tabBarInactiveTintColor: colorScheme === 'dark' ? '#ffffff' : '#666666', // Darker grey for better contrast on white
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarLabelPosition: 'below-icon', // Ensures icons and labels are vertically stacked
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: {
-          backgroundColor: 'transparent', // Transparent to show gradient background
-          borderTopColor: colorScheme === 'dark' 
-            ? 'rgba(255, 255, 255, 0.1)' // Subtle border with low opacity for dark mode
-            : 'rgba(150, 150, 150, 0.6)', // Darker grey border for light mode
-          borderTopWidth: 1,
-          paddingBottom: Math.max(32 * fontScale, insets.bottom + 12),
-          paddingTop: 8 * fontScale,
-          height: Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale),
-          flexDirection: 'row', // Ensure tabs are laid out horizontally
-        },
-        tabBarItemStyle: {
-          flexDirection: 'column', // Keep icon and label stacked vertically
-          justifyContent: 'center',
-          alignItems: 'center',
-        },
-        tabBarLabelStyle: {
-          fontSize: Math.round(12 * fontScale), // Scale tab bar label font size
-          fontWeight: '500',
-          letterSpacing: 0.015,
-          marginTop: 4 * fontScale, // Gap between icon and text, scaled for device size
-        },
-      }}>
+      screenOptions={screenOptions}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <MaterialIcons name="home" size={iconSize} color={color} />,
-          tabBarLabel: ({ focused, color }) => {
-            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : '#666666'; // Darker grey for better contrast on white
-            return (
-              <ThemedText
-                size="xs"
-                weight={focused ? 'bold' : 'medium'}
-                letterSpacing="l"
-                style={{ 
-                  color: focused ? color : inactiveColor,
-                  marginTop: 6 * fontScale,
-                  lineHeight: 18 * fontScale
-                }}
-              >
-                {t('tab.home')}
-              </ThemedText>
-            );
-          },
+          tabBarIcon: homeIcon,
+          tabBarLabel: homeLabel,
           tabBarButton: HomeTabButton,
         }}
       />
@@ -112,30 +149,8 @@ export default function TabLayout() {
         name="spheres"
         options={{
           title: 'Spheres',
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons 
-              name="category" 
-              size={iconSize} 
-              color={color}
-            />
-          ),
-          tabBarLabel: ({ focused, color }) => {
-            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : '#666666'; // Darker grey for better contrast on white
-            return (
-              <ThemedText
-                size="xs"
-                weight={focused ? 'bold' : 'medium'}
-                letterSpacing="l"
-                style={{ 
-                  color: focused ? color : inactiveColor,
-                  marginTop: 6 * fontScale,
-                  lineHeight: 18 * fontScale
-                }}
-              >
-                {t('tab.spheres')}
-              </ThemedText>
-            );
-          },
+          tabBarIcon: spheresIcon,
+          tabBarLabel: spheresLabel,
           tabBarButton: SpheresTabButton,
         }}
       />
@@ -143,52 +158,18 @@ export default function TabLayout() {
         name="events"
         options={{
           title: 'Events',
-          tabBarBadge: hasNewEvents ? unseenCount : undefined,
+          tabBarBadge: eventsTabBadge,
           tabBarButton: EventsTabButton,
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons name="event" size={iconSize} color={color} />
-          ),
-          tabBarLabel: ({ focused, color }) => {
-            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : '#666666';
-            return (
-              <ThemedText
-                size="xs"
-                weight={focused ? 'bold' : 'medium'}
-                letterSpacing="l"
-                style={{
-                  color: focused ? color : inactiveColor,
-                  marginTop: 6 * fontScale,
-                  lineHeight: 18 * fontScale
-                }}
-              >
-                {t('tab.events')}
-              </ThemedText>
-            );
-          },
+          tabBarIcon: eventsIcon,
+          tabBarLabel: eventsLabel,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color }) => <MaterialIcons name="settings" size={iconSize} color={color} />,
-          tabBarLabel: ({ focused, color }) => {
-            const inactiveColor = colorScheme === 'dark' ? '#ffffff' : '#666666'; // Darker grey for better contrast on white
-            return (
-              <ThemedText
-                size="xs"
-                weight={focused ? 'bold' : 'medium'}
-                letterSpacing="l"
-                style={{
-                  color: focused ? color : inactiveColor,
-                  marginTop: 6 * fontScale,
-                  lineHeight: 18 * fontScale
-                }}
-              >
-                {t('tab.settings')}
-              </ThemedText>
-            );
-          },
+          tabBarIcon: settingsIcon,
+          tabBarLabel: settingsLabel,
         }}
       />
 

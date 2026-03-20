@@ -38,6 +38,9 @@ export function Fireworks({
   onComplete,
   duration = 2500,
 }: FireworksProps) {
+  if (__DEV__) {
+    console.log("[render] Fireworks");
+  }
   const progress = useSharedValue(0);
 
   useEffect(() => {

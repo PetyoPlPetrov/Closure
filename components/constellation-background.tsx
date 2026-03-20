@@ -192,7 +192,7 @@ function getConstellationDataWithAmount(
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function ConstellationBackground({
+export const ConstellationBackground = React.memo(function ConstellationBackground({
   width,
   height,
   constellationAmount = 10,
@@ -211,6 +211,9 @@ export function ConstellationBackground({
   /** Multiply star field dot count (more scattered stars). Default 1. */
   starFieldMultiplier?: number;
 }) {
+  if (__DEV__) {
+    console.log("[render] ConstellationBackground");
+  }
   const { allStars, allLines, scatteredDots } = getConstellationDataWithAmount(width, height, constellationAmount);
   // Slider 0–10: max visibility (10) = former level 2. Linear distribution.
   const opacityMult = (constellationOpacity / 10) * 0.2;
@@ -336,4 +339,4 @@ export function ConstellationBackground({
       </Svg>
     </View>
   );
-}
+});

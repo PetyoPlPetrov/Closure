@@ -10,7 +10,9 @@ import React, {
   useCallback,
   useContext,
   useEffect,
-  useState,
+  useMemo,
+  useReducer,
+  useRef,
 } from "react";
 import { AppState, type AppStateStatus, InteractionManager } from "react-native";
 
@@ -43,20 +45,76 @@ const SferaEventsBadgeContext = createContext<
   SferaEventsBadgeContextType | undefined
 >(undefined);
 
+interface BadgeState {
+  hasNewEvents: boolean;
+  unseenCount: number;
+  events: SferaEvent[];
+  seenIds: Set<string>;
+  isLoadingEvents: boolean;
+}
+
+type BadgeAction =
+  | { type: "FETCH_START" }
+  | { type: "FETCH_DONE"; events: SferaEvent[]; seenIds: Set<string>; unseenCount: number; hasNewEvents: boolean }
+  | { type: "MARK_SEEN"; eventId: string; seenIds: Set<string>; unseenCount: number; hasNewEvents: boolean }
+  | { type: "RESET" };
+
+const initialBadgeState: BadgeState = {
+  hasNewEvents: false,
+  unseenCount: 0,
+  events: [],
+  seenIds: new Set(),
+  isLoadingEvents: true,
+};
+
+function badgeReducer(state: BadgeState, action: BadgeAction): BadgeState {
+  switch (action.type) {
+    case "FETCH_START":
+      return state.isLoadingEvents ? state : { ...state, isLoadingEvents: true };
+    case "FETCH_DONE":
+      return {
+        events: action.events,
+        seenIds: action.seenIds,
+        unseenCount: action.unseenCount,
+        hasNewEvents: action.hasNewEvents,
+        isLoadingEvents: false,
+      };
+    case "MARK_SEEN":
+      return {
+        ...state,
+        seenIds: action.seenIds,
+        unseenCount: action.unseenCount,
+        hasNewEvents: action.hasNewEvents,
+      };
+    case "RESET":
+      return { ...initialBadgeState };
+    default:
+      return state;
+  }
+}
+
 export function SferaEventsBadgeProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [hasNewEvents, setHasNewEvents] = useState(false);
-  const [unseenCount, setUnseenCount] = useState(0);
-  const [events, setEvents] = useState<SferaEvent[]>([]);
-  const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
-  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+  const [state, dispatch] = useReducer(badgeReducer, initialBadgeState);
+  const { hasNewEvents, unseenCount, events, seenIds, isLoadingEvents } = state;
   const { showNotification } = useInAppNotification();
   const { enabled: eventInAppNotificationsEnabled, isLoaded: eventInAppPrefLoaded } =
     useEventInAppNotificationPreference();
   const t = useTranslate();
+
+  // Use refs for notification prefs so checkAndNotify doesn't need to depend on them
+  // (avoids recreating checkAndNotify and re-triggering the fetch effect on every pref load)
+  const notifPrefsRef = useRef({ enabled: eventInAppNotificationsEnabled, isLoaded: eventInAppPrefLoaded });
+  notifPrefsRef.current = { enabled: eventInAppNotificationsEnabled, isLoaded: eventInAppPrefLoaded };
+
+  const showNotificationRef = useRef(showNotification);
+  showNotificationRef.current = showNotification;
+
+  const tRef = useRef(t);
+  tRef.current = t;
 
   const computeUnseenCount = useCallback(
     (evts: SferaEvent[], seen: Set<string>) =>
@@ -66,47 +124,31 @@ export function SferaEventsBadgeProvider({
     [],
   );
 
-  const refreshBadge = useCallback(async () => {
-    const seen = await getSeenEventIds();
-    setSeenIds(seen);
-    const count = computeUnseenCount(events, seen);
-    setUnseenCount(count);
-    setHasNewEvents(count > 0);
-  }, [events, computeUnseenCount]);
-
   const checkAndNotify = useCallback(
     async (fromForeground = false, silent = false) => {
-      if (!silent) setIsLoadingEvents(true);
+      if (!silent) dispatch({ type: "FETCH_START" });
       try {
         const completed = await getOnboardingCompleted();
         if (!completed) {
-          setEvents([]);
-          setUnseenCount(0);
-          setHasNewEvents(false);
+          dispatch({ type: "FETCH_DONE", events: [], seenIds: new Set(), unseenCount: 0, hasNewEvents: false });
           return [];
         }
         const { events: fetched, newCount, newCommunities } =
           await fetchAndCheckForNewEvents();
-        setEvents(fetched);
         const seen = await getSeenEventIds();
-        setSeenIds(seen);
         const count = computeUnseenCount(fetched, seen);
-        setUnseenCount(count);
-        setHasNewEvents(count > 0);
+        dispatch({ type: "FETCH_DONE", events: fetched, seenIds: seen, unseenCount: count, hasNewEvents: count > 0 });
         // Badge on Events tab always reflects unseen count; only the in-app popup is gated by preference
-        if (
-          eventInAppPrefLoaded &&
-          eventInAppNotificationsEnabled &&
-          newCount > 0 &&
-          newCommunities.length > 0
-        ) {
+        const { enabled, isLoaded } = notifPrefsRef.current;
+        if (isLoaded && enabled && newCount > 0 && newCommunities.length > 0) {
+          const tFn = tRef.current;
           const communityName = newCommunities
-            .map((c) => (c === "social" ? t("events.section.social") : t("events.section.plus")))
+            .map((c) => (c === "social" ? tFn("events.section.social") : tFn("events.section.plus")))
             .join(", ");
           const show = () =>
-            showNotification({
-              title: t("events.newEventsTitle"),
-              message: t("events.newEventInCommunity").replace("{community}", communityName),
+            showNotificationRef.current({
+              title: tFn("events.newEventsTitle"),
+              message: tFn("events.newEventInCommunity").replace("{community}", communityName),
               emoji: "✨",
               duration: 4000,
             });
@@ -119,26 +161,23 @@ export function SferaEventsBadgeProvider({
           }
         }
         return fetched;
-      } finally {
-        if (!silent) setIsLoadingEvents(false);
+      } catch (e) {
+        if (!silent) dispatch({ type: "FETCH_DONE", events: [], seenIds: new Set(), unseenCount: 0, hasNewEvents: false });
+        throw e;
       }
     },
-    [showNotification, t, computeUnseenCount, eventInAppNotificationsEnabled, eventInAppPrefLoaded],
+    [computeUnseenCount],
   );
 
   const markEventAsSeen = useCallback(
     async (eventId: string) => {
       await markSeenInStorage(eventId);
-      setSeenIds((prev) => {
-        const next = new Set(prev);
-        next.add(eventId);
-        const count = computeUnseenCount(events, next);
-        setUnseenCount(count);
-        setHasNewEvents(count > 0);
-        return next;
-      });
+      const next = new Set(seenIds);
+      next.add(eventId);
+      const count = computeUnseenCount(events, next);
+      dispatch({ type: "MARK_SEEN", eventId, seenIds: next, unseenCount: count, hasNewEvents: count > 0 });
     },
-    [events, computeUnseenCount],
+    [events, seenIds, computeUnseenCount],
   );
 
   const refreshEvents = useCallback(
@@ -149,21 +188,12 @@ export function SferaEventsBadgeProvider({
   const getCachedEvents = useCallback(() => events, [events]);
 
   const resetEventsState = useCallback(() => {
-    setEvents([]);
-    setSeenIds(new Set());
-    setUnseenCount(0);
-    setHasNewEvents(false);
-    setIsLoadingEvents(true);
+    dispatch({ type: "RESET" });
   }, []);
 
   useEffect(() => {
     void checkAndNotify(false);
   }, [checkAndNotify]);
-
-  // Recompute badge when events change
-  useEffect(() => {
-    if (events.length > 0) refreshBadge();
-  }, [events.length, refreshBadge]);
 
   useEffect(() => {
     const sub = AppState.addEventListener(
@@ -175,18 +205,18 @@ export function SferaEventsBadgeProvider({
     return () => sub.remove();
   }, [checkAndNotify]);
 
+  const contextValue = useMemo(() => ({
+    hasNewEvents,
+    unseenCount,
+    markEventAsSeen,
+    refreshEvents,
+    getCachedEvents,
+    resetEventsState,
+    isLoadingEvents,
+  }), [hasNewEvents, unseenCount, markEventAsSeen, refreshEvents, getCachedEvents, resetEventsState, isLoadingEvents]);
+
   return (
-    <SferaEventsBadgeContext.Provider
-      value={{
-        hasNewEvents,
-        unseenCount,
-        markEventAsSeen,
-        refreshEvents,
-        getCachedEvents,
-        resetEventsState,
-        isLoadingEvents,
-      }}
-    >
+    <SferaEventsBadgeContext.Provider value={contextValue}>
       {children}
     </SferaEventsBadgeContext.Provider>
   );

@@ -20,6 +20,9 @@ export function PulsingPressable({
   style,
   ...rest
 }: PressableProps) {
+  if (__DEV__) {
+    console.log("[render] PulsingPressable");
+  }
   const pressScale = useSharedValue(1);
 
   const handlePress = (ev: Parameters<NonNullable<PressableProps["onPress"]>>[0]) => {

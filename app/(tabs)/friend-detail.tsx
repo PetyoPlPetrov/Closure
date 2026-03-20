@@ -18,7 +18,9 @@ import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'reac
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function FriendDetailScreen() {
-  console.log("[friend-detail] 🏠 Screen MOUNTED/RENDERED");
+  if (__DEV__) {
+    console.log("[render] FriendDetailScreen");
+  }
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();

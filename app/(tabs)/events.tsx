@@ -1232,6 +1232,9 @@ const EXPANDED_CARD_RADIUS = 20;
 const EXPANDED_BOTTOM_BUTTONS_HEIGHT = 60;
 
 export default function EventsTab() {
+  if (__DEV__) {
+    console.log("[render] EventsTab");
+  }
   const colorScheme = useColorScheme();
   const t = useTranslate();
   const colors = Colors[colorScheme ?? "dark"];

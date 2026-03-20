@@ -18,7 +18,10 @@ interface StreakRulesModalProps {
   onClose: () => void;
 }
 
-export function StreakRulesModal({ visible, onClose }: StreakRulesModalProps) {
+export const StreakRulesModal = React.memo(function StreakRulesModal({ visible, onClose }: StreakRulesModalProps) {
+  if (__DEV__) {
+    console.log("[render] StreakRulesModal");
+  }
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const t = useTranslate();
@@ -100,7 +103,7 @@ export function StreakRulesModal({ visible, onClose }: StreakRulesModalProps) {
       </View>
     </Modal>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -13115,7 +13115,9 @@ const SphereAvatar = React.memo(function SphereAvatar({
 });
 
 export default function HomeScreen() {
-  console.log('[index.tsx] 🏠 HOME SCREEN RENDERED');
+  if (__DEV__) {
+    console.log("[render] HomeScreen");
+  }
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
@@ -13170,9 +13172,14 @@ export default function HomeScreen() {
     });
   }, [isLoading, idealizedMemories, appLang, hasAIEntitlement]);
   // Streak feature state
-  const [streakData, setStreakData] = useState<StreakData | null>(null);
-  const [currentBadge, setCurrentBadge] = useState<StreakBadge | null>(null);
-  const [nextBadge, setNextBadge] = useState<StreakBadge | null>(null);
+  const [streakState, setStreakState] = useState<{
+    data: StreakData | null;
+    currentBadge: StreakBadge | null;
+    nextBadge: StreakBadge | null;
+  }>({ data: null, currentBadge: null, nextBadge: null });
+  const streakData = streakState.data;
+  const currentBadge = streakState.currentBadge;
+  const nextBadge = streakState.nextBadge;
   const [streakModalVisible, setStreakModalVisible] = useState(false);
   const [streakRulesModalVisible, setStreakRulesModalVisible] = useState(false);
 
@@ -13187,13 +13194,10 @@ export default function HomeScreen() {
     try {
       // Recalculate streak first (handles badge downgrade if days passed)
       const data = await recalculateStreak();
-      setStreakData(data);
-
       const badge = await getCurrentBadge();
-      setCurrentBadge(badge);
-
       const next = await getNextBadge();
-      setNextBadge(next);
+      // Single setState — avoids 3 separate re-renders from sequential awaits
+      setStreakState({ data, currentBadge: badge, nextBadge: next });
 
       // Refresh notifications based on current streak status
       await refreshStreakNotifications();
@@ -13522,6 +13526,111 @@ export default function HomeScreen() {
     focusedHobbyId
   );
   const prevHasFocusedViewRef = useRef(hasFocusedView);
+  const mainWheelOpenTraceRef = useRef<{
+    startedAt: number;
+    reason: string;
+  } | null>(null);
+  const previousMainWheelStateRef = useRef<{
+    homeViewMode: "classic" | "focused";
+    selectedSphere: LifeSphere | null;
+    focusedProfileId: string | null;
+    focusedJobId: string | null;
+    focusedFamilyMemberId: string | null;
+    focusedFriendId: string | null;
+    focusedHobbyId: string | null;
+    focusedMemoryId: string | null;
+    isAnyEntityWheelActive: boolean;
+  } | null>(null);
+
+  const markMainWheelOpenStart = useCallback(
+    (reason: string) => {
+      if (!__DEV__) return;
+      const startedAt = Date.now();
+      mainWheelOpenTraceRef.current = { startedAt, reason };
+      console.log("[perf][main-wheel] open-start", {
+        reason,
+        startedAt,
+        homeViewMode,
+        selectedSphere,
+        focusedProfileId,
+        focusedJobId,
+        focusedFamilyMemberId,
+        focusedFriendId,
+        focusedHobbyId,
+        focusedMemoryId: focusedMemory?.memoryId ?? null,
+        isAnyEntityWheelActive,
+      });
+    },
+    [
+      focusedFamilyMemberId,
+      focusedFriendId,
+      focusedHobbyId,
+      focusedJobId,
+      focusedMemory,
+      focusedProfileId,
+      homeViewMode,
+      isAnyEntityWheelActive,
+      selectedSphere,
+    ],
+  );
+
+  useEffect(() => {
+    if (!__DEV__) return;
+    const nextState = {
+      homeViewMode,
+      selectedSphere,
+      focusedProfileId,
+      focusedJobId,
+      focusedFamilyMemberId,
+      focusedFriendId,
+      focusedHobbyId,
+      focusedMemoryId: focusedMemory?.memoryId ?? null,
+      isAnyEntityWheelActive,
+    };
+    const prev = previousMainWheelStateRef.current;
+    if (prev) {
+      const changedKeys = Object.keys(nextState).filter(
+        (key) =>
+          (prev as Record<string, unknown>)[key] !==
+          (nextState as Record<string, unknown>)[key],
+      );
+      if (changedKeys.length > 0) {
+        console.log("[perf][main-wheel] state-change", {
+          changedKeys,
+          prev,
+          next: nextState,
+        });
+      }
+    } else {
+      console.log("[perf][main-wheel] state-init", nextState);
+    }
+    previousMainWheelStateRef.current = nextState;
+  }, [
+    focusedFamilyMemberId,
+    focusedFriendId,
+    focusedHobbyId,
+    focusedJobId,
+    focusedMemory,
+    focusedProfileId,
+    homeViewMode,
+    isAnyEntityWheelActive,
+    selectedSphere,
+  ]);
+
+  useEffect(() => {
+    if (!__DEV__) return;
+    if (homeViewMode !== "classic") return;
+    const trace = mainWheelOpenTraceRef.current;
+    if (!trace) {
+      console.log("[perf][main-wheel] classic-active (no trace)");
+      return;
+    }
+    const elapsedMs = Date.now() - trace.startedAt;
+    console.log("[perf][main-wheel] classic-active", {
+      reason: trace.reason,
+      elapsedMs,
+    });
+  }, [homeViewMode]);
 
   useLayoutEffect(() => {
     const wasFocused = prevHasFocusedViewRef.current;
@@ -18224,6 +18333,7 @@ export default function HomeScreen() {
             });
           }}
           onSwitchToClassic={() => {
+            markMainWheelOpenStart("FocusedSferaView.onSwitchToClassic");
             startTransitionLoader();
             setTimeout(
               () => setIsEncouragementVisible(true),

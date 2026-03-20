@@ -45,6 +45,9 @@ import {
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function SettingsScreen() {
+  if (__DEV__) {
+    console.log("[render] SettingsScreen");
+  }
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();

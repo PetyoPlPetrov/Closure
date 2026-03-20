@@ -1715,6 +1715,9 @@ export function FocusedSferaView({
   constellationOpacity = 10,
   hidden = false,
 }: FocusedSferaViewProps) {
+  if (__DEV__) {
+    console.log("[render] FocusedSferaView");
+  }
   const { isTablet } = useLargeDevice();
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
   const N = SPHERE_LIST.length;

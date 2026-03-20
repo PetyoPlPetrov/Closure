@@ -1,7 +1,7 @@
 import { logEntityCreated, logMemoryCreated, logMemoryDeleted, logMomentCreated } from '@/utils/analytics';
 import { deleteSummariesByMemoryIds } from '@/utils/moment-notification-storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { showPaywallForAnySubscriptionAccess } from '@/utils/premium-access';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 
@@ -1836,7 +1836,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     }
   }, [saveIdealizedMemoriesToStorage]);
 
-  const value: JourneyContextType = {
+  const value: JourneyContextType = useMemo(() => ({
     profiles,
     isLoading: isLoading || isLoadingJobs || isLoadingFamily || isLoadingFriends || isLoadingHobbies,
     error,
@@ -1879,7 +1879,20 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     reloadFriends,
     reloadHobbies,
     cleanupOrphanedMemories,
-  };
+  }), [
+    profiles, isLoading, isLoadingJobs, isLoadingFamily, isLoadingFriends, isLoadingHobbies,
+    error,
+    addProfile, updateProfile, deleteProfile, getProfile,
+    jobs, addJob, updateJob, deleteJob, getJob,
+    familyMembers, addFamilyMember, updateFamilyMember, deleteFamilyMember, getFamilyMember,
+    friends, addFriend, updateFriend, deleteFriend, getFriend,
+    hobbies, addHobby, updateHobby, deleteHobby, getHobby,
+    idealizedMemories, addIdealizedMemory, updateIdealizedMemory, deleteIdealizedMemory,
+    getIdealizedMemoriesByEntityId, getIdealizedMemoriesByProfileId,
+    getEntitiesBySphere, getOverallSunnyPercentage,
+    loadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies,
+    cleanupOrphanedMemories,
+  ]);
 
   return <JourneyContext.Provider value={value}>{children}</JourneyContext.Provider>;
 }
