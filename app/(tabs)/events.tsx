@@ -108,7 +108,7 @@ const FOCUSED_ORB_SIZE = Math.round(170 / 1.4 * 0.8); // Reduced by 20% for less
 const EVENT_ORBIT_RADIUS = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.36;
 const EVENT_BELOW_ORB_GAP = 16;
 const FOCUSED_EVENT_SIZE = 228;
-const SMALL_EVENT_SIZE = 88;
+const SMALL_EVENT_SIZE = 100;
 /** Non-focused cards above the orb (top half of orbit) */
 const SMALL_EVENT_SIZE_ABOVE = 72;
 /** Non-focused card above and to the right – even smaller */
@@ -898,12 +898,18 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
     const r = scaled.orbitRadius * radiusMultiplier;
     const above = sinA < -0.15;
     const right = cosA > 0.25;
+    const atSideRight = !above && cosA > 0.5 && !focused;
+    const atSideLeft = !above && cosA < -0.5 && !focused;
     const yOffset =
       above && right
         ? scaled.yOffsetAboveRight
         : sinA < 0
           ? scaled.yOffsetAbove
-          : scaled.yOffsetBelow;
+          : atSideRight
+            ? scaled.yOffsetBelow - 35
+            : atSideLeft
+              ? scaled.yOffsetBelow - 10
+              : scaled.yOffsetBelow;
     const x = CENTER_X + cosA * r - w / 2;
     const y = CENTER_Y + sinA * r + yOffset - h / 2;
 
@@ -963,7 +969,7 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
         ]}
       >
         <BlurView
-          intensity={colorScheme === "dark" ? 40 : 60}
+          intensity={colorScheme === "dark" ? 80 : 80}
           tint={colorScheme === "dark" ? "dark" : "light"}
           style={StyleSheet.absoluteFill}
         />
@@ -973,8 +979,8 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
             {
               backgroundColor:
                 colorScheme === "dark"
-                  ? "rgba(26,35,50,0.5)"
-                  : "rgba(255,255,255,0.4)",
+                  ? "rgba(26,35,50,0.85)"
+                  : "rgba(255,255,255,0.75)",
             },
           ]}
           pointerEvents="none"
@@ -1194,6 +1200,10 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
                 colorScheme === "dark"
                   ? "rgba(255,255,255,0.22)"
                   : "rgba(0,0,0,0.12)",
+              backgroundColor:
+                colorScheme === "dark"
+                  ? "rgba(20,30,46,0.97)"
+                  : "rgba(240,244,255,0.97)",
             },
           ]}
         >

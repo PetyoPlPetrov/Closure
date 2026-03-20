@@ -89,8 +89,6 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
 }
 
-/** Max file size for AI memory photos (2MB). Keeps API payloads small; base64 adds ~33% overhead. */
-const MAX_IMAGE_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 
 interface AIModalProps {
   visible: boolean;
@@ -144,7 +142,6 @@ export function AIModal({
   const [inputHeight, setInputHeight] = useState(() => 56 * fontScale);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentView, setCurrentView] = useState<ModalView>("input");
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isPickingImage, setIsPickingImage] = useState(false);
   const [aiResponse, setAiResponse] = useState<AIMemoryResponse | null>(null);
   const [memoryItems, setMemoryItems] = useState<AIMemoryItem[]>([]);
@@ -334,10 +331,6 @@ export function AIModal({
           // Move to loading view first
           setCurrentView("loading");
           setIsProcessing(true);
-          // Restore image if it was saved with the response
-          if (pendingResponse.imageUri) {
-            setSelectedImage(pendingResponse.imageUri);
-          }
           // Process pending response from prop
           // Don't clear AsyncStorage here - keep it until user saves or discards
           try {
@@ -380,9 +373,6 @@ export function AIModal({
       // Response arrived via prop update (from parent component detecting it)
       setCurrentView("loading");
       setIsProcessing(true);
-      if (pendingResponse.imageUri) {
-        setSelectedImage(pendingResponse.imageUri);
-      }
       (async () => {
         try {
           await processAIResponse(pendingResponse.response);
@@ -412,10 +402,6 @@ export function AIModal({
         // There's a request being processed, show loading state
         setCurrentView("loading");
         setIsProcessing(true);
-        // Restore image if available
-        if (pendingRequest?.imageUri) {
-          setSelectedImage(pendingRequest.imageUri);
-        }
         // Set background request ID if we have one
         if (pendingRequest?.requestId) {
           setBackgroundRequestId(pendingRequest.requestId);
@@ -449,11 +435,6 @@ export function AIModal({
         // Clear the error from storage
         await clearPendingAIError();
 
-        // Restore image if it was saved with the error
-        if (pendingError.imageUri) {
-          setSelectedImage(pendingError.imageUri);
-        }
-
         // Show error to user and allow retry
         setIsProcessing(false);
         setErrorMessage(pendingError.error);
@@ -468,10 +449,6 @@ export function AIModal({
         // Move to loading view first
         setCurrentView("loading");
         setIsProcessing(true);
-        // Restore image if it was saved with the response
-        if (pendingResponse.imageUri) {
-          setSelectedImage(pendingResponse.imageUri);
-        }
         // If we have a pending response, process it
         // Don't clear AsyncStorage here - keep it until user saves or discards
         // (Rate limit already counted on submit when user pressed the button.)
@@ -795,75 +772,6 @@ export function AIModal({
     await speechToText.stop();
   };
 
-  const handlePickImage = async () => {
-    setIsPickingImage(true);
-    try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          t("ai.permission.title") || "Permission Required",
-          t("ai.permission.image") ||
-            "Photo library permission is required to upload images.",
-          [{ text: t("common.ok") || "OK" }],
-        );
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.6,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        const imageUri = result.assets[0].uri;
-        try {
-          const info = await FileSystem.getInfoAsync(imageUri);
-          const size =
-            info.exists && "size" in info && typeof info.size === "number"
-              ? info.size
-              : 0;
-          if (size > MAX_IMAGE_FILE_SIZE_BYTES) {
-            Alert.alert(
-              t("ai.imageTooLarge.title"),
-              t("ai.imageTooLarge.message"),
-              [{ text: t("common.ok") || "OK" }],
-            );
-            return;
-          }
-        } catch {
-          // If we can't read size, allow the image (e.g. some URI schemes)
-        }
-        setSelectedImage(imageUri);
-
-        if (aiResponse) {
-          try {
-            const pendingResponse = await getPendingAIResponse();
-            if (pendingResponse) {
-              await savePendingAIResponse({
-                ...pendingResponse,
-                imageUri,
-              });
-            }
-          } catch {
-            // Failed to save image URI to AsyncStorage
-          }
-        }
-      }
-    } catch (error) {
-      Alert.alert(
-        t("common.error") || "Error",
-        (error as Error).message ||
-          t("ai.error.image") ||
-          "Failed to pick image",
-      );
-    } finally {
-      setIsPickingImage(false);
-    }
-  };
-
   const handleSend = async () => {
     if (!inputText.trim() || !canSubmit) {
       return;
@@ -949,7 +857,6 @@ export function AIModal({
             inputText.trim(),
             { sferas },
             language,
-            selectedImage || undefined,
           );
 
           await processAIResponse(response);
@@ -970,7 +877,7 @@ export function AIModal({
         const requestId = await startBackgroundAIProcessing(
           inputText.trim(),
           { sferas },
-          selectedImage || undefined,
+          undefined,
           language,
         );
         setBackgroundRequestId(requestId);
@@ -1259,9 +1166,7 @@ export function AIModal({
           text: item.text,
         }));
 
-      const resolvedMemoryImage = selectedImage
-        ? await ensureImageInAppDocuments(selectedImage)
-        : undefined;
+      const resolvedMemoryImage = undefined;
 
       // Create the memory with AI suggestions (bypass limits - AI modal allows creation beyond free tier caps)
       const memoryId = await addIdealizedMemory(
@@ -1330,7 +1235,7 @@ export function AIModal({
       }
 
       // Log analytics event for AI memory saved
-      await logAIMemorySaved(finalSphere, !!selectedImage, memoryItems.length);
+      await logAIMemorySaved(finalSphere, false, memoryItems.length);
 
       // Count AI-created memories toward streak/badges (same as manual creation).
       // Don't block the save flow if streak update fails.
@@ -1654,65 +1559,6 @@ export function AIModal({
           : "rgba(0, 0, 0, 0.05)",
       justifyContent: "center",
       alignItems: "center",
-    },
-    inputImageSection: {
-      marginTop: 12 * fontScale,
-      marginBottom: 8 * fontScale,
-    },
-    inputImagePreview: {
-      width: "100%",
-      height: 80 * fontScale,
-      borderRadius: 12 * fontScale,
-      overflow: "hidden",
-      position: "relative",
-    },
-    inputImagePreviewImage: {
-      width: "100%",
-      height: "100%",
-      borderRadius: 12 * fontScale,
-    },
-    imageUploadButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: 12 * fontScale,
-      paddingHorizontal: 16 * fontScale,
-      borderRadius: 12 * fontScale,
-      borderWidth: 1,
-      borderColor: colors.primary,
-      borderStyle: "dashed",
-    },
-    imageUploadButtonLarge: {
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: 16 * fontScale,
-      paddingHorizontal: 24 * fontScale,
-      borderRadius: 12 * fontScale,
-      borderWidth: 2,
-      borderColor: colors.primary,
-      borderStyle: "dashed",
-      backgroundColor:
-        colorScheme === "dark"
-          ? "rgba(100, 181, 246, 0.1)"
-          : "rgba(100, 181, 246, 0.05)",
-      marginBottom: 16 * fontScale,
-    },
-    imagePreviewContainer: {
-      marginBottom: 16 * fontScale,
-    },
-    imagePreview: {
-      width: "100%",
-      height: 160 * fontScale,
-      borderRadius: 12 * fontScale,
-      marginTop: 0,
-      marginBottom: 0,
-      position: "relative",
-      overflow: "hidden",
-    },
-    imagePreviewImage: {
-      width: "100%",
-      height: "100%",
-      borderRadius: 12 * fontScale,
     },
     removeImageButton: {
       position: "absolute",
@@ -2277,7 +2123,6 @@ export function AIModal({
                       // Check if there's any progress to lose
                       if (
                         inputText.trim().length > 0 ||
-                        selectedImage ||
                         aiResponse
                       ) {
                         setShowCloseConfirm(true);
@@ -2456,60 +2301,6 @@ export function AIModal({
                     >
                       {characterCount}/{MAX_INPUT_LENGTH}
                     </ThemedText>
-                  </View>
-
-                  {/* Optional image upload - AI will analyze it for better moment suggestions */}
-                  <View style={styles.inputImageSection}>
-                    {!selectedImage ? (
-                      <TouchableOpacity
-                        style={styles.imageUploadButton}
-                        onPress={handlePickImage}
-                        activeOpacity={0.7}
-                        disabled={isPickingImage}
-                      >
-                        {isPickingImage ? (
-                          <ActivityIndicator
-                            size="small"
-                            color={colors.primary}
-                          />
-                        ) : (
-                          <>
-                            <MaterialIcons
-                              name="add-photo-alternate"
-                              size={20 * fontScale}
-                              color={colors.primary}
-                            />
-                            <ThemedText
-                              size="sm"
-                              weight="medium"
-                              style={{
-                                color: colors.primary,
-                                marginLeft: 8 * fontScale,
-                              }}
-                            >
-                              {t("ai.upload.image.optional")}
-                            </ThemedText>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    ) : (
-                      <View style={styles.inputImagePreview}>
-                        <Image
-                          source={{ uri: selectedImage }}
-                          style={styles.inputImagePreviewImage}
-                        />
-                        <TouchableOpacity
-                          style={styles.removeImageButton}
-                          onPress={() => setSelectedImage(null)}
-                        >
-                          <MaterialIcons
-                            name="close"
-                            size={16 * fontScale}
-                            color="#ffffff"
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    )}
                   </View>
 
                   {/* Submit Button */}
@@ -2760,88 +2551,6 @@ export function AIModal({
                     keyboardShouldPersistTaps="handled"
                     nestedScrollEnabled={Platform.OS === "android"}
                   >
-                    {/* Image block: hide during loading if image was added on input step */}
-                    {!aiResponse && selectedImage ? null : !selectedImage ? (
-                      <TouchableOpacity
-                        style={styles.imageUploadButtonLarge}
-                        onPress={handlePickImage}
-                        activeOpacity={0.7}
-                        disabled={isPickingImage}
-                      >
-                        {isPickingImage ? (
-                          <ActivityIndicator
-                            size="large"
-                            color={colors.primary}
-                          />
-                        ) : (
-                          <>
-                            <MaterialIcons
-                              name="add-photo-alternate"
-                              size={24 * fontScale}
-                              color={colors.primary}
-                            />
-                            <ThemedText
-                              size="sm"
-                              weight="medium"
-                              style={{
-                                color: colors.primary,
-                                marginTop: 8 * fontScale,
-                              }}
-                            >
-                              {t("ai.upload.image") || "Add photo"}
-                            </ThemedText>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    ) : (
-                      <View style={styles.imagePreviewContainer}>
-                        {aiResponse && (
-                          <ThemedText
-                            size="xs"
-                            weight="medium"
-                            style={[
-                              styles.dropdownLabel,
-                              { marginBottom: 6 * fontScale },
-                            ]}
-                          >
-                            {t("ai.results.momentPicture")}
-                          </ThemedText>
-                        )}
-                        <View style={styles.imagePreview}>
-                          <Image
-                            source={{ uri: selectedImage }}
-                            style={styles.imagePreviewImage}
-                          />
-                          <TouchableOpacity
-                            style={styles.removeImageButton}
-                            onPress={async () => {
-                              setSelectedImage(null);
-                              if (aiResponse) {
-                                try {
-                                  const pendingResponse =
-                                    await getPendingAIResponse();
-                                  if (pendingResponse) {
-                                    await savePendingAIResponse({
-                                      ...pendingResponse,
-                                      imageUri: undefined,
-                                    });
-                                  }
-                                } catch (error) {
-                                  // noop
-                                }
-                              }
-                            }}
-                          >
-                            <MaterialIcons
-                              name="close"
-                              size={16 * fontScale}
-                              color="#ffffff"
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    )}
-
                     {/* Loading Indicator */}
                     {!aiResponse && (
                       <View style={styles.loadingIndicatorContainer}>

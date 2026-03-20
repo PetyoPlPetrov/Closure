@@ -79,6 +79,7 @@ import {
   AppState,
   BackHandler,
   Dimensions,
+  type GestureResponderEvent,
   Modal,
   PanResponder,
   Pressable,
@@ -9019,6 +9020,8 @@ const COSMIC_RING_MID = "#9D7BDB";
 const COSMIC_RING_END = "#7B68EE";
 const COSMIC_TEXT = "#B8E8EC";
 const COSMIC_TRACK = "#0D1525";
+const MAIN_WHEEL_COSMIC_UNSELECTED = "rgba(26, 36, 64, 0.12)";
+const MAIN_WHEEL_COSMIC_SELECTED = "rgba(92, 225, 230, 0.45)";
 const COSMIC_INNER_DARK = [
   "#0A0E1A",
   "#0F1422",
@@ -15753,14 +15756,66 @@ export default function HomeScreen() {
     transform: [{ scale: mainWheelExamInputPulseScale.value }],
   }));
 
+  const handleMainWheelExamSubmitPressIn = useCallback(() => {
+    if (mainWheelExamAnswerInputRef.current.trim().length >= 2) {
+      cancelAnimation(mainWheelExamSubmitPressScale);
+      mainWheelExamSubmitPressScale.value = withTiming(0.82, {
+        duration: 80,
+        easing: Easing.out(Easing.ease),
+      });
+    }
+  }, [mainWheelExamSubmitPressScale]);
+
+  const handleMainWheelExamSubmitPressOut = useCallback(() => {
+    cancelAnimation(mainWheelExamSubmitPressScale);
+    mainWheelExamSubmitPressScale.value = withSpring(1, {
+      damping: 12,
+      stiffness: 400,
+    });
+  }, [mainWheelExamSubmitPressScale]);
+
+  const handleMainWheelExamSubmitPress = useCallback(() => {
+    const trimmed = mainWheelExamAnswerInput.trim();
+    if (trimmed.length >= 2) {
+      handleMainWheelExamSubmit(trimmed);
+      setMainWheelExamAnswerInput("");
+    } else {
+      cancelAnimation(mainWheelExamInputPulseScale);
+      mainWheelExamInputPulseScale.value = withSequence(
+        withTiming(1.04, { duration: 80, easing: Easing.out(Easing.ease) }),
+        withSpring(1, { damping: 12, stiffness: 400 }),
+      );
+    }
+  }, [mainWheelExamAnswerInput, handleMainWheelExamSubmit, mainWheelExamSubmitPressScale, mainWheelExamInputPulseScale]);
+
+  const handleDismissLesson = useCallback((e: GestureResponderEvent) => {
+    e.stopPropagation();
+    setShowLesson(false);
+    setSelectedLesson(null);
+    setMainWheelExamAnswerInput("");
+  }, []);
+
+  const handleAIConsentEnable = useCallback(() => {
+    setAiInsightsConsentVisible(false);
+    setAiEncouragementText(null);
+    setEncouragementCacheBust((x) => x + 1);
+    void aiConsent.setChoice("enabled");
+  }, [aiConsent]);
+
+  const handleAIConsentMaybeLater = useCallback(() => {
+    void aiConsent.setChoice("maybe_later").then(() => {
+      setAiInsightsConsentVisible(false);
+      setAiEncouragementText(null);
+      setAiEncouragementLoading(false);
+    });
+  }, [aiConsent]);
+
   // Animated styles for individual button press effects (match circle avatar ring)
-  const mainWheelCosmicUnselected = "rgba(26, 36, 64, 0.12)"; // Very transparent - see-through
-  const mainWheelCosmicSelected = "rgba(92, 225, 230, 0.45)"; // Muted cyan - less bright
   const lessonsButtonAnimatedStyle = useAnimatedStyle(() => {
     const backgroundColor = interpolateColor(
       lessonsButtonSelection.value,
       [0, 1],
-      [mainWheelCosmicUnselected, mainWheelCosmicSelected],
+      [MAIN_WHEEL_COSMIC_UNSELECTED, MAIN_WHEEL_COSMIC_SELECTED],
     );
     const borderWidth = lessonsButtonSelection.value * 2; // Animate from 0 to 2
 
@@ -15768,7 +15823,7 @@ export default function HomeScreen() {
       transform: [{ scale: lessonsButtonPressScale.value }],
       backgroundColor,
       borderWidth,
-      borderColor: mainWheelCosmicSelected,
+      borderColor: MAIN_WHEEL_COSMIC_SELECTED,
       borderRadius: 30,
       width: 60,
       height: 60,
@@ -15787,7 +15842,7 @@ export default function HomeScreen() {
     const backgroundColor = interpolateColor(
       hardTruthsButtonSelection.value,
       [0, 1],
-      [mainWheelCosmicUnselected, mainWheelCosmicSelected],
+      [MAIN_WHEEL_COSMIC_UNSELECTED, MAIN_WHEEL_COSMIC_SELECTED],
     );
     const borderWidth = hardTruthsButtonSelection.value * 2; // Animate from 0 to 2
 
@@ -15795,7 +15850,7 @@ export default function HomeScreen() {
       transform: [{ scale: hardTruthsButtonPressScale.value }],
       backgroundColor,
       borderWidth,
-      borderColor: mainWheelCosmicSelected,
+      borderColor: MAIN_WHEEL_COSMIC_SELECTED,
       borderRadius: 30,
       width: 60,
       height: 60,
@@ -15814,7 +15869,7 @@ export default function HomeScreen() {
     const backgroundColor = interpolateColor(
       sunnyMomentsButtonSelection.value,
       [0, 1],
-      [mainWheelCosmicUnselected, mainWheelCosmicSelected],
+      [MAIN_WHEEL_COSMIC_UNSELECTED, MAIN_WHEEL_COSMIC_SELECTED],
     );
     const borderWidth = sunnyMomentsButtonSelection.value * 2; // Animate from 0 to 2
 
@@ -15822,7 +15877,7 @@ export default function HomeScreen() {
       transform: [{ scale: sunnyMomentsButtonPressScale.value }],
       backgroundColor,
       borderWidth,
-      borderColor: mainWheelCosmicSelected,
+      borderColor: MAIN_WHEEL_COSMIC_SELECTED,
       borderRadius: 30,
       width: 60,
       height: 60,
@@ -18469,20 +18524,8 @@ export default function HomeScreen() {
         {hasAnyMoments && (
           <AIInsightsConsentModal
             visible={aiInsightsConsentVisible}
-            onEnable={() => {
-              setAiInsightsConsentVisible(false);
-              setAiEncouragementText(null);
-              setEncouragementCacheBust((x) => x + 1);
-              void aiConsent.setChoice("enabled");
-            }}
-            onMaybeLater={() => {
-              void aiConsent.setChoice("maybe_later").then(() => {
-                setAiInsightsConsentVisible(false);
-                // Use fallback (no AI call)
-                setAiEncouragementText(null);
-                setAiEncouragementLoading(false);
-              });
-            }}
+            onEnable={handleAIConsentEnable}
+            onMaybeLater={handleAIConsentMaybeLater}
           />
         )}
 
@@ -19244,12 +19287,7 @@ export default function HomeScreen() {
                         color={COSMIC_RING_START}
                       />
                       <Pressable
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setShowLesson(false);
-                          setSelectedLesson(null);
-                          setMainWheelExamAnswerInput("");
-                        }}
+                        onPress={handleDismissLesson}
                         style={{
                           position: "absolute",
                           top: 12,
@@ -19354,47 +19392,9 @@ export default function HomeScreen() {
                         ]}
                       >
                         <Pressable
-                          onPressIn={() => {
-                            if (
-                              mainWheelExamAnswerInputRef.current.trim()
-                                .length >= 2
-                            ) {
-                              cancelAnimation(mainWheelExamSubmitPressScale);
-                              mainWheelExamSubmitPressScale.value = withTiming(
-                                0.82,
-                                {
-                                  duration: 80,
-                                  easing: Easing.out(Easing.ease),
-                                },
-                              );
-                            }
-                          }}
-                          onPressOut={() => {
-                            cancelAnimation(mainWheelExamSubmitPressScale);
-                            mainWheelExamSubmitPressScale.value = withSpring(
-                              1,
-                              {
-                                damping: 12,
-                                stiffness: 400,
-                              },
-                            );
-                          }}
-                          onPress={() => {
-                            const trimmed = mainWheelExamAnswerInput.trim();
-                            if (trimmed.length >= 2) {
-                              handleMainWheelExamSubmit(trimmed);
-                              setMainWheelExamAnswerInput("");
-                            } else {
-                              cancelAnimation(mainWheelExamInputPulseScale);
-                              mainWheelExamInputPulseScale.value = withSequence(
-                                withTiming(1.04, {
-                                  duration: 80,
-                                  easing: Easing.out(Easing.ease),
-                                }),
-                                withSpring(1, { damping: 12, stiffness: 400 }),
-                              );
-                            }
-                          }}
+                          onPressIn={handleMainWheelExamSubmitPressIn}
+                          onPressOut={handleMainWheelExamSubmitPressOut}
+                          onPress={handleMainWheelExamSubmitPress}
                           style={{
                             width: "100%",
                             borderRadius: 14,
@@ -19423,12 +19423,7 @@ export default function HomeScreen() {
                         </Pressable>
                       </Animated.View>
                       <Pressable
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setShowLesson(false);
-                          setSelectedLesson(null);
-                          setMainWheelExamAnswerInput("");
-                        }}
+                        onPress={handleDismissLesson}
                         style={{
                           position: "absolute",
                           top: 12,

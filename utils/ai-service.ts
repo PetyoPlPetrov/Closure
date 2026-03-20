@@ -321,13 +321,7 @@ REQUIRED: For EVERY sunnyMoments and lessonsLearned moment you MUST provide noti
 - Start with "You...": e.g. "You learned that preparedness matters when traveling.", "You discovered you can trust your instincts.", "You felt stronger after that experience."
 - BAD (avoid): Imperatives ("Trust your instincts.", "Be prepared!"), generic praise ("You did great."), advice ("You should...").
 - GOOD: Reflect the specific moment in second person—"You realized independence matters as much as friendship."
-- Tone: Supportive, empathetic. Max 15-20 words (readable on lock screen).${
-    imageUri
-      ? `
-
-IMAGE: If a photo is attached, analyze it with the story. Identify people, setting, occasion, mood. The image is the memory's picture—use it to suggest more specific moments.`
-      : ""
-  }`;
+- Tone: Supportive, empathetic. Max 15-20 words (readable on lock screen).`;
 
   const sferasContext = context.sferas
     ? `\n\nUser's Sferas context:\n${JSON.stringify(context.sferas, null, 2)}`
