@@ -1097,8 +1097,8 @@ export default function SpheresScreen() {
           marginTop: 70,
         },
         headerButton: {
-          width: 48 * fontScale,
-          height: 48 * fontScale,
+          minWidth: 44,
+          minHeight: 44,
           alignItems: "center",
           justifyContent: "center",
         },
@@ -2083,6 +2083,7 @@ export default function SpheresScreen() {
                     style={styles.entityCard}
                     onPress={() => handleFamilyMemberMorePress(member)}
                     activeOpacity={0.7}
+              hitSlop={12}
                   >
                     {member.imageUri ? (
                       <Image
@@ -2254,6 +2255,7 @@ export default function SpheresScreen() {
                     style={styles.entityCard}
                     onPress={() => handleFriendMorePress(friend)}
                     activeOpacity={0.7}
+              hitSlop={12}
                   >
                     {friend.imageUri ? (
                       <Image
@@ -2420,6 +2422,7 @@ export default function SpheresScreen() {
                     style={styles.entityCard}
                     onPress={() => handleHobbyMorePress(hobby)}
                     activeOpacity={0.7}
+              hitSlop={12}
                   >
                     {hobby.imageUri ? (
                       <Image

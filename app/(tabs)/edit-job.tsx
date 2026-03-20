@@ -38,8 +38,8 @@ export default function EditJobScreen() {
           marginTop: 50,
         },
         headerButton: {
-          width: 48 * fontScale,
-          height: 48 * fontScale,
+          minWidth: 44,
+          minHeight: 44,
           alignItems: 'center',
           justifyContent: 'center',
         },
@@ -155,6 +155,7 @@ export default function EditJobScreen() {
             }
           }}
           activeOpacity={0.7}
+              hitSlop={12}
         >
           <MaterialIcons
             name="arrow-back"

@@ -61,8 +61,8 @@ export default function BackupScreen() {
           marginTop: 50,
         },
         headerButton: {
-          width: 48 * fontScale,
-          height: 48 * fontScale,
+          minWidth: 44,
+          minHeight: 44,
           alignItems: "center",
           justifyContent: "center",
         },
@@ -138,6 +138,7 @@ export default function BackupScreen() {
           style={styles.headerButton}
           onPress={() => router.back()}
           activeOpacity={0.7}
+              hitSlop={12}
         >
           <MaterialIcons
             name="arrow-back"
@@ -163,6 +164,7 @@ export default function BackupScreen() {
             onPress={handleExport}
             disabled={isExporting}
             activeOpacity={0.7}
+              hitSlop={12}
           >
             <View style={styles.dropdownContent}>
               <MaterialIcons

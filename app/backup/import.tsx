@@ -126,7 +126,7 @@ export default function BackupImportScreen() {
   return (
     <TabScreenContainer>
       <View style={[styles.header, { paddingHorizontal: 16 * fontScale, paddingTop: 20 * fontScale, marginTop: 50 }]}>
-        <TouchableOpacity onPress={handleBack} style={styles.backBtn} activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleBack} style={styles.backBtn} activeOpacity={0.7} hitSlop={12}>
           <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
         </TouchableOpacity>
         <ThemedText size="xl" weight="bold" style={styles.title}>

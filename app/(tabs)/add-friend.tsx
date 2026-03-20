@@ -247,6 +247,7 @@ export default function AddFriendScreen() {
             });
           }}
           activeOpacity={0.7}
+              hitSlop={12}
         >
           <MaterialIcons
             name="arrow-back"
@@ -358,8 +359,8 @@ const styles = StyleSheet.create({
     marginTop: 70,
   },
   headerButton: {
-    width: 40,
-    height: 40,
+    minWidth: 44,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
   },

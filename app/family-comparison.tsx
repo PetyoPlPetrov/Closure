@@ -332,8 +332,10 @@ export default function FamilyComparisonScreen() {
         : 'rgba(0, 0, 0, 0.1)',
     },
     headerButton: {
-      padding: 16 * fontScale,
-      minWidth: 42 * fontScale,
+      minWidth: 44,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     headerTitle: {
       flex: 1,
@@ -529,6 +531,7 @@ export default function FamilyComparisonScreen() {
               style={styles.headerButton}
               onPress={() => router.back()}
               activeOpacity={0.7}
+              hitSlop={12}
             >
               <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
             </TouchableOpacity>
@@ -576,6 +579,7 @@ export default function FamilyComparisonScreen() {
               style={styles.headerButton}
               onPress={() => router.back()}
               activeOpacity={0.7}
+              hitSlop={12}
             >
               <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
             </TouchableOpacity>
@@ -624,6 +628,7 @@ export default function FamilyComparisonScreen() {
               style={styles.headerButton}
               onPress={() => router.back()}
               activeOpacity={0.7}
+              hitSlop={12}
             >
               <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
             </TouchableOpacity>
@@ -671,6 +676,7 @@ export default function FamilyComparisonScreen() {
             style={styles.headerButton}
             onPress={() => router.back()}
             activeOpacity={0.7}
+              hitSlop={12}
           >
             <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
           </TouchableOpacity>
@@ -856,6 +862,7 @@ export default function FamilyComparisonScreen() {
                             params: { id: data.member.id },
                           })}
                           activeOpacity={0.7}
+              hitSlop={12}
                         >
                           <View style={styles.barRow}>
                             {/* Avatar */}

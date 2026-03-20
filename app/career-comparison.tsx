@@ -313,8 +313,10 @@ export default function CareerComparisonScreen() {
         : 'rgba(0, 0, 0, 0.1)',
     },
     headerButton: {
-      padding: 16 * fontScale,
-      minWidth: 42 * fontScale,
+      minWidth: 44,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     headerTitle: {
       flex: 1,
@@ -601,6 +603,7 @@ export default function CareerComparisonScreen() {
               style={styles.headerButton}
               onPress={() => router.back()}
               activeOpacity={0.7}
+              hitSlop={12}
             >
               <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
             </TouchableOpacity>
@@ -646,6 +649,7 @@ export default function CareerComparisonScreen() {
               style={styles.headerButton}
               onPress={() => router.back()}
               activeOpacity={0.7}
+              hitSlop={12}
             >
               <MaterialIcons name="arrow-back" size={24 * fontScale} color={colors.text} />
             </TouchableOpacity>
@@ -695,6 +699,7 @@ export default function CareerComparisonScreen() {
               router.back();
             }}
             activeOpacity={0.7}
+              hitSlop={12}
           >
             <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
           </TouchableOpacity>
@@ -833,6 +838,7 @@ export default function CareerComparisonScreen() {
                     router.push(`/job-detail?id=${data.job.id}&returnTo=career-comparison`);
                   }}
                   activeOpacity={0.7}
+              hitSlop={12}
                 >
                   <View style={styles.barRow}>
                     {/* Avatar/Icon */}

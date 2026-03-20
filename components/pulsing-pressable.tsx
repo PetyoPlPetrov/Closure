@@ -45,7 +45,7 @@ export function PulsingPressable({
 
   return (
     <Animated.View style={[style, animatedStyle]}>
-      <Pressable onPress={handlePress} {...rest}>
+      <Pressable onPress={handlePress} style={{ flex: 1, justifyContent: "center", alignItems: "center" }} {...rest}>
         {children}
       </Pressable>
     </Animated.View>

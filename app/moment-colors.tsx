@@ -775,8 +775,8 @@ export default function MomentColorsScreen() {
           gap: 12,
         } satisfies ViewStyle,
         headerButton: {
-          width: 40 * fontScale,
-          height: 40 * fontScale,
+          minWidth: 44,
+          minHeight: 44,
           justifyContent: "center" as const,
           alignItems: "center" as const,
         } satisfies ViewStyle,
@@ -915,6 +915,7 @@ export default function MomentColorsScreen() {
             style={styles.headerButton}
             onPress={() => router.back()}
             activeOpacity={0.7}
+              hitSlop={12}
           >
             <MaterialIcons name="arrow-back" size={26 * fontScale} color={colors.text} />
           </TouchableOpacity>

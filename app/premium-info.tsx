@@ -110,6 +110,7 @@ export default function PremiumInfoScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
           activeOpacity={0.7}
+          hitSlop={12}
         >
           <MaterialIcons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>

@@ -60,8 +60,8 @@ export default function UsabilityScreen() {
           paddingBottom: 12 * fontScale,
         },
         headerButton: {
-          width: 40 * fontScale,
-          height: 40 * fontScale,
+          minWidth: 44,
+          minHeight: 44,
           alignItems: "center",
           justifyContent: "center",
         },
@@ -114,6 +114,7 @@ export default function UsabilityScreen() {
             style={styles.headerButton}
             onPress={() => router.back()}
             activeOpacity={0.7}
+              hitSlop={12}
           >
             <MaterialIcons
               name="arrow-back-ios"

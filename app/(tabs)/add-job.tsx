@@ -330,8 +330,8 @@ export default function AddJobScreen() {
           marginTop: 70,
         },
         headerButton: {
-          width: 48 * fontScale,
-          height: 48 * fontScale,
+          minWidth: 44,
+          minHeight: 44,
           alignItems: "center",
           justifyContent: "center",
         },
@@ -489,6 +489,7 @@ export default function AddJobScreen() {
             });
           }}
           activeOpacity={0.7}
+              hitSlop={12}
         >
           <MaterialIcons
             name="arrow-back"
@@ -579,6 +580,7 @@ export default function AddJobScreen() {
                   justifyContent: "space-between",
                 }}
                 activeOpacity={0.7}
+              hitSlop={12}
               >
                 <ThemedText size="l">
                   {startDate

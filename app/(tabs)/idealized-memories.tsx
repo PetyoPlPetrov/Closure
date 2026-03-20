@@ -67,8 +67,8 @@ export default function IdealizedMemoriesScreen() {
           width: '100%',
         },
         headerButton: {
-          minWidth: 48,
-          height: 48,
+          minWidth: 44,
+          minHeight: 44,
           justifyContent: "center",
           alignItems: "center",
           flexShrink: 0,
@@ -295,7 +295,7 @@ export default function IdealizedMemoriesScreen() {
             console.log('[idealized-memories.tsx] 🔙 NAVIGATING back to home');
             router.navigate('/(tabs)/');
           }
-        }} style={styles.headerButton}>
+        }} style={styles.headerButton} hitSlop={12}>
           <MaterialIcons name="arrow-back" size={26} color={colors.text} />
         </TouchableOpacity>
 

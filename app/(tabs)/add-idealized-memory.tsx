@@ -2270,8 +2270,8 @@ export default function AddIdealizedMemoryScreen() {
         },
 
         headerButton: {
-          width: 48,
-          height: 48,
+          minWidth: 44,
+          minHeight: 44,
           alignItems: 'center',
           justifyContent: 'center',
         },
