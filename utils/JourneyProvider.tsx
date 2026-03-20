@@ -312,6 +312,7 @@ type JourneyContextType = {
   reloadFamilyMembers: () => Promise<void>; // Reload family members from AsyncStorage
   reloadFriends: () => Promise<void>; // Reload friends from AsyncStorage
   reloadHobbies: () => Promise<void>; // Reload hobbies from AsyncStorage
+  reloadAll: () => Promise<void>; // Reload all entities in one multiGet → one render
   cleanupOrphanedMemories: () => Promise<number>; // Clean up orphaned memories and return count
 };
 
@@ -1758,6 +1759,51 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     }
   }, []);
 
+  // Reload all entities in a single multiGet so the JS thread only gets hit once,
+  // and all setStates are called synchronously in one block → React batches into 1 render.
+  const reloadAll = useCallback(async () => {
+    try {
+      const results = await AsyncStorage.multiGet([
+        STORAGE_KEY,
+        IDEALIZED_MEMORIES_KEY,
+        JOBS_STORAGE_KEY,
+        FAMILY_MEMBERS_STORAGE_KEY,
+        FRIENDS_STORAGE_KEY,
+        HOBBIES_STORAGE_KEY,
+      ]);
+
+      const map = Object.fromEntries(results.map(([k, v]) => [k, v]));
+
+      const rawMemories = map[IDEALIZED_MEMORIES_KEY];
+      const parsedMemories: IdealizedMemory[] = rawMemories ? JSON.parse(rawMemories) : [];
+
+      const rawProfiles = map[STORAGE_KEY];
+      const parsedProfiles: ExProfile[] = rawProfiles ? JSON.parse(rawProfiles) : [];
+      const profilesWithProgress = parsedProfiles.map((profile) => {
+        const memoryCount = parsedMemories.filter(
+          (m) => m.profileId === profile.id || (m.entityId === profile.id && m.sphere === 'relationships')
+        ).length;
+        const progress = calculateSetupProgress(profile, memoryCount);
+        return { ...profile, sphere: profile.sphere || 'relationships', setupProgress: progress, isCompleted: progress === 100 };
+      });
+
+      const rawJobs = map[JOBS_STORAGE_KEY];
+      const rawFamily = map[FAMILY_MEMBERS_STORAGE_KEY];
+      const rawFriends = map[FRIENDS_STORAGE_KEY];
+      const rawHobbies = map[HOBBIES_STORAGE_KEY];
+
+      // All setStates in one synchronous block → React 18 batches into a single render
+      setProfiles(profilesWithProgress);
+      setIdealizedMemories(parsedMemories);
+      setJobs(rawJobs ? JSON.parse(rawJobs) : []);
+      setFamilyMembers(rawFamily ? JSON.parse(rawFamily) : []);
+      setFriends(rawFriends ? JSON.parse(rawFriends) : []);
+      setHobbies(rawHobbies ? JSON.parse(rawHobbies) : []);
+    } catch {
+      // Silent — individual reload functions remain available as fallback
+    }
+  }, [setProfiles]);
+
   // Clean up orphaned memories (memories whose associated entities no longer exist)
   const cleanupOrphanedMemories = useCallback(async (): Promise<number> => {
     try {
@@ -1878,6 +1924,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     reloadFamilyMembers,
     reloadFriends,
     reloadHobbies,
+    reloadAll,
     cleanupOrphanedMemories,
   }), [
     profiles, isLoading, isLoadingJobs, isLoadingFamily, isLoadingFriends, isLoadingHobbies,
@@ -1891,7 +1938,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     getIdealizedMemoriesByEntityId, getIdealizedMemoriesByProfileId,
     getEntitiesBySphere, getOverallSunnyPercentage,
     loadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies,
-    cleanupOrphanedMemories,
+    reloadAll, cleanupOrphanedMemories,
   ]);
 
   return <JourneyContext.Provider value={value}>{children}</JourneyContext.Provider>;

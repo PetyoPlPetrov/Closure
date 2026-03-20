@@ -77,6 +77,7 @@ import {
   BackHandler,
   Dimensions,
   type GestureResponderEvent,
+  InteractionManager,
   Modal,
   PanResponder,
   Pressable,
@@ -13320,6 +13321,7 @@ export default function HomeScreen() {
     reloadFamilyMembers,
     reloadFriends,
     reloadHobbies,
+    reloadAll,
   } = useJourney();
   const { hasAIEntitlement } = useSubscription();
   const t = useTranslate();
@@ -13400,9 +13402,15 @@ export default function HomeScreen() {
 
   // Track app state to pause/resume intervals when app backgrounds/foregrounds
   const [isAppActive, setIsAppActive] = useState(true);
+  // Set to true when returning from background so useFocusEffect skips the reload —
+  // nothing can modify AsyncStorage while the app is backgrounded, so a reload is wasteful.
+  const justCameFromBackgroundRef = useRef(false);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        justCameFromBackgroundRef.current = true;
+      }
       setIsAppActive(nextAppState === "active");
     });
 
@@ -13569,36 +13577,34 @@ export default function HomeScreen() {
   const hasReloadedRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      // Only reload once per focus session to prevent infinite loops
+      // Skip if already reloaded this focus session
       if (hasReloadedRef.current) {
+        return;
+      }
+      // Skip if focus was caused by returning from background — nothing can write
+      // to AsyncStorage while the app is backgrounded, so in-memory state is already
+      // up to date. Only reload when focus comes from navigation (e.g. back from detail screen).
+      if (justCameFromBackgroundRef.current) {
+        justCameFromBackgroundRef.current = false;
         return;
       }
 
       hasReloadedRef.current = true;
 
-      Promise.all([
-        reloadIdealizedMemories(),
-        reloadProfiles(),
-        reloadJobs(),
-        reloadFamilyMembers(),
-        reloadFriends(),
-        reloadHobbies(),
-        loadStreakData(), // Reload streak data when screen regains focus
-      ]).catch((error) => {
-        hasReloadedRef.current = false; // Reset on error so we can retry
+      InteractionManager.runAfterInteractions(() => {
+        Promise.all([
+          reloadAll(),
+          loadStreakData(),
+        ]).catch(() => {
+          hasReloadedRef.current = false;
+        });
       });
 
-      // Reset reload flag when screen loses focus (cleanup)
       return () => {
         hasReloadedRef.current = false;
       };
     }, [
-      reloadIdealizedMemories,
-      reloadProfiles,
-      reloadJobs,
-      reloadFamilyMembers,
-      reloadFriends,
-      reloadHobbies,
+      reloadAll,
       loadStreakData,
     ]),
   );
@@ -13973,9 +13979,13 @@ export default function HomeScreen() {
     }
   }, [selectedSphere]);
 
-  // Overall sunny percentage across all spheres
-  // Function is already memoized in JourneyProvider and depends on idealizedMemories
-  const overallSunnyPercentage = getOverallSunnyPercentage();
+  // Overall sunny percentage across all spheres — wrapped in useMemo so the O(n²)
+  // filter+some inside getOverallSunnyPercentage only runs when the underlying data
+  // actually changes, not on every unrelated re-render (e.g. RevenueCat, StreakModal).
+  const overallSunnyPercentage = useMemo(
+    () => getOverallSunnyPercentage(),
+    [getOverallSunnyPercentage],
+  );
 
   // Check if there are any moments (memories) at all - if yes, show encouraging message even if percentage is 0
   const hasAnyMoments = useMemo(() => {

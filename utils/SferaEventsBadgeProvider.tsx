@@ -199,7 +199,14 @@ export function SferaEventsBadgeProvider({
     const sub = AppState.addEventListener(
       "change",
       (nextState: AppStateStatus) => {
-        if (nextState === "active") void checkAndNotify(true);
+        if (nextState === "active") {
+          // Defer until after any pending interactions (e.g. user tapping the menu
+          // button right as the app resumes) so the network fetch + dispatch don't
+          // cause re-renders while the user is actively interacting.
+          InteractionManager.runAfterInteractions(() => {
+            void checkAndNotify(true);
+          });
+        }
       },
     );
     return () => sub.remove();

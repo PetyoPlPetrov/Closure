@@ -1,8 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import React, { useCallback, useState } from 'react';
-import { Pressable, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, InteractionManager, Pressable, TouchableOpacity, View } from 'react-native';
 import Animated, {
   type SharedValue,
   useAnimatedStyle,
@@ -14,6 +14,9 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFontScale } from '@/hooks/use-device-size';
+import { logMenuOpen } from '@/utils/analytics';
+
+const log = (...args: unknown[]) => console.log('[ExpandableMenu]', ...args);
 
 const SPRING_CONFIG = { damping: 15, stiffness: 120 };
 const STEP = 52; // vertical spacing between buttons
@@ -81,7 +84,19 @@ interface ExpandableMenuButtonProps {
 export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
   const fontScale = useFontScale();
   const insets = useSafeAreaInsets();
+  // isExpanded as React state is only used to mount/unmount the backdrop Pressable
   const [isExpanded, setIsExpanded] = useState(false);
+  // isExpandedSV drives toggle logic — lives on the UI thread, no re-render needed
+  const isExpandedSV = useSharedValue(false);
+  // False after resume until InteractionManager clears — suppresses animations while JS is busy
+  const isReadySV = useSharedValue(true);
+  const interactionHandleRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
+
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
+  log(`render #${renderCountRef.current} isExpanded=${isExpanded} fontScale=${fontScale}`);
+
+  const lastPressTimeRef = useRef(0);
 
   const expandProgress = useSharedValue(0);
   const editProgress = useSharedValue(0);
@@ -91,32 +106,90 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
   const buttonSize = 40 * fontScale;
   const topPos = top ?? insets.top + 12;
 
+  const appStateRef = useRef(AppState.currentState);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      log(`AppState changed: ${appStateRef.current} → ${nextState}`);
+      if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
+        log('Returned from background — resetting animation state, blocking animations until JS is free');
+        log(`  expandProgress before reset: ${expandProgress.value}`);
+        expandProgress.value = 0;
+        editProgress.value = 0;
+        settingsProgress.value = 0;
+        triggerScale.value = 1;
+        isExpandedSV.value = false;
+        isReadySV.value = false;
+        setIsExpanded(false);
+        log('  Reset complete, waiting for interactions to drain');
+
+        // Cancel any previous pending handle
+        interactionHandleRef.current?.cancel();
+        interactionHandleRef.current = InteractionManager.runAfterInteractions(() => {
+          log('JS thread free — re-enabling animations');
+          isReadySV.value = true;
+        });
+      }
+      appStateRef.current = nextState;
+    });
+    return () => {
+      sub.remove();
+      interactionHandleRef.current?.cancel();
+    };
+  }, [expandProgress, editProgress, settingsProgress, triggerScale, isExpandedSV, isReadySV]);
+
   const expand = useCallback(() => {
+    log('expand() called — starting animation');
+    isExpandedSV.value = true;
     setIsExpanded(true);
+    logMenuOpen();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     expandProgress.value = withSpring(1, SPRING_CONFIG);
     editProgress.value = withDelay(0, withSpring(1, SPRING_CONFIG));
     settingsProgress.value = withDelay(60, withSpring(1, SPRING_CONFIG));
-  }, [expandProgress, editProgress, settingsProgress]);
+  }, [expandProgress, editProgress, settingsProgress, isExpandedSV]);
 
   const collapse = useCallback(() => {
+    log('collapse() called — starting animation');
+    isExpandedSV.value = false;
     expandProgress.value = withSpring(0, SPRING_CONFIG);
     editProgress.value = withSpring(0, SPRING_CONFIG);
     settingsProgress.value = withSpring(0, SPRING_CONFIG);
     setTimeout(() => setIsExpanded(false), 300);
-  }, [expandProgress, editProgress, settingsProgress]);
+  }, [expandProgress, editProgress, settingsProgress, isExpandedSV]);
 
   const handleTriggerPress = useCallback(() => {
-    triggerScale.value = withSequence(
-      withSpring(0.82, { damping: 10, stiffness: 300 }),
-      withSpring(1, { damping: 12, stiffness: 200 })
-    );
-    if (isExpanded) {
+    const now = Date.now();
+    if (now - lastPressTimeRef.current < 500) {
+      log('handleTriggerPress — debounced (double-tap ignored)');
+      return;
+    }
+    lastPressTimeRef.current = now;
+    log(`handleTriggerPress — isExpandedSV=${isExpandedSV.value} isReadySV=${isReadySV.value} expandProgress=${expandProgress.value} triggerScale=${triggerScale.value}`);
+
+    // If user taps while we're still waiting for interactions to drain, unblock immediately.
+    if (!isReadySV.value) {
+      log('handleTriggerPress — user tapped before isReady; forcing isReady now');
+      interactionHandleRef.current?.cancel();
+      interactionHandleRef.current = null;
+      isReadySV.value = true;
+    }
+
+    // Only run the press bounce animation when the JS thread is free.
+    // While loading (isReadySV=false), skip it so the menu opens instantly.
+    if (isReadySV.value) {
+      triggerScale.value = 1;
+      triggerScale.value = withSequence(
+        withSpring(0.82, { damping: 10, stiffness: 300 }),
+        withSpring(1, { damping: 12, stiffness: 200 })
+      );
+    }
+
+    if (isExpandedSV.value) {
       collapse();
     } else {
       expand();
     }
-  }, [isExpanded, expand, collapse, triggerScale]);
+  }, [expand, collapse, triggerScale, isExpandedSV, isReadySV, expandProgress]);
 
   const handleEditPress = useCallback(() => {
     collapse();
@@ -178,7 +251,10 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
         {/* Trigger button */}
         <Animated.View style={[{ borderRadius: buttonSize / 2 }, triggerGlowStyle]}>
           <TouchableOpacity
-            onPress={handleTriggerPress}
+            onPress={(e) => {
+              log(`TouchableOpacity onPress fired — timestamp=${e.nativeEvent.timestamp}`);
+              handleTriggerPress();
+            }}
             activeOpacity={0.7}
             style={{
               width: buttonSize,

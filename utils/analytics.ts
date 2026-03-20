@@ -183,6 +183,13 @@ export const logAIEntitySaved = async (sphere: string, entityCount: number) => {
   });
 };
 
+/**
+ * Log when user opens the expandable menu (top-left icon)
+ */
+export const logMenuOpen = async () => {
+  await logEvent('menu_open', {});
+};
+
 export default {
   logEvent,
   logEntityCreated,
@@ -199,5 +206,6 @@ export default {
   logAIMemoryDiscarded,
   logAIEntityModalSubmit,
   logAIEntitySaved,
+  logMenuOpen,
 };
 
