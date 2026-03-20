@@ -33,6 +33,7 @@ import { onSpheresTabPress } from "@/utils/spheres-tab-press";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -256,6 +257,7 @@ export default function SpheresScreen() {
   } = useVisualSettings();
   const fontScale = useFontScale();
   const iconScale = useIconScale();
+  const insets = useSafeAreaInsets();
   const { maxContentWidth, isLargeDevice, isTablet } = useLargeDevice();
   const {
     profiles,
@@ -378,10 +380,23 @@ export default function SpheresScreen() {
   const prevParamsRef = React.useRef<string | undefined>(
     params.selectedSphere as string | undefined,
   );
+  // Flag to ignore param sync when we just cleared state ourselves
+  const ignoringParamSyncRef = React.useRef(false);
 
   // Sync params to state immediately when they change
   // This runs on every render to catch param changes that useEffect might miss
   React.useLayoutEffect(() => {
+    // If we just cleared selectedSphere ourselves, skip until params catch up
+    if (ignoringParamSyncRef.current) {
+      const currentSphereParam = params.selectedSphere as LifeSphere | undefined;
+      if (!currentSphereParam) {
+        // Params have caught up, stop ignoring
+        ignoringParamSyncRef.current = false;
+        prevParamsRef.current = undefined;
+      }
+      return;
+    }
+
     const currentSphereParam = params.selectedSphere as LifeSphere | undefined;
 
     // Only sync FROM URL params TO state when URL params actually change
@@ -569,33 +584,12 @@ export default function SpheresScreen() {
 
   // Function to clear selected sphere and params
   const clearSelectedSphere = React.useCallback(() => {
-    // Update state first
-    setSelectedSphere(null);
+    console.log('[spheres] clearSelectedSphere called — setting selectedSphere to null, should render edit view');
+    ignoringParamSyncRef.current = true;
     prevParamsRef.current = undefined;
-
-    // Use router.replace to navigate to the same route without params
-    // This should clear the selectedSphere param from the URL
-    router.replace("/(tabs)/spheres" as any);
+    setSelectedSphere(null);
+    router.setParams({ selectedSphere: undefined });
   }, []);
-
-  // Listen for spheres tab press events - only when screen is focused
-  useFocusEffect(
-    React.useCallback(() => {
-      // Listen for tab press events
-      const unsubscribe = onSpheresTabPress(() => {
-        const currentSelectedSphere = selectedSphereRef.current;
-
-        // Check if there's a selected sphere - if so, clear it to return to main view
-        if (currentSelectedSphere) {
-          clearSelectedSphere();
-        }
-      });
-
-      return () => {
-        unsubscribe();
-      };
-    }, [clearSelectedSphere]), // Include clearSelectedSphere in deps
-  );
 
   // Get navigation object for handling back button on iOS
   const navigation = useNavigation();
@@ -637,6 +631,21 @@ export default function SpheresScreen() {
       unsubscribeBeforeRemove();
     };
   }, [clearSelectedSphere, navigation]);
+
+  // Handle Home tab press while on spheres flow: reset to orbit overview, or go back to home if already there
+  useEffect(() => {
+    return onSpheresTabPress(() => {
+      if (selectedSphereRef.current !== null) {
+        // Navigate to spheres orbit overview (clears any sub-screens and selected sphere)
+        ignoringParamSyncRef.current = true;
+        prevParamsRef.current = undefined;
+        setSelectedSphere(null);
+        router.replace('/(tabs)/spheres');
+      } else {
+        router.navigate('/(tabs)/');
+      }
+    });
+  }, []);
 
   // Calculate entity-level scores for comparison
   const _entityComparisons = useMemo(() => {
@@ -1613,16 +1622,11 @@ export default function SpheresScreen() {
     setSelectedSphere(newSelectedSphere);
     prevParamsRef.current = newSelectedSphere || undefined;
 
-    // Update URL params to match state
+    // Update URL params without pushing a new history entry
     if (newSelectedSphere) {
-      router.push({
-        pathname: "/(tabs)/spheres" as const,
-        params: { selectedSphere: newSelectedSphere },
-      });
+      router.setParams({ selectedSphere: newSelectedSphere });
     } else {
-      router.push({
-        pathname: "/(tabs)/spheres" as const,
-      });
+      router.setParams({ selectedSphere: undefined });
     }
   };
 
@@ -1752,6 +1756,7 @@ export default function SpheresScreen() {
 
   // Show relationships profiles view (ex-profiles content) when relationships sphere is selected
   if (selectedSphere === "relationships") {
+    console.log('[spheres] rendering: relationships sphere detail view');
     return (
       <TabScreenContainer>
         <ConstellationBackground
@@ -1762,7 +1767,10 @@ export default function SpheresScreen() {
         />
         <View style={styles.header}>
           <Pressable
-            onPress={() => clearSelectedSphere()}
+            onPress={() => {
+              console.log('[spheres] arrow-back pressed — current view: relationships, calling clearSelectedSphere() to return to edit view');
+              clearSelectedSphere();
+            }}
             style={styles.headerButton}
           >
             <MaterialIcons
@@ -1863,6 +1871,7 @@ export default function SpheresScreen() {
 
   // Show career jobs view when career sphere is selected
   if (selectedSphere === "career") {
+    console.log('[spheres] rendering: career sphere detail view');
     return (
       <TabScreenContainer>
         <ConstellationBackground
@@ -1873,7 +1882,10 @@ export default function SpheresScreen() {
         />
         <View style={styles.header}>
           <Pressable
-            onPress={() => clearSelectedSphere()}
+            onPress={() => {
+              console.log('[spheres] arrow-back pressed — current view: career, calling clearSelectedSphere() to return to edit view');
+              clearSelectedSphere();
+            }}
             style={styles.headerButton}
           >
             <MaterialIcons
@@ -1974,6 +1986,7 @@ export default function SpheresScreen() {
 
   // Show family members view when family sphere is selected
   if (selectedSphere === "family") {
+    console.log('[spheres] rendering: family sphere detail view');
     const handleFamilyMemberMorePress = (member: FamilyMember) => {
       router.push({
         pathname: "/edit-family-member",
@@ -1991,7 +2004,10 @@ export default function SpheresScreen() {
         />
         <View style={styles.header}>
           <Pressable
-            onPress={() => clearSelectedSphere()}
+            onPress={() => {
+              console.log('[spheres] arrow-back pressed — current view: family, calling clearSelectedSphere() to return to edit view');
+              clearSelectedSphere();
+            }}
             style={styles.headerButton}
           >
             <MaterialIcons
@@ -2141,6 +2157,7 @@ export default function SpheresScreen() {
   }
 
   if (selectedSphere === "friends") {
+    console.log('[spheres] rendering: friends sphere detail view');
     const handleFriendMorePress = (friend: Friend) => {
       router.push({
         pathname: "/edit-friend",
@@ -2158,7 +2175,10 @@ export default function SpheresScreen() {
         />
         <View style={styles.header}>
           <Pressable
-            onPress={() => clearSelectedSphere()}
+            onPress={() => {
+              console.log('[spheres] arrow-back pressed — current view: friends, calling clearSelectedSphere() to return to edit view');
+              clearSelectedSphere();
+            }}
             style={styles.headerButton}
           >
             <MaterialIcons
@@ -2303,6 +2323,7 @@ export default function SpheresScreen() {
   }
 
   if (selectedSphere === "hobbies") {
+    console.log('[spheres] rendering: hobbies sphere detail view');
     const handleHobbyMorePress = (hobby: Hobby) => {
       router.push({
         pathname: "/edit-hobby",
@@ -2320,7 +2341,10 @@ export default function SpheresScreen() {
         />
         <View style={styles.header}>
           <Pressable
-            onPress={() => clearSelectedSphere()}
+            onPress={() => {
+              console.log('[spheres] arrow-back pressed — current view: hobbies, calling clearSelectedSphere() to return to edit view');
+              clearSelectedSphere();
+            }}
             style={styles.headerButton}
           >
             <MaterialIcons
@@ -2464,6 +2488,7 @@ export default function SpheresScreen() {
     );
   }
 
+  console.log('[spheres] rendering: edit view (no sphere selected)');
   return (
     <TabScreenContainer>
       <ConstellationBackground
@@ -2477,6 +2502,28 @@ export default function SpheresScreen() {
         <View style={styles.headerTitle} />
         <View style={styles.headerButton} />
       </View>
+      <Pressable
+        onPress={() => {
+          console.log('[spheres] eye pressed — current view: edit (no sphere selected), navigating to home to return to view mode');
+          router.navigate('/(tabs)/');
+        }}
+        style={{
+          position: 'absolute',
+          top: insets.top + 12,
+          left: 16,
+          width: 40 * fontScale,
+          height: 40 * fontScale,
+          borderRadius: 20 * fontScale,
+          backgroundColor: 'rgba(26, 47, 74, 0.85)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          borderWidth: 1,
+          borderColor: 'rgba(100, 181, 246, 0.4)',
+          zIndex: 1000,
+        }}
+      >
+        <MaterialIcons name="visibility" size={20 * fontScale} color="#64B5F6" />
+      </Pressable>
 
       <View style={styles.content}>
         {/* Sphere Selection Grid - only show when no sphere is selected */}

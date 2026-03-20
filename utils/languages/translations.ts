@@ -3647,7 +3647,7 @@ export interface Translations {
 const translations: Record<Language, Translations> = {
   en: {
     // Tab labels
-    "tab.home": "Home",
+    "tab.home": "Sferas",
     "tab.exProfiles": "Ex Profiles",
     "tab.spheres": "Sferas",
     "tab.settings": "Settings",
@@ -8181,7 +8181,7 @@ const translations: Record<Language, Translations> = {
   },
   bg: {
     // Tab labels
-    "tab.home": "Начало",
+    "tab.home": "Sferas",
     "tab.exProfiles": "Партньори",
     "tab.spheres": "Sferas",
     "tab.settings": "Настройки",

@@ -5,7 +5,7 @@ import React, { useCallback, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AITabButton, EventsTabButton, HapticTab, HomeTabButton, SpheresTabButton } from '@/components/haptic-tab';
+import { AITabButton, EventsTabButton, HapticTab, HomeTabButton } from '@/components/haptic-tab';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -96,17 +96,6 @@ export default function TabLayout() {
     </ThemedText>
   ), [inactiveColor, fontScale, t]);
 
-  const spheresIcon = useCallback(({ color }: { color: string }) =>
-    <MaterialIcons name="category" size={iconSize} color={color} />,
-  [iconSize]);
-
-  const spheresLabel = useCallback(({ focused, color }: { focused: boolean; color: string }) => (
-    <ThemedText size="xs" weight={focused ? 'bold' : 'medium'} letterSpacing="l"
-      style={{ color: focused ? color : inactiveColor, marginTop: 6 * fontScale, lineHeight: 18 * fontScale }}>
-      {t('tab.spheres')}
-    </ThemedText>
-  ), [inactiveColor, fontScale, t]);
-
   const eventsIcon = useCallback(({ color }: { color: string }) =>
     <MaterialIcons name="event" size={iconSize} color={color} />,
   [iconSize]);
@@ -145,15 +134,7 @@ export default function TabLayout() {
           tabBarButton: HomeTabButton,
         }}
       />
-      <Tabs.Screen
-        name="spheres"
-        options={{
-          title: 'Spheres',
-          tabBarIcon: spheresIcon,
-          tabBarLabel: spheresLabel,
-          tabBarButton: SpheresTabButton,
-        }}
-      />
+      <Tabs.Screen name="spheres" options={{ href: null, headerShown: false }} />
       <Tabs.Screen
         name="events"
         options={{

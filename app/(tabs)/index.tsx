@@ -40,10 +40,6 @@ import {
   getSphereIconColor,
   getSphereShadowColor,
 } from "@/utils/sphere-styles";
-import {
-  requestSpheresTabPulse,
-  stopSpheresTabPulse,
-} from "@/utils/spheres-tab-pulse";
 import { useSplash } from "@/utils/SplashAnimationProvider";
 import {
   getCurrentBadge,
@@ -86,6 +82,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import Animated, {
@@ -13282,7 +13279,6 @@ export default function HomeScreen() {
             await setShowWalkthroughAfterOnboarding(false);
             walkthroughAfterOnboardingRef.current = true;
             setWalkthroughVisible(true);
-            requestSpheresTabPulse(true); // pulse once
             return;
           }
 
@@ -13298,8 +13294,6 @@ export default function HomeScreen() {
           // If no entities and no memories, show walkthrough
           if (totalEntities === 0 && totalMemories === 0) {
             setWalkthroughVisible(true);
-            // Request infinite pulse animation on spheres tab
-            requestSpheresTabPulse(false); // false = pulse infinitely
           }
         }
       };
@@ -13307,10 +13301,7 @@ export default function HomeScreen() {
       // Check immediately on focus
       void checkWalkthrough();
 
-      return () => {
-        // Cleanup: stop pulse when leaving the screen
-        stopSpheresTabPulse();
-      };
+      return () => {};
     }, [
       isLoading,
       isAnimationComplete,
@@ -13353,9 +13344,6 @@ export default function HomeScreen() {
         return;
       }
 
-      // Pulse ONCE to remind the user to go to spheres tab
-      // Don't stop first - just request a single pulse which will replace the infinite one
-      requestSpheresTabPulse(true); // true = pulse only once
     } catch (_error) {
       setWalkthroughVisible(false);
     }
@@ -13544,6 +13532,29 @@ export default function HomeScreen() {
     focusedFriendId ||
     focusedHobbyId
   );
+  const editButton = !focusedMemory && !selectedSphere && !focusedProfileId && !focusedJobId && !focusedFamilyMemberId && !focusedFriendId && !focusedHobbyId ? (
+    <TouchableOpacity
+      onPress={() => router.push('/(tabs)/spheres')}
+      activeOpacity={0.7}
+      style={{
+        position: 'absolute',
+        top: insets.top + 12,
+        left: 16,
+        width: 40 * fontScale,
+        height: 40 * fontScale,
+        borderRadius: 20 * fontScale,
+        backgroundColor: 'rgba(26, 47, 74, 0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(100, 181, 246, 0.4)',
+        zIndex: 1000,
+      }}
+    >
+      <MaterialIcons name="edit" size={20 * fontScale} color="#64B5F6" />
+    </TouchableOpacity>
+  ) : null;
+
   const prevHasFocusedViewRef = useRef(hasFocusedView);
   const mainWheelOpenTraceRef = useRef<{
     startedAt: number;
@@ -18503,6 +18514,7 @@ export default function HomeScreen() {
             onDismiss={handleWalkthroughDismiss}
             onDemo={handleOnboardingDemo}
           />
+          {editButton}
         </TabScreenContainer>
       );
     }
@@ -21606,6 +21618,7 @@ export default function HomeScreen() {
           onDismiss={handleWalkthroughDismiss}
           onDemo={handleOnboardingDemo}
         />
+        {editButton}
       </TabScreenContainer>
     );
   }
@@ -21995,6 +22008,7 @@ export default function HomeScreen() {
             )}
           </ScrollView>
         </View>
+        {editButton}
       </TabScreenContainer>
     );
   }
@@ -22338,6 +22352,7 @@ export default function HomeScreen() {
             )}
           </ScrollView>
         </View>
+        {editButton}
       </TabScreenContainer>
     );
   }
@@ -22691,6 +22706,7 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
+        {editButton}
       </TabScreenContainer>
     );
   }
@@ -23041,6 +23057,7 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
+        {editButton}
       </TabScreenContainer>
     );
   }
@@ -23391,6 +23408,7 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
+        {editButton}
       </TabScreenContainer>
     );
   }
@@ -23460,6 +23478,8 @@ export default function HomeScreen() {
         onDismiss={handleWalkthroughDismiss}
         onDemo={handleOnboardingDemo}
       />
+
+      {editButton}
     </TabScreenContainer>
   );
 }
