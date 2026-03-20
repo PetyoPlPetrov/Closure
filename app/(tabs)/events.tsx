@@ -2407,7 +2407,10 @@ export default function EventsTab() {
 
         {/* Title when showing 3 orbs */}
         {phase === "orbs" && (
-          <View style={styles.sferaCommunitiesTitle} pointerEvents="none">
+          <View
+            style={[styles.sferaCommunitiesTitle, { top: insets.top }]}
+            pointerEvents="none"
+          >
             <ThemedText size="l" weight="bold" letterSpacing="l">
               {t("events.sferaCommunities")}
             </ThemedText>

@@ -1,4 +1,5 @@
 import { AIInsightsConsentModal } from "@/components/ai-insights-consent-modal";
+import { ExpandableMenuButton } from "@/components/expandable-menu-button";
 import { ConstellationBackground } from "@/components/constellation-background";
 import { Fireworks } from "@/components/fireworks";
 import { FocusedEntitiesView } from "@/components/focused-entities-view";
@@ -1179,6 +1180,10 @@ const FloatingAvatar = React.memo(
         );
         // Reset entity wheel when unfocused
         setShowEntityWheel(false);
+        isWheelSpinning.value = false;
+        wheelVelocity.value = 0;
+        entityWheelReleaseInProgressRef.current = false;
+        setIsWheelSpinningState(false);
       } else {
         // Stop floating when focused
         floatAnimation.value = 0;
@@ -1188,7 +1193,7 @@ const FloatingAvatar = React.memo(
         // Cancel infinite float animation on cleanup
         cancelAnimation(floatAnimation);
       };
-    }, [floatAnimation, isFocused]);
+    }, [floatAnimation, isFocused, isWheelSpinning, wheelVelocity]);
 
     // Pulse drag handle icon twice when dragging is enabled and avatar is not focused
     React.useEffect(() => {
@@ -5188,8 +5193,9 @@ const FloatingAvatar = React.memo(
                           />
                         </Pressable>
                       </Pressable>
-                    ) : selectedWheelExam ? (
-                      // Entity wheel exam: cosmic question → answer → result
+                    ) : selectedWheelExam &&
+                      selectedWheelExam.step !== "result" ? (
+                      // Entity wheel exam: cosmic question → answer (result shown as overlay card)
                       <View
                         style={{
                           width: Math.max(dynamicLessonSize, 280),
@@ -5242,73 +5248,8 @@ const FloatingAvatar = React.memo(
                             size="large"
                             color={COSMIC_RING_START}
                           />
-                        ) : selectedWheelExam.step === "result" &&
-                          selectedWheelExam.analysis ? (
-                          <>
-                            <MaterialIcons
-                              name={
-                                selectedWheelExam.analysis.isCorrect
-                                  ? "check-circle"
-                                  : "warning"
-                              }
-                              size={32}
-                              color={
-                                selectedWheelExam.analysis.isCorrect
-                                  ? "#4CAF50"
-                                  : "#FFA726"
-                              }
-                              style={{ marginBottom: 8 }}
-                            />
-                            <ThemedText
-                              size="l"
-                              weight="bold"
-                              style={{
-                                marginBottom: 12,
-                                textAlign: "center",
-                                color: COSMIC_TEXT,
-                              }}
-                            >
-                              {selectedWheelExam.analysis.isCorrect
-                                ? t("wheel.exam.correctCelebration")
-                                : t("wheel.exam.keepPracticing")}
-                            </ThemedText>
-                            <ThemedText
-                              size="xs"
-                              style={{
-                                marginBottom: 8,
-                                opacity: 0.9,
-                                textAlign: "center",
-                                color: COSMIC_TEXT,
-                              }}
-                            >
-                              {selectedWheelExam.analysis.feedback}
-                            </ThemedText>
-                            <ThemedText
-                              size="xs"
-                              weight="semibold"
-                              style={{
-                                marginTop: 12,
-                                marginBottom: 4,
-                                opacity: 0.8,
-                                color: COSMIC_TEXT,
-                              }}
-                            >
-                              {t("wheel.exam.revealLesson")}
-                            </ThemedText>
-                            <ThemedText
-                              size="sm"
-                              style={{
-                                textAlign: "center",
-                                fontStyle: "italic",
-                                maxWidth: "100%",
-                                color: COSMIC_TEXT,
-                                opacity: 0.95,
-                              }}
-                              numberOfLines={6}
-                            >
-                              {selectedWheelMoment?.text}
-                            </ThemedText>
-                          </>
+                        ) : selectedWheelExam.step === "result" ? (
+                          null
                         ) : (
                           <>
                             <MaterialIcons
@@ -5600,6 +5541,236 @@ const FloatingAvatar = React.memo(
                       </Pressable>
                     )}
                   </Animated.View>
+                );
+              })()}
+            {/* Exam result card overlay - shown as full card after answering */}
+            {selectedWheelExam?.step === "result" &&
+              selectedWheelExam.analysis &&
+              selectedWheelMoment &&
+              (() => {
+                const resultAccentColor = selectedWheelExam.analysis.isCorrect
+                  ? "#4CAF50"
+                  : "#FFA726";
+                const CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
+                const openMemory = () => {
+                  if (!selectedWheelMoment.memoryId) {
+                    clearWheelMomentAndExam();
+                    return;
+                  }
+                  startTransitionLoader();
+                  requestAnimationFrame(() => {
+                    setTimeout(() => {
+                      clearWheelMomentAndExam();
+                      onMemoryFocus?.(
+                        profile.id,
+                        selectedWheelMoment.memoryId,
+                        profile.sphere,
+                        selectedWheelMoment.momentId,
+                      );
+                      setShowEntityWheel(false);
+                      onEntityWheelChange?.(false);
+                    }, 120);
+                  });
+                };
+                return (
+                  <Pressable
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      zIndex: 1200,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: "rgba(0,0,0,0.85)",
+                    }}
+                    onPress={clearWheelMomentAndExam}
+                  >
+                    <Pressable
+                      onPress={(e) => e.stopPropagation()}
+                      style={{
+                        width: CARD_WIDTH,
+                        borderRadius: 24,
+                        overflow: "hidden",
+                        backgroundColor:
+                          colorScheme === "dark"
+                            ? "rgba(26, 35, 50, 0.98)"
+                            : "rgba(255, 255, 255, 0.98)",
+                        borderWidth: 1,
+                        borderColor: `${resultAccentColor}40`,
+                        shadowColor: resultAccentColor,
+                        shadowOffset: { width: 0, height: 8 },
+                        shadowOpacity: 0.35,
+                        shadowRadius: 24,
+                        elevation: 12,
+                      }}
+                    >
+                      {/* Close button */}
+                      <Pressable
+                        onPress={clearWheelMomentAndExam}
+                        hitSlop={12}
+                        style={{
+                          position: "absolute",
+                          top: 12,
+                          right: 12,
+                          zIndex: 10,
+                          width: 36,
+                          height: 36,
+                          borderRadius: 18,
+                          backgroundColor:
+                            colorScheme === "dark"
+                              ? "rgba(255,255,255,0.12)"
+                              : "rgba(0,0,0,0.08)",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <MaterialIcons
+                          name="close"
+                          size={22}
+                          color={colorScheme === "dark" ? "#fff" : "#333"}
+                        />
+                      </Pressable>
+                      {/* Card content - tapping opens memory */}
+                      <Pressable
+                        onPress={openMemory}
+                        style={{
+                          paddingTop: 24,
+                          paddingHorizontal: 20,
+                          paddingBottom: 20,
+                          alignItems: "center",
+                        }}
+                      >
+                        {/* Result icon */}
+                        <View
+                          style={{
+                            width: 56,
+                            height: 56,
+                            borderRadius: 28,
+                            backgroundColor: `${resultAccentColor}28`,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            marginBottom: 12,
+                          }}
+                        >
+                          <MaterialIcons
+                            name={
+                              selectedWheelExam.analysis.isCorrect
+                                ? "check-circle"
+                                : "warning"
+                            }
+                            size={32}
+                            color={resultAccentColor}
+                          />
+                        </View>
+                        {/* Celebration / keep practicing */}
+                        <ThemedText
+                          size="l"
+                          weight="bold"
+                          style={{
+                            marginBottom: 8,
+                            textAlign: "center",
+                          }}
+                        >
+                          {selectedWheelExam.analysis.isCorrect
+                            ? t("wheel.exam.correctCelebration")
+                            : t("wheel.exam.keepPracticing")}
+                        </ThemedText>
+                        {/* AI feedback */}
+                        <ThemedText
+                          size="xs"
+                          style={{
+                            marginBottom: 16,
+                            textAlign: "center",
+                            opacity: 0.75,
+                          }}
+                        >
+                          {selectedWheelExam.analysis.feedback}
+                        </ThemedText>
+                        {/* Lesson text */}
+                        <ThemedText
+                          size="sm"
+                          style={{
+                            textAlign: "center",
+                            fontStyle: "italic",
+                            marginBottom: 16,
+                            paddingHorizontal: 4,
+                            lineHeight: 22 * fontScale,
+                          }}
+                          numberOfLines={4}
+                        >
+                          {selectedWheelMoment.text}
+                        </ThemedText>
+                        {/* Memory image */}
+                        {selectedWheelMoment.memoryImageUri ? (
+                          <View
+                            style={{
+                              width: CARD_WIDTH - 40,
+                              height: 160,
+                              borderRadius: 16,
+                              overflow: "hidden",
+                              backgroundColor:
+                                colorScheme === "dark"
+                                  ? "rgba(255,255,255,0.06)"
+                                  : "rgba(0,0,0,0.06)",
+                            }}
+                          >
+                            <Image
+                              source={{ uri: selectedWheelMoment.memoryImageUri }}
+                              style={{ width: "100%", height: "100%" }}
+                              contentFit="cover"
+                            />
+                          </View>
+                        ) : (
+                          <View
+                            style={{
+                              width: CARD_WIDTH - 40,
+                              height: 100,
+                              borderRadius: 16,
+                              backgroundColor:
+                                colorScheme === "dark"
+                                  ? "rgba(255,255,255,0.06)"
+                                  : "rgba(0,0,0,0.06)",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <MaterialIcons
+                              name="photo-library"
+                              size={36}
+                              color={
+                                colorScheme === "dark"
+                                  ? "rgba(255,255,255,0.3)"
+                                  : "rgba(0,0,0,0.2)"
+                              }
+                            />
+                          </View>
+                        )}
+                        {/* Open memory button */}
+                        <View
+                          style={{
+                            marginTop: 14,
+                            width: 44,
+                            height: 44,
+                            borderRadius: 22,
+                            backgroundColor:
+                              colorScheme === "dark"
+                                ? "rgba(255,255,255,0.12)"
+                                : "rgba(0,0,0,0.08)",
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          <MaterialIcons
+                            name="open-in-full"
+                            size={22}
+                            color={colors.primary}
+                          />
+                        </View>
+                      </Pressable>
+                    </Pressable>
+                  </Pressable>
                 );
               })()}
             {showWheelFireworks && (
@@ -13533,26 +13704,7 @@ export default function HomeScreen() {
     focusedHobbyId
   );
   const editButton = !focusedMemory && !selectedSphere && !focusedProfileId && !focusedJobId && !focusedFamilyMemberId && !focusedFriendId && !focusedHobbyId ? (
-    <TouchableOpacity
-      onPress={() => router.push('/(tabs)/spheres')}
-      activeOpacity={0.7}
-      style={{
-        position: 'absolute',
-        top: insets.top + 12,
-        left: 16,
-        width: 40 * fontScale,
-        height: 40 * fontScale,
-        borderRadius: 20 * fontScale,
-        backgroundColor: 'rgba(26, 47, 74, 0.85)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(100, 181, 246, 0.4)',
-        zIndex: 1000,
-      }}
-    >
-      <MaterialIcons name="edit" size={20 * fontScale} color="#64B5F6" />
-    </TouchableOpacity>
+    <ExpandableMenuButton top={insets.top + 12} />
   ) : null;
 
   const prevHasFocusedViewRef = useRef(hasFocusedView);
@@ -14580,10 +14732,12 @@ export default function HomeScreen() {
   type MomentType = "lessons" | "hardTruths" | "sunnyMoments";
   const [selectedMomentType, setSelectedMomentType] =
     useState<MomentType>("lessons");
+  // MAIN WHEEL OF LIFE — lesson/exam state (triggered from classic view, circle avatar spin)
   const [selectedLesson, setSelectedLesson] = useState<{
     text: string;
     entityId: string;
     memoryId: string;
+    memoryImageUri?: string;
     sphere: LifeSphere;
     isMock?: boolean;
     momentType?: MomentType;
@@ -14618,6 +14772,8 @@ export default function HomeScreen() {
   const [isSpinning, setIsSpinning] = useState(false);
   // Prevent double fire of release handler (e.g. duplicate events) so we don't consume free spin then show paywall
   const mainWheelReleaseInProgressRef = useRef(false);
+  // In-flight question fetch started when spin begins, awaited when spin ends
+  const pendingWheelQuestionRef = useRef<ReturnType<typeof pickAndConsumePreloadedQuestion> | null>(null);
 
   // Trigger glow effect when moment type changes - DISABLED
   // React.useEffect(() => {
@@ -14646,6 +14802,19 @@ export default function HomeScreen() {
     (spinning) => {
       runOnJS(setIsSpinning)(spinning);
     },
+  );
+
+  // Reset main wheel spin state when user leaves the tab so re-entering works correctly
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        isWheelSpinning.value = false;
+        wheelVelocity.value = 0;
+        mainWheelReleaseInProgressRef.current = false;
+        pendingWheelQuestionRef.current = null;
+        setIsSpinning(false);
+      };
+    }, [isWheelSpinning, wheelVelocity]),
   );
 
   const [momentTypeSelectorDismissed, setMomentTypeSelectorDismissed] =
@@ -15002,25 +15171,57 @@ export default function HomeScreen() {
       examStep?: "question" | "analyzing" | "result";
     };
 
-    // Show loading popup immediately so UI doesn't feel stuck while preload/consume runs
-    const fallbackLesson =
-      lessons.length > 0
-        ? lessons[Math.floor(Math.random() * lessons.length)]
-        : null;
+    // Await the question fetch that was started when the spin began (or fall back to a fresh fetch)
+    const fetchPromise =
+      pendingWheelQuestionRef.current ??
+      pickAndConsumePreloadedQuestion({
+        type: "main",
+        onRefetchMain: () =>
+          preloadMainWheelQuestions({
+            memories: idealizedMemories,
+            language: appLang,
+            hasAIEntitlement,
+            appendOnly: true,
+          }),
+      });
+    pendingWheelQuestionRef.current = null;
+    const item = await fetchPromise;
+
+    if (item) {
+      momentToShow = {
+        text: item.lessonText,
+        entityId: item.entityId ?? "",
+        memoryId: item.memoryId ?? "",
+        memoryImageUri: item.memoryImageUri,
+        sphere: (item.sphere ?? "relationships") as LifeSphere,
+        momentType: "lessons",
+        examQuestion: item.question,
+        examStep: "question",
+      };
+    } else if (lessons.length > 0) {
+      // Fallback: pool empty, pick random lesson (no exam)
+      const randomIndex = Math.floor(Math.random() * lessons.length);
+      momentToShow = {
+        ...lessons[randomIndex],
+        momentType: "lessons",
+      };
+    } else {
+      momentToShow = {
+        text: t("wheel.noLessons.message"),
+        entityId: "",
+        memoryId: "",
+        sphere: "relationships" as LifeSphere,
+        isMock: true,
+        momentType: "lessons",
+      };
+    }
+
     setSelectedMomentType("lessons");
-    setSelectedLesson({
-      text: "…",
-      entityId: fallbackLesson?.entityId ?? "",
-      memoryId: fallbackLesson?.memoryId ?? "",
-      sphere: (fallbackLesson?.sphere ?? "relationships") as LifeSphere,
-      momentType: "lessons",
-      examQuestion: "",
-      examStep: "question",
-    });
+    setSelectedLesson(momentToShow);
     setShowLesson(true);
     setMainWheelExamAnswerInput("");
 
-    // Start entrance animation immediately
+    // Start entrance animation
     const baseCircleSize = isTablet ? 260 : isLargeDevice ? 210 : 190;
     const lessonSunHeight = baseCircleSize;
     const avatarCenterX = sphereCircle.centerX;
@@ -15048,50 +15249,6 @@ export default function HomeScreen() {
       -1,
       false,
     );
-
-    // Always use preloaded exam questions (question → user answers → AI evaluates → reveal lesson)
-    const item = await pickAndConsumePreloadedQuestion({
-      type: "main",
-      onRefetchMain: () =>
-        preloadMainWheelQuestions({
-          memories: idealizedMemories,
-          language: appLang,
-          hasAIEntitlement,
-          appendOnly: true,
-        }),
-    });
-    if (item) {
-      momentToShow = {
-        text: item.lessonText,
-        entityId: item.entityId ?? "",
-        memoryId: item.memoryId ?? "",
-        sphere: (item.sphere ?? "relationships") as LifeSphere,
-        momentType: "lessons",
-        examQuestion: item.question,
-        examStep: "question",
-      };
-    } else if (lessons.length > 0) {
-      // Fallback: pool empty, pick random lesson (no exam)
-      const randomIndex = Math.floor(Math.random() * lessons.length);
-      momentToShow = {
-        ...lessons[randomIndex],
-        momentType: "lessons",
-      };
-    } else {
-      momentToShow = {
-        text: t("wheel.noLessons.message"),
-        entityId: "",
-        memoryId: "",
-        sphere: "relationships" as LifeSphere,
-        isMock: true,
-        momentType: "lessons",
-      };
-    }
-
-    // Free spin already consumed at spin start (consumeWheelExamIfAvailable)
-
-    // Update with real content (replaces loading placeholder)
-    setSelectedLesson(momentToShow);
   }, [
     getAllMomentsByType,
     idealizedMemories,
@@ -16202,6 +16359,17 @@ export default function HomeScreen() {
               wheelVelocity.value *= momentumMultiplier;
               const { logWheelMainSpin } = require("@/utils/analytics");
               logWheelMainSpin().catch(() => {});
+              // Kick off question fetch immediately so it's ready when the wheel stops
+              pendingWheelQuestionRef.current = pickAndConsumePreloadedQuestion({
+                type: "main",
+                onRefetchMain: () =>
+                  preloadMainWheelQuestions({
+                    memories: idealizedMemories,
+                    language: appLang,
+                    hasAIEntitlement,
+                    appendOnly: true,
+                  }),
+              });
             };
             // Always check rate limit (lesson exam flow)
             const velocityAtRelease = wheelVelocity.value;
@@ -19505,119 +19673,9 @@ export default function HomeScreen() {
                         {t("wheel.exam.analyzing")}
                       </ThemedText>
                     </Animated.View>
-                  ) : selectedLesson.examQuestion &&
-                    selectedLesson.examStep === "result" &&
-                    selectedLesson.examAnalysis ? (
-                    <AnimatedPressable
-                      onPressIn={() => {
-                        lessonPressScale.value = withSpring(0.95, {
-                          damping: 15,
-                          stiffness: 300,
-                        });
-                      }}
-                      onPressOut={() => {
-                        lessonPressScale.value = withSpring(1, {
-                          damping: 15,
-                          stiffness: 300,
-                        });
-                      }}
-                      onPress={handlePress}
-                      style={[
-                        {
-                          width: momentWidth,
-                          height: momentHeight,
-                          justifyContent: "center",
-                          alignItems: "center",
-                          backgroundColor: visuals.backgroundColor,
-                          borderRadius: momentWidth / 2,
-                          shadowColor: visuals.shadowColor,
-                          shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.95,
-                          shadowRadius: isTablet ? 40 : 30,
-                          elevation: 24,
-                          padding: 8,
-                          position: "relative",
-                        },
-                        lessonShadowAnimatedStyle,
-                      ]}
-                    >
-                      <MaterialIcons
-                        name={
-                          selectedLesson.examAnalysis.isCorrect
-                            ? "check-circle"
-                            : "warning"
-                        }
-                        size={momentWidth * 0.2}
-                        color={
-                          selectedLesson.examAnalysis.isCorrect
-                            ? "#4CAF50"
-                            : "#FFA726"
-                        }
-                        style={{ marginBottom: 6 }}
-                      />
-                      <ThemedText
-                        size="xs"
-                        style={{
-                          marginBottom: 8,
-                          opacity: 0.9,
-                          textAlign: "center",
-                          color: momentColors.lesson.text,
-                        }}
-                      >
-                        {selectedLesson.examAnalysis.feedback}
-                      </ThemedText>
-                      <ThemedText
-                        size="xs"
-                        weight="semibold"
-                        style={{ marginTop: 12, marginBottom: 4, opacity: 0.8 }}
-                      >
-                        {t("wheel.exam.revealLesson")}
-                      </ThemedText>
-                      <ThemedText
-                        style={{
-                          color: momentColors.lesson.text,
-                          fontSize:
-                            Math.max(12, Math.min(15, 12 + textLength / 80)) *
-                            fontScale,
-                          textAlign: "center",
-                          fontWeight: "600",
-                          maxWidth: momentWidth * 0.85,
-                        }}
-                        numberOfLines={6}
-                      >
-                        {selectedLesson.text}
-                      </ThemedText>
-                      <Pressable
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setShowLesson(false);
-                          setSelectedLesson(null);
-                          setShowMainWheelFireworks(false);
-                        }}
-                        style={{
-                          position: "absolute",
-                          top: 12,
-                          right: 12,
-                          width: 24,
-                          height: 24,
-                          borderRadius: 12,
-                          backgroundColor:
-                            colorScheme === "dark"
-                              ? "rgba(0, 0, 0, 0.6)"
-                              : "rgba(255, 255, 255, 0.95)",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          zIndex: 10,
-                        }}
-                      >
-                        <MaterialIcons
-                          name="close"
-                          size={16}
-                          color={colorScheme === "dark" ? "#FFFFFF" : "#000000"}
-                          style={{ opacity: 0.8 }}
-                        />
-                      </Pressable>
-                    </AnimatedPressable>
+                  ) : selectedLesson.examStep === "result" ? (
+                    // Result shown as separate overlay — renders null here, overlay card is below
+                    null
                   ) : (
                     // For lessons without exam, use the original circle design
                     <AnimatedPressable
@@ -19759,6 +19817,234 @@ export default function HomeScreen() {
                     </AnimatedPressable>
                   )}
                 </Animated.View>
+              );
+            })()}
+
+          {/* MAIN WHEEL OF LIFE — exam result card overlay (shown after user submits answer) */}
+          {selectedLesson?.examStep === "result" &&
+            selectedLesson.examAnalysis &&
+            (() => {
+              const resultAccentColor = selectedLesson.examAnalysis.isCorrect ? "#4CAF50" : "#FFA726";
+              const RESULT_CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
+              const dismiss = () => {
+                setShowLesson(false);
+                setSelectedLesson(null);
+                setShowMainWheelFireworks(false);
+              };
+              const openMemory = () => {
+                if (selectedLesson.isMock) { dismiss(); return; }
+                const { sphere, entityId, memoryId } = selectedLesson;
+                dismiss();
+                if (sphere === "relationships") {
+                  setFocusedProfileId(entityId);
+                  setSelectedSphere("relationships");
+                  setTimeout(() => setFocusedMemory({ profileId: entityId, memoryId, sphere }), 100);
+                } else if (sphere === "career") {
+                  setFocusedJobId(entityId);
+                  setSelectedSphere("career");
+                  setTimeout(() => setFocusedMemory({ jobId: entityId, memoryId, sphere }), 100);
+                } else if (sphere === "family") {
+                  setFocusedFamilyMemberId(entityId);
+                  setSelectedSphere("family");
+                  setTimeout(() => setFocusedMemory({ familyMemberId: entityId, memoryId, sphere }), 100);
+                } else if (sphere === "friends") {
+                  setFocusedFriendId(entityId);
+                  setSelectedSphere("friends");
+                  setTimeout(() => setFocusedMemory({ friendId: entityId, memoryId, sphere }), 100);
+                } else if (sphere === "hobbies") {
+                  setFocusedHobbyId(entityId);
+                  setSelectedSphere("hobbies");
+                  setTimeout(() => setFocusedMemory({ hobbyId: entityId, memoryId, sphere }), 100);
+                }
+              };
+              return (
+                <Pressable
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    zIndex: 1200,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "rgba(0,0,0,0.85)",
+                  }}
+                  onPress={dismiss}
+                >
+                  <Pressable
+                    onPress={(e) => e.stopPropagation()}
+                    style={{
+                      width: RESULT_CARD_WIDTH,
+                      borderRadius: 24,
+                      overflow: "hidden",
+                      backgroundColor:
+                        colorScheme === "dark"
+                          ? "rgba(26, 35, 50, 0.98)"
+                          : "rgba(255, 255, 255, 0.98)",
+                      borderWidth: 1,
+                      borderColor: `${resultAccentColor}40`,
+                      shadowColor: resultAccentColor,
+                      shadowOffset: { width: 0, height: 8 },
+                      shadowOpacity: 0.35,
+                      shadowRadius: 24,
+                      elevation: 12,
+                    }}
+                  >
+                    {/* Close button */}
+                    <Pressable
+                      onPress={dismiss}
+                      hitSlop={12}
+                      style={{
+                        position: "absolute",
+                        top: 12,
+                        right: 12,
+                        zIndex: 10,
+                        width: 36,
+                        height: 36,
+                        borderRadius: 18,
+                        backgroundColor:
+                          colorScheme === "dark"
+                            ? "rgba(255,255,255,0.12)"
+                            : "rgba(0,0,0,0.08)",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <MaterialIcons
+                        name="close"
+                        size={22}
+                        color={colorScheme === "dark" ? "#fff" : "#333"}
+                      />
+                    </Pressable>
+                    {/* Card content — tap to open memory */}
+                    <Pressable
+                      onPress={openMemory}
+                      style={{
+                        paddingTop: 24,
+                        paddingHorizontal: 20,
+                        paddingBottom: 20,
+                        alignItems: "center",
+                      }}
+                    >
+                      {/* Result icon */}
+                      <View
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: 28,
+                          backgroundColor: `${resultAccentColor}28`,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          marginBottom: 12,
+                        }}
+                      >
+                        <MaterialIcons
+                          name={selectedLesson.examAnalysis.isCorrect ? "check-circle" : "warning"}
+                          size={32}
+                          color={resultAccentColor}
+                        />
+                      </View>
+                      {/* Celebration / keep practicing */}
+                      <ThemedText
+                        size="l"
+                        weight="bold"
+                        style={{ marginBottom: 8, textAlign: "center" }}
+                      >
+                        {selectedLesson.examAnalysis.isCorrect
+                          ? t("wheel.exam.correctCelebration")
+                          : t("wheel.exam.keepPracticing")}
+                      </ThemedText>
+                      {/* AI feedback */}
+                      <ThemedText
+                        size="xs"
+                        style={{ marginBottom: 16, textAlign: "center", opacity: 0.75 }}
+                      >
+                        {selectedLesson.examAnalysis.feedback}
+                      </ThemedText>
+                      {/* Lesson text */}
+                      <ThemedText
+                        size="sm"
+                        style={{
+                          textAlign: "center",
+                          fontStyle: "italic",
+                          marginBottom: 16,
+                          paddingHorizontal: 4,
+                          lineHeight: 22 * fontScale,
+                        }}
+                        numberOfLines={4}
+                      >
+                        {selectedLesson.text}
+                      </ThemedText>
+                      {/* Memory image */}
+                      {selectedLesson.memoryImageUri ? (
+                        <View
+                          style={{
+                            width: RESULT_CARD_WIDTH - 40,
+                            height: 160,
+                            borderRadius: 16,
+                            overflow: "hidden",
+                            backgroundColor:
+                              colorScheme === "dark"
+                                ? "rgba(255,255,255,0.06)"
+                                : "rgba(0,0,0,0.06)",
+                          }}
+                        >
+                          <Image
+                            source={{ uri: selectedLesson.memoryImageUri }}
+                            style={{ width: "100%", height: "100%" }}
+                            contentFit="cover"
+                          />
+                        </View>
+                      ) : (
+                        <View
+                          style={{
+                            width: RESULT_CARD_WIDTH - 40,
+                            height: 100,
+                            borderRadius: 16,
+                            backgroundColor:
+                              colorScheme === "dark"
+                                ? "rgba(255,255,255,0.06)"
+                                : "rgba(0,0,0,0.06)",
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          <MaterialIcons
+                            name="photo-library"
+                            size={36}
+                            color={
+                              colorScheme === "dark"
+                                ? "rgba(255,255,255,0.3)"
+                                : "rgba(0,0,0,0.2)"
+                            }
+                          />
+                        </View>
+                      )}
+                      {/* Open memory button */}
+                      <View
+                        style={{
+                          marginTop: 14,
+                          width: 44,
+                          height: 44,
+                          borderRadius: 22,
+                          backgroundColor:
+                            colorScheme === "dark"
+                              ? "rgba(255,255,255,0.12)"
+                              : "rgba(0,0,0,0.08)",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <MaterialIcons
+                          name="open-in-full"
+                          size={22}
+                          color={colors.primary}
+                        />
+                      </View>
+                    </Pressable>
+                  </Pressable>
+                </Pressable>
               );
             })()}
 

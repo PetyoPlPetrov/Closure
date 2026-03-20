@@ -107,17 +107,6 @@ export default function TabLayout() {
     </ThemedText>
   ), [inactiveColor, fontScale, t]);
 
-  const settingsIcon = useCallback(({ color }: { color: string }) =>
-    <MaterialIcons name="settings" size={iconSize} color={color} />,
-  [iconSize]);
-
-  const settingsLabel = useCallback(({ focused, color }: { focused: boolean; color: string }) => (
-    <ThemedText size="xs" weight={focused ? 'bold' : 'medium'} letterSpacing="l"
-      style={{ color: focused ? color : inactiveColor, marginTop: 6 * fontScale, lineHeight: 18 * fontScale }}>
-      {t('tab.settings')}
-    </ThemedText>
-  ), [inactiveColor, fontScale, t]);
-
   const eventsTabBadge = hasNewEvents ? unseenCount : undefined;
 
   return (
@@ -145,14 +134,7 @@ export default function TabLayout() {
           tabBarLabel: eventsLabel,
         }}
       />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: settingsIcon,
-          tabBarLabel: settingsLabel,
-        }}
-      />
+      <Tabs.Screen name="settings" options={{ href: null, headerShown: false }} />
 
       {/* Entity detail and edit screens - hidden from tab bar but keep tabs visible */}
       <Tabs.Screen name="add-ex-profile" options={{ href: null, headerShown: false }} />

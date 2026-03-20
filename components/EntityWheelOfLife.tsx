@@ -7,6 +7,7 @@
  * Exam mode: When lesson filter is selected, spinning runs an AI-powered exam
  * (question based on random lesson, user answers, AI evaluates). Fireworks on correct.
  */
+import { Image } from 'expo-image';
 import { Fireworks } from '@/components/fireworks';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
@@ -87,6 +88,7 @@ interface EntityWheelOfLifeProps {
   };
   memories: Memory[];
   onClose: () => void;
+  onMemoryOpen?: (memoryId: string) => void;
   colors: typeof Colors.dark;
   colorScheme: 'light' | 'dark';
 }
@@ -310,6 +312,7 @@ export function EntityWheelOfLife({
   entity,
   memories,
   onClose,
+  onMemoryOpen,
   colors,
   colorScheme,
 }: EntityWheelOfLifeProps) {
@@ -348,6 +351,7 @@ export function EntityWheelOfLife({
   const [selectedMoment, setSelectedMoment] = useState<{
     type: 'lesson' | 'sunny' | 'cloudy';
     text: string;
+    memoryId?: string;
     memoryImageUri?: string;
   } | null>(null);
   const [selectedMomentType, setSelectedMomentType] = useState<
@@ -395,13 +399,13 @@ export function EntityWheelOfLife({
 
   // Collect all moments by type
   const momentsByType = useMemo(() => {
-    const lessons: { id: string; text: string; memoryImageUri?: string }[] = [];
+    const lessons: { id: string; text: string; memoryId: string; memoryImageUri?: string }[] = [];
     const sunny: { id: string; text: string; memoryImageUri?: string }[] = [];
     const cloudy: { id: string; text: string; memoryImageUri?: string }[] = [];
 
     memories.forEach((memory) => {
       if (memory.lessonsLearned) {
-        lessons.push(...memory.lessonsLearned.map(l => ({ ...l, memoryImageUri: memory.imageUri })));
+        lessons.push(...memory.lessonsLearned.map(l => ({ ...l, memoryId: memory.id, memoryImageUri: memory.imageUri })));
       }
       if (memory.goodFacts) {
         sunny.push(...memory.goodFacts.map(gf => ({ ...gf, memoryImageUri: memory.imageUri })));
@@ -444,6 +448,18 @@ export function EntityWheelOfLife({
       stiffness: 100,
     });
   }, [entranceProgress]);
+
+  // Reset spin state on unmount so re-entering the wheel works correctly
+  useEffect(() => {
+    return () => {
+      cancelAnimation(spinRotation);
+      isSpinningShared.value = false;
+      celebrationSpinning.value = false;
+      setIsSpinning(false);
+      setSelectedMoment(null);
+      setExamState(null);
+    };
+  }, [spinRotation, isSpinningShared, celebrationSpinning]);
 
   // Collect all moments of selected type with their source memory positions and size scale
   const momentsWithPositions = useMemo(() => {
@@ -634,55 +650,54 @@ export function EntityWheelOfLife({
       withTiming(totalRotations * 360, { duration: 0, easing: Easing.linear }),
     );
 
-    setTimeout(async () => {
-      // Free spin already consumed at spin start (consumeWheelExamIfAvailable)
-      // Show loading popup immediately so UI doesn't feel stuck while preload/consume runs
-      setSelectedMomentType('lesson');
+    // Fetch the question in parallel with the spin animation
+    const questionPromise = pickAndConsumePreloadedQuestion({
+      type: 'entity',
+      entityId: entity.id,
+      onRefetchEntity: (eid) =>
+        preloadEntityWheelQuestions({
+          entityId: eid,
+          memories,
+          language: lang,
+          hasAIEntitlement,
+          onNeedPaywall: showPaywallForAIAccess,
+          appendOnly: true,
+        }),
+    });
+
+    // Wait for both the spin animation (2000ms) and the question to be ready
+    const [item] = await Promise.all([
+      questionPromise,
+      new Promise<void>((resolve) => setTimeout(resolve, 2000)),
+    ]);
+
+    setSelectedMomentType('lesson');
+    if (item) {
       setSelectedMoment({
         type: 'lesson',
-        text: '…',
-        memoryImageUri: undefined,
+        text: item.lessonText,
+        memoryId: item.memoryId,
+        memoryImageUri: item.memoryImageUri,
       });
-      setExamState({ question: '', step: 'question' });
-      selectedMomentScale.value = withSpring(1, {
-        damping: 12,
-        stiffness: 150,
+      setExamState({ question: item.question, step: 'question' });
+    } else {
+      const randomObj = lessons[Math.floor(Math.random() * lessons.length)];
+      setSelectedMoment({
+        type: 'lesson',
+        text: randomObj.text,
+        memoryId: randomObj.memoryId,
+        memoryImageUri: randomObj.memoryImageUri,
       });
-      setIsSpinning(false);
-
-      const item = await pickAndConsumePreloadedQuestion({
-        type: 'entity',
-        entityId: entity.id,
-        onRefetchEntity: (eid) =>
-          preloadEntityWheelQuestions({
-            entityId: eid,
-            memories,
-            language: lang,
-            hasAIEntitlement,
-            onNeedPaywall: showPaywallForAIAccess,
-            appendOnly: true,
-          }),
+      setExamState({
+        question: randomObj.text,
+        step: 'question',
       });
-      if (item) {
-        setSelectedMoment({
-          type: 'lesson',
-          text: item.lessonText,
-          memoryImageUri: item.memoryImageUri,
-        });
-        setExamState({ question: item.question, step: 'question' });
-      } else {
-        const randomObj = lessons[Math.floor(Math.random() * lessons.length)];
-        setSelectedMoment({
-          type: 'lesson',
-          text: randomObj.text,
-          memoryImageUri: randomObj.memoryImageUri,
-        });
-        setExamState({
-          question: randomObj.text,
-          step: 'question',
-        });
-      }
-    }, 2000);
+    }
+    setIsSpinning(false);
+    selectedMomentScale.value = withSpring(1, {
+      damping: 12,
+      stiffness: 150,
+    });
   }, [
     isSpinning,
     momentsByType.lesson,
@@ -1193,37 +1208,8 @@ export function EntityWheelOfLife({
                       {t('wheel.exam.analyzing')}
                     </ThemedText>
                   </View>
-                ) : examState.step === 'result' && examState.analysis ? (
-                  <>
-                    <MaterialIcons
-                      name={
-                        examState.analysis.isCorrect ? "check-circle" : "warning"
-                      }
-                      size={32}
-                      color={
-                        examState.analysis.isCorrect ? "#4CAF50" : "#FFA726"
-                      }
-                      style={{ marginBottom: 8 }}
-                    />
-                    <ThemedText size="l" weight="bold" style={{ marginBottom: 12, textAlign: 'center' }}>
-                      {examState.analysis.isCorrect
-                        ? t('wheel.exam.correctCelebration')
-                        : t('wheel.exam.keepPracticing')}
-                    </ThemedText>
-                    <ThemedText size="xs" style={{ marginBottom: 8, opacity: 0.9, textAlign: 'center' }}>
-                      {examState.analysis.feedback}
-                    </ThemedText>
-                    <ThemedText size="xs" weight="semibold" style={{ marginTop: 12, marginBottom: 4, opacity: 0.8 }}>
-                      {t('wheel.exam.revealLesson')}
-                    </ThemedText>
-                    <ThemedText
-                      size="sm"
-                      style={{ textAlign: 'center', fontStyle: 'italic', maxWidth: '100%' }}
-                      numberOfLines={6}
-                    >
-                      {selectedMoment.text}
-                    </ThemedText>
-                  </>
+                ) : examState.step === 'result' ? (
+                  null
                 ) : (
                   <>
                     <MaterialIcons
@@ -1471,6 +1457,213 @@ export function EntityWheelOfLife({
               </>
             )}
           </AnimatedView>
+        );
+      })()}
+
+      {/* Exam result card overlay */}
+      {examState?.step === 'result' && examState.analysis && selectedMoment && (() => {
+        const resultAccentColor = examState.analysis.isCorrect ? '#4CAF50' : '#FFA726';
+        const RESULT_CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
+        const dismiss = () => {
+          setSelectedMoment(null);
+          setExamState(null);
+        };
+        const openMemory = () => {
+          if (selectedMoment.memoryId && onMemoryOpen) {
+            dismiss();
+            onMemoryOpen(selectedMoment.memoryId);
+          } else {
+            dismiss();
+          }
+        };
+        return (
+          <Pressable
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              zIndex: 1200,
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: 'rgba(0,0,0,0.85)',
+            }}
+            onPress={dismiss}
+          >
+            <Pressable
+              onPress={(e) => e.stopPropagation()}
+              style={{
+                width: RESULT_CARD_WIDTH,
+                borderRadius: 24,
+                overflow: 'hidden',
+                backgroundColor:
+                  colorScheme === 'dark'
+                    ? 'rgba(26, 35, 50, 0.98)'
+                    : 'rgba(255, 255, 255, 0.98)',
+                borderWidth: 1,
+                borderColor: `${resultAccentColor}40`,
+                shadowColor: resultAccentColor,
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.35,
+                shadowRadius: 24,
+                elevation: 12,
+              }}
+            >
+              {/* Close button */}
+              <Pressable
+                onPress={dismiss}
+                hitSlop={12}
+                style={{
+                  position: 'absolute',
+                  top: 12,
+                  right: 12,
+                  zIndex: 10,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor:
+                    colorScheme === 'dark'
+                      ? 'rgba(255,255,255,0.12)'
+                      : 'rgba(0,0,0,0.08)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <MaterialIcons
+                  name="close"
+                  size={22}
+                  color={colorScheme === 'dark' ? '#fff' : '#333'}
+                />
+              </Pressable>
+              {/* Card content — tap to open memory */}
+              <Pressable
+                onPress={openMemory}
+                style={{
+                  paddingTop: 24,
+                  paddingHorizontal: 20,
+                  paddingBottom: 20,
+                  alignItems: 'center',
+                }}
+              >
+                {/* Result icon */}
+                <View
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
+                    backgroundColor: `${resultAccentColor}28`,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginBottom: 12,
+                  }}
+                >
+                  <MaterialIcons
+                    name={examState.analysis.isCorrect ? 'check-circle' : 'warning'}
+                    size={32}
+                    color={resultAccentColor}
+                  />
+                </View>
+                {/* Celebration / keep practicing */}
+                <ThemedText
+                  size="l"
+                  weight="bold"
+                  style={{ marginBottom: 8, textAlign: 'center' }}
+                >
+                  {examState.analysis.isCorrect
+                    ? t('wheel.exam.correctCelebration')
+                    : t('wheel.exam.keepPracticing')}
+                </ThemedText>
+                {/* AI feedback */}
+                <ThemedText
+                  size="xs"
+                  style={{ marginBottom: 16, textAlign: 'center', opacity: 0.75 }}
+                >
+                  {examState.analysis.feedback}
+                </ThemedText>
+                {/* Lesson text */}
+                <ThemedText
+                  size="sm"
+                  style={{
+                    textAlign: 'center',
+                    fontStyle: 'italic',
+                    marginBottom: 16,
+                    paddingHorizontal: 4,
+                    lineHeight: 22 * fontScale,
+                  }}
+                  numberOfLines={4}
+                >
+                  {selectedMoment.text}
+                </ThemedText>
+                {/* Memory image */}
+                {selectedMoment.memoryImageUri ? (
+                  <View
+                    style={{
+                      width: RESULT_CARD_WIDTH - 40,
+                      height: 160,
+                      borderRadius: 16,
+                      overflow: 'hidden',
+                      backgroundColor:
+                        colorScheme === 'dark'
+                          ? 'rgba(255,255,255,0.06)'
+                          : 'rgba(0,0,0,0.06)',
+                    }}
+                  >
+                    <Image
+                      source={{ uri: selectedMoment.memoryImageUri }}
+                      style={{ width: '100%', height: '100%' }}
+                      contentFit="cover"
+                    />
+                  </View>
+                ) : (
+                  <View
+                    style={{
+                      width: RESULT_CARD_WIDTH - 40,
+                      height: 100,
+                      borderRadius: 16,
+                      backgroundColor:
+                        colorScheme === 'dark'
+                          ? 'rgba(255,255,255,0.06)'
+                          : 'rgba(0,0,0,0.06)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <MaterialIcons
+                      name="photo-library"
+                      size={36}
+                      color={
+                        colorScheme === 'dark'
+                          ? 'rgba(255,255,255,0.3)'
+                          : 'rgba(0,0,0,0.2)'
+                      }
+                    />
+                  </View>
+                )}
+                {/* Open memory button */}
+                <View
+                  style={{
+                    marginTop: 14,
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor:
+                      colorScheme === 'dark'
+                        ? 'rgba(255,255,255,0.12)'
+                        : 'rgba(0,0,0,0.08)',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <MaterialIcons
+                    name="open-in-full"
+                    size={22}
+                    color={colors.primary}
+                  />
+                </View>
+              </Pressable>
+            </Pressable>
+          </Pressable>
         );
       })()}
     </View>

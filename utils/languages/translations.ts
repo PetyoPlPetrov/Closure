@@ -13,7 +13,7 @@ export interface Translations {
   "tab.settings": string;
   "tab.events": string;
   "home.emptyState": string;
-  // Events tab (Sfera Community / Events)
+  // Events tab (Sferas Community / Events)
   "events.section.social": string;
   "events.section.private": string;
   "events.section.plus": string;
@@ -3656,9 +3656,9 @@ const translations: Record<Language, Translations> = {
       "No profiles yet. Add your first ex-profile to get started.",
     "avatar.sunnyLife": "Sunny Life",
     "avatar.addMemories": "Add memories",
-    "events.section.social": "Sfera Social",
-    "events.section.private": "Sfera Private",
-    "events.section.plus": "Sfera Plus Events",
+    "events.section.social": "Social",
+    "events.section.private": "Private",
+    "events.section.plus": "Plus Events",
     "events.loading": "Loading events…",
     "events.empty":
       "No events yet. Check back later or add a sheet URL in settings.",
@@ -3677,10 +3677,10 @@ const translations: Record<Language, Translations> = {
     "events.learnMore": "Learn more",
     "events.showLess": "Show less",
     "events.newEventsTitle": "New events",
-    "events.newEventsMessage": "New events available in Sfera Community",
-    "events.newEventInCommunity": "New event in Sfera Community: {community}",
+    "events.newEventsMessage": "New events available in Sferas Community",
+    "events.newEventInCommunity": "New event in Sferas Community: {community}",
     "events.noUpcomingEvents": "No upcoming events",
-    "events.sferaCommunities": "Sfera Communities",
+    "events.sferaCommunities": "Sferas Communities",
     "events.locationDeclinedAlertTitle": "Location not enabled",
     "events.locationDeclinedAlertMessage":
       "Without location access, you'll only see global events (no country filter). You can enable location in Settings later.",
@@ -3751,7 +3751,7 @@ const translations: Record<Language, Translations> = {
       "Show or hide the motivational message banner on the Home tab.",
     "settings.eventInAppNotifications.title": "In-app notifications for events",
     "settings.eventInAppNotifications.description":
-      "When on, the app can show in-app reminders for Sfera events (e.g. create a memory for an event you attended, or new events in your community).",
+      "When on, the app can show in-app reminders for Sferas events (e.g. create a memory for an event you attended, or new events in your community).",
     "settings.appUsabilityHints.title": "App usability hints",
     "settings.appUsabilityHints.enable": "Show usability hints",
     "settings.appUsabilityHints.description":
@@ -8190,9 +8190,9 @@ const translations: Record<Language, Translations> = {
       "Няма профили все още. Добавете първи партньор, за да започнете.",
     "avatar.sunnyLife": "Слънчев живот",
     "avatar.addMemories": "Добави спомени",
-    "events.section.social": "Sfera Social",
-    "events.section.private": "Sfera Private",
-    "events.section.plus": "Sfera Plus Events",
+    "events.section.social": "Social",
+    "events.section.private": "Private",
+    "events.section.plus": "Plus Events",
     "events.loading": "Зареждане на събития…",
     "events.empty":
       "Все още няма събития. Проверете по-късно или добавете URL на таблица в настройките.",
@@ -8211,10 +8211,10 @@ const translations: Record<Language, Translations> = {
     "events.learnMore": "Научи повече",
     "events.showLess": "Покажи по-малко",
     "events.newEventsTitle": "Нови събития",
-    "events.newEventsMessage": "Нови събития в Sfera Community",
-    "events.newEventInCommunity": "Ново събитие в Sfera Community: {community}",
+    "events.newEventsMessage": "Нови събития в Sferas Community",
+    "events.newEventInCommunity": "Ново събитие в Sferas Community: {community}",
     "events.noUpcomingEvents": "Няма предстоящи събития",
-    "events.sferaCommunities": "Sfera общности",
+    "events.sferaCommunities": "Sferas общности",
     "events.locationDeclinedAlertTitle": "Местоположението е изключено",
     "events.locationDeclinedAlertMessage":
       "Без достъп до местоположение ще виждате само глобални събития. Можете да активирате местоположението в Настройки по-късно.",
@@ -8286,7 +8286,7 @@ const translations: Record<Language, Translations> = {
       "Показване или скриване на мотивационното съобщение в раздела Начало.",
     "settings.eventInAppNotifications.title": "Вътреприложни известия за събития",
     "settings.eventInAppNotifications.description":
-      "Когато е включено, приложението може да показва вътреприложни напомняния за събития на Sfera (напр. създаване на спомен за посещено събитие или нови събития в общността ви).",
+      "Когато е включено, приложението може да показва вътреприложни напомняния за Sferas събития (напр. създаване на спомен за посещено събитие или нови събития в общността ви).",
     "settings.appUsabilityHints.title": "Подсказки за използване",
     "settings.appUsabilityHints.enable": "Показвай подсказки",
     "settings.appUsabilityHints.description":
