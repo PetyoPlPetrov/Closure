@@ -724,6 +724,109 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   );
 });
 
+// ───────────────────── Cosmic pulse rings (radiate outward from focused sphere) ─────────────────────
+
+const CosmicRing = React.memo(function CosmicRing({
+  delay,
+  color,
+  left,
+  top,
+  size,
+}: {
+  delay: number;
+  color: string;
+  left: number;
+  top: number;
+  size: number;
+}) {
+  const ringScale = useSharedValue(1);
+  const ringOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    ringScale.value = withDelay(
+      delay,
+      withRepeat(
+        withTiming(1.9, {
+          duration: 4500,
+          easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
+        }),
+        -1,
+        false,
+      ),
+    );
+    ringOpacity.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(0.1, { duration: 600, easing: Easing.out(Easing.ease) }),
+          withTiming(0, { duration: 3900, easing: Easing.in(Easing.quad) }),
+        ),
+        -1,
+        false,
+      ),
+    );
+    return () => {
+      cancelAnimation(ringScale);
+      cancelAnimation(ringOpacity);
+      ringScale.value = 1;
+      ringOpacity.value = 0;
+    };
+  }, [delay, ringScale, ringOpacity]);
+
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: ringOpacity.value,
+    transform: [{ scale: ringScale.value }],
+  }));
+
+  const staticStyle = useMemo(
+    () => ({
+      position: "absolute" as const,
+      left,
+      top,
+      width: size,
+      height: size,
+      borderRadius: 1000,
+      borderWidth: 1,
+      borderColor: color,
+      backgroundColor: "transparent",
+      shadowColor: color,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 0,
+      zIndex: 5,
+    }),
+    [left, top, size, color],
+  );
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[staticStyle, ringStyle]}
+    />
+  );
+});
+
+const CosmicPulseRings = React.memo(function CosmicPulseRings({
+  color,
+  containerHalf,
+  sphereSize,
+}: {
+  color: string;
+  containerHalf: number;
+  sphereSize: number;
+}) {
+  const left = containerHalf - sphereSize / 2;
+  const top = containerHalf - sphereSize / 2;
+  return (
+    <>
+      <CosmicRing delay={0} color={color} left={left} top={top} size={sphereSize} />
+      <CosmicRing delay={1500} color={color} left={left} top={top} size={sphereSize} />
+      <CosmicRing delay={3000} color={color} left={left} top={top} size={sphereSize} />
+    </>
+  );
+});
+
 // ───────────────────── Animated sphere (orbital transition: spheres slide along orbit like beads on a string) ─────────────────────
 
 const SPHERE_CONTAINER_SIZE = 320; // Fits orbit extent
@@ -884,6 +987,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     sunnyPercentage,
   );
   const shadowColor = getSphereShadowColor(sphere.type, colorScheme);
+  const ringColor =
+    colorScheme === "dark" ? shadowColor : "rgba(100,100,100,0.3)";
   const depthScale = getEntityDepthScale(slot);
   const baseEntityAvatarSize = isFocused
     ? 40
@@ -913,6 +1018,13 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       style={containerStyle}
       pointerEvents={isFocused ? "box-none" : "none"}
     >
+      {isFocused && (
+        <CosmicPulseRings
+          color={ringColor}
+          containerHalf={CONTAINER_HALF}
+          sphereSize={FOCUSED_SIZE}
+        />
+      )}
       <Pressable
         onPress={onPress}
         style={{
