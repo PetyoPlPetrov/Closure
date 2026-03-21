@@ -250,7 +250,7 @@ export default function SpheresScreen() {
   const {
     constellationAmount,
     constellationOpacity,
-    stopPulsingAnimations,
+    pulsingAnimations,
   } = useVisualSettings();
   const fontScale = useFontScale();
   const iconScale = useIconScale();
@@ -313,15 +313,15 @@ export default function SpheresScreen() {
   const insightPulseDuration = 1000;
 
   useEffect(() => {
-    if (stopPulsingAnimations) {
+    if (!pulsingAnimations) {
       cancelAnimation(insightPulseScale);
       insightPulseScale.value = 1;
       return;
     }
-  }, [insightPulseScale, stopPulsingAnimations]);
+  }, [insightPulseScale, pulsingAnimations]);
 
   useEffect(() => {
-    if (stopPulsingAnimations) return;
+    if (!pulsingAnimations) return;
     const runInsightPulse = () => {
       insightPulseScale.value = withSequence(
         withTiming(1.2, {
@@ -350,7 +350,7 @@ export default function SpheresScreen() {
     };
     scheduleNext(true);
     return () => clearTimeout(timeoutId);
-  }, [insightPulseScale, stopPulsingAnimations]);
+  }, [insightPulseScale, pulsingAnimations]);
 
   const insightPulseAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: insightPulseScale.value }],

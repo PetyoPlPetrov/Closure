@@ -13299,6 +13299,7 @@ export default function HomeScreen() {
     constellationAmount,
     constellationOpacity,
     appUsabilityHints,
+    pulsingAnimations,
   } = useVisualSettings();
   const {
     profiles,
@@ -18524,6 +18525,7 @@ export default function HomeScreen() {
           orbitDurationMs={orbitDurationMs}
           constellationAmount={constellationAmount}
           constellationOpacity={constellationOpacity}
+          pulsingAnimations={pulsingAnimations}
           hidden={showEntityDetail}
         />
       </View>

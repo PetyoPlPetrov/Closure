@@ -40,8 +40,8 @@ type VisualSettingsContextValue = {
   setCosmicBackgroundOpacity: (value: number) => void;
   appUsabilityHints: boolean;
   setAppUsabilityHints: (value: boolean) => void;
-  stopPulsingAnimations: boolean;
-  setStopPulsingAnimations: (value: boolean) => void;
+  pulsingAnimations: boolean;
+  setPulsingAnimations: (value: boolean) => void;
 };
 
 const VisualSettingsContext = createContext<VisualSettingsContextValue | null>(null);
@@ -52,7 +52,7 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
   const [constellationOpacity, setConstellationOpacityState] = useState(DEFAULT_CONSTELLATION_OPACITY);
   const [cosmicBackgroundOpacity, setCosmicOpacityState] = useState(DEFAULT_COSMIC_BACKGROUND_OPACITY);
   const [appUsabilityHints, setAppUsabilityHintsState] = useState(true);
-  const [stopPulsingAnimations, setStopPulsingAnimationsState] = useState(false);
+  const [pulsingAnimations, setPulsingAnimationsState] = useState(true);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -94,7 +94,10 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
           setAppUsabilityHintsState(false);
         }
         if (stopPulsing === "true") {
-          setStopPulsingAnimationsState(true);
+          // Legacy: "true" meant animations were stopped — flip to new semantics (false = not playing)
+          setPulsingAnimationsState(false);
+        } else if (stopPulsing === "false") {
+          setPulsingAnimationsState(true);
         }
         setLoaded(true);
       },
@@ -134,9 +137,10 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
     AsyncStorage.setItem(APP_USABILITY_HINTS_KEY, String(value));
   }, []);
 
-  const setStopPulsingAnimations = useCallback((value: boolean) => {
-    setStopPulsingAnimationsState(value);
-    AsyncStorage.setItem(STOP_PULSING_ANIMATIONS_KEY, String(value));
+  const setPulsingAnimations = useCallback((value: boolean) => {
+    setPulsingAnimationsState(value);
+    // Store inverted so legacy readers still work (stored "true" = stopped = !playing)
+    AsyncStorage.setItem(STOP_PULSING_ANIMATIONS_KEY, String(!value));
   }, []);
 
   const value = useMemo<VisualSettingsContextValue>(
@@ -151,8 +155,8 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       setCosmicBackgroundOpacity,
       appUsabilityHints,
       setAppUsabilityHints,
-      stopPulsingAnimations,
-      setStopPulsingAnimations,
+      pulsingAnimations,
+      setPulsingAnimations,
     }),
     [
       orbitDurationMs,
@@ -165,8 +169,8 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       setCosmicBackgroundOpacity,
       appUsabilityHints,
       setAppUsabilityHints,
-      stopPulsingAnimations,
-      setStopPulsingAnimations,
+      pulsingAnimations,
+      setPulsingAnimations,
     ],
   );
 
@@ -191,8 +195,8 @@ export function useVisualSettings(): VisualSettingsContextValue {
       setCosmicBackgroundOpacity: () => {},
       appUsabilityHints: true,
       setAppUsabilityHints: () => {},
-      stopPulsingAnimations: false,
-      setStopPulsingAnimations: () => {},
+      pulsingAnimations: true,
+      setPulsingAnimations: () => {},
     };
   }
   return ctx;

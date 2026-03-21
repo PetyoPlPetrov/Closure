@@ -3748,7 +3748,7 @@ const translations: Record<Language, Translations> = {
     "settings.feedback.addFeedback": "Add feedback",
     "settings.notificationNudge.title": "Encouragement nudges",
     "settings.notificationNudge.description":
-      "Show or hide the motivational message banner on the Home tab.",
+      "Show or hide the motivational message banner in My Universe.",
     "settings.eventInAppNotifications.title": "In-app notifications for events",
     "settings.eventInAppNotifications.description":
       "When on, the app can show in-app reminders for Sferas events (e.g. create a memory for an event you attended, or new events in your community).",
@@ -3758,10 +3758,10 @@ const translations: Record<Language, Translations> = {
       "When enabled, shows visual hints to suggest tap and drag gestures for app control.",
     "settings.usability.title": "Usability",
     "settings.usability.sectionTitle": "Usability",
-    "settings.usability.showHints": "Show usability hints",
-    "settings.usability.stopPulsingAnimations": "Stop pulsing animations",
+    "settings.usability.showHints": "Usability hints",
+    "settings.usability.stopPulsingAnimations": "Pulsing animations",
     "settings.usability.stopPulsingAnimationsDescription":
-      "When enabled, the insight and AI Sfera buttons on the Sferas tab will not pulse.",
+      "When enabled, the insight and AI Sfera buttons on the Sferas tab will pulse.",
     "settings.aiInsights.title": "AI Insights",
     "settings.aiInsights.enable": "Enable AI Insights",
     "settings.aiInsights.description":
@@ -4584,7 +4584,7 @@ const translations: Record<Language, Translations> = {
     "notifications.eventReminders.cancelMessage":
       "Are you sure you want to stop all reminders for '{eventName}'?",
     "notifications.eventReminders.cancelError": "Failed to cancel reminders",
-    "notifications.eventReminders.noScheduled": "No reminders scheduled. Join an event to receive reminders to create memories.",
+    "notifications.eventReminders.noScheduled": "Reminders to capture memories after events you've attended. No reminders scheduled yet.",
     "notifications.eventReminders.count": "{count} event reminder(s) scheduled",
     "notifications.eventReminders.reminderNumber": "Reminder {number}",
     "notifications.settings.title": "Notification settings",
@@ -4642,7 +4642,7 @@ const translations: Record<Language, Translations> = {
 
     // Moment notifications (nudges)
     "momentNotifications.title": "Moment nudges",
-    "momentNotifications.addSchedule": "Add moment nudge schedule",
+    "momentNotifications.addSchedule": "Sends your lessons & sunny moments as reminders to stay present and grateful",
     "momentNotifications.generateForManual":
       "Generate AI suggestions for manual lessons",
     "momentNotifications.sphere.career": "Career",
@@ -8283,7 +8283,7 @@ const translations: Record<Language, Translations> = {
     "settings.feedback.addFeedback": "Добави обратна връзка",
     "settings.notificationNudge.title": "Подсказки за насърчение",
     "settings.notificationNudge.description":
-      "Показване или скриване на мотивационното съобщение в раздела Начало.",
+      "Показване или скриване на мотивационното съобщение в Моята вселена.",
     "settings.eventInAppNotifications.title": "Вътреприложни известия за събития",
     "settings.eventInAppNotifications.description":
       "Когато е включено, приложението може да показва вътреприложни напомняния за Sferas събития (напр. създаване на спомен за посещено събитие или нови събития в общността ви).",
@@ -8293,10 +8293,10 @@ const translations: Record<Language, Translations> = {
       "Когато е включено, показва визуални подсказки за допир и плъзгане при управление на приложението.",
     "settings.usability.title": "Удобство",
     "settings.usability.sectionTitle": "Удобство",
-    "settings.usability.showHints": "Показвай подсказки за използване",
-    "settings.usability.stopPulsingAnimations": "Спри пулсиращите анимации",
+    "settings.usability.showHints": "Подсказки за използване",
+    "settings.usability.stopPulsingAnimations": "Пулсиращи анимации",
     "settings.usability.stopPulsingAnimationsDescription":
-      "Когато е включено, бутоните за инсайти и AI сфера в раздела Сфери няма да пулсират.",
+      "Когато е включено, бутоните за инсайти и AI сфера в раздела Сфери ще пулсират.",
     "settings.aiInsights.title": "AI Инсайти",
     "settings.aiInsights.enable": "Включи AI Инсайти",
     "settings.aiInsights.description":
@@ -9124,7 +9124,7 @@ const translations: Record<Language, Translations> = {
     "notifications.eventReminders.cancelMessage":
       "Сигурни ли сте, че искате да спрете всички напомняния за '{eventName}'?",
     "notifications.eventReminders.cancelError": "Грешка при отмяна на напомнянията",
-    "notifications.eventReminders.noScheduled": "Няма планирани напомняния. Присъединете се към събитие, за да получавате напомняния за създаване на спомени.",
+    "notifications.eventReminders.noScheduled": "Напомняния да запишеш спомени след събитие. Все още няма планирани.",
     "notifications.eventReminders.count": "{count} планирани напомняния за събития",
     "notifications.eventReminders.reminderNumber": "Напомняне {number}",
     "notifications.settings.title": "Настройки за известия",
@@ -9182,7 +9182,7 @@ const translations: Record<Language, Translations> = {
 
     // Moment notifications (nudges)
     "momentNotifications.title": "Напомняния за моменти",
-    "momentNotifications.addSchedule": "Добави разписание за напомняния",
+    "momentNotifications.addSchedule": "Получавай напомняния от уроците и хубавите си моменти",
     "momentNotifications.generateForManual":
       "Генерирай AI предложения за ръчни уроци",
     "momentNotifications.sphere.career": "Кариера",

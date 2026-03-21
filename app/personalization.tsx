@@ -200,7 +200,7 @@ export default function PersonalizationScreen() {
               <View style={styles.aiToggleTextWrap}>
                 <View style={styles.aiToggleTitleRow}>
                   <ThemedText size="l" weight="medium" style={{ flex: 1 }}>
-                    {t("settings.aiInsights.enable")}
+                    {t("settings.aiInsights.title")}
                   </ThemedText>
                   <TouchableOpacity
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

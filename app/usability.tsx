@@ -34,8 +34,8 @@ export default function UsabilityScreen() {
     constellationOpacity,
     appUsabilityHints,
     setAppUsabilityHints,
-    stopPulsingAnimations,
-    setStopPulsingAnimations,
+    pulsingAnimations,
+    setPulsingAnimations,
   } = useVisualSettings();
 
   const styles = useMemo(
@@ -170,8 +170,8 @@ export default function UsabilityScreen() {
                 </ThemedText>
               </View>
               <Switch
-                value={stopPulsingAnimations}
-                onValueChange={setStopPulsingAnimations}
+                value={pulsingAnimations}
+                onValueChange={setPulsingAnimations}
                 trackColor={{
                   false: "rgba(150,150,150,0.35)",
                   true: colors.primary,

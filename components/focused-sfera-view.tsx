@@ -165,6 +165,8 @@ export type FocusedSferaViewProps = {
   constellationOpacity?: number;
   /** When true, component stays mounted and runs calcs but is invisible (opacity 0, no pointer events). Used for instant back from entity detail. */
   hidden?: boolean;
+  /** When false, pulsing animations (cosmic rings, sphere pulse) are disabled. From Personalization settings. */
+  pulsingAnimations?: boolean;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -732,24 +734,36 @@ const CosmicRing = React.memo(function CosmicRing({
   left,
   top,
   size,
+  enabled,
 }: {
   delay: number;
   color: string;
   left: number;
   top: number;
   size: number;
+  enabled: boolean;
 }) {
   const ringScale = useSharedValue(1);
   const ringOpacity = useSharedValue(0);
 
   useEffect(() => {
+    if (!enabled) {
+      cancelAnimation(ringScale);
+      cancelAnimation(ringOpacity);
+      ringScale.value = 1;
+      ringOpacity.value = 0;
+      return;
+    }
     ringScale.value = withDelay(
       delay,
       withRepeat(
-        withTiming(1.9, {
-          duration: 4500,
-          easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
-        }),
+        withSequence(
+          withTiming(1, { duration: 0 }),
+          withTiming(1.9, {
+            duration: 4500,
+            easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
+          }),
+        ),
         -1,
         false,
       ),
@@ -771,7 +785,7 @@ const CosmicRing = React.memo(function CosmicRing({
       ringScale.value = 1;
       ringOpacity.value = 0;
     };
-  }, [delay, ringScale, ringOpacity]);
+  }, [enabled, delay, ringScale, ringOpacity]);
 
   const ringStyle = useAnimatedStyle(() => ({
     opacity: ringOpacity.value,
@@ -809,20 +823,24 @@ const CosmicRing = React.memo(function CosmicRing({
 
 const CosmicPulseRings = React.memo(function CosmicPulseRings({
   color,
-  containerHalf,
+  offsetX,
+  offsetY,
   sphereSize,
+  enabled,
 }: {
   color: string;
-  containerHalf: number;
+  offsetX: number;
+  offsetY: number;
   sphereSize: number;
+  enabled: boolean;
 }) {
-  const left = containerHalf - sphereSize / 2;
-  const top = containerHalf - sphereSize / 2;
+  const left = offsetX - sphereSize / 2;
+  const top = offsetY - sphereSize / 2;
   return (
     <>
-      <CosmicRing delay={0} color={color} left={left} top={top} size={sphereSize} />
-      <CosmicRing delay={1500} color={color} left={left} top={top} size={sphereSize} />
-      <CosmicRing delay={3000} color={color} left={left} top={top} size={sphereSize} />
+      <CosmicRing delay={0} color={color} left={left} top={top} size={sphereSize} enabled={enabled} />
+      <CosmicRing delay={1500} color={color} left={left} top={top} size={sphereSize} enabled={enabled} />
+      <CosmicRing delay={3000} color={color} left={left} top={top} size={sphereSize} enabled={enabled} />
     </>
   );
 });
@@ -987,8 +1005,6 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     sunnyPercentage,
   );
   const shadowColor = getSphereShadowColor(sphere.type, colorScheme);
-  const ringColor =
-    colorScheme === "dark" ? shadowColor : "rgba(100,100,100,0.3)";
   const depthScale = getEntityDepthScale(slot);
   const baseEntityAvatarSize = isFocused
     ? 40
@@ -1018,13 +1034,6 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       style={containerStyle}
       pointerEvents={isFocused ? "box-none" : "none"}
     >
-      {isFocused && (
-        <CosmicPulseRings
-          color={ringColor}
-          containerHalf={CONTAINER_HALF}
-          sphereSize={FOCUSED_SIZE}
-        />
-      )}
       <Pressable
         onPress={onPress}
         style={{
@@ -1826,6 +1835,7 @@ export function FocusedSferaView({
   constellationAmount = 10,
   constellationOpacity = 10,
   hidden = false,
+  pulsingAnimations = true,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
@@ -2014,6 +2024,19 @@ export function FocusedSferaView({
         avatarCenterY={avatarCenterY}
         colorScheme={colorScheme}
         sunnyBackground={momentColors.sunny.background}
+      />
+
+      {/* ─── Cosmic pulse rings for focused sphere — rendered at root level to avoid container clipping on real iOS devices ─── */}
+      <CosmicPulseRings
+        color={
+          colorScheme === "dark"
+            ? focusedShadowColor
+            : "rgba(100,100,100,0.3)"
+        }
+        offsetX={ORBIT_CX}
+        offsetY={ORBIT_CY + ORBIT_R}
+        sphereSize={FOCUSED_SIZE}
+        enabled={pulsingAnimations}
       />
 
       {/* ─── All 5 spheres with orbital animated transitions ─── */}
