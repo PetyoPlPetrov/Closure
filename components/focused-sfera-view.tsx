@@ -36,7 +36,6 @@ import Animated, {
   cancelAnimation,
   Easing,
   SharedValue,
-  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -867,7 +866,6 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   colorScheme,
   sunnyPercentage,
   orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
-  externalPulseTrigger,
 }: {
   sphereIdx: number;
   sphere: { type: LifeSphere; icon: string };
@@ -881,13 +879,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   colorScheme: "light" | "dark";
   sunnyPercentage: number;
   orbitDurationMs?: number;
-  externalPulseTrigger?: SharedValue<number>;
 }) {
   const { isTablet } = useLargeDevice();
   const target = getSphereTarget(sphereIdx, focusedIdx);
   const isFocused = sphereIdx === focusedIdx;
-  const isFocusedSV = useSharedValue(isFocused);
-  isFocusedSV.value = isFocused;
 
   const [randomPulseIndex, setRandomPulseIndex] = useState<number | null>(null);
 
@@ -908,23 +903,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   const size = useSharedValue(target.size);
   const spherePulseScale = useSharedValue(1);
   const lastPressTimeRef = useRef<number>(0);
-  const entityLastPressTimeRef = useRef<Record<string, number>>({});
   const firstTapFeedbackScale = useSharedValue(1);
-
-  // Fire a single pulse when an unfocused sphere is tapped (parent signals via externalPulseTrigger)
-  useAnimatedReaction(
-    () => externalPulseTrigger?.value ?? 0,
-    (current, previous) => {
-      if (!isFocusedSV.value) return;
-      if (previous !== null && current !== previous && current > 0) {
-        cancelAnimation(firstTapFeedbackScale);
-        firstTapFeedbackScale.value = withSequence(
-          withSpring(1.06, { damping: 10, stiffness: 350 }),
-          withSpring(1.0, { damping: 12, stiffness: 200 }),
-        );
-      }
-    },
-  );
 
   // Pulse animation for focused sphere — every 7s, subtle (offset so it doesn't sync with circle avatar)
   useEffect(() => {
@@ -952,6 +931,14 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     }
   }, [isFocused, spherePulseScale]);
 
+  // Reset double-tap state when this sphere comes into focus (e.g. tapped from unfocused)
+  // so the focusing tap doesn't accidentally count as the first tap of a double-tap sequence.
+  useEffect(() => {
+    if (isFocused) {
+      lastPressTimeRef.current = 0;
+    }
+  }, [isFocused]);
+
   const handleSpherePress = useCallback(() => {
     if (!isFocused) { onPress(); return; }
     const now = Date.now();
@@ -962,27 +949,19 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     } else {
       lastPressTimeRef.current = now;
       cancelAnimation(firstTapFeedbackScale);
+      firstTapFeedbackScale.value = 1;
       firstTapFeedbackScale.value = withSequence(
         withSpring(1.06, { damping: 10, stiffness: 350 }),
         withSpring(1.0, { damping: 12, stiffness: 200 }),
       );
     }
-  }, [isFocused, onPress, firstTapFeedbackScale]);
+  }, [isFocused, onPress, firstTapFeedbackScale, spherePulseScale]);
 
   const handleEntitySelect = useCallback(
     (entityId: string, sphere: LifeSphere) => {
-      if (!isFocused) { onEntitySelect(entityId, sphere); return; }
-      const now = Date.now();
-      const last = entityLastPressTimeRef.current[entityId] ?? 0;
-      const elapsed = now - last;
-      if (elapsed < 350 && elapsed > 0) {
-        entityLastPressTimeRef.current[entityId] = 0;
-        onEntitySelect(entityId, sphere);
-      } else {
-        entityLastPressTimeRef.current[entityId] = now;
-      }
+      onEntitySelect(entityId, sphere);
     },
-    [isFocused, onEntitySelect],
+    [onEntitySelect],
   );
 
   useEffect(() => {
@@ -1091,8 +1070,23 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       style={containerStyle}
       pointerEvents={isFocused ? "box-none" : "auto"}
     >
+      {/* Tight tap target for unfocused spheres — sits over the visual only, avoids stomping on focused sphere taps */}
+      {!isFocused && (
+        <Pressable
+          onPress={handleSpherePress}
+          style={{
+            position: "absolute",
+            left: CONTAINER_HALF - target.size / 2,
+            top: CONTAINER_HALF - target.size / 2,
+            width: target.size,
+            height: target.size,
+            borderRadius: target.size / 2,
+            zIndex: 11,
+          }}
+        />
+      )}
       <Pressable
-        onPress={handleSpherePress}
+        onPress={isFocused ? handleSpherePress : undefined}
         style={{
           position: "absolute",
           left: 0,
@@ -2286,8 +2280,6 @@ export function FocusedSferaView({
 
   const leftChevronScale = useSharedValue(1);
   const rightChevronScale = useSharedValue(1);
-  const focusedSpherePulseTrigger = useSharedValue(0);
-
   const [doubleTapHintShown, setDoubleTapHintShown] = useState(false);
   const hintOpacity = useSharedValue(0);
   const hintScale = useSharedValue(1);
@@ -2405,14 +2397,9 @@ export function FocusedSferaView({
           entityIds={entityIdsBySphere[sphere.type] ?? []}
           entityNames={entityNamesBySphere[sphere.type] ?? []}
           entityMemories={memoriesPerEntityBySphere[sphere.type] ?? []}
-          onPress={() => {
-            if (i === focusedIdx) {
-              onSphereSelect(sphere.type);
-            } else {
-              focusedSpherePulseTrigger.value += 1;
-              goToSphere(i);
-            }
-          }}
+          onPress={() =>
+            i === focusedIdx ? onSphereSelect(sphere.type) : goToSphere(i)
+          }
           onEntitySelect={
             selectedSphere === null && i === focusedIdx
               ? () => onSphereSelect(sphere.type)
@@ -2421,7 +2408,6 @@ export function FocusedSferaView({
           colorScheme={colorScheme}
           sunnyPercentage={getSphereSunnyPercentage(sphere.type)}
           orbitDurationMs={orbitDurationMs}
-          externalPulseTrigger={focusedSpherePulseTrigger}
         />
       ))}
 
