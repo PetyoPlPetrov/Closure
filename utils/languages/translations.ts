@@ -85,6 +85,7 @@ export interface Translations {
   "sferaInsight.noMemories": string;
   "sferaInsight.memories": string;
   "sferaInsight.leastInteracted": string;
+  "sferaInsight.addMemories": string;
 
   // Settings
   "settings.title": string;
@@ -3676,12 +3677,12 @@ const translations: Record<Language, Translations> = {
     "avatar.sunnyLife": "Sunny Life",
     "avatar.addMemories": "Add memories",
     "sferaInsight.addPeople": "Add people",
-    "sferaInsight.leastMemories": "Least documented",
+    "sferaInsight.leastMemories": "Least memories",
     "sferaInsight.mostMemories": "Most documented",
     "sferaInsight.lastUpdated": "Recently active",
     "sferaInsight.mostRecent": "Most recent memory",
     "sferaInsight.mostOld": "Oldest interaction",
-    "sferaInsight.lastInteractedWith": "Last interacted",
+    "sferaInsight.lastInteractedWith": "Oldest interaction",
     "sferaInsight.leastInteraction": "Least interaction",
     "sferaInsight.timeAgo.days": "d ago",
     "sferaInsight.timeAgo.months": "mo ago",
@@ -3694,6 +3695,7 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.noMemories": "No memories yet",
     "sferaInsight.memories": "memories",
     "sferaInsight.leastInteracted": "Least interacted",
+    "sferaInsight.addMemories": "Add memories",
     "events.section.social": "Social",
     "events.section.private": "Private",
     "events.section.plus": "Plus Events",
@@ -8234,7 +8236,7 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.lastUpdated": "Скоро активен",
     "sferaInsight.mostRecent": "Последна среща",
     "sferaInsight.mostOld": "Най-стара среща",
-    "sferaInsight.lastInteractedWith": "Последно взаимодействие",
+    "sferaInsight.lastInteractedWith": "Последно отбелязан спомен",
     "sferaInsight.leastInteraction": "Най-малко взаимодействие",
     "sferaInsight.timeAgo.days": "д назад",
     "sferaInsight.timeAgo.months": "м назад",
@@ -8247,6 +8249,7 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.noMemories": "Няма спомени",
     "sferaInsight.memories": "спомена",
     "sferaInsight.leastInteracted": "Най-малко взаимодействие",
+    "sferaInsight.addMemories": "Добави спомени",
     "events.section.social": "Social",
     "events.section.private": "Private",
     "events.section.plus": "Plus Events",

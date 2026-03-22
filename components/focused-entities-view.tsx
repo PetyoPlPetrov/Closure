@@ -62,8 +62,8 @@ const { width: SW, height: SH } = Dimensions.get("window");
 
 // Avatar constants (from focused-sfera-view.tsx)
 const COSMIC_TRACK = "#0D1525";
-const COSMIC_INNER_DARK = ["#0A0E1A", "#0F1422", "#151C2E", "#1A2440", "#1E2A4A"] as const;
-const COSMIC_INNER_LIGHT = ["#2A2A3A", "#3A3A4E", "#4A4A62", "#5A5A76", "#6A6A8A"] as const;
+const COSMIC_INNER_DARK = ["rgba(10,14,26,0.55)", "rgba(15,20,34,0.6)", "rgba(21,28,46,0.65)", "rgba(26,36,64,0.6)", "rgba(30,42,74,0.55)"] as const;
+const COSMIC_INNER_LIGHT = ["rgba(42,42,58,0.55)", "rgba(58,58,78,0.6)", "rgba(74,74,98,0.65)", "rgba(90,90,118,0.6)", "rgba(106,106,138,0.55)"] as const;
 
 const AVATAR_STARS = [
   { x: 0.82, y: 0.5 }, { x: 0.726, y: 0.726 }, { x: 0.5, y: 0.82 }, { x: 0.274, y: 0.726 },
@@ -90,7 +90,6 @@ const AVATAR_CY = SH * 0.46;
 
 // Entity configuration
 const FOCUSED_ENTITY_SIZE = 120;
-const ENTITY_ORBIT_RADIUS = 200;
 
 // Orbit configuration for non-focused entities
 const ORBIT_RADIUS = 100;
@@ -423,60 +422,53 @@ const SparkledDot = React.memo(function SparkledDot({
 const INSIGHT_CARD_W = 240;
 const INSIGHT_CARD_H = 295;
 
-// ───────────────────── Card perimeter position helper ─────────────────────
+// ───────────────────── Card perimeter position helper (worklet) ─────────────────────
 
 /**
- * Distributes `count` entities evenly along the 4 sides of the card rectangle.
- * Returns (cx, cy) — the center of the avatar slot, offset `gap` px outside the card edge.
- * cardCX/cardCY = card center, cardW/cardH = card dimensions.
+ * Maps a normalized position t ∈ [0,1) clockwise around the card rectangle
+ * (top-left → top-right → bottom-right → bottom-left → back).
+ * Returns the center point of the avatar, offset `gap` px outside the card edge.
+ * Must be a worklet so it can run on the UI thread inside useAnimatedStyle.
  */
-function cardPerimeterPositions(
-  count: number,
+function perimeterPoint(
+  t: number,
   cardCX: number,
   cardCY: number,
   cardW: number,
   cardH: number,
   gap: number,
-): { x: number; y: number }[] {
-  // Perimeter is split into 4 segments: top, right, bottom, left
-  // We place entities proportionally by segment length so spacing is even.
+): { x: number; y: number } {
+  "worklet";
   const halfW = cardW / 2 + gap;
   const halfH = cardH / 2 + gap;
-  const perimeter = 2 * (cardW + cardH);
-  const positions: { x: number; y: number }[] = [];
+  // The path is a rectangle offset `gap` px outside the card, so each edge
+  // spans the full gap-expanded dimension:
+  const topLen = cardW + 2 * gap;    // top edge:    left-corner → right-corner
+  const rightLen = cardH + 2 * gap;  // right edge:  top-corner  → bottom-corner
+  const bottomLen = cardW + 2 * gap; // bottom edge: right-corner → left-corner
+  // leftLen = cardH + 2 * gap (implicit remainder)
+  const dist = ((t % 1) + 1) % 1 * (2 * (topLen + rightLen)); // clamp to [0, perimeter)
 
-  for (let i = 0; i < count; i++) {
-    // Evenly spaced along perimeter, offset by half-step so they don't sit at corners
-    const t = ((i + 0.5) / count) * perimeter;
-
-    let x: number, y: number;
-    const topLen = cardW;
-    const rightLen = cardH;
-    const bottomLen = cardW;
-    // const leftLen = cardH;
-
-    if (t < topLen) {
-      // Top edge: left → right
-      x = cardCX - cardW / 2 + t;
-      y = cardCY - halfH;
-    } else if (t < topLen + rightLen) {
-      // Right edge: top → bottom
-      x = cardCX + halfW;
-      y = cardCY - cardH / 2 + (t - topLen);
-    } else if (t < topLen + rightLen + bottomLen) {
-      // Bottom edge: right → left
-      x = cardCX + cardW / 2 - (t - topLen - rightLen);
-      y = cardCY + halfH;
-    } else {
-      // Left edge: bottom → top
-      x = cardCX - halfW;
-      y = cardCY + cardH / 2 - (t - topLen - rightLen - bottomLen);
-    }
-
-    positions.push({ x, y });
+  let x: number, y: number;
+  if (dist < topLen) {
+    // Top edge: left → right
+    x = cardCX - halfW + dist;
+    y = cardCY - halfH;
+  } else if (dist < topLen + rightLen) {
+    // Right edge: top → bottom
+    x = cardCX + halfW;
+    y = cardCY - halfH + (dist - topLen);
+  } else if (dist < topLen + rightLen + bottomLen) {
+    // Bottom edge: right → left
+    x = cardCX + halfW - (dist - topLen - rightLen);
+    y = cardCY + halfH;
+  } else {
+    // Left edge: bottom → top
+    x = cardCX - halfW;
+    y = cardCY + halfH - (dist - topLen - rightLen - bottomLen);
   }
 
-  return positions;
+  return { x, y };
 }
 
 // ───────────────────── Orbiting Entity ─────────────────────
@@ -486,79 +478,58 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   memories,
   index,
   count,
-  baseAngle,
   centerX,
   centerY,
-  orbitRadius,
   avatarSize,
   glowColor,
   onEntitySelect,
   sphere,
-  orbitAngle,
-  rotateOrbit,
-  fixedX,
-  fixedY,
+  perimeterOffset,
   orbitDurationMs = DEFAULT_ORBIT_DURATION_MS,
 }: {
   entity: BaseEntity | { id: string; name: string; imageUri?: string; isCompleted: boolean; createdAt?: string };
   memories: IdealizedMemory[];
   index: number;
   count: number;
-  baseAngle: number;
   centerX: number;
   centerY: number;
-  orbitRadius: number;
   avatarSize: number;
   glowColor: string;
   onEntitySelect?: (entityId: string) => void;
   sphere: LifeSphere;
-  orbitAngle: SharedValue<number>;
-  rotateOrbit: boolean;
-  fixedX?: number;
-  fixedY?: number;
+  perimeterOffset: SharedValue<number>;
   orbitDurationMs?: number;
 }) {
   const { isTablet } = useLargeDevice();
   const scale = useSharedValue(1);
-  const floatOffset = useSharedValue(0);
 
-  // Gentle float animation for perimeter mode
-  useEffect(() => {
-    if (fixedX === undefined) return;
-    const amplitude = 4 + (index % 3) * 2; // 4–8px, varied per entity
-    const duration = 2800 + index * 310; // stagger period per entity
-    floatOffset.value = withRepeat(
-      withSequence(
-        withTiming(amplitude, { duration, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-amplitude, { duration, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1,
-      true,
-    );
-    return () => cancelAnimation(floatOffset);
-  }, [fixedX, index, floatOffset]);
+  const gap = avatarSize / 2 + 10;
+  const baseT = index / count;
 
   const animatedStyle = useAnimatedStyle(() => {
-    if (fixedX !== undefined && fixedY !== undefined) {
-      return {
-        position: "absolute",
-        left: fixedX - avatarSize / 2,
-        top: fixedY - avatarSize / 2 + floatOffset.value,
-        width: avatarSize,
-        height: avatarSize,
-        transform: [{ scale: scale.value }],
-      };
-    }
-    const angle = baseAngle + orbitAngle.value;
-    const x = centerX + Math.cos(angle) * orbitRadius - avatarSize / 2;
-    const y = centerY + Math.sin(angle) * orbitRadius - avatarSize / 2;
+    const t = (baseT + perimeterOffset.value) % 1;
+    const pos = perimeterPoint(t, centerX, centerY, INSIGHT_CARD_W, INSIGHT_CARD_H, gap);
     return {
       position: "absolute",
-      left: x,
-      top: y,
+      left: pos.x - avatarSize / 2,
+      top: pos.y - avatarSize / 2,
       width: avatarSize,
       height: avatarSize,
       transform: [{ scale: scale.value }],
+    };
+  });
+
+  // Moment icons rendered as an absolute sibling (not clipped by avatar circle)
+  const iconAreaSize = (MOMENT_ORBIT_RADIUS + MOMENT_ICON_SIZE) * 2;
+  const momentIconsStyle = useAnimatedStyle(() => {
+    const t = (baseT + perimeterOffset.value) % 1;
+    const pos = perimeterPoint(t, centerX, centerY, INSIGHT_CARD_W, INSIGHT_CARD_H, gap);
+    return {
+      position: "absolute",
+      left: pos.x - iconAreaSize / 2,
+      top: pos.y - iconAreaSize / 2,
+      width: iconAreaSize,
+      height: iconAreaSize,
     };
   });
 
@@ -569,6 +540,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   const borderWidth = isTablet ? 3 : 2;
 
   return (
+    <>
     <Animated.View
       style={[
         animatedStyle,
@@ -632,15 +604,20 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
             </ThemedText>
           </View>
         )}
-        <SmallFloatingMoments
-          entityCenterX={avatarSize / 2}
-          entityCenterY={avatarSize / 2}
-          entityIndex={index}
-          memories={memories}
-          orbitDurationMs={orbitDurationMs}
-        />
       </Pressable>
     </Animated.View>
+
+    {/* Moment icons in a separate Animated.View so they are NOT clipped by the avatar circle */}
+    <Animated.View style={[momentIconsStyle, { zIndex: 16 }]} pointerEvents="none">
+      <SmallFloatingMoments
+        entityCenterX={(MOMENT_ORBIT_RADIUS + MOMENT_ICON_SIZE)}
+        entityCenterY={(MOMENT_ORBIT_RADIUS + MOMENT_ICON_SIZE)}
+        entityIndex={index}
+        memories={memories}
+        orbitDurationMs={orbitDurationMs}
+      />
+    </Animated.View>
+  </>
   );
 });
 
@@ -653,10 +630,8 @@ const EntityRing = React.memo(function EntityRing({
   sphere,
   centerX,
   centerY,
-  orbitRadius,
   avatarSize,
   glowColor,
-  rotateOrbit = false,
   orbitDurationMs = DEFAULT_ORBIT_DURATION_MS,
 }: {
   entities: (BaseEntity | { id: string; name: string; imageUri?: string; isCompleted: boolean; createdAt?: string })[];
@@ -665,34 +640,31 @@ const EntityRing = React.memo(function EntityRing({
   sphere: LifeSphere;
   centerX: number;
   centerY: number;
-  orbitRadius: number;
   avatarSize: number;
   glowColor: string;
-  rotateOrbit?: boolean;
   orbitDurationMs?: number;
 }) {
-  // Dummy shared value — no longer used for circular orbit but required by OrbitingEntity type
-  const orbitAngle = useSharedValue(0);
+  // Single offset value drives all entities sliding clockwise around the card perimeter
+  const perimeterOffset = useSharedValue(0);
+
+  useEffect(() => {
+    perimeterOffset.value = 0;
+    perimeterOffset.value = withRepeat(
+      withTiming(1, { duration: orbitDurationMs, easing: Easing.linear }),
+      -1,
+      false,
+    );
+    return () => cancelAnimation(perimeterOffset);
+  }, [perimeterOffset, orbitDurationMs]);
 
   if (entities.length === 0) return null;
   const count = Math.min(entities.length, 8);
-
-  // Place entities along the card perimeter instead of a circular orbit
-  const perimeterPositions = cardPerimeterPositions(
-    count,
-    centerX,
-    centerY,
-    INSIGHT_CARD_W,
-    INSIGHT_CARD_H,
-    avatarSize / 2 + 10,
-  );
 
   return (
     <>
       {Array.from({ length: count }, (_, i) => {
         const entity = entities[i];
         const memories = memoriesPerEntity[i] ?? [];
-        const pos = perimeterPositions[i];
         return (
           <OrbitingEntity
             key={`${entity.id}-${i}`}
@@ -700,18 +672,13 @@ const EntityRing = React.memo(function EntityRing({
             memories={memories}
             index={i}
             count={count}
-            baseAngle={0}
             centerX={centerX}
             centerY={centerY}
-            orbitRadius={orbitRadius}
             avatarSize={avatarSize}
             glowColor={glowColor}
             onEntitySelect={onEntitySelect}
             sphere={sphere}
-            orbitAngle={orbitAngle}
-            rotateOrbit={false}
-            fixedX={pos.x}
-            fixedY={pos.y}
+            perimeterOffset={perimeterOffset}
             orbitDurationMs={orbitDurationMs}
           />
         );
@@ -741,13 +708,15 @@ function blendHex(hex1: string, hex2: string, t: number): string {
 const INSIGHT_ARROW_SIZE = 28;
 const INSIGHT_ARROW_HIT = 36;
 
-const COSMIC_TEXT_COLOR = "#B8E8EC";
+const COSMIC_TEXT_COLOR = "#FFFFFF"; // matches inactive tab label — white, ~12:1 on dark bg
+const COSMIC_TEXT_DIM = "#90CAF9"; // matches active tab tint — sky blue, ~5.8:1 on dark bg
 
 /** Most recent / most old last-interaction for an entity set */
 function getInteractionIndices(memoriesPerEntity: IdealizedMemory[][]) {
   let newestTime = -1, newestIdx = 0;
   let oldestTime = Infinity, oldestIdx = 0;
   let mostMems = -1, mostMemsIdx = 0;
+  let leastMems = Infinity, leastMemsIdx = 0;
   let oldestMemTime = Infinity, oldestMemIdx = 0;
   let mostCloudy = -1, mostCloudyIdx = 0;
   let mostSunny = -1, mostSunnyIdx = 0;
@@ -756,6 +725,7 @@ function getInteractionIndices(memoriesPerEntity: IdealizedMemory[][]) {
   memoriesPerEntity.forEach((mems, i) => {
     if (mems.length === 0 && noMemsIdx === -1) noMemsIdx = i;
     if (mems.length > mostMems) { mostMems = mems.length; mostMemsIdx = i; }
+    if (mems.length < leastMems) { leastMems = mems.length; leastMemsIdx = i; }
 
     let cloudyCount = 0, sunnyCount = 0;
     mems.forEach((mem) => {
@@ -779,6 +749,7 @@ function getInteractionIndices(memoriesPerEntity: IdealizedMemory[][]) {
     oldestTime: oldestTime === Infinity ? null : oldestTime,
     newestTime: newestTime === -1 ? null : newestTime,
     mostMemsIdx,
+    leastMemsIdx,
     oldestMemIdx,
     mostCloudyIdx,
     mostSunnyIdx,
@@ -805,7 +776,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 }) {
   const t = useTranslate();
   const { momentColors } = useMomentColors();
-  // For family/friends, default to "oldest" card so the most actionable info shows first
+  // For family/friends, default to "oldest interaction" card so the most actionable info shows first
   const defaultMode = (sphere === "family" || sphere === "friends") ? 1 : 0;
   const [mode, setMode] = useState(defaultMode); // 0 = most recent, 1 = most old
   const modeOpacity = useSharedValue(1);
@@ -814,7 +785,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   // Whether this sphere supports social CTAs (bell + event thumbnails)
   const hasSocialCTAs = sphere === "family" || sphere === "friends";
 
-  const { newestIdx, oldestIdx, oldestTime, newestTime, mostMemsIdx, oldestMemIdx, mostCloudyIdx, mostSunnyIdx, noMemsIdx } = useMemo(
+  const { newestIdx, oldestIdx, oldestTime, newestTime, mostMemsIdx, leastMemsIdx, oldestMemIdx, mostCloudyIdx, mostSunnyIdx, noMemsIdx } = useMemo(
     () => getInteractionIndices(memoriesPerEntity),
     [memoriesPerEntity],
   );
@@ -868,11 +839,11 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     alignItems: "center" as const,
   };
 
-  // 6 modes: 0=most recent, 1=least interacted, 2=most memories, 3=oldest memory, 4=most cloudy, 5=most sunny
-  const entityIdx = [newestIdx, oldestIdx, mostMemsIdx, oldestMemIdx, mostCloudyIdx, mostSunnyIdx][mode] ?? 0;
+  // 6 modes: 0=least memories, 1=oldest interaction, 2=most recent, 3=most memories, 4=most cloudy, 5=most sunny
+  const entityIdx = [leastMemsIdx, oldestIdx, newestIdx, mostMemsIdx, mostCloudyIdx, mostSunnyIdx][mode] ?? 0;
   const entity = entities[entityIdx];
   const entityName = entity?.name ?? "";
-  const showSocialBottom = hasSocialCTAs && mode === 1 && entity != null;
+  const showSocialBottom = hasSocialCTAs && (mode === 0 || mode === 1) && entity != null;
   // Urgency border: amber tint when oldest interaction > 30 days
   const isMoodCard = mode === 4 || mode === 5;
   const moodBorderColor = mode === 4 ? (momentColors.cloudy.background + "AA") : (momentColors.sunny.background + "AA");
@@ -882,7 +853,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   // Human-readable time since interaction (must be before early return)
   const timeAgoLabel = useMemo(() => {
     const ts = mode === 1 ? oldestTime : newestTime;
-    if (!ts || mode > 1) return null;
+    if (!ts || (mode !== 0 && mode !== 1 && mode !== 2)) return null;
     const diff = Date.now() - ts;
     const days = Math.floor(diff / (24 * 60 * 60 * 1000));
     if (days === 0) return t("sferaInsight.timeAgo.today");
@@ -893,10 +864,10 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
   // Label for top of card
   const cardLabels = [
-    t("sferaInsight.mostRecent"),
+    t("sferaInsight.leastMemories"),
     t("sferaInsight.lastInteractedWith"),
+    t("sferaInsight.mostRecent"),
     t("sferaInsight.mostMemories2"),
-    t("sferaInsight.oldestMemory"),
     t("sferaInsight.mostCloudy"),
     t("sferaInsight.mostSunny"),
   ];
@@ -925,7 +896,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           }}
         >
           <MaterialIcons name="add-circle-outline" size={32} color={shadowColor} />
-          <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 11, textAlign: "center", marginTop: 8, opacity: 0.85 }}>
+          <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 11, textAlign: "center", marginTop: 8 }}>
             {t("sferaInsight.addPeople")}
           </ThemedText>
         </LinearGradient>
@@ -940,8 +911,9 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       {numModes > 1 ? (
         <Pressable
           onPress={goPrev}
-          hitSlop={8}
-          style={{ width: INSIGHT_ARROW_HIT, height: INSIGHT_ARROW_HIT, justifyContent: "center", alignItems: "center" }}
+          accessibilityRole="button"
+          accessibilityLabel="Previous insight"
+          style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
         >
           <MaterialIcons name="chevron-left" size={INSIGHT_ARROW_SIZE} color={shadowColor + "CC"} />
         </Pressable>
@@ -953,6 +925,9 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       <Pressable
         style={{ flex: 1, height: INSIGHT_CARD_H }}
         onPress={() => entity && onEntitySelect?.(entity.id)}
+        accessibilityRole="button"
+        accessibilityLabel={entity ? `${cardLabel}: ${entityName}` : undefined}
+        accessibilityHint={entity ? `Opens ${entityName}'s details` : undefined}
       >
         <LinearGradient
           colors={[...gradientColors]}
@@ -973,41 +948,31 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           }}
         >
           {/* Top label — the insight, not the person */}
-          <Animated.View style={modeAnimStyle}>
-            <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 13, textAlign: "center", opacity: 1, fontWeight: "600", letterSpacing: 0.2 }} numberOfLines={1}>
+          <Animated.View style={modeAnimStyle} accessibilityLiveRegion="polite">
+            <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 16, textAlign: "center", fontWeight: "700", letterSpacing: 0.2 }} numberOfLines={1}>
               {cardLabel}
             </ThemedText>
           </Animated.View>
 
           {/* Person block */}
           <Animated.View style={[modeAnimStyle, { gap: 3 }]}>
-            <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 12, fontWeight: "600", opacity: 0.85 }} numberOfLines={1}>
+            <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 12, fontWeight: "600" }} numberOfLines={1}>
               {entityName}
             </ThemedText>
             {/* Meta row varies by mode */}
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              {/* Mode 0/1: time-ago */}
-              {(mode === 0 || mode === 1) && timeAgoLabel ? (
-                <ThemedText style={{ color: isUrgent && mode === 1 ? "#F5A623" : COSMIC_TEXT_COLOR, fontSize: 10, opacity: isUrgent && mode === 1 ? 1 : 0.6 }}>
+              {/* Mode 0/1/2: time-ago */}
+              {(mode === 0 || mode === 1 || mode === 2) && timeAgoLabel ? (
+                <ThemedText style={{ color: isUrgent && mode === 1 ? "#F5A623" : COSMIC_TEXT_DIM, fontSize: 10 }}>
                   {timeAgoLabel}
                 </ThemedText>
               ) : null}
-              {/* Mode 2: memory count */}
-              {mode === 2 ? (
-                <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10, opacity: 0.6 }}>
+              {/* Mode 3: most memory count */}
+              {mode === 3 ? (
+                <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 10 }}>
                   {(memoriesPerEntity[entityIdx]?.length ?? 0)} {t("sferaInsight.memories")}
                 </ThemedText>
               ) : null}
-              {/* Mode 3: oldest memory title */}
-              {mode === 3 ? (() => {
-                const mems = memoriesPerEntity[entityIdx] ?? [];
-                const oldest = mems.length > 0 ? mems.reduce((a, b) => new Date(a.createdAt) < new Date(b.createdAt) ? a : b) : null;
-                if (!oldest) return null;
-                const diff = Date.now() - new Date(oldest.createdAt).getTime();
-                const days = Math.floor(diff / (24 * 60 * 60 * 1000));
-                const label = days < 31 ? `${days}${t("sferaInsight.timeAgo.days")}` : `${Math.floor(days/30)}${t("sferaInsight.timeAgo.months")}`;
-                return <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10, opacity: 0.6 }}>{label}</ThemedText>;
-              })() : null}
               {/* Mode 4/5: mood counts */}
               {mode === 4 ? (() => {
                 const mems = memoriesPerEntity[entityIdx] ?? [];
@@ -1019,17 +984,19 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                 const count = mems.reduce((s, m) => s + (m.goodFacts?.length ?? 0), 0);
                 return <ThemedText style={{ color: momentColors.sunny.background, fontSize: 10 }}>{count} sunny moments</ThemedText>;
               })() : null}
-              {/* Bell for mode 1 */}
+              {/* Bell for modes 0/1 */}
               {showSocialBottom && timeAgoLabel ? (
-                <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10, opacity: 0.3 }}>·</ThemedText>
+                <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 10 }}>·</ThemedText>
               ) : null}
               {showSocialBottom && (
                 <Pressable
-                  hitSlop={8}
                   onPress={(e) => {
                     e.stopPropagation();
                     router.push(`/notifications/${sphere}/${entity.id}`);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Set reminder for ${entityName}`}
+                  accessibilityHint="Opens notification settings"
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
@@ -1038,19 +1005,67 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                     borderRadius: 8,
                     borderWidth: 1,
                     borderColor: shadowColor + "44",
-                    paddingHorizontal: 6,
-                    paddingVertical: 3,
+                    paddingHorizontal: 8,
+                    paddingVertical: 6,
+                    minWidth: 32,
+                    minHeight: 32,
                   }}
                 >
-                  <MaterialIcons name="notifications-none" size={11} color={shadowColor} />
+                  <MaterialIcons name="notifications-none" size={14} color={shadowColor} />
                 </Pressable>
               )}
             </View>
           </Animated.View>
 
-          {/* Mode 0/3/4/5: show most recent memory image if available */}
-          {/* Mode 2: scattered memory bubbles */}
-          {mode === 2 && (() => {
+          {/* Modes 0/1: show most recent memory image, or add-memories CTA (suppressed when social event card takes over) */}
+          {(mode === 0 || mode === 1) && !(showSocialBottom && currentEvent) && (() => {
+            const mems = memoriesPerEntity[entityIdx] ?? [];
+            const mem = mems.length > 0
+              ? mems.reduce((a, b) => new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b)
+              : null;
+            if (mem?.imageUri) {
+              const moodSunny = mem.goodFacts?.length ?? 0;
+              const moodCloudy = mem.hardTruths?.length ?? 0;
+              const moodColor = moodSunny >= moodCloudy ? momentColors.sunny.background : momentColors.cloudy.background;
+              return (
+                <View style={{ flex: 1, alignSelf: "stretch", borderRadius: 10, overflow: "hidden", borderWidth: 1.5, borderColor: moodColor + "88" }}>
+                  <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1 }} contentFit="cover" />
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
+                    <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10 }} numberOfLines={1}>
+                      {mem.title}
+                    </ThemedText>
+                  </View>
+                </View>
+              );
+            }
+            return (
+              <Pressable
+                onPress={(e) => { e.stopPropagation(); entity && onEntitySelect?.(entity.id); }}
+                accessibilityRole="button"
+                accessibilityLabel={`Add memories for ${entityName}`}
+                style={{
+                  flex: 1,
+                  alignSelf: "stretch",
+                  borderRadius: 10,
+                  borderWidth: 1.5,
+                  borderColor: shadowColor + "44",
+                  borderStyle: "dashed",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <MaterialIcons name="add-photo-alternate" size={24} color={shadowColor + "99"} />
+                <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 11 }}>
+                  {t("sferaInsight.addMemories")}
+                </ThemedText>
+              </Pressable>
+            );
+          })()}
+
+          {/* Mode 2/4/5: show memory image if available */}
+          {/* Mode 3: scattered memory bubbles */}
+          {mode === 3 && (() => {
             const mems = memoriesPerEntity[entityIdx] ?? [];
             if (mems.length === 0) return null;
             // Deterministic scatter positions using index-based offsets
@@ -1071,7 +1086,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                   const sunny = mem.goodFacts?.length ?? 0;
                   const cloudy = mem.hardTruths?.length ?? 0;
                   const moodColor = sunny >= cloudy ? momentColors.sunny.background : momentColors.cloudy.background;
-                  const size = 36 + (i % 3) * 8; // vary sizes slightly
+                  const size = 36 + (i % 3) * 8;
                   return (
                     <View
                       key={mem.id}
@@ -1107,12 +1122,11 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             );
           })()}
 
-          {/* Modes 0/3/4/5: memory image with mood border */}
-          {(mode === 0 || mode === 3 || mode === 4 || mode === 5) && (() => {
+          {/* Modes 2/4/5: memory image with mood border */}
+          {(mode === 2 || mode === 4 || mode === 5) && (() => {
             const mems = memoriesPerEntity[entityIdx] ?? [];
             let mem: IdealizedMemory | null = null;
-            if (mode === 0) mem = mems.length > 0 ? mems.reduce((a, b) => new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b) : null;
-            if (mode === 3) mem = mems.length > 0 ? mems.reduce((a, b) => new Date(a.createdAt) < new Date(b.createdAt) ? a : b) : null;
+            if (mode === 2) mem = mems.length > 0 ? mems.reduce((a, b) => new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b) : null;
             if (mode === 4) mem = mems.length > 0 ? mems.reduce((a, b) => (a.hardTruths?.length ?? 0) > (b.hardTruths?.length ?? 0) ? a : b) : null;
             if (mode === 5) mem = mems.length > 0 ? mems.reduce((a, b) => (a.goodFacts?.length ?? 0) > (b.goodFacts?.length ?? 0) ? a : b) : null;
             if (!mem?.imageUri) return null;
@@ -1123,7 +1137,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
               <View style={{ flex: 1, alignSelf: "stretch", borderRadius: 10, overflow: "hidden", borderWidth: 1.5, borderColor: moodColor + "88" }}>
                 <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1 }} contentFit="cover" />
                 <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
-                  <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10, opacity: 0.9 }} numberOfLines={1}>
+                  <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10 }} numberOfLines={1}>
                     {mem.title}
                   </ThemedText>
                 </View>
@@ -1167,13 +1181,15 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                     e.stopPropagation();
                     if (socialEvents.length > 1) setEventDisplayIdx((i) => (i + 1) % socialEvents.length);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Show next event"
                   style={{
                     position: "absolute",
                     top: 6,
                     right: 6,
-                    width: 28,
-                    height: 28,
-                    borderRadius: 14,
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
                     backgroundColor: "#00000055",
                     justifyContent: "center",
                     alignItems: "center",
@@ -1183,17 +1199,19 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                 </Pressable>
                 {/* Event name + see-more */}
                 <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 8, paddingVertical: 6, gap: 4 }}>
-                  <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10, flex: 1, opacity: 0.85 }} numberOfLines={2}>
+                  <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10, flex: 1 }} numberOfLines={2}>
                     {currentEvent.name}
                   </ThemedText>
                   <Pressable
-                    hitSlop={6}
+                    hitSlop={8}
                     onPress={(e) => {
                       e.stopPropagation();
                       router.push("/(tabs)/events");
                     }}
+                    accessibilityRole="link"
+                    accessibilityLabel="See all events"
                   >
-                    <MaterialIcons name="open-in-new" size={13} color={shadowColor + "99"} />
+                    <MaterialIcons name="open-in-new" size={13} color={shadowColor} />
                   </Pressable>
                 </View>
               </Pressable>
@@ -1202,15 +1220,20 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
           {/* Pagination dots — shown when not in social mode */}
           {!showSocialBottom && (
-            <View style={{ flexDirection: "row", gap: 5, alignSelf: "center" }}>
+            <View style={{ flexDirection: "row", gap: 5, alignSelf: "center" }} accessibilityRole="tablist">
               {Array.from({ length: numModes }).map((_, i) => (
-                <View
+                <Pressable
                   key={i}
+                  onPress={() => animateAndSet(i)}
+                  hitSlop={8}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: i === mode }}
+                  accessibilityLabel={cardLabels[i]}
                   style={{
                     width: i === mode ? 14 : 6,
                     height: 6,
                     borderRadius: 3,
-                    backgroundColor: i === mode ? shadowColor : shadowColor + "44",
+                    backgroundColor: i === mode ? shadowColor : shadowColor + "88",
                   }}
                 />
               ))}
@@ -1223,8 +1246,9 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       {numModes > 1 ? (
         <Pressable
           onPress={goNext}
-          hitSlop={8}
-          style={{ width: INSIGHT_ARROW_HIT, height: INSIGHT_ARROW_HIT, justifyContent: "center", alignItems: "center" }}
+          accessibilityRole="button"
+          accessibilityLabel="Next insight"
+          style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
         >
           <MaterialIcons name="chevron-right" size={INSIGHT_ARROW_SIZE} color={shadowColor + "CC"} />
         </Pressable>
@@ -1764,7 +1788,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         y={AVATAR_CY}
       />
 
-      {/* Entities in orbit around central avatar */}
+      {/* Entities sliding clockwise around the card perimeter */}
       <EntityRing
         entities={sortedEntities}
         memoriesPerEntity={sortedMemoriesPerEntity}
@@ -1772,10 +1796,8 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         sphere={sphere}
         centerX={AVATAR_CX}
         centerY={AVATAR_CY}
-        orbitRadius={ENTITY_ORBIT_RADIUS}
         avatarSize={isTablet ? 60 : 50}
         glowColor={sunnyBackground}
-        rotateOrbit={true}
         orbitDurationMs={orbitDurationMs}
       />
     </View>
