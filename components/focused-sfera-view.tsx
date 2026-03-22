@@ -10,6 +10,7 @@ import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
+import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
@@ -22,7 +23,7 @@ import {
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   InteractionManager,
@@ -35,6 +36,7 @@ import Animated, {
   cancelAnimation,
   Easing,
   SharedValue,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -865,6 +867,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   colorScheme,
   sunnyPercentage,
   orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
+  externalPulseTrigger,
 }: {
   sphereIdx: number;
   sphere: { type: LifeSphere; icon: string };
@@ -878,10 +881,13 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   colorScheme: "light" | "dark";
   sunnyPercentage: number;
   orbitDurationMs?: number;
+  externalPulseTrigger?: SharedValue<number>;
 }) {
   const { isTablet } = useLargeDevice();
   const target = getSphereTarget(sphereIdx, focusedIdx);
   const isFocused = sphereIdx === focusedIdx;
+  const isFocusedSV = useSharedValue(isFocused);
+  isFocusedSV.value = isFocused;
 
   const [randomPulseIndex, setRandomPulseIndex] = useState<number | null>(null);
 
@@ -901,6 +907,24 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   const angle = useSharedValue(target.angle);
   const size = useSharedValue(target.size);
   const spherePulseScale = useSharedValue(1);
+  const lastPressTimeRef = useRef<number>(0);
+  const entityLastPressTimeRef = useRef<Record<string, number>>({});
+  const firstTapFeedbackScale = useSharedValue(1);
+
+  // Fire a single pulse when an unfocused sphere is tapped (parent signals via externalPulseTrigger)
+  useAnimatedReaction(
+    () => externalPulseTrigger?.value ?? 0,
+    (current, previous) => {
+      if (!isFocusedSV.value) return;
+      if (previous !== null && current !== previous && current > 0) {
+        cancelAnimation(firstTapFeedbackScale);
+        firstTapFeedbackScale.value = withSequence(
+          withSpring(1.06, { damping: 10, stiffness: 350 }),
+          withSpring(1.0, { damping: 12, stiffness: 200 }),
+        );
+      }
+    },
+  );
 
   // Pulse animation for focused sphere — every 7s, subtle (offset so it doesn't sync with circle avatar)
   useEffect(() => {
@@ -927,6 +951,39 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       spherePulseScale.value = 1;
     }
   }, [isFocused, spherePulseScale]);
+
+  const handleSpherePress = useCallback(() => {
+    if (!isFocused) { onPress(); return; }
+    const now = Date.now();
+    const elapsed = now - lastPressTimeRef.current;
+    if (elapsed < 350 && elapsed > 0) {
+      lastPressTimeRef.current = 0;
+      onPress();
+    } else {
+      lastPressTimeRef.current = now;
+      cancelAnimation(firstTapFeedbackScale);
+      firstTapFeedbackScale.value = withSequence(
+        withSpring(1.06, { damping: 10, stiffness: 350 }),
+        withSpring(1.0, { damping: 12, stiffness: 200 }),
+      );
+    }
+  }, [isFocused, onPress, firstTapFeedbackScale]);
+
+  const handleEntitySelect = useCallback(
+    (entityId: string, sphere: LifeSphere) => {
+      if (!isFocused) { onEntitySelect(entityId, sphere); return; }
+      const now = Date.now();
+      const last = entityLastPressTimeRef.current[entityId] ?? 0;
+      const elapsed = now - last;
+      if (elapsed < 350 && elapsed > 0) {
+        entityLastPressTimeRef.current[entityId] = 0;
+        onEntitySelect(entityId, sphere);
+      } else {
+        entityLastPressTimeRef.current[entityId] = now;
+      }
+    },
+    [isFocused, onEntitySelect],
+  );
 
   useEffect(() => {
     const next = getSphereTarget(sphereIdx, focusedIdx);
@@ -1022,7 +1079,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     top: CONTAINER_HALF - size.value / 2,
     width: size.value,
     height: size.value,
-    transform: [{ scale: spherePulseScale.value }],
+    transform: [{ scale: spherePulseScale.value * firstTapFeedbackScale.value }],
   }));
 
   const iconSize = isFocused
@@ -1032,10 +1089,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   return (
     <Animated.View
       style={containerStyle}
-      pointerEvents={isFocused ? "box-none" : "none"}
+      pointerEvents={isFocused ? "box-none" : "auto"}
     >
       <Pressable
-        onPress={onPress}
+        onPress={handleSpherePress}
         style={{
           position: "absolute",
           left: 0,
@@ -1149,7 +1206,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
           entityIds={entityIds}
           entityNames={entityNames}
           entityMemories={entityMemories}
-          onEntitySelect={onEntitySelect}
+          onEntitySelect={handleEntitySelect}
           sphere={sphere.type}
           centerX={CONTAINER_HALF}
           centerY={CONTAINER_HALF}
@@ -2095,6 +2152,7 @@ export function FocusedSferaView({
   pulsingAnimations = true,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
+  const { appUsabilityHints } = useVisualSettings();
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
   const N = SPHERE_LIST.length;
   // Keep root aligned with TabScreenContainer; we shift spheres via ORBIT_CY instead.
@@ -2228,6 +2286,46 @@ export function FocusedSferaView({
 
   const leftChevronScale = useSharedValue(1);
   const rightChevronScale = useSharedValue(1);
+  const focusedSpherePulseTrigger = useSharedValue(0);
+
+  const [doubleTapHintShown, setDoubleTapHintShown] = useState(false);
+  const hintOpacity = useSharedValue(0);
+  const hintScale = useSharedValue(1);
+
+  useEffect(() => {
+    if (!appUsabilityHints || doubleTapHintShown || selectedSphere !== null) {
+      cancelAnimation(hintOpacity);
+      cancelAnimation(hintScale);
+      hintOpacity.value = withTiming(0, { duration: 200 });
+      return;
+    }
+    const timer = setTimeout(() => {
+      setDoubleTapHintShown(true);
+      hintOpacity.value = withSequence(
+        withTiming(0.9, { duration: 200, easing: Easing.out(Easing.ease) }),
+        withDelay(800, withTiming(0, { duration: 400, easing: Easing.in(Easing.ease) })),
+      );
+      hintScale.value = withSequence(
+        withTiming(1, { duration: 0 }),
+        withTiming(0.82, { duration: 90 }),
+        withTiming(1.0, { duration: 90 }),
+        withDelay(120, withSequence(
+          withTiming(0.82, { duration: 90 }),
+          withTiming(1.0, { duration: 90 }),
+        )),
+      );
+    }, 1500);
+    return () => {
+      clearTimeout(timer);
+      cancelAnimation(hintOpacity);
+      cancelAnimation(hintScale);
+    };
+  }, [appUsabilityHints, doubleTapHintShown, selectedSphere, hintOpacity, hintScale]);
+
+  const doubleTapHintAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: hintOpacity.value,
+    transform: [{ scale: hintScale.value }],
+  }));
 
   const leftChevronStyle = useAnimatedStyle(() => ({
     transform: [{ scale: leftChevronScale.value }],
@@ -2307,13 +2405,23 @@ export function FocusedSferaView({
           entityIds={entityIdsBySphere[sphere.type] ?? []}
           entityNames={entityNamesBySphere[sphere.type] ?? []}
           entityMemories={memoriesPerEntityBySphere[sphere.type] ?? []}
-          onPress={() =>
-            i === focusedIdx ? onSphereSelect(sphere.type) : goToSphere(i)
+          onPress={() => {
+            if (i === focusedIdx) {
+              onSphereSelect(sphere.type);
+            } else {
+              focusedSpherePulseTrigger.value += 1;
+              goToSphere(i);
+            }
+          }}
+          onEntitySelect={
+            selectedSphere === null && i === focusedIdx
+              ? () => onSphereSelect(sphere.type)
+              : onEntitySelect
           }
-          onEntitySelect={onEntitySelect}
           colorScheme={colorScheme}
           sunnyPercentage={getSphereSunnyPercentage(sphere.type)}
           orbitDurationMs={orbitDurationMs}
+          externalPulseTrigger={focusedSpherePulseTrigger}
         />
       ))}
 
@@ -2369,6 +2477,28 @@ export function FocusedSferaView({
           ))}
         </View>
       </View>
+
+      {/* ─── Double-tap UX hint: finger icon below label, shows once per session ─── */}
+      {appUsabilityHints && selectedSphere === null && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: ORBIT_CY + ORBIT_R + FOCUSED_LABEL_GAP * 5.5 + 52,
+              alignItems: "center",
+              zIndex: 20,
+            },
+            doubleTapHintAnimatedStyle,
+          ]}
+        >
+          <MaterialIcons name="touch-app" size={52} color="rgba(0, 0, 0, 0.5)"
+            style={{ position: "absolute", left: 2, top: 2 }} />
+          <MaterialIcons name="touch-app" size={52} color="#FFFFFF" />
+        </Animated.View>
+      )}
 
       {/* ─── Chevron buttons: left = next, right = prev (orbit style; focused sfera swipe is reversed) ─── */}
       <Animated.View
