@@ -1812,6 +1812,263 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   );
 });
 
+// ───────────────────── Sfera Insight Card ─────────────────────
+
+const INSIGHT_CARD_SIZE = 120;
+
+const SferaInsightCard = React.memo(function SferaInsightCard({
+  sphere,
+  entityIds,
+  entityNames,
+  entityMemories,
+  onEntitySelect,
+  colorScheme,
+  shadowColor,
+  x,
+  y,
+}: {
+  sphere: LifeSphere;
+  entityIds: string[];
+  entityNames: string[];
+  entityMemories: IdealizedMemory[][];
+  onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
+  colorScheme: "light" | "dark";
+  shadowColor: string;
+  x: number;
+  y: number;
+}) {
+  const t = useTranslate();
+  const [mode, setMode] = useState(0);
+  const modeOpacity = useSharedValue(1);
+
+  const numEntities = entityIds.length;
+
+  // Compute insight indices
+  const leastMemoriesIdx = useMemo(() => {
+    if (numEntities === 0) return -1;
+    let minCount = Infinity;
+    let minIdx = 0;
+    entityMemories.forEach((mems, i) => {
+      if (mems.length < minCount) {
+        minCount = mems.length;
+        minIdx = i;
+      }
+    });
+    return minIdx;
+  }, [entityMemories, numEntities]);
+
+  const mostMemoriesIdx = useMemo(() => {
+    if (numEntities === 0) return -1;
+    let maxCount = -1;
+    let maxIdx = 0;
+    entityMemories.forEach((mems, i) => {
+      if (mems.length > maxCount) {
+        maxCount = mems.length;
+        maxIdx = i;
+      }
+    });
+    return maxIdx;
+  }, [entityMemories, numEntities]);
+
+  const lastUpdatedIdx = useMemo(() => {
+    if (numEntities === 0) return -1;
+    let latestTime = -1;
+    let latestIdx = 0;
+    entityMemories.forEach((mems, i) => {
+      mems.forEach((mem) => {
+        const t = new Date(mem.updatedAt).getTime();
+        if (t > latestTime) {
+          latestTime = t;
+          latestIdx = i;
+        }
+      });
+    });
+    return latestIdx;
+  }, [entityMemories, numEntities]);
+
+  const numModes = numEntities <= 1 ? 1 : 3;
+
+  const cycleMode = useCallback(() => {
+    if (numEntities === 0) return;
+    modeOpacity.value = withTiming(0, { duration: 120 }, () => {
+      modeOpacity.value = withTiming(1, { duration: 120 });
+    });
+    setMode((prev) => (prev + 1) % numModes);
+  }, [modeOpacity, numModes, numEntities]);
+
+  const modeAnimStyle = useAnimatedStyle(() => ({
+    opacity: modeOpacity.value,
+  }));
+
+  const gradientColors =
+    colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
+
+  const wrapperStyle = {
+    position: "absolute" as const,
+    left: x - INSIGHT_CARD_SIZE / 2,
+    top: y - INSIGHT_CARD_SIZE / 2,
+    width: INSIGHT_CARD_SIZE,
+    height: INSIGHT_CARD_SIZE,
+    zIndex: 25,
+  };
+
+  // Empty state
+  if (numEntities === 0) {
+    return (
+      <Pressable style={wrapperStyle}>
+        <LinearGradient
+          colors={[...gradientColors]}
+          style={{
+            flex: 1,
+            borderRadius: 20,
+            borderWidth: 1.5,
+            borderColor: shadowColor + "66",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 10,
+            shadowColor,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.5,
+            shadowRadius: 12,
+            elevation: 8,
+          }}
+        >
+          <MaterialIcons
+            name="add-circle-outline"
+            size={28}
+            color={shadowColor}
+          />
+          <ThemedText
+            style={{
+              color: COSMIC_TEXT,
+              fontSize: 10,
+              textAlign: "center",
+              marginTop: 6,
+              opacity: 0.8,
+            }}
+          >
+            {t("sferaInsight.addPeople")}
+          </ThemedText>
+        </LinearGradient>
+      </Pressable>
+    );
+  }
+
+  // Insight modes
+  const MODES: {
+    icon: keyof typeof MaterialIcons.glyphMap;
+    idx: number;
+    subtext: string;
+  }[] = [
+    {
+      icon: "person-outline",
+      idx: leastMemoriesIdx,
+      subtext: t("sferaInsight.leastMemories"),
+    },
+    {
+      icon: "star",
+      idx: mostMemoriesIdx,
+      subtext: t("sferaInsight.mostMemories"),
+    },
+    {
+      icon: "schedule",
+      idx: lastUpdatedIdx,
+      subtext: t("sferaInsight.lastUpdated"),
+    },
+  ];
+
+  const currentMode = MODES[mode];
+  const entityIdx = currentMode.idx;
+  const entityId = entityIds[entityIdx] ?? "";
+  const entityName = entityNames[entityIdx] ?? "";
+
+  const handleEntityTap = () => {
+    if (entityId) onEntitySelect(entityId, sphere);
+  };
+
+  return (
+    <Pressable style={wrapperStyle} onPress={handleEntityTap}>
+      <LinearGradient
+        colors={[...gradientColors]}
+        style={{
+          flex: 1,
+          borderRadius: 20,
+          borderWidth: 1.5,
+          borderColor: shadowColor + "66",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: 12,
+          paddingBottom: 10,
+          shadowColor,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.5,
+          shadowRadius: 12,
+          elevation: 8,
+        }}
+      >
+        <Animated.View
+          style={[
+            modeAnimStyle,
+            { alignItems: "center", flex: 1, justifyContent: "center" },
+          ]}
+        >
+          <MaterialIcons
+            name={currentMode.icon}
+            size={22}
+            color={shadowColor}
+          />
+          <ThemedText
+            style={{
+              color: COSMIC_TEXT,
+              fontSize: 11,
+              fontWeight: "600",
+              textAlign: "center",
+              marginTop: 5,
+            }}
+            numberOfLines={1}
+          >
+            {entityName}
+          </ThemedText>
+          <ThemedText
+            style={{
+              color: COSMIC_TEXT,
+              fontSize: 9,
+              textAlign: "center",
+              marginTop: 3,
+              opacity: 0.65,
+            }}
+            numberOfLines={1}
+          >
+            {currentMode.subtext}
+          </ThemedText>
+        </Animated.View>
+
+        {/* Mode pagination dots */}
+        {numModes > 1 && (
+          <Pressable
+            onPress={cycleMode}
+            hitSlop={8}
+            style={{ flexDirection: "row", gap: 4, paddingTop: 4 }}
+          >
+            {MODES.map((_, i) => (
+              <View
+                key={i}
+                style={{
+                  width: i === mode ? 12 : 5,
+                  height: 5,
+                  borderRadius: 2.5,
+                  backgroundColor:
+                    i === mode ? shadowColor : shadowColor + "55",
+                }}
+              />
+            ))}
+          </Pressable>
+        )}
+      </LinearGradient>
+    </Pressable>
+  );
+});
+
 // ───────────────────── Main component ─────────────────────
 
 export function FocusedSferaView({
@@ -2060,16 +2317,30 @@ export function FocusedSferaView({
         />
       ))}
 
-      {/* ─── Sunny Life avatar (floating in the distance, center of the gap between spheres) ─── */}
-      <SunnyLifeAvatar
-        percentage={circleAvatarPercentage}
-        hasMemories={hasMemories}
-        onPress={handleCircleAvatarPress}
-        onAddMemoriesPress={onAddMemoriesPress}
-        colorScheme={colorScheme}
-        x={SW * 0.45}
-        y={SH * 0.38}
-      />
+      {/* ─── Center: Sfera Insight Card (individual sfera view) or Sunny Life Avatar (overview) ─── */}
+      {selectedSphere !== null ? (
+        <SferaInsightCard
+          sphere={focusedSphere.type}
+          entityIds={entityIdsBySphere[focusedSphere.type] ?? []}
+          entityNames={entityNamesBySphere[focusedSphere.type] ?? []}
+          entityMemories={memoriesPerEntityBySphere[focusedSphere.type] ?? []}
+          onEntitySelect={onEntitySelect}
+          colorScheme={colorScheme}
+          shadowColor={focusedShadowColor}
+          x={SW * 0.45}
+          y={SH * 0.38}
+        />
+      ) : (
+        <SunnyLifeAvatar
+          percentage={circleAvatarPercentage}
+          hasMemories={hasMemories}
+          onPress={handleCircleAvatarPress}
+          onAddMemoriesPress={onAddMemoriesPress}
+          colorScheme={colorScheme}
+          x={SW * 0.45}
+          y={SH * 0.38}
+        />
+      )}
 
       {/* ─── Focused sfera label + pagination dots (below rotating entities) ─── */}
       <View

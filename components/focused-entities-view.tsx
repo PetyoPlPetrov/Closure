@@ -6,21 +6,26 @@
  */
 
 import { ConstellationBackground } from "@/components/constellation-background";
+import { EventPreviewModal } from "@/components/event-preview-modal";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { BaseEntity, IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
+import { useSferaEventsBadge } from "@/utils/SferaEventsBadgeProvider";
+import { getEventImageUrls } from "@/utils/sfera-events";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import {
   getSphereGradientColors,
   getSphereIconColor,
+  getSphereShadowColor,
 } from "@/utils/sphere-styles";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useEffect, useMemo, useState } from "react";
+import { router } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
   PanResponder,
@@ -85,7 +90,7 @@ const AVATAR_CY = SH * 0.46;
 
 // Entity configuration
 const FOCUSED_ENTITY_SIZE = 120;
-const ENTITY_ORBIT_RADIUS = 160;
+const ENTITY_ORBIT_RADIUS = 200;
 
 // Orbit configuration for non-focused entities
 const ORBIT_RADIUS = 100;
@@ -413,6 +418,67 @@ const SparkledDot = React.memo(function SparkledDot({
   );
 });
 
+// ───────────────────── Sfera Insight Card dimensions (used by both card and perimeter layout) ─────────────────────
+
+const INSIGHT_CARD_W = 240;
+const INSIGHT_CARD_H = 295;
+
+// ───────────────────── Card perimeter position helper ─────────────────────
+
+/**
+ * Distributes `count` entities evenly along the 4 sides of the card rectangle.
+ * Returns (cx, cy) — the center of the avatar slot, offset `gap` px outside the card edge.
+ * cardCX/cardCY = card center, cardW/cardH = card dimensions.
+ */
+function cardPerimeterPositions(
+  count: number,
+  cardCX: number,
+  cardCY: number,
+  cardW: number,
+  cardH: number,
+  gap: number,
+): { x: number; y: number }[] {
+  // Perimeter is split into 4 segments: top, right, bottom, left
+  // We place entities proportionally by segment length so spacing is even.
+  const halfW = cardW / 2 + gap;
+  const halfH = cardH / 2 + gap;
+  const perimeter = 2 * (cardW + cardH);
+  const positions: { x: number; y: number }[] = [];
+
+  for (let i = 0; i < count; i++) {
+    // Evenly spaced along perimeter, offset by half-step so they don't sit at corners
+    const t = ((i + 0.5) / count) * perimeter;
+
+    let x: number, y: number;
+    const topLen = cardW;
+    const rightLen = cardH;
+    const bottomLen = cardW;
+    // const leftLen = cardH;
+
+    if (t < topLen) {
+      // Top edge: left → right
+      x = cardCX - cardW / 2 + t;
+      y = cardCY - halfH;
+    } else if (t < topLen + rightLen) {
+      // Right edge: top → bottom
+      x = cardCX + halfW;
+      y = cardCY - cardH / 2 + (t - topLen);
+    } else if (t < topLen + rightLen + bottomLen) {
+      // Bottom edge: right → left
+      x = cardCX + cardW / 2 - (t - topLen - rightLen);
+      y = cardCY + halfH;
+    } else {
+      // Left edge: bottom → top
+      x = cardCX - halfW;
+      y = cardCY + cardH / 2 - (t - topLen - rightLen - bottomLen);
+    }
+
+    positions.push({ x, y });
+  }
+
+  return positions;
+}
+
 // ───────────────────── Orbiting Entity ─────────────────────
 
 const OrbitingEntity = React.memo(function OrbitingEntity({
@@ -430,6 +496,8 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   sphere,
   orbitAngle,
   rotateOrbit,
+  fixedX,
+  fixedY,
   orbitDurationMs = DEFAULT_ORBIT_DURATION_MS,
 }: {
   entity: BaseEntity | { id: string; name: string; imageUri?: string; isCompleted: boolean; createdAt?: string };
@@ -446,12 +514,41 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   sphere: LifeSphere;
   orbitAngle: SharedValue<number>;
   rotateOrbit: boolean;
+  fixedX?: number;
+  fixedY?: number;
   orbitDurationMs?: number;
 }) {
   const { isTablet } = useLargeDevice();
   const scale = useSharedValue(1);
+  const floatOffset = useSharedValue(0);
+
+  // Gentle float animation for perimeter mode
+  useEffect(() => {
+    if (fixedX === undefined) return;
+    const amplitude = 4 + (index % 3) * 2; // 4–8px, varied per entity
+    const duration = 2800 + index * 310; // stagger period per entity
+    floatOffset.value = withRepeat(
+      withSequence(
+        withTiming(amplitude, { duration, easing: Easing.inOut(Easing.ease) }),
+        withTiming(-amplitude, { duration, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      true,
+    );
+    return () => cancelAnimation(floatOffset);
+  }, [fixedX, index, floatOffset]);
 
   const animatedStyle = useAnimatedStyle(() => {
+    if (fixedX !== undefined && fixedY !== undefined) {
+      return {
+        position: "absolute",
+        left: fixedX - avatarSize / 2,
+        top: fixedY - avatarSize / 2 + floatOffset.value,
+        width: avatarSize,
+        height: avatarSize,
+        transform: [{ scale: scale.value }],
+      };
+    }
     const angle = baseAngle + orbitAngle.value;
     const x = centerX + Math.cos(angle) * orbitRadius - avatarSize / 2;
     const y = centerY + Math.sin(angle) * orbitRadius - avatarSize / 2;
@@ -574,36 +671,28 @@ const EntityRing = React.memo(function EntityRing({
   rotateOrbit?: boolean;
   orbitDurationMs?: number;
 }) {
+  // Dummy shared value — no longer used for circular orbit but required by OrbitingEntity type
   const orbitAngle = useSharedValue(0);
-
-  useEffect(() => {
-    if (!rotateOrbit) {
-      cancelAnimation(orbitAngle);
-      return;
-    }
-    orbitAngle.value = 0;
-    orbitAngle.value = withRepeat(
-      withTiming(2 * Math.PI, {
-        duration: orbitDurationMs,
-        easing: Easing.linear,
-      }),
-      -1,
-      false,
-    );
-    return () => {
-      cancelAnimation(orbitAngle);
-    };
-  }, [rotateOrbit, orbitAngle, orbitDurationMs]);
 
   if (entities.length === 0) return null;
   const count = Math.min(entities.length, 8);
 
+  // Place entities along the card perimeter instead of a circular orbit
+  const perimeterPositions = cardPerimeterPositions(
+    count,
+    centerX,
+    centerY,
+    INSIGHT_CARD_W,
+    INSIGHT_CARD_H,
+    avatarSize / 2 + 10,
+  );
+
   return (
     <>
       {Array.from({ length: count }, (_, i) => {
-        const baseAngle = (i / count) * 2 * Math.PI - Math.PI / 2;
         const entity = entities[i];
         const memories = memoriesPerEntity[i] ?? [];
+        const pos = perimeterPositions[i];
         return (
           <OrbitingEntity
             key={`${entity.id}-${i}`}
@@ -611,7 +700,7 @@ const EntityRing = React.memo(function EntityRing({
             memories={memories}
             index={i}
             count={count}
-            baseAngle={baseAngle}
+            baseAngle={0}
             centerX={centerX}
             centerY={centerY}
             orbitRadius={orbitRadius}
@@ -620,7 +709,9 @@ const EntityRing = React.memo(function EntityRing({
             onEntitySelect={onEntitySelect}
             sphere={sphere}
             orbitAngle={orbitAngle}
-            rotateOrbit={rotateOrbit}
+            rotateOrbit={false}
+            fixedX={pos.x}
+            fixedY={pos.y}
             orbitDurationMs={orbitDurationMs}
           />
         );
@@ -644,6 +735,513 @@ function blendHex(hex1: string, hex2: string, t: number): string {
   const b_ = Math.round(a.b * (1 - t) + b.b * t);
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b_.toString(16).padStart(2, "0")}`;
 }
+
+// ───────────────────── Sfera Insight Card ─────────────────────
+
+const INSIGHT_ARROW_SIZE = 28;
+const INSIGHT_ARROW_HIT = 36;
+
+const COSMIC_TEXT_COLOR = "#B8E8EC";
+
+/** Most recent / most old last-interaction for an entity set */
+function getInteractionIndices(memoriesPerEntity: IdealizedMemory[][]) {
+  let newestTime = -1, newestIdx = 0;
+  let oldestTime = Infinity, oldestIdx = 0;
+  let mostMems = -1, mostMemsIdx = 0;
+  let oldestMemTime = Infinity, oldestMemIdx = 0;
+  let mostCloudy = -1, mostCloudyIdx = 0;
+  let mostSunny = -1, mostSunnyIdx = 0;
+  let noMemsIdx = -1; // first entity with zero memories
+
+  memoriesPerEntity.forEach((mems, i) => {
+    if (mems.length === 0 && noMemsIdx === -1) noMemsIdx = i;
+    if (mems.length > mostMems) { mostMems = mems.length; mostMemsIdx = i; }
+
+    let cloudyCount = 0, sunnyCount = 0;
+    mems.forEach((mem) => {
+      const ts = new Date(mem.updatedAt).getTime();
+      if (ts > newestTime) { newestTime = ts; newestIdx = i; }
+      if (ts < oldestTime) { oldestTime = ts; oldestIdx = i; }
+
+      const memCreated = new Date(mem.createdAt).getTime();
+      if (memCreated < oldestMemTime) { oldestMemTime = memCreated; oldestMemIdx = i; }
+
+      cloudyCount += mem.hardTruths?.length ?? 0;
+      sunnyCount += mem.goodFacts?.length ?? 0;
+    });
+    if (cloudyCount > mostCloudy) { mostCloudy = cloudyCount; mostCloudyIdx = i; }
+    if (sunnyCount > mostSunny) { mostSunny = sunnyCount; mostSunnyIdx = i; }
+  });
+
+  return {
+    newestIdx,
+    oldestIdx,
+    oldestTime: oldestTime === Infinity ? null : oldestTime,
+    newestTime: newestTime === -1 ? null : newestTime,
+    mostMemsIdx,
+    oldestMemIdx,
+    mostCloudyIdx,
+    mostSunnyIdx,
+    noMemsIdx,
+  };
+}
+
+const SferaInsightsCard = React.memo(function SferaInsightsCard({
+  sphere,
+  entities,
+  memoriesPerEntity,
+  onEntitySelect,
+  colorScheme,
+  x,
+  y,
+}: {
+  sphere: LifeSphere;
+  entities: FocusedEntitiesViewProps["entities"];
+  memoriesPerEntity: IdealizedMemory[][];
+  onEntitySelect?: (entityId: string) => void;
+  colorScheme: "light" | "dark";
+  x: number;
+  y: number;
+}) {
+  const t = useTranslate();
+  const { momentColors } = useMomentColors();
+  // For family/friends, default to "oldest" card so the most actionable info shows first
+  const defaultMode = (sphere === "family" || sphere === "friends") ? 1 : 0;
+  const [mode, setMode] = useState(defaultMode); // 0 = most recent, 1 = most old
+  const modeOpacity = useSharedValue(1);
+  const shadowColor = getSphereShadowColor(sphere, colorScheme);
+  const numEntities = entities.length;
+  // Whether this sphere supports social CTAs (bell + event thumbnails)
+  const hasSocialCTAs = sphere === "family" || sphere === "friends";
+
+  const { newestIdx, oldestIdx, oldestTime, newestTime, mostMemsIdx, oldestMemIdx, mostCloudyIdx, mostSunnyIdx, noMemsIdx } = useMemo(
+    () => getInteractionIndices(memoriesPerEntity),
+    [memoriesPerEntity],
+  );
+
+  // Urgency: oldest interaction > 30 days ago
+  const isUrgent = hasSocialCTAs && oldestTime !== null && (Date.now() - oldestTime) > 30 * 24 * 60 * 60 * 1000;
+
+  // Upcoming social events for the event row (family/friends only)
+  const { getCachedEvents } = useSferaEventsBadge();
+  const socialEvents = useMemo(() => {
+    if (!hasSocialCTAs) return [];
+    return getCachedEvents()
+      .filter((e) => e.type === "social" || e.type === "plus");
+  }, [hasSocialCTAs, getCachedEvents]);
+
+  // Which event index is shown in the single-event row; refresh cycles through
+  const [eventDisplayIdx, setEventDisplayIdx] = useState(0);
+  const currentEvent = socialEvents.length > 0 ? socialEvents[eventDisplayIdx % socialEvents.length] : null;
+
+  // Which event was tapped — shows EventPreviewModal
+  const [previewEventId, setPreviewEventId] = useState<string | null>(null);
+  const previewEvent = useMemo(
+    () => previewEventId ? socialEvents.find((e) => e.id === previewEventId) ?? null : null,
+    [previewEventId, socialEvents],
+  );
+
+  const numModes = numEntities === 0 ? 1 : 6;
+
+  const animateAndSet = useCallback((nextMode: number) => {
+    modeOpacity.value = withTiming(0, { duration: 100 }, () => {
+      modeOpacity.value = withTiming(1, { duration: 150 });
+    });
+    setMode(nextMode);
+  }, [modeOpacity]);
+
+  const goNext = useCallback(() => animateAndSet((mode + 1) % numModes), [animateAndSet, mode, numModes]);
+  const goPrev = useCallback(() => animateAndSet((mode - 1 + numModes) % numModes), [animateAndSet, mode, numModes]);
+
+  const modeAnimStyle = useAnimatedStyle(() => ({ opacity: modeOpacity.value }));
+  const gradientColors = colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
+
+  const totalW = INSIGHT_CARD_W + INSIGHT_ARROW_HIT * 2;
+  const wrapperStyle = {
+    position: "absolute" as const,
+    left: x - totalW / 2,
+    top: y - INSIGHT_CARD_H / 2,
+    width: totalW,
+    height: INSIGHT_CARD_H,
+    zIndex: 25,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+  };
+
+  // 6 modes: 0=most recent, 1=least interacted, 2=most memories, 3=oldest memory, 4=most cloudy, 5=most sunny
+  const entityIdx = [newestIdx, oldestIdx, mostMemsIdx, oldestMemIdx, mostCloudyIdx, mostSunnyIdx][mode] ?? 0;
+  const entity = entities[entityIdx];
+  const entityName = entity?.name ?? "";
+  const showSocialBottom = hasSocialCTAs && mode === 1 && entity != null;
+  // Urgency border: amber tint when oldest interaction > 30 days
+  const isMoodCard = mode === 4 || mode === 5;
+  const moodBorderColor = mode === 4 ? (momentColors.cloudy.background + "AA") : (momentColors.sunny.background + "AA");
+  const borderColor = (isUrgent && mode === 1) ? "#F5A623AA" : isMoodCard ? moodBorderColor : shadowColor + "66";
+  const shadowGlowColor = isMoodCard ? (mode === 4 ? momentColors.cloudy.background : momentColors.sunny.background) : (isUrgent && mode === 1 ? "#F5A623" : shadowColor);
+
+  // Human-readable time since interaction (must be before early return)
+  const timeAgoLabel = useMemo(() => {
+    const ts = mode === 1 ? oldestTime : newestTime;
+    if (!ts || mode > 1) return null;
+    const diff = Date.now() - ts;
+    const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+    if (days === 0) return t("sferaInsight.timeAgo.today");
+    if (days < 31) return `${days}${t("sferaInsight.timeAgo.days")}`;
+    const months = Math.floor(days / 30);
+    return `${months}${t("sferaInsight.timeAgo.months")}`;
+  }, [oldestTime, newestTime, mode, t]);
+
+  // Label for top of card
+  const cardLabels = [
+    t("sferaInsight.mostRecent"),
+    t("sferaInsight.lastInteractedWith"),
+    t("sferaInsight.mostMemories2"),
+    t("sferaInsight.oldestMemory"),
+    t("sferaInsight.mostCloudy"),
+    t("sferaInsight.mostSunny"),
+  ];
+  const cardLabel = cardLabels[mode] ?? cardLabels[0];
+
+  if (numEntities === 0) {
+    return (
+      <View style={wrapperStyle}>
+        <View style={{ width: INSIGHT_ARROW_HIT }} />
+        <LinearGradient
+          colors={[...gradientColors]}
+          style={{
+            flex: 1,
+            height: INSIGHT_CARD_H,
+            borderRadius: 22,
+            borderWidth: 1.5,
+            borderColor: shadowColor + "66",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 14,
+            shadowColor,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.5,
+            shadowRadius: 14,
+            elevation: 8,
+          }}
+        >
+          <MaterialIcons name="add-circle-outline" size={32} color={shadowColor} />
+          <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 11, textAlign: "center", marginTop: 8, opacity: 0.85 }}>
+            {t("sferaInsight.addPeople")}
+          </ThemedText>
+        </LinearGradient>
+        <View style={{ width: INSIGHT_ARROW_HIT }} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={wrapperStyle}>
+      {/* Left arrow */}
+      {numModes > 1 ? (
+        <Pressable
+          onPress={goPrev}
+          hitSlop={8}
+          style={{ width: INSIGHT_ARROW_HIT, height: INSIGHT_ARROW_HIT, justifyContent: "center", alignItems: "center" }}
+        >
+          <MaterialIcons name="chevron-left" size={INSIGHT_ARROW_SIZE} color={shadowColor + "CC"} />
+        </Pressable>
+      ) : (
+        <View style={{ width: INSIGHT_ARROW_HIT }} />
+      )}
+
+      {/* Card */}
+      <Pressable
+        style={{ flex: 1, height: INSIGHT_CARD_H }}
+        onPress={() => entity && onEntitySelect?.(entity.id)}
+      >
+        <LinearGradient
+          colors={[...gradientColors]}
+          style={{
+            flex: 1,
+            borderRadius: 22,
+            borderWidth: 1.5,
+            borderColor,
+            paddingHorizontal: 12,
+            paddingTop: 12,
+            paddingBottom: 10,
+            shadowColor: shadowGlowColor,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.55,
+            shadowRadius: 16,
+            elevation: 10,
+            gap: 8,
+          }}
+        >
+          {/* Top label — the insight, not the person */}
+          <Animated.View style={modeAnimStyle}>
+            <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 13, textAlign: "center", opacity: 1, fontWeight: "600", letterSpacing: 0.2 }} numberOfLines={1}>
+              {cardLabel}
+            </ThemedText>
+          </Animated.View>
+
+          {/* Person block */}
+          <Animated.View style={[modeAnimStyle, { gap: 3 }]}>
+            <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 12, fontWeight: "600", opacity: 0.85 }} numberOfLines={1}>
+              {entityName}
+            </ThemedText>
+            {/* Meta row varies by mode */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              {/* Mode 0/1: time-ago */}
+              {(mode === 0 || mode === 1) && timeAgoLabel ? (
+                <ThemedText style={{ color: isUrgent && mode === 1 ? "#F5A623" : COSMIC_TEXT_COLOR, fontSize: 10, opacity: isUrgent && mode === 1 ? 1 : 0.6 }}>
+                  {timeAgoLabel}
+                </ThemedText>
+              ) : null}
+              {/* Mode 2: memory count */}
+              {mode === 2 ? (
+                <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10, opacity: 0.6 }}>
+                  {(memoriesPerEntity[entityIdx]?.length ?? 0)} {t("sferaInsight.memories")}
+                </ThemedText>
+              ) : null}
+              {/* Mode 3: oldest memory title */}
+              {mode === 3 ? (() => {
+                const mems = memoriesPerEntity[entityIdx] ?? [];
+                const oldest = mems.length > 0 ? mems.reduce((a, b) => new Date(a.createdAt) < new Date(b.createdAt) ? a : b) : null;
+                if (!oldest) return null;
+                const diff = Date.now() - new Date(oldest.createdAt).getTime();
+                const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+                const label = days < 31 ? `${days}${t("sferaInsight.timeAgo.days")}` : `${Math.floor(days/30)}${t("sferaInsight.timeAgo.months")}`;
+                return <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10, opacity: 0.6 }}>{label}</ThemedText>;
+              })() : null}
+              {/* Mode 4/5: mood counts */}
+              {mode === 4 ? (() => {
+                const mems = memoriesPerEntity[entityIdx] ?? [];
+                const count = mems.reduce((s, m) => s + (m.hardTruths?.length ?? 0), 0);
+                return <ThemedText style={{ color: momentColors.cloudy.background, fontSize: 10 }}>{count} cloudy moments</ThemedText>;
+              })() : null}
+              {mode === 5 ? (() => {
+                const mems = memoriesPerEntity[entityIdx] ?? [];
+                const count = mems.reduce((s, m) => s + (m.goodFacts?.length ?? 0), 0);
+                return <ThemedText style={{ color: momentColors.sunny.background, fontSize: 10 }}>{count} sunny moments</ThemedText>;
+              })() : null}
+              {/* Bell for mode 1 */}
+              {showSocialBottom && timeAgoLabel ? (
+                <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10, opacity: 0.3 }}>·</ThemedText>
+              ) : null}
+              {showSocialBottom && (
+                <Pressable
+                  hitSlop={8}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    router.push(`/notifications/${sphere}/${entity.id}`);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 3,
+                    backgroundColor: shadowColor + "22",
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: shadowColor + "44",
+                    paddingHorizontal: 6,
+                    paddingVertical: 3,
+                  }}
+                >
+                  <MaterialIcons name="notifications-none" size={11} color={shadowColor} />
+                </Pressable>
+              )}
+            </View>
+          </Animated.View>
+
+          {/* Mode 0/3/4/5: show most recent memory image if available */}
+          {/* Mode 2: scattered memory bubbles */}
+          {mode === 2 && (() => {
+            const mems = memoriesPerEntity[entityIdx] ?? [];
+            if (mems.length === 0) return null;
+            // Deterministic scatter positions using index-based offsets
+            const positions = [
+              { top: "8%",  left: "10%" },
+              { top: "12%", left: "55%" },
+              { top: "38%", left: "30%" },
+              { top: "55%", left: "8%"  },
+              { top: "50%", left: "62%" },
+              { top: "75%", left: "25%" },
+              { top: "72%", left: "68%" },
+              { top: "20%", left: "78%" },
+            ];
+            return (
+              <View style={{ flex: 1, alignSelf: "stretch", position: "relative" }}>
+                {mems.slice(0, 8).map((mem, i) => {
+                  const pos = positions[i % positions.length];
+                  const sunny = mem.goodFacts?.length ?? 0;
+                  const cloudy = mem.hardTruths?.length ?? 0;
+                  const moodColor = sunny >= cloudy ? momentColors.sunny.background : momentColors.cloudy.background;
+                  const size = 36 + (i % 3) * 8; // vary sizes slightly
+                  return (
+                    <View
+                      key={mem.id}
+                      style={{
+                        position: "absolute",
+                        top: pos.top as any,
+                        left: pos.left as any,
+                        width: size,
+                        height: size,
+                        borderRadius: size / 2,
+                        borderWidth: 1.5,
+                        borderColor: moodColor + "99",
+                        overflow: "hidden",
+                        backgroundColor: shadowColor + "22",
+                        shadowColor: moodColor,
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.5,
+                        shadowRadius: 6,
+                        elevation: 4,
+                      }}
+                    >
+                      {mem.imageUri ? (
+                        <Image source={{ uri: mem.imageUri }} style={{ width: size, height: size }} contentFit="cover" />
+                      ) : (
+                        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+                          <MaterialIcons name="photo" size={size * 0.4} color={moodColor} />
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })()}
+
+          {/* Modes 0/3/4/5: memory image with mood border */}
+          {(mode === 0 || mode === 3 || mode === 4 || mode === 5) && (() => {
+            const mems = memoriesPerEntity[entityIdx] ?? [];
+            let mem: IdealizedMemory | null = null;
+            if (mode === 0) mem = mems.length > 0 ? mems.reduce((a, b) => new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b) : null;
+            if (mode === 3) mem = mems.length > 0 ? mems.reduce((a, b) => new Date(a.createdAt) < new Date(b.createdAt) ? a : b) : null;
+            if (mode === 4) mem = mems.length > 0 ? mems.reduce((a, b) => (a.hardTruths?.length ?? 0) > (b.hardTruths?.length ?? 0) ? a : b) : null;
+            if (mode === 5) mem = mems.length > 0 ? mems.reduce((a, b) => (a.goodFacts?.length ?? 0) > (b.goodFacts?.length ?? 0) ? a : b) : null;
+            if (!mem?.imageUri) return null;
+            const moodSunny = mem.goodFacts?.length ?? 0;
+            const moodCloudy = mem.hardTruths?.length ?? 0;
+            const moodColor = moodSunny >= moodCloudy ? momentColors.sunny.background : momentColors.cloudy.background;
+            return (
+              <View style={{ flex: 1, alignSelf: "stretch", borderRadius: 10, overflow: "hidden", borderWidth: 1.5, borderColor: moodColor + "88" }}>
+                <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1 }} contentFit="cover" />
+                <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
+                  <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10, opacity: 0.9 }} numberOfLines={1}>
+                    {mem.title}
+                  </ThemedText>
+                </View>
+              </View>
+            );
+          })()}
+
+          {/* Event card — fills remaining space, image on top, text below */}
+          {showSocialBottom && currentEvent ? (
+            <View style={{ flex: 1, alignSelf: "stretch" }}>
+              {/* Card — tap to preview */}
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setPreviewEventId(currentEvent.id);
+                }}
+                style={{
+                  flex: 1,
+                  backgroundColor: shadowColor + "1A",
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: shadowColor + "33",
+                  overflow: "hidden",
+                }}
+              >
+                {/* Event image — fills top portion */}
+                {(() => {
+                  const imgUrl = getEventImageUrls(currentEvent)[0];
+                  return imgUrl ? (
+                    <Image source={{ uri: imgUrl }} style={{ width: "100%", flex: 1 }} contentFit="cover" />
+                  ) : (
+                    <View style={{ flex: 1, backgroundColor: shadowColor + "33", justifyContent: "center", alignItems: "center" }}>
+                      <MaterialIcons name="event" size={24} color={shadowColor} />
+                    </View>
+                  );
+                })()}
+                {/* Refresh — absolutely positioned top-right of image */}
+                <Pressable
+                  hitSlop={10}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (socialEvents.length > 1) setEventDisplayIdx((i) => (i + 1) % socialEvents.length);
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: 6,
+                    right: 6,
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: "#00000055",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <MaterialIcons name="refresh" size={20} color="#FFFFFFCC" />
+                </Pressable>
+                {/* Event name + see-more */}
+                <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 8, paddingVertical: 6, gap: 4 }}>
+                  <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10, flex: 1, opacity: 0.85 }} numberOfLines={2}>
+                    {currentEvent.name}
+                  </ThemedText>
+                  <Pressable
+                    hitSlop={6}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      router.push("/(tabs)/events");
+                    }}
+                  >
+                    <MaterialIcons name="open-in-new" size={13} color={shadowColor + "99"} />
+                  </Pressable>
+                </View>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {/* Pagination dots — shown when not in social mode */}
+          {!showSocialBottom && (
+            <View style={{ flexDirection: "row", gap: 5, alignSelf: "center" }}>
+              {Array.from({ length: numModes }).map((_, i) => (
+                <View
+                  key={i}
+                  style={{
+                    width: i === mode ? 14 : 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: i === mode ? shadowColor : shadowColor + "44",
+                  }}
+                />
+              ))}
+            </View>
+          )}
+        </LinearGradient>
+      </Pressable>
+
+      {/* Right arrow */}
+      {numModes > 1 ? (
+        <Pressable
+          onPress={goNext}
+          hitSlop={8}
+          style={{ width: INSIGHT_ARROW_HIT, height: INSIGHT_ARROW_HIT, justifyContent: "center", alignItems: "center" }}
+        >
+          <MaterialIcons name="chevron-right" size={INSIGHT_ARROW_SIZE} color={shadowColor + "CC"} />
+        </Pressable>
+      ) : (
+        <View style={{ width: INSIGHT_ARROW_HIT }} />
+      )}
+
+      {/* Event preview sheet — shown when event row is tapped */}
+      {previewEvent && (
+        <EventPreviewModal
+          event={previewEvent}
+          onClose={() => setPreviewEventId(null)}
+        />
+      )}
+    </View>
+  );
+});
 
 const SphereAvatar = React.memo(function SphereAvatar({
   percentage,
@@ -1117,25 +1715,15 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
           colorScheme={colorScheme}
           sunnyBackground={sunnyBackground}
         />
-        <SphereAvatar
-          percentage={sphereSunnyPercentage}
+        <SferaInsightsCard
+          sphere={sphere}
+          entities={sortedEntities}
+          memoriesPerEntity={sortedMemoriesPerEntity}
+          onEntitySelect={onEntitySelect}
           colorScheme={colorScheme}
           x={AVATAR_CX}
           y={AVATAR_CY}
         />
-        <View
-          style={{
-            position: "absolute",
-            top: AVATAR_CY + AVATAR_SIZE / 2 + 40,
-            left: 0,
-            right: 0,
-            alignItems: "center",
-          }}
-        >
-          <ThemedText style={{ fontSize: 18, opacity: 0.7 }}>
-            No entities yet
-          </ThemedText>
-        </View>
       </View>
     );
   }
@@ -1165,9 +1753,12 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         sunnyBackground={sunnyBackground}
       />
 
-      {/* Central sphere avatar */}
-      <SphereAvatar
-        percentage={sphereSunnyPercentage}
+      {/* Central insight card */}
+      <SferaInsightsCard
+        sphere={sphere}
+        entities={sortedEntities}
+        memoriesPerEntity={sortedMemoriesPerEntity}
+        onEntitySelect={onEntitySelect}
         colorScheme={colorScheme}
         x={AVATAR_CX}
         y={AVATAR_CY}

@@ -1309,7 +1309,7 @@ export default function EventsTab() {
   ] = useState(false);
   const fingerHintShownRef = useRef(false);
 
-  const params = useLocalSearchParams<{ eventIdForMemory?: string }>();
+  const params = useLocalSearchParams<{ eventIdForMemory?: string; expandEventId?: string }>();
   const insets = useSafeAreaInsets();
   const orbitAngle = useSharedValue(0);
   const eventsFingerOpacity = useSharedValue(0);
@@ -1550,6 +1550,16 @@ export default function EventsTab() {
   const locationBannerAnimatedStyle = useAnimatedStyle(() => ({
     opacity: locationBannerOpacity.value,
   }));
+
+  // Open event detail card when deep-linked from another screen (e.g. insight card thumbnail)
+  useEffect(() => {
+    const eventId = params.expandEventId;
+    if (!eventId) return;
+    const found = events.find((e) => e.id === eventId);
+    if (!found) return;
+    setExpandedEventId(eventId);
+    router.setParams({ expandEventId: undefined });
+  }, [params.expandEventId, events]);
 
   // Open Create memory modal when navigated from event memory reminder notification
   useEffect(() => {

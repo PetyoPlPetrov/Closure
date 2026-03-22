@@ -66,6 +66,25 @@ export interface Translations {
   "events.removePastEventMessage": string;
   "avatar.sunnyLife": string;
   "avatar.addMemories": string;
+  "sferaInsight.addPeople": string;
+  "sferaInsight.leastMemories": string;
+  "sferaInsight.mostMemories": string;
+  "sferaInsight.lastUpdated": string;
+  "sferaInsight.mostRecent": string;
+  "sferaInsight.mostOld": string;
+  "sferaInsight.lastInteractedWith": string;
+  "sferaInsight.leastInteraction": string;
+  "sferaInsight.timeAgo.days": string;
+  "sferaInsight.timeAgo.months": string;
+  "sferaInsight.timeAgo.today": string;
+  "sferaInsight.remindMe": string;
+  "sferaInsight.mostMemories2": string;
+  "sferaInsight.oldestMemory": string;
+  "sferaInsight.mostCloudy": string;
+  "sferaInsight.mostSunny": string;
+  "sferaInsight.noMemories": string;
+  "sferaInsight.memories": string;
+  "sferaInsight.leastInteracted": string;
 
   // Settings
   "settings.title": string;
@@ -3656,6 +3675,25 @@ const translations: Record<Language, Translations> = {
       "No profiles yet. Add your first ex-profile to get started.",
     "avatar.sunnyLife": "Sunny Life",
     "avatar.addMemories": "Add memories",
+    "sferaInsight.addPeople": "Add people",
+    "sferaInsight.leastMemories": "Least documented",
+    "sferaInsight.mostMemories": "Most documented",
+    "sferaInsight.lastUpdated": "Recently active",
+    "sferaInsight.mostRecent": "Most recent memory",
+    "sferaInsight.mostOld": "Oldest interaction",
+    "sferaInsight.lastInteractedWith": "Last interacted",
+    "sferaInsight.leastInteraction": "Least interaction",
+    "sferaInsight.timeAgo.days": "d ago",
+    "sferaInsight.timeAgo.months": "mo ago",
+    "sferaInsight.timeAgo.today": "today",
+    "sferaInsight.remindMe": "Remind me",
+    "sferaInsight.mostMemories2": "Most memories",
+    "sferaInsight.oldestMemory": "Oldest memory",
+    "sferaInsight.mostCloudy": "Most cloudy",
+    "sferaInsight.mostSunny": "Most sunny",
+    "sferaInsight.noMemories": "No memories yet",
+    "sferaInsight.memories": "memories",
+    "sferaInsight.leastInteracted": "Least interacted",
     "events.section.social": "Social",
     "events.section.private": "Private",
     "events.section.plus": "Plus Events",
@@ -8190,6 +8228,25 @@ const translations: Record<Language, Translations> = {
       "Няма профили все още. Добавете първи партньор, за да започнете.",
     "avatar.sunnyLife": "Слънчев живот",
     "avatar.addMemories": "Добави спомени",
+    "sferaInsight.addPeople": "Добави хора",
+    "sferaInsight.leastMemories": "Най-малко документирани",
+    "sferaInsight.mostMemories": "Най-много документирани",
+    "sferaInsight.lastUpdated": "Скоро активен",
+    "sferaInsight.mostRecent": "Последна среща",
+    "sferaInsight.mostOld": "Най-стара среща",
+    "sferaInsight.lastInteractedWith": "Последно взаимодействие",
+    "sferaInsight.leastInteraction": "Най-малко взаимодействие",
+    "sferaInsight.timeAgo.days": "д назад",
+    "sferaInsight.timeAgo.months": "м назад",
+    "sferaInsight.timeAgo.today": "днес",
+    "sferaInsight.remindMe": "Напомни ми",
+    "sferaInsight.mostMemories2": "Най-много спомени",
+    "sferaInsight.oldestMemory": "Най-стар спомен",
+    "sferaInsight.mostCloudy": "Най-облачен",
+    "sferaInsight.mostSunny": "Най-слънчев",
+    "sferaInsight.noMemories": "Няма спомени",
+    "sferaInsight.memories": "спомена",
+    "sferaInsight.leastInteracted": "Най-малко взаимодействие",
     "events.section.social": "Social",
     "events.section.private": "Private",
     "events.section.plus": "Plus Events",
