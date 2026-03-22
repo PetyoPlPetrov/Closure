@@ -159,31 +159,15 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
   entityCenterY,
   entityIndex,
   memories,
-  orbitDurationMs = DEFAULT_ORBIT_DURATION_MS,
+  orbitAngle,
 }: {
   entityCenterX: number;
   entityCenterY: number;
   entityIndex: number;
   memories: IdealizedMemory[];
-  orbitDurationMs?: number;
+  orbitAngle: SharedValue<number>;
 }) {
   const { momentColors } = useMomentColors();
-  const orbitAngle = useSharedValue(0);
-
-  useEffect(() => {
-    orbitAngle.value = 0;
-    orbitAngle.value = withRepeat(
-      withTiming(2 * Math.PI, {
-        duration: orbitDurationMs,
-        easing: Easing.linear,
-      }),
-      -1,
-      false,
-    );
-    return () => {
-      cancelAnimation(orbitAngle);
-    };
-  }, [orbitAngle, orbitDurationMs]);
 
   const memoryIcons = useMemo(() => {
     const maxIcons = 8;
@@ -485,7 +469,8 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   onEntitySelect,
   sphere,
   perimeterOffset,
-  orbitDurationMs = DEFAULT_ORBIT_DURATION_MS,
+  momentsOrbitAngle,
+  isTablet,
 }: {
   entity: BaseEntity | { id: string; name: string; imageUri?: string; isCompleted: boolean; createdAt?: string };
   memories: IdealizedMemory[];
@@ -498,9 +483,9 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   onEntitySelect?: (entityId: string) => void;
   sphere: LifeSphere;
   perimeterOffset: SharedValue<number>;
-  orbitDurationMs?: number;
+  momentsOrbitAngle: SharedValue<number>;
+  isTablet: boolean;
 }) {
-  const { isTablet } = useLargeDevice();
   const scale = useSharedValue(1);
 
   const gap = avatarSize / 2 + 10;
@@ -614,7 +599,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
         entityCenterY={(MOMENT_ORBIT_RADIUS + MOMENT_ICON_SIZE)}
         entityIndex={index}
         memories={memories}
-        orbitDurationMs={orbitDurationMs}
+        orbitAngle={momentsOrbitAngle}
       />
     </Animated.View>
   </>
@@ -644,8 +629,11 @@ const EntityRing = React.memo(function EntityRing({
   glowColor: string;
   orbitDurationMs?: number;
 }) {
+  const { isTablet } = useLargeDevice();
   // Single offset value drives all entities sliding clockwise around the card perimeter
   const perimeterOffset = useSharedValue(0);
+  // Single shared orbit angle for all moment icon rings (same speed, no need for one per entity)
+  const momentsOrbitAngle = useSharedValue(0);
 
   useEffect(() => {
     perimeterOffset.value = 0;
@@ -654,8 +642,17 @@ const EntityRing = React.memo(function EntityRing({
       -1,
       false,
     );
-    return () => cancelAnimation(perimeterOffset);
-  }, [perimeterOffset, orbitDurationMs]);
+    momentsOrbitAngle.value = 0;
+    momentsOrbitAngle.value = withRepeat(
+      withTiming(2 * Math.PI, { duration: orbitDurationMs, easing: Easing.linear }),
+      -1,
+      false,
+    );
+    return () => {
+      cancelAnimation(perimeterOffset);
+      cancelAnimation(momentsOrbitAngle);
+    };
+  }, [perimeterOffset, momentsOrbitAngle, orbitDurationMs]);
 
   if (entities.length === 0) return null;
   const count = Math.min(entities.length, 8);
@@ -679,7 +676,8 @@ const EntityRing = React.memo(function EntityRing({
             onEntitySelect={onEntitySelect}
             sphere={sphere}
             perimeterOffset={perimeterOffset}
-            orbitDurationMs={orbitDurationMs}
+            momentsOrbitAngle={momentsOrbitAngle}
+            isTablet={isTablet}
           />
         );
       })}

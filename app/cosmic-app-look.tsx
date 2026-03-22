@@ -121,11 +121,11 @@ export default function CosmicAppLookScreen() {
           <View style={styles.section}>
             <SliderRow
               label={t("settings.personalization.rotationSpeed")}
-              value={orbitDurationMs}
+              value={MAX_ORBIT_DURATION_MS + MIN_ORBIT_DURATION_MS - orbitDurationMs}
               min={MIN_ORBIT_DURATION_MS}
               max={MAX_ORBIT_DURATION_MS}
-              onValueChange={setOrbitDurationMs}
-              valueLabel={`${Math.round(orbitDurationMs / 1000)}s`}
+              onValueChange={(v) => setOrbitDurationMs(MAX_ORBIT_DURATION_MS + MIN_ORBIT_DURATION_MS - v)}
+              valueLabel={`${Math.round(orbitDurationMs / 1000)}s / full rotation`}
               colorScheme={colorScheme ?? "dark"}
               colors={colors}
               fontScale={fontScale}
