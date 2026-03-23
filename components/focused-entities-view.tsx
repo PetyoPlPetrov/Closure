@@ -774,9 +774,13 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 }) {
   const t = useTranslate();
   const { momentColors } = useMomentColors();
-  // For family/friends, default to "oldest interaction" card so the most actionable info shows first
-  const defaultMode = (sphere === "family" || sphere === "friends") ? 1 : 0;
-  const [mode, setMode] = useState(defaultMode); // 0 = most recent, 1 = most old
+  // career/relationships hide the interaction-based modes (least memories, oldest, most recent)
+  const hiddenModes = (sphere === "career" || sphere === "relationships") ? new Set([0, 1, 2]) : new Set<number>();
+  const allowedModes = [0, 1, 2, 3, 4, 5].filter((m) => !hiddenModes.has(m));
+  // For family/friends, default to "oldest interaction" (mode 1, index 1 in allowedModes)
+  const defaultModeIdx = (sphere === "family" || sphere === "friends") ? 1 : 0;
+  const [modeIdx, setModeIdx] = useState(defaultModeIdx); // index into allowedModes
+  const mode = allowedModes[modeIdx] ?? allowedModes[0] ?? 0;
   const modeOpacity = useSharedValue(1);
   const shadowColor = getSphereShadowColor(sphere, colorScheme);
   const numEntities = entities.length;
@@ -810,17 +814,17 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     [previewEventId, socialEvents],
   );
 
-  const numModes = numEntities === 0 ? 1 : 6;
+  const numModes = numEntities === 0 ? 1 : allowedModes.length;
 
-  const animateAndSet = useCallback((nextMode: number) => {
+  const animateAndSet = useCallback((nextIdx: number) => {
     modeOpacity.value = withTiming(0, { duration: 100 }, () => {
       modeOpacity.value = withTiming(1, { duration: 150 });
     });
-    setMode(nextMode);
+    setModeIdx(nextIdx);
   }, [modeOpacity]);
 
-  const goNext = useCallback(() => animateAndSet((mode + 1) % numModes), [animateAndSet, mode, numModes]);
-  const goPrev = useCallback(() => animateAndSet((mode - 1 + numModes) % numModes), [animateAndSet, mode, numModes]);
+  const goNext = useCallback(() => animateAndSet((modeIdx + 1) % numModes), [animateAndSet, modeIdx, numModes]);
+  const goPrev = useCallback(() => animateAndSet((modeIdx - 1 + numModes) % numModes), [animateAndSet, modeIdx, numModes]);
 
   const modeAnimStyle = useAnimatedStyle(() => ({ opacity: modeOpacity.value }));
   const gradientColors = colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
@@ -1225,13 +1229,13 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                   onPress={() => animateAndSet(i)}
                   hitSlop={8}
                   accessibilityRole="tab"
-                  accessibilityState={{ selected: i === mode }}
-                  accessibilityLabel={cardLabels[i]}
+                  accessibilityState={{ selected: i === modeIdx }}
+                  accessibilityLabel={cardLabels[allowedModes[i] ?? i]}
                   style={{
-                    width: i === mode ? 14 : 6,
+                    width: i === modeIdx ? 14 : 6,
                     height: 6,
                     borderRadius: 3,
-                    backgroundColor: i === mode ? shadowColor : shadowColor + "88",
+                    backgroundColor: i === modeIdx ? shadowColor : shadowColor + "88",
                   }}
                 />
               ))}

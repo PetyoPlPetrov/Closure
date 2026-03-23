@@ -863,9 +863,11 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   entityMemories,
   onPress,
   onEntitySelect,
+  onPulse,
   colorScheme,
   sunnyPercentage,
   orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
+  singleTapWhenFocused = false,
 }: {
   sphereIdx: number;
   sphere: { type: LifeSphere; icon: string };
@@ -876,9 +878,11 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   entityMemories: IdealizedMemory[][];
   onPress: () => void;
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
+  onPulse?: (trigger: () => void) => void;
   colorScheme: "light" | "dark";
   sunnyPercentage: number;
   orbitDurationMs?: number;
+  singleTapWhenFocused?: boolean;
 }) {
   const { isTablet } = useLargeDevice();
   const target = getSphereTarget(sphereIdx, focusedIdx);
@@ -904,6 +908,20 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   const spherePulseScale = useSharedValue(1);
   const lastPressTimeRef = useRef<number>(0);
   const firstTapFeedbackScale = useSharedValue(1);
+
+  // Register pulse trigger with parent so the external tap target can fire it
+  const triggerPulse = useCallback(() => {
+    cancelAnimation(firstTapFeedbackScale);
+    firstTapFeedbackScale.value = 1;
+    firstTapFeedbackScale.value = withSequence(
+      withSpring(1.06, { damping: 10, stiffness: 350 }),
+      withSpring(1.0, { damping: 12, stiffness: 200 }),
+    );
+  }, [firstTapFeedbackScale]);
+
+  useEffect(() => {
+    if (isFocused) onPulse?.(triggerPulse);
+  }, [isFocused, onPulse, triggerPulse]);
 
   // Pulse animation for focused sphere — every 7s, subtle (offset so it doesn't sync with circle avatar)
   useEffect(() => {
@@ -941,6 +959,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
 
   const handleSpherePress = useCallback(() => {
     if (!isFocused) { onPress(); return; }
+    if (singleTapWhenFocused) { onPress(); return; }
     const now = Date.now();
     const elapsed = now - lastPressTimeRef.current;
     if (elapsed < 350 && elapsed > 0) {
@@ -955,7 +974,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
         withSpring(1.0, { damping: 12, stiffness: 200 }),
       );
     }
-  }, [isFocused, onPress, firstTapFeedbackScale, spherePulseScale]);
+  }, [isFocused, singleTapWhenFocused, onPress, firstTapFeedbackScale]);
 
   const handleEntitySelect = useCallback(
     (entityId: string, sphere: LifeSphere) => {
@@ -1068,7 +1087,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   return (
     <Animated.View
       style={containerStyle}
-      pointerEvents={isFocused ? "box-none" : "auto"}
+      pointerEvents="auto"
     >
       {/* Tight tap target for unfocused spheres — sits over the visual only, avoids stomping on focused sphere taps */}
       {!isFocused && (
@@ -1100,6 +1119,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
         }}
       >
         <Animated.View
+          pointerEvents="none"
           style={[
             sphereStyle,
             {
@@ -1120,6 +1140,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             height="100%"
             viewBox="0 0 100 100"
             style={{ position: "absolute" }}
+            pointerEvents="none"
           >
             <Defs>
               <RadialGradient
@@ -1167,20 +1188,12 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
               backgroundColor: "rgba(255,255,255,0.45)",
             }}
           />
-          <View
-            style={{
-              position: "absolute",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 1,
-            }}
-          >
-            <MaterialIcons
-              name={sphere.icon as any}
-              size={iconSize}
-              color={iconColor}
-            />
-          </View>
+          <MaterialIcons
+            name={sphere.icon as any}
+            size={iconSize}
+            color={iconColor}
+            style={{ position: "absolute", zIndex: 1, pointerEvents: "none" }}
+          />
         </Animated.View>
       </Pressable>
       <View
@@ -2147,6 +2160,8 @@ export function FocusedSferaView({
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
   const { appUsabilityHints } = useVisualSettings();
+  const focusedSpherePulseRef = useRef<(() => void) | null>(null);
+  const focusedSphereTapTimeRef = useRef<number>(0);
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
   const N = SPHERE_LIST.length;
   // Keep root aligned with TabScreenContainer; we shift spheres via ORBIT_CY instead.
@@ -2159,6 +2174,7 @@ export function FocusedSferaView({
   const goToSphere = useCallback(
     (newIdx: number) => {
       setFocusedIdx(newIdx);
+      focusedSphereTapTimeRef.current = 0;
       onFocusedSphereChange?.(newIdx);
     },
     [onFocusedSphereChange],
@@ -2397,9 +2413,11 @@ export function FocusedSferaView({
           entityIds={entityIdsBySphere[sphere.type] ?? []}
           entityNames={entityNamesBySphere[sphere.type] ?? []}
           entityMemories={memoriesPerEntityBySphere[sphere.type] ?? []}
-          onPress={() =>
-            i === focusedIdx ? onSphereSelect(sphere.type) : goToSphere(i)
-          }
+          onPress={() => {
+            if (i !== focusedIdx) { goToSphere(i); return; }
+            if (selectedSphere !== null) { onAddMemoriesPress(); return; }
+            onSphereSelect(sphere.type);
+          }}
           onEntitySelect={
             selectedSphere === null && i === focusedIdx
               ? () => onSphereSelect(sphere.type)
@@ -2408,8 +2426,35 @@ export function FocusedSferaView({
           colorScheme={colorScheme}
           sunnyPercentage={getSphereSunnyPercentage(sphere.type)}
           orbitDurationMs={orbitDurationMs}
+          singleTapWhenFocused={selectedSphere !== null && i === focusedIdx}
+          onPulse={i === focusedIdx ? (fn) => { focusedSpherePulseRef.current = fn; } : undefined}
         />
       ))}
+
+      {/* ─── Focused sphere tap target — absolute positioned so iOS hit-testing works (transforms bypass hit rects) ─── */}
+      <Pressable
+        style={{
+          position: "absolute",
+          left: ORBIT_CX - FOCUSED_SIZE / 2,
+          top: ORBIT_CY + ORBIT_R - FOCUSED_SIZE / 2,
+          width: FOCUSED_SIZE,
+          height: FOCUSED_SIZE,
+          borderRadius: FOCUSED_SIZE / 2,
+          zIndex: 13,
+        }}
+        onPress={() => {
+          if (selectedSphere !== null) { onAddMemoriesPress(); return; }
+          const now = Date.now();
+          const elapsed = now - focusedSphereTapTimeRef.current;
+          if (elapsed < 350 && elapsed > 0) {
+            focusedSphereTapTimeRef.current = 0;
+            onSphereSelect(SPHERE_LIST[focusedIdx].type);
+          } else {
+            focusedSphereTapTimeRef.current = now;
+            focusedSpherePulseRef.current?.();
+          }
+        }}
+      />
 
       {/* ─── Center: Sfera Insight Card (individual sfera view) or Sunny Life Avatar (overview) ─── */}
       {selectedSphere !== null ? (
