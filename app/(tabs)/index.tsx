@@ -2315,7 +2315,7 @@ const FloatingAvatar = React.memo(
 
     // Preload exam questions when entity wheel opens
     React.useEffect(() => {
-      if (showEntityWheel && isFocused) {
+      if (showEntityWheel && isFocused && aiConsent.isEnabled) {
         const lessonsCount = memories.reduce(
           (sum, m) => sum + (m.lessonsLearned?.length ?? 0),
           0,
@@ -2332,6 +2332,7 @@ const FloatingAvatar = React.memo(
     }, [
       showEntityWheel,
       isFocused,
+      aiConsent.isEnabled,
       profile.id,
       memories,
       lang,
@@ -13452,6 +13453,7 @@ export default function HomeScreen() {
   const t = useTranslate();
   const { language: appLanguage } = useLanguage();
   const appLang = appLanguage === "bg" ? "bg" : "en";
+  const aiConsent = useAIInsightsConsent();
 
   // Preload wheel exam questions on app open (main wheel pool, once when ready)
   const mainPreloadAttemptedRef = useRef(false);
@@ -13459,7 +13461,8 @@ export default function HomeScreen() {
     if (
       isLoading ||
       idealizedMemories.length === 0 ||
-      mainPreloadAttemptedRef.current
+      mainPreloadAttemptedRef.current ||
+      !aiConsent.isEnabled
     )
       return;
     mainPreloadAttemptedRef.current = true;
@@ -13468,7 +13471,7 @@ export default function HomeScreen() {
       language: appLang,
       hasAIEntitlement,
     });
-  }, [isLoading, idealizedMemories, appLang, hasAIEntitlement]);
+  }, [isLoading, idealizedMemories, appLang, hasAIEntitlement, aiConsent.isEnabled]);
   // Streak feature state
   const [streakState, setStreakState] = useState<{
     data: StreakData | null;
@@ -14024,7 +14027,6 @@ export default function HomeScreen() {
   const aiInsightsConsentPromptedRef = useRef(false);
   // Track if encouragement request is in progress to prevent duplicate calls
   const encouragementRequestInProgressRef = useRef(false);
-  const aiConsent = useAIInsightsConsent();
   const { enabled: notificationNudgeEnabled } =
     useNotificationNudgePreference();
   // When user closes the banner, bump this to force a new AI message next time it shows.
@@ -18725,6 +18727,7 @@ export default function HomeScreen() {
           constellationOpacity={constellationOpacity}
           pulsingAnimations={pulsingAnimations}
           hidden={showEntityDetail}
+          onInsightsPress={() => router.push("/insights")}
         />
       </View>
     </View>
@@ -18811,7 +18814,7 @@ export default function HomeScreen() {
         )}
 
         {/* Streak Badge - Top Right */}
-        {streakData && (
+        {streakData && streakData.currentStreak > 0 && (
           <StreakBadgeComponent
             currentStreak={streakData.currentStreak}
             currentBadge={currentBadge}
@@ -22103,7 +22106,7 @@ export default function HomeScreen() {
             }}
           />
         )}
-        {streakData && (
+        {streakData && streakData.currentStreak > 0 && (
           <StreakBadgeComponent
             currentStreak={streakData.currentStreak}
             currentBadge={currentBadge}

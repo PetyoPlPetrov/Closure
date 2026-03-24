@@ -45,6 +45,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, {
+  ClipPath,
   Defs,
   FeColorMatrix,
   FeGaussianBlur,
@@ -52,7 +53,9 @@ import Svg, {
   FeMergeNode,
   Filter,
   Line,
+  Path,
   RadialGradient,
+  Rect,
   Stop,
   Circle as SvgCircle,
   LinearGradient as SvgLinearGradient,
@@ -168,6 +171,8 @@ export type FocusedSferaViewProps = {
   hidden?: boolean;
   /** When false, pulsing animations (cosmic rings, sphere pulse) are disabled. From Personalization settings. */
   pulsingAnimations?: boolean;
+  /** Called when user taps insights icon from the expanded sun menu. Navigates to /insights. */
+  onInsightsPress?: () => void;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -868,6 +873,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   sunnyPercentage,
   orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
   singleTapWhenFocused = false,
+  sunExpanded,
+  isInitialView = false,
 }: {
   sphereIdx: number;
   sphere: { type: LifeSphere; icon: string };
@@ -883,6 +890,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   sunnyPercentage: number;
   orbitDurationMs?: number;
   singleTapWhenFocused?: boolean;
+  sunExpanded: SharedValue<number>;
+  isInitialView?: boolean;
 }) {
   const { isTablet } = useLargeDevice();
   const target = getSphereTarget(sphereIdx, focusedIdx);
@@ -1025,12 +1034,15 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     const topPairOffsetY = slot === 2 || slot === 3 ? 10 : 0;
     // Top-left (slot 3) sfera specifically — lower so it sits better above the circle avatar
     const topLeftExtraOffsetY = slot === 3 ? 18 : 0;
+    // When sun is expanded: shrink all spheres + dim them significantly
+    const sunShrink = 1 - sunExpanded.value * 0.6;
     return {
       position: "absolute",
       left: 0,
       top: 0,
       width: SPHERE_CONTAINER_SIZE,
       height: SPHERE_CONTAINER_SIZE,
+      opacity: 1 - sunExpanded.value * 0.82,
       transform: [
         { translateX: centerX - CONTAINER_HALF },
         {
@@ -1044,7 +1056,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             topPairOffsetY +
             topLeftExtraOffsetY,
         },
-        { scale: depthScale },
+        { scale: depthScale * sunShrink },
       ],
     };
   });
@@ -1113,7 +1125,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
           width: SPHERE_CONTAINER_SIZE,
           height: SPHERE_CONTAINER_SIZE,
           zIndex: isFocused ? 12 : 10,
-          opacity: isFocused ? 1 : 0.55,
+          opacity: isFocused ? 1 : isInitialView ? 0.35 : 0.55,
           justifyContent: "center",
           alignItems: "center",
         }}
@@ -1203,7 +1215,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
           top: 0,
           width: SPHERE_CONTAINER_SIZE,
           height: SPHERE_CONTAINER_SIZE,
-          opacity: isFocused ? 1 : 0.55,
+          opacity: isFocused ? 1 : isInitialView ? 0.35 : 0.55,
           zIndex: isFocused ? 12 : 10,
           pointerEvents: "box-none",
         }}
@@ -1328,7 +1340,148 @@ function hexToRgbNorm(hex: string): { r: number; g: number; b: number } {
   return { r, g, b };
 }
 
-const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
+// ─── Cosmic universe icon: nebula core + two tilted elliptical orbits + 3 glowing orbs ───
+const WheelOfLifeIcon = React.memo(function WheelOfLifeIcon({ size }: { size: number }) {
+  const { momentColors } = useMomentColors();
+
+  // Three orbs orbit at different speeds and on different axes
+  const angle0 = useSharedValue(0);
+  const angle1 = useSharedValue((2 * Math.PI) / 3);
+  const angle2 = useSharedValue((4 * Math.PI) / 3);
+
+  useEffect(() => {
+    const dur = 3200;
+    angle0.value = withRepeat(withTiming(angle0.value + 2 * Math.PI, { duration: dur, easing: Easing.linear }), -1, false);
+    angle1.value = withRepeat(withTiming(angle1.value + 2 * Math.PI, { duration: dur * 1.35, easing: Easing.linear }), -1, false);
+    angle2.value = withRepeat(withTiming(angle2.value + 2 * Math.PI, { duration: dur * 0.8, easing: Easing.linear }), -1, false);
+    return () => {
+      cancelAnimation(angle0);
+      cancelAnimation(angle1);
+      cancelAnimation(angle2);
+    };
+  }, [angle0, angle1, angle2]);
+
+  const C = size / 2;
+  // Elliptical orbit radii — orbit 0 is wider/flat, orbit 1 is tilted
+  const RX0 = size * 0.41;
+  const RY0 = size * 0.18;
+  const RX1 = size * 0.32;
+  const RY1 = size * 0.41;
+  const TILT1 = Math.PI / 5; // 36° tilt for second orbit
+  const DOT_R = size * 0.09;
+
+  const sunColor = momentColors.sunny.background;
+  const cloudColor = momentColors.cloudy.background;
+  const lessonColor = momentColors.lesson.background;
+
+  // Orb 0 on flat ellipse
+  const orb0Style = useAnimatedStyle(() => {
+    const a = angle0.value;
+    return {
+      position: "absolute" as const,
+      left: C + Math.cos(a) * RX0 - DOT_R,
+      top: C + Math.sin(a) * RY0 - DOT_R,
+      width: DOT_R * 2,
+      height: DOT_R * 2,
+      borderRadius: DOT_R,
+    };
+  });
+
+  // Orb 1 on tilted ellipse
+  const orb1Style = useAnimatedStyle(() => {
+    const a = angle1.value;
+    const ex = Math.cos(a) * RX1;
+    const ey = Math.sin(a) * RY1;
+    // Apply tilt rotation
+    return {
+      position: "absolute" as const,
+      left: C + ex * Math.cos(TILT1) - ey * Math.sin(TILT1) - DOT_R,
+      top: C + ex * Math.sin(TILT1) + ey * Math.cos(TILT1) - DOT_R,
+      width: DOT_R * 2,
+      height: DOT_R * 2,
+      borderRadius: DOT_R,
+    };
+  });
+
+  // Orb 2 on second tilted ellipse (opposite tilt)
+  const orb2Style = useAnimatedStyle(() => {
+    const a = angle2.value;
+    const ex = Math.cos(a) * RX1;
+    const ey = Math.sin(a) * RY1;
+    const tilt = -TILT1;
+    return {
+      position: "absolute" as const,
+      left: C + ex * Math.cos(tilt) - ey * Math.sin(tilt) - DOT_R,
+      top: C + ex * Math.sin(tilt) + ey * Math.cos(tilt) - DOT_R,
+      width: DOT_R * 2,
+      height: DOT_R * 2,
+      borderRadius: DOT_R,
+    };
+  });
+
+  // Fixed star positions inside the disc
+  const STARS = useMemo(() => [
+    { x: C * 0.55, y: C * 0.60 }, { x: C * 1.45, y: C * 0.72 },
+    { x: C * 0.70, y: C * 1.38 }, { x: C * 1.30, y: C * 1.42 },
+    { x: C * 1.10, y: C * 0.50 }, { x: C * 0.48, y: C * 1.05 },
+  ], [C]);
+
+  return (
+    <View style={{ width: size, height: size }}>
+      {/* Static SVG: nebula core + orbit rings + star dots */}
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "absolute" }}>
+        <Defs>
+          <RadialGradient id="nebulaCore" cx={`${C}`} cy={`${C}`} r={`${size * 0.22}`} fx={`${C}`} fy={`${C}`} gradientUnits="userSpaceOnUse">
+            <Stop offset="0%" stopColor="#7B68EE" stopOpacity="1" />
+            <Stop offset="50%" stopColor="#5CE1E6" stopOpacity="0.7" />
+            <Stop offset="100%" stopColor="#0D1525" stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+
+        {/* Outer boundary glow */}
+        <SvgCircle cx={C} cy={C} r={C - 0.5} fill="none" stroke="rgba(92,225,230,0.18)" strokeWidth={0.8} />
+
+        {/* Flat elliptical orbit ring */}
+        <SvgCircle cx={C} cy={C} r={0} fill="none" />
+        <Path
+          d={`M ${C - RX0} ${C} A ${RX0} ${RY0} 0 1 1 ${C + RX0} ${C} A ${RX0} ${RY0} 0 1 1 ${C - RX0} ${C} Z`}
+          fill="none"
+          stroke="rgba(92,225,230,0.2)"
+          strokeWidth={0.7}
+          strokeDasharray="1.5 2.5"
+        />
+
+        {/* Tilted ellipse 1 */}
+        <Path
+          d={`M ${C + RX1 * Math.cos(TILT1)} ${C + RX1 * Math.sin(TILT1)} A ${RX1} ${RY1} ${(TILT1 * 180) / Math.PI} 1 1 ${C - RX1 * Math.cos(TILT1)} ${C - RX1 * Math.sin(TILT1)} A ${RX1} ${RY1} ${(TILT1 * 180) / Math.PI} 1 1 ${C + RX1 * Math.cos(TILT1)} ${C + RX1 * Math.sin(TILT1)} Z`}
+          fill="none"
+          stroke="rgba(157,123,219,0.2)"
+          strokeWidth={0.7}
+          strokeDasharray="1.5 2.5"
+        />
+
+        {/* Nebula core glow */}
+        <SvgCircle cx={C} cy={C} r={size * 0.22} fill="url(#nebulaCore)" />
+
+        {/* Bright core */}
+        <SvgCircle cx={C} cy={C} r={size * 0.045} fill="#B8E8EC" opacity={0.9} />
+        <SvgCircle cx={C} cy={C} r={size * 0.022} fill="#FFFFFF" opacity={1} />
+
+        {/* Star dust */}
+        {STARS.map((s, i) => (
+          <SvgCircle key={i} cx={s.x} cy={s.y} r={0.8} fill="rgba(255,255,255,0.5)" />
+        ))}
+      </Svg>
+
+      {/* Animated orbs */}
+      <Animated.View pointerEvents="none" style={[orb0Style, { backgroundColor: sunColor, shadowColor: sunColor, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 3, elevation: 5 }]} />
+      <Animated.View pointerEvents="none" style={[orb1Style, { backgroundColor: cloudColor, shadowColor: cloudColor, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 3, elevation: 5 }]} />
+      <Animated.View pointerEvents="none" style={[orb2Style, { backgroundColor: lessonColor, shadowColor: lessonColor, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 3, elevation: 5 }]} />
+    </View>
+  );
+});
+
+const SunAvatar = React.memo(function SunAvatar({
   percentage,
   hasMemories,
   onPress,
@@ -1336,61 +1489,76 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   colorScheme,
   x,
   y,
+  sunExpanded,
+  isCentered,
 }: {
   percentage: number;
   hasMemories: boolean;
-  /** When set, tapping the avatar (when hasMemories) switches to Classic view (wheel of life). */
+  /** When set, tapping the avatar (when hasMemories) toggles expanded sun mode. */
   onPress?: () => void;
   /** When set, tapping "Add memories" (when !hasMemories) navigates to Sfera tab. */
   onAddMemoriesPress?: () => void;
   colorScheme: "light" | "dark";
   x: number;
   y: number;
+  sunExpanded: SharedValue<number>;
+  isCentered: boolean;
 }) {
   const { momentColors } = useMomentColors();
   const t = useTranslate();
   const { language } = useLanguage();
   const handlePress = hasMemories ? onPress : onAddMemoriesPress;
-  const colors = Colors[colorScheme] as {
-    primary: string;
-    primaryLight?: string;
-    primaryDark?: string;
-  };
-  const primaryHex = colors.primary ?? "#64B5F6";
-  const glowMatrixValues = React.useMemo(() => {
-    const rgb = hexToRgbNorm(primaryHex);
-    const m = (a: number) =>
-      `${rgb.r} 0 0 0 0   0 ${rgb.g} 0 0 0   0 0 ${rgb.b} 0 0   0 0 0 ${a} 0`;
-    return {
-      m05: m(0.5),
-      m07: m(0.7),
-      m085: m(0.85),
-      m08: m(0.8),
-      m09: m(0.9),
-      m1: m(1),
-    };
-  }, [primaryHex]);
 
-  const avatarSize = 100;
-  const borderWidth = 8;
-  const radius = (avatarSize + borderWidth) / 2 - borderWidth / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  // SVG canvas size including ray overhang
+  const DISC_R = 44;
+  const RAY_COUNT = 16;
+  const RAY_INNER = DISC_R + 3;
+  const RAY_OUTER = DISC_R + 24;
+  const RAY_BASE_W = 4;
+  const RAY_TIP_W = 0.5;
+  const C = RAY_OUTER + 6;    // centre of SVG canvas
+  const CANVAS_SIZE = C * 2;
 
-  const gradientColors =
-    colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
+  // Cosmic-sun palette — matches the app's dark cosmic theme
+  // Rays: single warm golden color — no overlap with sphere colors
+  const RAY_SPHERE_COLORS = ["#F5C842"];
+  // Disc background: deep cosmic space
+  const DISC_BG_TOP = "#0A0E1A";  // near COSMIC_TRACK
+  const DISC_BG_BOT = "#0D1525";
+  // Nebula center glow
+  const NEBULA_COLOR = "#1E2A4A";
+  // Fill: use the sunny moment color from settings (same as floating sun moments)
+  const FILL_TOP = momentColors.sunny.background;
+  const FILL_BOT = blendHex(momentColors.sunny.background, "#000000", 0.35);
+  // Text: always bright white for readability on both dark and filled parts
+  const TEXT_COLOR = "#FFFFFF";
+  const TEXT_SHADOW = "rgba(0,0,0,0.85)";
 
-  // Pulse animation for circle avatar (percentage) — every 12s, offset so not in sync with focused sphere
+  // Slow rotation for rays only
+  const rayRotation = useSharedValue(0);
+  useEffect(() => {
+    rayRotation.value = withRepeat(
+      withTiming(360, { duration: 120000, easing: Easing.linear }),
+      -1,
+      false,
+    );
+    return () => { cancelAnimation(rayRotation); };
+  }, [rayRotation]);
+
+  const rotatingStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rayRotation.value}deg` }],
+  }));
+
+  // Pulse animation — every 9s
   const avatarPulseScale = useSharedValue(1);
   useEffect(() => {
-    avatarPulseScale.value = 1;
     avatarPulseScale.value = withDelay(
-      12000,
+      9000,
       withRepeat(
         withSequence(
-          withSpring(1.1, { damping: 8, stiffness: 100 }),
+          withSpring(1.08, { damping: 8, stiffness: 100 }),
           withSpring(1, { damping: 10, stiffness: 150 }),
-          withDelay(12000, withTiming(1, { duration: 0 })),
+          withDelay(9000, withTiming(1, { duration: 0 })),
         ),
         -1,
         false,
@@ -1401,12 +1569,17 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
       avatarPulseScale.value = 1;
     };
   }, [avatarPulseScale]);
-  // Press feedback: scale down on press, spring back on release
-  const pressScale = useSharedValue(1);
-  const avatarPulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: avatarPulseScale.value * pressScale.value }],
+
+  // Scale up slightly when expanded
+  const compositeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: avatarPulseScale.value * (1 + sunExpanded.value * 0.12) }],
   }));
 
+  // Press feedback
+  const pressScale = useSharedValue(1);
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }],
+  }));
   const handlePressIn = useCallback(() => {
     cancelAnimation(pressScale);
     pressScale.value = withSpring(0.9, { damping: 12, stiffness: 400 });
@@ -1416,293 +1589,121 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
     pressScale.value = withSpring(1, { damping: 12, stiffness: 400 });
   }, [pressScale]);
 
+  // Build triangular spike rays with alternating colors
+  const rays = useMemo(() => Array.from({ length: RAY_COUNT }, (_, i) => {
+    const angle = (i * 2 * Math.PI) / RAY_COUNT;
+    const innerX = C + Math.cos(angle) * RAY_INNER;
+    const innerY = C + Math.sin(angle) * RAY_INNER;
+    const outerX = C + Math.cos(angle) * RAY_OUTER;
+    const outerY = C + Math.sin(angle) * RAY_OUTER;
+    const perp = angle + Math.PI / 2;
+    const li = `${innerX + Math.cos(perp) * RAY_BASE_W} ${innerY + Math.sin(perp) * RAY_BASE_W}`;
+    const ri = `${innerX + Math.cos(perp + Math.PI) * RAY_BASE_W} ${innerY + Math.sin(perp + Math.PI) * RAY_BASE_W}`;
+    const lo = `${outerX + Math.cos(perp) * RAY_TIP_W} ${outerY + Math.sin(perp) * RAY_TIP_W}`;
+    const ro = `${outerX + Math.cos(perp + Math.PI) * RAY_TIP_W} ${outerY + Math.sin(perp + Math.PI) * RAY_TIP_W}`;
+    return {
+      d: `M ${li} L ${lo} L ${ro} L ${ri} Z`,
+      color: RAY_SPHERE_COLORS[i % RAY_SPHERE_COLORS.length],
+    };
+  }), []);
+
+  const wrapperSize = CANVAS_SIZE;
+
+  // Translate needed to move the sun from its current position to screen center
+  const targetTX = SW / 2 - x;
+  const targetTY = SH / 2 - y;
+
+  const centeredProgress = useSharedValue(0);
+  useEffect(() => {
+    centeredProgress.value = withSpring(isCentered ? 1 : 0, { damping: 16, stiffness: 100 });
+  }, [isCentered, centeredProgress]);
+
+  const centeringStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: centeredProgress.value * targetTX },
+      { translateY: centeredProgress.value * targetTY },
+      { scale: 1 + centeredProgress.value * 0.45 },
+    ],
+  }));
+
   const wrapperStyle = {
     position: "absolute" as const,
-    left: x - avatarSize / 2,
-    top: y - avatarSize / 2,
-    width: avatarSize,
-    height: avatarSize,
-    zIndex: 25, // Above spheres (10-12) so taps always reach the avatar
+    left: x - wrapperSize / 2,
+    top: y - wrapperSize / 2,
+    width: wrapperSize,
+    height: wrapperSize,
+    zIndex: 25,
   };
 
+  // Clip rect for fill level — relative to canvas (disc top = C - DISC_R)
+  const discTop = C - DISC_R;
+  const fillClipY = discTop + DISC_R * 2 * (1 - percentage / 100);
+
   return (
+    <Animated.View style={[wrapperStyle, centeringStyle]}>
     <Pressable
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={wrapperStyle}
+      style={{ width: wrapperSize, height: wrapperSize }}
     >
-      <Animated.View
-        style={[{ width: avatarSize, height: avatarSize }, avatarPulseStyle]}
-      >
-        <View
-          style={{
-            width: avatarSize,
-            height: avatarSize,
-            borderRadius: avatarSize / 2,
-            justifyContent: "center",
-            alignItems: "center",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          <LinearGradient
-            colors={gradientColors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={{
-              position: "absolute",
-              width: avatarSize,
-              height: avatarSize,
-              borderRadius: avatarSize / 2,
-            }}
-          />
+      <Animated.View style={[{ width: wrapperSize, height: wrapperSize, alignItems: "center", justifyContent: "center" }, pressStyle]}>
+        {/* Whole sun pulses and scales together */}
+        <Animated.View style={[{ width: wrapperSize, height: wrapperSize, alignItems: "center", justifyContent: "center" }, compositeStyle]}>
+
+          {/* Layer 1 — rotating rays only */}
+          <Animated.View
+            pointerEvents="none"
+            style={[{ position: "absolute", width: wrapperSize, height: wrapperSize }, rotatingStyle]}
+          >
+            <Svg width={wrapperSize} height={wrapperSize} viewBox={`0 0 ${wrapperSize} ${wrapperSize}`} style={{ position: "absolute" }}>
+              {rays.map((ray, i) => (
+                <Path key={i} d={ray.d} fill={ray.color} opacity={0.82} />
+              ))}
+            </Svg>
+          </Animated.View>
+
+          {/* Layer 2 — static disc (background + fill), sits on top of rays */}
           <Svg
-            width={avatarSize}
-            height={avatarSize}
-            viewBox={`0 0 ${avatarSize} ${avatarSize}`}
-            style={{ position: "absolute", top: 0, left: 0 }}
+            pointerEvents="none"
+            width={wrapperSize}
+            height={wrapperSize}
+            viewBox={`0 0 ${wrapperSize} ${wrapperSize}`}
+            style={{ position: "absolute" }}
           >
             <Defs>
-              <RadialGradient
-                id="nebulaHalo"
-                cx="50%"
-                cy="50%"
-                r="65%"
-                fx="50%"
-                fy="50%"
-              >
-                <Stop offset="0%" stopColor={colors.primary} stopOpacity="0" />
-                <Stop
-                  offset="50%"
-                  stopColor={colors.primaryLight ?? colors.primary}
-                  stopOpacity="0.08"
-                />
-                <Stop
-                  offset="85%"
-                  stopColor={colors.primary}
-                  stopOpacity="0.2"
-                />
-                <Stop
-                  offset="100%"
-                  stopColor={colors.primaryDark ?? colors.primary}
-                  stopOpacity="0.35"
-                />
+              <RadialGradient id="discNebulaGrad" cx={`${C}`} cy={`${C}`} r={`${DISC_R}`} fx={`${C}`} fy={`${C}`} gradientUnits="userSpaceOnUse">
+                <Stop offset="0%" stopColor={NEBULA_COLOR} stopOpacity="1" />
+                <Stop offset="70%" stopColor={DISC_BG_TOP} stopOpacity="1" />
+                <Stop offset="100%" stopColor={DISC_BG_BOT} stopOpacity="1" />
               </RadialGradient>
-              <Filter
-                id="nebulaBlur"
-                x="-80%"
-                y="-80%"
-                width="260%"
-                height="260%"
-              >
-                <FeGaussianBlur
-                  in="SourceGraphic"
-                  stdDeviation="12"
-                  result="nebulaBlurred"
-                />
-                <FeMerge>
-                  <FeMergeNode in="nebulaBlurred" />
-                </FeMerge>
-              </Filter>
-              <SvgLinearGradient
-                id="focusedBorderGradient"
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
-                <Stop
-                  offset="0%"
-                  stopColor={colors.primary}
-                  stopOpacity="0.9"
-                />
-                <Stop
-                  offset="50%"
-                  stopColor={colors.primaryLight ?? colors.primary}
-                  stopOpacity="1"
-                />
-                <Stop
-                  offset="100%"
-                  stopColor={colors.primaryDark ?? colors.primary}
-                  stopOpacity="1"
-                />
+              <SvgLinearGradient id="sunFillGrad" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0%" stopColor={FILL_TOP} stopOpacity="0.92" />
+                <Stop offset="100%" stopColor={FILL_BOT} stopOpacity="1" />
               </SvgLinearGradient>
-              <Filter
-                id="focusedOuterGlow"
-                x="-200%"
-                y="-200%"
-                width="500%"
-                height="500%"
-              >
-                <FeGaussianBlur
-                  in="SourceGraphic"
-                  stdDeviation="20"
-                  result="outerBlurLarge"
-                />
-                <FeColorMatrix
-                  in="outerBlurLarge"
-                  type="matrix"
-                  values={glowMatrixValues.m05}
-                  result="outerGlowLarge"
-                />
-                <FeGaussianBlur
-                  in="SourceGraphic"
-                  stdDeviation="12"
-                  result="outerBlurMedium"
-                />
-                <FeColorMatrix
-                  in="outerBlurMedium"
-                  type="matrix"
-                  values={glowMatrixValues.m07}
-                  result="outerGlowMedium"
-                />
-                <FeGaussianBlur
-                  in="SourceGraphic"
-                  stdDeviation="6"
-                  result="outerBlurSmall"
-                />
-                <FeColorMatrix
-                  in="outerBlurSmall"
-                  type="matrix"
-                  values={glowMatrixValues.m09}
-                  result="outerGlowSmall"
-                />
-                <FeMerge>
-                  <FeMergeNode in="outerGlowLarge" />
-                  <FeMergeNode in="outerGlowMedium" />
-                  <FeMergeNode in="outerGlowSmall" />
-                </FeMerge>
-              </Filter>
-              <Filter
-                id="focusedYellowGlow"
-                x="-200%"
-                y="-200%"
-                width="500%"
-                height="500%"
-              >
-                <FeGaussianBlur
-                  in="SourceGraphic"
-                  stdDeviation="16"
-                  result="outerBlur"
-                />
-                <FeColorMatrix
-                  in="outerBlur"
-                  type="matrix"
-                  values={glowMatrixValues.m1}
-                  result="outerGlow"
-                />
-                <FeGaussianBlur
-                  in="SourceGraphic"
-                  stdDeviation="10"
-                  result="outerBlurMed"
-                />
-                <FeColorMatrix
-                  in="outerBlurMed"
-                  type="matrix"
-                  values={glowMatrixValues.m085}
-                  result="outerGlowMed"
-                />
-                <FeGaussianBlur
-                  in="SourceGraphic"
-                  stdDeviation="4"
-                  result="innerBlur"
-                />
-                <FeColorMatrix
-                  in="innerBlur"
-                  type="matrix"
-                  values={glowMatrixValues.m08}
-                  result="innerGlow"
-                />
-                <FeMerge>
-                  <FeMergeNode in="outerGlow" />
-                  <FeMergeNode in="outerGlowMed" />
-                  <FeMergeNode in="innerGlow" />
-                  <FeMergeNode in="SourceGraphic" />
-                </FeMerge>
-              </Filter>
+              <ClipPath id="fillLevelClip">
+                <Rect x={0} y={fillClipY} width={wrapperSize} height={wrapperSize - fillClipY} />
+              </ClipPath>
             </Defs>
-            {/* Nebula halo - soft glow around outer part of circle */}
-            <SvgCircle
-              cx={avatarSize / 2}
-              cy={avatarSize / 2}
-              r={radius + 18}
-              fill="url(#nebulaHalo)"
-              filter="url(#nebulaBlur)"
-            />
-            {/* Cosmic dark ring track */}
-            <SvgCircle
-              cx={avatarSize / 2}
-              cy={avatarSize / 2}
-              r={radius}
-              stroke={COSMIC_TRACK}
-              strokeWidth={borderWidth}
-              fill="none"
-            />
-            {/* Outer glow arc */}
-            <SvgCircle
-              cx={avatarSize / 2}
-              cy={avatarSize / 2}
-              r={radius}
-              stroke="url(#focusedBorderGradient)"
-              strokeWidth={borderWidth}
-              fill="none"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              filter="url(#focusedOuterGlow)"
-              transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
-            />
-            {/* Main glowing progress arc */}
-            <SvgCircle
-              cx={avatarSize / 2}
-              cy={avatarSize / 2}
-              r={radius}
-              stroke="url(#focusedBorderGradient)"
-              strokeWidth={borderWidth}
-              fill="none"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              filter="url(#focusedYellowGlow)"
-              transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
-            />
-            {/* Constellation lines */}
-            {AVATAR_CONSTELLATION_LINES.map(([i, j], k) => (
-              <Line
-                key={`line-${k}`}
-                x1={AVATAR_STARS[i].x * avatarSize}
-                y1={AVATAR_STARS[i].y * avatarSize}
-                x2={AVATAR_STARS[j].x * avatarSize}
-                y2={AVATAR_STARS[j].y * avatarSize}
-                stroke={AVATAR_LINE_COLOR}
-                strokeWidth={1}
-                strokeLinecap="round"
-              />
-            ))}
-            {/* Constellation dots */}
-            {AVATAR_STARS.map((star, k) => (
-              <SvgCircle
-                key={`star-${k}`}
-                cx={star.x * avatarSize}
-                cy={star.y * avatarSize}
-                r={k < 8 ? 1.2 : 0.9}
-                fill={AVATAR_STAR_COLOR}
-              />
-            ))}
+            {/* Deep cosmic background disc */}
+            <SvgCircle cx={C} cy={C} r={DISC_R} fill="url(#discNebulaGrad)" />
+            {/* Cosmic fire fill rising from bottom */}
+            {percentage > 0 && (
+              <SvgCircle cx={C} cy={C} r={DISC_R} fill="url(#sunFillGrad)" clipPath="url(#fillLevelClip)" />
+            )}
           </Svg>
 
+          {/* Text overlay */}
           <View
+            pointerEvents="box-none"
             style={{
               position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
+              width: DISC_R * 2,
+              height: DISC_R * 2,
+              borderRadius: DISC_R,
               justifyContent: "center",
               alignItems: "center",
             }}
-            pointerEvents="box-none"
           >
             {hasMemories ? (
               <>
@@ -1710,169 +1711,40 @@ const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                   size="xl"
                   weight="bold"
                   style={{
-                    color: colors.primaryLight ?? colors.primary,
+                    color: TEXT_COLOR,
                     fontSize: 24,
+                    textShadowColor: TEXT_SHADOW,
+                    textShadowOffset: { width: 0, height: 1 },
+                    textShadowRadius: 4,
                   }}
                 >
                   {Math.round(percentage)}%
                 </ThemedText>
                 {language === "bg" ? (
                   <View style={{ alignItems: "center" }}>
-                    <ThemedText
-                      size="sm"
-                      weight="medium"
-                      style={{
-                        color: colors.primaryLight ?? colors.primary,
-                        fontSize: 10,
-                        marginTop: -2,
-                        textAlign: "center",
-                        lineHeight: 10,
-                      }}
-                    >
+                    <ThemedText size="sm" weight="medium" style={{ color: TEXT_COLOR, fontSize: 10, marginTop: -2, textAlign: "center", lineHeight: 11, opacity: 0.8, textShadowColor: TEXT_SHADOW, textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>
                       Слънчев
                     </ThemedText>
-                    <ThemedText
-                      size="sm"
-                      weight="medium"
-                      style={{
-                        color: colors.primaryLight ?? colors.primary,
-                        fontSize: 10,
-                        textAlign: "center",
-                        lineHeight: 10,
-                        marginTop: -1,
-                      }}
-                    >
+                    <ThemedText size="sm" weight="medium" style={{ color: TEXT_COLOR, fontSize: 10, textAlign: "center", lineHeight: 11, marginTop: -1, opacity: 0.8, textShadowColor: TEXT_SHADOW, textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>
                       живот
                     </ThemedText>
                   </View>
                 ) : (
-                  <ThemedText
-                    size="sm"
-                    weight="medium"
-                    style={{
-                      color: colors.primaryLight ?? colors.primary,
-                      fontSize: 12,
-                      marginTop: -2,
-                    }}
-                  >
+                  <ThemedText size="sm" weight="medium" style={{ color: TEXT_COLOR, fontSize: 12, marginTop: -2, opacity: 0.8, textShadowColor: TEXT_SHADOW, textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>
                     {t("avatar.sunnyLife")}
                   </ThemedText>
                 )}
               </>
             ) : (
-              <View
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: `${colors.primary}40`,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <MaterialIcons
-                  name="add"
-                  size={28}
-                  color={colors.primaryLight ?? colors.primary}
-                />
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(92,225,230,0.15)", justifyContent: "center", alignItems: "center" }}>
+                <MaterialIcons name="add" size={28} color={TEXT_COLOR} />
               </View>
             )}
           </View>
-        </View>
-
-        {/* Sun icon on the sunny arc - darker shade of sunny color from settings */}
-        {percentage > 0 &&
-          (() => {
-            const sunnyArcAngle = -90 + ((percentage / 100) * 360) / 2;
-            const sunnyAngleRad = (sunnyArcAngle * Math.PI) / 180;
-            const iconRadius = avatarSize / 2;
-            const sunX =
-              avatarSize / 2 + iconRadius * Math.cos(sunnyAngleRad) - 12;
-            const sunY =
-              avatarSize / 2 + iconRadius * Math.sin(sunnyAngleRad) - 12;
-            const sunShade = blendHex(
-              momentColors.sunny.background,
-              COSMIC_TRACK,
-              0.22,
-            );
-            return (
-              <View
-                pointerEvents="none"
-                style={{
-                  position: "absolute",
-                  top: sunY,
-                  left: sunX,
-                  width: 24,
-                  height: 24,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: sunShade,
-                  borderRadius: 12,
-                  borderWidth: 2,
-                  borderColor: sunShade,
-                  zIndex: 999,
-                  elevation: 30,
-                  shadowColor: sunShade,
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 6,
-                }}
-              >
-                <MaterialIcons
-                  name="wb-sunny"
-                  size={14}
-                  color={momentColors.sunny.text}
-                />
-              </View>
-            );
-          })()}
-
-        {/* Cloud icon on the dark arc */}
-        {percentage < 100 &&
-          percentage > 0 &&
-          (() => {
-            const cloudyStartAngle = -90 + (percentage / 100) * 360;
-            const cloudyArcLength = 360 - (percentage / 100) * 360;
-            const cloudyArcAngle = cloudyStartAngle + cloudyArcLength / 2;
-            const cloudyAngleRad = (cloudyArcAngle * Math.PI) / 180;
-            const iconRadius = avatarSize / 2;
-            const cloudX =
-              avatarSize / 2 + iconRadius * Math.cos(cloudyAngleRad) - 12;
-            const cloudY =
-              avatarSize / 2 + iconRadius * Math.sin(cloudyAngleRad) - 12;
-            return (
-              <View
-                pointerEvents="none"
-                style={{
-                  position: "absolute",
-                  top: cloudY,
-                  left: cloudX,
-                  width: 24,
-                  height: 24,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: momentColors.cloudy.background,
-                  borderRadius: 12,
-                  borderWidth: 2,
-                  borderColor: momentColors.cloudy.background,
-                  zIndex: 999,
-                  elevation: 30,
-                  shadowColor: momentColors.cloudy.background,
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 4,
-                }}
-              >
-                <MaterialIcons
-                  name="cloud"
-                  size={14}
-                  color={momentColors.cloudy.text}
-                />
-              </View>
-            );
-          })()}
+        </Animated.View>
       </Animated.View>
     </Pressable>
+    </Animated.View>
   );
 });
 
@@ -2157,6 +2029,7 @@ export function FocusedSferaView({
   constellationOpacity = 10,
   hidden = false,
   pulsingAnimations = true,
+  onInsightsPress,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
   const { appUsabilityHints } = useVisualSettings();
@@ -2167,9 +2040,44 @@ export function FocusedSferaView({
   // Keep root aligned with TabScreenContainer; we shift spheres via ORBIT_CY instead.
   const rootMarginTop = 0;
 
+  // Sun expanded state: 0 = collapsed, 1 = expanded (spheres shrink, action buttons appear)
+  const sunExpanded = useSharedValue(0);
+  const [isSunExpanded, setIsSunExpanded] = useState(false);
+  const sunMenuOpacity = useSharedValue(0);
+  const sunMenuTranslateY = useSharedValue(20);
+
+  // Sun centered state (initial view only): true = floated to screen center
+  const [isSunCentered, setIsSunCentered] = useState(false);
+
+  const handleSunPress = useCallback(() => {
+    const next = !isSunExpanded;
+    setIsSunExpanded(next);
+    if (next) {
+      sunExpanded.value = withSpring(1, { damping: 14, stiffness: 120 });
+      sunMenuOpacity.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.ease) });
+      sunMenuTranslateY.value = withSpring(0, { damping: 14, stiffness: 180 });
+    } else {
+      sunExpanded.value = withSpring(0, { damping: 14, stiffness: 120 });
+      sunMenuOpacity.value = withTiming(0, { duration: 200, easing: Easing.in(Easing.ease) });
+      sunMenuTranslateY.value = withTiming(20, { duration: 200 });
+    }
+  }, [isSunExpanded, sunExpanded, sunMenuOpacity, sunMenuTranslateY]);
+
+  const sunMenuStyle = useAnimatedStyle(() => ({
+    opacity: sunMenuOpacity.value,
+    transform: [{ translateY: sunMenuTranslateY.value }],
+  }));
+
   useEffect(() => {
     setFocusedIdx(initialFocusedIdx);
   }, [initialFocusedIdx]);
+
+  // Reset sun centering when leaving initial view
+  useEffect(() => {
+    if (selectedSphere !== null) {
+      setIsSunCentered(false);
+    }
+  }, [selectedSphere]);
 
   const goToSphere = useCallback(
     (newIdx: number) => {
@@ -2231,6 +2139,7 @@ export function FocusedSferaView({
   );
 
   const t = useTranslate();
+  const { language } = useLanguage();
   const focusedSphere = SPHERE_LIST[focusedIdx];
   const focusedSunnyPct = getSphereSunnyPercentage(focusedSphere.type);
   const focusedGradientColors = getSphereGradientColors(
@@ -2272,22 +2181,28 @@ export function FocusedSferaView({
     overallSunnyPercentage,
   ]);
 
+  // Collapse sun expanded state and centering together
+  const handleCollapseSun = useCallback(() => {
+    setIsSunCentered(false);
+    if (isSunExpanded) handleSunPress();
+  }, [isSunExpanded, handleSunPress]);
+
   // When circle avatar is pressed:
-  // - Initial view (selectedSphere === null): switch to classic view
+  // - Initial view (selectedSphere === null): expand sun (shrink sferas + show menu) AND center sun
   // - Individual sfera view (selectedSphere !== null): clear selection to return to initial view
   const handleCircleAvatarPress = useCallback(() => {
     if (selectedSphere === null) {
-      // Initial view: switch to classic wheel of life
-      onSwitchToClassic();
+      const next = !isSunExpanded;
+      setIsSunCentered(next);
+      handleSunPress();
     } else {
-      // Individual sfera view: clear selection to return to initial view
       if (onClearSelection) {
         onClearSelection();
       } else {
         onSwitchToClassic();
       }
     }
-  }, [selectedSphere, onClearSelection, onSwitchToClassic]);
+  }, [selectedSphere, isSunExpanded, onClearSelection, onSwitchToClassic, handleSunPress]);
 
   const { momentColors } = useMomentColors();
   const avatarSizeForDots = 100;
@@ -2375,7 +2290,7 @@ export function FocusedSferaView({
         offsetX={ORBIT_CX}
         offsetY={ORBIT_CY + ORBIT_R}
         sphereSize={FOCUSED_SIZE}
-        enabled={pulsingAnimations}
+        enabled={pulsingAnimations && !isSunExpanded}
       />
 
       {/* ─── All 5 spheres with orbital animated transitions ─── */}
@@ -2390,6 +2305,7 @@ export function FocusedSferaView({
           entityNames={entityNamesBySphere[sphere.type] ?? []}
           entityMemories={memoriesPerEntityBySphere[sphere.type] ?? []}
           onPress={() => {
+            if (isSunExpanded) { handleCollapseSun(); return; }
             if (i !== focusedIdx) { goToSphere(i); return; }
             if (selectedSphere !== null) { onAddMemoriesPress(); return; }
             onSphereSelect(sphere.type);
@@ -2404,6 +2320,8 @@ export function FocusedSferaView({
           orbitDurationMs={orbitDurationMs}
           singleTapWhenFocused={selectedSphere !== null && i === focusedIdx}
           onPulse={i === focusedIdx ? (fn) => { focusedSpherePulseRef.current = fn; } : undefined}
+          sunExpanded={sunExpanded}
+          isInitialView={selectedSphere === null}
         />
       ))}
 
@@ -2419,6 +2337,7 @@ export function FocusedSferaView({
           zIndex: 13,
         }}
         onPress={() => {
+          if (isSunExpanded) { handleCollapseSun(); return; }
           if (selectedSphere !== null) { onAddMemoriesPress(); return; }
           const now = Date.now();
           const elapsed = now - focusedSphereTapTimeRef.current;
@@ -2433,7 +2352,7 @@ export function FocusedSferaView({
         }}
       />
 
-      {/* ─── Center: Sfera Insight Card (individual sfera view) or Sunny Life Avatar (overview) ─── */}
+      {/* ─── Center: Sfera Insight Card (individual sfera view) or Sun Avatar (overview) ─── */}
       {selectedSphere !== null ? (
         <SferaInsightCard
           sphere={focusedSphere.type}
@@ -2447,15 +2366,100 @@ export function FocusedSferaView({
           y={SH * 0.38}
         />
       ) : (
-        <SunnyLifeAvatar
-          percentage={circleAvatarPercentage}
-          hasMemories={hasMemories}
-          onPress={handleCircleAvatarPress}
-          onAddMemoriesPress={onAddMemoriesPress}
-          colorScheme={colorScheme}
-          x={SW * 0.45}
-          y={SH * 0.38}
-        />
+        <>
+          <SunAvatar
+            percentage={circleAvatarPercentage}
+            hasMemories={hasMemories}
+            onPress={handleCircleAvatarPress}
+            onAddMemoriesPress={onAddMemoriesPress}
+            colorScheme={colorScheme}
+            x={SW * 0.45}
+            y={SH * 0.38}
+            sunExpanded={sunExpanded}
+            isCentered={isSunCentered}
+          />
+          {/* ─── Sun action buttons: appear below sun when expanded ─── */}
+          <Animated.View
+            pointerEvents={isSunExpanded ? "auto" : "none"}
+            style={[
+              {
+                position: "absolute",
+                left: SW / 2 - 130,
+                top: SH * 0.5 + 160,
+                width: 260,
+                flexDirection: "row",
+                justifyContent: "space-around",
+                alignItems: "flex-start",
+                zIndex: 30,
+              },
+              sunMenuStyle,
+            ]}
+          >
+            {/* Insights button */}
+            <Pressable
+              onPress={() => {
+                handleCollapseSun();
+                onInsightsPress?.();
+              }}
+              style={{ alignItems: "center", gap: 8 }}
+            >
+              <View
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  backgroundColor: "rgba(186,104,200,0.22)",
+                  borderWidth: 2,
+                  borderColor: "rgba(186,104,200,0.65)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  shadowColor: "#BA68C8",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.55,
+                  shadowRadius: 10,
+                  elevation: 10,
+                }}
+              >
+                <MaterialIcons name="insights" size={36} color="#CE93D8" />
+              </View>
+              <ThemedText style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, letterSpacing: 0.3 }}>
+                {t("insights.wheelOfLife.title")}
+              </ThemedText>
+            </Pressable>
+
+            {/* Wheel of Life button */}
+            <Pressable
+              onPress={() => {
+                handleCollapseSun();
+                onSwitchToClassic();
+              }}
+              style={{ alignItems: "center", gap: 8 }}
+            >
+              <View
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  backgroundColor: "rgba(13,21,37,0.7)",
+                  borderWidth: 2,
+                  borderColor: "rgba(92,225,230,0.45)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  shadowColor: "#5CE1E6",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.45,
+                  shadowRadius: 10,
+                  elevation: 10,
+                }}
+              >
+                <WheelOfLifeIcon size={44} />
+              </View>
+              <ThemedText style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, letterSpacing: 0.3 }}>
+                {language === "bg" ? "Уроци" : "Universe Lessons"}
+              </ThemedText>
+            </Pressable>
+          </Animated.View>
+        </>
       )}
 
       {/* ─── Focused sfera label + pagination dots (below rotating entities) ─── */}
@@ -2464,6 +2468,7 @@ export function FocusedSferaView({
           styles.focusedLabelContainer,
           {
             top: ORBIT_CY + ORBIT_R + FOCUSED_LABEL_GAP * 5.5,
+            opacity: isSunExpanded ? 0 : 1,
           },
         ]}
         pointerEvents="none"
@@ -2516,39 +2521,31 @@ export function FocusedSferaView({
         </Animated.View>
       )}
 
-      {/* ─── Chevron buttons: left = next, right = prev (orbit style; focused sfera swipe is reversed) ─── */}
-      <Animated.View
-        style={[styles.chevron, styles.chevronLeft, leftChevronStyle]}
-      >
-        <Pressable
-          style={styles.chevronPressable}
-          onPressIn={() => chevronPressIn("left")}
-          onPressOut={() => chevronPressOut("left")}
-          onPress={() => goToSphere((focusedIdx + 1) % N)}
-        >
-          <MaterialIcons
-            name="chevron-left"
-            size={32}
-            color="rgba(255,255,255,0.45)"
-          />
-        </Pressable>
-      </Animated.View>
-      <Animated.View
-        style={[styles.chevron, styles.chevronRight, rightChevronStyle]}
-      >
-        <Pressable
-          style={styles.chevronPressable}
-          onPressIn={() => chevronPressIn("right")}
-          onPressOut={() => chevronPressOut("right")}
-          onPress={() => goToSphere((focusedIdx - 1 + N) % N)}
-        >
-          <MaterialIcons
-            name="chevron-right"
-            size={32}
-            color="rgba(255,255,255,0.45)"
-          />
-        </Pressable>
-      </Animated.View>
+      {/* ─── Chevron buttons: hidden when sun is expanded ─── */}
+      {!isSunExpanded && (
+        <>
+          <Animated.View style={[styles.chevron, styles.chevronLeft, leftChevronStyle]}>
+            <Pressable
+              style={styles.chevronPressable}
+              onPressIn={() => chevronPressIn("left")}
+              onPressOut={() => chevronPressOut("left")}
+              onPress={() => goToSphere((focusedIdx + 1) % N)}
+            >
+              <MaterialIcons name="chevron-left" size={32} color="rgba(255,255,255,0.45)" />
+            </Pressable>
+          </Animated.View>
+          <Animated.View style={[styles.chevron, styles.chevronRight, rightChevronStyle]}>
+            <Pressable
+              style={styles.chevronPressable}
+              onPressIn={() => chevronPressIn("right")}
+              onPressOut={() => chevronPressOut("right")}
+              onPress={() => goToSphere((focusedIdx - 1 + N) % N)}
+            >
+              <MaterialIcons name="chevron-right" size={32} color="rgba(255,255,255,0.45)" />
+            </Pressable>
+          </Animated.View>
+        </>
+      )}
     </View>
   );
 }
@@ -2580,16 +2577,16 @@ const styles = StyleSheet.create({
     gap: SW * 0.025,
   },
   focusedLabelDot: {
-    width: SW * 0.016,
-    height: SW * 0.016,
-    borderRadius: SW * 0.008,
-    backgroundColor: "rgba(255,255,255,0.25)",
-  },
-  focusedLabelDotActive: {
     width: SW * 0.022,
     height: SW * 0.022,
     borderRadius: SW * 0.011,
-    backgroundColor: "rgba(255,255,255,0.85)",
+    backgroundColor: "rgba(255,255,255,0.3)",
+  },
+  focusedLabelDotActive: {
+    width: SW * 0.06,
+    height: SW * 0.022,
+    borderRadius: SW * 0.011,
+    backgroundColor: "rgba(255,255,255,0.9)",
   },
   chevron: {
     position: "absolute",

@@ -2621,44 +2621,6 @@ export default function SpheresScreen() {
                         sunnyBackground={momentColors.sunny.background}
                       />
 
-                      {/* Insights button in the center - circular (pulses rarely) */}
-                      <AnimatedView
-                        style={[
-                          styles.insightsButtonContainerCentered,
-                          {
-                            left: centerX - 24 * fontScale, // Adjusted for smaller button (was 30)
-                            top: centerY - 20 * fontScale, // Elevated button position
-                          },
-                          insightPulseAnimatedStyle,
-                        ]}
-                      >
-                        <TouchableOpacity
-                          style={{ width: "100%", height: "100%" }}
-                          onPress={() => {
-                            router.push("/insights");
-                          }}
-                          activeOpacity={0.9}
-                        >
-                          <LinearGradient
-                            colors={
-                              colorScheme === "dark"
-                                ? ["#BA68C8", "#9575CD", "#64B5F6", "#4DB6AC"] // Desaturated purple-to-blue gradient
-                                : ["#a78bfa", "#818cf8", "#60a5fa", "#38bdf8"]
-                            }
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.insightsButtonGradientCircular}
-                          >
-                            <View style={styles.insightsIconContainerCircular}>
-                              <MaterialIcons
-                                name="insights"
-                                size={24 * fontScale}
-                                color="#ffffff"
-                              />
-                            </View>
-                          </LinearGradient>
-                        </TouchableOpacity>
-                      </AnimatedView>
 
                       {/* Hidden text measurement component - positioned off-screen but visible for measurement */}
                       <View

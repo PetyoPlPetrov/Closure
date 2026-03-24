@@ -221,6 +221,8 @@ export function MomentNotificationProvider({ children }: { children: React.React
       if (lessons.length === 0) {
         return { generated: 0 };
       }
+      const aiEnabled = await isAIInsightsEnabled();
+      if (!aiEnabled) return { generated: 0 };
       try {
         const map = await suggestNotificationMessagesForLessons(lessons, language);
         const toAdd: Omit<MomentNotificationSummary, 'id' | 'createdAt'>[] = [];
@@ -289,6 +291,8 @@ export function MomentNotificationProvider({ children }: { children: React.React
           }
         }
         if (lessons.length === 0) return { generated: 0 };
+        const aiEnabled = await isAIInsightsEnabled();
+        if (!aiEnabled) return { generated: 0 };
         try {
           const map = await suggestNotificationMessagesForLessons(lessons, language);
           const toAdd: Omit<MomentNotificationSummary, 'id' | 'createdAt'>[] = [];
@@ -324,6 +328,8 @@ export function MomentNotificationProvider({ children }: { children: React.React
         }
       }
       if (sunnyMoments.length === 0) return { generated: 0 };
+      const aiEnabledForSunny = await isAIInsightsEnabled();
+      if (!aiEnabledForSunny) return { generated: 0 };
       try {
         const map = await suggestNotificationMessagesForSunnyMoments(sunnyMoments, language);
         const toAdd: Omit<MomentNotificationSummary, 'id' | 'createdAt'>[] = [];

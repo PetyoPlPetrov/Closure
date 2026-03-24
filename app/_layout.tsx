@@ -24,6 +24,7 @@ import {
 } from "react-native";
 import "react-native-reanimated";
 
+import { AIInsightsConsentModal } from "@/components/ai-insights-consent-modal";
 import { AIModal } from "@/components/ai-modal";
 import { HomeTransitionLoaderOverlay } from "@/components/home-transition-loader";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
@@ -107,6 +108,7 @@ function AppContent() {
   const [onboardingRequestTrigger, setOnboardingRequestTrigger] = useState(0);
   const responseListener = useRef<Notifications.Subscription | null>(null);
   const [aiMemoryModalVisible, setAiMemoryModalVisible] = useState(false);
+  const [aiConsentModalForAIButton, setAiConsentModalForAIButton] = useState(false);
   const [pendingAIResponseForButton, setPendingAIResponseForButton] =
     useState<PendingAIResponse | null>(null);
 
@@ -123,10 +125,7 @@ function AppContent() {
   useEffect(() => {
     const unsubscribe = onAIButtonPress(async () => {
       if (!aiConsent.isEnabled) {
-        // Consent not given yet — let Spheres handle the consent flow if it's active;
-        // otherwise, just open the modal (AIModal itself handles unauthenticated state).
-        // For simplicity from non-Spheres tabs, open the modal directly.
-        openMemoryModal();
+        setAiConsentModalForAIButton(true);
         return;
       }
       const pendingResponse = await getPendingAIResponse();
@@ -518,6 +517,17 @@ function AppContent() {
             goldenEventId={goldenEventIdForMemoryModal}
           />
         )}
+        <AIInsightsConsentModal
+          visible={aiConsentModalForAIButton}
+          onEnable={() => {
+            void aiConsent.setChoice("enabled");
+            setAiConsentModalForAIButton(false);
+          }}
+          onMaybeLater={() => {
+            void aiConsent.setChoice("maybe_later");
+            setAiConsentModalForAIButton(false);
+          }}
+        />
         {aiMemoryModalVisible && (
           <AIModal
             visible={aiMemoryModalVisible}
