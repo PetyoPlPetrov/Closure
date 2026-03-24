@@ -121,6 +121,13 @@ import Svg, {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
+// Worklet-safe constants for the spin hint arc animation
+// Clock mapping: angle = -π/2 + (hour/12)*2π
+// 16:00 (4 o'clock) = -π/2 + (4/12)*2π = π/6  (~30°, right side slightly below center)
+// 19:00 (7 o'clock) = -π/2 + (7/12)*2π = 2π/3 (~120°, bottom-left)
+const HINT_ARC_START_RAD = Math.PI / 6;  // 16:00 / 4 o'clock
+const HINT_ARC_SWEEP_RAD = Math.PI / 2;  // 90° clockwise → 19:00 / 7 o'clock
+
 // Create animated Pressable component for shadow animations
 const AnimatedPressable = createAnimatedComponent(Pressable);
 
@@ -655,12 +662,16 @@ const FloatingAvatar = React.memo(
     const entityLessonButtonHighlight = useSharedValue(0);
     const entitySunnyButtonHighlight = useSharedValue(0);
     const entityCloudyButtonHighlight = useSharedValue(0);
-    const entitySpinHintPointerTranslateX = useSharedValue(0);
-    const entitySpinHintPointerTranslateY = useSharedValue(0);
+    const entitySpinHintArcProgress = useSharedValue(0);
     const entitySpinHintPointerOpacity = useSharedValue(0);
     const entityHintRotation = useSharedValue(0); // Wiggle when spin hint is shown
     const avatarClickHintOpacity = useSharedValue(0);
     const avatarClickHintScale = useSharedValue(1);
+    const wheelMomentHintPointerOpacity = useSharedValue(0);
+    const wheelMomentHintPointerBounce = useSharedValue(0);
+    const wheelMomentAppearCountRef = React.useRef(0);
+    const [wheelMomentAppearCount, setWheelMomentAppearCount] = React.useState(0);
+    const [wheelMomentHintDismissed, setWheelMomentHintDismissed] = React.useState(false);
 
     // Avatar pulse animation for indicating clickability when entering focused view
     const avatarPulseScale = useSharedValue(1);
@@ -1530,7 +1541,7 @@ const FloatingAvatar = React.memo(
       avatarClickHintDismissed,
     ]);
 
-    // Entity wheel spin hint: finger + wheel wiggle (longer wiggle, finger dismisses when wiggle stops)
+    // Entity wheel spin hint: arc-following finger + matching wheel rotation
     React.useEffect(() => {
       if (
         !appUsabilityHints ||
@@ -1538,70 +1549,45 @@ const FloatingAvatar = React.memo(
         !isFocused ||
         entityWheelSpinLabelDismissed
       ) {
-        cancelAnimation(entitySpinHintPointerTranslateX);
-        cancelAnimation(entitySpinHintPointerTranslateY);
+        cancelAnimation(entitySpinHintArcProgress);
         cancelAnimation(entitySpinHintPointerOpacity);
         cancelAnimation(entityHintRotation);
         entitySpinHintPointerOpacity.value = withTiming(0, { duration: 200 });
-        entitySpinHintPointerTranslateX.value = withTiming(0, {
-          duration: 200,
-        });
-        entitySpinHintPointerTranslateY.value = withTiming(0, {
-          duration: 200,
-        });
+        entitySpinHintArcProgress.value = 0;
         entityHintRotation.value = withTiming(0, { duration: 200 });
         return;
       }
 
-      // Finger appears at 0.85, then fades to 0 from the moment it appears
-      const entityWheelHintDurationMs = 1100 + 1100 + 900;
+      // Reset arc to start position
+      entitySpinHintArcProgress.value = 0;
+
+      // Finger: appear quickly, then fade out — total ~3450ms
       entitySpinHintPointerOpacity.value = withSequence(
-        withTiming(0.85, { duration: 100, easing: Easing.out(Easing.ease) }),
+        withTiming(0.9, { duration: 150, easing: Easing.out(Easing.ease) }),
         withTiming(
           0,
-          {
-            duration: entityWheelHintDurationMs - 100,
-            easing: Easing.linear,
-          },
+          { duration: 3300, easing: Easing.linear },
           (finished) => {
             "worklet";
             if (finished) runOnJS(setEntityWheelSpinLabelDismissed)(true);
           },
         ),
       );
-      entitySpinHintPointerTranslateX.value = 0;
-      entitySpinHintPointerTranslateY.value = -14;
 
-      // Short wiggle: 1 cycle, ~3.5s total, smooth stop; finger fades during final phase
-      const WIGGLE_RAD = 0.26; // ~15 degrees
+      // Arc: drag clockwise 90° (16:00 → 19:00), then snap back
+      entitySpinHintArcProgress.value = withSequence(
+        withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 900, easing: Easing.out(Easing.cubic) }),
+      );
+
+      // Wheel rotates clockwise 90° in sync, then eases back
       entityHintRotation.value = withSequence(
-        withTiming(WIGGLE_RAD, {
-          duration: 1100,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        withTiming(-WIGGLE_RAD, {
-          duration: 1100,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        withTiming(0, {
-          duration: 900,
-          easing: Easing.out(Easing.cubic),
-        }),
-      );
-
-      // Finger arc: match wiggle duration (~3.5s total)
-      entitySpinHintPointerTranslateX.value = withSequence(
-        withTiming(-12, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
-      );
-      entitySpinHintPointerTranslateY.value = withSequence(
-        withTiming(14, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-14, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
+        withTiming(Math.PI / 2, { duration: 2400, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 1000, easing: Easing.out(Easing.cubic) }),
       );
 
       return () => {
-        cancelAnimation(entitySpinHintPointerTranslateX);
-        cancelAnimation(entitySpinHintPointerTranslateY);
+        cancelAnimation(entitySpinHintArcProgress);
         cancelAnimation(entitySpinHintPointerOpacity);
         cancelAnimation(entityHintRotation);
       };
@@ -2365,6 +2351,7 @@ const FloatingAvatar = React.memo(
       setSelectedWheelExam(null);
       setShowWheelFireworks(false);
       setExamAnswerInput("");
+      setWheelMomentHintDismissed(true);
     }, []);
 
     const handleExamSubmit = React.useCallback(
@@ -2602,18 +2589,68 @@ const FloatingAvatar = React.memo(
       transform: [{ scale: entityExamInputPulseScale.value }],
     }));
 
-    const entitySpinHintPointerAnimatedStyle = useAnimatedStyle(() => ({
-      opacity: entitySpinHintPointerOpacity.value,
-      transform: [
-        { translateX: entitySpinHintPointerTranslateX.value },
-        { translateY: entitySpinHintPointerTranslateY.value },
-      ],
-    }));
+    // Entity wheel orbit radius (matches focused-entities-view.tsx ORBIT_RADIUS=100) + outward offset
+    const entityHintOrbitRadius = 100 + 28;
+
+    const entitySpinHintPointerAnimatedStyle = useAnimatedStyle(() => {
+      const t = entitySpinHintArcProgress.value;
+      const angle = HINT_ARC_START_RAD + t * HINT_ARC_SWEEP_RAD;
+      const r = entityHintOrbitRadius;
+      return {
+        opacity: entitySpinHintPointerOpacity.value,
+        transform: [
+          { translateX: r * Math.cos(angle) },
+          { translateY: r * Math.sin(angle) },
+          { rotate: `${angle + Math.PI / 2 + Math.PI}rad` },
+        ],
+      };
+    });
 
     const avatarClickHintAnimatedStyle = useAnimatedStyle(() => ({
       opacity: avatarClickHintOpacity.value,
       transform: [{ scale: avatarClickHintScale.value }],
     }));
+
+    const wheelMomentHintPointerAnimatedStyle = useAnimatedStyle(() => ({
+      opacity: wheelMomentHintPointerOpacity.value,
+      transform: [{ translateY: wheelMomentHintPointerBounce.value }],
+    }));
+
+    // Lesson bulb tap hint: bouncing pointer shown from 2nd appearance onward
+    React.useEffect(() => {
+      if (selectedWheelMoment?.type === "lesson") {
+        wheelMomentAppearCountRef.current += 1;
+        setWheelMomentAppearCount(wheelMomentAppearCountRef.current);
+      }
+      const count = wheelMomentAppearCountRef.current;
+      const shouldShow = !!selectedWheelMoment && selectedWheelMoment.type === "lesson" && appUsabilityHints && !wheelMomentHintDismissed && count >= 2;
+      if (!shouldShow) {
+        cancelAnimation(wheelMomentHintPointerOpacity);
+        cancelAnimation(wheelMomentHintPointerBounce);
+        wheelMomentHintPointerOpacity.value = withTiming(0, { duration: 200 });
+        wheelMomentHintPointerBounce.value = 0;
+        return;
+      }
+      wheelMomentHintPointerBounce.value = 0;
+      wheelMomentHintPointerOpacity.value = withTiming(0.9, { duration: 300, easing: Easing.out(Easing.ease) });
+      wheelMomentHintPointerBounce.value = withDelay(
+        400,
+        withRepeat(
+          withSequence(
+            withTiming(-10, { duration: 350, easing: Easing.out(Easing.ease) }),
+            withTiming(0, { duration: 350, easing: Easing.inOut(Easing.ease) }),
+            withTiming(-6, { duration: 300, easing: Easing.out(Easing.ease) }),
+            withTiming(0, { duration: 300, easing: Easing.inOut(Easing.ease) }),
+          ),
+          -1,
+          false,
+        ),
+      );
+      return () => {
+        cancelAnimation(wheelMomentHintPointerOpacity);
+        cancelAnimation(wheelMomentHintPointerBounce);
+      };
+    }, [selectedWheelMoment, appUsabilityHints, wheelMomentHintDismissed, wheelMomentHintPointerOpacity, wheelMomentHintPointerBounce]);
 
     // Popup animated style - must be defined at top level, not inside conditional
     const popupAnimatedStyle = useAnimatedStyle(() => {
@@ -4115,48 +4152,44 @@ const FloatingAvatar = React.memo(
 
               return (
                 <>
-                  {/* Entity wheel spin hint: finger (visible ~3s, suggests drag to spin) */}
+                  {/* Entity wheel spin hint: arc-following finger on orbit ring */}
                   {!isWheelSpinningState &&
                     appUsabilityHints &&
-                    !entityWheelSpinLabelDismissed && (
-                      <Animated.View
-                        pointerEvents="none"
-                        style={[
-                          {
-                            position: "absolute",
-                            left:
-                              SCREEN_WIDTH / 2 +
-                              spacing -
-                              (isTablet ? 56 : 52) / 2 +
-                              10,
-                            bottom: tabBarHeight + 60 + 50,
-                            width: isTablet ? 56 : 52,
-                            height: isTablet ? 56 : 52,
-                            justifyContent: "center",
-                            alignItems: "center",
-                            zIndex: 500,
-                          },
-                          entitySpinHintPointerAnimatedStyle,
-                        ]}
-                      >
-                        {/* Shadow layer for better contrast */}
-                        <MaterialIcons
-                          name="touch-app"
-                          size={isTablet ? 56 : 52}
-                          color="rgba(0, 0, 0, 0.5)"
-                          style={{
-                            position: "absolute",
-                            left: 2,
-                            top: 2,
-                          }}
-                        />
-                        <MaterialIcons
-                          name="touch-app"
-                          size={isTablet ? 56 : 52}
-                          color="#FFFFFF"
-                        />
-                      </Animated.View>
-                    )}
+                    !entityWheelSpinLabelDismissed && (() => {
+                      const pointerSize = isTablet ? 56 : 52;
+                      const centerX = SCREEN_WIDTH / 2;
+                      const centerY = SCREEN_HEIGHT * 0.58;
+                      return (
+                        <Animated.View
+                          pointerEvents="none"
+                          style={[
+                            {
+                              position: "absolute",
+                              left: centerX - pointerSize / 2,
+                              top: centerY - pointerSize / 2,
+                              width: pointerSize,
+                              height: pointerSize,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              zIndex: 500,
+                            },
+                            entitySpinHintPointerAnimatedStyle,
+                          ]}
+                        >
+                          <MaterialIcons
+                            name="touch-app"
+                            size={pointerSize}
+                            color="rgba(0, 0, 0, 0.5)"
+                            style={{ position: "absolute", left: 2, top: 2 }}
+                          />
+                          <MaterialIcons
+                            name="touch-app"
+                            size={pointerSize}
+                            color="#FFFFFF"
+                          />
+                        </Animated.View>
+                      );
+                    })()}
                   {!isWheelSpinningState &&
                     icons.map((item, index) => {
                       const x = SCREEN_WIDTH / 2 - spacing + index * spacing;
@@ -5544,6 +5577,33 @@ const FloatingAvatar = React.memo(
                   </Animated.View>
                 );
               })()}
+            {/* Lesson bulb tap hint: bouncing pointer, shown from 2nd lesson appearance */}
+            {appUsabilityHints && selectedWheelMoment?.type === "lesson" && !wheelMomentHintDismissed && wheelMomentAppearCount >= 2 && (() => {
+              const pointerSize = isTablet ? 72 : 64;
+              const baseLessonSize = isTablet ? 200 : 145;
+              const messageTop = 180;
+              return (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    {
+                      position: "absolute",
+                      top: messageTop + baseLessonSize + 8,
+                      left: SCREEN_WIDTH / 2 - pointerSize / 2,
+                      width: pointerSize,
+                      height: pointerSize,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      zIndex: 350,
+                    },
+                    wheelMomentHintPointerAnimatedStyle,
+                  ]}
+                >
+                  <MaterialIcons name="touch-app" size={pointerSize} color="rgba(0,0,0,0.4)" style={{ position: "absolute", left: 2, top: 2 }} />
+                  <MaterialIcons name="touch-app" size={pointerSize} color="#FFFFFF" />
+                </Animated.View>
+              );
+            })()}
             {/* Exam result card overlay - shown as full card after answering */}
             {selectedWheelExam?.step === "result" &&
               selectedWheelExam.analysis &&
@@ -11784,6 +11844,8 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
   spawnTime,
   expandedAtTimestamp,
   suppressExpandAnimation = false,
+  showTapHint = false,
+  onTapHintDismiss,
 }: {
   centerX: number;
   centerY: number;
@@ -11810,6 +11872,9 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
   expandedAtTimestamp?: number | null;
   /** When true, tapping shows a card overlay instead of scaling this element */
   suppressExpandAnimation?: boolean;
+  /** Show bouncing tap hint pointer on lessons bulb */
+  showTapHint?: boolean;
+  onTapHintDismiss?: () => void;
 }) {
   // Initialize shared values - these will be fresh for each component instance
   const opacity = useSharedValue(0);
@@ -11822,6 +11887,10 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
   const fadeOutTimerRef = useRef<NodeJS.Timeout | null>(null);
   const textRef = useRef(text); // Store text in ref to avoid re-renders
   const hasStartedGrowAnimation = useRef(false); // Track if grow animation has started
+  const tapHintOpacity = useSharedValue(0);
+  const tapHintBounce = useSharedValue(0);
+  const onTapHintDismissRef = useRef(onTapHintDismiss);
+  onTapHintDismissRef.current = onTapHintDismiss;
 
   const { isTablet } = useLargeDevice();
   const fontScale = useFontScale();
@@ -11925,6 +11994,36 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
   React.useEffect(() => {
     hasExpandHandlers.value = !!(onExpand || onCollapse);
   }, [onExpand, onCollapse, hasExpandHandlers]);
+
+  // Tap hint animation for lessons bulb
+  React.useEffect(() => {
+    if (!showTapHint || momentType !== "lessons" || !shouldGrowToFull) {
+      cancelAnimation(tapHintOpacity);
+      cancelAnimation(tapHintBounce);
+      tapHintOpacity.value = withTiming(0, { duration: 200 });
+      tapHintBounce.value = 0;
+      return;
+    }
+    tapHintBounce.value = 0;
+    tapHintOpacity.value = withTiming(0.9, { duration: 300, easing: Easing.out(Easing.ease) });
+    tapHintBounce.value = withDelay(
+      400,
+      withRepeat(
+        withSequence(
+          withTiming(-10, { duration: 350, easing: Easing.out(Easing.ease) }),
+          withTiming(0, { duration: 350, easing: Easing.inOut(Easing.ease) }),
+          withTiming(-6, { duration: 300, easing: Easing.out(Easing.ease) }),
+          withTiming(0, { duration: 300, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        false,
+      ),
+    );
+    return () => {
+      cancelAnimation(tapHintOpacity);
+      cancelAnimation(tapHintBounce);
+    };
+  }, [showTapHint, momentType, shouldGrowToFull, tapHintOpacity, tapHintBounce]);
 
   // Animation effect for shouldGrowToFull moments - runs once on mount (skip if already expanded)
   React.useEffect(() => {
@@ -12098,6 +12197,11 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
         };
     }
   }, [momentType, momentColors]);
+
+  const tapHintAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: tapHintOpacity.value,
+    transform: [{ translateY: tapHintBounce.value }],
+  }));
 
   // If shouldGrowToFull, render the full popup element, otherwise render icon
   if (shouldGrowToFull) {
@@ -12519,6 +12623,7 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
           <Pressable
             onPress={() => {
               if (!canInteract) return;
+              onTapHintDismissRef.current?.();
               if (isExpanded && momentId != null) {
                 onCollapse?.(momentId);
               } else if (momentId != null) {
@@ -12562,6 +12667,28 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                 )}
               />
             </Animated.View>
+            {/* Tap hint pointer - bouncing finger shown from 2nd lesson appearance */}
+            {showTapHint && !isExpanded && (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  {
+                    position: "absolute",
+                    bottom: -38,
+                    alignSelf: "center",
+                    width: isTablet ? 72 : 64,
+                    height: isTablet ? 72 : 64,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    zIndex: 10,
+                  },
+                  tapHintAnimatedStyle,
+                ]}
+              >
+                <MaterialIcons name="touch-app" size={isTablet ? 68 : 60} color="rgba(0,0,0,0.4)" style={{ position: "absolute", left: 2, top: 2 }} />
+                <MaterialIcons name="touch-app" size={isTablet ? 68 : 60} color="#FFFFFF" />
+              </Animated.View>
+            )}
             {/* Text overlay - sits below bulb; when expanded, pushed up to make room for image */}
             <Animated.View
               style={[
@@ -14722,6 +14849,14 @@ export default function HomeScreen() {
 
   const [momentTypeSelectorDismissed, setMomentTypeSelectorDismissed] =
     useState(false); // Track if user dismissed selector
+  const lessonAppearCountRef = useRef(0);
+  const [lessonAppearCount, setLessonAppearCount] = useState(0);
+  const [lessonHintDismissed, setLessonHintDismissed] = useState(false);
+  // Track pulsing lesson bulb appearances for tap hint
+  const pulsingLessonAppearCountRef = useRef(0);
+  const [pulsingLessonHintDismissed, setPulsingLessonHintDismissed] = useState(false);
+  // The specific moment ID that should show the tap hint (set when 2nd+ lesson appears)
+  const [tapHintMomentId, setTapHintMomentId] = useState<number | null>(null);
 
   // State for random pulsing moments around center avatar
   const [randomMoments, setRandomMoments] = useState<
@@ -14802,9 +14937,10 @@ export default function HomeScreen() {
   const lessonsButtonHighlight = useSharedValue(0);
   const hardTruthsButtonHighlight = useSharedValue(0);
   const sunnyMomentsButtonHighlight = useSharedValue(0);
-  const spinHintPointerTranslateX = useSharedValue(0);
-  const spinHintPointerTranslateY = useSharedValue(0);
+  const spinHintArcProgress = useSharedValue(0);
   const spinHintPointerOpacity = useSharedValue(0);
+  const lessonHintPointerOpacity = useSharedValue(0);
+  const lessonHintPointerBounce = useSharedValue(0);
 
   // Constants for sphere circle
   const sphereCircle = useMemo(() => {
@@ -15643,6 +15779,86 @@ export default function HomeScreen() {
     lessonShadowPulse,
   ]);
 
+  // Lesson bulb tap hint: bouncing pointer shown from the 2nd appearance onward
+  useEffect(() => {
+    if (showLesson) {
+      lessonAppearCountRef.current += 1;
+      setLessonAppearCount(lessonAppearCountRef.current);
+    }
+    const count = lessonAppearCountRef.current;
+    if (!showLesson || !appUsabilityHints || lessonHintDismissed || count < 2) {
+      cancelAnimation(lessonHintPointerOpacity);
+      cancelAnimation(lessonHintPointerBounce);
+      lessonHintPointerOpacity.value = withTiming(0, { duration: 200 });
+      lessonHintPointerBounce.value = 0;
+      return;
+    }
+    // Fade in, then gently bounce to draw attention to the bulb
+    lessonHintPointerBounce.value = 0;
+    lessonHintPointerOpacity.value = withTiming(0.9, { duration: 300, easing: Easing.out(Easing.ease) });
+    lessonHintPointerBounce.value = withDelay(
+      400,
+      withRepeat(
+        withSequence(
+          withTiming(-10, { duration: 350, easing: Easing.out(Easing.ease) }),
+          withTiming(0, { duration: 350, easing: Easing.inOut(Easing.ease) }),
+          withTiming(-6, { duration: 300, easing: Easing.out(Easing.ease) }),
+          withTiming(0, { duration: 300, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        false,
+      ),
+    );
+    return () => {
+      cancelAnimation(lessonHintPointerOpacity);
+      cancelAnimation(lessonHintPointerBounce);
+    };
+  }, [showLesson, appUsabilityHints, lessonHintDismissed, lessonHintPointerOpacity, lessonHintPointerBounce]);
+  // Note: the above effect handles the main wheel lesson (HomeScreen). The entity wheel lesson hint
+  // is handled inside FloatingAvatar with wheelMomentHintPointer* values.
+
+  // Track how many times a pulsing lessons bulb has appeared (shouldGrowToFull)
+  // and assign the tap hint to the specific moment ID (not "first in array" which shifts)
+  const prevLessonMomentIdsRef = useRef<Set<number>>(new Set());
+  // Whether the hint has already been assigned this session (so we don't reassign on every new bulb)
+  const tapHintAssignedThisSessionRef = useRef(false);
+
+  // Reset lesson tap hint counter each time the moment selector closes
+  useEffect(() => {
+    if (!showMomentTypeSelector) {
+      pulsingLessonAppearCountRef.current = 0;
+      prevLessonMomentIdsRef.current = new Set();
+      tapHintAssignedThisSessionRef.current = false;
+      setTapHintMomentId(null);
+    }
+  }, [showMomentTypeSelector]);
+
+  useEffect(() => {
+    const currentLessonMoments = randomMoments.filter(
+      (m) => m.momentType === "lessons" && m.shouldGrowToFull,
+    );
+    const currentIds = new Set(currentLessonMoments.map((m) => m.id));
+    // Count new lesson moments; assign hint only once per session (on the 2nd appearance)
+    for (const m of currentLessonMoments) {
+      if (!prevLessonMomentIdsRef.current.has(m.id)) {
+        pulsingLessonAppearCountRef.current += 1;
+        if (
+          pulsingLessonAppearCountRef.current >= 2 &&
+          !tapHintAssignedThisSessionRef.current &&
+          !pulsingLessonHintDismissed
+        ) {
+          tapHintAssignedThisSessionRef.current = true;
+          setTapHintMomentId(m.id);
+        }
+      }
+    }
+    // If the hinted moment disappeared, clear it but don't reassign (hint shown, job done)
+    setTapHintMomentId((prev) =>
+      prev !== null && !currentIds.has(prev) ? null : prev,
+    );
+    prevLessonMomentIdsRef.current = currentIds;
+  }, [randomMoments, pulsingLessonHintDismissed]);
+
   // Fade out lesson notification and hide nudge when wheel starts spinning
   const fadeOutLesson = useCallback(() => {
     // Hide the notification nudge on top when wheel rotates
@@ -15811,12 +16027,27 @@ export default function HomeScreen() {
     transform: [{ scale: iconButtonScale.value }],
   }));
 
-  const spinHintPointerAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: spinHintPointerOpacity.value,
-    transform: [
-      { translateX: spinHintPointerTranslateX.value },
-      { translateY: spinHintPointerTranslateY.value },
-    ],
+  // Orbit radius for the hint arc — sphere centers radius + outward offset so finger sits on the ring
+  const hintOrbitRadius = sphereCircle.radius + 28;
+
+  const spinHintPointerAnimatedStyle = useAnimatedStyle(() => {
+    const t = spinHintArcProgress.value;
+    const angle = HINT_ARC_START_RAD + t * HINT_ARC_SWEEP_RAD;
+    const r = hintOrbitRadius;
+    return {
+      opacity: spinHintPointerOpacity.value,
+      transform: [
+        { translateX: r * Math.cos(angle) },
+        { translateY: r * Math.sin(angle) },
+        // Rotate icon to face its direction of travel, flipped 180° so finger points inward
+        { rotate: `${angle + Math.PI / 2 + Math.PI}rad` },
+      ],
+    };
+  });
+
+  const lessonHintPointerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: lessonHintPointerOpacity.value,
+    transform: [{ translateY: lessonHintPointerBounce.value }],
   }));
 
   const mainWheelExamSubmitButtonStyle = useAnimatedStyle(() => ({
@@ -16031,7 +16262,7 @@ export default function HomeScreen() {
     momentTypeSelectorDismissed,
   ]);
 
-  // Initial spin hint: wiggle rotation + pointer when moment type selector first appears (suggests wheel is spinnable)
+  // Initial spin hint: arc-following finger + matching wheel rotation when moment type selector first appears
   useEffect(() => {
     if (
       !appUsabilityHints ||
@@ -16042,21 +16273,20 @@ export default function HomeScreen() {
       cancelAnimation(hintRotation);
       hintRotation.value = withTiming(0, { duration: 200 });
       spinHintPointerOpacity.value = withTiming(0, { duration: 200 });
-      spinHintPointerTranslateX.value = withTiming(0, { duration: 200 });
-      spinHintPointerTranslateY.value = withTiming(0, { duration: 200 });
+      spinHintArcProgress.value = 0;
       return;
     }
 
-    // Finger appears at 0.85, then fades to 0 from the moment it appears
-    const mainWheelTotalMs = 3 * 1600 + 400; // 3 cycles + settle
+    // Reset arc to 12 o'clock before starting
+    spinHintArcProgress.value = 0;
+
+    // Finger: appear quickly, then fade out as it finishes the arc
+    // Total: 150ms fade-in, 2400ms drag forward, 900ms snap back = ~3450ms
     spinHintPointerOpacity.value = withSequence(
-      withTiming(0.85, { duration: 100, easing: Easing.out(Easing.ease) }),
+      withTiming(0.9, { duration: 150, easing: Easing.out(Easing.ease) }),
       withTiming(
         0,
-        {
-          duration: mainWheelTotalMs - 100,
-          easing: Easing.linear,
-        },
+        { duration: 3300, easing: Easing.linear },
         (finished) => {
           "worklet";
           if (finished) runOnJS(setMomentTypeSelectorDismissed)(true);
@@ -16064,53 +16294,21 @@ export default function HomeScreen() {
       ),
     );
 
-    // Start finger at top (for top→down clockwise drag motion)
-    spinHintPointerTranslateX.value = 0;
-    spinHintPointerTranslateY.value = -14;
-
-    // Small back-and-forth wiggle to suggest rotation (~15° each way), smooth stop; finger fades during final phase
-    const WIGGLE_RAD = 0.26; // ~15 degrees
-    const wiggleCycle = withSequence(
-      withTiming(WIGGLE_RAD, {
-        duration: 500,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      withTiming(-WIGGLE_RAD, {
-        duration: 500,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      withTiming(0, {
-        duration: 600,
-        easing: Easing.out(Easing.cubic),
-      }),
+    // Arc progress: drag counter-clockwise 90°, then snap back to 12 o'clock
+    spinHintArcProgress.value = withSequence(
+      withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.ease) }),
+      withTiming(0, { duration: 900, easing: Easing.out(Easing.cubic) }),
     );
+
+    // Wheel rotates clockwise 90° in sync with the finger, then eases back
     hintRotation.value = withSequence(
-      withRepeat(wiggleCycle, 3, false),
-      withTiming(0, { duration: 400, easing: Easing.out(Easing.cubic) }),
-    );
-
-    // Pointer moves top → down + left to imitate clockwise drag (arc on right side)
-    spinHintPointerTranslateX.value = withRepeat(
-      withSequence(
-        withTiming(-12, { duration: 700, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 600, easing: Easing.inOut(Easing.ease) }),
-      ),
-      3,
-      false,
-    );
-    spinHintPointerTranslateY.value = withRepeat(
-      withSequence(
-        withTiming(14, { duration: 700, easing: Easing.inOut(Easing.ease) }), // top → down
-        withTiming(-14, { duration: 600, easing: Easing.inOut(Easing.ease) }), // back to top
-      ),
-      3,
-      false,
+      withTiming(Math.PI / 2, { duration: 2400, easing: Easing.inOut(Easing.ease) }),
+      withTiming(0, { duration: 1000, easing: Easing.out(Easing.cubic) }),
     );
 
     return () => {
       cancelAnimation(hintRotation);
-      cancelAnimation(spinHintPointerTranslateX);
-      cancelAnimation(spinHintPointerTranslateY);
+      cancelAnimation(spinHintArcProgress);
       cancelAnimation(spinHintPointerOpacity);
     };
   }, [
@@ -18834,6 +19032,7 @@ export default function HomeScreen() {
               const visuals = momentVisuals[momentType];
 
               const handlePress = () => {
+                setLessonHintDismissed(true);
                 // Wait for press animation to complete before navigating
                 setTimeout(() => {
                   // If it's a mock lesson, just close it (don't navigate)
@@ -20027,6 +20226,38 @@ export default function HomeScreen() {
             );
           })()}
 
+          {/* Lesson bulb tap hint: bouncing pointer, shown from 2nd lesson appearance */}
+          {appUsabilityHints && showLesson && !lessonHintDismissed && lessonAppearCount >= 2 && (() => {
+            const pointerSize = isTablet ? 72 : 64;
+            const baseCircleSize = isTablet ? 220 : isLargeDevice ? 190 : 165;
+            return (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  {
+                    position: "absolute",
+                    top: messageTop + baseCircleSize + 8,
+                    left: SCREEN_WIDTH / 2 - pointerSize / 2,
+                    width: pointerSize,
+                    height: pointerSize,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    zIndex: 350,
+                  },
+                  lessonHintPointerAnimatedStyle,
+                ]}
+              >
+                <MaterialIcons
+                  name="touch-app"
+                  size={pointerSize}
+                  color="rgba(0,0,0,0.4)"
+                  style={{ position: "absolute", left: 2, top: 2 }}
+                />
+                <MaterialIcons name="touch-app" size={pointerSize} color="#FFFFFF" />
+              </Animated.View>
+            );
+          })()}
+
           {/* Spiraling Icons - appears during wheel spin and on correct exam answer (1s) */}
           <SpiralingStars
             avatarCenterX={wheelCenterX}
@@ -21027,6 +21258,12 @@ export default function HomeScreen() {
                 memoryId={moment.memoryId}
                 sphere={moment.sphere}
                 memoryImageUri={moment.memoryImageUri}
+                showTapHint={
+                  appUsabilityHints &&
+                  !pulsingLessonHintDismissed &&
+                  moment.id === tapHintMomentId
+                }
+                onTapHintDismiss={() => setPulsingLessonHintDismissed(true)}
               />
             ))}
 
@@ -21427,7 +21664,7 @@ export default function HomeScreen() {
               );
             })()}
 
-          {/* Spin hint: animated pointer + wheel wiggle (visible ~3s, suggests drag to spin) */}
+          {/* Spin hint: arc-following finger on orbit ring + wheel rotation (visible ~2s, suggests drag to spin) */}
           {animationsReady &&
             appUsabilityHints &&
             showMomentTypeSelector &&
@@ -21435,49 +21672,81 @@ export default function HomeScreen() {
             !isSpinning &&
             (() => {
               const pointerSize = isTablet ? 88 : 78;
-              const iconSize = 60;
-              const iconGap = 16;
-              const bottomGap = 20;
-              const cloudyCenterX = SCREEN_WIDTH / 2 + iconSize + iconGap;
-              const pointerX = cloudyCenterX + 10 - pointerSize / 2;
-              const iconRowHeight = iconSize;
-              const fingerBottomFromScreenBottom =
-                bottomGap + iconRowHeight + 50;
+              const orbitR = hintOrbitRadius;
+              const numDots = 7;
+
+              // Pre-compute dot positions along arc (t ∈ [0, 0.8])
+              const arcDots = Array.from({ length: numDots }, (_, i) => {
+                const t = (i / (numDots - 1)) * 0.8;
+                const angle = HINT_ARC_START_RAD + t * HINT_ARC_SWEEP_RAD;
+                return {
+                  x: sphereCircle.centerX + orbitR * Math.cos(angle),
+                  y: sphereCircle.centerY + orbitR * Math.sin(angle),
+                };
+              });
 
               return (
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    {
-                      position: "absolute",
-                      left: pointerX,
-                      bottom: fingerBottomFromScreenBottom,
-                      width: pointerSize,
-                      height: pointerSize,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      zIndex: 200,
-                    },
-                    spinHintPointerAnimatedStyle,
-                  ]}
-                >
-                  {/* Shadow layer for better contrast */}
-                  <MaterialIcons
-                    name="touch-app"
-                    size={pointerSize}
-                    color="rgba(0, 0, 0, 0.5)"
+                <>
+                  {/* Faint dotted arc trail */}
+                  <Svg
+                    pointerEvents="none"
                     style={{
                       position: "absolute",
-                      left: 2,
-                      top: 2,
+                      top: 0,
+                      left: 0,
+                      width: SCREEN_WIDTH,
+                      height: SCREEN_HEIGHT,
+                      zIndex: 199,
                     }}
-                  />
-                  <MaterialIcons
-                    name="touch-app"
-                    size={pointerSize}
-                    color="#FFFFFF"
-                  />
-                </Animated.View>
+                    width={SCREEN_WIDTH}
+                    height={SCREEN_HEIGHT}
+                  >
+                    {arcDots.map((dot, i) => (
+                      <Circle
+                        key={i}
+                        cx={dot.x}
+                        cy={dot.y}
+                        r={3}
+                        fill="rgba(255,255,255,0.35)"
+                      />
+                    ))}
+                  </Svg>
+
+                  {/* Finger icon anchored at wheel center, arc offset applied via animated style */}
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      {
+                        position: "absolute",
+                        left: sphereCircle.centerX - pointerSize / 2,
+                        top: sphereCircle.centerY - pointerSize / 2,
+                        width: pointerSize,
+                        height: pointerSize,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        zIndex: 200,
+                      },
+                      spinHintPointerAnimatedStyle,
+                    ]}
+                  >
+                    {/* Shadow layer for better contrast */}
+                    <MaterialIcons
+                      name="touch-app"
+                      size={pointerSize}
+                      color="rgba(0, 0, 0, 0.5)"
+                      style={{
+                        position: "absolute",
+                        left: 2,
+                        top: 2,
+                      }}
+                    />
+                    <MaterialIcons
+                      name="touch-app"
+                      size={pointerSize}
+                      color="#FFFFFF"
+                    />
+                  </Animated.View>
+                </>
               );
             })()}
 

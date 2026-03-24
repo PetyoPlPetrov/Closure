@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFontScale } from '@/hooks/use-device-size';
 import { logMenuOpen } from '@/utils/analytics';
 
-const log = (...args: unknown[]) => console.log('[ExpandableMenu]', ...args);
+const log = (..._args: unknown[]) => {};
 
 const SPRING_CONFIG = { damping: 15, stiffness: 120 };
 const STEP = 52; // vertical spacing between buttons

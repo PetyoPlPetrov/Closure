@@ -2296,43 +2296,19 @@ export function FocusedSferaView({
 
   const leftChevronScale = useSharedValue(1);
   const rightChevronScale = useSharedValue(1);
-  const [doubleTapHintShown, setDoubleTapHintShown] = useState(false);
   const hintOpacity = useSharedValue(0);
-  const hintScale = useSharedValue(1);
 
-  useEffect(() => {
-    if (!appUsabilityHints || doubleTapHintShown || selectedSphere !== null) {
-      cancelAnimation(hintOpacity);
-      cancelAnimation(hintScale);
-      hintOpacity.value = withTiming(0, { duration: 200 });
-      return;
-    }
-    const timer = setTimeout(() => {
-      setDoubleTapHintShown(true);
-      hintOpacity.value = withSequence(
-        withTiming(0.9, { duration: 200, easing: Easing.out(Easing.ease) }),
-        withDelay(800, withTiming(0, { duration: 400, easing: Easing.in(Easing.ease) })),
-      );
-      hintScale.value = withSequence(
-        withTiming(1, { duration: 0 }),
-        withTiming(0.82, { duration: 90 }),
-        withTiming(1.0, { duration: 90 }),
-        withDelay(120, withSequence(
-          withTiming(0.82, { duration: 90 }),
-          withTiming(1.0, { duration: 90 }),
-        )),
-      );
-    }, 1500);
-    return () => {
-      clearTimeout(timer);
-      cancelAnimation(hintOpacity);
-      cancelAnimation(hintScale);
-    };
-  }, [appUsabilityHints, doubleTapHintShown, selectedSphere, hintOpacity, hintScale]);
+  const showDoubleTapHint = useCallback(() => {
+    if (!appUsabilityHints) return;
+    cancelAnimation(hintOpacity);
+    hintOpacity.value = withSequence(
+      withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) }),
+      withDelay(1200, withTiming(0, { duration: 400, easing: Easing.in(Easing.ease) })),
+    );
+  }, [appUsabilityHints, hintOpacity]);
 
   const doubleTapHintAnimatedStyle = useAnimatedStyle(() => ({
     opacity: hintOpacity.value,
-    transform: [{ scale: hintScale.value }],
   }));
 
   const leftChevronStyle = useAnimatedStyle(() => ({
@@ -2452,6 +2428,7 @@ export function FocusedSferaView({
           } else {
             focusedSphereTapTimeRef.current = now;
             focusedSpherePulseRef.current?.();
+            showDoubleTapHint();
           }
         }}
       />
@@ -2509,7 +2486,7 @@ export function FocusedSferaView({
         </View>
       </View>
 
-      {/* ─── Double-tap UX hint: finger icon below label, shows once per session ─── */}
+      {/* ─── Double-tap UX hint: soft tooltip below sphere, triggered on single tap ─── */}
       {appUsabilityHints && selectedSphere === null && (
         <Animated.View
           pointerEvents="none"
@@ -2518,16 +2495,24 @@ export function FocusedSferaView({
               position: "absolute",
               left: 0,
               right: 0,
-              top: ORBIT_CY + ORBIT_R + FOCUSED_LABEL_GAP * 5.5 + 52,
+              top: ORBIT_CY + ORBIT_R + FOCUSED_LABEL_GAP * 5.5 - 22,
               alignItems: "center",
               zIndex: 20,
             },
             doubleTapHintAnimatedStyle,
           ]}
         >
-          <MaterialIcons name="touch-app" size={52} color="rgba(0, 0, 0, 0.5)"
-            style={{ position: "absolute", left: 2, top: 2 }} />
-          <MaterialIcons name="touch-app" size={52} color="#FFFFFF" />
+          <ThemedText style={{
+            fontSize: 13,
+            color: "#FFFFFF",
+            opacity: 0.75,
+            letterSpacing: 0.2,
+            textShadowColor: "rgba(0,0,0,0.8)",
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 4,
+          }}>
+            {t("spheres.doubleTapHint")}
+          </ThemedText>
         </Animated.View>
       )}
 

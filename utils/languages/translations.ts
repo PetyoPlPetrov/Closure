@@ -407,6 +407,7 @@ export interface Translations {
   "spheres.family": string;
   "spheres.friends": string;
   "spheres.hobbies": string;
+  "spheres.doubleTapHint": string;
   "spheres.item": string;
   "spheres.items": string;
 
@@ -4131,6 +4132,7 @@ const translations: Record<Language, Translations> = {
     "spheres.family": "Family",
     "spheres.friends": "Friends",
     "spheres.hobbies": "Hobbies",
+    "spheres.doubleTapHint": "Double tap to open",
     "spheres.item": "item",
     "spheres.items": "items",
 
@@ -8685,6 +8687,7 @@ const translations: Record<Language, Translations> = {
     "spheres.family": "Семейство",
     "spheres.friends": "Приятели",
     "spheres.hobbies": "Хобита",
+    "spheres.doubleTapHint": "Докоснете два пъти",
     "spheres.item": "елемент",
     "spheres.items": "елемента",
 
