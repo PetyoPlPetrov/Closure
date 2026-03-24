@@ -250,17 +250,17 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
           fontScale={fontScale}
         />
         <ChildButton
-          iconName="settings"
-          progress={settingsProgress}
+          iconName="palette"
+          progress={personalizationProgress}
           offsetY={STEP * 2}
-          onPress={handleSettingsPress}
+          onPress={handlePersonalizationPress}
           fontScale={fontScale}
         />
         <ChildButton
-          iconName="palette"
-          progress={personalizationProgress}
+          iconName="settings"
+          progress={settingsProgress}
           offsetY={STEP * 3}
-          onPress={handlePersonalizationPress}
+          onPress={handleSettingsPress}
           fontScale={fontScale}
         />
 

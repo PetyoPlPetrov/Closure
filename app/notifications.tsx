@@ -138,83 +138,103 @@ export default function NotificationsScreen() {
     );
   };
 
+  const renderSectionHeader = (label: string) => (
+    <View style={{ marginTop: 8, marginBottom: 4, paddingHorizontal: 4 }}>
+      <ThemedText size="xs" weight="semibold" style={{ color: palette.muted, textTransform: 'uppercase', letterSpacing: 1 }}>
+        {label}
+      </ThemedText>
+    </View>
+  );
+
   const renderSferasView = () => (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      {/* Encouragement nudges: show/hide motivational banner on Home tab */}
-      <View style={styles.card}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flex: 1 }}>
-            <ThemedText size="l" weight="bold">
-              {t('settings.notificationNudge.title')}
-            </ThemedText>
-            <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
-              {t('settings.notificationNudge.description')}
-            </ThemedText>
+      {/* Section 1: Banners & alerts */}
+      {renderSectionHeader(t('notifications.section.banners'))}
+      <View style={styles.sectionGroup}>
+        <View style={styles.card}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flex: 1 }}>
+              <ThemedText size="l" weight="bold">
+                {t('settings.notificationNudge.title')}
+              </ThemedText>
+              <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
+                {t('settings.notificationNudge.description')}
+              </ThemedText>
+            </View>
+            <Switch
+              value={notificationNudge.enabled}
+              onValueChange={(v) => void notificationNudge.setEnabled(v)}
+              trackColor={{
+                false: 'rgba(150,150,150,0.35)',
+                true: colors.primary,
+              }}
+              thumbColor="#FFFFFF"
+            />
           </View>
-          <Switch
-            value={notificationNudge.enabled}
-            onValueChange={(v) => void notificationNudge.setEnabled(v)}
-            trackColor={{
-              false: 'rgba(150,150,150,0.35)',
-              true: colors.primary,
-            }}
-            thumbColor="#FFFFFF"
-          />
+        </View>
+        <View style={styles.card}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flex: 1 }}>
+              <ThemedText size="l" weight="bold">
+                {t('settings.eventInAppNotifications.title')}
+              </ThemedText>
+              <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
+                {t('settings.eventInAppNotifications.description')}
+              </ThemedText>
+            </View>
+            <Switch
+              value={eventInAppPref.enabled}
+              onValueChange={(v) => void eventInAppPref.setEnabled(v)}
+              trackColor={{
+                false: 'rgba(150,150,150,0.35)',
+                true: colors.primary,
+              }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
         </View>
       </View>
-      <View style={styles.card}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flex: 1 }}>
+
+      {/* Section 2: Push reminders */}
+      {renderSectionHeader(t('notifications.section.pushReminders'))}
+      <View style={styles.sectionGroup}>
+        {renderEventRemindersSection()}
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => router.push('/moment-notifications')}
+          activeOpacity={0.8}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <ThemedText size="l" weight="bold">
-              {t('settings.eventInAppNotifications.title')}
+              {t('momentNotifications.title')}
             </ThemedText>
-            <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
-              {t('settings.eventInAppNotifications.description')}
-            </ThemedText>
+            <MaterialIcons name="chevron-right" size={24 * fontScale} color={palette.text} />
           </View>
-          <Switch
-            value={eventInAppPref.enabled}
-            onValueChange={(v) => void eventInAppPref.setEnabled(v)}
-            trackColor={{
-              false: 'rgba(150,150,150,0.35)',
-              true: colors.primary,
-            }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
-      </View>
-      {/* Event memory reminders section */}
-      {renderEventRemindersSection()}
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => router.push('/moment-notifications')}
-        activeOpacity={0.8}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <ThemedText size="l" weight="bold">
-            {t('momentNotifications.title')}
+          <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
+            {t('momentNotifications.addSchedule')}
           </ThemedText>
-          <MaterialIcons name="chevron-right" size={24 * fontScale} color={palette.text} />
-        </View>
-        <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
-          {t('momentNotifications.addSchedule')}
-        </ThemedText>
-      </TouchableOpacity>
-      {renderSphereBlock(
-        'friends',
-        t('notifications.sphere.friends'),
-        friends.map((f) => ({ id: f.id, name: f.name }))
-      )}
-      {renderSphereBlock(
-        'family',
-        t('notifications.sphere.family'),
-        familyMembers.map((f) => ({ id: f.id, name: f.name }))
-      )}
-      {renderSphereBlock(
-        'relationships',
-        t('notifications.sphere.relationships'),
-        profiles.filter((p) => !p.relationshipEndDate).map((p) => ({ id: p.id, name: p.name }))
-      )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Section 3: People */}
+      {renderSectionHeader(t('notifications.section.people'))}
+      <View style={styles.sectionGroup}>
+        {renderSphereBlock(
+          'friends',
+          t('notifications.sphere.friends'),
+          friends.map((f) => ({ id: f.id, name: f.name }))
+        )}
+        {renderSphereBlock(
+          'family',
+          t('notifications.sphere.family'),
+          familyMembers.map((f) => ({ id: f.id, name: f.name }))
+        )}
+        {renderSphereBlock(
+          'relationships',
+          t('notifications.sphere.relationships'),
+          profiles.filter((p) => !p.relationshipEndDate).map((p) => ({ id: p.id, name: p.name }))
+        )}
+      </View>
     </ScrollView>
   );
 
@@ -276,7 +296,10 @@ const createStyles = (
     content: {
       padding: 16 * fontScale,
       paddingBottom: 32 * fontScale,
-      gap: 16 * fontScale,
+      gap: 8 * fontScale,
+    },
+    sectionGroup: {
+      gap: 8 * fontScale,
     },
     card: {
       padding: 14 * fontScale,

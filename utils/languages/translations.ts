@@ -732,6 +732,9 @@ export interface Translations {
 
   // Notifications
   "notifications.title": string;
+  "notifications.section.banners": string;
+  "notifications.section.pushReminders": string;
+  "notifications.section.people": string;
   "notifications.sphere.friends": string;
   "notifications.sphere.family": string;
   "notifications.sphere.relationships": string;
@@ -4608,6 +4611,9 @@ const translations: Record<Language, Translations> = {
 
     // Notifications
     "notifications.title": "Notifications",
+    "notifications.section.banners": "Banners & alerts",
+    "notifications.section.pushReminders": "Push reminders",
+    "notifications.section.people": "People",
     "notifications.sphere.friends": "Friends",
     "notifications.sphere.family": "Family",
     "notifications.sphere.relationships": "Relationships",
@@ -9170,6 +9176,9 @@ const translations: Record<Language, Translations> = {
 
     // Notifications
     "notifications.title": "Известия",
+    "notifications.section.banners": "Банери и известия",
+    "notifications.section.pushReminders": "Push известия",
+    "notifications.section.people": "Хора",
     "notifications.sphere.friends": "Приятели",
     "notifications.sphere.family": "Семейство",
     "notifications.sphere.relationships": "Връзки",
