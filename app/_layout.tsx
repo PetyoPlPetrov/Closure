@@ -190,7 +190,8 @@ function AppContent() {
         hobbies.length;
       const totalMemories = idealizedMemories.length;
       const hasNoData = totalEntities === 0 && totalMemories === 0;
-      const shouldShow = !completed && hasNoData;
+      const isDevReRun = __DEV__ && onboardingRequestTrigger > 0;
+      const shouldShow = !completed && (hasNoData || isDevReRun);
       if (__DEV__) {
         console.log("[OnboardingGate] Data check:", {
           getOnboardingCompleted: completed,
@@ -567,7 +568,6 @@ function AppContent() {
                   ? async () => {
                       await setOnboardingCompleted(true);
                       setOnboardingRequestTrigger((t) => t + 1);
-                      router.replace("/(tabs)/spheres" as any);
                     }
                   : undefined
               }

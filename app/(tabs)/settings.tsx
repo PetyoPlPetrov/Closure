@@ -101,7 +101,7 @@ export default function SettingsScreen() {
   const [versionInfo, setVersionInfo] = useState<AppVersionInfo | null>(null);
 
   const requestInitialOnboarding = useCallback(async () => {
-    if (hasAppData || !onboardingGate) return;
+    if (!onboardingGate) return;
     setInitialOnboardingRequesting(true);
     try {
       await onboardingGate.requestShowOnboarding();
@@ -2156,19 +2156,19 @@ export default function SettingsScreen() {
             <TouchableOpacity
               style={[
                 styles.dropdown,
-                (hasAppData || initialOnboardingRequesting) && {
+                initialOnboardingRequesting && {
                   opacity: 0.5,
                 },
               ]}
               onPress={requestInitialOnboarding}
               activeOpacity={0.7}
-              disabled={hasAppData || initialOnboardingRequesting}
+              disabled={initialOnboardingRequesting}
             >
               <View style={styles.dropdownContent}>
                 <MaterialIcons
                   name="school"
                   size={24 * fontScale}
-                  color={hasAppData ? colors.textMediumEmphasis : colors.primary}
+                  color={colors.primary}
                 />
                 <ThemedText
                   size="l"

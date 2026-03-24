@@ -274,36 +274,7 @@ export default function PersonalizationScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Notifications */}
-          <View style={styles.section}>
-            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-              {t("settings.notifications.title")}
-            </ThemedText>
-
-            <TouchableOpacity
-              style={styles.dropdown}
-              onPress={() => router.push("/notifications")}
-              activeOpacity={0.7}
-            >
-              <View style={styles.dropdownContent}>
-                <MaterialIcons
-                  name="notifications-active"
-                  size={24 * fontScale}
-                  color={colors.primary}
-                />
-                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
-                  {t("settings.notifications.manage")}
-                </ThemedText>
-              </View>
-              <MaterialIcons
-                name="arrow-forward-ios"
-                size={20 * fontScale}
-                color={colors.text}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* AI section — at top */}
+          {/* AI section */}
           <View style={styles.section}>
             <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
               {t("settings.aiInsights.title")}
@@ -339,6 +310,35 @@ export default function PersonalizationScreen() {
                 thumbColor="#FFFFFF"
               />
             </View>
+          </View>
+
+          {/* Notifications */}
+          <View style={styles.section}>
+            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+              {t("settings.notifications.title")}
+            </ThemedText>
+
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => router.push("/notifications")}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dropdownContent}>
+                <MaterialIcons
+                  name="notifications-active"
+                  size={24 * fontScale}
+                  color={colors.primary}
+                />
+                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                  {t("settings.notifications.manage")}
+                </ThemedText>
+              </View>
+              <MaterialIcons
+                name="arrow-forward-ios"
+                size={20 * fontScale}
+                color={colors.text}
+              />
+            </TouchableOpacity>
           </View>
 
           {/* Usability: opens dedicated screen (hints + stop pulsing) */}

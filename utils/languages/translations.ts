@@ -270,6 +270,12 @@ export interface Translations {
   "onboarding.sphere.hobbies": string;
   "onboarding.speakYourStory": string;
   "onboarding.encouragement": string;
+  "onboarding.hierarchy.universe.title": string;
+  "onboarding.hierarchy.universe.body": string;
+  "onboarding.hierarchy.entities.title": string;
+  "onboarding.hierarchy.entities.body": string;
+  "onboarding.hierarchy.memories.title": string;
+  "onboarding.hierarchy.memories.body": string;
 
   // Profile screens
   "profile.add": string;
@@ -3971,6 +3977,15 @@ const translations: Record<Language, Translations> = {
     "onboarding.sphere.hobbies": "Hobbies",
     "onboarding.speakYourStory": "Speak your story",
     "onboarding.encouragement": "You're doing great! Take your time.",
+    "onboarding.hierarchy.universe.title": "Your Universe",
+    "onboarding.hierarchy.universe.body":
+      "At the center is your Sun — a reflection of your balance between sunny and cloudy moments in life. Sferas are the main areas of your life, orbiting around it.",
+    "onboarding.hierarchy.entities.title": "Sferas & Entities",
+    "onboarding.hierarchy.entities.body":
+      "Each Sfera contains the people, jobs, and experiences that shaped you — these are your Entities.",
+    "onboarding.hierarchy.memories.title": "Memories & Moments",
+    "onboarding.hierarchy.memories.body":
+      "Each Entity holds Memories. Every memory has Moments — sunny ones, cloudy ones, and lessons you've learned.",
 
     // Profile screens
     "profile.add": "Add Partner",
@@ -8525,6 +8540,15 @@ const translations: Record<Language, Translations> = {
     "onboarding.sphere.hobbies": "Хобита",
     "onboarding.speakYourStory": "Разкажете историята си",
     "onboarding.encouragement": "Справяте се чудесно! Не бързайте.",
+    "onboarding.hierarchy.universe.title": "Вашата Вселена",
+    "onboarding.hierarchy.universe.body":
+      "В центъра е вашето Слънце — отражение на баланса между слънчеви и облачни моменти в живота ви. Сферите са основните области от живота ви, обикалящи около него.",
+    "onboarding.hierarchy.entities.title": "Сфери и Обекти",
+    "onboarding.hierarchy.entities.body":
+      "Всяка Сфера съдържа хората, работите и преживяванията, които са ви оформили — това са вашите Обекти.",
+    "onboarding.hierarchy.memories.title": "Спомени и Моменти",
+    "onboarding.hierarchy.memories.body":
+      "Всеки Обект съдържа Спомени. Всеки спомен има Моменти — слънчеви, облачни и уроци, които сте научили.",
 
     // Profile screens
     "profile.add": "Добави Партньор",

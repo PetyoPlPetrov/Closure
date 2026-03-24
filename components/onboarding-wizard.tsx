@@ -25,13 +25,15 @@ import {
   setOnboardingCompleted,
   setShowWalkthroughAfterOnboarding,
 } from "@/utils/onboarding-storage";
-import { getSphereSferaColor } from "@/utils/sphere-styles";
+import { getSphere3DGradientColors, getSphereIconColor, getSphereShadowColor, getSphereSferaColor } from "@/utils/sphere-styles";
 import type { LifeSphere } from "@/utils/JourneyProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
+import Svg, { ClipPath, Defs, Path, RadialGradient as SvgRadialGradient, Rect, Stop, Circle as SvgCircle, LinearGradient as SvgLinearGradient } from "react-native-svg";
 import {
   Alert,
   Dimensions,
@@ -57,6 +59,144 @@ function formatDateToYMD(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
+// ─── Static sun preview (no absolute positioning, no SharedValue deps) ───────
+
+function blendHexLocal(hex1: string, hex2: string, t: number): string {
+  const parse = (h: string) => ({
+    r: parseInt(h.slice(1, 3), 16),
+    g: parseInt(h.slice(3, 5), 16),
+    b: parseInt(h.slice(5, 7), 16),
+  });
+  const a = parse(hex1);
+  const b = parse(hex2);
+  return `#${Math.round(a.r * (1 - t) + b.r * t).toString(16).padStart(2, "0")}${Math.round(a.g * (1 - t) + b.g * t).toString(16).padStart(2, "0")}${Math.round(a.b * (1 - t) + b.b * t).toString(16).padStart(2, "0")}`;
+}
+
+const StaticSunPreview = React.memo(function StaticSunPreview({ size = 120, percentage = 72 }: { size?: number; percentage?: number }) {
+  const DISC_R = size * 0.37;
+  const RAY_COUNT = 16;
+  const RAY_INNER = DISC_R + size * 0.025;
+  const RAY_OUTER = DISC_R + size * 0.2;
+  const RAY_BASE_W = size * 0.033;
+  const RAY_TIP_W = 0.4;
+  const C = size / 2;
+
+  const FILL_TOP = "#F5C842";
+  const FILL_BOT = blendHexLocal("#F5C842", "#000000", 0.35);
+
+  const rayRotation = useSharedValue(0);
+  useEffect(() => {
+    rayRotation.value = withRepeat(
+      withTiming(360, { duration: 120000, easing: Easing.linear }),
+      -1,
+      false,
+    );
+    return () => { cancelAnimation(rayRotation); };
+  }, [rayRotation]);
+
+  const rotatingStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rayRotation.value}deg` }],
+  }));
+
+  const rays = useMemo(() => Array.from({ length: RAY_COUNT }, (_, i) => {
+    const angle = (i * 2 * Math.PI) / RAY_COUNT;
+    const innerX = C + Math.cos(angle) * RAY_INNER;
+    const innerY = C + Math.sin(angle) * RAY_INNER;
+    const outerX = C + Math.cos(angle) * RAY_OUTER;
+    const outerY = C + Math.sin(angle) * RAY_OUTER;
+    const perp = angle + Math.PI / 2;
+    const li = `${innerX + Math.cos(perp) * RAY_BASE_W} ${innerY + Math.sin(perp) * RAY_BASE_W}`;
+    const ri = `${innerX + Math.cos(perp + Math.PI) * RAY_BASE_W} ${innerY + Math.sin(perp + Math.PI) * RAY_BASE_W}`;
+    const lo = `${outerX + Math.cos(perp) * RAY_TIP_W} ${outerY + Math.sin(perp) * RAY_TIP_W}`;
+    const ro = `${outerX + Math.cos(perp + Math.PI) * RAY_TIP_W} ${outerY + Math.sin(perp + Math.PI) * RAY_TIP_W}`;
+    return { d: `M ${li} L ${lo} L ${ro} L ${ri} Z` };
+  }), [C, RAY_INNER, RAY_OUTER, RAY_BASE_W]);
+
+  const discTop = C - DISC_R;
+  const fillClipY = discTop + DISC_R * 2 * (1 - percentage / 100);
+
+  return (
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
+      {/* Rotating rays */}
+      <Animated.View style={[{ position: "absolute", width: size, height: size }, rotatingStyle]} pointerEvents="none">
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "absolute" }}>
+          {rays.map((ray, i) => (
+            <Path key={i} d={ray.d} fill="#F5C842" opacity={0.82} />
+          ))}
+        </Svg>
+      </Animated.View>
+      {/* Static disc + fill */}
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "absolute" }} pointerEvents="none">
+        <Defs>
+          <SvgRadialGradient id="obDiscGrad" cx={`${C}`} cy={`${C}`} r={`${DISC_R}`} fx={`${C}`} fy={`${C}`} gradientUnits="userSpaceOnUse">
+            <Stop offset="0%" stopColor="#1E2A4A" stopOpacity="1" />
+            <Stop offset="70%" stopColor="#0A0E1A" stopOpacity="1" />
+            <Stop offset="100%" stopColor="#0D1525" stopOpacity="1" />
+          </SvgRadialGradient>
+          <SvgLinearGradient id="obFillGrad" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor={FILL_TOP} stopOpacity="0.92" />
+            <Stop offset="100%" stopColor={FILL_BOT} stopOpacity="1" />
+          </SvgLinearGradient>
+          <ClipPath id="obFillClip">
+            <Rect x={0} y={fillClipY} width={size} height={size - fillClipY} />
+          </ClipPath>
+        </Defs>
+        <SvgCircle cx={C} cy={C} r={DISC_R} fill="url(#obDiscGrad)" />
+        <SvgCircle cx={C} cy={C} r={DISC_R} fill="url(#obFillGrad)" clipPath="url(#obFillClip)" />
+      </Svg>
+      {/* Text */}
+      <View style={{ position: "absolute", width: DISC_R * 2, height: DISC_R * 2, borderRadius: DISC_R, justifyContent: "center", alignItems: "center" }} pointerEvents="none">
+        <ThemedText weight="bold" style={{ color: "#FFFFFF", fontSize: size * 0.2, textShadowColor: "rgba(0,0,0,0.85)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
+          {percentage}%
+        </ThemedText>
+        <ThemedText style={{ color: "#FFFFFF", fontSize: size * 0.095, opacity: 0.8, marginTop: -2, textShadowColor: "rgba(0,0,0,0.85)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>
+          Sunny Life
+        </ThemedText>
+      </View>
+    </View>
+  );
+});
+
+// ─── Static sfera ball (single sphere, no orbit animation) ────────────────────
+
+const StaticSferaBall = React.memo(function StaticSferaBall({
+  sphere,
+  size,
+  colorScheme,
+}: {
+  sphere: { type: LifeSphere; icon: string };
+  size: number;
+  colorScheme: "light" | "dark";
+}) {
+  const gradient3D = getSphere3DGradientColors(sphere.type, 60, colorScheme);
+  const iconColor = getSphereIconColor(sphere.type, colorScheme, 60);
+  const shadowColor = getSphereShadowColor(sphere.type, colorScheme);
+  const iconSize = Math.round(size * 0.45);
+  const uid = `ob-sphere-${sphere.type}`;
+  return (
+    <View style={{
+      width: size, height: size, borderRadius: size / 2,
+      shadowColor, shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.5, shadowRadius: 10, elevation: 8,
+      justifyContent: "center", alignItems: "center", overflow: "visible",
+    }}>
+      <Svg width={size} height={size} viewBox="0 0 100 100" style={{ position: "absolute" }} pointerEvents="none">
+        <Defs>
+          <SvgRadialGradient id={uid} cx="50" cy="50" r="50" fx="32" fy="32" gradientUnits="userSpaceOnUse">
+            <Stop offset="0%" stopColor={gradient3D.highlight} stopOpacity="1" />
+            <Stop offset="38%" stopColor={gradient3D.base} stopOpacity="1" />
+            <Stop offset="100%" stopColor={gradient3D.shadow} stopOpacity="1" />
+          </SvgRadialGradient>
+        </Defs>
+        <SvgCircle cx="50" cy="50" r="50" fill={`url(#${uid})`} />
+      </Svg>
+      {/* Specular highlight */}
+      <View style={{ position: "absolute", left: "18%", top: "18%", width: "28%", height: "28%", borderRadius: 100, backgroundColor: "rgba(255,255,255,0.45)" }} />
+      <MaterialIcons name={sphere.icon as any} size={iconSize} color={iconColor} style={{ zIndex: 1 }} />
+    </View>
+  );
+});
+
 export type OnboardingWizardProps = {
   /** When true (e.g. re-run from Settings), back arrow exits onboarding instead of going to previous step. */
   canExitEarly?: boolean;
@@ -76,7 +216,8 @@ export function OnboardingWizard({
   const { addProfile, addJob, addFamilyMember, addFriend, addHobby } =
     useJourney();
 
-  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(0);
+  const [hierarchySlide, setHierarchySlide] = useState<0 | 1 | 2>(0);
   const [inputText, setInputText] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -100,9 +241,9 @@ export function OnboardingWizard({
     let cancelled = false;
     getCachedOnboardingResponse().then((cached) => {
       if (cancelled || !cached) return;
-      if (__DEV__) console.log("[Onboarding] Restoring cached AI response, step 3");
+      if (__DEV__) console.log("[Onboarding] Restoring cached AI response, step 4");
       setAiResponse(cached);
-      setStep(3);
+      setStep(4);
     });
     return () => { cancelled = true; };
   }, []);
@@ -122,8 +263,8 @@ export function OnboardingWizard({
   const hasMinWords = wordCount >= MIN_WORDS;
   const exceedsMax = inputText.length > MAX_INPUT_LENGTH;
   const canSubmit = hasMinWords && !exceedsMax && !isProcessing;
-  if (__DEV__ && step === 1) {
-    console.log("[Onboarding] render step1: canSubmit", canSubmit, "hasMinWords", hasMinWords, "exceedsMax", exceedsMax, "isProcessing", isProcessing, "step", step);
+  if (__DEV__ && step === 2) {
+    console.log("[Onboarding] render step2: canSubmit", canSubmit, "hasMinWords", hasMinWords, "exceedsMax", exceedsMax, "isProcessing", isProcessing, "step", step);
   }
 
   const setInputTextWithLimit = useCallback((text: string) => {
@@ -164,8 +305,8 @@ export function OnboardingWizard({
       }
       setAiResponse(response);
       await setCachedOnboardingResponse(response);
-      if (__DEV__) console.log("[Onboarding] handleSubmit: API success, cached, setStep(3)");
-      setStep(3);
+      if (__DEV__) console.log("[Onboarding] handleSubmit: API success, cached, setStep(4)");
+      setStep(4);
     } catch (err) {
       if (__DEV__) console.log("[Onboarding] handleSubmit: API error", err);
       setErrorMessage(
@@ -288,7 +429,7 @@ export function OnboardingWizard({
     await clearCachedOnboardingResponse();
     setAiResponse(null);
     setInputText("");
-    setStep(1);
+    setStep(2);
   }, []);
 
   const handleSave = useCallback(
@@ -479,11 +620,15 @@ export function OnboardingWizard({
                 <View style={styles.stepDot} />
                 <View style={styles.stepLine} />
                 <View style={styles.stepDot} />
+                <View style={styles.stepLine} />
+                <View style={styles.stepDot} />
               </View>
             </View>
           ) : (
             <View style={styles.stepper}>
               <View style={[styles.stepDot, styles.stepDotActive]} />
+              <View style={styles.stepLine} />
+              <View style={styles.stepDot} />
               <View style={styles.stepLine} />
               <View style={styles.stepDot} />
               <View style={styles.stepLine} />
@@ -559,8 +704,205 @@ export function OnboardingWizard({
     );
   }
 
-  // Step 2: Loading – must be checked BEFORE step 1 so loader shows when isProcessing during step 1
-  if (step === 2 || isProcessing) {
+  // Step 1: Hierarchy Introduction (3 internal slides)
+  if (step === 1) {
+    const SPHERE_LIST_ONBOARDING: { type: LifeSphere; icon: string }[] = [
+      { type: "relationships", icon: "favorite" },
+      { type: "career", icon: "work" },
+      { type: "family", icon: "family-restroom" },
+      { type: "friends", icon: "people" },
+      { type: "hobbies", icon: "sports-esports" },
+    ];
+    const slideData = [
+      {
+        illustration: (
+          <StaticSunPreview size={110 * fontScale} percentage={72} />
+        ),
+        title: t("onboarding.hierarchy.universe.title") ?? "Your Universe",
+        body: t("onboarding.hierarchy.universe.body") ?? "At the center is your Sun — a reflection of your balance between sunny and cloudy moments in life. Sferas are the main areas of your life, orbiting around it.",
+        extras: (
+          <View style={{ flexDirection: "row", gap: 10 * fontScale, alignItems: "center", marginTop: 20 * fontScale }}>
+            {SPHERE_LIST_ONBOARDING.map((s, i) => (
+              <StaticSferaBall
+                key={s.type}
+                sphere={s}
+                size={(44 + (i === 2 ? 8 : 0)) * fontScale}
+                colorScheme={(colorScheme ?? "dark") as "light" | "dark"}
+              />
+            ))}
+          </View>
+        ),
+      },
+      {
+        illustration: null,
+        image: require("@/assets/images/onboarding-character.png"),
+        title: t("onboarding.hierarchy.entities.title") ?? "Sferas & Entities",
+        body: t("onboarding.hierarchy.entities.body") ?? "Each Sfera contains the people, jobs, and experiences that shaped you — these are your Entities.",
+        extras: (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 * fontScale, marginTop: 16 * fontScale }}>
+            {["👨‍👩‍👧 Family", "👫 Friends", "🎯 Hobbies", "💼 Career", "❤️ Relationships"].map((label) => (
+              <View
+                key={label}
+                style={{
+                  paddingHorizontal: 12 * fontScale,
+                  paddingVertical: 6 * fontScale,
+                  borderRadius: 16 * fontScale,
+                  backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+                }}
+              >
+                <ThemedText size="s">{label}</ThemedText>
+              </View>
+            ))}
+          </View>
+        ),
+      },
+      {
+        illustration: null,
+        image: require("@/assets/images/onboarding-person.png"),
+        title: t("onboarding.hierarchy.memories.title") ?? "Memories & Moments",
+        body: t("onboarding.hierarchy.memories.body") ?? "Each Entity holds Memories. Every memory has Moments — sunny ones, cloudy ones, and lessons you've learned.",
+        extras: (
+          <View style={{ flexDirection: "row", gap: 12 * fontScale, marginTop: 16 * fontScale }}>
+            {["☀️ Sunny", "🌧 Cloudy", "📖 Lesson"].map((label) => (
+              <View
+                key={label}
+                style={{
+                  paddingHorizontal: 14 * fontScale,
+                  paddingVertical: 8 * fontScale,
+                  borderRadius: 16 * fontScale,
+                  backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+                }}
+              >
+                <ThemedText size="s">{label}</ThemedText>
+              </View>
+            ))}
+          </View>
+        ),
+      },
+    ];
+
+    const slide = slideData[hierarchySlide];
+
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 * fontScale }}>
+            <TouchableOpacity
+              onPress={() => {
+                if (hierarchySlide === 0) {
+                  setStep(0);
+                } else {
+                  setHierarchySlide((hierarchySlide - 1) as 0 | 1 | 2);
+                }
+              }}
+              style={{
+                width: 44 * fontScale,
+                height: 44 * fontScale,
+                borderRadius: 22 * fontScale,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 8 * fontScale,
+                backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="arrow-back" size={24 * fontScale} color={colorScheme === "dark" ? "#E8D5B7" : "#8B6914"} />
+            </TouchableOpacity>
+            <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
+              <View style={[styles.stepDot, styles.stepDotActive]} />
+              <View style={[styles.stepLine, { backgroundColor: colors.primary }]} />
+              <View style={[styles.stepDot, styles.stepDotActive]} />
+              <View style={styles.stepLine} />
+              <View style={styles.stepDot} />
+              <View style={styles.stepLine} />
+              <View style={styles.stepDot} />
+              <View style={styles.stepLine} />
+              <View style={styles.stepDot} />
+            </View>
+          </View>
+        </View>
+
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 * fontScale, alignItems: "center" }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Illustration */}
+          {slide.illustration ? (
+            <View style={{ marginBottom: 24 * fontScale }}>
+              {slide.illustration}
+            </View>
+          ) : (
+            <View style={{ width: 180 * fontScale, height: 180 * fontScale, marginBottom: 24 * fontScale }}>
+              <Image source={(slide as any).image} style={{ width: "100%", height: "100%" }} contentFit="contain" />
+            </View>
+          )}
+
+          {/* Title */}
+          <ThemedText size="xl" weight="bold" style={{ textAlign: "center", color: colorScheme === "dark" ? "#E8D5B7" : "#8B6914", marginBottom: 12 * fontScale }}>
+            {slide.title}
+          </ThemedText>
+
+          {/* Body */}
+          <ThemedText size="m" style={{ textAlign: "center", opacity: 0.75, lineHeight: 22 * fontScale }}>
+            {slide.body}
+          </ThemedText>
+
+          {/* Extras */}
+          <View style={{ alignItems: "center" }}>{slide.extras}</View>
+        </ScrollView>
+
+        {/* Footer nav */}
+        <View style={{ flexDirection: "row", paddingHorizontal: 20 * fontScale, paddingBottom: 64 * fontScale, gap: 12 * fontScale }}>
+          <TouchableOpacity
+            onPress={() => {
+              if (hierarchySlide === 0) {
+                setStep(0);
+              } else {
+                setHierarchySlide((hierarchySlide - 1) as 0 | 1 | 2);
+              }
+            }}
+            style={{
+              flex: 1,
+              height: 52 * fontScale,
+              borderRadius: 12 * fontScale,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+            }}
+            activeOpacity={0.7}
+          >
+            <ThemedText size="l" weight="bold">{t("onboarding.back") ?? "Back"}</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              if (hierarchySlide < 2) {
+                setHierarchySlide((hierarchySlide + 1) as 0 | 1 | 2);
+              } else {
+                setStep(2);
+              }
+            }}
+            style={[styles.submitButton, styles.submitButtonEnabled, { flex: 1, overflow: "hidden" }]}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={["#4A90E2", "#357ABD", "#2E6DA4"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+              borderRadius={12 * fontScale}
+            />
+            <ThemedText size="l" weight="bold" style={{ color: "#FFFFFF" }}>
+              {t("onboarding.next") ?? "Next"}
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Step 3: Loading – must be checked BEFORE step 2 so loader shows when isProcessing during step 2
+  if (step === 3 || isProcessing) {
     if (__DEV__) console.log("[Onboarding] rendering LOADER: step", step, "isProcessing", isProcessing);
     const loadingMessages = [
       t("onboarding.sferaAnalyzing") ?? "Sfera AI is analyzing...",
@@ -572,6 +914,10 @@ export function OnboardingWizard({
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.stepper}>
+            <View style={[styles.stepDot, styles.stepDotActive]} />
+            <View
+              style={[styles.stepLine, { backgroundColor: colors.primary }]}
+            />
             <View style={[styles.stepDot, styles.stepDotActive]} />
             <View
               style={[styles.stepLine, { backgroundColor: colors.primary }]}
@@ -593,8 +939,8 @@ export function OnboardingWizard({
     );
   }
 
-  // Step 1: Tell your story
-  if (step === 1) {
+  // Step 2: Tell your story
+  if (step === 2) {
     return (
       <KeyboardAvoidingView
         style={styles.container}
@@ -613,7 +959,7 @@ export function OnboardingWizard({
           >
             <TouchableOpacity
               onPress={() =>
-                canExitEarly && onExit ? onExit() : setStep(0)
+                canExitEarly && onExit ? onExit() : setStep(1)
               }
               style={{
                 width: 44 * fontScale,
@@ -636,6 +982,10 @@ export function OnboardingWizard({
               />
             </TouchableOpacity>
             <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
+            <View style={[styles.stepDot, styles.stepDotActive]} />
+            <View
+              style={[styles.stepLine, { backgroundColor: colors.primary }]}
+            />
             <View style={[styles.stepDot, styles.stepDotActive]} />
             <View
               style={[styles.stepLine, { backgroundColor: colors.primary }]}
@@ -902,8 +1252,8 @@ export function OnboardingWizard({
     );
   }
 
-  // Step 3: Edit entities
-  if (step === 3 && aiResponse) {
+  // Step 4: Edit entities
+  if (step === 4 && aiResponse) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -951,10 +1301,18 @@ export function OnboardingWizard({
                   style={[styles.stepLine, { backgroundColor: colors.primary }]}
                 />
                 <View style={[styles.stepDot, styles.stepDotActive]} />
+                <View
+                  style={[styles.stepLine, { backgroundColor: colors.primary }]}
+                />
+                <View style={[styles.stepDot, styles.stepDotActive]} />
               </View>
             </View>
           ) : (
             <View style={styles.stepper}>
+              <View style={[styles.stepDot, styles.stepDotActive]} />
+              <View
+                style={[styles.stepLine, { backgroundColor: colors.primary }]}
+              />
               <View style={[styles.stepDot, styles.stepDotActive]} />
               <View
                 style={[styles.stepLine, { backgroundColor: colors.primary }]}
