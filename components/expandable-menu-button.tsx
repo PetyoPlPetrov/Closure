@@ -22,7 +22,7 @@ const SPRING_CONFIG = { damping: 15, stiffness: 120 };
 const STEP = 52; // vertical spacing between buttons
 
 interface ChildButtonProps {
-  iconName: 'edit' | 'settings';
+  iconName: 'edit' | 'settings' | 'palette';
   progress: SharedValue<number>;
   offsetY: number;
   onPress: () => void;
@@ -101,6 +101,7 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
   const expandProgress = useSharedValue(0);
   const editProgress = useSharedValue(0);
   const settingsProgress = useSharedValue(0);
+  const personalizationProgress = useSharedValue(0);
   const triggerScale = useSharedValue(1);
 
   const buttonSize = 40 * fontScale;
@@ -116,6 +117,7 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
         expandProgress.value = 0;
         editProgress.value = 0;
         settingsProgress.value = 0;
+        personalizationProgress.value = 0;
         triggerScale.value = 1;
         isExpandedSV.value = false;
         isReadySV.value = false;
@@ -135,7 +137,7 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
       sub.remove();
       interactionHandleRef.current?.cancel();
     };
-  }, [expandProgress, editProgress, settingsProgress, triggerScale, isExpandedSV, isReadySV]);
+  }, [expandProgress, editProgress, settingsProgress, personalizationProgress, triggerScale, isExpandedSV, isReadySV]);
 
   const expand = useCallback(() => {
     log('expand() called — starting animation');
@@ -145,8 +147,9 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     expandProgress.value = withSpring(1, SPRING_CONFIG);
     editProgress.value = withDelay(0, withSpring(1, SPRING_CONFIG));
-    settingsProgress.value = withDelay(60, withSpring(1, SPRING_CONFIG));
-  }, [expandProgress, editProgress, settingsProgress, isExpandedSV]);
+    personalizationProgress.value = withDelay(60, withSpring(1, SPRING_CONFIG));
+    settingsProgress.value = withDelay(120, withSpring(1, SPRING_CONFIG));
+  }, [expandProgress, editProgress, settingsProgress, personalizationProgress, isExpandedSV]);
 
   const collapse = useCallback(() => {
     log('collapse() called — starting animation');
@@ -154,8 +157,9 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
     expandProgress.value = withSpring(0, SPRING_CONFIG);
     editProgress.value = withSpring(0, SPRING_CONFIG);
     settingsProgress.value = withSpring(0, SPRING_CONFIG);
+    personalizationProgress.value = withSpring(0, SPRING_CONFIG);
     setTimeout(() => setIsExpanded(false), 300);
-  }, [expandProgress, editProgress, settingsProgress, isExpandedSV]);
+  }, [expandProgress, editProgress, settingsProgress, personalizationProgress, isExpandedSV]);
 
   const handleTriggerPress = useCallback(() => {
     const now = Date.now();
@@ -199,6 +203,11 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
   const handleSettingsPress = useCallback(() => {
     collapse();
     setTimeout(() => router.push('/(tabs)/settings'), 150);
+  }, [collapse]);
+
+  const handlePersonalizationPress = useCallback(() => {
+    collapse();
+    setTimeout(() => router.push('/personalization'), 150);
   }, [collapse]);
 
   const triggerGlowStyle = useAnimatedStyle(() => ({
@@ -245,6 +254,13 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
           progress={settingsProgress}
           offsetY={STEP * 2}
           onPress={handleSettingsPress}
+          fontScale={fontScale}
+        />
+        <ChildButton
+          iconName="palette"
+          progress={personalizationProgress}
+          offsetY={STEP * 3}
+          onPress={handlePersonalizationPress}
           fontScale={fontScale}
         />
 

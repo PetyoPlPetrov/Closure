@@ -132,6 +132,7 @@ export interface Translations {
   "ai.insights.consent.maybeLater": string;
   "settings.subscriptions.title": string;
   "settings.subscriptions.premium": string;
+  "settings.yourData.title": string;
   "settings.devTools.title": string;
   "settings.devTools.generateData.button": string;
   "settings.devTools.generateData.generating": string;
@@ -3812,6 +3813,7 @@ const translations: Record<Language, Translations> = {
     "ai.insights.consent.maybeLater": "Maybe Later",
     "settings.subscriptions.title": "Subscriptions",
     "settings.subscriptions.premium": "Sfera plans",
+    "settings.yourData.title": "Your Data",
     "settings.devTools.title": "Development Tools",
     "settings.devTools.generateData.button":
       "Generate Fake Data (Profiles & Jobs)",
@@ -8368,6 +8370,7 @@ const translations: Record<Language, Translations> = {
     "ai.insights.consent.maybeLater": "По-късно",
     "settings.subscriptions.title": "Абонаменти",
     "settings.subscriptions.premium": "Sfera plans",
+    "settings.yourData.title": "Твоите данни",
     "settings.devTools.title": "Инструменти за Разработка",
     "settings.devTools.generateData.button":
       "Генериране на Фалшиви Данни (Профили и Работи)",

@@ -7,7 +7,6 @@ import { OnboardingStepper } from "@/library/components/onboarding-stepper";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney } from "@/utils/JourneyProvider";
-import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 import { presentPaywallWithOffering } from "@/utils/revenuecat-paywall";
@@ -49,7 +48,6 @@ export default function SettingsScreen() {
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
   const { maxContentWidth } = useLargeDevice();
-  const { language, setLanguage } = useLanguage();
   const {
     addProfile,
     addJob,
@@ -94,7 +92,6 @@ export default function SettingsScreen() {
     hobbies.length;
   const totalMemories = idealizedMemories.length;
   const hasAppData = totalEntities > 0 || totalMemories > 0;
-  const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [isCleaningMemories, setIsCleaningMemories] = useState(false);
@@ -131,20 +128,9 @@ export default function SettingsScreen() {
         aiToggleTitleRow: ViewStyle;
         infoIconButton: ViewStyle;
         infoPopupCard: ViewStyle;
-        languageOption: ViewStyle;
-        languageOptionSelected: ViewStyle;
-        languageOptionContent: ViewStyle;
-        languageOptionText: TextStyle;
-        checkIcon: ViewStyle;
         dropdown: ViewStyle;
         dropdownContent: ViewStyle;
         dropdownText: TextStyle;
-        modalOverlay: ViewStyle;
-        modalContent: ViewStyle;
-        modalHeader: ViewStyle;
-        dropdownOption: ViewStyle;
-        dropdownOptionContent: ViewStyle;
-        dropdownOptionText: TextStyle;
         planInfoCard: ViewStyle;
         planInfoTitle: TextStyle;
         planFeaturesList: ViewStyle;
@@ -214,41 +200,6 @@ export default function SettingsScreen() {
           maxWidth: 360,
           alignSelf: "center",
         },
-        languageOption: {
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: 16 * fontScale,
-          borderRadius: 12 * fontScale,
-          backgroundColor:
-            colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.05)"
-              : "rgba(0, 0, 0, 0.05)",
-          borderWidth: 1,
-          borderColor:
-            colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.1)"
-              : "rgba(0, 0, 0, 0.1)",
-        },
-        languageOptionSelected: {
-          borderColor: colors.primary,
-          borderWidth: 2,
-        },
-        languageOptionContent: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 12 * fontScale,
-          flex: 1,
-        },
-        languageOptionText: {
-          flex: 1,
-        },
-        checkIcon: {
-          width: 24 * fontScale,
-          height: 24 * fontScale,
-          alignItems: "center",
-          justifyContent: "center",
-        },
         dropdown: {
           flexDirection: "row",
           alignItems: "center",
@@ -272,44 +223,6 @@ export default function SettingsScreen() {
           flex: 1,
         },
         dropdownText: {
-          flex: 1,
-        },
-        modalOverlay: {
-          flex: 1,
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          justifyContent: "flex-end",
-        },
-        modalContent: {
-          backgroundColor: colorScheme === "dark" ? "#1a1a1a" : "#ffffff",
-          borderTopLeftRadius: 20 * fontScale,
-          borderTopRightRadius: 20 * fontScale,
-          paddingTop: 20 * fontScale,
-          paddingBottom: 40 * fontScale,
-          maxHeight: "50%",
-        },
-        modalHeader: {
-          paddingHorizontal: 20 * fontScale,
-          paddingBottom: 16 * fontScale,
-          borderBottomWidth: 1,
-          borderBottomColor:
-            colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.1)"
-              : "rgba(0, 0, 0, 0.1)",
-        },
-        dropdownOption: {
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: 16 * fontScale,
-          paddingHorizontal: 20 * fontScale,
-        },
-        dropdownOptionContent: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 12 * fontScale,
-          flex: 1,
-        },
-        dropdownOptionText: {
           flex: 1,
         },
         planInfoCard: {
@@ -347,21 +260,6 @@ export default function SettingsScreen() {
       }),
     [fontScale, colorScheme, colors.primary, maxContentWidth],
   );
-
-  const handleLanguageChange = async (lang: "en" | "bg") => {
-    await setLanguage(lang);
-    setLanguageDropdownVisible(false);
-  };
-
-  const getLanguageLabel = (lang: "en" | "bg") => {
-    return lang === "en"
-      ? t("settings.language.english")
-      : t("settings.language.bulgarian");
-  };
-
-  const handleNotificationsPress = async () => {
-    router.push("/notifications");
-  };
 
   const handlePremiumPress = useCallback(async () => {
     if (isSubscribed) {
@@ -1940,200 +1838,7 @@ export default function SettingsScreen() {
           {t("settings.title")}
         </ThemedText>
 
-        {/* CORE PERSONALIZATION */}
-        <View style={styles.section}>
-          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            {t("settings.language")}
-          </ThemedText>
-
-          <TouchableOpacity
-            style={styles.dropdown}
-            onPress={() => setLanguageDropdownVisible(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.dropdownContent}>
-              <MaterialIcons
-                name="language"
-                size={24 * fontScale}
-                color={colors.primary}
-              />
-              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
-                {getLanguageLabel(language)}
-              </ThemedText>
-            </View>
-            <MaterialIcons
-              name="arrow-drop-down"
-              size={24 * fontScale}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-        </View>
-
-        <Modal
-          visible={languageDropdownVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setLanguageDropdownVisible(false)}
-        >
-          <Pressable
-            style={styles.modalOverlay}
-            onPress={() => setLanguageDropdownVisible(false)}
-          >
-            <View style={styles.modalContent}>
-              <Pressable onPress={(e) => e.stopPropagation()}>
-                <View style={styles.modalHeader}>
-                  <ThemedText size="l" weight="bold">
-                    {t("settings.language")}
-                  </ThemedText>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.dropdownOption}
-                  onPress={() => handleLanguageChange("en")}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.dropdownOptionContent}>
-                    <MaterialIcons
-                      name="language"
-                      size={24 * fontScale}
-                      color={colors.primary}
-                    />
-                    <ThemedText
-                      size="l"
-                      weight={language === "en" ? "bold" : "medium"}
-                      style={styles.dropdownOptionText}
-                    >
-                      {t("settings.language.english")}
-                    </ThemedText>
-                  </View>
-                  {language === "en" && (
-                    <MaterialIcons
-                      name="check-circle"
-                      size={24 * fontScale}
-                      color={colors.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.dropdownOption}
-                  onPress={() => handleLanguageChange("bg")}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.dropdownOptionContent}>
-                    <MaterialIcons
-                      name="language"
-                      size={24 * fontScale}
-                      color={colors.primary}
-                    />
-                    <ThemedText
-                      size="l"
-                      weight={language === "bg" ? "bold" : "medium"}
-                      style={styles.dropdownOptionText}
-                    >
-                      {t("settings.language.bulgarian")}
-                    </ThemedText>
-                  </View>
-                  {language === "bg" && (
-                    <MaterialIcons
-                      name="check-circle"
-                      size={24 * fontScale}
-                      color={colors.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Modal>
-
-        {/* Personalization: opens dedicated screen (Look + AI sections) */}
-        <View style={styles.section}>
-          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            {t("settings.personalization.title")}
-          </ThemedText>
-
-          <TouchableOpacity
-            style={styles.dropdown}
-            onPress={() => router.push("/personalization")}
-            activeOpacity={0.7}
-          >
-            <View style={styles.dropdownContent}>
-              <MaterialIcons
-                name="tune"
-                size={24 * fontScale}
-                color={colors.primary}
-              />
-              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
-                {t("settings.personalization.title")}
-              </ThemedText>
-            </View>
-            <MaterialIcons
-              name="arrow-forward-ios"
-              size={20 * fontScale}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            {t("settings.notifications.title")}
-          </ThemedText>
-
-          <TouchableOpacity
-            style={styles.dropdown}
-            onPress={handleNotificationsPress}
-            activeOpacity={0.7}
-          >
-            <View style={styles.dropdownContent}>
-              <MaterialIcons
-                name="notifications-active"
-                size={24 * fontScale}
-                color={colors.primary}
-              />
-              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
-                {t("settings.notifications.manage")}
-              </ThemedText>
-            </View>
-            <MaterialIcons
-              name="arrow-forward-ios"
-              size={20 * fontScale}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* LEARNING & HELP */}
-        <View style={styles.section}>
-          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            {t("settings.help.title")}
-          </ThemedText>
-
-          <TouchableOpacity
-            style={styles.dropdown}
-            onPress={() => setOnboardingVisible(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.dropdownContent}>
-              <MaterialIcons
-                name="help-outline"
-                size={24 * fontScale}
-                color={colors.primary}
-              />
-              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
-                {t("settings.help.viewGuide")}
-              </ThemedText>
-            </View>
-            <MaterialIcons
-              name="arrow-forward-ios"
-              size={20 * fontScale}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* PREMIUM FEATURES */}
+        {/* SUBSCRIPTION */}
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
             {t("settings.subscriptions.title")}
@@ -2152,6 +1857,34 @@ export default function SettingsScreen() {
               />
               <ThemedText size="l" weight="medium" style={styles.dropdownText}>
                 {t("settings.subscriptions.premium")}
+              </ThemedText>
+            </View>
+            <MaterialIcons
+              name="arrow-forward-ios"
+              size={20 * fontScale}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={async () => {
+              if (!hasBackupAccess) {
+                const purchased = await showPaywallForAnySubscriptionAccess();
+                if (!purchased) return;
+              }
+              router.push("/backup");
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.dropdownContent}>
+              <MaterialIcons
+                name="backup"
+                size={24 * fontScale}
+                color={colors.primary}
+              />
+              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                {t("settings.backup.title")}
               </ThemedText>
             </View>
             <MaterialIcons
@@ -2212,29 +1945,25 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        {/* HELP */}
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            {t("settings.backup.title")}
+            {t("settings.help.title")}
           </ThemedText>
+
           <TouchableOpacity
             style={styles.dropdown}
-            onPress={async () => {
-              if (!hasBackupAccess) {
-                const purchased = await showPaywallForAnySubscriptionAccess();
-                if (!purchased) return;
-              }
-              router.push("/backup");
-            }}
+            onPress={() => setOnboardingVisible(true)}
             activeOpacity={0.7}
           >
             <View style={styles.dropdownContent}>
               <MaterialIcons
-                name="backup"
+                name="help-outline"
                 size={24 * fontScale}
                 color={colors.primary}
               />
               <ThemedText size="l" weight="medium" style={styles.dropdownText}>
-                {t("settings.backup.title")}
+                {t("settings.help.viewGuide")}
               </ThemedText>
             </View>
             <MaterialIcons
@@ -2243,13 +1972,6 @@ export default function SettingsScreen() {
               color={colors.text}
             />
           </TouchableOpacity>
-        </View>
-
-        {/* COMMUNITY & SUPPORT */}
-        <View style={styles.section}>
-          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
-            {t("settings.feedback.title")}
-          </ThemedText>
 
           <TouchableOpacity
             style={styles.dropdown}
@@ -2276,7 +1998,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* App version (store build + OTA update id for support) */}
+        {/* ABOUT */}
         {versionInfo && (
           <View style={[styles.section, { marginTop: 8 * fontScale }]}>
             <ThemedText
@@ -2291,8 +2013,12 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {/* Development Tools Section */}
+        {/* YOUR DATA */}
         <View style={styles.section}>
+          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            {t("settings.yourData.title")}
+          </ThemedText>
+
           {/* Generate Fake Data Button - Only visible in development */}
           {__DEV__ && (
             <>

@@ -6,10 +6,11 @@ import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
+import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import { router } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Dimensions,
   Modal,
@@ -22,6 +23,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
+import { type Language } from "@/utils/languages/translations";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -34,7 +36,20 @@ export default function PersonalizationScreen() {
   const t = useTranslate();
   const { constellationAmount, constellationOpacity } = useVisualSettings();
   const aiConsent = useAIInsightsConsent();
+  const { language, setLanguage } = useLanguage();
+  const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
   const [infoPopupKey, setInfoPopupKey] = useState<"aiInsights" | null>(null);
+
+  const handleLanguageChange = async (lang: Language) => {
+    await setLanguage(lang);
+    setLanguageDropdownVisible(false);
+  };
+
+  const getLanguageLabel = (lang: Language) => {
+    return lang === "en"
+      ? t("settings.language.english")
+      : t("settings.language.bulgarian");
+  };
 
   const handleToggleAIInsights = useCallback(
     async (next: boolean) => {
@@ -65,6 +80,11 @@ export default function PersonalizationScreen() {
         aiToggleTitleRow: ViewStyle;
         infoIconButton: ViewStyle;
         infoPopupCard: ViewStyle;
+        modalOverlay: ViewStyle;
+        modalContent: ViewStyle;
+        modalHeader: ViewStyle;
+        dropdownOption: ViewStyle;
+        dropdownOptionContent: ViewStyle;
       }>({
         container: { flex: 1 },
         header: {
@@ -149,6 +169,41 @@ export default function PersonalizationScreen() {
           maxWidth: 360,
           alignSelf: "center",
         },
+        modalOverlay: {
+          flex: 1,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          justifyContent: "flex-end",
+        },
+        modalContent: {
+          backgroundColor: colorScheme === "dark" ? "#1a1a1a" : "#ffffff",
+          borderTopLeftRadius: 20 * fontScale,
+          borderTopRightRadius: 20 * fontScale,
+          paddingTop: 20 * fontScale,
+          paddingBottom: 40 * fontScale,
+          maxHeight: "50%",
+        },
+        modalHeader: {
+          paddingHorizontal: 20 * fontScale,
+          paddingBottom: 16 * fontScale,
+          borderBottomWidth: 1,
+          borderBottomColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(0, 0, 0, 0.1)",
+        },
+        dropdownOption: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: 16 * fontScale,
+          paddingHorizontal: 20 * fontScale,
+        },
+        dropdownOptionContent: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12 * fontScale,
+          flex: 1,
+        },
       }),
     [
       colorScheme,
@@ -190,6 +245,64 @@ export default function PersonalizationScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
+          {/* Language */}
+          <View style={styles.section}>
+            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+              {t("settings.language")}
+            </ThemedText>
+
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => setLanguageDropdownVisible(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dropdownContent}>
+                <MaterialIcons
+                  name="language"
+                  size={24 * fontScale}
+                  color={colors.primary}
+                />
+                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                  {getLanguageLabel(language)}
+                </ThemedText>
+              </View>
+              <MaterialIcons
+                name="arrow-drop-down"
+                size={24 * fontScale}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Notifications */}
+          <View style={styles.section}>
+            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+              {t("settings.notifications.title")}
+            </ThemedText>
+
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => router.push("/notifications")}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dropdownContent}>
+                <MaterialIcons
+                  name="notifications-active"
+                  size={24 * fontScale}
+                  color={colors.primary}
+                />
+                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                  {t("settings.notifications.manage")}
+                </ThemedText>
+              </View>
+              <MaterialIcons
+                name="arrow-forward-ios"
+                size={20 * fontScale}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
           {/* AI section — at top */}
           <View style={styles.section}>
             <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
@@ -310,6 +423,82 @@ export default function PersonalizationScreen() {
           </View>
         </ScrollView>
       </View>
+
+      <Modal
+        visible={languageDropdownVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLanguageDropdownVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setLanguageDropdownVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <Pressable onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <ThemedText size="l" weight="bold">
+                  {t("settings.language")}
+                </ThemedText>
+              </View>
+
+              <TouchableOpacity
+                style={styles.dropdownOption}
+                onPress={() => handleLanguageChange("en")}
+                activeOpacity={0.7}
+              >
+                <View style={styles.dropdownOptionContent}>
+                  <MaterialIcons
+                    name="language"
+                    size={24 * fontScale}
+                    color={colors.primary}
+                  />
+                  <ThemedText
+                    size="l"
+                    weight={language === "en" ? "bold" : "medium"}
+                  >
+                    {t("settings.language.english")}
+                  </ThemedText>
+                </View>
+                {language === "en" && (
+                  <MaterialIcons
+                    name="check-circle"
+                    size={24 * fontScale}
+                    color={colors.primary}
+                  />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dropdownOption}
+                onPress={() => handleLanguageChange("bg")}
+                activeOpacity={0.7}
+              >
+                <View style={styles.dropdownOptionContent}>
+                  <MaterialIcons
+                    name="language"
+                    size={24 * fontScale}
+                    color={colors.primary}
+                  />
+                  <ThemedText
+                    size="l"
+                    weight={language === "bg" ? "bold" : "medium"}
+                  >
+                    {t("settings.language.bulgarian")}
+                  </ThemedText>
+                </View>
+                {language === "bg" && (
+                  <MaterialIcons
+                    name="check-circle"
+                    size={24 * fontScale}
+                    color={colors.primary}
+                  />
+                )}
+              </TouchableOpacity>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       <Modal
         visible={infoPopupKey !== null}
