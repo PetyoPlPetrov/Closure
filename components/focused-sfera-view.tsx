@@ -1344,22 +1344,25 @@ function hexToRgbNorm(hex: string): { r: number; g: number; b: number } {
 const WheelOfLifeIcon = React.memo(function WheelOfLifeIcon({ size }: { size: number }) {
   const { momentColors } = useMomentColors();
 
-  // Three orbs orbit at different speeds and on different axes
+  // Four orbs orbit at different speeds and on different axes
   const angle0 = useSharedValue(0);
   const angle1 = useSharedValue((2 * Math.PI) / 3);
   const angle2 = useSharedValue((4 * Math.PI) / 3);
+  const angle3 = useSharedValue(Math.PI / 4);
 
   useEffect(() => {
     const dur = 3200;
     angle0.value = withRepeat(withTiming(angle0.value + 2 * Math.PI, { duration: dur, easing: Easing.linear }), -1, false);
     angle1.value = withRepeat(withTiming(angle1.value + 2 * Math.PI, { duration: dur * 1.35, easing: Easing.linear }), -1, false);
     angle2.value = withRepeat(withTiming(angle2.value + 2 * Math.PI, { duration: dur * 0.8, easing: Easing.linear }), -1, false);
+    angle3.value = withRepeat(withTiming(angle3.value + 2 * Math.PI, { duration: dur * 1.7, easing: Easing.linear }), -1, false);
     return () => {
       cancelAnimation(angle0);
       cancelAnimation(angle1);
       cancelAnimation(angle2);
+      cancelAnimation(angle3);
     };
-  }, [angle0, angle1, angle2]);
+  }, [angle0, angle1, angle2, angle3]);
 
   const C = size / 2;
   // Elliptical orbit radii — orbit 0 is wider/flat, orbit 1 is tilted
@@ -1368,6 +1371,10 @@ const WheelOfLifeIcon = React.memo(function WheelOfLifeIcon({ size }: { size: nu
   const RX1 = size * 0.32;
   const RY1 = size * 0.41;
   const TILT1 = Math.PI / 5; // 36° tilt for second orbit
+  // Orbit 3: smaller tilted ellipse at ~-60° tilt
+  const RX3 = size * 0.38;
+  const RY3 = size * 0.14;
+  const TILT3 = -Math.PI / 3;
   const DOT_R = size * 0.09;
 
   const sunColor = momentColors.sunny.background;
@@ -1419,6 +1426,21 @@ const WheelOfLifeIcon = React.memo(function WheelOfLifeIcon({ size }: { size: nu
     };
   });
 
+  // Orb 3 on a shallow tilted ellipse
+  const orb3Style = useAnimatedStyle(() => {
+    const a = angle3.value;
+    const ex = Math.cos(a) * RX3;
+    const ey = Math.sin(a) * RY3;
+    return {
+      position: "absolute" as const,
+      left: C + ex * Math.cos(TILT3) - ey * Math.sin(TILT3) - DOT_R,
+      top: C + ex * Math.sin(TILT3) + ey * Math.cos(TILT3) - DOT_R,
+      width: DOT_R * 2,
+      height: DOT_R * 2,
+      borderRadius: DOT_R,
+    };
+  });
+
   // Fixed star positions inside the disc
   const STARS = useMemo(() => [
     { x: C * 0.55, y: C * 0.60 }, { x: C * 1.45, y: C * 0.72 },
@@ -1460,6 +1482,15 @@ const WheelOfLifeIcon = React.memo(function WheelOfLifeIcon({ size }: { size: nu
           strokeDasharray="1.5 2.5"
         />
 
+        {/* Tilted ellipse 3 (shallow, -60°) */}
+        <Path
+          d={`M ${C + RX3 * Math.cos(TILT3)} ${C + RX3 * Math.sin(TILT3)} A ${RX3} ${RY3} ${(TILT3 * 180) / Math.PI} 1 1 ${C - RX3 * Math.cos(TILT3)} ${C - RX3 * Math.sin(TILT3)} A ${RX3} ${RY3} ${(TILT3 * 180) / Math.PI} 1 1 ${C + RX3 * Math.cos(TILT3)} ${C + RX3 * Math.sin(TILT3)} Z`}
+          fill="none"
+          stroke="rgba(92,225,180,0.2)"
+          strokeWidth={0.7}
+          strokeDasharray="1.5 2.5"
+        />
+
         {/* Nebula core glow */}
         <SvgCircle cx={C} cy={C} r={size * 0.22} fill="url(#nebulaCore)" />
 
@@ -1477,6 +1508,7 @@ const WheelOfLifeIcon = React.memo(function WheelOfLifeIcon({ size }: { size: nu
       <Animated.View pointerEvents="none" style={[orb0Style, { backgroundColor: sunColor, shadowColor: sunColor, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 3, elevation: 5 }]} />
       <Animated.View pointerEvents="none" style={[orb1Style, { backgroundColor: cloudColor, shadowColor: cloudColor, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 3, elevation: 5 }]} />
       <Animated.View pointerEvents="none" style={[orb2Style, { backgroundColor: lessonColor, shadowColor: lessonColor, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 3, elevation: 5 }]} />
+      <Animated.View pointerEvents="none" style={[orb3Style, { backgroundColor: sunColor, shadowColor: sunColor, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.7, shadowRadius: 3, elevation: 5 }]} />
     </View>
   );
 });
@@ -1570,9 +1602,12 @@ const SunAvatar = React.memo(function SunAvatar({
     };
   }, [avatarPulseScale]);
 
-  // Scale up slightly when expanded
+  // Scale up slightly and move up when expanded
   const compositeStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: avatarPulseScale.value * (1 + sunExpanded.value * 0.12) }],
+    transform: [
+      { translateY: -sunExpanded.value * 40 },
+      { scale: avatarPulseScale.value * (1 + sunExpanded.value * 0.12) },
+    ],
   }));
 
   // Press feedback
@@ -2385,7 +2420,7 @@ export function FocusedSferaView({
               {
                 position: "absolute",
                 left: SW / 2 - 130,
-                top: SH * 0.5 + 160,
+                top: SH * 0.5 + 120,
                 width: 260,
                 flexDirection: "row",
                 justifyContent: "space-around",

@@ -21,6 +21,7 @@ import { useInAppNotification } from "@/utils/InAppNotificationProvider";
 import { getOnboardingCompleted } from "@/utils/onboarding-storage";
 import {
   fetchAndCheckForNewEvents,
+  getCachedEvents as loadCachedEventsFromStorage,
   getSeenEventIds,
   markEventAsSeen as markSeenInStorage,
   type SferaEvent,
@@ -37,8 +38,10 @@ interface SferaEventsBadgeContextType {
   getCachedEvents: () => SferaEvent[];
   /** Clear in-memory events state and badge (e.g. after Clear all app data). Call before refreshEvents() to avoid stale UI/badges. */
   resetEventsState: () => void;
-  /** True while initial events fetch is in progress (on app open). */
+  /** True while initial events fetch is in progress (on app open) and no cached data is available yet. */
   isLoadingEvents: boolean;
+  /** True while a background network refresh is in progress (cached data already displayed). */
+  isRefreshing: boolean;
 }
 
 const SferaEventsBadgeContext = createContext<
@@ -51,11 +54,14 @@ interface BadgeState {
   events: SferaEvent[];
   seenIds: Set<string>;
   isLoadingEvents: boolean;
+  isRefreshing: boolean;
 }
 
 type BadgeAction =
   | { type: "FETCH_START" }
+  | { type: "REFRESH_START" }
   | { type: "FETCH_DONE"; events: SferaEvent[]; seenIds: Set<string>; unseenCount: number; hasNewEvents: boolean }
+  | { type: "PRELOAD_CACHE"; events: SferaEvent[] }
   | { type: "MARK_SEEN"; eventId: string; seenIds: Set<string>; unseenCount: number; hasNewEvents: boolean }
   | { type: "RESET" };
 
@@ -65,12 +71,22 @@ const initialBadgeState: BadgeState = {
   events: [],
   seenIds: new Set(),
   isLoadingEvents: true,
+  isRefreshing: false,
 };
 
 function badgeReducer(state: BadgeState, action: BadgeAction): BadgeState {
   switch (action.type) {
     case "FETCH_START":
-      return state.isLoadingEvents ? state : { ...state, isLoadingEvents: true };
+      // If cache was already preloaded (isLoadingEvents=false), treat as a background refresh
+      if (!state.isLoadingEvents) return { ...state, isRefreshing: true };
+      return state;
+    case "REFRESH_START":
+      return { ...state, isRefreshing: true };
+    case "PRELOAD_CACHE":
+      // Cache loaded: mark initial loading done, show cached events immediately
+      return state.isLoadingEvents
+        ? { ...state, events: action.events, isLoadingEvents: false, isRefreshing: true }
+        : state;
     case "FETCH_DONE":
       return {
         events: action.events,
@@ -78,6 +94,7 @@ function badgeReducer(state: BadgeState, action: BadgeAction): BadgeState {
         unseenCount: action.unseenCount,
         hasNewEvents: action.hasNewEvents,
         isLoadingEvents: false,
+        isRefreshing: false,
       };
     case "MARK_SEEN":
       return {
@@ -99,7 +116,9 @@ export function SferaEventsBadgeProvider({
   children: React.ReactNode;
 }) {
   const [state, dispatch] = useReducer(badgeReducer, initialBadgeState);
-  const { hasNewEvents, unseenCount, events, seenIds, isLoadingEvents } = state;
+  const { hasNewEvents, unseenCount, events, seenIds, isLoadingEvents, isRefreshing } = state;
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const { showNotification } = useInAppNotification();
   const { enabled: eventInAppNotificationsEnabled, isLoaded: eventInAppPrefLoaded } =
     useEventInAppNotificationPreference();
@@ -127,6 +146,7 @@ export function SferaEventsBadgeProvider({
   const checkAndNotify = useCallback(
     async (fromForeground = false, silent = false) => {
       if (!silent) dispatch({ type: "FETCH_START" });
+      else dispatch({ type: "REFRESH_START" });
       try {
         const completed = await getOnboardingCompleted();
         if (!completed) {
@@ -162,7 +182,8 @@ export function SferaEventsBadgeProvider({
         }
         return fetched;
       } catch (e) {
-        if (!silent) dispatch({ type: "FETCH_DONE", events: [], seenIds: new Set(), unseenCount: 0, hasNewEvents: false });
+        const s = stateRef.current;
+        dispatch({ type: "FETCH_DONE", events: s.events, seenIds: s.seenIds, unseenCount: s.unseenCount, hasNewEvents: s.hasNewEvents });
         throw e;
       }
     },
@@ -191,7 +212,13 @@ export function SferaEventsBadgeProvider({
     dispatch({ type: "RESET" });
   }, []);
 
+  // Preload AsyncStorage cache immediately so the events tab renders without a spinner
   useEffect(() => {
+    void loadCachedEventsFromStorage().then((cached) => {
+      if (cached.length > 0) {
+        dispatch({ type: "PRELOAD_CACHE", events: cached });
+      }
+    });
     void checkAndNotify(false);
   }, [checkAndNotify]);
 
@@ -220,7 +247,8 @@ export function SferaEventsBadgeProvider({
     getCachedEvents,
     resetEventsState,
     isLoadingEvents,
-  }), [hasNewEvents, unseenCount, markEventAsSeen, refreshEvents, getCachedEvents, resetEventsState, isLoadingEvents]);
+    isRefreshing,
+  }), [hasNewEvents, unseenCount, markEventAsSeen, refreshEvents, getCachedEvents, resetEventsState, isLoadingEvents, isRefreshing]);
 
   return (
     <SferaEventsBadgeContext.Provider value={contextValue}>

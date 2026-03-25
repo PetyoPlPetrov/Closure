@@ -519,7 +519,7 @@ function isEventForUserCountry(
 }
 
 /** Load cached events from AsyncStorage (for fallback when fetch fails). */
-async function getCachedEvents(): Promise<SferaEvent[]> {
+export async function getCachedEvents(): Promise<SferaEvent[]> {
   try {
     const raw = await AsyncStorage.getItem(EVENTS_CACHE_KEY);
     if (!raw) return [];

@@ -1249,7 +1249,7 @@ export default function EventsTab() {
   const { constellationAmount, constellationOpacity, appUsabilityHints } =
     useVisualSettings();
   const { momentColors } = useMomentColors();
-  const { markEventAsSeen, refreshEvents, getCachedEvents, isLoadingEvents } = useSferaEventsBadge();
+  const { markEventAsSeen, refreshEvents, getCachedEvents, isLoadingEvents, isRefreshing } = useSferaEventsBadge();
   const { hasPlusEntitlement, hasAIEntitlement } = useSubscription();
 
   const [events, setEvents] = useState<SferaEvent[]>([]);
@@ -1381,17 +1381,17 @@ export default function EventsTab() {
     void loadUnlocked();
   }, [loadUnlocked]);
 
-  // When provider finishes loading events, sync local state
+  // When provider finishes loading (or refreshing), sync local state
   const initialSyncDone = useRef(false);
   useEffect(() => {
-    if (!isLoadingEvents && !initialSyncDone.current) {
+    if (!isLoadingEvents && !isRefreshing) {
       const cached = getCachedEvents();
       if (cached.length > 0) {
         void syncLocalState(cached);
         initialSyncDone.current = true;
       }
     }
-  }, [isLoadingEvents, getCachedEvents, syncLocalState]);
+  }, [isLoadingEvents, isRefreshing, getCachedEvents, syncLocalState]);
 
   // Silently refresh events when tab becomes focused (after initial load)
   useFocusEffect(
@@ -2023,24 +2023,6 @@ export default function EventsTab() {
     transform: [{ scale: eventsFingerScale.value }],
   }));
 
-  if (isLoadingEvents && events.length === 0) {
-    return (
-      <TabScreenContainer>
-        <ConstellationBackground
-          width={SCREEN_WIDTH}
-          height={SCREEN_HEIGHT}
-          constellationAmount={constellationAmount}
-          constellationOpacity={constellationOpacity}
-        />
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <ThemedText size="sm" emphasis="medium" style={styles.loadingText}>
-            {t("events.loading")}
-          </ThemedText>
-        </View>
-      </TabScreenContainer>
-    );
-  }
 
   const sectionLabel = (type: SferaEventType) =>
     type === "social"
@@ -2065,6 +2047,22 @@ export default function EventsTab() {
         colorScheme={colorScheme ?? "dark"}
         sunnyBackground={momentColors.sunny.background}
       />
+
+      {/* Background refresh indicator — centre of the orbs orbit */}
+      {(isRefreshing || isLoadingEvents) && phase === "orbs" && (
+        <View
+          style={{
+            position: "absolute",
+            left: CENTER_X - 18,
+            top: CENTER_Y - 18,
+            zIndex: 1000,
+            opacity: 0.5,
+          }}
+          pointerEvents="none"
+        >
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      )}
 
       {/* Location permission denied indicator */}
       {locationPermissionDenied && (

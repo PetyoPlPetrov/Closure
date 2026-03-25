@@ -32,8 +32,8 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
-import Svg, { ClipPath, Defs, Path, RadialGradient as SvgRadialGradient, Rect, Stop, Circle as SvgCircle, LinearGradient as SvgLinearGradient } from "react-native-svg";
+import Animated, { cancelAnimation, Easing, SharedValue, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from "react-native-reanimated";
+import Svg, { ClipPath, Defs, Ellipse as SvgEllipse, Path, RadialGradient as SvgRadialGradient, Rect, Stop, Circle as SvgCircle, LinearGradient as SvgLinearGradient } from "react-native-svg";
 import {
   Alert,
   Dimensions,
@@ -57,6 +57,65 @@ const MIN_WORDS = 50;
 
 function formatDateToYMD(date: Date): string {
   return date.toISOString().split("T")[0];
+}
+
+// ─── Sparkle dots for cosmic vibe on hierarchy slides ────────────────────────
+
+const SPARKLE_DOTS = Array.from({ length: 40 }, (_, i) => ({
+  id: i,
+  x: Math.random() * SCREEN_WIDTH,
+  y: Math.random() * SCREEN_HEIGHT,
+  size: 1.5 + Math.random() * 2.5,
+  delay: Math.floor(Math.random() * 2000),
+  duration: 1200 + Math.floor(Math.random() * 1600),
+}));
+
+const OnboardingSparkle = React.memo(function OnboardingSparkle({ dot }: { dot: typeof SPARKLE_DOTS[number] }) {
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    opacity.value = withDelay(
+      dot.delay,
+      withTiming(0.7, { duration: 600, easing: Easing.out(Easing.ease) }, (finished) => {
+        if (finished) {
+          opacity.value = withRepeat(
+            withTiming(0.25, { duration: dot.duration, easing: Easing.inOut(Easing.ease) }),
+            -1,
+            true,
+          );
+        }
+      }),
+    );
+    return () => { cancelAnimation(opacity); };
+  }, [dot.delay, dot.duration, opacity]);
+
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return (
+    <Animated.View
+      style={[{
+        position: "absolute",
+        left: dot.x - dot.size / 2,
+        top: dot.y - dot.size / 2,
+        width: dot.size,
+        height: dot.size,
+        borderRadius: dot.size / 2,
+        backgroundColor: "rgba(255,255,255,0.9)",
+        shadowColor: "rgba(255,255,255,0.8)",
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.9,
+        shadowRadius: dot.size * 2,
+      }, style]}
+    />
+  );
+});
+
+function OnboardingSparkles() {
+  return (
+    <>
+      {SPARKLE_DOTS.map((dot) => <OnboardingSparkle key={dot.id} dot={dot} />)}
+    </>
+  );
 }
 
 // ─── Static sun preview (no absolute positioning, no SharedValue deps) ───────
@@ -197,6 +256,356 @@ const StaticSferaBall = React.memo(function StaticSferaBall({
   );
 });
 
+// ─── Mock: one sfera with orbiting entity photo avatars ──────────────────────
+
+const MOCK_ENTITY_PHOTOS = [
+  require("@/assets/images/fake-family-emily.jpg"),
+  require("@/assets/images/fake-family-sarah.jpg"),
+  require("@/assets/images/fake-family-robert.jpg"),
+  require("@/assets/images/fake-family-michael.jpg"),
+  require("@/assets/images/fake-family-maria.jpg"),
+];
+
+const MOCK_SFERA_SIZE = 240;
+const MOCK_SPHERE_SIZE = 88;
+const MOCK_AVATAR_SIZE = 44;
+const MOCK_ORBIT_R = MOCK_SPHERE_SIZE / 2 + MOCK_AVATAR_SIZE / 2 + 16;
+const MOCK_C = MOCK_SFERA_SIZE / 2;
+
+const MockOrbitingAvatar = React.memo(function MockOrbitingAvatar({
+  photo, index, count, orbitAngle, glowColor,
+}: {
+  photo: number;
+  index: number; count: number;
+  orbitAngle: SharedValue<number>;
+  glowColor: string;
+}) {
+  const baseAngle = (index / count) * 2 * Math.PI - Math.PI / 2;
+  const avatarStyle = useAnimatedStyle(() => ({
+    position: "absolute",
+    left: MOCK_C + Math.cos(baseAngle + orbitAngle.value) * MOCK_ORBIT_R - MOCK_AVATAR_SIZE / 2,
+    top:  MOCK_C + Math.sin(baseAngle + orbitAngle.value) * MOCK_ORBIT_R - MOCK_AVATAR_SIZE / 2,
+  }));
+  return (
+    <Animated.View pointerEvents="none" style={[avatarStyle, {
+      width: MOCK_AVATAR_SIZE, height: MOCK_AVATAR_SIZE,
+      borderRadius: MOCK_AVATAR_SIZE / 2,
+      shadowColor: glowColor, shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.75, shadowRadius: 8, elevation: 8,
+    }]}>
+      <Image
+        source={photo}
+        style={{
+          width: MOCK_AVATAR_SIZE, height: MOCK_AVATAR_SIZE,
+          borderRadius: MOCK_AVATAR_SIZE / 2,
+          borderWidth: 2, borderColor: "rgba(255,255,255,0.75)",
+        }}
+        contentFit="cover"
+      />
+    </Animated.View>
+  );
+});
+
+const MockSferaWithEntities = React.memo(function MockSferaWithEntities({
+  colorScheme,
+}: { colorScheme: "light" | "dark" }) {
+  const orbitAngle = useSharedValue(0);
+  useEffect(() => {
+    orbitAngle.value = withRepeat(
+      withTiming(2 * Math.PI, { duration: 14000, easing: Easing.linear }),
+      -1, false,
+    );
+    return () => { cancelAnimation(orbitAngle); };
+  }, [orbitAngle]);
+
+  const sphere = { type: "family" as LifeSphere, icon: "family-restroom" };
+  const glowColor = getSphereShadowColor("family", colorScheme);
+
+  return (
+    <View style={{ width: MOCK_SFERA_SIZE, height: MOCK_SFERA_SIZE }}>
+      <View style={{ position: "absolute", left: MOCK_C - MOCK_SPHERE_SIZE / 2, top: MOCK_C - MOCK_SPHERE_SIZE / 2 }}>
+        <StaticSferaBall sphere={sphere} size={MOCK_SPHERE_SIZE} colorScheme={colorScheme} />
+      </View>
+      {MOCK_ENTITY_PHOTOS.map((photo, i) => (
+        <MockOrbitingAvatar
+          key={i}
+          photo={photo} index={i} count={MOCK_ENTITY_PHOTOS.length}
+          orbitAngle={orbitAngle} glowColor={glowColor}
+        />
+      ))}
+    </View>
+  );
+});
+
+// ─── Mock: entity detail — central avatar + floating memory photo bubbles ─────
+
+// Memory bubbles placed at fixed scatter positions (like the entity detail screen)
+// Each bubble has moment icons orbiting it
+const MOCK_MEMORY_DATA: {
+  photo: number;
+  moments: readonly ("wb-sunny" | "cloud" | "lightbulb")[];
+  offsetX: number; offsetY: number;
+}[] = [
+  { photo: require("@/assets/images/fake-memory-1.jpg"),  moments: ["wb-sunny", "wb-sunny", "wb-sunny"] as const, offsetX: -88, offsetY: -72 },
+  { photo: require("@/assets/images/fake-memory-3.jpg"),  moments: ["cloud", "cloud"] as const,                   offsetX:  72, offsetY: -60 },
+  { photo: require("@/assets/images/fake-memory-5.jpg"),  moments: ["wb-sunny", "cloud"] as const,                offsetX: -80, offsetY:  64 },
+  { photo: require("@/assets/images/fake-memory-7.jpg"),  moments: ["wb-sunny", "wb-sunny"] as const,             offsetX:  78, offsetY:  72 },
+];
+
+const MOCK_MEM_SIZE = 58;
+const MOCK_MOM_SIZE = 14;
+const MOCK_MOM_R = MOCK_MEM_SIZE / 2 + MOCK_MOM_SIZE / 2 + 4;
+const MOCK_EV_SIZE = 280;
+const MOCK_EV_C = MOCK_EV_SIZE / 2;
+const MOCK_ENTITY_R = 52;
+
+const MockFloatingMomentIcon = React.memo(function MockFloatingMomentIcon({
+  name, color, offsetX, offsetY, floatY,
+}: {
+  name: "wb-sunny" | "cloud" | "lightbulb";
+  color: string;
+  offsetX: number; offsetY: number;
+  floatY: SharedValue<number>;
+}) {
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: floatY.value * 3 }],
+  }));
+  return (
+    <Animated.View pointerEvents="none" style={[{
+      position: "absolute",
+      left: offsetX - MOCK_MOM_SIZE / 2,
+      top: offsetY - MOCK_MOM_SIZE / 2,
+      width: MOCK_MOM_SIZE, height: MOCK_MOM_SIZE,
+      borderRadius: MOCK_MOM_SIZE / 2,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center", alignItems: "center",
+      zIndex: 22,
+      shadowColor: color, shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.85, shadowRadius: 4, elevation: 4,
+    }, style]}>
+      <MaterialIcons name={name} size={MOCK_MOM_SIZE - 3} color={color} />
+    </Animated.View>
+  );
+});
+
+const MockMemoryBubble = React.memo(function MockMemoryBubble({
+  mem, floatY,
+}: {
+  mem: typeof MOCK_MEMORY_DATA[number];
+  floatY: SharedValue<number>;
+}) {
+  const isSunny = mem.moments[0] === "wb-sunny";
+  const borderColor = isSunny ? "#FFD700" : "#7EB8D4";
+
+  // Compute moment icon positions around the bubble
+  const momentPositions = mem.moments.map((iconName, j) => {
+    const angle = (j / mem.moments.length) * 2 * Math.PI - Math.PI / 2;
+    return {
+      name: iconName,
+      color: iconName === "wb-sunny" ? "#FFD700" : iconName === "cloud" ? "#7EB8D4" : "#D1DA40",
+      x: Math.cos(angle) * MOCK_MOM_R,
+      y: Math.sin(angle) * MOCK_MOM_R,
+    };
+  });
+
+  const bubbleFloat = useAnimatedStyle(() => ({
+    transform: [{ translateY: floatY.value * 4 }],
+  }));
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[{
+        position: "absolute",
+        left: MOCK_EV_C + mem.offsetX - MOCK_MEM_SIZE / 2,
+        top:  MOCK_EV_C + mem.offsetY - MOCK_MEM_SIZE / 2,
+        width: MOCK_MEM_SIZE, height: MOCK_MEM_SIZE,
+        zIndex: 15,
+      }, bubbleFloat]}
+    >
+      {/* Memory photo circle */}
+      <View style={{
+        width: MOCK_MEM_SIZE, height: MOCK_MEM_SIZE,
+        borderRadius: MOCK_MEM_SIZE / 2,
+        borderWidth: 2.5, borderColor,
+        shadowColor: borderColor, shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.7, shadowRadius: 8, elevation: 8,
+        overflow: "hidden",
+      }}>
+        <Image source={mem.photo} style={{ width: "100%", height: "100%" }} contentFit="cover" />
+      </View>
+      {/* Moment icons around bubble */}
+      {momentPositions.map((m, j) => (
+        <MockFloatingMomentIcon
+          key={j}
+          name={m.name} color={m.color}
+          offsetX={MOCK_MEM_SIZE / 2 + m.x}
+          offsetY={MOCK_MEM_SIZE / 2 + m.y}
+          floatY={floatY}
+        />
+      ))}
+    </Animated.View>
+  );
+});
+
+const MockEntityWithMemories = React.memo(function MockEntityWithMemories() {
+  const floatY0 = useSharedValue(0);
+  const floatY1 = useSharedValue(0);
+  const floatY2 = useSharedValue(0);
+  const floatY3 = useSharedValue(0);
+
+  useEffect(() => {
+    const starts = [0, 600, 300, 900];
+    const floats = [floatY0, floatY1, floatY2, floatY3];
+    floats.forEach((f, i) => {
+      f.value = withRepeat(
+        withTiming(1, { duration: 1900 + i * 200, easing: Easing.inOut(Easing.ease) }),
+        -1, true,
+      );
+    });
+    return () => { floats.forEach(f => cancelAnimation(f)); };
+  }, [floatY0, floatY1, floatY2, floatY3]);
+
+  const floatValues = [floatY0, floatY1, floatY2, floatY3];
+
+  return (
+    <View style={{ width: MOCK_EV_SIZE, height: MOCK_EV_SIZE }}>
+      {/* Memory bubbles */}
+      {MOCK_MEMORY_DATA.map((mem, i) => (
+        <MockMemoryBubble key={i} mem={mem} floatY={floatValues[i]} />
+      ))}
+      {/* Central entity avatar */}
+      <View style={{
+        position: "absolute",
+        left: MOCK_EV_C - MOCK_ENTITY_R, top: MOCK_EV_C - MOCK_ENTITY_R,
+        width: MOCK_ENTITY_R * 2, height: MOCK_ENTITY_R * 2,
+        borderRadius: MOCK_ENTITY_R,
+        borderWidth: 2.5, borderColor: "#FFD700",
+        shadowColor: "#FFD700", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5, shadowRadius: 12, elevation: 10,
+        overflow: "hidden",
+        zIndex: 20,
+      }}>
+        <Image
+          source={require("@/assets/images/fake-profile-mark.jpg")}
+          style={{ width: "100%", height: "100%" }}
+          contentFit="cover"
+        />
+      </View>
+    </View>
+  );
+});
+
+// ─── Mini orbit diagram: sun at center, 5 sferas in real focused-sfera-view positions ──
+//
+// Mirrors the math from focused-sfera-view.tsx containerStyle worklet.
+// Slot 0 = bottom (0°), slots go clockwise at 72° each.
+// Angle convention: centerX = C + R*sin(rad), centerY = C + R*cos(rad)  (0° = bottom)
+// Depth: depthScale = 0.38 + 0.62*sqrt((1+cos(rad))/2)
+// Y offsets replicate the per-slot corrections from the real view, scaled down.
+
+const MINI_ORBIT_R = 100;   // scaled-down from 135
+const MINI_SUN_SIZE = 68;
+// Per-slot sizes from the real view, scaled to ~75% of originals
+const MINI_SLOT_SIZES = [
+  82, // slot 0 — bottom / "focused"
+  48, // slot 1 — right-below
+  30, // slot 2 — top-right
+  48, // slot 3 — top-left
+  44, // slot 4 — left-below
+];
+const MINI_CANVAS = 330;
+const MINI_C = MINI_CANVAS / 2;
+const SLOT_ANGLE_DEG = 72;
+
+const MINI_SPHERE_LIST: { type: LifeSphere; icon: string }[] = [
+  { type: "relationships", icon: "favorite" },   // slot 0 — bottom
+  { type: "career",        icon: "work" },        // slot 1 — right-below
+  { type: "hobbies",       icon: "sports-esports" }, // slot 2 — top-right
+  { type: "friends",       icon: "people" },      // slot 3 — top-left
+  { type: "family",        icon: "family-restroom" }, // slot 4 — left-below
+];
+
+const MiniOrbitingSfera = React.memo(function MiniOrbitingSfera({
+  sphere, slot, orbitAngle, colorScheme,
+}: {
+  sphere: { type: LifeSphere; icon: string };
+  slot: number;
+  orbitAngle: SharedValue<number>;
+  colorScheme: "light" | "dark";
+}) {
+  const baseAngle = (slot * SLOT_ANGLE_DEG * Math.PI) / 180;
+  const size = MINI_SLOT_SIZES[slot];
+
+  const style = useAnimatedStyle(() => {
+    const rad = baseAngle + orbitAngle.value;
+    const centerX = MINI_C + MINI_ORBIT_R * Math.sin(rad);
+    const centerY = MINI_C + MINI_ORBIT_R * Math.cos(rad);
+
+    // Exact depth formula from focused-sfera-view
+    const x = (1 + Math.cos(rad)) / 2;
+    const depthScale = 0.38 + 0.62 * Math.sqrt(Math.max(0, x));
+
+    // Y offsets — same logic, scaled to ~40% (original offsets were for full-screen)
+    const backOffsetY  = -9.5 * (1 - Math.cos(rad)); // smooth continuous version of the back-half offset
+    const unfocusedOffsetY = slot === 0 ? 0 : -11;
+    const rightSideOffsetY = slot === 1 || slot === 2 ? -9 : 0;
+    const rightBelowExtraOffsetY = slot === 1 ? -3 : 0;
+    const topPairOffsetY = slot === 2 || slot === 3 ? 4 : 0;
+    const topLeftExtraOffsetY = slot === 3 ? 7 : 0;
+
+    const finalY = centerY + backOffsetY + unfocusedOffsetY + rightSideOffsetY + rightBelowExtraOffsetY + topPairOffsetY + topLeftExtraOffsetY;
+
+    return {
+      position: "absolute" as const,
+      left: centerX - size / 2,
+      top: finalY - size / 2,
+      width: size, height: size,
+      transform: [{ scale: depthScale }],
+      zIndex: Math.round(depthScale * 10),
+      opacity: 0.55 + 0.45 * depthScale,
+    };
+  });
+
+  return (
+    <Animated.View pointerEvents="none" style={style}>
+      <StaticSferaBall sphere={sphere} size={size} colorScheme={colorScheme} />
+    </Animated.View>
+  );
+});
+
+const MiniOrbitDiagram = React.memo(function MiniOrbitDiagram({ colorScheme }: { colorScheme: "light" | "dark" }) {
+  const orbitAngle = useSharedValue(0);
+  useEffect(() => {
+    orbitAngle.value = withTiming(2 * Math.PI * 10000, { duration: 16000 * 10000, easing: Easing.linear });
+    return () => { cancelAnimation(orbitAngle); };
+  }, [orbitAngle]);
+
+  return (
+    <View style={{ width: MINI_CANVAS, height: MINI_CANVAS, marginTop: -40 }}>
+      {/* Orbit circle guide */}
+      <Svg width={MINI_CANVAS} height={MINI_CANVAS} style={{ position: "absolute" }} pointerEvents="none">
+        <SvgEllipse
+          cx={MINI_C} cy={MINI_C}
+          rx={MINI_ORBIT_R} ry={MINI_ORBIT_R}
+          fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={1} strokeDasharray="4 6"
+        />
+      </Svg>
+      {/* Orbiting sferas */}
+      {MINI_SPHERE_LIST.map((s, i) => (
+        <MiniOrbitingSfera
+          key={s.type} sphere={s} slot={i}
+          orbitAngle={orbitAngle} colorScheme={colorScheme}
+        />
+      ))}
+      {/* Sun always on top */}
+      <View style={{ position: "absolute", left: MINI_C - MINI_SUN_SIZE / 2, top: MINI_C - MINI_SUN_SIZE / 2, zIndex: 20 }}>
+        <StaticSunPreview size={MINI_SUN_SIZE} percentage={72} />
+      </View>
+    </View>
+  );
+});
+
 export type OnboardingWizardProps = {
   /** When true (e.g. re-run from Settings), back arrow exits onboarding instead of going to previous step. */
   canExitEarly?: boolean;
@@ -217,7 +626,7 @@ export function OnboardingWizard({
     useJourney();
 
   const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(0);
-  const [hierarchySlide, setHierarchySlide] = useState<0 | 1 | 2>(0);
+  const [hierarchySlide, setHierarchySlide] = useState<0 | 1 | 2 | 3>(0);
   const [inputText, setInputText] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -706,13 +1115,6 @@ export function OnboardingWizard({
 
   // Step 1: Hierarchy Introduction (3 internal slides)
   if (step === 1) {
-    const SPHERE_LIST_ONBOARDING: { type: LifeSphere; icon: string }[] = [
-      { type: "relationships", icon: "favorite" },
-      { type: "career", icon: "work" },
-      { type: "family", icon: "family-restroom" },
-      { type: "friends", icon: "people" },
-      { type: "hobbies", icon: "sports-esports" },
-    ];
     const slideData = [
       {
         illustration: (
@@ -721,63 +1123,30 @@ export function OnboardingWizard({
         title: t("onboarding.hierarchy.universe.title") ?? "Your Universe",
         body: t("onboarding.hierarchy.universe.body") ?? "At the center is your Sun — a reflection of your balance between sunny and cloudy moments in life. Sferas are the main areas of your life, orbiting around it.",
         extras: (
-          <View style={{ flexDirection: "row", gap: 10 * fontScale, alignItems: "center", marginTop: 20 * fontScale }}>
-            {SPHERE_LIST_ONBOARDING.map((s, i) => (
-              <StaticSferaBall
-                key={s.type}
-                sphere={s}
-                size={(44 + (i === 2 ? 8 : 0)) * fontScale}
-                colorScheme={(colorScheme ?? "dark") as "light" | "dark"}
-              />
-            ))}
-          </View>
+          <MiniOrbitDiagram colorScheme={(colorScheme ?? "dark") as "light" | "dark"} />
         ),
       },
       {
-        illustration: null,
-        image: require("@/assets/images/onboarding-character.png"),
+        illustration: (
+          <MockSferaWithEntities colorScheme={(colorScheme ?? "dark") as "light" | "dark"} />
+        ),
         title: t("onboarding.hierarchy.entities.title") ?? "Sferas & Entities",
-        body: t("onboarding.hierarchy.entities.body") ?? "Each Sfera contains the people, jobs, and experiences that shaped you — these are your Entities.",
-        extras: (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 * fontScale, marginTop: 16 * fontScale }}>
-            {["👨‍👩‍👧 Family", "👫 Friends", "🎯 Hobbies", "💼 Career", "❤️ Relationships"].map((label) => (
-              <View
-                key={label}
-                style={{
-                  paddingHorizontal: 12 * fontScale,
-                  paddingVertical: 6 * fontScale,
-                  borderRadius: 16 * fontScale,
-                  backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
-                }}
-              >
-                <ThemedText size="s">{label}</ThemedText>
-              </View>
-            ))}
-          </View>
+        body: t("onboarding.hierarchy.entities.body") ?? "Each Sfera holds its own Entities. The Family Sfera holds your family members, Friends holds your close friends, Career holds your jobs, and so on.",
+        extras: null,
+      },
+      {
+        illustration: (
+          <MockEntityWithMemories />
         ),
+        title: t("onboarding.hierarchy.memories.title") ?? "Memories & Moments",
+        body: t("onboarding.hierarchy.memories.body") ?? "Each Entity holds Memories. Every memory has Moments — sunny ones, cloudy ones, and lessons you've learned. The more sunny moments, the more the memory and entity avatar glow.",
+        extras: null,
       },
       {
         illustration: null,
-        image: require("@/assets/images/onboarding-person.png"),
-        title: t("onboarding.hierarchy.memories.title") ?? "Memories & Moments",
-        body: t("onboarding.hierarchy.memories.body") ?? "Each Entity holds Memories. Every memory has Moments — sunny ones, cloudy ones, and lessons you've learned.",
-        extras: (
-          <View style={{ flexDirection: "row", gap: 12 * fontScale, marginTop: 16 * fontScale }}>
-            {["☀️ Sunny", "🌧 Cloudy", "📖 Lesson"].map((label) => (
-              <View
-                key={label}
-                style={{
-                  paddingHorizontal: 14 * fontScale,
-                  paddingVertical: 8 * fontScale,
-                  borderRadius: 16 * fontScale,
-                  backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
-                }}
-              >
-                <ThemedText size="s">{label}</ThemedText>
-              </View>
-            ))}
-          </View>
-        ),
+        title: t("onboarding.hierarchy.whysferas.title") ?? "Why Sferas?",
+        body: t("onboarding.hierarchy.whysferas.body") ?? "Life moves fast — and it's easy to forget the lessons you've earned along the way, or to overlook the sunny moments that matter just as much as the hard ones.\n\nSferas helps you reflect, recap, and stay grounded. It also gently nudges you to keep in touch with the people you care about, so no friendship quietly slips away.\n\nNow, let's introduce you to your Sferas.",
+        extras: null,
       },
     ];
 
@@ -785,6 +1154,10 @@ export function OnboardingWizard({
 
     return (
       <View style={styles.container}>
+        {/* Cosmic sparkle dots */}
+        <View style={{ position: "absolute", left: 0, top: 0, width: SCREEN_WIDTH, height: SCREEN_HEIGHT, pointerEvents: "none", zIndex: 0 }}>
+          <OnboardingSparkles />
+        </View>
         <View style={styles.header}>
           <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 * fontScale }}>
             <TouchableOpacity
@@ -792,7 +1165,7 @@ export function OnboardingWizard({
                 if (hierarchySlide === 0) {
                   setStep(0);
                 } else {
-                  setHierarchySlide((hierarchySlide - 1) as 0 | 1 | 2);
+                  setHierarchySlide((hierarchySlide - 1) as 0 | 1 | 2 | 3);
                 }
               }}
               style={{
@@ -832,34 +1205,70 @@ export function OnboardingWizard({
             <View style={{ marginBottom: 24 * fontScale }}>
               {slide.illustration}
             </View>
-          ) : (
+          ) : (slide as any).image ? (
             <View style={{ width: 180 * fontScale, height: 180 * fontScale, marginBottom: 24 * fontScale }}>
               <Image source={(slide as any).image} style={{ width: "100%", height: "100%" }} contentFit="contain" />
             </View>
-          )}
+          ) : null}
 
-          {/* Title */}
-          <ThemedText size="xl" weight="bold" style={{ textAlign: "center", color: colorScheme === "dark" ? "#E8D5B7" : "#8B6914", marginBottom: 12 * fontScale }}>
-            {slide.title}
-          </ThemedText>
+          {/* Title + Body — elevated zIndex so orbiting sferas pass behind */}
+          <View style={{ zIndex: 10, alignItems: "center", width: "100%", flex: hierarchySlide === 3 ? 1 : undefined }}>
+            <ThemedText size="xl" weight="bold" style={{ textAlign: "center", color: colorScheme === "dark" ? "#E8D5B7" : "#8B6914", marginBottom: 12 * fontScale }}>
+              {slide.title}
+            </ThemedText>
 
-          {/* Body */}
-          <ThemedText size="m" style={{ textAlign: "center", opacity: 0.75, lineHeight: 22 * fontScale }}>
-            {slide.body}
-          </ThemedText>
+            {hierarchySlide === 3 ? (() => {
+              const paragraphs = slide.body.split("\n\n");
+              const intro = paragraphs.slice(0, -1);
+              const last = paragraphs[paragraphs.length - 1];
+              return (
+                <>
+                  {intro.map((p, i) => (
+                    <ThemedText key={i} size="m" style={{ textAlign: "center", opacity: 0.75, lineHeight: 22 * fontScale, marginBottom: 16 * fontScale, width: "100%" }}>
+                      {p}
+                    </ThemedText>
+                  ))}
+                  <View style={{ flex: 1 }} />
+                  <ThemedText size="m" style={{ textAlign: "left", opacity: 0.75, lineHeight: 22 * fontScale, width: "100%", paddingRight: "52%", marginBottom: 80 * fontScale }}>
+                    {last}
+                  </ThemedText>
+                </>
+              );
+            })() : (
+              <ThemedText size="m" style={{ textAlign: "center", opacity: 0.75, lineHeight: 22 * fontScale }}>
+                {slide.body}
+              </ThemedText>
+            )}
+          </View>
 
           {/* Extras */}
           <View style={{ alignItems: "center" }}>{slide.extras}</View>
         </ScrollView>
 
+        {/* DayDream illustration — behind footer buttons on last slide */}
+        {hierarchySlide === 3 && (
+          <Image
+            source={require("@/DayDream.png")}
+            style={{
+              position: "absolute",
+              bottom: 30 * fontScale,
+              right: -16 * fontScale,
+              width: 280 * fontScale,
+              height: 330 * fontScale,
+              zIndex: 0,
+            }}
+            contentFit="contain"
+          />
+        )}
+
         {/* Footer nav */}
-        <View style={{ flexDirection: "row", paddingHorizontal: 20 * fontScale, paddingBottom: 64 * fontScale, gap: 12 * fontScale }}>
+        <View style={{ flexDirection: "row", paddingHorizontal: 20 * fontScale, paddingBottom: 64 * fontScale, gap: 12 * fontScale, zIndex: 1 }}>
           <TouchableOpacity
             onPress={() => {
               if (hierarchySlide === 0) {
                 setStep(0);
               } else {
-                setHierarchySlide((hierarchySlide - 1) as 0 | 1 | 2);
+                setHierarchySlide((hierarchySlide - 1) as 0 | 1 | 2 | 3);
               }
             }}
             style={{
@@ -876,8 +1285,8 @@ export function OnboardingWizard({
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
-              if (hierarchySlide < 2) {
-                setHierarchySlide((hierarchySlide + 1) as 0 | 1 | 2);
+              if (hierarchySlide < 3) {
+                setHierarchySlide((hierarchySlide + 1) as 0 | 1 | 2 | 3);
               } else {
                 setStep(2);
               }
@@ -958,9 +1367,7 @@ export function OnboardingWizard({
             }}
           >
             <TouchableOpacity
-              onPress={() =>
-                canExitEarly && onExit ? onExit() : setStep(1)
-              }
+              onPress={() => setStep(1)}
               style={{
                 width: 44 * fontScale,
                 height: 44 * fontScale,
@@ -1257,58 +1664,36 @@ export function OnboardingWizard({
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          {canExitEarly && onExit ? (
-            <View
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 16 * fontScale,
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => setStep(2)}
               style={{
-                flexDirection: "row",
+                width: 44 * fontScale,
+                height: 44 * fontScale,
+                borderRadius: 22 * fontScale,
                 alignItems: "center",
-                marginBottom: 16 * fontScale,
+                justifyContent: "center",
+                marginRight: 8 * fontScale,
+                backgroundColor:
+                  colorScheme === "dark"
+                    ? "rgba(255, 255, 255, 0.08)"
+                    : "rgba(0, 0, 0, 0.06)",
               }}
+              activeOpacity={0.7}
             >
-              <TouchableOpacity
-                onPress={() => onExit()}
-                style={{
-                  width: 44 * fontScale,
-                  height: 44 * fontScale,
-                  borderRadius: 22 * fontScale,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: 8 * fontScale,
-                  backgroundColor:
-                    colorScheme === "dark"
-                      ? "rgba(255, 255, 255, 0.08)"
-                      : "rgba(0, 0, 0, 0.06)",
-                }}
-                activeOpacity={0.7}
-              >
-                <MaterialIcons
-                  name="arrow-back"
-                  size={24 * fontScale}
-                  color={colorScheme === "dark" ? "#E8D5B7" : "#8B6914"}
-                />
-              </TouchableOpacity>
-              <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
-                <View style={[styles.stepDot, styles.stepDotActive]} />
-                <View
-                  style={[styles.stepLine, { backgroundColor: colors.primary }]}
-                />
-                <View style={[styles.stepDot, styles.stepDotActive]} />
-                <View
-                  style={[styles.stepLine, { backgroundColor: colors.primary }]}
-                />
-                <View style={[styles.stepDot, styles.stepDotActive]} />
-                <View
-                  style={[styles.stepLine, { backgroundColor: colors.primary }]}
-                />
-                <View style={[styles.stepDot, styles.stepDotActive]} />
-                <View
-                  style={[styles.stepLine, { backgroundColor: colors.primary }]}
-                />
-                <View style={[styles.stepDot, styles.stepDotActive]} />
-              </View>
-            </View>
-          ) : (
-            <View style={styles.stepper}>
+              <MaterialIcons
+                name="arrow-back"
+                size={24 * fontScale}
+                color={colorScheme === "dark" ? "#E8D5B7" : "#8B6914"}
+              />
+            </TouchableOpacity>
+            <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
               <View style={[styles.stepDot, styles.stepDotActive]} />
               <View
                 style={[styles.stepLine, { backgroundColor: colors.primary }]}
@@ -1327,7 +1712,7 @@ export function OnboardingWizard({
               />
               <View style={[styles.stepDot, styles.stepDotActive]} />
             </View>
-          )}
+          </View>
           <ThemedText size="xl" weight="bold">
             {t("onboarding.review") ?? "Review & edit your entities"}
           </ThemedText>

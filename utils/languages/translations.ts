@@ -276,6 +276,8 @@ export interface Translations {
   "onboarding.hierarchy.entities.body": string;
   "onboarding.hierarchy.memories.title": string;
   "onboarding.hierarchy.memories.body": string;
+  "onboarding.hierarchy.whysferas.title": string;
+  "onboarding.hierarchy.whysferas.body": string;
 
   // Profile screens
   "profile.add": string;
@@ -3982,10 +3984,13 @@ const translations: Record<Language, Translations> = {
       "At the center is your Sun — a reflection of your balance between sunny and cloudy moments in life. Sferas are the main areas of your life, orbiting around it.",
     "onboarding.hierarchy.entities.title": "Sferas & Entities",
     "onboarding.hierarchy.entities.body":
-      "Each Sfera contains the people, jobs, and experiences that shaped you — these are your Entities.",
+      "Each Sfera holds its own Entities. The Family Sfera holds your family members, Friends holds your close friends, Career holds your jobs, and so on.",
     "onboarding.hierarchy.memories.title": "Memories & Moments",
     "onboarding.hierarchy.memories.body":
-      "Each Entity holds Memories. Every memory has Moments — sunny ones, cloudy ones, and lessons you've learned.",
+      "Each Entity holds Memories. Every memory has Moments — sunny ones, cloudy ones, and lessons you've learned. The more sunny moments, the more the memory and entity avatar glow.",
+    "onboarding.hierarchy.whysferas.title": "Why Sferas?",
+    "onboarding.hierarchy.whysferas.body":
+      "Life moves fast — and it's easy to lose sight of the lessons you've earned, or to forget the sunny moments that matter just as much as the hard ones.\n\nSferas helps you reflect and recap what each chapter taught you. It also gently nudges you to stay in touch with the people you care about, so no friendship quietly drifts away.\n\nNow — let's introduce you to your Sferas.",
 
     // Profile screens
     "profile.add": "Add Partner",
@@ -8545,10 +8550,13 @@ const translations: Record<Language, Translations> = {
       "В центъра е вашето Слънце — отражение на баланса между слънчеви и облачни моменти в живота ви. Сферите са основните области от живота ви, обикалящи около него.",
     "onboarding.hierarchy.entities.title": "Сфери и Обекти",
     "onboarding.hierarchy.entities.body":
-      "Всяка Сфера съдържа хората, работите и преживяванията, които са ви оформили — това са вашите Обекти.",
+      "Всяка Сфера съдържа свои Обекти. Сферата Семейство — членовете на семейството ви, Приятели — близките ви приятели, Кариера — работните ви места, и т.н.",
     "onboarding.hierarchy.memories.title": "Спомени и Моменти",
     "onboarding.hierarchy.memories.body":
-      "Всеки Обект съдържа Спомени. Всеки спомен има Моменти — слънчеви, облачни и уроци, които сте научили.",
+      "Всеки Обект съдържа Спомени. Всеки спомен има Моменти — слънчеви, облачни и уроци, които сте научили. Колкото повече слънчеви моменти, толкова по-ярко светят споменът и аватарът на обекта.",
+    "onboarding.hierarchy.whysferas.title": "Защо Сфери?",
+    "onboarding.hierarchy.whysferas.body":
+      "Животът минава бързо — и лесно се губят уроците, които сте извлекли, или слънчевите моменти, важни колкото и трудните.\n\nСфери ви помага да си припомните какво е научил всеки жизнен етап. А също така ненатрапчиво ви напомня да поддържате връзка с хората, до които ви е грижа.\n\nСега — нека ви запознаем с вашите Сфери.",
 
     // Profile screens
     "profile.add": "Добави Партньор",
