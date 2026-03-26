@@ -7,6 +7,7 @@
 
 import { ConstellationBackground } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
+import { YourUniverseModal } from "@/components/your-universe-modal";
 import { Colors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
@@ -2080,6 +2081,7 @@ export function FocusedSferaView({
   const [isSunExpanded, setIsSunExpanded] = useState(false);
   const sunMenuOpacity = useSharedValue(0);
   const sunMenuTranslateY = useSharedValue(20);
+  const [universeModalVisible, setUniverseModalVisible] = useState(false);
 
   // Sun centered state (initial view only): true = floated to screen center
   const [isSunCentered, setIsSunCentered] = useState(false);
@@ -2419,9 +2421,9 @@ export function FocusedSferaView({
             style={[
               {
                 position: "absolute",
-                left: SW / 2 - 130,
+                left: SW / 2 - 145,
                 top: SH * 0.5 + 120,
-                width: 260,
+                width: 290,
                 flexDirection: "row",
                 justifyContent: "space-around",
                 alignItems: "flex-start",
@@ -2491,6 +2493,26 @@ export function FocusedSferaView({
               </View>
               <ThemedText style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, letterSpacing: 0.3 }}>
                 {language === "bg" ? "Уроци" : "Universe Lessons"}
+              </ThemedText>
+            </Pressable>
+
+            {/* Your Universe / book button */}
+            <Pressable
+              onPress={() => { handleCollapseSun(); setUniverseModalVisible(true); }}
+              style={{ alignItems: "center", gap: 8 }}
+            >
+              <View style={{
+                width: 80, height: 80, borderRadius: 40,
+                backgroundColor: "rgba(245,200,66,0.15)",
+                borderWidth: 2, borderColor: "rgba(245,200,66,0.5)",
+                justifyContent: "center", alignItems: "center",
+                shadowColor: "#F5C842", shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.45, shadowRadius: 10, elevation: 10,
+              }}>
+                <MaterialIcons name="auto-stories" size={36} color="#F5C842" />
+              </View>
+              <ThemedText style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, letterSpacing: 0.3 }}>
+                {t("universe.modal.bookButton")}
               </ThemedText>
             </Pressable>
           </Animated.View>
@@ -2581,6 +2603,12 @@ export function FocusedSferaView({
           </Animated.View>
         </>
       )}
+
+      <YourUniverseModal
+        visible={universeModalVisible}
+        onClose={() => setUniverseModalVisible(false)}
+        onChallengeMePress={() => { setUniverseModalVisible(false); onSwitchToClassic(); }}
+      />
     </View>
   );
 }

@@ -882,6 +882,18 @@ export interface Translations {
   "onboarding.ai.title": string;
   "onboarding.ai.message": string;
 
+  // Your Universe Modal
+  "universe.modal.title": string;
+  "universe.modal.subtitle": string;
+  "universe.modal.youLabel": string;
+  "universe.modal.keepLearning": string;
+  "universe.modal.swipeHint": string;
+  "universe.modal.challengeMe": string;
+  "universe.modal.challengeSub": string;
+  "universe.modal.bookButton": string;
+  "universe.modal.tabLessons": string;
+  "universe.modal.tabMoments": string;
+
   // Settings - Moments Colors
   "settings.momentColors.title": string;
   "settings.momentColors.sunny": string;
@@ -4806,6 +4818,18 @@ const translations: Record<Language, Translations> = {
     "onboarding.ai.title": "Sferas AI & Voice-to-Text",
     "onboarding.ai.message":
       "Sferas AI and Voice-to-Text are now here to help you transform your spoken stories into structured memories, organised moments and lasting lessons instantly!",
+
+    // Your Universe Modal
+    "universe.modal.title": "Your Universe",
+    "universe.modal.subtitle": "Explore a random lesson",
+    "universe.modal.youLabel": "You",
+    "universe.modal.keepLearning": "Keep learning & growing",
+    "universe.modal.swipeHint": "‹ Swipe to explore ›",
+    "universe.modal.challengeMe": "Challenge Me",
+    "universe.modal.challengeSub": "Test yourself on any lesson",
+    "universe.modal.bookButton": "Your Universe",
+    "universe.modal.tabLessons": "Lessons",
+    "universe.modal.tabMoments": "Sunny Moments",
 
     // Settings - Moments Colors
     "settings.momentColors.title": "Moments Colors",
@@ -9383,6 +9407,18 @@ const translations: Record<Language, Translations> = {
     "onboarding.ai.title": "Sferas AI и глас към текст",
     "onboarding.ai.message":
       "Sferas AI и глас към текст вече са тук, за да ви помогнат да превърнете разказаните си истории в структурирани спомени, организирани моменти и трайни уроци мигновено!",
+
+    // Your Universe Modal
+    "universe.modal.title": "Твоята Вселена",
+    "universe.modal.subtitle": "Разгледай случаен урок",
+    "universe.modal.youLabel": "Ти",
+    "universe.modal.keepLearning": "Продължавай да учиш и растеш",
+    "universe.modal.swipeHint": "‹ Плъзни за да разгледаш ›",
+    "universe.modal.challengeMe": "Предизвикай ме",
+    "universe.modal.challengeSub": "Провери се на произволен урок",
+    "universe.modal.bookButton": "Твоята вселена",
+    "universe.modal.tabLessons": "Уроци",
+    "universe.modal.tabMoments": "Слънчеви моменти",
 
     // Settings - Moments Colors
     "settings.momentColors.title": "Цветове на моменти",

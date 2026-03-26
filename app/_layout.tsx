@@ -23,6 +23,7 @@ import {
   View,
 } from "react-native";
 import "react-native-reanimated";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AIInsightsConsentModal } from "@/components/ai-insights-consent-modal";
 import { AIModal } from "@/components/ai-modal";
@@ -612,6 +613,7 @@ export default function RootLayout() {
   // This prevents race conditions with the animation provider
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <AppThemeProvider>
       <SplashAnimationProvider>
         <LanguageProvider>
@@ -648,5 +650,6 @@ export default function RootLayout() {
         </LanguageProvider>
       </SplashAnimationProvider>
     </AppThemeProvider>
+    </GestureHandlerRootView>
   );
 }
