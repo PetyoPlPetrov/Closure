@@ -23,7 +23,7 @@ import {
   pickAndConsumePreloadedQuestion,
   preloadEntityWheelQuestions,
 } from '@/utils/wheel-exam-preload';
-import { consumeWheelExamIfAvailable } from '@/utils/wheel-exam-rate-limiter';
+import { consumeUniverseExamIfAvailable } from '@/utils/universe-exam-rate-limiter';
 import { logWheelEntitySpin } from '@/utils/analytics';
 import { useAIInsightsConsent } from '@/utils/AIInsightsConsentProvider';
 import { AIInsightsConsentModal } from '@/components/ai-insights-consent-modal';
@@ -621,7 +621,7 @@ export function EntityWheelOfLife({
       return;
     }
 
-    const consumed = await consumeWheelExamIfAvailable(hasAIEntitlement);
+    const consumed = await consumeUniverseExamIfAvailable(hasAIEntitlement);
     if (!consumed) {
       const purchased = await showPaywallForAIAccess();
       if (!purchased) return;

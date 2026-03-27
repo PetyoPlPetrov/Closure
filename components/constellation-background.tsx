@@ -213,7 +213,7 @@ export const ConstellationBackground = React.memo(function ConstellationBackgrou
 }) {
   const { allStars, allLines, scatteredDots } = getConstellationDataWithAmount(width, height, constellationAmount);
   // Slider 0–10: max visibility (10) = former level 2. Linear distribution.
-  const opacityMult = (constellationOpacity / 10) * 0.2;
+  const opacityMult = (constellationOpacity / 10) * 0.1;
 
   const nebulaCount =
     constellationAmount <= 0

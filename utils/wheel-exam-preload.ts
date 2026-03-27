@@ -11,7 +11,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { IdealizedMemory } from "./JourneyProvider";
-import { canSpinWheelExam } from "./wheel-exam-rate-limiter";
+import { canUseExam } from "./universe-exam-rate-limiter";
 import {
   generateLessonExamQuestionsBatch,
   type PreloadedExamQuestion as PreloadedType,
@@ -258,7 +258,7 @@ export async function preloadMainWheelQuestions(params: {
     // Skip preload only for free users who exhausted their daily spin.
     // Always preload for users with AI entitlement (unlimited spins).
     if (!hasAIEntitlement) {
-      const canPreload = await canSpinWheelExam(hasAIEntitlement);
+      const canPreload = await canUseExam(hasAIEntitlement);
       if (!canPreload) {
         mainPreloadPromise = null;
         return;
@@ -326,7 +326,7 @@ export async function preloadEntityWheelQuestions(params: {
     // Skip preload only for free users who exhausted their daily spin.
     // Always preload for users with AI entitlement (unlimited spins).
     if (!hasAIEntitlement) {
-      const canPreload = await canSpinWheelExam(hasAIEntitlement);
+      const canPreload = await canUseExam(hasAIEntitlement);
       if (!canPreload) {
         entityPreloadPromises.delete(entityId);
         return;

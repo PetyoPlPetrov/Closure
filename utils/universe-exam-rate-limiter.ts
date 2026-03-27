@@ -1,6 +1,6 @@
 /**
- * Universe Exam Rate Limiter
- * 3 free universe exam questions per day for users without Sfera AI.
+ * Exam Rate Limiter — shared across all exam entry points (wheel spin, entity wheel spin,
+ * Sun exam icon). 3 free exam uses per day for users without Sfera AI.
  * Resets at midnight in user's timezone.
  */
 
@@ -55,6 +55,16 @@ export async function consumeUniverseExamIfAvailable(
     return true;
   });
   return consumeChain;
+}
+
+/**
+ * Non-consuming check: returns true if at least one free exam slot remains today.
+ * Use for preload guards that must not consume a slot.
+ */
+export async function canUseExam(hasAIEntitlement: boolean): Promise<boolean> {
+  if (hasAIEntitlement) return true;
+  const record = await getUsageRecord();
+  return record.count < FREE_DAILY_LIMIT;
 }
 
 /**

@@ -56,7 +56,7 @@ import {
   preloadEntityWheelQuestions,
   preloadMainWheelQuestions,
 } from "@/utils/wheel-exam-preload";
-import { consumeWheelExamIfAvailable } from "@/utils/wheel-exam-rate-limiter";
+import { consumeUniverseExamIfAvailable } from "@/utils/universe-exam-rate-limiter";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
@@ -2162,7 +2162,7 @@ const FloatingAvatar = React.memo(
 
       const chosen = allLessons[Math.floor(Math.random() * allLessons.length)];
 
-      // Free spin already consumed at spin start (consumeWheelExamIfAvailable)
+      // Free spin already consumed at spin start (consumeUniverseExamIfAvailable)
 
       if (__DEV__)
         // Show loading popup immediately so UI doesn't feel stuck while preload/consume runs
@@ -2291,7 +2291,7 @@ const FloatingAvatar = React.memo(
         if (entityWheelReleaseInProgressRef.current) return;
         entityWheelReleaseInProgressRef.current = true;
         try {
-          const consumed = await consumeWheelExamIfAvailable(hasAIEntitlement);
+          const consumed = await consumeUniverseExamIfAvailable(hasAIEntitlement);
           if (!consumed) {
             const purchased = await showPaywallForAIAccess();
             if (!purchased) {
@@ -5579,7 +5579,7 @@ const FloatingAvatar = React.memo(
                 );
               })()}
             {/* Lesson bulb tap hint: bouncing pointer, shown from 2nd lesson appearance */}
-            {appUsabilityHints && selectedWheelMoment?.type === "lesson" && !wheelMomentHintDismissed && wheelMomentAppearCount >= 2 && (() => {
+            {appUsabilityHints && selectedWheelMoment?.type === "lesson" && !selectedWheelExam && !wheelMomentHintDismissed && wheelMomentAppearCount >= 2 && (() => {
               const pointerSize = isTablet ? 72 : 64;
               const baseLessonSize = isTablet ? 200 : 145;
               const messageTop = 180;
@@ -15731,7 +15731,7 @@ export default function HomeScreen() {
     mainWheelReleaseInProgressRef.current = true;
     void (async () => {
       try {
-        const consumed = await consumeWheelExamIfAvailable(hasAIEntitlement);
+        const consumed = await consumeUniverseExamIfAvailable(hasAIEntitlement);
         if (!consumed) {
           const purchased = await showPaywallForAIAccess();
           if (!purchased) return;
@@ -16478,7 +16478,7 @@ export default function HomeScreen() {
             void (async () => {
               try {
                 const consumed =
-                  await consumeWheelExamIfAvailable(hasAIEntitlement);
+                  await consumeUniverseExamIfAvailable(hasAIEntitlement);
                 if (!consumed) {
                   const purchased = await showPaywallForAIAccess();
                   if (!purchased) {
