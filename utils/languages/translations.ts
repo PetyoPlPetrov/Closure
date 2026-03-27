@@ -851,6 +851,7 @@ export interface Translations {
   "momentNotifications.generateEmpty": string;
   "momentNotifications.generateEmptyMessage": string;
   "momentNotifications.scheduleCreated": string;
+  "momentNotifications.noMomentsWarning": string;
 
   // Onboarding
   "onboarding.skip": string;
@@ -4781,6 +4782,7 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.generateEmptyMessage":
       "No manual lessons without AI suggestions found.",
     "momentNotifications.scheduleCreated": "Schedule created successfully!",
+    "momentNotifications.noMomentsWarning": "No moments available · notifications paused",
 
     // Onboarding
     "onboarding.skip": "Skip",
@@ -9373,6 +9375,7 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.generateEmptyMessage":
       "Няма ръчни уроци без AI предложения.",
     "momentNotifications.scheduleCreated": "Разписанието е създадено успешно!",
+    "momentNotifications.noMomentsWarning": "Няма налични моменти · известията са спрени",
 
     // Onboarding
     "onboarding.skip": "Пропусни",

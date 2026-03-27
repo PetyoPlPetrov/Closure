@@ -207,6 +207,21 @@ export default function MomentNotificationsScreen() {
     [canUseAISource]
   );
 
+  const hasNoMessages = useCallback(
+    (schedule: MomentNotificationSchedule): boolean => {
+      const effectiveSource = getEffectiveSource(schedule);
+      const momentCount =
+        schedule.momentType === "lesson"
+          ? countsBySphere.lessons[schedule.sphere]
+          : countsBySphere.sunny[schedule.sphere];
+      const aiCount = getSummariesBySphereAndType(schedule.sphere, schedule.momentType).length;
+      if (effectiveSource === "moments") return momentCount === 0;
+      if (effectiveSource === "ai") return aiCount === 0;
+      return momentCount === 0 && aiCount === 0;
+    },
+    [getEffectiveSource, countsBySphere, getSummariesBySphereAndType]
+  );
+
   const handleSourcePress = useCallback(
     (source: "moments" | "ai" | "both") => {
       if (source === "ai" || source === "both") {
@@ -471,6 +486,14 @@ export default function MomentNotificationsScreen() {
                     `Every ${schedule.frequencyHours} hour(s)`}{" "}
                   · {sourceLabel(getEffectiveSource(schedule), schedule.momentType)}
                 </ThemedText>
+                {hasNoMessages(schedule) && (
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 4 }}>
+                    <MaterialIcons name="warning-amber" size={14 * fontScale} color="#F59E0B" />
+                    <ThemedText size="sm" style={{ color: "#F59E0B", fontSize: 13 * fontScale }}>
+                      {t("momentNotifications.noMomentsWarning") ?? "No moments available · notifications paused"}
+                    </ThemedText>
+                  </View>
+                )}
               </View>
               <TouchableOpacity
                 onPress={() => handleToggleEnabled(schedule)}

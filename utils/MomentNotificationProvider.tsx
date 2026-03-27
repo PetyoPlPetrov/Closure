@@ -416,7 +416,13 @@ export function MomentNotificationProvider({ children }: { children: React.React
           );
           messages.push(...list.map((s) => s.notificationMessage));
         }
-        const fallback = 'A little nudge from your journey.';
+        if (messages.length === 0) {
+          // Auto-disable the schedule so the user can re-enable it once moments are available again.
+          const disabledList = schedulesToUse.map((s) => s.id === schedule.id ? { ...s, enabled: false } : s);
+          schedulesToUse = disabledList;
+          await persistSchedules(disabledList);
+          continue;
+        }
         const seconds = __DEV__
           ? 60 * Math.max(1, schedule.frequencyHours)
           : Math.max(minSeconds, 3600 * schedule.frequencyHours);
@@ -424,7 +430,6 @@ export function MomentNotificationProvider({ children }: { children: React.React
         // Pick random body for each notification to avoid sending the same nudge twice.
         // When 2+ messages exist, exclude the previous pick to avoid back-to-back repeats.
         const pickRandom = (exclude?: string) => {
-          if (messages.length === 0) return fallback;
           const pool = exclude && messages.length > 1 ? messages.filter((m) => m !== exclude) : [...messages];
           return pool[Math.floor(Math.random() * pool.length)];
         };
@@ -452,7 +457,7 @@ export function MomentNotificationProvider({ children }: { children: React.React
     } catch (_) {
       // ignore
     }
-  }, [schedules, summaries, idealizedMemories, hasAIEntitlement]);
+  }, [schedules, summaries, idealizedMemories, hasAIEntitlement, persistSchedules]);
 
   useEffect(() => {
     if (!isLoaded) return;
