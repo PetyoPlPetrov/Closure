@@ -14377,7 +14377,7 @@ export default function HomeScreen() {
 
   // Message position constants
   // Badge is at top: 80, badge height ~40px, so position message slightly below badge
-  const messageTop = 130; // Position for encouragement message and lesson notification (below streak badge)
+  const messageTop = 180; // Position for encouragement message and lesson notification (below streak badge)
   const messageLeft = 20;
   const messageRight = 20;
 
@@ -15721,6 +15721,34 @@ export default function HomeScreen() {
     });
   }, [isHintAnimating, hintRotation, isWheelSpinning, wheelVelocity]);
 
+  // Challenge Me: run rate-limit/paywall checks then show exam modal in-place (no view switch)
+  const handleChallengeMePress = useCallback(() => {
+    if (!aiConsent.isEnabled) {
+      setAiInsightsConsentVisible(true);
+      return;
+    }
+    if (mainWheelReleaseInProgressRef.current) return;
+    mainWheelReleaseInProgressRef.current = true;
+    void (async () => {
+      try {
+        const consumed = await consumeWheelExamIfAvailable(hasAIEntitlement);
+        if (!consumed) {
+          const purchased = await showPaywallForAIAccess();
+          if (!purchased) return;
+        }
+        // Rate limit passed — show exam directly without switching to classic view
+        await onWheelSpinComplete();
+      } finally {
+        mainWheelReleaseInProgressRef.current = false;
+      }
+    })();
+  }, [
+    aiConsent.isEnabled,
+    hasAIEntitlement,
+    setAiInsightsConsentVisible,
+    onWheelSpinComplete,
+  ]);
+
   // Animate lesson notification when manually closed
   useEffect(() => {
     if (!showLesson) {
@@ -15752,14 +15780,14 @@ export default function HomeScreen() {
     lessonShadowPulse,
   ]);
 
-  // Lesson bulb tap hint: bouncing pointer shown from the 2nd appearance onward
+  // Lesson bulb tap hint: bouncing pointer shown from the 1st appearance onward
   useEffect(() => {
     if (showLesson) {
       lessonAppearCountRef.current += 1;
       setLessonAppearCount(lessonAppearCountRef.current);
     }
     const count = lessonAppearCountRef.current;
-    if (!showLesson || !appUsabilityHints || lessonHintDismissed || count < 2) {
+    if (!showLesson || !appUsabilityHints || lessonHintDismissed || count < 1) {
       cancelAnimation(lessonHintPointerOpacity);
       cancelAnimation(lessonHintPointerBounce);
       lessonHintPointerOpacity.value = withTiming(0, { duration: 200 });
@@ -18699,6 +18727,7 @@ export default function HomeScreen() {
           pulsingAnimations={pulsingAnimations}
           hidden={showEntityDetail}
           onInsightsPress={() => router.push("/insights")}
+          onChallengeMePress={handleChallengeMePress}
         />
       </View>
     </View>
@@ -18924,7 +18953,14 @@ export default function HomeScreen() {
               </View>
             )}
 
-          {/* Random Moment from Wheel of Life Spin - matches focused memory view style */}
+          {/* Random Moment from Wheel of Life Spin + exam result — wrapped in Modal so it also shows over focused view */}
+          <Modal
+            visible={!!(showLesson && selectedLesson) || !!(selectedLesson?.examStep === "result" && selectedLesson.examAnalysis)}
+            transparent
+            animationType="none"
+            statusBarTranslucent
+          >
+          <View style={{ flex: 1 }}>
           {showLesson &&
             selectedLesson &&
             (() => {
@@ -20123,6 +20159,8 @@ export default function HomeScreen() {
                 </Pressable>
               );
             })()}
+          </View>
+          </Modal>
 
           {/* MAIN Wheel of Life — center circle with sunny/cloudy % and five spheres */}
           {/* Center - Overall Percentage Avatar with Sparkled Dots */}
@@ -20200,8 +20238,8 @@ export default function HomeScreen() {
             );
           })()}
 
-          {/* Lesson bulb tap hint: bouncing pointer, shown from 2nd lesson appearance */}
-          {appUsabilityHints && showLesson && !lessonHintDismissed && lessonAppearCount >= 2 && (() => {
+          {/* Lesson bulb tap hint: bouncing pointer, shown from 1st lesson appearance */}
+          {appUsabilityHints && showLesson && !lessonHintDismissed && lessonAppearCount >= 1 && (() => {
             const pointerSize = isTablet ? 72 : 64;
             const baseCircleSize = isTablet ? 220 : isLargeDevice ? 190 : 165;
             return (

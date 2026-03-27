@@ -1,19 +1,20 @@
 import { ThemedText } from "@/components/themed-text";
-import { useMomentColors } from "@/utils/MomentColorsProvider";
+import { useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { lifeLessons } from "@/utils/life-lessons";
+import { useMomentColors } from "@/utils/MomentColorsProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
+  Image,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -22,61 +23,33 @@ import Animated, {
   useSharedValue,
   withRepeat,
   withSequence,
-  withSpring,
   withTiming,
-  type SharedValue,
+  type SharedValue
 } from "react-native-reanimated";
 import Svg, {
-  Circle as SvgCircle,
   Defs,
   Ellipse,
   Path,
   RadialGradient,
   Rect,
   Stop,
+  Circle as SvgCircle,
   LinearGradient as SvgLinearGradient,
 } from "react-native-svg";
 
+// A single lesson entry with its source memory context
+type LessonEntry = {
+  text: string;
+  memoryTitle: string;
+  memoryImageUri?: string;
+};
+
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-// ─── Orbit geometry ───────────────────────────────────────────────────────────
-// We show exactly 5 slots on the front arc of the ellipse.
-// Slot 0 = center/front, slots ±1 = near sides, slots ±2 = far sides.
-// Cards past ±2 are hidden. Swiping remaps lesson indices into these slots.
-
-const SLOT_COUNT = 5;                       // how many cards visible at once
-const SLOT_HALF = Math.floor(SLOT_COUNT / 2); // 2
-// Angular span of the visible arc: how much of the ellipse we use
-const ARC_SPAN = Math.PI * 0.85;            // ~153° — front arc only
-// Angle between adjacent slots
-const SLOT_ANGLE = ARC_SPAN / (SLOT_COUNT - 1); // evenly spaced
-
-// Ellipse radii
-const ORBIT_RX = SCREEN_WIDTH * 0.44;
-const ORBIT_RY = 52;
-
-// Card sizes
-const CARD_W = SCREEN_WIDTH * 0.60;
-const CARD_H = CARD_W * 0.88;
-
-// Orbit container height: card height + vertical ellipse travel + padding
-const ORBIT_H = CARD_H + ORBIT_RY * 2 + 32;
-
-// ─── Per-slot visual parameters ───────────────────────────────────────────────
-// slotOffset: -2 = far left, -1 = near left, 0 = front, 1 = near right, 2 = far right
-function slotAngle(offset: number): number {
-  // offset 0 → top of ellipse (angle = -π/2 = pointing up)
-  // We map slots symmetrically: offset * SLOT_ANGLE, centered at -π/2
-  return -Math.PI / 2 + offset * SLOT_ANGLE;
-}
-
-function slotPosition(offset: number): { tx: number; ty: number } {
-  const a = slotAngle(offset);
-  return {
-    tx: Math.cos(a) * ORBIT_RX,
-    ty: Math.sin(a) * ORBIT_RY,
-  };
-}
+// Book dimensions — two pages side by side
+const BOOK_H = SCREEN_WIDTH * 0.84;
+const PAGE_W = (SCREEN_WIDTH - 32) / 2; // half book minus spine gap
+const SPINE_W = 14;
 
 // ─── Mini Sun ─────────────────────────────────────────────────────────────────
 
@@ -89,19 +62,23 @@ function StaticMiniSun({ color, size = 90 }: { color: string; size?: number }) {
   const RAY_TIP_W = 0.4;
   const C = size / 2;
 
-  const rays = useMemo(() => Array.from({ length: RAY_COUNT }, (_, i) => {
-    const angle = (i * 2 * Math.PI) / RAY_COUNT;
-    const innerX = C + Math.cos(angle) * RAY_INNER;
-    const innerY = C + Math.sin(angle) * RAY_INNER;
-    const outerX = C + Math.cos(angle) * RAY_OUTER;
-    const outerY = C + Math.sin(angle) * RAY_OUTER;
-    const perp = angle + Math.PI / 2;
-    const li = `${innerX + Math.cos(perp) * RAY_BASE_W} ${innerY + Math.sin(perp) * RAY_BASE_W}`;
-    const ri = `${innerX + Math.cos(perp + Math.PI) * RAY_BASE_W} ${innerY + Math.sin(perp + Math.PI) * RAY_BASE_W}`;
-    const lo = `${outerX + Math.cos(perp) * RAY_TIP_W} ${outerY + Math.sin(perp) * RAY_TIP_W}`;
-    const ro = `${outerX + Math.cos(perp + Math.PI) * RAY_TIP_W} ${outerY + Math.sin(perp + Math.PI) * RAY_TIP_W}`;
-    return `M ${li} L ${lo} L ${ro} L ${ri} Z`;
-  }), [C, DISC_R, RAY_INNER, RAY_OUTER]);
+  const rays = useMemo(
+    () =>
+      Array.from({ length: RAY_COUNT }, (_, i) => {
+        const angle = (i * 2 * Math.PI) / RAY_COUNT;
+        const innerX = C + Math.cos(angle) * RAY_INNER;
+        const innerY = C + Math.sin(angle) * RAY_INNER;
+        const outerX = C + Math.cos(angle) * RAY_OUTER;
+        const outerY = C + Math.sin(angle) * RAY_OUTER;
+        const perp = angle + Math.PI / 2;
+        const li = `${innerX + Math.cos(perp) * RAY_BASE_W} ${innerY + Math.sin(perp) * RAY_BASE_W}`;
+        const ri = `${innerX + Math.cos(perp + Math.PI) * RAY_BASE_W} ${innerY + Math.sin(perp + Math.PI) * RAY_BASE_W}`;
+        const lo = `${outerX + Math.cos(perp) * RAY_TIP_W} ${outerY + Math.sin(perp) * RAY_TIP_W}`;
+        const ro = `${outerX + Math.cos(perp + Math.PI) * RAY_TIP_W} ${outerY + Math.sin(perp + Math.PI) * RAY_TIP_W}`;
+        return `M ${li} L ${lo} L ${ro} L ${ri} Z`;
+      }),
+    [C, DISC_R, RAY_INNER, RAY_OUTER],
+  );
 
   const rotation = useSharedValue(0);
   const haloOpacity = useSharedValue(0.3);
@@ -127,47 +104,88 @@ function StaticMiniSun({ color, size = 90 }: { color: string; size?: number }) {
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
   const haloStyle = useAnimatedStyle(() => ({ opacity: haloOpacity.value }));
-
   const haloSize = size * 1.6;
-  const haloOffset = (haloSize - size) / 2;
+  const haloOff = (haloSize - size) / 2;
 
   return (
-    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
+    <View
+      style={{
+        width: size,
+        height: size,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
       <Animated.View
-        style={[{
-          position: "absolute",
-          width: haloSize,
-          height: haloSize,
-          borderRadius: haloSize / 2,
-          borderWidth: 1.5,
-          borderColor: color,
-          top: -haloOffset,
-          left: -haloOffset,
-        }, haloStyle]}
+        style={[
+          {
+            position: "absolute",
+            width: haloSize,
+            height: haloSize,
+            borderRadius: haloSize / 2,
+            borderWidth: 1.5,
+            borderColor: color,
+            top: -haloOff,
+            left: -haloOff,
+          },
+          haloStyle,
+        ]}
         pointerEvents="none"
       />
-      <Animated.View style={[{ position: "absolute", width: size, height: size }, rotStyle]} pointerEvents="none">
-        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "absolute" }}>
-          {rays.map((d, i) => <Path key={i} d={d} fill={color} opacity={0.75} />)}
+      <Animated.View
+        style={[{ position: "absolute", width: size, height: size }, rotStyle]}
+        pointerEvents="none"
+      >
+        <Svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+          style={{ position: "absolute" }}
+        >
+          {rays.map((d, i) => (
+            <Path key={i} d={d} fill={color} opacity={0.75} />
+          ))}
         </Svg>
       </Animated.View>
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "absolute" }} pointerEvents="none">
+      <Svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        style={{ position: "absolute" }}
+        pointerEvents="none"
+      >
         <Defs>
-          <RadialGradient id="miniDiscGrad" cx={`${C}`} cy={`${C}`} r={`${DISC_R}`} gradientUnits="userSpaceOnUse">
+          <RadialGradient
+            id="discGrad"
+            cx={`${C}`}
+            cy={`${C}`}
+            r={`${DISC_R}`}
+            gradientUnits="userSpaceOnUse"
+          >
             <Stop offset="0%" stopColor="#1E2A20" stopOpacity="1" />
             <Stop offset="60%" stopColor="#0D1525" stopOpacity="1" />
             <Stop offset="100%" stopColor="#080E1A" stopOpacity="1" />
           </RadialGradient>
-          <SvgLinearGradient id="miniSunFill" x1="0" y1="0" x2="0" y2="1">
+          <SvgLinearGradient id="sunFill" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0%" stopColor={color} stopOpacity="0.95" />
             <Stop offset="100%" stopColor={color} stopOpacity="0.6" />
           </SvgLinearGradient>
         </Defs>
-        <SvgCircle cx={C} cy={C} r={DISC_R} fill="url(#miniDiscGrad)" />
-        <SvgCircle cx={C} cy={C} r={DISC_R} fill="url(#miniSunFill)" />
+        <SvgCircle cx={C} cy={C} r={DISC_R} fill="url(#discGrad)" />
+        <SvgCircle cx={C} cy={C} r={DISC_R} fill="url(#sunFill)" />
       </Svg>
-      <View style={{ position: "absolute", alignItems: "center", justifyContent: "center" }}>
-        <ThemedText style={{ fontSize: DISC_R * 1.1, lineHeight: DISC_R * 1.4 }}>😌</ThemedText>
+      <View
+        style={{
+          position: "absolute",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <ThemedText
+          style={{ fontSize: DISC_R * 1.1, lineHeight: DISC_R * 1.4 }}
+        >
+          😌
+        </ThemedText>
       </View>
     </View>
   );
@@ -181,15 +199,24 @@ function seededRandom(seed: number): number {
 }
 
 function StarField() {
-  const stars = useMemo(() => Array.from({ length: 60 }, (_, i) => ({
-    x: seededRandom(i * 3 + 1) * SCREEN_WIDTH,
-    y: seededRandom(i * 3 + 2) * SCREEN_HEIGHT,
-    r: seededRandom(i * 3 + 3) * 1.4 + 0.4,
-    opacity: seededRandom(i * 3 + 7) * 0.5 + 0.2,
-  })), []);
+  const stars = useMemo(
+    () =>
+      Array.from({ length: 60 }, (_, i) => ({
+        x: seededRandom(i * 3 + 1) * SCREEN_WIDTH,
+        y: seededRandom(i * 3 + 2) * SCREEN_HEIGHT,
+        r: seededRandom(i * 3 + 3) * 1.4 + 0.4,
+        opacity: seededRandom(i * 3 + 7) * 0.5 + 0.2,
+      })),
+    [],
+  );
 
   return (
-    <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={StyleSheet.absoluteFill} pointerEvents="none">
+    <Svg
+      width={SCREEN_WIDTH}
+      height={SCREEN_HEIGHT}
+      style={StyleSheet.absoluteFill}
+      pointerEvents="none"
+    >
       <Defs>
         <RadialGradient id="bgGrad" cx="50%" cy="40%" r="70%">
           <Stop offset="0%" stopColor="#0D1A2E" stopOpacity="1" />
@@ -201,126 +228,539 @@ function StarField() {
           <Stop offset="100%" stopColor="#0D1A2E" stopOpacity="0" />
         </RadialGradient>
       </Defs>
-      <Rect x={0} y={0} width={SCREEN_WIDTH} height={SCREEN_HEIGHT} fill="url(#bgGrad)" />
-      <Ellipse cx={SCREEN_WIDTH * 0.5} cy={SCREEN_HEIGHT * 0.28} rx={SCREEN_WIDTH * 0.65} ry={SCREEN_HEIGHT * 0.32} fill="url(#nebulaGlow)" />
+      <Rect
+        x={0}
+        y={0}
+        width={SCREEN_WIDTH}
+        height={SCREEN_HEIGHT}
+        fill="url(#bgGrad)"
+      />
+      <Ellipse
+        cx={SCREEN_WIDTH * 0.5}
+        cy={SCREEN_HEIGHT * 0.28}
+        rx={SCREEN_WIDTH * 0.65}
+        ry={SCREEN_HEIGHT * 0.32}
+        fill="url(#nebulaGlow)"
+      />
       {stars.map((s, i) => (
-        <SvgCircle key={i} cx={s.x} cy={s.y} r={s.r} fill="#FFFFFF" opacity={s.opacity} />
+        <SvgCircle
+          key={i}
+          cx={s.x}
+          cy={s.y}
+          r={s.r}
+          fill="#FFFFFF"
+          opacity={s.opacity}
+        />
       ))}
     </Svg>
   );
 }
 
-// ─── Orbit card slot ─────────────────────────────────────────────────────────
-// slotOffset: integer in [-SLOT_HALF, SLOT_HALF], drives position/tilt/scale.
-// dragFrac: 0..1 fractional drag progress toward next slot (shared value).
-// dragDir: +1 = dragging left (next card comes), -1 = dragging right (prev).
+// ─── Page Content (static, no animation) ─────────────────────────────────────
 
-function OrbitCardSlot({
-  lesson,
+// ─── Layout patterns ──────────────────────────────────────────────────────────
+// 0: image top-center, text below  (classic)
+// 1: image left, text right        (side-by-side)
+// 2: image right, text left        (mirrored side-by-side)
+// 3: no image, large centered text (quote style)
+const PATTERN_COUNT = 4;
+
+function getPattern(lessonIndex: number): number {
+  return ((lessonIndex * 7 + 3) % PATTERN_COUNT + PATTERN_COUNT) % PATTERN_COUNT;
+}
+
+function PageContent({
+  entry,
   lessonIndex,
+  displayNumber,
   total,
-  slotOffset,
   lessonColor,
-  dragFrac,
-  dragDir,
+  side,
+  dimmed,
+  role,
 }: {
-  lesson: string;
+  entry: LessonEntry;
   lessonIndex: number;
+  displayNumber?: number; // explicit 1-based page number; if omitted uses lessonIndex+1
   total: number;
-  slotOffset: number;     // static integer slot position: -2..+2
   lessonColor: string;
-  dragFrac: SharedValue<number>;   // 0..1 continuous drag fraction
-  dragDir: SharedValue<number>;    // +1 or -1
+  side: "left" | "right";
+  dimmed?: boolean;
+  role?: string;
 }) {
-  // Pre-compute static slot positions
-  const fromPos = slotPosition(slotOffset);
-  const toPos = slotPosition(slotOffset - 1); // where it moves when dragging left (+1 dir)
-  const toNegPos = slotPosition(slotOffset + 1); // where it moves when dragging right (-1 dir)
+  const _pcRender = React.useRef(0);
+  _pcRender.current += 1;
+  console.log(`[JS:PageContent] role=${role ?? '?'} lessonIndex=${lessonIndex} render#=${_pcRender.current} dimmed=${dimmed} side=${side}`);
+  const isLeft = side === "left";
+  const alpha = dimmed ? "55" : "FF";
+  const pageNumber = displayNumber ?? (lessonIndex >= 0 ? lessonIndex + 1 : null);
+  const pattern = getPattern(lessonIndex >= 0 ? lessonIndex : 0);
+  const hasImage = !!entry.memoryImageUri;
 
-  // Pre-compute all static values this slot needs so the worklet closes over primitives only
-  const fromTx = fromPos.tx;
-  const fromTy = fromPos.ty;
-  const toPlusTx = toPos.tx;    // destination when dir=+1 (swipe left)
-  const toPlusTy = toPos.ty;
-  const toNegTx = toNegPos.tx;  // destination when dir=-1 (swipe right)
-  const toNegTy = toNegPos.ty;
+  const titleColor = lessonColor + (dimmed ? "60" : "CC");
+  const textColor = dimmed ? "rgba(255,255,255,0.40)" : "rgba(255,255,255,0.88)";
 
-  // Inline lookup tables as plain numbers — safe to close over in worklet
-  const scaleFrom = Math.abs(slotOffset) === 0 ? 1.0 : Math.abs(slotOffset) === 1 ? 0.82 : 0.66;
-  const opacFrom  = Math.abs(slotOffset) === 0 ? 1.0 : Math.abs(slotOffset) === 1 ? 0.65 : 0.35;
-  const rotYFrom  = slotOffset === 0 ? 0 : slotOffset === 1 ? -52 : slotOffset === -1 ? 52 : slotOffset === 2 ? -72 : 72;
+  const imageEl = hasImage ? (
+    <View
+      style={[
+        styles.memoryImageWrapper,
+        { borderColor: lessonColor + (dimmed ? "25" : "45") },
+      ]}
+    >
+      <Image
+        source={{ uri: entry.memoryImageUri }}
+        style={styles.memoryImage}
+        resizeMode="cover"
+      />
+      {dimmed && <View style={styles.memoryImageDim} />}
+    </View>
+  ) : (
+    <View
+      style={[
+        styles.pageIconCircle,
+        {
+          backgroundColor: lessonColor + (dimmed ? "18" : "28"),
+          borderColor: lessonColor + (dimmed ? "30" : "55"),
+        },
+      ]}
+    >
+      <MaterialIcons
+        name="auto-awesome"
+        size={dimmed ? 16 : 20}
+        color={lessonColor + alpha}
+      />
+    </View>
+  );
 
-  const destOffsetPlus  = slotOffset - 1;
-  const destOffsetMinus = slotOffset + 1;
-
-  const scaleTo_plus  = Math.abs(destOffsetPlus)  === 0 ? 1.0 : Math.abs(destOffsetPlus)  === 1 ? 0.82 : 0.66;
-  const opacTo_plus   = Math.abs(destOffsetPlus)  === 0 ? 1.0 : Math.abs(destOffsetPlus)  === 1 ? 0.65 : 0.35;
-  const rotYTo_plus   = destOffsetPlus  === 0 ? 0 : destOffsetPlus  === 1 ? -52 : destOffsetPlus  === -1 ? 52 : destOffsetPlus  === 2 ? -72 : 72;
-
-  const scaleTo_minus = Math.abs(destOffsetMinus) === 0 ? 1.0 : Math.abs(destOffsetMinus) === 1 ? 0.82 : 0.66;
-  const opacTo_minus  = Math.abs(destOffsetMinus) === 0 ? 1.0 : Math.abs(destOffsetMinus) === 1 ? 0.65 : 0.35;
-  const rotYTo_minus  = destOffsetMinus === 0 ? 0 : destOffsetMinus === 1 ? -52 : destOffsetMinus === -1 ? 52 : destOffsetMinus === 2 ? -72 : 72;
-
-  const animStyle = useAnimatedStyle(() => {
-    "worklet";
-    const frac = dragFrac.value;
-    const dir  = dragDir.value;
-
-    const isPlus = dir > 0;
-    const destTx   = isPlus ? toPlusTx  : toNegTx;
-    const destTy   = isPlus ? toPlusTy  : toNegTy;
-    const scaleTo  = isPlus ? scaleTo_plus  : scaleTo_minus;
-    const opacTo   = isPlus ? opacTo_plus   : opacTo_minus;
-    const rotYTo   = isPlus ? rotYTo_plus   : rotYTo_minus;
-
-    const tx    = fromTx    + (destTx   - fromTx)    * frac;
-    const ty    = fromTy    + (destTy   - fromTy)    * frac;
-    const scale = scaleFrom + (scaleTo  - scaleFrom) * frac;
-    const opacity = opacFrom + (opacTo  - opacFrom)  * frac;
-    const rotY  = rotYFrom  + (rotYTo   - rotYFrom)  * frac;
-
-    return {
-      transform: [
-        { translateX: tx },
-        { translateY: ty },
-        { perspective: 900 },
-        { rotateY: `${rotY}deg` },
-        { scale },
-      ],
-      opacity,
-    };
-  });
-
-  // z-order: render-order handles depth (slot 0 on top, slots ±2 at bottom)
-  // This is controlled by the parent's render order — no zIndex needed.
+  // Effective pattern: patterns 1/2 only apply when there's an image
+  const effectivePattern = hasImage ? pattern : 3;
 
   return (
-    <Animated.View style={[styles.orbitCardWrapper, animStyle]}>
-      <View style={[styles.card, { borderColor: lessonColor + "40", shadowColor: lessonColor }]}>
-        <View style={[styles.cardTopAccent, { backgroundColor: lessonColor + "30" }]} />
-        <View style={[styles.iconCircle, { backgroundColor: lessonColor + "22", borderColor: lessonColor + "55" }]}>
-          <MaterialIcons name="auto-awesome" size={22} color={lessonColor} />
-        </View>
-        <ThemedText style={styles.lessonText}>{lesson}</ThemedText>
-        <View style={[styles.indexBadge, { borderColor: lessonColor + "40" }]}>
-          <ThemedText style={[styles.indexText, { color: lessonColor }]}>{lessonIndex + 1}/{total}</ThemedText>
-        </View>
+    <>
+      {/* Ruled lines */}
+      <View style={styles.pageLines} pointerEvents="none">
+        {Array.from({ length: 9 }).map((_, i) => (
+          <View
+            key={i}
+            style={[styles.pageLine, { backgroundColor: lessonColor + "10" }]}
+          />
+        ))}
       </View>
-    </Animated.View>
+
+      {/* Page number */}
+      {pageNumber != null && (
+        <View
+          style={[styles.pageNumCorner, isLeft ? { left: 12 } : { right: 12 }]}
+        >
+          <ThemedText style={[styles.pageNum, { color: lessonColor + "70" }]}>
+            {pageNumber} / {total}
+          </ThemedText>
+        </View>
+      )}
+
+      {/* ── Pattern 0: image top-center, title, divider, text ── */}
+      {effectivePattern === 0 && (
+        <View style={styles.patternCenter}>
+          <ThemedText
+            numberOfLines={1}
+            style={[styles.memoryTitle, { color: titleColor, fontSize: dimmed ? 10 : 11 }]}
+          >
+            {entry.memoryTitle}
+          </ThemedText>
+          {imageEl}
+          <View style={[styles.pageDivider, { backgroundColor: lessonColor + (dimmed ? "18" : "30") }]} />
+          <ThemedText style={[styles.pageText, { color: textColor, fontSize: dimmed ? 11.5 : 13 }]}>
+            {entry.text}
+          </ThemedText>
+        </View>
+      )}
+
+      {/* ── Pattern 1: image left, title+text right ── */}
+      {effectivePattern === 1 && (
+        <View style={styles.patternSideRow}>
+          <View style={styles.patternSideImage}>{imageEl}</View>
+          <View style={styles.patternSideText}>
+            <ThemedText
+              numberOfLines={2}
+              style={[styles.memoryTitle, { color: titleColor, fontSize: dimmed ? 9 : 10, textAlign: "left" }]}
+            >
+              {entry.memoryTitle}
+            </ThemedText>
+            <View style={[styles.pageDivider, { backgroundColor: lessonColor + (dimmed ? "18" : "30"), width: "100%", marginBottom: 6 }]} />
+            <ThemedText style={[styles.pageText, { color: textColor, fontSize: dimmed ? 10.5 : 12, textAlign: "left" }]}>
+              {entry.text}
+            </ThemedText>
+          </View>
+        </View>
+      )}
+
+      {/* ── Pattern 2: title+text left, image right ── */}
+      {effectivePattern === 2 && (
+        <View style={styles.patternSideRow}>
+          <View style={styles.patternSideText}>
+            <ThemedText
+              numberOfLines={2}
+              style={[styles.memoryTitle, { color: titleColor, fontSize: dimmed ? 9 : 10, textAlign: "left" }]}
+            >
+              {entry.memoryTitle}
+            </ThemedText>
+            <View style={[styles.pageDivider, { backgroundColor: lessonColor + (dimmed ? "18" : "30"), width: "100%", marginBottom: 6 }]} />
+            <ThemedText style={[styles.pageText, { color: textColor, fontSize: dimmed ? 10.5 : 12, textAlign: "left" }]}>
+              {entry.text}
+            </ThemedText>
+          </View>
+          <View style={styles.patternSideImage}>{imageEl}</View>
+        </View>
+      )}
+
+      {/* ── Pattern 3: large quote text, source at bottom ── */}
+      {effectivePattern === 3 && (
+        <View style={styles.patternQuote}>
+          <ThemedText style={[styles.pageQuoteText, { color: textColor, fontSize: dimmed ? 13 : 15 }]}>
+            {entry.text}
+          </ThemedText>
+          <View style={[styles.pageDivider, { backgroundColor: lessonColor + (dimmed ? "18" : "30") }]} />
+          <ThemedText
+            numberOfLines={1}
+            style={[styles.memoryTitle, { color: titleColor, fontSize: dimmed ? 9 : 10 }]}
+          >
+            — {entry.memoryTitle}
+          </ThemedText>
+        </View>
+      )}
+
+      {/* Spine-edge fold shadow */}
+      <View
+        style={[
+          styles.pageFold,
+          isLeft ? styles.pageFoldRight : styles.pageFoldLeft,
+          { backgroundColor: isLeft ? "rgba(0,0,0,0.22)" : "rgba(0,0,0,0.08)" },
+        ]}
+      />
+
+      {/* Page-curl grab corner (right page only) */}
+      {!isLeft && (
+        <View style={styles.pageCurlCorner} pointerEvents="none">
+          <View style={[styles.pageCurlTriangle, { borderTopColor: lessonColor + "28" }]} />
+        </View>
+      )}
+    </>
+  );
+}
+
+// ─── Book flip mechanics ──────────────────────────────────────────────────────
+//
+// The open book has LEFT and RIGHT pages. When user taps "next":
+//
+//  • RIGHT page (current lesson) is the page being turned.
+//    It pivots around its LEFT edge (spine), sweeping from 0° → -180°.
+//    - 0°    = flat on the right side (face up, readable)
+//    - -90°  = edge-on at the spine (invisible sliver)
+//    - -180° = flat on the LEFT side (face down, now the new left page)
+//
+//  • The new RIGHT page (next lesson) sits underneath the turning page — static,
+//    revealed as the turning page lifts off it.
+//
+//  • The new LEFT page (previous lesson) is already there — the turning page
+//    lands on top of it at -180°, becoming the new "read" left page.
+//
+// Pivot-on-left-edge transform chain:
+//   translateX(-PAGE_W/2)  ← shift origin to left edge
+//   rotateY(angle)          ← rotate around that edge
+//   translateX(+PAGE_W/2)  ← shift back
+//
+// At -180° the page is mirrored (back face). We use scaleX(-1) inside the
+// flipped wrapper so the text reads correctly on the back face.
+//
+// The whole animation lives OUTSIDE the left/right page containers — the
+// turning page is a sibling absolutely positioned over the whole book,
+// so it can travel from right → spine → left seamlessly.
+
+function BookView({
+  leftEntry,
+  leftIndex,
+  leftDisplayNum,
+  rightEntry,
+  rightIndex,
+  newLeftEntry,
+  newLeftIndex,
+  nextEntry,
+  nextIndex,
+  nextDisplayNum,
+  total,
+  lessonColor,
+  flipAnim,
+  flipDir,
+  isFlipping,
+  isBackward,
+}: {
+  leftEntry: LessonEntry;
+  leftIndex: number;
+  leftDisplayNum?: number;
+  rightEntry: LessonEntry;
+  rightIndex: number;
+  newLeftEntry: LessonEntry;
+  newLeftIndex: number;
+  nextEntry: LessonEntry;
+  nextIndex: number;
+  nextDisplayNum?: number;
+  total: number;
+  lessonColor: string;
+  flipAnim: SharedValue<number>;
+  // 0 = forward (right page folds left), 1 = backward (left page folds right)
+  flipDir: SharedValue<number>;
+  isFlipping: SharedValue<number>;
+  isBackward: boolean;
+}) {
+  const _bvRender = React.useRef(0);
+  _bvRender.current += 1;
+  console.log(`[JS:BookView] render#${_bvRender.current} rightIndex=${rightIndex} nextIndex=${nextIndex} leftIndex=${leftIndex} newLeftIndex=${newLeftIndex} isBackward=${isBackward} flipAnimNow=${flipAnim.value.toFixed(3)}`);
+
+  const pageW = PAGE_W;
+  // Forward (flipDir=0): right page pivots on left edge, sweeps 0deg to -180deg
+  // Backward (flipDir=1): left page pivots on right edge, sweeps 0deg to +180deg
+
+  const turningStyle = useAnimatedStyle(() => {
+    "worklet";
+    const t = flipAnim.value;
+    const isBack = flipDir.value === 1;
+    console.log(`[worklet:turningStyle] t=${t.toFixed(3)} isBack=${isBack}`);
+    // Projected width: cos curve collapses to 0 at t=0.5, opens back up on the other side.
+    // This reveals the destination page as the turning page sweeps across it.
+    const projectedW = Math.abs(Math.cos(t * Math.PI)) * pageW;
+    if (isBack) {
+      const angle = t * 180;
+      const left = t >= 0.5 ? pageW + SPINE_W : 0;
+      // Clip from the right edge (origin stays at left edge of the page slot)
+      const clipLeft = t >= 0.5 ? pageW - projectedW : 0;
+      return {
+        left: left + clipLeft,
+        width: projectedW,
+        transform: [
+          { perspective: 1200 },
+          { translateX: pageW / 2 },
+          { rotateY: `${angle}deg` },
+          { translateX: -pageW / 2 },
+        ],
+      };
+    } else {
+      const angle = t * -180;
+      const left = t >= 0.5 ? 0 : pageW + SPINE_W;
+      // Clip from the left edge for forward flip (origin at right edge of slot)
+      const clipLeft = t < 0.5 ? pageW - projectedW : 0;
+      return {
+        left: left + clipLeft,
+        width: projectedW,
+        transform: [
+          { perspective: 1200 },
+          { translateX: -pageW / 2 },
+          { rotateY: `${angle}deg` },
+          { translateX: pageW / 2 },
+        ],
+      };
+    }
+  });
+
+  const frontFaceStyle = useAnimatedStyle(() => {
+    "worklet";
+    const opacity = flipAnim.value < 0.5 ? 1 : 0;
+    console.log(`[worklet:frontFace] t=${flipAnim.value.toFixed(3)} opacity=${opacity}`);
+    return { opacity };
+  });
+
+  const backFaceStyle = useAnimatedStyle(() => {
+    "worklet";
+    const opacity = flipAnim.value >= 0.5 ? 1 : 0;
+    console.log(`[worklet:backFace] t=${flipAnim.value.toFixed(3)} opacity=${opacity}`);
+    return { opacity };
+  });
+
+  // Shadow on the turning page (darkens as it rotates, peaks at edge-on)
+  const pageShadingStyle = useAnimatedStyle(() => {
+    "worklet";
+    const t = flipAnim.value;
+    // Max shadow at t=0.5 (edge-on), zero at t=0 and t=1
+    const shadow = Math.sin(t * Math.PI) * 0.65;
+    console.log(`[worklet:pageShading] t=${t.toFixed(3)} shadow=${shadow.toFixed(3)}`);
+    return { opacity: shadow };
+  });
+
+  // Shadow on left page: forward=lands there (2nd half), backward=lifts off (1st half)
+  const leftShadowStyle = useAnimatedStyle(() => {
+    "worklet";
+    const t = flipAnim.value;
+    const isBack = flipDir.value === 1;
+    const shadow = isBack
+      ? (t < 0.5 ? Math.sin(t * Math.PI) * 0.4 : 0)
+      : (t > 0.5 ? Math.sin(t * Math.PI) * 0.5 : 0);
+    console.log(`[worklet:leftShadow] t=${t.toFixed(3)} isBack=${isBack} shadow=${shadow.toFixed(3)}`);
+    return { opacity: shadow };
+  });
+
+  // Hide the entire turning page when not animating so it never bleeds through at rest.
+  const turningPageVisibility = useAnimatedStyle(() => {
+    "worklet";
+    const visible = isFlipping.value === 1;
+    console.log(`[worklet:turningVisibility] isFlipping=${isFlipping.value} visible=${visible}`);
+    return { opacity: visible ? 1 : 0 };
+  });
+
+  // Shadow on right page: forward=lifts off (1st half), backward=lands there (2nd half)
+  const rightShadowStyle = useAnimatedStyle(() => {
+    "worklet";
+    const t = flipAnim.value;
+    const isBack = flipDir.value === 1;
+    const shadow = isBack
+      ? (t > 0.5 ? Math.sin(t * Math.PI) * 0.5 : 0)
+      : (t < 0.5 ? Math.sin(t * Math.PI) * 0.4 : 0);
+    console.log(`[worklet:rightShadow] t=${t.toFixed(3)} isBack=${isBack} shadow=${shadow.toFixed(3)}`);
+    return { opacity: shadow };
+  });
+
+  return (
+    <View style={[styles.book, { position: "relative" }]}>
+      {/* ── Static left page (previous lesson) ── */}
+      <View
+        style={[
+          styles.page,
+          styles.pageLeft,
+          { borderColor: lessonColor + "28" },
+        ]}
+      >
+        <PageContent
+          entry={leftEntry}
+          lessonIndex={leftIndex}
+          displayNumber={leftDisplayNum}
+          total={total}
+          lessonColor={lessonColor}
+          side="left"
+          dimmed
+          role="static-left"
+        />
+        {/* Shadow cast by the turning page landing on left */}
+        <Animated.View
+          style={[styles.pageTurnShadowOverlay, leftShadowStyle]}
+          pointerEvents="none"
+        />
+      </View>
+
+      {/* ── Spine ── */}
+      <View style={styles.spine}>
+        <View
+          style={[styles.spineGlow, { backgroundColor: lessonColor + "40" }]}
+        />
+      </View>
+
+      {/* ── Static right page (next lesson, sits underneath) ── */}
+      <View
+        style={[
+          styles.page,
+          styles.pageRight,
+          { borderColor: lessonColor + "50" },
+        ]}
+      >
+        <PageContent
+          entry={nextEntry}
+          lessonIndex={nextIndex}
+          displayNumber={nextDisplayNum}
+          total={total}
+          lessonColor={lessonColor}
+          side="right"
+          role="static-right"
+        />
+        {/* Shadow as outgoing page lifts off */}
+        <Animated.View
+          style={[styles.pageTurnShadowOverlay, rightShadowStyle]}
+          pointerEvents="none"
+        />
+      </View>
+
+      {/* ── Turning page — absolutely positioned, direction-aware ── */}
+      <Animated.View
+        style={[styles.turningPage, turningStyle, turningPageVisibility]}
+        pointerEvents="none"
+      >
+        {/* Front face: the page being lifted */}
+        <Animated.View style={[StyleSheet.absoluteFill, frontFaceStyle]}>
+          <View
+            style={[
+              styles.page,
+              isBackward ? styles.pageLeft : styles.pageRight,
+              styles.turningPageInner,
+              { borderColor: lessonColor + (isBackward ? "28" : "50") },
+            ]}
+          >
+            <PageContent
+              entry={rightEntry}
+              lessonIndex={rightIndex}
+              total={total}
+              lessonColor={lessonColor}
+              side={isBackward ? "left" : "right"}
+              dimmed={isBackward}
+              role="turning-front"
+            />
+          </View>
+        </Animated.View>
+
+        {/* Back face: the page as it lands on the other side, mirrored */}
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            backFaceStyle,
+            { transform: [{ scaleX: -1 }] },
+          ]}
+        >
+          <View
+            style={[
+              styles.page,
+              isBackward ? styles.pageRight : styles.pageLeft,
+              styles.turningPageInner,
+              { borderColor: lessonColor + (isBackward ? "50" : "28") },
+            ]}
+          >
+            <PageContent
+              entry={newLeftEntry}
+              lessonIndex={newLeftIndex}
+              total={total}
+              lessonColor={lessonColor}
+              side={isBackward ? "right" : "left"}
+              dimmed={!isBackward}
+              role="turning-back"
+            />
+          </View>
+        </Animated.View>
+
+        {/* Page-turn shading (darkens toward edge-on) */}
+        <Animated.View
+          style={[styles.pageTurnShading, pageShadingStyle]}
+          pointerEvents="none"
+        />
+      </Animated.View>
+    </View>
   );
 }
 
 // ─── Pagination dots ──────────────────────────────────────────────────────────
 
-function PaginationDots({ count, active, color }: { count: number; active: number; color: string }) {
+function PaginationDots({
+  count,
+  active,
+  color,
+}: {
+  count: number;
+  active: number;
+  color: string;
+}) {
+  const display = Math.min(count, 9);
+  const activeDisplay = Math.min(active, display - 1);
   return (
     <View style={styles.dotsRow}>
-      {Array.from({ length: count }).map((_, i) => (
+      {Array.from({ length: display }).map((_, i) => (
         <View
           key={i}
           style={[
             styles.dot,
-            i === active
+            i === activeDisplay
               ? { backgroundColor: color, width: 20 }
               : { backgroundColor: "rgba(255,255,255,0.2)", width: 6 },
           ]}
@@ -338,70 +778,149 @@ interface YourUniverseModalProps {
   onChallengeMePress: () => void;
 }
 
-export function YourUniverseModal({ visible, onClose, onChallengeMePress }: YourUniverseModalProps) {
+export function YourUniverseModal({
+  visible,
+  onClose,
+  onChallengeMePress,
+}: YourUniverseModalProps) {
   const t = useTranslate();
   const { language } = useLanguage();
   const { momentColors } = useMomentColors();
+  const { idealizedMemories } = useJourney();
   const lessonColor = momentColors.lesson.background;
-  const lessons = lifeLessons[language] ?? lifeLessons.en;
-  const total = lessons.length;
 
-  // centerIndex: which lesson is in the front slot
-  const [centerIndex, setCenterIndex] = useState(0);
 
-  // dragFrac: 0 = resting, 1 = fully committed to next slot
-  const dragFrac = useSharedValue(0);
-  // dragDir: +1 = swiping left (advancing), -1 = swiping right (going back)
-  const dragDir = useSharedValue(1);
-  const dragStarted = useSharedValue(0); // 0 = not started, 1 = started
-
-  const advanceCenter = useCallback((dir: number) => {
-    setCenterIndex((prev) => {
-      const next = (prev + dir + total) % total;
-      return next;
-    });
-  }, [total]);
-
-  const pan = Gesture.Pan()
-    .minDistance(8)
-    .onBegin(() => {
-      dragStarted.value = 0;
-    })
-    .onUpdate((e) => {
-      const dx = e.translationX;
-      // Only commit to one direction per gesture
-      if (dragStarted.value === 0) {
-        dragDir.value = dx < 0 ? 1 : -1;
-        dragStarted.value = 1;
+  // Build a flat list of LessonEntry from all memory lessonsLearned.
+  // Falls back to static placeholder lessons if user has none yet.
+  const entries = useMemo<LessonEntry[]>(() => {
+    const real: LessonEntry[] = [];
+    for (const memory of idealizedMemories) {
+      if (!memory.lessonsLearned?.length) continue;
+      for (const l of memory.lessonsLearned) {
+        if (l.text.trim()) {
+          real.push({
+            text: l.text,
+            memoryTitle: memory.title,
+            memoryImageUri: memory.imageUri,
+          });
+        }
       }
-      // Normalize: full drag = SCREEN_WIDTH * 0.4 → frac = 1
-      const frac = Math.min(Math.abs(dx) / (SCREEN_WIDTH * 0.4), 1);
-      dragFrac.value = frac;
-    })
-    .onEnd((e) => {
-      const committed = Math.abs(e.translationX) > SCREEN_WIDTH * 0.12 || Math.abs(e.velocityX) > 400;
-      if (committed) {
-        dragFrac.value = withSpring(1, { damping: 20, stiffness: 180 }, () => {
-          // After animation: advance center, reset frac instantly
-          runOnJS(advanceCenter)(dragDir.value);
-          dragFrac.value = 0;
-        });
-      } else {
-        // Snap back
-        dragFrac.value = withSpring(0, { damping: 20, stiffness: 200 });
-      }
-    });
+    }
+    if (real.length > 0) return real;
+    // Fallback: wrap static strings as LessonEntry
+    const fallback = lifeLessons[language] ?? lifeLessons.en;
+    return fallback.map((text) => ({
+      text,
+      memoryTitle: t("universe.modal.title"),
+    }));
+  }, [idealizedMemories, language, t]);
 
-  // Build the 5 slots. slotOffset: -2, -1, 0, +1, +2
-  // Lesson at slot offset: (centerIndex + offset + total) % total
-  // Render order: far slots first (back), center last (front)
-  const slots = useMemo(() => {
-    // Render back-to-front: [-2, +2, -1, +1, 0]
-    return [-SLOT_HALF, SLOT_HALF, -(SLOT_HALF - 1), SLOT_HALF - 1, 0].map((offset) => {
-      const lessonIdx = (centerIndex + offset + total) % total;
-      return { offset, lessonIdx };
+  const total = entries.length;
+
+  // pendingIndex = the index we're flipping TO (set at press time, committed in finishFlip).
+  const pendingIndexRef = React.useRef(0);
+
+  // Snapshot of page indices captured when flip starts — frozen for BookView during animation.
+  // isBackward is included here so goNext/goPrev cause exactly ONE React re-render.
+  // At rest: rightIndex = current, nextIndex = next, leftIndex = prev (shown dimmed).
+  const makeIdleSnapshot = useCallback((idx: number) => ({
+    leftIndex: (idx - 1 + total) % total,
+    rightIndex: idx,
+    newLeftIndex: idx,
+    nextIndex: (idx + 1) % total,
+    leftDisplayNum: idx > 0 ? idx : undefined,
+    nextDisplayNum: idx + 1,
+    isBackward: false,
+  }), [total]);
+
+  const [snapshot, setSnapshot] = useState(() => makeIdleSnapshot(0));
+  // displayIndex is derived from the settled snapshot — no separate state needed.
+  const displayIndex = snapshot.rightIndex;
+  const isBackward = snapshot.isBackward;
+
+  // flipAnim: 0 = resting, 0→1 = animating
+  const flipAnim = useSharedValue(0);
+  const isFlipping = useSharedValue(0);
+  // 0 = forward (right-to-left), 1 = backward (left-to-right)
+  const flipDir = useSharedValue(0);
+
+  const finishFlip = useCallback(() => {
+    isFlipping.value = 0;
+    const settled = pendingIndexRef.current;
+    console.log(`[JS:finishFlip] settled=${settled} flipAnimBeforeReset=${flipAnim.value.toFixed(3)} — NOT resetting flipAnim, stays at 1`);
+    // Do NOT reset flipAnim here. At t=1: frontFace=opacity:0, backFace=opacity:1 —
+    // the turning page is effectively hidden (backFace content matches static-left dimmed).
+    // Resetting to 0 here would snap frontFace to opacity:1 causing a visible flash
+    // of the turning page over the newly rendered static pages.
+    // flipAnim is reset to 0 at the START of the next goNext/goPrev call instead.
+    setSnapshot(makeIdleSnapshot(settled));
+  }, [isFlipping, makeIdleSnapshot, flipAnim]);
+
+  const goNext = useCallback(() => {
+    if (isFlipping.value === 1) return;
+    const cur = displayIndex;
+    const next = (cur + 1) % total;
+    const prev = (cur - 1 + total) % total;
+    pendingIndexRef.current = next;
+    console.log(`[JS:goNext] cur=${cur} next=${next} prev=${prev} flipAnimNow=${flipAnim.value.toFixed(3)}`);
+    // Reset flipAnim BEFORE setSnapshot so worklets see t=0 when BookView re-renders.
+    flipDir.value = 0;
+    flipAnim.value = 0;
+    isFlipping.value = 1;
+    // Single setState call → single re-render to set up animation snapshot.
+    setSnapshot({
+      leftIndex: prev,
+      rightIndex: cur,
+      newLeftIndex: cur,
+      nextIndex: next,
+      leftDisplayNum: cur > 0 ? cur : undefined,
+      nextDisplayNum: next + 1,
+      isBackward: false,
     });
-  }, [centerIndex, total]);
+    console.log(`[JS:goNext] starting withTiming 0→1`);
+    flipAnim.value = withTiming(
+      1,
+      { duration: 500, easing: Easing.inOut(Easing.ease) },
+      () => {
+        "worklet";
+        console.log(`[worklet:goNext] animation done, calling finishFlip`);
+        runOnJS(finishFlip)();
+      },
+    );
+  }, [displayIndex, total, flipAnim, flipDir, isFlipping, finishFlip]);
+
+  const goPrev = useCallback(() => {
+    if (isFlipping.value === 1) return;
+    const cur = displayIndex;
+    const prev = (cur - 1 + total) % total;
+    const prevPrev = (cur - 2 + total) % total;
+    pendingIndexRef.current = prev;
+    console.log(`[JS:goPrev] cur=${cur} prev=${prev} prevPrev=${prevPrev} flipAnimNow=${flipAnim.value.toFixed(3)}`);
+    // Reset flipAnim BEFORE setSnapshot so worklets see t=0 when BookView re-renders.
+    flipDir.value = 1;
+    flipAnim.value = 0;
+    isFlipping.value = 1;
+    // Single setState call → single re-render to set up animation snapshot.
+    setSnapshot({
+      leftIndex: prevPrev,
+      rightIndex: prev,   // front face = left page being lifted
+      newLeftIndex: prev, // back face = new right page after landing
+      nextIndex: cur,     // static right page stays visible
+      leftDisplayNum: prev > 0 ? prev : undefined,
+      nextDisplayNum: cur + 1,
+      isBackward: true,
+    });
+    console.log(`[JS:goPrev] starting withTiming 0→1`);
+    flipAnim.value = withTiming(
+      1,
+      { duration: 500, easing: Easing.inOut(Easing.ease) },
+      () => {
+        "worklet";
+        console.log(`[worklet:goPrev] animation done, calling finishFlip`);
+        runOnJS(finishFlip)();
+      },
+    );
+  }, [displayIndex, total, flipAnim, flipDir, isFlipping, finishFlip]);
 
   // Challenge Me pulse
   const challengeScale = useSharedValue(1);
@@ -412,7 +931,10 @@ export function YourUniverseModal({ visible, onClose, onChallengeMePress }: Your
       -1,
       true,
     );
-    return () => { cancelAnimation(challengeScale); challengeScale.value = 1; };
+    return () => {
+      cancelAnimation(challengeScale);
+      challengeScale.value = 1;
+    };
   }, [visible, challengeScale]);
 
   const challengeStyle = useAnimatedStyle(() => ({
@@ -428,7 +950,10 @@ export function YourUniverseModal({ visible, onClose, onChallengeMePress }: Your
       withTiming(0.7, { duration: 2200 }),
       withTiming(0, { duration: 800, easing: Easing.in(Easing.ease) }),
     );
-    return () => { cancelAnimation(swipeHintOpacity); swipeHintOpacity.value = 0; };
+    return () => {
+      cancelAnimation(swipeHintOpacity);
+      swipeHintOpacity.value = 0;
+    };
   }, [visible, swipeHintOpacity]);
 
   const swipeHintStyle = useAnimatedStyle(() => ({
@@ -456,75 +981,108 @@ export function YourUniverseModal({ visible, onClose, onChallengeMePress }: Your
           <View style={styles.header}>
             <View style={styles.closeButtonSpacer} />
             <View style={styles.headerCenter}>
-              <ThemedText style={styles.title}>{t("universe.modal.title")}</ThemedText>
-              <ThemedText style={styles.subtitle}>{t("universe.modal.subtitle")}</ThemedText>
+              <ThemedText style={styles.title}>
+                {t("universe.modal.title")}
+              </ThemedText>
+              <ThemedText style={styles.subtitle}>
+                {t("universe.modal.subtitle")}
+              </ThemedText>
             </View>
-            <Pressable onPress={onClose} style={styles.closeButton} hitSlop={16}>
-              <MaterialIcons name="close" size={22} color="rgba(255,255,255,0.5)" />
+            <Pressable
+              onPress={onClose}
+              style={styles.closeButton}
+              hitSlop={16}
+            >
+              <MaterialIcons
+                name="close"
+                size={22}
+                color="rgba(255,255,255,0.5)"
+              />
             </Pressable>
           </View>
 
           {/* Tabs */}
           <View style={styles.tabsRow}>
-            <View style={[styles.tabActivePill, { backgroundColor: lessonColor }]}>
-              <ThemedText style={styles.tabActiveText}>{t("universe.modal.tabLessons")}</ThemedText>
+            <View
+              style={[styles.tabActivePill, { backgroundColor: lessonColor }]}
+            >
+              <ThemedText style={styles.tabActiveText}>
+                {t("universe.modal.tabLessons")}
+              </ThemedText>
             </View>
-            <ThemedText style={styles.tabInactiveText}>{t("universe.modal.tabMoments")}</ThemedText>
+            <ThemedText style={styles.tabInactiveText}>
+              {t("universe.modal.tabMoments")}
+            </ThemedText>
           </View>
 
-          {/* Sun */}
-          <View style={styles.sunSection}>
-            <StaticMiniSun color={momentColors.sunny.background} size={88} />
-            <View style={styles.sunLabels}>
-              <ThemedText style={styles.youLabel}>{t("universe.modal.youLabel")}</ThemedText>
-              <ThemedText style={styles.keepLearning}>{t("universe.modal.keepLearning")}</ThemedText>
-            </View>
+          {/* Open book */}
+          <View style={styles.bookContainer}>
+            <View style={[styles.bookShadow, { shadowColor: lessonColor }]} />
+            <BookView
+              leftEntry={entries[snapshot.leftIndex]}
+              leftIndex={snapshot.leftIndex}
+              leftDisplayNum={snapshot.leftDisplayNum}
+              rightEntry={entries[snapshot.rightIndex]}
+              rightIndex={snapshot.rightIndex}
+              newLeftEntry={entries[snapshot.newLeftIndex]}
+              newLeftIndex={snapshot.newLeftIndex}
+              nextEntry={entries[snapshot.nextIndex]}
+              nextIndex={snapshot.nextIndex}
+              nextDisplayNum={snapshot.nextDisplayNum}
+              total={total}
+              lessonColor={lessonColor}
+              flipAnim={flipAnim}
+              flipDir={flipDir}
+              isFlipping={isFlipping}
+              isBackward={isBackward}
+            />
+            <View style={styles.bookBottomShadow} />
           </View>
 
-          {/* Orbit carousel */}
-          <GestureDetector gesture={pan}>
-            <View style={styles.orbitContainer} collapsable={false}>
-              {/* Dashed orbit ellipse */}
-              <Svg
-                width={ORBIT_RX * 2 + 20}
-                height={ORBIT_RY * 2 + 20}
-                style={styles.orbitEllipseSvg}
-                pointerEvents="none"
-              >
-                <Ellipse
-                  cx={ORBIT_RX + 10}
-                  cy={ORBIT_RY + 10}
-                  rx={ORBIT_RX}
-                  ry={ORBIT_RY}
-                  stroke="rgba(255,255,255,0.09)"
-                  strokeWidth={1}
-                  fill="none"
-                  strokeDasharray="4 7"
-                />
-              </Svg>
+          {/* Page turn controls */}
+          <View style={styles.pageControls}>
+            <Pressable
+              onPress={goPrev}
+              style={({ pressed }) => [
+                styles.pageBtn,
+                { opacity: pressed ? 0.6 : 1, borderColor: lessonColor + "50" },
+              ]}
+              hitSlop={12}
+            >
+              <MaterialIcons
+                name="chevron-left"
+                size={26}
+                color={lessonColor}
+              />
+            </Pressable>
 
-              {/* Cards — rendered back-to-front */}
-              {slots.map(({ offset, lessonIdx }) => (
-                <OrbitCardSlot
-                  key={offset}
-                  lesson={lessons[lessonIdx]}
-                  lessonIndex={lessonIdx}
-                  total={total}
-                  slotOffset={offset}
-                  lessonColor={lessonColor}
-                  dragFrac={dragFrac}
-                  dragDir={dragDir}
-                />
-              ))}
-            </View>
-          </GestureDetector>
+            <PaginationDots
+              count={total}
+              active={displayIndex}
+              color={lessonColor}
+            />
 
-          {/* Pagination dots */}
-          <PaginationDots count={Math.min(total, 7)} active={Math.min(centerIndex, 6)} color={lessonColor} />
+            <Pressable
+              onPress={goNext}
+              style={({ pressed }) => [
+                styles.pageBtn,
+                { opacity: pressed ? 0.6 : 1, borderColor: lessonColor + "50" },
+              ]}
+              hitSlop={12}
+            >
+              <MaterialIcons
+                name="chevron-right"
+                size={26}
+                color={lessonColor}
+              />
+            </Pressable>
+          </View>
 
           {/* Swipe hint */}
           <Animated.View style={swipeHintStyle}>
-            <ThemedText style={styles.swipeHint}>{t("universe.modal.swipeHint")}</ThemedText>
+            <ThemedText style={styles.swipeHint}>
+              tap arrows to turn pages
+            </ThemedText>
           </Animated.View>
 
           {/* Challenge Me */}
@@ -533,15 +1091,33 @@ export function YourUniverseModal({ visible, onClose, onChallengeMePress }: Your
               onPress={onChallengeMePress}
               style={({ pressed }) => [{ opacity: pressed ? 0.75 : 1 }]}
             >
-              <Animated.View style={[styles.challengePill, { borderColor: lessonColor + "99", backgroundColor: lessonColor + "18" }, challengeStyle]}>
-                <View style={[styles.challengeGlow, { backgroundColor: lessonColor + "15" }]} />
+              <Animated.View
+                style={[
+                  styles.challengePill,
+                  {
+                    borderColor: lessonColor + "99",
+                    backgroundColor: lessonColor + "18",
+                  },
+                  challengeStyle,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.challengeGlow,
+                    { backgroundColor: lessonColor + "15" },
+                  ]}
+                />
                 <MaterialIcons name="bolt" size={24} color={lessonColor} />
-                <ThemedText style={[styles.challengeTitle, { color: lessonColor }]}>
+                <ThemedText
+                  style={[styles.challengeTitle, { color: lessonColor }]}
+                >
                   {t("universe.modal.challengeMe")}
                 </ThemedText>
               </Animated.View>
             </Pressable>
-            <ThemedText style={styles.challengeSub}>{t("universe.modal.challengeSub")}</ThemedText>
+            <ThemedText style={styles.challengeSub}>
+              {t("universe.modal.challengeSub")}
+            </ThemedText>
           </View>
         </ScrollView>
       </View>
@@ -561,34 +1137,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     paddingHorizontal: 20,
-    paddingTop: 60,
-    marginBottom: 12,
+    paddingTop: 52,
+    marginBottom: 8,
   },
-  closeButtonSpacer: {
-    width: 30,
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: "center",
-  },
+  closeButtonSpacer: { width: 30 },
+  headerCenter: { flex: 1, alignItems: "center" },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "700",
     color: "#FFFFFF",
     textAlign: "center",
-    marginBottom: 4,
+    letterSpacing: 0.3,
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.42)",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.38)",
     textAlign: "center",
+    letterSpacing: 0.2,
   },
-  closeButton: {
-    padding: 4,
-    marginTop: 2,
-    width: 30,
-    alignItems: "flex-end",
-  },
+  closeButton: { padding: 4, marginTop: 2, width: 30, alignItems: "flex-end" },
   tabsRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -602,130 +1170,213 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 24,
   },
-  tabActiveText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#FFFFFF",
+  tabActiveText: { fontSize: 14, fontWeight: "700", color: "#FFFFFF" },
+  tabInactiveText: { fontSize: 14, color: "rgba(255,255,255,0.38)" },
+  sunSection: { alignItems: "center", marginBottom: 16, gap: 6 },
+  sunLabels: { alignItems: "center", gap: 2 },
+  youLabel: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+  keepLearning: { fontSize: 12, color: "rgba(255,255,255,0.48)" },
+
+  // ── Book ──────────────────────────────────────────────────────────────────
+  bookContainer: {
+    marginHorizontal: 8,
+    marginBottom: 4,
   },
-  tabInactiveText: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.38)",
-  },
-  sunSection: {
-    alignItems: "center",
-    marginBottom: 14,
-    gap: 8,
-  },
-  sunLabels: {
-    alignItems: "center",
-    gap: 3,
-  },
-  youLabel: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  keepLearning: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.48)",
-  },
-  orbitContainer: {
-    width: SCREEN_WIDTH,
-    height: ORBIT_H,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  orbitEllipseSvg: {
+  bookShadow: {
     position: "absolute",
-    alignSelf: "center",
-    top: ORBIT_H / 2 - ORBIT_RY - 10,
+    bottom: -10,
+    left: 20,
+    right: 20,
+    height: 20,
+    borderRadius: 12,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 18,
+    elevation: 12,
   },
-  // Each card starts centered; translateX/Y moves it to its slot on the ellipse
-  orbitCardWrapper: {
-    position: "absolute",
-    width: CARD_W,
-    height: CARD_H,
-    left: (SCREEN_WIDTH - CARD_W) / 2,
-    top: ORBIT_H / 2 - CARD_H / 2,
-  },
-  card: {
-    flex: 1,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderWidth: 1,
-    padding: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 8,
+  book: {
+    flexDirection: "row",
+    height: BOOK_H,
+    borderRadius: 6,
     overflow: "hidden",
   },
-  cardTopAccent: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  iconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    borderWidth: 1,
-    justifyContent: "center",
+  page: {
+    flex: 1,
+    height: BOOK_H,
+    padding: 16,
     alignItems: "center",
-    marginBottom: 14,
-  },
-  lessonText: {
-    fontSize: 14,
-    textAlign: "center",
-    color: "rgba(255,255,255,0.85)",
-    lineHeight: 21,
-    paddingHorizontal: 4,
-  },
-  indexBadge: {
-    position: "absolute",
-    bottom: 10,
-    right: 12,
+    justifyContent: "center",
+    overflow: "hidden",
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
   },
-  indexText: {
+  pageLeft: {
+    backgroundColor: "rgba(10,18,32,0.92)",
+    borderTopLeftRadius: 6,
+    borderBottomLeftRadius: 6,
+    borderRightWidth: 0,
+  },
+  pageRight: {
+    backgroundColor: "rgba(14,24,44,0.97)",
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 6,
+    borderLeftWidth: 0,
+    shadowOffset: { width: -4, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  pageLines: {
+    position: "absolute",
+    top: 36,
+    left: 12,
+    right: 12,
+    gap: 14,
+  },
+  pageLine: {
+    height: 1,
+    borderRadius: 1,
+  },
+  pageNumCorner: {
+    position: "absolute",
+    top: 10,
+  },
+  pageNum: {
     fontSize: 11,
     fontWeight: "600",
-    opacity: 0.9,
+    letterSpacing: 0.5,
+  },
+  pageIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  memoryImageWrapper: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: 4,
+  },
+  memoryImage: {
+    width: "100%",
+    height: "100%",
+  },
+  memoryImageDim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  memoryTitle: {
+    fontWeight: "600",
+    letterSpacing: 0.2,
+    marginBottom: 5,
+    textAlign: "center",
+    paddingHorizontal: 4,
+  },
+  pageDivider: {
+    width: "70%",
+    height: 1,
+    borderRadius: 1,
+    marginBottom: 8,
+  },
+  pageText: {
+    textAlign: "center",
+    lineHeight: 19,
+    paddingHorizontal: 2,
+  },
+  pageFold: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: 12,
+  },
+  pageFoldLeft: { right: 0 },
+  pageTurnShading: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    borderRadius: 6,
+  },
+  pageTurnShadowOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: 6,
+  },
+  // The turning page: positioned at the spine, same size as one page
+  turningPage: {
+    position: "absolute",
+    top: 0,
+    width: PAGE_W,
+    height: BOOK_H,
+    zIndex: 10,
+    overflow: "hidden",
+  },
+  turningPageInner: {
+    borderRadius: 0,
+  },
+  pageFoldRight: { left: 0 },
+  spine: {
+    width: SPINE_W,
+    height: BOOK_H,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  spineGlow: {
+    width: 3,
+    height: "80%",
+    borderRadius: 2,
+  },
+  bookBottomShadow: {
+    height: 6,
+    marginHorizontal: 12,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+
+  // ── Controls ──────────────────────────────────────────────────────────────
+  pageControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 4,
+  },
+  pageBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.04)",
   },
   dotsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    marginTop: 12,
-    marginBottom: 4,
+    gap: 5,
+    flex: 1,
+    flexWrap: "wrap",
+    paddingHorizontal: 8,
   },
-  dot: {
-    height: 6,
-    borderRadius: 3,
-  },
+  dot: { height: 5, borderRadius: 3 },
   swipeHint: {
     textAlign: "center",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.7)",
-    marginTop: 6,
-    marginBottom: 24,
-    letterSpacing: 0.4,
+    fontSize: 12,
+    color: "rgba(255,255,255,0.35)",
+    marginTop: 4,
+    marginBottom: 20,
+    letterSpacing: 0.3,
   },
-  challengeSection: {
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 32,
-  },
+
+  // ── Challenge Me ──────────────────────────────────────────────────────────
+  challengeSection: { alignItems: "center", gap: 12, paddingHorizontal: 32 },
   challengePill: {
     width: SCREEN_WIDTH - 64,
     height: 58,
@@ -737,18 +1388,71 @@ const styles = StyleSheet.create({
     gap: 10,
     overflow: "hidden",
   },
-  challengeGlow: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 29,
-  },
-  challengeTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-  },
+  challengeGlow: { ...StyleSheet.absoluteFillObject, borderRadius: 29 },
+  challengeTitle: { fontSize: 16, fontWeight: "700", letterSpacing: 0.3 },
   challengeSub: {
     fontSize: 13,
     color: "rgba(255,255,255,0.38)",
     textAlign: "center",
+  },
+
+  // ── Page layout patterns ───────────────────────────────────────────────────
+  patternCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    width: "100%",
+  },
+  patternSideRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    width: "100%",
+    paddingHorizontal: 4,
+  },
+  patternSideImage: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  patternSideText: {
+    flex: 1,
+    alignItems: "flex-start",
+    justifyContent: "center",
+    gap: 4,
+  },
+  patternQuote: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingHorizontal: 4,
+  },
+  pageQuoteText: {
+    textAlign: "center",
+    lineHeight: 22,
+    fontStyle: "italic",
+    fontWeight: "500",
+    paddingHorizontal: 2,
+  },
+
+  // ── Page-curl corner ──────────────────────────────────────────────────────
+  pageCurlCorner: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 22,
+    height: 22,
+  },
+  pageCurlTriangle: {
+    width: 0,
+    height: 0,
+    borderStyle: "solid",
+    borderRightWidth: 22,
+    borderTopWidth: 22,
+    borderRightColor: "transparent",
+    borderTopColor: "rgba(255,255,255,0.10)",
   },
 });

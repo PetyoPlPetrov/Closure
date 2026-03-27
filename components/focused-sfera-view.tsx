@@ -7,7 +7,7 @@
 
 import { ConstellationBackground } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
-import { YourUniverseModal } from "@/components/your-universe-modal";
+import { UniverseLessonsScreen } from "@/components/universe-lessons-screen";
 import { Colors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
@@ -48,6 +48,7 @@ import Animated, {
 import Svg, {
   ClipPath,
   Defs,
+  Ellipse as SvgEllipse,
   FeColorMatrix,
   FeGaussianBlur,
   FeMerge,
@@ -174,12 +175,82 @@ export type FocusedSferaViewProps = {
   pulsingAnimations?: boolean;
   /** Called when user taps insights icon from the expanded sun menu. Navigates to /insights. */
   onInsightsPress?: () => void;
+  /** Called when user taps "Challenge Me" in Universe Lessons or Your Universe modal. Runs rate-limit check and spins main wheel. */
+  onChallengeMePress?: () => void;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
 
 const MOMENT_ICON_SIZE = 16;
 const MOMENT_ORBIT_RADIUS = 32; // outside entity avatar (entity radius ~20 for focused; +12 gap so memories sit clearly away)
+
+// ─── Background decorative sferas (rings, orbs, arcs) ───────────────────────
+// Lesson card occupies roughly the horizontal center and y: 180–420.
+// Decorations avoid that zone by staying in corners / edges.
+const BG_DECOR = [
+  // top-left corner cluster
+  { cx: SW * 0.08, cy: SH * 0.07, rx: 52, ry: 52, strokeW: 1.2, op: 0.10, fill: false },
+  { cx: SW * 0.08, cy: SH * 0.07, rx: 32, ry: 32, strokeW: 0.7, op: 0.07, fill: false },
+  { cx: SW * 0.14, cy: SH * 0.12, rx: 14, ry: 14, strokeW: 0, op: 0.08, fill: true },
+  // top-right corner
+  { cx: SW * 0.88, cy: SH * 0.06, rx: 44, ry: 44, strokeW: 1.0, op: 0.09, fill: false },
+  { cx: SW * 0.92, cy: SH * 0.10, rx: 20, ry: 20, strokeW: 0, op: 0.07, fill: true },
+  { cx: SW * 0.82, cy: SH * 0.14, rx: 10, ry: 10, strokeW: 0, op: 0.05, fill: true },
+  // left edge mid (below lesson card zone)
+  { cx: SW * 0.04, cy: SH * 0.60, rx: 60, ry: 36, strokeW: 0.8, op: 0.08, fill: false },
+  { cx: SW * 0.06, cy: SH * 0.55, rx: 18, ry: 18, strokeW: 0, op: 0.06, fill: true },
+  // right edge mid
+  { cx: SW * 0.96, cy: SH * 0.58, rx: 50, ry: 30, strokeW: 0.9, op: 0.08, fill: false },
+  { cx: SW * 0.90, cy: SH * 0.64, rx: 12, ry: 12, strokeW: 0, op: 0.05, fill: true },
+  // bottom cluster
+  { cx: SW * 0.18, cy: SH * 0.88, rx: 68, ry: 42, strokeW: 1.1, op: 0.09, fill: false },
+  { cx: SW * 0.22, cy: SH * 0.93, rx: 22, ry: 22, strokeW: 0, op: 0.07, fill: true },
+  { cx: SW * 0.78, cy: SH * 0.90, rx: 55, ry: 34, strokeW: 1.0, op: 0.08, fill: false },
+  { cx: SW * 0.75, cy: SH * 0.85, rx: 16, ry: 16, strokeW: 0, op: 0.06, fill: true },
+  // scattered small orbs (all outside lesson zone)
+  { cx: SW * 0.50, cy: SH * 0.04, rx: 8, ry: 8, strokeW: 0, op: 0.06, fill: true },
+  { cx: SW * 0.30, cy: SH * 0.08, rx: 5, ry: 5, strokeW: 0, op: 0.05, fill: true },
+  { cx: SW * 0.68, cy: SH * 0.09, rx: 7, ry: 7, strokeW: 0, op: 0.05, fill: true },
+  { cx: SW * 0.12, cy: SH * 0.75, rx: 9, ry: 9, strokeW: 0, op: 0.06, fill: true },
+  { cx: SW * 0.88, cy: SH * 0.80, rx: 6, ry: 6, strokeW: 0, op: 0.05, fill: true },
+];
+
+const BackgroundDecorations = React.memo(function BackgroundDecorations() {
+  return (
+    <Svg
+      width={SW}
+      height={SH}
+      style={StyleSheet.absoluteFill}
+      pointerEvents="none"
+    >
+      {BG_DECOR.map((d, i) =>
+        d.fill ? (
+          <SvgEllipse
+            key={i}
+            cx={d.cx}
+            cy={d.cy}
+            rx={d.rx}
+            ry={d.ry}
+            fill="#B0C8FF"
+            fillOpacity={d.op}
+          />
+        ) : (
+          <SvgEllipse
+            key={i}
+            cx={d.cx}
+            cy={d.cy}
+            rx={d.rx}
+            ry={d.ry}
+            fill="none"
+            stroke="#B0C8FF"
+            strokeWidth={d.strokeW}
+            strokeOpacity={d.op}
+          />
+        )
+      )}
+    </Svg>
+  );
+});
 
 /** Compute sunny % for a memory from goodFacts vs hardTruths; 50 = neutral, 100 = all sunny, 0 = all cloudy */
 function getMemorySunnyPercentage(memory: IdealizedMemory): number {
@@ -1126,7 +1197,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
           width: SPHERE_CONTAINER_SIZE,
           height: SPHERE_CONTAINER_SIZE,
           zIndex: isFocused ? 12 : 10,
-          opacity: isFocused ? 1 : isInitialView ? 0.35 : 0.55,
+          opacity: isFocused ? 1 : isInitialView ? 0.35 : 0.8,
           justifyContent: "center",
           alignItems: "center",
         }}
@@ -1201,11 +1272,25 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
               backgroundColor: "rgba(255,255,255,0.45)",
             }}
           />
+          {/* Desaturation overlay for unfocused spheres — washes out color to grey */}
+          {!isFocused && (
+            <View
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+                borderRadius: 1000,
+                backgroundColor: "rgba(20,26,46,0.65)",
+              }}
+            />
+          )}
           <MaterialIcons
             name={sphere.icon as any}
             size={iconSize}
             color={iconColor}
-            style={{ position: "absolute", zIndex: 1, pointerEvents: "none" }}
+            style={{ position: "absolute", zIndex: 1, pointerEvents: "none", opacity: isFocused ? 1 : 0.45 }}
           />
         </Animated.View>
       </Pressable>
@@ -1216,7 +1301,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
           top: 0,
           width: SPHERE_CONTAINER_SIZE,
           height: SPHERE_CONTAINER_SIZE,
-          opacity: isFocused ? 1 : isInitialView ? 0.35 : 0.55,
+          opacity: isFocused ? 1 : isInitialView ? 0.2 : 0.35,
           zIndex: isFocused ? 12 : 10,
           pointerEvents: "box-none",
         }}
@@ -1514,6 +1599,144 @@ const WheelOfLifeIcon = React.memo(function WheelOfLifeIcon({ size }: { size: nu
   );
 });
 
+// ─── Universe Scroll Icon: vertical stack of sfera orbs + upward swipe arrow ───
+// Distinct from WheelOfLifeIcon (orbital orrery). Communicates "scroll through lessons".
+const UniverseScrollIcon = React.memo(function UniverseScrollIcon({ size }: { size: number }) {
+  const C = size / 2;
+  // Three stacked orbs — relationships (red), career (blue), family (purple)
+  const ORB_COLORS = ["#FF8888", "#7BB8FF", "#C088FF"] as const;
+  const ORB_R = size * 0.13;
+  // Orb vertical positions: top, center, bottom — slightly offset left of center to leave room for arrow
+  const ORB_X = C - size * 0.08;
+  const ORB_POSITIONS = [C - size * 0.28, C, C + size * 0.28] as const;
+  // Connecting dashed line between orbs
+  const LINE_X = ORB_X;
+
+  // Floating animation: orbs gently drift up
+  const floatY = useSharedValue(0);
+  // Arrow pulse
+  const arrowOpacity = useSharedValue(0.4);
+  const arrowTranslateY = useSharedValue(0);
+
+  useEffect(() => {
+    floatY.value = withRepeat(
+      withTiming(-size * 0.06, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
+    );
+    arrowOpacity.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 600, easing: Easing.out(Easing.ease) }),
+        withTiming(0.35, { duration: 700, easing: Easing.in(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+    arrowTranslateY.value = withRepeat(
+      withSequence(
+        withTiming(-size * 0.08, { duration: 600, easing: Easing.out(Easing.ease) }),
+        withTiming(0, { duration: 700, easing: Easing.in(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+    return () => {
+      cancelAnimation(floatY);
+      cancelAnimation(arrowOpacity);
+      cancelAnimation(arrowTranslateY);
+    };
+  }, [floatY, arrowOpacity, arrowTranslateY, size]);
+
+  const orbsStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: floatY.value }],
+  }));
+
+  const arrowStyle = useAnimatedStyle(() => ({
+    opacity: arrowOpacity.value,
+    transform: [{ translateY: arrowTranslateY.value }],
+  }));
+
+  // Arrow chevrons (×2 stacked, pointing up) — right side of orbs
+  const ARROW_X = C + size * 0.22;
+  const ARROW_Y1 = C + size * 0.06;
+  const ARROW_Y2 = C - size * 0.1;
+  const ARROW_W = size * 0.14;
+  const ARROW_H = size * 0.09;
+
+  return (
+    <View style={{ width: size, height: size }}>
+      {/* Static: connecting line + subtle outer glow disc */}
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "absolute" }}>
+        <Defs>
+          <RadialGradient id="usDiscGlow" cx={`${C}`} cy={`${C}`} r={`${C}`} gradientUnits="userSpaceOnUse">
+            <Stop offset="0%" stopColor="#5CE1E6" stopOpacity="0.06" />
+            <Stop offset="100%" stopColor="#5CE1E6" stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        <SvgCircle cx={C} cy={C} r={C - 0.5} fill="url(#usDiscGlow)" />
+        {/* Dashed connecting line between orb centers */}
+        <Line
+          x1={LINE_X}
+          y1={ORB_POSITIONS[0] + ORB_R + 1}
+          x2={LINE_X}
+          y2={ORB_POSITIONS[2] - ORB_R - 1}
+          stroke="rgba(255,255,255,0.18)"
+          strokeWidth={1}
+          strokeDasharray="2 3"
+        />
+      </Svg>
+
+      {/* Animated: orbs floating */}
+      <Animated.View style={[{ position: "absolute", width: size, height: size }, orbsStyle]} pointerEvents="none">
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <Defs>
+            {ORB_COLORS.map((color, i) => (
+              <RadialGradient key={i} id={`usOrb${i}`} cx={`${ORB_X - ORB_R * 0.3}`} cy={`${ORB_POSITIONS[i] - ORB_R * 0.3}`} r={`${ORB_R * 1.6}`} gradientUnits="userSpaceOnUse">
+                <Stop offset="0%" stopColor={color} stopOpacity="1" />
+                <Stop offset="60%" stopColor={color} stopOpacity="0.8" />
+                <Stop offset="100%" stopColor={color} stopOpacity="0.3" />
+              </RadialGradient>
+            ))}
+          </Defs>
+          {ORB_COLORS.map((color, i) => (
+            <React.Fragment key={i}>
+              {/* Glow halo */}
+              <SvgCircle cx={ORB_X} cy={ORB_POSITIONS[i]} r={ORB_R * 1.55} fill={color} opacity={0.12} />
+              {/* Orb body */}
+              <SvgCircle cx={ORB_X} cy={ORB_POSITIONS[i]} r={ORB_R} fill={`url(#usOrb${i})`} />
+              {/* Specular highlight */}
+              <SvgCircle cx={ORB_X - ORB_R * 0.28} cy={ORB_POSITIONS[i] - ORB_R * 0.3} r={ORB_R * 0.28} fill="#FFFFFF" opacity={0.45} />
+            </React.Fragment>
+          ))}
+        </Svg>
+      </Animated.View>
+
+      {/* Animated: upward swipe arrow */}
+      <Animated.View style={[{ position: "absolute", width: size, height: size }, arrowStyle]} pointerEvents="none">
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          {/* Two chevron arrows pointing up */}
+          <Path
+            d={`M ${ARROW_X - ARROW_W} ${ARROW_Y1} L ${ARROW_X} ${ARROW_Y1 - ARROW_H} L ${ARROW_X + ARROW_W} ${ARROW_Y1}`}
+            fill="none"
+            stroke="rgba(92,225,230,0.9)"
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d={`M ${ARROW_X - ARROW_W} ${ARROW_Y2} L ${ARROW_X} ${ARROW_Y2 - ARROW_H} L ${ARROW_X + ARROW_W} ${ARROW_Y2}`}
+            fill="none"
+            stroke="rgba(92,225,230,0.55)"
+            strokeWidth={1.4}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
+      </Animated.View>
+    </View>
+  );
+});
+
 const SunAvatar = React.memo(function SunAvatar({
   percentage,
   hasMemories,
@@ -1603,6 +1826,12 @@ const SunAvatar = React.memo(function SunAvatar({
     };
   }, [avatarPulseScale]);
 
+  // Ray opacity derived from pulse scale — always in sync (scale 1→1.08 maps to opacity 0.25→0.82)
+  const rayLayerStyle = useAnimatedStyle(() => {
+    const t = (avatarPulseScale.value - 1) / 0.08; // 0 at rest, 1 at peak
+    return { opacity: 0.25 + t * 0.57 };
+  });
+
   // Scale up slightly and move up when expanded
   const compositeStyle = useAnimatedStyle(() => ({
     transform: [
@@ -1690,11 +1919,11 @@ const SunAvatar = React.memo(function SunAvatar({
           {/* Layer 1 — rotating rays only */}
           <Animated.View
             pointerEvents="none"
-            style={[{ position: "absolute", width: wrapperSize, height: wrapperSize }, rotatingStyle]}
+            style={[{ position: "absolute", width: wrapperSize, height: wrapperSize }, rotatingStyle, rayLayerStyle]}
           >
             <Svg width={wrapperSize} height={wrapperSize} viewBox={`0 0 ${wrapperSize} ${wrapperSize}`} style={{ position: "absolute" }}>
               {rays.map((ray, i) => (
-                <Path key={i} d={ray.d} fill={ray.color} opacity={0.82} />
+                <Path key={i} d={ray.d} fill={ray.color} />
               ))}
             </Svg>
           </Animated.View>
@@ -2066,6 +2295,7 @@ export function FocusedSferaView({
   hidden = false,
   pulsingAnimations = true,
   onInsightsPress,
+  onChallengeMePress,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
   const { appUsabilityHints } = useVisualSettings();
@@ -2081,7 +2311,7 @@ export function FocusedSferaView({
   const [isSunExpanded, setIsSunExpanded] = useState(false);
   const sunMenuOpacity = useSharedValue(0);
   const sunMenuTranslateY = useSharedValue(20);
-  const [universeModalVisible, setUniverseModalVisible] = useState(false);
+  const [universeLessonsVisible, setUniverseLessonsVisible] = useState(false);
 
   // Sun centered state (initial view only): true = floated to screen center
   const [isSunCentered, setIsSunCentered] = useState(false);
@@ -2308,6 +2538,8 @@ export function FocusedSferaView({
         constellationOpacity={constellationOpacity}
       />
 
+      <BackgroundDecorations />
+
       {/* ─── Sparkled dots scattered across screen ─── */}
       <SparkledDots
         avatarSize={avatarSizeForDots}
@@ -2390,7 +2622,7 @@ export function FocusedSferaView({
       />
 
       {/* ─── Center: Sfera Insight Card (individual sfera view) or Sun Avatar (overview) ─── */}
-      {selectedSphere !== null ? (
+      {selectedSphere !== null && (entityIdsBySphere[focusedSphere.type]?.length ?? 0) > 0 ? (
         <SferaInsightCard
           sphere={focusedSphere.type}
           entityIds={entityIdsBySphere[focusedSphere.type] ?? []}
@@ -2464,11 +2696,11 @@ export function FocusedSferaView({
               </ThemedText>
             </Pressable>
 
-            {/* Wheel of Life button */}
+            {/* Universe Lessons scroll button */}
             <Pressable
               onPress={() => {
                 handleCollapseSun();
-                onSwitchToClassic();
+                setUniverseLessonsVisible(true);
               }}
               style={{ alignItems: "center", gap: 8 }}
             >
@@ -2477,44 +2709,25 @@ export function FocusedSferaView({
                   width: 80,
                   height: 80,
                   borderRadius: 40,
-                  backgroundColor: "rgba(13,21,37,0.7)",
+                  backgroundColor: "rgba(80,20,130,0.35)",
                   borderWidth: 2,
-                  borderColor: "rgba(92,225,230,0.45)",
+                  borderColor: "rgba(190,100,255,0.55)",
                   justifyContent: "center",
                   alignItems: "center",
-                  shadowColor: "#5CE1E6",
+                  shadowColor: "#BE64FF",
                   shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.45,
-                  shadowRadius: 10,
-                  elevation: 10,
+                  shadowOpacity: 0.55,
+                  shadowRadius: 12,
+                  elevation: 12,
                 }}
               >
-                <WheelOfLifeIcon size={44} />
+                <UniverseScrollIcon size={44} />
               </View>
               <ThemedText style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, letterSpacing: 0.3 }}>
                 {language === "bg" ? "Уроци" : "Universe Lessons"}
               </ThemedText>
             </Pressable>
 
-            {/* Your Universe / book button */}
-            <Pressable
-              onPress={() => { handleCollapseSun(); setUniverseModalVisible(true); }}
-              style={{ alignItems: "center", gap: 8 }}
-            >
-              <View style={{
-                width: 80, height: 80, borderRadius: 40,
-                backgroundColor: "rgba(245,200,66,0.15)",
-                borderWidth: 2, borderColor: "rgba(245,200,66,0.5)",
-                justifyContent: "center", alignItems: "center",
-                shadowColor: "#F5C842", shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.45, shadowRadius: 10, elevation: 10,
-              }}>
-                <MaterialIcons name="auto-stories" size={36} color="#F5C842" />
-              </View>
-              <ThemedText style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, letterSpacing: 0.3 }}>
-                {t("universe.modal.bookButton")}
-              </ThemedText>
-            </Pressable>
           </Animated.View>
         </>
       )}
@@ -2604,10 +2817,9 @@ export function FocusedSferaView({
         </>
       )}
 
-      <YourUniverseModal
-        visible={universeModalVisible}
-        onClose={() => setUniverseModalVisible(false)}
-        onChallengeMePress={() => { setUniverseModalVisible(false); onSwitchToClassic(); }}
+      <UniverseLessonsScreen
+        visible={universeLessonsVisible}
+        onClose={() => setUniverseLessonsVisible(false)}
       />
     </View>
   );

@@ -4820,7 +4820,7 @@ const translations: Record<Language, Translations> = {
       "Sferas AI and Voice-to-Text are now here to help you transform your spoken stories into structured memories, organised moments and lasting lessons instantly!",
 
     // Your Universe Modal
-    "universe.modal.title": "Your Universe",
+    "universe.modal.title": "Sferas Lessons",
     "universe.modal.subtitle": "Explore a random lesson",
     "universe.modal.youLabel": "You",
     "universe.modal.keepLearning": "Keep learning & growing",
@@ -9409,7 +9409,7 @@ const translations: Record<Language, Translations> = {
       "Sferas AI и глас към текст вече са тук, за да ви помогнат да превърнете разказаните си истории в структурирани спомени, организирани моменти и трайни уроци мигновено!",
 
     // Your Universe Modal
-    "universe.modal.title": "Твоята Вселена",
+    "universe.modal.title": "Sferas уроци",
     "universe.modal.subtitle": "Разгледай случаен урок",
     "universe.modal.youLabel": "Ти",
     "universe.modal.keepLearning": "Продължавай да учиш и растеш",
