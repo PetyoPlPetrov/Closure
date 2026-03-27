@@ -8,6 +8,7 @@
 import { ConstellationBackground } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
 import { UniverseLessonsScreen } from "@/components/universe-lessons-screen";
+import { UniverseExamScreen } from "@/components/universe-exam-screen";
 import { Colors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
@@ -2312,6 +2313,7 @@ export function FocusedSferaView({
   const sunMenuOpacity = useSharedValue(0);
   const sunMenuTranslateY = useSharedValue(20);
   const [universeLessonsVisible, setUniverseLessonsVisible] = useState(false);
+  const [universeExamVisible, setUniverseExamVisible] = useState(false);
 
   // Sun centered state (initial view only): true = floated to screen center
   const [isSunCentered, setIsSunCentered] = useState(false);
@@ -2653,11 +2655,11 @@ export function FocusedSferaView({
             style={[
               {
                 position: "absolute",
-                left: SW / 2 - 145,
+                left: 20,
                 top: SH * 0.5 + 120,
-                width: 290,
+                width: SW - 40,
                 flexDirection: "row",
-                justifyContent: "space-around",
+                justifyContent: "space-evenly",
                 alignItems: "flex-start",
                 zIndex: 30,
               },
@@ -2725,6 +2727,38 @@ export function FocusedSferaView({
               </View>
               <ThemedText style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, letterSpacing: 0.3 }}>
                 {language === "bg" ? "Уроци" : "Universe Lessons"}
+              </ThemedText>
+            </Pressable>
+
+            {/* Universe Exam button */}
+            <Pressable
+              onPress={() => {
+                handleCollapseSun();
+                setUniverseExamVisible(true);
+              }}
+              style={{ alignItems: "center", gap: 8 }}
+            >
+              <View
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  backgroundColor: "rgba(20,80,130,0.35)",
+                  borderWidth: 2,
+                  borderColor: "rgba(92,225,230,0.55)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  shadowColor: "#5CE1E6",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.55,
+                  shadowRadius: 12,
+                  elevation: 12,
+                }}
+              >
+                <MaterialIcons name="fact-check" size={36} color="#5CE1E6" />
+              </View>
+              <ThemedText style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, letterSpacing: 0.3 }}>
+                {t("universe.exam.title")}
               </ThemedText>
             </Pressable>
 
@@ -2820,6 +2854,10 @@ export function FocusedSferaView({
       <UniverseLessonsScreen
         visible={universeLessonsVisible}
         onClose={() => setUniverseLessonsVisible(false)}
+      />
+      <UniverseExamScreen
+        visible={universeExamVisible}
+        onClose={() => setUniverseExamVisible(false)}
       />
     </View>
   );

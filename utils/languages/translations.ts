@@ -893,6 +893,9 @@ export interface Translations {
   "universe.modal.bookButton": string;
   "universe.modal.tabLessons": string;
   "universe.modal.tabMoments": string;
+  "universe.exam.title": string;
+  "universe.exam.next": string;
+  "universe.exam.done": string;
 
   // Settings - Moments Colors
   "settings.momentColors.title": string;
@@ -4830,6 +4833,9 @@ const translations: Record<Language, Translations> = {
     "universe.modal.bookButton": "Your Universe",
     "universe.modal.tabLessons": "Lessons",
     "universe.modal.tabMoments": "Sunny Moments",
+    "universe.exam.title": "Lesson Check",
+    "universe.exam.next": "Next Question",
+    "universe.exam.done": "Done",
 
     // Settings - Moments Colors
     "settings.momentColors.title": "Moments Colors",
@@ -9419,6 +9425,9 @@ const translations: Record<Language, Translations> = {
     "universe.modal.bookButton": "Твоята вселена",
     "universe.modal.tabLessons": "Уроци",
     "universe.modal.tabMoments": "Слънчеви моменти",
+    "universe.exam.title": "Преговор",
+    "universe.exam.next": "Следващ въпрос",
+    "universe.exam.done": "Готово",
 
     // Settings - Moments Colors
     "settings.momentColors.title": "Цветове на моменти",
