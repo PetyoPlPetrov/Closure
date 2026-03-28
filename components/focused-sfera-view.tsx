@@ -6,6 +6,7 @@
  */
 
 import { ConstellationBackground } from "@/components/constellation-background";
+import { Fireworks } from "@/components/fireworks";
 import { ThemedText } from "@/components/themed-text";
 import { UniverseLessonsScreen } from "@/components/universe-lessons-screen";
 import { UniverseExamScreen } from "@/components/universe-exam-screen";
@@ -37,7 +38,10 @@ import {
 import Animated, {
   cancelAnimation,
   Easing,
+  runOnJS,
   SharedValue,
+  useAnimatedProps,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -63,6 +67,8 @@ import Svg, {
   Circle as SvgCircle,
   LinearGradient as SvgLinearGradient,
 } from "react-native-svg";
+
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 const { width: SW, height: SH } = Dimensions.get("window");
 
@@ -178,6 +184,8 @@ export type FocusedSferaViewProps = {
   onInsightsPress?: () => void;
   /** Called when user taps "Challenge Me" in Universe Lessons or Your Universe modal. Runs rate-limit check and spins main wheel. */
   onChallengeMePress?: () => void;
+  /** When true, the splash screen animation has finished and the joy-meter intro sequence can begin. */
+  splashDone?: boolean;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -561,6 +569,7 @@ const EntityRing = React.memo(function EntityRing({
   orbitRadius,
   avatarSize,
   glowColor,
+  isFocused = false,
   showFloatingMoments = false,
   rotateOrbit = false,
   orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
@@ -577,6 +586,7 @@ const EntityRing = React.memo(function EntityRing({
   orbitRadius: number;
   avatarSize: number;
   glowColor: string;
+  isFocused?: boolean;
   showFloatingMoments?: boolean;
   rotateOrbit?: boolean;
   orbitDurationMs?: number;
@@ -631,6 +641,7 @@ const EntityRing = React.memo(function EntityRing({
             avatarSize={avatarSize}
             borderWidth={borderWidth}
             glowColor={glowColor}
+            isFocused={isFocused}
             isTablet={isTablet}
             showFloatingMoments={showFloatingMoments}
             entityMemories={memories}
@@ -659,6 +670,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   avatarSize,
   borderWidth,
   glowColor,
+  isFocused,
   isTablet,
   showFloatingMoments,
   entityMemories,
@@ -680,6 +692,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   avatarSize: number;
   borderWidth: number;
   glowColor: string;
+  isFocused: boolean;
   isTablet: boolean;
   showFloatingMoments: boolean;
   entityMemories: IdealizedMemory[];
@@ -690,6 +703,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   shouldDoRandomPulse: boolean;
 }) {
   const scale = useSharedValue(1);
+
 
   // One-shot pulse when this entity is randomly chosen for periodic pulse
   useEffect(() => {
@@ -730,9 +744,10 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
           zIndex: 15,
           shadowColor: glowColor,
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.8,
+          shadowOpacity: isFocused ? 0.8 : 0.2,
           shadowRadius: isTablet ? 12 : 8,
           elevation: 8,
+          opacity: isFocused ? 1 : 0.55,
         },
       ]}
     >
@@ -948,6 +963,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   singleTapWhenFocused = false,
   sunExpanded,
   isInitialView = false,
+  sunLoadProgress,
+  sunLoadSweepOffset,
+  sunLoadEntityOpacity,
+  sphereIntroStaggerMs = 0,
 }: {
   sphereIdx: number;
   sphere: { type: LifeSphere; icon: string };
@@ -965,6 +984,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   singleTapWhenFocused?: boolean;
   sunExpanded: SharedValue<number>;
   isInitialView?: boolean;
+  sunLoadProgress?: SharedValue<number>;
+  sunLoadSweepOffset?: SharedValue<number>;
+  sunLoadEntityOpacity?: SharedValue<number>;
+  sphereIntroStaggerMs?: number;
 }) {
   const { isTablet } = useLargeDevice();
   const target = getSphereTarget(sphereIdx, focusedIdx);
@@ -1088,7 +1111,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   const slot = (sphereIdx - focusedIdx + 5) % 5;
 
   const containerStyle = useAnimatedStyle(() => {
-    const rad = (angle.value * Math.PI) / 180;
+    const totalAngle = angle.value + (sunLoadSweepOffset?.value ?? 0);
+    const rad = (totalAngle * Math.PI) / 180;
     const centerX = ORBIT_CX + ORBIT_R * Math.sin(rad);
     const centerY = ORBIT_CY + ORBIT_R * Math.cos(rad);
     // Depth from actual position on orbit (angle), not from slot — avoids "grow then move" pop on swipe
@@ -1109,13 +1133,17 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     const topLeftExtraOffsetY = slot === 3 ? 18 : 0;
     // When sun is expanded: shrink all spheres + dim them significantly
     const sunShrink = 1 - sunExpanded.value * 0.6;
+    // Sphere reveal during SunLoadAnimation
+    const introOpacity = sunLoadProgress
+      ? Math.min(1, Math.max(0, (sunLoadProgress.value - sphereIntroStaggerMs) / 300))
+      : 1;
     return {
       position: "absolute",
       left: 0,
       top: 0,
       width: SPHERE_CONTAINER_SIZE,
       height: SPHERE_CONTAINER_SIZE,
-      opacity: 1 - sunExpanded.value * 0.82,
+      opacity: introOpacity * (1 - sunExpanded.value * 0.82),
       transform: [
         { translateX: centerX - CONTAINER_HALF },
         {
@@ -1165,6 +1193,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     transform: [{ scale: spherePulseScale.value * firstTapFeedbackScale.value }],
   }));
 
+  const entityRingStyle = useAnimatedStyle(() => ({
+    opacity: sunLoadEntityOpacity ? sunLoadEntityOpacity.value : 1,
+  }));
+
   const iconSize = isFocused
     ? FOCUSED_ICON_SIZE
     : Math.round(target.size * 0.5);
@@ -1198,7 +1230,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
           width: SPHERE_CONTAINER_SIZE,
           height: SPHERE_CONTAINER_SIZE,
           zIndex: isFocused ? 12 : 10,
-          opacity: isFocused ? 1 : isInitialView ? 0.35 : 0.8,
+          opacity: isFocused ? 1 : isInitialView ? 0.55 : 0.8,
           justifyContent: "center",
           alignItems: "center",
         }}
@@ -1291,40 +1323,42 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             name={sphere.icon as any}
             size={iconSize}
             color={iconColor}
-            style={{ position: "absolute", zIndex: 1, pointerEvents: "none", opacity: isFocused ? 1 : 0.45 }}
+            style={{ position: "absolute", zIndex: 1, pointerEvents: "none", opacity: isFocused ? 1 : 0.6 }}
+          />
+        </Animated.View>
+        <Animated.View
+          style={[
+            {
+              position: "absolute",
+              left: 0,
+              top: 0,
+              width: SPHERE_CONTAINER_SIZE,
+              height: SPHERE_CONTAINER_SIZE,
+              pointerEvents: "box-none",
+            },
+            entityRingStyle,
+          ]}
+        >
+          <EntityRing
+            uris={entityUris}
+            entityIds={entityIds}
+            entityNames={entityNames}
+            entityMemories={entityMemories}
+            onEntitySelect={handleEntitySelect}
+            sphere={sphere.type}
+            centerX={CONTAINER_HALF}
+            centerY={CONTAINER_HALF}
+            orbitRadius={orbitRadius}
+            avatarSize={entityAvatarSize}
+            glowColor={shadowColor}
+            isFocused={isFocused}
+            showFloatingMoments={isFocused}
+            rotateOrbit={isFocused}
+            orbitDurationMs={orbitDurationMs}
+            randomPulseIndex={randomPulseIndex}
           />
         </Animated.View>
       </Pressable>
-      <View
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          width: SPHERE_CONTAINER_SIZE,
-          height: SPHERE_CONTAINER_SIZE,
-          opacity: isFocused ? 1 : isInitialView ? 0.2 : 0.35,
-          zIndex: isFocused ? 12 : 10,
-          pointerEvents: "box-none",
-        }}
-      >
-        <EntityRing
-          uris={entityUris}
-          entityIds={entityIds}
-          entityNames={entityNames}
-          entityMemories={entityMemories}
-          onEntitySelect={handleEntitySelect}
-          sphere={sphere.type}
-          centerX={CONTAINER_HALF}
-          centerY={CONTAINER_HALF}
-          orbitRadius={orbitRadius}
-          avatarSize={entityAvatarSize}
-          glowColor={shadowColor}
-          showFloatingMoments={isFocused}
-          rotateOrbit={isFocused}
-          orbitDurationMs={orbitDurationMs}
-          randomPulseIndex={randomPulseIndex}
-        />
-      </View>
     </Animated.View>
   );
 });
@@ -1748,6 +1782,8 @@ const SunAvatar = React.memo(function SunAvatar({
   y,
   sunExpanded,
   isCentered,
+  sunLoadScale,
+  sunLoadDisplayPct,
 }: {
   percentage: number;
   hasMemories: boolean;
@@ -1760,6 +1796,9 @@ const SunAvatar = React.memo(function SunAvatar({
   y: number;
   sunExpanded: SharedValue<number>;
   isCentered: boolean;
+  sunLoadScale?: SharedValue<number>;
+  /** When provided (during intro), animates the displayed % and fill from 0 → percentage. */
+  sunLoadDisplayPct?: SharedValue<number>;
 }) {
   const { momentColors } = useMomentColors();
   const t = useTranslate();
@@ -1833,11 +1872,11 @@ const SunAvatar = React.memo(function SunAvatar({
     return { opacity: 0.25 + t * 0.57 };
   });
 
-  // Scale up slightly and move up when expanded
+  // Scale up slightly and move up when expanded; multiply by intro scale when provided
   const compositeStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: -sunExpanded.value * 40 },
-      { scale: avatarPulseScale.value * (1 + sunExpanded.value * 0.12) },
+      { scale: avatarPulseScale.value * (1 + sunExpanded.value * 0.12) * (sunLoadScale?.value ?? 1) },
     ],
   }));
 
@@ -1888,7 +1927,8 @@ const SunAvatar = React.memo(function SunAvatar({
     transform: [
       { translateX: centeredProgress.value * targetTX },
       { translateY: centeredProgress.value * targetTY },
-      { scale: 1 + centeredProgress.value * 0.45 },
+      // Only add centering scale when not in intro (intro uses sunLoadScale for sizing)
+      { scale: sunLoadScale ? 1 : 1 + centeredProgress.value * 0.45 },
     ],
   }));
 
@@ -1903,7 +1943,18 @@ const SunAvatar = React.memo(function SunAvatar({
 
   // Clip rect for fill level — relative to canvas (disc top = C - DISC_R)
   const discTop = C - DISC_R;
-  const fillClipY = discTop + DISC_R * 2 * (1 - percentage / 100);
+  const animatedFillClipProps = useAnimatedProps(() => {
+    const pct = sunLoadDisplayPct ? sunLoadDisplayPct.value : percentage;
+    const y = discTop + DISC_R * 2 * (1 - pct / 100);
+    return { y, height: Math.max(0, wrapperSize - y) };
+  });
+  // JS-side display percentage for the text counter — synced from the UI-thread shared value
+  const [displayPctJs, setDisplayPctJs] = useState(sunLoadDisplayPct ? 0 : percentage);
+  useAnimatedReaction(
+    () => sunLoadDisplayPct ? sunLoadDisplayPct.value : percentage,
+    (val) => { runOnJS(setDisplayPctJs)(Math.round(val)); },
+    [sunLoadDisplayPct, percentage],
+  );
 
   return (
     <Animated.View style={[wrapperStyle, centeringStyle]}>
@@ -1948,13 +1999,13 @@ const SunAvatar = React.memo(function SunAvatar({
                 <Stop offset="100%" stopColor={FILL_BOT} stopOpacity="1" />
               </SvgLinearGradient>
               <ClipPath id="fillLevelClip">
-                <Rect x={0} y={fillClipY} width={wrapperSize} height={wrapperSize - fillClipY} />
+                <AnimatedRect x={0} width={wrapperSize} animatedProps={animatedFillClipProps} />
               </ClipPath>
             </Defs>
             {/* Deep cosmic background disc */}
             <SvgCircle cx={C} cy={C} r={DISC_R} fill="url(#discNebulaGrad)" />
             {/* Cosmic fire fill rising from bottom */}
-            {percentage > 0 && (
+            {(percentage > 0 || sunLoadDisplayPct != null) && (
               <SvgCircle cx={C} cy={C} r={DISC_R} fill="url(#sunFillGrad)" clipPath="url(#fillLevelClip)" />
             )}
           </Svg>
@@ -1984,7 +2035,7 @@ const SunAvatar = React.memo(function SunAvatar({
                     textShadowRadius: 4,
                   }}
                 >
-                  {Math.round(percentage)}%
+                  {displayPctJs}%
                 </ThemedText>
                 {language === "bg" ? (
                   <View style={{ alignItems: "center" }}>
@@ -2297,9 +2348,10 @@ export function FocusedSferaView({
   pulsingAnimations = true,
   onInsightsPress,
   onChallengeMePress,
+  splashDone = true,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
-  const { appUsabilityHints } = useVisualSettings();
+  const { appUsabilityHints, sunnyMomentsCongratsAnimation } = useVisualSettings();
   const focusedSpherePulseRef = useRef<(() => void) | null>(null);
   const focusedSphereTapTimeRef = useRef<number>(0);
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
@@ -2317,6 +2369,18 @@ export function FocusedSferaView({
 
   // Sun centered state (initial view only): true = floated to screen center
   const [isSunCentered, setIsSunCentered] = useState(false);
+
+  // SunLoadAnimation — plays on first app open when overall sunny % is ≥ 50 and selectedSphere is null.
+  // Initial state is "pending" (not complete) so we don't flash the normal view before deciding.
+  const sunLoadProgress      = useSharedValue(0);
+  const sunLoadSweepOffset   = useSharedValue(0);
+  const sunLoadScale         = useSharedValue(1);   // set to 1.5 inside effect if intro plays
+  const sunLoadDisplayPct    = useSharedValue(0);
+  const sunLoadEntityOpacity = useSharedValue(0);   // entities hidden until orbit sweep
+  const congratsOpacity    = useSharedValue(0);
+  const [sunLoadComplete, setIntroComplete] = useState(selectedSphere !== null);
+  const [sunLoadFireworks, setIntroFireworks] = useState(false);
+  const [sunLoadCentered, setIntroCentered] = useState(false); // set to true inside effect if intro plays
 
   const handleSunPress = useCallback(() => {
     const next = !isSunExpanded;
@@ -2341,12 +2405,83 @@ export function FocusedSferaView({
     setFocusedIdx(initialFocusedIdx);
   }, [initialFocusedIdx]);
 
+  // SunLoadAnimation sequence — waits for splash done AND real percentage data (> 0) before deciding.
+  const sunLoadStartedRef = useRef(false);
+  useEffect(() => {
+    if (!splashDone || sunLoadStartedRef.current) return;
+    // Wait until data is loaded (percentage > 0 means memories exist and were calculated)
+    if (selectedSphere === null && overallSunnyPercentage === 0) return;
+    sunLoadStartedRef.current = true;
+
+    const shouldPlayIntro = sunnyMomentsCongratsAnimation && selectedSphere === null && overallSunnyPercentage >= 50;
+
+    if (!shouldPlayIntro) {
+      setIntroComplete(true);
+      setIntroCentered(false);
+      sunLoadScale.value = 1;
+      sunLoadDisplayPct.value = overallSunnyPercentage;
+      sunLoadEntityOpacity.value = 1;
+      return;
+    }
+
+    // Kick off intro: enlarge sun and center it
+    sunLoadScale.value = 1.5;
+    setIntroCentered(true);
+
+    // Phase 1 (0–2500ms): count percentage from 0 → actual
+    sunLoadDisplayPct.value = withTiming(overallSunnyPercentage, {
+      duration: 2500,
+      easing: Easing.out(Easing.quad),
+    });
+
+    // Phase 2 (2500ms): fireworks burst
+    const fireworksTimer = setTimeout(() => {
+      runOnJS(setIntroFireworks)(true);
+    }, 2500);
+
+    // Congrats text: fade in at 2500ms, fade out at 3400ms
+    congratsOpacity.value = withSequence(
+      withDelay(2500, withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) })),
+      withDelay(500, withTiming(0, { duration: 400, easing: Easing.in(Easing.ease) })),
+    );
+
+    // Phase 3 (3500ms): sun shrinks to 1×, un-center it
+    sunLoadScale.value = withDelay(3500, withSpring(1.0, { damping: 18, stiffness: 90 }));
+    const uncenterTimer = setTimeout(() => {
+      runOnJS(setIntroCentered)(false);
+    }, 3500);
+
+    // Phase 4 (4200–5000ms): sferas stagger in via sunLoadProgress
+    sunLoadProgress.value = withDelay(4200, withTiming(5000, { duration: 800, easing: Easing.out(Easing.quad) }));
+
+    // Phase 5 (5200ms): entities fade in as the orbit sweep begins
+    sunLoadEntityOpacity.value = withDelay(5200, withTiming(1, { duration: 600, easing: Easing.out(Easing.ease) }));
+
+    // Phase 5 (5200ms): full 360° orbit sweep
+    sunLoadSweepOffset.value = withDelay(
+      5200,
+      withTiming(360, { duration: 1400, easing: Easing.inOut(Easing.quad) }, (done) => {
+        "worklet";
+        if (done) {
+          sunLoadSweepOffset.value = 0;
+          runOnJS(setIntroComplete)(true);
+        }
+      }),
+    );
+
+    return () => {
+      clearTimeout(fireworksTimer);
+      clearTimeout(uncenterTimer);
+    };
+  }, [splashDone, overallSunnyPercentage]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Reset sun centering when leaving initial view
   useEffect(() => {
-    if (selectedSphere !== null) {
+    if (selectedSphere !== null && sunLoadComplete) {
       setIsSunCentered(false);
+      setIntroCentered(false);
     }
-  }, [selectedSphere]);
+  }, [selectedSphere, sunLoadComplete]);
 
   const goToSphere = useCallback(
     (newIdx: number) => {
@@ -2364,12 +2499,17 @@ export function FocusedSferaView({
       PanResponder.create({
         onStartShouldSetPanResponder: () => false,
         onMoveShouldSetPanResponder: (_, g) => {
+          if (!sunLoadComplete) return false;
           const startX = g.moveX - g.dx;
           const inSideRegion =
             startX < SW * SIDE_REGION_WIDTH ||
             startX > SW * (1 - SIDE_REGION_WIDTH);
           if (inSideRegion) {
-            return Math.abs(g.dy) > 20 && Math.abs(g.dy) > Math.abs(g.dx * 1.5);
+            // Accept vertical drag OR horizontal swipe from side regions
+            return (
+              (Math.abs(g.dy) > 20 && Math.abs(g.dy) > Math.abs(g.dx * 1.5)) ||
+              (Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy * 1.5))
+            );
           }
           return Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy * 1.5);
         },
@@ -2387,7 +2527,7 @@ export function FocusedSferaView({
           const isLeftRegion = startX < SW * SIDE_REGION_WIDTH;
           const isRightRegion = startX > SW * (1 - SIDE_REGION_WIDTH);
           const inSideRegion = isLeftRegion || isRightRegion;
-          if (inSideRegion) {
+          if (inSideRegion && Math.abs(g.dy) > Math.abs(g.dx)) {
             // Vertical: right sfera = up prev / down next; left sfera = reversed (up next / down prev)
             if (g.dy < -50)
               goToSphere(
@@ -2398,13 +2538,13 @@ export function FocusedSferaView({
                 isLeftRegion ? (focusedIdx - 1 + N) % N : (focusedIdx + 1) % N,
               );
           } else {
-            // Horizontal in center (focused sfera below avatar): left = next, right = prev
+            // Horizontal anywhere (center or side): left = next, right = prev
             if (g.dx < -50) goToSphere((focusedIdx + 1) % N);
             else if (g.dx > 50) goToSphere((focusedIdx - 1 + N) % N);
           }
         },
       }),
-    [focusedIdx, goToSphere, N],
+    [focusedIdx, goToSphere, N, sunLoadComplete],
   );
 
   const t = useTranslate();
@@ -2460,6 +2600,7 @@ export function FocusedSferaView({
   // - Initial view (selectedSphere === null): expand sun (shrink sferas + show menu) AND center sun
   // - Individual sfera view (selectedSphere !== null): clear selection to return to initial view
   const handleCircleAvatarPress = useCallback(() => {
+    if (!sunLoadComplete) return;
     if (selectedSphere === null) {
       const next = !isSunExpanded;
       setIsSunCentered(next);
@@ -2471,7 +2612,7 @@ export function FocusedSferaView({
         onSwitchToClassic();
       }
     }
-  }, [selectedSphere, isSunExpanded, onClearSelection, onSwitchToClassic, handleSunPress]);
+  }, [selectedSphere, isSunExpanded, onClearSelection, onSwitchToClassic, handleSunPress, sunLoadComplete]);
 
   const { momentColors } = useMomentColors();
   const avatarSizeForDots = 100;
@@ -2522,6 +2663,9 @@ export function FocusedSferaView({
     [leftChevronScale, rightChevronScale],
   );
 
+  const congratsStyle = useAnimatedStyle(() => ({ opacity: congratsOpacity.value }));
+  const handleFireworksComplete = useCallback(() => setIntroFireworks(false), []);
+
   return (
     <View
       style={[
@@ -2561,7 +2705,7 @@ export function FocusedSferaView({
         offsetX={ORBIT_CX}
         offsetY={ORBIT_CY + ORBIT_R}
         sphereSize={FOCUSED_SIZE}
-        enabled={pulsingAnimations && !isSunExpanded}
+        enabled={pulsingAnimations && !isSunExpanded && sunLoadComplete}
       />
 
       {/* ─── All 5 spheres with orbital animated transitions ─── */}
@@ -2576,6 +2720,7 @@ export function FocusedSferaView({
           entityNames={entityNamesBySphere[sphere.type] ?? []}
           entityMemories={memoriesPerEntityBySphere[sphere.type] ?? []}
           onPress={() => {
+            if (!sunLoadComplete) return;
             if (isSunExpanded) { handleCollapseSun(); return; }
             if (i !== focusedIdx) { goToSphere(i); return; }
             if (selectedSphere !== null) { onAddMemoriesPress(); return; }
@@ -2593,6 +2738,10 @@ export function FocusedSferaView({
           onPulse={i === focusedIdx ? (fn) => { focusedSpherePulseRef.current = fn; } : undefined}
           sunExpanded={sunExpanded}
           isInitialView={selectedSphere === null}
+          sunLoadProgress={sunLoadComplete ? undefined : sunLoadProgress}
+          sunLoadSweepOffset={sunLoadComplete ? undefined : sunLoadSweepOffset}
+          sunLoadEntityOpacity={sunLoadComplete ? undefined : sunLoadEntityOpacity}
+          sphereIntroStaggerMs={i * 150}
         />
       ))}
 
@@ -2608,6 +2757,7 @@ export function FocusedSferaView({
           zIndex: 13,
         }}
         onPress={() => {
+          if (!sunLoadComplete) return;
           if (isSunExpanded) { handleCollapseSun(); return; }
           if (selectedSphere !== null) { onAddMemoriesPress(); return; }
           const now = Date.now();
@@ -2647,8 +2797,29 @@ export function FocusedSferaView({
             x={SW * 0.45}
             y={SH * 0.38}
             sunExpanded={sunExpanded}
-            isCentered={isSunCentered}
+            isCentered={isSunCentered || sunLoadCentered}
+            sunLoadScale={sunLoadComplete ? undefined : sunLoadScale}
+            sunLoadDisplayPct={sunLoadComplete ? undefined : sunLoadDisplayPct}
           />
+          {!sunLoadComplete && (
+            <>
+              {/* Fireworks burst at percentage reveal */}
+              <Fireworks
+                visible={sunLoadFireworks}
+                duration={2000}
+                onComplete={handleFireworksComplete}
+              />
+              {/* Congrats text — positioned below the centered sun */}
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.congratsContainer, congratsStyle]}
+              >
+                <ThemedText style={styles.congratsText}>
+                  {t("avatar.sunnyCongrats", { pct: Math.round(overallSunnyPercentage) })}
+                </ThemedText>
+              </Animated.View>
+            </>
+          )}
           {/* ─── Sun action buttons: appear below sun when expanded ─── */}
           <Animated.View
             pointerEvents={isSunExpanded ? "auto" : "none"}
@@ -2825,8 +2996,8 @@ export function FocusedSferaView({
         </Animated.View>
       )}
 
-      {/* ─── Chevron buttons: hidden when sun is expanded ─── */}
-      {!isSunExpanded && (
+      {/* ─── Chevron buttons: hidden when sun is expanded or intro is playing ─── */}
+      {!isSunExpanded && sunLoadComplete && (
         <>
           <Animated.View style={[styles.chevron, styles.chevronLeft, leftChevronStyle]}>
             <Pressable
@@ -2916,5 +3087,22 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: "center",
     alignItems: "center",
+  },
+  congratsContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: SH / 2 + 90,
+    alignItems: "center",
+    zIndex: 30,
+  },
+  congratsText: {
+    fontSize: 18,
+    color: "#FFD700",
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    textShadowColor: "rgba(0,0,0,0.9)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
   },
 });

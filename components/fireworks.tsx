@@ -2,7 +2,7 @@
  * Fireworks / Confetti burst for celebrating correct wheel exam answers.
  */
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Dimensions, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
@@ -59,6 +59,22 @@ export function Fireworks({
     );
   }, [visible, duration, onComplete, progress]);
 
+  const particles = useMemo(
+    () =>
+      Array.from({ length: PARTICLE_COUNT }).map((_, i) => {
+        const angle = (i / PARTICLE_COUNT) * 2 * Math.PI + Math.random() * 0.5;
+        const distance = 80 + Math.random() * 120;
+        return {
+          targetX: Math.cos(angle) * distance,
+          targetY: Math.sin(angle) * distance,
+          color: COLORS[i % COLORS.length],
+          size: 6 + Math.random() * 6,
+          rotation: Math.random() * 360,
+        };
+      }),
+    [],
+  );
+
   if (!visible) return null;
 
   return (
@@ -67,29 +83,19 @@ export function Fireworks({
       pointerEvents="none"
       accessibilityLabel="Celebration fireworks"
     >
-      {Array.from({ length: PARTICLE_COUNT }).map((_, i) => {
-        const angle = (i / PARTICLE_COUNT) * 2 * Math.PI + Math.random() * 0.5;
-        const color = COLORS[i % COLORS.length];
-        const distance = 80 + Math.random() * 120;
-        const targetX = Math.cos(angle) * distance;
-        const targetY = Math.sin(angle) * distance;
-        const size = 6 + Math.random() * 6;
-        const rotation = Math.random() * 360;
-
-        return (
-          <FireworkParticle
-            key={i}
-            progress={progress}
-            targetX={targetX}
-            targetY={targetY}
-            color={color}
-            size={size}
-            rotation={rotation}
-            centerX={SW / 2}
-            centerY={SH / 2 - 80}
-          />
-        );
-      })}
+      {particles.map((p, i) => (
+        <FireworkParticle
+          key={i}
+          progress={progress}
+          targetX={p.targetX}
+          targetY={p.targetY}
+          color={p.color}
+          size={p.size}
+          rotation={p.rotation}
+          centerX={SW / 2}
+          centerY={SH / 2 - 80}
+        />
+      ))}
     </View>
   );
 }

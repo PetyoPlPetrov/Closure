@@ -1,23 +1,39 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as SplashScreen from 'expo-splash-screen';
-import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
-import Svg, { Line, Circle } from 'react-native-svg';
-import { useLargeDevice } from '@/hooks/use-large-device';
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { LinearGradient } from "expo-linear-gradient";
+import * as SplashScreen from "expo-splash-screen";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
+import { SPLASH_ANIMATION_KEY } from "@/utils/VisualSettingsProvider";
+import {
+  Dimensions,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import Svg, { Line, Circle } from "react-native-svg";
+import { useLargeDevice } from "@/hooks/use-large-device";
 import Animated, {
-    Easing,
-    interpolate,
-    runOnJS,
-    useAnimatedStyle,
-    useSharedValue,
+  Easing,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
   withDelay,
-    withRepeat,
+  withRepeat,
   withSpring,
-  withTiming
-} from 'react-native-reanimated';
+  withTiming,
+} from "react-native-reanimated";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 // Individual Sparkled Dot Component
 const SparkledDot = React.memo(function SparkledDot({
@@ -40,25 +56,29 @@ const SparkledDot = React.memo(function SparkledDot({
     // Scale up animation
     scale.value = withDelay(
       delay,
-      withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 })
+      withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 }),
     );
 
     // Fade in first, then start pulsing
     opacity.value = withDelay(
       delay,
-      withTiming(0.7, {
-        duration: 600,
-        easing: Easing.out(Easing.ease)
-      }, (finished) => {
-        if (finished) {
-          // After fade in completes, start pulsing (between 0.4 and 0.7)
-          opacity.value = withRepeat(
-            withTiming(0.4, { duration, easing: Easing.inOut(Easing.ease) }),
-            -1,
-            true
-          );
-        }
-      })
+      withTiming(
+        0.7,
+        {
+          duration: 600,
+          easing: Easing.out(Easing.ease),
+        },
+        (finished) => {
+          if (finished) {
+            // After fade in completes, start pulsing (between 0.4 and 0.7)
+            opacity.value = withRepeat(
+              withTiming(0.4, { duration, easing: Easing.inOut(Easing.ease) }),
+              -1,
+              true,
+            );
+          }
+        },
+      ),
     );
   }, [delay, duration, opacity, scale]);
 
@@ -71,13 +91,13 @@ const SparkledDot = React.memo(function SparkledDot({
     };
   });
 
-  const glowColor = 'rgba(255, 255, 255, 0.65)';
+  const glowColor = "rgba(255, 255, 255, 0.65)";
 
   return (
     <Animated.View
       style={[
         {
-          position: 'absolute',
+          position: "absolute",
           width: size,
           height: size,
           borderRadius: size / 2,
@@ -95,44 +115,88 @@ const SparkledDot = React.memo(function SparkledDot({
 });
 
 // Constellation patterns: stars in normalized coords (0-1), connections as [from, to] indices
-const CONSTELLATIONS: Array<{ stars: Array<{ x: number; y: number }>; connections: Array<[number, number]> }> = [
+const CONSTELLATIONS: Array<{
+  stars: Array<{ x: number; y: number }>;
+  connections: Array<[number, number]>;
+}> = [
   // Big Dipper (Ursa Major) - simplified
   {
     stars: [
-      { x: 0.08, y: 0.12 }, { x: 0.12, y: 0.08 }, { x: 0.18, y: 0.1 }, { x: 0.22, y: 0.06 },
-      { x: 0.28, y: 0.08 }, { x: 0.32, y: 0.14 }, { x: 0.38, y: 0.18 },
+      { x: 0.08, y: 0.12 },
+      { x: 0.12, y: 0.08 },
+      { x: 0.18, y: 0.1 },
+      { x: 0.22, y: 0.06 },
+      { x: 0.28, y: 0.08 },
+      { x: 0.32, y: 0.14 },
+      { x: 0.38, y: 0.18 },
     ],
-    connections: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [1, 4]],
+    connections: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+      [4, 5],
+      [5, 6],
+      [1, 4],
+    ],
   },
   // Orion's Belt
   {
     stars: [
-      { x: 0.72, y: 0.22 }, { x: 0.78, y: 0.2 }, { x: 0.84, y: 0.24 },
-      { x: 0.78, y: 0.32 }, { x: 0.78, y: 0.4 },
+      { x: 0.72, y: 0.22 },
+      { x: 0.78, y: 0.2 },
+      { x: 0.84, y: 0.24 },
+      { x: 0.78, y: 0.32 },
+      { x: 0.78, y: 0.4 },
     ],
-    connections: [[0, 1], [1, 2], [1, 3], [3, 4]],
+    connections: [
+      [0, 1],
+      [1, 2],
+      [1, 3],
+      [3, 4],
+    ],
   },
   // Cassiopeia (W shape)
   {
     stars: [
-      { x: 0.88, y: 0.55 }, { x: 0.82, y: 0.62 }, { x: 0.86, y: 0.68 },
-      { x: 0.8, y: 0.74 }, { x: 0.84, y: 0.8 },
+      { x: 0.88, y: 0.55 },
+      { x: 0.82, y: 0.62 },
+      { x: 0.86, y: 0.68 },
+      { x: 0.8, y: 0.74 },
+      { x: 0.84, y: 0.8 },
     ],
-    connections: [[0, 1], [1, 2], [2, 3], [3, 4]],
+    connections: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+    ],
   },
   // Small triangle (Lyra-like)
   {
     stars: [
-      { x: 0.15, y: 0.72 }, { x: 0.22, y: 0.68 }, { x: 0.18, y: 0.78 },
+      { x: 0.15, y: 0.72 },
+      { x: 0.22, y: 0.68 },
+      { x: 0.18, y: 0.78 },
     ],
-    connections: [[0, 1], [1, 2], [2, 0]],
+    connections: [
+      [0, 1],
+      [1, 2],
+      [2, 0],
+    ],
   },
   // Cross pattern
   {
     stars: [
-      { x: 0.92, y: 0.15 }, { x: 0.9, y: 0.2 }, { x: 0.94, y: 0.2 }, { x: 0.92, y: 0.25 },
+      { x: 0.92, y: 0.15 },
+      { x: 0.9, y: 0.2 },
+      { x: 0.94, y: 0.2 },
+      { x: 0.92, y: 0.25 },
     ],
-    connections: [[0, 3], [1, 2]],
+    connections: [
+      [0, 3],
+      [1, 2],
+    ],
   },
 ];
 
@@ -140,7 +204,10 @@ const ConstellationBackground = React.memo(function ConstellationBackground() {
   const opacity = useSharedValue(0);
 
   useEffect(() => {
-    opacity.value = withDelay(200, withTiming(0.35, { duration: 1200, easing: Easing.out(Easing.ease) }));
+    opacity.value = withDelay(
+      200,
+      withTiming(0.35, { duration: 1200, easing: Easing.out(Easing.ease) }),
+    );
   }, [opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -148,8 +215,15 @@ const ConstellationBackground = React.memo(function ConstellationBackground() {
   }));
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]} pointerEvents="none">
-      <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={StyleSheet.absoluteFill}>
+    <Animated.View
+      style={[StyleSheet.absoluteFill, animatedStyle]}
+      pointerEvents="none"
+    >
+      <Svg
+        width={SCREEN_WIDTH}
+        height={SCREEN_HEIGHT}
+        style={StyleSheet.absoluteFill}
+      >
         {CONSTELLATIONS.map((constellation, cIdx) =>
           constellation.connections.map(([from, to], connIdx) => {
             const s1 = constellation.stars[from];
@@ -167,7 +241,7 @@ const ConstellationBackground = React.memo(function ConstellationBackground() {
                 strokeLinecap="round"
               />
             );
-          })
+          }),
         )}
         {CONSTELLATIONS.flatMap((constellation, cIdx) =>
           constellation.stars.map((star, sIdx) => (
@@ -178,7 +252,7 @@ const ConstellationBackground = React.memo(function ConstellationBackground() {
               r={1.5}
               fill="rgba(255, 255, 255, 0.5)"
             />
-          ))
+          )),
         )}
       </Svg>
     </Animated.View>
@@ -196,7 +270,7 @@ const SplashContext = createContext<SplashContextType | undefined>(undefined);
 export const useSplash = () => {
   const context = useContext(SplashContext);
   if (!context) {
-    throw new Error('useSplash must be used within SplashAnimationProvider');
+    throw new Error("useSplash must be used within SplashAnimationProvider");
   }
   return context;
 };
@@ -205,12 +279,14 @@ interface SplashAnimationProviderProps {
   children: React.ReactNode;
 }
 
-export function SplashAnimationProvider({ children }: SplashAnimationProviderProps) {
+export function SplashAnimationProvider({
+  children,
+}: SplashAnimationProviderProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [isAnimationComplete, setIsAnimationComplete] = useState(false);
   const { isTablet } = useLargeDevice();
   const splashOpacity = useSharedValue(1);
-  
+
   // Scale sizes for tablets
   const avatarSize = isTablet ? 120 : 80; // 50% larger on tablets
   const sphereSize = isTablet ? 120 : 80; // 50% larger on tablets
@@ -220,10 +296,10 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   // Avatar animations
   const avatarScale = useSharedValue(0);
   const avatarOpacity = useSharedValue(0);
-  
+
   // Text animations
   const textOpacity = useSharedValue(0);
-  
+
   // Floating elements animations - 5 small spheres
   const floatingElement1 = {
     popOutProgress: useSharedValue(0),
@@ -231,28 +307,28 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     opacity: useSharedValue(0),
     scale: useSharedValue(0),
   };
-  
+
   const floatingElement2 = {
     popOutProgress: useSharedValue(0),
     orbitAngle: useSharedValue(0),
     opacity: useSharedValue(0),
     scale: useSharedValue(0),
   };
-  
+
   const floatingElement3 = {
     popOutProgress: useSharedValue(0),
     orbitAngle: useSharedValue(0),
     opacity: useSharedValue(0),
     scale: useSharedValue(0),
   };
-  
+
   const floatingElement4 = {
     popOutProgress: useSharedValue(0),
     orbitAngle: useSharedValue(0),
     opacity: useSharedValue(0),
     scale: useSharedValue(0),
   };
-  
+
   const floatingElement5 = {
     popOutProgress: useSharedValue(0),
     orbitAngle: useSharedValue(0),
@@ -261,12 +337,15 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   };
 
   // Dynamic quote style based on device size
-  const quoteStyle = useMemo(() => ({
-    ...styles.quote,
-    fontSize: isTablet ? 32 : 20, // Larger for impact
-    lineHeight: isTablet ? 44 : 32,
-    letterSpacing: isTablet ? 4 : 3, // More spacing on tablets
-  }), [isTablet]);
+  const quoteStyle = useMemo(
+    () => ({
+      ...styles.quote,
+      fontSize: isTablet ? 32 : 20, // Larger for impact
+      lineHeight: isTablet ? 44 : 32,
+      letterSpacing: isTablet ? 4 : 3, // More spacing on tablets
+    }),
+    [isTablet],
+  );
 
   // Generate sparkled dots - scattered across the screen
   const sparkledDots = useMemo(() => {
@@ -280,7 +359,10 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     const numCenterDots = Math.floor(numDots * 0.6); // 60% around center
     for (let i = 0; i < numCenterDots; i++) {
       const angle = Math.random() * 2 * Math.PI;
-      const radius = (avatarSize / 2 + 20) + Math.random() * (Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35);
+      const radius =
+        avatarSize / 2 +
+        20 +
+        Math.random() * (Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35);
       const x = centerX + Math.cos(angle) * radius;
       const y = centerY + Math.sin(angle) * radius;
       const size = 2 + Math.random() * 2;
@@ -306,7 +388,10 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     const numBottomDots = numDots - numCenterDots - numTopDots; // Remaining at bottom
     for (let i = 0; i < numBottomDots; i++) {
       const x = Math.random() * SCREEN_WIDTH;
-      const y = SCREEN_HEIGHT - (SCREEN_HEIGHT * 0.15) + Math.random() * (SCREEN_HEIGHT * 0.15);
+      const y =
+        SCREEN_HEIGHT -
+        SCREEN_HEIGHT * 0.15 +
+        Math.random() * (SCREEN_HEIGHT * 0.15);
       const size = 2 + Math.random() * 2;
       const delay = Math.random() * 2000;
       const duration = 2500 + Math.random() * 1500;
@@ -323,6 +408,16 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
       // Ignore errors if splash screen is already hidden
     });
   }, []);
+
+  useEffect(() => {
+    // Check if splash animation is disabled by user setting — skip immediately if so
+    AsyncStorage.getItem(SPLASH_ANIMATION_KEY).then((val) => {
+      if (val === "false") {
+        setIsAnimationComplete(true);
+        setIsVisible(false);
+      }
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // Animation sequence:
@@ -342,29 +437,32 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
     // Step 2: Floating elements pop out from center (600ms delay, 600ms duration each)
     const popOutDelay = 600;
     const popOutDuration = 600;
-    
+
     // Calculate when the last element finishes popping out
     // Element 5 starts at popOutDelay + 800, takes popOutDuration to finish
     const lastElementFinishTime = popOutDelay + 800 + popOutDuration; // 2000ms
     // All elements should start orbiting at the same time, after the last one finishes
     const orbitStartDelay = lastElementFinishTime;
-    
+
     // Element 1 - pops out
-    floatingElement1.opacity.value = withDelay(popOutDelay, withTiming(1, { duration: 300 }));
+    floatingElement1.opacity.value = withDelay(
+      popOutDelay,
+      withTiming(1, { duration: 300 }),
+    );
     floatingElement1.scale.value = withDelay(
       popOutDelay,
       withSpring(1, {
         damping: 15,
         stiffness: 200,
         mass: 0.5,
-      })
+      }),
     );
     floatingElement1.popOutProgress.value = withDelay(
       popOutDelay,
       withTiming(1, {
         duration: popOutDuration,
         easing: Easing.out(Easing.cubic),
-      })
+      }),
     );
     // Start orbiting at the same time as all others
     floatingElement1.orbitAngle.value = withDelay(
@@ -375,26 +473,29 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
           easing: Easing.linear,
         }),
         -1,
-        false
-      )
+        false,
+      ),
     );
 
     // Element 2 - pops out with delay
-    floatingElement2.opacity.value = withDelay(popOutDelay + 200, withTiming(1, { duration: 300 }));
+    floatingElement2.opacity.value = withDelay(
+      popOutDelay + 200,
+      withTiming(1, { duration: 300 }),
+    );
     floatingElement2.scale.value = withDelay(
       popOutDelay + 200,
       withSpring(1, {
         damping: 15,
         stiffness: 200,
         mass: 0.5,
-      })
+      }),
     );
     floatingElement2.popOutProgress.value = withDelay(
       popOutDelay + 200,
       withTiming(1, {
         duration: popOutDuration,
         easing: Easing.out(Easing.cubic),
-      })
+      }),
     );
     // Start orbiting at the same time as all others
     floatingElement2.orbitAngle.value = withDelay(
@@ -405,26 +506,29 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
           easing: Easing.linear,
         }),
         -1,
-        false
-      )
+        false,
+      ),
     );
 
     // Element 3 - pops out with delay
-    floatingElement3.opacity.value = withDelay(popOutDelay + 400, withTiming(1, { duration: 300 }));
+    floatingElement3.opacity.value = withDelay(
+      popOutDelay + 400,
+      withTiming(1, { duration: 300 }),
+    );
     floatingElement3.scale.value = withDelay(
       popOutDelay + 400,
       withSpring(1, {
         damping: 15,
         stiffness: 200,
         mass: 0.5,
-      })
+      }),
     );
     floatingElement3.popOutProgress.value = withDelay(
       popOutDelay + 400,
       withTiming(1, {
         duration: popOutDuration,
         easing: Easing.out(Easing.cubic),
-      })
+      }),
     );
     // Start orbiting at the same time as all others
     floatingElement3.orbitAngle.value = withDelay(
@@ -435,26 +539,29 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
           easing: Easing.linear,
         }),
         -1,
-        false
-      )
+        false,
+      ),
     );
 
     // Element 4 - Friends - pops out with delay
-    floatingElement4.opacity.value = withDelay(popOutDelay + 600, withTiming(1, { duration: 300 }));
+    floatingElement4.opacity.value = withDelay(
+      popOutDelay + 600,
+      withTiming(1, { duration: 300 }),
+    );
     floatingElement4.scale.value = withDelay(
       popOutDelay + 600,
       withSpring(1, {
         damping: 15,
         stiffness: 200,
         mass: 0.5,
-      })
+      }),
     );
     floatingElement4.popOutProgress.value = withDelay(
       popOutDelay + 600,
       withTiming(1, {
         duration: popOutDuration,
         easing: Easing.out(Easing.cubic),
-      })
+      }),
     );
     // Start orbiting at the same time as all others
     floatingElement4.orbitAngle.value = withDelay(
@@ -465,26 +572,29 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
           easing: Easing.linear,
         }),
         -1,
-        false
-      )
+        false,
+      ),
     );
 
     // Element 5 - Hobbies - pops out with delay (last one)
-    floatingElement5.opacity.value = withDelay(popOutDelay + 800, withTiming(1, { duration: 300 }));
+    floatingElement5.opacity.value = withDelay(
+      popOutDelay + 800,
+      withTiming(1, { duration: 300 }),
+    );
     floatingElement5.scale.value = withDelay(
       popOutDelay + 800,
       withSpring(1, {
         damping: 15,
         stiffness: 200,
         mass: 0.5,
-      })
+      }),
     );
     floatingElement5.popOutProgress.value = withDelay(
       popOutDelay + 800,
       withTiming(1, {
         duration: popOutDuration,
         easing: Easing.out(Easing.cubic),
-      })
+      }),
     );
     // Start orbiting at the same time as all others
     floatingElement5.orbitAngle.value = withDelay(
@@ -495,19 +605,22 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
           easing: Easing.linear,
         }),
         -1,
-        false
-      )
+        false,
+      ),
     );
 
     // Step 3: Text appears after elements start orbiting (2000ms delay)
-    textOpacity.value = withDelay(2000, withTiming(1, {
-      duration: 800,
-          easing: Easing.out(Easing.cubic),
-    }));
+    textOpacity.value = withDelay(
+      2000,
+      withTiming(1, {
+        duration: 800,
+        easing: Easing.out(Easing.cubic),
+      }),
+    );
 
     // Step 4: Mark animation as complete after text appears (3500ms total - increased for 5 elements)
     const completeTimeout = setTimeout(() => {
-            runOnJS(setIsAnimationComplete)(true);
+      runOnJS(setIsAnimationComplete)(true);
     }, 3500);
 
     return () => {
@@ -521,15 +634,30 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
 
   const hideSplash = () => {
     // Fade out animation
-    splashOpacity.value = withTiming(0, {
-      duration: 500,
-      easing: Easing.ease,
-    }, (finished) => {
-      if (finished) {
-        runOnJS(finishHiding)();
-      }
-    });
+    splashOpacity.value = withTiming(
+      0,
+      {
+        duration: 500,
+        easing: Easing.ease,
+      },
+      (finished) => {
+        if (finished) {
+          runOnJS(finishHiding)();
+        }
+      },
+    );
   };
+
+  const handleSkip = () => {
+    setIsAnimationComplete(true);
+    hideSplash();
+  };
+
+  const skipOpacity = useSharedValue(0);
+  React.useEffect(() => {
+    skipOpacity.value = withDelay(800, withTiming(1, { duration: 400 }));
+  }, [skipOpacity]);
+  const skipStyle = useAnimatedStyle(() => ({ opacity: skipOpacity.value }));
 
   // Splash screen fade animation style
   const splashStyle = useAnimatedStyle(() => {
@@ -556,15 +684,19 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   // Floating element 1 animated style - Relationships (0°)
   const floatingElement1Style = useAnimatedStyle(() => {
     const radius = orbitRadius; // Orbit radius (scaled for tablet)
-    const popOutRadius = interpolate(floatingElement1.popOutProgress.value, [0, 1], [0, radius]);
+    const popOutRadius = interpolate(
+      floatingElement1.popOutProgress.value,
+      [0, 1],
+      [0, radius],
+    );
     const orbitAngleRad = (floatingElement1.orbitAngle.value * Math.PI) / 180; // Convert to radians
     const baseAngleRad = (0 * Math.PI) / 180; // 0 degrees - top position
-    
+
     // Calculate position: baseAngle determines starting position, orbitAngle adds rotation
     const totalAngle = baseAngleRad + orbitAngleRad;
     const x = Math.sin(totalAngle) * popOutRadius;
     const y = -Math.cos(totalAngle) * popOutRadius;
-    
+
     return {
       opacity: floatingElement1.opacity.value,
       transform: [
@@ -578,14 +710,18 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   // Floating element 2 animated style - Career (72°)
   const floatingElement2Style = useAnimatedStyle(() => {
     const radius = orbitRadius; // Orbit radius (scaled for tablet)
-    const popOutRadius = interpolate(floatingElement2.popOutProgress.value, [0, 1], [0, radius]);
+    const popOutRadius = interpolate(
+      floatingElement2.popOutProgress.value,
+      [0, 1],
+      [0, radius],
+    );
     const orbitAngleRad = (floatingElement2.orbitAngle.value * Math.PI) / 180;
     const baseAngleRad = (72 * Math.PI) / 180; // 72 degrees offset (360/5 = 72)
-    
+
     const totalAngle = baseAngleRad + orbitAngleRad;
     const x = Math.sin(totalAngle) * popOutRadius;
     const y = -Math.cos(totalAngle) * popOutRadius;
-    
+
     return {
       opacity: floatingElement2.opacity.value,
       transform: [
@@ -599,14 +735,18 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   // Floating element 3 animated style - Family (144°)
   const floatingElement3Style = useAnimatedStyle(() => {
     const radius = orbitRadius; // Orbit radius (scaled for tablet)
-    const popOutRadius = interpolate(floatingElement3.popOutProgress.value, [0, 1], [0, radius]);
+    const popOutRadius = interpolate(
+      floatingElement3.popOutProgress.value,
+      [0, 1],
+      [0, radius],
+    );
     const orbitAngleRad = (floatingElement3.orbitAngle.value * Math.PI) / 180;
     const baseAngleRad = (144 * Math.PI) / 180; // 144 degrees offset (72 * 2)
-    
+
     const totalAngle = baseAngleRad + orbitAngleRad;
     const x = Math.sin(totalAngle) * popOutRadius;
     const y = -Math.cos(totalAngle) * popOutRadius;
-    
+
     return {
       opacity: floatingElement3.opacity.value,
       transform: [
@@ -620,14 +760,18 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   // Floating element 4 animated style - Friends (216°)
   const floatingElement4Style = useAnimatedStyle(() => {
     const radius = orbitRadius; // Orbit radius (scaled for tablet)
-    const popOutRadius = interpolate(floatingElement4.popOutProgress.value, [0, 1], [0, radius]);
+    const popOutRadius = interpolate(
+      floatingElement4.popOutProgress.value,
+      [0, 1],
+      [0, radius],
+    );
     const orbitAngleRad = (floatingElement4.orbitAngle.value * Math.PI) / 180;
     const baseAngleRad = (216 * Math.PI) / 180; // 216 degrees offset (72 * 3)
-    
+
     const totalAngle = baseAngleRad + orbitAngleRad;
     const x = Math.sin(totalAngle) * popOutRadius;
     const y = -Math.cos(totalAngle) * popOutRadius;
-    
+
     return {
       opacity: floatingElement4.opacity.value,
       transform: [
@@ -641,14 +785,18 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   // Floating element 5 animated style - Hobbies (288°)
   const floatingElement5Style = useAnimatedStyle(() => {
     const radius = orbitRadius; // Orbit radius (scaled for tablet)
-    const popOutRadius = interpolate(floatingElement5.popOutProgress.value, [0, 1], [0, radius]);
+    const popOutRadius = interpolate(
+      floatingElement5.popOutProgress.value,
+      [0, 1],
+      [0, radius],
+    );
     const orbitAngleRad = (floatingElement5.orbitAngle.value * Math.PI) / 180;
     const baseAngleRad = (288 * Math.PI) / 180; // 288 degrees offset (72 * 4)
-    
+
     const totalAngle = baseAngleRad + orbitAngleRad;
     const x = Math.sin(totalAngle) * popOutRadius;
     const y = -Math.cos(totalAngle) * popOutRadius;
-    
+
     return {
       opacity: floatingElement5.opacity.value,
       transform: [
@@ -660,21 +808,25 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
   });
 
   return (
-    <SplashContext.Provider value={{ hideSplash, isVisible, isAnimationComplete }}>
+    <SplashContext.Provider
+      value={{ hideSplash, isVisible, isAnimationComplete }}
+    >
       {children}
       {isVisible && (
-        <Animated.View 
+        <Animated.View
           style={[
-            StyleSheet.absoluteFill, 
+            StyleSheet.absoluteFill,
             splashStyle,
             styles.splashOverlay,
-            { zIndex: 9999, elevation: 9999 }
+            { zIndex: 9999, elevation: 9999 },
           ]}
           pointerEvents="box-none"
         >
           <View style={styles.container}>
-        {/* Solid background matching home screen dark mode */}
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1A2332' }]} />
+            {/* Solid background matching home screen dark mode */}
+            <View
+              style={[StyleSheet.absoluteFill, { backgroundColor: "#1A2332" }]}
+            />
 
             {/* Constellation background */}
             <ConstellationBackground />
@@ -694,79 +846,220 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
             {/* Content */}
             <View style={styles.content}>
               {/* Avatar Container with Floating Elements */}
-              <View style={[styles.avatarContainer, { width: avatarContainerSize, height: avatarContainerSize }]}>
+              <View
+                style={[
+                  styles.avatarContainer,
+                  { width: avatarContainerSize, height: avatarContainerSize },
+                ]}
+              >
                 {/* Central Avatar */}
-                <Animated.View style={[styles.avatarWrapper, avatarAnimatedStyle, { width: avatarSize, height: avatarSize }]}>
+                <Animated.View
+                  style={[
+                    styles.avatarWrapper,
+                    avatarAnimatedStyle,
+                    { width: avatarSize, height: avatarSize },
+                  ]}
+                >
                   <LinearGradient
-                    colors={['rgba(14, 165, 233, 0.3)', 'rgba(14, 165, 233, 0.15)', 'rgba(14, 165, 233, 0.05)']}
-                    style={[styles.avatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
+                    colors={[
+                      "rgba(14, 165, 233, 0.3)",
+                      "rgba(14, 165, 233, 0.15)",
+                      "rgba(14, 165, 233, 0.05)",
+                    ]}
+                    style={[
+                      styles.avatar,
+                      {
+                        width: avatarSize,
+                        height: avatarSize,
+                        borderRadius: avatarSize / 2,
+                      },
+                    ]}
                   >
                     <View style={styles.avatarInner}>
-                      <MaterialIcons name="person" size={isTablet ? 60 : 40} color="rgba(255, 215, 0, 0.9)" />
+                      <MaterialIcons
+                        name="person"
+                        size={isTablet ? 60 : 40}
+                        color="rgba(255, 215, 0, 0.9)"
+                      />
                     </View>
                   </LinearGradient>
                 </Animated.View>
 
                 {/* Floating Element 1 - Relationships (Heart) */}
-                <Animated.View style={[styles.floatingElement, floatingElement1Style, { width: sphereSize, height: sphereSize }]}>
-            <LinearGradient
-                    colors={['rgba(255, 150, 150, 0.4)', 'rgba(255, 150, 150, 0.2)', 'rgba(255, 150, 150, 0.05)']}
-                    style={[styles.floatingElementInner, { width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2 }]}
+                <Animated.View
+                  style={[
+                    styles.floatingElement,
+                    floatingElement1Style,
+                    { width: sphereSize, height: sphereSize },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={[
+                      "rgba(255, 150, 150, 0.4)",
+                      "rgba(255, 150, 150, 0.2)",
+                      "rgba(255, 150, 150, 0.05)",
+                    ]}
+                    style={[
+                      styles.floatingElementInner,
+                      {
+                        width: sphereSize,
+                        height: sphereSize,
+                        borderRadius: sphereSize / 2,
+                      },
+                    ]}
                   >
-                    <MaterialIcons name="favorite" size={isTablet ? 60 : 40} color="rgba(255, 180, 180, 0.9)" />
+                    <MaterialIcons
+                      name="favorite"
+                      size={isTablet ? 60 : 40}
+                      color="rgba(255, 180, 180, 0.9)"
+                    />
                   </LinearGradient>
-          </Animated.View>
+                </Animated.View>
 
                 {/* Floating Element 2 - Career (Briefcase) */}
-                <Animated.View style={[styles.floatingElement, floatingElement2Style, { width: sphereSize, height: sphereSize }]}>
-            <LinearGradient
-                    colors={['rgba(150, 200, 255, 0.4)', 'rgba(150, 200, 255, 0.2)', 'rgba(150, 200, 255, 0.05)']}
-                    style={[styles.floatingElementInner, { width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2 }]}
+                <Animated.View
+                  style={[
+                    styles.floatingElement,
+                    floatingElement2Style,
+                    { width: sphereSize, height: sphereSize },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={[
+                      "rgba(150, 200, 255, 0.4)",
+                      "rgba(150, 200, 255, 0.2)",
+                      "rgba(150, 200, 255, 0.05)",
+                    ]}
+                    style={[
+                      styles.floatingElementInner,
+                      {
+                        width: sphereSize,
+                        height: sphereSize,
+                        borderRadius: sphereSize / 2,
+                      },
+                    ]}
                   >
-                    <MaterialIcons name="work" size={isTablet ? 60 : 40} color="rgba(180, 220, 255, 0.9)" />
+                    <MaterialIcons
+                      name="work"
+                      size={isTablet ? 60 : 40}
+                      color="rgba(180, 220, 255, 0.9)"
+                    />
                   </LinearGradient>
-          </Animated.View>
+                </Animated.View>
 
                 {/* Floating Element 3 - Family */}
-                <Animated.View style={[styles.floatingElement, floatingElement3Style, { width: sphereSize, height: sphereSize }]}>
+                <Animated.View
+                  style={[
+                    styles.floatingElement,
+                    floatingElement3Style,
+                    { width: sphereSize, height: sphereSize },
+                  ]}
+                >
                   <LinearGradient
-                    colors={['rgba(200, 150, 255, 0.4)', 'rgba(200, 150, 255, 0.2)', 'rgba(200, 150, 255, 0.05)']}
-                    style={[styles.floatingElementInner, { width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2 }]}
+                    colors={[
+                      "rgba(200, 150, 255, 0.4)",
+                      "rgba(200, 150, 255, 0.2)",
+                      "rgba(200, 150, 255, 0.05)",
+                    ]}
+                    style={[
+                      styles.floatingElementInner,
+                      {
+                        width: sphereSize,
+                        height: sphereSize,
+                        borderRadius: sphereSize / 2,
+                      },
+                    ]}
                   >
-                    <MaterialIcons name="family-restroom" size={isTablet ? 60 : 40} color="rgba(220, 180, 255, 0.9)" />
+                    <MaterialIcons
+                      name="family-restroom"
+                      size={isTablet ? 60 : 40}
+                      color="rgba(220, 180, 255, 0.9)"
+                    />
                   </LinearGradient>
                 </Animated.View>
 
                 {/* Floating Element 4 - Friends */}
-                <Animated.View style={[styles.floatingElement, floatingElement4Style, { width: sphereSize, height: sphereSize }]}>
+                <Animated.View
+                  style={[
+                    styles.floatingElement,
+                    floatingElement4Style,
+                    { width: sphereSize, height: sphereSize },
+                  ]}
+                >
                   <LinearGradient
-                    colors={['rgba(139, 92, 246, 0.4)', 'rgba(139, 92, 246, 0.2)', 'rgba(139, 92, 246, 0.05)']}
-                    style={[styles.floatingElementInner, { width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2 }]}
+                    colors={[
+                      "rgba(139, 92, 246, 0.4)",
+                      "rgba(139, 92, 246, 0.2)",
+                      "rgba(139, 92, 246, 0.05)",
+                    ]}
+                    style={[
+                      styles.floatingElementInner,
+                      {
+                        width: sphereSize,
+                        height: sphereSize,
+                        borderRadius: sphereSize / 2,
+                      },
+                    ]}
                   >
-                    <MaterialIcons name="people" size={isTablet ? 60 : 40} color="rgba(167, 139, 250, 0.9)" />
+                    <MaterialIcons
+                      name="people"
+                      size={isTablet ? 60 : 40}
+                      color="rgba(167, 139, 250, 0.9)"
+                    />
                   </LinearGradient>
                 </Animated.View>
 
                 {/* Floating Element 5 - Hobbies */}
-                <Animated.View style={[styles.floatingElement, floatingElement5Style, { width: sphereSize, height: sphereSize }]}>
-            <LinearGradient
-                    colors={['rgba(249, 115, 22, 0.4)', 'rgba(249, 115, 22, 0.2)', 'rgba(249, 115, 22, 0.05)']}
-                    style={[styles.floatingElementInner, { width: sphereSize, height: sphereSize, borderRadius: sphereSize / 2 }]}
+                <Animated.View
+                  style={[
+                    styles.floatingElement,
+                    floatingElement5Style,
+                    { width: sphereSize, height: sphereSize },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={[
+                      "rgba(249, 115, 22, 0.4)",
+                      "rgba(249, 115, 22, 0.2)",
+                      "rgba(249, 115, 22, 0.05)",
+                    ]}
+                    style={[
+                      styles.floatingElementInner,
+                      {
+                        width: sphereSize,
+                        height: sphereSize,
+                        borderRadius: sphereSize / 2,
+                      },
+                    ]}
                   >
-                    <MaterialIcons name="sports-esports" size={isTablet ? 60 : 40} color="rgba(255, 157, 88, 0.9)" />
+                    <MaterialIcons
+                      name="sports-esports"
+                      size={isTablet ? 60 : 40}
+                      color="rgba(255, 157, 88, 0.9)"
+                    />
                   </LinearGradient>
-          </Animated.View>
-        </View>
+                </Animated.View>
+              </View>
 
               {/* Quote Text */}
               <Animated.View style={[styles.textContainer, textAnimatedStyle]}>
                 <Text style={quoteStyle}>
-                  LIVE SPHERICALLY,{'\n'}IN MANY DIRECTIONS!
+                  LIVE SPHERICALLY,{"\n"}IN MANY DIRECTIONS!
                 </Text>
-          </Animated.View>
-        </View>
-      </View>
-      </Animated.View>
+              </Animated.View>
+            </View>
+
+            {/* Skip button — bottom right */}
+            <Animated.View
+              style={[styles.skipButton, skipStyle]}
+              pointerEvents="box-none"
+            >
+              <Pressable onPress={handleSkip} style={styles.skipPressable}>
+                <Text style={styles.skipText}>Skip</Text>
+              </Pressable>
+            </Animated.View>
+          </View>
+        </Animated.View>
       )}
     </SplashContext.Provider>
   );
@@ -774,76 +1067,76 @@ export function SplashAnimationProvider({ children }: SplashAnimationProviderPro
 
 const styles = StyleSheet.create({
   splashOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
   },
   content: {
     zIndex: 10,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
+    alignItems: "center",
+    justifyContent: "flex-start",
     paddingHorizontal: 16,
     paddingTop: SCREEN_HEIGHT * 0.15, // Move content lower on screen
   },
   avatarContainer: {
     width: 360, // Base size, will be overridden dynamically
     height: 360,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 60,
-    position: 'relative',
+    position: "relative",
   },
   avatarWrapper: {
     width: 80, // Base size, will be overridden dynamically
     height: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatar: {
     width: 80, // Base size, will be overridden dynamically
     height: 80,
     borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
     // Subtle mask/shadow effect
-    shadowColor: '#0EA5E9',
+    shadowColor: "#0EA5E9",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 8,
   },
   avatarInner: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
   floatingElement: {
-    position: 'absolute',
+    position: "absolute",
     width: 80, // Base size, will be overridden dynamically
     height: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   floatingElementInner: {
     width: 80, // Base size, will be overridden dynamically
     height: 80,
     borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
     // Subtle mask effect with glow
-    shadowColor: '#FFF',
+    shadowColor: "#FFF",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -851,33 +1144,54 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     paddingHorizontal: 32,
-    alignItems: 'center',
+    alignItems: "center",
     maxWidth: SCREEN_WIDTH - 64,
   },
   quote: {
-    color: 'rgba(255, 255, 255, 0.95)',
+    color: "rgba(255, 255, 255, 0.95)",
     fontSize: 18,
-    fontWeight: '700', // Bold for impact
+    fontWeight: "700", // Bold for impact
     lineHeight: 28,
-    textAlign: 'center',
+    textAlign: "center",
     letterSpacing: 3, // Wide letter spacing for modern look
-    textTransform: 'uppercase' as const,
-    textShadowColor: 'rgba(100, 181, 246, 0.5)', // Subtle blue glow
+    textTransform: "uppercase" as const,
+    textShadowColor: "rgba(100, 181, 246, 0.5)", // Subtle blue glow
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
     ...Platform.select({
       web: {
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
-        fontWeight: '800',
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
+        fontWeight: "800",
       },
       ios: {
-        fontFamily: 'System',
-        fontWeight: '800',
+        fontFamily: "System",
+        fontWeight: "800",
       },
       android: {
-        fontFamily: 'sans-serif-condensed',
-        fontWeight: '700',
+        fontFamily: "sans-serif-condensed",
+        fontWeight: "700",
       },
     }),
+  },
+  skipButton: {
+    position: "absolute",
+    bottom: 48,
+    right: 28,
+    zIndex: 10,
+  },
+  skipPressable: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  skipText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 14,
+    fontWeight: "500",
+    letterSpacing: 0.5,
   },
 });

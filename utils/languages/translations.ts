@@ -65,6 +65,7 @@ export interface Translations {
   "events.removePastEventTitle": string;
   "events.removePastEventMessage": string;
   "avatar.sunnyLife": string;
+  "avatar.sunnyCongrats": string;
   "avatar.addMemories": string;
   "sferaInsight.addPeople": string;
   "sferaInsight.leastMemories": string;
@@ -125,6 +126,10 @@ export interface Translations {
   "settings.usability.showHints": string;
   "settings.usability.stopPulsingAnimations": string;
   "settings.usability.stopPulsingAnimationsDescription": string;
+  "settings.usability.splashAnimation": string;
+  "settings.usability.splashAnimationDescription": string;
+  "settings.usability.sunnyMomentsCongratsAnimation": string;
+  "settings.usability.sunnyMomentsCongratsAnimationDescription": string;
   "settings.aiInsights.title": string;
   "settings.aiInsights.enable": string;
   "settings.aiInsights.description": string;
@@ -3704,6 +3709,7 @@ const translations: Record<Language, Translations> = {
     "home.emptyState":
       "No profiles yet. Add your first ex-profile to get started.",
     "avatar.sunnyLife": "Sunny Life",
+    "avatar.sunnyCongrats": "{pct}% Sunny Life!",
     "avatar.addMemories": "Add memories",
     "sferaInsight.addPeople": "Add people",
     "sferaInsight.leastMemories": "Least memories",
@@ -3831,6 +3837,12 @@ const translations: Record<Language, Translations> = {
     "settings.usability.stopPulsingAnimations": "Pulsing animations",
     "settings.usability.stopPulsingAnimationsDescription":
       "When enabled, the insight and AI Sfera buttons on the Sferas tab will pulse.",
+    "settings.usability.splashAnimation": "Splash animation",
+    "settings.usability.splashAnimationDescription":
+      "When enabled, shows the animated intro screen on app launch.",
+    "settings.usability.sunnyMomentsCongratsAnimation": "Sunny moments celebration",
+    "settings.usability.sunnyMomentsCongratsAnimationDescription":
+      "When enabled, plays a celebration animation when your sunny moments reach 50%.",
     "settings.aiInsights.title": "AI Insights",
     "settings.aiInsights.enable": "Enable AI Insights",
     "settings.aiInsights.description":
@@ -8291,6 +8303,7 @@ const translations: Record<Language, Translations> = {
     "home.emptyState":
       "Няма профили все още. Добавете първи партньор, за да започнете.",
     "avatar.sunnyLife": "Слънчев живот",
+    "avatar.sunnyCongrats": "{pct}% Слънчев живот!",
     "avatar.addMemories": "Добави спомени",
     "sferaInsight.addPeople": "Добави хора",
     "sferaInsight.leastMemories": "Най-малко документирани",
@@ -8419,6 +8432,12 @@ const translations: Record<Language, Translations> = {
     "settings.usability.stopPulsingAnimations": "Пулсиращи анимации",
     "settings.usability.stopPulsingAnimationsDescription":
       "Когато е включено, бутоните за инсайти и AI сфера в раздела Сфери ще пулсират.",
+    "settings.usability.splashAnimation": "Splash анимация",
+    "settings.usability.splashAnimationDescription":
+      "Когато е включено, показва анимирания начален екран при стартиране на приложението.",
+    "settings.usability.sunnyMomentsCongratsAnimation": "Празнуване на слънчеви моменти",
+    "settings.usability.sunnyMomentsCongratsAnimationDescription":
+      "Когато е включено, показва анимация за поздравление, когато слънчевите ти моменти достигнат 50%.",
     "settings.aiInsights.title": "AI Инсайти",
     "settings.aiInsights.enable": "Включи AI Инсайти",
     "settings.aiInsights.description":

@@ -12,6 +12,8 @@ const CONSTELLATION_OPACITY_KEY = "@sferas:constellation_opacity";
 const COSMIC_BACKGROUND_OPACITY_KEY = "@sferas:cosmic_background_opacity";
 const APP_USABILITY_HINTS_KEY = "@sferas:app_usability_hints";
 const STOP_PULSING_ANIMATIONS_KEY = "@sferas:stop_pulsing_animations";
+export const SPLASH_ANIMATION_KEY = "@sferas:splash_animation";
+export const SUNNY_MOMENTS_CONGRATS_ANIMATION_KEY = "@sferas:sunny_moments_congrats_animation";
 
 const DEFAULT_ORBIT_DURATION_MS = 60000;
 const MIN_ORBIT_DURATION_MS = 20000;
@@ -42,6 +44,10 @@ type VisualSettingsContextValue = {
   setAppUsabilityHints: (value: boolean) => void;
   pulsingAnimations: boolean;
   setPulsingAnimations: (value: boolean) => void;
+  splashAnimation: boolean;
+  setSplashAnimation: (value: boolean) => void;
+  sunnyMomentsCongratsAnimation: boolean;
+  setSunnyMomentsCongratsAnimation: (value: boolean) => void;
 };
 
 const VisualSettingsContext = createContext<VisualSettingsContextValue | null>(null);
@@ -53,6 +59,8 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
   const [cosmicBackgroundOpacity, setCosmicOpacityState] = useState(DEFAULT_COSMIC_BACKGROUND_OPACITY);
   const [appUsabilityHints, setAppUsabilityHintsState] = useState(true);
   const [pulsingAnimations, setPulsingAnimationsState] = useState(true);
+  const [splashAnimation, setSplashAnimationState] = useState(true);
+  const [sunnyMomentsCongratsAnimation, setSunnyMomentsCongratsAnimationState] = useState(true);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -63,7 +71,9 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       COSMIC_BACKGROUND_OPACITY_KEY,
       APP_USABILITY_HINTS_KEY,
       STOP_PULSING_ANIMATIONS_KEY,
-    ]).then(([[, orbit], [, constellation], [, constellationOp], [, cosmic], [, hints], [, stopPulsing]]) => {
+      SPLASH_ANIMATION_KEY,
+      SUNNY_MOMENTS_CONGRATS_ANIMATION_KEY,
+    ]).then(([[, orbit], [, constellation], [, constellationOp], [, cosmic], [, hints], [, stopPulsing], [, splash], [, sunnyMomentsCongrats]]) => {
         if (orbit != null) {
           const n = parseInt(orbit, 10);
           if (Number.isFinite(n) && n >= MIN_ORBIT_DURATION_MS && n <= MAX_ORBIT_DURATION_MS) {
@@ -98,6 +108,12 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
           setPulsingAnimationsState(false);
         } else if (stopPulsing === "false") {
           setPulsingAnimationsState(true);
+        }
+        if (splash === "false") {
+          setSplashAnimationState(false);
+        }
+        if (sunnyMomentsCongrats === "false") {
+          setSunnyMomentsCongratsAnimationState(false);
         }
         setLoaded(true);
       },
@@ -143,6 +159,16 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
     AsyncStorage.setItem(STOP_PULSING_ANIMATIONS_KEY, String(!value));
   }, []);
 
+  const setSplashAnimation = useCallback((value: boolean) => {
+    setSplashAnimationState(value);
+    AsyncStorage.setItem(SPLASH_ANIMATION_KEY, String(value));
+  }, []);
+
+  const setSunnyMomentsCongratsAnimation = useCallback((value: boolean) => {
+    setSunnyMomentsCongratsAnimationState(value);
+    AsyncStorage.setItem(SUNNY_MOMENTS_CONGRATS_ANIMATION_KEY, String(value));
+  }, []);
+
   const value = useMemo<VisualSettingsContextValue>(
     () => ({
       orbitDurationMs,
@@ -157,6 +183,10 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       setAppUsabilityHints,
       pulsingAnimations,
       setPulsingAnimations,
+      splashAnimation,
+      setSplashAnimation,
+      sunnyMomentsCongratsAnimation,
+      setSunnyMomentsCongratsAnimation,
     }),
     [
       orbitDurationMs,
@@ -171,6 +201,10 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       setAppUsabilityHints,
       pulsingAnimations,
       setPulsingAnimations,
+      splashAnimation,
+      setSplashAnimation,
+      sunnyMomentsCongratsAnimation,
+      setSunnyMomentsCongratsAnimation,
     ],
   );
 
@@ -197,6 +231,10 @@ export function useVisualSettings(): VisualSettingsContextValue {
       setAppUsabilityHints: () => {},
       pulsingAnimations: true,
       setPulsingAnimations: () => {},
+      splashAnimation: true,
+      setSplashAnimation: () => {},
+      sunnyMomentsCongratsAnimation: true,
+      setSunnyMomentsCongratsAnimation: () => {},
     };
   }
   return ctx;

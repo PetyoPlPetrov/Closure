@@ -17716,8 +17716,17 @@ export default function HomeScreen() {
         setSelectedSphere("hobbies");
       }
     } else if (entityId && sphere) {
-      // Handle navigation from spheres tab without focused memory
-      if (sphere === "friends") {
+      // Handle navigation to a specific entity without a focused memory
+      if (sphere === "relationships") {
+        setFocusedProfileId(entityId);
+        setSelectedSphere("relationships");
+      } else if (sphere === "career") {
+        setFocusedJobId(entityId);
+        setSelectedSphere("career");
+      } else if (sphere === "family") {
+        setFocusedFamilyMemberId(entityId);
+        setSelectedSphere("family");
+      } else if (sphere === "friends") {
         setFocusedFriendId(entityId);
         setSelectedSphere("friends");
       } else if (sphere === "hobbies") {
@@ -18652,6 +18661,7 @@ export default function HomeScreen() {
           overallSunnyPercentage={overallSunnyPercentage}
           hasMemories={idealizedMemories.length > 0}
           selectedSphere={selectedSphere}
+          splashDone={!isSplashVisible}
           onAddMemoriesPress={() => router.push("/(tabs)/spheres")}
           onSphereSelect={(sphere) => {
             setFocusedMemory(null);

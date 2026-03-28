@@ -38,6 +38,7 @@ import {
 import Animated, {
   cancelAnimation,
   Easing,
+  type SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -494,15 +495,8 @@ function generateBgSferas(seed: number) {
   });
 }
 
-function BackgroundSferas({ seed }: { seed: number }) {
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    opacity.value = 0;
-    opacity.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.ease) });
-  }, [seed, opacity]);
-
-  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value * 0.22 }));
+function BackgroundSferas({ seed, fadeOut }: { seed: number; fadeOut: SharedValue<number> }) {
+  const animStyle = useAnimatedStyle(() => ({ opacity: fadeOut.value * 0.22 }));
 
   const sferas = useMemo(() => generateBgSferas(seed), [seed]);
 
@@ -678,7 +672,7 @@ const LessonSfera = React.memo(function LessonSfera({
         >
           {/* Moon image or fallback icon — tappable when linked to a real memory */}
           <Pressable onPress={card.memoryId ? handleMoonPress : undefined} hitSlop={12}>
-            <Animated.View style={moonStyle}>
+            <View>
               {/* Pulse glow ring behind avatar */}
               <Animated.View
                 pointerEvents="none"
@@ -689,7 +683,7 @@ const LessonSfera = React.memo(function LessonSfera({
                   backgroundColor: accentColor + "40",
                 }]}
               />
-              <View style={[styles.moonAvatar, {
+              <Animated.View style={[styles.moonAvatar, moonStyle, {
                 borderColor: accentColor + "AA",
                 shadowColor: accentColor,
                 shadowOffset: { width: 0, height: 0 },
@@ -708,8 +702,8 @@ const LessonSfera = React.memo(function LessonSfera({
                     <MaterialIcons name="auto-awesome" size={20} color={accentColor} />
                   </View>
                 )}
-              </View>
-            </Animated.View>
+              </Animated.View>
+            </View>
           </Pressable>
           {/* Memory title below the moon */}
           <ThemedText style={[styles.moonLabel, { color: accentColor }]} numberOfLines={1}>
@@ -772,6 +766,7 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
   const { appUsabilityHints } = useVisualSettings();
   const { idealizedMemories } = useJourney();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [bgSeed, setBgSeed] = useState(0);
   const listRef = useRef<FlatList>(null);
 
   const twinkles = useMemo(
@@ -802,7 +797,22 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
         }
       }
     }
-    if (real.length > 0) return real;
+    if (real.length > 0) {
+      // Interleave cards from different spheres so the feed feels varied
+      const bySphere: Record<string, LessonCard[]> = {};
+      for (const card of real) {
+        (bySphere[card.sphere] ??= []).push(card);
+      }
+      const buckets = Object.values(bySphere);
+      const interleaved: LessonCard[] = [];
+      const maxLen = Math.max(...buckets.map((b) => b.length));
+      for (let i = 0; i < maxLen; i++) {
+        for (const bucket of buckets) {
+          if (i < bucket.length) interleaved.push(bucket[i]);
+        }
+      }
+      return interleaved;
+    }
     const fb = lifeLessons[language] ?? lifeLessons.en;
     return fb.map((text, i) => ({
       id: `static_${i}`,
@@ -819,11 +829,22 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
     }
   }, [visible]);
 
+  const bgSeedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bgFadeOut = useSharedValue(1);
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems[0]?.index != null) setActiveIndex(viewableItems[0].index);
+      const idx = viewableItems[0]?.index;
+      if (idx != null) {
+        setActiveIndex(idx);
+        if (bgSeedTimerRef.current) clearTimeout(bgSeedTimerRef.current);
+        bgFadeOut.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
+        bgSeedTimerRef.current = setTimeout(() => {
+          setBgSeed(idx);
+          bgFadeOut.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) });
+        }, 420);
+      }
     },
-    [],
+    [bgFadeOut],
   );
   const viewabilityConfig = useMemo(() => ({ itemVisiblePercentThreshold: 52 }), []);
 
@@ -875,11 +896,11 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
   }));
 
   const handleAvatarPress = useCallback((card: LessonCard) => {
-    if (!card.memoryId || !card.entityId) return;
+    if (!card.entityId) return;
     onClose();
     router.push({
-      pathname: "/add-idealized-memory",
-      params: { entityId: card.entityId, sphere: card.sphere, memoryId: card.memoryId, viewOnly: "true" },
+      pathname: "/(tabs)" as const,
+      params: { sphere: card.sphere, entityId: card.entityId },
     });
   }, [onClose]);
 
@@ -945,7 +966,7 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
           </View>
         </Pressable>
 
-        <BackgroundSferas seed={activeIndex} />
+        <BackgroundSferas seed={bgSeed} fadeOut={bgFadeOut} />
         <FlatList
           ref={listRef}
           data={cards}
@@ -1049,8 +1070,8 @@ const styles = StyleSheet.create({
     width: MOON_SIZE,
     height: MOON_SIZE,
     borderRadius: MOON_SIZE / 2,
-    overflow: "hidden",
     borderWidth: 2,
+    overflow: "hidden",
   },
   moonImage: {
     width: "100%",
