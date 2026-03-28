@@ -18661,7 +18661,7 @@ export default function HomeScreen() {
           overallSunnyPercentage={overallSunnyPercentage}
           hasMemories={idealizedMemories.length > 0}
           selectedSphere={selectedSphere}
-          splashDone={!isSplashVisible}
+          splashDone={!isSplashVisible || isAnimationComplete}
           onAddMemoriesPress={() => router.push("/(tabs)/spheres")}
           onSphereSelect={(sphere) => {
             setFocusedMemory(null);

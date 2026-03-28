@@ -193,6 +193,8 @@ export type FocusedSferaViewProps = {
 const MOMENT_ICON_SIZE = 16;
 const MOMENT_ORBIT_RADIUS = 32; // outside entity avatar (entity radius ~20 for focused; +12 gap so memories sit clearly away)
 
+const RISING_SUN_COUNT = 18;
+
 // ─── Background decorative sferas (rings, orbs, arcs) ───────────────────────
 // Lesson card occupies roughly the horizontal center and y: 180–420.
 // Decorations avoid that zone by staying in corners / edges.
@@ -552,6 +554,230 @@ const SparkledDot = React.memo(function SparkledDot({
         animatedStyle,
       ]}
     />
+  );
+});
+
+// ───────────────────── Rising sun bubbles (background decoration during congrats intro) ─────────────────────
+// Timeline: sun fills 0–3500ms, then shrinks. Suns rise once (bottom→top) during fill phase, fade out on shrink.
+
+const RisingSunBubble = React.memo(function RisingSunBubble({
+  left,
+  sunSize,
+  maxOpacity,
+  delay,
+  duration,
+  text,
+  color,
+  fadeOut,
+}: {
+  left: number;
+  sunSize: number;
+  maxOpacity: number;
+  delay: number;
+  duration: number;
+  text: string;
+  color: string;
+  fadeOut: SharedValue<number>;
+}) {
+  // translateY goes from 0 (at SH, off-screen bottom) to -(SH + sunSize) (past top)
+  const translateY = useSharedValue(0);
+
+  useEffect(() => {
+    translateY.value = withDelay(
+      delay,
+      withTiming(-(SH + sunSize), { duration, easing: Easing.linear }),
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    // Progress 0 = at bottom (top: SH), 1 = past top. translateY ranges 0 → -(SH + sunSize)
+    const progress = -translateY.value / (SH + sunSize);
+    // Fade as it nears the top: full opacity in bottom 60%, fade to 0 in top 40%
+    const posOpacity = progress < 0.6 ? 1 : (1 - progress) / 0.4;
+    const finalOpacity = maxOpacity * Math.max(0, posOpacity) * fadeOut.value;
+    return {
+      opacity: finalOpacity,
+      transform: [{ translateY: translateY.value }],
+    };
+  });
+
+  const paddingH = (sunSize / 160) * 48 * 0.6;
+  const paddingV = (sunSize / 160) * 48 * 0.4;
+  const fontSize = 12 * (sunSize / 160);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        {
+          position: "absolute",
+          left,
+          top: SH,
+          width: sunSize,
+          height: sunSize,
+          zIndex: 5,
+          shadowColor: color,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.6,
+          shadowRadius: 8,
+        },
+        animatedStyle,
+      ]}
+    >
+      <Svg
+        width={sunSize}
+        height={sunSize}
+        viewBox="0 0 160 160"
+        preserveAspectRatio="xMidYMid meet"
+        style={{ position: "absolute", top: 0, left: 0 }}
+      >
+        <Defs>
+          <RadialGradient
+            id={`risingSunGrad-${text.slice(0, 8)}`}
+            cx="80"
+            cy="80"
+            rx="48"
+            ry="48"
+            fx="80"
+            fy="80"
+            gradientUnits="userSpaceOnUse"
+          >
+            <Stop offset="0%" stopColor={color} stopOpacity="0.9" />
+            <Stop offset="60%" stopColor={color} stopOpacity="1" />
+            <Stop offset="100%" stopColor={color} stopOpacity="1" />
+          </RadialGradient>
+        </Defs>
+        {Array.from({ length: 12 }).map((_, i) => {
+          const radian = (i * 2 * Math.PI) / 12;
+          const cx = 80, cy = 80, innerR = 48, outerR = 72, rw = 3;
+          const ix = cx + Math.cos(radian) * innerR;
+          const iy = cy + Math.sin(radian) * innerR;
+          const ox = cx + Math.cos(radian) * outerR;
+          const oy = cy + Math.sin(radian) * outerR;
+          const perp = radian + Math.PI / 2;
+          const lx = ox + Math.cos(perp) * (rw / 2);
+          const ly = oy + Math.sin(perp) * (rw / 2);
+          const rx2 = ox + Math.cos(perp + Math.PI) * (rw / 2);
+          const ry2 = oy + Math.sin(perp + Math.PI) * (rw / 2);
+          return (
+            <Path
+              key={i}
+              d={`M ${ix} ${iy} L ${lx} ${ly} L ${rx2} ${ry2} Z`}
+              fill={color}
+            />
+          );
+        })}
+        <SvgCircle
+          cx="80"
+          cy="80"
+          r="48"
+          fill={`url(#risingSunGrad-${text.slice(0, 8)})`}
+        />
+      </Svg>
+      <View
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: sunSize,
+          height: sunSize,
+          justifyContent: "center",
+          alignItems: "center",
+          paddingHorizontal: paddingH,
+          paddingVertical: paddingV,
+        }}
+      >
+        <ThemedText
+          style={{
+            color: "black",
+            fontSize,
+            textAlign: "center",
+            fontWeight: "700",
+          }}
+          numberOfLines={3}
+        >
+          {text.split("\n")[0] || text}
+        </ThemedText>
+        {text.includes("\n") && (
+          <ThemedText
+            style={{
+              color: "black",
+              fontSize: fontSize * 0.6,
+              textAlign: "center",
+              fontWeight: "600",
+              maxWidth: (sunSize / 160) * 48 * 1.6,
+            }}
+            numberOfLines={2}
+          >
+            {text.split("\n")[1]}
+          </ThemedText>
+        )}
+      </View>
+    </Animated.View>
+  );
+});
+
+const RisingSunsBackground = React.memo(function RisingSunsBackground({
+  sunnyFacts,
+  fadeOut,
+}: {
+  sunnyFacts: { id: string; text: string }[];
+  fadeOut: SharedValue<number>;
+}) {
+  const { momentColors } = useMomentColors();
+  const color = momentColors.sunny.background;
+
+  const suns = useMemo(() => {
+    if (sunnyFacts.length === 0) return [];
+
+    const shuffled = [...sunnyFacts].sort(() => Math.random() - 0.5);
+    const minSize = 70;
+    const maxSize = 160;
+    const gap = 12;
+    // Use the max size for column layout so large suns don't overflow into adjacent columns
+    const colWidth = maxSize + gap;
+    const cols = Math.floor(SW / colWidth);
+    // Shuffle column indices so assignment order is random
+    const colIndices = Array.from({ length: cols }, (_, i) => i).sort(() => Math.random() - 0.5);
+
+    return Array.from({ length: RISING_SUN_COUNT }, (_, i) => {
+      const fact = shuffled[i % shuffled.length];
+      const sunSize = Math.round(minSize + Math.random() * (maxSize - minSize));
+      // Assign a column, wrapping if RISING_SUN_COUNT > cols
+      const col = colIndices[i % colIndices.length];
+      // Jitter within the column so suns don't form a rigid grid
+      const jitter = Math.random() * (colWidth - sunSize);
+      const left = col * colWidth + jitter;
+      const delay = Math.round(Math.random() * 2500);
+      const duration = 3500 - delay;
+      return {
+        id: `${fact.id}-${i}`,
+        text: fact.text,
+        left,
+        sunSize,
+        maxOpacity: 0.25 + Math.random() * 0.2,
+        delay,
+        duration,
+      };
+    });
+  }, [sunnyFacts]);
+
+  return (
+    <>
+      {suns.map((s) => (
+        <RisingSunBubble
+          key={s.id}
+          left={s.left}
+          sunSize={s.sunSize}
+          maxOpacity={s.maxOpacity}
+          delay={s.delay}
+          duration={s.duration}
+          text={s.text}
+          color={color}
+          fadeOut={fadeOut}
+        />
+      ))}
+    </>
   );
 });
 
@@ -1143,7 +1369,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       top: 0,
       width: SPHERE_CONTAINER_SIZE,
       height: SPHERE_CONTAINER_SIZE,
-      opacity: introOpacity * (1 - sunExpanded.value * 0.82),
+      opacity: introOpacity * (1 - sunExpanded.value * 0.94),
       transform: [
         { translateX: centerX - CONTAINER_HALF },
         {
@@ -2376,6 +2602,7 @@ export function FocusedSferaView({
   const sunLoadSweepOffset   = useSharedValue(0);
   const sunLoadScale         = useSharedValue(1);   // set to 1.5 inside effect if intro plays
   const sunLoadDisplayPct    = useSharedValue(0);
+  const risingSunsFadeOut    = useSharedValue(1);   // 1 = visible, fades to 0 when sun starts shrinking
   const sunLoadEntityOpacity = useSharedValue(0);   // entities hidden until orbit sweep
   const congratsOpacity    = useSharedValue(0);
   const [sunLoadComplete, setIntroComplete] = useState(selectedSphere !== null);
@@ -2445,8 +2672,9 @@ export function FocusedSferaView({
       withDelay(500, withTiming(0, { duration: 400, easing: Easing.in(Easing.ease) })),
     );
 
-    // Phase 3 (3500ms): sun shrinks to 1×, un-center it
+    // Phase 3 (3500ms): sun shrinks to 1×, un-center it; rising suns fade out simultaneously
     sunLoadScale.value = withDelay(3500, withSpring(1.0, { damping: 18, stiffness: 90 }));
+    risingSunsFadeOut.value = withDelay(3500, withTiming(0, { duration: 600, easing: Easing.in(Easing.ease) }));
     const uncenterTimer = setTimeout(() => {
       runOnJS(setIntroCentered)(false);
     }, 3500);
@@ -2571,6 +2799,16 @@ export function FocusedSferaView({
     const focusedMemories = memoriesPerEntityBySphere[focusedSphere.type] ?? [];
     return focusedMemories.some((entityMemories) => entityMemories.length > 0);
   }, [memoriesPerEntityBySphere, focusedSphere.type]);
+
+  const sunnyFacts = useMemo(() => {
+    const allMems = (
+      Object.values(memoriesPerEntityBySphere) as IdealizedMemory[][]
+    ).flat(2);
+    return allMems
+      .filter((m) => getMemorySunnyPercentage(m) >= 50)
+      .flatMap((m) => m.goodFacts ?? [])
+      .filter((f) => f.text?.trim());
+  }, [memoriesPerEntityBySphere]);
 
   // Circle avatar percentage logic:
   // - Initial view (selectedSphere === null): Show overall percentage across all sferas
@@ -2803,6 +3041,8 @@ export function FocusedSferaView({
           />
           {!sunLoadComplete && (
             <>
+              {/* Rising sunny moment bubbles — drift bottom to top in background */}
+              <RisingSunsBackground sunnyFacts={sunnyFacts} fadeOut={risingSunsFadeOut} />
               {/* Fireworks burst at percentage reveal */}
               <Fireworks
                 visible={sunLoadFireworks}
