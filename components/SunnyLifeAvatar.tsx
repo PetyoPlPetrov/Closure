@@ -5,10 +5,14 @@ import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
 import Animated, {
   cancelAnimation,
+  runOnJS,
+  SharedValue,
+  useAnimatedProps,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -18,18 +22,19 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, {
+  Circle as SvgCircle,
   Defs,
   FeColorMatrix,
   FeGaussianBlur,
   FeMerge,
   FeMergeNode,
   Filter,
-  Line,
   RadialGradient,
   Stop,
-  Circle as SvgCircle,
   LinearGradient as SvgLinearGradient,
 } from "react-native-svg";
+
+const AnimatedSvgCircle = Animated.createAnimatedComponent(SvgCircle);
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -82,6 +87,13 @@ const AVATAR_LINE_COLOR = "rgba(184, 232, 236, 0.12)";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function hexToRgbNorm(hex: string): { r: number; g: number; b: number } {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  return { r, g, b };
+}
+
 function blendHex(hex1: string, hex2: string, t: number): string {
   const parse = (h: string) => ({
     r: parseInt(h.slice(1, 3), 16),
@@ -96,13 +108,6 @@ function blendHex(hex1: string, hex2: string, t: number): string {
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
 }
 
-function hexToRgbNorm(hex: string): { r: number; g: number; b: number } {
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  return { r, g, b };
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export interface SunnyLifeAvatarProps {
@@ -115,6 +120,18 @@ export interface SunnyLifeAvatarProps {
   colorScheme: "light" | "dark";
   x: number;
   y: number;
+  /** When provided, drives scale+centering during the congrats intro animation. */
+  sunLoadScale?: SharedValue<number>;
+  /** When provided, animates the displayed % from 0 → percentage during congrats intro. */
+  sunLoadDisplayPct?: SharedValue<number>;
+  /** When provided, drives the expand/collapse "sun menu" vertical offset. */
+  sunExpanded?: SharedValue<number>;
+  /** When true, the avatar translates toward screen center (congrats centering). */
+  isCentered?: boolean;
+  /** Screen width — needed to compute centering translateX. */
+  screenWidth?: number;
+  /** Screen height — needed to compute centering translateY. */
+  screenHeight?: number;
 }
 
 export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
@@ -125,11 +142,16 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   colorScheme,
   x,
   y,
+  sunLoadScale,
+  sunLoadDisplayPct,
+  sunExpanded: externalSunExpanded,
+  isCentered = false,
+  screenWidth,
+  screenHeight,
 }: SunnyLifeAvatarProps) {
   const { momentColors } = useMomentColors();
   const t = useTranslate();
   const { language } = useLanguage();
-  const handlePress = hasMemories ? onPress : onAddMemoriesPress;
   const colors = Colors[colorScheme] as {
     primary: string;
     primaryLight?: string;
@@ -154,11 +176,48 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   const borderWidth = 8;
   const radius = (avatarSize + borderWidth) / 2 - borderWidth / 2;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  const staticRingDashOffset = circumference - (percentage / 100) * circumference;
+
+  const isSunLoadIntro = sunLoadDisplayPct != null;
+
+  const animatedRingProps = useAnimatedProps(() => {
+    const pct = sunLoadDisplayPct != null ? sunLoadDisplayPct.value : percentage;
+    return {
+      strokeDashoffset: circumference - (pct / 100) * circumference,
+    };
+  }, [sunLoadDisplayPct, percentage, circumference]);
 
   const gradientColors =
     colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
 
+  // ── Expand/collapse toggle ──────────────────────────────────────────────────
+  const [isExpanded, setIsExpanded] = useState(false);
+  const expandScale = useSharedValue(1);
+
+  const handlePress = useCallback(() => {
+    if (!hasMemories) {
+      onAddMemoriesPress?.();
+      return;
+    }
+    if (onPress) {
+      onPress();
+      return;
+    }
+    // Toggle expand when no external onPress handler
+    const next = !isExpanded;
+    setIsExpanded(next);
+    expandScale.value = withSpring(next ? 1.22 : 1, { damping: 14, stiffness: 160 });
+  }, [hasMemories, onAddMemoriesPress, onPress, isExpanded, expandScale]);
+
+  // Collapse when an external onPress is provided (parent controls state)
+  useEffect(() => {
+    if (onPress) {
+      setIsExpanded(false);
+      expandScale.value = withSpring(1, { damping: 14, stiffness: 160 });
+    }
+  }, [onPress, expandScale]);
+
+  // ── Periodic pulse ─────────────────────────────────────────────────────────
   const avatarPulseScale = useSharedValue(1);
   useEffect(() => {
     avatarPulseScale.value = 1;
@@ -180,11 +239,8 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
     };
   }, [avatarPulseScale]);
 
+  // ── Press feedback ─────────────────────────────────────────────────────────
   const pressScale = useSharedValue(1);
-  const avatarPulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: avatarPulseScale.value * pressScale.value }],
-  }));
-
   const handlePressIn = useCallback(() => {
     cancelAnimation(pressScale);
     pressScale.value = withSpring(0.9, { damping: 12, stiffness: 400 });
@@ -193,6 +249,54 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
     cancelAnimation(pressScale);
     pressScale.value = withSpring(1, { damping: 12, stiffness: 400 });
   }, [pressScale]);
+
+  // ── Centering (congrats intro) ─────────────────────────────────────────────
+  const SW = screenWidth ?? 390;
+  const SH = screenHeight ?? 844;
+  const targetTX = SW / 2 - x;
+  const targetTY = SH / 2 - y;
+  const centeredProgress = useSharedValue(0);
+  useEffect(() => {
+    centeredProgress.value = withSpring(isCentered ? 1 : 0, { damping: 16, stiffness: 100 });
+  }, [isCentered, centeredProgress]);
+
+  /** Extra scale when sun menu is expanded (parent drives `sunExpanded`). */
+  const SUN_MENU_EXPAND_BONUS = 0.22;
+
+  // ── Composite animated style ───────────────────────────────────────────────
+  const compositeStyle = useAnimatedStyle(() => {
+    const sunExp = externalSunExpanded?.value ?? 0;
+    const introScale = sunLoadScale?.value ?? 1;
+    return {
+      transform: [
+        { translateX: centeredProgress.value * targetTX },
+        { translateY: centeredProgress.value * targetTY - sunExp * 40 },
+        {
+          scale:
+            avatarPulseScale.value *
+            pressScale.value *
+            expandScale.value *
+            (1 + sunExp * SUN_MENU_EXPAND_BONUS) *
+            introScale,
+        },
+      ],
+    };
+  });
+
+  // ── Display percentage (animated during congrats) ─────────────────────────
+  const [displayPctJs, setDisplayPctJs] = useState(sunLoadDisplayPct ? 0 : percentage);
+  useAnimatedReaction(
+    () => (sunLoadDisplayPct != null ? sunLoadDisplayPct.value : percentage),
+    (current, previous) => {
+      const rounded = Math.round(current);
+      if (previous === null || rounded !== Math.round(previous as number)) {
+        runOnJS(setDisplayPctJs)(rounded);
+      }
+    },
+    [sunLoadDisplayPct, percentage],
+  );
+
+  const ringPctForIcons = sunLoadDisplayPct ? displayPctJs : percentage;
 
   const wrapperStyle = {
     position: "absolute" as const,
@@ -211,7 +315,7 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
       style={wrapperStyle}
     >
       <Animated.View
-        style={[{ width: avatarSize, height: avatarSize }, avatarPulseStyle]}
+        style={[{ width: avatarSize, height: avatarSize }, compositeStyle]}
       >
         <View
           style={{
@@ -233,6 +337,7 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
               width: avatarSize,
               height: avatarSize,
               borderRadius: avatarSize / 2,
+              opacity: 0.45,
             }}
           />
           <Svg
@@ -400,15 +505,13 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                 </FeMerge>
               </Filter>
             </Defs>
-            {/* Nebula halo */}
             <SvgCircle
               cx={avatarSize / 2}
               cy={avatarSize / 2}
               r={radius + 18}
               fill="url(#nebulaHalo)"
-              filter="url(#nebulaBlur)"
+              filter={isSunLoadIntro ? undefined : "url(#nebulaBlur)"}
             />
-            {/* Cosmic dark ring track */}
             <SvgCircle
               cx={avatarSize / 2}
               cy={avatarSize / 2}
@@ -417,57 +520,49 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
               strokeWidth={borderWidth}
               fill="none"
             />
-            {/* Outer glow arc */}
-            <SvgCircle
-              cx={avatarSize / 2}
-              cy={avatarSize / 2}
-              r={radius}
-              stroke="url(#focusedBorderGradient)"
-              strokeWidth={borderWidth}
-              fill="none"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              filter="url(#focusedOuterGlow)"
-              transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
-            />
-            {/* Main glowing progress arc */}
-            <SvgCircle
-              cx={avatarSize / 2}
-              cy={avatarSize / 2}
-              r={radius}
-              stroke="url(#focusedBorderGradient)"
-              strokeWidth={borderWidth}
-              fill="none"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              filter="url(#focusedYellowGlow)"
-              transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
-            />
-            {/* Constellation lines */}
-            {AVATAR_CONSTELLATION_LINES.map(([i, j], k) => (
-              <Line
-                key={`line-${k}`}
-                x1={AVATAR_STARS[i].x * avatarSize}
-                y1={AVATAR_STARS[i].y * avatarSize}
-                x2={AVATAR_STARS[j].x * avatarSize}
-                y2={AVATAR_STARS[j].y * avatarSize}
-                stroke={AVATAR_LINE_COLOR}
-                strokeWidth={1}
+            {isSunLoadIntro && sunLoadDisplayPct ? (
+              <AnimatedSvgCircle
+                animatedProps={animatedRingProps}
+                cx={avatarSize / 2}
+                cy={avatarSize / 2}
+                r={radius}
+                stroke="url(#focusedBorderGradient)"
+                strokeWidth={borderWidth}
+                fill="none"
+                strokeDasharray={circumference}
                 strokeLinecap="round"
+                transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
               />
-            ))}
-            {/* Constellation dots */}
-            {AVATAR_STARS.map((star, k) => (
-              <SvgCircle
-                key={`star-${k}`}
-                cx={star.x * avatarSize}
-                cy={star.y * avatarSize}
-                r={k < 8 ? 1.2 : 0.9}
-                fill={AVATAR_STAR_COLOR}
-              />
-            ))}
+            ) : (
+              <>
+                <SvgCircle
+                  cx={avatarSize / 2}
+                  cy={avatarSize / 2}
+                  r={radius}
+                  stroke="url(#focusedBorderGradient)"
+                  strokeWidth={borderWidth}
+                  fill="none"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={staticRingDashOffset}
+                  strokeLinecap="round"
+                  filter="url(#focusedOuterGlow)"
+                  transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
+                />
+                <SvgCircle
+                  cx={avatarSize / 2}
+                  cy={avatarSize / 2}
+                  r={radius}
+                  stroke="url(#focusedBorderGradient)"
+                  strokeWidth={borderWidth}
+                  fill="none"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={staticRingDashOffset}
+                  strokeLinecap="round"
+                  filter="url(#focusedYellowGlow)"
+                  transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
+                />
+              </>
+            )}
           </Svg>
 
           <View
@@ -492,7 +587,7 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                     fontSize: 24,
                   }}
                 >
-                  {Math.round(percentage)}%
+                  {displayPctJs}%
                 </ThemedText>
                 {language === "bg" ? (
                   <View style={{ alignItems: "center" }}>
@@ -559,9 +654,9 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
         </View>
 
         {/* Sun icon on the sunny arc */}
-        {percentage > 0 &&
+        {ringPctForIcons > 0 &&
           (() => {
-            const sunnyArcAngle = -90 + ((percentage / 100) * 360) / 2;
+            const sunnyArcAngle = -90 + ((ringPctForIcons / 100) * 360) / 2;
             const sunnyAngleRad = (sunnyArcAngle * Math.PI) / 180;
             const iconRadius = avatarSize / 2;
             const sunX =
@@ -606,11 +701,11 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
           })()}
 
         {/* Cloud icon on the dark arc */}
-        {percentage < 100 &&
-          percentage > 0 &&
+        {ringPctForIcons < 100 &&
+          ringPctForIcons > 0 &&
           (() => {
-            const cloudyStartAngle = -90 + (percentage / 100) * 360;
-            const cloudyArcLength = 360 - (percentage / 100) * 360;
+            const cloudyStartAngle = -90 + (ringPctForIcons / 100) * 360;
+            const cloudyArcLength = 360 - (ringPctForIcons / 100) * 360;
             const cloudyArcAngle = cloudyStartAngle + cloudyArcLength / 2;
             const cloudyAngleRad = (cloudyArcAngle * Math.PI) / 180;
             const iconRadius = avatarSize / 2;

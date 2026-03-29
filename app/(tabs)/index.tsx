@@ -13419,6 +13419,19 @@ export default function HomeScreen() {
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
   const { isTablet, isLargeDevice } = useLargeDevice();
+  /** Individual sfera view: back button row — title aligns to same band (vertically centered with arrow). */
+  const sphereHeaderBackTop = 70;
+  const sphereHeaderBackSize = isTablet ? 70 : 50;
+  const sphereHeaderTitleRowStyle = {
+    position: "absolute" as const,
+    top: sphereHeaderBackTop,
+    left: 20 + sphereHeaderBackSize + 12,
+    right: 20,
+    height: sphereHeaderBackSize,
+    justifyContent: "center" as const,
+    alignItems: "flex-end" as const,
+    zIndex: 1000,
+  };
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { momentColors } = useMomentColors();
@@ -22367,21 +22380,19 @@ export default function HomeScreen() {
               const displayText = t(`spheres.${sphere}`);
 
               return (
-                <ThemedText
-                  size={isTablet ? "xl" : "l"}
-                  weight="semibold"
-                  numberOfLines={1}
-                  style={{
-                    position: "absolute",
-                    top: "15%",
-                    right: 20,
-                    zIndex: 1000,
-                    color: colors.text,
-                    textAlign: "right",
-                  }}
-                >
-                  {displayText}
-                </ThemedText>
+                <View style={sphereHeaderTitleRowStyle} pointerEvents="none">
+                  <ThemedText
+                    size="l"
+                    weight="semibold"
+                    numberOfLines={1}
+                    style={{
+                      color: colors.text,
+                      textAlign: "right",
+                    }}
+                  >
+                    {displayText}
+                  </ThemedText>
+                </View>
               );
             })()}
 
@@ -22710,21 +22721,19 @@ export default function HomeScreen() {
               const displayText = t(`spheres.${sphere}`);
 
               return (
-                <ThemedText
-                  size={isTablet ? "xl" : "l"}
-                  weight="semibold"
-                  numberOfLines={1}
-                  style={{
-                    position: "absolute",
-                    top: 108,
-                    right: 20,
-                    zIndex: 1000,
-                    color: colors.text,
-                    textAlign: "right",
-                  }}
-                >
-                  {displayText}
-                </ThemedText>
+                <View style={sphereHeaderTitleRowStyle} pointerEvents="none">
+                  <ThemedText
+                    size="l"
+                    weight="semibold"
+                    numberOfLines={1}
+                    style={{
+                      color: colors.text,
+                      textAlign: "right",
+                    }}
+                  >
+                    {displayText}
+                  </ThemedText>
+                </View>
               );
             })()}
 
@@ -23069,21 +23078,19 @@ export default function HomeScreen() {
               const displayText = t(`spheres.${sphere}`);
 
               return (
-                <ThemedText
-                  size={isTablet ? "xl" : "l"}
-                  weight="semibold"
-                  numberOfLines={1}
-                  style={{
-                    position: "absolute",
-                    top: 108,
-                    right: 20,
-                    zIndex: 1000,
-                    color: colors.text,
-                    textAlign: "right",
-                  }}
-                >
-                  {displayText}
-                </ThemedText>
+                <View style={sphereHeaderTitleRowStyle} pointerEvents="none">
+                  <ThemedText
+                    size="l"
+                    weight="semibold"
+                    numberOfLines={1}
+                    style={{
+                      color: colors.text,
+                      textAlign: "right",
+                    }}
+                  >
+                    {displayText}
+                  </ThemedText>
+                </View>
               );
             })()}
 
@@ -23418,21 +23425,19 @@ export default function HomeScreen() {
               const displayText = t(`spheres.${sphere}`);
 
               return (
-                <ThemedText
-                  size={isTablet ? "xl" : "l"}
-                  weight="semibold"
-                  numberOfLines={1}
-                  style={{
-                    position: "absolute",
-                    top: 108,
-                    right: 20,
-                    zIndex: 1000,
-                    color: colors.text,
-                    textAlign: "right",
-                  }}
-                >
-                  {displayText}
-                </ThemedText>
+                <View style={sphereHeaderTitleRowStyle} pointerEvents="none">
+                  <ThemedText
+                    size="l"
+                    weight="semibold"
+                    numberOfLines={1}
+                    style={{
+                      color: colors.text,
+                      textAlign: "right",
+                    }}
+                  >
+                    {displayText}
+                  </ThemedText>
+                </View>
               );
             })()}
 
@@ -23769,21 +23774,19 @@ export default function HomeScreen() {
               const displayText = t(`spheres.${sphere}`);
 
               return (
-                <ThemedText
-                  size={isTablet ? "xl" : "l"}
-                  weight="semibold"
-                  numberOfLines={1}
-                  style={{
-                    position: "absolute",
-                    top: 108,
-                    right: 20,
-                    zIndex: 1000,
-                    color: colors.text,
-                    textAlign: "right",
-                  }}
-                >
-                  {displayText}
-                </ThemedText>
+                <View style={sphereHeaderTitleRowStyle} pointerEvents="none">
+                  <ThemedText
+                    size="l"
+                    weight="semibold"
+                    numberOfLines={1}
+                    style={{
+                      color: colors.text,
+                      textAlign: "right",
+                    }}
+                  >
+                    {displayText}
+                  </ThemedText>
+                </View>
               );
             })()}
 

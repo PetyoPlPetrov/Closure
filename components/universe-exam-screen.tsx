@@ -394,7 +394,6 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
   }, [currentCard, question, language]);
 
   const handleClose = useCallback(() => {
-    setStep("loading");
     setCurrentCard(null);
     setQuestion("");
     setAnswerInput("");

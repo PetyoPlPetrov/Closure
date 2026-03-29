@@ -7,6 +7,7 @@
  */
 import { AILoadingView } from "@/components/ai-loading-view";
 import { OnboardingEntityResultsView } from "@/components/onboarding-entity-results-view";
+import { SunnyLifeAvatar } from "@/components/SunnyLifeAvatar";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -599,8 +600,16 @@ const MiniOrbitDiagram = React.memo(function MiniOrbitDiagram({ colorScheme }: {
         />
       ))}
       {/* Sun always on top */}
-      <View style={{ position: "absolute", left: MINI_C - MINI_SUN_SIZE / 2, top: MINI_C - MINI_SUN_SIZE / 2, zIndex: 20 }}>
-        <StaticSunPreview size={MINI_SUN_SIZE} percentage={72} />
+      <View style={{ position: "absolute", left: MINI_C - MINI_SUN_SIZE / 2, top: MINI_C - MINI_SUN_SIZE / 2, zIndex: 20, width: MINI_SUN_SIZE, height: MINI_SUN_SIZE, alignItems: "center", justifyContent: "center", overflow: "visible" }}>
+        <View style={{ width: 100, height: 100, transform: [{ scale: MINI_SUN_SIZE / 100 }] }}>
+          <SunnyLifeAvatar
+            percentage={72}
+            hasMemories={true}
+            colorScheme={colorScheme}
+            x={50}
+            y={50}
+          />
+        </View>
       </View>
     </View>
   );
@@ -1118,7 +1127,15 @@ export function OnboardingWizard({
     const slideData = [
       {
         illustration: (
-          <StaticSunPreview size={110 * fontScale} percentage={72} />
+          <View style={{ width: 110 * fontScale, height: 110 * fontScale }}>
+            <SunnyLifeAvatar
+              percentage={72}
+              hasMemories={true}
+              colorScheme={(colorScheme ?? "dark") as "light" | "dark"}
+              x={55 * fontScale}
+              y={55 * fontScale}
+            />
+          </View>
         ),
         title: t("onboarding.hierarchy.universe.title") ?? "Your Universe",
         body: t("onboarding.hierarchy.universe.body") ?? "At the center is your Sun — a reflection of your balance between sunny and cloudy moments in life. Sferas are the main areas of your life, orbiting around it.",
