@@ -7,6 +7,7 @@
 
 import { ConstellationBackground } from "@/components/constellation-background";
 import { Fireworks } from "@/components/fireworks";
+import { SunnyLifeAvatar } from "@/components/SunnyLifeAvatar";
 import { ThemedText } from "@/components/themed-text";
 import { UniverseLessonsScreen } from "@/components/universe-lessons-screen";
 import { UniverseExamScreen } from "@/components/universe-exam-screen";
@@ -3053,7 +3054,7 @@ export function FocusedSferaView({
         />
       ) : (
         <>
-          <SunAvatar
+          <SunnyLifeAvatar
             percentage={circleAvatarPercentage}
             hasMemories={hasMemories}
             onPress={handleCircleAvatarPress}
@@ -3061,10 +3062,6 @@ export function FocusedSferaView({
             colorScheme={colorScheme}
             x={SW * 0.45}
             y={SH * 0.38}
-            sunExpanded={sunExpanded}
-            isCentered={isSunCentered || sunLoadCentered}
-            sunLoadScale={sunLoadComplete ? undefined : sunLoadScale}
-            sunLoadDisplayPct={sunLoadComplete ? undefined : sunLoadDisplayPct}
           />
           {!sunLoadComplete && (
             <>
