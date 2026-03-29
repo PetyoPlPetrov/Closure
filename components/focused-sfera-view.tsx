@@ -2369,13 +2369,31 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
 
   const numModes = numEntities <= 1 ? 1 : 3;
 
-  const cycleMode = useCallback(() => {
-    if (numEntities === 0) return;
-    modeOpacity.value = withTiming(0, { duration: 120 }, () => {
-      modeOpacity.value = withTiming(1, { duration: 120 });
-    });
-    setMode((prev) => (prev + 1) % numModes);
-  }, [modeOpacity, numModes, numEntities]);
+  const cycleMode = useCallback(
+    (direction: 1 | -1 = 1) => {
+      if (numEntities === 0) return;
+      modeOpacity.value = withTiming(0, { duration: 120 }, () => {
+        modeOpacity.value = withTiming(1, { duration: 120 });
+      });
+      setMode((prev) => (prev + direction + numModes) % numModes);
+    },
+    [modeOpacity, numModes, numEntities],
+  );
+
+  const cycleModeRef = useRef(cycleMode);
+  cycleModeRef.current = cycleMode;
+
+  const swipePanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        Math.abs(gestureState.dx) > 8 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
+      onPanResponderRelease: (_, gestureState) => {
+        if (Math.abs(gestureState.dx) > 20) {
+          cycleModeRef.current(gestureState.dx < 0 ? 1 : -1);
+        }
+      },
+    }),
+  ).current;
 
   const modeAnimStyle = useAnimatedStyle(() => ({
     opacity: modeOpacity.value,
@@ -2468,7 +2486,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   };
 
   return (
-    <Pressable style={wrapperStyle} onPress={handleEntityTap}>
+    <Pressable style={wrapperStyle} onPress={handleEntityTap} {...swipePanResponder.panHandlers}>
       <LinearGradient
         colors={[...gradientColors]}
         style={{

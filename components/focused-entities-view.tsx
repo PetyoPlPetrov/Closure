@@ -25,7 +25,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   PanResponder,
@@ -826,6 +826,31 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const goNext = useCallback(() => animateAndSet((modeIdx + 1) % numModes), [animateAndSet, modeIdx, numModes]);
   const goPrev = useCallback(() => animateAndSet((modeIdx - 1 + numModes) % numModes), [animateAndSet, modeIdx, numModes]);
 
+  // Keep latest nav callbacks in refs so PanResponder (created once) can call them
+  const goNextRef = useRef(goNext);
+  goNextRef.current = goNext;
+  const goPrevRef = useRef(goPrev);
+  goPrevRef.current = goPrev;
+  // entityTapRef is updated after entity is computed (below) so the once-created pan responder always has the latest
+  const entityTapRef = useRef<(() => void) | null>(null);
+
+  const cardPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => false, // child Pressables (bell, dots) still get capture phase
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => false,
+      onPanResponderRelease: (_, gs) => {
+        if (Math.abs(gs.dx) > 20 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5) {
+          if (gs.dx < 0) goNextRef.current();
+          else goPrevRef.current();
+        } else if (Math.abs(gs.dx) < 8 && Math.abs(gs.dy) < 8) {
+          entityTapRef.current?.();
+        }
+      },
+    }),
+  ).current;
+
   const modeAnimStyle = useAnimatedStyle(() => ({ opacity: modeOpacity.value }));
   const gradientColors = colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
 
@@ -846,6 +871,8 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const entity = entities[entityIdx];
   const entityName = entity?.name ?? "";
   const showSocialBottom = hasSocialCTAs && (mode === 0 || mode === 1) && entity != null;
+  entityTapRef.current = entity ? () => onEntitySelect?.(entity.id) : null;
+
   // Urgency border: amber tint when oldest interaction > 30 days
   const isMoodCard = mode === 4 || mode === 5;
   const moodBorderColor = mode === 4 ? (momentColors.cloudy.background + "AA") : (momentColors.sunny.background + "AA");
@@ -923,13 +950,12 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         <View style={{ width: INSIGHT_ARROW_HIT }} />
       )}
 
-      {/* Card */}
-      <Pressable
+      {/* Card — pan responder handles both swipe (next/prev) and tap (entity nav) */}
+      <View
         style={{ flex: 1, height: INSIGHT_CARD_H }}
-        onPress={() => entity && onEntitySelect?.(entity.id)}
         accessibilityRole="button"
         accessibilityLabel={entity ? `${cardLabel}: ${entityName}` : undefined}
-        accessibilityHint={entity ? `Opens ${entityName}'s details` : undefined}
+        {...cardPanResponder.panHandlers}
       >
         <LinearGradient
           colors={[...gradientColors]}
@@ -1242,7 +1268,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             </View>
           )}
         </LinearGradient>
-      </Pressable>
+      </View>
 
       {/* Right arrow */}
       {numModes > 1 ? (

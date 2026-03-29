@@ -13797,7 +13797,7 @@ export default function HomeScreen() {
     focusedFriendId ||
     focusedHobbyId
   );
-  const scrollEnabledForSphere = !hasFocusedEntity && !isAnyEntityWheelActive;
+  const scrollEnabledForSphere = hasFocusedEntity && !isAnyEntityWheelActive;
 
   const hasFocusedView = !!(
     focusedMemory ||
