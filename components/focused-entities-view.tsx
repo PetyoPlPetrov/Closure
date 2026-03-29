@@ -774,8 +774,12 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 }) {
   const t = useTranslate();
   const { momentColors } = useMomentColors();
-  // career/relationships hide the interaction-based modes (least memories, oldest, most recent)
-  const hiddenModes = (sphere === "career" || sphere === "relationships") ? new Set([0, 1, 2]) : new Set<number>();
+  // career/relationships: hide interaction modes (0-2) — these are processing spheres, not active social ones
+  // hobbies: hide mood modes (4-5) — cloudy/sunny framing doesn't fit activities
+  const hiddenModes =
+    (sphere === "career" || sphere === "relationships") ? new Set([0, 1, 2]) :
+    sphere === "hobbies" ? new Set([4, 5]) :
+    new Set<number>();
   const allowedModes = [0, 1, 2, 3, 4, 5].filter((m) => !hiddenModes.has(m));
   // For family/friends, default to "oldest interaction" (mode 1, index 1 in allowedModes)
   const defaultModeIdx = (sphere === "family" || sphere === "friends") ? 1 : 0;
@@ -891,14 +895,14 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     return `${months}${t("sferaInsight.timeAgo.months")}`;
   }, [oldestTime, newestTime, mode, t]);
 
-  // Label for top of card
+  // Label for top of card — some labels are sphere-specific
   const cardLabels = [
-    t("sferaInsight.leastMemories"),
-    t("sferaInsight.lastInteractedWith"),
-    t("sferaInsight.mostRecent"),
+    sphere === "hobbies" ? t("sferaInsight.leastPracticed") : t("sferaInsight.leastMemories"),
+    sphere === "hobbies" ? t("sferaInsight.lastPracticed") : t("sferaInsight.lastInteractedWith"),
+    sphere === "hobbies" ? t("sferaInsight.mostRecentHobby") : t("sferaInsight.mostRecent"),
     t("sferaInsight.mostMemories2"),
     t("sferaInsight.mostCloudy"),
-    t("sferaInsight.mostSunny"),
+    sphere === "hobbies" ? t("sferaInsight.mostEnjoyable") : t("sferaInsight.mostSunny"),
   ];
   const cardLabel = cardLabels[mode] ?? cardLabels[0];
 
@@ -926,7 +930,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         >
           <MaterialIcons name="add-circle-outline" size={32} color={shadowColor} />
           <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 11, textAlign: "center", marginTop: 8 }}>
-            {t("sferaInsight.addPeople")}
+            {sphere === "hobbies" ? t("sferaInsight.addHobbies") : t("sferaInsight.addPeople")}
           </ThemedText>
         </LinearGradient>
         <View style={{ width: INSIGHT_ARROW_HIT }} />

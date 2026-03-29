@@ -25,6 +25,7 @@ import {
 } from "@/utils/sphere-styles";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -79,6 +80,8 @@ const SPHERE_LIST: { type: LifeSphere; icon: string }[] = [
   { type: "friends", icon: "people" },
   { type: "hobbies", icon: "sports-esports" },
 ];
+
+const SUN_CONGRATS_LAST_SHOWN_KEY = "@sferas:sun_congrats_last_shown";
 
 const FOCUSED_SIZE = 170;
 const FOCUSED_ICON_SIZE = 72;
@@ -2446,7 +2449,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
               opacity: 0.8,
             }}
           >
-            {t("sferaInsight.addPeople")}
+            {sphere === "hobbies" ? t("sferaInsight.addHobbies") : t("sferaInsight.addPeople")}
           </ThemedText>
         </LinearGradient>
       </Pressable>
@@ -2659,60 +2662,74 @@ export function FocusedSferaView({
     if (selectedSphere === null && overallSunnyPercentage === 0) return;
     sunLoadStartedRef.current = true;
 
-    const shouldPlayIntro = sunnyMomentsCongratsAnimation && selectedSphere === null && overallSunnyPercentage >= 50;
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
-    if (!shouldPlayIntro) {
-      setIntroComplete(true);
-      setIntroCentered(false);
-      sunLoadScale.value = 1;
-      sunLoadDisplayPct.value = overallSunnyPercentage;
-      return;
-    }
+    const run = async () => {
+      let shownToday = false;
+      if (!__DEV__ && sunnyMomentsCongratsAnimation && selectedSphere === null && overallSunnyPercentage >= 50) {
+        const lastShown = await AsyncStorage.getItem(SUN_CONGRATS_LAST_SHOWN_KEY);
+        shownToday = lastShown === today;
+      }
+      const shouldPlayIntro = sunnyMomentsCongratsAnimation && selectedSphere === null && overallSunnyPercentage >= 50 && !shownToday;
 
-    // Kick off intro: enlarge sun and center it
-    sunLoadScale.value = 1.5;
-    setIntroCentered(true);
+      if (!shouldPlayIntro) {
+        setIntroComplete(true);
+        setIntroCentered(false);
+        sunLoadScale.value = 1;
+        sunLoadDisplayPct.value = overallSunnyPercentage;
+        return;
+      }
 
-    // Phase 1 (0–2500ms): count percentage from 0 → actual
-    sunLoadDisplayPct.value = withTiming(overallSunnyPercentage, {
-      duration: 2500,
-      easing: Easing.out(Easing.quad),
-    });
+      // Record today so the animation won't replay again until tomorrow
+      await AsyncStorage.setItem(SUN_CONGRATS_LAST_SHOWN_KEY, today);
 
-    // Phase 2 (2500ms): fireworks burst
-    const fireworksTimer = setTimeout(() => {
-      runOnJS(setIntroFireworks)(true);
-    }, 2500);
+      // Kick off intro: enlarge sun and center it
+      sunLoadScale.value = 1.5;
+      setIntroCentered(true);
 
-    // Congrats text: fade in at 2500ms, fade out at 3400ms
-    congratsOpacity.value = withSequence(
-      withDelay(2500, withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) })),
-      withDelay(500, withTiming(0, { duration: 400, easing: Easing.in(Easing.ease) })),
-    );
+      // Phase 1 (0–2500ms): count percentage from 0 → actual
+      sunLoadDisplayPct.value = withTiming(overallSunnyPercentage, {
+        duration: 2500,
+        easing: Easing.out(Easing.quad),
+      });
 
-    // Phase 3 (3500ms): sun shrinks to 1×, un-center it; rising suns fade out simultaneously
-    sunLoadScale.value = withDelay(3500, withSpring(1.0, { damping: 18, stiffness: 90 }));
-    risingSunsFadeOut.value = withDelay(3500, withTiming(0, { duration: 600, easing: Easing.in(Easing.ease) }));
-    const uncenterTimer = setTimeout(() => {
-      runOnJS(setIntroCentered)(false);
-    }, 3500);
+      // Phase 2 (2500ms): fireworks burst
+      const fireworksTimer = setTimeout(() => {
+        runOnJS(setIntroFireworks)(true);
+      }, 2500);
 
-    // Phase 4 (4200ms): sferas + entities stagger in together (scale + fade), each from 0→normal size
-    // sunLoadProgress goes 0→1400 over 1200ms; each sphere triggers at i*150, reveals over 400ms
-    sunLoadProgress.value = withDelay(
-      4200,
-      withTiming(1400, { duration: 1200, easing: Easing.out(Easing.quad) }, (done) => {
-        "worklet";
-        if (done) {
-          runOnJS(setIntroComplete)(true);
-        }
-      }),
-    );
+      // Congrats text: fade in at 2500ms, fade out at 3400ms
+      congratsOpacity.value = withSequence(
+        withDelay(2500, withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) })),
+        withDelay(500, withTiming(0, { duration: 400, easing: Easing.in(Easing.ease) })),
+      );
 
-    return () => {
-      clearTimeout(fireworksTimer);
-      clearTimeout(uncenterTimer);
+      // Phase 3 (3500ms): sun shrinks to 1×, un-center it; rising suns fade out simultaneously
+      sunLoadScale.value = withDelay(3500, withSpring(1.0, { damping: 18, stiffness: 90 }));
+      risingSunsFadeOut.value = withDelay(3500, withTiming(0, { duration: 600, easing: Easing.in(Easing.ease) }));
+      const uncenterTimer = setTimeout(() => {
+        runOnJS(setIntroCentered)(false);
+      }, 3500);
+
+      // Phase 4 (4200ms): sferas + entities stagger in together (scale + fade), each from 0→normal size
+      // sunLoadProgress goes 0→1400 over 1200ms; each sphere triggers at i*150, reveals over 400ms
+      sunLoadProgress.value = withDelay(
+        4200,
+        withTiming(1400, { duration: 1200, easing: Easing.out(Easing.quad) }, (done) => {
+          "worklet";
+          if (done) {
+            runOnJS(setIntroComplete)(true);
+          }
+        }),
+      );
+
+      return () => {
+        clearTimeout(fireworksTimer);
+        clearTimeout(uncenterTimer);
+      };
     };
+
+    run();
   }, [splashDone, overallSunnyPercentage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset sun centering when leaving initial view

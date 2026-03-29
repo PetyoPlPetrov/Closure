@@ -68,12 +68,16 @@ export interface Translations {
   "avatar.sunnyCongrats": string;
   "avatar.addMemories": string;
   "sferaInsight.addPeople": string;
+  "sferaInsight.addHobbies": string;
   "sferaInsight.leastMemories": string;
   "sferaInsight.mostMemories": string;
   "sferaInsight.lastUpdated": string;
   "sferaInsight.mostRecent": string;
+  "sferaInsight.mostRecentHobby": string;
   "sferaInsight.mostOld": string;
   "sferaInsight.lastInteractedWith": string;
+  "sferaInsight.lastPracticed": string;
+  "sferaInsight.leastPracticed": string;
   "sferaInsight.leastInteraction": string;
   "sferaInsight.timeAgo.days": string;
   "sferaInsight.timeAgo.months": string;
@@ -83,6 +87,7 @@ export interface Translations {
   "sferaInsight.oldestMemory": string;
   "sferaInsight.mostCloudy": string;
   "sferaInsight.mostSunny": string;
+  "sferaInsight.mostEnjoyable": string;
   "sferaInsight.noMemories": string;
   "sferaInsight.memories": string;
   "sferaInsight.leastInteracted": string;
@@ -3727,10 +3732,15 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.oldestMemory": "Oldest memory",
     "sferaInsight.mostCloudy": "Most cloudy",
     "sferaInsight.mostSunny": "Most sunny",
+    "sferaInsight.mostEnjoyable": "Most enjoyable",
     "sferaInsight.noMemories": "No memories yet",
     "sferaInsight.memories": "memories",
     "sferaInsight.leastInteracted": "Least interacted",
     "sferaInsight.addMemories": "Add memories",
+    "sferaInsight.addHobbies": "Add hobbies",
+    "sferaInsight.mostRecentHobby": "Most recently done",
+    "sferaInsight.lastPracticed": "Longest not done",
+    "sferaInsight.leastPracticed": "Least documented",
     "events.section.social": "Social",
     "events.section.private": "Private",
     "events.section.plus": "Plus Events",
@@ -8321,10 +8331,15 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.oldestMemory": "Най-стар спомен",
     "sferaInsight.mostCloudy": "Най-облачен",
     "sferaInsight.mostSunny": "Най-слънчев",
+    "sferaInsight.mostEnjoyable": "Най-приятно",
     "sferaInsight.noMemories": "Няма спомени",
     "sferaInsight.memories": "спомена",
     "sferaInsight.leastInteracted": "Най-малко взаимодействие",
     "sferaInsight.addMemories": "Добави спомени",
+    "sferaInsight.addHobbies": "Добави хобита",
+    "sferaInsight.mostRecentHobby": "Последно практикувано",
+    "sferaInsight.lastPracticed": "Най-дълго непрактикувано",
+    "sferaInsight.leastPracticed": "Най-малко документирано",
     "events.section.social": "Social",
     "events.section.private": "Private",
     "events.section.plus": "Plus Events",
