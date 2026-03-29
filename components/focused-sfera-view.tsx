@@ -13,7 +13,7 @@ import { UniverseExamScreen } from "@/components/universe-exam-screen";
 import { Colors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
-import { useVisualSettings } from "@/utils/VisualSettingsProvider";
+import { SUN_CONGRATS_LAST_SHOWN_KEY, useVisualSettings } from "@/utils/VisualSettingsProvider";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
@@ -81,7 +81,6 @@ const SPHERE_LIST: { type: LifeSphere; icon: string }[] = [
   { type: "hobbies", icon: "sports-esports" },
 ];
 
-const SUN_CONGRATS_LAST_SHOWN_KEY = "@sferas:sun_congrats_last_shown";
 
 const FOCUSED_SIZE = 170;
 const FOCUSED_ICON_SIZE = 72;

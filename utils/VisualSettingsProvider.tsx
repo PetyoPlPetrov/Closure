@@ -14,6 +14,7 @@ const APP_USABILITY_HINTS_KEY = "@sferas:app_usability_hints";
 const STOP_PULSING_ANIMATIONS_KEY = "@sferas:stop_pulsing_animations";
 export const SPLASH_ANIMATION_KEY = "@sferas:splash_animation";
 export const SUNNY_MOMENTS_CONGRATS_ANIMATION_KEY = "@sferas:sunny_moments_congrats_animation";
+export const SUN_CONGRATS_LAST_SHOWN_KEY = "@sferas:sun_congrats_last_shown";
 
 const DEFAULT_ORBIT_DURATION_MS = 60000;
 const MIN_ORBIT_DURATION_MS = 20000;
@@ -167,6 +168,9 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
   const setSunnyMomentsCongratsAnimation = useCallback((value: boolean) => {
     setSunnyMomentsCongratsAnimationState(value);
     AsyncStorage.setItem(SUNNY_MOMENTS_CONGRATS_ANIMATION_KEY, String(value));
+    if (value) {
+      AsyncStorage.removeItem(SUN_CONGRATS_LAST_SHOWN_KEY);
+    }
   }, []);
 
   const value = useMemo<VisualSettingsContextValue>(
