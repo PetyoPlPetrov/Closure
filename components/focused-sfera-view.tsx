@@ -1191,7 +1191,6 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   isInitialView = false,
   sunLoadProgress,
   sunLoadSweepOffset,
-  sunLoadEntityOpacity,
   sphereIntroStaggerMs = 0,
 }: {
   sphereIdx: number;
@@ -1212,7 +1211,6 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   isInitialView?: boolean;
   sunLoadProgress?: SharedValue<number>;
   sunLoadSweepOffset?: SharedValue<number>;
-  sunLoadEntityOpacity?: SharedValue<number>;
   sphereIntroStaggerMs?: number;
 }) {
   const { isTablet } = useLargeDevice();
@@ -1337,7 +1335,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   const slot = (sphereIdx - focusedIdx + 5) % 5;
 
   const containerStyle = useAnimatedStyle(() => {
-    const totalAngle = angle.value + (sunLoadSweepOffset?.value ?? 0);
+    const totalAngle = angle.value;
     const rad = (totalAngle * Math.PI) / 180;
     const centerX = ORBIT_CX + ORBIT_R * Math.sin(rad);
     const centerY = ORBIT_CY + ORBIT_R * Math.cos(rad);
@@ -1359,17 +1357,18 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     const topLeftExtraOffsetY = slot === 3 ? 18 : 0;
     // When sun is expanded: shrink all spheres + dim them significantly
     const sunShrink = 1 - sunExpanded.value * 0.6;
-    // Sphere reveal during SunLoadAnimation
-    const introOpacity = sunLoadProgress
-      ? Math.min(1, Math.max(0, (sunLoadProgress.value - sphereIntroStaggerMs) / 300))
+    // Sphere + entity reveal during SunLoadAnimation: scale 0→1 and fade in together
+    const introProgress = sunLoadProgress
+      ? Math.min(1, Math.max(0, (sunLoadProgress.value - sphereIntroStaggerMs) / 400))
       : 1;
+    const introScale = introProgress;
     return {
       position: "absolute",
       left: 0,
       top: 0,
       width: SPHERE_CONTAINER_SIZE,
       height: SPHERE_CONTAINER_SIZE,
-      opacity: introOpacity * (1 - sunExpanded.value * 0.94),
+      opacity: introProgress * (1 - sunExpanded.value * 0.94),
       transform: [
         { translateX: centerX - CONTAINER_HALF },
         {
@@ -1383,7 +1382,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             topPairOffsetY +
             topLeftExtraOffsetY,
         },
-        { scale: depthScale * sunShrink },
+        { scale: depthScale * sunShrink * introScale },
       ],
     };
   });
@@ -1419,9 +1418,12 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     transform: [{ scale: spherePulseScale.value * firstTapFeedbackScale.value }],
   }));
 
-  const entityRingStyle = useAnimatedStyle(() => ({
-    opacity: sunLoadEntityOpacity ? sunLoadEntityOpacity.value : 1,
-  }));
+  const entityRingStyle = useAnimatedStyle(() => {
+    const introProgress = sunLoadProgress
+      ? Math.min(1, Math.max(0, (sunLoadProgress.value - sphereIntroStaggerMs) / 400))
+      : 1;
+    return { opacity: introProgress };
+  });
 
   const iconSize = isFocused
     ? FOCUSED_ICON_SIZE
@@ -2603,7 +2605,6 @@ export function FocusedSferaView({
   const sunLoadScale         = useSharedValue(1);   // set to 1.5 inside effect if intro plays
   const sunLoadDisplayPct    = useSharedValue(0);
   const risingSunsFadeOut    = useSharedValue(1);   // 1 = visible, fades to 0 when sun starts shrinking
-  const sunLoadEntityOpacity = useSharedValue(0);   // entities hidden until orbit sweep
   const congratsOpacity    = useSharedValue(0);
   const [sunLoadComplete, setIntroComplete] = useState(selectedSphere !== null);
   const [sunLoadFireworks, setIntroFireworks] = useState(false);
@@ -2647,7 +2648,6 @@ export function FocusedSferaView({
       setIntroCentered(false);
       sunLoadScale.value = 1;
       sunLoadDisplayPct.value = overallSunnyPercentage;
-      sunLoadEntityOpacity.value = 1;
       return;
     }
 
@@ -2679,19 +2679,13 @@ export function FocusedSferaView({
       runOnJS(setIntroCentered)(false);
     }, 3500);
 
-    // Phase 4 (4200–5000ms): sferas stagger in via sunLoadProgress
-    sunLoadProgress.value = withDelay(4200, withTiming(5000, { duration: 800, easing: Easing.out(Easing.quad) }));
-
-    // Phase 5 (5200ms): entities fade in as the orbit sweep begins
-    sunLoadEntityOpacity.value = withDelay(5200, withTiming(1, { duration: 600, easing: Easing.out(Easing.ease) }));
-
-    // Phase 5 (5200ms): full 360° orbit sweep
-    sunLoadSweepOffset.value = withDelay(
-      5200,
-      withTiming(360, { duration: 1400, easing: Easing.inOut(Easing.quad) }, (done) => {
+    // Phase 4 (4200ms): sferas + entities stagger in together (scale + fade), each from 0→normal size
+    // sunLoadProgress goes 0→1400 over 1200ms; each sphere triggers at i*150, reveals over 400ms
+    sunLoadProgress.value = withDelay(
+      4200,
+      withTiming(1400, { duration: 1200, easing: Easing.out(Easing.quad) }, (done) => {
         "worklet";
         if (done) {
-          sunLoadSweepOffset.value = 0;
           runOnJS(setIntroComplete)(true);
         }
       }),
@@ -2978,7 +2972,6 @@ export function FocusedSferaView({
           isInitialView={selectedSphere === null}
           sunLoadProgress={sunLoadComplete ? undefined : sunLoadProgress}
           sunLoadSweepOffset={sunLoadComplete ? undefined : sunLoadSweepOffset}
-          sunLoadEntityOpacity={sunLoadComplete ? undefined : sunLoadEntityOpacity}
           sphereIntroStaggerMs={i * 150}
         />
       ))}
