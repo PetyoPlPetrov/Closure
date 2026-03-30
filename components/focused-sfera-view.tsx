@@ -18,6 +18,10 @@ import { SUN_CONGRATS_LAST_SHOWN_KEY, useVisualSettings } from "@/utils/VisualSe
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { showPaywallForAIAccess } from "@/utils/premium-access";
+import { useSubscription } from "@/utils/SubscriptionProvider";
+import { hasPendingUniverseExam } from "@/utils/universe-exam-pending";
+import { canUseExam } from "@/utils/universe-exam-rate-limiter";
 import {
   getSphere3DGradientColors,
   getSphereGradientColors,
@@ -2333,6 +2337,7 @@ export function FocusedSferaView({
   splashDone = true,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
+  const { ensureSubscriptionResolved, refreshCustomerInfo } = useSubscription();
   const { appUsabilityHints, sunnyMomentsCongratsAnimation } = useVisualSettings();
   const focusedSpherePulseRef = useRef<(() => void) | null>(null);
   const focusedSphereTapTimeRef = useRef<number>(0);
@@ -2595,6 +2600,24 @@ export function FocusedSferaView({
     setIsSunCentered(false);
     if (isSunExpanded) handleSunPress();
   }, [isSunExpanded, handleSunPress]);
+
+  /** Lesson Check: show exam only if AI sub or free daily slot; otherwise paywall only (not both). */
+  const handleOpenUniverseExam = useCallback(async () => {
+    handleCollapseSun();
+    const { hasAIEntitlement } = await ensureSubscriptionResolved();
+    const hasPending = await hasPendingUniverseExam();
+    const canTakeExam =
+      hasAIEntitlement || hasPending || (await canUseExam(hasAIEntitlement));
+    if (!canTakeExam) {
+      const purchased = await showPaywallForAIAccess();
+      if (purchased) {
+        await refreshCustomerInfo();
+        setUniverseExamVisible(true);
+      }
+      return;
+    }
+    setUniverseExamVisible(true);
+  }, [ensureSubscriptionResolved, handleCollapseSun, refreshCustomerInfo]);
 
   // When circle avatar is pressed:
   // - Initial view (selectedSphere === null): expand sun (shrink sferas + show menu) AND center sun
@@ -2907,10 +2930,7 @@ export function FocusedSferaView({
 
             {/* Universe Exam button */}
             <Pressable
-              onPress={() => {
-                handleCollapseSun();
-                setUniverseExamVisible(true);
-              }}
+              onPress={handleOpenUniverseExam}
               style={{ alignItems: "center", gap: 8 }}
             >
               <View

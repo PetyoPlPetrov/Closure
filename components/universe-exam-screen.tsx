@@ -19,7 +19,15 @@ import { lifeLessons } from "@/utils/life-lessons";
 import { showPaywallForAIAccess } from "@/utils/premium-access";
 import { getSphereSferaColor } from "@/utils/sphere-styles";
 import { useSubscription } from "@/utils/SubscriptionProvider";
-import { consumeUniverseExamIfAvailable } from "@/utils/universe-exam-rate-limiter";
+import {
+  canUseExam,
+  consumeUniverseExamIfAvailable,
+} from "@/utils/universe-exam-rate-limiter";
+import {
+  clearPendingUniverseExam,
+  savePendingUniverseExam,
+  tryRestorePendingUniverseExam,
+} from "@/utils/universe-exam-pending";
 import { pickAndConsumePreloadedQuestion } from "@/utils/wheel-exam-preload";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
@@ -290,87 +298,107 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
     [],
   );
 
+  /** Prevents duplicate loadQuestion runs (e.g. Strict Mode) from consuming two free slots. */
+  const loadQuestionInFlightRef = useRef(false);
+
   /**
-   * Check rate limit, consume a slot, then load a question.
-   * If limit exhausted: show paywall. If paywall purchased: retry.
+   * Restore saved unanswered question if any; else build a question, then consume a free slot
+   * (so closing during AI load does not burn a daily exam).
    */
   const loadQuestion = useCallback(async () => {
     if (cards.length === 0) return;
+    if (loadQuestionInFlightRef.current) return;
+    loadQuestionInFlightRef.current = true;
+    try {
+    const restored = await tryRestorePendingUniverseExam(cards);
+    if (restored) {
+      setCurrentCard(restored.card);
+      setQuestion(restored.question);
+      setAnswerInput(restored.answerInput);
+      setAnalysis(null);
+      setStep("question");
+      return;
+    }
 
-    // Check + consume a free slot
-    const allowed = await consumeUniverseExamIfAvailable(hasAIEntitlement);
-    if (!allowed) {
-      const purchased = await showPaywallForAIAccess();
-      if (!purchased) {
-        // User declined paywall — close
+    if (!hasAIEntitlement) {
+      const can = await canUseExam(false);
+      if (!can) {
         onClose();
+        await showPaywallForAIAccess();
         return;
       }
-      // Purchased — try again (now hasAIEntitlement will be true on next render,
-      // but we can proceed immediately since paywall purchase was confirmed)
     }
 
     setStep("loading");
     setAnswerInput("");
     setAnalysis(null);
 
-    // Pick a random card
     const card = cards[Math.floor(Math.random() * cards.length)];
     setCurrentCard(card);
 
-    // Try preloaded question first
+    const fallbackQ =
+      language === "bg"
+        ? "Как бихте приложили този урок в реален живот?"
+        : "How would you apply this lesson in real life?";
+
+    let nextQuestion: string | null = null;
     try {
       const preloaded = await pickAndConsumePreloadedQuestion({ type: "main" });
       if (preloaded) {
-        setQuestion(preloaded.question);
-        setStep("question");
-        return;
+        nextQuestion = preloaded.question;
       }
     } catch {
-      // fall through to direct generation
+      // fall through to generation
     }
 
-    // Fallback: generate directly
-    try {
-      const results = await generateLessonExamQuestionsBatch(
-        [
-          {
-            id: card.id,
-            text: card.text,
-            memoryId: card.memoryId,
-            memoryImageUri: card.memoryImageUri,
-            entityId: card.entityId,
-            sphere: card.sphere,
-          },
-        ],
-        language,
-      );
-      setQuestion(
-        results.length > 0
-          ? results[0].question
-          : language === "bg"
-            ? "Как бихте приложили този урок в реален живот?"
-            : "How would you apply this lesson in real life?",
-      );
-    } catch {
-      setQuestion(
-        language === "bg"
-          ? "Как бихте приложили този урок в реален живот?"
-          : "How would you apply this lesson in real life?",
-      );
+    if (nextQuestion === null) {
+      try {
+        const results = await generateLessonExamQuestionsBatch(
+          [
+            {
+              id: card.id,
+              text: card.text,
+              memoryId: card.memoryId,
+              memoryImageUri: card.memoryImageUri,
+              entityId: card.entityId,
+              sphere: card.sphere,
+            },
+          ],
+          language,
+        );
+        nextQuestion =
+          results.length > 0 ? results[0].question : fallbackQ;
+      } catch {
+        nextQuestion = fallbackQ;
+      }
     }
+
+    const allowed = await consumeUniverseExamIfAvailable(hasAIEntitlement);
+    if (!allowed) {
+      onClose();
+      await showPaywallForAIAccess();
+      return;
+    }
+
+    setQuestion(nextQuestion);
     setStep("question");
+    } finally {
+      loadQuestionInFlightRef.current = false;
+    }
   }, [cards, language, hasAIEntitlement, onClose]);
 
+  const loadQuestionRef = useRef(loadQuestion);
+  loadQuestionRef.current = loadQuestion;
   useEffect(() => {
     if (visible) {
-      loadQuestion();
+      loadQuestionRef.current();
     }
   }, [visible]);
 
   const handleSubmit = useCallback(async () => {
     const trimmed = answerInputRef.current.trim();
     if (!currentCard || trimmed.length < 2) return;
+    await clearPendingUniverseExam();
     Keyboard.dismiss();
     setStep("analyzing");
     try {
@@ -394,12 +422,27 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
   }, [currentCard, question, language]);
 
   const handleClose = useCallback(() => {
-    setCurrentCard(null);
-    setQuestion("");
-    setAnswerInput("");
-    setAnalysis(null);
-    onClose();
-  }, [onClose]);
+    void (async () => {
+      if (step === "result") {
+        await clearPendingUniverseExam();
+      } else if (
+        step === "question" &&
+        currentCard &&
+        question.trim().length > 0
+      ) {
+        await savePendingUniverseExam({
+          card: currentCard,
+          question,
+          answerInput,
+        });
+      }
+      setCurrentCard(null);
+      setQuestion("");
+      setAnswerInput("");
+      setAnalysis(null);
+      onClose();
+    })();
+  }, [step, currentCard, question, answerInput, onClose]);
 
   /** Load next question from result screen. */
   const handleNext = useCallback(() => {
