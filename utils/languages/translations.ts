@@ -892,6 +892,12 @@ export interface Translations {
   "onboarding.getStarted.message": string;
   "onboarding.ai.title": string;
   "onboarding.ai.message": string;
+  "onboarding.momentNudges.title": string;
+  "onboarding.momentNudges.message": string;
+  "onboarding.events.title": string;
+  "onboarding.events.message": string;
+  "onboarding.exams.title": string;
+  "onboarding.exams.message": string;
 
   // Your Universe Modal
   "universe.modal.title": string;
@@ -3713,8 +3719,8 @@ const translations: Record<Language, Translations> = {
     "tab.events": "Events",
     "home.emptyState":
       "No profiles yet. Add your first ex-profile to get started.",
-    "avatar.sunnyLife": "Sunny Life",
-    "avatar.sunnyCongrats": "{pct}% Sunny Life!",
+    "avatar.sunnyLife": "Sunny",
+    "avatar.sunnyCongrats": "{pct}% Sunny!",
     "avatar.addMemories": "Add memories",
     "sferaInsight.addPeople": "Add people",
     "sferaInsight.leastMemories": "Least memories",
@@ -4817,34 +4823,43 @@ const translations: Record<Language, Translations> = {
     "onboarding.showDetails": "Show Details",
     "onboarding.intro.title": "Welcome to Sferas!",
     "onboarding.intro.message":
-      "Sferas helps you appreciate and track the total amount of sunny vs cloudy moments in your life, measured as % in the main avatar. See at a glance how balanced each sphere of your life is.",
-    "onboarding.welcome.title": "Reflect on Your Journey",
+      "Here's everything Sferas can do for you. Step through to discover all the tools and features that help you reflect, grow, and stay connected to what matters most.",
+    "onboarding.welcome.title": "Your Wheel of Life",
     "onboarding.welcome.message":
-      "Revisit your life's moments and lessons to remember your past and shape your future. Take control of your journey by reflecting on what matters most across all areas of your life.",
+      "See your emotional balance at a glance. The Wheel of Life visualises your mood distribution across all spheres — helping you spot where you're thriving and where to give more attention. (Premium)",
     "onboarding.moments.title": "Track Your Moments",
     "onboarding.moments.message":
-      "Capture both sunny and cloudy moments from your life. Record memories, reflect on experiences, and revisit them anytime to gain perspective and understanding.",
-    "onboarding.recap.title": "Recap Lessons and Moments",
+      "Capture both sunny and cloudy moments for each person, job, or hobby. Record memories as they happen and revisit them anytime to gain perspective and understanding.",
+    "onboarding.recap.title": "Recap Lessons & Moments",
     "onboarding.recap.message":
-      "Click on any focused entity to revisit all their moments and lessons anytime. Your memories and insights are always available to review, reflect upon, and learn from.",
+      "The Recap screen surfaces all the memories and lessons tied to a focused entity. Review, reflect, and extract meaning from your past experiences whenever you need it.",
     "onboarding.lessons.title": "Learn & Grow",
     "onboarding.lessons.message":
       "Extract valuable lessons from your experiences. Document what you've learned from both positive and challenging moments to foster personal growth and avoid repeating patterns.",
-    "onboarding.insights.title": "Visualize Your Journey",
+    "onboarding.insights.title": "Sfera Insights",
     "onboarding.insights.message":
-      "View your life through the Wheel of Life chart. Get insights into how your time and energy are distributed across different spheres and identify areas that need attention.",
-    "onboarding.notifications.title": "Stay Connected",
+      "The Insights card on your home screen shows you which entity has the fewest or most memories, your oldest interaction, and mood statistics — so you always know where to focus.",
+    "onboarding.notifications.title": "Smart Reminders",
     "onboarding.notifications.message":
-      "Set reminders to keep in touch with important people or catch up on different life spheres. Never lose track of what matters most to you.",
-    "onboarding.momentsPersonalization.title": "Moments personalization",
+      "Sferas nudges you when you haven't logged anything for a person in a while, or when their mood is below your average. Stay intentionally connected to the people who matter most.",
+    "onboarding.momentNudges.title": "Moment Nudges",
+    "onboarding.momentNudges.message":
+      "Schedule periodic notifications that prompt you to log a sunny moment or revisit a lesson. Choose hourly or daily intervals and the type of nudge that resonates with you.",
+    "onboarding.events.title": "Sferas Events",
+    "onboarding.events.message":
+      "The Events tab keeps you in the loop on Sferas social events, plus-member events, and community snapshots. Enter VIP codes and get event reminders so you never miss what's happening.",
+    "onboarding.exams.title": "Daily Exam",
+    "onboarding.exams.message":
+      "Each day, Sferas AI generates situational questions drawn from your own lessons. Answer them to reinforce what you've learned and deepen your self-awareness over time. (AI feature)",
+    "onboarding.momentsPersonalization.title": "Personalize Your Moments",
     "onboarding.momentsPersonalization.message":
-      "Adjust the colors of your sunny and cloudy moments to match your style. Pick background and text colors for each type so your moments look exactly how you want.",
+      "Choose colour themes for your sunny and cloudy moments, or pick fully custom background and text colours. Make your memories look exactly the way you feel them. (Premium)",
     "onboarding.getStarted.title": "Ready to Begin?",
     "onboarding.getStarted.message":
       "Start by creating records in each sphere. Add partners, jobs, family members, friends, or hobbies to begin tracking your life's moments and discovering meaningful insights.",
-    "onboarding.ai.title": "Sferas AI & Voice-to-Text",
+    "onboarding.ai.title": "Sferas AI",
     "onboarding.ai.message":
-      "Sferas AI and Voice-to-Text are now here to help you transform your spoken stories into structured memories, organised moments and lasting lessons instantly!",
+      "Use Voice-to-Text to speak your story and let Sferas AI turn it into structured memories and lasting lessons instantly. Unlock deeper AI insights with a Premium subscription.",
 
     // Your Universe Modal
     "universe.modal.title": "Sferas Lessons",
@@ -8312,8 +8327,8 @@ const translations: Record<Language, Translations> = {
     "tab.events": "Събития",
     "home.emptyState":
       "Няма профили все още. Добавете първи партньор, за да започнете.",
-    "avatar.sunnyLife": "Слънчев живот",
-    "avatar.sunnyCongrats": "{pct}% Слънчев живот!",
+    "avatar.sunnyLife": "Слънчево",
+    "avatar.sunnyCongrats": "{pct}% Слънчево!",
     "avatar.addMemories": "Добави спомени",
     "sferaInsight.addPeople": "Добави хора",
     "sferaInsight.leastMemories": "Най-малко документирани",
@@ -9422,34 +9437,43 @@ const translations: Record<Language, Translations> = {
     "onboarding.showDetails": "Покажи детайли",
     "onboarding.intro.title": "Добре дошли в Sferas!",
     "onboarding.intro.message":
-      "Sferas ви помага да оцените и проследите общото количество слънчеви и облачни моменти във вашия живот, измерени като % в главния аватар. Вижте с един поглед колко балансирана е всяка сфера от живота ви.",
-    "onboarding.welcome.title": "Размислете върху пътуването си",
+      "Ето всичко, което Sferas може да направи за вас. Разгледайте стъпките и открийте всички инструменти и функции, които ви помагат да размишлявате, растете и оставате свързани с това, което е важно.",
+    "onboarding.welcome.title": "Вашето Колело на живота",
     "onboarding.welcome.message":
-      "Преразгледайте моментите и уроците от живота си, за да помните миналото си и да оформите бъдещето си. Поемете контрол над пътуването си, като размишлявате върху това, което е най-важно във всички области на живота ви.",
+      "Вижте емоционалния си баланс с един поглед. Колелото на живота визуализира разпределението на настроението ви по всички сфери — помага ви да видите къде процъфтявате и къде е нужно повече внимание. (Премиум)",
     "onboarding.moments.title": "Проследете моментите си",
     "onboarding.moments.message":
-      "Уловете слънчевите и облачните моменти от живота си. Записвайте спомени, размишлявайте върху преживявания и ги преразглеждайте, за да получите перспектива и разбиране.",
+      "Улавяйте слънчеви и облачни моменти за всеки човек, работа или хоби. Записвайте спомени в момента и ги преразглеждайте по всяко време, за да получите перспектива и разбиране.",
     "onboarding.recap.title": "Преглед на уроци и моменти",
     "onboarding.recap.message":
-      "Кликнете върху всяка фокусирана личност, за да преразгледате всичките ѝ моменти и уроци по всяко време. Вашите спомени и прозрения са винаги достъпни за преглед, размисъл и учене.",
+      "Екранът за преглед показва всички спомени и уроци, свързани с фокусиран обект. Преразглеждайте, размишлявайте и извличайте смисъл от миналите си преживявания, когато имате нужда.",
     "onboarding.lessons.title": "Научете и растете",
     "onboarding.lessons.message":
       "Извлечете ценни уроци от вашите преживявания. Документирайте какво сте научили от положителните и предизвикателните моменти, за да насърчите личностния растеж и да избегнете повтарящи се модели.",
-    "onboarding.insights.title": "Визуализирайте пътуването си",
+    "onboarding.insights.title": "Sfera Прозрения",
     "onboarding.insights.message":
-      "Разгледайте живота си чрез диаграмата Колело на живота. Получете информация за това как времето и енергията ви се разпределят в различните сфери и идентифицирайте области, които се нуждаят от внимание.",
-    "onboarding.notifications.title": "Оставайте свързани",
+      "Картата с прозрения на началния екран показва кой обект има най-малко или най-много спомени, най-старото ви взаимодействие и статистика за настроението — за да знаете кога да се фокусирате.",
+    "onboarding.notifications.title": "Умни напомняния",
     "onboarding.notifications.message":
-      "Задайте напомняния, за да поддържате връзка с важни хора или да наваксате с различни житейски сфери. Никога не губете от поглед това, което е най-важно за вас.",
-    "onboarding.momentsPersonalization.title": "Персонализация на моментите",
+      "Sferas ви известява, когато отдавна не сте записвали нищо за някого, или когато настроението му е под средното ви. Оставайте целенасочено свързани с хората, които са важни за вас.",
+    "onboarding.momentNudges.title": "Напомняния за моменти",
+    "onboarding.momentNudges.message":
+      "Задайте периодични известия, които ви подтикват да запишете слънчев момент или да преразгледате урок. Изберете почасови или ежедневни интервали и вида на напомнянето, което ви вдъхновява.",
+    "onboarding.events.title": "Sferas Събития",
+    "onboarding.events.message":
+      "Разделът Събития ви информира за социални събития на Sferas, събития за плюс-членове и снимки на общността. Въведете VIP кодове и получавайте напомняния за събития, за да не пропускате нищо.",
+    "onboarding.exams.title": "Дневен изпит",
+    "onboarding.exams.message":
+      "Всеки ден Sferas AI генерира ситуационни въпроси, основани на вашите собствени уроци. Отговаряйте на тях, за да затвърдите знанията си и да задълбочите самопознанието си с времето. (AI функция)",
+    "onboarding.momentsPersonalization.title": "Персонализирайте моментите си",
     "onboarding.momentsPersonalization.message":
-      "Настройте цветовете на слънчевите и облачните моменти според стила си. Изберете цвят на фона и на текста за всеки тип, за да изглеждат моментите ви точно както искате.",
+      "Изберете цветови теми за слънчевите и облачните моменти или задайте напълно персонализирани цветове на фона и текста. Направете спомените си да изглеждат точно така, както ги усещате. (Премиум)",
     "onboarding.getStarted.title": "Готови ли сте да започнете?",
     "onboarding.getStarted.message":
       "Започнете, като създадете записи във всяка сфера. Добавете партньори, работа, членове на семейството, приятели или хобита, за да започнете да проследявате житейските си моменти и да откривате смислени прозрения.",
-    "onboarding.ai.title": "Sferas AI и глас към текст",
+    "onboarding.ai.title": "Sferas AI",
     "onboarding.ai.message":
-      "Sferas AI и глас към текст вече са тук, за да ви помогнат да превърнете разказаните си истории в структурирани спомени, организирани моменти и трайни уроци мигновено!",
+      "Използвайте гласов запис, за да разкажете историята си, и оставете Sferas AI да я превърне в структурирани спомени и трайни уроци мигновено. Отключете по-дълбоки AI прозрения с Премиум абонамент.",
 
     // Your Universe Modal
     "universe.modal.title": "Sferas уроци",

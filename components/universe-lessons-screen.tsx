@@ -319,15 +319,21 @@ const TwinkleDot = React.memo(function TwinkleDot({
 // ─── Ring-Planet SVG ──────────────────────────────────────────────────────────
 // The visual heart: atmospheric rim + 3 tilted elliptical orbital rings.
 // Center is almost fully transparent so it reads as space, not a ball.
+//
+// Each ring lives in its own Animated.View so we can rotate it via
+// useAnimatedStyle (numeric degrees) without touching the SVG transform string.
+// The origin is offset so the View rotates around the planet centre (C, C).
+
+const svgPos = { position: "absolute" as const, left: -(PLANET_CANVAS - SW) / 2, top: -(PLANET_CANVAS - SW) / 2, overflow: "visible" as const };
 
 function RingPlanetSvg({
   id,
   colors,
-  ringRotation,   // 0–360, drives ring1 slow rotation
+  ringRotation,   // SharedValue<number>, drives ring rotation on the UI thread
 }: {
   id: string;
   colors: { core: string; ring1: string; ring2: string; glow: string };
-  ringRotation: number;
+  ringRotation: SharedValue<number>;
 }) {
   const { core, ring1, ring2 } = colors;
   const C = PLANET_C;
@@ -345,6 +351,25 @@ function RingPlanetSvg({
 
   const TILT = 22; // degrees, gives the planet a Saturn-like tilt
 
+  // Each ring is a separate Animated.View so we can rotate around the planet
+  // center using translateX/Y + rotate + translateX/Y (standard CSS trick).
+  // rotateOriginStyle handles the pivot-around-center transform sequence.
+  // The ring Views are PLANET_CANVAS × PLANET_CANVAS and the planet centre is
+  // exactly at the view centre (C = PLANET_CANVAS/2), so a plain rotate spins
+  // around the planet centre with no extra translation needed.
+  const ring0Style = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${-TILT * 0.7 + ringRotation.value * 0.18}deg` }],
+  }));
+  const ring1Style = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${TILT + ringRotation.value * 0.6}deg` }],
+  }));
+  const ring2Style = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${-TILT + ringRotation.value * 0.4}deg` }],
+  }));
+  const ring3Style = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${TILT * 0.5 + ringRotation.value * 0.25}deg` }],
+  }));
+
   // Dust particle positions (seeded, ring the planet rim)
   const dustParticles = useMemo(() =>
     Array.from({ length: 12 }, (_, i) => {
@@ -358,119 +383,101 @@ function RingPlanetSvg({
       };
     }), [C]);
 
+  const ringViewStyle = { position: "absolute" as const, left: -(PLANET_CANVAS - SW) / 2, top: -(PLANET_CANVAS - SW) / 2 };
+
   return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      style={{ position: "absolute", left: -(PLANET_CANVAS - SW) / 2, top: -(PLANET_CANVAS - SW) / 2, overflow: "visible" }}
-      overflow="visible"
-    >
-      <Defs>
-        {/* Atmospheric glow: transparent center → color at rim → fade out */}
-        <RadialGradient id={`atmo_${id}`} cx={`${C}`} cy={`${C}`} r={`${ATMO_R}`} gradientUnits="userSpaceOnUse">
-          <Stop offset="0%"   stopColor={core} stopOpacity="0" />
-          <Stop offset="62%"  stopColor={core} stopOpacity="0" />
-          <Stop offset="80%"  stopColor={core} stopOpacity="0.18" />
-          <Stop offset="92%"  stopColor={core} stopOpacity="0.55" />
-          <Stop offset="100%" stopColor={core} stopOpacity="0.80" />
-        </RadialGradient>
-        {/* Outer diffuse glow corona */}
-        <RadialGradient id={`corona_${id}`} cx={`${C}`} cy={`${C}`} r={`${ATMO_R * 1.45}`} gradientUnits="userSpaceOnUse">
-          <Stop offset="0%"   stopColor={core} stopOpacity="0" />
-          <Stop offset="68%"  stopColor={core} stopOpacity="0" />
-          <Stop offset="82%"  stopColor={core} stopOpacity="0.08" />
-          <Stop offset="100%" stopColor={core} stopOpacity="0" />
-        </RadialGradient>
-        {/* Inner shadow — makes the inside feel like deep space */}
-        <RadialGradient id={`inner_${id}`} cx={`${C}`} cy={`${C}`} r={`${ATMO_R * 0.85}`} gradientUnits="userSpaceOnUse">
-          <Stop offset="0%"   stopColor="#0A1020" stopOpacity="0.55" />
-          <Stop offset="70%"  stopColor="#0A1020" stopOpacity="0.25" />
-          <Stop offset="100%" stopColor="#0A1020" stopOpacity="0" />
-        </RadialGradient>
-        {/* Soft white rim glow — bright at edge, fades inward into the color */}
-        <RadialGradient id={`rimglow_${id}`} cx={`${C}`} cy={`${C}`} r={`${ATMO_R}`} gradientUnits="userSpaceOnUse">
-          <Stop offset="0%"   stopColor="#FFFFFF" stopOpacity="0" />
-          <Stop offset="82%"  stopColor="#FFFFFF" stopOpacity="0" />
-          <Stop offset="93%"  stopColor="#FFFFFF" stopOpacity="0.22" />
-          <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.55" />
-        </RadialGradient>
-
-        {/* Ring gradients — fade at the poles to look tilted */}
-        <SvgLinearGradient id={`rg1_${id}`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0%"   stopColor={ring1} stopOpacity="0.75" />
-          <Stop offset="50%"  stopColor={ring1} stopOpacity="0.45" />
-          <Stop offset="100%" stopColor={ring1} stopOpacity="0.12" />
-        </SvgLinearGradient>
-        <SvgLinearGradient id={`rg2_${id}`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0%"   stopColor={ring2} stopOpacity="0.55" />
-          <Stop offset="50%"  stopColor={ring2} stopOpacity="0.30" />
-          <Stop offset="100%" stopColor={ring2} stopOpacity="0.08" />
-        </SvgLinearGradient>
-        <SvgLinearGradient id={`rg3_${id}`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0%"   stopColor={ring2} stopOpacity="0.35" />
-          <Stop offset="100%" stopColor={ring2} stopOpacity="0.05" />
-        </SvgLinearGradient>
-      </Defs>
-
+    <>
       {/* ── Outermost faint ring (behind everything) ── */}
-      <Ellipse
-        cx={C} cy={C}
-        rx={R0_RX} ry={R0_RY}
-        fill="none"
-        stroke={`url(#rg1_${id})`}
-        strokeWidth={2.2}
-        strokeDasharray="6 10"
-        transform={`rotate(${-TILT * 0.7 + ringRotation * 0.18}, ${C}, ${C})`}
-        opacity={0.38}
-      />
+      <Animated.View style={[ringViewStyle, ring0Style]} pointerEvents="none">
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} overflow="visible">
+          <Defs>
+            <SvgLinearGradient id={`rg1a_${id}`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%"   stopColor={ring1} stopOpacity="0.75" />
+              <Stop offset="50%"  stopColor={ring1} stopOpacity="0.45" />
+              <Stop offset="100%" stopColor={ring1} stopOpacity="0.12" />
+            </SvgLinearGradient>
+          </Defs>
+          <Ellipse cx={C} cy={C} rx={R0_RX} ry={R0_RY} fill="none" stroke={`url(#rg1a_${id})`} strokeWidth={2.2} strokeDasharray="6 10" opacity={0.38} />
+        </Svg>
+      </Animated.View>
 
-      {/* ── Back half of rings (drawn before planet so they go behind) ── */}
-      <Ellipse
-        cx={C} cy={C}
-        rx={R1_RX} ry={R1_RY}
-        fill="none"
-        stroke={`url(#rg1_${id})`}
-        strokeWidth={5.5}
-        strokeDasharray="0"
-        transform={`rotate(${TILT + ringRotation * 0.6}, ${C}, ${C})`}
-        opacity={0.78}
-      />
-      <Ellipse
-        cx={C} cy={C}
-        rx={R2_RX} ry={R2_RY}
-        fill="none"
-        stroke={`url(#rg2_${id})`}
-        strokeWidth={4.0}
-        transform={`rotate(${-TILT + ringRotation * 0.4}, ${C}, ${C})`}
-        opacity={0.68}
-      />
+      {/* ── Back rings (drawn before planet so they go behind) ── */}
+      <Animated.View style={[ringViewStyle, ring1Style]} pointerEvents="none">
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} overflow="visible">
+          <Defs>
+            <SvgLinearGradient id={`rg1b_${id}`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%"   stopColor={ring1} stopOpacity="0.75" />
+              <Stop offset="50%"  stopColor={ring1} stopOpacity="0.45" />
+              <Stop offset="100%" stopColor={ring1} stopOpacity="0.12" />
+            </SvgLinearGradient>
+          </Defs>
+          <Ellipse cx={C} cy={C} rx={R1_RX} ry={R1_RY} fill="none" stroke={`url(#rg1b_${id})`} strokeWidth={5.5} opacity={0.78} />
+        </Svg>
+      </Animated.View>
+      <Animated.View style={[ringViewStyle, ring2Style]} pointerEvents="none">
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} overflow="visible">
+          <Defs>
+            <SvgLinearGradient id={`rg2_${id}`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%"   stopColor={ring2} stopOpacity="0.55" />
+              <Stop offset="50%"  stopColor={ring2} stopOpacity="0.30" />
+              <Stop offset="100%" stopColor={ring2} stopOpacity="0.08" />
+            </SvgLinearGradient>
+          </Defs>
+          <Ellipse cx={C} cy={C} rx={R2_RX} ry={R2_RY} fill="none" stroke={`url(#rg2_${id})`} strokeWidth={4.0} opacity={0.68} />
+        </Svg>
+      </Animated.View>
 
-      {/* ── Atmospheric rim circle (the planet "edge") ── */}
-      <SvgCircle cx={C} cy={C} r={ATMO_R * 1.75} fill={`url(#corona_${id})`} />
-      <SvgCircle cx={C} cy={C} r={ATMO_R * 1.42} fill={`url(#corona_${id})`} />
-      <SvgCircle cx={C} cy={C} r={ATMO_R}        fill={`url(#atmo_${id})`} />
-      <SvgCircle cx={C} cy={C} r={ATMO_R * 0.85} fill={`url(#inner_${id})`} />
+      {/* ── Static planet body (atmospheric rim, glow, dust) ── */}
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={svgPos} overflow="visible">
+        <Defs>
+          <RadialGradient id={`atmo_${id}`} cx={`${C}`} cy={`${C}`} r={`${ATMO_R}`} gradientUnits="userSpaceOnUse">
+            <Stop offset="0%"   stopColor={core} stopOpacity="0" />
+            <Stop offset="62%"  stopColor={core} stopOpacity="0" />
+            <Stop offset="80%"  stopColor={core} stopOpacity="0.18" />
+            <Stop offset="92%"  stopColor={core} stopOpacity="0.55" />
+            <Stop offset="100%" stopColor={core} stopOpacity="0.80" />
+          </RadialGradient>
+          <RadialGradient id={`corona_${id}`} cx={`${C}`} cy={`${C}`} r={`${ATMO_R * 1.45}`} gradientUnits="userSpaceOnUse">
+            <Stop offset="0%"   stopColor={core} stopOpacity="0" />
+            <Stop offset="68%"  stopColor={core} stopOpacity="0" />
+            <Stop offset="82%"  stopColor={core} stopOpacity="0.08" />
+            <Stop offset="100%" stopColor={core} stopOpacity="0" />
+          </RadialGradient>
+          <RadialGradient id={`inner_${id}`} cx={`${C}`} cy={`${C}`} r={`${ATMO_R * 0.85}`} gradientUnits="userSpaceOnUse">
+            <Stop offset="0%"   stopColor="#0A1020" stopOpacity="0.55" />
+            <Stop offset="70%"  stopColor="#0A1020" stopOpacity="0.25" />
+            <Stop offset="100%" stopColor="#0A1020" stopOpacity="0" />
+          </RadialGradient>
+          <RadialGradient id={`rimglow_${id}`} cx={`${C}`} cy={`${C}`} r={`${ATMO_R}`} gradientUnits="userSpaceOnUse">
+            <Stop offset="0%"   stopColor="#FFFFFF" stopOpacity="0" />
+            <Stop offset="82%"  stopColor="#FFFFFF" stopOpacity="0" />
+            <Stop offset="93%"  stopColor="#FFFFFF" stopOpacity="0.22" />
+            <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.55" />
+          </RadialGradient>
+        </Defs>
+        <SvgCircle cx={C} cy={C} r={ATMO_R * 1.75} fill={`url(#corona_${id})`} />
+        <SvgCircle cx={C} cy={C} r={ATMO_R * 1.42} fill={`url(#corona_${id})`} />
+        <SvgCircle cx={C} cy={C} r={ATMO_R}        fill={`url(#atmo_${id})`} />
+        <SvgCircle cx={C} cy={C} r={ATMO_R * 0.85} fill={`url(#inner_${id})`} />
+        <SvgCircle cx={C} cy={C} r={ATMO_R} fill={`url(#rimglow_${id})`} />
+        {dustParticles.map((p, i) => (
+          <SvgCircle key={i} cx={p.cx} cy={p.cy} r={p.r} fill={core} opacity={p.op} />
+        ))}
+      </Svg>
 
-      {/* ── Soft white rim glow (blurred edge fading into red) ── */}
-      <SvgCircle cx={C} cy={C} r={ATMO_R} fill={`url(#rimglow_${id})`} />
-
-      {/* ── Rim dust particles ── */}
-      {dustParticles.map((p, i) => (
-        <SvgCircle key={i} cx={p.cx} cy={p.cy} r={p.r} fill={core} opacity={p.op} />
-      ))}
-
-      {/* ── Front half of innermost ring (on top of planet) ── */}
-      <Ellipse
-        cx={C} cy={C}
-        rx={R3_RX} ry={R3_RY}
-        fill="none"
-        stroke={`url(#rg3_${id})`}
-        strokeWidth={3.2}
-        transform={`rotate(${TILT * 0.5 + ringRotation * 0.25}, ${C}, ${C})`}
-        opacity={0.82}
-      />
-    </Svg>
+      {/* ── Front innermost ring (on top of planet) ── */}
+      <Animated.View style={[ringViewStyle, ring3Style]} pointerEvents="none">
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} overflow="visible">
+          <Defs>
+            <SvgLinearGradient id={`rg3_${id}`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%"   stopColor={ring2} stopOpacity="0.35" />
+              <Stop offset="100%" stopColor={ring2} stopOpacity="0.05" />
+            </SvgLinearGradient>
+          </Defs>
+          <Ellipse cx={C} cy={C} rx={R3_RX} ry={R3_RY} fill="none" stroke={`url(#rg3_${id})`} strokeWidth={3.2} opacity={0.82} />
+        </Svg>
+      </Animated.View>
+    </>
   );
 }
 
@@ -497,6 +504,7 @@ function generateBgSferas(seed: number) {
 
 function BackgroundSferas({ seed, fadeOut }: { seed: number; fadeOut: SharedValue<number> }) {
   const animStyle = useAnimatedStyle(() => ({ opacity: fadeOut.value * 0.22 }));
+  const staticRot = useSharedValue(0);
 
   const sferas = useMemo(() => generateBgSferas(seed), [seed]);
 
@@ -517,7 +525,7 @@ function BackgroundSferas({ seed, fadeOut }: { seed: number; fadeOut: SharedValu
               transform: [{ scale: s.scale }],
             }}
           >
-            <RingPlanetSvg id={s.id} colors={SPHERE_RINGS[s.sphere]} ringRotation={0} />
+            <RingPlanetSvg id={s.id} colors={SPHERE_RINGS[s.sphere]} ringRotation={staticRot} />
           </View>
         );
       })}
@@ -615,16 +623,19 @@ const LessonSfera = React.memo(function LessonSfera({
     opacity: glowPulse.value,
   }));
 
-  // Ring rotation — grows continuously so there's never a modulo wrap-around jump
-  const [rot, setRot] = useState(0);
+  // Ring rotation — driven on the UI thread via Reanimated, no JS setState needed
+  const rot = useSharedValue(0);
   useEffect(() => {
-    if (!isVisible) return;
-    const start = Date.now();
-    const id = setInterval(() => {
-      setRot((Date.now() - start) / 28000 * 360);
-    }, 120);
-    return () => clearInterval(id);
-  }, [isVisible]);
+    if (isVisible) {
+      rot.value = withRepeat(
+        withTiming(360, { duration: 28000, easing: Easing.linear }),
+        -1,
+        false,
+      );
+    } else {
+      cancelAnimation(rot);
+    }
+  }, [isVisible, rot]);
 
   return (
     <View style={[styles.cardContainer, { height: CARD_HEIGHT }]}>

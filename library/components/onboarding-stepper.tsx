@@ -4,8 +4,6 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { ResizeMode, Video } from "expo-av";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -42,6 +40,9 @@ type OnboardingStep = {
     | "recap"
     | "insights"
     | "notifications"
+    | "momentNudges"
+    | "events"
+    | "exams"
     | "momentsColors"
     | "creating"
     | "wheel"
@@ -83,8 +84,8 @@ const STEPS: OnboardingStep[] = [
   {
     showGif: true,
     gifSource: "insights",
-    titleKey: "onboarding.lessons.title",
-    messageKey: "onboarding.lessons.message",
+    titleKey: "onboarding.insights.title",
+    messageKey: "onboarding.insights.message",
   },
   {
     showGif: true,
@@ -94,15 +95,27 @@ const STEPS: OnboardingStep[] = [
   },
   {
     showGif: true,
-    gifSource: "momentsColors",
-    titleKey: "onboarding.momentsPersonalization.title",
-    messageKey: "onboarding.momentsPersonalization.message",
+    gifSource: "momentNudges",
+    titleKey: "onboarding.momentNudges.title",
+    messageKey: "onboarding.momentNudges.message",
   },
   {
     showGif: true,
-    gifSource: "creating",
-    titleKey: "onboarding.getStarted.title",
-    messageKey: "onboarding.getStarted.message",
+    gifSource: "events",
+    titleKey: "onboarding.events.title",
+    messageKey: "onboarding.events.message",
+  },
+  {
+    showGif: true,
+    gifSource: "exams",
+    titleKey: "onboarding.exams.title",
+    messageKey: "onboarding.exams.message",
+  },
+  {
+    showGif: true,
+    gifSource: "momentsColors",
+    titleKey: "onboarding.momentsPersonalization.title",
+    messageKey: "onboarding.momentsPersonalization.message",
   },
   {
     showGif: true,
@@ -329,6 +342,14 @@ export function OnboardingStepper({
           width: "100%",
           height: "100%",
         },
+        gifPlaceholder: {
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(0, 0, 0, 0.3)"
+              : "rgba(0, 0, 0, 0.05)",
+        },
         textContainer: {
           position: "relative",
           backgroundColor:
@@ -542,55 +563,30 @@ export function OnboardingStepper({
                       {step.showGif ? (
                         <View style={styles.gifWrapper}>
                           <Animated.View style={gifAnimatedStyle}>
-                            <View style={styles.gifContainer}>
-                              {step.gifSource === "recap" ? (
-                                <Video
-                                  source={require("@/recapGiff.mp4")}
-                                  style={styles.gif}
-                                  resizeMode={ResizeMode.CONTAIN}
-                                  shouldPlay
-                                  isLooping
-                                  isMuted
-                                />
-                              ) : step.gifSource === "ai" ? (
-                                <Video
-                                  source={require("@/ai.mov")}
-                                  style={styles.gif}
-                                  resizeMode={ResizeMode.CONTAIN}
-                                  shouldPlay
-                                  isLooping
-                                  isMuted
-                                />
-                              ) : step.gifSource === "momentsColors" ? (
-                                <Video
-                                  source={require("@/momentsColorsGiff.mp4")}
-                                  style={styles.gif}
-                                  resizeMode={ResizeMode.CONTAIN}
-                                  shouldPlay
-                                  isLooping
-                                  isMuted
-                                />
-                              ) : (
-                                <Image
-                                  source={
-                                    step.gifSource === "welcome"
-                                      ? require("@/assets/images/home.gif")
-                                      : step.gifSource === "wheel"
-                                        ? require("@/assets/images/wheel.gif")
-                                        : step.gifSource === "memory"
-                                          ? require("@/assets/images/memories.gif")
-                                          : step.gifSource === "insights"
-                                            ? require("@/assets/images/insights.gif")
-                                            : step.gifSource === "notifications"
-                                              ? require("@/assets/images/reminders.gif")
-                                              : step.gifSource === "creating"
-                                                ? require("@/family.gif")
-                                                : require("@/assets/images/output.gif")
-                                  }
-                                  style={styles.gif}
-                                  contentFit="contain"
-                                />
-                              )}
+                            <View style={[styles.gifContainer, styles.gifPlaceholder]}>
+                              <MaterialIcons
+                                name="play-circle-outline"
+                                size={48 * fontScale}
+                                color={
+                                  colorScheme === "dark"
+                                    ? "rgba(100, 150, 255, 0.5)"
+                                    : "rgba(100, 150, 255, 0.6)"
+                                }
+                              />
+                              <ThemedText
+                                size="xs"
+                                weight="medium"
+                                style={{
+                                  marginTop: 8 * fontScale,
+                                  color:
+                                    colorScheme === "dark"
+                                      ? "rgba(255, 255, 255, 0.4)"
+                                      : "rgba(0, 0, 0, 0.3)",
+                                  textAlign: "center",
+                                }}
+                              >
+                                Video coming soon
+                              </ThemedText>
                             </View>
                           </Animated.View>
                         </View>

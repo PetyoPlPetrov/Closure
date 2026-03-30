@@ -1,7 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
-import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -151,15 +150,15 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
 }: SunnyLifeAvatarProps) {
   const { momentColors } = useMomentColors();
   const t = useTranslate();
-  const { language } = useLanguage();
   const colors = Colors[colorScheme] as {
     primary: string;
     primaryLight?: string;
     primaryDark?: string;
   };
   const primaryHex = colors.primary ?? "#64B5F6";
-  const glowMatrixValues = React.useMemo(() => {
-    const rgb = hexToRgbNorm(primaryHex);
+  const sunnyHex = momentColors.sunny.background;
+  const sunnyGlowMatrix = React.useMemo(() => {
+    const rgb = hexToRgbNorm(sunnyHex);
     const m = (a: number) =>
       `${rgb.r} 0 0 0 0   0 ${rgb.g} 0 0 0   0 0 ${rgb.b} 0 0   0 0 0 ${a} 0`;
     return {
@@ -170,7 +169,8 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
       m09: m(0.9),
       m1: m(1),
     };
-  }, [primaryHex]);
+  }, [sunnyHex]);
+  const glowMatrixValues = sunnyGlowMatrix;
 
   const avatarSize = 100;
   const borderWidth = 8;
@@ -397,17 +397,17 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
               >
                 <Stop
                   offset="0%"
-                  stopColor={colors.primary}
+                  stopColor={momentColors.sunny.background}
                   stopOpacity="0.9"
                 />
                 <Stop
                   offset="50%"
-                  stopColor={colors.primaryLight ?? colors.primary}
+                  stopColor="#FFF176"
                   stopOpacity="1"
                 />
                 <Stop
                   offset="100%"
-                  stopColor={colors.primaryDark ?? colors.primary}
+                  stopColor={momentColors.sunny.background}
                   stopOpacity="1"
                 />
               </SvgLinearGradient>
@@ -585,52 +585,27 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                   style={{
                     color: colors.primaryLight ?? colors.primary,
                     fontSize: 24,
+                    textShadowColor: colors.primary,
+                    textShadowOffset: { width: 0, height: 0 },
+                    textShadowRadius: 10,
                   }}
                 >
                   {displayPctJs}%
                 </ThemedText>
-                {language === "bg" ? (
-                  <View style={{ alignItems: "center" }}>
-                    <ThemedText
-                      size="sm"
-                      weight="medium"
-                      style={{
-                        color: colors.primaryLight ?? colors.primary,
-                        fontSize: 10,
-                        marginTop: -2,
-                        textAlign: "center",
-                        lineHeight: 10,
-                      }}
-                    >
-                      Слънчев
-                    </ThemedText>
-                    <ThemedText
-                      size="sm"
-                      weight="medium"
-                      style={{
-                        color: colors.primaryLight ?? colors.primary,
-                        fontSize: 10,
-                        textAlign: "center",
-                        lineHeight: 10,
-                        marginTop: -1,
-                      }}
-                    >
-                      живот
-                    </ThemedText>
-                  </View>
-                ) : (
-                  <ThemedText
+                <ThemedText
                     size="sm"
                     weight="medium"
                     style={{
                       color: colors.primaryLight ?? colors.primary,
                       fontSize: 12,
                       marginTop: -2,
+                      textShadowColor: colors.primary,
+                      textShadowOffset: { width: 0, height: 0 },
+                      textShadowRadius: 6,
                     }}
                   >
                     {t("avatar.sunnyLife")}
                   </ThemedText>
-                )}
               </>
             ) : (
               <View
