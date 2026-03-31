@@ -13,6 +13,7 @@ import { useLargeDevice } from "@/hooks/use-large-device";
 import type { BaseEntity, IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useSferaEventsBadge } from "@/utils/SferaEventsBadgeProvider";
+import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
 import { getEventImageUrls } from "@/utils/sfera-events";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
@@ -487,6 +488,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   isTablet: boolean;
 }) {
   const scale = useSharedValue(1);
+  const transitionLoader = useHomeTransitionLoader();
 
   const gap = avatarSize / 2 + 10;
   const baseT = index / count;
@@ -553,7 +555,8 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
             withTiming(1, { duration: 100, easing: Easing.inOut(Easing.ease) }),
           );
           if (onEntitySelect) {
-            onEntitySelect(entity.id);
+            transitionLoader?.showLoader();
+            setTimeout(() => onEntitySelect(entity.id), 50);
           }
         }}
       >
@@ -654,6 +657,10 @@ const EntityRing = React.memo(function EntityRing({
     };
   }, [perimeterOffset, momentsOrbitAngle, orbitDurationMs]);
 
+  const handleEntitySelect = useCallback((entityId: string) => {
+    onEntitySelect?.(entityId);
+  }, [onEntitySelect]);
+
   if (entities.length === 0) return null;
   const count = Math.min(entities.length, 8);
 
@@ -673,7 +680,7 @@ const EntityRing = React.memo(function EntityRing({
             centerY={centerY}
             avatarSize={avatarSize}
             glowColor={glowColor}
-            onEntitySelect={onEntitySelect}
+            onEntitySelect={handleEntitySelect}
             sphere={sphere}
             perimeterOffset={perimeterOffset}
             momentsOrbitAngle={momentsOrbitAngle}
@@ -880,7 +887,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   // Urgency border: amber tint when oldest interaction > 30 days
   const isMoodCard = mode === 4 || mode === 5;
   const moodBorderColor = mode === 4 ? (momentColors.cloudy.background + "AA") : (momentColors.sunny.background + "AA");
-  const borderColor = (isUrgent && mode === 1) ? "#F5A623AA" : isMoodCard ? moodBorderColor : shadowColor + "66";
+  const borderColor = (isUrgent && mode === 1) ? "#F5A623AA" : isMoodCard ? moodBorderColor : shadowColor + "99";
   const shadowGlowColor = isMoodCard ? (mode === 4 ? momentColors.cloudy.background : momentColors.sunny.background) : (isUrgent && mode === 1 ? "#F5A623" : shadowColor);
 
   // Human-readable time since interaction (must be before early return)
@@ -908,7 +915,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
   if (numEntities === 0) {
     return (
-      <View style={wrapperStyle}>
+      <View style={wrapperStyle} pointerEvents="box-none">
         <View style={{ width: INSIGHT_ARROW_HIT }} />
         <LinearGradient
           colors={[...gradientColors]}
@@ -917,15 +924,15 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             height: INSIGHT_CARD_H,
             borderRadius: 22,
             borderWidth: 1.5,
-            borderColor: shadowColor + "66",
+            borderColor: shadowColor + "99",
             justifyContent: "center",
             alignItems: "center",
             padding: 14,
             shadowColor,
             shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.5,
-            shadowRadius: 14,
-            elevation: 8,
+            shadowOpacity: 0.85,
+            shadowRadius: 22,
+            elevation: 12,
           }}
         >
           <MaterialIcons name="add-circle-outline" size={32} color={shadowColor} />
@@ -939,7 +946,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   }
 
   return (
-    <View style={wrapperStyle}>
+    <View style={wrapperStyle} pointerEvents="box-none">
       {/* Left arrow */}
       {numModes > 1 ? (
         <Pressable
@@ -973,9 +980,9 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             paddingBottom: 10,
             shadowColor: shadowGlowColor,
             shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.55,
-            shadowRadius: 16,
-            elevation: 10,
+            shadowOpacity: 0.9,
+            shadowRadius: 24,
+            elevation: 14,
             gap: 8,
           }}
         >

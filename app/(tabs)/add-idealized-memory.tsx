@@ -10,6 +10,7 @@ import { useInAppNotification } from '@/utils/InAppNotificationProvider';
 import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { useHomeTransitionLoader } from '@/utils/home-transition-loader-context';
 import { getLifeLessonPlaceholder } from '@/utils/life-lessons';
 import {
   getHardTruthSuggestion,
@@ -923,6 +924,9 @@ export default function AddIdealizedMemoryScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const { momentColors } = useMomentColors();
+  const loaderCtx = useHomeTransitionLoader();
+  console.log('[add-idealized-memory] loaderCtx:', loaderCtx);
+  const { showLoader } = loaderCtx ?? { showLoader: () => {} };
   const fontScale = useFontScale();
   const { maxContentWidth, isLargeDevice } = useLargeDevice();
   
@@ -2727,10 +2731,15 @@ export default function AddIdealizedMemoryScreen() {
           onPress={() => {
             // Don't check for changes in view-only mode
             if (viewOnly) {
+              console.log('[add-idealized-memory] back pressed viewOnly, calling showLoader');
+              showLoader();
               isNavigatingAway.current = true;
               router.back();
               return;
             }
+
+            console.log('[add-idealized-memory] back pressed, calling showLoader');
+            showLoader();
 
             // Check for unsaved changes before navigating
             if (hasUnsavedChanges() && !isSaving) {

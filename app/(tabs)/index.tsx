@@ -13907,6 +13907,10 @@ export default function HomeScreen() {
     if (homeViewMode !== "focused") return;
 
     const handleBackPress = () => {
+      const hadFocusedMemory = !!focusedMemory;
+      if (hadFocusedMemory) {
+        startTransitionLoader();
+      }
       requestAnimationFrame(() => {
         setTimeout(() => {
           setFocusedMemory(null);
@@ -13921,6 +13925,9 @@ export default function HomeScreen() {
           setAnimationsComplete(false);
           setShowMomentTypeSelector(false);
           setHomeViewMode("focused");
+          if (hadFocusedMemory) {
+            hideLoader();
+          }
         }, 0);
       });
       return true; // Prevent default (e.g. exiting app or going back in stack)
@@ -13931,7 +13938,13 @@ export default function HomeScreen() {
       handleBackPress,
     );
     return () => sub.remove();
-  }, [homeViewMode, focusedSphereIndex]);
+  }, [
+    homeViewMode,
+    focusedSphereIndex,
+    focusedMemory,
+    startTransitionLoader,
+    hideLoader,
+  ]);
 
   // Zoom progress for sphere animations (0 = normal view, 1 = zoomed in/out)
   const sphereZoomProgress = useSharedValue(0);
@@ -22189,6 +22202,11 @@ export default function HomeScreen() {
                 return;
               }
 
+              const hadFocusedMemory = !!focusedMemory;
+              if (hadFocusedMemory) {
+                startTransitionLoader();
+              }
+
               requestAnimationFrame(() => {
                 setTimeout(() => {
                   // Default behavior - unfocus memory/profile
@@ -22210,6 +22228,9 @@ export default function HomeScreen() {
                     setFocusedProfileId(null);
                     setFocusedJobId(null);
                     setSelectedSphere(null);
+                  }
+                  if (hadFocusedMemory) {
+                    hideLoader();
                   }
                 }, 0);
               });
@@ -22319,22 +22340,19 @@ export default function HomeScreen() {
 
               if (entityName) {
                 return (
-                  <ThemedText
-                    size="l"
-                    weight="medium"
-                    numberOfLines={1}
-                    style={{
-                      position: "absolute",
-                      top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Lower the name further
-                      right: 20,
-                      zIndex: 1000,
-                      color: colors.text,
-                      maxWidth: SCREEN_WIDTH - 100, // Leave space for left side content
-                      textAlign: "right",
-                    }}
-                  >
-                    {entityName}
-                  </ThemedText>
+                  <View style={sphereHeaderTitleRowStyle}>
+                    <ThemedText
+                      size="l"
+                      weight="medium"
+                      numberOfLines={1}
+                      style={{
+                        color: colors.text,
+                        textAlign: "right",
+                      }}
+                    >
+                      {entityName}
+                    </ThemedText>
+                  </View>
                 );
               }
               return null;
@@ -22414,27 +22432,14 @@ export default function HomeScreen() {
               if (!memoryData) return null;
 
               return (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 70,
-                    left: 80,
-                    right: 20,
-                    zIndex: 1000,
-                    paddingHorizontal: 12,
-                    paddingVertical: 12,
-                    backgroundColor: "transparent",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
+                <View style={sphereHeaderTitleRowStyle}>
                   <ThemedText
                     size="l"
                     weight="semibold"
                     numberOfLines={2}
                     style={{
                       color: colors.text,
-                      textAlign: "center",
+                      textAlign: "right",
                     }}
                   >
                     {memoryData.title || "Memory"}
@@ -22536,6 +22541,11 @@ export default function HomeScreen() {
                 return;
               }
 
+              const hadFocusedMemory = !!focusedMemory;
+              if (hadFocusedMemory) {
+                startTransitionLoader();
+              }
+
               requestAnimationFrame(() => {
                 setTimeout(() => {
                   if (focusedMemory) {
@@ -22551,6 +22561,9 @@ export default function HomeScreen() {
                     setFocusedJobId(null);
                   } else {
                     setSelectedSphere(null);
+                  }
+                  if (hadFocusedMemory) {
+                    hideLoader();
                   }
                 }, 0);
               });
@@ -22660,22 +22673,19 @@ export default function HomeScreen() {
 
               if (entityName) {
                 return (
-                  <ThemedText
-                    size="l"
-                    weight="medium"
-                    numberOfLines={1}
-                    style={{
-                      position: "absolute",
-                      top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Lower the name further
-                      right: 20,
-                      zIndex: 1000,
-                      color: colors.text,
-                      maxWidth: SCREEN_WIDTH - 100, // Leave space for left side content
-                      textAlign: "right",
-                    }}
-                  >
-                    {entityName}
-                  </ThemedText>
+                  <View style={sphereHeaderTitleRowStyle}>
+                    <ThemedText
+                      size="l"
+                      weight="medium"
+                      numberOfLines={1}
+                      style={{
+                        color: colors.text,
+                        textAlign: "right",
+                      }}
+                    >
+                      {entityName}
+                    </ThemedText>
+                  </View>
                 );
               }
               return null;
@@ -22755,27 +22765,14 @@ export default function HomeScreen() {
               if (!memoryData) return null;
 
               return (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 70,
-                    left: 80,
-                    right: 20,
-                    zIndex: 1000,
-                    paddingHorizontal: 12,
-                    paddingVertical: 12,
-                    backgroundColor: "transparent",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
+                <View style={sphereHeaderTitleRowStyle}>
                   <ThemedText
                     size="l"
                     weight="semibold"
                     numberOfLines={2}
                     style={{
                       color: colors.text,
-                      textAlign: "center",
+                      textAlign: "right",
                     }}
                   >
                     {memoryData.title || "Memory"}
@@ -22886,6 +22883,11 @@ export default function HomeScreen() {
                 return;
               }
 
+              const hadFocusedMemory = !!focusedMemory;
+              if (hadFocusedMemory) {
+                startTransitionLoader();
+              }
+
               requestAnimationFrame(() => {
                 setTimeout(() => {
                   if (focusedMemory) {
@@ -22908,6 +22910,9 @@ export default function HomeScreen() {
                     setFocusedJobId(null);
                     setFocusedFamilyMemberId(null);
                     setSelectedSphere(null);
+                  }
+                  if (hadFocusedMemory) {
+                    hideLoader();
                   }
                 }, 0);
               });
@@ -23017,22 +23022,19 @@ export default function HomeScreen() {
 
               if (entityName) {
                 return (
-                  <ThemedText
-                    size="l"
-                    weight="medium"
-                    numberOfLines={1}
-                    style={{
-                      position: "absolute",
-                      top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Lower the name further
-                      right: 20,
-                      zIndex: 1000,
-                      color: colors.text,
-                      maxWidth: SCREEN_WIDTH - 100, // Leave space for left side content
-                      textAlign: "right",
-                    }}
-                  >
-                    {entityName}
-                  </ThemedText>
+                  <View style={sphereHeaderTitleRowStyle}>
+                    <ThemedText
+                      size="l"
+                      weight="medium"
+                      numberOfLines={1}
+                      style={{
+                        color: colors.text,
+                        textAlign: "right",
+                      }}
+                    >
+                      {entityName}
+                    </ThemedText>
+                  </View>
                 );
               }
               return null;
@@ -23112,27 +23114,14 @@ export default function HomeScreen() {
               if (!memoryData) return null;
 
               return (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 70,
-                    left: 80,
-                    right: 20,
-                    zIndex: 1000,
-                    paddingHorizontal: 12,
-                    paddingVertical: 12,
-                    backgroundColor: "transparent",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
+                <View style={sphereHeaderTitleRowStyle}>
                   <ThemedText
                     size="l"
                     weight="semibold"
                     numberOfLines={2}
                     style={{
                       color: colors.text,
-                      textAlign: "center",
+                      textAlign: "right",
                     }}
                   >
                     {memoryData.title}
@@ -23233,6 +23222,11 @@ export default function HomeScreen() {
                 return;
               }
 
+              const hadFocusedMemory = !!focusedMemory;
+              if (hadFocusedMemory) {
+                startTransitionLoader();
+              }
+
               requestAnimationFrame(() => {
                 setTimeout(() => {
                   if (focusedMemory) {
@@ -23255,6 +23249,9 @@ export default function HomeScreen() {
                     setFocusedFriendId(null);
                     setFocusedHobbyId(null);
                     setSelectedSphere(null);
+                  }
+                  if (hadFocusedMemory) {
+                    hideLoader();
                   }
                 }, 0);
               });
@@ -23364,22 +23361,19 @@ export default function HomeScreen() {
 
               if (entityName) {
                 return (
-                  <ThemedText
-                    size="l"
-                    weight="medium"
-                    numberOfLines={1}
-                    style={{
-                      position: "absolute",
-                      top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Lower the name further
-                      right: 20,
-                      zIndex: 1000,
-                      color: colors.text,
-                      maxWidth: SCREEN_WIDTH - 100, // Leave space for left side content
-                      textAlign: "right",
-                    }}
-                  >
-                    {entityName}
-                  </ThemedText>
+                  <View style={sphereHeaderTitleRowStyle}>
+                    <ThemedText
+                      size="l"
+                      weight="medium"
+                      numberOfLines={1}
+                      style={{
+                        color: colors.text,
+                        textAlign: "right",
+                      }}
+                    >
+                      {entityName}
+                    </ThemedText>
+                  </View>
                 );
               }
               return null;
@@ -23461,27 +23455,14 @@ export default function HomeScreen() {
               if (!memoryData) return null;
 
               return (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 70,
-                    left: 80,
-                    right: 20,
-                    zIndex: 1000,
-                    paddingHorizontal: 12,
-                    paddingVertical: 12,
-                    backgroundColor: "transparent",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
+                <View style={sphereHeaderTitleRowStyle}>
                   <ThemedText
                     size="l"
                     weight="semibold"
                     numberOfLines={2}
                     style={{
                       color: colors.text,
-                      textAlign: "center",
+                      textAlign: "right",
                     }}
                   >
                     {memoryData.title}
@@ -23582,6 +23563,11 @@ export default function HomeScreen() {
                 return;
               }
 
+              const hadFocusedMemory = !!focusedMemory;
+              if (hadFocusedMemory) {
+                startTransitionLoader();
+              }
+
               requestAnimationFrame(() => {
                 setTimeout(() => {
                   if (focusedMemory) {
@@ -23604,6 +23590,9 @@ export default function HomeScreen() {
                     setFocusedFriendId(null);
                     setFocusedHobbyId(null);
                     setSelectedSphere(null);
+                  }
+                  if (hadFocusedMemory) {
+                    hideLoader();
                   }
                 }, 0);
               });
@@ -23713,22 +23702,19 @@ export default function HomeScreen() {
 
               if (entityName) {
                 return (
-                  <ThemedText
-                    size="l"
-                    weight="medium"
-                    numberOfLines={1}
-                    style={{
-                      position: "absolute",
-                      top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Lower the name further
-                      right: 20,
-                      zIndex: 1000,
-                      color: colors.text,
-                      maxWidth: SCREEN_WIDTH - 100, // Leave space for left side content
-                      textAlign: "right",
-                    }}
-                  >
-                    {entityName}
-                  </ThemedText>
+                  <View style={sphereHeaderTitleRowStyle}>
+                    <ThemedText
+                      size="l"
+                      weight="medium"
+                      numberOfLines={1}
+                      style={{
+                        color: colors.text,
+                        textAlign: "right",
+                      }}
+                    >
+                      {entityName}
+                    </ThemedText>
+                  </View>
                 );
               }
               return null;
@@ -23810,27 +23796,14 @@ export default function HomeScreen() {
               if (!memoryData) return null;
 
               return (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 70,
-                    left: 80,
-                    right: 20,
-                    zIndex: 1000,
-                    paddingHorizontal: 12,
-                    paddingVertical: 12,
-                    backgroundColor: "transparent",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
+                <View style={sphereHeaderTitleRowStyle}>
                   <ThemedText
                     size="l"
                     weight="semibold"
                     numberOfLines={2}
                     style={{
                       color: colors.text,
-                      textAlign: "center",
+                      textAlign: "right",
                     }}
                   >
                     {memoryData.title}

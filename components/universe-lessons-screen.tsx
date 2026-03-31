@@ -67,7 +67,7 @@ const PLANET_CANVAS = ATMO_R * 4.4;  // 4.4× gives a comfortable margin beyond 
 const PLANET_C = PLANET_CANVAS / 2;
 
 // Moon avatar size (memory image orbiting the planet top)
-const MOON_SIZE = 52;
+const MOON_SIZE = 72;
 
 const HEADER_H = 94;
 // Full-screen cards so each planet is perfectly centred. Peek is a separate overlay.
@@ -502,30 +502,44 @@ function generateBgSferas(seed: number) {
   });
 }
 
+// Lightweight blob replacement for background sferas — no rings, no dust, ~3 SVG elements.
+function BgPlanetBlob({ id, color, size }: { id: string; color: string; size: number }) {
+  const r = size / 2;
+  return (
+    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <Defs>
+        <RadialGradient id={`bgblob_${id}`} cx={`${r}`} cy={`${r}`} r={`${r}`} gradientUnits="userSpaceOnUse">
+          <Stop offset="0%"   stopColor={color} stopOpacity="0" />
+          <Stop offset="65%"  stopColor={color} stopOpacity="0" />
+          <Stop offset="85%"  stopColor={color} stopOpacity="0.45" />
+          <Stop offset="100%" stopColor={color} stopOpacity="0.70" />
+        </RadialGradient>
+      </Defs>
+      <SvgCircle cx={r} cy={r} r={r} fill={`url(#bgblob_${id})`} />
+    </Svg>
+  );
+}
+
 function BackgroundSferas({ seed, fadeOut }: { seed: number; fadeOut: SharedValue<number> }) {
   const animStyle = useAnimatedStyle(() => ({ opacity: fadeOut.value * 0.22 }));
-  const staticRot = useSharedValue(0);
 
   const sferas = useMemo(() => generateBgSferas(seed), [seed]);
 
   return (
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, animStyle]}>
       {sferas.map((s) => {
-        // scale() anchors to the element center, compensate to achieve top-left anchoring
-        // Use PLANET_BODY (planet diameter) not PLANET_CANVAS (oversized ring canvas)
-        const offset = (PLANET_BODY * (1 - s.scale)) / 2;
+        const blobSize = PLANET_BODY * s.scale;
         return (
           <View
             key={s.id}
             pointerEvents="none"
             style={{
               position: "absolute",
-              left: s.left - offset,
-              top: s.top - offset,
-              transform: [{ scale: s.scale }],
+              left: s.left,
+              top: s.top,
             }}
           >
-            <RingPlanetSvg id={s.id} colors={SPHERE_RINGS[s.sphere]} ringRotation={staticRot} />
+            <BgPlanetBlob id={s.id} color={SPHERE_RINGS[s.sphere].core} size={blobSize} />
           </View>
         );
       })}
@@ -555,6 +569,7 @@ const LessonSfera = React.memo(function LessonSfera({
   // Moon tap pulse
   const moonScale = useSharedValue(1);
   const moonGlow = useSharedValue(0);
+  const moonAmbient = useSharedValue(1);
 
   const fireMoonPulse = useCallback(() => {
     moonScale.value = withSequence(
@@ -594,7 +609,23 @@ const LessonSfera = React.memo(function LessonSfera({
     );
     onAvatarPress?.();
   }, [moonScale, moonGlow, onAvatarPress]);
-  const moonStyle = useAnimatedStyle(() => ({ transform: [{ scale: moonScale.value }] }));
+  useEffect(() => {
+    if (isVisible) {
+      moonAmbient.value = withDelay(600, withRepeat(
+        withSequence(
+          withTiming(1.06, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.00, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        false,
+      ));
+    } else {
+      cancelAnimation(moonAmbient);
+      moonAmbient.value = 1;
+    }
+  }, [isVisible, moonAmbient]);
+
+  const moonStyle = useAnimatedStyle(() => ({ transform: [{ scale: moonScale.value * moonAmbient.value }] }));
   const moonGlowStyle = useAnimatedStyle(() => ({ opacity: moonGlow.value }));
 
   useEffect(() => {
@@ -846,10 +877,10 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       const idx = viewableItems[0]?.index;
       if (idx != null) {
-        setActiveIndex(idx);
         if (bgSeedTimerRef.current) clearTimeout(bgSeedTimerRef.current);
         bgFadeOut.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
         bgSeedTimerRef.current = setTimeout(() => {
+          setActiveIndex(idx);
           setBgSeed(idx);
           bgFadeOut.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) });
         }, 420);
@@ -945,8 +976,13 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
         ))}
 
         {/* Header */}
-        <View style={[styles.header, { top: insets.top + 28 }]} pointerEvents="none">
+        <View style={[styles.header, { top: insets.top + 12 }]}>
           <ThemedText style={[styles.headerTitle, { textShadowColor: accentColor + "55" }]}>{t("universe.modal.title")}</ThemedText>
+          <Pressable onPress={onClose} hitSlop={16}>
+            <View style={styles.closeBg}>
+              <MaterialIcons name="close" size={18} color="rgba(255,255,255,0.90)" />
+            </View>
+          </Pressable>
         </View>
 
         {/* Swipe hint — finger + up/down arrows, centered on screen */}
@@ -970,12 +1006,6 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
           </Animated.View>
         )}
 
-        {/* Close */}
-        <Pressable onPress={onClose} style={[styles.closeBtn, { top: insets.top + 12 }]} hitSlop={16}>
-          <View style={styles.closeBg}>
-            <MaterialIcons name="close" size={18} color="rgba(255,255,255,0.90)" />
-          </View>
-        </Pressable>
 
         <BackgroundSferas seed={bgSeed} fadeOut={bgFadeOut} />
         <FlatList
@@ -1018,8 +1048,11 @@ const styles = StyleSheet.create({
   header: {
     position: "absolute",
     left: 20,
-    right: 60,
+    right: 20,
     zIndex: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   headerTitle: {
     fontSize: 26,
@@ -1030,11 +1063,6 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(8,14,28,0.70)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 10,
-  },
-  closeBtn: {
-    position: "absolute",
-    right: 20,
-    zIndex: 50,
   },
   closeBg: {
     width: 36,
@@ -1069,6 +1097,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: ATMO_R * 0.54,
     paddingTop: MOON_SIZE + 16,
+    marginTop: -30,
     gap: 14,
   },
   moonOrbit: {
@@ -1089,7 +1118,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   moonLabel: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: "600",
     letterSpacing: 0.3,
     opacity: 0.8,

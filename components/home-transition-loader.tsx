@@ -7,8 +7,7 @@
 
 import { useHomeTransitionLoaderVisibility } from "@/utils/home-transition-loader-context";
 import React, { useEffect } from "react";
-import { Modal, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -17,16 +16,14 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-const LINE_HEIGHT = 2;
+const LINE_HEIGHT = 3;
 const PHASE1_TARGET = 0.8;
 const PHASE2_TARGET = 0.95;
 const PHASE_DURATION_MS = 1000;
 
 const LOADER_COLOR = "#64B5F6"; // Primary blue - matches app theme, desaturated for dark cosmic background
 
-export function HomeTransitionLoader({
-  anchor = "bottom",
-}: { anchor?: "top" | "bottom" } = {}) {
+export function HomeTransitionLoader() {
   const progress = useSharedValue(0);
 
   useEffect(() => {
@@ -53,7 +50,6 @@ export function HomeTransitionLoader({
   const trackStyle = [
     styles.track,
     { backgroundColor: "rgba(0,0,0,0.3)" },
-    anchor === "top" ? styles.anchorTop : styles.anchorBottom,
   ] as const;
 
   return (
@@ -69,31 +65,20 @@ export function HomeTransitionLoader({
   );
 }
 
-/** Renders the loader above tab bar when visible. Uses Modal so it appears above navigation stack. */
+/** Renders the loader above tab bar when visible. */
 export function HomeTransitionLoaderOverlay() {
   const visibility = useHomeTransitionLoaderVisibility();
-  const insets = useSafeAreaInsets();
   const isVisible = visibility?.isVisible ?? false;
+  console.log('[HomeTransitionLoaderOverlay] render, isVisible:', isVisible);
+  if (!isVisible) return null;
+  console.log('[HomeTransitionLoaderOverlay] showing loader');
   return (
-    <Modal
-      visible={isVisible}
-      transparent
-      animationType="none"
-      statusBarTranslucent
+    <View
+      style={styles.overlay}
       pointerEvents="none"
     >
-      <View
-        style={[
-          styles.overlay,
-          {
-            top: insets.top,
-          },
-        ]}
-        pointerEvents="none"
-      >
-        <HomeTransitionLoader anchor="top" />
-      </View>
-    </Modal>
+      <HomeTransitionLoader />
+    </View>
   );
 }
 
@@ -104,18 +89,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: LINE_HEIGHT,
-    overflow: "hidden",
+    zIndex: 99999,
+    elevation: 99999,
   },
   track: {
-    position: "absolute",
-    left: 0,
-    right: 0,
+    flex: 1,
     height: LINE_HEIGHT,
-    zIndex: 1000,
     overflow: "hidden",
   },
-  anchorTop: { top: 0 },
-  anchorBottom: { bottom: 0 },
   fill: {
     height: LINE_HEIGHT,
     borderRadius: 1,

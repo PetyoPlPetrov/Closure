@@ -841,6 +841,19 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
   const isFocused =
     (eventIndex - focusedEventIndex + totalCount) % totalCount === 0;
 
+  const arrowPulse = useSharedValue(1);
+  const arrowPulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: arrowPulse.value }],
+  }));
+  const triggerArrowPulse = () => {
+    arrowPulse.value = withSequence(
+      withTiming(1.35, { duration: 120, easing: Easing.out(Easing.ease) }),
+      withTiming(0.85, { duration: 100, easing: Easing.in(Easing.ease) }),
+      withTiming(1.25, { duration: 100, easing: Easing.out(Easing.ease) }),
+      withTiming(1, { duration: 150, easing: Easing.inOut(Easing.ease) }),
+    );
+  };
+
   const scaled = useMemo(
     () => ({
       focused: FOCUSED_EVENT_SIZE * fontScale,
@@ -956,7 +969,7 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
   const cardContent = (
     <View style={[styles.eventCardGlowWrap, !isFocused && styles.eventCardGlowWrapNonFocused]}>
       <Pressable
-        onPress={() => isFocused && onFocusPress?.(event)}
+        onPress={() => isFocused && triggerArrowPulse()}
         style={[
           styles.eventCard,
           !isFocused && styles.eventCardNonFocused,
@@ -1096,25 +1109,27 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
                   ) : null}
                 </View>
                 {onFocusPress ? (
-                  <Pressable
-                    style={[
-                      styles.eventCardActionBtn,
-                      {
-                        backgroundColor: colors.primary + "40",
-                        borderColor: "rgba(255,255,255,0.25)",
-                      },
-                    ]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      onFocusPress(event);
-                    }}
-                  >
-                    <MaterialIcons
-                      name="arrow-forward"
-                      size={18 * fontScale}
-                      color="#fff"
-                    />
-                  </Pressable>
+                  <Animated.View style={arrowPulseStyle}>
+                    <Pressable
+                      style={[
+                        styles.eventCardActionBtn,
+                        {
+                          backgroundColor: colors.primary + "40",
+                          borderColor: "rgba(255,255,255,0.25)",
+                        },
+                      ]}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        onFocusPress(event);
+                      }}
+                    >
+                      <MaterialIcons
+                        name="arrow-forward"
+                        size={18 * fontScale}
+                        color="#fff"
+                      />
+                    </Pressable>
+                  </Animated.View>
                 ) : null}
               </View>
             </View>

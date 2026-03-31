@@ -2341,6 +2341,7 @@ export function FocusedSferaView({
   const { appUsabilityHints, sunnyMomentsCongratsAnimation } = useVisualSettings();
   const focusedSpherePulseRef = useRef<(() => void) | null>(null);
   const focusedSphereTapTimeRef = useRef<number>(0);
+  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
   const N = SPHERE_LIST.length;
   // Keep root aligned with TabScreenContainer; we shift spheres via ORBIT_CY instead.
@@ -2787,11 +2788,13 @@ export function FocusedSferaView({
           const elapsed = now - focusedSphereTapTimeRef.current;
           if (elapsed < 350 && elapsed > 0) {
             focusedSphereTapTimeRef.current = 0;
+            if (hintTimerRef.current) { clearTimeout(hintTimerRef.current); hintTimerRef.current = null; }
             onSphereSelect(SPHERE_LIST[focusedIdx].type);
           } else {
             focusedSphereTapTimeRef.current = now;
             focusedSpherePulseRef.current?.();
-            showDoubleTapHint();
+            if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+            hintTimerRef.current = setTimeout(() => { hintTimerRef.current = null; showDoubleTapHint(); }, 350);
           }
         }}
       />
@@ -2997,9 +3000,9 @@ export function FocusedSferaView({
           style={[
             {
               position: "absolute",
-              left: 0,
-              right: 0,
-              top: ORBIT_CY + ORBIT_R + FOCUSED_LABEL_GAP * 5.5 - 22,
+              left: ORBIT_CX - FOCUSED_SIZE / 2,
+              width: FOCUSED_SIZE,
+              top: ORBIT_CY + ORBIT_R + 20,
               alignItems: "center",
               zIndex: 20,
             },
