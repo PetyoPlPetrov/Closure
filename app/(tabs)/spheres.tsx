@@ -27,7 +27,6 @@ import type {
 } from "@/utils/JourneyProvider";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { showPaywallForPremiumAccess } from "@/utils/premium-access";
 import { onSpheresTabPress } from "@/utils/spheres-tab-press";
 import { useSubscription } from "@/utils/SubscriptionProvider";
@@ -35,7 +34,6 @@ import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import {
     router,
     useFocusEffect,
@@ -62,191 +60,20 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import Animated, {
+import {
     cancelAnimation,
     Easing,
     useAnimatedStyle,
     useSharedValue,
-    withDelay,
-    withRepeat,
     withSequence,
-    withSpring,
     withTiming,
 } from "react-native-reanimated";
 
-const AnimatedView = Animated.createAnimatedComponent(View);
-
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-// Sparkled Dots Component - animated glowing dots (copied from index.tsx)
-const SparkledDots = React.memo(function SparkledDots({
-  avatarSize,
-  avatarCenterX,
-  avatarCenterY,
-  colorScheme,
-  sunnyBackground,
-}: {
-  avatarSize: number;
-  avatarCenterX: number;
-  avatarCenterY: number;
-  colorScheme: "light" | "dark";
-  sunnyBackground: string;
-}) {
-  const { isTablet } = useLargeDevice();
-
-  // Generate random positions for dots spread across the screen
-  // Mix of dots around center and dots spread across entire screen
-  const dots = React.useMemo(() => {
-    const numDots = isTablet ? 80 : 60; // Increased for better coverage
-    const padding = 20; // Padding from screen edges
-
-    return Array.from({ length: numDots }, (_, i) => {
-      let x: number, y: number;
-
-      // Mix distribution: 40% around center, 60% spread across screen
-      if (i < numDots * 0.4) {
-        // Dots around the center (insight button area)
-        const minRadius = avatarSize / 2 + 20;
-        const maxRadius = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35;
-        const angle = Math.random() * 2 * Math.PI;
-        const radius = minRadius + Math.random() * (maxRadius - minRadius);
-        x = avatarCenterX + Math.cos(angle) * radius;
-        y = avatarCenterY + Math.sin(angle) * radius;
-      } else {
-        // Dots spread across entire screen
-        x = padding + Math.random() * (SCREEN_WIDTH - padding * 2);
-        y = padding + Math.random() * (SCREEN_HEIGHT - padding * 2);
-      }
-
-      // Ensure dots stay within screen bounds
-      x = Math.max(padding, Math.min(SCREEN_WIDTH - padding, x));
-      y = Math.max(padding, Math.min(SCREEN_HEIGHT - padding, y));
-
-      // Medium size range for better visibility (2-4px)
-      const size = 2 + Math.random() * 2;
-
-      // Random delay for staggered animation
-      const delay = Math.random() * 2000;
-
-      // Random animation duration (2.5-4 seconds)
-      const duration = 2500 + Math.random() * 1500;
-
-      return { x, y, size, delay, duration, id: i };
-    });
-  }, [avatarSize, avatarCenterX, avatarCenterY, isTablet]);
-
-  return (
-    <>
-      {dots.map((dot) => (
-        <SparkledDot
-          key={dot.id}
-          x={dot.x}
-          y={dot.y}
-          size={dot.size}
-          delay={dot.delay}
-          duration={dot.duration}
-          colorScheme={colorScheme}
-          sunnyBackground={sunnyBackground}
-        />
-      ))}
-    </>
-  );
-});
-
-// Individual Sparkled Dot Component
-const SparkledDot = React.memo(function SparkledDot({
-  x,
-  y,
-  size,
-  delay,
-  duration,
-  colorScheme,
-  sunnyBackground,
-}: {
-  x: number;
-  y: number;
-  size: number;
-  delay: number;
-  duration: number;
-  colorScheme: "light" | "dark";
-  sunnyBackground: string;
-}) {
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.7);
-
-  React.useEffect(() => {
-    // Scale up animation
-    scale.value = withDelay(
-      delay,
-      withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 }),
-    );
-
-    // Fade in first, then start pulsing with better visibility
-    opacity.value = withDelay(
-      delay,
-      withTiming(
-        0.7,
-        {
-          duration: 600,
-          easing: Easing.out(Easing.ease),
-        },
-        (finished) => {
-          if (finished) {
-            // After fade in completes, start pulsing (between 0.4 and 0.7 for better visibility)
-            opacity.value = withRepeat(
-              withTiming(0.4, { duration, easing: Easing.inOut(Easing.ease) }),
-              -1,
-              true,
-            );
-          }
-        },
-      ),
-    );
-  }, [delay, duration, opacity, scale]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: scale.value }],
-  }));
-
-  // More visible glow color based on theme
-  const glowColor =
-    colorScheme === "dark"
-      ? "rgba(255, 255, 255, 0.65)" // Increased from 0.4 to 0.65
-      : (() => {
-          const r = parseInt(sunnyBackground.slice(1, 3), 16);
-          const g = parseInt(sunnyBackground.slice(3, 5), 16);
-          const b = parseInt(sunnyBackground.slice(5, 7), 16);
-          return `rgba(${r}, ${g}, ${b}, 0.55)`;
-        })();
-
-  return (
-    <Animated.View
-      style={[
-        {
-          position: "absolute",
-          left: x - size / 2,
-          top: y - size / 2,
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: glowColor,
-          shadowColor: glowColor,
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.8, // Increased from 0.6
-          shadowRadius: size * 2, // Increased from size * 1.5
-          elevation: 6, // Increased from 4
-        },
-        animatedStyle,
-      ]}
-    />
-  );
-});
 
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
-  const { momentColors } = useMomentColors();
   const {
     constellationAmount,
     constellationOpacity,
@@ -255,7 +82,7 @@ export default function SpheresScreen() {
   const fontScale = useFontScale();
   const iconScale = useIconScale();
   const insets = useSafeAreaInsets();
-  const { maxContentWidth, isLargeDevice, isTablet } = useLargeDevice();
+  const { maxContentWidth } = useLargeDevice();
   const {
     profiles,
     jobs,
@@ -280,32 +107,6 @@ export default function SpheresScreen() {
   const t = useTranslate();
   const aiConsent = useAIInsightsConsent();
   const aiMemoryModal = useAIMemoryModal();
-
-  // Phone-only viewport scaling to preserve proportions across different phone sizes.
-  // Tablets keep existing fixed sizing.
-  const phoneViewportScale = useMemo(() => {
-    if (isTablet) return 1;
-    const base = 390; // iPhone 14-ish logical width baseline
-    const minDim = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT);
-    // Clamp so very small/large phones don't get extreme spacing.
-    return Math.max(0.85, Math.min(1.2, minDim / base));
-  }, [isTablet]);
-
-  const containerRef = useRef<View>(null);
-  const [containerLayout, setContainerLayout] = useState<{
-    width: number;
-    height: number;
-    x: number;
-    y: number;
-  } | null>(null);
-  const [textWidths, setTextWidths] = useState<Record<LifeSphere, number>>({
-    relationships: 0,
-    career: 0,
-    family: 0,
-    friends: 0,
-    hobbies: 0,
-  });
-  const [sevenLetterWidth, setSevenLetterWidth] = useState<number>(0);
 
   // Insight button pulse animation
   const insightPulseScale = useSharedValue(1);
@@ -793,6 +594,40 @@ export default function SpheresScreen() {
     [getEntitiesBySphere, t],
   );
 
+  const getSphereAccentColor = (sphereType: LifeSphere): string => {
+    const scheme = (colorScheme ?? "dark") as "light" | "dark";
+    if (scheme === "light") {
+      switch (sphereType) {
+        case "relationships":
+          return "#D32F2F";
+        case "career":
+          return "#1976D2";
+        case "family":
+          return "#388E3C";
+        case "friends":
+          return "#7B1FA2";
+        case "hobbies":
+          return "#F57C00";
+        default:
+          return "#1976D2";
+      }
+    }
+    switch (sphereType) {
+      case "relationships":
+        return "#E57373";
+      case "career":
+        return "#64B5F6";
+      case "family":
+        return "#81C784";
+      case "friends":
+        return "#BA68C8";
+      case "hobbies":
+        return "#FFB74D";
+      default:
+        return "#64B5F6";
+    }
+  };
+
   const _overallPercentage = useMemo(
     () => getOverallSunnyPercentage(),
     [getOverallSunnyPercentage],
@@ -1108,74 +943,82 @@ export default function SpheresScreen() {
           paddingHorizontal: 12 * fontScale,
           alignItems: "center",
           justifyContent: "center",
-          paddingTop: 0, // Remove top padding to allow better centering
-          paddingBottom: 0, // Remove bottom padding to allow better centering
+          paddingTop: 0,
+          paddingBottom: 0,
         },
-        mainContentWrapper: {
+        manualEditContent: {
+          flex: 1,
+          paddingHorizontal: 16 * fontScale,
+          alignItems: "stretch",
+          justifyContent: "flex-start",
+          paddingTop: 0,
+          paddingBottom: 0,
+        },
+        manualEditTopBar: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
           width: "100%",
-          height: "100%",
+          paddingBottom: 8 * fontScale,
+        },
+        manualEditExitButton: {
+          width: 44 * fontScale,
+          height: 44 * fontScale,
+          borderRadius: 22 * fontScale,
+          backgroundColor: "rgba(26, 47, 74, 0.85)",
           justifyContent: "center",
           alignItems: "center",
-          position: "relative",
-          marginBottom: "12%",
+          borderWidth: 1,
+          borderColor: "rgba(100, 181, 246, 0.4)",
         },
-        mainContentContainer: {
+        manualEditTitleRight: {
+          flex: 1,
+          marginLeft: 16 * fontScale,
+          letterSpacing: 0.35,
+          textAlign: "right",
+        },
+        manualEditScroll: {
+          flexGrow: 1,
+          paddingHorizontal: 2 * fontScale,
+          paddingTop: 28 * fontScale,
+          paddingBottom: 32 * fontScale,
+          maxWidth: maxContentWidth as any,
           width: "100%",
+          alignSelf: "center",
+        },
+        manualEditRow: {
+          flexDirection: "row",
           alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-        },
-        sphereGrid: {
-          width: "100%",
-          height: "100%",
-          position: "relative",
-          alignItems: "center",
-          justifyContent: "center",
-        },
-        sphereCardPositioned: {
-          position: "absolute",
-        },
-        sphereCard: {
-          minWidth: 100 * fontScale,
-          aspectRatio: 1,
-          borderRadius: 12 * fontScale,
-          overflow: "hidden", // Required for gradient to respect borderRadius
+          paddingVertical: 16 * fontScale,
+          paddingHorizontal: 16 * fontScale,
+          marginBottom: 14 * fontScale,
+          borderRadius: 10 * fontScale,
           borderWidth: 1,
           borderColor:
             colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.1)" // Subtle border with low opacity
-              : "rgba(125, 211, 252, 0.4)",
-          // Subtle elevation shadow
+              ? "rgba(100, 181, 246, 0.28)"
+              : "rgba(25, 118, 210, 0.22)",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(26, 47, 74, 0.5)"
+              : "rgba(255, 255, 255, 0.72)",
           shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: colorScheme === "dark" ? 0.3 : 0.15,
-          shadowRadius: 4,
-          elevation: 3,
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: colorScheme === "dark" ? 0.25 : 0.08,
+          shadowRadius: 3,
+          elevation: 2,
         },
-        sphereCardContent: {
-          flex: 1,
-          paddingHorizontal: 8 * fontScale,
-          paddingVertical: 12 * fontScale,
+        manualEditIconBox: {
+          width: 44 * fontScale,
+          height: 44 * fontScale,
+          borderRadius: 10 * fontScale,
           alignItems: "center",
           justifyContent: "center",
-          gap: 6 * fontScale,
+          marginRight: 14 * fontScale,
+          borderWidth: 1,
         },
-        sphereCardActive: {
-          borderColor: colors.primary,
-          borderWidth: 2,
-        },
-        sphereIcon: {
-          marginBottom: 4 * fontScale,
-        },
-        sphereLabel: {
-          textAlign: "center",
-          fontSize: 14 * fontScale, // Increased from 11
-        },
-        sphereCount: {
-          textAlign: "center",
-          fontSize: 10 * fontScale,
-          color:
-            colorScheme === "dark" ? "rgba(255, 255, 255, 0.8)" : "#333333", // Darker color for better contrast in light mode
+        manualEditSubtitle: {
+          marginTop: 4 * fontScale,
         },
         insightsButtonContainer: {
           marginTop: 0,
@@ -2497,366 +2340,102 @@ export default function SpheresScreen() {
         constellationAmount={constellationAmount}
         constellationOpacity={constellationOpacity}
       />
-      <View style={styles.header}>
-        <View style={styles.headerButton} />
-        <View style={styles.headerTitle} />
-        <View style={styles.headerButton} />
-      </View>
-      <Pressable
-        onPress={() => {
-          console.log('[spheres] eye pressed — current view: edit (no sphere selected), navigating to home to return to view mode');
-          router.navigate('/(tabs)/');
-        }}
-        style={{
-          position: 'absolute',
-          top: insets.top + 12,
-          left: 16,
-          width: 40 * fontScale,
-          height: 40 * fontScale,
-          borderRadius: 20 * fontScale,
-          backgroundColor: 'rgba(26, 47, 74, 0.85)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          borderWidth: 1,
-          borderColor: 'rgba(100, 181, 246, 0.4)',
-          zIndex: 1000,
-        }}
-      >
-        <MaterialIcons name="visibility" size={20 * fontScale} color="#64B5F6" />
-      </Pressable>
-
-      <View style={styles.content}>
-        {/* Sphere Selection Grid - only show when no sphere is selected */}
+      <View style={styles.manualEditContent}>
         {!selectedSphere && (
-          <View
-            style={styles.mainContentWrapper}
-            ref={containerRef}
-            onLayout={(event) => {
-              const { width, height, x, y } = event.nativeEvent.layout;
-              setContainerLayout({ width, height, x, y });
-            }}
-          >
-            <View style={styles.mainContentContainer}>
-              {/* Calculate center point relative to container - this will be used for both Insights button and sphere cards */}
-              {containerLayout &&
-                (() => {
-                  // Calculate center based on the actual visual space
-                  // The center should be in the middle of the circle formed by the boxes
-                  const centerX = containerLayout.width / 2;
-
-                  // Pre-calculate values used by both button and cards
-                  // Use larger radius for tablets to spread spheres out more
-                  const radius = isTablet
-                    ? 200 * fontScale
-                    : 140 * fontScale * phoneViewportScale;
-
-                  // Helper function to calculate card width based on text width
-                  const calculateCardWidth = (
-                    sphereType: LifeSphere,
-                  ): number => {
-                    const textWidth = textWidths[sphereType];
-                    const iconSize = 32 * fontScale * iconScale;
-                    const horizontalPadding = 16 * fontScale; // 8 * 2 (left + right padding, reduced from 12)
-
-                    // Minimum width based on 7-letter word width, or fallback to fixed size
-                    const minWidthBasedOnText =
-                      sevenLetterWidth > 0
-                        ? sevenLetterWidth + horizontalPadding + 16 * fontScale
-                        : 100 * fontScale * (isTablet ? 1 : phoneViewportScale);
-
-                    // Remove maxWidth constraint - let card expand to fit text
-                    const screenWidth = Dimensions.get("window").width;
-                    const maxWidth = screenWidth * 0.5; // Allow up to 50% of screen width for very long text
-
-                    // If text hasn't been measured yet, use a default width
-                    if (textWidth === 0) {
-                      return Math.max(
-                        minWidthBasedOnText,
-                        isTablet
-                          ? 160 * fontScale
-                          : 120 * fontScale * phoneViewportScale,
-                      );
-                    }
-
-                    // Card width = text width + reduced padding to minimize empty space
-                    // Use text width directly (not max with icon) since text is the limiting factor
-                    // Add minimal padding (8px on each side) to ensure text doesn't get cut off
-                    const calculatedWidth =
-                      textWidth + horizontalPadding + 16 * fontScale; // Reduced extra padding
-
-                    // Ensure square aspect ratio - use the calculated width, respecting min/max
-                    // But ensure it's at least as wide as the icon requires AND at least as wide as 7-letter word
-                    const finalWidth = Math.max(
-                      iconSize + horizontalPadding,
-                      Math.max(calculatedWidth, minWidthBasedOnText),
-                    );
-                    return Math.min(maxWidth, finalWidth);
-                  };
-
-                  // Calculate the visual center Y by finding the midpoint between topmost and bottommost cards
-                  // Top card is at angle 90° (top), bottom card is at angle -90° (bottom)
-                  // Card centers are at: centerY + radius * sin(angle)
-                  const topCardAngle = 90 * (Math.PI / 180);
-                  const bottomCardAngle = -90 * (Math.PI / 180);
-
-                  // Calculate where card centers would be (relative to container top)
-                  const containerCenterY = containerLayout.height / 2;
-                  const topCardCenterY =
-                    containerCenterY + radius * Math.sin(topCardAngle);
-                  const bottomCardCenterY =
-                    containerCenterY + radius * Math.sin(bottomCardAngle);
-
-                  // The visual center is the midpoint between the top and bottom card centers
-                  // This ensures the button is centered in the actual space between boxes
-                  const centerY = (topCardCenterY + bottomCardCenterY) / 2;
-
-                  return (
-                    <>
-                      {/* Sparkled Dots around center */}
-                      <SparkledDots
-                        avatarSize={48 * fontScale} // Size of the Insights button
-                        avatarCenterX={centerX}
-                        avatarCenterY={centerY}
-                        colorScheme={colorScheme ?? "dark"}
-                        sunnyBackground={momentColors.sunny.background}
-                      />
-
-
-                      {/* Hidden text measurement component - positioned off-screen but visible for measurement */}
-                      <View
-                        style={{
-                          position: "absolute",
-                          left: -10000,
-                          top: -10000,
-                          opacity: 0,
-                        }}
-                      >
-                        {/* Measure 7-letter word width for minimum card size */}
-                        <View style={{ width: 10000 }}>
-                          <ThemedText
-                            size="xs"
-                            weight="bold"
-                            style={styles.sphereLabel}
-                            onTextLayout={(event) => {
-                              const lines = event.nativeEvent.lines;
-                              if (lines && lines.length > 0) {
-                                const measuredWidth = lines[0].width;
-                                if (
-                                  measuredWidth > 0 &&
-                                  sevenLetterWidth !== measuredWidth
-                                ) {
-                                  setSevenLetterWidth(measuredWidth);
-                                }
-                              }
-                            }}
-                          >
-                            AAAAAAA
-                          </ThemedText>
-                        </View>
-                        {spheres.map((sphere) => (
-                          <View
-                            key={`measure-wrapper-${sphere.type}`}
-                            style={{ width: 10000 }}
-                          >
-                            <ThemedText
-                              key={`measure-${sphere.type}`}
-                              size="xs"
-                              weight="bold"
-                              style={styles.sphereLabel}
-                              onTextLayout={(event) => {
-                                // Get the full text width from the first (and only) line
-                                // The wrapper has enough width that text won't wrap
-                                const lines = event.nativeEvent.lines;
-                                if (lines && lines.length > 0) {
-                                  // Use the width of the first line (should be the full text width)
-                                  const measuredWidth = lines[0].width;
-                                  if (
-                                    measuredWidth > 0 &&
-                                    textWidths[sphere.type] !== measuredWidth
-                                  ) {
-                                    setTextWidths((prev) => ({
-                                      ...prev,
-                                      [sphere.type]: measuredWidth,
-                                    }));
-                                  }
-                                }
-                              }}
-                            >
-                              {sphere.label}
-                            </ThemedText>
-                          </View>
-                        ))}
-                      </View>
-
-                      {/* Sphere boxes arranged in a circle around the Insights button */}
-                      <View style={styles.sphereGrid}>
-                        {spheres.map((sphere, index) => {
-                          // Calculate card width for this specific sphere based on its text width
-                          const cardWidth = calculateCardWidth(sphere.type);
-                          const cardHalfWidth = cardWidth / 2;
-                          const cardHalfHeight = cardWidth / 2; // Cards are square (aspectRatio: 1)
-
-                          // Calculate circular positions for spheres
-                          // Perfect orbit: 6 spheres evenly spaced at 60° intervals (360°/6 = 60°)
-                          // Starting from Relationships at bottom (-90°), going clockwise:
-                          // -90°, -30° (330°), 30°, 90° (AI), 150°, 210°
-                          let angle: number;
-
-                          // Perfect orbit positioning - 60° spacing between each sphere
-                          if (sphere.type === "relationships") {
-                            // Bottom position (-90°), directly under Analytics button
-                            angle = -90 * (Math.PI / 180);
-                          } else if (sphere.type === "career") {
-                            // Bottom-right: -90° + 60° = -30° (or 330°)
-                            angle = 340 * (Math.PI / 180);
-                          } else if (sphere.type === "family") {
-                            // Top-right: -30° + 60° = 30°
-                            angle = 40 * (Math.PI / 190);
-                          } else if (sphere.type === "friends") {
-                            // Top-left: 90° + 60° = 150° (AI is at 90°)
-                            angle = 140 * (Math.PI / 180);
-                          } else if (sphere.type === "hobbies") {
-                            // Bottom-left: 150° + 60° = 210°
-                            angle = 200 * (Math.PI / 180);
-                          } else {
-                            // Fallback: distribute evenly
-                            angle = (90 - index * 72) * (Math.PI / 180);
-                          }
-
-                          // Position cards around the center point (same as Insights button)
-                          // The center point is the center of the circle, so we position cards relative to that
-                          const x =
-                            centerX + radius * Math.cos(angle) - cardHalfWidth; // Subtract half card width
-                          const y =
-                            centerY + radius * Math.sin(angle) - cardHalfHeight; // Subtract half card height
-
-                          // Get sphere-specific colors - theme-aware for proper contrast
-                          const getSphereColor = (
-                            sphereType: LifeSphere,
-                          ): string => {
-                            const scheme: "light" | "dark" = (colorScheme ??
-                              "dark") as "light" | "dark";
-                            if (scheme === "light") {
-                              switch (sphereType) {
-                                case "relationships":
-                                  return "#D32F2F";
-                                case "career":
-                                  return "#1976D2";
-                                case "family":
-                                  return "#388E3C";
-                                case "friends":
-                                  return "#7B1FA2";
-                                case "hobbies":
-                                  return "#F57C00";
-                                default:
-                                  return "#1976D2";
-                              }
-                            } else {
-                              switch (sphereType) {
-                                case "relationships":
-                                  return "#E57373";
-                                case "career":
-                                  return "#64B5F6";
-                                case "family":
-                                  return "#81C784";
-                                case "friends":
-                                  return "#BA68C8";
-                                case "hobbies":
-                                  return "#FFB74D";
-                                default:
-                                  return "#64B5F6";
-                              }
-                            }
-                          };
-
-                          const sphereColor = getSphereColor(sphere.type);
-                          const isActive = selectedSphere === sphere.type;
-
-                          const darkGradientColors = [
-                            "#223041",
-                            "#243041",
-                            "#263041",
-                          ] as const;
-                          const lightGradientColors = [
-                            "rgb(170, 170, 170)",
-                            "rgb(180, 180, 180)",
-                            "rgb(175, 175, 175)",
-                          ] as const;
-                          const darkActiveGradientColors = [
-                            "#2D3A4F",
-                            "#2F3A4F",
-                            "#313A4F",
-                          ] as const;
-                          const lightActiveGradientColors = [
-                            "rgb(190, 190, 190)",
-                            "rgb(200, 200, 200)",
-                            "rgb(195, 195, 195)",
-                          ] as const;
-
-                          return (
-                            <TouchableOpacity
-                              key={sphere.type}
-                              style={[
-                                styles.sphereCard,
-                                styles.sphereCardPositioned,
-                                isActive && styles.sphereCardActive,
-                                {
-                                  left: x,
-                                  top: y,
-                                  width: cardWidth,
-                                  height: cardWidth,
-                                },
-                              ]}
-                              onPress={() => handleSpherePress(sphere.type)}
-                              activeOpacity={0.8}
-                            >
-                              <LinearGradient
-                                colors={
-                                  colorScheme === "dark"
-                                    ? isActive
-                                      ? darkActiveGradientColors
-                                      : darkGradientColors
-                                    : isActive
-                                      ? lightActiveGradientColors
-                                      : lightGradientColors
-                                }
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={styles.sphereCardContent}
-                              >
-                                <MaterialIcons
-                                  name={sphere.icon as any}
-                                  size={32 * fontScale * iconScale}
-                                  color={sphereColor}
-                                  style={styles.sphereIcon}
-                                />
-                                <ThemedText
-                                  size="xs"
-                                  weight="bold"
-                                  style={styles.sphereLabel}
-                                  numberOfLines={1}
-                                >
-                                  {sphere.label}
-                                </ThemedText>
-                                <ThemedText
-                                  size="xs"
-                                  style={styles.sphereCount}
-                                >
-                                  {sphere.entities.length}{" "}
-                                  {sphere.entities.length === 1
-                                    ? t("spheres.item")
-                                    : t("spheres.items")}
-                                </ThemedText>
-                              </LinearGradient>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    </>
+          <>
+            <View
+              style={[
+                styles.manualEditTopBar,
+                { paddingTop: insets.top + 14 },
+              ]}
+            >
+              <Pressable
+                onPress={() => {
+                  console.log(
+                    "[spheres] exit manual edit — navigating home to leave edit mode",
                   );
-                })()}
+                  router.navigate("/(tabs)/");
+                }}
+                style={styles.manualEditExitButton}
+                accessibilityRole="button"
+                accessibilityLabel={t("spheres.exitManualEdit")}
+              >
+                <MaterialIcons
+                  name="logout"
+                  size={22 * fontScale}
+                  color="#64B5F6"
+                />
+              </Pressable>
+              <ThemedText
+                size="l"
+                weight="bold"
+                style={styles.manualEditTitleRight}
+                numberOfLines={2}
+              >
+                {t("spheres.manualEditMode")}
+              </ThemedText>
             </View>
-          </View>
+            <ScrollView
+              style={{ width: "100%", flex: 1 }}
+              contentContainerStyle={styles.manualEditScroll}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+            {spheres.map((sphere) => {
+              const accent = getSphereAccentColor(sphere.type);
+              const count = sphere.entities.length;
+              return (
+                <TouchableOpacity
+                  key={sphere.type}
+                  style={[
+                    styles.manualEditRow,
+                    { borderLeftWidth: 3, borderLeftColor: accent },
+                  ]}
+                  onPress={() => handleSpherePress(sphere.type)}
+                  activeOpacity={0.85}
+                >
+                  <View
+                    style={[
+                      styles.manualEditIconBox,
+                      {
+                        borderColor: accent + "99",
+                        backgroundColor:
+                          colorScheme === "dark"
+                            ? "rgba(255, 255, 255, 0.06)"
+                            : "rgba(0, 0, 0, 0.04)",
+                      },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name={sphere.icon as any}
+                      size={26 * fontScale * iconScale}
+                      color={accent}
+                    />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <ThemedText weight="semibold" size="m" numberOfLines={1}>
+                      {sphere.label}
+                    </ThemedText>
+                    <ThemedText
+                      size="xs"
+                      emphasis="medium"
+                      style={styles.manualEditSubtitle}
+                    >
+                      {count}{" "}
+                      {count === 1 ? t("spheres.item") : t("spheres.items")}
+                    </ThemedText>
+                  </View>
+                  <MaterialIcons
+                    name="chevron-right"
+                    size={22 * fontScale}
+                    color={colors.icon}
+                    style={{ opacity: 0.45 }}
+                  />
+                </TouchableOpacity>
+              );
+            })}
+            </ScrollView>
+          </>
         )}
 
         <AIInsightsConsentModal

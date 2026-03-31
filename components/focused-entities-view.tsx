@@ -36,6 +36,7 @@ import {
 import Animated, {
   cancelAnimation,
   Easing,
+  runOnJS,
   SharedValue,
   useAnimatedStyle,
   useSharedValue,
@@ -76,6 +77,9 @@ const AVATAR_CONSTELLATION_LINES: [number, number][] = [
 ];
 const AVATAR_STAR_COLOR = "rgba(184, 232, 236, 0.35)";
 const AVATAR_LINE_COLOR = "rgba(184, 232, 236, 0.12)";
+
+/** Auto-advance interval for cycling sfera insight modes (ms). */
+const SFERA_INSIGHT_AUTO_MS = 5000;
 
 function hexToRgbNorm(hex: string): { r: number; g: number; b: number } {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -827,21 +831,58 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
   const numModes = numEntities === 0 ? 1 : allowedModes.length;
 
-  const animateAndSet = useCallback((nextIdx: number) => {
+  const flashModeChange = useCallback(() => {
     modeOpacity.value = withTiming(0, { duration: 100 }, () => {
       modeOpacity.value = withTiming(1, { duration: 150 });
     });
-    setModeIdx(nextIdx);
   }, [modeOpacity]);
 
-  const goNext = useCallback(() => animateAndSet((modeIdx + 1) % numModes), [animateAndSet, modeIdx, numModes]);
-  const goPrev = useCallback(() => animateAndSet((modeIdx - 1 + numModes) % numModes), [animateAndSet, modeIdx, numModes]);
+  const animateAndSet = useCallback(
+    (nextIdx: number) => {
+      flashModeChange();
+      setModeIdx(nextIdx);
+    },
+    [flashModeChange],
+  );
+
+  const goNext = useCallback(() => {
+    flashModeChange();
+    setModeIdx((prev) => (prev + 1) % numModes);
+  }, [flashModeChange, numModes]);
+
+  const goPrev = useCallback(() => {
+    flashModeChange();
+    setModeIdx((prev) => (prev - 1 + numModes) % numModes);
+  }, [flashModeChange, numModes]);
+
+  const progress = useSharedValue(0);
+  const progressBarStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%` as `${number}%`,
+  }));
 
   // Keep latest nav callbacks in refs so PanResponder (created once) can call them
   const goNextRef = useRef(goNext);
   goNextRef.current = goNext;
   const goPrevRef = useRef(goPrev);
   goPrevRef.current = goPrev;
+
+  const advanceInsightOnJS = useCallback(() => {
+    goNextRef.current();
+  }, []);
+
+  // Auto-cycle insights every SFERA_INSIGHT_AUTO_MS; progress bar on top border resets each mode
+  useEffect(() => {
+    if (numModes <= 1 || numEntities === 0) return;
+    progress.value = 0;
+    progress.value = withTiming(1, { duration: SFERA_INSIGHT_AUTO_MS }, (finished) => {
+      if (finished) {
+        runOnJS(advanceInsightOnJS)();
+      }
+    });
+    return () => {
+      cancelAnimation(progress);
+    };
+  }, [advanceInsightOnJS, modeIdx, numEntities, numModes, progress]);
   // entityTapRef is updated after entity is computed (below) so the once-created pan responder always has the latest
   const entityTapRef = useRef<(() => void) | null>(null);
 
@@ -984,8 +1025,29 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             shadowRadius: 24,
             elevation: 14,
             gap: 8,
+            overflow: "hidden",
           }}
         >
+          {/* Countdown to next insight — fills left→right over SFERA_INSIGHT_AUTO_MS */}
+          {numModes > 1 ? (
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 3,
+                backgroundColor: shadowColor + "33",
+                zIndex: 20,
+              }}
+              pointerEvents="none"
+            >
+              <Animated.View
+                style={[{ height: 3, backgroundColor: shadowColor, alignSelf: "flex-start" }, progressBarStyle]}
+              />
+            </View>
+          ) : null}
+
           {/* Top label — the insight, not the person */}
           <Animated.View style={modeAnimStyle} accessibilityLiveRegion="polite">
             <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 16, textAlign: "center", fontWeight: "700", letterSpacing: 0.2 }} numberOfLines={1}>

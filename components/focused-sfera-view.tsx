@@ -197,6 +197,10 @@ export type FocusedSferaViewProps = {
   onChallengeMePress?: () => void;
   /** When true, the splash screen animation has finished and the joy-meter intro sequence can begin. */
   splashDone?: boolean;
+  /** Restore sun menu expanded (3 action icons) after remount, e.g. returning from /insights. */
+  initialSunMenuExpanded?: boolean;
+  /** Notifies parent when sun menu expands/collapses so state can survive navigation remounts. */
+  onSunMenuExpandedChange?: (expanded: boolean) => void;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -810,6 +814,56 @@ const EntityRing = React.memo(function EntityRing({
     };
   }, [rotateOrbit, orbitAngle, orbitDurationMs]);
 
+  const [doubleTapHintEntityId, setDoubleTapHintEntityId] = useState<string | null>(null);
+  const doubleTapHintTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!doubleTapHintEntityId) return;
+    const t = setTimeout(() => setDoubleTapHintEntityId(null), 2500);
+    return () => clearTimeout(t);
+  }, [doubleTapHintEntityId]);
+
+  useEffect(() => {
+    return () => {
+      if (doubleTapHintTimeoutRef.current) {
+        clearTimeout(doubleTapHintTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setDoubleTapHintEntityId(null);
+      if (doubleTapHintTimeoutRef.current) {
+        clearTimeout(doubleTapHintTimeoutRef.current);
+        doubleTapHintTimeoutRef.current = null;
+      }
+    }
+  }, [isFocused]);
+
+  const handleOrbitingEntityTap = useCallback(
+    (entityId: string, isDoubleTap: boolean) => {
+      if (isDoubleTap) {
+        if (doubleTapHintTimeoutRef.current) {
+          clearTimeout(doubleTapHintTimeoutRef.current);
+          doubleTapHintTimeoutRef.current = null;
+        }
+        setDoubleTapHintEntityId(null);
+        onEntitySelect(entityId, sphere);
+        return;
+      }
+      if (!isFocused || !entityId) return;
+      if (doubleTapHintTimeoutRef.current) {
+        clearTimeout(doubleTapHintTimeoutRef.current);
+      }
+      doubleTapHintTimeoutRef.current = setTimeout(() => {
+        setDoubleTapHintEntityId(entityId);
+        doubleTapHintTimeoutRef.current = null;
+      }, 320);
+    },
+    [isFocused, onEntitySelect, sphere],
+  );
+
   if (entityIds.length === 0) return null;
   const count = Math.min(entityIds.length, 8);
   const borderWidth = isTablet ? 3 : 2;
@@ -841,8 +895,8 @@ const EntityRing = React.memo(function EntityRing({
             isTablet={isTablet}
             showFloatingMoments={showFloatingMoments}
             entityMemories={memories}
-            onEntitySelect={onEntitySelect}
-            sphere={sphere}
+            onOrbitingTap={handleOrbitingEntityTap}
+            showDoubleTapHint={doubleTapHintEntityId === entityId}
             orbitAngle={orbitAngle}
             rotateOrbit={rotateOrbit}
             shouldDoRandomPulse={randomPulseIndex === i}
@@ -870,8 +924,8 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   isTablet,
   showFloatingMoments,
   entityMemories,
-  onEntitySelect,
-  sphere,
+  onOrbitingTap,
+  showDoubleTapHint,
   orbitAngle,
   rotateOrbit,
   shouldDoRandomPulse,
@@ -892,14 +946,15 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   isTablet: boolean;
   showFloatingMoments: boolean;
   entityMemories: IdealizedMemory[];
-  onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
-  sphere: LifeSphere;
+  onOrbitingTap: (entityId: string, isDoubleTap: boolean) => void;
+  showDoubleTapHint: boolean;
   orbitAngle: SharedValue<number>;
   rotateOrbit: boolean;
   shouldDoRandomPulse: boolean;
 }) {
+  const t = useTranslate();
   const scale = useSharedValue(1);
-
+  const lastTap = useRef(0);
 
   // One-shot pulse when this entity is randomly chosen for periodic pulse
   useEffect(() => {
@@ -923,6 +978,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
       top: y,
       width: avatarSize,
       height: avatarSize,
+      overflow: "visible" as const,
       transform: [{ scale: scale.value }],
     };
   });
@@ -955,6 +1011,10 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
         }}
         onPress={() => {
           if (entityId) {
+            const now = Date.now();
+            const isDoubleTap = now - lastTap.current < 300;
+            lastTap.current = now;
+
             // Fast one-shot pulse for tap feedback (orbit keeps rotating)
             cancelAnimation(scale);
             scale.value = withSequence(
@@ -967,7 +1027,8 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
                 easing: Easing.inOut(Easing.ease),
               }),
             );
-            onEntitySelect(entityId, sphere);
+
+            onOrbitingTap(entityId, isDoubleTap);
           }
         }}
       >
@@ -1012,6 +1073,36 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
           />
         )}
       </Pressable>
+      {showDoubleTapHint && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: avatarSize + 6,
+            alignSelf: "center",
+            maxWidth: 200,
+            backgroundColor: "rgba(8, 12, 20, 0.92)",
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            borderRadius: 10,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: "rgba(255,255,255,0.22)",
+            zIndex: 30,
+          }}
+        >
+          <ThemedText
+            style={{
+              fontSize: 11,
+              color: "#E8F4F5",
+              textAlign: "center",
+              lineHeight: 14,
+            }}
+            numberOfLines={2}
+          >
+            {t("spheres.doubleTapHint")}
+          </ThemedText>
+        </View>
+      )}
     </Animated.View>
   );
 });
@@ -2061,6 +2152,8 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   const t = useTranslate();
   const [mode, setMode] = useState(0);
   const modeOpacity = useSharedValue(1);
+  const lastTapRef = useRef(0);
+  const progress = useSharedValue(0);
 
   const numEntities = entityIds.length;
 
@@ -2122,6 +2215,24 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
 
   const cycleModeRef = useRef(cycleMode);
   cycleModeRef.current = cycleMode;
+
+  // Auto-cycle every 5 seconds with progress bar
+  useEffect(() => {
+    if (numEntities === 0) return;
+    progress.value = 0;
+    progress.value = withTiming(1, { duration: 5000 }, (finished) => {
+      if (finished) {
+        runOnJS(cycleModeRef.current)(1);
+      }
+    });
+    return () => {
+      cancelAnimation(progress);
+    };
+  }, [mode, numEntities, progress]);
+
+  const progressBarStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%` as any,
+  }));
 
   const swipePanResponder = useRef(
     PanResponder.create({
@@ -2222,7 +2333,14 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   const entityName = entityNames[entityIdx] ?? "";
 
   const handleEntityTap = () => {
-    if (entityId) onEntitySelect(entityId, sphere);
+    if (entityId) {
+      const now = Date.now();
+      const isDoubleTap = now - lastTapRef.current < 300;
+      lastTapRef.current = now;
+      if (isDoubleTap) {
+        onEntitySelect(entityId, sphere);
+      }
+    }
   };
 
   return (
@@ -2243,8 +2361,14 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
           shadowOpacity: 0.5,
           shadowRadius: 12,
           elevation: 8,
+          overflow: "hidden",
         }}
       >
+        {/* Auto-cycle progress bar */}
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, backgroundColor: shadowColor + "33" }}>
+          <Animated.View style={[{ height: 2, backgroundColor: shadowColor }, progressBarStyle]} />
+        </View>
+
         <Animated.View
           style={[
             modeAnimStyle,
@@ -2335,6 +2459,8 @@ export function FocusedSferaView({
   onInsightsPress,
   onChallengeMePress,
   splashDone = true,
+  initialSunMenuExpanded = false,
+  onSunMenuExpandedChange,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
   const { ensureSubscriptionResolved, refreshCustomerInfo } = useSubscription();
@@ -2348,15 +2474,22 @@ export function FocusedSferaView({
   const rootMarginTop = 0;
 
   // Sun expanded state: 0 = collapsed, 1 = expanded (spheres shrink, action buttons appear)
-  const sunExpanded = useSharedValue(0);
-  const [isSunExpanded, setIsSunExpanded] = useState(false);
-  const sunMenuOpacity = useSharedValue(0);
-  const sunMenuTranslateY = useSharedValue(20);
+  const startSunExpanded = initialSunMenuExpanded;
+  const sunExpanded = useSharedValue(startSunExpanded ? 1 : 0);
+  const [isSunExpanded, setIsSunExpanded] = useState(startSunExpanded);
+  const sunMenuOpacity = useSharedValue(startSunExpanded ? 1 : 0);
+  const sunMenuTranslateY = useSharedValue(startSunExpanded ? 0 : 20);
   const [universeLessonsVisible, setUniverseLessonsVisible] = useState(false);
   const [universeExamVisible, setUniverseExamVisible] = useState(false);
 
   // Sun centered state (initial view only): true = floated to screen center
-  const [isSunCentered, setIsSunCentered] = useState(false);
+  const [isSunCentered, setIsSunCentered] = useState(
+    () => selectedSphere === null && startSunExpanded,
+  );
+
+  useEffect(() => {
+    onSunMenuExpandedChange?.(isSunExpanded);
+  }, [isSunExpanded, onSunMenuExpandedChange]);
 
   // SunLoadAnimation — plays on first app open when overall sunny % is ≥ 50 and selectedSphere is null.
   // Initial state is "pending" (not complete) so we don't flash the normal view before deciding.
@@ -2604,7 +2737,6 @@ export function FocusedSferaView({
 
   /** Lesson Check: show exam only if AI sub or free daily slot; otherwise paywall only (not both). */
   const handleOpenUniverseExam = useCallback(async () => {
-    handleCollapseSun();
     const { hasAIEntitlement } = await ensureSubscriptionResolved();
     const hasPending = await hasPendingUniverseExam();
     const canTakeExam =
@@ -2618,7 +2750,7 @@ export function FocusedSferaView({
       return;
     }
     setUniverseExamVisible(true);
-  }, [ensureSubscriptionResolved, handleCollapseSun, refreshCustomerInfo]);
+  }, [ensureSubscriptionResolved, refreshCustomerInfo]);
 
   // When circle avatar is pressed:
   // - Initial view (selectedSphere === null): expand sun (shrink sferas + show menu) AND center sun
@@ -2870,7 +3002,6 @@ export function FocusedSferaView({
             {/* Insights button */}
             <Pressable
               onPress={() => {
-                handleCollapseSun();
                 onInsightsPress?.();
               }}
               style={{ alignItems: "center", gap: 8 }}
@@ -2902,7 +3033,6 @@ export function FocusedSferaView({
             {/* Universe Lessons scroll button */}
             <Pressable
               onPress={() => {
-                handleCollapseSun();
                 setUniverseLessonsVisible(true);
               }}
               style={{ alignItems: "center", gap: 8 }}
@@ -2970,7 +3100,7 @@ export function FocusedSferaView({
           styles.focusedLabelContainer,
           {
             top: ORBIT_CY + ORBIT_R + FOCUSED_LABEL_GAP * 5.5,
-            opacity: isSunExpanded ? 0 : 1,
+            opacity: !sunLoadComplete || isSunExpanded ? 0 : 1,
           },
         ]}
         pointerEvents="none"

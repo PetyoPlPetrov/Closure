@@ -429,6 +429,8 @@ export interface Translations {
   "spheres.doubleTapHint": string;
   "spheres.item": string;
   "spheres.items": string;
+  "spheres.manualEditMode": string;
+  "spheres.exitManualEdit": string;
 
   // Insights
   "insights.wheelOfLife.title": string;
@@ -4204,6 +4206,8 @@ const translations: Record<Language, Translations> = {
     "spheres.doubleTapHint": "Double tap to open",
     "spheres.item": "item",
     "spheres.items": "items",
+    "spheres.manualEditMode": "Manual edit mode",
+    "spheres.exitManualEdit": "Exit manual edit mode",
 
     // Insights
     "insights.wheelOfLife.title": "Insights",
@@ -8812,6 +8816,8 @@ const translations: Record<Language, Translations> = {
     "spheres.doubleTapHint": "Докоснете два пъти",
     "spheres.item": "елемент",
     "spheres.items": "елемента",
+    "spheres.manualEditMode": "Ръчен режим на редактиране",
+    "spheres.exitManualEdit": "Изход от режим на редактиране",
 
     // Insights
     "insights.wheelOfLife.title": "Прозрения",

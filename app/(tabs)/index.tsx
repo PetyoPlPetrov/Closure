@@ -13760,11 +13760,22 @@ export default function HomeScreen() {
   );
   const [focusedSphereIndex, setFocusedSphereIndex] = useState(0);
   const cameFromFocusedSferaForEntityRef = useRef(false);
+  /** Persists FocusedSferaView sun menu (3 icons) across remounts when opening Insights / modals. */
+  const focusedSunMenuExpandedRef = useRef(false);
+  const handleFocusedSunMenuExpandedChange = useCallback((expanded: boolean) => {
+    focusedSunMenuExpandedRef.current = expanded;
+  }, []);
   const { showLoader: startTransitionLoader, hideLoader } =
     useHomeTransitionLoader() ?? {
       showLoader: () => {},
       hideLoader: () => {},
     };
+
+  useEffect(() => {
+    if (homeViewMode === "classic") {
+      focusedSunMenuExpandedRef.current = false;
+    }
+  }, [homeViewMode]);
 
   useEffect(() => {
     AsyncStorage.getItem(FOCUSED_SPHERE_INDEX_KEY).then((v) => {
@@ -18764,6 +18775,8 @@ export default function HomeScreen() {
           hidden={showEntityDetail}
           onInsightsPress={() => router.push("/insights")}
           onChallengeMePress={handleChallengeMePress}
+          initialSunMenuExpanded={focusedSunMenuExpandedRef.current}
+          onSunMenuExpandedChange={handleFocusedSunMenuExpandedChange}
         />
       </View>
     </View>
