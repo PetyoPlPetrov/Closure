@@ -763,6 +763,7 @@ const EntityRing = React.memo(function EntityRing({
   entityNames,
   entityMemories,
   onEntitySelect,
+  onSingleTapSameAsFocusedSphere,
   sphere,
   centerX,
   centerY,
@@ -780,6 +781,8 @@ const EntityRing = React.memo(function EntityRing({
   entityNames: string[];
   entityMemories: IdealizedMemory[][];
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
+  /** When set (focused sphere only), single tap on an orbiting entity matches focused-sphere tap: pulse + global double-tap hint. */
+  onSingleTapSameAsFocusedSphere?: () => void;
   sphere: LifeSphere;
   centerX: number;
   centerY: number;
@@ -814,54 +817,16 @@ const EntityRing = React.memo(function EntityRing({
     };
   }, [rotateOrbit, orbitAngle, orbitDurationMs]);
 
-  const [doubleTapHintEntityId, setDoubleTapHintEntityId] = useState<string | null>(null);
-  const doubleTapHintTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (!doubleTapHintEntityId) return;
-    const t = setTimeout(() => setDoubleTapHintEntityId(null), 2500);
-    return () => clearTimeout(t);
-  }, [doubleTapHintEntityId]);
-
-  useEffect(() => {
-    return () => {
-      if (doubleTapHintTimeoutRef.current) {
-        clearTimeout(doubleTapHintTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isFocused) {
-      setDoubleTapHintEntityId(null);
-      if (doubleTapHintTimeoutRef.current) {
-        clearTimeout(doubleTapHintTimeoutRef.current);
-        doubleTapHintTimeoutRef.current = null;
-      }
-    }
-  }, [isFocused]);
-
   const handleOrbitingEntityTap = useCallback(
     (entityId: string, isDoubleTap: boolean) => {
       if (isDoubleTap) {
-        if (doubleTapHintTimeoutRef.current) {
-          clearTimeout(doubleTapHintTimeoutRef.current);
-          doubleTapHintTimeoutRef.current = null;
-        }
-        setDoubleTapHintEntityId(null);
         onEntitySelect(entityId, sphere);
         return;
       }
       if (!isFocused || !entityId) return;
-      if (doubleTapHintTimeoutRef.current) {
-        clearTimeout(doubleTapHintTimeoutRef.current);
-      }
-      doubleTapHintTimeoutRef.current = setTimeout(() => {
-        setDoubleTapHintEntityId(entityId);
-        doubleTapHintTimeoutRef.current = null;
-      }, 320);
+      onSingleTapSameAsFocusedSphere?.();
     },
-    [isFocused, onEntitySelect, sphere],
+    [isFocused, onEntitySelect, onSingleTapSameAsFocusedSphere, sphere],
   );
 
   if (entityIds.length === 0) return null;
@@ -896,7 +861,6 @@ const EntityRing = React.memo(function EntityRing({
             showFloatingMoments={showFloatingMoments}
             entityMemories={memories}
             onOrbitingTap={handleOrbitingEntityTap}
-            showDoubleTapHint={doubleTapHintEntityId === entityId}
             orbitAngle={orbitAngle}
             rotateOrbit={rotateOrbit}
             shouldDoRandomPulse={randomPulseIndex === i}
@@ -925,7 +889,6 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   showFloatingMoments,
   entityMemories,
   onOrbitingTap,
-  showDoubleTapHint,
   orbitAngle,
   rotateOrbit,
   shouldDoRandomPulse,
@@ -947,12 +910,10 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   showFloatingMoments: boolean;
   entityMemories: IdealizedMemory[];
   onOrbitingTap: (entityId: string, isDoubleTap: boolean) => void;
-  showDoubleTapHint: boolean;
   orbitAngle: SharedValue<number>;
   rotateOrbit: boolean;
   shouldDoRandomPulse: boolean;
 }) {
-  const t = useTranslate();
   const scale = useSharedValue(1);
   const lastTap = useRef(0);
 
@@ -1073,36 +1034,6 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
           />
         )}
       </Pressable>
-      {showDoubleTapHint && (
-        <View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            top: avatarSize + 6,
-            alignSelf: "center",
-            maxWidth: 200,
-            backgroundColor: "rgba(8, 12, 20, 0.92)",
-            paddingHorizontal: 10,
-            paddingVertical: 6,
-            borderRadius: 10,
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: "rgba(255,255,255,0.22)",
-            zIndex: 30,
-          }}
-        >
-          <ThemedText
-            style={{
-              fontSize: 11,
-              color: "#E8F4F5",
-              textAlign: "center",
-              lineHeight: 14,
-            }}
-            numberOfLines={2}
-          >
-            {t("spheres.doubleTapHint")}
-          </ThemedText>
-        </View>
-      )}
     </Animated.View>
   );
 });
@@ -1243,6 +1174,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   entityMemories,
   onPress,
   onEntitySelect,
+  onSingleTapSameAsFocusedSphere,
   onPulse,
   colorScheme,
   sunnyPercentage,
@@ -1264,6 +1196,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   entityMemories: IdealizedMemory[][];
   onPress: () => void;
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
+  onSingleTapSameAsFocusedSphere?: () => void;
   onPulse?: (trigger: () => void) => void;
   colorScheme: "light" | "dark";
   sunnyPercentage: number;
@@ -1696,6 +1629,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             entityNames={entityNames}
             entityMemories={entityMemories}
             onEntitySelect={handleEntitySelect}
+            onSingleTapSameAsFocusedSphere={onSingleTapSameAsFocusedSphere}
             sphere={sphere.type}
             centerX={CONTAINER_HALF}
             centerY={CONTAINER_HALF}
@@ -2642,7 +2576,7 @@ export function FocusedSferaView({
           }
           return Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy * 1.5);
         },
-        // Only capture in side regions so taps on center entity avatars are never stolen (entity tap → redirect works).
+        // Only capture in side regions so taps on center entity avatars are never stolen.
         onMoveShouldSetPanResponderCapture: (_, g) => {
           const startX = g.moveX - g.dx;
           const inSideRegion =
@@ -2788,6 +2722,64 @@ export function FocusedSferaView({
     );
   }, [appUsabilityHints, hintOpacity]);
 
+  /** Same timing as the absolute focused-sphere overlay: pulse + global hint on first tap; second tap opens sphere. Orbiting entities call this on single tap. */
+  const handleFocusedSphereTapOverlay = useCallback(() => {
+    if (!sunLoadComplete) return;
+    if (isSunExpanded) {
+      handleCollapseSun();
+      return;
+    }
+    if (selectedSphere !== null) {
+      onAddMemoriesPress?.();
+      return;
+    }
+    const now = Date.now();
+    const elapsed = now - focusedSphereTapTimeRef.current;
+    if (elapsed < 350 && elapsed > 0) {
+      focusedSphereTapTimeRef.current = 0;
+      if (hintTimerRef.current) {
+        clearTimeout(hintTimerRef.current);
+        hintTimerRef.current = null;
+      }
+      onSphereSelect(SPHERE_LIST[focusedIdx].type);
+    } else {
+      focusedSphereTapTimeRef.current = now;
+      focusedSpherePulseRef.current?.();
+      if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+      hintTimerRef.current = setTimeout(() => {
+        hintTimerRef.current = null;
+        showDoubleTapHint();
+      }, 350);
+    }
+  }, [
+    sunLoadComplete,
+    isSunExpanded,
+    handleCollapseSun,
+    selectedSphere,
+    onAddMemoriesPress,
+    focusedIdx,
+    onSphereSelect,
+    showDoubleTapHint,
+  ]);
+
+  const resolveEntitySelectForSphere = useCallback(
+    (sphereIndex: number, sphereType: LifeSphere) => {
+      return (entityId: string, s: LifeSphere) => {
+        if (hintTimerRef.current) {
+          clearTimeout(hintTimerRef.current);
+          hintTimerRef.current = null;
+        }
+        focusedSphereTapTimeRef.current = 0;
+        if (selectedSphere === null && sphereIndex === focusedIdx) {
+          onSphereSelect(sphereType);
+        } else {
+          onEntitySelect(entityId, s);
+        }
+      };
+    },
+    [selectedSphere, focusedIdx, onSphereSelect, onEntitySelect],
+  );
+
   const doubleTapHintAnimatedStyle = useAnimatedStyle(() => ({
     opacity: hintOpacity.value,
   }));
@@ -2879,13 +2871,15 @@ export function FocusedSferaView({
             if (!sunLoadComplete) return;
             if (isSunExpanded) { handleCollapseSun(); return; }
             if (i !== focusedIdx) { goToSphere(i); return; }
-            if (selectedSphere !== null) { onAddMemoriesPress(); return; }
+            if (selectedSphere !== null) {
+              onAddMemoriesPress?.();
+              return;
+            }
             onSphereSelect(sphere.type);
           }}
-          onEntitySelect={
-            selectedSphere === null && i === focusedIdx
-              ? () => onSphereSelect(sphere.type)
-              : onEntitySelect
+          onEntitySelect={resolveEntitySelectForSphere(i, sphere.type)}
+          onSingleTapSameAsFocusedSphere={
+            i === focusedIdx ? handleFocusedSphereTapOverlay : undefined
           }
           colorScheme={colorScheme}
           sunnyPercentage={getSphereSunnyPercentage(sphere.type)}
@@ -2912,23 +2906,7 @@ export function FocusedSferaView({
           borderRadius: FOCUSED_SIZE / 2,
           zIndex: 13,
         }}
-        onPress={() => {
-          if (!sunLoadComplete) return;
-          if (isSunExpanded) { handleCollapseSun(); return; }
-          if (selectedSphere !== null) { onAddMemoriesPress(); return; }
-          const now = Date.now();
-          const elapsed = now - focusedSphereTapTimeRef.current;
-          if (elapsed < 350 && elapsed > 0) {
-            focusedSphereTapTimeRef.current = 0;
-            if (hintTimerRef.current) { clearTimeout(hintTimerRef.current); hintTimerRef.current = null; }
-            onSphereSelect(SPHERE_LIST[focusedIdx].type);
-          } else {
-            focusedSphereTapTimeRef.current = now;
-            focusedSpherePulseRef.current?.();
-            if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
-            hintTimerRef.current = setTimeout(() => { hintTimerRef.current = null; showDoubleTapHint(); }, 350);
-          }
-        }}
+        onPress={handleFocusedSphereTapOverlay}
       />
 
       {/* ─── Center: Sfera Insight Card (individual sfera view) or Sun Avatar (overview) ─── */}

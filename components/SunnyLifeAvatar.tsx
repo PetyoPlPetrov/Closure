@@ -585,9 +585,7 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                   style={{
                     color: colors.primaryLight ?? colors.primary,
                     fontSize: 24,
-                    textShadowColor: colors.primary,
-                    textShadowOffset: { width: 0, height: 0 },
-                    textShadowRadius: 10,
+                    includeFontPadding: false,
                   }}
                 >
                   {displayPctJs}%
@@ -599,9 +597,7 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                       color: colors.primaryLight ?? colors.primary,
                       fontSize: 12,
                       marginTop: -2,
-                      textShadowColor: colors.primary,
-                      textShadowOffset: { width: 0, height: 0 },
-                      textShadowRadius: 6,
+                      includeFontPadding: false,
                     }}
                   >
                     {t("avatar.sunnyLife")}
