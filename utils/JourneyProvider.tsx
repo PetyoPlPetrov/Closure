@@ -1,7 +1,7 @@
 import { logEntityCreated, logMemoryCreated, logMemoryDeleted, logMomentCreated } from '@/utils/analytics';
 import { deleteSummariesByMemoryIds } from '@/utils/moment-notification-storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { showPaywallForAnySubscriptionAccess } from '@/utils/premium-access';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 
@@ -325,6 +325,9 @@ interface JourneyProviderProps {
 export function JourneyProvider({ children }: JourneyProviderProps) {
   const { hasPlusEntitlement, hasAIEntitlement, checkSubscription } = useSubscription();
   const [profiles, isLoading, error, setProfiles] = useProfiles();
+
+  // Refs so addIdealizedMemory can call update functions defined later in this scope
+  const bumpEntityUpdatedAtRef = useRef<((entityId: string, sphere: LifeSphere) => Promise<void>) | null>(null);
   const [idealizedMemories, setIdealizedMemories] = useState<IdealizedMemory[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
@@ -840,26 +843,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
 
       // Return the new memory ID so caller can detect creation
       return newMemory.id;
-
-      // Update entity setup progress based on new memory count
-      const memoryCount = updatedMemories.filter(m => m.entityId === entityId && m.sphere === sphere).length;
-      
-      if (sphere === 'relationships') {
-        const profile = profiles.find((p) => p.id === entityId);
-      if (profile) {
-          await updateProfile(entityId, {});
-        }
-      } else if (sphere === 'career') {
-        const job = jobs.find((j) => j.id === entityId);
-        if (job) {
-          await updateJob(entityId, {});
-        }
-      } else if (sphere === 'family') {
-        const member = familyMembers.find((m) => m.id === entityId);
-        if (member) {
-          await updateFamilyMember(entityId, {});
-        }
-      }
     },
     [
       profiles,
@@ -883,22 +866,33 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       options?: { bypassMemoryLimit?: boolean }
     ) => {
       // Check if this is the new signature (3 params) or old signature (2 params)
+      let result: string | null | undefined;
+      let resolvedSphere: LifeSphere;
       if (memoryData !== undefined && typeof sphereOrMemoryData === 'string') {
         // New signature: (entityId, sphere, memoryData, options?)
-        return addIdealizedMemoryInternal(
+        resolvedSphere = sphereOrMemoryData as LifeSphere;
+        result = await addIdealizedMemoryInternal(
           entityIdOrProfileId,
-          sphereOrMemoryData as LifeSphere,
+          resolvedSphere,
           memoryData,
           options
         );
       } else {
         // Old signature: (profileId, memoryData) - backward compatibility
-        return addIdealizedMemoryInternal(
+        resolvedSphere = 'relationships';
+        result = await addIdealizedMemoryInternal(
           entityIdOrProfileId,
-          'relationships',
+          resolvedSphere,
           sphereOrMemoryData as Omit<IdealizedMemory, 'id' | 'entityId' | 'profileId' | 'sphere' | 'createdAt' | 'updatedAt'>
         );
       }
+
+      // Bump entity updatedAt so "recently edited" subsection reflects memory creation
+      if (result) {
+        await bumpEntityUpdatedAtRef.current?.(entityIdOrProfileId, resolvedSphere);
+      }
+
+      return result;
     },
     [addIdealizedMemoryInternal]
   );
@@ -1537,6 +1531,15 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     },
     [hobbies, updateHobbiesInStorage, idealizedMemories]
   );
+
+  // Wire up bump ref now that all update functions are declared
+  bumpEntityUpdatedAtRef.current = async (entityId: string, sphere: LifeSphere) => {
+    if (sphere === 'relationships') await updateProfile(entityId, {});
+    else if (sphere === 'career') await updateJob(entityId, {});
+    else if (sphere === 'family') await updateFamilyMember(entityId, {});
+    else if (sphere === 'friends') await updateFriend(entityId, {});
+    else if (sphere === 'hobbies') await updateHobby(entityId, {});
+  };
 
   const deleteHobby = useCallback(
     async (id: string) => {

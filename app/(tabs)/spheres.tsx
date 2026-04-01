@@ -47,6 +47,7 @@ import React, {
     useRef,
     useState,
 } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
     ActivityIndicator,
     Alert,
@@ -594,6 +595,69 @@ export default function SpheresScreen() {
     [getEntitiesBySphere, t],
   );
 
+  // Toggle between "recently edited" and "least memories" subsection
+  const SUBSECTION_TOGGLE_KEY = "@sferas:edit_subsection_toggle";
+  type SubsectionMode = "recent" | "forgotten";
+  const [subsectionMode, setSubsectionMode] = useState<SubsectionMode>("recent");
+
+  useEffect(() => {
+    AsyncStorage.getItem(SUBSECTION_TOGGLE_KEY).then((val) => {
+      if (val === "forgotten") setSubsectionMode("forgotten");
+    });
+  }, []);
+
+  const handleToggleSubsection = (mode: SubsectionMode) => {
+    setSubsectionMode(mode);
+    AsyncStorage.setItem(SUBSECTION_TOGGLE_KEY, mode);
+  };
+
+  // Collect all entities across all spheres with their sphere type, memory count, and updatedAt
+  const allEntitiesFlat = useMemo(() => {
+    const result: {
+      id: string;
+      name: string;
+      sphere: LifeSphere;
+      updatedAt: string;
+      memoryCount: number;
+      imageUri?: string;
+    }[] = [];
+
+    const countMemories = (id: string, sphere: LifeSphere) =>
+      sphere === "relationships"
+        ? getIdealizedMemoriesByProfileId(id).length
+        : getIdealizedMemoriesByEntityId(id, sphere).length;
+
+    profiles.forEach((e) =>
+      result.push({ id: e.id, name: e.name, sphere: "relationships", updatedAt: e.updatedAt, memoryCount: countMemories(e.id, "relationships"), imageUri: e.imageUri }),
+    );
+    jobs.forEach((e) =>
+      result.push({ id: e.id, name: e.name, sphere: "career", updatedAt: e.updatedAt, memoryCount: countMemories(e.id, "career"), imageUri: e.imageUri }),
+    );
+    familyMembers.forEach((e) =>
+      result.push({ id: e.id, name: e.name, sphere: "family", updatedAt: e.updatedAt, memoryCount: countMemories(e.id, "family"), imageUri: e.imageUri }),
+    );
+    friends.forEach((e) =>
+      result.push({ id: e.id, name: e.name, sphere: "friends", updatedAt: e.updatedAt, memoryCount: countMemories(e.id, "friends"), imageUri: e.imageUri }),
+    );
+    hobbies.forEach((e) =>
+      result.push({ id: e.id, name: e.name, sphere: "hobbies", updatedAt: e.updatedAt, memoryCount: countMemories(e.id, "hobbies"), imageUri: e.imageUri }),
+    );
+    return result;
+  }, [profiles, jobs, familyMembers, friends, hobbies, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
+
+  const subsectionEntities = useMemo(() => {
+    if (allEntitiesFlat.length === 0) return [];
+    if (subsectionMode === "recent") {
+      return [...allEntitiesFlat]
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        .slice(0, 5);
+    }
+    // oldest edit — sort by updatedAt ascending
+    return [...allEntitiesFlat]
+      .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
+      .slice(0, 5);
+  }, [allEntitiesFlat, subsectionMode]);
+
   const getSphereAccentColor = (sphereType: LifeSphere): string => {
     const scheme = (colorScheme ?? "dark") as "light" | "dark";
     if (scheme === "light") {
@@ -1019,6 +1083,54 @@ export default function SpheresScreen() {
         },
         manualEditSubtitle: {
           marginTop: 4 * fontScale,
+        },
+        subsectionToggleRow: {
+          flexDirection: "row",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255,255,255,0.06)"
+              : "rgba(0,0,0,0.06)",
+          borderRadius: 20 * fontScale,
+          padding: 3 * fontScale,
+          marginBottom: 12 * fontScale,
+          alignSelf: "flex-start",
+        },
+        subsectionToggleTab: {
+          paddingHorizontal: 14 * fontScale,
+          paddingVertical: 6 * fontScale,
+          borderRadius: 17 * fontScale,
+        },
+        subsectionToggleTabActive: {
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(100,181,246,0.18)"
+              : "rgba(25,118,210,0.12)",
+        },
+        subsectionToggleLabel: {
+          color: colors.icon,
+        },
+        subsectionToggleLabelActive: {
+          color: colorScheme === "dark" ? "#64B5F6" : "#1976D2",
+        },
+        subsectionCard: {
+          width: 100 * fontScale,
+          padding: 10 * fontScale,
+          marginRight: 10 * fontScale,
+          borderRadius: 10 * fontScale,
+          borderWidth: 1,
+          borderColor:
+            colorScheme === "dark"
+              ? "rgba(100,181,246,0.2)"
+              : "rgba(0,0,0,0.1)",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255,255,255,0.05)"
+              : "rgba(0,0,0,0.03)",
+        },
+        subsectionCardImage: {
+          width: "100%",
+          height: 56 * fontScale,
+          borderRadius: 6 * fontScale,
         },
         insightsButtonContainer: {
           marginTop: 0,
@@ -1467,6 +1579,26 @@ export default function SpheresScreen() {
       router.setParams({ selectedSphere: newSelectedSphere });
     } else {
       router.setParams({ selectedSphere: undefined });
+    }
+  };
+
+  const handleSubsectionEntityPress = (entityId: string, sphere: LifeSphere) => {
+    switch (sphere) {
+      case "relationships":
+        router.push({ pathname: "/(tabs)/relationship-detail", params: { id: entityId } });
+        break;
+      case "career":
+        router.push({ pathname: "/(tabs)/job-detail", params: { id: entityId } });
+        break;
+      case "family":
+        router.push({ pathname: "/(tabs)/family-member-detail", params: { id: entityId } });
+        break;
+      case "friends":
+        router.push({ pathname: "/(tabs)/friend-detail", params: { id: entityId } });
+        break;
+      case "hobbies":
+        router.push({ pathname: "/(tabs)/hobby-detail", params: { id: entityId } });
+        break;
     }
   };
 
@@ -2381,6 +2513,86 @@ export default function SpheresScreen() {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
+            {/* Subsection toggle + horizontal entity strip */}
+            {allEntitiesFlat.length > 0 && (
+              <View style={{ marginBottom: 24 * fontScale }}>
+                {/* Pill toggle */}
+                <View style={styles.subsectionToggleRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.subsectionToggleTab,
+                      subsectionMode === "recent" && styles.subsectionToggleTabActive,
+                    ]}
+                    onPress={() => handleToggleSubsection("recent")}
+                    activeOpacity={0.8}
+                  >
+                    <ThemedText
+                      size="xs"
+                      weight={subsectionMode === "recent" ? "semibold" : "normal"}
+                      style={subsectionMode === "recent" ? styles.subsectionToggleLabelActive : styles.subsectionToggleLabel}
+                    >
+                      {t("spheres.recentlyEdited")}
+                    </ThemedText>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.subsectionToggleTab,
+                      subsectionMode === "forgotten" && styles.subsectionToggleTabActive,
+                    ]}
+                    onPress={() => handleToggleSubsection("forgotten")}
+                    activeOpacity={0.8}
+                  >
+                    <ThemedText
+                      size="xs"
+                      weight={subsectionMode === "forgotten" ? "semibold" : "normal"}
+                      style={subsectionMode === "forgotten" ? styles.subsectionToggleLabelActive : styles.subsectionToggleLabel}
+                    >
+                      {t("spheres.leastMemories")}
+                    </ThemedText>
+                  </TouchableOpacity>
+                </View>
+                {/* Horizontal entity cards */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 2 * fontScale, paddingBottom: 4 }}
+                >
+                  {subsectionEntities.map((entity) => {
+                    const accent = getSphereAccentColor(entity.sphere);
+                    return (
+                      <TouchableOpacity
+                        key={entity.id}
+                        style={[styles.subsectionCard, { borderLeftColor: accent, borderLeftWidth: 3 }]}
+                        onPress={() => handleSubsectionEntityPress(entity.id, entity.sphere)}
+                        activeOpacity={0.85}
+                      >
+                        {entity.imageUri ? (
+                          <Image
+                            source={{ uri: entity.imageUri }}
+                            style={styles.subsectionCardImage}
+                            contentFit="cover"
+                          />
+                        ) : (
+                          <View style={[styles.subsectionCardImage, { backgroundColor: accent + "22", justifyContent: "center", alignItems: "center" }]}>
+                            <MaterialIcons
+                              name={spheres.find((s) => s.type === entity.sphere)?.icon as any ?? "circle"}
+                              size={18 * fontScale * iconScale}
+                              color={accent}
+                            />
+                          </View>
+                        )}
+                        <ThemedText size="xs" weight="semibold" numberOfLines={1} style={{ marginTop: 6 * fontScale }}>
+                          {entity.name}
+                        </ThemedText>
+                        <ThemedText size="xs" emphasis="disabled" numberOfLines={1}>
+                          {entity.memoryCount} {entity.memoryCount === 1 ? t("spheres.memory") : t("spheres.memories")}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
             {spheres.map((sphere) => {
               const accent = getSphereAccentColor(sphere.type);
               const count = sphere.entities.length;
@@ -2422,7 +2634,7 @@ export default function SpheresScreen() {
                       style={styles.manualEditSubtitle}
                     >
                       {count}{" "}
-                      {count === 1 ? t("spheres.item") : t("spheres.items")}
+                      {count === 1 ? t("spheres.entity") : t("spheres.entities")}
                     </ThemedText>
                   </View>
                   <MaterialIcons

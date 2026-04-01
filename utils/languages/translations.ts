@@ -431,6 +431,12 @@ export interface Translations {
   "spheres.items": string;
   "spheres.manualEditMode": string;
   "spheres.exitManualEdit": string;
+  "spheres.entity": string;
+  "spheres.entities": string;
+  "spheres.recentlyEdited": string;
+  "spheres.leastMemories": string;
+  "spheres.memory": string;
+  "spheres.memories": string;
 
   // Insights
   "insights.wheelOfLife.title": string;
@@ -4208,6 +4214,12 @@ const translations: Record<Language, Translations> = {
     "spheres.items": "items",
     "spheres.manualEditMode": "Manual edit mode",
     "spheres.exitManualEdit": "Exit manual edit mode",
+    "spheres.entity": "entity",
+    "spheres.entities": "entities",
+    "spheres.recentlyEdited": "Recently edited",
+    "spheres.leastMemories": "Oldest edit",
+    "spheres.memory": "memory",
+    "spheres.memories": "memories",
 
     // Insights
     "insights.wheelOfLife.title": "Insights",
@@ -8818,6 +8830,12 @@ const translations: Record<Language, Translations> = {
     "spheres.items": "елемента",
     "spheres.manualEditMode": "Ръчен режим на редактиране",
     "spheres.exitManualEdit": "Изход от режим на редактиране",
+    "spheres.entity": "обект",
+    "spheres.entities": "обекта",
+    "spheres.recentlyEdited": "Скоро редактирани",
+    "spheres.leastMemories": "Най-стари",
+    "spheres.memory": "спомен",
+    "spheres.memories": "спомена",
 
     // Insights
     "insights.wheelOfLife.title": "Прозрения",
