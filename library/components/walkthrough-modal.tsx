@@ -3,25 +3,40 @@ import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useTranslate } from "@/utils/languages/use-translate";
+import type { Translations } from "@/utils/languages/translations";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useMemo } from "react";
 import {
   Modal,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
 
+type SectionItem = {
+  id: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
+  titleKey: keyof Translations;
+  isDone: boolean;
+};
+
 type WalkthroughModalProps = {
   visible: boolean;
   onDismiss: () => void;
+  onOpenGuide: () => void;
+  onDismissForever: () => void;
+  sections: SectionItem[];
 };
 
 export function WalkthroughModal({
   visible,
   onDismiss,
+  onOpenGuide,
+  onDismissForever,
+  sections,
 }: WalkthroughModalProps) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
@@ -46,9 +61,7 @@ export function WalkthroughModal({
           padding: 24 * fontScale,
           width: "100%",
           maxWidth: 360 * fontScale,
-          height: 920 * fontScale,
           marginTop: 48 * fontScale,
-          gap: 20 * fontScale,
           position: "relative",
           overflow: "hidden",
         },
@@ -63,6 +76,7 @@ export function WalkthroughModal({
         content: {
           position: "relative",
           zIndex: 1,
+          gap: 16 * fontScale,
         },
         iconContainer: {
           width: 64 * fontScale,
@@ -75,31 +89,35 @@ export function WalkthroughModal({
           justifyContent: "center",
           alignItems: "center",
           alignSelf: "center",
-          marginBottom: 16 * fontScale,
         },
         title: {
           textAlign: "center",
-          marginBottom: 12 * fontScale,
         },
         message: {
           textAlign: "center",
           lineHeight: 22 * fontScale,
-          marginBottom: 8 * fontScale,
         },
-        button: {
+        sectionRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12 * fontScale,
+          paddingVertical: 6 * fontScale,
+        },
+        primaryButton: {
           height: 48 * fontScale,
           borderRadius: 12 * fontScale,
           alignItems: "center",
           justifyContent: "center",
           paddingHorizontal: 24 * fontScale,
-          marginTop: 8 * fontScale,
+          backgroundColor: colors.primary,
         },
-        buttonText: {
-          color: "#ffffff",
-          fontWeight: "600",
+        dismissLink: {
+          alignItems: "center",
+          justifyContent: "center",
+          paddingVertical: 8 * fontScale,
         },
       }),
-    [fontScale, colorScheme, colors.background],
+    [fontScale, colorScheme, colors.background, colors.primary],
   );
 
   return (
@@ -152,11 +170,34 @@ export function WalkthroughModal({
                 }}
               />
 
+              {/* Close button */}
+              <TouchableOpacity
+                onPress={onDismiss}
+                activeOpacity={0.7}
+                hitSlop={12}
+                style={{
+                  position: "absolute",
+                  top: 16 * fontScale,
+                  right: 16 * fontScale,
+                  zIndex: 2,
+                  width: 32 * fontScale,
+                  height: 32 * fontScale,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <MaterialIcons
+                  name="close"
+                  size={22 * fontScale}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+
               <View style={styles.content}>
                 {/* Icon */}
                 <View style={styles.iconContainer}>
                   <MaterialIcons
-                    name="lightbulb"
+                    name="menu-book"
                     size={32 * fontScale}
                     color={colors.primaryLight}
                   />
@@ -169,22 +210,57 @@ export function WalkthroughModal({
                   letterSpacing="s"
                   style={styles.title}
                 >
-                  {t("walkthrough.title")}
+                  {t("guidePrompt.title")}
                 </ThemedText>
 
                 {/* Message */}
                 <ThemedText size="sm" weight="normal" style={styles.message}>
-                  {t("walkthrough.message")}
+                  {t("guidePrompt.message")}
                 </ThemedText>
 
-                {/* Button */}
+                {/* Sections checklist */}
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  scrollEnabled={false}
+                >
+                  {sections.map((section) => (
+                    <View key={section.id} style={styles.sectionRow}>
+                      <MaterialIcons
+                        name={section.isDone ? "check-circle" : "radio-button-unchecked"}
+                        size={20 * fontScale}
+                        color={section.isDone ? colors.primary : colors.textDisabled}
+                      />
+                      <MaterialIcons
+                        name={section.icon}
+                        size={20 * fontScale}
+                        color={colors.text}
+                      />
+                      <ThemedText size="sm" weight="medium">
+                        {t(section.titleKey)}
+                      </ThemedText>
+                    </View>
+                  ))}
+                </ScrollView>
+
+                {/* Open Guide button */}
                 <TouchableOpacity
-                  style={[styles.button, { backgroundColor: colors.primary }]}
-                  onPress={onDismiss}
+                  style={styles.primaryButton}
+                  onPress={onOpenGuide}
                   activeOpacity={0.8}
                 >
-                  <ThemedText size="l" weight="bold" style={styles.buttonText}>
-                    {t("walkthrough.button")}
+                  <ThemedText size="l" weight="bold" style={{ color: "#ffffff" }}>
+                    {t("guidePrompt.openGuide")}
+                  </ThemedText>
+                </TouchableOpacity>
+
+                {/* Don't show again */}
+                <TouchableOpacity
+                  style={styles.dismissLink}
+                  onPress={onDismissForever}
+                  activeOpacity={0.7}
+                >
+                  <ThemedText size="sm" emphasis="medium">
+                    {t("guidePrompt.dismiss")}
                   </ThemedText>
                 </TouchableOpacity>
               </View>

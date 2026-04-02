@@ -3,7 +3,6 @@ import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
-import { OnboardingStepper } from "@/library/components/onboarding-stepper";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney } from "@/utils/JourneyProvider";
@@ -95,7 +94,6 @@ export default function SettingsScreen() {
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [isCleaningMemories, setIsCleaningMemories] = useState(false);
-  const [onboardingVisible, setOnboardingVisible] = useState(false);
   const [initialOnboardingRequesting, setInitialOnboardingRequesting] =
     useState(false);
   const [versionInfo, setVersionInfo] = useState<AppVersionInfo | null>(null);
@@ -1953,7 +1951,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={styles.dropdown}
-            onPress={() => setOnboardingVisible(true)}
+            onPress={() => router.push("/guide")}
             activeOpacity={0.7}
           >
             <View style={styles.dropdownContent}>
@@ -2202,10 +2200,6 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
-      <OnboardingStepper
-        visible={onboardingVisible}
-        onDismiss={() => setOnboardingVisible(false)}
-      />
     </TabScreenContainer>
   );
 }

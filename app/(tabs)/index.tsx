@@ -15,7 +15,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import { GifAnimationPreview } from "@/library/components/gif-animation-preview";
-import { OnboardingStepper } from "@/library/components/onboarding-stepper";
+import { WalkthroughModal } from "@/library/components/walkthrough-modal";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { getLocalDateString } from "@/utils/ai-rate-limiter";
 import {
@@ -35,6 +35,12 @@ import {
   getShowWalkthroughAfterOnboarding,
   setShowWalkthroughAfterOnboarding,
 } from "@/utils/onboarding-storage";
+import {
+  getGuideDismissedForever,
+  getReadSections,
+  setGuideDismissedForever,
+} from "@/utils/guide-storage";
+import { SECTIONS } from "../guide/_data";
 import { showPaywallForAIAccess } from "@/utils/premium-access";
 import {
   getSphereGradientColors,
@@ -13513,8 +13519,9 @@ export default function HomeScreen() {
     []
   );
 
-  // Walkthrough modal state
+  // Guide prompt modal state
   const [walkthroughVisible, setWalkthroughVisible] = useState(false);
+  const [guideReadSections, setGuideReadSections] = useState<Set<string>>(new Set());
   const walkthroughCheckedRef = useRef(false);
   const walkthroughAfterOnboardingRef = useRef(false);
   const { isAnimationComplete, isVisible: isSplashVisible } = useSplash();
@@ -13593,27 +13600,22 @@ export default function HomeScreen() {
             isFirstLaunchRef.current = false;
           }
 
-          // Check if coming from onboarding - show walkthrough and clear flag
+          // Check if coming from onboarding - show guide prompt and clear flag
           const showAfterOnboarding = await getShowWalkthroughAfterOnboarding();
           if (showAfterOnboarding) {
             await setShowWalkthroughAfterOnboarding(false);
             walkthroughAfterOnboardingRef.current = true;
-            setWalkthroughVisible(true);
-            return;
           }
 
-          // Check if there are any entities or memories
-          const totalEntities =
-            profiles.length +
-            jobs.length +
-            familyMembers.length +
-            friends.length +
-            hobbies.length;
-          const totalMemories = idealizedMemories.length;
-
-          // If no entities and no memories, show walkthrough
-          if (totalEntities === 0 && totalMemories === 0) {
-            setWalkthroughVisible(true);
+          // Check guide prompt conditions
+          const dismissedForever = await getGuideDismissedForever();
+          if (!dismissedForever) {
+            const readSections = await getReadSections();
+            setGuideReadSections(readSections);
+            const allRead = SECTIONS.every((s) => readSections.has(s.id));
+            if (!allRead) {
+              setWalkthroughVisible(true);
+            }
           }
         }
       };
@@ -13635,20 +13637,21 @@ export default function HomeScreen() {
     ]),
   );
 
-  const handleWalkthroughDismiss = useCallback(async () => {
-    try {
-      setWalkthroughVisible(false);
-      if (walkthroughAfterOnboardingRef.current) {
-        walkthroughAfterOnboardingRef.current = false;
-      }
-    } catch (_error) {
-      setWalkthroughVisible(false);
-    }
+  const handleWalkthroughDismiss = useCallback(() => {
+    setWalkthroughVisible(false);
+    walkthroughAfterOnboardingRef.current = false;
   }, []);
 
-  const handleOnboardingDemo = useCallback(() => {
-    // Navigate to settings to trigger demo data generation
-    router.push("/(tabs)/settings");
+  const handleGuideOpen = useCallback(() => {
+    setWalkthroughVisible(false);
+    walkthroughAfterOnboardingRef.current = false;
+    router.push("/guide");
+  }, []);
+
+  const handleGuideDismissForever = useCallback(async () => {
+    await setGuideDismissedForever();
+    setWalkthroughVisible(false);
+    walkthroughAfterOnboardingRef.current = false;
   }, []);
 
   // Avatar pulse animation - continuously pulses every 3 seconds
@@ -18829,11 +18832,18 @@ export default function HomeScreen() {
           )}
           {focusedSferaLayer}
 
-          {/* Onboarding Stepper - same as Classic view when no entities */}
-          <OnboardingStepper
+          {/* Guide Prompt Modal */}
+          <WalkthroughModal
             visible={walkthroughVisible}
             onDismiss={handleWalkthroughDismiss}
-            onDemo={handleOnboardingDemo}
+            onOpenGuide={handleGuideOpen}
+            onDismissForever={handleGuideDismissForever}
+            sections={SECTIONS.map((s) => ({
+              id: s.id,
+              icon: s.icon,
+              titleKey: s.titleKey,
+              isDone: guideReadSections.has(s.id),
+            }))}
           />
           {editButton}
         </TabScreenContainer>
@@ -22131,11 +22141,18 @@ export default function HomeScreen() {
             })()}
         </View>
 
-        {/* Onboarding Stepper */}
-        <OnboardingStepper
+        {/* Guide Prompt Modal */}
+        <WalkthroughModal
           visible={walkthroughVisible}
           onDismiss={handleWalkthroughDismiss}
-          onDemo={handleOnboardingDemo}
+          onOpenGuide={handleGuideOpen}
+          onDismissForever={handleGuideDismissForever}
+          sections={SECTIONS.map((s) => ({
+            id: s.id,
+            icon: s.icon,
+            titleKey: s.titleKey,
+            isDone: guideReadSections.has(s.id),
+          }))}
         />
         {editButton}
       </TabScreenContainer>
@@ -23941,11 +23958,18 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Onboarding Stepper */}
-      <OnboardingStepper
+      {/* Guide Prompt Modal */}
+      <WalkthroughModal
         visible={walkthroughVisible}
         onDismiss={handleWalkthroughDismiss}
-        onDemo={handleOnboardingDemo}
+        onOpenGuide={handleGuideOpen}
+        onDismissForever={handleGuideDismissForever}
+        sections={SECTIONS.map((s) => ({
+          id: s.id,
+          icon: s.icon,
+          titleKey: s.titleKey,
+          isDone: guideReadSections.has(s.id),
+        }))}
       />
 
       {editButton}

@@ -505,6 +505,7 @@ function AppContent() {
           />
           <Stack.Screen name="usability" options={{ headerShown: false }} />
           <Stack.Screen name="backup" options={{ headerShown: false }} />
+          <Stack.Screen name="guide" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />
         {goldenEventIdForMemoryModal != null && (

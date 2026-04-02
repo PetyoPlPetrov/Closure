@@ -260,6 +260,57 @@ export interface Translations {
   "walkthrough.message": string;
   "walkthrough.button": string;
 
+  // Guide
+  "guide.title": string;
+  "guide.markDone": string;
+  "guide.markedDone": string;
+  "guide.section.overview.title": string;
+  "guide.section.overview.description": string;
+  "guide.section.tools.title": string;
+  "guide.section.tools.description": string;
+  "guide.section.notifications.title": string;
+  "guide.section.notifications.description": string;
+  "guide.section.customizations.title": string;
+  "guide.section.customizations.description": string;
+  "guide.section.account.title": string;
+  "guide.section.account.description": string;
+  "guide.bullet.pastLessons.title": string;
+  "guide.bullet.pastLessons.description": string;
+  "guide.bullet.sunnyMoments.title": string;
+  "guide.bullet.sunnyMoments.description": string;
+  "guide.bullet.livingForward.title": string;
+  "guide.bullet.livingForward.description": string;
+  "guide.bullet.universeLessons.title": string;
+  "guide.bullet.universeLessons.description": string;
+  "guide.bullet.dailyExam.title": string;
+  "guide.bullet.dailyExam.description": string;
+  "guide.bullet.insightsWheel.title": string;
+  "guide.bullet.insightsWheel.description": string;
+  "guide.bullet.entityWheel.title": string;
+  "guide.bullet.entityWheel.description": string;
+  "guide.bullet.entityReminders.title": string;
+  "guide.bullet.entityReminders.description": string;
+  "guide.bullet.momentNudges.title": string;
+  "guide.bullet.momentNudges.description": string;
+  "guide.bullet.eventReminders.title": string;
+  "guide.bullet.eventReminders.description": string;
+  "guide.bullet.cosmicLook.title": string;
+  "guide.bullet.cosmicLook.description": string;
+  "guide.bullet.momentColors.title": string;
+  "guide.bullet.momentColors.description": string;
+  "guide.bullet.animationSettings.title": string;
+  "guide.bullet.animationSettings.description": string;
+  "guide.bullet.backupRestore.title": string;
+  "guide.bullet.backupRestore.description": string;
+  "guide.bullet.manualEdit.title": string;
+  "guide.bullet.manualEdit.description": string;
+
+  // Guide Prompt Modal
+  "guidePrompt.title": string;
+  "guidePrompt.message": string;
+  "guidePrompt.openGuide": string;
+  "guidePrompt.dismiss": string;
+
   // Onboarding
   "onboarding.language.title": string;
   "onboarding.language.subtitle": string;
@@ -4008,6 +4059,74 @@ const translations: Record<Language, Translations> = {
     "walkthrough.message":
       "Create records in each sphere to track the cloudy and sunny moments of your life. Start by adding a partner, job, family member, friend, or hobby!",
     "walkthrough.button": "Got it!",
+
+    "guide.title": "App Guide",
+    "guide.markDone": "Mark as done",
+    "guide.markedDone": "Done",
+    "guide.section.overview.title": "The 3 Missions",
+    "guide.section.overview.description":
+      "Sferas is built around three missions that work together: examining what the past has taught you, preserving the good moments you'd otherwise forget, and using both to move forward with intention. Swipe through each mission to understand how they connect.",
+    "guide.section.tools.title": "Your Tools",
+    "guide.section.tools.description":
+      "Explore the tools at your disposal — the universe wheel, daily exams, insights, and entity-specific exercises.",
+    "guide.section.notifications.title": "Notifications & Nudges",
+    "guide.section.notifications.description":
+      "Set up reminders for your entities, moment nudges, and event-based notifications to stay on track.",
+    "guide.section.customizations.title": "Customizations",
+    "guide.section.customizations.description":
+      "Personalize the look and feel of the app — themes, moment colors, and animation settings.",
+    "guide.section.account.title": "Account & Data",
+    "guide.section.account.description":
+      "Manage your data with backup and restore tools, or manually edit your entities and memories.",
+    "guide.bullet.pastLessons.title": "Learn from the Past",
+    "guide.bullet.pastLessons.description":
+      "Every experience teaches us something — but lessons are easy to forget. Over time we romanticize the past, the hard-earned wisdom fades, and we find ourselves making the same mistakes again. Sferas gives each lesson a permanent home. Write it down, revisit it whenever you need a reminder, or let Sferas send it back to you at the right moment. The lesson stays. The pattern breaks.",
+    "guide.bullet.sunnyMoments.title": "Capture Sunny Moments",
+    "guide.bullet.sunnyMoments.description":
+      "One bad day can drown out a hundred good ones. We fixate on what went wrong and lose sight of all the joy already present in our lives. Sferas gives you a quick glimpse of the big picture — all your sunny moments gathered across every sphere, showing you just how much there is to be grateful for. And when you need a reminder, Sferas can send your sunny moments back to you as daily nudges, so the good never stays invisible for long.",
+    "guide.bullet.livingForward.title": "Live Forward",
+    "guide.bullet.livingForward.description":
+      "Sferas isn't just about looking back. The people and places that matter most deserve new memories too. That's why Sferas helps you look ahead — discover places to visit, experiences to share, and moments worth making with the people you care about. Because a good life isn't only understood in hindsight. It's built, intentionally, one shared moment at a time.",
+    "guide.bullet.universeLessons.title": "Universe Lessons",
+    "guide.bullet.universeLessons.description":
+      "All the lessons you've recorded across your spheres live in one place — Universe Lessons. Scroll through them at any time to revisit your hard-earned wisdom, spot patterns, and make sure none of it gets forgotten.",
+    "guide.bullet.dailyExam.title": "Daily Exam",
+    "guide.bullet.dailyExam.description":
+      "Each day, Sfera AI picks one of your past lessons and presents a real-life situation connected to it. You respond, and the AI assesses your answer — giving you honest feedback on whether you've truly internalized the lesson or still have work to do. Learning isn't just recording. It's being tested when it counts.",
+    "guide.bullet.insightsWheel.title": "Sfera Insights",
+    "guide.bullet.insightsWheel.description":
+      "A visual snapshot of how your life is balanced right now. Sfera Insights shows you the distribution of moments across your spheres — revealing where you're investing your time and energy, and where the gaps are. Sometimes seeing it laid out is all it takes to understand what needs attention.",
+    "guide.bullet.entityWheel.title": "Entity Wheel",
+    "guide.bullet.entityWheel.description":
+      "Every entity has its own wheel — a compact visual of all the moments and lessons tied to that person, job, or experience. Tap any item to dive into the memory behind it. Or spin the wheel to let Sferas draw a random lesson from that entity and turn it into an exam — a focused test of whether that specific relationship or experience has truly taught you what it had to.",
+    "guide.bullet.entityReminders.title": "Entity Reminders",
+    "guide.bullet.entityReminders.description":
+      "Some connections quietly fade not because we stopped caring, but because we stopped paying attention. Entity Reminders nudge you when you haven't logged moments with someone in a while, or when a particular entity has fewer memories than the rest of your sphere. It's Sferas keeping the balance — making sure no person or experience gets neglected without you realizing it.",
+    "guide.bullet.momentNudges.title": "Moment Nudges",
+    "guide.bullet.momentNudges.description":
+      "Set up hourly or daily notifications that surface your sunny moments and lessons from a chosen sphere. A quiet tap on the shoulder throughout the day — reminding you of the good you've lived and the wisdom you've earned, so neither stays buried.",
+    "guide.bullet.eventReminders.title": "Event Reminders",
+    "guide.bullet.eventReminders.description":
+      "When you join an event through Sferas, the app reminds you afterwards to capture it as a memory. Because experiences are only fully yours once you've taken a moment to reflect on them.",
+    "guide.bullet.cosmicLook.title": "Cosmic App Look",
+    "guide.bullet.cosmicLook.description":
+      "Adjust the background constellation density, opacity, and orbit animation speed.",
+    "guide.bullet.momentColors.title": "Moment Colors",
+    "guide.bullet.momentColors.description":
+      "Customize the color palette used for your floating moment bubbles on the home screen.",
+    "guide.bullet.animationSettings.title": "Animation Settings",
+    "guide.bullet.animationSettings.description":
+      "Fine-tune transition animations and visual effects throughout the app.",
+    "guide.bullet.backupRestore.title": "Backup & Restore",
+    "guide.bullet.backupRestore.description":
+      "Export all your data to a file and restore it on a new device at any time.",
+    "guide.bullet.manualEdit.title": "Manual Edit",
+    "guide.bullet.manualEdit.description":
+      "Directly edit or delete any entity, memory, or moment from within their detail screens.",
+    "guidePrompt.title": "App Guide",
+    "guidePrompt.message": "Learn how to get the most out of Sferas.",
+    "guidePrompt.openGuide": "Open Guide",
+    "guidePrompt.dismiss": "Don't show again",
 
     "onboarding.language.title": "Choose your language",
     "onboarding.language.subtitle": "You can change this later in Settings.",
@@ -8618,6 +8737,74 @@ const translations: Record<Language, Translations> = {
     "walkthrough.message":
       "Създайте записи във всяка сфера, за да проследявате облачните и слънчевите моменти от живота си. Започнете като добавите партньор, работа, член на семейството, приятел или хоби!",
     "walkthrough.button": "Разбрах!",
+
+    "guide.title": "Ръководство",
+    "guide.markDone": "Маркирай като прочетено",
+    "guide.markedDone": "Прочетено",
+    "guide.section.overview.title": "3-те Мисии",
+    "guide.section.overview.description":
+      "Sferas е изградена около три мисии, които работят заедно: изследване на това, което миналото ви е научило, запазване на добрите моменти, които иначе бихте забравили, и използване на двете, за да вървите напред с намерение. Плъзнете през всяка мисия, за да разберете как се свързват.",
+    "guide.section.tools.title": "Вашите инструменти",
+    "guide.section.tools.description":
+      "Разгледайте наличните инструменти — колелото на вселената, дневните изпити, прозренията и упражненията за всяка сфера.",
+    "guide.section.notifications.title": "Известия и напомняния",
+    "guide.section.notifications.description":
+      "Настройте напомняния за вашите сфери, напомняния за моменти и известия, базирани на събития.",
+    "guide.section.customizations.title": "Персонализация",
+    "guide.section.customizations.description":
+      "Персонализирайте облика на приложението — теми, цветове на моментите и настройки за анимации.",
+    "guide.section.account.title": "Акаунт и данни",
+    "guide.section.account.description":
+      "Управлявайте данните си с инструменти за архивиране и възстановяване или редактирайте ръчно.",
+    "guide.bullet.pastLessons.title": "Учете от миналото",
+    "guide.bullet.pastLessons.description":
+      "Всяко преживяване ни учи на нещо — но уроците лесно се забравят. С времето романтизираме миналото, трудно извоюваната мъдрост избледнява и се оказваме, че правим същите грешки отново. Sferas дава на всеки урок постоянен дом. Запишете го, прегледайте го когато имате нужда от напомняне, или оставете Sferas да ви го върне в точния момент. Урокът остава. Моделът се прекъсва.",
+    "guide.bullet.sunnyMoments.title": "Улавяйте слънчеви моменти",
+    "guide.bullet.sunnyMoments.description":
+      "Един лош ден може да засенчи стотици добри. Фокусираме се върху това, което е тръгнало наопаки, и губим от поглед цялата радост, която вече присъства в живота ни. Sferas ви дава бърз поглед върху голямата картина — всички ваши слънчеви моменти събрани в сферите, показвайки колко много неща има за което да сте благодарни. А когато имате нужда от напомняне, Sferas може да ви изпраща слънчевите моменти като ежедневни напомняния, за да не остава доброто невидимо.",
+    "guide.bullet.livingForward.title": "Живейте напред",
+    "guide.bullet.livingForward.description":
+      "Sferas не е само за поглед назад. Хората и местата, които имат значение, заслужават нови спомени. Затова Sferas ви помага да гледате напред — да откривате места за посещение, преживявания за споделяне и моменти, които си струва да създадете с хората, за които ви е грижа. Защото добрият живот не се разбира само в ретроспекция. Той се гради — съзнателно, един споделен момент наведнъж.",
+    "guide.bullet.universeLessons.title": "Уроци от вселената",
+    "guide.bullet.universeLessons.description":
+      "Всички уроци, които сте записали в сферите си, живеят на едно място — Уроци от вселената. Превъртете ги по всяко време, за да преговорите трудно извоюваната си мъдрост, да забележите модели и да се уверите, че нищо не е забравено.",
+    "guide.bullet.dailyExam.title": "Дневен изпит",
+    "guide.bullet.dailyExam.description":
+      "Всеки ден Sfera AI избира един от миналите ви уроци и представя реална житейска ситуация, свързана с него. Вие отговаряте, а AI оценява отговора ви — давайки ви честна обратна връзка дали наистина сте усвоили урока или все още имате работа. Ученето не е само записване. То е да бъдеш изпитан когато има значение.",
+    "guide.bullet.insightsWheel.title": "Sfera Прозрения",
+    "guide.bullet.insightsWheel.description":
+      "Визуална снимка на баланса в живота ви в момента. Sfera Прозрения показва разпределението на моментите в сферите ви — разкривайки къде инвестирате времето и енергията си и къде има празнини. Понякога е достатъчно да го видите нагледно, за да разберете какво изисква внимание.",
+    "guide.bullet.entityWheel.title": "Колело на сферата",
+    "guide.bullet.entityWheel.description":
+      "Всеки обект има своето собствено колело — компактна визуализация на всички моменти и уроци, свързани с този човек, работа или преживяване. Докоснете елемент, за да се потопите в спомена зад него. Или завъртете колелото, за да позволите на Sferas да извлече случаен урок от този обект и да го превърне в изпит — целенасочена проверка дали конкретната връзка или преживяване наистина са ви научили на това, което е трябвало.",
+    "guide.bullet.entityReminders.title": "Напомняния за сфери",
+    "guide.bullet.entityReminders.description":
+      "Някои връзки тихо избледняват — не защото сме спрели да ни е грижа, а защото сме спрели да обръщаме внимание. Напомнянията за обекти ви известяват, когато не сте записвали моменти с някого от известно време, или когато даден обект има по-малко спомени от останалите в сферата. Sferas поддържа баланса — като се грижи нито един човек или преживяване да не бъде пренебрегнато без да осъзнаете.",
+    "guide.bullet.momentNudges.title": "Напомняния за моменти",
+    "guide.bullet.momentNudges.description":
+      "Настройте почасови или ежедневни известия, които показват слънчевите ви моменти и уроци от избрана сфера. Тихо потупване по рамото през деня — напомняйки ви за доброто, което сте преживели, и мъдростта, която сте спечелили, за да не остава нито едното заровено.",
+    "guide.bullet.eventReminders.title": "Напомняния за събития",
+    "guide.bullet.eventReminders.description":
+      "Когато се присъедините към събитие чрез Sferas, приложението ви напомня след това да го запишете като спомен. Защото преживяванията наистина стават ваши едва когато отделите момент да ги осмислите.",
+    "guide.bullet.cosmicLook.title": "Космически облик",
+    "guide.bullet.cosmicLook.description":
+      "Регулирайте плътността, прозрачността и скоростта на анимацията на фоновите съзвездия.",
+    "guide.bullet.momentColors.title": "Цветове на моментите",
+    "guide.bullet.momentColors.description":
+      "Персонализирайте цветовата палитра на плаващите балончета с моменти на началния екран.",
+    "guide.bullet.animationSettings.title": "Настройки на анимацията",
+    "guide.bullet.animationSettings.description":
+      "Фино настройте анимациите при прехвърляне и визуалните ефекти в приложението.",
+    "guide.bullet.backupRestore.title": "Архивиране и възстановяване",
+    "guide.bullet.backupRestore.description":
+      "Експортирайте всичките си данни във файл и ги възстановете на ново устройство по всяко време.",
+    "guide.bullet.manualEdit.title": "Ръчно редактиране",
+    "guide.bullet.manualEdit.description":
+      "Редактирайте или изтрийте директно всяка сфера, спомен или момент от техните екрани с подробности.",
+    "guidePrompt.title": "Ръководство",
+    "guidePrompt.message": "Научете как да извлечете максимума от Sferas.",
+    "guidePrompt.openGuide": "Отвори ръководството",
+    "guidePrompt.dismiss": "Не показвай отново",
 
     "onboarding.language.title": "Изберете език",
     "onboarding.language.subtitle":
