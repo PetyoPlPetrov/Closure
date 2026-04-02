@@ -53,7 +53,6 @@ import {
   useEventInAppNotificationPreference,
 } from "@/utils/EventInAppNotificationPreferenceProvider";
 import { MomentNotificationProvider } from "@/utils/MomentNotificationProvider";
-import { NotificationNudgePreferenceProvider } from "@/utils/NotificationNudgePreferenceProvider";
 import { NotificationsProvider } from "@/utils/NotificationsProvider";
 import { OnboardingGateContext } from "@/utils/OnboardingGateContext";
 import {
@@ -193,20 +192,6 @@ function AppContent() {
       const hasNoData = totalEntities === 0 && totalMemories === 0;
       const isDevReRun = __DEV__ && onboardingRequestTrigger > 0;
       const shouldShow = !completed && (hasNoData || isDevReRun);
-      if (__DEV__) {
-        console.log("[OnboardingGate] Data check:", {
-          getOnboardingCompleted: completed,
-          profiles: profiles.length,
-          jobs: jobs.length,
-          familyMembers: familyMembers.length,
-          friends: friends.length,
-          hobbies: hobbies.length,
-          totalEntities,
-          idealizedMemories: totalMemories,
-          hasNoData,
-          shouldShowOnboarding: shouldShow,
-        });
-      }
       setShowOnboarding(shouldShow);
     };
     check();
@@ -250,7 +235,7 @@ function AppContent() {
     return () => clearTimeout(t);
   }, [isAnimationComplete]);
 
-  // In-app reminders for past attended Sfera events (dev and prod). __DEV__ only wraps console.log; due times are 1/2/3 min in dev, next-day 10:00 in prod.
+  // In-app reminders for past attended Sfera events (dev and prod). Due times are 1/2/3 min in dev, next-day 10:00 in prod.
   const showEventMemoryReminderIfNeeded = useCallback(
     (skipThrottle?: boolean) => {
       // Don't show until preference is loaded (avoids showing on default true before AsyncStorage read)
@@ -266,43 +251,17 @@ function AppContent() {
           const [past, goldenUsed] = result as [SferaEvent[], Set<string>];
           for (const event of past) {
             if (goldenUsed.has(event.id)) {
-              if (__DEV__)
-                console.log(
-                  "[Event memory] Skipping event",
-                  event.id,
-                  `"${event.name}" – already linked with memory (no notifications)`,
-                );
               continue;
             }
             // Get or create schedule for this past event
-            const { schedule, created } = await getOrCreateEventReminderSchedule(event);
-            if (created && __DEV__) {
-              console.log(
-                "[Event memory] Created new schedule for past event",
-                event.id,
-                `"${event.name}" with due times:`,
-                schedule.dueTimes,
-              );
-            }
+            const { schedule } = await getOrCreateEventReminderSchedule(event);
             if (schedule.shownCount >= 3) {
-              if (__DEV__)
-                console.log(
-                  "[Event memory] Skipping event",
-                  event.id,
-                  `"${event.name}" – already shown 3/3 reminders`,
-                );
               continue;
             }
             const nextDue = schedule.dueTimes[schedule.shownCount];
             if (now < nextDue) {
-              // Not yet due (e.g. dev: first reminder in 1 min). Schedule check at due time.
+              // Not yet due. Schedule check at due time.
               const delay = Math.max(0, nextDue - now);
-              if (__DEV__)
-                console.log(
-                  "[Event memory] Next reminder for",
-                  event.id,
-                  `"${event.name}" in ${Math.round(delay / 1000)}s (reminder ${schedule.shownCount + 1}/3)`,
-                );
               if (nextReminderTimeoutRef.current)
                 clearTimeout(nextReminderTimeoutRef.current);
               nextReminderTimeoutRef.current = setTimeout(() => {
@@ -315,12 +274,6 @@ function AppContent() {
             const newCount = await incrementEventReminderInAppShownCount(
               event.id,
             );
-            if (__DEV__)
-              console.log(
-                "[Event memory] Showing in-app reminder for event:",
-                event.id,
-                `"${event.name}" (reminder ${newCount}/3)`,
-              );
             const title = "Create a memory for your event";
             const message = `You attended "${event.name}". Create a memory for it with Sfera AI.`;
             const eventDate = parseEventStartDate(event.startDate) ?? undefined;
@@ -337,9 +290,9 @@ function AppContent() {
                   getPendingAIResponse().then(setPendingAIResponseForModal);
                 });
               },
-              onDismiss: undefined, // next reminder fires at its due time (timeout or next app active)
+              onDismiss: undefined,
             });
-            // Schedule the next reminder at its due time (dev: 1 min later; prod: next day 10:00)
+            // Schedule the next reminder at its due time
             if (newCount < 3) {
               const delay = Math.max(
                 0,
@@ -625,22 +578,20 @@ export default function RootLayout() {
                   <VisualSettingsProvider>
                     <NotificationsProvider>
                       <AIInsightsConsentProvider>
-                        <NotificationNudgePreferenceProvider>
-                          <EventInAppNotificationPreferenceProvider>
-                            <HomeTransitionLoaderProvider>
-                              <UnsavedChangesProvider>
-                                <View style={{ flex: 1 }}>
-                                  <InAppNotificationProvider>
-                                    <SferaEventsBadgeProvider>
-                                      <AppContent />
-                                    </SferaEventsBadgeProvider>
-                                  </InAppNotificationProvider>
-                                  <HomeTransitionLoaderOverlay />
-                                </View>
-                              </UnsavedChangesProvider>
-                            </HomeTransitionLoaderProvider>
-                          </EventInAppNotificationPreferenceProvider>
-                        </NotificationNudgePreferenceProvider>
+                        <EventInAppNotificationPreferenceProvider>
+                          <HomeTransitionLoaderProvider>
+                            <UnsavedChangesProvider>
+                              <View style={{ flex: 1 }}>
+                                <InAppNotificationProvider>
+                                  <SferaEventsBadgeProvider>
+                                    <AppContent />
+                                  </SferaEventsBadgeProvider>
+                                </InAppNotificationProvider>
+                                <HomeTransitionLoaderOverlay />
+                              </View>
+                            </UnsavedChangesProvider>
+                          </HomeTransitionLoaderProvider>
+                        </EventInAppNotificationPreferenceProvider>
                       </AIInsightsConsentProvider>
                     </NotificationsProvider>
                   </VisualSettingsProvider>

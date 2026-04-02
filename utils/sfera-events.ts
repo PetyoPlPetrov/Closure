@@ -547,22 +547,8 @@ export async function fetchSferaEvents(): Promise<{ events: SferaEvent[] }> {
   const url = await getEventsSheetUrl();
   if (!url) return { events: await getCachedEvents() };
   try {
-    if (__DEV__) {
-      console.log(
-        "[Sfera fetch] Source:",
-        isScriptUrl(url) ? "script (JSON)" : "CSV",
-        "| URL:",
-        url.slice(0, 80) + (url.length > 80 ? "..." : ""),
-      );
-    }
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) {
-      if (__DEV__)
-        console.log(
-          "[Sfera fetch] Request failed:",
-          res.status,
-          url.slice(0, 60) + "...",
-        );
       return { events: await getCachedEvents() };
     }
     const text = await res.text();
@@ -582,25 +568,11 @@ export async function fetchSferaEvents(): Promise<{ events: SferaEvent[] }> {
           (obj.items as unknown[]);
       }
       if (!Array.isArray(arr)) {
-        if (__DEV__) {
-          console.log(
-            "[Sfera fetch] Script returned no events array. Keys:",
-            data && typeof data === "object"
-              ? Object.keys(data as object)
-              : "n/a",
-          );
-        }
         return { events: await getCachedEvents() };
       }
       for (let i = 0; i < arr.length; i++) {
         const raw = arr[i] as Record<string, unknown>;
         if (raw && typeof raw === "object") {
-          if (__DEV__ && i === 0) {
-            console.log(
-              "[Sfera fetch] First event raw keys:",
-              Object.keys(raw),
-            );
-          }
           const evt = jsonToEvent(raw, i);
           if (evt) events.push(evt);
         }
@@ -630,7 +602,6 @@ export async function fetchSferaEvents(): Promise<{ events: SferaEvent[] }> {
     await AsyncStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify(activeOnly));
     return { events: activeOnly };
   } catch (err) {
-    console.warn("[Sfera fetch] error:", err);
     return { events: await getCachedEvents() };
   }
 }
@@ -1015,11 +986,6 @@ export async function scheduleEventRemindersOnJoin(
 ): Promise<void> {
   const existing = await getEventReminderInAppSchedule(event.id);
   if (existing) {
-    if (__DEV__)
-      console.log(
-        "[Event reminders] Schedule already exists for event:",
-        event.id,
-      );
     return;
   }
 
@@ -1028,14 +994,6 @@ export async function scheduleEventRemindersOnJoin(
   const map = await getEventReminderScheduleMap();
   map[event.id] = schedule;
   await setEventReminderScheduleMap(map);
-
-  if (__DEV__)
-    console.log(
-      "[Event reminders] Scheduled reminders on join for event:",
-      event.id,
-      "due times:",
-      dueTimes,
-    );
 }
 
 /** After showing a reminder, increment shown count. Returns new count. */

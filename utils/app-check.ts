@@ -82,15 +82,7 @@ export async function initializeAppCheckService(): Promise<void> {
         debugToken: useProduction ? undefined : DEBUG_TOKEN,
       };
     }
-    
-    // Log configuration for debugging (especially important for production builds)
-    if (Platform.OS === 'ios') {
-      console.log(`📱 App Check Configuration: ${useProduction ? 'PRODUCTION' : 'DEBUG'}`);
-      console.log(`   Provider: ${config.apple?.provider || 'none'}`);
-      console.log(`   Execution Environment: ${Constants.executionEnvironment}`);
-      console.log(`   __DEV__: ${__DEV__}`);
-    }
-    
+
     rnfbProvider.configure(config);
 
     /**
@@ -115,27 +107,8 @@ export async function initializeAppCheckService(): Promise<void> {
       // This ensures the token is available before any Firebase services are used
       const { token } = await firebase.appCheck().getToken(true);
       
-      // Verify App Check was initialized correctly
-      if (token && token.length > 0) {
-        console.log('✅ AppCheck verification passed');
-        console.log(`   Token length: ${token.length} characters`);
-      } else {
-        console.log('⚠️ AppCheck verification failed: token is empty');
-        if (useProduction && Platform.OS === 'ios') {
-          console.log('   ⚠️ CRITICAL: Production build but token is empty!');
-          console.log('   This usually means:');
-          console.log('   1. App Attest is not enabled in Firebase Console');
-          console.log('   2. App is not registered in Firebase App Check');
-          console.log('   3. Entitlement is missing or incorrect');
-        }
-      }
-    } catch (error) {
-      console.log('❌ AppCheck verification failed:', error instanceof Error ? error.message : String(error));
-      if (useProduction && Platform.OS === 'ios') {
-        console.log('   ⚠️ CRITICAL: Production build failed to get token!');
-        console.log('   Check Firebase Console -> App Check -> Apps -> iOS');
-        console.log('   Ensure App Attest is enabled and app is registered');
-      }
+    } catch {
+      // Token verification failure is non-fatal
     }
   } catch {
     // Don't throw - allow app to continue without App Check
@@ -204,7 +177,6 @@ export function isAppCheckInitialized(): boolean {
 export async function verifyAppCheck(): Promise<boolean> {
   try {
     if (!isInitialized) {
-      console.log('❌ AppCheck verification failed: not initialized');
       return false;
     }
 
@@ -212,14 +184,11 @@ export async function verifyAppCheck(): Promise<boolean> {
     const { token } = await firebase.appCheck().getToken(true);
     
     if (token && token.length > 0) {
-      console.log('✅ AppCheck verification passed');
       return true;
     } else {
-      console.log('❌ AppCheck verification failed: token is empty');
       return false;
     }
   } catch (error) {
-    console.log('❌ AppCheck verification failed:', error instanceof Error ? error.message : String(error));
     return false;
   }
 }

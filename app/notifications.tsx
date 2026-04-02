@@ -10,7 +10,6 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useEventInAppNotificationPreference } from '@/utils/EventInAppNotificationPreferenceProvider';
-import { useNotificationNudgePreference } from '@/utils/NotificationNudgePreferenceProvider';
 import { useNotificationsManager } from '@/utils/NotificationsProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import {
@@ -39,7 +38,6 @@ export default function NotificationsScreen() {
 
   const { friends, familyMembers, profiles } = useJourney();
   const { assignments } = useNotificationsManager();
-  const notificationNudge = useNotificationNudgePreference();
   const eventInAppPref = useEventInAppNotificationPreference();
 
   const [eventReminders, setEventReminders] = useState<EventReminderInfo[]>([]);
@@ -151,27 +149,6 @@ export default function NotificationsScreen() {
       {/* Section 1: Banners & alerts */}
       {renderSectionHeader(t('notifications.section.banners'))}
       <View style={styles.sectionGroup}>
-        <View style={styles.card}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1 }}>
-              <ThemedText size="l" weight="bold">
-                {t('settings.notificationNudge.title')}
-              </ThemedText>
-              <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
-                {t('settings.notificationNudge.description')}
-              </ThemedText>
-            </View>
-            <Switch
-              value={notificationNudge.enabled}
-              onValueChange={(v) => void notificationNudge.setEnabled(v)}
-              trackColor={{
-                false: 'rgba(150,150,150,0.35)',
-                true: colors.primary,
-              }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-        </View>
         <View style={styles.card}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>

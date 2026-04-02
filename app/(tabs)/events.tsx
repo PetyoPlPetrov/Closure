@@ -137,9 +137,6 @@ function logEventPositions(
   const tag = "[Sfera events orbit]";
   const step = (2 * Math.PI) / total;
   const orbitAngle = focusedIdx * step;
-  console.log(
-    `${tag} focusedEventIndex=${focusedIdx} total=${total} orbitAngle=${((orbitAngle * 180) / Math.PI).toFixed(1)}°`,
-  );
   events.forEach((event, eventIdx) => {
     const angle = Math.PI / 2 - eventIdx * step + orbitAngle;
     const angleDeg = (angle * 180) / Math.PI;
@@ -147,9 +144,6 @@ function logEventPositions(
     const size = isFocused ? FOCUSED_EVENT_SIZE : SMALL_EVENT_SIZE;
     const x = CENTER_X + Math.cos(angle) * EVENT_ORBIT_RADIUS - size / 2;
     const y = CENTER_Y + Math.sin(angle) * EVENT_ORBIT_RADIUS - size / 2;
-    console.log(
-      `  [${eventIdx}] "${event.name}" angle=${angleDeg.toFixed(1)}° left=${x.toFixed(0)} top=${y.toFixed(0)} ${isFocused ? "FOCUSED" : "orbit"}`,
-    );
   });
 }
 
@@ -1357,31 +1351,6 @@ export default function EventsTab() {
     setAttendingIds(attending);
     setPastEvents(past);
     setGoldenUsedIds(goldenUsed);
-    if (__DEV__) {
-      console.log(
-        "[Events tab] syncLocalState: past attended count =",
-        past.length,
-        past.length
-          ? past.map((e) => ({
-              id: e.id,
-              name: e.name,
-              startDate: e.startDate,
-            }))
-          : [],
-      );
-      const plusPrivate = list.filter(
-        (e) => e.type === "plus" || e.type === "private",
-      );
-      if (plusPrivate.length > 0) {
-        plusPrivate.forEach((e) => {
-          const urls = getEventImageUrls(e);
-          console.log(
-            `[Events tab] ${e.type} event "${e.name}" (${e.id}): imageUrl="${e.imageUrl}" -> getEventImageUrls count=${urls.length}`,
-            urls,
-          );
-        });
-      }
-    }
     void scheduleEventMemoryReminders();
   }, []);
 
@@ -2706,14 +2675,6 @@ export default function EventsTab() {
                     if (__DEV__) {
                       const { x, y } = e.nativeEvent.layout;
                       const right = x + width;
-                      console.log("[Events card layout] expandedCard   ", {
-                        left: x,
-                        right,
-                        width,
-                        height,
-                        y,
-                        padding: EXPANDED_CARD_PADDING * fontScale,
-                      });
                     }
                   }}
                   onPress={(e) => e.stopPropagation()}

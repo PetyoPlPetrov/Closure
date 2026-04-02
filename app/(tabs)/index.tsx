@@ -17,10 +17,8 @@ import { useLargeDevice } from "@/hooks/use-large-device";
 import { GifAnimationPreview } from "@/library/components/gif-animation-preview";
 import { WalkthroughModal } from "@/library/components/walkthrough-modal";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
-import { getLocalDateString } from "@/utils/ai-rate-limiter";
 import {
   analyzeLessonExamAnswer,
-  processHomeEncouragementPrompt,
 } from "@/utils/ai-service";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
 import { logError } from "@/utils/error-logger";
@@ -30,7 +28,6 @@ import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
-import { useNotificationNudgePreference } from "@/utils/NotificationNudgePreferenceProvider";
 import {
   getOnboardingCompleted,
   getShowWalkthroughAfterOnboarding,
@@ -141,10 +138,6 @@ const AnimatedPressable = createAnimatedComponent(Pressable);
 // Create animated Circle component for loading progress
 const AnimatedCircle = createAnimatedComponent(Circle);
 
-// Constants for LinearGradient and Pressable props (avoid recreating objects on every render)
-const LINEAR_GRADIENT_START = { x: 0, y: 0 };
-const LINEAR_GRADIENT_END = { x: 1, y: 1 };
-const CLOSE_BUTTON_HITSLOP = { top: 8, bottom: 8, left: 8, right: 8 };
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const h = hex.replace("#", "");
@@ -13637,15 +13630,6 @@ export default function HomeScreen() {
       familyMembers.length +
       friends.length +
       hobbies.length;
-    console.log("[HomeScreen] journey entity counts", {
-      isLoading,
-      profiles: profiles.length,
-      jobs: jobs.length,
-      familyMembers: familyMembers.length,
-      friends: friends.length,
-      hobbies: hobbies.length,
-      total,
-    });
   }, [
     isLoading,
     profiles.length,
@@ -14183,565 +14167,15 @@ export default function HomeScreen() {
     [getOverallSunnyPercentage],
   );
 
-  // Check if there are any moments (memories) at all - if yes, show encouraging message even if percentage is 0
+  // Check if there are any moments (memories) at all
   const hasAnyMoments = useMemo(() => {
     return idealizedMemories && idealizedMemories.length > 0;
   }, [idealizedMemories]);
 
-  // State to track if encouragement message is visible (shown automatically on tab open)
-  const [isEncouragementVisible, setIsEncouragementVisible] = useState(false);
-  const [aiEncouragementText, setAiEncouragementText] = useState<string | null>(
-    null,
-  );
-  const [aiEncouragementLoading, setAiEncouragementLoading] = useState(false);
-  const [aiEncouragementError, setAiEncouragementError] = useState(false);
+  const messageTop = 180; // Position for lesson notification (below streak badge)
+
   const [aiInsightsConsentVisible, setAiInsightsConsentVisible] =
     useState(false);
-  const aiInsightsConsentPromptedRef = useRef(false);
-  // Track if encouragement request is in progress to prevent duplicate calls
-  const encouragementRequestInProgressRef = useRef(false);
-  const { enabled: notificationNudgeEnabled } =
-    useNotificationNudgePreference();
-  // When user closes the banner, bump this to force a new AI message next time it shows.
-  const [encouragementCacheBust, setEncouragementCacheBust] = useState(0);
-  const lastEncouragementCacheKeyRef = useRef<string | null>(null);
-  const ENCOURAGEMENT_REQUESTS_KEY = "@sferas:ai_encouragement_requests";
-  const ENCOURAGEMENT_MESSAGES_KEY = "@sferas:ai_encouragement_messages";
-  const ENCOURAGEMENT_REQUESTS_PER_DAY = 1; // Only one AI request per day, returns multiple messages
-
-  const getEncouragementRequestUsage = async () => {
-    const today = getLocalDateString();
-    try {
-      const raw = await AsyncStorage.getItem(ENCOURAGEMENT_REQUESTS_KEY);
-      if (!raw) return { count: 0, today };
-      const parsed = JSON.parse(raw);
-      if (parsed?.date === today && typeof parsed.count === "number") {
-        return { count: parsed.count as number, today };
-      }
-    } catch {
-      // ignore parse errors and fallback to 0
-    }
-    return { count: 0, today };
-  };
-
-  const incrementEncouragementRequestCount = async () => {
-    const today = getLocalDateString();
-    let nextCount = 1;
-    try {
-      const raw = await AsyncStorage.getItem(ENCOURAGEMENT_REQUESTS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.date === today && typeof parsed.count === "number") {
-          nextCount = (parsed.count as number) + 1;
-        }
-      }
-    } catch {
-      // ignore parse errors and start fresh
-    }
-    await AsyncStorage.setItem(
-      ENCOURAGEMENT_REQUESTS_KEY,
-      JSON.stringify({ date: today, count: nextCount }),
-    );
-    return nextCount;
-  };
-
-  /** Reset today's request count when cache was lost (allows retry). */
-  const resetEncouragementRequestCountForToday = async () => {
-    const today = getLocalDateString();
-    await AsyncStorage.setItem(
-      ENCOURAGEMENT_REQUESTS_KEY,
-      JSON.stringify({ date: today, count: 0 }),
-    );
-  };
-
-  /**
-   * Store today's batch of AI encouragement messages (from single daily request).
-   * Messages are automatically cleared when the date changes to avoid unneeded storage.
-   */
-  const storeTodayEncouragementMessages = async (messages: string[]) => {
-    const today = getLocalDateString();
-    try {
-      const validMessages = messages
-        .filter((m: any) => typeof m === "string" && m.trim().length > 0)
-        .map((m: string) => m.trim());
-
-      if (validMessages.length === 0) return;
-
-      await AsyncStorage.setItem(
-        ENCOURAGEMENT_MESSAGES_KEY,
-        JSON.stringify({ date: today, messages: validMessages }),
-      );
-    } catch {
-      // Swallow errors; this is a best-effort cache.
-    }
-  };
-
-  /**
-   * Pick a random message from today's stored batch of encouragement messages.
-   * If the stored blob is from a previous day, clear it so it doesn't accumulate indefinitely.
-   * This is called when:
-   * - Banner is dismissed (to show a different message next time)
-   * - Threshold/content changes (to refresh the message)
-   */
-  const getRandomTodayEncouragementMessage = async (): Promise<
-    string | null
-  > => {
-    const today = getLocalDateString();
-    try {
-      const raw = await AsyncStorage.getItem(ENCOURAGEMENT_MESSAGES_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (parsed?.date !== today || !Array.isArray(parsed.messages)) {
-        await AsyncStorage.removeItem(ENCOURAGEMENT_MESSAGES_KEY);
-        return null;
-      }
-      const validMessages: string[] = parsed.messages
-        .filter((m: any) => typeof m === "string")
-        .map((m: string) => m.trim())
-        .filter(Boolean);
-      if (validMessages.length === 0) return null;
-      const idx = Math.floor(Math.random() * validMessages.length);
-      return validMessages[idx] || null;
-    } catch {
-      return null;
-    }
-  };
-
-  // Show encouragement message when home tab is opened. Do NOT hide when leaving—
-  // message persists across tab switches and only disappears when user closes it
-  // or we replace it with a new one (threshold change). Only show when nudge is enabled in settings.
-  const ENCOURAGEMENT_DELAY_MS = 180;
-  useFocusEffect(
-    React.useCallback(() => {
-      if (!hasAnyMoments || !notificationNudgeEnabled) return;
-
-      const timer = setTimeout(() => {
-        setIsEncouragementVisible(true);
-      }, ENCOURAGEMENT_DELAY_MS);
-
-      return () => clearTimeout(timer);
-    }, [hasAnyMoments, notificationNudgeEnabled]),
-  );
-
-  // Build fallback message (existing logic)
-  const fallbackEncouragementText = useMemo(() => {
-    return overallSunnyPercentage > 50
-      ? t("spheres.encouragement.goodMomentsPrevail")
-      : t("spheres.encouragement.keepPushing");
-  }, [overallSunnyPercentage, t]);
-
-  // Ensure we always show a sparkle at the end (the AI sometimes omits it).
-  // If the AI already included a sparkle/AI-style icon at the end, don't double-append.
-  const encouragementTextWithSparkle = useMemo(() => {
-    const base = (
-      aiEncouragementText ||
-      fallbackEncouragementText ||
-      ""
-    ).trim();
-    if (!base) return base;
-    // If it already ends with a sparkle (or common variants), keep as-is.
-    // Handles cases like: "…✨", "… ✨", "…✨✨", "…✨." (punctuation after).
-    if (/(?:✨|🌟|⭐️?)+[\s.!?…]*$/.test(base)) return base;
-    return `${base} ✨`;
-  }, [aiEncouragementText, fallbackEncouragementText]);
-
-  const fallbackEncouragementTextClean = useMemo(() => {
-    // Some local translations include sparkle/star emojis; when AI is disabled we don't want AI-like adornments.
-    return (fallbackEncouragementText || "")
-      .trim()
-      .replace(/(?:\s*(?:✨|🌟|⭐️?)+[\s.!?…]*)+$/g, "")
-      .trim();
-  }, [fallbackEncouragementText]);
-
-  // AI encouragement (cached). Keeps existing logic as fallback. Skip entirely when nudge is disabled.
-  useEffect(() => {
-    let cancelled = false;
-
-    const run = async () => {
-      if (
-        !hasAnyMoments ||
-        !isEncouragementVisible ||
-        !notificationNudgeEnabled
-      ) {
-        return;
-      }
-
-      // Prevent duplicate concurrent calls
-      if (encouragementRequestInProgressRef.current) {
-        return;
-      }
-
-      // Gate AI usage behind explicit consent.
-      const consent = aiConsent.choice;
-      if (!aiConsent.isLoaded) {
-        return;
-      }
-      if (consent !== "enabled") {
-        // Only show the prompt once automatically; otherwise silently fallback.
-        if (consent === null && !aiInsightsConsentPromptedRef.current) {
-          aiInsightsConsentPromptedRef.current = true;
-          if (!cancelled) setAiInsightsConsentVisible(true);
-        }
-        if (!cancelled) setAiEncouragementText(null);
-        if (!cancelled) setAiEncouragementError(false);
-        if (!cancelled) setAiEncouragementLoading(false);
-        return;
-      }
-
-      // While we fetch a fresh AI message, avoid flashing fallback text.
-      setAiEncouragementError(false);
-      setAiEncouragementLoading(true);
-
-      // Yield to main thread so view transitions (e.g. switching to Classic) are not blocked.
-      // Heavy flatMap runs after yield; run() always starts so we never lose the nudge to a cancelled timeout.
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
-      if (cancelled) return;
-
-      // Derive signal for prompt
-      const sunnyMoments = (idealizedMemories || []).flatMap((m: any) =>
-        (m.goodFacts || []).map((x: any) => x.text).filter(Boolean),
-      );
-      const cloudyMoments = (idealizedMemories || []).flatMap((m: any) =>
-        (m.hardTruths || []).map((x: any) => x.text).filter(Boolean),
-      );
-      const lessons = (idealizedMemories || []).flatMap((m: any) =>
-        (m.lessonsLearned || []).map((x: any) => x.text).filter(Boolean),
-      );
-
-      // Latest 4 lessons, 2 sunny moments, 0 cloudy (reduces payload, focuses on positive)
-      const sampleLessons = lessons.slice(-4);
-      const sampleSunny = sunnyMoments.slice(-2);
-      const sampleCloudy: string[] = [];
-
-      // Make the AI banner message a bit longer than the current fallback copy
-      const targetCharCount = Math.round(
-        ((fallbackEncouragementText || "").length || 120) * 1.35,
-      );
-
-      // Calculate threshold bucket to detect when content changes meaningfully
-      // This triggers picking a new random message from today's batch
-      const bucket = Math.round(overallSunnyPercentage / 10) * 10;
-      const sunnyCountBucket = Math.floor(sunnyMoments.length / 5) * 5;
-      const lessonsCountBucket = Math.floor(lessons.length / 3) * 3;
-      const contentFingerprint = `${sampleLessons.join(" ").slice(0, 60)}|${sampleSunny.join(" ").slice(0, 60)}|${sampleCloudy.join(" ").slice(0, 60)}`;
-      const contentBucket = contentFingerprint.length;
-      const thresholdKey = `${bucket}:s${sunnyCountBucket}:l${lessonsCountBucket}:c${contentBucket}`;
-
-      try {
-        // Check if we already have today's batch of messages
-        const existingMessages = await getRandomTodayEncouragementMessage();
-        const hasTodayBatch = existingMessages !== null;
-
-        // Always check usage to verify count (even if we have cached batch)
-        const { count } = await getEncouragementRequestUsage();
-
-        if (hasTodayBatch) {
-          // We have today's batch - check if we need a new random message
-          // (threshold changed or cache bust from dismissal)
-          const lastThresholdKey = lastEncouragementCacheKeyRef.current;
-          const thresholdChanged = lastThresholdKey !== thresholdKey;
-
-          if (thresholdChanged || encouragementCacheBust > 0) {
-            // Threshold changed: content changed, pick new message.
-            // Cache bust only (from dismiss): we already set new message in dismiss handler—don't re-pick to avoid blink on tab return.
-            if (thresholdChanged) {
-              const randomMessage = await getRandomTodayEncouragementMessage();
-              if (randomMessage && !cancelled) {
-                setAiEncouragementText(randomMessage);
-                setAiEncouragementLoading(false);
-                lastEncouragementCacheKeyRef.current = thresholdKey;
-                return;
-              }
-            } else if (!cancelled && aiEncouragementText) {
-              // Cache bust from dismiss, we already have the "next" message—use it
-              setAiEncouragementLoading(false);
-              lastEncouragementCacheKeyRef.current = thresholdKey;
-              return;
-            } else {
-              // Cache bust but no current message—pick one
-              const randomMessage = await getRandomTodayEncouragementMessage();
-              if (randomMessage && !cancelled) {
-                setAiEncouragementText(randomMessage);
-                setAiEncouragementLoading(false);
-                lastEncouragementCacheKeyRef.current = thresholdKey;
-                return;
-              }
-            }
-          } else {
-            // Same threshold, use current message (don't change it)
-            if (!cancelled && aiEncouragementText) {
-              setAiEncouragementLoading(false);
-              return;
-            }
-            // No current message but we have batch - pick one
-            const randomMessage = await getRandomTodayEncouragementMessage();
-            if (randomMessage && !cancelled) {
-              setAiEncouragementText(randomMessage);
-              setAiEncouragementLoading(false);
-              lastEncouragementCacheKeyRef.current = thresholdKey;
-              return;
-            }
-          }
-        }
-
-        // No batch for today - check rate limit and make ONE request
-        // Note: count was already checked above, reuse it here
-        if (count >= ENCOURAGEMENT_REQUESTS_PER_DAY) {
-          // Already made today's request - try to get a random from batch
-          const randomMessage = await getRandomTodayEncouragementMessage();
-          if (randomMessage && !cancelled) {
-            setAiEncouragementText(randomMessage);
-            setAiEncouragementLoading(false);
-            lastEncouragementCacheKeyRef.current = thresholdKey;
-          } else if (!cancelled) {
-            // Cache lost (e.g. request failed before store, or storage cleared) — reset count and retry
-            await resetEncouragementRequestCountForToday();
-            // Fall through to make a new request
-          } else {
-            return;
-          }
-        }
-
-        encouragementRequestInProgressRef.current = true;
-
-        try {
-          const resp = await processHomeEncouragementPrompt({
-            overallSunnyPercentage,
-            sunnyMomentsCount: sunnyMoments.length,
-            cloudyMomentsCount: cloudyMoments.length,
-            sampleLessons,
-            sampleSunnyMoments: sampleSunny,
-            sampleCloudyMoments: sampleCloudy,
-            targetCharCount,
-            language: appLanguage === "bg" ? "bg" : "en",
-          });
-
-          const messages = resp?.messages || [];
-          if (messages.length === 0) {
-            encouragementRequestInProgressRef.current = false;
-            if (!cancelled) {
-              setAiEncouragementLoading(false);
-              setAiEncouragementError(true);
-            }
-            return;
-          }
-
-          // Store all messages from today's batch
-          await storeTodayEncouragementMessages(messages);
-
-          // Only count the request after successful store (avoids count=1 with no cache if request failed)
-          await incrementEncouragementRequestCount();
-
-          // Pick a random message to display now
-          const randomMessage =
-            messages[Math.floor(Math.random() * messages.length)];
-          if (!cancelled && randomMessage) {
-            setAiEncouragementText(randomMessage);
-            setAiEncouragementLoading(false);
-            lastEncouragementCacheKeyRef.current = thresholdKey;
-          }
-        } finally {
-          encouragementRequestInProgressRef.current = false;
-        }
-      } catch (e) {
-        // Keep fallback behavior
-        encouragementRequestInProgressRef.current = false;
-        logError(e, "home-ai-encouragement");
-        if (!cancelled) setAiEncouragementText(null);
-        if (!cancelled) setAiEncouragementError(true);
-        if (!cancelled) setAiEncouragementLoading(false);
-      }
-    };
-
-    run();
-    return () => {
-      // If a fetch is in progress, don't cancel: let it complete and apply state.
-      // Otherwise we'd clear loading, discard the result, and the banner would disappear.
-      if (!encouragementRequestInProgressRef.current) {
-        cancelled = true;
-        setAiEncouragementLoading(false);
-      }
-    };
-  }, [
-    hasAnyMoments,
-    isEncouragementVisible,
-    notificationNudgeEnabled,
-    idealizedMemories,
-    overallSunnyPercentage,
-    fallbackEncouragementText,
-    appLanguage,
-    encouragementCacheBust,
-    aiInsightsConsentVisible,
-    aiConsent.choice,
-    aiConsent.isLoaded,
-  ]);
-
-  // Message position constants
-  // Badge is at top: 80, badge height ~40px, so position message slightly below badge
-  const messageTop = 180; // Position for encouragement message and lesson notification (below streak badge)
-  const messageLeft = 20;
-  const messageRight = 20;
-
-  // Static styles for encouragement message (no animation)
-  const encouragementStaticStyle = {
-    opacity:
-      notificationNudgeEnabled && isEncouragementVisible && hasAnyMoments
-        ? 1
-        : 0,
-  };
-
-  // Memoized styles for encouragement message section to avoid recreating on every render
-  const encouragementContainerStyle = useMemo(
-    () => ({
-      position: "absolute" as const,
-      top: messageTop,
-      left: messageLeft,
-      right: messageRight,
-      zIndex: 200,
-      paddingLeft: 24 * fontScale,
-      paddingRight: 42 * fontScale, // Extra padding for close button (28px button + 12px margin + 12px spacing)
-      paddingVertical: 18 * fontScale,
-      borderRadius: 16 * fontScale,
-      backgroundColor:
-        colorScheme === "dark"
-          ? "rgba(26, 35, 50, 0.95)" // Semi-transparent dark background
-          : "rgba(255, 255, 255, 0.95)", // Semi-transparent light background
-      // Moderate shadow effect
-      shadowColor: colorScheme === "dark" ? "#64B5F6" : "#000",
-      shadowOffset: { width: 0, height: isTablet ? 4 : 3 },
-      shadowOpacity: colorScheme === "dark" ? 0.5 : 0.2,
-      shadowRadius: isTablet ? 12 : 8,
-      elevation: 6, // For Android - moderate elevation
-    }),
-    [messageTop, messageLeft, messageRight, fontScale, colorScheme, isTablet],
-  );
-
-  const closeButtonStyle = useMemo(
-    () => ({
-      position: "absolute" as const,
-      top: 12 * fontScale,
-      right: 12 * fontScale,
-      width: 28 * fontScale,
-      height: 28 * fontScale,
-      borderRadius: 14 * fontScale,
-      backgroundColor:
-        colorScheme === "dark"
-          ? "rgba(255, 255, 255, 0.1)"
-          : "rgba(0, 0, 0, 0.08)",
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      zIndex: 10,
-    }),
-    [fontScale, colorScheme],
-  );
-
-  const gradientColors = useMemo(
-    (): [string, string, string] =>
-      overallSunnyPercentage > 50
-        ? colorScheme === "dark"
-          ? ([
-              "rgba(100, 150, 255, 0.15)",
-              "rgba(100, 150, 255, 0.08)",
-              "rgba(100, 150, 255, 0.12)",
-            ] as [string, string, string])
-          : ([
-              "rgba(100, 150, 255, 0.12)",
-              "rgba(100, 150, 255, 0.06)",
-              "rgba(100, 150, 255, 0.1)",
-            ] as [string, string, string])
-        : colorScheme === "dark"
-          ? ([
-              "rgba(255, 255, 255, 0.08)",
-              "rgba(255, 255, 255, 0.04)",
-              "rgba(255, 255, 255, 0.06)",
-            ] as [string, string, string])
-          : ([
-              "rgba(0, 0, 0, 0.05)",
-              "rgba(0, 0, 0, 0.02)",
-              "rgba(0, 0, 0, 0.04)",
-            ] as [string, string, string]),
-    [overallSunnyPercentage, colorScheme],
-  );
-
-  const gradientStyle = useMemo(
-    () => ({
-      position: "absolute" as const,
-      left: 0,
-      right: 0,
-      top: 0,
-      bottom: 0,
-      borderRadius: 16 * fontScale,
-      overflow: "hidden" as const, // Ensure gradient respects border radius
-    }),
-    [fontScale],
-  );
-
-  const borderStyle = useMemo(
-    () => ({
-      position: "absolute" as const,
-      left: 0,
-      right: 0,
-      top: 0,
-      bottom: 0,
-      borderRadius: 16 * fontScale,
-      borderWidth: 1.5,
-      borderColor:
-        overallSunnyPercentage > 50
-          ? colorScheme === "dark"
-            ? "rgba(100, 150, 255, 0.4)"
-            : "rgba(100, 150, 255, 0.3)"
-          : colorScheme === "dark"
-            ? "rgba(255, 255, 255, 0.15)"
-            : "rgba(0, 0, 0, 0.12)",
-    }),
-    [fontScale, overallSunnyPercentage, colorScheme],
-  );
-
-  const shadowGlowStyle = useMemo(
-    () => ({
-      position: "absolute" as const,
-      left: -10,
-      right: -10,
-      top: -10,
-      bottom: -10,
-      borderRadius: 20 * fontScale,
-      backgroundColor:
-        colorScheme === "dark"
-          ? "rgba(100, 150, 255, 0.2)"
-          : "rgba(100, 150, 255, 0.15)",
-      opacity: 0.3,
-      zIndex: -1,
-    }),
-    [fontScale, colorScheme],
-  );
-
-  const encouragementTextStyle = useMemo(
-    () => ({
-      textAlign: "center" as const,
-      lineHeight: 22 * fontScale,
-      fontWeight: (overallSunnyPercentage > 50 ? "600" : "500") as
-        | "600"
-        | "500",
-      color: overallSunnyPercentage > 50 ? colors.primaryLight : colors.text,
-      textShadowColor:
-        overallSunnyPercentage > 50 && colorScheme === "dark"
-          ? "rgba(100, 150, 255, 0.25)"
-          : "transparent",
-      textShadowOffset:
-        overallSunnyPercentage > 50
-          ? { width: 0, height: 1 }
-          : { width: 0, height: 0 },
-      textShadowRadius: overallSunnyPercentage > 50 ? 3 : 0,
-    }),
-    [
-      fontScale,
-      overallSunnyPercentage,
-      colorScheme,
-      colors.primaryLight,
-      colors.text,
-    ],
-  );
 
   // Calculate sunny percentage for relationships sphere (all profiles)
   const relationshipsSunnyPercentage = useMemo(() => {
@@ -15105,7 +14539,7 @@ export default function HomeScreen() {
   const [growAllMomentsType, setGrowAllMomentsType] =
     useState<MomentType | null>(null);
 
-  // Animation values for lesson notification (same style as encouragement message)
+  // Animation values for lesson notification
   const lessonOpacity = useSharedValue(0);
   const lessonScale = useSharedValue(0);
   const lessonPressScale = useSharedValue(1); // Press animation for main wheel popup
@@ -16082,10 +15516,8 @@ export default function HomeScreen() {
     prevLessonMomentIdsRef.current = currentIds;
   }, [randomMoments, pulsingLessonHintDismissed]);
 
-  // Fade out lesson notification and hide nudge when wheel starts spinning
+  // Fade out lesson notification when wheel starts spinning
   const fadeOutLesson = useCallback(() => {
-    // Hide the notification nudge on top when wheel rotates
-    setIsEncouragementVisible(false);
     // Animate lesson out smoothly
     lessonOpacity.value = withTiming(0, {
       duration: 300,
@@ -18918,10 +18350,6 @@ export default function HomeScreen() {
           }}
           onSwitchToClassic={() => {
             startTransitionLoader();
-            setTimeout(
-              () => setIsEncouragementVisible(true),
-              ENCOURAGEMENT_DELAY_MS,
-            );
             // Defer heavy state updates so loader can paint and main thread doesn't block.
             // Mounting the full Classic view synchronously can freeze the app on real devices (TestFlight).
             // rAF + setTimeout(0) yields to event loop so loader paints before heavy mount.
@@ -19130,70 +18558,6 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Encouraging Message Section */}
-          {/* Only render when we have content (AI text) or an error fallback. Avoid empty flash while AI loads. */}
-          {hasAnyMoments &&
-            notificationNudgeEnabled &&
-            isEncouragementVisible &&
-            // If AI isn't enabled, always show the local fallback.
-            // If AI is enabled, show only when we have AI text or error—no fallback during load to avoid "first fallback then AI" flicker.
-            (!aiConsent.isEnabled ||
-              aiEncouragementError ||
-              !!aiEncouragementText) && (
-              <View
-                style={[encouragementContainerStyle, encouragementStaticStyle]}
-              >
-                {/* Close button */}
-                <Pressable
-                  onPress={() => {
-                    void (async () => {
-                      // When dismissed, pick a new random message from today's batch
-                      // This will be shown next time the banner appears
-                      const randomMessage =
-                        await getRandomTodayEncouragementMessage();
-                      if (randomMessage) {
-                        setAiEncouragementText(randomMessage);
-                      }
-                      setEncouragementCacheBust((x) => x + 1);
-                      setIsEncouragementVisible(false);
-                    })();
-                  }}
-                  style={closeButtonStyle}
-                  hitSlop={CLOSE_BUTTON_HITSLOP}
-                >
-                  <MaterialIcons
-                    name="close"
-                    size={18 * fontScale}
-                    color={colors.text}
-                    style={{ opacity: 0.7 }}
-                  />
-                </Pressable>
-
-                {/* Gradient background */}
-                <LinearGradient
-                  colors={gradientColors}
-                  start={LINEAR_GRADIENT_START}
-                  end={LINEAR_GRADIENT_END}
-                  style={gradientStyle}
-                />
-
-                {/* Border */}
-                <View style={borderStyle} />
-
-                {/* Shadow/Glow effect */}
-                {overallSunnyPercentage > 50 && (
-                  <View style={shadowGlowStyle} />
-                )}
-
-                {/* Content */}
-                <ThemedText size="sm" style={encouragementTextStyle}>
-                  {aiConsent.isEnabled && aiEncouragementText
-                    ? encouragementTextWithSparkle
-                    : fallbackEncouragementTextClean}
-                </ThemedText>
-              </View>
-            )}
-
           {/* Random Moment from Wheel of Life Spin + exam result — wrapped in Modal so it also shows over focused view */}
           <Modal
             visible={!!(showLesson && selectedLesson) || !!(selectedLesson?.examStep === "result" && selectedLesson.examAnalysis)}
@@ -19359,7 +18723,7 @@ export default function HomeScreen() {
                       position: "absolute",
                       top: messageTop,
                       left: SCREEN_WIDTH / 2 - momentWidth / 2, // Center horizontally
-                      zIndex: 300, // Higher than encouragement message
+                      zIndex: 300,
                     },
                     lessonAnimatedStyle,
                   ]}

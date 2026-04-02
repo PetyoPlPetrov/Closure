@@ -121,8 +121,6 @@ export interface Translations {
   "settings.notifications.manage": string;
   "settings.feedback.title": string;
   "settings.feedback.addFeedback": string;
-  "settings.notificationNudge.title": string;
-  "settings.notificationNudge.description": string;
   "settings.eventInAppNotifications.title": string;
   "settings.eventInAppNotifications.description": string;
   "settings.appUsabilityHints.title": string;
@@ -469,10 +467,6 @@ export interface Translations {
   "job.jobActionSheet.edit": string;
   "job.jobActionSheet.delete": string;
   "spheres.title": string;
-  "spheres.encouragement.general": string;
-  "spheres.encouragement.goodMomentsPrevail": string;
-  "spheres.encouragement.keepPushing": string;
-  "spheres.encouragement.calculating": string;
   "spheres.wheelOfLife.lessonLearned": string;
   "spheres.relationships": string;
   "spheres.career": string;
@@ -3901,9 +3895,6 @@ const translations: Record<Language, Translations> = {
     "settings.notifications.manage": "Manage notifications",
     "settings.feedback.title": "Feedback",
     "settings.feedback.addFeedback": "Add feedback",
-    "settings.notificationNudge.title": "Encouragement nudges",
-    "settings.notificationNudge.description":
-      "Show or hide the motivational message banner in My Universe.",
     "settings.eventInAppNotifications.title": "In-app notifications for events",
     "settings.eventInAppNotifications.description":
       "When on, the app can show in-app reminders for Sferas events (e.g. create a memory for an event you attended, or new events in your community).",
@@ -4320,13 +4311,6 @@ const translations: Record<Language, Translations> = {
     "job.jobActionSheet.edit": "Edit",
     "job.jobActionSheet.delete": "Delete",
     "spheres.title": "Life Sferas",
-    "spheres.encouragement.general":
-      "You have lots of great moments in your life. Take time to enjoy and appreciate them!",
-    "spheres.encouragement.goodMomentsPrevail":
-      "Wonderful! Good moments prevail in your life. Appreciate and embrace the positive experiences you've created! ✨",
-    "spheres.encouragement.keepPushing":
-      "Keep pushing forward, even though it's hard! Consider meeting up with family or friends, or exploring a new hobby to create more sunny moments in your life. 💪",
-    "spheres.encouragement.calculating": "Analyzing your moments",
     "spheres.wheelOfLife.lessonLearned": "Lesson from the Wheel of Life",
     "spheres.relationships": "Relationships",
     "spheres.career": "Career",
@@ -8589,9 +8573,6 @@ const translations: Record<Language, Translations> = {
     "settings.notifications.manage": "Управление на известия",
     "settings.feedback.title": "Обратна връзка",
     "settings.feedback.addFeedback": "Добави обратна връзка",
-    "settings.notificationNudge.title": "Подсказки за насърчение",
-    "settings.notificationNudge.description":
-      "Показване или скриване на мотивационното съобщение в Моята вселена.",
     "settings.eventInAppNotifications.title": "Вътреприложни известия за събития",
     "settings.eventInAppNotifications.description":
       "Когато е включено, приложението може да показва вътреприложни напомняния за Sferas събития (напр. създаване на спомен за посещено събитие или нови събития в общността ви).",
@@ -9007,13 +8988,6 @@ const translations: Record<Language, Translations> = {
     "job.jobActionSheet.edit": "Редактирай",
     "job.jobActionSheet.delete": "Изтрий",
     "spheres.title": "Сфери",
-    "spheres.encouragement.general":
-      "Имате много прекрасни моменти в живота си. Отделете време да ги насладите и оцените!",
-    "spheres.encouragement.goodMomentsPrevail":
-      "Чудесно! Добрите моменти преобладават в живота ви. Оценете и приемете позитивните преживявания, които сте създали! ✨",
-    "spheres.encouragement.keepPushing":
-      "Продължавайте напред, въпреки че е трудно! Помислете да се срещнете с семейство или приятели, или да опитате ново хоби, за да създадете повече слънчеви моменти в живота си. 💪",
-    "spheres.encouragement.calculating": "Анализиране на вашите моменти",
     "spheres.wheelOfLife.lessonLearned": "Урок от Колелото на Живота",
     "spheres.relationships": "Връзки",
     "spheres.career": "Кариера",

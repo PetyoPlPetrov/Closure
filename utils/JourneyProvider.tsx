@@ -230,21 +230,15 @@ function useProfiles(): [ExProfile[], boolean, Error | null, (profiles: ExProfil
         setError(null);
         const stored = await readStorageAvoidStaleEmptyRead(STORAGE_KEY);
         if (cancelled) return;
-        if (__DEV__) {
-          console.log('[JourneyHydration] profiles initial load', {
-            hasStored: !!stored,
-            jsonChars: stored?.length ?? 0,
-          });
-        }
         if (stored) {
           const parsedProfiles = JSON.parse(stored) as ExProfile[];
           // Load memories first to calculate progress
           const storedMemories = await AsyncStorage.getItem(IDEALIZED_MEMORIES_KEY);
           const parsedMemories = storedMemories ? JSON.parse(storedMemories) as IdealizedMemory[] : [];
-          
+
           // Recalculate setupProgress for all profiles on load and ensure sphere is set
           const profilesWithUpdatedProgress = parsedProfiles.map((profile) => {
-            const memoryCount = parsedMemories.filter(m => 
+            const memoryCount = parsedMemories.filter(m =>
               (m.profileId === profile.id) || (m.entityId === profile.id && m.sphere === 'relationships')
             ).length;
             const progress = calculateSetupProgress(profile, memoryCount);
@@ -497,12 +491,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         setIsLoadingJobs(true);
         const stored = await readStorageAvoidStaleEmptyRead(JOBS_STORAGE_KEY);
         if (cancelled) return;
-        if (__DEV__) {
-          console.log('[JourneyHydration] jobs initial load', {
-            hasStored: !!stored,
-            jsonChars: stored?.length ?? 0,
-          });
-        }
         if (stored) {
           const parsedJobs = JSON.parse(stored) as Job[];
           setJobs(parsedJobs);
@@ -527,12 +515,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         setIsLoadingFamily(true);
         const stored = await readStorageAvoidStaleEmptyRead(FAMILY_MEMBERS_STORAGE_KEY);
         if (cancelled) return;
-        if (__DEV__) {
-          console.log('[JourneyHydration] family initial load', {
-            hasStored: !!stored,
-            jsonChars: stored?.length ?? 0,
-          });
-        }
         if (stored) {
           const parsedMembers = JSON.parse(stored) as FamilyMember[];
           setFamilyMembers(parsedMembers);
@@ -557,12 +539,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         setIsLoadingFriends(true);
         const stored = await readStorageAvoidStaleEmptyRead(FRIENDS_STORAGE_KEY);
         if (cancelled) return;
-        if (__DEV__) {
-          console.log('[JourneyHydration] friends initial load', {
-            hasStored: !!stored,
-            jsonChars: stored?.length ?? 0,
-          });
-        }
         if (stored) {
           const parsedFriends = JSON.parse(stored) as Friend[];
           setFriends(parsedFriends);
@@ -587,12 +563,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
         setIsLoadingHobbies(true);
         const stored = await readStorageAvoidStaleEmptyRead(HOBBIES_STORAGE_KEY);
         if (cancelled) return;
-        if (__DEV__) {
-          console.log('[JourneyHydration] hobbies initial load', {
-            hasStored: !!stored,
-            jsonChars: stored?.length ?? 0,
-          });
-        }
         if (stored) {
           const parsedHobbies = JSON.parse(stored) as Hobby[];
           setHobbies(parsedHobbies);

@@ -11,13 +11,6 @@ const CACHED_ONBOARDING_RESPONSE_KEY = "@sferas:cached_onboarding_response";
 export async function getOnboardingCompleted(): Promise<boolean> {
   try {
     const value = await AsyncStorage.getItem(ONBOARDING_COMPLETED_KEY);
-    if (__DEV__) {
-      console.log("[OnboardingStorage] getOnboardingCompleted raw:", {
-        key: ONBOARDING_COMPLETED_KEY,
-        rawValue: value,
-        parsed: value === "true",
-      });
-    }
     return value === "true";
   } catch {
     return false;

@@ -69,9 +69,7 @@ export function HomeTransitionLoader() {
 export function HomeTransitionLoaderOverlay() {
   const visibility = useHomeTransitionLoaderVisibility();
   const isVisible = visibility?.isVisible ?? false;
-  console.log('[HomeTransitionLoaderOverlay] render, isVisible:', isVisible);
   if (!isVisible) return null;
-  console.log('[HomeTransitionLoaderOverlay] showing loader');
   return (
     <View
       style={styles.overlay}

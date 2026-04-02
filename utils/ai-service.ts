@@ -43,10 +43,6 @@ export interface AIRequestContext {
   language?: string;
 }
 
-export interface AIEncouragementResponse {
-  messages: string[]; // Array of motivational messages for the day
-}
-
 /**
  * Read image file as base64 for Gemini inline data.
  * @param imageUri - Local file URI (file://)
@@ -67,120 +63,6 @@ async function readImageAsBase64(imageUri: string): Promise<string> {
   } catch (error) {
     throw new Error(`Failed to read image: ${error}`);
   }
-}
-
-/**
- * Process home screen encouragement prompt - returns multiple messages for the day
- * Makes ONE request per day that returns 8-12 motivational messages
- */
-export async function processHomeEncouragementPrompt(params: {
-  overallSunnyPercentage: number;
-  sunnyMomentsCount: number;
-  cloudyMomentsCount: number;
-  sampleLessons: string[];
-  sampleSunnyMoments: string[];
-  sampleCloudyMoments?: string[];
-  targetCharCount: number;
-  language: "en" | "bg";
-}): Promise<AIEncouragementResponse> {
-  const {
-    overallSunnyPercentage,
-    sunnyMomentsCount,
-    cloudyMomentsCount,
-    sampleLessons,
-    sampleSunnyMoments,
-    sampleCloudyMoments = [],
-    targetCharCount,
-    language,
-  } = params;
-
-  // If using mock requests, just return deterministic messages
-  if (USE_MOCK_AI_REQUEST) {
-    return {
-      messages:
-        language === "bg"
-          ? [
-              "Чудесно! Ти напредваш — продължавай да създаваш малки слънчеви моменти всеки ден. ✨",
-              "Всеки ден е възможност да добавиш повече радост в живота си.",
-              "Твоите моменти разказват история за растеж и любов.",
-            ]
-          : [
-              "Wonderful! You're making progress - keep creating small sunny moments every day. ✨",
-              "Each day is an opportunity to add more joy to your life.",
-              "Your moments tell a story of growth and love.",
-            ],
-    };
-  }
-
-  const languageName = language === "bg" ? "Bulgarian" : "English";
-  const languageCode = language === "bg" ? "bg" : "en";
-
-  const responseSchema = Schema.object({
-    properties: {
-      messages: Schema.array({
-        items: Schema.string({
-          description:
-            "A single-sentence (or two short sentences) motivational notification message for the home banner. No newlines.",
-        }),
-      }),
-    },
-    required: ["messages"],
-  });
-
-  const systemPrompt = `Sfera AI coach. Create 8-12 short, encouraging, premium-sounding home-banner messages for the day. Respond in ${languageName} (${languageCode}). JSON only, each message ~${targetCharCount} chars (±15%), no newlines, no emojis.
-Rules: Motivational, second-person "you". No shaming, no advice overload, no numbers/stats/clinical language. Reflect tone from whether sunny or cloudy prevails (implicitly). Always acknowledge love and lessons; if cloudy prevails, gently encourage more sunny moments. Vary the messages so they feel fresh when shown randomly throughout the day.`;
-
-  const tone =
-    overallSunnyPercentage >= 55 ? "sunny prevails" : "cloudy prevails";
-  const latestLessons = sampleLessons.slice(0, 2).join(" | ") || "None";
-  const latestSunny = sampleSunnyMoments.slice(0, 2).join(" | ") || "None";
-  const latestCloudy = sampleCloudyMoments.slice(0, 2).join(" | ") || "None";
-  const userPrompt = `Tone: ${tone}
-Latest lessons: ${latestLessons}
-Latest sunny: ${latestSunny}
-Latest cloudy: ${latestCloudy}
-Write 8-12 varied notification messages for today.`;
-
-  const app = getApp();
-  const ai = getAI(app, {
-    appCheck: firebase.appCheck(),
-  });
-
-  // IMPORTANT: Each call creates a fresh model instance - no conversation history is maintained
-  // We send the complete current state in each request, so no need for context history
-  const model = getGenerativeModel(ai, {
-    model: "gemini-2.5-flash-lite",
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema,
-    },
-  });
-
-  // Generate content with single user message - no conversation history
-  // Each request is stateless and includes all necessary context in the current message
-  const result = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: userPrompt }] }], // Single message only - no history
-    systemInstruction: systemPrompt,
-  });
-
-  const responseText = result.response.text();
-  const parsed = JSON.parse(responseText);
-
-  // Normalize: accept array of strings, or array of objects with .text
-  let messages: string[] = [];
-  if (Array.isArray(parsed?.messages)) {
-    messages = parsed.messages
-      .map((m: any) => (typeof m === "string" ? m.trim() : m?.text != null ? String(m.text).trim() : ""))
-      .filter((m: string) => m.length > 0);
-  } else if (typeof parsed?.message === "string" && parsed.message.trim()) {
-    messages = [parsed.message.trim()];
-  }
-
-  if (messages.length === 0) {
-    throw new Error("AI returned no valid encouragement messages");
-  }
-
-  return { messages };
 }
 
 /**
