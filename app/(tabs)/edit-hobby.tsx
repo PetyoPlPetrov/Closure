@@ -134,11 +134,17 @@ export default function EditHobbyScreen() {
           style={styles.headerButton}
           onPress={() => {
             console.log('[edit-hobby.tsx] 🔙 BACK ARROW PRESSED');
-            console.log('[edit-hobby.tsx] 🔙 NAVIGATING back to spheres (hobbies sphere)');
-            router.navigate({
-              pathname: '/(tabs)/spheres',
-              params: { selectedSphere: 'hobbies' }
-            });
+            const returnTo = params.returnTo as string | undefined;
+            if (returnTo === 'spheres-overview') {
+              console.log('[edit-hobby.tsx] 🔙 NAVIGATING back to spheres overview');
+              router.navigate({ pathname: '/(tabs)/spheres' });
+            } else {
+              console.log('[edit-hobby.tsx] 🔙 NAVIGATING back to spheres (hobbies sphere)');
+              router.navigate({
+                pathname: '/(tabs)/spheres',
+                params: { selectedSphere: 'hobbies' }
+              });
+            }
           }}
           activeOpacity={0.7}
               hitSlop={12}

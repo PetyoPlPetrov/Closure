@@ -137,11 +137,17 @@ export default function EditFamilyMemberScreen() {
           style={styles.headerButton}
           onPress={() => {
             console.log('[edit-family-member.tsx] 🔙 BACK ARROW PRESSED');
-            console.log('[edit-family-member.tsx] 🔙 NAVIGATING back to spheres (family sphere)');
-            router.navigate({
-              pathname: '/(tabs)/spheres',
-              params: { selectedSphere: 'family' }
-            });
+            const returnTo = params.returnTo as string | undefined;
+            if (returnTo === 'spheres-overview') {
+              console.log('[edit-family-member.tsx] 🔙 NAVIGATING back to spheres overview');
+              router.navigate({ pathname: '/(tabs)/spheres' });
+            } else {
+              console.log('[edit-family-member.tsx] 🔙 NAVIGATING back to spheres (family sphere)');
+              router.navigate({
+                pathname: '/(tabs)/spheres',
+                params: { selectedSphere: 'family' }
+              });
+            }
           }}
           activeOpacity={0.7}
               hitSlop={12}

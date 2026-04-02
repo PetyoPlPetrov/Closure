@@ -1585,19 +1585,19 @@ export default function SpheresScreen() {
   const handleSubsectionEntityPress = (entityId: string, sphere: LifeSphere) => {
     switch (sphere) {
       case "relationships":
-        router.push({ pathname: "/(tabs)/relationship-detail", params: { id: entityId } });
+        router.push({ pathname: '/edit-profile', params: { profileId: entityId, returnTo: 'spheres-overview' } });
         break;
       case "career":
-        router.push({ pathname: "/(tabs)/job-detail", params: { id: entityId } });
+        router.push({ pathname: '/edit-job', params: { jobId: entityId, returnTo: 'spheres-overview' } });
         break;
       case "family":
-        router.push({ pathname: "/(tabs)/family-member-detail", params: { id: entityId } });
+        router.push({ pathname: '/edit-family-member', params: { memberId: entityId, returnTo: 'spheres-overview' } });
         break;
       case "friends":
-        router.push({ pathname: "/(tabs)/friend-detail", params: { id: entityId } });
+        router.push({ pathname: '/edit-friend', params: { friendId: entityId, returnTo: 'spheres-overview' } });
         break;
       case "hobbies":
-        router.push({ pathname: "/(tabs)/hobby-detail", params: { id: entityId } });
+        router.push({ pathname: '/edit-hobby', params: { hobbyId: entityId, returnTo: 'spheres-overview' } });
         break;
     }
   };

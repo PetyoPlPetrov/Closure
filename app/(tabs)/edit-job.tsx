@@ -137,7 +137,10 @@ export default function EditJobScreen() {
             const returnTo = params.returnTo as string | undefined;
             const returnSphere = params.returnSphere as string | undefined;
 
-            if (returnTo === 'spheres' && returnSphere) {
+            if (returnTo === 'spheres-overview') {
+              console.log('[edit-job.tsx] 🔙 NAVIGATING back to spheres overview');
+              router.navigate({ pathname: '/(tabs)/spheres' });
+            } else if (returnTo === 'spheres' && returnSphere) {
               console.log('[edit-job.tsx] 🔙 NAVIGATING back to spheres (career sphere)');
               router.navigate({
                 pathname: '/(tabs)/spheres',

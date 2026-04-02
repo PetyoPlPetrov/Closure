@@ -134,11 +134,17 @@ export default function EditFriendScreen() {
           style={styles.headerButton}
           onPress={() => {
             console.log('[edit-friend.tsx] 🔙 BACK ARROW PRESSED');
-            console.log('[edit-friend.tsx] 🔙 NAVIGATING back to spheres (friends sphere)');
-            router.navigate({
-              pathname: '/(tabs)/spheres',
-              params: { selectedSphere: 'friends' }
-            });
+            const returnTo = params.returnTo as string | undefined;
+            if (returnTo === 'spheres-overview') {
+              console.log('[edit-friend.tsx] 🔙 NAVIGATING back to spheres overview');
+              router.navigate({ pathname: '/(tabs)/spheres' });
+            } else {
+              console.log('[edit-friend.tsx] 🔙 NAVIGATING back to spheres (friends sphere)');
+              router.navigate({
+                pathname: '/(tabs)/spheres',
+                params: { selectedSphere: 'friends' }
+              });
+            }
           }}
           activeOpacity={0.7}
               hitSlop={12}

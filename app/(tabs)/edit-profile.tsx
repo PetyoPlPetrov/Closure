@@ -134,11 +134,17 @@ export default function EditProfileScreen() {
           style={styles.headerButton}
           onPress={() => {
             console.log('[edit-profile.tsx] 🔙 BACK ARROW PRESSED');
-            console.log('[edit-profile.tsx] 🔙 NAVIGATING back to spheres (relationships sphere)');
-            router.navigate({
-              pathname: '/(tabs)/spheres',
-              params: { selectedSphere: 'relationships' }
-            });
+            const returnTo = params.returnTo as string | undefined;
+            if (returnTo === 'spheres-overview') {
+              console.log('[edit-profile.tsx] 🔙 NAVIGATING back to spheres overview');
+              router.navigate({ pathname: '/(tabs)/spheres' });
+            } else {
+              console.log('[edit-profile.tsx] 🔙 NAVIGATING back to spheres (relationships sphere)');
+              router.navigate({
+                pathname: '/(tabs)/spheres',
+                params: { selectedSphere: 'relationships' }
+              });
+            }
           }}
           activeOpacity={0.7}
               hitSlop={12}
