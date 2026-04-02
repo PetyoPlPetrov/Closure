@@ -215,6 +215,8 @@ export type FocusedSferaViewProps = {
   initialSunMenuExpanded?: boolean;
   /** Notifies parent when sun menu expands/collapses so state can survive navigation remounts. */
   onSunMenuExpandedChange?: (expanded: boolean) => void;
+  /** Called once when the sunny moments intro animation finishes (or is skipped). Lets parent gate modals on this. */
+  onIntroComplete?: () => void;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -2571,6 +2573,7 @@ export function FocusedSferaView({
   splashDone = true,
   initialSunMenuExpanded = false,
   onSunMenuExpandedChange,
+  onIntroComplete,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
   const { ensureSubscriptionResolved, refreshCustomerInfo } = useSubscription();
@@ -2659,6 +2662,10 @@ export function FocusedSferaView({
   const [sunLoadComplete, setIntroComplete] = useState(selectedSphere !== null);
   const [sunLoadFireworks, setIntroFireworks] = useState(false);
   const [sunLoadCentered, setIntroCentered] = useState(false); // set to true inside effect if intro plays
+  const markIntroComplete = useCallback(() => {
+    setIntroComplete(true);
+    onIntroComplete?.();
+  }, [onIntroComplete]);
 
   const handleSunPress = useCallback(() => {
     const next = !isSunExpanded;
@@ -2702,7 +2709,7 @@ export function FocusedSferaView({
       const shouldPlayIntro = sunnyMomentsCongratsAnimation && selectedSphere === null && overallSunnyPercentage >= 50 && !shownToday;
 
       if (!shouldPlayIntro) {
-        setIntroComplete(true);
+        markIntroComplete();
         setIntroCentered(false);
         sunLoadScale.value = 1;
         sunLoadDisplayPct.value = overallSunnyPercentage;
@@ -2747,7 +2754,7 @@ export function FocusedSferaView({
         withTiming(1400, { duration: 1200, easing: Easing.out(Easing.quad) }, (done) => {
           "worklet";
           if (done) {
-            runOnJS(setIntroComplete)(true);
+            runOnJS(markIntroComplete)();
           }
         }),
       );

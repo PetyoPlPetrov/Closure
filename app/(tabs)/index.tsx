@@ -13694,6 +13694,9 @@ export default function HomeScreen() {
   const [guideReadSections, setGuideReadSections] = useState<Set<string>>(new Set());
   const walkthroughCheckedRef = useRef(false);
   const walkthroughAfterOnboardingRef = useRef(false);
+  // Tracks whether the FocusedSferaView sunny moments intro animation has finished.
+  // The walkthrough modal must not appear until this is true.
+  const [focusedIntroComplete, setFocusedIntroComplete] = useState(false);
   const { isAnimationComplete, isVisible: isSplashVisible } = useSplash();
 
   // Load streak data on mount and when screen focuses
@@ -13752,6 +13755,12 @@ export default function HomeScreen() {
         return;
       }
 
+      // In focused view, wait for the sunny moments intro animation to finish
+      // so the guide modal doesn't overlap the celebration animation.
+      if (homeViewMode === "focused" && !focusedIntroComplete) {
+        return;
+      }
+
       walkthroughCheckedRef.current = true;
       isFirstLaunchRef.current = false;
 
@@ -13781,7 +13790,7 @@ export default function HomeScreen() {
     };
 
     void checkWalkthrough();
-  }, [isLoading, isAnimationComplete, isSplashVisible]);
+  }, [isLoading, isAnimationComplete, isSplashVisible, focusedIntroComplete, homeViewMode]);
 
   const handleWalkthroughDismiss = useCallback(() => {
     setWalkthroughVisible(false);
@@ -18390,6 +18399,7 @@ export default function HomeScreen() {
           onChallengeMePress={handleChallengeMePress}
           initialSunMenuExpanded={focusedSunMenuExpandedRef.current}
           onSunMenuExpandedChange={handleFocusedSunMenuExpandedChange}
+          onIntroComplete={() => setFocusedIntroComplete(true)}
         />
       </View>
     </View>
