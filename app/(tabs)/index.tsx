@@ -32,6 +32,7 @@ import { useTranslate } from "@/utils/languages/use-translate";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useNotificationNudgePreference } from "@/utils/NotificationNudgePreferenceProvider";
 import {
+  getOnboardingCompleted,
   getShowWalkthroughAfterOnboarding,
   setShowWalkthroughAfterOnboarding,
 } from "@/utils/onboarding-storage";
@@ -13468,6 +13469,31 @@ export default function HomeScreen() {
     reloadHobbies,
     reloadAll,
   } = useJourney();
+  useEffect(() => {
+    if (!__DEV__) return;
+    const total =
+      profiles.length +
+      jobs.length +
+      familyMembers.length +
+      friends.length +
+      hobbies.length;
+    console.log("[HomeScreen] journey entity counts", {
+      isLoading,
+      profiles: profiles.length,
+      jobs: jobs.length,
+      familyMembers: familyMembers.length,
+      friends: friends.length,
+      hobbies: hobbies.length,
+      total,
+    });
+  }, [
+    isLoading,
+    profiles.length,
+    jobs.length,
+    familyMembers.length,
+    friends.length,
+    hobbies.length,
+  ]);
   const { hasAIEntitlement } = useSubscription();
   const t = useTranslate();
   const { language: appLanguage } = useLanguage();
@@ -13570,72 +13596,48 @@ export default function HomeScreen() {
   // Track if this is the first app launch (splash screen shown)
   const isFirstLaunchRef = useRef(true);
 
-  // Check for first launch and show walkthrough if no data exists
-  // This runs whenever the screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      // Reset the check when screen comes into focus
-      walkthroughCheckedRef.current = false;
+  // Check once on app open and show walkthrough if guide not fully read
+  useEffect(() => {
+    const checkWalkthrough = async () => {
+      if (walkthroughCheckedRef.current) {
+        return;
+      }
 
-      // Function to check and show walkthrough
-      const checkWalkthrough = async () => {
-        // Only check once per focus
-        if (walkthroughCheckedRef.current) {
-          return;
+      // Wait for splash to complete and data to load
+      if (isLoading || isSplashVisible || !isAnimationComplete) {
+        return;
+      }
+
+      walkthroughCheckedRef.current = true;
+      isFirstLaunchRef.current = false;
+
+      // Don't show if onboarding hasn't been completed yet
+      const onboardingCompleted = await getOnboardingCompleted();
+      if (!onboardingCompleted) {
+        return;
+      }
+
+      // Check if coming from onboarding - show guide prompt and clear flag
+      const showAfterOnboarding = await getShowWalkthroughAfterOnboarding();
+      if (showAfterOnboarding) {
+        await setShowWalkthroughAfterOnboarding(false);
+        walkthroughAfterOnboardingRef.current = true;
+      }
+
+      // Check guide prompt conditions
+      const dismissedForever = await getGuideDismissedForever();
+      if (!dismissedForever) {
+        const readSections = await getReadSections();
+        setGuideReadSections(readSections);
+        const allRead = SECTIONS.every((s) => readSections.has(s.id));
+        if (!allRead) {
+          setWalkthroughVisible(true);
         }
+      }
+    };
 
-        // On first launch, wait for splash to complete
-        // On subsequent navigations, only wait for loading to complete
-        const shouldWaitForSplash = isFirstLaunchRef.current;
-        const splashConditionsMet = shouldWaitForSplash
-          ? !isSplashVisible && isAnimationComplete
-          : true;
-
-        if (!isLoading && splashConditionsMet) {
-          // Mark as checked FIRST to prevent re-runs
-          walkthroughCheckedRef.current = true;
-
-          // After first check, we don't need to wait for splash anymore
-          if (isFirstLaunchRef.current && splashConditionsMet) {
-            isFirstLaunchRef.current = false;
-          }
-
-          // Check if coming from onboarding - show guide prompt and clear flag
-          const showAfterOnboarding = await getShowWalkthroughAfterOnboarding();
-          if (showAfterOnboarding) {
-            await setShowWalkthroughAfterOnboarding(false);
-            walkthroughAfterOnboardingRef.current = true;
-          }
-
-          // Check guide prompt conditions
-          const dismissedForever = await getGuideDismissedForever();
-          if (!dismissedForever) {
-            const readSections = await getReadSections();
-            setGuideReadSections(readSections);
-            const allRead = SECTIONS.every((s) => readSections.has(s.id));
-            if (!allRead) {
-              setWalkthroughVisible(true);
-            }
-          }
-        }
-      };
-
-      // Check immediately on focus
-      void checkWalkthrough();
-
-      return () => {};
-    }, [
-      isLoading,
-      isAnimationComplete,
-      isSplashVisible,
-      profiles.length,
-      jobs.length,
-      familyMembers.length,
-      friends.length,
-      hobbies.length,
-      idealizedMemories.length,
-    ]),
-  );
+    void checkWalkthrough();
+  }, [isLoading, isAnimationComplete, isSplashVisible]);
 
   const handleWalkthroughDismiss = useCallback(() => {
     setWalkthroughVisible(false);
@@ -14756,6 +14758,26 @@ export default function HomeScreen() {
       friends,
       hobbies,
       getIdealizedMemoriesByEntityId,
+    ],
+  );
+
+  /** Center sun: filled % vs "empty" + — true if user has memories OR at least one entity (onboarding save creates entities before any memory). */
+  const centerSunHasLifeContent = useMemo(
+    () =>
+      idealizedMemories.length > 0 ||
+      profiles.length +
+        jobs.length +
+        familyMembers.length +
+        friends.length +
+        hobbies.length >
+        0,
+    [
+      idealizedMemories.length,
+      profiles.length,
+      jobs.length,
+      familyMembers.length,
+      friends.length,
+      hobbies.length,
     ],
   );
 
@@ -18699,7 +18721,7 @@ export default function HomeScreen() {
       <View style={{ flex: 1 }}>
         <FocusedSferaView
           overallSunnyPercentage={overallSunnyPercentage}
-          hasMemories={idealizedMemories.length > 0}
+          hasMemories={centerSunHasLifeContent}
           selectedSphere={selectedSphere}
           splashDone={!isSplashVisible || isAnimationComplete}
           onAddMemoriesPress={() => router.push("/(tabs)/spheres")}
@@ -20288,7 +20310,7 @@ export default function HomeScreen() {
                 >
                   <OverallPercentageAvatar
                     percentage={overallSunnyPercentage}
-                    hasMemories={idealizedMemories.length > 0}
+                    hasMemories={centerSunHasLifeContent}
                     colorScheme={colorScheme ?? "dark"}
                     colors={colors}
                   />

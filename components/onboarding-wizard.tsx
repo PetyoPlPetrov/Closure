@@ -16,6 +16,7 @@ import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import type { AIOnboardingResponse } from "@/utils/ai-service";
 import { processOnboardingPrompt } from "@/utils/ai-service";
 import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
+import { logError } from "@/utils/error-logger";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
@@ -631,7 +632,7 @@ export function OnboardingWizard({
   const colors = Colors[colorScheme ?? "dark"];
   const t = useTranslate();
   const { language, setLanguage } = useLanguage();
-  const { addProfile, addJob, addFamilyMember, addFriend, addHobby } =
+  const { addProfile, addJob, addFamilyMember, addFriend, addHobby, reloadAll } =
     useJourney();
 
   const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(0);
@@ -747,6 +748,17 @@ export function OnboardingWizard({
         "friends",
         "hobbies",
       ] as const;
+      const counts = Object.fromEntries(
+        spheres.map((s) => [
+          s,
+          Array.isArray(entitiesBySphere[s]) ? entitiesBySphere[s]!.length : 0,
+        ]),
+      ) as Record<(typeof spheres)[number], number>;
+      const totalToSave = Object.values(counts).reduce((a, b) => a + b, 0);
+      if (__DEV__) {
+        console.log("[OnboardingSave] persistEntities start", { counts, totalToSave });
+      }
+      let saved = 0;
       for (const sphere of spheres) {
         const entities = entitiesBySphere[sphere];
         if (!Array.isArray(entities) || entities.length === 0) continue;
@@ -830,7 +842,14 @@ export function OnboardingWizard({
               isCompleted: false,
             });
           }
+          saved += 1;
+          if (__DEV__) {
+            console.log("[OnboardingSave] saved entity", { sphere, index: saved, name: entity.name?.slice(0, 80) });
+          }
         }
+      }
+      if (__DEV__) {
+        console.log("[OnboardingSave] persistEntities done", { saved, expected: totalToSave });
       }
     },
     [addProfile, addJob, addFamilyMember, addFriend, addHobby],
@@ -854,11 +873,18 @@ export function OnboardingWizard({
     async (entitiesBySphere: AIOnboardingResponse["entitiesBySphere"]) => {
       try {
         await persistEntities(entitiesBySphere);
+        await reloadAll();
+        if (__DEV__) {
+          console.log("[OnboardingSave] after reloadAll — navigating home");
+        }
         await clearCachedOnboardingResponse();
         await setOnboardingCompleted(true);
         await setShowWalkthroughAfterOnboarding(true);
         router.replace("/(tabs)");
       } catch (err) {
+        void logError("OnboardingSave:handleSave", err, {
+          stage: "persist_or_reload",
+        });
         Alert.alert(
           t("common.error") ?? "Error",
           err instanceof Error
@@ -867,7 +893,7 @@ export function OnboardingWizard({
         );
       }
     },
-    [persistEntities, t],
+    [persistEntities, reloadAll, t],
   );
 
   const styles = useMemo(
@@ -1552,7 +1578,7 @@ export function OnboardingWizard({
               onChangeText={setInputTextWithLimit}
               placeholder={
                 t("onboarding.placeholder") ??
-                "Tell your story in a few sentences. For example:\n\nMy name is... In my family I have... we're close and...\n\nI work as... I've been there for...\n\nMy closest friends are... we met... and still...\n\nI love... on weekends I usually...\n\nI'm in a relationship with... we've been together for..."
+                "Tell your story in a few sentences. For example:\n\nIn my family I have... we're close and...\n\nI work as... I've been there for...\n\nMy closest friends are... we met... and still...\n\nI love... on weekends I usually...\n\nI'm in a relationship with... we've been together for..."
               }
               placeholderTextColor={
                 colorScheme === "dark"

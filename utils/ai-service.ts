@@ -283,7 +283,8 @@ export async function processMemoryPrompt(
               description: "Type of moment",
             }),
             text: Schema.string({
-              description: 'Text content of the moment (first person "I")',
+              description:
+                'First-person moment text ("I", "my"). For lessonsLearned: a complete reflection in 1–3 sentences (full sentences, not a fragment). For others: as appropriate.',
             }),
             notificationMessage: Schema.string({
               description:
@@ -313,7 +314,7 @@ Rules:
 - Moments: Extract 2-4 sunny moments, 1-2 lessons, 0-2 hard truths
 - Use first person perspective ("I learned...", "I felt...", "My experience...")
 - Be honest about hard truths but compassionate
-- Lessons should be actionable insights
+- Lessons: write the full insight in 1–3 complete sentences (do not stop mid-thought); actionable and specific
 - Sunny moments should be specific positive experiences
 
 REQUIRED: For EVERY sunnyMoments and lessonsLearned moment you MUST provide notificationMessage. For hardTruths use empty string "". STRICT RULES FOR PUSH NOTIFICATIONS:

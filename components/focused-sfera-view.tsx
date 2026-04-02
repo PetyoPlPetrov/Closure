@@ -155,9 +155,12 @@ function getEntityDepthScale(slot: number): number {
 
 export type FocusedSferaViewProps = {
   overallSunnyPercentage: number;
-  /** When false, circle avatar shows "Add memories" and tap navigates to Sfera tab. */
+  /**
+   * When false, center sun shows the empty "+" and tap goes to `onAddMemoriesPress`.
+   * Parent should pass true if the user has any memories **or** any entities — otherwise post-onboarding users see "+" despite having saved entities.
+   */
   hasMemories: boolean;
-  /** Called when user taps "Add memories" (when hasMemories is false). Typically navigates to Sfera tab. */
+  /** Called when user taps the empty center (when hasMemories is false). Typically navigates to Sfera tab. */
   onAddMemoriesPress?: () => void;
   onSphereSelect: (sphere: LifeSphere) => void;
   /** Switch back to Classic view (wheel of life). */
@@ -2090,6 +2093,10 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   const progress = useSharedValue(0);
 
   const numEntities = entityIds.length;
+  const totalMemoriesCount = useMemo(
+    () => entityMemories.reduce((sum, mems) => sum + mems.length, 0),
+    [entityMemories],
+  );
 
   // Compute insight indices
   const leastMemoriesIdx = useMemo(() => {
@@ -2231,7 +2238,47 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
               opacity: 0.8,
             }}
           >
-            {sphere === "hobbies" ? t("sferaInsight.addHobbies") : t("sferaInsight.addPeople")}
+            {sphere === "relationships"
+              ? t("sferaInsight.addPeopleAndMemories")
+              : t("sferaInsight.addMemories")}
+          </ThemedText>
+        </LinearGradient>
+      </Pressable>
+    );
+  }
+
+  // Entities exist but no memories yet — avoid misleading mode titles (e.g. "Most recently done")
+  if (totalMemoriesCount === 0) {
+    return (
+      <Pressable style={wrapperStyle} onPress={() => onEntitySelect(entityIds[0]!, sphere)}>
+        <LinearGradient
+          colors={[...gradientColors]}
+          style={{
+            flex: 1,
+            borderRadius: 20,
+            borderWidth: 1.5,
+            borderColor: shadowColor + "66",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 10,
+            shadowColor,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.5,
+            shadowRadius: 12,
+            elevation: 8,
+          }}
+        >
+          <MaterialIcons name="add-photo-alternate" size={26} color={shadowColor} />
+          <ThemedText
+            style={{
+              color: COSMIC_TEXT,
+              fontSize: 11,
+              textAlign: "center",
+              marginTop: 8,
+              fontWeight: "600",
+            }}
+          >
+            {t("sferaInsight.addMemories")}
           </ThemedText>
         </LinearGradient>
       </Pressable>
@@ -2645,6 +2692,41 @@ export function FocusedSferaView({
       .filter((f) => f.text?.trim());
   }, [memoriesPerEntityBySphere]);
 
+  /** True when the user has saved at least one lesson on a memory (same source as Universe Lessons / Lesson Check). */
+  const hasUserLessons = useMemo(() => {
+    for (const entityArrays of Object.values(memoriesPerEntityBySphere)) {
+      for (const mems of entityArrays) {
+        for (const mem of mems) {
+          for (const l of mem.lessonsLearned ?? []) {
+            if (l.text?.trim()) return true;
+          }
+        }
+      }
+    }
+    return false;
+  }, [memoriesPerEntityBySphere]);
+
+  const [noLessonsToastVisible, setNoLessonsToastVisible] = useState(false);
+  const noLessonsToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showNoLessonsToast = useCallback(() => {
+    if (noLessonsToastTimerRef.current) {
+      clearTimeout(noLessonsToastTimerRef.current);
+      noLessonsToastTimerRef.current = null;
+    }
+    setNoLessonsToastVisible(true);
+    noLessonsToastTimerRef.current = setTimeout(() => {
+      setNoLessonsToastVisible(false);
+      noLessonsToastTimerRef.current = null;
+    }, 2600);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (noLessonsToastTimerRef.current) {
+        clearTimeout(noLessonsToastTimerRef.current);
+      }
+    };
+  }, []);
+
   // Circle avatar percentage logic:
   // - Initial view (selectedSphere === null): Show overall percentage across all sferas
   // - Individual sfera view (selectedSphere !== null): Show that sfera's percentage if it has memories, otherwise overall
@@ -2671,6 +2753,10 @@ export function FocusedSferaView({
 
   /** Lesson Check: show exam only if AI sub or free daily slot; otherwise paywall only (not both). */
   const handleOpenUniverseExam = useCallback(async () => {
+    if (!hasUserLessons) {
+      showNoLessonsToast();
+      return;
+    }
     const { hasAIEntitlement } = await ensureSubscriptionResolved();
     const hasPending = await hasPendingUniverseExam();
     const canTakeExam =
@@ -2684,7 +2770,12 @@ export function FocusedSferaView({
       return;
     }
     setUniverseExamVisible(true);
-  }, [ensureSubscriptionResolved, refreshCustomerInfo]);
+  }, [
+    ensureSubscriptionResolved,
+    refreshCustomerInfo,
+    hasUserLessons,
+    showNoLessonsToast,
+  ]);
 
   // When circle avatar is pressed:
   // - Initial view (selectedSphere === null): expand sun (shrink sferas + show menu) AND center sun
@@ -3011,6 +3102,10 @@ export function FocusedSferaView({
             {/* Universe Lessons scroll button */}
             <Pressable
               onPress={() => {
+                if (!hasUserLessons) {
+                  showNoLessonsToast();
+                  return;
+                }
                 setUniverseLessonsVisible(true);
               }}
               style={{ alignItems: "center", gap: 8 }}
@@ -3020,21 +3115,32 @@ export function FocusedSferaView({
                   width: 80,
                   height: 80,
                   borderRadius: 40,
-                  backgroundColor: "rgba(80,20,130,0.35)",
+                  backgroundColor: hasUserLessons
+                    ? "rgba(80,20,130,0.35)"
+                    : "rgba(38,38,48,0.55)",
                   borderWidth: 2,
-                  borderColor: "rgba(190,100,255,0.55)",
+                  borderColor: hasUserLessons
+                    ? "rgba(190,100,255,0.55)"
+                    : "rgba(255,255,255,0.10)",
                   justifyContent: "center",
                   alignItems: "center",
-                  shadowColor: "#BE64FF",
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.55,
-                  shadowRadius: 12,
-                  elevation: 12,
+                  opacity: hasUserLessons ? 1 : 0.55,
+                  shadowColor: hasUserLessons ? "#BE64FF" : "#000000",
+                  shadowOffset: { width: 0, height: hasUserLessons ? 4 : 0 },
+                  shadowOpacity: hasUserLessons ? 0.55 : 0,
+                  shadowRadius: hasUserLessons ? 12 : 0,
+                  elevation: hasUserLessons ? 12 : 0,
                 }}
               >
                 <UniverseScrollIcon size={44} />
               </View>
-              <ThemedText style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, letterSpacing: 0.3 }}>
+              <ThemedText
+                style={{
+                  color: hasUserLessons ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.38)",
+                  fontSize: 11,
+                  letterSpacing: 0.3,
+                }}
+              >
                 {language === "bg" ? "Уроци" : "Universe Lessons"}
               </ThemedText>
             </Pressable>
@@ -3049,24 +3155,76 @@ export function FocusedSferaView({
                   width: 80,
                   height: 80,
                   borderRadius: 40,
-                  backgroundColor: "rgba(20,80,130,0.35)",
+                  backgroundColor: hasUserLessons
+                    ? "rgba(20,80,130,0.35)"
+                    : "rgba(38,38,48,0.55)",
                   borderWidth: 2,
-                  borderColor: "rgba(92,225,230,0.55)",
+                  borderColor: hasUserLessons
+                    ? "rgba(92,225,230,0.55)"
+                    : "rgba(255,255,255,0.10)",
                   justifyContent: "center",
                   alignItems: "center",
-                  shadowColor: "#5CE1E6",
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.55,
-                  shadowRadius: 12,
-                  elevation: 12,
+                  opacity: hasUserLessons ? 1 : 0.55,
+                  shadowColor: hasUserLessons ? "#5CE1E6" : "#000000",
+                  shadowOffset: { width: 0, height: hasUserLessons ? 4 : 0 },
+                  shadowOpacity: hasUserLessons ? 0.55 : 0,
+                  shadowRadius: hasUserLessons ? 12 : 0,
+                  elevation: hasUserLessons ? 12 : 0,
                 }}
               >
-                <MaterialIcons name="fact-check" size={36} color="#5CE1E6" />
+                <MaterialIcons
+                  name="fact-check"
+                  size={36}
+                  color={hasUserLessons ? "#5CE1E6" : "rgba(255,255,255,0.28)"}
+                />
               </View>
-              <ThemedText style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, letterSpacing: 0.3 }}>
+              <ThemedText
+                style={{
+                  color: hasUserLessons ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.38)",
+                  fontSize: 11,
+                  letterSpacing: 0.3,
+                }}
+              >
                 {t("universe.exam.title")}
               </ThemedText>
             </Pressable>
+
+            {noLessonsToastVisible && (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  left: 20,
+                  right: 20,
+                  top: 112,
+                  alignItems: "center",
+                  zIndex: 40,
+                }}
+              >
+                <View
+                  style={{
+                    maxWidth: 320,
+                    backgroundColor: "rgba(18,22,34,0.94)",
+                    paddingVertical: 12,
+                    paddingHorizontal: 18,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: "rgba(255,255,255,0.12)",
+                  }}
+                >
+                  <ThemedText
+                    style={{
+                      color: "rgba(255,255,255,0.88)",
+                      fontSize: 14,
+                      textAlign: "center",
+                      lineHeight: 20,
+                    }}
+                  >
+                    {t("universe.lessons.noneAvailable")}
+                  </ThemedText>
+                </View>
+              </View>
+            )}
 
           </Animated.View>
         </>

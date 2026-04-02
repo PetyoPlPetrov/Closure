@@ -799,6 +799,10 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const modeOpacity = useSharedValue(1);
   const shadowColor = getSphereShadowColor(sphere, colorScheme);
   const numEntities = entities.length;
+  const totalMemoriesCount = useMemo(
+    () => memoriesPerEntity.reduce((sum, arr) => sum + arr.length, 0),
+    [memoriesPerEntity],
+  );
   // Whether this sphere supports social CTAs (bell + event thumbnails)
   const hasSocialCTAs = sphere === "family" || sphere === "friends";
 
@@ -978,9 +982,49 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         >
           <MaterialIcons name="add-circle-outline" size={32} color={shadowColor} />
           <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 11, textAlign: "center", marginTop: 8 }}>
-            {sphere === "hobbies" ? t("sferaInsight.addHobbies") : t("sferaInsight.addPeople")}
+            {sphere === "relationships"
+              ? t("sferaInsight.addPeopleAndMemories")
+              : t("sferaInsight.addMemories")}
           </ThemedText>
         </LinearGradient>
+        <View style={{ width: INSIGHT_ARROW_HIT }} />
+      </View>
+    );
+  }
+
+  if (totalMemoriesCount === 0) {
+    return (
+      <View style={wrapperStyle} pointerEvents="box-none">
+        <View style={{ width: INSIGHT_ARROW_HIT }} />
+        <Pressable
+          onPress={() => entities[0] && onEntitySelect?.(entities[0].id)}
+          style={{ flex: 1 }}
+        >
+          <LinearGradient
+            colors={[...gradientColors]}
+            style={{
+              flex: 1,
+              height: INSIGHT_CARD_H,
+              borderRadius: 22,
+              borderWidth: 1.5,
+              borderColor: shadowColor + "99",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: 14,
+              shadowColor,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.85,
+              shadowRadius: 22,
+              elevation: 12,
+              gap: 8,
+            }}
+          >
+            <MaterialIcons name="add-photo-alternate" size={32} color={shadowColor} />
+            <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 13, textAlign: "center", fontWeight: "600" }}>
+              {t("sferaInsight.addMemories")}
+            </ThemedText>
+          </LinearGradient>
+        </Pressable>
         <View style={{ width: INSIGHT_ARROW_HIT }} />
       </View>
     );

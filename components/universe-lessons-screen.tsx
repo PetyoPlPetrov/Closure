@@ -7,12 +7,10 @@
 import { ThemedText } from "@/components/themed-text";
 import { useJourney } from "@/utils/JourneyProvider";
 import type { LifeSphere } from "@/utils/JourneyProvider";
-import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { lifeLessons } from "@/utils/life-lessons";
 import {
   getSphereShadowColor,
   getSphereSferaColor,
@@ -93,9 +91,6 @@ type LessonCard = {
 const SPHERE_LIST: LifeSphere[] = [
   "relationships", "career", "family", "friends", "hobbies",
 ];
-function getSphereForIndex(i: number): LifeSphere {
-  return SPHERE_LIST[i % SPHERE_LIST.length];
-}
 
 const SPHERE_ICONS: Record<LifeSphere, string> = {
   relationships: "favorite",
@@ -699,10 +694,12 @@ const LessonSfera = React.memo(function LessonSfera({
             <View style={[styles.divLine, { backgroundColor: accentColor + "35" }]} />
           </View>
 
-          {/* Lesson text */}
-          <ThemedText style={styles.lessonText}>
-            {card.text}
-          </ThemedText>
+          {/* Full width so text wraps to multiple lines (center parent would otherwise shrink to one line) */}
+          <View style={styles.lessonTextWrap}>
+            <ThemedText style={styles.lessonText}>
+              {card.text}
+            </ThemedText>
+          </View>
         </View>
 
         {/* Moon avatar — memory image as a glowing satellite at the top rim of the planet.
@@ -803,7 +800,6 @@ interface Props {
 
 export function UniverseLessonsScreen({ visible, onClose }: Props) {
   const t = useTranslate();
-  const { language } = useLanguage();
   const insets = useSafeAreaInsets();
   const { appUsabilityHints } = useVisualSettings();
   const { idealizedMemories } = useJourney();
@@ -855,14 +851,8 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
       }
       return interleaved;
     }
-    const fb = lifeLessons[language] ?? lifeLessons.en;
-    return fb.map((text, i) => ({
-      id: `static_${i}`,
-      text,
-      memoryTitle: language === "bg" ? "Твоята Вселена" : "Your Universe",
-      sphere: getSphereForIndex(i),
-    }));
-  }, [idealizedMemories, language]);
+    return [];
+  }, [idealizedMemories]);
 
   useEffect(() => {
     if (visible) {
@@ -1008,28 +998,37 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
 
 
         <BackgroundSferas seed={bgSeed} fadeOut={bgFadeOut} />
-        <FlatList
-          ref={listRef}
-          data={cards}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          pagingEnabled
-          snapToInterval={CARD_HEIGHT}
-          snapToAlignment="start"
-          decelerationRate="fast"
-          showsVerticalScrollIndicator={false}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig}
-          getItemLayout={(_, index) => ({
-            length: CARD_HEIGHT,
-            offset: CARD_HEIGHT * index,
-            index,
-          })}
-          style={{ flex: 1 }}
-        />
-
-        {cards.length > 1 && (
-          <ScrollRail total={cards.length} active={activeIndex} color={accentColor} />
+        {cards.length === 0 ? (
+          <View style={styles.emptyLessonsWrap} pointerEvents="none">
+            <ThemedText style={styles.emptyLessonsText}>
+              {t("universe.lessons.noneAvailable")}
+            </ThemedText>
+          </View>
+        ) : (
+          <>
+            <FlatList
+              ref={listRef}
+              data={cards}
+              renderItem={renderItem}
+              keyExtractor={keyExtractor}
+              pagingEnabled
+              snapToInterval={CARD_HEIGHT}
+              snapToAlignment="start"
+              decelerationRate="fast"
+              showsVerticalScrollIndicator={false}
+              onViewableItemsChanged={onViewableItemsChanged}
+              viewabilityConfig={viewabilityConfig}
+              getItemLayout={(_, index) => ({
+                length: CARD_HEIGHT,
+                offset: CARD_HEIGHT * index,
+                index,
+              })}
+              style={{ flex: 1 }}
+            />
+            {cards.length > 1 && (
+              <ScrollRail total={cards.length} active={activeIndex} color={accentColor} />
+            )}
+          </>
         )}
 
 
@@ -1044,6 +1043,19 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: BG,
+  },
+  emptyLessonsWrap: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  emptyLessonsText: {
+    fontSize: 17,
+    lineHeight: 24,
+    textAlign: "center",
+    color: "rgba(255,255,255,0.72)",
+    fontWeight: "500",
   },
   header: {
     position: "absolute",
@@ -1140,6 +1152,10 @@ const styles = StyleSheet.create({
     width: 3,
     height: 3,
     borderRadius: 2,
+  },
+  lessonTextWrap: {
+    alignSelf: "stretch",
+    width: "100%",
   },
   lessonText: {
     fontSize: 17,

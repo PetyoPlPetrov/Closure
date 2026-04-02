@@ -74,6 +74,7 @@ function WheelOfLifeVisualization({
   fontScale: number;
   onSlicePress?: (sphere: LifeSphere) => void;
 }) {
+  const t = useTranslate();
   const { momentColors } = useMomentColors();
   const size = Math.min(380 * fontScale, SCREEN_WIDTH - 40);
   const center = size / 2;

@@ -1,8 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { useJourney } from "@/utils/JourneyProvider";
-import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { lifeLessons } from "@/utils/life-lessons";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -784,14 +782,12 @@ export function YourUniverseModal({
   onChallengeMePress,
 }: YourUniverseModalProps) {
   const t = useTranslate();
-  const { language } = useLanguage();
   const { momentColors } = useMomentColors();
   const { idealizedMemories } = useJourney();
   const lessonColor = momentColors.lesson.background;
 
 
   // Build a flat list of LessonEntry from all memory lessonsLearned.
-  // Falls back to static placeholder lessons if user has none yet.
   const entries = useMemo<LessonEntry[]>(() => {
     const real: LessonEntry[] = [];
     for (const memory of idealizedMemories) {
@@ -806,14 +802,8 @@ export function YourUniverseModal({
         }
       }
     }
-    if (real.length > 0) return real;
-    // Fallback: wrap static strings as LessonEntry
-    const fallback = lifeLessons[language] ?? lifeLessons.en;
-    return fallback.map((text) => ({
-      text,
-      memoryTitle: t("universe.modal.title"),
-    }));
-  }, [idealizedMemories, language, t]);
+    return real;
+  }, [idealizedMemories]);
 
   const total = entries.length;
 
@@ -823,15 +813,28 @@ export function YourUniverseModal({
   // Snapshot of page indices captured when flip starts — frozen for BookView during animation.
   // isBackward is included here so goNext/goPrev cause exactly ONE React re-render.
   // At rest: rightIndex = current, nextIndex = next, leftIndex = prev (shown dimmed).
-  const makeIdleSnapshot = useCallback((idx: number) => ({
-    leftIndex: (idx - 1 + total) % total,
-    rightIndex: idx,
-    newLeftIndex: idx,
-    nextIndex: (idx + 1) % total,
-    leftDisplayNum: idx > 0 ? idx : undefined,
-    nextDisplayNum: idx + 1,
-    isBackward: false,
-  }), [total]);
+  const makeIdleSnapshot = useCallback((idx: number) => {
+    if (total === 0) {
+      return {
+        leftIndex: 0,
+        rightIndex: 0,
+        newLeftIndex: 0,
+        nextIndex: 0,
+        leftDisplayNum: undefined,
+        nextDisplayNum: 0,
+        isBackward: false,
+      };
+    }
+    return {
+      leftIndex: (idx - 1 + total) % total,
+      rightIndex: idx,
+      newLeftIndex: idx,
+      nextIndex: (idx + 1) % total,
+      leftDisplayNum: idx > 0 ? idx : undefined,
+      nextDisplayNum: idx + 1,
+      isBackward: false,
+    };
+  }, [total]);
 
   const [snapshot, setSnapshot] = useState(() => makeIdleSnapshot(0));
   // displayIndex is derived from the settled snapshot — no separate state needed.
@@ -1017,75 +1020,90 @@ export function YourUniverseModal({
 
           {/* Open book */}
           <View style={styles.bookContainer}>
-            <View style={[styles.bookShadow, { shadowColor: lessonColor }]} />
-            <BookView
-              leftEntry={entries[snapshot.leftIndex]}
-              leftIndex={snapshot.leftIndex}
-              leftDisplayNum={snapshot.leftDisplayNum}
-              rightEntry={entries[snapshot.rightIndex]}
-              rightIndex={snapshot.rightIndex}
-              newLeftEntry={entries[snapshot.newLeftIndex]}
-              newLeftIndex={snapshot.newLeftIndex}
-              nextEntry={entries[snapshot.nextIndex]}
-              nextIndex={snapshot.nextIndex}
-              nextDisplayNum={snapshot.nextDisplayNum}
-              total={total}
-              lessonColor={lessonColor}
-              flipAnim={flipAnim}
-              flipDir={flipDir}
-              isFlipping={isFlipping}
-              isBackward={isBackward}
-            />
-            <View style={styles.bookBottomShadow} />
+            {total === 0 ? (
+              <View style={styles.emptyLessonsWrap}>
+                <ThemedText style={styles.emptyLessonsText}>
+                  {t("universe.lessons.noneAvailable")}
+                </ThemedText>
+              </View>
+            ) : (
+              <>
+                <View style={[styles.bookShadow, { shadowColor: lessonColor }]} />
+                <BookView
+                  leftEntry={entries[snapshot.leftIndex]}
+                  leftIndex={snapshot.leftIndex}
+                  leftDisplayNum={snapshot.leftDisplayNum}
+                  rightEntry={entries[snapshot.rightIndex]}
+                  rightIndex={snapshot.rightIndex}
+                  newLeftEntry={entries[snapshot.newLeftIndex]}
+                  newLeftIndex={snapshot.newLeftIndex}
+                  nextEntry={entries[snapshot.nextIndex]}
+                  nextIndex={snapshot.nextIndex}
+                  nextDisplayNum={snapshot.nextDisplayNum}
+                  total={total}
+                  lessonColor={lessonColor}
+                  flipAnim={flipAnim}
+                  flipDir={flipDir}
+                  isFlipping={isFlipping}
+                  isBackward={isBackward}
+                />
+                <View style={styles.bookBottomShadow} />
+              </>
+            )}
           </View>
 
           {/* Page turn controls */}
-          <View style={styles.pageControls}>
-            <Pressable
-              onPress={goPrev}
-              style={({ pressed }) => [
-                styles.pageBtn,
-                { opacity: pressed ? 0.6 : 1, borderColor: lessonColor + "50" },
-              ]}
-              hitSlop={12}
-            >
-              <MaterialIcons
-                name="chevron-left"
-                size={26}
+          {total > 0 && (
+            <View style={styles.pageControls}>
+              <Pressable
+                onPress={goPrev}
+                style={({ pressed }) => [
+                  styles.pageBtn,
+                  { opacity: pressed ? 0.6 : 1, borderColor: lessonColor + "50" },
+                ]}
+                hitSlop={12}
+              >
+                <MaterialIcons
+                  name="chevron-left"
+                  size={26}
+                  color={lessonColor}
+                />
+              </Pressable>
+
+              <PaginationDots
+                count={total}
+                active={displayIndex}
                 color={lessonColor}
               />
-            </Pressable>
 
-            <PaginationDots
-              count={total}
-              active={displayIndex}
-              color={lessonColor}
-            />
-
-            <Pressable
-              onPress={goNext}
-              style={({ pressed }) => [
-                styles.pageBtn,
-                { opacity: pressed ? 0.6 : 1, borderColor: lessonColor + "50" },
-              ]}
-              hitSlop={12}
-            >
-              <MaterialIcons
-                name="chevron-right"
-                size={26}
-                color={lessonColor}
-              />
-            </Pressable>
-          </View>
+              <Pressable
+                onPress={goNext}
+                style={({ pressed }) => [
+                  styles.pageBtn,
+                  { opacity: pressed ? 0.6 : 1, borderColor: lessonColor + "50" },
+                ]}
+                hitSlop={12}
+              >
+                <MaterialIcons
+                  name="chevron-right"
+                  size={26}
+                  color={lessonColor}
+                />
+              </Pressable>
+            </View>
+          )}
 
           {/* Swipe hint */}
-          <Animated.View style={swipeHintStyle}>
-            <ThemedText style={styles.swipeHint}>
-              tap arrows to turn pages
-            </ThemedText>
-          </Animated.View>
+          {total > 0 && (
+            <Animated.View style={swipeHintStyle}>
+              <ThemedText style={styles.swipeHint}>
+                tap arrows to turn pages
+              </ThemedText>
+            </Animated.View>
+          )}
 
           {/* Challenge Me */}
+          {total > 0 && (
           <View style={styles.challengeSection}>
             <Pressable
               onPress={onChallengeMePress}
@@ -1119,6 +1137,7 @@ export function YourUniverseModal({
               {t("universe.modal.challengeSub")}
             </ThemedText>
           </View>
+          )}
         </ScrollView>
       </View>
     </Modal>
@@ -1176,6 +1195,20 @@ const styles = StyleSheet.create({
   sunLabels: { alignItems: "center", gap: 2 },
   youLabel: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
   keepLearning: { fontSize: 12, color: "rgba(255,255,255,0.48)" },
+
+  emptyLessonsWrap: {
+    minHeight: 220,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 28,
+  },
+  emptyLessonsText: {
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: "center",
+    color: "rgba(255,255,255,0.65)",
+    fontWeight: "500",
+  },
 
   // ── Book ──────────────────────────────────────────────────────────────────
   bookContainer: {

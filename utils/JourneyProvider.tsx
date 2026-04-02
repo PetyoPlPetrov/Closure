@@ -15,6 +15,19 @@ const FAMILY_MEMBERS_STORAGE_KEY = '@sferas:family_members';
 const FRIENDS_STORAGE_KEY = '@sferas:friends';
 const HOBBIES_STORAGE_KEY = '@sferas:hobbies';
 
+/**
+ * If the first AsyncStorage read returns empty, read once more before treating as empty.
+ * Avoids a race where initial hydration reads complete after onboarding save and would
+ * overwrite in-memory state with [] (stale read started before concurrent write).
+ */
+async function readStorageAvoidStaleEmptyRead(key: string): Promise<string | null> {
+  let raw = await AsyncStorage.getItem(key);
+  if (raw == null || raw === '') {
+    raw = await AsyncStorage.getItem(key);
+  }
+  return raw;
+}
+
 // Life sphere types
 export type LifeSphere = 'relationships' | 'career' | 'family' | 'friends' | 'hobbies';
 
@@ -210,11 +223,19 @@ function useProfiles(): [ExProfile[], boolean, Error | null, (profiles: ExProfil
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const loadProfiles = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        const stored = await readStorageAvoidStaleEmptyRead(STORAGE_KEY);
+        if (cancelled) return;
+        if (__DEV__) {
+          console.log('[JourneyHydration] profiles initial load', {
+            hasStored: !!stored,
+            jsonChars: stored?.length ?? 0,
+          });
+        }
         if (stored) {
           const parsedProfiles = JSON.parse(stored) as ExProfile[];
           // Load memories first to calculate progress
@@ -234,19 +255,22 @@ function useProfiles(): [ExProfile[], boolean, Error | null, (profiles: ExProfil
               isCompleted: progress === 100,
             };
           });
-          setProfiles(profilesWithUpdatedProgress);
+          if (!cancelled) setProfiles(profilesWithUpdatedProgress);
         } else {
-          setProfiles([]);
+          if (!cancelled) setProfiles([]);
         }
       } catch (err) {
         const error = err instanceof Error ? err : new Error('Failed to load profiles');
         setError(error);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     loadProfiles();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return [profiles, isLoading, error, setProfiles];
@@ -467,10 +491,18 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
 
   // Load jobs on mount
   useEffect(() => {
+    let cancelled = false;
     const loadJobs = async () => {
       try {
         setIsLoadingJobs(true);
-        const stored = await AsyncStorage.getItem(JOBS_STORAGE_KEY);
+        const stored = await readStorageAvoidStaleEmptyRead(JOBS_STORAGE_KEY);
+        if (cancelled) return;
+        if (__DEV__) {
+          console.log('[JourneyHydration] jobs initial load', {
+            hasStored: !!stored,
+            jsonChars: stored?.length ?? 0,
+          });
+        }
         if (stored) {
           const parsedJobs = JSON.parse(stored) as Job[];
           setJobs(parsedJobs);
@@ -478,18 +510,29 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       } catch (err) {
         // Error loading jobs
       } finally {
-        setIsLoadingJobs(false);
+        if (!cancelled) setIsLoadingJobs(false);
       }
     };
     loadJobs();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Load family members on mount
   useEffect(() => {
+    let cancelled = false;
     const loadFamilyMembers = async () => {
       try {
         setIsLoadingFamily(true);
-        const stored = await AsyncStorage.getItem(FAMILY_MEMBERS_STORAGE_KEY);
+        const stored = await readStorageAvoidStaleEmptyRead(FAMILY_MEMBERS_STORAGE_KEY);
+        if (cancelled) return;
+        if (__DEV__) {
+          console.log('[JourneyHydration] family initial load', {
+            hasStored: !!stored,
+            jsonChars: stored?.length ?? 0,
+          });
+        }
         if (stored) {
           const parsedMembers = JSON.parse(stored) as FamilyMember[];
           setFamilyMembers(parsedMembers);
@@ -497,18 +540,29 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       } catch (err) {
         // Error loading family members
       } finally {
-        setIsLoadingFamily(false);
+        if (!cancelled) setIsLoadingFamily(false);
       }
     };
     loadFamilyMembers();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Load friends on mount
   useEffect(() => {
+    let cancelled = false;
     const loadFriends = async () => {
       try {
         setIsLoadingFriends(true);
-        const stored = await AsyncStorage.getItem(FRIENDS_STORAGE_KEY);
+        const stored = await readStorageAvoidStaleEmptyRead(FRIENDS_STORAGE_KEY);
+        if (cancelled) return;
+        if (__DEV__) {
+          console.log('[JourneyHydration] friends initial load', {
+            hasStored: !!stored,
+            jsonChars: stored?.length ?? 0,
+          });
+        }
         if (stored) {
           const parsedFriends = JSON.parse(stored) as Friend[];
           setFriends(parsedFriends);
@@ -516,18 +570,29 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       } catch (err) {
         // Error loading friends
       } finally {
-        setIsLoadingFriends(false);
+        if (!cancelled) setIsLoadingFriends(false);
       }
     };
     loadFriends();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Load hobbies on mount
   useEffect(() => {
+    let cancelled = false;
     const loadHobbies = async () => {
       try {
         setIsLoadingHobbies(true);
-        const stored = await AsyncStorage.getItem(HOBBIES_STORAGE_KEY);
+        const stored = await readStorageAvoidStaleEmptyRead(HOBBIES_STORAGE_KEY);
+        if (cancelled) return;
+        if (__DEV__) {
+          console.log('[JourneyHydration] hobbies initial load', {
+            hasStored: !!stored,
+            jsonChars: stored?.length ?? 0,
+          });
+        }
         if (stored) {
           const parsedHobbies = JSON.parse(stored) as Hobby[];
           setHobbies(parsedHobbies);
@@ -535,10 +600,13 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       } catch (err) {
         // Error loading hobbies
       } finally {
-        setIsLoadingHobbies(false);
+        if (!cancelled) setIsLoadingHobbies(false);
       }
     };
     loadHobbies();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const saveProfile = useCallback(
@@ -1609,9 +1677,17 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
   );
 
   const getOverallSunnyPercentage = useCallback(() => {
-    // If no memories exist, return 0
+    const totalEntities =
+      profiles.length +
+      jobs.length +
+      familyMembers.length +
+      friends.length +
+      hobbies.length;
+
+    // No memories yet: match per-sphere home UI (each sphere uses 50% as neutral when there are no moments).
+    // Overall was 0% here, which looked "broken" after onboarding (entities saved, no memories yet).
     if (!idealizedMemories || idealizedMemories.length === 0) {
-      return 0;
+      return totalEntities > 0 ? 50 : 0;
     }
     
     // Filter out orphaned memories - only count memories that belong to existing entities
@@ -1640,9 +1716,8 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       }
     });
     
-    // If no valid memories exist, return 0
     if (validMemories.length === 0) {
-      return 0;
+      return totalEntities > 0 ? 50 : 0;
     }
     
     let totalClouds = 0;
@@ -1655,9 +1730,8 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     });
     
     const total = totalClouds + totalSuns;
-    // If no clouds or suns exist, return 0
     if (total === 0) {
-      return 0;
+      return totalEntities > 0 ? 50 : 0;
     }
     
     const percentage = (totalSuns / total) * 100;

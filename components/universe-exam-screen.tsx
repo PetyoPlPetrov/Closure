@@ -15,7 +15,6 @@ import {
 } from "@/utils/ai-service";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { lifeLessons } from "@/utils/life-lessons";
 import { showPaywallForAIAccess } from "@/utils/premium-access";
 import { getSphereSferaColor } from "@/utils/sphere-styles";
 import { useSubscription } from "@/utils/SubscriptionProvider";
@@ -275,17 +274,10 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
         }
       }
     }
-    if (real.length > 0) return real;
-    const fb = lifeLessons[language] ?? lifeLessons.en;
-    return fb.map((text, i) => ({
-      id: `static_${i}`,
-      text,
-      memoryTitle: language === "bg" ? "Твоята Вселена" : "Your Universe",
-      sphere: (["relationships", "career", "family", "friends", "hobbies"][
-        i % 5
-      ] as LifeSphere),
-    }));
-  }, [idealizedMemories, language]);
+    return real;
+  }, [idealizedMemories]);
+
+  const hasLessons = cards.length > 0;
 
   const twinkles = useMemo(
     () =>
@@ -390,10 +382,10 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
   const loadQuestionRef = useRef(loadQuestion);
   loadQuestionRef.current = loadQuestion;
   useEffect(() => {
-    if (visible) {
+    if (visible && hasLessons) {
       loadQuestionRef.current();
     }
-  }, [visible]);
+  }, [visible, hasLessons]);
 
   const handleSubmit = useCallback(async () => {
     const trimmed = answerInputRef.current.trim();
@@ -500,6 +492,14 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
           </View>
         </Pressable>
 
+        {!hasLessons ? (
+          <View style={styles.emptyLessonsWrap}>
+            <ThemedText style={styles.emptyLessonsText}>
+              {t("universe.lessons.noneAvailable")}
+            </ThemedText>
+          </View>
+        ) : (
+          <>
         {/* Question card */}
         {step !== "result" && (
           <View style={styles.cardArea}>
@@ -818,6 +818,8 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
             </ScrollView>
           </View>
         )}
+          </>
+        )}
       </View>
     </Modal>
   );
@@ -831,6 +833,20 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: BG,
+  },
+  emptyLessonsWrap: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    paddingTop: 72,
+  },
+  emptyLessonsText: {
+    fontSize: 17,
+    lineHeight: 24,
+    textAlign: "center",
+    color: "rgba(255,255,255,0.72)",
+    fontWeight: "500",
   },
   header: {
     position: "absolute",

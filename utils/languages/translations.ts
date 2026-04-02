@@ -68,6 +68,7 @@ export interface Translations {
   "avatar.sunnyCongrats": string;
   "avatar.addMemories": string;
   "sferaInsight.addPeople": string;
+  "sferaInsight.addPeopleAndMemories": string;
   "sferaInsight.addHobbies": string;
   "sferaInsight.leastMemories": string;
   "sferaInsight.mostMemories": string;
@@ -972,6 +973,7 @@ export interface Translations {
   "universe.exam.title": string;
   "universe.exam.next": string;
   "universe.exam.done": string;
+  "universe.lessons.noneAvailable": string;
 
   // Settings - Moments Colors
   "settings.momentColors.title": string;
@@ -3782,6 +3784,7 @@ const translations: Record<Language, Translations> = {
     "avatar.sunnyCongrats": "{pct}% Sunny!",
     "avatar.addMemories": "Add memories",
     "sferaInsight.addPeople": "Add people",
+    "sferaInsight.addPeopleAndMemories": "Add people and memories",
     "sferaInsight.leastMemories": "Least memories",
     "sferaInsight.mostMemories": "Most documented",
     "sferaInsight.lastUpdated": "Recently active",
@@ -4134,7 +4137,7 @@ const translations: Record<Language, Translations> = {
     "onboarding.subtitle":
       "Let's personalize your life spheres. Tell us a few words about your world...",
     "onboarding.placeholder":
-      "My name is... In my family I have... we're close and...\n\nI work as... I've been there for...\n\nMy closest friends are... we met... and still...\n\nI love... on weekends I usually...\n\nI'm in a relationship with... we've been together for...",
+      "In my family I have... we're close and...\n\nI work as... I've been there for...\n\nMy closest friends are... we met... and still...\n\nI love... on weekends I usually...\n\nI'm in a relationship with... we've been together for...",
     "onboarding.analyze": "Analyze my story",
     "onboarding.analyzing": "Analyzing your story...",
     "onboarding.sferaAnalyzing": "Sfera AI is analyzing...",
@@ -5010,6 +5013,7 @@ const translations: Record<Language, Translations> = {
     "universe.exam.title": "Lesson Check",
     "universe.exam.next": "Next Question",
     "universe.exam.done": "Done",
+    "universe.lessons.noneAvailable": "No lessons available",
 
     // Settings - Moments Colors
     "settings.momentColors.title": "Moments Colors",
@@ -8466,6 +8470,7 @@ const translations: Record<Language, Translations> = {
     "avatar.sunnyCongrats": "{pct}% Слънчево!",
     "avatar.addMemories": "Добави спомени",
     "sferaInsight.addPeople": "Добави хора",
+    "sferaInsight.addPeopleAndMemories": "Добави хора и спомени",
     "sferaInsight.leastMemories": "Най-малко документирани",
     "sferaInsight.mostMemories": "Най-много документирани",
     "sferaInsight.lastUpdated": "Скоро активен",
@@ -8813,7 +8818,7 @@ const translations: Record<Language, Translations> = {
     "onboarding.subtitle":
       "Персонализираме вашите жизнени сфери. Кажете ни няколко думи за света ви...",
     "onboarding.placeholder":
-      "Казвам се... В семейството ми има... ние сме близки и...\n\nРаботя като... там съм от...\n\nНай-добрите ми приятели са... срещнахме се... и все още...\n\nОбичам... в почивните дни обикновено...\n\nВъв връзка съм с... ние сме заедно от...",
+      "В семейството ми има... ние сме близки и...\n\nРаботя като... там съм от...\n\nНай-добрите ми приятели са... срещнахме се... и все още...\n\nОбичам... в почивните дни обикновено...\n\nВъв връзка съм с... ние сме заедно от...",
     "onboarding.analyze": "Анализирай историята ми",
     "onboarding.analyzing": "Анализираме историята ви...",
     "onboarding.sferaAnalyzing": "Sfera AI анализира...",
@@ -9700,6 +9705,7 @@ const translations: Record<Language, Translations> = {
     "universe.exam.title": "Преговор",
     "universe.exam.next": "Следващ въпрос",
     "universe.exam.done": "Готово",
+    "universe.lessons.noneAvailable": "Няма налични уроци",
 
     // Settings - Moments Colors
     "settings.momentColors.title": "Цветове на моменти",
