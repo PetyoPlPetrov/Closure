@@ -93,6 +93,7 @@ export interface Translations {
   "sferaInsight.memories": string;
   "sferaInsight.leastInteracted": string;
   "sferaInsight.addMemories": string;
+  "sferaInsight.needMemoriesFirst": string;
 
   // Settings
   "settings.title": string;
@@ -3805,6 +3806,7 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.memories": "memories",
     "sferaInsight.leastInteracted": "Least interacted",
     "sferaInsight.addMemories": "Add memories",
+    "sferaInsight.needMemoriesFirst": "You need to add memories",
     "sferaInsight.addHobbies": "Add hobbies",
     "sferaInsight.mostRecentHobby": "Most recently done",
     "sferaInsight.lastPracticed": "Longest not done",
@@ -8491,6 +8493,7 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.memories": "спомена",
     "sferaInsight.leastInteracted": "Най-малко взаимодействие",
     "sferaInsight.addMemories": "Добави спомени",
+    "sferaInsight.needMemoriesFirst": "Трябва да добавиш спомени",
     "sferaInsight.addHobbies": "Добави хобита",
     "sferaInsight.mostRecentHobby": "Последно практикувано",
     "sferaInsight.lastPracticed": "Най-дълго непрактикувано",

@@ -411,6 +411,18 @@ const SparkledDot = React.memo(function SparkledDot({
 const INSIGHT_CARD_W = 240;
 const INSIGHT_CARD_H = 295;
 
+const NEED_MEMORIES_HINT_WIDTH = 220;
+
+const needMemoriesHintBubbleStyle = {
+  paddingVertical: 8,
+  paddingHorizontal: 10,
+  backgroundColor: "rgba(15, 20, 34, 0.96)",
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "rgba(255, 255, 255, 0.22)",
+  maxWidth: NEED_MEMORIES_HINT_WIDTH,
+} as const;
+
 // ───────────────────── Card perimeter position helper (worklet) ─────────────────────
 
 /**
@@ -472,7 +484,8 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   avatarSize,
   glowColor,
   onEntitySelect,
-  sphere,
+  showNeedMemoriesHint,
+  onNeedMemoriesHint,
   perimeterOffset,
   momentsOrbitAngle,
   isTablet,
@@ -486,11 +499,13 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   avatarSize: number;
   glowColor: string;
   onEntitySelect?: (entityId: string) => void;
-  sphere: LifeSphere;
+  showNeedMemoriesHint?: boolean;
+  onNeedMemoriesHint?: (entityId: string) => void;
   perimeterOffset: SharedValue<number>;
   momentsOrbitAngle: SharedValue<number>;
   isTablet: boolean;
 }) {
+  const t = useTranslate();
   const scale = useSharedValue(1);
   const transitionLoader = useHomeTransitionLoader();
 
@@ -558,6 +573,10 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
             withTiming(1.18, { duration: 80, easing: Easing.out(Easing.ease) }),
             withTiming(1, { duration: 100, easing: Easing.inOut(Easing.ease) }),
           );
+          if (memories.length === 0) {
+            onNeedMemoriesHint?.(entity.id);
+            return;
+          }
           if (onEntitySelect) {
             transitionLoader?.showLoader();
             setTimeout(() => onEntitySelect(entity.id), 50);
@@ -597,6 +616,30 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
           </View>
         )}
       </Pressable>
+      {showNeedMemoriesHint && (
+        <View
+          style={{
+            position: "absolute",
+            top: avatarSize + 6,
+            left: (avatarSize - NEED_MEMORIES_HINT_WIDTH) / 2,
+            width: NEED_MEMORIES_HINT_WIDTH,
+            zIndex: 50,
+            ...needMemoriesHintBubbleStyle,
+          }}
+          pointerEvents="none"
+        >
+          <ThemedText
+            style={{
+              fontSize: 11,
+              color: "#FFFFFF",
+              textAlign: "center",
+              lineHeight: 15,
+            }}
+          >
+            {t("sferaInsight.needMemoriesFirst")}
+          </ThemedText>
+        </View>
+      )}
     </Animated.View>
 
     {/* Moment icons in a separate Animated.View so they are NOT clipped by the avatar circle */}
@@ -619,6 +662,8 @@ const EntityRing = React.memo(function EntityRing({
   entities,
   memoriesPerEntity,
   onEntitySelect,
+  needMemoriesHintEntityId,
+  onNeedMemoriesHint,
   sphere,
   centerX,
   centerY,
@@ -629,6 +674,8 @@ const EntityRing = React.memo(function EntityRing({
   entities: (BaseEntity | { id: string; name: string; imageUri?: string; isCompleted: boolean; createdAt?: string })[];
   memoriesPerEntity: IdealizedMemory[][];
   onEntitySelect?: (entityId: string) => void;
+  needMemoriesHintEntityId: string | null;
+  onNeedMemoriesHint: (entityId: string) => void;
   sphere: LifeSphere;
   centerX: number;
   centerY: number;
@@ -685,7 +732,8 @@ const EntityRing = React.memo(function EntityRing({
             avatarSize={avatarSize}
             glowColor={glowColor}
             onEntitySelect={handleEntitySelect}
-            sphere={sphere}
+            showNeedMemoriesHint={needMemoriesHintEntityId === entity.id}
+            onNeedMemoriesHint={onNeedMemoriesHint}
             perimeterOffset={perimeterOffset}
             momentsOrbitAngle={momentsOrbitAngle}
             isTablet={isTablet}
@@ -771,6 +819,9 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   entities,
   memoriesPerEntity,
   onEntitySelect,
+  onNeedMemoriesHintForEntity,
+  onNeedMemoriesHintCenter,
+  showNeedMemoriesHintBelowCard,
   colorScheme,
   x,
   y,
@@ -779,6 +830,9 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   entities: FocusedEntitiesViewProps["entities"];
   memoriesPerEntity: IdealizedMemory[][];
   onEntitySelect?: (entityId: string) => void;
+  onNeedMemoriesHintForEntity?: (entityId: string) => void;
+  onNeedMemoriesHintCenter?: () => void;
+  showNeedMemoriesHintBelowCard?: boolean;
   colorScheme: "light" | "dark";
   x: number;
   y: number;
@@ -927,7 +981,16 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const entity = entities[entityIdx];
   const entityName = entity?.name ?? "";
   const showSocialBottom = hasSocialCTAs && (mode === 0 || mode === 1) && entity != null;
-  entityTapRef.current = entity ? () => onEntitySelect?.(entity.id) : null;
+  entityTapRef.current = entity
+    ? () => {
+        const mems = memoriesPerEntity[entityIdx] ?? [];
+        if (mems.length === 0) {
+          onNeedMemoriesHintForEntity?.(entity.id);
+        } else {
+          onEntitySelect?.(entity.id);
+        }
+      }
+    : null;
 
   // Urgency border: amber tint when oldest interaction > 30 days
   const isMoodCard = mode === 4 || mode === 5;
@@ -993,45 +1056,83 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   }
 
   if (totalMemoriesCount === 0) {
+    const zeroMemOuter = {
+      ...wrapperStyle,
+      overflow: "visible" as const,
+      minHeight: INSIGHT_CARD_H + (showNeedMemoriesHintBelowCard ? 52 : 0),
+      height: undefined as number | undefined,
+    };
     return (
-      <View style={wrapperStyle} pointerEvents="box-none">
-        <View style={{ width: INSIGHT_ARROW_HIT }} />
-        <Pressable
-          onPress={() => entities[0] && onEntitySelect?.(entities[0].id)}
-          style={{ flex: 1 }}
-        >
-          <LinearGradient
-            colors={[...gradientColors]}
+      <View style={zeroMemOuter} pointerEvents="box-none">
+        <View style={{ flexDirection: "row", alignItems: "flex-start", width: "100%" }}>
+          <View style={{ width: INSIGHT_ARROW_HIT }} />
+          <Pressable onPress={() => onNeedMemoriesHintCenter?.()} style={{ flex: 1 }}>
+            <LinearGradient
+              colors={[...gradientColors]}
+              style={{
+                flex: 1,
+                height: INSIGHT_CARD_H,
+                borderRadius: 22,
+                borderWidth: 1.5,
+                borderColor: shadowColor + "99",
+                justifyContent: "center",
+                alignItems: "center",
+                padding: 14,
+                shadowColor,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.85,
+                shadowRadius: 22,
+                elevation: 12,
+                gap: 8,
+              }}
+            >
+              <MaterialIcons name="add-photo-alternate" size={32} color={shadowColor} />
+              <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 13, textAlign: "center", fontWeight: "600" }}>
+                {t("sferaInsight.addMemories")}
+              </ThemedText>
+            </LinearGradient>
+          </Pressable>
+          <View style={{ width: INSIGHT_ARROW_HIT }} />
+        </View>
+        {showNeedMemoriesHintBelowCard && (
+          <View
             style={{
-              flex: 1,
-              height: INSIGHT_CARD_H,
-              borderRadius: 22,
-              borderWidth: 1.5,
-              borderColor: shadowColor + "99",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: 14,
-              shadowColor,
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.85,
-              shadowRadius: 22,
-              elevation: 12,
-              gap: 8,
+              alignSelf: "center",
+              marginTop: 8,
+              ...needMemoriesHintBubbleStyle,
             }}
+            pointerEvents="none"
           >
-            <MaterialIcons name="add-photo-alternate" size={32} color={shadowColor} />
-            <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 13, textAlign: "center", fontWeight: "600" }}>
-              {t("sferaInsight.addMemories")}
+            <ThemedText
+              style={{
+                fontSize: 11,
+                color: COSMIC_TEXT_COLOR,
+                textAlign: "center",
+                lineHeight: 15,
+              }}
+            >
+              {t("sferaInsight.needMemoriesFirst")}
             </ThemedText>
-          </LinearGradient>
-        </Pressable>
-        <View style={{ width: INSIGHT_ARROW_HIT }} />
+          </View>
+        )}
       </View>
     );
   }
 
   return (
-    <View style={wrapperStyle} pointerEvents="box-none">
+    <View
+      style={[
+        wrapperStyle,
+        showNeedMemoriesHintBelowCard && totalMemoriesCount > 0
+          ? {
+              overflow: "visible",
+              minHeight: INSIGHT_CARD_H + 52,
+              height: undefined as number | undefined,
+            }
+          : null,
+      ]}
+      pointerEvents="box-none"
+    >
       {/* Left arrow */}
       {numModes > 1 ? (
         <Pressable
@@ -1400,6 +1501,31 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       ) : (
         <View style={{ width: INSIGHT_ARROW_HIT }} />
       )}
+
+      {showNeedMemoriesHintBelowCard && totalMemoriesCount > 0 ? (
+        <View
+          style={{
+            position: "absolute",
+            left: (totalW - NEED_MEMORIES_HINT_WIDTH) / 2,
+            top: INSIGHT_CARD_H + 6,
+            width: NEED_MEMORIES_HINT_WIDTH,
+            zIndex: 40,
+            ...needMemoriesHintBubbleStyle,
+          }}
+          pointerEvents="none"
+        >
+          <ThemedText
+            style={{
+              fontSize: 11,
+              color: COSMIC_TEXT_COLOR,
+              textAlign: "center",
+              lineHeight: 15,
+            }}
+          >
+            {t("sferaInsight.needMemoriesFirst")}
+          </ThemedText>
+        </View>
+      ) : null}
 
       {/* Event preview sheet — shown when event row is tapped */}
       {previewEvent && (
@@ -1830,8 +1956,53 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
   constellationOpacity = 5,
   hidden = false,
 }: FocusedEntitiesViewProps) {
-  const t = useTranslate();
   const { isTablet } = useLargeDevice();
+
+  const memoriesHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [memoriesHint, setMemoriesHint] = useState<
+    | null
+    | { place: "orbit"; entityId: string }
+    | { place: "insightCard" }
+  >(null);
+
+  const clearMemoriesHintTimer = useCallback(() => {
+    if (memoriesHintTimerRef.current) {
+      clearTimeout(memoriesHintTimerRef.current);
+      memoriesHintTimerRef.current = null;
+    }
+  }, []);
+
+  const showOrbitNeedMemoriesHint = useCallback(
+    (entityId: string) => {
+      clearMemoriesHintTimer();
+      setMemoriesHint({ place: "orbit", entityId });
+      memoriesHintTimerRef.current = setTimeout(() => {
+        setMemoriesHint(null);
+        memoriesHintTimerRef.current = null;
+      }, 4500);
+    },
+    [clearMemoriesHintTimer],
+  );
+
+  const showInsightCardNeedMemoriesHint = useCallback(() => {
+    clearMemoriesHintTimer();
+    setMemoriesHint({ place: "insightCard" });
+    memoriesHintTimerRef.current = setTimeout(() => {
+      setMemoriesHint(null);
+      memoriesHintTimerRef.current = null;
+    }, 4500);
+  }, [clearMemoriesHintTimer]);
+
+  useEffect(
+    () => () => {
+      clearMemoriesHintTimer();
+    },
+    [clearMemoriesHintTimer],
+  );
+
+  const orbitHintEntityId =
+    memoriesHint?.place === "orbit" ? memoriesHint.entityId : null;
+  const showInsightCardHint = memoriesHint?.place === "insightCard";
 
   // Sort entities: ongoing first (isCompleted=false), then by date descending
   const { sortedEntities, sortedMemoriesPerEntity } = useMemo(() => {
@@ -1889,6 +2060,9 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
           entities={sortedEntities}
           memoriesPerEntity={sortedMemoriesPerEntity}
           onEntitySelect={onEntitySelect}
+          onNeedMemoriesHintForEntity={() => showInsightCardNeedMemoriesHint()}
+          onNeedMemoriesHintCenter={showInsightCardNeedMemoriesHint}
+          showNeedMemoriesHintBelowCard={showInsightCardHint}
           colorScheme={colorScheme}
           x={AVATAR_CX}
           y={AVATAR_CY}
@@ -1928,6 +2102,9 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         entities={sortedEntities}
         memoriesPerEntity={sortedMemoriesPerEntity}
         onEntitySelect={onEntitySelect}
+        onNeedMemoriesHintForEntity={() => showInsightCardNeedMemoriesHint()}
+        onNeedMemoriesHintCenter={showInsightCardNeedMemoriesHint}
+        showNeedMemoriesHintBelowCard={showInsightCardHint}
         colorScheme={colorScheme}
         x={AVATAR_CX}
         y={AVATAR_CY}
@@ -1938,6 +2115,8 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         entities={sortedEntities}
         memoriesPerEntity={sortedMemoriesPerEntity}
         onEntitySelect={onEntitySelect}
+        needMemoriesHintEntityId={orbitHintEntityId}
+        onNeedMemoriesHint={showOrbitNeedMemoriesHint}
         sphere={sphere}
         centerX={AVATAR_CX}
         centerY={AVATAR_CY}

@@ -107,6 +107,17 @@ const LABEL_TO_DOTS_GAP = SH * 0.008;
 /** Entity orbit radius when this sphere is focused (sphere radius + entity radius + padding) */
 const FOCUSED_ENTITY_ORBIT_R = FOCUSED_SIZE / 2 + 20 + 8;
 
+const NEED_MEMORIES_HINT_WIDTH_FS = 220;
+const needMemoriesHintBubbleStyleFs = {
+  paddingVertical: 8,
+  paddingHorizontal: 10,
+  backgroundColor: "rgba(15, 20, 34, 0.96)",
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "rgba(255, 255, 255, 0.22)",
+  maxWidth: NEED_MEMORIES_HINT_WIDTH_FS,
+} as const;
+
 /** Left just above the focused sfera (slot 4) — slightly bigger */
 const BG_SPHERE_SIZE_LEFT_BELOW = 76;
 /** Right just above / below-right of the circle avatar (slot 1) — a bit bigger */
@@ -767,6 +778,8 @@ const EntityRing = React.memo(function EntityRing({
   entityMemories,
   onEntitySelect,
   onSingleTapSameAsFocusedSphere,
+  onNeedMemoriesHint,
+  needMemoriesHintEntityId,
   sphere,
   centerX,
   centerY,
@@ -786,6 +799,8 @@ const EntityRing = React.memo(function EntityRing({
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
   /** When set (focused sphere only), single tap on an orbiting entity matches focused-sphere tap: pulse + global double-tap hint. */
   onSingleTapSameAsFocusedSphere?: () => void;
+  onNeedMemoriesHint?: (entityId: string) => void;
+  needMemoriesHintEntityId: string | null;
   sphere: LifeSphere;
   centerX: number;
   centerY: number;
@@ -821,15 +836,19 @@ const EntityRing = React.memo(function EntityRing({
   }, [rotateOrbit, orbitAngle, orbitDurationMs]);
 
   const handleOrbitingEntityTap = useCallback(
-    (entityId: string, isDoubleTap: boolean) => {
+    (entityId: string, isDoubleTap: boolean, memoryCount: number) => {
       if (isDoubleTap) {
         onEntitySelect(entityId, sphere);
         return;
       }
       if (!isFocused || !entityId) return;
+      if (memoryCount === 0) {
+        onNeedMemoriesHint?.(entityId);
+        return;
+      }
       onSingleTapSameAsFocusedSphere?.();
     },
-    [isFocused, onEntitySelect, onSingleTapSameAsFocusedSphere, sphere],
+    [isFocused, onEntitySelect, onSingleTapSameAsFocusedSphere, onNeedMemoriesHint, sphere],
   );
 
   if (entityIds.length === 0) return null;
@@ -864,6 +883,7 @@ const EntityRing = React.memo(function EntityRing({
             showFloatingMoments={showFloatingMoments}
             entityMemories={memories}
             onOrbitingTap={handleOrbitingEntityTap}
+            needMemoriesHintForEntity={needMemoriesHintEntityId === entityId}
             orbitAngle={orbitAngle}
             rotateOrbit={rotateOrbit}
             shouldDoRandomPulse={randomPulseIndex === i}
@@ -892,6 +912,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   showFloatingMoments,
   entityMemories,
   onOrbitingTap,
+  needMemoriesHintForEntity,
   orbitAngle,
   rotateOrbit,
   shouldDoRandomPulse,
@@ -912,11 +933,17 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   isTablet: boolean;
   showFloatingMoments: boolean;
   entityMemories: IdealizedMemory[];
-  onOrbitingTap: (entityId: string, isDoubleTap: boolean) => void;
+  onOrbitingTap: (
+    entityId: string,
+    isDoubleTap: boolean,
+    memoryCount: number,
+  ) => void;
+  needMemoriesHintForEntity?: boolean;
   orbitAngle: SharedValue<number>;
   rotateOrbit: boolean;
   shouldDoRandomPulse: boolean;
 }) {
+  const t = useTranslate();
   const scale = useSharedValue(1);
   const lastTap = useRef(0);
 
@@ -992,7 +1019,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
               }),
             );
 
-            onOrbitingTap(entityId, isDoubleTap);
+            onOrbitingTap(entityId, isDoubleTap, entityMemories.length);
           }
         }}
       >
@@ -1037,6 +1064,30 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
           />
         )}
       </Pressable>
+      {needMemoriesHintForEntity ? (
+        <View
+          style={{
+            position: "absolute",
+            top: avatarSize + 6,
+            left: (avatarSize - NEED_MEMORIES_HINT_WIDTH_FS) / 2,
+            width: NEED_MEMORIES_HINT_WIDTH_FS,
+            zIndex: 50,
+            ...needMemoriesHintBubbleStyleFs,
+          }}
+          pointerEvents="none"
+        >
+          <ThemedText
+            style={{
+              fontSize: 11,
+              color: "#FFFFFF",
+              textAlign: "center",
+              lineHeight: 15,
+            }}
+          >
+            {t("sferaInsight.needMemoriesFirst")}
+          </ThemedText>
+        </View>
+      ) : null}
     </Animated.View>
   );
 });
@@ -1178,6 +1229,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   onPress,
   onEntitySelect,
   onSingleTapSameAsFocusedSphere,
+  onNeedMemoriesHint,
+  needMemoriesHintEntityId,
   onPulse,
   colorScheme,
   sunnyPercentage,
@@ -1200,6 +1253,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   onPress: () => void;
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
   onSingleTapSameAsFocusedSphere?: () => void;
+  onNeedMemoriesHint?: (entityId: string) => void;
+  needMemoriesHintEntityId: string | null;
   onPulse?: (trigger: () => void) => void;
   colorScheme: "light" | "dark";
   sunnyPercentage: number;
@@ -1633,6 +1688,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             entityMemories={entityMemories}
             onEntitySelect={handleEntitySelect}
             onSingleTapSameAsFocusedSphere={onSingleTapSameAsFocusedSphere}
+            onNeedMemoriesHint={onNeedMemoriesHint}
+            needMemoriesHintEntityId={needMemoriesHintEntityId}
             sphere={sphere.type}
             centerX={CONTAINER_HALF}
             centerY={CONTAINER_HALF}
@@ -2071,6 +2128,8 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   entityNames,
   entityMemories,
   onEntitySelect,
+  onNeedMemoriesHintCenter,
+  showNeedMemoriesHintBelowCard,
   colorScheme,
   shadowColor,
   x,
@@ -2081,6 +2140,8 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   entityNames: string[];
   entityMemories: IdealizedMemory[][];
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
+  onNeedMemoriesHintCenter?: () => void;
+  showNeedMemoriesHintBelowCard?: boolean;
   colorScheme: "light" | "dark";
   shadowColor: string;
   x: number;
@@ -2249,39 +2310,69 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
 
   // Entities exist but no memories yet — avoid misleading mode titles (e.g. "Most recently done")
   if (totalMemoriesCount === 0) {
+    const zeroOuter = {
+      ...wrapperStyle,
+      overflow: "visible" as const,
+      minHeight: INSIGHT_CARD_SIZE + (showNeedMemoriesHintBelowCard ? 48 : 0),
+      height: undefined as number | undefined,
+    };
     return (
-      <Pressable style={wrapperStyle} onPress={() => onEntitySelect(entityIds[0]!, sphere)}>
-        <LinearGradient
-          colors={[...gradientColors]}
-          style={{
-            flex: 1,
-            borderRadius: 20,
-            borderWidth: 1.5,
-            borderColor: shadowColor + "66",
-            justifyContent: "center",
-            alignItems: "center",
-            padding: 10,
-            shadowColor,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.5,
-            shadowRadius: 12,
-            elevation: 8,
-          }}
-        >
-          <MaterialIcons name="add-photo-alternate" size={26} color={shadowColor} />
-          <ThemedText
+      <View style={zeroOuter}>
+        <Pressable style={{ width: INSIGHT_CARD_SIZE }} onPress={() => onNeedMemoriesHintCenter?.()}>
+          <LinearGradient
+            colors={[...gradientColors]}
             style={{
-              color: COSMIC_TEXT,
-              fontSize: 11,
-              textAlign: "center",
-              marginTop: 8,
-              fontWeight: "600",
+              flex: 1,
+              borderRadius: 20,
+              borderWidth: 1.5,
+              borderColor: shadowColor + "66",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: 10,
+              shadowColor,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.5,
+              shadowRadius: 12,
+              elevation: 8,
+              minHeight: INSIGHT_CARD_SIZE,
             }}
           >
-            {t("sferaInsight.addMemories")}
-          </ThemedText>
-        </LinearGradient>
-      </Pressable>
+            <MaterialIcons name="add-photo-alternate" size={26} color={shadowColor} />
+            <ThemedText
+              style={{
+                color: COSMIC_TEXT,
+                fontSize: 11,
+                textAlign: "center",
+                marginTop: 8,
+                fontWeight: "600",
+              }}
+            >
+              {t("sferaInsight.addMemories")}
+            </ThemedText>
+          </LinearGradient>
+        </Pressable>
+        {showNeedMemoriesHintBelowCard ? (
+          <View
+            style={{
+              alignSelf: "center",
+              marginTop: 8,
+              ...needMemoriesHintBubbleStyleFs,
+            }}
+            pointerEvents="none"
+          >
+            <ThemedText
+              style={{
+                fontSize: 11,
+                color: COSMIC_TEXT,
+                textAlign: "center",
+                lineHeight: 15,
+              }}
+            >
+              {t("sferaInsight.needMemoriesFirst")}
+            </ThemedText>
+          </View>
+        ) : null}
+      </View>
     );
   }
 
@@ -2319,13 +2410,29 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
       const isDoubleTap = now - lastTapRef.current < 300;
       lastTapRef.current = now;
       if (isDoubleTap) {
+        const mems = entityMemories[entityIdx] ?? [];
+        if (mems.length === 0) {
+          onNeedMemoriesHintCenter?.();
+          return;
+        }
         onEntitySelect(entityId, sphere);
       }
     }
   };
 
   return (
-    <Pressable style={wrapperStyle} onPress={handleEntityTap} {...swipePanResponder.panHandlers}>
+    <View
+      style={{
+        position: "absolute",
+        left: x - INSIGHT_CARD_SIZE / 2,
+        top: y - INSIGHT_CARD_SIZE / 2,
+        zIndex: 25,
+        overflow: "visible",
+        alignItems: "center",
+      }}
+      pointerEvents="box-none"
+    >
+    <Pressable style={{ width: INSIGHT_CARD_SIZE, height: INSIGHT_CARD_SIZE }} onPress={handleEntityTap} {...swipePanResponder.panHandlers}>
       <LinearGradient
         colors={[...gradientColors]}
         style={{
@@ -2410,6 +2517,28 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
         )}
       </LinearGradient>
     </Pressable>
+    {showNeedMemoriesHintBelowCard && totalMemoriesCount > 0 ? (
+      <View
+        style={{
+          marginTop: 8,
+          width: NEED_MEMORIES_HINT_WIDTH_FS,
+          ...needMemoriesHintBubbleStyleFs,
+        }}
+        pointerEvents="none"
+      >
+        <ThemedText
+          style={{
+            fontSize: 11,
+            color: COSMIC_TEXT,
+            textAlign: "center",
+            lineHeight: 15,
+          }}
+        >
+          {t("sferaInsight.needMemoriesFirst")}
+        </ThemedText>
+      </View>
+    ) : null}
+    </View>
   );
 });
 
@@ -2449,6 +2578,53 @@ export function FocusedSferaView({
   const focusedSpherePulseRef = useRef<(() => void) | null>(null);
   const focusedSphereTapTimeRef = useRef<number>(0);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const memoriesHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [memoriesHint, setMemoriesHint] = useState<
+    | null
+    | { place: "orbit"; entityId: string }
+    | { place: "insightCard" }
+  >(null);
+
+  const clearMemoriesHintTimer = useCallback(() => {
+    if (memoriesHintTimerRef.current) {
+      clearTimeout(memoriesHintTimerRef.current);
+      memoriesHintTimerRef.current = null;
+    }
+  }, []);
+
+  const showOrbitNeedMemoriesHint = useCallback(
+    (entityId: string) => {
+      clearMemoriesHintTimer();
+      setMemoriesHint({ place: "orbit", entityId });
+      memoriesHintTimerRef.current = setTimeout(() => {
+        setMemoriesHint(null);
+        memoriesHintTimerRef.current = null;
+      }, 4500);
+    },
+    [clearMemoriesHintTimer],
+  );
+
+  const showInsightCardNeedMemoriesHint = useCallback(() => {
+    clearMemoriesHintTimer();
+    setMemoriesHint({ place: "insightCard" });
+    memoriesHintTimerRef.current = setTimeout(() => {
+      setMemoriesHint(null);
+      memoriesHintTimerRef.current = null;
+    }, 4500);
+  }, [clearMemoriesHintTimer]);
+
+  useEffect(
+    () => () => {
+      clearMemoriesHintTimer();
+    },
+    [clearMemoriesHintTimer],
+  );
+
+  const orbitNeedMemoriesHintEntityId =
+    memoriesHint?.place === "orbit" ? memoriesHint.entityId : null;
+  const showInsightCardNeedMemoriesHintFlag =
+    memoriesHint?.place === "insightCard";
+
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
   const N = SPHERE_LIST.length;
   // Keep root aligned with TabScreenContainer; we shift spheres via ORBIT_CY instead.
@@ -2861,14 +3037,35 @@ export function FocusedSferaView({
           hintTimerRef.current = null;
         }
         focusedSphereTapTimeRef.current = 0;
+
+        const ids = entityIdsBySphere[s] ?? [];
+        const entityIdx = ids.indexOf(entityId);
+        const memoriesForEntity =
+          entityIdx >= 0
+            ? (memoriesPerEntityBySphere[s]?.[entityIdx] ?? [])
+            : [];
+
         if (selectedSphere === null && sphereIndex === focusedIdx) {
           onSphereSelect(sphereType);
+        } else if (
+          selectedSphere !== null &&
+          memoriesForEntity.length === 0
+        ) {
+          showOrbitNeedMemoriesHint(entityId);
         } else {
           onEntitySelect(entityId, s);
         }
       };
     },
-    [selectedSphere, focusedIdx, onSphereSelect, onEntitySelect],
+    [
+      selectedSphere,
+      focusedIdx,
+      onSphereSelect,
+      onEntitySelect,
+      showOrbitNeedMemoriesHint,
+      entityIdsBySphere,
+      memoriesPerEntityBySphere,
+    ],
   );
 
   const doubleTapHintAnimatedStyle = useAnimatedStyle(() => ({
@@ -2972,6 +3169,8 @@ export function FocusedSferaView({
           onSingleTapSameAsFocusedSphere={
             i === focusedIdx ? handleFocusedSphereTapOverlay : undefined
           }
+          onNeedMemoriesHint={showOrbitNeedMemoriesHint}
+          needMemoriesHintEntityId={orbitNeedMemoriesHintEntityId}
           colorScheme={colorScheme}
           sunnyPercentage={getSphereSunnyPercentage(sphere.type)}
           orbitDurationMs={orbitDurationMs}
@@ -3008,6 +3207,8 @@ export function FocusedSferaView({
           entityNames={entityNamesBySphere[focusedSphere.type] ?? []}
           entityMemories={memoriesPerEntityBySphere[focusedSphere.type] ?? []}
           onEntitySelect={onEntitySelect}
+          onNeedMemoriesHintCenter={showInsightCardNeedMemoriesHint}
+          showNeedMemoriesHintBelowCard={showInsightCardNeedMemoriesHintFlag}
           colorScheme={colorScheme}
           shadowColor={focusedShadowColor}
           x={SW * 0.45}

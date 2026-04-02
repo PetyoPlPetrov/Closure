@@ -452,6 +452,25 @@ const DraggableMoment = React.memo(function DraggableMoment({
   );
 });
 
+/** Entity wheel of life: ≥3 memories and ≥9 moments total (lessons + sunny + cloudy) across the entity. */
+function canEnterEntityWheelOfLife(
+  memories: {
+    hardTruths?: unknown[];
+    goodFacts?: unknown[];
+    lessonsLearned?: unknown[];
+  }[],
+): boolean {
+  if (memories.length < 3) return false;
+  let total = 0;
+  for (const m of memories) {
+    total +=
+      (m.hardTruths?.length ?? 0) +
+      (m.goodFacts?.length ?? 0) +
+      (m.lessonsLearned?.length ?? 0);
+  }
+  return total >= 9;
+}
+
 // Floating Avatar Component
 const FloatingAvatar = React.memo(
   function FloatingAvatar({
@@ -674,6 +693,9 @@ const FloatingAvatar = React.memo(
     const entityHintRotation = useSharedValue(0); // Wiggle when spin hint is shown
     const avatarClickHintOpacity = useSharedValue(0);
     const avatarClickHintScale = useSharedValue(1);
+    /** Pulse a random memory when user taps avatar but entity wheel is gated off */
+    const nudgeTargetIndex = useSharedValue(-1);
+    const nudgePulseScale = useSharedValue(1);
     const wheelMomentHintPointerOpacity = useSharedValue(0);
     const wheelMomentHintPointerBounce = useSharedValue(0);
     const wheelMomentAppearCountRef = React.useRef(0);
@@ -740,6 +762,252 @@ const FloatingAvatar = React.memo(
         },
       };
     }, [memories]);
+
+    const canEnterEntityWheel = useMemo(
+      () => canEnterEntityWheelOfLife(memories),
+      [memories],
+    );
+
+    /** Which memory the usability finger points at when wheel mode is gated off */
+    const usabilityHintMemoryIndex = useMemo(() => {
+      if (memories.length === 0) return 0;
+      let h = 0;
+      const id = String(profile?.id ?? "");
+      for (let i = 0; i < id.length; i++) {
+        h = (h + id.charCodeAt(i)) % memories.length;
+      }
+      return h;
+    }, [memories.length, profile?.id]);
+
+    // Calculate memory positions based on current animated position
+    const memoryPositions = useMemo(() => {
+      // Calculate max moments count to normalize distances
+      const maxMomentsCount = Math.max(
+        ...memories.map(
+          (m) =>
+            (m.hardTruths || []).length +
+            (m.goodFacts || []).length +
+            (m.lessonsLearned || []).length,
+        ),
+        1,
+      );
+      const minMomentsCount = Math.min(
+        ...memories.map(
+          (m) =>
+            (m.hardTruths || []).length +
+            (m.goodFacts || []).length +
+            (m.lessonsLearned || []).length,
+        ),
+        0,
+      );
+
+      // Pre-calculate all angles to identify the top 2 elements (only if more than 5 elements)
+      const topTwoIndices =
+        isFocused && memories.length > 5
+          ? (() => {
+              const topAngle = -Math.PI / 2; // Top position
+              const allAngles = memories.map((_, idx) => {
+                const baseAngle = (idx * 2 * Math.PI) / memories.length;
+                const seed = idx * 0.618;
+                const angleVar = Math.cos(seed * 2) * 0.15;
+                return baseAngle + angleVar;
+              });
+
+              // Find distances from top angle for all elements
+              const distancesFromTop = allAngles.map((angle) => {
+                const diff = Math.abs(angle - topAngle);
+                return Math.min(diff, 2 * Math.PI - diff);
+              });
+
+              // Sort by distance and get the indices of the top 2 closest elements
+              return distancesFromTop
+                .map((dist, idx) => ({ dist, idx }))
+                .sort((a, b) => a.dist - b.dist)
+                .slice(0, 2)
+                .map((item) => item.idx);
+            })()
+          : [];
+
+      // Calculate maximum safe radius based on avatar position and viewport boundaries
+      // Memory size: account for tablets (68px focused, 45px unfocused on tablets; 45px focused, 30px unfocused on phones)
+      const memorySize = isFocused ? (isTablet ? 68 : 45) : isTablet ? 45 : 30;
+      const memoryRadiusSize = memorySize / 2; // Half the memory size
+      const safetyPadding = isTablet ? 38 : 10; // Larger padding on tablets to match the increased sizes
+
+      // Calculate distances from avatar center to each viewport edge
+      const distanceToTop = position.y;
+      const distanceToBottom = SCREEN_HEIGHT - position.y;
+      const distanceToLeft = position.x;
+      const distanceToRight = SCREEN_WIDTH - position.x;
+
+      // Maximum safe radius is the minimum distance to any edge, minus memory radius and padding
+      // Calculate minimum required radius: avatar radius + memory radius + padding to ensure memories float around avatar
+      const avatarRadius = avatarSize / 2;
+      const memoryRadiusForSpacing = memoryRadiusSize; // Half the memory size
+      // Increase spacing padding when focused to ensure memories are clearly separated from avatar
+      // When there are more than 5 memories, push them further out
+      const baseSpacingPadding = isFocused ? 30 : 20; // More padding when focused (30px) vs unfocused (20px)
+      const extraSpacingForManyMemories =
+        isFocused && memories.length > 5 ? 25 : 0; // Extra spacing when more than 5 memories (increased from 15 to 25)
+      const spacingPadding = baseSpacingPadding + extraSpacingForManyMemories;
+      const minRequiredRadius =
+        avatarRadius + memoryRadiusForSpacing + spacingPadding; // Ensure memories are clearly outside avatar
+
+      const maxSafeRadius = Math.max(
+        minRequiredRadius,
+        Math.min(
+          distanceToTop,
+          distanceToBottom,
+          distanceToLeft,
+          distanceToRight,
+        ) -
+          memoryRadiusSize -
+          safetyPadding,
+      );
+
+      return memories.map((memory, memIndex) => {
+        // Calculate moment count for this memory
+        const momentCount =
+          (memory.hardTruths || []).length +
+          (memory.goodFacts || []).length +
+          (memory.lessonsLearned || []).length;
+
+        // Calculate distance multiplier based on moments (more moments = further)
+        let momentsDistanceMultiplier = 1.0;
+        if (maxMomentsCount > minMomentsCount) {
+          // Normalize to 0-1 range based on min/max
+          const momentsFactor =
+            (momentCount - minMomentsCount) /
+            (maxMomentsCount - minMomentsCount);
+          // Scale from 0.7x (fewest moments) to 1.8x (most moments) for clear distance difference
+          momentsDistanceMultiplier = 0.7 + momentsFactor * 1.1; // Range: 0.7 to 1.8
+        }
+
+        // Add unique variation for each memory to ensure different distances
+        // Use a deterministic seed based on memory index for consistency
+        const variationSeed = memIndex * 0.618; // Golden ratio for better distribution
+        // Add ±10% variation to ensure each memory has a unique distance
+        const distanceVariation = 0.9 + Math.sin(variationSeed) * 0.2; // Range: 0.9 to 1.1
+
+        // Combine moment-based distance with unique variation
+        let variedRadius =
+          memoryRadius * momentsDistanceMultiplier * distanceVariation;
+
+        // Adjust radius based on number of floating elements
+        if (memories.length < 5) {
+          // When there are less than 5 elements, position them CLOSER to avatar
+          // to ensure they stay fully visible in viewport
+          if (memories.length === 1) {
+            // For single memory, keep it much closer to ensure it's fully visible
+            const closerMultiplier = isFocused ? 0.5 : 0.6; // Much closer to ensure visibility
+            variedRadius = variedRadius * closerMultiplier;
+          } else if (memories.length === 2) {
+            // For 2 memories, position them closer to keep them in viewport
+            const closerMultiplier = isFocused ? 0.6 : 0.7; // Closer when focused
+            variedRadius = variedRadius * closerMultiplier;
+          } else {
+            // For 3-4 memories, position them closer
+            const closerMultiplier = isFocused ? 0.7 : 0.8; // Closer to keep in viewport
+            variedRadius = variedRadius * closerMultiplier;
+          }
+        } else if (
+          isFocused &&
+          memories.length > 5 &&
+          topTwoIndices.includes(memIndex)
+        ) {
+          // When focused and there are more than 5 elements, push top 2 elements further away
+          const additionalRadius = 75; // Increased additional distance for top 2 elements (from 60 to 75)
+          variedRadius = variedRadius + additionalRadius;
+        } else if (isFocused && memories.length > 5) {
+          // For all other memories when there are more than 5, push them further out too
+          const additionalRadius = 30; // Additional distance for other memories (increased from 20 to 30)
+          variedRadius = variedRadius + additionalRadius;
+        }
+
+        // CRITICAL: Ensure memory stays fully within viewport
+        // Calculate the actual position this memory would be at
+        const angle = (memIndex * 2 * Math.PI) / memories.length;
+        const angleVariation = Math.cos(variationSeed * 2) * 0.15; // ±15% angle variation
+        const variedAngle = angle + angleVariation;
+
+        // CRITICAL: Calculate maximum safe radius for this specific angle
+        // We need to ensure the memory circle (center + radius) stays fully within viewport
+        const cosAngle = Math.cos(variedAngle);
+        const sinAngle = Math.sin(variedAngle);
+
+        // Calculate maximum radius based on horizontal constraint (X direction)
+        let maxRadiusX: number;
+        if (cosAngle > 0) {
+          // Moving right - limited by right edge
+          maxRadiusX =
+            (distanceToRight - memoryRadiusSize - safetyPadding) /
+            Math.abs(cosAngle);
+        } else if (cosAngle < 0) {
+          // Moving left - limited by left edge
+          maxRadiusX =
+            (distanceToLeft - memoryRadiusSize - safetyPadding) /
+            Math.abs(cosAngle);
+        } else {
+          // cosAngle === 0, moving vertically only
+          maxRadiusX = Infinity;
+        }
+
+        // Calculate maximum radius based on vertical constraint (Y direction)
+        let maxRadiusY: number;
+        if (sinAngle > 0) {
+          // Moving down - limited by bottom edge
+          maxRadiusY =
+            (distanceToBottom - memoryRadiusSize - safetyPadding) /
+            Math.abs(sinAngle);
+        } else if (sinAngle < 0) {
+          // Moving up - limited by top edge
+          maxRadiusY =
+            (distanceToTop - memoryRadiusSize - safetyPadding) /
+            Math.abs(sinAngle);
+        } else {
+          // sinAngle === 0, moving horizontally only
+          maxRadiusY = Infinity;
+        }
+
+        // The maximum safe radius is the minimum of both constraints
+        // Use the same minimum radius calculation to ensure memories float around avatar
+        const maxRadiusInDirection = Math.max(
+          minRequiredRadius,
+          Math.min(maxRadiusX, maxRadiusY, maxSafeRadius),
+        );
+
+        // Clamp variedRadius to ensure memory stays fully visible, but never go below minimum
+        // This ensures memories are always positioned outside the avatar, floating around it
+        variedRadius = Math.max(
+          minRequiredRadius,
+          Math.min(variedRadius, maxRadiusInDirection),
+        );
+
+        const offsetX = variedRadius * cosAngle;
+        const offsetY = variedRadius * sinAngle;
+
+        // Position-based size: below avatar = full, left/right = bit smaller, above = smallest
+        // Angle π/2 = bottom, 0/π = sides, -π/2 (3π/2) = top
+        const towardBottom = (1 + Math.cos(variedAngle - Math.PI / 2)) / 2;
+        const sizeMultiplier = 0.65 + 0.35 * towardBottom;
+
+        return {
+          angle: variedAngle,
+          offsetX: offsetX,
+          offsetY: offsetY,
+          sizeMultiplier,
+        };
+      });
+    }, [
+      memories,
+      memoryRadius,
+      isFocused,
+      isTablet,
+      position,
+      profile.id,
+      profile.name,
+      avatarSize,
+    ]);
 
     // Calculate SVG circle parameters for progress bar
     const borderWidth = 6; // Increased from 4 to 6 for thicker border
@@ -1364,6 +1632,13 @@ const FloatingAvatar = React.memo(
       showEntityWheelShared.value = showEntityWheel;
     }, [showEntityWheel, showEntityWheelShared]);
 
+    // Exit wheel mode if memories no longer meet the threshold (e.g. edits elsewhere)
+    React.useEffect(() => {
+      if (showEntityWheel && isFocused && !canEnterEntityWheel) {
+        setShowEntityWheel(false);
+      }
+    }, [canEnterEntityWheel, showEntityWheel, isFocused]);
+
     // Animate wheel mode - use useLayoutEffect to ensure star position is set before render
     useLayoutEffect(() => {
       if (showEntityWheel && isFocused) {
@@ -1466,6 +1741,10 @@ const FloatingAvatar = React.memo(
         if (!showEntityWheel) setAvatarClickHintDismissed(false);
         return;
       }
+      if (!canEnterEntityWheel && memories.length === 0) {
+        setAvatarClickHintDismissed(true);
+        return;
+      }
       if (!appUsabilityHints) {
         setAvatarClickHintDismissed(true);
         return;
@@ -1476,7 +1755,13 @@ const FloatingAvatar = React.memo(
         return;
       }
       setAvatarClickHintDismissed(false);
-    }, [isFocused, showEntityWheel, appUsabilityHints]);
+    }, [
+      isFocused,
+      showEntityWheel,
+      appUsabilityHints,
+      canEnterEntityWheel,
+      memories.length,
+    ]);
 
     // Avatar click hint animation: finger above avatar, appears after delay, scales like pressing
     React.useEffect(() => {
@@ -1484,7 +1769,8 @@ const FloatingAvatar = React.memo(
         !appUsabilityHints ||
         !isFocused ||
         showEntityWheel ||
-        avatarClickHintDismissed
+        avatarClickHintDismissed ||
+        (!canEnterEntityWheel && memories.length === 0)
       ) {
         cancelAnimation(avatarClickHintOpacity);
         cancelAnimation(avatarClickHintScale);
@@ -1544,6 +1830,8 @@ const FloatingAvatar = React.memo(
     }, [
       appUsabilityHints,
       isFocused,
+      canEnterEntityWheel,
+      memories.length,
       showEntityWheel,
       avatarClickHintDismissed,
     ]);
@@ -1913,6 +2201,7 @@ const FloatingAvatar = React.memo(
       // OR first render when already focused (e.g., clicking friend from spheres view)
       if (
         isFocused &&
+        canEnterEntityWheel &&
         (!previousIsFocused.current || !hasInitialPulseRun.current)
       ) {
         // Pulse 3 times: start after avatar movement (1200ms) has finished
@@ -1953,11 +2242,14 @@ const FloatingAvatar = React.memo(
         // Reset pulse when leaving focused view
         avatarPulseScale.value = 1;
         hasInitialPulseRun.current = false; // Reset so next focus triggers pulse
+      } else if (!canEnterEntityWheel) {
+        avatarPulseScale.value = 1;
+        hasInitialPulseRun.current = false; // Allow pulse again if user later meets threshold
       }
 
       // Update ref for next render
       previousIsFocused.current = isFocused;
-    }, [isFocused, avatarPulseScale, setAvatarClickHintDismissed]);
+    }, [isFocused, canEnterEntityWheel, avatarPulseScale, setAvatarClickHintDismissed]);
 
     // Use a ref to track previous isFocused state to detect transitions
     // CRITICAL: Don't initialize with current value - track the actual previous value from last effect run
@@ -2892,235 +3184,6 @@ const FloatingAvatar = React.memo(
       };
     });
 
-    // Calculate memory positions based on current animated position
-    const memoryPositions = useMemo(() => {
-      // Calculate max moments count to normalize distances
-      const maxMomentsCount = Math.max(
-        ...memories.map(
-          (m) =>
-            (m.hardTruths || []).length +
-            (m.goodFacts || []).length +
-            (m.lessonsLearned || []).length,
-        ),
-        1,
-      );
-      const minMomentsCount = Math.min(
-        ...memories.map(
-          (m) =>
-            (m.hardTruths || []).length +
-            (m.goodFacts || []).length +
-            (m.lessonsLearned || []).length,
-        ),
-        0,
-      );
-
-      // Pre-calculate all angles to identify the top 2 elements (only if more than 5 elements)
-      const topTwoIndices =
-        isFocused && memories.length > 5
-          ? (() => {
-              const topAngle = -Math.PI / 2; // Top position
-              const allAngles = memories.map((_, idx) => {
-                const baseAngle = (idx * 2 * Math.PI) / memories.length;
-                const seed = idx * 0.618;
-                const angleVar = Math.cos(seed * 2) * 0.15;
-                return baseAngle + angleVar;
-              });
-
-              // Find distances from top angle for all elements
-              const distancesFromTop = allAngles.map((angle) => {
-                const diff = Math.abs(angle - topAngle);
-                return Math.min(diff, 2 * Math.PI - diff);
-              });
-
-              // Sort by distance and get the indices of the top 2 closest elements
-              return distancesFromTop
-                .map((dist, idx) => ({ dist, idx }))
-                .sort((a, b) => a.dist - b.dist)
-                .slice(0, 2)
-                .map((item) => item.idx);
-            })()
-          : [];
-
-      // Calculate maximum safe radius based on avatar position and viewport boundaries
-      // Memory size: account for tablets (68px focused, 45px unfocused on tablets; 45px focused, 30px unfocused on phones)
-      const memorySize = isFocused ? (isTablet ? 68 : 45) : isTablet ? 45 : 30;
-      const memoryRadiusSize = memorySize / 2; // Half the memory size
-      const safetyPadding = isTablet ? 38 : 10; // Larger padding on tablets to match the increased sizes
-
-      // Calculate distances from avatar center to each viewport edge
-      const distanceToTop = position.y;
-      const distanceToBottom = SCREEN_HEIGHT - position.y;
-      const distanceToLeft = position.x;
-      const distanceToRight = SCREEN_WIDTH - position.x;
-
-      // Maximum safe radius is the minimum distance to any edge, minus memory radius and padding
-      // Calculate minimum required radius: avatar radius + memory radius + padding to ensure memories float around avatar
-      const avatarRadius = avatarSize / 2;
-      const memoryRadiusForSpacing = memoryRadiusSize; // Half the memory size
-      // Increase spacing padding when focused to ensure memories are clearly separated from avatar
-      // When there are more than 5 memories, push them further out
-      const baseSpacingPadding = isFocused ? 30 : 20; // More padding when focused (30px) vs unfocused (20px)
-      const extraSpacingForManyMemories =
-        isFocused && memories.length > 5 ? 25 : 0; // Extra spacing when more than 5 memories (increased from 15 to 25)
-      const spacingPadding = baseSpacingPadding + extraSpacingForManyMemories;
-      const minRequiredRadius =
-        avatarRadius + memoryRadiusForSpacing + spacingPadding; // Ensure memories are clearly outside avatar
-
-      const maxSafeRadius = Math.max(
-        minRequiredRadius,
-        Math.min(
-          distanceToTop,
-          distanceToBottom,
-          distanceToLeft,
-          distanceToRight,
-        ) -
-          memoryRadiusSize -
-          safetyPadding,
-      );
-
-      return memories.map((memory, memIndex) => {
-        // Calculate moment count for this memory
-        const momentCount =
-          (memory.hardTruths || []).length +
-          (memory.goodFacts || []).length +
-          (memory.lessonsLearned || []).length;
-
-        // Calculate distance multiplier based on moments (more moments = further)
-        let momentsDistanceMultiplier = 1.0;
-        if (maxMomentsCount > minMomentsCount) {
-          // Normalize to 0-1 range based on min/max
-          const momentsFactor =
-            (momentCount - minMomentsCount) /
-            (maxMomentsCount - minMomentsCount);
-          // Scale from 0.7x (fewest moments) to 1.8x (most moments) for clear distance difference
-          momentsDistanceMultiplier = 0.7 + momentsFactor * 1.1; // Range: 0.7 to 1.8
-        }
-
-        // Add unique variation for each memory to ensure different distances
-        // Use a deterministic seed based on memory index for consistency
-        const variationSeed = memIndex * 0.618; // Golden ratio for better distribution
-        // Add ±10% variation to ensure each memory has a unique distance
-        const distanceVariation = 0.9 + Math.sin(variationSeed) * 0.2; // Range: 0.9 to 1.1
-
-        // Combine moment-based distance with unique variation
-        let variedRadius =
-          memoryRadius * momentsDistanceMultiplier * distanceVariation;
-
-        // Adjust radius based on number of floating elements
-        if (memories.length < 5) {
-          // When there are less than 5 elements, position them CLOSER to avatar
-          // to ensure they stay fully visible in viewport
-          if (memories.length === 1) {
-            // For single memory, keep it much closer to ensure it's fully visible
-            const closerMultiplier = isFocused ? 0.5 : 0.6; // Much closer to ensure visibility
-            variedRadius = variedRadius * closerMultiplier;
-          } else if (memories.length === 2) {
-            // For 2 memories, position them closer to keep them in viewport
-            const closerMultiplier = isFocused ? 0.6 : 0.7; // Closer when focused
-            variedRadius = variedRadius * closerMultiplier;
-          } else {
-            // For 3-4 memories, position them closer
-            const closerMultiplier = isFocused ? 0.7 : 0.8; // Closer to keep in viewport
-            variedRadius = variedRadius * closerMultiplier;
-          }
-        } else if (
-          isFocused &&
-          memories.length > 5 &&
-          topTwoIndices.includes(memIndex)
-        ) {
-          // When focused and there are more than 5 elements, push top 2 elements further away
-          const additionalRadius = 75; // Increased additional distance for top 2 elements (from 60 to 75)
-          variedRadius = variedRadius + additionalRadius;
-        } else if (isFocused && memories.length > 5) {
-          // For all other memories when there are more than 5, push them further out too
-          const additionalRadius = 30; // Additional distance for other memories (increased from 20 to 30)
-          variedRadius = variedRadius + additionalRadius;
-        }
-
-        // CRITICAL: Ensure memory stays fully within viewport
-        // Calculate the actual position this memory would be at
-        const angle = (memIndex * 2 * Math.PI) / memories.length;
-        const angleVariation = Math.cos(variationSeed * 2) * 0.15; // ±15% angle variation
-        const variedAngle = angle + angleVariation;
-
-        // CRITICAL: Calculate maximum safe radius for this specific angle
-        // We need to ensure the memory circle (center + radius) stays fully within viewport
-        const cosAngle = Math.cos(variedAngle);
-        const sinAngle = Math.sin(variedAngle);
-
-        // Calculate maximum radius based on horizontal constraint (X direction)
-        let maxRadiusX: number;
-        if (cosAngle > 0) {
-          // Moving right - limited by right edge
-          maxRadiusX =
-            (distanceToRight - memoryRadiusSize - safetyPadding) /
-            Math.abs(cosAngle);
-        } else if (cosAngle < 0) {
-          // Moving left - limited by left edge
-          maxRadiusX =
-            (distanceToLeft - memoryRadiusSize - safetyPadding) /
-            Math.abs(cosAngle);
-        } else {
-          // cosAngle === 0, moving vertically only
-          maxRadiusX = Infinity;
-        }
-
-        // Calculate maximum radius based on vertical constraint (Y direction)
-        let maxRadiusY: number;
-        if (sinAngle > 0) {
-          // Moving down - limited by bottom edge
-          maxRadiusY =
-            (distanceToBottom - memoryRadiusSize - safetyPadding) /
-            Math.abs(sinAngle);
-        } else if (sinAngle < 0) {
-          // Moving up - limited by top edge
-          maxRadiusY =
-            (distanceToTop - memoryRadiusSize - safetyPadding) /
-            Math.abs(sinAngle);
-        } else {
-          // sinAngle === 0, moving horizontally only
-          maxRadiusY = Infinity;
-        }
-
-        // The maximum safe radius is the minimum of both constraints
-        // Use the same minimum radius calculation to ensure memories float around avatar
-        const maxRadiusInDirection = Math.max(
-          minRequiredRadius,
-          Math.min(maxRadiusX, maxRadiusY, maxSafeRadius),
-        );
-
-        // Clamp variedRadius to ensure memory stays fully visible, but never go below minimum
-        // This ensures memories are always positioned outside the avatar, floating around it
-        variedRadius = Math.max(
-          minRequiredRadius,
-          Math.min(variedRadius, maxRadiusInDirection),
-        );
-
-        const offsetX = variedRadius * cosAngle;
-        const offsetY = variedRadius * sinAngle;
-
-        // Position-based size: below avatar = full, left/right = bit smaller, above = smallest
-        // Angle π/2 = bottom, 0/π = sides, -π/2 (3π/2) = top
-        const towardBottom = (1 + Math.cos(variedAngle - Math.PI / 2)) / 2;
-        const sizeMultiplier = 0.65 + 0.35 * towardBottom;
-
-        return {
-          angle: variedAngle,
-          offsetX: offsetX,
-          offsetY: offsetY,
-          sizeMultiplier,
-        };
-      });
-    }, [
-      memories,
-      memoryRadius,
-      isFocused,
-      isTablet,
-      position,
-      profile.id,
-      profile.name,
-    ]);
-
     return (
       <View
         ref={viewShotRef}
@@ -3198,6 +3261,27 @@ const FloatingAvatar = React.memo(
                   if (!dragStartedRef.current && !isDragging.value) {
                     // If entity is focused, toggle entity wheel mode
                     if (isFocused) {
+                      if (!canEnterEntityWheel) {
+                        if (memories.length > 0) {
+                          const idx = Math.floor(
+                            Math.random() * memories.length,
+                          );
+                          nudgeTargetIndex.value = idx;
+                          cancelAnimation(nudgePulseScale);
+                          nudgePulseScale.value = 1;
+                          nudgePulseScale.value = withSequence(
+                            withTiming(1.14, {
+                              duration: 220,
+                              easing: Easing.out(Easing.ease),
+                            }),
+                            withTiming(1, {
+                              duration: 380,
+                              easing: Easing.inOut(Easing.ease),
+                            }),
+                          );
+                        }
+                        return;
+                      }
                       const nextWheelState = !showEntityWheel;
                       setShowEntityWheel(nextWheelState);
                       // Disable scroll immediately so wheel drag works (avoids ScrollView capturing vertical gestures)
@@ -3856,6 +3940,9 @@ const FloatingAvatar = React.memo(
                       avatarTargetY={targetY}
                       avatarPosition={position}
                       focusedMemory={focusedMemory}
+                      nudgeTargetIndex={nudgeTargetIndex}
+                      nudgePulseScale={nudgePulseScale}
+                      memorySlotIndex={originalIndex}
                     />
                   );
                 },
@@ -3882,8 +3969,64 @@ const FloatingAvatar = React.memo(
               memorySlideOffset,
               onPress,
               onMemoryFocus,
+              nudgeTargetIndex,
+              nudgePulseScale,
             ])}
           </Animated.View>
+
+          {/* Usability finger toward a memory when entity wheel is gated off (add moments) */}
+          {isFocused &&
+            !canEnterEntityWheel &&
+            memories.length > 0 &&
+            !showEntityWheel &&
+            appUsabilityHints &&
+            !avatarClickHintDismissed &&
+            (() => {
+              const hintIdx = Math.min(
+                usabilityHintMemoryIndex,
+                Math.max(0, memoryPositions.length - 1),
+              );
+              const memPos = memoryPositions[hintIdx];
+              if (!memPos) return null;
+              const pointerSize = isTablet ? 88 : 78;
+              const estMemSize = focusedAvatarSize * 0.37;
+              const memCenterY = SCREEN_HEIGHT + memPos.offsetY;
+              const fingerTop = memCenterY + estMemSize / 2 - pointerSize + 55;
+              return (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    {
+                      position: "absolute",
+                      left: SCREEN_WIDTH + memPos.offsetX - pointerSize / 2,
+                      top: fingerTop,
+                      width: pointerSize,
+                      height: pointerSize,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      zIndex: 396,
+                    },
+                    avatarClickHintAnimatedStyle,
+                  ]}
+                >
+                  <MaterialIcons
+                    name="touch-app"
+                    size={pointerSize}
+                    color="rgba(0, 0, 0, 0.5)"
+                    style={{
+                      position: "absolute",
+                      left: 2,
+                      top: 2,
+                    }}
+                  />
+                  <MaterialIcons
+                    name="touch-app"
+                    size={pointerSize}
+                    color="#FFFFFF"
+                  />
+                </Animated.View>
+              );
+            })()}
         </Animated.View>
 
         {/* Share Modal */}
@@ -4022,6 +4165,7 @@ const FloatingAvatar = React.memo(
 
         {/* Avatar click hint: finger below avatar pointing at its bottom (individual entity view, pre-wheel) */}
         {isFocused &&
+          canEnterEntityWheel &&
           !showEntityWheel &&
           appUsabilityHints &&
           !avatarClickHintDismissed &&
@@ -7348,6 +7492,9 @@ const FloatingMemory = React.memo(
     avatarTargetY,
     avatarPosition,
     focusedMemory,
+    nudgeTargetIndex,
+    nudgePulseScale,
+    memorySlotIndex,
   }: {
     memory: any;
     position: { x: number; y: number };
@@ -7383,6 +7530,10 @@ const FloatingMemory = React.memo(
     avatarTargetX?: number;
     avatarTargetY?: number;
     avatarPosition?: { x: number; y: number };
+    nudgeTargetIndex?: ReturnType<typeof useSharedValue<number>>;
+    nudgePulseScale?: ReturnType<typeof useSharedValue<number>>;
+    /** Index in FloatingAvatar memories array — matches nudgeTargetIndex for pulse */
+    memorySlotIndex?: number;
     focusedMemory?: {
       profileId?: string;
       jobId?: string;
@@ -8043,14 +8194,23 @@ const FloatingMemory = React.memo(
       };
     });
 
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [
-        { translateY: floatAnimation.value * 4 },
-        { scale: scale.value },
-      ],
-      // Reduce opacity when entity wheel is active to indicate disabled state
-      opacity: showEntityWheelShared?.value ? 0.3 : 1,
-    }));
+    const animatedStyle = useAnimatedStyle(() => {
+      const nudgeMul =
+        nudgeTargetIndex &&
+        nudgePulseScale &&
+        memorySlotIndex !== undefined &&
+        nudgeTargetIndex.value === memorySlotIndex
+          ? nudgePulseScale.value
+          : 1;
+      return {
+        transform: [
+          { translateY: floatAnimation.value * 4 },
+          { scale: scale.value * nudgeMul },
+        ],
+        // Reduce opacity when entity wheel is active to indicate disabled state
+        opacity: showEntityWheelShared?.value ? 0.3 : 1,
+      };
+    });
 
     const clouds = useMemo(() => {
       const truths = memory.hardTruths || [];
