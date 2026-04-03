@@ -5,6 +5,11 @@ export type GuideBullet = {
   icon: keyof typeof MaterialIcons.glyphMap;
   titleKey: keyof Translations;
   descriptionKey: keyof Translations;
+  imageSource?: ReturnType<typeof require>;
+  imageAlignment?: "top" | "center" | "bottom";
+  imageOffsetY?: number;
+  imageScale?: number; // 0-1, uses contain with scaled dimensions
+  videoSource?: ReturnType<typeof require>;
 };
 
 export type GuideSection = {
@@ -28,16 +33,20 @@ export const SECTIONS: GuideSection[] = [
         icon: "school",
         titleKey: "guide.bullet.pastLessons.title",
         descriptionKey: "guide.bullet.pastLessons.description",
+        imageSource: require("@/Past.png"),
+        imageAlignment: "bottom",
       },
       {
         icon: "wb-sunny",
         titleKey: "guide.bullet.sunnyMoments.title",
         descriptionKey: "guide.bullet.sunnyMoments.description",
+        imageSource: require("@/Sunny.png"),
       },
       {
         icon: "trending-up",
         titleKey: "guide.bullet.livingForward.title",
         descriptionKey: "guide.bullet.livingForward.description",
+        imageSource: require("@/LiveForward.png"),
       },
     ],
   },
@@ -52,21 +61,25 @@ export const SECTIONS: GuideSection[] = [
         icon: "public",
         titleKey: "guide.bullet.universeLessons.title",
         descriptionKey: "guide.bullet.universeLessons.description",
+        imageSource: require("@/assets/images/Universe.gif"),
       },
       {
         icon: "assignment",
         titleKey: "guide.bullet.dailyExam.title",
         descriptionKey: "guide.bullet.dailyExam.description",
+        imageSource: require("@/assets/images/Exam.gif"),
       },
       {
         icon: "donut-large",
         titleKey: "guide.bullet.insightsWheel.title",
         descriptionKey: "guide.bullet.insightsWheel.description",
+        imageSource: require("@/assets/images/insights.gif"),
       },
       {
         icon: "rotate-right",
         titleKey: "guide.bullet.entityWheel.title",
         descriptionKey: "guide.bullet.entityWheel.description",
+        imageSource: require("@/assets/images/EntityWheelOfLife.gif"),
       },
     ],
   },
@@ -81,6 +94,7 @@ export const SECTIONS: GuideSection[] = [
         icon: "alarm",
         titleKey: "guide.bullet.entityReminders.title",
         descriptionKey: "guide.bullet.entityReminders.description",
+        imageSource: require("@/EntityReminder.png"),
       },
       {
         icon: "touch-app",

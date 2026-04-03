@@ -439,6 +439,10 @@ function AppContent() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="entity-reminders"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="event-reminders"
             options={{ headerShown: false }}
           />

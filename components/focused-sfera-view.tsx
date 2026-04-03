@@ -7,6 +7,7 @@
 
 import { ConstellationBackground } from "@/components/constellation-background";
 import { Fireworks } from "@/components/fireworks";
+import { PulsingPressable } from "@/components/pulsing-pressable";
 import { SunnyLifeAvatar } from "@/components/SunnyLifeAvatar";
 import { ThemedText } from "@/components/themed-text";
 import { UniverseLessonsScreen } from "@/components/universe-lessons-screen";
@@ -3277,13 +3278,12 @@ export function FocusedSferaView({
             ]}
           >
             {/* Insights button */}
-            <Pressable
-              onPress={() => {
-                onInsightsPress?.();
-              }}
-              style={{ alignItems: "center", gap: 8 }}
-            >
-              <View
+            <View style={{ alignItems: "center", gap: 8 }}>
+              <PulsingPressable
+                deferPressUntilAnimationEnd
+                onPress={() => {
+                  onInsightsPress?.();
+                }}
                 style={{
                   width: 80,
                   height: 80,
@@ -3301,24 +3301,22 @@ export function FocusedSferaView({
                 }}
               >
                 <MaterialIcons name="insights" size={36} color="#CE93D8" />
-              </View>
+              </PulsingPressable>
               <ThemedText style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, letterSpacing: 0.3 }}>
                 {t("insights.wheelOfLife.title")}
               </ThemedText>
-            </Pressable>
+            </View>
 
             {/* Universe Lessons scroll button */}
-            <Pressable
-              onPress={() => {
-                if (!hasUserLessons) {
-                  showNoLessonsToast();
-                  return;
-                }
-                setUniverseLessonsVisible(true);
-              }}
-              style={{ alignItems: "center", gap: 8 }}
-            >
-              <View
+            <View style={{ alignItems: "center", gap: 8 }}>
+              <PulsingPressable
+                onPress={() => {
+                  if (!hasUserLessons) {
+                    showNoLessonsToast();
+                    return;
+                  }
+                  setUniverseLessonsVisible(true);
+                }}
                 style={{
                   width: 80,
                   height: 80,
@@ -3341,7 +3339,7 @@ export function FocusedSferaView({
                 }}
               >
                 <UniverseScrollIcon size={44} />
-              </View>
+              </PulsingPressable>
               <ThemedText
                 style={{
                   color: hasUserLessons ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.38)",
@@ -3351,14 +3349,12 @@ export function FocusedSferaView({
               >
                 {language === "bg" ? "Уроци" : "Universe Lessons"}
               </ThemedText>
-            </Pressable>
+            </View>
 
             {/* Universe Exam button */}
-            <Pressable
-              onPress={handleOpenUniverseExam}
-              style={{ alignItems: "center", gap: 8 }}
-            >
-              <View
+            <View style={{ alignItems: "center", gap: 8 }}>
+              <PulsingPressable
+                onPress={handleOpenUniverseExam}
                 style={{
                   width: 80,
                   height: 80,
@@ -3385,7 +3381,7 @@ export function FocusedSferaView({
                   size={36}
                   color={hasUserLessons ? "#5CE1E6" : "rgba(255,255,255,0.28)"}
                 />
-              </View>
+              </PulsingPressable>
               <ThemedText
                 style={{
                   color: hasUserLessons ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.38)",
@@ -3395,7 +3391,7 @@ export function FocusedSferaView({
               >
                 {t("universe.exam.title")}
               </ThemedText>
-            </Pressable>
+            </View>
 
             {noLessonsToastVisible && (
               <View

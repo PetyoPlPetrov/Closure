@@ -5,35 +5,81 @@
 
 import * as Haptics from "expo-haptics";
 import * as Device from "expo-device";
-import { Platform, Pressable, type PressableProps } from "react-native";
+import {
+  Platform,
+  Pressable,
+  type PressableProps,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import Animated, {
   Easing,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
   withTiming,
 } from "react-native-reanimated";
 
+/** Faster pulse when action waits on animation end — full tab timing (~600ms) feels sluggish before navigation. */
+const DEFER_PULSE_MS = { down: 80, up: 130, settle: 90 } as const;
+
+export type PulsingPressableProps = Omit<PressableProps, "style"> & {
+  /**
+   * When true, `onPress` runs right after the squeeze + bounce (the visible “pop”), while a short
+   * settle animation still runs. That overlaps navigation/modal work with motion so there’s no dead
+   * gap after the pulse ends.
+   */
+  deferPressUntilAnimationEnd?: boolean;
+  /** Applied to the scaled wrapper (static styles only; matches tab pulse visuals). */
+  style?: StyleProp<ViewStyle>;
+};
+
 export function PulsingPressable({
   onPress,
   children,
   style,
+  deferPressUntilAnimationEnd = false,
   ...rest
-}: PressableProps) {
+}: PulsingPressableProps) {
   const pressScale = useSharedValue(1);
 
   const handlePress = (ev: Parameters<NonNullable<PressableProps["onPress"]>>[0]) => {
-    pressScale.value = withSequence(
-      withTiming(0.82, { duration: 150, easing: Easing.out(Easing.ease) }),
-      withTiming(1.15, { duration: 250, easing: Easing.out(Easing.ease) }),
-      withTiming(1, { duration: 200, easing: Easing.inOut(Easing.ease) })
-    );
-
     if (Platform.OS === "ios" && Device.isDevice) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
 
-    onPress?.(ev);
+    const runPress = () => {
+      onPress?.(ev);
+    };
+
+    if (deferPressUntilAnimationEnd) {
+      pressScale.value = withSequence(
+        withTiming(0.88, {
+          duration: DEFER_PULSE_MS.down,
+          easing: Easing.out(Easing.cubic),
+        }),
+        withTiming(1.08, {
+          duration: DEFER_PULSE_MS.up,
+          easing: Easing.out(Easing.cubic),
+        }, (finished) => {
+          if (finished) {
+            runOnJS(runPress)();
+          }
+        }),
+        withTiming(1, {
+          duration: DEFER_PULSE_MS.settle,
+          easing: Easing.inOut(Easing.ease),
+        })
+      );
+    } else {
+      pressScale.value = withSequence(
+        withTiming(0.82, { duration: 150, easing: Easing.out(Easing.ease) }),
+        withTiming(1.15, { duration: 250, easing: Easing.out(Easing.ease) }),
+        withTiming(1, { duration: 200, easing: Easing.inOut(Easing.ease) })
+      );
+      onPress?.(ev);
+    }
   };
 
   const animatedStyle = useAnimatedStyle(() => ({

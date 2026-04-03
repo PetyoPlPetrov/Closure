@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
+import { Video, ResizeMode } from "expo-av";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
@@ -12,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   FlatList,
+  Image,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -39,37 +41,80 @@ function BulletCard({
 }) {
   return (
     <View style={{ width: CARD_WIDTH, marginHorizontal: CARD_H_PADDING }}>
-      {/* GIF placeholder */}
-      <View
-        style={{
-          width: "100%",
-          height: 200 * fontScale,
-          borderRadius: 14 * fontScale,
-          backgroundColor:
-            colorScheme === "dark" ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.05)",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-          marginBottom: 16 * fontScale,
-        }}
-      >
-        <MaterialIcons
-          name="play-circle-outline"
-          size={40 * fontScale}
-          color={
-            colorScheme === "dark"
-              ? "rgba(255,255,255,0.4)"
-              : "rgba(0,0,0,0.25)"
-          }
+      {/* Image / GIF placeholder */}
+      {bullet.videoSource ? (
+        <Video
+          source={bullet.videoSource}
+          style={{
+            width: "80%",
+            height: 300 * fontScale,
+            borderRadius: 14 * fontScale,
+            marginBottom: 16 * fontScale,
+            alignSelf: "center",
+          }}
+          resizeMode={ResizeMode.COVER}
+          shouldPlay
+          isLooping
+          isMuted
         />
-        <ThemedText
-          size="xs"
-          emphasis="medium"
-          style={{ marginTop: 8 * fontScale }}
+      ) : bullet.imageSource ? (
+        <View
+          style={{
+            width: "100%",
+            height: 300 * fontScale,
+            borderRadius: 14 * fontScale,
+            overflow: "hidden",
+            marginBottom: 16 * fontScale,
+          }}
         >
-          Video coming soon
-        </ThemedText>
-      </View>
+          <Image
+            source={bullet.imageSource}
+            style={
+              bullet.imageScale !== undefined
+                ? { width: `${bullet.imageScale * 100}%`, height: `${bullet.imageScale * 100}%`, alignSelf: "center", marginTop: "auto", marginBottom: "auto" }
+                : bullet.imageAlignment === "bottom"
+                  ? { width: "100%", height: "140%", position: "absolute", bottom: 0, left: 0, right: 0 }
+                  : bullet.imageAlignment === "top"
+                    ? { width: "100%", height: "120%", position: "absolute", top: bullet.imageOffsetY ?? 0, left: 0, right: 0 }
+                    : bullet.imageOffsetY !== undefined
+                      ? { width: "55%", height: "75%", position: "absolute", alignSelf: "center", top: bullet.imageOffsetY, left: "22.5%" }
+                      : { width: "100%", height: "100%" }
+            }
+            resizeMode={bullet.imageScale !== undefined ? "contain" : "cover"}
+          />
+        </View>
+      ) : (
+        <View
+          style={{
+            width: "100%",
+            height: 200 * fontScale,
+            borderRadius: 14 * fontScale,
+            backgroundColor:
+              colorScheme === "dark" ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.05)",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+            marginBottom: 16 * fontScale,
+          }}
+        >
+          <MaterialIcons
+            name="play-circle-outline"
+            size={40 * fontScale}
+            color={
+              colorScheme === "dark"
+                ? "rgba(255,255,255,0.4)"
+                : "rgba(0,0,0,0.25)"
+            }
+          />
+          <ThemedText
+            size="xs"
+            emphasis="medium"
+            style={{ marginTop: 8 * fontScale }}
+          >
+            Video coming soon
+          </ThemedText>
+        </View>
+      )}
 
       {/* Icon + Title */}
       <View
