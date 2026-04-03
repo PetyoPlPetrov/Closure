@@ -94,6 +94,10 @@ export interface Translations {
   "sferaInsight.leastInteracted": string;
   "sferaInsight.addMemories": string;
   "sferaInsight.needMemoriesFirst": string;
+  "sferaInsight.cloudyMomentsOne": string;
+  "sferaInsight.cloudyMomentsMany": string;
+  "sferaInsight.sunnyMomentsOne": string;
+  "sferaInsight.sunnyMomentsMany": string;
 
   // Settings
   "settings.title": string;
@@ -810,6 +814,11 @@ export interface Translations {
   "notifications.section.banners": string;
   "notifications.section.pushReminders": string;
   "notifications.section.people": string;
+  "notifications.entityReminders.title": string;
+  "notifications.entityReminders.description": string;
+  "notifications.entityReminders.none": string;
+  "notifications.entityReminders.count": string;
+  "notifications.entityReminders.empty": string;
   "notifications.sphere.friends": string;
   "notifications.sphere.family": string;
   "notifications.sphere.relationships": string;
@@ -3803,6 +3812,10 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.leastInteracted": "Least interacted",
     "sferaInsight.addMemories": "Add memories",
     "sferaInsight.needMemoriesFirst": "You need to add memories",
+    "sferaInsight.cloudyMomentsOne": "1 cloudy moment",
+    "sferaInsight.cloudyMomentsMany": "{count} cloudy moments",
+    "sferaInsight.sunnyMomentsOne": "1 sunny moment",
+    "sferaInsight.sunnyMomentsMany": "{count} sunny moments",
     "sferaInsight.addHobbies": "Add hobbies",
     "sferaInsight.mostRecentHobby": "Most recently done",
     "sferaInsight.lastPracticed": "Longest not done",
@@ -4806,6 +4819,11 @@ const translations: Record<Language, Translations> = {
     "notifications.section.banners": "Banners & alerts",
     "notifications.section.pushReminders": "Push reminders",
     "notifications.section.people": "People",
+    "notifications.entityReminders.title": "People reminders",
+    "notifications.entityReminders.description": "Custom reminders for friends, family & relationships",
+    "notifications.entityReminders.none": "No reminders set yet",
+    "notifications.entityReminders.count": "{count} reminder(s) active",
+    "notifications.entityReminders.empty": "No entities added to your spheres yet",
     "notifications.sphere.friends": "Friends",
     "notifications.sphere.family": "Family",
     "notifications.sphere.relationships": "Relationships",
@@ -8482,6 +8500,10 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.leastInteracted": "Най-малко взаимодействие",
     "sferaInsight.addMemories": "Добави спомени",
     "sferaInsight.needMemoriesFirst": "Трябва да добавиш спомени",
+    "sferaInsight.cloudyMomentsOne": "1 облачен момент",
+    "sferaInsight.cloudyMomentsMany": "{count} облачни момента",
+    "sferaInsight.sunnyMomentsOne": "1 слънчев момент",
+    "sferaInsight.sunnyMomentsMany": "{count} слънчеви момента",
     "sferaInsight.addHobbies": "Добави хобита",
     "sferaInsight.mostRecentHobby": "Последно практикувано",
     "sferaInsight.lastPracticed": "Най-дълго непрактикувано",
@@ -9491,6 +9513,11 @@ const translations: Record<Language, Translations> = {
     "notifications.section.banners": "Банери и известия",
     "notifications.section.pushReminders": "Push известия",
     "notifications.section.people": "Хора",
+    "notifications.entityReminders.title": "Напомняния за хора",
+    "notifications.entityReminders.description": "Персонални напомняния за приятели, семейство и връзки",
+    "notifications.entityReminders.none": "Все още няма зададени напомняния",
+    "notifications.entityReminders.count": "{count} активни напомняния",
+    "notifications.entityReminders.empty": "Все още няма добавени хора в сферите ти",
     "notifications.sphere.friends": "Приятели",
     "notifications.sphere.family": "Семейство",
     "notifications.sphere.relationships": "Връзки",

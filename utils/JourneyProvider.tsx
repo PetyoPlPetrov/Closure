@@ -1707,10 +1707,11 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     const percentage = (totalSuns / total) * 100;
     // Ensure percentage is a valid number between 0 and 100
     const result = Math.max(0, Math.min(100, isNaN(percentage) ? 0 : percentage));
-    
+
     if (validMemories.length < idealizedMemories.length) {
     }
-    
+
+    console.log(`[SunnyPct] ☀️ ${totalSuns} suns / ☁️ ${totalClouds} clouds / total ${total} → ${Math.round(result)}%`);
     return result;
   }, [idealizedMemories, profiles, jobs, familyMembers, friends, hobbies]);
 

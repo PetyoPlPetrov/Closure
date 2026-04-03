@@ -811,6 +811,10 @@ function getInteractionIndices(memoriesPerEntity: IdealizedMemory[][]) {
     mostCloudyIdx,
     mostSunnyIdx,
     noMemsIdx,
+    /** Max total cloudy (hard truth) moments across any entity — used to hide "Most cloudy" when empty */
+    maxCloudyScore: mostCloudy,
+    /** Max total sunny (good fact) moments across any entity — used to hide "Most sunny" when empty */
+    maxSunnyScore: mostSunny,
   };
 }
 
@@ -841,14 +845,34 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const { momentColors } = useMomentColors();
   // career/relationships: hide interaction modes (0-2) — these are processing spheres, not active social ones
   // hobbies: hide mood modes (4-5) — cloudy/sunny framing doesn't fit activities
-  const hiddenModes =
-    (sphere === "career" || sphere === "relationships") ? new Set([0, 1, 2]) :
-    sphere === "hobbies" ? new Set([4, 5]) :
-    new Set<number>();
-  const allowedModes = [0, 1, 2, 3, 4, 5].filter((m) => !hiddenModes.has(m));
-  // For family/friends, default to "oldest interaction" (mode 1, index 1 in allowedModes)
-  const defaultModeIdx = (sphere === "family" || sphere === "friends") ? 1 : 0;
-  const [modeIdx, setModeIdx] = useState(defaultModeIdx); // index into allowedModes
+  const hiddenModes = useMemo(
+    () =>
+      sphere === "career" || sphere === "relationships"
+        ? new Set([0, 1, 2])
+        : sphere === "hobbies"
+          ? new Set([4, 5])
+          : new Set<number>(),
+    [sphere],
+  );
+
+  const { newestIdx, oldestIdx, oldestTime, newestTime, mostMemsIdx, leastMemsIdx, mostCloudyIdx, mostSunnyIdx, maxCloudyScore, maxSunnyScore } = useMemo(
+    () => getInteractionIndices(memoriesPerEntity),
+    [memoriesPerEntity],
+  );
+
+  const allowedModes = useMemo(() => {
+    const base = [0, 1, 2, 3, 4, 5].filter((m) => !hiddenModes.has(m));
+    return base.filter((m) => {
+      if (m === 4 && maxCloudyScore <= 0) return false;
+      if (m === 5 && maxSunnyScore <= 0) return false;
+      return true;
+    });
+  }, [hiddenModes, maxCloudyScore, maxSunnyScore]);
+
+  const [modeIdx, setModeIdx] = useState(
+    () => (sphere === "family" || sphere === "friends" ? 1 : 0),
+  );
+  const prevSphereRef = useRef(sphere);
   const mode = allowedModes[modeIdx] ?? allowedModes[0] ?? 0;
   const modeOpacity = useSharedValue(1);
   const shadowColor = getSphereShadowColor(sphere, colorScheme);
@@ -859,11 +883,6 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   );
   // Whether this sphere supports social CTAs (bell + event thumbnails)
   const hasSocialCTAs = sphere === "family" || sphere === "friends";
-
-  const { newestIdx, oldestIdx, oldestTime, newestTime, mostMemsIdx, leastMemsIdx, oldestMemIdx, mostCloudyIdx, mostSunnyIdx, noMemsIdx } = useMemo(
-    () => getInteractionIndices(memoriesPerEntity),
-    [memoriesPerEntity],
-  );
 
   // Urgency: oldest interaction > 30 days ago
   const isUrgent = hasSocialCTAs && oldestTime !== null && (Date.now() - oldestTime) > 30 * 24 * 60 * 60 * 1000;
@@ -887,7 +906,26 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     [previewEventId, socialEvents],
   );
 
-  const numModes = numEntities === 0 ? 1 : allowedModes.length;
+  const numModes = numEntities === 0 ? 1 : Math.max(1, allowedModes.length);
+
+  useEffect(() => {
+    if (prevSphereRef.current !== sphere) {
+      prevSphereRef.current = sphere;
+      if (sphere === "family" || sphere === "friends") {
+        const i = allowedModes.indexOf(1);
+        setModeIdx(i >= 0 ? i : 0);
+      } else {
+        setModeIdx(0);
+      }
+    }
+  }, [sphere, allowedModes]);
+
+  useEffect(() => {
+    setModeIdx((prev) => {
+      if (allowedModes.length === 0) return 0;
+      return Math.min(prev, allowedModes.length - 1);
+    });
+  }, [allowedModes]);
 
   const flashModeChange = useCallback(() => {
     modeOpacity.value = withTiming(0, { duration: 100 }, () => {
@@ -1223,12 +1261,20 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
               {mode === 4 ? (() => {
                 const mems = memoriesPerEntity[entityIdx] ?? [];
                 const count = mems.reduce((s, m) => s + (m.hardTruths?.length ?? 0), 0);
-                return <ThemedText style={{ color: momentColors.cloudy.background, fontSize: 10 }}>{count} cloudy moments</ThemedText>;
+                const label =
+                  count === 1
+                    ? t("sferaInsight.cloudyMomentsOne")
+                    : t("sferaInsight.cloudyMomentsMany", { count });
+                return <ThemedText style={{ color: momentColors.cloudy.background, fontSize: 10 }}>{label}</ThemedText>;
               })() : null}
               {mode === 5 ? (() => {
                 const mems = memoriesPerEntity[entityIdx] ?? [];
                 const count = mems.reduce((s, m) => s + (m.goodFacts?.length ?? 0), 0);
-                return <ThemedText style={{ color: momentColors.sunny.background, fontSize: 10 }}>{count} sunny moments</ThemedText>;
+                const label =
+                  count === 1
+                    ? t("sferaInsight.sunnyMomentsOne")
+                    : t("sferaInsight.sunnyMomentsMany", { count });
+                return <ThemedText style={{ color: momentColors.sunny.background, fontSize: 10 }}>{label}</ThemedText>;
               })() : null}
               {/* Bell for modes 0/1 */}
               {showSocialBottom && timeAgoLabel ? (
@@ -1368,26 +1414,66 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             );
           })()}
 
-          {/* Modes 2/4/5: memory image with mood border */}
+          {/* Modes 2/4/5: memory preview — image when available, otherwise title + description */}
           {(mode === 2 || mode === 4 || mode === 5) && (() => {
             const mems = memoriesPerEntity[entityIdx] ?? [];
             let mem: IdealizedMemory | null = null;
             if (mode === 2) mem = mems.length > 0 ? mems.reduce((a, b) => new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b) : null;
             if (mode === 4) mem = mems.length > 0 ? mems.reduce((a, b) => (a.hardTruths?.length ?? 0) > (b.hardTruths?.length ?? 0) ? a : b) : null;
             if (mode === 5) mem = mems.length > 0 ? mems.reduce((a, b) => (a.goodFacts?.length ?? 0) > (b.goodFacts?.length ?? 0) ? a : b) : null;
-            if (!mem?.imageUri) return null;
+            if (!mem) return null;
             const moodSunny = mem.goodFacts?.length ?? 0;
             const moodCloudy = mem.hardTruths?.length ?? 0;
             const moodColor = moodSunny >= moodCloudy ? momentColors.sunny.background : momentColors.cloudy.background;
+            const titleText =
+              mem.title?.trim() ||
+              (mode === 4 ? mem.hardTruths?.[0]?.text : undefined) ||
+              (mode === 5 ? mem.goodFacts?.[0]?.text : undefined) ||
+              t("sferaInsight.noMemories");
+            const openEntity = () => entity && onEntitySelect?.(entity.id);
             return (
-              <View style={{ flex: 1, alignSelf: "stretch", borderRadius: 10, overflow: "hidden", borderWidth: 1.5, borderColor: moodColor + "88" }}>
-                <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1 }} contentFit="cover" />
-                <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
-                  <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10 }} numberOfLines={1}>
-                    {mem.title}
-                  </ThemedText>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  openEntity();
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={titleText}
+                style={{ flex: 1, alignSelf: "stretch", minHeight: 72 }}
+              >
+                <View
+                  style={{
+                    flex: 1,
+                    borderRadius: 10,
+                    overflow: "hidden",
+                    borderWidth: 1.5,
+                    borderColor: moodColor + "88",
+                    backgroundColor: shadowColor + "18",
+                  }}
+                >
+                  {mem.imageUri ? (
+                    <>
+                      <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1, minHeight: 72 }} contentFit="cover" />
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
+                        <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10 }} numberOfLines={1}>
+                          {mem.title?.trim() || titleText}
+                        </ThemedText>
+                      </View>
+                    </>
+                  ) : (
+                    <View style={{ flex: 1, padding: 10, justifyContent: "center" }}>
+                      <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 12, fontWeight: "600" }} numberOfLines={2}>
+                        {titleText}
+                      </ThemedText>
+                      {mem.description ? (
+                        <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 10, marginTop: 6 }} numberOfLines={6}>
+                          {mem.description}
+                        </ThemedText>
+                      ) : null}
+                    </View>
+                  )}
                 </View>
-              </View>
+              </Pressable>
             );
           })()}
 

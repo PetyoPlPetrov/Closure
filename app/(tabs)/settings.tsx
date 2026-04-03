@@ -1013,6 +1013,8 @@ export default function SettingsScreen() {
       let createdFriends = 0;
       let createdHobbies = 0;
       let createdMemories = 0;
+      let totalSuns = 0;
+      let totalClouds = 0;
 
       for (const profileData of fakeProfiles) {
         try {
@@ -1086,8 +1088,8 @@ export default function SettingsScreen() {
                   numClouds = 1;
                   numSuns = 1 + remainingMoments; // All remaining go to suns
                 } else {
-                  // Ex partners: sunny moments prevail (80% suns, 20% clouds)
-                  const sunsFromRemaining = Math.floor(remainingMoments * 0.8);
+                  // Ex partners: sunny moments prevail (85% suns, 15% clouds)
+                  const sunsFromRemaining = Math.floor(remainingMoments * 0.85);
                   numSuns = 1 + sunsFromRemaining;
                   numClouds = 1 + (remainingMoments - sunsFromRemaining);
                 }
@@ -1152,6 +1154,8 @@ export default function SettingsScreen() {
                 if (memoryId) {
                   createdMemories++;
                   successfullyCreatedCount++;
+                  totalSuns += goodFacts.length;
+                  totalClouds += hardTruths.length;
                 }
 
                 // Small delay to allow AsyncStorage write to complete
@@ -1232,8 +1236,8 @@ export default function SettingsScreen() {
                   numClouds = 1;
                   numSuns = 1 + remainingMoments; // All remaining go to suns
                 } else {
-                  // Past jobs: sunny moments prevail (80% suns, 20% clouds)
-                  const sunsFromRemaining = Math.floor(remainingMoments * 0.8);
+                  // Past jobs: sunny moments prevail (85% suns, 15% clouds)
+                  const sunsFromRemaining = Math.floor(remainingMoments * 0.85);
                   numSuns = 1 + sunsFromRemaining;
                   numClouds = 1 + (remainingMoments - sunsFromRemaining);
                 }
@@ -1294,7 +1298,7 @@ export default function SettingsScreen() {
                   lessonsLearned,
                 });
 
-                if (memoryId) createdMemories++;
+                if (memoryId) { createdMemories++; totalSuns += goodFacts.length; totalClouds += hardTruths.length; }
 
                 // Brief delay to allow AsyncStorage write to complete
                 await new Promise((resolve) => setTimeout(resolve, 50));
@@ -1437,7 +1441,7 @@ export default function SettingsScreen() {
                   lessonsLearned,
                 });
 
-                if (memoryId) createdMemories++;
+                if (memoryId) { createdMemories++; totalSuns += goodFacts.length; totalClouds += hardTruths.length; }
 
                 await new Promise((resolve) => setTimeout(resolve, 50));
               } catch (_memoryError) {
@@ -1559,7 +1563,7 @@ export default function SettingsScreen() {
                   lessonsLearned,
                 });
 
-                if (memoryId) createdMemories++;
+                if (memoryId) { createdMemories++; totalSuns += goodFacts.length; totalClouds += hardTruths.length; }
                 await new Promise((resolve) => setTimeout(resolve, 50));
               } catch (_memoryError) {
                 // Error creating memory
@@ -1677,7 +1681,7 @@ export default function SettingsScreen() {
                   lessonsLearned,
                 });
 
-                if (memoryId) createdMemories++;
+                if (memoryId) { createdMemories++; totalSuns += goodFacts.length; totalClouds += hardTruths.length; }
                 await new Promise((resolve) => setTimeout(resolve, 50));
               } catch (_memoryError) {
                 // Error creating memory
@@ -1711,9 +1715,12 @@ export default function SettingsScreen() {
         // Continue anyway - data is in storage even if state update fails
       }
 
+      const totalMoments = totalSuns + totalClouds;
+      const sunnyPct = totalMoments > 0 ? Math.round((totalSuns / totalMoments) * 100) : 0;
+      console.log(`[MockData] Sunny: ${totalSuns}, Cloudy: ${totalClouds}, Total: ${totalMoments}, Sunny%: ${sunnyPct}%`);
       Alert.alert(
         t("common.success"),
-        `Created ${createdProfiles} profiles, ${createdJobs} jobs, ${createdFamilyMembers} family members, ${createdFriends} friends, ${createdHobbies} hobbies, and ${createdMemories} total memories`,
+        `Created ${createdProfiles} profiles, ${createdJobs} jobs, ${createdFamilyMembers} family members, ${createdFriends} friends, ${createdHobbies} hobbies, and ${createdMemories} total memories\n\n☀️ ${totalSuns} sunny / ☁️ ${totalClouds} cloudy (${sunnyPct}% sunny)`,
         [{ text: t("common.ok") }],
       );
     } catch (_error) {
