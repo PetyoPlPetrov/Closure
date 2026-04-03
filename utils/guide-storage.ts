@@ -48,3 +48,11 @@ export async function setGuideDismissedForever(): Promise<void> {
     // ignore
   }
 }
+
+export async function clearGuideDismissedForever(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(GUIDE_DISMISSED_FOREVER_KEY);
+  } catch {
+    // ignore
+  }
+}

@@ -4,7 +4,12 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
-import { getReadSections } from "@/utils/guide-storage";
+import {
+  clearGuideDismissedForever,
+  getGuideDismissedForever,
+  getReadSections,
+  setGuideDismissedForever,
+} from "@/utils/guide-storage";
 import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useFocusEffect } from "expo-router";
@@ -13,6 +18,7 @@ import {
   DimensionValue,
   ScrollView,
   StyleSheet,
+  Switch,
   TouchableOpacity,
   View,
   type TextStyle,
@@ -27,10 +33,13 @@ export default function GuideScreen() {
   const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
   const [readSections, setReadSections] = useState<Set<string>>(new Set());
+  // remindOnOpen = true means the modal will show on app open (dismissedForever = false)
+  const [remindOnOpen, setRemindOnOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       getReadSections().then(setReadSections);
+      getGuideDismissedForever().then((dismissed) => setRemindOnOpen(!dismissed));
     }, []),
   );
 
@@ -43,6 +52,7 @@ export default function GuideScreen() {
         content: ViewStyle;
         dropdown: ViewStyle;
         dropdownContent: ViewStyle;
+        reminderRow: ViewStyle;
       }>({
         header: {
           flexDirection: "row",
@@ -90,6 +100,23 @@ export default function GuideScreen() {
           alignItems: "center",
           gap: 12 * fontScale,
           flex: 1,
+        },
+        reminderRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: 16 * fontScale,
+          borderRadius: 12 * fontScale,
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.05)"
+              : "rgba(0, 0, 0, 0.05)",
+          borderWidth: 1,
+          borderColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.1)"
+              : "rgba(0, 0, 0, 0.1)",
+          marginTop: 4 * fontScale,
         },
       }),
     [fontScale, colorScheme, maxContentWidth],
@@ -155,6 +182,30 @@ export default function GuideScreen() {
             </TouchableOpacity>
           );
         })}
+
+        <View style={styles.reminderRow}>
+          <View style={{ flex: 1, paddingRight: 12 * fontScale }}>
+            <ThemedText size="m" weight="medium">
+              {t("guide.remindOnOpen")}
+            </ThemedText>
+            <ThemedText size="s" style={{ opacity: 0.6, marginTop: 2 * fontScale }}>
+              {t("guide.remindOnOpenDescription")}
+            </ThemedText>
+          </View>
+          <Switch
+            value={remindOnOpen}
+            onValueChange={async (value) => {
+              if (value) {
+                await clearGuideDismissedForever();
+              } else {
+                await setGuideDismissedForever();
+              }
+              setRemindOnOpen(value);
+            }}
+            trackColor={{ false: "rgba(150,150,150,0.35)", true: colors.primary }}
+            thumbColor="#FFFFFF"
+          />
+        </View>
       </ScrollView>
     </TabScreenContainer>
   );

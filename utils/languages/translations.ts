@@ -274,6 +274,8 @@ export interface Translations {
   "guide.section.customizations.description": string;
   "guide.section.account.title": string;
   "guide.section.account.description": string;
+  "guide.remindOnOpen": string;
+  "guide.remindOnOpenDescription": string;
   "guide.bullet.pastLessons.title": string;
   "guide.bullet.pastLessons.description": string;
   "guide.bullet.sunnyMoments.title": string;
@@ -4074,6 +4076,8 @@ const translations: Record<Language, Translations> = {
     "guide.section.account.title": "Account & Data",
     "guide.section.account.description":
       "Manage your data with backup and restore tools, or manually edit your entities and memories.",
+    "guide.remindOnOpen": "Remind me to complete the guide",
+    "guide.remindOnOpenDescription": "Show a prompt on app open until you've read all sections.",
     "guide.bullet.pastLessons.title": "Learn from the Past",
     "guide.bullet.pastLessons.description":
       "Every experience teaches us something — but lessons are easy to forget. Over time we romanticize the past, the hard-earned wisdom fades, and we find ourselves making the same mistakes again. Sferas gives each lesson a permanent home. Write it down, revisit it whenever you need a reminder, or let Sferas send it back to you at the right moment. The lesson stays. The pattern breaks.",
@@ -8745,6 +8749,8 @@ const translations: Record<Language, Translations> = {
     "guide.section.account.title": "Акаунт и данни",
     "guide.section.account.description":
       "Управлявайте данните си с инструменти за архивиране и възстановяване или редактирайте ръчно.",
+    "guide.remindOnOpen": "Напомни ми да завърша ръководството",
+    "guide.remindOnOpenDescription": "Показвай напомняне при отваряне на приложението, докато не прочетете всички раздели.",
     "guide.bullet.pastLessons.title": "Учете от миналото",
     "guide.bullet.pastLessons.description":
       "Всяко преживяване ни учи на нещо — но уроците лесно се забравят. С времето романтизираме миналото, трудно извоюваната мъдрост избледнява и се оказваме, че правим същите грешки отново. Sferas дава на всеки урок постоянен дом. Запишете го, прегледайте го когато имате нужда от напомняне, или оставете Sferas да ви го върне в точния момент. Урокът остава. Моделът се прекъсва.",
