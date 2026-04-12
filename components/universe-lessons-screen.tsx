@@ -927,6 +927,17 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
     transform: [{ translateY: swipeHintY.value }],
   }));
 
+  // Screen fade-in — replaces the slow native "slide" animation
+  const screenOpacity = useSharedValue(0);
+  useEffect(() => {
+    if (visible) {
+      screenOpacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.ease) });
+    } else {
+      screenOpacity.value = 0;
+    }
+  }, [visible, screenOpacity]);
+  const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
+
   const handleAvatarPress = useCallback((card: LessonCard) => {
     if (!card.entityId) return;
     onClose();
@@ -951,12 +962,12 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
   return (
     <Modal
       visible={visible}
-      transparent={false}
-      animationType="slide"
+      transparent
+      animationType="none"
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View style={styles.root}>
+      <Animated.View style={[styles.root, screenStyle]}>
         <StarField nebulaColor={SPHERE_RINGS[activeCard?.sphere ?? "career"].glow} />
         {twinkles.map((tw, i) => (
           <TwinkleDot key={i} x={tw.x} y={tw.y} r={tw.r} delay={tw.delay} />
@@ -1032,7 +1043,7 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
         )}
 
 
-      </View>
+      </Animated.View>
     </Modal>
   );
 }

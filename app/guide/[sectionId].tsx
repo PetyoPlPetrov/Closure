@@ -144,6 +144,17 @@ function BulletCard({
           {t(bullet.titleKey)}
         </ThemedText>
       </View>
+
+      <ThemedText
+        size="xs"
+        emphasis="medium"
+        style={{
+          marginTop: 10 * fontScale,
+          opacity: colorScheme === "dark" ? 0.72 : 0.65,
+        }}
+      >
+        {t(bullet.menuPathKey)}
+      </ThemedText>
     </View>
   );
 }
