@@ -80,6 +80,7 @@ import {
   AppState,
   BackHandler,
   Dimensions,
+  Platform,
   type GestureResponderEvent,
   InteractionManager,
   Modal,
@@ -13585,7 +13586,10 @@ export default function HomeScreen() {
   const { isTablet, isLargeDevice } = useLargeDevice();
   /** Individual sfera view: back button row — title aligns to same band (vertically centered with arrow). */
   const sphereHeaderBackTop = 70;
-  const sphereHeaderBackSize = isTablet ? 70 : 50;
+  const iPadIndividualHeaderScale =
+    Platform.OS === "ios" && Platform.isPad ? 1.3 : 1;
+  const sphereHeaderBackSize =
+    (isTablet ? 70 : 50) * iPadIndividualHeaderScale;
   const sphereHeaderTitleRowStyle = {
     position: "absolute" as const,
     top: sphereHeaderBackTop,
@@ -13698,6 +13702,8 @@ export default function HomeScreen() {
   const [walkthroughVisible, setWalkthroughVisible] = useState(false);
   const [guideReadSections, setGuideReadSections] = useState<Set<string>>(new Set());
   const walkthroughCheckedRef = useRef(false);
+  /** Last known onboarding flag from storage — used to clear a premature walkthroughCheckedRef when onboarding completes. */
+  const prevOnboardingCompletedRef = useRef<boolean | null>(null);
   const walkthroughAfterOnboardingRef = useRef(false);
   // Tracks whether the FocusedSferaView sunny moments intro animation has finished.
   // The walkthrough modal must not appear until this is true.
@@ -13751,10 +13757,6 @@ export default function HomeScreen() {
   // Check once on app open and show walkthrough if guide not fully read
   useEffect(() => {
     const checkWalkthrough = async () => {
-      if (walkthroughCheckedRef.current) {
-        return;
-      }
-
       // Wait for splash to complete and data to load
       if (isLoading || isSplashVisible || !isAnimationComplete) {
         return;
@@ -13766,14 +13768,27 @@ export default function HomeScreen() {
         return;
       }
 
-      walkthroughCheckedRef.current = true;
-      isFirstLaunchRef.current = false;
-
-      // Don't show if onboarding hasn't been completed yet
       const onboardingCompleted = await getOnboardingCompleted();
+      // Home mounts under the onboarding overlay; an earlier run could set
+      // walkthroughCheckedRef before storage says onboarding is done — clear it on transition.
+      if (
+        prevOnboardingCompletedRef.current === false &&
+        onboardingCompleted
+      ) {
+        walkthroughCheckedRef.current = false;
+      }
+      prevOnboardingCompletedRef.current = onboardingCompleted;
+
       if (!onboardingCompleted) {
         return;
       }
+
+      if (walkthroughCheckedRef.current) {
+        return;
+      }
+
+      walkthroughCheckedRef.current = true;
+      isFirstLaunchRef.current = false;
 
       // Check if coming from onboarding - show guide prompt and clear flag
       const showAfterOnboarding = await getShowWalkthroughAfterOnboarding();
@@ -13795,7 +13810,18 @@ export default function HomeScreen() {
     };
 
     void checkWalkthrough();
-  }, [isLoading, isAnimationComplete, isSplashVisible, focusedIntroComplete, homeViewMode]);
+  }, [
+    isLoading,
+    isAnimationComplete,
+    isSplashVisible,
+    focusedIntroComplete,
+    homeViewMode,
+    profiles.length,
+    jobs.length,
+    familyMembers.length,
+    friends.length,
+    hobbies.length,
+  ]);
 
   const handleWalkthroughDismiss = useCallback(() => {
     setWalkthroughVisible(false);

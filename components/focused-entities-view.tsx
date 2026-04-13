@@ -30,6 +30,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Dimensions,
   PanResponder,
+  Platform,
   Pressable,
   View,
 } from "react-native";
@@ -61,6 +62,10 @@ import Svg, {
 } from "react-native-svg";
 
 const { width: SW, height: SH } = Dimensions.get("window");
+const IS_IPAD =
+  Platform.OS === "ios" && (Platform.isPad || Math.min(SW, SH) >= 768);
+const IPAD_ENTITIES_CARD_SCALE = IS_IPAD ? 1.6 : 1;
+const IPAD_ENTITIES_AVATAR_SCALE = IS_IPAD ? 1.5 : 1;
 
 // Avatar constants (from focused-sfera-view.tsx)
 const COSMIC_TRACK = "#0D1525";
@@ -408,10 +413,10 @@ const SparkledDot = React.memo(function SparkledDot({
 
 // ───────────────────── Sfera Insight Card dimensions (used by both card and perimeter layout) ─────────────────────
 
-const INSIGHT_CARD_W = 240;
-const INSIGHT_CARD_H = 295;
+const INSIGHT_CARD_W = 240 * IPAD_ENTITIES_CARD_SCALE;
+const INSIGHT_CARD_H = 295 * IPAD_ENTITIES_CARD_SCALE;
 
-const NEED_MEMORIES_HINT_WIDTH = 220;
+const NEED_MEMORIES_HINT_WIDTH = 220 * IPAD_ENTITIES_CARD_SCALE;
 
 const needMemoriesHintBubbleStyle = {
   paddingVertical: 8,
@@ -2206,7 +2211,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         sphere={sphere}
         centerX={AVATAR_CX}
         centerY={AVATAR_CY}
-        avatarSize={isTablet ? 60 : 50}
+        avatarSize={(isTablet ? 60 : 50) * IPAD_ENTITIES_AVATAR_SCALE}
         glowColor={sunnyBackground}
         orbitDurationMs={orbitDurationMs}
       />

@@ -116,7 +116,6 @@ export function AILoadingView({
           backgroundColor: colorScheme === "dark" ? "rgba(74, 144, 226, 0.15)" : "rgba(74, 144, 226, 0.2)",
         },
         iconWrapper: {
-          position: "absolute",
           width: 140 * fontScale,
           height: 140 * fontScale,
           borderRadius: 70 * fontScale,

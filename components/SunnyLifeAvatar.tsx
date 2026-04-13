@@ -136,6 +136,11 @@ export interface SunnyLifeAvatarProps {
   screenWidth?: number;
   /** Screen height — needed to compute centering translateY. */
   screenHeight?: number;
+  /**
+   * Multiplier for avatar + ring + inner typography (default 1).
+   * Use e.g. focused-view iPad scale so the % ring matches orbiting spheres.
+   */
+  layoutScale?: number;
 }
 
 export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
@@ -153,6 +158,7 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   isCentered = false,
   screenWidth,
   screenHeight,
+  layoutScale = 1,
 }: SunnyLifeAvatarProps) {
   const { momentColors } = useMomentColors();
   const t = useTranslate();
@@ -178,8 +184,8 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   }, [sunnyHex]);
   const glowMatrixValues = sunnyGlowMatrix;
 
-  const avatarSize = 100;
-  const borderWidth = 8;
+  const avatarSize = 100 * layoutScale;
+  const borderWidth = 8 * layoutScale;
   const radius = (avatarSize + borderWidth) / 2 - borderWidth / 2;
   const circumference = 2 * Math.PI * radius;
   const staticRingDashOffset = circumference - (percentage / 100) * circumference;
@@ -276,7 +282,10 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
     return {
       transform: [
         { translateX: centeredProgress.value * targetTX },
-        { translateY: centeredProgress.value * targetTY - sunExp * 40 },
+        {
+          translateY:
+            centeredProgress.value * targetTY - sunExp * 40 * layoutScale,
+        },
         {
           scale:
             avatarPulseScale.value *
@@ -514,7 +523,7 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
             <SvgCircle
               cx={avatarSize / 2}
               cy={avatarSize / 2}
-              r={radius + 18}
+              r={radius + 18 * layoutScale}
               fill="url(#nebulaHalo)"
               filter={isSunLoadIntro ? undefined : "url(#nebulaBlur)"}
             />
@@ -591,7 +600,7 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                     weight="bold"
                     style={{
                       color: colors.primaryLight ?? colors.primary,
-                      fontSize: 24,
+                      fontSize: 24 * layoutScale,
                       includeFontPadding: false,
                     }}
                   >
@@ -602,8 +611,8 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                     weight="medium"
                     style={{
                       color: colors.primaryLight ?? colors.primary,
-                      fontSize: 12,
-                      marginTop: -2,
+                      fontSize: 12 * layoutScale,
+                      marginTop: -2 * layoutScale,
                       includeFontPadding: false,
                     }}
                   >
@@ -614,9 +623,9 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
             ) : (
               <View
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
+                  width: 44 * layoutScale,
+                  height: 44 * layoutScale,
+                  borderRadius: 22 * layoutScale,
                   backgroundColor: `${colors.primary}40`,
                   justifyContent: "center",
                   alignItems: "center",
@@ -624,7 +633,7 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
               >
                 <MaterialIcons
                   name="add"
-                  size={28}
+                  size={28 * layoutScale}
                   color={colors.primaryLight ?? colors.primary}
                 />
               </View>
@@ -638,10 +647,11 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
             const sunnyArcAngle = -90 + ((ringPctForIcons / 100) * 360) / 2;
             const sunnyAngleRad = (sunnyArcAngle * Math.PI) / 180;
             const iconRadius = avatarSize / 2;
+            const iconInset = 12 * layoutScale;
             const sunX =
-              avatarSize / 2 + iconRadius * Math.cos(sunnyAngleRad) - 12;
+              avatarSize / 2 + iconRadius * Math.cos(sunnyAngleRad) - iconInset;
             const sunY =
-              avatarSize / 2 + iconRadius * Math.sin(sunnyAngleRad) - 12;
+              avatarSize / 2 + iconRadius * Math.sin(sunnyAngleRad) - iconInset;
             const sunShade = blendHex(
               momentColors.sunny.background,
               COSMIC_TRACK,
@@ -654,25 +664,25 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                   position: "absolute",
                   top: sunY,
                   left: sunX,
-                  width: 24,
-                  height: 24,
+                  width: 24 * layoutScale,
+                  height: 24 * layoutScale,
                   justifyContent: "center",
                   alignItems: "center",
                   backgroundColor: sunShade,
-                  borderRadius: 12,
-                  borderWidth: 2,
+                  borderRadius: 12 * layoutScale,
+                  borderWidth: 2 * layoutScale,
                   borderColor: sunShade,
                   zIndex: 999,
                   elevation: 30,
                   shadowColor: sunShade,
-                  shadowOffset: { width: 0, height: 3 },
+                  shadowOffset: { width: 0, height: 3 * layoutScale },
                   shadowOpacity: 0.5,
-                  shadowRadius: 6,
+                  shadowRadius: 6 * layoutScale,
                 }}
               >
                 <MaterialIcons
                   name="wb-sunny"
-                  size={14}
+                  size={14 * layoutScale}
                   color={momentColors.sunny.text}
                 />
               </View>
@@ -688,10 +698,11 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
             const cloudyArcAngle = cloudyStartAngle + cloudyArcLength / 2;
             const cloudyAngleRad = (cloudyArcAngle * Math.PI) / 180;
             const iconRadius = avatarSize / 2;
+            const iconInset = 12 * layoutScale;
             const cloudX =
-              avatarSize / 2 + iconRadius * Math.cos(cloudyAngleRad) - 12;
+              avatarSize / 2 + iconRadius * Math.cos(cloudyAngleRad) - iconInset;
             const cloudY =
-              avatarSize / 2 + iconRadius * Math.sin(cloudyAngleRad) - 12;
+              avatarSize / 2 + iconRadius * Math.sin(cloudyAngleRad) - iconInset;
             return (
               <View
                 pointerEvents="none"
@@ -699,25 +710,25 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                   position: "absolute",
                   top: cloudY,
                   left: cloudX,
-                  width: 24,
-                  height: 24,
+                  width: 24 * layoutScale,
+                  height: 24 * layoutScale,
                   justifyContent: "center",
                   alignItems: "center",
                   backgroundColor: momentColors.cloudy.background,
-                  borderRadius: 12,
-                  borderWidth: 2,
+                  borderRadius: 12 * layoutScale,
+                  borderWidth: 2 * layoutScale,
                   borderColor: momentColors.cloudy.background,
                   zIndex: 999,
                   elevation: 30,
                   shadowColor: momentColors.cloudy.background,
-                  shadowOffset: { width: 0, height: 3 },
+                  shadowOffset: { width: 0, height: 3 * layoutScale },
                   shadowOpacity: 0.5,
-                  shadowRadius: 4,
+                  shadowRadius: 4 * layoutScale,
                 }}
               >
                 <MaterialIcons
                   name="cloud"
-                  size={14}
+                  size={14 * layoutScale}
                   color={momentColors.cloudy.text}
                 />
               </View>

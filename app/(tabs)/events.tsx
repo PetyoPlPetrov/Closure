@@ -70,6 +70,7 @@ import {
   Linking,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -102,10 +103,12 @@ import Svg, {
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const CENTER_X = SCREEN_WIDTH / 2;
 const CENTER_Y = SCREEN_HEIGHT * 0.38;
+const IS_IPAD = Platform.OS === "ios" && Platform.isPad;
 const ORB_RADIUS = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.28;
 const ORB_SIZE = 140;
 const FOCUSED_ORB_SIZE = Math.round(170 / 1.4 * 0.8); // Reduced by 20% for less visual prominence, sized to fit event count text
-const EVENT_ORBIT_RADIUS = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.36;
+const EVENT_ORBIT_RADIUS =
+  Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * (IS_IPAD ? 0.26 : 0.36);
 const EVENT_BELOW_ORB_GAP = 16;
 const FOCUSED_EVENT_SIZE = 228;
 const SMALL_EVENT_SIZE = 100;

@@ -38,6 +38,7 @@ import {
   Dimensions,
   InteractionManager,
   PanResponder,
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -74,6 +75,13 @@ import Svg, {
 
 
 const { width: SW, height: SH } = Dimensions.get("window");
+const IS_IPAD = Platform.OS === "ios" && Platform.isPad;
+/** Larger UI on iPad only (iOS iPad); phones unchanged. */
+const IPAD_FOCUSED_SCALE = IS_IPAD ? 1.55 : 1;
+const IPAD_INDIVIDUAL_SFERA_SCALE = IS_IPAD ? 1.3 : 1;
+const IPAD_INDIVIDUAL_CARD_SCALE = IS_IPAD ? 1.45 : 1;
+const IPAD_INDIVIDUAL_ENTITY_AVATAR_SCALE = IS_IPAD ? 1.18 : 1;
+const scaleFocused = (value: number) => value * IPAD_FOCUSED_SCALE;
 
 const SPHERE_LIST: { type: LifeSphere; icon: string }[] = [
   { type: "relationships", icon: "favorite" },
@@ -92,23 +100,23 @@ const SPHERE_NEON: Record<LifeSphere, { core: string; glow: string }> = {
   hobbies:       { core: "#F97B16", glow: "#F97B16" },
 };
 
-const FOCUSED_SIZE = 170;
-const FOCUSED_ICON_SIZE = 72;
+const FOCUSED_SIZE = scaleFocused(170);
+const FOCUSED_ICON_SIZE = scaleFocused(72);
 
 // Orbit around the Sunny Life avatar: spheres move along this circle when switching focus
 const ORBIT_CX = SW / 2;
 // Slightly lower than center to keep space for the badge + toggle
 const ORBIT_CY = SH * 0.46;
-const ORBIT_R = 135;
+const ORBIT_R = scaleFocused(135);
 
 /** Scalable gap between rotating entities and the label block (3% of screen height) */
-const FOCUSED_LABEL_GAP = SH * 0.03;
+const FOCUSED_LABEL_GAP = SH * 0.03 * IPAD_FOCUSED_SCALE;
 /** Gap between label text and pagination dots (0.8% of screen height) */
-const LABEL_TO_DOTS_GAP = SH * 0.008;
+const LABEL_TO_DOTS_GAP = SH * 0.008 * IPAD_FOCUSED_SCALE;
 /** Entity orbit radius when this sphere is focused (sphere radius + entity radius + padding) */
-const FOCUSED_ENTITY_ORBIT_R = FOCUSED_SIZE / 2 + 20 + 8;
+const FOCUSED_ENTITY_ORBIT_R = FOCUSED_SIZE / 2 + scaleFocused(20) + scaleFocused(8);
 
-const NEED_MEMORIES_HINT_WIDTH_FS = 220;
+const NEED_MEMORIES_HINT_WIDTH_FS = scaleFocused(220);
 const needMemoriesHintBubbleStyleFs = {
   paddingVertical: 8,
   paddingHorizontal: 10,
@@ -120,13 +128,13 @@ const needMemoriesHintBubbleStyleFs = {
 } as const;
 
 /** Left just above the focused sfera (slot 4) — slightly bigger */
-const BG_SPHERE_SIZE_LEFT_BELOW = 76;
+const BG_SPHERE_SIZE_LEFT_BELOW = scaleFocused(76);
 /** Right just above / below-right of the circle avatar (slot 1) — a bit bigger */
-const BG_SPHERE_SIZE_RIGHT_BELOW = 82;
+const BG_SPHERE_SIZE_RIGHT_BELOW = scaleFocused(82);
 /** Sfera above the Sunny Life circle on the right (slot 2) — slightly smaller */
-const BG_SPHERE_SIZE_TOP_RIGHT = 46;
+const BG_SPHERE_SIZE_TOP_RIGHT = scaleFocused(46);
 /** Sfera above the Sunny Life circle on the left (slot 3) — a bit bigger */
-const BG_SPHERE_SIZE_TOP_LEFT = 82;
+const BG_SPHERE_SIZE_TOP_LEFT = scaleFocused(82);
 const SLOT_ANGLE = 72; // 360 / 5
 
 /** Slot 0 = focus (bottom), slots 1-4 go clockwise. Returns angle in degrees (0 = bottom). */
@@ -226,8 +234,8 @@ export type FocusedSferaViewProps = {
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
 
-const MOMENT_ICON_SIZE = 16;
-const MOMENT_ORBIT_RADIUS = 32; // outside entity avatar (entity radius ~20 for focused; +12 gap so memories sit clearly away)
+const MOMENT_ICON_SIZE = scaleFocused(16);
+const MOMENT_ORBIT_RADIUS = scaleFocused(32); // outside entity avatar (entity radius ~20 for focused; +12 gap so memories sit clearly away)
 
 /** Fewer, lighter bubbles — 18× heavy SVG suns was a main source of congrats intro jank. */
 const RISING_SUN_COUNT = 8;
@@ -1220,7 +1228,7 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
 
 // ───────────────────── Animated sphere (orbital transition: spheres slide along orbit like beads on a string) ─────────────────────
 
-const SPHERE_CONTAINER_SIZE = 320; // Fits orbit extent
+const SPHERE_CONTAINER_SIZE = scaleFocused(320); // Fits orbit extent
 const ORBIT_SPRING_CONFIG = { damping: 22, stiffness: 180 };
 
 const RANDOM_ENTITY_PULSE_INTERVAL_MS = 4200;
@@ -1249,6 +1257,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   sunLoadSweepOffset,
   sphereIntroStaggerMs = 0,
   isSunMenuOpen = false,
+  individualModeScale = 1,
+  entityAvatarScale = 1,
 }: {
   sphereIdx: number;
   sphere: { type: LifeSphere; icon: string };
@@ -1274,6 +1284,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   sphereIntroStaggerMs?: number;
   /** When sun menu is expanded: hide spheres completely and block taps. */
   isSunMenuOpen?: boolean;
+  /** Additional scale for selected-sfera mode (iPad only). */
+  individualModeScale?: number;
+  /** Additional scale for orbiting entity avatars in selected-sfera mode (iPad only). */
+  entityAvatarScale?: number;
 }) {
   const { isTablet } = useLargeDevice();
   const target = getSphereTarget(sphereIdx, focusedIdx);
@@ -1444,7 +1458,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             topPairOffsetY +
             topLeftExtraOffsetY,
         },
-        { scale: depthScale * sunShrink * introScale },
+        { scale: depthScale * sunShrink * introScale * individualModeScale },
       ],
     };
   });
@@ -1464,9 +1478,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   const baseEntityAvatarSize = isFocused
     ? 40
     : Math.max(22, Math.round(target.size * 0.3));
-  const entityAvatarSize = isFocused
+  const rawEntityAvatarSize = isFocused
     ? baseEntityAvatarSize
     : Math.max(10, Math.round(baseEntityAvatarSize * depthScale));
+  const entityAvatarSize = rawEntityAvatarSize * entityAvatarScale;
   // Keep orbit radius unscaled by depth so entities stay in a ring *around* the sfera, not on top of it
   const orbitRadius =
     target.size / 2 + entityAvatarSize / 2 + (isFocused ? 8 : 6);
@@ -2127,7 +2142,7 @@ const UniverseScrollIcon = React.memo(function UniverseScrollIcon({ size }: { si
 
 // ───────────────────── Sfera Insight Card ─────────────────────
 
-const INSIGHT_CARD_SIZE = 120;
+const INSIGHT_CARD_SIZE = scaleFocused(120);
 
 const SferaInsightCard = React.memo(function SferaInsightCard({
   sphere,
@@ -2141,6 +2156,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   shadowColor,
   x,
   y,
+  sizeScale = 1,
 }: {
   sphere: LifeSphere;
   entityIds: string[];
@@ -2153,6 +2169,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   shadowColor: string;
   x: number;
   y: number;
+  sizeScale?: number;
 }) {
   const t = useTranslate();
   const [mode, setMode] = useState(0);
@@ -2261,13 +2278,14 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
 
   const gradientColors =
     colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
+  const cardSize = INSIGHT_CARD_SIZE * sizeScale;
 
   const wrapperStyle = {
     position: "absolute" as const,
-    left: x - INSIGHT_CARD_SIZE / 2,
-    top: y - INSIGHT_CARD_SIZE / 2,
-    width: INSIGHT_CARD_SIZE,
-    height: INSIGHT_CARD_SIZE,
+    left: x - cardSize / 2,
+    top: y - cardSize / 2,
+    width: cardSize,
+    height: cardSize,
     zIndex: 25,
   };
 
@@ -2320,12 +2338,12 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
     const zeroOuter = {
       ...wrapperStyle,
       overflow: "visible" as const,
-      minHeight: INSIGHT_CARD_SIZE + (showNeedMemoriesHintBelowCard ? 48 : 0),
+      minHeight: cardSize + (showNeedMemoriesHintBelowCard ? 48 : 0),
       height: undefined as number | undefined,
     };
     return (
       <View style={zeroOuter}>
-        <Pressable style={{ width: INSIGHT_CARD_SIZE }} onPress={() => onNeedMemoriesHintCenter?.()}>
+        <Pressable style={{ width: cardSize }} onPress={() => onNeedMemoriesHintCenter?.()}>
           <LinearGradient
             colors={[...gradientColors]}
             style={{
@@ -2341,7 +2359,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
               shadowOpacity: 0.5,
               shadowRadius: 12,
               elevation: 8,
-              minHeight: INSIGHT_CARD_SIZE,
+              minHeight: cardSize,
             }}
           >
             <MaterialIcons name="add-photo-alternate" size={26} color={shadowColor} />
@@ -2431,15 +2449,15 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
     <View
       style={{
         position: "absolute",
-        left: x - INSIGHT_CARD_SIZE / 2,
-        top: y - INSIGHT_CARD_SIZE / 2,
+        left: x - cardSize / 2,
+        top: y - cardSize / 2,
         zIndex: 25,
         overflow: "visible",
         alignItems: "center",
       }}
       pointerEvents="box-none"
     >
-    <Pressable style={{ width: INSIGHT_CARD_SIZE, height: INSIGHT_CARD_SIZE }} onPress={handleEntityTap} {...swipePanResponder.panHandlers}>
+    <Pressable style={{ width: cardSize, height: cardSize }} onPress={handleEntityTap} {...swipePanResponder.panHandlers}>
       <LinearGradient
         colors={[...gradientColors]}
         style={{
@@ -2854,6 +2872,19 @@ export function FocusedSferaView({
   const t = useTranslate();
   const { language } = useLanguage();
   const focusedSphere = SPHERE_LIST[focusedIdx];
+  const individualModeScale =
+    selectedSphere !== null ? IPAD_INDIVIDUAL_SFERA_SCALE : 1;
+  const individualCardScale =
+    selectedSphere !== null ? IPAD_INDIVIDUAL_CARD_SCALE : 1;
+  const individualEntityAvatarScale =
+    selectedSphere !== null ? IPAD_INDIVIDUAL_ENTITY_AVATAR_SCALE : 1;
+  const focusedTapSize = FOCUSED_SIZE * individualModeScale;
+  const focusedLabelTop = IS_IPAD
+    ? Math.min(
+        ORBIT_CY + ORBIT_R + FOCUSED_LABEL_GAP * 3.4,
+        SH - scaleFocused(120),
+      )
+    : ORBIT_CY + ORBIT_R + FOCUSED_LABEL_GAP * 5.5;
   const focusedSunnyPct = getSphereSunnyPercentage(focusedSphere.type);
   const focusedGradientColors = getSphereGradientColors(
     focusedSphere.type,
@@ -2990,7 +3021,7 @@ export function FocusedSferaView({
   }, [selectedSphere, isSunExpanded, onClearSelection, onSwitchToClassic, handleSunPress, sunLoadComplete]);
 
   const { momentColors } = useMomentColors();
-  const avatarSizeForDots = 100;
+  const avatarSizeForDots = scaleFocused(100);
   const avatarCenterX = SW / 2;
   const avatarCenterY = SH * 0.48;
 
@@ -3158,7 +3189,7 @@ export function FocusedSferaView({
         }
         offsetX={ORBIT_CX}
         offsetY={ORBIT_CY + ORBIT_R}
-        sphereSize={FOCUSED_SIZE}
+        sphereSize={FOCUSED_SIZE * individualModeScale}
         enabled={pulsingAnimations && !isSunExpanded && sunLoadComplete}
       />
 
@@ -3200,6 +3231,8 @@ export function FocusedSferaView({
           sunLoadSweepOffset={sunLoadComplete ? undefined : sunLoadSweepOffset}
           sphereIntroStaggerMs={i * 150}
           isSunMenuOpen={isSunExpanded}
+          individualModeScale={individualModeScale}
+          entityAvatarScale={individualEntityAvatarScale}
         />
       ))}
 
@@ -3207,11 +3240,11 @@ export function FocusedSferaView({
       <Pressable
         style={{
           position: "absolute",
-          left: ORBIT_CX - FOCUSED_SIZE / 2,
-          top: ORBIT_CY + ORBIT_R - FOCUSED_SIZE / 2,
-          width: FOCUSED_SIZE,
-          height: FOCUSED_SIZE,
-          borderRadius: FOCUSED_SIZE / 2,
+          left: ORBIT_CX - focusedTapSize / 2,
+          top: ORBIT_CY + ORBIT_R - focusedTapSize / 2,
+          width: focusedTapSize,
+          height: focusedTapSize,
+          borderRadius: focusedTapSize / 2,
           zIndex: 13,
         }}
         onPress={handleFocusedSphereTapOverlay}
@@ -3231,6 +3264,7 @@ export function FocusedSferaView({
           shadowColor={focusedShadowColor}
           x={SW * 0.45}
           y={SH * 0.38}
+          sizeScale={individualCardScale}
         />
       ) : (
         <>
@@ -3249,6 +3283,7 @@ export function FocusedSferaView({
             isCentered={sunLoadCentered || isSunCentered}
             screenWidth={SW}
             screenHeight={SH}
+            layoutScale={IPAD_FOCUSED_SCALE}
           />
           {!sunLoadComplete && (
             <>
@@ -3278,7 +3313,7 @@ export function FocusedSferaView({
               {
                 position: "absolute",
                 left: 20,
-                top: SH * 0.5 + 120,
+                top: SH * 0.5 + scaleFocused(120),
                 width: SW - 40,
                 flexDirection: "row",
                 justifyContent: "space-evenly",
@@ -3289,16 +3324,16 @@ export function FocusedSferaView({
             ]}
           >
             {/* Insights button */}
-            <View style={{ alignItems: "center", gap: 8 }}>
+            <View style={{ alignItems: "center", gap: scaleFocused(8) }}>
               <PulsingPressable
                 deferPressUntilAnimationEnd
                 onPress={() => {
                   onInsightsPress?.();
                 }}
                 style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 40,
+                  width: scaleFocused(80),
+                  height: scaleFocused(80),
+                  borderRadius: scaleFocused(40),
                   backgroundColor: "rgba(186,104,200,0.22)",
                   borderWidth: 2,
                   borderColor: "rgba(186,104,200,0.65)",
@@ -3311,15 +3346,21 @@ export function FocusedSferaView({
                   elevation: 10,
                 }}
               >
-                <MaterialIcons name="insights" size={36} color="#CE93D8" />
+                <MaterialIcons name="insights" size={scaleFocused(36)} color="#CE93D8" />
               </PulsingPressable>
-              <ThemedText style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, letterSpacing: 0.3 }}>
+              <ThemedText
+                style={{
+                  color: "rgba(255,255,255,0.8)",
+                  fontSize: scaleFocused(11),
+                  letterSpacing: 0.3,
+                }}
+              >
                 {t("insights.wheelOfLife.title")}
               </ThemedText>
             </View>
 
             {/* Universe Lessons scroll button */}
-            <View style={{ alignItems: "center", gap: 8 }}>
+            <View style={{ alignItems: "center", gap: scaleFocused(8) }}>
               <PulsingPressable
                 onPress={() => {
                   if (!hasUserLessons) {
@@ -3329,9 +3370,9 @@ export function FocusedSferaView({
                   setUniverseLessonsVisible(true);
                 }}
                 style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 40,
+                  width: scaleFocused(80),
+                  height: scaleFocused(80),
+                  borderRadius: scaleFocused(40),
                   backgroundColor: hasUserLessons
                     ? "rgba(80,20,130,0.35)"
                     : "rgba(38,38,48,0.55)",
@@ -3349,12 +3390,12 @@ export function FocusedSferaView({
                   elevation: hasUserLessons ? 12 : 0,
                 }}
               >
-                <UniverseScrollIcon size={44} />
+                <UniverseScrollIcon size={scaleFocused(44)} />
               </PulsingPressable>
               <ThemedText
                 style={{
                   color: hasUserLessons ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.38)",
-                  fontSize: 11,
+                  fontSize: scaleFocused(11),
                   letterSpacing: 0.3,
                 }}
               >
@@ -3363,13 +3404,13 @@ export function FocusedSferaView({
             </View>
 
             {/* Universe Exam button */}
-            <View style={{ alignItems: "center", gap: 8 }}>
+            <View style={{ alignItems: "center", gap: scaleFocused(8) }}>
               <PulsingPressable
                 onPress={handleOpenUniverseExam}
                 style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 40,
+                  width: scaleFocused(80),
+                  height: scaleFocused(80),
+                  borderRadius: scaleFocused(40),
                   backgroundColor: hasUserLessons
                     ? "rgba(20,80,130,0.35)"
                     : "rgba(38,38,48,0.55)",
@@ -3389,14 +3430,14 @@ export function FocusedSferaView({
               >
                 <MaterialIcons
                   name="fact-check"
-                  size={36}
+                  size={scaleFocused(36)}
                   color={hasUserLessons ? "#5CE1E6" : "rgba(255,255,255,0.28)"}
                 />
               </PulsingPressable>
               <ThemedText
                 style={{
                   color: hasUserLessons ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.38)",
-                  fontSize: 11,
+                  fontSize: scaleFocused(11),
                   letterSpacing: 0.3,
                 }}
               >
@@ -3411,18 +3452,18 @@ export function FocusedSferaView({
                   position: "absolute",
                   left: 20,
                   right: 20,
-                  top: 112,
+                  top: scaleFocused(112),
                   alignItems: "center",
                   zIndex: 40,
                 }}
               >
                 <View
                   style={{
-                    maxWidth: 320,
+                    maxWidth: scaleFocused(320),
                     backgroundColor: "rgba(18,22,34,0.94)",
-                    paddingVertical: 12,
-                    paddingHorizontal: 18,
-                    borderRadius: 14,
+                    paddingVertical: scaleFocused(12),
+                    paddingHorizontal: scaleFocused(18),
+                    borderRadius: scaleFocused(14),
                     borderWidth: 1,
                     borderColor: "rgba(255,255,255,0.12)",
                   }}
@@ -3430,9 +3471,9 @@ export function FocusedSferaView({
                   <ThemedText
                     style={{
                       color: "rgba(255,255,255,0.88)",
-                      fontSize: 14,
+                      fontSize: scaleFocused(14),
                       textAlign: "center",
-                      lineHeight: 20,
+                      lineHeight: scaleFocused(20),
                     }}
                   >
                     {t("universe.lessons.noneAvailable")}
@@ -3450,7 +3491,7 @@ export function FocusedSferaView({
         style={[
           styles.focusedLabelContainer,
           {
-            top: ORBIT_CY + ORBIT_R + FOCUSED_LABEL_GAP * 5.5,
+            top: focusedLabelTop,
             opacity: !sunLoadComplete || isSunExpanded ? 0 : 1,
           },
         ]}
@@ -3483,7 +3524,7 @@ export function FocusedSferaView({
               position: "absolute",
               left: ORBIT_CX - FOCUSED_SIZE / 2,
               width: FOCUSED_SIZE,
-              top: ORBIT_CY + ORBIT_R + 20,
+              top: ORBIT_CY + ORBIT_R + scaleFocused(20),
               alignItems: "center",
               zIndex: 20,
             },
@@ -3491,7 +3532,7 @@ export function FocusedSferaView({
           ]}
         >
           <ThemedText style={{
-            fontSize: 13,
+            fontSize: scaleFocused(13),
             color: "#FFFFFF",
             opacity: 0.75,
             letterSpacing: 0.2,
@@ -3514,7 +3555,11 @@ export function FocusedSferaView({
               onPressOut={() => chevronPressOut("left")}
               onPress={() => goToSphere((focusedIdx + 1) % N)}
             >
-              <MaterialIcons name="chevron-left" size={32} color="rgba(255,255,255,0.45)" />
+              <MaterialIcons
+                name="chevron-left"
+                size={scaleFocused(32)}
+                color="rgba(255,255,255,0.45)"
+              />
             </Pressable>
           </Animated.View>
           <Animated.View style={[styles.chevron, styles.chevronRight, rightChevronStyle]}>
@@ -3524,7 +3569,11 @@ export function FocusedSferaView({
               onPressOut={() => chevronPressOut("right")}
               onPress={() => goToSphere((focusedIdx - 1 + N) % N)}
             >
-              <MaterialIcons name="chevron-right" size={32} color="rgba(255,255,255,0.45)" />
+              <MaterialIcons
+                name="chevron-right"
+                size={scaleFocused(32)}
+                color="rgba(255,255,255,0.45)"
+              />
             </Pressable>
           </Animated.View>
         </>
@@ -3557,7 +3606,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   focusedLabelText: {
-    fontSize: 18,
+    fontSize: scaleFocused(18),
     fontWeight: "600",
     opacity: 0.95,
     letterSpacing: 0.3,
@@ -3582,17 +3631,17 @@ const styles = StyleSheet.create({
   },
   chevron: {
     position: "absolute",
-    top: ORBIT_CY + ORBIT_R - 16,
+    top: ORBIT_CY + ORBIT_R - scaleFocused(16),
     zIndex: 5,
   },
   chevronLeft: {
-    left: 6,
+    left: scaleFocused(6),
   },
   chevronRight: {
-    right: 6,
+    right: scaleFocused(6),
   },
   chevronPressable: {
-    padding: 20,
+    padding: scaleFocused(20),
     justifyContent: "center",
     alignItems: "center",
   },
@@ -3600,15 +3649,15 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    top: SH / 2 + 90,
+    top: SH / 2 + scaleFocused(90),
     alignItems: "center",
     zIndex: 30,
   },
   congratsText: {
-    fontSize: 18,
+    fontSize: scaleFocused(18),
     color: "#FFD700",
     fontWeight: "700",
-    letterSpacing: 0.5,
+    letterSpacing: scaleFocused(0.5),
     textShadowColor: "rgba(0,0,0,0.9)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,
