@@ -499,10 +499,9 @@ export interface Translations {
   "spheres.items": string;
   "spheres.manualEditMode": string;
   "spheres.exitManualEdit": string;
+  "spheres.recentlyEdited": string;
   "spheres.entity": string;
   "spheres.entities": string;
-  "spheres.recentlyEdited": string;
-  "spheres.leastMemories": string;
   "spheres.memory": string;
   "spheres.memories": string;
 
@@ -4377,10 +4376,9 @@ const translations: Record<Language, Translations> = {
     "spheres.items": "items",
     "spheres.manualEditMode": "Manual edit mode",
     "spheres.exitManualEdit": "Exit manual edit mode",
+    "spheres.recentlyEdited": "Recently edited",
     "spheres.entity": "entity",
     "spheres.entities": "entities",
-    "spheres.recentlyEdited": "Recently edited",
-    "spheres.leastMemories": "Oldest edit",
     "spheres.memory": "memory",
     "spheres.memories": "memories",
 
@@ -9088,10 +9086,9 @@ const translations: Record<Language, Translations> = {
     "spheres.items": "елемента",
     "spheres.manualEditMode": "Ръчен режим на редактиране",
     "spheres.exitManualEdit": "Изход от режим на редактиране",
+    "spheres.recentlyEdited": "Скоро редактирани",
     "spheres.entity": "обект",
     "spheres.entities": "обекта",
-    "spheres.recentlyEdited": "Скоро редактирани",
-    "spheres.leastMemories": "Най-стари",
     "spheres.memory": "спомен",
     "spheres.memories": "спомена",
 

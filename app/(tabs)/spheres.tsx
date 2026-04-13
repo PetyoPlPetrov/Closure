@@ -47,7 +47,6 @@ import React, {
     useRef,
     useState,
 } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
     ActivityIndicator,
     Alert,
@@ -595,23 +594,7 @@ export default function SpheresScreen() {
     [getEntitiesBySphere, t],
   );
 
-  // Toggle between "recently edited" and "least memories" subsection
-  const SUBSECTION_TOGGLE_KEY = "@sferas:edit_subsection_toggle";
-  type SubsectionMode = "recent" | "forgotten";
-  const [subsectionMode, setSubsectionMode] = useState<SubsectionMode>("recent");
-
-  useEffect(() => {
-    AsyncStorage.getItem(SUBSECTION_TOGGLE_KEY).then((val) => {
-      if (val === "forgotten") setSubsectionMode("forgotten");
-    });
-  }, []);
-
-  const handleToggleSubsection = (mode: SubsectionMode) => {
-    setSubsectionMode(mode);
-    AsyncStorage.setItem(SUBSECTION_TOGGLE_KEY, mode);
-  };
-
-  // Collect all entities across all spheres with their sphere type, memory count, and updatedAt
+  // Recently edited strip (manual edit overview): top entities by updatedAt
   const allEntitiesFlat = useMemo(() => {
     const result: {
       id: string;
@@ -628,35 +611,72 @@ export default function SpheresScreen() {
         : getIdealizedMemoriesByEntityId(id, sphere).length;
 
     profiles.forEach((e) =>
-      result.push({ id: e.id, name: e.name, sphere: "relationships", updatedAt: e.updatedAt, memoryCount: countMemories(e.id, "relationships"), imageUri: e.imageUri }),
+      result.push({
+        id: e.id,
+        name: e.name,
+        sphere: "relationships",
+        updatedAt: e.updatedAt,
+        memoryCount: countMemories(e.id, "relationships"),
+        imageUri: e.imageUri,
+      }),
     );
     jobs.forEach((e) =>
-      result.push({ id: e.id, name: e.name, sphere: "career", updatedAt: e.updatedAt, memoryCount: countMemories(e.id, "career"), imageUri: e.imageUri }),
+      result.push({
+        id: e.id,
+        name: e.name,
+        sphere: "career",
+        updatedAt: e.updatedAt,
+        memoryCount: countMemories(e.id, "career"),
+        imageUri: e.imageUri,
+      }),
     );
     familyMembers.forEach((e) =>
-      result.push({ id: e.id, name: e.name, sphere: "family", updatedAt: e.updatedAt, memoryCount: countMemories(e.id, "family"), imageUri: e.imageUri }),
+      result.push({
+        id: e.id,
+        name: e.name,
+        sphere: "family",
+        updatedAt: e.updatedAt,
+        memoryCount: countMemories(e.id, "family"),
+        imageUri: e.imageUri,
+      }),
     );
     friends.forEach((e) =>
-      result.push({ id: e.id, name: e.name, sphere: "friends", updatedAt: e.updatedAt, memoryCount: countMemories(e.id, "friends"), imageUri: e.imageUri }),
+      result.push({
+        id: e.id,
+        name: e.name,
+        sphere: "friends",
+        updatedAt: e.updatedAt,
+        memoryCount: countMemories(e.id, "friends"),
+        imageUri: e.imageUri,
+      }),
     );
     hobbies.forEach((e) =>
-      result.push({ id: e.id, name: e.name, sphere: "hobbies", updatedAt: e.updatedAt, memoryCount: countMemories(e.id, "hobbies"), imageUri: e.imageUri }),
+      result.push({
+        id: e.id,
+        name: e.name,
+        sphere: "hobbies",
+        updatedAt: e.updatedAt,
+        memoryCount: countMemories(e.id, "hobbies"),
+        imageUri: e.imageUri,
+      }),
     );
     return result;
-  }, [profiles, jobs, familyMembers, friends, hobbies, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId]);
+  }, [
+    profiles,
+    jobs,
+    familyMembers,
+    friends,
+    hobbies,
+    getIdealizedMemoriesByProfileId,
+    getIdealizedMemoriesByEntityId,
+  ]);
 
   const subsectionEntities = useMemo(() => {
     if (allEntitiesFlat.length === 0) return [];
-    if (subsectionMode === "recent") {
-      return [...allEntitiesFlat]
-        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-        .slice(0, 5);
-    }
-    // oldest edit — sort by updatedAt ascending
     return [...allEntitiesFlat]
-      .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, 5);
-  }, [allEntitiesFlat, subsectionMode]);
+  }, [allEntitiesFlat]);
 
   const getSphereAccentColor = (sphereType: LifeSphere): string => {
     const scheme = (colorScheme ?? "dark") as "light" | "dark";
@@ -1084,33 +1104,8 @@ export default function SpheresScreen() {
         manualEditSubtitle: {
           marginTop: 4 * fontScale,
         },
-        subsectionToggleRow: {
-          flexDirection: "row",
-          backgroundColor:
-            colorScheme === "dark"
-              ? "rgba(255,255,255,0.06)"
-              : "rgba(0,0,0,0.06)",
-          borderRadius: 20 * fontScale,
-          padding: 3 * fontScale,
+        subsectionSectionLabel: {
           marginBottom: 12 * fontScale,
-          alignSelf: "flex-start",
-        },
-        subsectionToggleTab: {
-          paddingHorizontal: 14 * fontScale,
-          paddingVertical: 6 * fontScale,
-          borderRadius: 17 * fontScale,
-        },
-        subsectionToggleTabActive: {
-          backgroundColor:
-            colorScheme === "dark"
-              ? "rgba(100,181,246,0.18)"
-              : "rgba(25,118,210,0.12)",
-        },
-        subsectionToggleLabel: {
-          color: colors.icon,
-        },
-        subsectionToggleLabelActive: {
-          color: colorScheme === "dark" ? "#64B5F6" : "#1976D2",
         },
         subsectionCard: {
           width: 100 * fontScale,
@@ -1585,19 +1580,34 @@ export default function SpheresScreen() {
   const handleSubsectionEntityPress = (entityId: string, sphere: LifeSphere) => {
     switch (sphere) {
       case "relationships":
-        router.push({ pathname: '/edit-profile', params: { profileId: entityId, returnTo: 'spheres-overview' } });
+        router.push({
+          pathname: "/edit-profile",
+          params: { profileId: entityId, returnTo: "spheres-overview" },
+        });
         break;
       case "career":
-        router.push({ pathname: '/edit-job', params: { jobId: entityId, returnTo: 'spheres-overview' } });
+        router.push({
+          pathname: "/edit-job",
+          params: { jobId: entityId, returnTo: "spheres-overview" },
+        });
         break;
       case "family":
-        router.push({ pathname: '/edit-family-member', params: { memberId: entityId, returnTo: 'spheres-overview' } });
+        router.push({
+          pathname: "/edit-family-member",
+          params: { memberId: entityId, returnTo: "spheres-overview" },
+        });
         break;
       case "friends":
-        router.push({ pathname: '/edit-friend', params: { friendId: entityId, returnTo: 'spheres-overview' } });
+        router.push({
+          pathname: "/edit-friend",
+          params: { friendId: entityId, returnTo: "spheres-overview" },
+        });
         break;
       case "hobbies":
-        router.push({ pathname: '/edit-hobby', params: { hobbyId: entityId, returnTo: 'spheres-overview' } });
+        router.push({
+          pathname: "/edit-hobby",
+          params: { hobbyId: entityId, returnTo: "spheres-overview" },
+        });
         break;
     }
   };
@@ -2513,57 +2523,36 @@ export default function SpheresScreen() {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-            {/* Subsection toggle + horizontal entity strip */}
             {allEntitiesFlat.length > 0 && (
               <View style={{ marginBottom: 24 * fontScale }}>
-                {/* Pill toggle */}
-                <View style={styles.subsectionToggleRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.subsectionToggleTab,
-                      subsectionMode === "recent" && styles.subsectionToggleTabActive,
-                    ]}
-                    onPress={() => handleToggleSubsection("recent")}
-                    activeOpacity={0.8}
-                  >
-                    <ThemedText
-                      size="xs"
-                      weight={subsectionMode === "recent" ? "semibold" : "normal"}
-                      style={subsectionMode === "recent" ? styles.subsectionToggleLabelActive : styles.subsectionToggleLabel}
-                    >
-                      {t("spheres.recentlyEdited")}
-                    </ThemedText>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.subsectionToggleTab,
-                      subsectionMode === "forgotten" && styles.subsectionToggleTabActive,
-                    ]}
-                    onPress={() => handleToggleSubsection("forgotten")}
-                    activeOpacity={0.8}
-                  >
-                    <ThemedText
-                      size="xs"
-                      weight={subsectionMode === "forgotten" ? "semibold" : "normal"}
-                      style={subsectionMode === "forgotten" ? styles.subsectionToggleLabelActive : styles.subsectionToggleLabel}
-                    >
-                      {t("spheres.leastMemories")}
-                    </ThemedText>
-                  </TouchableOpacity>
-                </View>
-                {/* Horizontal entity cards */}
+                <ThemedText
+                  size="xs"
+                  weight="semibold"
+                  emphasis="medium"
+                  style={styles.subsectionSectionLabel}
+                >
+                  {t("spheres.recentlyEdited")}
+                </ThemedText>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingHorizontal: 2 * fontScale, paddingBottom: 4 }}
+                  contentContainerStyle={{
+                    paddingHorizontal: 2 * fontScale,
+                    paddingBottom: 4,
+                  }}
                 >
                   {subsectionEntities.map((entity) => {
                     const accent = getSphereAccentColor(entity.sphere);
                     return (
                       <TouchableOpacity
                         key={entity.id}
-                        style={[styles.subsectionCard, { borderLeftColor: accent, borderLeftWidth: 3 }]}
-                        onPress={() => handleSubsectionEntityPress(entity.id, entity.sphere)}
+                        style={[
+                          styles.subsectionCard,
+                          { borderLeftColor: accent, borderLeftWidth: 3 },
+                        ]}
+                        onPress={() =>
+                          handleSubsectionEntityPress(entity.id, entity.sphere)
+                        }
                         activeOpacity={0.85}
                       >
                         {entity.imageUri ? (
@@ -2573,19 +2562,39 @@ export default function SpheresScreen() {
                             contentFit="cover"
                           />
                         ) : (
-                          <View style={[styles.subsectionCardImage, { backgroundColor: accent + "22", justifyContent: "center", alignItems: "center" }]}>
+                          <View
+                            style={[
+                              styles.subsectionCardImage,
+                              {
+                                backgroundColor: accent + "22",
+                                justifyContent: "center",
+                                alignItems: "center",
+                              },
+                            ]}
+                          >
                             <MaterialIcons
-                              name={spheres.find((s) => s.type === entity.sphere)?.icon as any ?? "circle"}
+                              name={
+                                (spheres.find((s) => s.type === entity.sphere)
+                                  ?.icon as any) ?? "circle"
+                              }
                               size={18 * fontScale * iconScale}
                               color={accent}
                             />
                           </View>
                         )}
-                        <ThemedText size="xs" weight="semibold" numberOfLines={1} style={{ marginTop: 6 * fontScale }}>
+                        <ThemedText
+                          size="xs"
+                          weight="semibold"
+                          numberOfLines={1}
+                          style={{ marginTop: 6 * fontScale }}
+                        >
                           {entity.name}
                         </ThemedText>
                         <ThemedText size="xs" emphasis="disabled" numberOfLines={1}>
-                          {entity.memoryCount} {entity.memoryCount === 1 ? t("spheres.memory") : t("spheres.memories")}
+                          {entity.memoryCount}{" "}
+                          {entity.memoryCount === 1
+                            ? t("spheres.memory")
+                            : t("spheres.memories")}
                         </ThemedText>
                       </TouchableOpacity>
                     );
