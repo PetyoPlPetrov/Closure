@@ -4098,7 +4098,7 @@ const translations: Record<Language, Translations> = {
       "Create records in each sphere to track the cloudy and sunny moments of your life. Start by adding a partner, job, family member, friend, or hobby!",
     "walkthrough.button": "Got it!",
 
-    "guide.title": "App Guide",
+    "guide.title": "Sferas Guide",
     "guide.markDone": "Mark as done",
     "guide.markedDone": "Done",
     "guide.section.overview.title": "The 3 Missions",
@@ -4199,7 +4199,7 @@ const translations: Record<Language, Translations> = {
       "Directly edit or delete any entity, memory, or moment from within their detail screens.",
     "guide.bullet.manualEdit.menuPath":
       "/ Pencil menu / Life Sferas / Manual edit",
-    "guidePrompt.title": "App Guide",
+    "guidePrompt.title": "Sferas Guide",
     "guidePrompt.message": "Learn how to get the most out of Sferas.",
     "guidePrompt.openGuide": "Open Guide",
     "guidePrompt.dismiss": "Don't show again",
