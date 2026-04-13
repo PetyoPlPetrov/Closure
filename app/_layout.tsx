@@ -480,8 +480,14 @@ function AppContent() {
         <AIInsightsConsentModal
           visible={aiConsentModalForAIButton}
           onEnable={() => {
-            void aiConsent.setChoice("enabled");
             setAiConsentModalForAIButton(false);
+            void aiConsent.setChoice("enabled").then(async () => {
+              const pendingResponse = await getPendingAIResponse();
+              if (pendingResponse) {
+                setPendingAIResponseForButton(pendingResponse);
+              }
+              openMemoryModal();
+            });
           }}
           onMaybeLater={() => {
             void aiConsent.setChoice("maybe_later");
