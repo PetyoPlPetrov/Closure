@@ -15,7 +15,13 @@ export type GuideBullet = {
 };
 
 export type GuideSection = {
-  id: "overview" | "tools" | "notifications" | "customizations" | "account";
+  id:
+    | "overview"
+    | "recordingMemories"
+    | "tools"
+    | "notifications"
+    | "customizations"
+    | "account";
   icon: keyof typeof MaterialIcons.glyphMap;
   titleKey: keyof Translations;
   descriptionKey: keyof Translations;
@@ -52,6 +58,27 @@ export const SECTIONS: GuideSection[] = [
         descriptionKey: "guide.bullet.livingForward.description",
         menuPathKey: "guide.bullet.livingForward.menuPath",
         imageSource: require("@/LiveForward.png"),
+      },
+    ],
+  },
+  {
+    id: "recordingMemories",
+    icon: "note-add",
+    titleKey: "guide.section.recordingMemories.title",
+    descriptionKey: "guide.section.recordingMemories.description",
+    gifSource: "memories",
+    bullets: [
+      {
+        icon: "auto-awesome",
+        titleKey: "guide.bullet.recordMemoryAi.title",
+        descriptionKey: "guide.bullet.recordMemoryAi.description",
+        menuPathKey: "guide.bullet.recordMemoryAi.menuPath",
+      },
+      {
+        icon: "edit",
+        titleKey: "guide.bullet.recordMemoryManual.title",
+        descriptionKey: "guide.bullet.recordMemoryManual.description",
+        menuPathKey: "guide.bullet.recordMemoryManual.menuPath",
       },
     ],
   },

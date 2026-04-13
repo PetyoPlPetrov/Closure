@@ -144,6 +144,8 @@ export interface Translations {
   "settings.aiInsights.description": string;
   "ai.insights.consent.body": string;
   "ai.insights.consent.maybeLater": string;
+  "ai.insights.manualTip.title": string;
+  "ai.insights.manualTip.body": string;
   "settings.subscriptions.title": string;
   "settings.subscriptions.premium": string;
   "settings.yourData.title": string;
@@ -270,6 +272,8 @@ export interface Translations {
   "guide.markedDone": string;
   "guide.section.overview.title": string;
   "guide.section.overview.description": string;
+  "guide.section.recordingMemories.title": string;
+  "guide.section.recordingMemories.description": string;
   "guide.section.tools.title": string;
   "guide.section.tools.description": string;
   "guide.section.notifications.title": string;
@@ -289,6 +293,12 @@ export interface Translations {
   "guide.bullet.livingForward.title": string;
   "guide.bullet.livingForward.description": string;
   "guide.bullet.livingForward.menuPath": string;
+  "guide.bullet.recordMemoryAi.title": string;
+  "guide.bullet.recordMemoryAi.description": string;
+  "guide.bullet.recordMemoryAi.menuPath": string;
+  "guide.bullet.recordMemoryManual.title": string;
+  "guide.bullet.recordMemoryManual.description": string;
+  "guide.bullet.recordMemoryManual.menuPath": string;
   "guide.bullet.universeLessons.title": string;
   "guide.bullet.universeLessons.description": string;
   "guide.bullet.universeLessons.menuPath": string;
@@ -3950,6 +3960,9 @@ const translations: Record<Language, Translations> = {
     "ai.insights.consent.body":
       "Sferas now uses AI to analyze your memories and send you personalized motivational nudges. Your data is sent securely to our AI partner solely for this purpose and is not used for training models.",
     "ai.insights.consent.maybeLater": "Maybe Later",
+    "ai.insights.manualTip.title": "Manual Edit Mode",
+    "ai.insights.manualTip.body":
+      "You can still add memories manually. Open the top-left menu and choose Manual edit mode to write or edit memories directly.",
     "settings.subscriptions.title": "Subscriptions",
     "settings.subscriptions.premium": "Sfera plans",
     "settings.yourData.title": "Your Data",
@@ -4091,9 +4104,12 @@ const translations: Record<Language, Translations> = {
     "guide.section.overview.title": "The 3 Missions",
     "guide.section.overview.description":
       "Sferas is built around three missions that work together: examining what the past has taught you, preserving the good moments you'd otherwise forget, and using both to move forward with intention. Swipe through each mission to understand how they connect.",
-    "guide.section.tools.title": "Your Tools",
+    "guide.section.recordingMemories.title": "Recording Memories",
+    "guide.section.recordingMemories.description":
+      "You can add memories in two ways: use the central AI button for a guided conversation, or switch to Manual edit mode and write or change memories directly. Swipe through both options below.",
+    "guide.section.tools.title": "Sferas Tools",
     "guide.section.tools.description":
-      "Explore the tools at your disposal — the universe wheel, daily exams, insights, and entity-specific exercises.",
+      "These features turn what you’re aiming for into concrete steps: Universe Lessons, daily exams, insights, and each entity’s wheel — revisit wisdom, test yourself, see balance, and grow in the areas that matter.",
     "guide.section.notifications.title": "Notifications & Nudges",
     "guide.section.notifications.description":
       "Set up reminders for your entities, moment nudges, and event-based notifications to stay on track.",
@@ -4120,6 +4136,16 @@ const translations: Record<Language, Translations> = {
       "Sferas isn't just about looking back. The people and places that matter most deserve new memories too. That's why Sferas helps you look ahead — discover places to visit, experiences to share, and moments worth making with the people you care about. Because a good life isn't only understood in hindsight. It's built, intentionally, one shared moment at a time.",
     "guide.bullet.livingForward.menuPath":
       "/ Sferas / Open an entity / Memory · live forward",
+    "guide.bullet.recordMemoryAi.title": "With the AI button",
+    "guide.bullet.recordMemoryAi.description":
+      "Tap the glowing AI button in the center of the tab bar. If prompted, enable AI insights once — then describe what you want to remember. Sfera AI helps you turn it into a proper memory tied to the right entity and memory type. You can refine the result before saving.",
+    "guide.bullet.recordMemoryAi.menuPath":
+      "/ Tab bar / AI button (center) · Create Memory",
+    "guide.bullet.recordMemoryManual.title": "With Manual edit mode",
+    "guide.bullet.recordMemoryManual.description":
+      "Open the pencil menu, choose Life Sferas, then Manual edit mode. Browse your spheres and entities in one place, tap through to any memory screen, and add or edit text yourself — no AI required. Exit Manual edit mode from the top bar when you're done.",
+    "guide.bullet.recordMemoryManual.menuPath":
+      "/ Pencil menu / Life Sferas / Manual edit mode",
     "guide.bullet.universeLessons.title": "Universe Lessons",
     "guide.bullet.universeLessons.description":
       "All the lessons you've recorded across your spheres live in one place — Universe Lessons. Scroll through them at any time to revisit your hard-earned wisdom, spot patterns, and make sure none of it gets forgotten.",
@@ -4211,7 +4237,7 @@ const translations: Record<Language, Translations> = {
       "Each Entity holds Memories. Every memory has Moments — sunny ones, cloudy ones, and lessons you've learned. The more sunny moments, the more the memory and entity avatar glow.",
     "onboarding.hierarchy.whysferas.title": "Why Sferas?",
     "onboarding.hierarchy.whysferas.body":
-      "Life moves fast — and it's easy to lose sight of the lessons you've earned, or to forget the sunny moments that matter just as much as the hard ones.\n\nSferas helps you reflect and recap what each chapter taught you. It also gently nudges you to stay in touch with the people you care about, so no friendship quietly drifts away.\n\nNow — let's introduce you to your Sferas.",
+      "Life moves fast — and it's easy to lose sight of the lessons you've earned, or to forget the sunny moments that matter just as much as the hard ones.\n\nSferas helps you reflect and recap what each chapter taught you. It also gently nudges you to stay in touch with the people you care about, so no friendship quietly drifts away.\n\nLets introduce you Sferas.",
 
     // Profile screens
     "profile.add": "Add Partner",
@@ -8612,7 +8638,7 @@ const translations: Record<Language, Translations> = {
     "settings.theme.dark": "Тъмна",
     "settings.theme.system": "Системна",
     "settings.devTools.generateData.success":
-      "Създадени {profiles} профили и {jobs} работни места с общо {memories} спомени!\n\nВсички данни са запазени в локалното хранилище. Навигирайте до раздела Сфери, за да видите вашите данни.",
+      "Създадени {profiles} профили и {jobs} работни места с общо {memories} спомени!\n\nВсички данни са запазени в локалното хранилище. Навигирайте до раздела Sferas, за да видите вашите данни.",
     "settings.devTools.generateData.error":
       "Неуспешно генериране на фалшиви данни. Моля, опитайте отново.",
     "settings.devTools.clearData.title":
@@ -8621,7 +8647,7 @@ const translations: Record<Language, Translations> = {
       "Сигурни ли сте, че искате да изтриете ВСИЧКИ данни от това приложение? Това ще премахне:\n\n• Всички профили/партньори\n• Всички работни места\n• Всички спомени\n• Всички членове на семейството\n• Всички позиции на аватари\n\nТова действие не може да бъде отменено.\n\nВашите настройки за тема и език ще бъдат запазени.",
     "settings.devTools.clearData.deleteButton": "Изтрий Всички Данни",
     "settings.devTools.clearData.success":
-      "Всички данни на приложението са изтрити от локалното хранилище.\n\nПриложението сега ще показва 0% и няма профили/работни места/спомени.\n\nМоля, навигирайте навън и обратно до раздела Сфери/Начало, за да видите промените, отразени в потребителския интерфейс.",
+      "Всички данни на приложението са изтрити от локалното хранилище.\n\nПриложението сега ще показва 0% и няма профили/работни места/спомени.\n\nМоля, навигирайте навън и обратно до раздела Sferas/Начало, за да видите промените, отразени в потребителския интерфейс.",
     "settings.devTools.clearData.error":
       "Неуспешно изтриване на данните на приложението. Моля, опитайте отново.",
     "settings.devTools.cleanupMemories.button": "Изчисти изолирани спомени",
@@ -8647,7 +8673,7 @@ const translations: Record<Language, Translations> = {
     "settings.usability.showHints": "Подсказки за използване",
     "settings.usability.stopPulsingAnimations": "Пулсиращи анимации",
     "settings.usability.stopPulsingAnimationsDescription":
-      "Когато е включено, бутоните за инсайти и AI сфера в раздела Сфери ще пулсират.",
+      "Когато е включено, бутоните за инсайти и AI сфера в раздела Sferas ще пулсират.",
     "settings.usability.splashAnimation": "Splash анимация",
     "settings.usability.splashAnimationDescription":
       "Когато е включено, показва анимирания начален екран при стартиране на приложението.",
@@ -8661,6 +8687,9 @@ const translations: Record<Language, Translations> = {
     "ai.insights.consent.body":
       "Sferas вече използва AI за анализ на вашите спомени и ви изпраща персонализирани мотивационни подсказки. Вашите данни се изпращат сигурно до нашия AI партньор само за тази цел и не се използват за обучение на модели.",
     "ai.insights.consent.maybeLater": "По-късно",
+    "ai.insights.manualTip.title": "Режим за ръчно редактиране",
+    "ai.insights.manualTip.body":
+      "Можеш да добавяш спомени и ръчно. Отвори менюто горе вляво и избери Manual edit mode, за да пишеш или редактираш спомени директно.",
     "settings.subscriptions.title": "Абонаменти",
     "settings.subscriptions.premium": "Sfera plans",
     "settings.yourData.title": "Твоите данни",
@@ -8795,9 +8824,12 @@ const translations: Record<Language, Translations> = {
     "guide.section.overview.title": "3-те Мисии",
     "guide.section.overview.description":
       "Sferas е изградена около три мисии, които работят заедно: изследване на това, което миналото ви е научило, запазване на добрите моменти, които иначе бихте забравили, и използване на двете, за да вървите напред с намерение. Плъзнете през всяка мисия, за да разберете как се свързват.",
-    "guide.section.tools.title": "Вашите инструменти",
+    "guide.section.recordingMemories.title": "Записване на спомени",
+    "guide.section.recordingMemories.description":
+      "Можете да добавяте спомени по два начина: с централния AI бутон за воден разговор или като превключите към ръчен режим и пишете или редактирате директно. Плъзнете през двете опции по-долу.",
+    "guide.section.tools.title": "Инструменти Sferas",
     "guide.section.tools.description":
-      "Разгледайте наличните инструменти — колелото на вселената, дневните изпити, прозренията и упражненията за всяка сфера.",
+      "Тези възможности превръщат това, към което се стремите, в конкретни стъпки: уроци от вселената, дневен изпит, прозрения и колелото на всеки обект — да преговорите мъдростта си, да проверявате себе си, да виждате баланса и да растете там, където има значение.",
     "guide.section.notifications.title": "Известия и напомняния",
     "guide.section.notifications.description":
       "Настройте напомняния за вашите сфери, напомняния за моменти и известия, базирани на събития.",
@@ -8824,6 +8856,16 @@ const translations: Record<Language, Translations> = {
       "Sferas не е само за поглед назад. Хората и местата, които имат значение, заслужават нови спомени. Затова Sferas ви помага да гледате напред — да откривате места за посещение, преживявания за споделяне и моменти, които си струва да създадете с хората, за които ви е грижа. Защото добрият живот не се разбира само в ретроспекция. Той се гради — съзнателно, един споделен момент наведнъж.",
     "guide.bullet.livingForward.menuPath":
       "/ Sferas / Отвори обект / Спомен · живей напред",
+    "guide.bullet.recordMemoryAi.title": "С AI бутона",
+    "guide.bullet.recordMemoryAi.description":
+      "Докоснете светещия AI бутон в центъра на лентата с раздели. Ако се появи подкана, активирайте AI прозренията веднъж — след това опишете какво искате да запомните. Sfera AI помага да го превърне в подходящ спомен, вързан за правилния обект и тип спомен. Можете да доизчистите резултата преди запазване.",
+    "guide.bullet.recordMemoryAi.menuPath":
+      "/ Лента с раздели / AI бутон (център) · Създай спомен",
+    "guide.bullet.recordMemoryManual.title": "С ръчен режим на редактиране",
+    "guide.bullet.recordMemoryManual.description":
+      "Отворете менюто с молив, изберете „Животни сфери“, след това „Ръчен режим на редактиране“. Преглеждайте сферите и обектите на едно място, докоснете до екрана на всеки спомен и добавяйте или редактирайте текста сами — без AI. Излезте от ръчния режим от горната лента, когато приключите.",
+    "guide.bullet.recordMemoryManual.menuPath":
+      "/ Молив / Животни сфери / Ръчен режим на редактиране",
     "guide.bullet.universeLessons.title": "Уроци от вселената",
     "guide.bullet.universeLessons.description":
       "Всички уроци, които сте записали в сферите си, живеят на едно място — Уроци от вселената. Превъртете ги по всяко време, за да преговорите трудно извоюваната си мъдрост, да забележите модели и да се уверите, че нищо не е забравено.",
@@ -8914,9 +8956,9 @@ const translations: Record<Language, Translations> = {
     "onboarding.hierarchy.memories.title": "Спомени и Моменти",
     "onboarding.hierarchy.memories.body":
       "Всеки Обект съдържа Спомени. Всеки спомен има Моменти — слънчеви, облачни и уроци, които сте научили. Колкото повече слънчеви моменти, толкова по-ярко светят споменът и аватарът на обекта.",
-    "onboarding.hierarchy.whysferas.title": "Защо Сфери?",
+    "onboarding.hierarchy.whysferas.title": "Защо Sferas?",
     "onboarding.hierarchy.whysferas.body":
-      "Животът минава бързо — и лесно се губят уроците, които сте извлекли, или слънчевите моменти, важни колкото и трудните.\n\nСфери ви помага да си припомните какво е научил всеки жизнен етап. А също така ненатрапчиво ви напомня да поддържате връзка с хората, до които ви е грижа.\n\nСега — нека ви запознаем с вашите Сфери.",
+      "Животът минава бързо — и лесно се губят уроците, които сте извлекли, или слънчевите моменти, важни колкото и трудните.\n\nSferas ви помага да си припомните какво е научил всеки жизнен етап. А също така ненатрапчиво ви напомня да поддържате връзка с хората, до които ви е грижа.\n\nНека Ви запознаем със Sferas.",
 
     // Profile screens
     "profile.add": "Добави Партньор",

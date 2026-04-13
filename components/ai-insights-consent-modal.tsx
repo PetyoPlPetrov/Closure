@@ -2,8 +2,12 @@ import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
+import {
+  getAIInsightsManualTipDismissed,
+  setAIInsightsManualTipDismissed,
+} from "@/utils/ai-insights-consent";
 import { useTranslate } from "@/utils/languages/use-translate";
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -30,9 +34,22 @@ export function AIInsightsConsentModal({
   );
 
   const enablePressedRef = useRef(false);
+  const [showManualModeTip, setShowManualModeTip] = useState(false);
+  const [manualModeTipDismissed, setManualModeTipDismissed] = useState(false);
 
   useEffect(() => {
-    if (visible) enablePressedRef.current = false;
+    if (!visible) return;
+    enablePressedRef.current = false;
+    setShowManualModeTip(false);
+
+    let isActive = true;
+    void getAIInsightsManualTipDismissed().then((dismissed) => {
+      if (!isActive) return;
+      setManualModeTipDismissed(dismissed);
+    });
+    return () => {
+      isActive = false;
+    };
   }, [visible]);
 
   const handleContainerPress = () => {
@@ -45,6 +62,18 @@ export function AIInsightsConsentModal({
     onEnable();
   };
   const handleMaybeLaterPress = () => {
+    if (manualModeTipDismissed) {
+      onMaybeLater();
+      return;
+    }
+    setShowManualModeTip(true);
+  };
+  const handleManualTipOkPress = () => {
+    onMaybeLater();
+  };
+  const handleManualTipDontShowAgainPress = () => {
+    setManualModeTipDismissed(true);
+    void setAIInsightsManualTipDismissed(true);
     onMaybeLater();
   };
 
@@ -58,39 +87,75 @@ export function AIInsightsConsentModal({
       <Pressable style={styles.container} onPress={handleContainerPress}>
         <Pressable style={styles.card} onPress={handleCardPress}>
           <ThemedText size="l" weight="bold" style={styles.title}>
-            {t("settings.aiInsights.title")}
+            {showManualModeTip
+              ? t("ai.insights.manualTip.title")
+              : t("settings.aiInsights.title")}
           </ThemedText>
           <ThemedText size="sm" style={styles.body}>
-            {t("ai.insights.consent.body")}
+            {showManualModeTip
+              ? t("ai.insights.manualTip.body")
+              : t("ai.insights.consent.body")}
           </ThemedText>
 
           <View style={styles.actions}>
-            <Pressable
-              style={styles.primaryButton}
-              onPress={handleEnablePress}
-              hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
-            >
-              <ThemedText
-                size="sm"
-                weight="bold"
-                style={styles.primaryButtonText}
-              >
-                {t("settings.aiInsights.enable")}
-              </ThemedText>
-            </Pressable>
+            {showManualModeTip ? (
+              <>
+                <Pressable
+                  style={styles.primaryButton}
+                  onPress={handleManualTipOkPress}
+                  hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+                >
+                  <ThemedText
+                    size="sm"
+                    weight="bold"
+                    style={styles.primaryButtonText}
+                  >
+                    {t("common.ok")}
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  style={styles.secondaryButton}
+                  onPress={handleManualTipDontShowAgainPress}
+                >
+                  <ThemedText
+                    size="sm"
+                    weight="bold"
+                    style={styles.secondaryButtonText}
+                  >
+                    {t("guidePrompt.dismiss")}
+                  </ThemedText>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Pressable
+                  style={styles.primaryButton}
+                  onPress={handleEnablePress}
+                  hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+                >
+                  <ThemedText
+                    size="sm"
+                    weight="bold"
+                    style={styles.primaryButtonText}
+                  >
+                    {t("settings.aiInsights.enable")}
+                  </ThemedText>
+                </Pressable>
 
-            <Pressable
-              style={styles.secondaryButton}
-              onPress={handleMaybeLaterPress}
-            >
-              <ThemedText
-                size="sm"
-                weight="bold"
-                style={styles.secondaryButtonText}
-              >
-                {t("ai.insights.consent.maybeLater")}
-              </ThemedText>
-            </Pressable>
+                <Pressable
+                  style={styles.secondaryButton}
+                  onPress={handleMaybeLaterPress}
+                >
+                  <ThemedText
+                    size="sm"
+                    weight="bold"
+                    style={styles.secondaryButtonText}
+                  >
+                    {t("ai.insights.consent.maybeLater")}
+                  </ThemedText>
+                </Pressable>
+              </>
+            )}
           </View>
         </Pressable>
       </Pressable>

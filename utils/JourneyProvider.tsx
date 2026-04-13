@@ -324,6 +324,8 @@ type JourneyContextType = {
   // Helper functions
   getEntitiesBySphere: (sphere: LifeSphere) => (ExProfile | Job | FamilyMember | Friend | Hobby)[];
   getOverallSunnyPercentage: () => number; // Overall percentage across all spheres
+  /** True when at least one memory has sunny/cloud moments; false when UI uses neutral 50% with no moments yet. */
+  getHasRealMomentDataForSunCelebration: () => boolean;
   reloadIdealizedMemories: () => Promise<number>; // Reload memories from AsyncStorage, returns count
   reloadProfiles: () => Promise<void>; // Reload profiles from AsyncStorage
   reloadJobs: () => Promise<void>; // Reload jobs from AsyncStorage
@@ -1715,6 +1717,32 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     return result;
   }, [idealizedMemories, profiles, jobs, familyMembers, friends, hobbies]);
 
+  const getHasRealMomentDataForSunCelebration = useCallback(() => {
+    if (!idealizedMemories || idealizedMemories.length === 0) return false;
+    const validMemories = idealizedMemories.filter((memory) => {
+      if (!memory) return false;
+      switch (memory.sphere) {
+        case "relationships":
+          return profiles.some((p) => p.id === memory.entityId || p.id === memory.profileId);
+        case "career":
+          return jobs.some((j) => j.id === memory.entityId);
+        case "family":
+          return familyMembers.some((f) => f.id === memory.entityId);
+        case "friends":
+          return friends.some((f) => f.id === memory.entityId);
+        case "hobbies":
+          return hobbies.some((h) => h.id === memory.entityId);
+        default:
+          return false;
+      }
+    });
+    return validMemories.some((m) => {
+      const suns = (m.goodFacts || []).length;
+      const clouds = (m.hardTruths || []).length;
+      return suns + clouds > 0;
+    });
+  }, [idealizedMemories, profiles, jobs, familyMembers, friends, hobbies]);
+
   // Reload profiles from AsyncStorage
   const reloadProfiles = useCallback(async () => {
     try {
@@ -1966,6 +1994,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     getIdealizedMemoriesByProfileId, // Backward compatibility
     getEntitiesBySphere,
     getOverallSunnyPercentage,
+    getHasRealMomentDataForSunCelebration,
     reloadIdealizedMemories: loadIdealizedMemories,
     reloadProfiles,
     reloadJobs,
@@ -1984,7 +2013,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     hobbies, addHobby, updateHobby, deleteHobby, getHobby,
     idealizedMemories, addIdealizedMemory, updateIdealizedMemory, deleteIdealizedMemory,
     getIdealizedMemoriesByEntityId, getIdealizedMemoriesByProfileId,
-    getEntitiesBySphere, getOverallSunnyPercentage,
+    getEntitiesBySphere, getOverallSunnyPercentage, getHasRealMomentDataForSunCelebration,
     loadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies,
     reloadAll, cleanupOrphanedMemories,
   ]);

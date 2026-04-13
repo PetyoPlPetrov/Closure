@@ -1,8 +1,7 @@
 /**
  * OnboardingWizard - Stepper flow for new users with no data.
- * Step 1: Tell your story (speech-to-text input)
- * Step 2: AI extracts entities from story (loading)
- * Step 3: Edit suggested entities in one long screen
+ * Major steps: language → intro slides → tell your story → review entities.
+ * AI processing uses a loading view (same stepper position as story, not its own step).
  * On Save: persist entities, open home tab, show walkthrough modal
  */
 import { AILoadingView } from "@/components/ai-loading-view";
@@ -56,6 +55,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } =
 
 const MAX_INPUT_LENGTH = 500;
 const MIN_WORDS = 50;
+const TOTAL_ONBOARDING_STEPS = 7;
 
 function formatDateToYMD(date: Date): string {
   return date.toISOString().split("T")[0];
@@ -635,8 +635,7 @@ export function OnboardingWizard({
   const { addProfile, addJob, addFamilyMember, addFriend, addHobby, reloadAll } =
     useJourney();
 
-  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(0);
-  const [hierarchySlide, setHierarchySlide] = useState<0 | 1 | 2 | 3>(0);
+  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6>(0);
   const [inputText, setInputText] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -660,9 +659,9 @@ export function OnboardingWizard({
     let cancelled = false;
     getCachedOnboardingResponse().then((cached) => {
       if (cancelled || !cached) return;
-      if (__DEV__) console.log("[Onboarding] Restoring cached AI response, step 4");
+      if (__DEV__) console.log("[Onboarding] Restoring cached AI response, step 6 (review)");
       setAiResponse(cached);
-      setStep(4);
+      setStep(6);
     });
     return () => { cancelled = true; };
   }, []);
@@ -682,7 +681,7 @@ export function OnboardingWizard({
   const hasMinWords = wordCount >= MIN_WORDS;
   const exceedsMax = inputText.length > MAX_INPUT_LENGTH;
   const canSubmit = hasMinWords && !exceedsMax && !isProcessing;
-  if (__DEV__ && step === 2) {
+  if (__DEV__ && step === 5) {
     console.log("[Onboarding] render step2: canSubmit", canSubmit, "hasMinWords", hasMinWords, "exceedsMax", exceedsMax, "isProcessing", isProcessing, "step", step);
   }
 
@@ -724,8 +723,8 @@ export function OnboardingWizard({
       }
       setAiResponse(response);
       await setCachedOnboardingResponse(response);
-      if (__DEV__) console.log("[Onboarding] handleSubmit: API success, cached, setStep(4)");
-      setStep(4);
+      if (__DEV__) console.log("[Onboarding] handleSubmit: API success, cached, setStep(6)");
+      setStep(6);
     } catch (err) {
       if (__DEV__) console.log("[Onboarding] handleSubmit: API error", err);
       setErrorMessage(
@@ -866,7 +865,7 @@ export function OnboardingWizard({
     await clearCachedOnboardingResponse();
     setAiResponse(null);
     setInputText("");
-    setStep(2);
+    setStep(5);
   }, []);
 
   const handleSave = useCallback(
@@ -1013,6 +1012,32 @@ export function OnboardingWizard({
     [colorScheme, colors, fontScale],
   );
 
+  const renderMainStepper = useCallback(
+    (activeStepIndex: number, compact = false) => (
+      <View style={[styles.stepper, compact && { marginBottom: 0 }]}>
+        {Array.from({ length: TOTAL_ONBOARDING_STEPS }).map((_, index) => (
+          <React.Fragment key={index}>
+            <View
+              style={[
+                styles.stepDot,
+                index <= activeStepIndex && styles.stepDotActive,
+              ]}
+            />
+            {index < TOTAL_ONBOARDING_STEPS - 1 ? (
+              <View
+                style={[
+                  styles.stepLine,
+                  index < activeStepIndex && { backgroundColor: colors.primary },
+                ]}
+              />
+            ) : null}
+          </React.Fragment>
+        ))}
+      </View>
+    ),
+    [colors.primary, styles],
+  );
+
   const handleSelectLanguage = useCallback(
     async (lang: "en" | "bg") => {
       await setLanguage(lang);
@@ -1057,29 +1082,11 @@ export function OnboardingWizard({
                 />
               </TouchableOpacity>
               <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
-                <View style={[styles.stepDot, styles.stepDotActive]} />
-                <View style={styles.stepLine} />
-                <View style={styles.stepDot} />
-                <View style={styles.stepLine} />
-                <View style={styles.stepDot} />
-                <View style={styles.stepLine} />
-                <View style={styles.stepDot} />
-                <View style={styles.stepLine} />
-                <View style={styles.stepDot} />
+                {renderMainStepper(0, true)}
               </View>
             </View>
           ) : (
-            <View style={styles.stepper}>
-              <View style={[styles.stepDot, styles.stepDotActive]} />
-              <View style={styles.stepLine} />
-              <View style={styles.stepDot} />
-              <View style={styles.stepLine} />
-              <View style={styles.stepDot} />
-              <View style={styles.stepLine} />
-              <View style={styles.stepDot} />
-              <View style={styles.stepLine} />
-              <View style={styles.stepDot} />
-            </View>
+            renderMainStepper(0)
           ))}
           <ThemedText
             size="xl"
@@ -1148,9 +1155,15 @@ export function OnboardingWizard({
     );
   }
 
-  // Step 1: Hierarchy Introduction (3 internal slides)
-  if (step === 1) {
+  // Steps 1-4: Hierarchy introduction screens (each as major step)
+  if (step >= 1 && step <= 4) {
     const slideData = [
+      {
+        illustration: null,
+        title: t("onboarding.hierarchy.whysferas.title") ?? "Why Sferas?",
+        body: t("onboarding.hierarchy.whysferas.body") ?? "Life moves fast — and it's easy to forget the lessons you've earned along the way, or to overlook the sunny moments that matter just as much as the hard ones.\n\nSferas helps you reflect, recap, and stay grounded. It also gently nudges you to keep in touch with the people you care about, so no friendship quietly slips away.\n\nLets introduce you Sferas.",
+        extras: null,
+      },
       {
         illustration: (
           <View style={{ width: 110 * fontScale, height: 110 * fontScale }}>
@@ -1185,15 +1198,10 @@ export function OnboardingWizard({
         body: t("onboarding.hierarchy.memories.body") ?? "Each Entity holds Memories. Every memory has Moments — sunny ones, cloudy ones, and lessons you've learned. The more sunny moments, the more the memory and entity avatar glow.",
         extras: null,
       },
-      {
-        illustration: null,
-        title: t("onboarding.hierarchy.whysferas.title") ?? "Why Sferas?",
-        body: t("onboarding.hierarchy.whysferas.body") ?? "Life moves fast — and it's easy to forget the lessons you've earned along the way, or to overlook the sunny moments that matter just as much as the hard ones.\n\nSferas helps you reflect, recap, and stay grounded. It also gently nudges you to keep in touch with the people you care about, so no friendship quietly slips away.\n\nNow, let's introduce you to your Sferas.",
-        extras: null,
-      },
     ];
 
-    const slide = slideData[hierarchySlide];
+    const slideIndex = (step - 1) as 0 | 1 | 2 | 3;
+    const slide = slideData[slideIndex];
 
     return (
       <View style={styles.container}>
@@ -1205,10 +1213,10 @@ export function OnboardingWizard({
           <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 * fontScale }}>
             <TouchableOpacity
               onPress={() => {
-                if (hierarchySlide === 0) {
+                if (slideIndex === 0) {
                   setStep(0);
                 } else {
-                  setHierarchySlide((hierarchySlide - 1) as 0 | 1 | 2 | 3);
+                  setStep((step - 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6);
                 }
               }}
               style={{
@@ -1224,16 +1232,10 @@ export function OnboardingWizard({
             >
               <MaterialIcons name="arrow-back" size={24 * fontScale} color={colorScheme === "dark" ? "#E8D5B7" : "#8B6914"} />
             </TouchableOpacity>
-            <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
-              <View style={[styles.stepDot, styles.stepDotActive]} />
-              <View style={[styles.stepLine, { backgroundColor: colors.primary }]} />
-              <View style={[styles.stepDot, styles.stepDotActive]} />
-              <View style={styles.stepLine} />
-              <View style={styles.stepDot} />
-              <View style={styles.stepLine} />
-              <View style={styles.stepDot} />
-              <View style={styles.stepLine} />
-              <View style={styles.stepDot} />
+            <View style={{ flex: 1 }}>
+              <View style={{ marginBottom: 8 * fontScale }}>
+                {renderMainStepper(step, true)}
+              </View>
             </View>
           </View>
         </View>
@@ -1255,12 +1257,12 @@ export function OnboardingWizard({
           ) : null}
 
           {/* Title + Body — elevated zIndex so orbiting sferas pass behind */}
-          <View style={{ zIndex: 10, alignItems: "center", width: "100%", flex: hierarchySlide === 3 ? 1 : undefined }}>
+          <View style={{ zIndex: 10, alignItems: "center", width: "100%", flex: slideIndex === 0 ? 1 : undefined }}>
             <ThemedText size="xl" weight="bold" style={{ textAlign: "center", color: colorScheme === "dark" ? "#E8D5B7" : "#8B6914", marginBottom: 12 * fontScale }}>
               {slide.title}
             </ThemedText>
 
-            {hierarchySlide === 3 ? (() => {
+            {slideIndex === 0 ? (() => {
               const paragraphs = slide.body.split("\n\n");
               const intro = paragraphs.slice(0, -1);
               const last = paragraphs[paragraphs.length - 1];
@@ -1289,7 +1291,7 @@ export function OnboardingWizard({
         </ScrollView>
 
         {/* DayDream illustration — behind footer buttons on last slide */}
-        {hierarchySlide === 3 && (
+        {slideIndex === 0 && (
           <Image
             source={require("@/DayDream.png")}
             style={{
@@ -1308,10 +1310,10 @@ export function OnboardingWizard({
         <View style={{ flexDirection: "row", paddingHorizontal: 20 * fontScale, paddingBottom: 64 * fontScale, gap: 12 * fontScale, zIndex: 1 }}>
           <TouchableOpacity
             onPress={() => {
-              if (hierarchySlide === 0) {
+              if (slideIndex === 0) {
                 setStep(0);
               } else {
-                setHierarchySlide((hierarchySlide - 1) as 0 | 1 | 2 | 3);
+                setStep((step - 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6);
               }
             }}
             style={{
@@ -1328,10 +1330,10 @@ export function OnboardingWizard({
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
-              if (hierarchySlide < 3) {
-                setHierarchySlide((hierarchySlide + 1) as 0 | 1 | 2 | 3);
+              if (slideIndex < 3) {
+                setStep((step + 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6);
               } else {
-                setStep(2);
+                setStep(5);
               }
             }}
             style={[styles.submitButton, styles.submitButtonEnabled, { flex: 1, overflow: "hidden" }]}
@@ -1353,8 +1355,8 @@ export function OnboardingWizard({
     );
   }
 
-  // Step 3: Loading – must be checked BEFORE step 2 so loader shows when isProcessing during step 2
-  if (step === 3 || isProcessing) {
+  // Loading while AI processes — same stepper position as "tell your story" (not a separate step)
+  if (isProcessing) {
     if (__DEV__) console.log("[Onboarding] rendering LOADER: step", step, "isProcessing", isProcessing);
     const loadingMessages = [
       t("onboarding.sferaAnalyzing") ?? "Sfera AI is analyzing...",
@@ -1365,23 +1367,7 @@ export function OnboardingWizard({
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <View style={styles.stepper}>
-            <View style={[styles.stepDot, styles.stepDotActive]} />
-            <View
-              style={[styles.stepLine, { backgroundColor: colors.primary }]}
-            />
-            <View style={[styles.stepDot, styles.stepDotActive]} />
-            <View
-              style={[styles.stepLine, { backgroundColor: colors.primary }]}
-            />
-            <View style={[styles.stepDot, styles.stepDotActive]} />
-            <View
-              style={[styles.stepLine, { backgroundColor: colors.primary }]}
-            />
-            <View style={[styles.stepDot, styles.stepDotActive]} />
-            <View style={styles.stepLine} />
-            <View style={[styles.stepDot]} />
-          </View>
+          {renderMainStepper(5)}
           <ThemedText size="xl" weight="bold">
             {t("onboarding.analyzing") ?? "Analyzing your story..."}
           </ThemedText>
@@ -1391,8 +1377,8 @@ export function OnboardingWizard({
     );
   }
 
-  // Step 2: Tell your story
-  if (step === 2) {
+  // Step 5: Tell your story
+  if (step === 5) {
     return (
       <KeyboardAvoidingView
         style={styles.container}
@@ -1410,7 +1396,7 @@ export function OnboardingWizard({
             }}
           >
             <TouchableOpacity
-              onPress={() => setStep(1)}
+              onPress={() => setStep(4)}
               style={{
                 width: 44 * fontScale,
                 height: 44 * fontScale,
@@ -1432,19 +1418,7 @@ export function OnboardingWizard({
               />
             </TouchableOpacity>
             <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
-            <View style={[styles.stepDot, styles.stepDotActive]} />
-            <View
-              style={[styles.stepLine, { backgroundColor: colors.primary }]}
-            />
-            <View style={[styles.stepDot, styles.stepDotActive]} />
-            <View
-              style={[styles.stepLine, { backgroundColor: colors.primary }]}
-            />
-            <View style={[styles.stepDot, styles.stepDotActive]} />
-            <View style={styles.stepLine} />
-            <View style={styles.stepDot} />
-            <View style={styles.stepLine} />
-            <View style={styles.stepDot} />
+              {renderMainStepper(5, true)}
             </View>
           </View>
           <ThemedText
@@ -1702,8 +1676,8 @@ export function OnboardingWizard({
     );
   }
 
-  // Step 4: Edit entities
-  if (step === 4 && aiResponse) {
+  // Step 6: Edit entities (review)
+  if (step === 6 && aiResponse) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -1715,7 +1689,7 @@ export function OnboardingWizard({
             }}
           >
             <TouchableOpacity
-              onPress={() => setStep(2)}
+              onPress={() => setStep(5)}
               style={{
                 width: 44 * fontScale,
                 height: 44 * fontScale,
@@ -1737,23 +1711,7 @@ export function OnboardingWizard({
               />
             </TouchableOpacity>
             <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
-              <View style={[styles.stepDot, styles.stepDotActive]} />
-              <View
-                style={[styles.stepLine, { backgroundColor: colors.primary }]}
-              />
-              <View style={[styles.stepDot, styles.stepDotActive]} />
-              <View
-                style={[styles.stepLine, { backgroundColor: colors.primary }]}
-              />
-              <View style={[styles.stepDot, styles.stepDotActive]} />
-              <View
-                style={[styles.stepLine, { backgroundColor: colors.primary }]}
-              />
-              <View style={[styles.stepDot, styles.stepDotActive]} />
-              <View
-                style={[styles.stepLine, { backgroundColor: colors.primary }]}
-              />
-              <View style={[styles.stepDot, styles.stepDotActive]} />
+              {renderMainStepper(6, true)}
             </View>
           </View>
           <ThemedText size="xl" weight="bold">

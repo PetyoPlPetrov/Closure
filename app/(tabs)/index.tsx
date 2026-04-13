@@ -9483,11 +9483,13 @@ function hexToRgbNorm(hex: string): { r: number; g: number; b: number } {
 const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   percentage,
   hasMemories,
+  showPercentageLabel = true,
   colorScheme,
   colors,
 }: {
   percentage: number;
   hasMemories: boolean;
+  showPercentageLabel?: boolean;
   colorScheme: "light" | "dark";
   colors: any;
 }) {
@@ -9817,57 +9819,59 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
           pointerEvents="box-none"
         >
           {hasMemories ? (
-            <>
-              <ThemedText
-                size="xl"
-                weight="bold"
-                style={{ color: COSMIC_TEXT, fontSize: 24 }}
-              >
-                {Math.round(percentage)}%
-              </ThemedText>
-              {language === "bg" ? (
-                <View style={{ alignItems: "center" }}>
-                  <ThemedText
-                    size="sm"
-                    weight="medium"
-                    style={{
-                      color: COSMIC_TEXT,
-                      fontSize: 10,
-                      marginTop: -2,
-                      textAlign: "center",
-                      lineHeight: 10,
-                    }}
-                  >
-                    Слънчев
-                  </ThemedText>
-                  <ThemedText
-                    size="sm"
-                    weight="medium"
-                    style={{
-                      color: COSMIC_TEXT,
-                      fontSize: 10,
-                      textAlign: "center",
-                      lineHeight: 10,
-                      marginTop: -1,
-                    }}
-                  >
-                    живот
-                  </ThemedText>
-                </View>
-              ) : (
+            showPercentageLabel ? (
+              <>
                 <ThemedText
-                  size="sm"
-                  weight="medium"
-                  style={{
-                    color: COSMIC_TEXT,
-                    fontSize: 12,
-                    marginTop: -2,
-                  }}
+                  size="xl"
+                  weight="bold"
+                  style={{ color: COSMIC_TEXT, fontSize: 24 }}
                 >
-                  {t("avatar.sunnyLife")}
+                  {Math.round(percentage)}%
                 </ThemedText>
-              )}
-            </>
+                {language === "bg" ? (
+                  <View style={{ alignItems: "center" }}>
+                    <ThemedText
+                      size="sm"
+                      weight="medium"
+                      style={{
+                        color: COSMIC_TEXT,
+                        fontSize: 10,
+                        marginTop: -2,
+                        textAlign: "center",
+                        lineHeight: 10,
+                      }}
+                    >
+                      Слънчев
+                    </ThemedText>
+                    <ThemedText
+                      size="sm"
+                      weight="medium"
+                      style={{
+                        color: COSMIC_TEXT,
+                        fontSize: 10,
+                        textAlign: "center",
+                        lineHeight: 10,
+                        marginTop: -1,
+                      }}
+                    >
+                      живот
+                    </ThemedText>
+                  </View>
+                ) : (
+                  <ThemedText
+                    size="sm"
+                    weight="medium"
+                    style={{
+                      color: COSMIC_TEXT,
+                      fontSize: 12,
+                      marginTop: -2,
+                    }}
+                  >
+                    {t("avatar.sunnyLife")}
+                  </ThemedText>
+                )}
+              </>
+            ) : null
           ) : (
             <Pressable
               onPress={() => router.push("/(tabs)/spheres")}
@@ -13614,6 +13618,7 @@ export default function HomeScreen() {
     getIdealizedMemoriesByEntityId,
     updateIdealizedMemory,
     getOverallSunnyPercentage,
+    getHasRealMomentDataForSunCelebration,
     reloadIdealizedMemories,
     reloadProfiles,
     reloadJobs,
@@ -14174,6 +14179,11 @@ export default function HomeScreen() {
   const overallSunnyPercentage = useMemo(
     () => getOverallSunnyPercentage(),
     [getOverallSunnyPercentage],
+  );
+
+  const sunCelebrationEligible = useMemo(
+    () => getHasRealMomentDataForSunCelebration(),
+    [getHasRealMomentDataForSunCelebration],
   );
 
   // Check if there are any moments (memories) at all
@@ -18322,6 +18332,7 @@ export default function HomeScreen() {
       <View style={{ flex: 1 }}>
         <FocusedSferaView
           overallSunnyPercentage={overallSunnyPercentage}
+          sunCelebrationEligible={sunCelebrationEligible}
           hasMemories={centerSunHasLifeContent}
           selectedSphere={selectedSphere}
           splashDone={!isSplashVisible || isAnimationComplete}
@@ -19845,6 +19856,7 @@ export default function HomeScreen() {
                   <OverallPercentageAvatar
                     percentage={overallSunnyPercentage}
                     hasMemories={centerSunHasLifeContent}
+                    showPercentageLabel={sunCelebrationEligible}
                     colorScheme={colorScheme ?? "dark"}
                     colors={colors}
                   />

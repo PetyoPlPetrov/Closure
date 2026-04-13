@@ -112,6 +112,11 @@ function blendHex(hex1: string, hex2: string, t: number): string {
 export interface SunnyLifeAvatarProps {
   percentage: number;
   hasMemories: boolean;
+  /**
+   * When false (e.g. neutral 50% with no sunny/cloud moments yet), center % and label are hidden; ring can still show neutral fill.
+   * Defaults to true.
+   */
+  showPercentageLabel?: boolean;
   /** When set, tapping the avatar (when hasMemories) switches to Classic view (wheel of life). */
   onPress?: () => void;
   /** When set, tapping "Add memories" (when !hasMemories) navigates to Sfera tab. */
@@ -136,6 +141,7 @@ export interface SunnyLifeAvatarProps {
 export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   percentage,
   hasMemories,
+  showPercentageLabel = true,
   onPress,
   onAddMemoriesPress,
   colorScheme,
@@ -578,19 +584,20 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
             pointerEvents="box-none"
           >
             {hasMemories ? (
-              <>
-                <ThemedText
-                  size="xl"
-                  weight="bold"
-                  style={{
-                    color: colors.primaryLight ?? colors.primary,
-                    fontSize: 24,
-                    includeFontPadding: false,
-                  }}
-                >
-                  {displayPctJs}%
-                </ThemedText>
-                <ThemedText
+              showPercentageLabel ? (
+                <>
+                  <ThemedText
+                    size="xl"
+                    weight="bold"
+                    style={{
+                      color: colors.primaryLight ?? colors.primary,
+                      fontSize: 24,
+                      includeFontPadding: false,
+                    }}
+                  >
+                    {displayPctJs}%
+                  </ThemedText>
+                  <ThemedText
                     size="sm"
                     weight="medium"
                     style={{
@@ -602,7 +609,8 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
                   >
                     {t("avatar.sunnyLife")}
                   </ThemedText>
-              </>
+                </>
+              ) : null
             ) : (
               <View
                 style={{

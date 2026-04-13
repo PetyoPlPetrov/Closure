@@ -168,6 +168,10 @@ function getEntityDepthScale(slot: number): number {
 export type FocusedSferaViewProps = {
   overallSunnyPercentage: number;
   /**
+   * When false, the sunny-moments celebration intro (50% threshold) does not run — e.g. neutral 50% with entities but no saved moments yet.
+   */
+  sunCelebrationEligible: boolean;
+  /**
    * When false, center sun shows the empty "+" and tap goes to `onAddMemoriesPress`.
    * Parent should pass true if the user has any memories **or** any entities — otherwise post-onboarding users see "+" despite having saved entities.
    */
@@ -2549,6 +2553,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
 
 export function FocusedSferaView({
   overallSunnyPercentage,
+  sunCelebrationEligible,
   hasMemories,
   onAddMemoriesPress,
   onSphereSelect,
@@ -2703,11 +2708,16 @@ export function FocusedSferaView({
 
     const run = async () => {
       let shownToday = false;
-      if (!__DEV__ && sunnyMomentsCongratsAnimation && selectedSphere === null && overallSunnyPercentage >= 50) {
+      if (!__DEV__ && sunnyMomentsCongratsAnimation && selectedSphere === null && overallSunnyPercentage >= 50 && sunCelebrationEligible) {
         const lastShown = await AsyncStorage.getItem(SUN_CONGRATS_LAST_SHOWN_KEY);
         shownToday = lastShown === today;
       }
-      const shouldPlayIntro = sunnyMomentsCongratsAnimation && selectedSphere === null && overallSunnyPercentage >= 50 && !shownToday;
+      const shouldPlayIntro =
+        sunnyMomentsCongratsAnimation &&
+        sunCelebrationEligible &&
+        selectedSphere === null &&
+        overallSunnyPercentage >= 50 &&
+        !shownToday;
 
       if (!shouldPlayIntro) {
         markIntroComplete();
@@ -2767,7 +2777,7 @@ export function FocusedSferaView({
     };
 
     run();
-  }, [splashDone, overallSunnyPercentage]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [splashDone, overallSunnyPercentage, sunCelebrationEligible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset sun centering when leaving initial view
   useEffect(() => {
@@ -3227,6 +3237,7 @@ export function FocusedSferaView({
           <SunnyLifeAvatar
             percentage={circleAvatarPercentage}
             hasMemories={hasMemories}
+            showPercentageLabel={sunCelebrationEligible}
             onPress={handleCircleAvatarPress}
             onAddMemoriesPress={onAddMemoriesPress}
             colorScheme={colorScheme}
