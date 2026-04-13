@@ -3,10 +3,10 @@ import type { PurchasesOffering } from "react-native-purchases";
 import type { PAYWALL_RESULT as PAYWALL_RESULT_TYPE } from "react-native-purchases-ui";
 import { handleDevError } from "./dev-error-handler";
 import {
-    isNativeModuleAvailable,
-    PAYWALL_RESULT,
-    Purchases,
-    RevenueCatUI
+  isNativeModuleAvailable,
+  PAYWALL_RESULT,
+  Purchases,
+  RevenueCatUI,
 } from "./revenuecat-wrapper";
 
 /**

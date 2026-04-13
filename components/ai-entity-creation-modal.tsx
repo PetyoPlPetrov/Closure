@@ -147,9 +147,11 @@ export function AIEntityCreationModal({
   const exceedsMaxLength = characterCount > MAX_INPUT_LENGTH;
   const hasMinWords = wordCount >= MIN_WORDS;
 
-  // Premium users with 0 remaining: disable submit and show daily limit message (no paywall)
+  // Sfera AI subscribers with 0 remaining: disable submit (daily cap). Free users at 0: keep submit enabled; tap opens upgrade paywall via handleSubmit → consumeAIRequestIfAvailable.
   const hasRemainingRequests =
-    remainingAIRequests === null || remainingAIRequests > 0;
+    remainingAIRequests === null ||
+    remainingAIRequests > 0 ||
+    (!hasAIEntitlement && remainingAIRequests === 0);
   const canSubmit =
     hasMinWords &&
     !exceedsMaxLength &&

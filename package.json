@@ -22,9 +22,9 @@
     "build:ios": "npm run build:ios:prod",
     "build:ios:dev": "npm run clean:ios && node scripts/bump-build.js && eas build --platform ios --profile preview --local",
     "build:ios:prod": "npm run clean:ios && npm run bump:version && exec eas build --platform ios --profile production --local --clear-cache",
-    "ota:update:dev": "eas update --channel preview --message",
-    "ota:update:prod": "eas update --channel production --message",
-    "update": "npm run ota:update:prod",
+    "ota:update:dev": "eas update --channel preview --platform ios --message",
+    "ota:update:prod": "eas update --channel production --platform ios --message",
+    "update": "eas update --channel production --platform ios --message",
     "phone": "npx expo run:ios --device '00008140-0014346822E3001C'"
   },
   "dependencies": {
