@@ -159,6 +159,7 @@ export type IdealizedMemory = {
     text: string;
     x?: number; // Lightbulb position X
     y?: number; // Lightbulb position Y
+    isFavorite?: boolean;
   }[];
   createdAt: string;
   updatedAt: string;
@@ -317,6 +318,8 @@ type JourneyContextType = {
     options?: { bypassMemoryLimit?: boolean }
   ) => Promise<string | null>; // Returns the new memory ID, or null if limit reached and paywall dismissed
   updateIdealizedMemory: (id: string, updates: Partial<IdealizedMemory>) => Promise<void>;
+  /** Toggle favorite on a lesson within a memory (persists via lessonsLearned). */
+  setLessonFavorite: (memoryId: string, lessonId: string, isFavorite: boolean) => Promise<void>;
   deleteIdealizedMemory: (id: string) => Promise<void>;
   getIdealizedMemoriesByEntityId: (entityId: string, sphere: LifeSphere) => IdealizedMemory[];
   getIdealizedMemoriesByProfileId: (profileId: string) => IdealizedMemory[]; // Deprecated but kept for backward compatibility
@@ -989,6 +992,18 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
       }
     },
     [idealizedMemories, saveIdealizedMemoriesToStorage]
+  );
+
+  const setLessonFavorite = useCallback(
+    async (memoryId: string, lessonId: string, isFavorite: boolean) => {
+      const memory = idealizedMemories.find((m) => m.id === memoryId);
+      if (!memory?.lessonsLearned?.length) return;
+      const next = memory.lessonsLearned.map((l) =>
+        l.id === lessonId ? { ...l, isFavorite } : l,
+      );
+      await updateIdealizedMemory(memoryId, { lessonsLearned: next });
+    },
+    [idealizedMemories, updateIdealizedMemory],
   );
 
   const deleteIdealizedMemory = useCallback(
@@ -1989,6 +2004,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     idealizedMemories,
     addIdealizedMemory,
     updateIdealizedMemory,
+    setLessonFavorite,
     deleteIdealizedMemory,
     getIdealizedMemoriesByEntityId,
     getIdealizedMemoriesByProfileId, // Backward compatibility
@@ -2011,7 +2027,7 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     familyMembers, addFamilyMember, updateFamilyMember, deleteFamilyMember, getFamilyMember,
     friends, addFriend, updateFriend, deleteFriend, getFriend,
     hobbies, addHobby, updateHobby, deleteHobby, getHobby,
-    idealizedMemories, addIdealizedMemory, updateIdealizedMemory, deleteIdealizedMemory,
+    idealizedMemories, addIdealizedMemory, updateIdealizedMemory, setLessonFavorite, deleteIdealizedMemory,
     getIdealizedMemoriesByEntityId, getIdealizedMemoriesByProfileId,
     getEntitiesBySphere, getOverallSunnyPercentage, getHasRealMomentDataForSunCelebration,
     loadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies,

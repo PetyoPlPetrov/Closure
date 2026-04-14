@@ -13968,8 +13968,11 @@ export default function HomeScreen() {
   const cameFromFocusedSferaForEntityRef = useRef(false);
   /** Persists FocusedSferaView sun menu (3 icons) across remounts when opening Insights / modals. */
   const focusedSunMenuExpandedRef = useRef(false);
+  const [focusedSunMenuExpanded, setFocusedSunMenuExpanded] = useState(false);
+  const focusedSunMenuCollapseRef = useRef<(() => void) | null>(null);
   const handleFocusedSunMenuExpandedChange = useCallback((expanded: boolean) => {
     focusedSunMenuExpandedRef.current = expanded;
+    setFocusedSunMenuExpanded(expanded);
   }, []);
   const { showLoader: startTransitionLoader, hideLoader } =
     useHomeTransitionLoader() ?? {
@@ -13980,6 +13983,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (homeViewMode === "classic") {
       focusedSunMenuExpandedRef.current = false;
+      setFocusedSunMenuExpanded(false);
     }
   }, [homeViewMode]);
 
@@ -14038,8 +14042,47 @@ export default function HomeScreen() {
     focusedFriendId ||
     focusedHobbyId
   );
-  const editButton = !focusedMemory && !selectedSphere && !focusedProfileId && !focusedJobId && !focusedFamilyMemberId && !focusedFriendId && !focusedHobbyId ? (
-    <ExpandableMenuButton top={insets.top + 12} />
+  const canShowTopLeftMenu =
+    !focusedMemory &&
+    !selectedSphere &&
+    !focusedProfileId &&
+    !focusedJobId &&
+    !focusedFamilyMemberId &&
+    !focusedFriendId &&
+    !focusedHobbyId;
+  const showFocusedSunMenuBack =
+    homeViewMode === "focused" && focusedSunMenuExpanded && canShowTopLeftMenu;
+  const editButton = canShowTopLeftMenu ? (
+    showFocusedSunMenuBack ? (
+      <Pressable
+        onPress={() => focusedSunMenuCollapseRef.current?.()}
+        accessibilityRole="button"
+        accessibilityLabel={t("common.back")}
+        hitSlop={12}
+        style={{
+          position: "absolute",
+          top: insets.top + 12,
+          left: 16,
+          width: 40 * fontScale,
+          height: 40 * fontScale,
+          borderRadius: 20 * fontScale,
+          backgroundColor: "rgba(26, 47, 74, 0.85)",
+          borderWidth: 1,
+          borderColor: "rgba(100, 181, 246, 0.4)",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 999,
+          shadowColor: "#64B5F6",
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+        }}
+      >
+        <MaterialIcons name="arrow-back" size={20 * fontScale} color="#64B5F6" />
+      </Pressable>
+    ) : (
+      <ExpandableMenuButton top={insets.top + 12} />
+    )
   ) : null;
 
   const prevHasFocusedViewRef = useRef(hasFocusedView);
@@ -18455,6 +18498,7 @@ export default function HomeScreen() {
           onSunMenuExpandedChange={handleFocusedSunMenuExpandedChange}
           onIntroComplete={() => setFocusedIntroComplete(true)}
           sferaDataReady={!isLoading}
+          sunMenuCollapseActionRef={focusedSunMenuCollapseRef}
         />
       </View>
     </View>

@@ -5,16 +5,15 @@
  */
 
 import { ThemedText } from "@/components/themed-text";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useJourney } from "@/utils/JourneyProvider";
 import type { LifeSphere } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  getSphereShadowColor,
-  getSphereSferaColor,
-} from "@/utils/sphere-styles";
+import { getSphereSferaColor } from "@/utils/sphere-styles";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
 import React, {
@@ -25,11 +24,14 @@ import React, {
   useState,
 } from "react";
 import {
+  BackHandler,
   Dimensions,
   FlatList,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
+  Switch,
   View,
   type ViewToken,
 } from "react-native";
@@ -80,17 +82,41 @@ const BG = "#1A2332";
 
 type LessonCard = {
   id: string;
+  /** Raw lesson id within the parent memory (for persistence). */
+  lessonId: string;
   text: string;
   memoryTitle: string;
   memoryImageUri?: string;
   sphere: LifeSphere;
   memoryId?: string;
   entityId?: string;
+  memoryCreatedAt: string;
+  isFavorite?: boolean;
 };
+
+type SphereFilter = "all" | Set<LifeSphere>;
+type YearFilter = "all" | Set<number>;
 
 const SPHERE_LIST: LifeSphere[] = [
   "relationships", "career", "family", "friends", "hobbies",
 ];
+
+function filterLessonCards(
+  cards: LessonCard[],
+  sphereFilter: SphereFilter,
+  yearFilter: YearFilter,
+  favoritesOnly: boolean,
+): LessonCard[] {
+  return cards.filter((card) => {
+    if (favoritesOnly && !card.isFavorite) return false;
+    if (sphereFilter !== "all" && !sphereFilter.has(card.sphere)) return false;
+    if (yearFilter !== "all") {
+      const y = new Date(card.memoryCreatedAt).getFullYear();
+      if (!yearFilter.has(y)) return false;
+    }
+    return true;
+  });
+}
 
 const SPHERE_ICONS: Record<LifeSphere, string> = {
   relationships: "favorite",
@@ -548,13 +574,15 @@ const LessonSfera = React.memo(function LessonSfera({
   card,
   isVisible,
   onAvatarPress,
+  onToggleFavorite,
 }: {
   card: LessonCard;
   isVisible: boolean;
   onAvatarPress?: () => void;
+  onToggleFavorite?: () => void;
 }) {
+  const t = useTranslate();
   const colors = SPHERE_RINGS[card.sphere] ?? SPHERE_RINGS.career;
-  const shadowColor = getSphereShadowColor(card.sphere, "dark");
   const accentColor = getSphereSferaColor(card.sphere, "dark");
 
   // Entry spring + glow pulse (scale only, no opacity fade on the planet itself)
@@ -687,6 +715,33 @@ const LessonSfera = React.memo(function LessonSfera({
 
         {/* Lesson content — floats in the transparent center */}
         <View style={styles.contentOverlay}>
+          {/* Favorite — top-right of lesson text area (away from sphere heart badge below) */}
+          <View
+            style={styles.favoriteInOverlay}
+            pointerEvents="box-none"
+          >
+            <Pressable
+              onPress={onToggleFavorite}
+              hitSlop={14}
+              disabled={!onToggleFavorite}
+              accessibilityRole="button"
+              accessibilityLabel={t("universe.lessons.accessibility.toggleFavorite")}
+              accessibilityState={{ selected: !!card.isFavorite }}
+              style={({ pressed }) => [
+                styles.favoriteStarBtn,
+                {
+                  opacity: onToggleFavorite ? (pressed ? 0.75 : 1) : 0.35,
+                  borderColor: accentColor + "99",
+                },
+              ]}
+            >
+              <MaterialIcons
+                name={card.isFavorite ? "star" : "star-border"}
+                size={22}
+                color={card.isFavorite ? accentColor : "rgba(255,255,255,0.55)"}
+              />
+            </Pressable>
+          </View>
           {/* Thin divider */}
           <View style={styles.divRow}>
             <View style={[styles.divLine, { backgroundColor: accentColor + "35" }]} />
@@ -750,17 +805,24 @@ const LessonSfera = React.memo(function LessonSfera({
           </ThemedText>
         </View>
 
-        {/* Sphere icon badge — on the bottom rim of the planet */}
+        {/* Sphere badge — bottom rim (heart = relationships sphere) */}
         <View
-          pointerEvents="none"
-          style={[styles.sphereBadge, {
-            top: SW / 2 + ATMO_R - 18,
-            borderColor: accentColor + "CC",
-            backgroundColor: "rgba(8,14,28,0.82)",
-            shadowColor: accentColor,
-          }]}
+          style={[styles.bottomRimRow, { top: SW / 2 + ATMO_R - 18 }]}
         >
-          <MaterialIcons name={SPHERE_ICONS[card.sphere] as any} size={20} color={accentColor} />
+          <View
+            pointerEvents="none"
+            style={[styles.sphereBadge, {
+              borderColor: accentColor + "CC",
+              backgroundColor: "rgba(8,14,28,0.82)",
+              shadowColor: accentColor,
+            }]}
+          >
+            <MaterialIcons
+              name={SPHERE_ICONS[card.sphere] as React.ComponentProps<typeof MaterialIcons>["name"]}
+              size={20}
+              color={accentColor}
+            />
+          </View>
         </View>
       </Animated.View>
 
@@ -800,12 +862,40 @@ interface Props {
 
 export function UniverseLessonsScreen({ visible, onClose }: Props) {
   const t = useTranslate();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? "dark"];
   const insets = useSafeAreaInsets();
   const { appUsabilityHints } = useVisualSettings();
-  const { idealizedMemories } = useJourney();
+  const { idealizedMemories, setLessonFavorite } = useJourney();
   const [activeIndex, setActiveIndex] = useState(0);
   const [bgSeed, setBgSeed] = useState(0);
   const listRef = useRef<FlatList>(null);
+
+  const [sphereSelection, setSphereSelection] = useState<SphereFilter>("all");
+  const [yearSelection, setYearSelection] = useState<YearFilter>("all");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+
+  const [filterSheetVisible, setFilterSheetVisible] = useState(false);
+
+  const sphereFilterKey = useMemo(
+    () =>
+      sphereSelection === "all"
+        ? "all"
+        : [...sphereSelection].sort().join(","),
+    [sphereSelection],
+  );
+  const yearFilterKey = useMemo(
+    () =>
+      yearSelection === "all"
+        ? "all"
+        : [...yearSelection].sort().join(","),
+    [yearSelection],
+  );
+
+  const filtersActive =
+    sphereSelection !== "all" ||
+    yearSelection !== "all" ||
+    favoritesOnly;
 
   const twinkles = useMemo(
     () =>
@@ -825,12 +915,15 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
         if (l.text.trim()) {
           real.push({
             id: `${mem.id}_${l.id}`,
+            lessonId: l.id,
             text: l.text.trim(),
             memoryTitle: mem.title,
             memoryImageUri: mem.imageUri,
             sphere: (mem.sphere as LifeSphere) ?? "relationships",
             memoryId: mem.id,
             entityId: mem.entityId || mem.profileId,
+            memoryCreatedAt: mem.createdAt,
+            isFavorite: !!l.isFavorite,
           });
         }
       }
@@ -854,12 +947,88 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
     return [];
   }, [idealizedMemories]);
 
-  useEffect(() => {
-    if (visible) {
-      setActiveIndex(0);
-      listRef.current?.scrollToIndex({ index: 0, animated: false });
+  const filteredCards = useMemo(
+    () => filterLessonCards(cards, sphereSelection, yearSelection, favoritesOnly),
+    [cards, sphereSelection, yearSelection, favoritesOnly],
+  );
+
+  const availableYears = useMemo(() => {
+    const s = new Set<number>();
+    for (const c of cards) {
+      const y = new Date(c.memoryCreatedAt).getFullYear();
+      if (!Number.isNaN(y)) s.add(y);
     }
-  }, [visible]);
+    return [...s].sort((a, b) => b - a);
+  }, [cards]);
+
+  useEffect(() => {
+    if (!visible) return;
+    setActiveIndex(0);
+    const id = requestAnimationFrame(() => {
+      if (filteredCards.length > 0) {
+        listRef.current?.scrollToIndex({ index: 0, animated: false });
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [visible, sphereFilterKey, yearFilterKey, favoritesOnly, filteredCards.length]);
+
+  useEffect(() => {
+    if (!visible || filteredCards.length === 0) return;
+    setActiveIndex((i) => Math.min(i, filteredCards.length - 1));
+  }, [visible, filteredCards.length]);
+
+  const openFilters = useCallback(() => {
+    setFilterSheetVisible(true);
+  }, []);
+
+  useEffect(() => {
+    if (!filterSheetVisible) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      setFilterSheetVisible(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [filterSheetVisible]);
+
+  const clearAllFilters = useCallback(() => {
+    setSphereSelection("all");
+    setYearSelection("all");
+    setFavoritesOnly(false);
+  }, []);
+
+  const toggleSphereSelection = useCallback((s: LifeSphere) => {
+    setSphereSelection((prev) => {
+      if (prev === "all") return new Set([s]);
+      const next = new Set(prev);
+      if (next.has(s)) {
+        next.delete(s);
+        return next.size === 0 ? "all" : next;
+      }
+      next.add(s);
+      return next;
+    });
+  }, []);
+
+  const toggleYearSelection = useCallback((y: number) => {
+    setYearSelection((prev) => {
+      if (prev === "all") return new Set([y]);
+      const next = new Set(prev);
+      if (next.has(y)) {
+        next.delete(y);
+        return next.size === 0 ? "all" : next;
+      }
+      next.add(y);
+      return next;
+    });
+  }, []);
+
+  const handleToggleFavorite = useCallback(
+    (item: LessonCard) => {
+      if (!item.memoryId) return;
+      void setLessonFavorite(item.memoryId, item.lessonId, !item.isFavorite);
+    },
+    [setLessonFavorite],
+  );
 
   const bgSeedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bgFadeOut = useSharedValue(1);
@@ -880,7 +1049,7 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
   );
   const viewabilityConfig = useMemo(() => ({ itemVisiblePercentThreshold: 52 }), []);
 
-  const activeCard = cards[activeIndex];
+  const activeCard = filteredCards[activeIndex];
   const accentColor = getSphereSferaColor(activeCard?.sphere ?? "career", "dark");
 
   const shootingStars = useMemo(() =>
@@ -953,9 +1122,12 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
         card={item}
         isVisible={index === activeIndex}
         onAvatarPress={item.memoryId ? () => handleAvatarPress(item) : undefined}
+        onToggleFavorite={
+          item.memoryId ? () => handleToggleFavorite(item) : undefined
+        }
       />
     ),
-    [activeIndex, handleAvatarPress],
+    [activeIndex, handleAvatarPress, handleToggleFavorite],
   );
   const keyExtractor = useCallback((item: LessonCard) => item.id, []);
 
@@ -976,18 +1148,8 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
           <ShootingStar key={i} x={ss.x} y={ss.y} angle={ss.angle} delay={ss.delay} color={accentColor} />
         ))}
 
-        {/* Header */}
-        <View style={[styles.header, { top: insets.top + 12 }]}>
-          <ThemedText style={[styles.headerTitle, { textShadowColor: accentColor + "55" }]}>{t("universe.modal.title")}</ThemedText>
-          <Pressable onPress={onClose} hitSlop={16}>
-            <View style={styles.closeBg}>
-              <MaterialIcons name="close" size={18} color="rgba(255,255,255,0.90)" />
-            </View>
-          </Pressable>
-        </View>
-
         {/* Swipe hint — finger + up/down arrows, centered on screen */}
-        {appUsabilityHints && cards.length > 1 && (
+        {appUsabilityHints && filteredCards.length > 1 && (
           <Animated.View
             pointerEvents="none"
             style={[swipeHintStyle, {
@@ -1015,11 +1177,27 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
               {t("universe.lessons.noneAvailable")}
             </ThemedText>
           </View>
+        ) : filteredCards.length === 0 ? (
+          <View style={styles.emptyLessonsWrap}>
+            <ThemedText style={styles.emptyLessonsText}>
+              {t("universe.lessons.emptyFiltered")}
+            </ThemedText>
+            <Pressable
+              onPress={clearAllFilters}
+              style={styles.clearFiltersBtn}
+              accessibilityRole="button"
+              accessibilityLabel={t("universe.lessons.clearFilters")}
+            >
+              <ThemedText style={styles.clearFiltersBtnText}>
+                {t("universe.lessons.clearFilters")}
+              </ThemedText>
+            </Pressable>
+          </View>
         ) : (
           <>
             <FlatList
               ref={listRef}
-              data={cards}
+              data={filteredCards}
               renderItem={renderItem}
               keyExtractor={keyExtractor}
               pagingEnabled
@@ -1036,12 +1214,230 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
               })}
               style={{ flex: 1 }}
             />
-            {cards.length > 1 && (
-              <ScrollRail total={cards.length} active={activeIndex} color={accentColor} />
+            {filteredCards.length > 1 && (
+              <ScrollRail total={filteredCards.length} active={activeIndex} color={accentColor} />
             )}
           </>
         )}
 
+        {/* Header last so it wins hit-testing over full-screen FlatList (iOS) */}
+        <View
+          style={[styles.header, { top: insets.top + 12 }]}
+          pointerEvents="box-none"
+        >
+          <Pressable
+            onPress={onClose}
+            hitSlop={16}
+            accessibilityRole="button"
+            accessibilityLabel={t("universe.lessons.accessibility.back")}
+            style={styles.headerIconSlot}
+          >
+            <View style={styles.closeBg}>
+              <MaterialIcons name="arrow-back" size={20} color="rgba(255,255,255,0.90)" />
+            </View>
+          </Pressable>
+          <ThemedText
+            pointerEvents="none"
+            numberOfLines={1}
+            style={[styles.headerTitleCenter, { textShadowColor: accentColor + "55" }]}
+          >
+            {t("universe.modal.title")}
+          </ThemedText>
+          <Pressable
+            onPress={openFilters}
+            hitSlop={16}
+            accessibilityRole="button"
+            accessibilityLabel={
+              filtersActive
+                ? `${t("universe.lessons.accessibility.openFilters")}, ${t("universe.lessons.accessibility.filterActive")}`
+                : t("universe.lessons.accessibility.openFilters")
+            }
+            style={styles.headerIconSlot}
+          >
+            <View style={styles.closeBg}>
+              <MaterialIcons name="tune" size={20} color="rgba(255,255,255,0.90)" />
+              {filtersActive ? <View style={styles.filterActiveDot} /> : null}
+            </View>
+          </Pressable>
+        </View>
+
+        {/* Centered card like Events; filters apply live — dismiss by tapping outside */}
+        {filterSheetVisible ? (
+          <View style={styles.filterOverlay} pointerEvents="auto">
+            <Pressable
+              style={styles.filterModalBackdrop}
+              onPress={() => setFilterSheetVisible(false)}
+              accessibilityLabel={t("universe.lessons.accessibility.dismissSheet")}
+            >
+              <Pressable
+                style={[styles.filterModalBox, { backgroundColor: colors.background }]}
+                onPress={(e) => e.stopPropagation()}
+              >
+                <ThemedText size="l" weight="bold" style={styles.filterModalTitle}>
+                  {t("universe.lessons.filters.title")}
+                </ThemedText>
+
+                <View style={styles.filterModalRow}>
+                  <ThemedText size="sm" style={{ flex: 1, color: colors.text }}>
+                    {t("universe.lessons.filters.favoritesOnly")}
+                  </ThemedText>
+                  <Switch
+                    value={favoritesOnly}
+                    onValueChange={setFavoritesOnly}
+                    trackColor={{
+                      false: colors.text + "40",
+                      true: colors.primary + "80",
+                    }}
+                    thumbColor={colors.primary}
+                  />
+                </View>
+
+                <ThemedText
+                  size="sm"
+                  style={[styles.filterModalSectionLabel, { color: colors.text }]}
+                >
+                  {t("universe.lessons.filters.sphereSection")}
+                </ThemedText>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  nestedScrollEnabled
+                  style={styles.filterModalChipRow}
+                  contentContainerStyle={styles.filterModalChipRowContent}
+                >
+                  <Pressable
+                    onPress={() => setSphereSelection("all")}
+                    style={[
+                      styles.filterModalChip,
+                      sphereSelection === "all" && [
+                        styles.filterModalChipSelected,
+                        { borderColor: colors.primary + "AA" },
+                      ],
+                    ]}
+                  >
+                    <ThemedText
+                      size="sm"
+                      style={{
+                        color: sphereSelection === "all" ? colors.primary : colors.text,
+                        fontWeight: sphereSelection === "all" ? "600" : "500",
+                      }}
+                    >
+                      {t("universe.lessons.filters.allSpheres")}
+                    </ThemedText>
+                  </Pressable>
+                  {SPHERE_LIST.map((sp) => {
+                    const selected =
+                      sphereSelection !== "all" && sphereSelection.has(sp);
+                    const c = getSphereSferaColor(sp, "dark");
+                    return (
+                      <Pressable
+                        key={sp}
+                        onPress={() => toggleSphereSelection(sp)}
+                        style={[
+                          styles.filterModalChip,
+                          selected && { borderColor: c + "CC" },
+                        ]}
+                      >
+                        <MaterialIcons
+                          name={SPHERE_ICONS[sp] as React.ComponentProps<typeof MaterialIcons>["name"]}
+                          size={16}
+                          color={selected ? c : colors.text + "99"}
+                          style={{ marginRight: 6 }}
+                        />
+                        <ThemedText
+                          size="sm"
+                          numberOfLines={1}
+                          style={{
+                            color: selected ? c : colors.text,
+                            fontWeight: selected ? "600" : "500",
+                            maxWidth: SW * 0.28,
+                          }}
+                        >
+                          {t(`momentNotifications.sphere.${sp}` as const)}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+
+                <ThemedText
+                  size="sm"
+                  style={[styles.filterModalSectionLabel, { color: colors.text, marginTop: 14 }]}
+                >
+                  {t("universe.lessons.filters.yearSection")}
+                </ThemedText>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  nestedScrollEnabled
+                  style={styles.filterModalChipRow}
+                  contentContainerStyle={styles.filterModalChipRowContent}
+                >
+                  <Pressable
+                    onPress={() => setYearSelection("all")}
+                    style={[
+                      styles.filterModalChip,
+                      yearSelection === "all" && [
+                        styles.filterModalChipSelected,
+                        { borderColor: colors.primary + "AA" },
+                      ],
+                    ]}
+                  >
+                    <ThemedText
+                      size="sm"
+                      style={{
+                        color: yearSelection === "all" ? colors.primary : colors.text,
+                        fontWeight: yearSelection === "all" ? "600" : "500",
+                      }}
+                    >
+                      {t("universe.lessons.filters.allYears")}
+                    </ThemedText>
+                  </Pressable>
+                  {availableYears.map((y) => {
+                    const selected =
+                      yearSelection !== "all" && yearSelection.has(y);
+                    return (
+                      <Pressable
+                        key={y}
+                        onPress={() => toggleYearSelection(y)}
+                        style={[
+                          styles.filterModalChip,
+                          selected && [
+                            styles.filterModalChipSelected,
+                            { borderColor: colors.primary + "AA" },
+                          ],
+                        ]}
+                      >
+                        <ThemedText
+                          size="sm"
+                          style={{
+                            color: selected ? colors.primary : colors.text,
+                            fontWeight: selected ? "600" : "500",
+                          }}
+                        >
+                          {String(y)}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+
+                <View style={[styles.filterModalActions, { marginTop: 20 }]}>
+                  <Pressable
+                    onPress={clearAllFilters}
+                    style={styles.filterModalBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("universe.lessons.filters.reset")}
+                  >
+                    <ThemedText size="sm" weight="medium" style={{ color: colors.text + "CC" }}>
+                      {t("universe.lessons.filters.reset")}
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              </Pressable>
+            </Pressable>
+          </View>
+        ) : null}
 
       </Animated.View>
     </Modal>
@@ -1070,19 +1466,28 @@ const styles = StyleSheet.create({
   },
   header: {
     position: "absolute",
-    left: 20,
-    right: 20,
-    zIndex: 20,
+    left: 12,
+    right: 12,
+    zIndex: 1000,
+    elevation: 24,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  headerTitle: {
-    fontSize: 26,
-    lineHeight: 34,
+  headerIconSlot: {
+    width: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitleCenter: {
+    flex: 1,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: "700",
     color: "rgba(255,255,255,0.95)",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
+    textAlign: "center",
+    marginHorizontal: 4,
     textShadowColor: "rgba(8,14,28,0.70)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 10,
@@ -1096,6 +1501,99 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.30)",
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
+  },
+  filterActiveDot: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#E879A9",
+    borderWidth: 1,
+    borderColor: "rgba(8,14,28,0.9)",
+  },
+  /** Full-screen layer above lessons list (matches Events filter stacking). */
+  filterOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 3000,
+    elevation: 50,
+  },
+  /** Same as `events.tsx` modalBackdrop — centered card + dim. */
+  filterModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  filterModalBox: {
+    width: "100%",
+    maxWidth: 340,
+    borderRadius: 16,
+    padding: 24,
+  },
+  filterModalTitle: {
+    marginBottom: 16,
+  },
+  filterModalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  filterModalSectionLabel: {
+    marginBottom: 8,
+    opacity: 0.85,
+    fontWeight: "600",
+  },
+  filterModalChipRow: {
+    marginBottom: 4,
+    maxHeight: 52,
+  },
+  filterModalChipRowContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "nowrap",
+    paddingVertical: 2,
+    gap: 8,
+  },
+  filterModalChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: "rgba(128,128,128,0.35)",
+    backgroundColor: "rgba(0,0,0,0.12)",
+  },
+  filterModalChipSelected: {
+    backgroundColor: "rgba(100,181,246,0.14)",
+  },
+  filterModalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+  },
+  filterModalBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  clearFiltersBtn: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: "rgba(100,181,246,0.22)",
+    borderWidth: 1.5,
+    borderColor: "rgba(100,181,246,0.45)",
+  },
+  clearFiltersBtnText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.92)",
   },
   cardContainer: {
     width: SW,
@@ -1122,6 +1620,13 @@ const styles = StyleSheet.create({
     paddingTop: MOON_SIZE + 16,
     marginTop: -30,
     gap: 14,
+  },
+  /** Below moon + memory title; right side of the lesson text block */
+  favoriteInOverlay: {
+    position: "absolute",
+    top: MOON_SIZE + 52,
+    right: ATMO_R * 0.28,
+    zIndex: 8,
   },
   moonOrbit: {
     position: "absolute",
@@ -1179,10 +1684,28 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,
   },
-  sphereBadge: {
+  bottomRimRow: {
     position: "absolute",
-    // top: set inline as PLANET_C + ATMO_R - 18 (bottom rim, badge centered on it)
     alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 12,
+  },
+  favoriteStarBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(8,14,28,0.82)",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  sphereBadge: {
     width: 36,
     height: 36,
     borderRadius: 18,

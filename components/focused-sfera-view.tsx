@@ -259,6 +259,8 @@ export type FocusedSferaViewProps = {
   onSunMenuExpandedChange?: (expanded: boolean) => void;
   /** Called once when the sunny moments intro animation finishes (or is skipped). Lets parent gate modals on this. */
   onIntroComplete?: () => void;
+  /** Parent assigns `current` to collapse the sun menu (same as tapping the sun when the menu is open). */
+  sunMenuCollapseActionRef?: React.MutableRefObject<(() => void) | null>;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -2826,6 +2828,7 @@ export function FocusedSferaView({
   onSunMenuExpandedChange,
   onIntroComplete,
   sferaDataReady = true,
+  sunMenuCollapseActionRef,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
   const insets = useSafeAreaInsets();
@@ -3326,6 +3329,16 @@ export function FocusedSferaView({
     if (isSunExpanded) handleSunPress();
   }, [isSunExpanded, handleSunPress]);
 
+  useEffect(() => {
+    if (!sunMenuCollapseActionRef) return;
+    sunMenuCollapseActionRef.current = () => {
+      handleCollapseSun();
+    };
+    return () => {
+      sunMenuCollapseActionRef.current = null;
+    };
+  }, [handleCollapseSun, sunMenuCollapseActionRef]);
+
   /** Lesson Check: show exam only if AI sub or free daily slot; otherwise paywall only (not both). */
   const handleOpenUniverseExam = useCallback(async () => {
     if (!hasUserLessons) {
@@ -3552,7 +3565,7 @@ export function FocusedSferaView({
 
       <BackgroundDecorations />
 
-      {selectedSphere === null && sunLoadComplete && (
+      {selectedSphere === null && sunLoadComplete && !isSunExpanded && (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t(

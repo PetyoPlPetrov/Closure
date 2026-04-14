@@ -1008,6 +1008,21 @@ export interface Translations {
   "universe.exam.next": string;
   "universe.exam.done": string;
   "universe.lessons.noneAvailable": string;
+  "universe.lessons.filters.title": string;
+  "universe.lessons.filters.sphereSection": string;
+  "universe.lessons.filters.allSpheres": string;
+  "universe.lessons.filters.yearSection": string;
+  "universe.lessons.filters.allYears": string;
+  "universe.lessons.filters.favoritesOnly": string;
+  "universe.lessons.filters.apply": string;
+  "universe.lessons.filters.reset": string;
+  "universe.lessons.emptyFiltered": string;
+  "universe.lessons.clearFilters": string;
+  "universe.lessons.accessibility.back": string;
+  "universe.lessons.accessibility.openFilters": string;
+  "universe.lessons.accessibility.filterActive": string;
+  "universe.lessons.accessibility.toggleFavorite": string;
+  "universe.lessons.accessibility.dismissSheet": string;
 
   // Settings - Moments Colors
   "settings.momentColors.title": string;
@@ -5093,6 +5108,21 @@ const translations: Record<Language, Translations> = {
     "universe.exam.next": "Next Question",
     "universe.exam.done": "Done",
     "universe.lessons.noneAvailable": "No lessons available",
+    "universe.lessons.filters.title": "Filters",
+    "universe.lessons.filters.sphereSection": "Sphere",
+    "universe.lessons.filters.allSpheres": "All",
+    "universe.lessons.filters.yearSection": "Year",
+    "universe.lessons.filters.allYears": "All",
+    "universe.lessons.filters.favoritesOnly": "Favorite",
+    "universe.lessons.filters.apply": "Apply",
+    "universe.lessons.filters.reset": "Reset",
+    "universe.lessons.emptyFiltered": "No lessons match these filters.",
+    "universe.lessons.clearFilters": "Clear filters",
+    "universe.lessons.accessibility.back": "Go back",
+    "universe.lessons.accessibility.openFilters": "Open filters",
+    "universe.lessons.accessibility.filterActive": "Filters active",
+    "universe.lessons.accessibility.toggleFavorite": "Toggle favorite lesson",
+    "universe.lessons.accessibility.dismissSheet": "Close",
 
     // Settings - Moments Colors
     "settings.momentColors.title": "Moments Colors",
@@ -9830,6 +9860,21 @@ const translations: Record<Language, Translations> = {
     "universe.exam.next": "Следващ въпрос",
     "universe.exam.done": "Готово",
     "universe.lessons.noneAvailable": "Няма налични уроци",
+    "universe.lessons.filters.title": "Филтри",
+    "universe.lessons.filters.sphereSection": "Сфера",
+    "universe.lessons.filters.allSpheres": "Всички",
+    "universe.lessons.filters.yearSection": "Година",
+    "universe.lessons.filters.allYears": "Всички",
+    "universe.lessons.filters.favoritesOnly": "Любими",
+    "universe.lessons.filters.apply": "Приложи",
+    "universe.lessons.filters.reset": "Нулирай",
+    "universe.lessons.emptyFiltered": "Няма уроци за тези филтри.",
+    "universe.lessons.clearFilters": "Изчисти филтрите",
+    "universe.lessons.accessibility.back": "Назад",
+    "universe.lessons.accessibility.openFilters": "Отвори филтри",
+    "universe.lessons.accessibility.filterActive": "Активни филтри",
+    "universe.lessons.accessibility.toggleFavorite": "Превключи любим урок",
+    "universe.lessons.accessibility.dismissSheet": "Затвори",
 
     // Settings - Moments Colors
     "settings.momentColors.title": "Цветове на моменти",
