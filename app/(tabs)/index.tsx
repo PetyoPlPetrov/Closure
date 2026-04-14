@@ -13710,6 +13710,11 @@ export default function HomeScreen() {
   const [focusedIntroComplete, setFocusedIntroComplete] = useState(false);
   const { isAnimationComplete, isVisible: isSplashVisible } = useSplash();
 
+  // Home view mode — declared before guide walkthrough effect (that effect reads homeViewMode).
+  const [homeViewMode, setHomeViewMode] = useState<"classic" | "focused">(
+    "focused",
+  );
+
   // Load streak data on mount and when screen focuses
   const loadStreakData = useCallback(async () => {
     try {
@@ -13840,6 +13845,21 @@ export default function HomeScreen() {
     walkthroughAfterOnboardingRef.current = false;
   }, []);
 
+  const guideWalkthroughModal = (
+    <WalkthroughModal
+      visible={walkthroughVisible}
+      onDismiss={handleWalkthroughDismiss}
+      onOpenGuide={handleGuideOpen}
+      onDismissForever={handleGuideDismissForever}
+      sections={SECTIONS.map((s) => ({
+        id: s.id,
+        icon: s.icon,
+        titleKey: s.titleKey,
+        isDone: guideReadSections.has(s.id),
+      }))}
+    />
+  );
+
   // Avatar pulse animation - continuously pulses every 3 seconds
   const avatarPulseScale = useSharedValue(1);
 
@@ -13944,9 +13964,6 @@ export default function HomeScreen() {
   // Home view mode: "Classic" = Classic view (wheel of life); "focused" = FocusedSferas view (one sphere in focus, swipe to change).
   // When FocusedSferas view is active, only FocusedSferaView is mounted — Classic view components are not in the tree.
   const FOCUSED_SPHERE_INDEX_KEY = "@sferas:focused_sphere_index";
-  const [homeViewMode, setHomeViewMode] = useState<"classic" | "focused">(
-    "focused",
-  );
   const [focusedSphereIndex, setFocusedSphereIndex] = useState(0);
   const cameFromFocusedSferaForEntityRef = useRef(false);
   /** Persists FocusedSferaView sun menu (3 icons) across remounts when opening Insights / modals. */
@@ -18437,6 +18454,7 @@ export default function HomeScreen() {
           initialSunMenuExpanded={focusedSunMenuExpandedRef.current}
           onSunMenuExpandedChange={handleFocusedSunMenuExpandedChange}
           onIntroComplete={() => setFocusedIntroComplete(true)}
+          sferaDataReady={!isLoading}
         />
       </View>
     </View>
@@ -18489,19 +18507,7 @@ export default function HomeScreen() {
           )}
           {focusedSferaLayer}
 
-          {/* Guide Prompt Modal */}
-          <WalkthroughModal
-            visible={walkthroughVisible}
-            onDismiss={handleWalkthroughDismiss}
-            onOpenGuide={handleGuideOpen}
-            onDismissForever={handleGuideDismissForever}
-            sections={SECTIONS.map((s) => ({
-              id: s.id,
-              icon: s.icon,
-              titleKey: s.titleKey,
-              isDone: guideReadSections.has(s.id),
-            }))}
-          />
+          {guideWalkthroughModal}
           {editButton}
         </TabScreenContainer>
       );
@@ -21735,19 +21741,7 @@ export default function HomeScreen() {
             })()}
         </View>
 
-        {/* Guide Prompt Modal */}
-        <WalkthroughModal
-          visible={walkthroughVisible}
-          onDismiss={handleWalkthroughDismiss}
-          onOpenGuide={handleGuideOpen}
-          onDismissForever={handleGuideDismissForever}
-          sections={SECTIONS.map((s) => ({
-            id: s.id,
-            icon: s.icon,
-            titleKey: s.titleKey,
-            isDone: guideReadSections.has(s.id),
-          }))}
-        />
+        {guideWalkthroughModal}
         {editButton}
       </TabScreenContainer>
     );
@@ -22128,6 +22122,7 @@ export default function HomeScreen() {
             )}
           </ScrollView>
         </View>
+        {guideWalkthroughModal}
         {editButton}
       </TabScreenContainer>
     );
@@ -22462,6 +22457,7 @@ export default function HomeScreen() {
             )}
           </ScrollView>
         </View>
+        {guideWalkthroughModal}
         {editButton}
       </TabScreenContainer>
     );
@@ -22806,6 +22802,7 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
+        {guideWalkthroughModal}
         {editButton}
       </TabScreenContainer>
     );
@@ -23147,6 +23144,7 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
+        {guideWalkthroughModal}
         {editButton}
       </TabScreenContainer>
     );
@@ -23488,87 +23486,14 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
+        {guideWalkthroughModal}
         {editButton}
       </TabScreenContainer>
     );
   }
 
-  return (
-    <TabScreenContainer>
-      <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
-        <ScrollView
-          scrollEnabled={scrollEnabledForSphere}
-          style={[
-            styles.content,
-            {
-              flex: 1,
-            },
-          ]}
-          contentContainerStyle={{
-            minHeight: SCREEN_HEIGHT,
-            paddingBottom: 100, // Extra padding at bottom for scrolling
-            justifyContent: "flex-start",
-            alignItems: "flex-start",
-          }}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Render entities in orbital view when no entity is focused */}
-          {animationsReady && !focusedProfileId && !focusedMemory && (
-            <FocusedEntitiesView
-              sphere="relationships"
-              sphereSunnyPercentage={relationshipsSunnyPercentage}
-              entities={sortedProfiles}
-              memoriesPerEntity={sortedProfiles.map((p) =>
-                getIdealizedMemoriesByEntityId(p.id, "relationships"),
-              )}
-              onEntitySelect={(entityId) => {
-                setFocusedProfileId(entityId);
-              }}
-              colorScheme={colorScheme ?? "dark"}
-              orbitDurationMs={orbitDurationMs}
-              constellationAmount={constellationAmount}
-              constellationOpacity={constellationOpacity}
-            />
-          )}
-
-          {/* Render focused profiles separately when focused (but hide profile when memory is focused) */}
-          {/* Only render if there's actually a focused profile - not when showing orbital view */}
-          {focusedProfileId && focusedProfilesRender}
-
-          {/* Render focused memory separately when memory is focused */}
-          {focusedMemory && animationsReady && (
-            <FocusedMemoryRenderer
-              focusedMemory={focusedMemory}
-              sortedProfiles={sortedProfiles}
-              sortedJobs={sortedJobs}
-              getIdealizedMemoriesByProfileId={getIdealizedMemoriesByProfileId}
-              getIdealizedMemoriesByEntityId={getIdealizedMemoriesByEntityId}
-              updateIdealizedMemory={updateIdealizedMemory}
-              colorScheme={colorScheme ?? "dark"}
-              memorySlideOffset={memorySlideOffset}
-              setFocusedMemory={setFocusedMemory}
-            />
-          )}
-        </ScrollView>
-      </View>
-
-      {/* Guide Prompt Modal */}
-      <WalkthroughModal
-        visible={walkthroughVisible}
-        onDismiss={handleWalkthroughDismiss}
-        onOpenGuide={handleGuideOpen}
-        onDismissForever={handleGuideDismissForever}
-        sections={SECTIONS.map((s) => ({
-          id: s.id,
-          icon: s.icon,
-          titleKey: s.titleKey,
-          isDone: guideReadSections.has(s.id),
-        }))}
-      />
-
-      {editButton}
-    </TabScreenContainer>
-  );
+  const _exhaustive: never = selectedSphere;
+  return _exhaustive;
 }
 
 // Focused Memory Renderer Component

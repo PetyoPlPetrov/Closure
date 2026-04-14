@@ -224,6 +224,8 @@ export type FocusedSferaViewProps = {
   onChallengeMePress?: () => void;
   /** When true, the splash screen animation has finished and the joy-meter intro sequence can begin. */
   splashDone?: boolean;
+  /** When true, journey/home data has finished loading (so 0% sunny means no entities, not "still loading"). */
+  sferaDataReady?: boolean;
   /** Restore sun menu expanded (3 action icons) after remount, e.g. returning from /insights. */
   initialSunMenuExpanded?: boolean;
   /** Notifies parent when sun menu expands/collapses so state can survive navigation remounts. */
@@ -2598,6 +2600,7 @@ export function FocusedSferaView({
   initialSunMenuExpanded = false,
   onSunMenuExpandedChange,
   onIntroComplete,
+  sferaDataReady = true,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
   const { ensureSubscriptionResolved, refreshCustomerInfo } = useSubscription();
@@ -2718,8 +2721,17 @@ export function FocusedSferaView({
   const sunLoadStartedRef = useRef(false);
   useEffect(() => {
     if (!splashDone || sunLoadStartedRef.current) return;
-    // Wait until data is loaded (percentage > 0 means memories exist and were calculated)
-    if (selectedSphere === null && overallSunnyPercentage === 0) return;
+    // While loading, overall can stay at 0 — don't start intro yet.
+    // After load, 0% with no sphere means no entities: skip sun intro and unblock parent (e.g. guide prompt).
+    if (selectedSphere === null && overallSunnyPercentage === 0) {
+      if (!sferaDataReady) return;
+      sunLoadStartedRef.current = true;
+      markIntroComplete();
+      setIntroCentered(false);
+      sunLoadScale.value = 1;
+      sunLoadDisplayPct.value = 0;
+      return;
+    }
     sunLoadStartedRef.current = true;
 
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -2795,7 +2807,7 @@ export function FocusedSferaView({
     };
 
     run();
-  }, [splashDone, overallSunnyPercentage, sunCelebrationEligible]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [splashDone, overallSunnyPercentage, sunCelebrationEligible, sferaDataReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset sun centering when leaving initial view
   useEffect(() => {
