@@ -505,6 +505,10 @@ export interface Translations {
   "spheres.friends": string;
   "spheres.hobbies": string;
   "spheres.doubleTapHint": string;
+  "spheres.memoryBalanceTapHint": string;
+  "spheres.memoryBalanceToggleShowBalanceA11y": string;
+  "spheres.memoryBalanceToggleShowOrbitA11y": string;
+  "spheres.memoryBalanceTitle": string;
   "spheres.item": string;
   "spheres.items": string;
   "spheres.manualEditMode": string;
@@ -4398,6 +4402,11 @@ const translations: Record<Language, Translations> = {
     "spheres.friends": "Friends",
     "spheres.hobbies": "Hobbies",
     "spheres.doubleTapHint": "Double tap to open",
+    "spheres.memoryBalanceTapHint":
+      "Single tap: Memory balance view • Double tap: menu",
+    "spheres.memoryBalanceToggleShowBalanceA11y": "Memory balance view",
+    "spheres.memoryBalanceToggleShowOrbitA11y": "Orbit view",
+    "spheres.memoryBalanceTitle": "Memory Balance",
     "spheres.item": "item",
     "spheres.items": "items",
     "spheres.manualEditMode": "Manual edit mode",
@@ -9124,6 +9133,11 @@ const translations: Record<Language, Translations> = {
     "spheres.friends": "Приятели",
     "spheres.hobbies": "Хобита",
     "spheres.doubleTapHint": "Докоснете два пъти",
+    "spheres.memoryBalanceTapHint":
+      "Едно докосване: баланс на спомените • Двойно: меню",
+    "spheres.memoryBalanceToggleShowBalanceA11y": "Изглед баланс на спомените",
+    "spheres.memoryBalanceToggleShowOrbitA11y": "Орбитален изглед",
+    "spheres.memoryBalanceTitle": "Баланс на спомените",
     "spheres.item": "елемент",
     "spheres.items": "елемента",
     "spheres.manualEditMode": "Ръчен режим на редактиране",

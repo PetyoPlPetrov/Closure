@@ -1,6 +1,6 @@
 /**
  * FocusedSferas view — one sphere in focus (large, center-bottom), the rest on orbit.
- * Swipe left/right or use chevrons to change focus. Tap Sunny Life avatar to return to Classic view.
+ * Swipe left/right or use chevrons to change focus. Overview: tap avatar for the sun menu; in a sfera, tap avatar to leave.
  *
  * All interaction state lives here so the parent home tab does NOT re-render on swipes/interactions.
  */
@@ -34,6 +34,7 @@ import { Image } from "expo-image";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Dimensions,
   InteractionManager,
@@ -46,6 +47,8 @@ import {
 import Animated, {
   cancelAnimation,
   Easing,
+  Extrapolation,
+  interpolate,
   runOnJS,
   SharedValue,
   useAnimatedReaction,
@@ -108,6 +111,30 @@ const ORBIT_CX = SW / 2;
 // Slightly lower than center to keep space for the badge + toggle
 const ORBIT_CY = SH * 0.46;
 const ORBIT_R = scaleFocused(135);
+const SUN_CENTER_X = SW / 2;
+const SUN_CENTER_Y = SH * 0.38;
+const MEMORY_BALANCE_MIN_SIZE = scaleFocused(52);
+const MEMORY_BALANCE_MAX_SIZE = scaleFocused(136);
+const MEMORY_BALANCE_RING_LAYOUT: readonly { angleDeg: number; radius: number }[] = [
+  { angleDeg: -90, radius: scaleFocused(148) },
+  { angleDeg: -18, radius: scaleFocused(156) },
+  { angleDeg: 54, radius: scaleFocused(172) },
+  { angleDeg: 126, radius: scaleFocused(172) },
+  { angleDeg: 198, radius: scaleFocused(156) },
+];
+
+/** Persisted orbit vs Memory Balance layout (FocusedSferas overview). */
+const FOCUSED_DISPLAY_MODE_STORAGE_KEY = "@sferas:focused_display_mode";
+/** Vertical drift when hiding Memory Balance sferas (sun menu open) — worklet-safe constant. */
+const MEMORY_BALANCE_MENU_HIDE_DRIFT_Y = scaleFocused(10);
+/** Sunny / cloud / lesson stats under Memory Balance sferas — same size for every sphere. */
+const MEMORY_BALANCE_STATS_ICON_SIZE = scaleFocused(13);
+const MEMORY_BALANCE_STATS_TEXT_SIZE = scaleFocused(11);
+const MEMORY_BALANCE_STATS_MARGIN_TOP = scaleFocused(6);
+const MEMORY_BALANCE_STATS_ROW_GAP = scaleFocused(4);
+const MEMORY_BALANCE_STATS_ICON_TEXT_GAP = scaleFocused(3);
+/** Vertical space reserved below the sphere for the stats row. */
+const MEMORY_BALANCE_STATS_BELOW = scaleFocused(26);
 
 /** Scalable gap between rotating entities and the label block (3% of screen height) */
 const FOCUSED_LABEL_GAP = SH * 0.03 * IPAD_FOCUSED_SCALE;
@@ -2569,6 +2596,204 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   );
 });
 
+/** Concentric memory-balance layout (overview) — toggled from the top-right control, not the avatar. */
+function MemoryBalanceView({
+  memoryBalanceSizeBySphere,
+  momentStatsBySphere,
+  getSphereSunnyPercentage,
+  colorScheme,
+  onSpherePress,
+}: {
+  memoryBalanceSizeBySphere: Record<LifeSphere, number>;
+  momentStatsBySphere: Record<
+    LifeSphere,
+    { sunny: number; cloudy: number; lessons: number }
+  >;
+  getSphereSunnyPercentage: (sphere: LifeSphere) => number;
+  colorScheme: "light" | "dark";
+  onSpherePress: (sphereIndex: number, sphereType: LifeSphere) => void;
+}) {
+  return (
+    <>
+      {SPHERE_LIST.map((sphere, i) => {
+        const layout = MEMORY_BALANCE_RING_LAYOUT[i];
+        const rad = (layout.angleDeg * Math.PI) / 180;
+        const size = memoryBalanceSizeBySphere[sphere.type];
+        const rawCenterX = SUN_CENTER_X + Math.cos(rad) * layout.radius;
+        const rawCenterY = SUN_CENTER_Y + Math.sin(rad) * layout.radius;
+        const safeLeft = size / 2 + 10;
+        const safeRight = SW - size / 2 - 10;
+        const safeTop = size / 2 + scaleFocused(42);
+        const safeBottom = SH - size / 2 - scaleFocused(140);
+        const centerX = Math.max(safeLeft, Math.min(safeRight, rawCenterX));
+        const centerY = Math.max(safeTop, Math.min(safeBottom, rawCenterY));
+        const sunnyPct = getSphereSunnyPercentage(sphere.type);
+        const gradient3D = getSphere3DGradientColors(
+          sphere.type,
+          sunnyPct,
+          colorScheme,
+        );
+        const iconColor = getSphereIconColor(sphere.type, colorScheme, sunnyPct);
+        const shadowColor = getSphereShadowColor(sphere.type, colorScheme);
+        const stats = momentStatsBySphere[sphere.type];
+
+        return (
+          <Pressable
+            key={`memory-balance-${sphere.type}`}
+            onPress={() => onSpherePress(i, sphere.type)}
+            style={{
+              position: "absolute",
+              left: centerX - size / 2,
+              top: centerY - size / 2,
+              width: size,
+              height:
+                size +
+                MEMORY_BALANCE_STATS_MARGIN_TOP +
+                MEMORY_BALANCE_STATS_BELOW,
+              alignItems: "center",
+              zIndex: 16,
+            }}
+            hitSlop={8}
+          >
+            <View
+              style={{
+                width: size,
+                height: size,
+                borderRadius: size / 2,
+                justifyContent: "center",
+                alignItems: "center",
+                shadowColor: colorScheme === "dark" ? shadowColor : "#000",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.45,
+                shadowRadius: 14,
+                elevation: 12,
+              }}
+            >
+              <Svg
+                width="100%"
+                height="100%"
+                viewBox="0 0 100 100"
+                style={{ position: "absolute" }}
+                pointerEvents="none"
+              >
+                <Defs>
+                  <RadialGradient
+                    id={`memory-balance-sphere-${sphere.type}`}
+                    cx="50"
+                    cy="50"
+                    r="50"
+                    fx="32"
+                    fy="32"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <Stop offset="0%" stopColor={gradient3D.highlight} stopOpacity="1" />
+                    <Stop offset="38%" stopColor={gradient3D.base} stopOpacity="1" />
+                    <Stop offset="100%" stopColor={gradient3D.shadow} stopOpacity="1" />
+                  </RadialGradient>
+                </Defs>
+                <SvgCircle
+                  cx="50"
+                  cy="50"
+                  r="50"
+                  fill={`url(#memory-balance-sphere-${sphere.type})`}
+                />
+              </Svg>
+              <MaterialIcons
+                name={sphere.icon as keyof typeof MaterialIcons.glyphMap}
+                size={Math.round(size * 0.33)}
+                color={iconColor}
+              />
+            </View>
+            <View
+              style={{
+                marginTop: MEMORY_BALANCE_STATS_MARGIN_TOP,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: MEMORY_BALANCE_STATS_ROW_GAP,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: MEMORY_BALANCE_STATS_ICON_TEXT_GAP,
+                  }}
+                >
+                  <MaterialIcons
+                    name="wb-sunny"
+                    size={MEMORY_BALANCE_STATS_ICON_SIZE}
+                    color="#FDD835"
+                  />
+                  <ThemedText
+                    style={{
+                      fontSize: MEMORY_BALANCE_STATS_TEXT_SIZE,
+                      color: "#FFFFFF",
+                      opacity: 0.9,
+                    }}
+                  >
+                    {stats.sunny}
+                  </ThemedText>
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: MEMORY_BALANCE_STATS_ICON_TEXT_GAP,
+                  }}
+                >
+                  <MaterialIcons
+                    name="cloud"
+                    size={MEMORY_BALANCE_STATS_ICON_SIZE}
+                    color="#90A4AE"
+                  />
+                  <ThemedText
+                    style={{
+                      fontSize: MEMORY_BALANCE_STATS_TEXT_SIZE,
+                      color: "#FFFFFF",
+                      opacity: 0.9,
+                    }}
+                  >
+                    {stats.cloudy}
+                  </ThemedText>
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: MEMORY_BALANCE_STATS_ICON_TEXT_GAP,
+                  }}
+                >
+                  <MaterialIcons
+                    name="school"
+                    size={MEMORY_BALANCE_STATS_ICON_SIZE}
+                    color="#CE93D8"
+                  />
+                  <ThemedText
+                    style={{
+                      fontSize: MEMORY_BALANCE_STATS_TEXT_SIZE,
+                      color: "#FFFFFF",
+                      opacity: 0.9,
+                    }}
+                  >
+                    {stats.lessons}
+                  </ThemedText>
+                </View>
+              </View>
+            </View>
+          </Pressable>
+        );
+      })}
+    </>
+  );
+}
+
 // ───────────────────── Main component ─────────────────────
 
 export function FocusedSferaView({
@@ -2603,12 +2828,43 @@ export function FocusedSferaView({
   sferaDataReady = true,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
+  const insets = useSafeAreaInsets();
   const { ensureSubscriptionResolved, refreshCustomerInfo } = useSubscription();
   const { appUsabilityHints, sunnyMomentsCongratsAnimation } = useVisualSettings();
   const focusedSpherePulseRef = useRef<(() => void) | null>(null);
   const focusedSphereTapTimeRef = useRef<number>(0);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const memoriesHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [displayMode, setDisplayMode] = useState<"defaultOrbit" | "memoryBalanceRings">(
+    "defaultOrbit",
+  );
+  const [displayModeHydrated, setDisplayModeHydrated] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(FOCUSED_DISPLAY_MODE_STORAGE_KEY);
+        if (cancelled) return;
+        if (raw === "memoryBalanceRings" || raw === "defaultOrbit") {
+          setDisplayMode(raw);
+        }
+      } finally {
+        if (!cancelled) {
+          setDisplayModeHydrated(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!displayModeHydrated) return;
+    void AsyncStorage.setItem(FOCUSED_DISPLAY_MODE_STORAGE_KEY, displayMode);
+  }, [displayMode, displayModeHydrated]);
+
   const [memoriesHint, setMemoriesHint] = useState<
     | null
     | { place: "orbit"; entityId: string }
@@ -2711,6 +2967,24 @@ export function FocusedSferaView({
   const sunMenuStyle = useAnimatedStyle(() => ({
     opacity: sunMenuOpacity.value,
     transform: [{ translateY: sunMenuTranslateY.value }],
+  }));
+
+  /** Fades / scales Memory Balance sferas with the sun menu (same `sunExpanded` spring as the 3 icons). */
+  const memoryBalanceLayerStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(sunExpanded.value, [0, 1], [1, 0], Extrapolation.CLAMP),
+    transform: [
+      {
+        scale: interpolate(sunExpanded.value, [0, 1], [1, 0.93], Extrapolation.CLAMP),
+      },
+      {
+        translateY: interpolate(
+          sunExpanded.value,
+          [0, 1],
+          [0, MEMORY_BALANCE_MENU_HIDE_DRIFT_Y],
+          Extrapolation.CLAMP,
+        ),
+      },
+    ],
   }));
 
   useEffect(() => {
@@ -2884,6 +3158,8 @@ export function FocusedSferaView({
   const t = useTranslate();
   const { language } = useLanguage();
   const focusedSphere = SPHERE_LIST[focusedIdx];
+  const isMemoryBalanceMode =
+    selectedSphere === null && displayMode === "memoryBalanceRings";
   const individualModeScale =
     selectedSphere !== null ? IPAD_INDIVIDUAL_SFERA_SCALE : 1;
   const individualCardScale =
@@ -2918,6 +3194,68 @@ export function FocusedSferaView({
     const focusedMemories = memoriesPerEntityBySphere[focusedSphere.type] ?? [];
     return focusedMemories.some((entityMemories) => entityMemories.length > 0);
   }, [memoriesPerEntityBySphere, focusedSphere.type]);
+
+  const memoryCountBySphere = useMemo(() => {
+    const result = {} as Record<LifeSphere, number>;
+    SPHERE_LIST.forEach(({ type }) => {
+      const entityMemories = memoriesPerEntityBySphere[type] ?? [];
+      result[type] = entityMemories.reduce(
+        (total, memories) => total + memories.length,
+        0,
+      );
+    });
+    return result;
+  }, [memoriesPerEntityBySphere]);
+
+  const memoryBalanceSizeBySphere = useMemo(() => {
+    const maxAllowed = Math.min(MEMORY_BALANCE_MAX_SIZE, SW * 0.32);
+    const minAllowed = Math.min(MEMORY_BALANCE_MIN_SIZE, maxAllowed * 0.65);
+    const counts = SPHERE_LIST.map(({ type }) => memoryCountBySphere[type]);
+    const minCount = Math.min(...counts);
+    const maxCount = Math.max(...counts);
+    const sameCounts = maxCount === minCount;
+    const fallbackSize = (minAllowed + maxAllowed) / 2;
+    const result = {} as Record<LifeSphere, number>;
+
+    SPHERE_LIST.forEach(({ type }) => {
+      const count = memoryCountBySphere[type];
+      if (sameCounts) {
+        result[type] = fallbackSize;
+        return;
+      }
+      const ratio = (count - minCount) / (maxCount - minCount);
+      result[type] =
+        minAllowed + ratio * (maxAllowed - minAllowed);
+    });
+
+    return result;
+  }, [memoryCountBySphere]);
+
+  const momentStatsBySphere = useMemo(() => {
+    const result = {} as Record<
+      LifeSphere,
+      { sunny: number; cloudy: number; lessons: number }
+    >;
+
+    SPHERE_LIST.forEach(({ type }) => {
+      const entityMemories = memoriesPerEntityBySphere[type] ?? [];
+      let sunny = 0;
+      let cloudy = 0;
+      let lessons = 0;
+
+      entityMemories.forEach((memories) => {
+        memories.forEach((memory) => {
+          sunny += (memory.goodFacts || []).length;
+          cloudy += (memory.hardTruths || []).length;
+          lessons += (memory.lessonsLearned || []).length;
+        });
+      });
+
+      result[type] = { sunny, cloudy, lessons };
+    });
+
+    return result;
+  }, [memoriesPerEntityBySphere]);
 
   const sunnyFacts = useMemo(() => {
     const allMems = (
@@ -3015,14 +3353,17 @@ export function FocusedSferaView({
   ]);
 
   // When circle avatar is pressed:
-  // - Initial view (selectedSphere === null): expand sun (shrink sferas + show menu) AND center sun
+  // - Initial view (selectedSphere === null): single tap opens/closes the 3-icon sun menu (displayMode unchanged — Memory Balance vs orbit stays on the top-right toggle)
   // - Individual sfera view (selectedSphere !== null): clear selection to return to initial view
   const handleCircleAvatarPress = useCallback(() => {
     if (!sunLoadComplete) return;
     if (selectedSphere === null) {
-      const next = !isSunExpanded;
-      setIsSunCentered(next);
-      handleSunPress();
+      if (isSunExpanded) {
+        handleCollapseSun();
+      } else {
+        setIsSunCentered(true);
+        handleSunPress();
+      }
     } else {
       if (onClearSelection) {
         onClearSelection();
@@ -3030,7 +3371,15 @@ export function FocusedSferaView({
         onSwitchToClassic();
       }
     }
-  }, [selectedSphere, isSunExpanded, onClearSelection, onSwitchToClassic, handleSunPress, sunLoadComplete]);
+  }, [
+    selectedSphere,
+    isSunExpanded,
+    onClearSelection,
+    onSwitchToClassic,
+    handleSunPress,
+    sunLoadComplete,
+    handleCollapseSun,
+  ]);
 
   const { momentColors } = useMomentColors();
   const avatarSizeForDots = scaleFocused(100);
@@ -3129,6 +3478,26 @@ export function FocusedSferaView({
     ],
   );
 
+  const handleMemoryBalanceSpherePress = useCallback(
+    (sphereIndex: number, sphereType: LifeSphere) => {
+      if (!sunLoadComplete) return;
+      if (isSunExpanded) {
+        handleCollapseSun();
+      }
+      goToSphere(sphereIndex);
+      onSphereSelect(sphereType);
+    },
+    [goToSphere, handleCollapseSun, isSunExpanded, onSphereSelect, sunLoadComplete],
+  );
+
+  const handleMemoryBalanceToggle = useCallback(() => {
+    if (!sunLoadComplete) return;
+    if (isSunExpanded) handleCollapseSun();
+    setDisplayMode((prev) =>
+      prev === "memoryBalanceRings" ? "defaultOrbit" : "memoryBalanceRings",
+    );
+  }, [sunLoadComplete, isSunExpanded, handleCollapseSun]);
+
   const doubleTapHintAnimatedStyle = useAnimatedStyle(() => ({
     opacity: hintOpacity.value,
   }));
@@ -3183,6 +3552,39 @@ export function FocusedSferaView({
 
       <BackgroundDecorations />
 
+      {selectedSphere === null && sunLoadComplete && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t(
+            isMemoryBalanceMode
+              ? "spheres.memoryBalanceToggleShowOrbitA11y"
+              : "spheres.memoryBalanceToggleShowBalanceA11y",
+          )}
+          onPress={handleMemoryBalanceToggle}
+          hitSlop={12}
+          style={{
+            position: "absolute",
+            top: insets.top + scaleFocused(8),
+            right: scaleFocused(12) + insets.right,
+            zIndex: 50,
+            width: scaleFocused(44),
+            height: scaleFocused(44),
+            borderRadius: scaleFocused(22),
+            backgroundColor: "rgba(30, 50, 80, 0.55)",
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.22)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <MaterialIcons
+            name={isMemoryBalanceMode ? "blur-circular" : "bubble-chart"}
+            size={scaleFocused(24)}
+            color="rgba(255,255,255,0.92)"
+          />
+        </Pressable>
+      )}
+
       {/* ─── Sparkled dots scattered across screen ─── */}
       <SparkledDots
         avatarSize={avatarSizeForDots}
@@ -3202,65 +3604,105 @@ export function FocusedSferaView({
         offsetX={ORBIT_CX}
         offsetY={ORBIT_CY + ORBIT_R}
         sphereSize={FOCUSED_SIZE * individualModeScale}
-        enabled={pulsingAnimations && !isSunExpanded && sunLoadComplete}
+        enabled={pulsingAnimations && !isMemoryBalanceMode && !isSunExpanded && sunLoadComplete}
       />
 
-      {/* ─── All 5 spheres with orbital animated transitions ─── */}
-      {SPHERE_LIST.map((sphere, i) => (
-        <AnimatedSphere
-          key={sphere.type}
-          sphereIdx={i}
-          sphere={sphere}
-          focusedIdx={focusedIdx}
-          entityUris={entityImageUrisBySphere[sphere.type] ?? []}
-          entityIds={entityIdsBySphere[sphere.type] ?? []}
-          entityNames={entityNamesBySphere[sphere.type] ?? []}
-          entityMemories={memoriesPerEntityBySphere[sphere.type] ?? []}
-          onPress={() => {
-            if (!sunLoadComplete) return;
-            if (isSunExpanded) { handleCollapseSun(); return; }
-            if (i !== focusedIdx) { goToSphere(i); return; }
-            if (selectedSphere !== null) {
-              onAddMemoriesPress?.();
-              return;
+      {/* ─── Sfera layer: default orbit or memory-balance concentric rings ─── */}
+      {!isMemoryBalanceMode &&
+        SPHERE_LIST.map((sphere, i) => (
+          <AnimatedSphere
+            key={sphere.type}
+            sphereIdx={i}
+            sphere={sphere}
+            focusedIdx={focusedIdx}
+            entityUris={entityImageUrisBySphere[sphere.type] ?? []}
+            entityIds={entityIdsBySphere[sphere.type] ?? []}
+            entityNames={entityNamesBySphere[sphere.type] ?? []}
+            entityMemories={memoriesPerEntityBySphere[sphere.type] ?? []}
+            onPress={() => {
+              if (!sunLoadComplete) return;
+              if (isSunExpanded) {
+                handleCollapseSun();
+                return;
+              }
+              if (i !== focusedIdx) {
+                goToSphere(i);
+                return;
+              }
+              if (selectedSphere !== null) {
+                onAddMemoriesPress?.();
+                return;
+              }
+              onSphereSelect(sphere.type);
+            }}
+            onEntitySelect={resolveEntitySelectForSphere(i, sphere.type)}
+            onSingleTapSameAsFocusedSphere={
+              i === focusedIdx ? handleFocusedSphereTapOverlay : undefined
             }
-            onSphereSelect(sphere.type);
-          }}
-          onEntitySelect={resolveEntitySelectForSphere(i, sphere.type)}
-          onSingleTapSameAsFocusedSphere={
-            i === focusedIdx ? handleFocusedSphereTapOverlay : undefined
-          }
-          onNeedMemoriesHint={showOrbitNeedMemoriesHint}
-          needMemoriesHintEntityId={orbitNeedMemoriesHintEntityId}
-          colorScheme={colorScheme}
-          sunnyPercentage={getSphereSunnyPercentage(sphere.type)}
-          orbitDurationMs={orbitDurationMs}
-          singleTapWhenFocused={selectedSphere !== null && i === focusedIdx}
-          onPulse={i === focusedIdx ? (fn) => { focusedSpherePulseRef.current = fn; } : undefined}
-          sunExpanded={sunExpanded}
-          isInitialView={selectedSphere === null}
-          sunLoadProgress={sunLoadComplete ? undefined : sunLoadProgress}
-          sunLoadSweepOffset={sunLoadComplete ? undefined : sunLoadSweepOffset}
-          sphereIntroStaggerMs={i * 150}
-          isSunMenuOpen={isSunExpanded}
-          individualModeScale={individualModeScale}
-          entityAvatarScale={individualEntityAvatarScale}
-        />
-      ))}
+            onNeedMemoriesHint={showOrbitNeedMemoriesHint}
+            needMemoriesHintEntityId={orbitNeedMemoriesHintEntityId}
+            colorScheme={colorScheme}
+            sunnyPercentage={getSphereSunnyPercentage(sphere.type)}
+            orbitDurationMs={orbitDurationMs}
+            singleTapWhenFocused={selectedSphere !== null && i === focusedIdx}
+            onPulse={
+              i === focusedIdx
+                ? (fn) => {
+                    focusedSpherePulseRef.current = fn;
+                  }
+                : undefined
+            }
+            sunExpanded={sunExpanded}
+            isInitialView={selectedSphere === null}
+            sunLoadProgress={sunLoadComplete ? undefined : sunLoadProgress}
+            sunLoadSweepOffset={sunLoadComplete ? undefined : sunLoadSweepOffset}
+            sphereIntroStaggerMs={i * 150}
+            isSunMenuOpen={isSunExpanded}
+            individualModeScale={individualModeScale}
+            entityAvatarScale={individualEntityAvatarScale}
+          />
+        ))}
+      {/* Same timing as orbit sferas: only after sun-load celebration finishes (avatar at final size/position). */}
+      {isMemoryBalanceMode && sunLoadComplete && (
+        <Animated.View
+          pointerEvents={isSunExpanded ? "none" : "auto"}
+          style={[
+            {
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              zIndex: 16,
+            },
+            memoryBalanceLayerStyle,
+          ]}
+        >
+          <MemoryBalanceView
+            memoryBalanceSizeBySphere={memoryBalanceSizeBySphere}
+            momentStatsBySphere={momentStatsBySphere}
+            getSphereSunnyPercentage={getSphereSunnyPercentage}
+            colorScheme={colorScheme}
+            onSpherePress={handleMemoryBalanceSpherePress}
+          />
+        </Animated.View>
+      )}
 
       {/* ─── Focused sphere tap target — absolute positioned so iOS hit-testing works (transforms bypass hit rects) ─── */}
-      <Pressable
-        style={{
-          position: "absolute",
-          left: ORBIT_CX - focusedTapSize / 2,
-          top: ORBIT_CY + ORBIT_R - focusedTapSize / 2,
-          width: focusedTapSize,
-          height: focusedTapSize,
-          borderRadius: focusedTapSize / 2,
-          zIndex: 13,
-        }}
-        onPress={handleFocusedSphereTapOverlay}
-      />
+      {!isMemoryBalanceMode && (
+        <Pressable
+          style={{
+            position: "absolute",
+            left: ORBIT_CX - focusedTapSize / 2,
+            top: ORBIT_CY + ORBIT_R - focusedTapSize / 2,
+            width: focusedTapSize,
+            height: focusedTapSize,
+            borderRadius: focusedTapSize / 2,
+            zIndex: 13,
+          }}
+          onPress={handleFocusedSphereTapOverlay}
+        />
+      )}
 
       {/* ─── Center: Sfera Insight Card (individual sfera view) or Sun Avatar (overview) ─── */}
       {selectedSphere !== null && (entityIdsBySphere[focusedSphere.type]?.length ?? 0) > 0 ? (
@@ -3274,8 +3716,8 @@ export function FocusedSferaView({
           showNeedMemoriesHintBelowCard={showInsightCardNeedMemoriesHintFlag}
           colorScheme={colorScheme}
           shadowColor={focusedShadowColor}
-          x={SW * 0.45}
-          y={SH * 0.38}
+          x={SUN_CENTER_X}
+          y={SUN_CENTER_Y}
           sizeScale={individualCardScale}
         />
       ) : (
@@ -3287,8 +3729,8 @@ export function FocusedSferaView({
             onPress={handleCircleAvatarPress}
             onAddMemoriesPress={onAddMemoriesPress}
             colorScheme={colorScheme}
-            x={SW * 0.45}
-            y={SH * 0.38}
+            x={SUN_CENTER_X}
+            y={SUN_CENTER_Y}
             sunLoadScale={sunLoadComplete ? undefined : sunLoadScale}
             sunLoadDisplayPct={sunLoadComplete ? undefined : sunLoadDisplayPct}
             sunExpanded={sunExpanded}
@@ -3499,36 +3941,38 @@ export function FocusedSferaView({
       )}
 
       {/* ─── Focused sfera label + pagination dots (below rotating entities) ─── */}
-      <View
-        style={[
-          styles.focusedLabelContainer,
-          {
-            top: focusedLabelTop,
-            opacity: !sunLoadComplete || isSunExpanded ? 0 : 1,
-          },
-        ]}
-        pointerEvents="none"
-      >
-        <ThemedText style={styles.focusedLabelText}>
-          {t(`spheres.${focusedSphere.type}`)}
-        </ThemedText>
+      {!isMemoryBalanceMode && (
         <View
-          style={[styles.focusedLabelDotsRow, { marginTop: LABEL_TO_DOTS_GAP }]}
+          style={[
+            styles.focusedLabelContainer,
+            {
+              top: focusedLabelTop,
+              opacity: !sunLoadComplete || isSunExpanded ? 0 : 1,
+            },
+          ]}
+          pointerEvents="none"
         >
-          {SPHERE_LIST.map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.focusedLabelDot,
-                i === focusedIdx && styles.focusedLabelDotActive,
-              ]}
-            />
-          ))}
+          <ThemedText style={styles.focusedLabelText}>
+            {t(`spheres.${focusedSphere.type}`)}
+          </ThemedText>
+          <View
+            style={[styles.focusedLabelDotsRow, { marginTop: LABEL_TO_DOTS_GAP }]}
+          >
+            {SPHERE_LIST.map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.focusedLabelDot,
+                  i === focusedIdx && styles.focusedLabelDotActive,
+                ]}
+              />
+            ))}
+          </View>
         </View>
-      </View>
+      )}
 
       {/* ─── Double-tap UX hint: soft tooltip below sphere, triggered on single tap ─── */}
-      {appUsabilityHints && selectedSphere === null && (
+      {appUsabilityHints && selectedSphere === null && !isMemoryBalanceMode && (
         <Animated.View
           pointerEvents="none"
           style={[
@@ -3558,7 +4002,7 @@ export function FocusedSferaView({
       )}
 
       {/* ─── Chevron buttons: hidden when sun is expanded or intro is playing ─── */}
-      {!isSunExpanded && sunLoadComplete && (
+      {!isMemoryBalanceMode && !isSunExpanded && sunLoadComplete && (
         <>
           <Animated.View style={[styles.chevron, styles.chevronLeft, leftChevronStyle]}>
             <Pressable
