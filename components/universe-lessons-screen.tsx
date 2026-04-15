@@ -94,6 +94,13 @@ type LessonCard = {
   isFavorite?: boolean;
 };
 
+/** Skip empty/whitespace URIs; native Image still probes them and can log CoreGraphics noise. */
+function normalizeMoonImageUri(uri: string | undefined): string | null {
+  if (uri == null) return null;
+  const t = uri.trim();
+  return t.length > 0 ? t : null;
+}
+
 type SphereFilter = "all" | Set<LifeSphere>;
 type YearFilter = "all" | Set<number>;
 
@@ -691,6 +698,15 @@ const LessonSfera = React.memo(function LessonSfera({
     }
   }, [isVisible, rot]);
 
+  const moonUri = useMemo(
+    () => normalizeMoonImageUri(card.memoryImageUri),
+    [card.memoryImageUri],
+  );
+  const [moonImageFailed, setMoonImageFailed] = useState(false);
+  useEffect(() => {
+    setMoonImageFailed(false);
+  }, [card.id, card.memoryImageUri]);
+
   return (
     <View style={[styles.cardContainer, { height: CARD_HEIGHT }]}>
       <Animated.View style={[styles.planetWrapper, cardStyle]}>
@@ -785,11 +801,13 @@ const LessonSfera = React.memo(function LessonSfera({
                 shadowRadius: 8,
                 elevation: 6,
               }]}>
-                {card.memoryImageUri ? (
+                {moonUri && !moonImageFailed ? (
                   <Image
-                    source={{ uri: card.memoryImageUri }}
+                    source={{ uri: moonUri }}
                     style={styles.moonImage}
                     contentFit="cover"
+                    recyclingKey={`${card.id}-moon`}
+                    onError={() => setMoonImageFailed(true)}
                   />
                 ) : (
                   <View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center", backgroundColor: accentColor + "22", borderRadius: MOON_SIZE / 2 }]}>

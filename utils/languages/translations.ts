@@ -13,6 +13,7 @@ export interface Translations {
   "tab.settings": string;
   "tab.events": string;
   "home.emptyState": string;
+  "home.sferaSizeHint": string;
   // Events tab (Sferas Community / Events)
   "events.section.social": string;
   "events.section.private": string;
@@ -3829,6 +3830,8 @@ const translations: Record<Language, Translations> = {
     "tab.events": "Events",
     "home.emptyState":
       "No profiles yet. Add your first ex-profile to get started.",
+    "home.sferaSizeHint":
+      "Each sfera is sized by its share of moments compared to the other sferas.",
     "avatar.sunnyLife": "Sunny",
     "avatar.sunnyCongrats": "{pct}% Sunny!",
     "avatar.addMemories": "Add memories",
@@ -8575,6 +8578,8 @@ const translations: Record<Language, Translations> = {
     "tab.events": "Събития",
     "home.emptyState":
       "Няма профили все още. Добавете първи партньор, за да започнете.",
+    "home.sferaSizeHint":
+      "Всяка сфера е с размер според относителния дял моменти спрямо другите сфери.",
     "avatar.sunnyLife": "Слънчево",
     "avatar.sunnyCongrats": "{pct}% Слънчево!",
     "avatar.addMemories": "Добави спомени",

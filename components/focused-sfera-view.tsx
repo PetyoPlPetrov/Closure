@@ -107,6 +107,16 @@ const SPHERE_NEON: Record<LifeSphere, { core: string; glow: string }> = {
 const FOCUSED_SIZE = scaleFocused(170);
 const FOCUSED_ICON_SIZE = scaleFocused(72);
 
+/** Memory Balance: hint overlay band starts this far down the screen (fraction of height). Larger = strip nearer tab bar. */
+const SFERA_HINT_MB_BAND_TOP_FRAC = 0.7;
+/**
+ * Pulls the hint strip closer to the tab bar: tab inset minus a fraction of screen height
+ * minus scaled points (phones + iPad via scaleFocused).
+ */
+function sferaHintBottomLiftPx(tabBarInset: number): number {
+  return Math.max(0, tabBarInset - SH * 0.052 - scaleFocused(14));
+}
+
 // Orbit around the Sunny Life avatar: spheres move along this circle when switching focus
 const ORBIT_CX = SW / 2;
 // Slightly lower than center to keep space for the badge + toggle
@@ -262,6 +272,12 @@ export type FocusedSferaViewProps = {
   onIntroComplete?: () => void;
   /** Parent assigns `current` to collapse the sun menu (same as tapping the sun when the menu is open). */
   sunMenuCollapseActionRef?: React.MutableRefObject<(() => void) | null>;
+  /** Height reserved for the tab bar (pt) — pins optional bottom overlays above it. */
+  bottomTabBarInset?: number;
+  /** e.g. sfera size hint; only shown on overview (`selectedSphere === null`) below the sphere cluster. */
+  sferaSizeHint?: React.ReactNode;
+  /** Reports Memory Balance vs orbit so the home tab can gate the sfera-size hint (hint only applies to Memory Balance rings). */
+  onFocusedDisplayModeForHint?: (isMemoryBalanceRings: boolean) => void;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -280,10 +296,7 @@ const BG_DECOR = [
   { cx: SW * 0.08, cy: SH * 0.07, rx: 52, ry: 52, strokeW: 1.2, op: 0.10, fill: false },
   { cx: SW * 0.08, cy: SH * 0.07, rx: 32, ry: 32, strokeW: 0.7, op: 0.07, fill: false },
   { cx: SW * 0.14, cy: SH * 0.12, rx: 14, ry: 14, strokeW: 0, op: 0.08, fill: true },
-  // top-right corner
-  { cx: SW * 0.88, cy: SH * 0.06, rx: 44, ry: 44, strokeW: 1.0, op: 0.09, fill: false },
-  { cx: SW * 0.92, cy: SH * 0.10, rx: 20, ry: 20, strokeW: 0, op: 0.07, fill: true },
-  { cx: SW * 0.82, cy: SH * 0.14, rx: 10, ry: 10, strokeW: 0, op: 0.05, fill: true },
+  // top-right: intentionally no rings here — they sat under the memory-balance control / status area and read like a ghost of that button.
   // left edge mid (below lesson card zone)
   { cx: SW * 0.04, cy: SH * 0.60, rx: 60, ry: 36, strokeW: 0.8, op: 0.08, fill: false },
   { cx: SW * 0.06, cy: SH * 0.55, rx: 18, ry: 18, strokeW: 0, op: 0.06, fill: true },
@@ -2900,6 +2913,9 @@ export function FocusedSferaView({
   onIntroComplete,
   sferaDataReady = true,
   sunMenuCollapseActionRef,
+  bottomTabBarInset = 0,
+  sferaSizeHint,
+  onFocusedDisplayModeForHint,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
   const isScreenFocused = useIsFocused();
@@ -2941,6 +2957,11 @@ export function FocusedSferaView({
     if (!displayModeHydrated) return;
     void AsyncStorage.setItem(FOCUSED_DISPLAY_MODE_STORAGE_KEY, displayMode);
   }, [displayMode, displayModeHydrated]);
+
+  useEffect(() => {
+    if (!displayModeHydrated) return;
+    onFocusedDisplayModeForHint?.(displayMode === "memoryBalanceRings");
+  }, [displayModeHydrated, displayMode, onFocusedDisplayModeForHint]);
 
   const [memoriesHint, setMemoriesHint] = useState<
     | null
@@ -3006,6 +3027,17 @@ export function FocusedSferaView({
   const [isSunCentered, setIsSunCentered] = useState(
     () => selectedSphere === null && startSunExpanded,
   );
+
+  /** Hide top-right memory-balance toggle as soon as central avatar press starts (before sun menu state updates). */
+  const [hideMemoryBalanceToggleForAvatar, setHideMemoryBalanceToggleForAvatar] =
+    useState(false);
+  const isSunExpandedRef = useRef(isSunExpanded);
+  useEffect(() => {
+    isSunExpandedRef.current = isSunExpanded;
+  }, [isSunExpanded]);
+  useEffect(() => {
+    if (selectedSphere !== null) setHideMemoryBalanceToggleForAvatar(false);
+  }, [selectedSphere]);
 
   useEffect(() => {
     onSunMenuExpandedChange?.(isSunExpanded);
@@ -3250,6 +3282,17 @@ export function FocusedSferaView({
         SH - scaleFocused(120),
       )
     : ORBIT_CY + ORBIT_R + FOCUSED_LABEL_GAP * 5.5;
+  /** Top edge of the band where the sfera-size hint may sit (below label row / rings, above tab bar). */
+  const sferaSizeHintBandTop = useMemo(() => {
+    if (selectedSphere !== null) return SH;
+    if (isMemoryBalanceMode) {
+      return SH * SFERA_HINT_MB_BAND_TOP_FRAC;
+    }
+    return Math.min(
+      focusedLabelTop + scaleFocused(56),
+      SH * 0.76,
+    );
+  }, [selectedSphere, isMemoryBalanceMode, focusedLabelTop]);
   const focusedSunnyPct = getSphereSunnyPercentage(focusedSphere.type);
   const focusedGradientColors = getSphereGradientColors(
     focusedSphere.type,
@@ -3399,9 +3442,26 @@ export function FocusedSferaView({
 
   // Collapse sun expanded state and centering together
   const handleCollapseSun = useCallback(() => {
+    setHideMemoryBalanceToggleForAvatar(false);
     setIsSunCentered(false);
     if (isSunExpanded) handleSunPress();
   }, [isSunExpanded, handleSunPress]);
+
+  const handleAvatarPressInHideMemoryBalance = useCallback(() => {
+    if (selectedSphere === null && hasMemories) {
+      setHideMemoryBalanceToggleForAvatar(true);
+    }
+  }, [selectedSphere, hasMemories]);
+
+  const handleAvatarPressOutRestoreMemoryBalance = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!isSunExpandedRef.current) {
+          setHideMemoryBalanceToggleForAvatar(false);
+        }
+      });
+    });
+  }, []);
 
   useEffect(() => {
     if (!sunMenuCollapseActionRef) return;
@@ -3619,16 +3679,14 @@ export function FocusedSferaView({
   const congratsStyle = useAnimatedStyle(() => ({ opacity: congratsOpacity.value }));
   const handleFireworksComplete = useCallback(() => setIntroFireworks(false), []);
 
+  if (hidden) {
+    return null;
+  }
+
   return (
     <View
-      style={[
-        styles.root,
-        { marginTop: rootMarginTop },
-        hidden
-          ? { opacity: 0, pointerEvents: "none" as const }
-          : { pointerEvents: "auto" as const },
-      ]}
-      {...(hidden ? {} : panResponder.panHandlers)}
+      style={[styles.root, { marginTop: rootMarginTop }]}
+      {...panResponder.panHandlers}
     >
       <ConstellationBackground
         width={SW}
@@ -3639,7 +3697,10 @@ export function FocusedSferaView({
 
       <BackgroundDecorations />
 
-      {selectedSphere === null && sunLoadComplete && !isSunExpanded && (
+      {selectedSphere === null &&
+        sunLoadComplete &&
+        !isSunExpanded &&
+        !hideMemoryBalanceToggleForAvatar && (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t(
@@ -3662,6 +3723,8 @@ export function FocusedSferaView({
             borderColor: "rgba(255,255,255,0.22)",
             justifyContent: "center",
             alignItems: "center",
+            shadowOpacity: 0,
+            elevation: 0,
           }}
         >
           <MaterialIcons
@@ -3823,6 +3886,8 @@ export function FocusedSferaView({
             showPercentageLabel={sunCelebrationEligible}
             onPress={handleCircleAvatarPress}
             onAddMemoriesPress={onAddMemoriesPress}
+            onAvatarPressIn={handleAvatarPressInHideMemoryBalance}
+            onAvatarPressOut={handleAvatarPressOutRestoreMemoryBalance}
             colorScheme={colorScheme}
             x={SUN_CENTER_X}
             y={SUN_CENTER_Y}
@@ -4098,6 +4163,32 @@ export function FocusedSferaView({
           </ThemedText>
         </Animated.View>
       )}
+
+      {/* ─── Sfera size hint: Memory Balance view only (relative ring sizes); not default orbit / single-sphere focus ─── */}
+      {selectedSphere === null &&
+        isMemoryBalanceMode &&
+        sunLoadComplete &&
+        sferaSizeHint &&
+        bottomTabBarInset > 0 &&
+        SH - sferaHintBottomLiftPx(bottomTabBarInset) - sferaSizeHintBandTop >
+          scaleFocused(48) && (
+          <View
+            pointerEvents="box-none"
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: sferaSizeHintBandTop,
+              bottom: sferaHintBottomLiftPx(bottomTabBarInset),
+              justifyContent: "flex-end",
+              paddingHorizontal: scaleFocused(16),
+              paddingBottom: 0,
+              zIndex: 60,
+            }}
+          >
+            {sferaSizeHint}
+          </View>
+        )}
 
       {/* ─── Chevron buttons: hidden when sun is expanded or intro is playing ─── */}
       {!isMemoryBalanceMode && !isSunExpanded && sunLoadComplete && (

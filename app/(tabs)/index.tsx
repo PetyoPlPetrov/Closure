@@ -6,6 +6,7 @@ import { FocusedEntitiesView } from "@/components/focused-entities-view";
 import { FocusedSferaView } from "@/components/focused-sfera-view";
 import { PulsingPressable } from "@/components/pulsing-pressable";
 import ShareModal from "@/components/ShareModal";
+import { SferaSizeHintBanner } from "@/components/sfera-size-hint-banner";
 import { StreakBadgeComponent } from "@/components/streak-badge";
 import { StreakModal } from "@/components/streak-modal";
 import { StreakRulesModal } from "@/components/streak-rules-modal";
@@ -39,6 +40,10 @@ import {
   getReadSections,
   setGuideDismissedForever,
 } from "@/utils/guide-storage";
+import {
+  getSferaSizeHintDismissedForever,
+  setSferaSizeHintDismissedForever,
+} from "@/utils/sfera-size-hint-storage";
 import { SECTIONS } from "../guide/_data";
 import { showPaywallForAIAccess } from "@/utils/premium-access";
 import {
@@ -14429,6 +14434,112 @@ export default function HomeScreen() {
     return idealizedMemories && idealizedMemories.length > 0;
   }, [idealizedMemories]);
 
+  const sferaSizeHintTabBarHeight = useMemo(
+    () =>
+      Math.round(78 * fontScale) +
+      Math.max(12, insets.bottom + 12 - 20 * fontScale),
+    [fontScale, insets.bottom],
+  );
+
+  const [sferaSizeHintNeverShow, setSferaSizeHintNeverShow] = useState<
+    boolean | null
+  >(null);
+  /** Tracks whether focused-overview "gate" was already true — show hint on false → true only. */
+  const prevCanShowFocusedOverviewRef = useRef(false);
+  /** From FocusedSferaView: size hint only applies in Memory Balance rings mode. */
+  const [focusedHomeMemoryBalance, setFocusedHomeMemoryBalance] = useState<
+    boolean | null
+  >(null);
+  /** False while not in MB; true while in MB — used to detect orbit → MB to re-show hint. */
+  const prevMbForHintRef = useRef(false);
+  const [sferaSizeHintVisible, setSferaSizeHintVisible] = useState(false);
+
+  useEffect(() => {
+    void getSferaSizeHintDismissedForever().then(setSferaSizeHintNeverShow);
+  }, []);
+
+  useEffect(() => {
+    const onFocusedOverviewSurface =
+      isHomeTabFocused &&
+      homeViewMode === "focused" &&
+      !selectedSphere;
+
+    const leavingFocusedOverviewSurface =
+      !isHomeTabFocused ||
+      homeViewMode !== "focused" ||
+      selectedSphere !== null;
+
+    const readyForSferaSizeHint =
+      onFocusedOverviewSurface &&
+      !isLoading &&
+      focusedIntroComplete &&
+      hasAnyMoments;
+
+    if (sferaSizeHintNeverShow !== false) {
+      if (leavingFocusedOverviewSurface) {
+        prevCanShowFocusedOverviewRef.current = false;
+      }
+      setSferaSizeHintVisible(false);
+      return;
+    }
+
+    // Only reset Memory Balance sync when actually leaving this screen — not while intro/loading
+    // (otherwise FocusedSferaView hydrates MB before intro completes and we clear it).
+    if (leavingFocusedOverviewSurface) {
+      prevCanShowFocusedOverviewRef.current = false;
+      prevMbForHintRef.current = false;
+      setFocusedHomeMemoryBalance(null);
+      setSferaSizeHintVisible(false);
+      return;
+    }
+
+    if (!readyForSferaSizeHint) {
+      setSferaSizeHintVisible(false);
+      return;
+    }
+
+    if (focusedHomeMemoryBalance !== true) {
+      if (focusedHomeMemoryBalance === false) {
+        prevMbForHintRef.current = false;
+      }
+      setSferaSizeHintVisible(false);
+      return;
+    }
+
+    const enteredMbFromNonMb =
+      !prevMbForHintRef.current && focusedHomeMemoryBalance === true;
+    prevMbForHintRef.current = true;
+
+    if (!prevCanShowFocusedOverviewRef.current) {
+      prevCanShowFocusedOverviewRef.current = true;
+      setSferaSizeHintVisible(true);
+      return;
+    }
+
+    if (enteredMbFromNonMb) {
+      setSferaSizeHintVisible(true);
+    }
+  }, [
+    sferaSizeHintNeverShow,
+    focusedHomeMemoryBalance,
+    isHomeTabFocused,
+    homeViewMode,
+    selectedSphere,
+    isLoading,
+    focusedIntroComplete,
+    hasAnyMoments,
+  ]);
+
+  const handleSferaSizeHintClose = useCallback(() => {
+    setSferaSizeHintVisible(false);
+  }, []);
+
+  const handleSferaSizeHintDontShowAgain = useCallback(() => {
+    void setSferaSizeHintDismissedForever(true);
+    setSferaSizeHintNeverShow(true);
+    setSferaSizeHintVisible(false);
+  }, []);
+
   const messageTop = 180; // Position for lesson notification (below streak badge)
 
   const [aiInsightsConsentVisible, setAiInsightsConsentVisible] =
@@ -18572,7 +18683,13 @@ export default function HomeScreen() {
         StyleSheet.absoluteFillObject,
         { zIndex: showEntityDetail ? 0 : 10 },
         showEntityDetail
-          ? { opacity: 0, pointerEvents: "none" as const }
+          ? {
+              opacity: 0,
+              pointerEvents: "none" as const,
+              // Opacity-only hiding can leave a faint circular compositing ghost on iOS
+              // (e.g. where the top-right memory-balance control was). Move fully off-screen.
+              transform: [{ translateX: -SCREEN_WIDTH * 4 }],
+            }
           : { pointerEvents: "auto" as const },
       ]}
       collapsable={false}
@@ -18661,6 +18778,18 @@ export default function HomeScreen() {
           onIntroComplete={() => setFocusedIntroComplete(true)}
           sferaDataReady={!isLoading}
           sunMenuCollapseActionRef={focusedSunMenuCollapseRef}
+          bottomTabBarInset={sferaSizeHintTabBarHeight}
+          onFocusedDisplayModeForHint={setFocusedHomeMemoryBalance}
+          sferaSizeHint={
+            sferaSizeHintVisible ? (
+              <SferaSizeHintBanner
+                message={t("home.sferaSizeHint")}
+                dismissLabel={t("guidePrompt.dismiss")}
+                onClose={handleSferaSizeHintClose}
+                onDontShowAgain={handleSferaSizeHintDontShowAgain}
+              />
+            ) : null
+          }
         />
       </View>
     </View>

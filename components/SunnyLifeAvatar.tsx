@@ -121,6 +121,10 @@ export interface SunnyLifeAvatarProps {
   onPress?: () => void;
   /** When set, tapping "Add memories" (when !hasMemories) navigates to Sfera tab. */
   onAddMemoriesPress?: () => void;
+  /** Fires at the start of a press on the avatar (before `onPress`). Optional — e.g. hide chrome immediately. */
+  onAvatarPressIn?: () => void;
+  /** Fires when the press ends (after `onPress` if it fired). Optional — e.g. restore chrome if press cancelled. */
+  onAvatarPressOut?: () => void;
   colorScheme: "light" | "dark";
   x: number;
   y: number;
@@ -149,6 +153,8 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   showPercentageLabel = true,
   onPress,
   onAddMemoriesPress,
+  onAvatarPressIn,
+  onAvatarPressOut,
   colorScheme,
   x,
   y,
@@ -325,8 +331,14 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   return (
     <Pressable
       onPress={handlePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
+      onPressIn={() => {
+        onAvatarPressIn?.();
+        handlePressIn();
+      }}
+      onPressOut={() => {
+        onAvatarPressOut?.();
+        handlePressOut();
+      }}
       style={wrapperStyle}
     >
       <Animated.View
