@@ -7,6 +7,7 @@
  */
 
 import { ThemedText } from "@/components/themed-text";
+import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { useJourney } from "@/utils/JourneyProvider";
 import type { LifeSphere } from "@/utils/JourneyProvider";
 import {
@@ -42,7 +43,9 @@ import {
   ActivityIndicator,
   Dimensions,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -238,11 +241,20 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
     isCorrect: boolean;
     feedback: string;
   } | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
   const answerInputRef = useRef(answerInput);
   useEffect(() => {
     answerInputRef.current = answerInput;
   }, [answerInput]);
+
+  const speechToText = useSpeechToText({
+    language,
+    getText: () => answerInputRef.current,
+    setText: setAnswerInput,
+    disabled: step !== "question",
+  });
+  const { isRecording, isListening } = speechToText;
 
   // Press scale for submit button
   const submitPressScale = useSharedValue(1);
@@ -390,6 +402,9 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
   const handleSubmit = useCallback(async () => {
     const trimmed = answerInputRef.current.trim();
     if (!currentCard || trimmed.length < 2) return;
+    if (isRecording || isListening) {
+      await speechToText.stop();
+    }
     await clearPendingUniverseExam();
     Keyboard.dismiss();
     setStep("analyzing");
@@ -411,10 +426,30 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
       });
     }
     setStep("result");
-  }, [currentCard, question, language]);
+  }, [currentCard, question, language, isRecording, isListening, speechToText]);
+
+  const handleToggleRecording = useCallback(async () => {
+    if (step !== "question") return;
+    try {
+      if (isRecording) {
+        await speechToText.stop();
+        return;
+      }
+      // Mirror AI modal behavior: ensure keyboard/input focus does not compete
+      // with the recognizer session startup on iOS.
+      inputRef.current?.blur();
+      Keyboard.dismiss();
+      await speechToText.start();
+    } catch {
+      // useSpeechToText already reports actionable errors; keep UI responsive
+    }
+  }, [isRecording, speechToText, step]);
 
   const handleClose = useCallback(() => {
     void (async () => {
+      if (isRecording || isListening) {
+        await speechToText.stop();
+      }
       if (step === "result") {
         await clearPendingUniverseExam();
       } else if (
@@ -434,12 +469,27 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
       setAnalysis(null);
       onClose();
     })();
-  }, [step, currentCard, question, answerInput, onClose]);
+  }, [
+    step,
+    currentCard,
+    question,
+    answerInput,
+    onClose,
+    isRecording,
+    isListening,
+    speechToText,
+  ]);
 
   /** Load next question from result screen. */
   const handleNext = useCallback(() => {
     loadQuestion();
   }, [loadQuestion]);
+
+  useEffect(() => {
+    if (!visible && (isRecording || isListening)) {
+      void speechToText.stop();
+    }
+  }, [visible, isRecording, isListening, speechToText]);
 
   const accentColor = currentCard
     ? getSphereSferaColor(currentCard.sphere, "dark")
@@ -502,8 +552,12 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
           <>
         {/* Question card */}
         {step !== "result" && (
-          <View style={styles.cardArea}>
-            <View
+          <KeyboardAvoidingView
+            style={styles.cardArea}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={insets.top + 36}
+          >
+            <Pressable
               style={[
                 styles.card,
                 {
@@ -511,6 +565,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                   borderColor: "rgba(92, 225, 230, 0.2)",
                 },
               ]}
+              onPress={Keyboard.dismiss}
             >
               <LinearGradient
                 colors={["#0A0E1A", "#0F1422", "#151C2E", "#1A2440"]}
@@ -558,25 +613,45 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                     {question}
                   </ThemedText>
                   <Animated.View style={[{ width: "100%" }, inputPulseStyle]}>
-                    <TextInput
-                      value={answerInput}
-                      onChangeText={setAnswerInput}
-                      placeholder={t("wheel.exam.questionPrompt")}
-                      placeholderTextColor="rgba(184, 232, 236, 0.5)"
-                      style={{
-                        width: "100%",
-                        minHeight: 48,
-                        backgroundColor: "rgba(13, 21, 37, 0.8)",
-                        borderRadius: 14,
-                        paddingHorizontal: 14,
-                        paddingVertical: 12,
-                        color: COSMIC_TEXT,
-                        fontSize: 14,
-                        borderWidth: 1,
-                        borderColor: "rgba(92, 225, 230, 0.2)",
-                      }}
-                      multiline
-                    />
+                    <View style={styles.inputWrap}>
+                      <TextInput
+                        ref={inputRef}
+                        value={answerInput}
+                        onChangeText={setAnswerInput}
+                        placeholder={t("wheel.exam.questionPrompt")}
+                        placeholderTextColor="rgba(184, 232, 236, 0.5)"
+                        style={styles.answerInput}
+                        multiline
+                      />
+                      <Pressable
+                        style={[
+                          styles.micButton,
+                          isRecording && { backgroundColor: "#0E5F66" },
+                        ]}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          void handleToggleRecording();
+                        }}
+                        hitSlop={8}
+                      >
+                        <MaterialIcons
+                          name={isRecording ? "stop" : "mic"}
+                          size={20}
+                          color="#FFFFFF"
+                        />
+                      </Pressable>
+                    </View>
+                    {isListening && (
+                      <View style={styles.listeningRow}>
+                        <ActivityIndicator size="small" color={accentColor} />
+                        <ThemedText
+                          size="xs"
+                          style={{ color: "rgba(184, 232, 236, 0.72)" }}
+                        >
+                          {t("ai.listening") || "Listening..."}
+                        </ThemedText>
+                      </View>
+                    )}
                   </Animated.View>
                   <Animated.View
                     style={[submitButtonStyle, { width: "100%", marginTop: 16 }]}
@@ -643,8 +718,8 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                   </Animated.View>
                 </>
               )}
-            </View>
-          </View>
+            </Pressable>
+          </KeyboardAvoidingView>
         )}
 
         {/* Result overlay */}
@@ -901,6 +976,45 @@ const styles = StyleSheet.create({
     padding: 20,
     position: "relative",
     borderWidth: 1,
+  },
+  inputWrap: {
+    width: "100%",
+    minHeight: 48,
+    backgroundColor: "rgba(13, 21, 37, 0.8)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(92, 225, 230, 0.2)",
+    paddingLeft: 14,
+    paddingRight: 8,
+    paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+  },
+  answerInput: {
+    flex: 1,
+    minHeight: 36,
+    maxHeight: 130,
+    color: COSMIC_TEXT,
+    fontSize: 14,
+    paddingVertical: 6,
+  },
+  micButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginBottom: 3,
+    backgroundColor: "rgba(92, 225, 230, 0.28)",
+    borderWidth: 1,
+    borderColor: "rgba(92, 225, 230, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  listeningRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   resultOverlay: {
     position: "absolute",
