@@ -18,13 +18,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function IdealizedMemoriesScreen() {
-  console.log('[idealized-memories.tsx] 📝 MEMORIES LIST SCREEN RENDERED');
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const { maxContentWidth } = useLargeDevice();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
-  console.log('[idealized-memories.tsx] Params:', params);
   const { getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, deleteIdealizedMemory } = useJourney();
   const { deleteSummariesByMemoryId } = useMomentNotifications();
   const t = useTranslate();
@@ -38,11 +36,22 @@ export default function IdealizedMemoriesScreen() {
   const isNewMode = !!(entityId && sphere);
   
   // Get memories - use new API if entityId and sphere are provided, otherwise use profileId
-  const memories = isNewMode
-    ? getIdealizedMemoriesByEntityId(entityId!, sphere!)
-    : profileId
-    ? getIdealizedMemoriesByProfileId(profileId)
-    : [];
+  const memories = useMemo(
+    () =>
+      isNewMode
+        ? getIdealizedMemoriesByEntityId(entityId!, sphere!)
+        : profileId
+          ? getIdealizedMemoriesByProfileId(profileId)
+          : [],
+    [
+      isNewMode,
+      entityId,
+      sphere,
+      profileId,
+      getIdealizedMemoriesByEntityId,
+      getIdealizedMemoriesByProfileId,
+    ],
+  );
   const hasMemories = memories.length > 0;
 
   const [selectedMemory, setSelectedMemory] = useState<typeof memories[0] | null>(null);
@@ -150,38 +159,30 @@ export default function IdealizedMemoriesScreen() {
   );
 
   const handleAddMemory = () => {
-    console.log('[idealized-memories.tsx] ➕ NAVIGATING to add-idealized-memory (new memory)');
     if (isNewMode && entityId && sphere) {
       // New signature: use entityId and sphere
-      console.log('[idealized-memories.tsx] Using entityId:', entityId, 'sphere:', sphere);
       router.push({
         pathname: "/add-idealized-memory",
         params: { entityId, sphere },
       });
     } else if (profileId) {
       // Old signature: use profileId for backward compatibility
-      console.log('[idealized-memories.tsx] Using profileId:', profileId);
       router.push({
         pathname: "/add-idealized-memory",
         params: { profileId },
       });
     } else {
-      console.log('[idealized-memories.tsx] No params');
       router.push("/add-idealized-memory");
     }
   };
 
   const handleMemoryPress = (memoryId: string) => {
-    console.log('[idealized-memories.tsx] 👆 NAVIGATING to add-idealized-memory (edit memory)');
-    console.log('[idealized-memories.tsx] memoryId:', memoryId);
     if (isNewMode && entityId && sphere) {
-      console.log('[idealized-memories.tsx] Using entityId:', entityId, 'sphere:', sphere);
       router.push({
         pathname: "/add-idealized-memory",
         params: { entityId, sphere, memoryId, viewOnly: 'true' },
       });
     } else if (profileId) {
-      console.log('[idealized-memories.tsx] Using profileId:', profileId);
       router.push({
         pathname: "/add-idealized-memory",
         params: { profileId, memoryId },
@@ -243,56 +244,47 @@ export default function IdealizedMemoriesScreen() {
         {/* Header */}
         <View style={styles.header}>
         <TouchableOpacity onPress={() => {
-          console.log('[idealized-memories.tsx] 🔙 BACK ARROW PRESSED');
           const returnTo = params.returnTo as string | undefined;
           const returnToId = params.returnToId as string | undefined;
 
           // Navigate back to spheres tab with the appropriate sphere selected
           // This ensures the tab bar shows the correct active tab
           if (returnTo && sphere) {
-            console.log('[idealized-memories.tsx] 🔙 NAVIGATING back to spheres with sphere:', sphere);
             router.navigate({
               pathname: '/(tabs)/spheres',
               params: { selectedSphere: sphere }
             });
           } else if (sphere) {
-            console.log('[idealized-memories.tsx] 🔙 NAVIGATING back to spheres with sphere:', sphere);
             router.navigate({
               pathname: '/(tabs)/spheres',
               params: { selectedSphere: sphere }
             });
           } else if (returnTo === 'edit-family-member' && returnToId) {
-            console.log('[idealized-memories.tsx] 🔙 NAVIGATING back to edit-family-member');
             router.navigate({
               pathname: '/edit-family-member',
               params: { memberId: returnToId }
             });
           } else if (returnTo === 'edit-job' && returnToId) {
-            console.log('[idealized-memories.tsx] 🔙 NAVIGATING back to edit-job');
             router.navigate({
               pathname: '/edit-job',
               params: { jobId: returnToId }
             });
           } else if (returnTo === 'edit-friend' && returnToId) {
-            console.log('[idealized-memories.tsx] 🔙 NAVIGATING back to edit-friend');
             router.navigate({
               pathname: '/edit-friend',
               params: { friendId: returnToId }
             });
           } else if (returnTo === 'edit-hobby' && returnToId) {
-            console.log('[idealized-memories.tsx] 🔙 NAVIGATING back to edit-hobby');
             router.navigate({
               pathname: '/edit-hobby',
               params: { hobbyId: returnToId }
             });
           } else if (returnTo === 'edit-profile' && returnToId) {
-            console.log('[idealized-memories.tsx] 🔙 NAVIGATING back to edit-profile');
             router.navigate({
               pathname: '/edit-profile',
               params: { profileId: returnToId }
             });
           } else {
-            console.log('[idealized-memories.tsx] 🔙 NAVIGATING back to home');
             router.navigate('/(tabs)/');
           }
         }} style={styles.headerButton} hitSlop={12}>

@@ -42,7 +42,6 @@ export function HomeTransitionLoaderProvider({ children }: { children: React.Rea
 
   /** Show loader immediately. Only used for: Focused↔Classic (circle avatar), Home tab press. */
   const showLoader = useCallback(() => {
-    console.log('[HomeTransitionLoader] showLoader called, setting isVisible=true');
     if (fallbackRef.current) clearTimeout(fallbackRef.current);
     shownAtRef.current = Date.now();
     setIsVisible(true);

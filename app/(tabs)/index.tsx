@@ -22,6 +22,7 @@ import {
 } from "@/utils/ai-service";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
 import { logError } from "@/utils/error-logger";
+import { onEventsTabPress } from "@/utils/events-tab-press";
 import { onHomeTabPress } from "@/utils/home-tab-press";
 import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
@@ -66,6 +67,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import * as Sharing from "expo-sharing";
 import React, {
   useCallback,
@@ -486,6 +488,7 @@ const FloatingAvatar = React.memo(
     onEntityWheelChange,
     orbitDurationMs = 60000,
     onShowAIConsentModal,
+    isScreenActive = true,
   }: {
     profile: any;
     position: { x: number; y: number };
@@ -524,6 +527,7 @@ const FloatingAvatar = React.memo(
     onEntityWheelChange?: (isActive: boolean) => void;
     orbitDurationMs?: number;
     onShowAIConsentModal?: () => void;
+    isScreenActive?: boolean;
   }) {
     const { showLoader: startTransitionLoader } = useHomeTransitionLoader() ?? {
       showLoader: () => {},
@@ -537,6 +541,7 @@ const FloatingAvatar = React.memo(
     const lang = language === "bg" ? "bg" : "en";
 
     const { isTablet, isLargeDevice } = useLargeDevice();
+
     const insets = useSafeAreaInsets();
     const fontScale = useFontScale();
     const [shareModalVisible, setShareModalVisible] = React.useState(false);
@@ -668,6 +673,7 @@ const FloatingAvatar = React.memo(
     const popupPressScale = useSharedValue(1); // Press animation for entity wheel popup
     const orbitAngle = useSharedValue(0); // Continuous orbit angle for automatic rotation
     const showEntityWheelShared = useSharedValue(false); // Shared value for worklet reactivity
+    const isScreenActiveShared = useSharedValue(isScreenActive);
     const entityCelebrationSparksVisible = useSharedValue(false); // Spiraling sparks on correct exam answer
 
     // Entity wheel moment type selector animation values (matching main wheel)
@@ -1449,6 +1455,12 @@ const FloatingAvatar = React.memo(
     ]);
 
     React.useEffect(() => {
+      if (!isScreenActive) {
+        cancelAnimation(floatAnimation);
+        floatAnimation.value = 0;
+        return;
+      }
+
       if (!isFocused) {
         // Only float when not focused
         floatAnimation.value = withRepeat(
@@ -1474,7 +1486,13 @@ const FloatingAvatar = React.memo(
         // Cancel infinite float animation on cleanup
         cancelAnimation(floatAnimation);
       };
-    }, [floatAnimation, isFocused, isWheelSpinning, wheelVelocity]);
+    }, [
+      floatAnimation,
+      isFocused,
+      isWheelSpinning,
+      wheelVelocity,
+      isScreenActive,
+    ]);
 
     // Pulse drag handle icon twice when dragging is enabled and avatar is not focused
     React.useEffect(() => {
@@ -1506,11 +1524,15 @@ const FloatingAvatar = React.memo(
 
     // Animate each memory to follow avatar with different speeds
     // Use a single reaction that handles all memories
-    // Store memoryAnimatedValues in a ref so it can be accessed in worklet
-    const memoryAnimatedValuesRef = useRef(memoryAnimatedValues);
+    // Stable plain object (not useRef): worklets may capture the object; mutating ref.current
+    // after that triggers Reanimated "Tried to modify key `current`" warnings.
+    const memoryAnimatedValuesListHolder = React.useMemo(
+      () => ({ list: memoryAnimatedValues }),
+      [],
+    );
     React.useEffect(() => {
-      memoryAnimatedValuesRef.current = memoryAnimatedValues;
-    }, [memoryAnimatedValues]);
+      memoryAnimatedValuesListHolder.list = memoryAnimatedValues;
+    }, [memoryAnimatedValues, memoryAnimatedValuesListHolder]);
 
     useAnimatedReaction(
       () => ({
@@ -1521,7 +1543,7 @@ const FloatingAvatar = React.memo(
         "worklet";
         // Update each memory's position with its own spring parameters
         // The dramatic variation in damping/stiffness will create visible speed differences
-        const values = memoryAnimatedValuesRef.current;
+        const values = memoryAnimatedValuesListHolder.list;
         for (let i = 0; i < values.length; i++) {
           const mem = values[i];
           if (mem) {
@@ -1626,12 +1648,54 @@ const FloatingAvatar = React.memo(
       showEntityWheelShared.value = showEntityWheel;
     }, [showEntityWheel, showEntityWheelShared]);
 
+    // Keep active-screen state available inside worklets.
+    React.useEffect(() => {
+      isScreenActiveShared.value = isScreenActive;
+    }, [isScreenActive, isScreenActiveShared]);
+
+    // Hard-stop entity wheel activity when leaving Home (even if React tree is frozen).
+    React.useEffect(() => {
+      const pauseEntityWheelOffscreen = (reason: string) => {
+        isScreenActiveShared.value = false;
+        cancelAnimation(orbitAngle);
+        isWheelSpinning.value = false;
+        setIsWheelSpinningState(false);
+        floatingMomentsTimeoutsRef.current.forEach((timeout) =>
+          clearTimeout(timeout),
+        );
+        floatingMomentsTimeoutsRef.current = [];
+        setFloatingMoments([]);
+      };
+
+      const unsubscribeEventsTab = onEventsTabPress(() =>
+        pauseEntityWheelOffscreen("events_tab_press"),
+      );
+      const appStateSub = AppState.addEventListener("change", (nextState) => {
+        if (nextState !== "active") {
+          pauseEntityWheelOffscreen("app_background");
+        }
+      });
+
+      return () => {
+        unsubscribeEventsTab();
+        appStateSub.remove();
+      };
+    }, [isScreenActiveShared, orbitAngle, isWheelSpinning, profile.id]);
+
     // Exit wheel mode if memories no longer meet the threshold (e.g. edits elsewhere)
     React.useEffect(() => {
       if (showEntityWheel && isFocused && !canEnterEntityWheel) {
         setShowEntityWheel(false);
       }
     }, [canEnterEntityWheel, showEntityWheel, isFocused]);
+
+    // Pause wheel motion immediately when Home isn't active/focused.
+    React.useEffect(() => {
+      if (isScreenActive) return;
+      cancelAnimation(orbitAngle);
+      isWheelSpinning.value = false;
+      setIsWheelSpinningState(false);
+    }, [isScreenActive, orbitAngle, isWheelSpinning, profile.id]);
 
     // Animate wheel mode - use useLayoutEffect to ensure star position is set before render
     useLayoutEffect(() => {
@@ -1647,17 +1711,21 @@ const FloatingAvatar = React.memo(
         focusedX.value = targetX;
         focusedY.value = wheelTargetY;
 
-        // Start continuous orbit animation - slow rotation around entity
-        // Each memory will use its base angle + this orbit angle to calculate position
-        orbitAngle.value = 0;
-        orbitAngle.value = withRepeat(
-          withTiming(360, {
-            duration: orbitDurationMs,
-            easing: Easing.linear,
-          }),
-          -1, // Infinite repeat
-          false, // Don't reverse
-        );
+        if (isScreenActive) {
+          // Start continuous orbit animation - slow rotation around entity
+          // Each memory will use its base angle + this orbit angle to calculate position
+          orbitAngle.value = 0;
+          orbitAngle.value = withRepeat(
+            withTiming(360, {
+              duration: orbitDurationMs,
+              easing: Easing.linear,
+            }),
+            -1, // Infinite repeat
+            false, // Don't reverse
+          );
+        } else {
+          cancelAnimation(orbitAngle);
+        }
 
         // Only set default selected moment type when first entering wheel mode
         if (wasWheelHidden) {
@@ -1703,26 +1771,33 @@ const FloatingAvatar = React.memo(
       starCenterX,
       starCenterY,
       orbitDurationMs,
+      isScreenActive,
     ]);
     // Note: selectedMomentType is intentionally NOT in dependencies to avoid restarting animations when icon selection changes
 
     // Notify parent when entity wheel state changes (useLayoutEffect so scroll is disabled before paint)
     React.useLayoutEffect(() => {
       if (onEntityWheelChange) {
-        onEntityWheelChange(showEntityWheel && isFocused);
+        onEntityWheelChange(showEntityWheel && isFocused && isScreenActive);
       }
-    }, [showEntityWheel, isFocused, onEntityWheelChange]);
+    }, [showEntityWheel, isFocused, onEntityWheelChange, isScreenActive]);
 
     // Entity wheel spin hint: finger + wiggle — dismiss when wiggle completes (no timer)
     React.useEffect(() => {
-      if (!showEntityWheel || !isFocused) return;
+      if (!showEntityWheel || !isFocused || !isScreenActive) return;
       if (!appUsabilityHints) {
         setEntityWheelSpinLabelDismissed(true);
         entityHintRotation.value = withTiming(0, { duration: 200 });
         return;
       }
       setEntityWheelSpinLabelDismissed(false);
-    }, [showEntityWheel, isFocused, appUsabilityHints, entityHintRotation]);
+    }, [
+      showEntityWheel,
+      isFocused,
+      appUsabilityHints,
+      entityHintRotation,
+      isScreenActive,
+    ]);
 
     // Avatar click hint: dismiss when pulse stops (handled in pulse callback) or when leaving focused view
     // Do NOT show when exiting from entity wheel mode — only when first entering individual entity view
@@ -1731,7 +1806,7 @@ const FloatingAvatar = React.memo(
       const wasWheelVisible = prevShowEntityWheelForHintRef.current;
       prevShowEntityWheelForHintRef.current = showEntityWheel;
 
-      if (!isFocused || showEntityWheel) {
+      if (!isFocused || !isScreenActive || showEntityWheel) {
         if (!showEntityWheel) setAvatarClickHintDismissed(false);
         return;
       }
@@ -1755,6 +1830,7 @@ const FloatingAvatar = React.memo(
       appUsabilityHints,
       canEnterEntityWheel,
       memories.length,
+      isScreenActive,
     ]);
 
     // Avatar click hint animation: finger above avatar, appears after delay, scales like pressing
@@ -1762,6 +1838,7 @@ const FloatingAvatar = React.memo(
       if (
         !appUsabilityHints ||
         !isFocused ||
+        !isScreenActive ||
         showEntityWheel ||
         avatarClickHintDismissed ||
         (!canEnterEntityWheel && memories.length === 0)
@@ -1828,6 +1905,7 @@ const FloatingAvatar = React.memo(
       memories.length,
       showEntityWheel,
       avatarClickHintDismissed,
+      isScreenActive,
     ]);
 
     // Entity wheel spin hint: arc-following finger + matching wheel rotation
@@ -1836,6 +1914,7 @@ const FloatingAvatar = React.memo(
         !appUsabilityHints ||
         !showEntityWheel ||
         !isFocused ||
+        !isScreenActive ||
         entityWheelSpinLabelDismissed
       ) {
         cancelAnimation(entitySpinHintArcProgress);
@@ -1886,6 +1965,7 @@ const FloatingAvatar = React.memo(
       isFocused,
       entityWheelSpinLabelDismissed,
       setEntityWheelSpinLabelDismissed,
+      isScreenActive,
     ]);
 
     // Clear floating moments immediately when moment type changes
@@ -1899,13 +1979,21 @@ const FloatingAvatar = React.memo(
       // Also don't spawn if selectedWheelMoment popup is displayed
       // When hints enabled, wait until spin hint (finger) is dismissed
       // Don't spawn new moments when one is expanded (pause) - keep existing moments visible
-      if (
-        !showEntityWheel ||
-        !isFocused ||
-        isWheelSpinningState ||
-        selectedWheelMoment ||
-        (appUsabilityHints && !entityWheelSpinLabelDismissed)
-      ) {
+      const blockedReason = !showEntityWheel
+        ? "wheel_hidden"
+        : !isFocused
+          ? "avatar_unfocused"
+          : !isScreenActive
+            ? "screen_inactive"
+            : isWheelSpinningState
+              ? "wheel_spinning"
+              : selectedWheelMoment
+                ? "popup_open"
+                : appUsabilityHints && !entityWheelSpinLabelDismissed
+                  ? "waiting_spin_hint"
+                  : null;
+
+      if (blockedReason) {
         if (!showEntityWheel || !isFocused) {
           setFloatingMoments([]);
           setExpandedMomentId(null);
@@ -2036,6 +2124,7 @@ const FloatingAvatar = React.memo(
         if (selectedWheelMoment) return;
 
         const timeout = setTimeout(() => {
+          if (!isScreenActiveShared.value) return;
           // Double-check selectedWheelMoment hasn't appeared during delay
           if (selectedWheelMoment) return;
 
@@ -2059,6 +2148,7 @@ const FloatingAvatar = React.memo(
           };
 
           setFloatingMoments((prev) => {
+            if (!isScreenActiveShared.value) return prev;
             const isDuplicate = prev.some(
               (m) =>
                 m.memoryIndex === newMoment.memoryIndex &&
@@ -2070,6 +2160,7 @@ const FloatingAvatar = React.memo(
           });
 
           const removeTimeout = setTimeout(() => {
+            if (!isScreenActiveShared.value) return;
             if (cycleIdRef.current !== currentCycleId) {
               setFloatingMoments((prev) =>
                 prev.filter((m) => m.id !== newMoment.id),
@@ -2116,6 +2207,10 @@ const FloatingAvatar = React.memo(
               const nextIndex = nextMomentIndexRef.current++;
               const delayAfterShrink = isCloudyMoment ? CLOUDY_SPAWN_DELAY : 0;
               const nextSpawnTimeout = setTimeout(() => {
+                if (!isScreenActiveShared.value) {
+                  isSpawningNextRef.current = false;
+                  return;
+                }
                 if (cycleIdRef.current !== currentCycleId) {
                   isSpawningNextRef.current = false;
                   return;
@@ -2183,6 +2278,9 @@ const FloatingAvatar = React.memo(
       selectedWheelMoment,
       appUsabilityHints,
       entityWheelSpinLabelDismissed,
+      isScreenActive,
+      profile.id,
+      isScreenActiveShared,
     ]);
 
     // Pulse animation when entering focused view to indicate avatar is clickable
@@ -2550,15 +2648,17 @@ const FloatingAvatar = React.memo(
             if (finished) {
               isWheelSpinning.value = false;
               runOnJS(setIsWheelSpinningState)(false);
-              runOnJS(selectRandomMoment)();
-              orbitAngle.value = withRepeat(
-                withTiming(orbitAngle.value + 360, {
-                  duration: orbitDurationMs,
-                  easing: Easing.linear,
-                }),
-                -1,
-                false,
-              );
+              if (isScreenActiveShared.value) {
+                runOnJS(selectRandomMoment)();
+                orbitAngle.value = withRepeat(
+                  withTiming(orbitAngle.value + 360, {
+                    duration: orbitDurationMs,
+                    easing: Easing.linear,
+                  }),
+                  -1,
+                  false,
+                );
+              }
             }
           }),
         );
@@ -2571,6 +2671,7 @@ const FloatingAvatar = React.memo(
         wheelVelocity,
         selectRandomMoment,
         profile.id,
+        isScreenActiveShared,
       ],
     );
 
@@ -2634,6 +2735,13 @@ const FloatingAvatar = React.memo(
 
     // Clear floating moments when selectedWheelMoment popup appears
     React.useEffect(() => {
+      if (!isScreenActive) {
+        cancelAnimation(popupAnimProgress);
+        cancelAnimation(popupScale);
+        cancelAnimation(popupOpacity);
+        return;
+      }
+
       if (selectedWheelMoment) {
         setFloatingMoments([]);
       }
@@ -2728,7 +2836,13 @@ const FloatingAvatar = React.memo(
         popupOpacity.value = withTiming(0, { duration: 200 });
         popupScale.value = withTiming(0.8, { duration: 200 });
       }
-    }, [selectedWheelMoment, popupAnimProgress, popupScale, popupOpacity]);
+    }, [
+      selectedWheelMoment,
+      popupAnimProgress,
+      popupScale,
+      popupOpacity,
+      isScreenActive,
+    ]);
 
     // Update entity wheel button selection states when selectedMomentType changes (fast timing so old selection doesn't linger)
     React.useEffect(() => {
@@ -2917,7 +3031,13 @@ const FloatingAvatar = React.memo(
         setWheelMomentAppearCount(wheelMomentAppearCountRef.current);
       }
       const count = wheelMomentAppearCountRef.current;
-      const shouldShow = !!selectedWheelMoment && selectedWheelMoment.type === "lesson" && appUsabilityHints && !wheelMomentHintDismissed && count >= 2;
+      const shouldShow =
+        !!selectedWheelMoment &&
+        selectedWheelMoment.type === "lesson" &&
+        appUsabilityHints &&
+        !wheelMomentHintDismissed &&
+        count >= 2 &&
+        isScreenActive;
       if (!shouldShow) {
         cancelAnimation(wheelMomentHintPointerOpacity);
         cancelAnimation(wheelMomentHintPointerBounce);
@@ -2944,7 +3064,14 @@ const FloatingAvatar = React.memo(
         cancelAnimation(wheelMomentHintPointerOpacity);
         cancelAnimation(wheelMomentHintPointerBounce);
       };
-    }, [selectedWheelMoment, appUsabilityHints, wheelMomentHintDismissed, wheelMomentHintPointerOpacity, wheelMomentHintPointerBounce]);
+    }, [
+      selectedWheelMoment,
+      appUsabilityHints,
+      wheelMomentHintDismissed,
+      wheelMomentHintPointerOpacity,
+      wheelMomentHintPointerBounce,
+      isScreenActive,
+    ]);
 
     // Popup animated style - must be defined at top level, not inside conditional
     const popupAnimatedStyle = useAnimatedStyle(() => {
@@ -2970,7 +3097,7 @@ const FloatingAvatar = React.memo(
 
     // Create PanResponder for drag-to-spin in wheel mode
     const wheelPanResponder = React.useMemo(() => {
-      if (!showEntityWheel || !isFocused) return null;
+      if (!showEntityWheel || !isFocused || !isScreenActive) return null;
 
       // Calculate icon button exclusion zones
       const tabBarHeight =
@@ -3081,6 +3208,7 @@ const FloatingAvatar = React.memo(
     }, [
       showEntityWheel,
       isFocused,
+      isScreenActive,
       wheelVelocity,
       isWheelSpinning,
       wheelTargetY,
@@ -4543,7 +4671,7 @@ const FloatingAvatar = React.memo(
                 }
                 momentId={moment.id}
                 isExpanded={expandedMomentId === moment.id}
-                momentsFrozen={expandedMomentId !== null}
+                momentsFrozen={expandedMomentId !== null || !isScreenActive}
                 spawnTime={moment.spawnTime}
                 expandedAtTimestamp={expandedAtTimestampRef.current}
                 suppressExpandAnimation={
@@ -8868,20 +8996,25 @@ const FloatingCloud = React.memo(function FloatingCloud({
   }, [isFocused, scale]);
 
   React.useEffect(() => {
-    floatAnimation.value = withRepeat(
-      withTiming(1, {
-        duration: 2000,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true,
-    );
+    if (isFocused) {
+      floatAnimation.value = withRepeat(
+        withTiming(1, {
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        -1,
+        true,
+      );
+    } else {
+      cancelAnimation(floatAnimation);
+      floatAnimation.value = 0;
+    }
 
     return () => {
       // Cancel infinite float animation on cleanup
       cancelAnimation(floatAnimation);
     };
-  }, [floatAnimation]);
+  }, [floatAnimation, isFocused]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -9059,20 +9192,25 @@ const FloatingSun = React.memo(function FloatingSun({
   }, [isFocused, scale]);
 
   React.useEffect(() => {
-    floatAnimation.value = withRepeat(
-      withTiming(1, {
-        duration: 2000,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true,
-    );
+    if (isFocused) {
+      floatAnimation.value = withRepeat(
+        withTiming(1, {
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        -1,
+        true,
+      );
+    } else {
+      cancelAnimation(floatAnimation);
+      floatAnimation.value = 0;
+    }
 
     return () => {
       // Cancel infinite float animation on cleanup
       cancelAnimation(floatAnimation);
     };
-  }, [floatAnimation]);
+  }, [floatAnimation, isFocused]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -9298,19 +9436,24 @@ const FloatingLesson = React.memo(function FloatingLesson({
   }, [isFocused, scale]);
 
   React.useEffect(() => {
-    floatAnimation.value = withRepeat(
-      withTiming(1, {
-        duration: 2000,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true,
-    );
+    if (isFocused) {
+      floatAnimation.value = withRepeat(
+        withTiming(1, {
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        -1,
+        true,
+      );
+    } else {
+      cancelAnimation(floatAnimation);
+      floatAnimation.value = 0;
+    }
 
     return () => {
       cancelAnimation(floatAnimation);
     };
-  }, [floatAnimation]);
+  }, [floatAnimation, isFocused]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -13739,6 +13882,8 @@ export default function HomeScreen() {
 
   // Track app state to pause/resume intervals when app backgrounds/foregrounds
   const [isAppActive, setIsAppActive] = useState(true);
+  const isHomeTabFocused = useIsFocused();
+  const isScreenActive = isAppActive && isHomeTabFocused;
   // Set to true when returning from background so useFocusEffect skips the reload —
   // nothing can modify AsyncStorage while the app is backgrounded, so a reload is wasteful.
   const justCameFromBackgroundRef = useRef(false);
@@ -14115,6 +14260,12 @@ export default function HomeScreen() {
   // Subscribe to Home tab button press (fires even when already on Home — tabPress may not)
   useEffect(() => {
     const handleHomeTabPress = () => {
+      // Ignore presses fired while Home is not focused (e.g. navigating back from another tab).
+      // This preserves focused-sfera/entity state across tab switches.
+      if (!isHomeTabFocused) {
+        return;
+      }
+
       const hasFocusedView = !!(
         focusedMemory ||
         selectedSphere ||
@@ -14151,6 +14302,7 @@ export default function HomeScreen() {
     };
     return onHomeTabPress(handleHomeTabPress);
   }, [
+    isHomeTabFocused,
     startTransitionLoader,
     hideLoader,
     focusedMemory,
@@ -15164,7 +15316,7 @@ export default function HomeScreen() {
     const momentsAreBlocked =
       !showMomentTypeSelector ||
       (appUsabilityHints && !momentTypeSelectorDismissed) ||
-      !isAppActive ||
+      !isScreenActive ||
       !selectedMomentType ||
       isSpinning ||
       !!selectedLesson ||
@@ -15210,7 +15362,7 @@ export default function HomeScreen() {
 
     if (momentsAreBlocked) {
       // Clear moments when selector is hidden or app backgrounded
-      if (showMomentTypeSelector === false || isAppActive === false) {
+      if (showMomentTypeSelector === false || isScreenActive === false) {
         setRandomMoments([]);
         setGrowAllMomentsType(null); // Clear so on resume we don't show wrong type (e.g. all lessons when on sunny)
         setExpandedMomentId(null); // Reset so re-entering doesn't think we're still paused
@@ -15218,7 +15370,7 @@ export default function HomeScreen() {
         prevSelectedMomentType.current = null;
       }
       // Reset indices when selector is hidden or when wheel is spinning
-      if (!showMomentTypeSelector || !isAppActive) {
+      if (!showMomentTypeSelector || !isScreenActive) {
         currentMomentIndices.current = {
           lessons: 0,
           hardTruths: 0,
@@ -15443,7 +15595,7 @@ export default function HomeScreen() {
     momentTypeSelectorDismissed,
     selectedMomentType,
     isTablet,
-    isAppActive,
+    isScreenActive,
     getAllMomentsByType,
     isSpinning,
     selectedLesson,
@@ -15968,7 +16120,7 @@ export default function HomeScreen() {
   // Gentle continuous rotation hint animation (suppressed during initial spin hint)
   useEffect(() => {
     // Don't run interval when app is backgrounded
-    if (!isAppActive) {
+    if (!isScreenActive) {
       return;
     }
 
@@ -16016,7 +16168,7 @@ export default function HomeScreen() {
       isHintAnimating.value = false;
     };
   }, [
-    isAppActive,
+    isScreenActive,
     appUsabilityHints,
     showMomentTypeSelector,
     momentTypeSelectorDismissed,
@@ -16028,7 +16180,7 @@ export default function HomeScreen() {
       !appUsabilityHints ||
       !showMomentTypeSelector ||
       momentTypeSelectorDismissed ||
-      !isAppActive
+      !isScreenActive
     ) {
       cancelAnimation(hintRotation);
       hintRotation.value = withTiming(0, { duration: 200 });
@@ -16075,7 +16227,7 @@ export default function HomeScreen() {
     appUsabilityHints,
     showMomentTypeSelector,
     momentTypeSelectorDismissed,
-    isAppActive,
+    isScreenActive,
   ]);
 
   // Wheel rotation animation with deceleration
@@ -16087,7 +16239,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     // Don't run interval when app is backgrounded
-    if (!isAppActive) {
+    if (!isScreenActive) {
       return;
     }
 
@@ -16118,7 +16270,7 @@ export default function HomeScreen() {
       clearInterval(interval);
       if (completionTimer) clearTimeout(completionTimer);
     };
-  }, [isAppActive]); // Only depend on isAppActive - shared values and callback don't need to trigger re-creation
+  }, [isScreenActive]); // Only depend on active-screen state; shared values and callback don't need to trigger re-creation
 
   // Pan gesture handling for wheel rotation
   const lastAngle = useSharedValue(0);
@@ -17746,6 +17898,7 @@ export default function HomeScreen() {
             setIsAnyEntityWheelActive(isActive)
           }
           orbitDurationMs={orbitDurationMs}
+          isScreenActive={isScreenActive}
           onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
       );
@@ -17763,6 +17916,7 @@ export default function HomeScreen() {
     colors,
     colorScheme,
     orbitDurationMs,
+    isScreenActive,
   ]);
 
   // Memoize focused jobs render - must be called unconditionally
@@ -17855,6 +18009,7 @@ export default function HomeScreen() {
             setIsAnyEntityWheelActive(isActive)
           }
           orbitDurationMs={orbitDurationMs}
+          isScreenActive={isScreenActive}
           onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
       );
@@ -17873,6 +18028,7 @@ export default function HomeScreen() {
     colors,
     colorScheme,
     orbitDurationMs,
+    isScreenActive,
   ]);
 
   // Memoize focused family members render - must be called unconditionally
@@ -17949,6 +18105,7 @@ export default function HomeScreen() {
             setIsAnyEntityWheelActive(isActive)
           }
           orbitDurationMs={orbitDurationMs}
+          isScreenActive={isScreenActive}
           onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
       );
@@ -17969,6 +18126,7 @@ export default function HomeScreen() {
     focusedFamilyMemberPositionY,
     updateFamilyMemberPosition,
     orbitDurationMs,
+    isScreenActive,
   ]);
 
   // Memoize focused friends render - must be called unconditionally
@@ -18045,6 +18203,7 @@ export default function HomeScreen() {
             setIsAnyEntityWheelActive(isActive)
           }
           orbitDurationMs={orbitDurationMs}
+          isScreenActive={isScreenActive}
           onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
       );
@@ -18065,6 +18224,7 @@ export default function HomeScreen() {
     focusedFriendPositionY,
     updateFriendPosition,
     orbitDurationMs,
+    isScreenActive,
   ]);
 
   // Memoize focused hobbies render - must be called unconditionally
@@ -18140,6 +18300,7 @@ export default function HomeScreen() {
             setIsAnyEntityWheelActive(isActive)
           }
           orbitDurationMs={orbitDurationMs}
+          isScreenActive={isScreenActive}
           onShowAIConsentModal={() => setAiInsightsConsentVisible(true)}
         />
       );
@@ -18160,6 +18321,7 @@ export default function HomeScreen() {
     focusedHobbyPositionY,
     updateHobbyPosition,
     orbitDurationMs,
+    isScreenActive,
   ]);
 
   // Memoize calculated positions for family members with collision detection
@@ -22139,6 +22301,7 @@ export default function HomeScreen() {
                   setFocusedProfileId(entityId);
                 }}
                 colorScheme={colorScheme ?? "dark"}
+                isActive={isScreenActive}
                 orbitDurationMs={orbitDurationMs}
                 constellationAmount={constellationAmount}
                 constellationOpacity={constellationOpacity}
@@ -22473,6 +22636,7 @@ export default function HomeScreen() {
                   setFocusedJobId(entityId);
                 }}
                 colorScheme={colorScheme ?? "dark"}
+                isActive={isScreenActive}
                 orbitDurationMs={orbitDurationMs}
                 constellationAmount={constellationAmount}
                 constellationOpacity={constellationOpacity}
@@ -22818,6 +22982,7 @@ export default function HomeScreen() {
                   setFocusedFamilyMemberId(entityId);
                 }}
                 colorScheme={colorScheme ?? "dark"}
+                isActive={isScreenActive}
                 orbitDurationMs={orbitDurationMs}
                 constellationAmount={constellationAmount}
                 constellationOpacity={constellationOpacity}
@@ -23160,6 +23325,7 @@ export default function HomeScreen() {
                   setFocusedFriendId(entityId);
                 }}
                 colorScheme={colorScheme ?? "dark"}
+                isActive={isScreenActive}
                 orbitDurationMs={orbitDurationMs}
                 constellationAmount={constellationAmount}
                 constellationOpacity={constellationOpacity}
@@ -23502,6 +23668,7 @@ export default function HomeScreen() {
                   setFocusedHobbyId(entityId);
                 }}
                 colorScheme={colorScheme ?? "dark"}
+                isActive={isScreenActive}
                 orbitDurationMs={orbitDurationMs}
                 constellationAmount={constellationAmount}
                 constellationOpacity={constellationOpacity}

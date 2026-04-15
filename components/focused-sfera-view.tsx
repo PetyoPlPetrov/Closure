@@ -33,6 +33,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
+import { useIsFocused } from "@react-navigation/native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -353,16 +354,23 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
   entityCenterY,
   entityIndex,
   memories,
+  animationsEnabled,
 }: {
   entityCenterX: number;
   entityCenterY: number;
   entityIndex: number;
   memories: IdealizedMemory[];
+  animationsEnabled: boolean;
 }) {
   const { momentColors } = useMomentColors();
   const floatY = useSharedValue(0);
 
   useEffect(() => {
+    if (!animationsEnabled) {
+      cancelAnimation(floatY);
+      floatY.value = 0;
+      return;
+    }
     floatY.value = withRepeat(
       withTiming(1, {
         duration: 1800 + entityIndex * 150,
@@ -371,7 +379,11 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
       -1,
       true,
     );
-  }, [entityIndex, floatY]);
+    return () => {
+      cancelAnimation(floatY);
+      floatY.value = 0;
+    };
+  }, [entityIndex, floatY, animationsEnabled]);
 
   const memoryIcons = useMemo(() => {
     const maxIcons = 8;
@@ -482,12 +494,14 @@ const SparkledDots = React.memo(function SparkledDots({
   avatarCenterY,
   colorScheme,
   sunnyBackground,
+  animationsEnabled,
 }: {
   avatarSize: number;
   avatarCenterX: number;
   avatarCenterY: number;
   colorScheme: "light" | "dark";
   sunnyBackground: string;
+  animationsEnabled: boolean;
 }) {
   const { isTablet } = useLargeDevice();
   const [isReady, setIsReady] = useState(false);
@@ -543,6 +557,7 @@ const SparkledDots = React.memo(function SparkledDots({
           duration={dot.duration}
           colorScheme={colorScheme}
           sunnyBackground={sunnyBackground}
+          animationsEnabled={animationsEnabled}
         />
       ))}
     </>
@@ -557,6 +572,7 @@ const SparkledDot = React.memo(function SparkledDot({
   duration,
   colorScheme,
   sunnyBackground,
+  animationsEnabled,
 }: {
   x: number;
   y: number;
@@ -565,11 +581,19 @@ const SparkledDot = React.memo(function SparkledDot({
   duration: number;
   colorScheme: "light" | "dark";
   sunnyBackground: string;
+  animationsEnabled: boolean;
 }) {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.7);
 
   useEffect(() => {
+    if (!animationsEnabled) {
+      cancelAnimation(opacity);
+      cancelAnimation(scale);
+      opacity.value = 0;
+      scale.value = 0.7;
+      return;
+    }
     scale.value = withDelay(
       delay,
       withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 }),
@@ -591,7 +615,11 @@ const SparkledDot = React.memo(function SparkledDot({
         },
       ),
     );
-  }, [delay, duration]);
+    return () => {
+      cancelAnimation(opacity);
+      cancelAnimation(scale);
+    };
+  }, [delay, duration, animationsEnabled, opacity, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -837,6 +865,7 @@ const EntityRing = React.memo(function EntityRing({
   rotateOrbit = false,
   orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
   randomPulseIndex = null,
+  animationsEnabled = true,
 }: {
   uris: string[];
   entityIds: string[];
@@ -858,13 +887,15 @@ const EntityRing = React.memo(function EntityRing({
   rotateOrbit?: boolean;
   orbitDurationMs?: number;
   randomPulseIndex?: number | null;
+  animationsEnabled?: boolean;
 }) {
   const { isTablet } = useLargeDevice();
   const orbitAngle = useSharedValue(0);
 
   useEffect(() => {
-    if (!rotateOrbit) {
+    if (!animationsEnabled || !rotateOrbit) {
       cancelAnimation(orbitAngle);
+      orbitAngle.value = 0;
       return;
     }
     orbitAngle.value = 0;
@@ -879,7 +910,7 @@ const EntityRing = React.memo(function EntityRing({
     return () => {
       cancelAnimation(orbitAngle);
     };
-  }, [rotateOrbit, orbitAngle, orbitDurationMs]);
+  }, [rotateOrbit, orbitAngle, orbitDurationMs, animationsEnabled]);
 
   const handleOrbitingEntityTap = useCallback(
     (entityId: string, isDoubleTap: boolean, memoryCount: number) => {
@@ -933,6 +964,7 @@ const EntityRing = React.memo(function EntityRing({
             orbitAngle={orbitAngle}
             rotateOrbit={rotateOrbit}
             shouldDoRandomPulse={randomPulseIndex === i}
+            animationsEnabled={animationsEnabled}
           />
         );
       })}
@@ -962,6 +994,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   orbitAngle,
   rotateOrbit,
   shouldDoRandomPulse,
+  animationsEnabled,
 }: {
   uri: string;
   entityId: string;
@@ -988,6 +1021,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   orbitAngle: SharedValue<number>;
   rotateOrbit: boolean;
   shouldDoRandomPulse: boolean;
+  animationsEnabled: boolean;
 }) {
   const t = useTranslate();
   const scale = useSharedValue(1);
@@ -1107,6 +1141,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
             entityCenterY={avatarSize / 2}
             entityIndex={index}
             memories={entityMemories}
+            animationsEnabled={animationsEnabled}
           />
         )}
       </Pressable>
@@ -1290,6 +1325,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   isSunMenuOpen = false,
   individualModeScale = 1,
   entityAvatarScale = 1,
+  animationsEnabled = true,
 }: {
   sphereIdx: number;
   sphere: { type: LifeSphere; icon: string };
@@ -1319,6 +1355,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   individualModeScale?: number;
   /** Additional scale for orbiting entity avatars in selected-sfera mode (iPad only). */
   entityAvatarScale?: number;
+  animationsEnabled?: boolean;
 }) {
   const { isTablet } = useLargeDevice();
   const target = getSphereTarget(sphereIdx, focusedIdx);
@@ -1329,7 +1366,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   // Periodically pick a random entity to pulse (only when focused)
   const entityCount = Math.min(entityIds.length, 8);
   useEffect(() => {
-    if (!isFocused || entityCount === 0) {
+    if (!animationsEnabled || !isFocused || entityCount === 0) {
       setRandomPulseIndex(null);
       return;
     }
@@ -1337,7 +1374,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       setRandomPulseIndex(Math.floor(Math.random() * entityCount));
     }, RANDOM_ENTITY_PULSE_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [isFocused, entityCount]);
+  }, [isFocused, entityCount, animationsEnabled]);
 
   const angle = useSharedValue(target.angle);
   const size = useSharedValue(target.size);
@@ -1361,6 +1398,11 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
 
   // Pulse animation for focused sphere — every 7s, subtle (offset so it doesn't sync with circle avatar)
   useEffect(() => {
+    if (!animationsEnabled) {
+      cancelAnimation(spherePulseScale);
+      spherePulseScale.value = 1;
+      return;
+    }
     if (isFocused) {
       spherePulseScale.value = 1;
       spherePulseScale.value = withDelay(
@@ -1383,7 +1425,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       cancelAnimation(spherePulseScale);
       spherePulseScale.value = 1;
     }
-  }, [isFocused, spherePulseScale]);
+  }, [isFocused, spherePulseScale, animationsEnabled]);
 
   // Reset double-tap state when this sphere comes into focus (e.g. tapped from unfocused)
   // so the focusing tap doesn't accidentally count as the first tap of a double-tap sequence.
@@ -1754,6 +1796,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             rotateOrbit={isFocused}
             orbitDurationMs={orbitDurationMs}
             randomPulseIndex={randomPulseIndex}
+            animationsEnabled={animationsEnabled}
           />
         </Animated.View>
       </Pressable>
@@ -1860,7 +1903,13 @@ function hexToRgbNorm(hex: string): { r: number; g: number; b: number } {
 }
 
 // ─── Cosmic universe icon: nebula core + two tilted elliptical orbits + 3 glowing orbs ───
-const WheelOfLifeIcon = React.memo(function WheelOfLifeIcon({ size }: { size: number }) {
+const WheelOfLifeIcon = React.memo(function WheelOfLifeIcon({
+  size,
+  enabled = true,
+}: {
+  size: number;
+  enabled?: boolean;
+}) {
   const { momentColors } = useMomentColors();
 
   // Four orbs orbit at different speeds and on different axes
@@ -1870,6 +1919,13 @@ const WheelOfLifeIcon = React.memo(function WheelOfLifeIcon({ size }: { size: nu
   const angle3 = useSharedValue(Math.PI / 4);
 
   useEffect(() => {
+    if (!enabled) {
+      cancelAnimation(angle0);
+      cancelAnimation(angle1);
+      cancelAnimation(angle2);
+      cancelAnimation(angle3);
+      return;
+    }
     const dur = 3200;
     angle0.value = withRepeat(withTiming(angle0.value + 2 * Math.PI, { duration: dur, easing: Easing.linear }), -1, false);
     angle1.value = withRepeat(withTiming(angle1.value + 2 * Math.PI, { duration: dur * 1.35, easing: Easing.linear }), -1, false);
@@ -1881,7 +1937,7 @@ const WheelOfLifeIcon = React.memo(function WheelOfLifeIcon({ size }: { size: nu
       cancelAnimation(angle2);
       cancelAnimation(angle3);
     };
-  }, [angle0, angle1, angle2, angle3]);
+  }, [angle0, angle1, angle2, angle3, enabled]);
 
   const C = size / 2;
   // Elliptical orbit radii — orbit 0 is wider/flat, orbit 1 is tilted
@@ -2034,7 +2090,13 @@ const WheelOfLifeIcon = React.memo(function WheelOfLifeIcon({ size }: { size: nu
 
 // ─── Universe Scroll Icon: vertical stack of sfera orbs + upward swipe arrow ───
 // Distinct from WheelOfLifeIcon (orbital orrery). Communicates "scroll through lessons".
-const UniverseScrollIcon = React.memo(function UniverseScrollIcon({ size }: { size: number }) {
+const UniverseScrollIcon = React.memo(function UniverseScrollIcon({
+  size,
+  enabled = true,
+}: {
+  size: number;
+  enabled?: boolean;
+}) {
   const C = size / 2;
   // Three stacked orbs — relationships (red), career (blue), family (purple)
   const ORB_COLORS = ["#FF8888", "#7BB8FF", "#C088FF"] as const;
@@ -2052,6 +2114,15 @@ const UniverseScrollIcon = React.memo(function UniverseScrollIcon({ size }: { si
   const arrowTranslateY = useSharedValue(0);
 
   useEffect(() => {
+    if (!enabled) {
+      cancelAnimation(floatY);
+      cancelAnimation(arrowOpacity);
+      cancelAnimation(arrowTranslateY);
+      floatY.value = 0;
+      arrowOpacity.value = 0.4;
+      arrowTranslateY.value = 0;
+      return;
+    }
     floatY.value = withRepeat(
       withTiming(-size * 0.06, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
       -1,
@@ -2078,7 +2149,7 @@ const UniverseScrollIcon = React.memo(function UniverseScrollIcon({ size }: { si
       cancelAnimation(arrowOpacity);
       cancelAnimation(arrowTranslateY);
     };
-  }, [floatY, arrowOpacity, arrowTranslateY, size]);
+  }, [floatY, arrowOpacity, arrowTranslateY, size, enabled]);
 
   const orbsStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: floatY.value }],
@@ -2831,6 +2902,9 @@ export function FocusedSferaView({
   sunMenuCollapseActionRef,
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
+  const isScreenFocused = useIsFocused();
+  const animationsEnabled = isScreenFocused && !hidden;
+
   const insets = useSafeAreaInsets();
   const { ensureSubscriptionResolved, refreshCustomerInfo } = useSubscription();
   const { appUsabilityHints, sunnyMomentsCongratsAnimation } = useVisualSettings();
@@ -3605,6 +3679,7 @@ export function FocusedSferaView({
         avatarCenterY={avatarCenterY}
         colorScheme={colorScheme}
         sunnyBackground={momentColors.sunny.background}
+        animationsEnabled={animationsEnabled}
       />
 
       {/* ─── Cosmic pulse rings for focused sphere — rendered at root level to avoid container clipping on real iOS devices ─── */}
@@ -3617,7 +3692,13 @@ export function FocusedSferaView({
         offsetX={ORBIT_CX}
         offsetY={ORBIT_CY + ORBIT_R}
         sphereSize={FOCUSED_SIZE * individualModeScale}
-        enabled={pulsingAnimations && !isMemoryBalanceMode && !isSunExpanded && sunLoadComplete}
+        enabled={
+          animationsEnabled &&
+          pulsingAnimations &&
+          !isMemoryBalanceMode &&
+          !isSunExpanded &&
+          sunLoadComplete
+        }
       />
 
       {/* ─── Sfera layer: default orbit or memory-balance concentric rings ─── */}
@@ -3673,6 +3754,7 @@ export function FocusedSferaView({
             isSunMenuOpen={isSunExpanded}
             individualModeScale={individualModeScale}
             entityAvatarScale={individualEntityAvatarScale}
+            animationsEnabled={animationsEnabled}
           />
         ))}
       {/* Same timing as orbit sferas: only after sun-load celebration finishes (avatar at final size/position). */}
@@ -3857,7 +3939,10 @@ export function FocusedSferaView({
                   elevation: hasUserLessons ? 12 : 0,
                 }}
               >
-                <UniverseScrollIcon size={scaleFocused(44)} />
+                <UniverseScrollIcon
+                  size={scaleFocused(44)}
+                  enabled={animationsEnabled}
+                />
               </PulsingPressable>
               <ThemedText
                 style={{

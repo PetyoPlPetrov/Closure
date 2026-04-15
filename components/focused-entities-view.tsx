@@ -26,6 +26,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
@@ -125,6 +126,7 @@ export type FocusedEntitiesViewProps = {
   constellationAmount?: number;
   constellationOpacity?: number;
   hidden?: boolean;
+  isActive?: boolean;
 };
 
 // ───────────────────── Helper functions ─────────────────────────────
@@ -283,12 +285,14 @@ const SparkledDots = React.memo(function SparkledDots({
   avatarCenterY,
   colorScheme,
   sunnyBackground,
+  animationsEnabled,
 }: {
   avatarSize: number;
   avatarCenterX: number;
   avatarCenterY: number;
   colorScheme: "light" | "dark";
   sunnyBackground: string;
+  animationsEnabled: boolean;
 }) {
   const { isTablet } = useLargeDevice();
 
@@ -334,6 +338,7 @@ const SparkledDots = React.memo(function SparkledDots({
           duration={dot.duration}
           colorScheme={colorScheme}
           sunnyBackground={sunnyBackground}
+          animationsEnabled={animationsEnabled}
         />
       ))}
     </>
@@ -348,6 +353,7 @@ const SparkledDot = React.memo(function SparkledDot({
   duration,
   colorScheme,
   sunnyBackground,
+  animationsEnabled,
 }: {
   x: number;
   y: number;
@@ -356,11 +362,19 @@ const SparkledDot = React.memo(function SparkledDot({
   duration: number;
   colorScheme: "light" | "dark";
   sunnyBackground: string;
+  animationsEnabled: boolean;
 }) {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.7);
 
   useEffect(() => {
+    if (!animationsEnabled) {
+      cancelAnimation(opacity);
+      cancelAnimation(scale);
+      opacity.value = 0;
+      scale.value = 0.7;
+      return;
+    }
     opacity.value = withDelay(
       delay,
       withRepeat(
@@ -383,7 +397,11 @@ const SparkledDot = React.memo(function SparkledDot({
         false,
       ),
     );
-  }, [delay, duration, opacity, scale]);
+    return () => {
+      cancelAnimation(opacity);
+      cancelAnimation(scale);
+    };
+  }, [delay, duration, opacity, scale, animationsEnabled]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -675,6 +693,7 @@ const EntityRing = React.memo(function EntityRing({
   avatarSize,
   glowColor,
   orbitDurationMs = DEFAULT_ORBIT_DURATION_MS,
+  animationsEnabled,
 }: {
   entities: (BaseEntity | { id: string; name: string; imageUri?: string; isCompleted: boolean; createdAt?: string })[];
   memoriesPerEntity: IdealizedMemory[][];
@@ -687,6 +706,7 @@ const EntityRing = React.memo(function EntityRing({
   avatarSize: number;
   glowColor: string;
   orbitDurationMs?: number;
+  animationsEnabled: boolean;
 }) {
   const { isTablet } = useLargeDevice();
   // Single offset value drives all entities sliding clockwise around the card perimeter
@@ -695,6 +715,13 @@ const EntityRing = React.memo(function EntityRing({
   const momentsOrbitAngle = useSharedValue(0);
 
   useEffect(() => {
+    if (!animationsEnabled) {
+      cancelAnimation(perimeterOffset);
+      cancelAnimation(momentsOrbitAngle);
+      perimeterOffset.value = 0;
+      momentsOrbitAngle.value = 0;
+      return;
+    }
     perimeterOffset.value = 0;
     perimeterOffset.value = withRepeat(
       withTiming(1, { duration: orbitDurationMs, easing: Easing.linear }),
@@ -711,7 +738,7 @@ const EntityRing = React.memo(function EntityRing({
       cancelAnimation(perimeterOffset);
       cancelAnimation(momentsOrbitAngle);
     };
-  }, [perimeterOffset, momentsOrbitAngle, orbitDurationMs]);
+  }, [perimeterOffset, momentsOrbitAngle, orbitDurationMs, animationsEnabled]);
 
   const handleEntitySelect = useCallback((entityId: string) => {
     onEntitySelect?.(entityId);
@@ -834,6 +861,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   colorScheme,
   x,
   y,
+  animationsEnabled,
 }: {
   sphere: LifeSphere;
   entities: FocusedEntitiesViewProps["entities"];
@@ -845,6 +873,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   colorScheme: "light" | "dark";
   x: number;
   y: number;
+  animationsEnabled: boolean;
 }) {
   const t = useTranslate();
   const { momentColors } = useMomentColors();
@@ -973,7 +1002,11 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
   // Auto-cycle insights every SFERA_INSIGHT_AUTO_MS; progress bar on top border resets each mode
   useEffect(() => {
-    if (numModes <= 1 || numEntities === 0) return;
+    if (!animationsEnabled || numModes <= 1 || numEntities === 0) {
+      cancelAnimation(progress);
+      progress.value = 0;
+      return;
+    }
     progress.value = 0;
     progress.value = withTiming(1, { duration: SFERA_INSIGHT_AUTO_MS }, (finished) => {
       if (finished) {
@@ -983,7 +1016,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     return () => {
       cancelAnimation(progress);
     };
-  }, [advanceInsightOnJS, modeIdx, numEntities, numModes, progress]);
+  }, [advanceInsightOnJS, modeIdx, numEntities, numModes, progress, animationsEnabled]);
   // entityTapRef is updated after entity is computed (below) so the once-created pan responder always has the latest
   const entityTapRef = useRef<(() => void) | null>(null);
 
@@ -1634,11 +1667,13 @@ const SphereAvatar = React.memo(function SphereAvatar({
   colorScheme,
   x,
   y,
+  animationsEnabled,
 }: {
   percentage: number;
   colorScheme: "light" | "dark";
   x: number;
   y: number;
+  animationsEnabled: boolean;
 }) {
   const { momentColors } = useMomentColors();
   const colors = Colors[colorScheme] as { primary: string; primaryLight?: string; primaryDark?: string };
@@ -1662,6 +1697,11 @@ const SphereAvatar = React.memo(function SphereAvatar({
   // Pulse animation for circle avatar (percentage) — every 12s, offset so not in sync with focused sphere
   const avatarPulseScale = useSharedValue(1);
   useEffect(() => {
+    if (!animationsEnabled) {
+      cancelAnimation(avatarPulseScale);
+      avatarPulseScale.value = 1;
+      return;
+    }
     avatarPulseScale.value = 1;
     avatarPulseScale.value = withDelay(
       12000,
@@ -1679,7 +1719,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
       cancelAnimation(avatarPulseScale);
       avatarPulseScale.value = 1;
     };
-  }, [avatarPulseScale]);
+  }, [avatarPulseScale, animationsEnabled]);
 
   const avatarPulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: avatarPulseScale.value }],
@@ -2046,8 +2086,11 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
   constellationAmount = 5,
   constellationOpacity = 5,
   hidden = false,
+  isActive = true,
 }: FocusedEntitiesViewProps) {
   const { isTablet } = useLargeDevice();
+  const isScreenFocused = useIsFocused();
+  const animationsEnabled = isActive && isScreenFocused && !hidden;
 
   const memoriesHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [memoriesHint, setMemoriesHint] = useState<
@@ -2145,6 +2188,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
           avatarCenterY={AVATAR_CY}
           colorScheme={colorScheme}
           sunnyBackground={sunnyBackground}
+          animationsEnabled={animationsEnabled}
         />
         <SferaInsightsCard
           sphere={sphere}
@@ -2157,6 +2201,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
           colorScheme={colorScheme}
           x={AVATAR_CX}
           y={AVATAR_CY}
+          animationsEnabled={animationsEnabled}
         />
       </View>
     );
@@ -2185,6 +2230,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         avatarCenterY={AVATAR_CY}
         colorScheme={colorScheme}
         sunnyBackground={sunnyBackground}
+        animationsEnabled={animationsEnabled}
       />
 
       {/* Central insight card */}
@@ -2199,6 +2245,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         colorScheme={colorScheme}
         x={AVATAR_CX}
         y={AVATAR_CY}
+        animationsEnabled={animationsEnabled}
       />
 
       {/* Entities sliding clockwise around the card perimeter */}
@@ -2214,6 +2261,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         avatarSize={(isTablet ? 60 : 50) * IPAD_ENTITIES_AVATAR_SCALE}
         glowColor={sunnyBackground}
         orbitDurationMs={orbitDurationMs}
+        animationsEnabled={animationsEnabled}
       />
     </View>
   );
