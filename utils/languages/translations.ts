@@ -309,6 +309,9 @@ export interface Translations {
   "guide.bullet.insightsWheel.title": string;
   "guide.bullet.insightsWheel.description": string;
   "guide.bullet.insightsWheel.menuPath": string;
+  "guide.bullet.sferasBalance.title": string;
+  "guide.bullet.sferasBalance.description": string;
+  "guide.bullet.sferasBalance.menuPath": string;
   "guide.bullet.entityWheel.title": string;
   "guide.bullet.entityWheel.description": string;
   "guide.bullet.entityWheel.menuPath": string;
@@ -4181,6 +4184,10 @@ const translations: Record<Language, Translations> = {
     "guide.bullet.insightsWheel.description":
       "A visual snapshot of how your life is balanced right now. Sfera Insights shows you the distribution of moments across your spheres — revealing where you're investing your time and energy, and where the gaps are. Sometimes seeing it laid out is all it takes to understand what needs attention.",
     "guide.bullet.insightsWheel.menuPath": "/ Sferas / Focus a sphere / Insights",
+    "guide.bullet.sferasBalance.title": "Sferas Balance",
+    "guide.bullet.sferasBalance.description":
+      "A quick overview of your total moments across all spheres. It helps you see when one sphere starts taking too much of your life and creating imbalance, so you can rebalance early.",
+    "guide.bullet.sferasBalance.menuPath": "/ Sferas / Balance",
     "guide.bullet.entityWheel.title": "Entity Wheel",
     "guide.bullet.entityWheel.description":
       "Every entity has its own wheel — a compact visual of all the moments and lessons tied to that person, job, or experience. Tap any item to dive into the memory behind it. Or spin the wheel to let Sferas draw a random lesson from that entity and turn it into an exam — a focused test of whether that specific relationship or experience has truly taught you what it had to.",
@@ -8923,6 +8930,10 @@ const translations: Record<Language, Translations> = {
     "guide.bullet.insightsWheel.description":
       "Визуална снимка на баланса в живота ви в момента. Sfera Прозрения показва разпределението на моментите в сферите ви — разкривайки къде инвестирате времето и енергията си и къде има празнини. Понякога е достатъчно да го видите нагледно, за да разберете какво изисква внимание.",
     "guide.bullet.insightsWheel.menuPath": "/ Sferas / Фокусирай сфера / Прозрения",
+    "guide.bullet.sferasBalance.title": "Баланс на сферите",
+    "guide.bullet.sferasBalance.description":
+      "Бърз преглед на общия брой моменти във всички ваши сфери. Помага ви да видите кога една сфера започва да заема твърде голяма част от живота ви и създава дисбаланс, за да върнете баланса навреме.",
+    "guide.bullet.sferasBalance.menuPath": "/ Sferas / Баланс",
     "guide.bullet.entityWheel.title": "Колело на сферата",
     "guide.bullet.entityWheel.description":
       "Всеки обект има своето собствено колело — компактна визуализация на всички моменти и уроци, свързани с този човек, работа или преживяване. Докоснете елемент, за да се потопите в спомена зад него. Или завъртете колелото, за да позволите на Sferas да извлече случаен урок от този обект и да го превърне в изпит — целенасочена проверка дали конкретната връзка или преживяване наистина са ви научили на това, което е трябвало.",

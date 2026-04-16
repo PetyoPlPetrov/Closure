@@ -43,20 +43,29 @@ function BulletCard({
     <View style={{ width: CARD_WIDTH, marginHorizontal: CARD_H_PADDING }}>
       {/* Image / GIF placeholder */}
       {bullet.videoSource ? (
-        <Video
-          source={bullet.videoSource}
+        <View
           style={{
-            width: "80%",
-            height: 300 * fontScale,
+            width: "100%",
+            height: 260 * fontScale,
             borderRadius: 14 * fontScale,
+            overflow: "hidden",
             marginBottom: 16 * fontScale,
-            alignSelf: "center",
+            backgroundColor:
+              colorScheme === "dark" ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.04)",
           }}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay
-          isLooping
-          isMuted
-        />
+        >
+          <Video
+            source={bullet.videoSource}
+            style={{
+              width: "100%",
+              height: "100%",
+            }}
+            resizeMode={ResizeMode.CONTAIN}
+            shouldPlay
+            isLooping
+            isMuted
+          />
+        </View>
       ) : bullet.imageSource ? (
         <View
           style={{

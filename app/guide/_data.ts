@@ -115,6 +115,13 @@ export const SECTIONS: GuideSection[] = [
         imageSource: require("@/assets/images/insights.gif"),
       },
       {
+        icon: "pie-chart",
+        titleKey: "guide.bullet.sferasBalance.title",
+        descriptionKey: "guide.bullet.sferasBalance.description",
+        menuPathKey: "guide.bullet.sferasBalance.menuPath",
+        videoSource: require("@/assets/videos/guide-balance.mp4"),
+      },
+      {
         icon: "rotate-right",
         titleKey: "guide.bullet.entityWheel.title",
         descriptionKey: "guide.bullet.entityWheel.description",
