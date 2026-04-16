@@ -5169,9 +5169,9 @@ const translations: Record<Language, Translations> = {
     "settings.help.viewGuide": "View Guide",
 
     // AI
-    "ai.title": "Create Memory with AI",
+    "ai.title": "Create a memory with Sferas AI",
     "ai.subtitle":
-      "Share your story and AI will form a memory with moments and lessons",
+      "Share your story and Sfera AI will form a memory with moments and lessons",
     "ai.placeholder.input":
       "Tell a story or memory about someone from your sferas...",
     "ai.placeholder.recording":

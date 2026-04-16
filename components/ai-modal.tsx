@@ -1467,13 +1467,6 @@ export function AIModal({
       marginTop: 0,
       paddingHorizontal: 8 * fontScale, // Extra padding to prevent overlap
     },
-    devBadge: {
-      paddingHorizontal: 6 * fontScale,
-      paddingVertical: 2 * fontScale,
-      borderRadius: 4 * fontScale,
-      justifyContent: "center",
-      alignItems: "center",
-    },
     closeButton: {
       position: "absolute",
       right: 0,
@@ -2056,30 +2049,15 @@ export function AIModal({
                         style={styles.headerTitle}
                         numberOfLines={1}
                       >
-                        {t("ai.title") || "Create Memory with AI"}
+                        {t("ai.title") || "Create a memory with Sferas AI"}
                       </ThemedText>
-                      {__DEV__ && (
-                        <View
-                          style={[
-                            styles.devBadge,
-                            { backgroundColor: colors.primary },
-                          ]}
-                        >
-                          <ThemedText
-                            size="xs"
-                            weight="bold"
-                            style={{ color: "#000", fontSize: 10 * fontScale }}
-                          >
-                            DEV
-                          </ThemedText>
-                        </View>
-                      )}
                     </View>
                     <ThemedText size="sm" style={styles.headerSubtitle}>
                       {t("ai.subtitle") ||
-                        "Share your story and AI will form a memory with moments and lessons"}
+                        "Share your story and Sfera AI will form a memory with moments and lessons"}
                     </ThemedText>
-                    {remainingAIRequests !== null &&
+                    {currentView !== "input" &&
+                      remainingAIRequests !== null &&
                       (hasAIEntitlement && remainingAIRequests === 0 ? (
                         <ThemedText
                           size="xs"
@@ -2152,26 +2130,6 @@ export function AIModal({
                       justifyContent: "center",
                     }}
                   >
-                    {__DEV__ && (
-                      <View
-                        style={[
-                          styles.devBadge,
-                          {
-                            backgroundColor: colors.primary,
-                            position: "absolute",
-                            left: 0,
-                          },
-                        ]}
-                      >
-                        <ThemedText
-                          size="xs"
-                          weight="bold"
-                          style={{ color: "#000", fontSize: 10 * fontScale }}
-                        >
-                          DEV
-                        </ThemedText>
-                      </View>
-                    )}
                   </View>
                   <View
                     style={{
@@ -2353,6 +2311,45 @@ export function AIModal({
                       </ThemedText>
                     </LinearGradient>
                   </TouchableOpacity>
+                  {remainingAIRequests !== null &&
+                    (hasAIEntitlement && remainingAIRequests === 0 ? (
+                      <ThemedText
+                        size="xs"
+                        style={[
+                          styles.headerSubtitle,
+                          {
+                            marginTop: 8 * fontScale,
+                            opacity: 0.8,
+                          },
+                        ]}
+                      >
+                        {t("ai.rateLimit.premiumMessage") ||
+                          "You've reached the daily limit. Try again tomorrow."}
+                      </ThemedText>
+                    ) : (
+                      <ThemedText
+                        size="xs"
+                        style={[
+                          styles.headerSubtitle,
+                          {
+                            marginTop: 8 * fontScale,
+                            opacity: 0.8,
+                          },
+                        ]}
+                      >
+                        {(t("ai.remainingCreations") ||
+                          "{count} of {limit} free AI memory creations left today")
+                          .replace("{count}", String(remainingAIRequests))
+                          .replace(
+                            "{limit}",
+                            String(
+                              hasAIEntitlement
+                                ? REQUESTS_PER_DAY_PREMIUM
+                                : REQUESTS_PER_DAY_FREE,
+                            ),
+                          )}
+                      </ThemedText>
+                    ))}
 
                   {/* Validation warnings */}
                   {wordCount > 0 && wordCount < MIN_WORDS && !isProcessing && (

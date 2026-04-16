@@ -94,19 +94,26 @@ export default function SettingsScreen() {
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [isCleaningMemories, setIsCleaningMemories] = useState(false);
+  const [hasClearedDataForInitialOnboarding, setHasClearedDataForInitialOnboarding] =
+    useState(false);
   const [initialOnboardingRequesting, setInitialOnboardingRequesting] =
     useState(false);
   const [versionInfo, setVersionInfo] = useState<AppVersionInfo | null>(null);
+  const isInitialOnboardingEnabled =
+    hasClearedDataForInitialOnboarding &&
+    !hasAppData &&
+    !isDeletingData &&
+    !initialOnboardingRequesting;
 
   const requestInitialOnboarding = useCallback(async () => {
-    if (!onboardingGate) return;
+    if (!onboardingGate || !isInitialOnboardingEnabled) return;
     setInitialOnboardingRequesting(true);
     try {
       await onboardingGate.requestShowOnboarding();
     } finally {
       setInitialOnboardingRequesting(false);
     }
-  }, [hasAppData, onboardingGate]);
+  }, [isInitialOnboardingEnabled, onboardingGate]);
 
   useEffect(() => {
     getAppVersionInfo().then(setVersionInfo);
@@ -1149,6 +1156,7 @@ export default function SettingsScreen() {
                     goodFacts,
                     lessonsLearned,
                   },
+                  { bypassMemoryLimit: true },
                 );
 
                 if (memoryId) {
@@ -1296,7 +1304,7 @@ export default function SettingsScreen() {
                   hardTruths,
                   goodFacts,
                   lessonsLearned,
-                });
+                }, { bypassMemoryLimit: true });
 
                 if (memoryId) { createdMemories++; totalSuns += goodFacts.length; totalClouds += hardTruths.length; }
 
@@ -1439,7 +1447,7 @@ export default function SettingsScreen() {
                   hardTruths,
                   goodFacts,
                   lessonsLearned,
-                });
+                }, { bypassMemoryLimit: true });
 
                 if (memoryId) { createdMemories++; totalSuns += goodFacts.length; totalClouds += hardTruths.length; }
 
@@ -1561,7 +1569,7 @@ export default function SettingsScreen() {
                   hardTruths,
                   goodFacts,
                   lessonsLearned,
-                });
+                }, { bypassMemoryLimit: true });
 
                 if (memoryId) { createdMemories++; totalSuns += goodFacts.length; totalClouds += hardTruths.length; }
                 await new Promise((resolve) => setTimeout(resolve, 50));
@@ -1679,7 +1687,7 @@ export default function SettingsScreen() {
                   hardTruths,
                   goodFacts,
                   lessonsLearned,
-                });
+                }, { bypassMemoryLimit: true });
 
                 if (memoryId) { createdMemories++; totalSuns += goodFacts.length; totalClouds += hardTruths.length; }
                 await new Promise((resolve) => setTimeout(resolve, 50));
@@ -1812,6 +1820,7 @@ export default function SettingsScreen() {
 
               // Note: After clearing data, the walkthrough will appear automatically
               // when the user navigates to the spheres tab (handled in spheres.tsx)
+              setHasClearedDataForInitialOnboarding(true);
 
               // Show success message
               Alert.alert(
@@ -2161,13 +2170,13 @@ export default function SettingsScreen() {
             <TouchableOpacity
               style={[
                 styles.dropdown,
-                initialOnboardingRequesting && {
+                !isInitialOnboardingEnabled && {
                   opacity: 0.5,
                 },
               ]}
               onPress={requestInitialOnboarding}
               activeOpacity={0.7}
-              disabled={initialOnboardingRequesting}
+              disabled={!isInitialOnboardingEnabled}
             >
               <View style={styles.dropdownContent}>
                 <MaterialIcons

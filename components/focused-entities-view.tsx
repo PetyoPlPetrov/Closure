@@ -855,7 +855,6 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   entities,
   memoriesPerEntity,
   onEntitySelect,
-  onNeedMemoriesHintForEntity,
   onNeedMemoriesHintCenter,
   showNeedMemoriesHintBelowCard,
   colorScheme,
@@ -867,7 +866,6 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   entities: FocusedEntitiesViewProps["entities"];
   memoriesPerEntity: IdealizedMemory[][];
   onEntitySelect?: (entityId: string) => void;
-  onNeedMemoriesHintForEntity?: (entityId: string) => void;
   onNeedMemoriesHintCenter?: () => void;
   showNeedMemoriesHintBelowCard?: boolean;
   colorScheme: "light" | "dark";
@@ -906,6 +904,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const [modeIdx, setModeIdx] = useState(
     () => (sphere === "family" || sphere === "friends" ? 1 : 0),
   );
+  const [isAutoLoopPaused, setIsAutoLoopPaused] = useState(false);
   const prevSphereRef = useRef(sphere);
   const mode = allowedModes[modeIdx] ?? allowedModes[0] ?? 0;
   const modeOpacity = useSharedValue(1);
@@ -945,6 +944,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   useEffect(() => {
     if (prevSphereRef.current !== sphere) {
       prevSphereRef.current = sphere;
+      setIsAutoLoopPaused(false);
       if (sphere === "family" || sphere === "friends") {
         const i = allowedModes.indexOf(1);
         setModeIdx(i >= 0 ? i : 0);
@@ -1007,6 +1007,10 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       progress.value = 0;
       return;
     }
+    if (isAutoLoopPaused) {
+      cancelAnimation(progress);
+      return;
+    }
     progress.value = 0;
     progress.value = withTiming(1, { duration: SFERA_INSIGHT_AUTO_MS }, (finished) => {
       if (finished) {
@@ -1016,10 +1020,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     return () => {
       cancelAnimation(progress);
     };
-  }, [advanceInsightOnJS, modeIdx, numEntities, numModes, progress, animationsEnabled]);
-  // entityTapRef is updated after entity is computed (below) so the once-created pan responder always has the latest
-  const entityTapRef = useRef<(() => void) | null>(null);
-
+  }, [advanceInsightOnJS, modeIdx, numEntities, numModes, progress, animationsEnabled, isAutoLoopPaused]);
   const cardPanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -1031,7 +1032,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           if (gs.dx < 0) goNextRef.current();
           else goPrevRef.current();
         } else if (Math.abs(gs.dx) < 8 && Math.abs(gs.dy) < 8) {
-          entityTapRef.current?.();
+          setIsAutoLoopPaused((prev) => !prev);
         }
       },
     }),
@@ -1057,16 +1058,6 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const entity = entities[entityIdx];
   const entityName = entity?.name ?? "";
   const showSocialBottom = hasSocialCTAs && (mode === 0 || mode === 1) && entity != null;
-  entityTapRef.current = entity
-    ? () => {
-        const mems = memoriesPerEntity[entityIdx] ?? [];
-        if (mems.length === 0) {
-          onNeedMemoriesHintForEntity?.(entity.id);
-        } else {
-          onEntitySelect?.(entity.id);
-        }
-      }
-    : null;
 
   // Urgency border: amber tint when oldest interaction > 30 days
   const isMoodCard = mode === 4 || mode === 5;
@@ -2195,7 +2186,6 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
           entities={sortedEntities}
           memoriesPerEntity={sortedMemoriesPerEntity}
           onEntitySelect={onEntitySelect}
-          onNeedMemoriesHintForEntity={() => showInsightCardNeedMemoriesHint()}
           onNeedMemoriesHintCenter={showInsightCardNeedMemoriesHint}
           showNeedMemoriesHintBelowCard={showInsightCardHint}
           colorScheme={colorScheme}
@@ -2239,7 +2229,6 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         entities={sortedEntities}
         memoriesPerEntity={sortedMemoriesPerEntity}
         onEntitySelect={onEntitySelect}
-        onNeedMemoriesHintForEntity={() => showInsightCardNeedMemoriesHint()}
         onNeedMemoriesHintCenter={showInsightCardNeedMemoriesHint}
         showNeedMemoriesHintBelowCard={showInsightCardHint}
         colorScheme={colorScheme}
