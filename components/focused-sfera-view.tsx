@@ -37,6 +37,7 @@ import { useIsFocused } from "@react-navigation/native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  AppState,
   Dimensions,
   InteractionManager,
   PanResponder,
@@ -1373,6 +1374,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   const { isTablet } = useLargeDevice();
   const target = getSphereTarget(sphereIdx, focusedIdx);
   const isFocused = sphereIdx === focusedIdx;
+  const rotateOrbitGate = isFocused && animationsEnabled && isInitialView;
 
   const [randomPulseIndex, setRandomPulseIndex] = useState<number | null>(null);
 
@@ -1806,7 +1808,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             glowColor={shadowColor}
             isFocused={isFocused}
             showFloatingMoments={isFocused}
-            rotateOrbit={isFocused}
+            rotateOrbit={rotateOrbitGate}
             orbitDurationMs={orbitDurationMs}
             randomPulseIndex={randomPulseIndex}
             animationsEnabled={animationsEnabled}
@@ -2272,6 +2274,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   x,
   y,
   sizeScale = 1,
+  isVisible = true,
 }: {
   sphere: LifeSphere;
   entityIds: string[];
@@ -2285,6 +2288,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   x: number;
   y: number;
   sizeScale?: number;
+  isVisible?: boolean;
 }) {
   const t = useTranslate();
   const [mode, setMode] = useState(0);
@@ -2359,7 +2363,11 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
 
   // Auto-cycle every 5 seconds with progress bar
   useEffect(() => {
-    if (numEntities === 0) return;
+    if (!isVisible || numEntities === 0) {
+      cancelAnimation(progress);
+      progress.value = 0;
+      return;
+    }
     progress.value = 0;
     progress.value = withTiming(1, { duration: 5000 }, (finished) => {
       if (finished) {
@@ -2369,7 +2377,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
     return () => {
       cancelAnimation(progress);
     };
-  }, [mode, numEntities, progress]);
+  }, [mode, numEntities, progress, isVisible]);
 
   const progressBarStyle = useAnimatedStyle(() => ({
     width: `${progress.value * 100}%` as any,
@@ -2919,7 +2927,17 @@ export function FocusedSferaView({
 }: FocusedSferaViewProps) {
   const { isTablet } = useLargeDevice();
   const isScreenFocused = useIsFocused();
-  const animationsEnabled = isScreenFocused && !hidden;
+  const [isAppActive, setIsAppActive] = useState(
+    AppState.currentState === "active",
+  );
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      setIsAppActive(nextAppState === "active");
+    });
+    return () => subscription.remove();
+  }, []);
+
+  const animationsEnabled = isScreenFocused && !hidden && isAppActive;
 
   const insets = useSafeAreaInsets();
   const { ensureSubscriptionResolved, refreshCustomerInfo } = useSubscription();
@@ -2932,6 +2950,7 @@ export function FocusedSferaView({
     "defaultOrbit",
   );
   const [displayModeHydrated, setDisplayModeHydrated] = useState(false);
+  const [avatarPulseTriggerKey, setAvatarPulseTriggerKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -3535,6 +3554,7 @@ export function FocusedSferaView({
 
   const leftChevronScale = useSharedValue(1);
   const rightChevronScale = useSharedValue(1);
+  const memoryBalanceToggleScale = useSharedValue(1);
   const hintOpacity = useSharedValue(0);
 
   const showDoubleTapHint = useCallback(() => {
@@ -3640,6 +3660,7 @@ export function FocusedSferaView({
   const handleMemoryBalanceToggle = useCallback(() => {
     if (!sunLoadComplete) return;
     if (isSunExpanded) handleCollapseSun();
+    setAvatarPulseTriggerKey((prev) => prev + 1);
     setDisplayMode((prev) =>
       prev === "memoryBalanceRings" ? "defaultOrbit" : "memoryBalanceRings",
     );
@@ -3654,6 +3675,9 @@ export function FocusedSferaView({
   }));
   const rightChevronStyle = useAnimatedStyle(() => ({
     transform: [{ scale: rightChevronScale.value }],
+  }));
+  const memoryBalanceToggleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: memoryBalanceToggleScale.value }],
   }));
 
   const chevronPressIn = useCallback(
@@ -3675,6 +3699,20 @@ export function FocusedSferaView({
     },
     [leftChevronScale, rightChevronScale],
   );
+  const memoryBalanceTogglePressIn = useCallback(() => {
+    cancelAnimation(memoryBalanceToggleScale);
+    memoryBalanceToggleScale.value = withTiming(0.9, {
+      duration: 90,
+      easing: Easing.out(Easing.ease),
+    });
+  }, [memoryBalanceToggleScale]);
+  const memoryBalanceTogglePressOut = useCallback(() => {
+    cancelAnimation(memoryBalanceToggleScale);
+    memoryBalanceToggleScale.value = withSpring(1, {
+      damping: 12,
+      stiffness: 360,
+    });
+  }, [memoryBalanceToggleScale]);
 
   const congratsStyle = useAnimatedStyle(() => ({ opacity: congratsOpacity.value }));
   const handleFireworksComplete = useCallback(() => setIntroFireworks(false), []);
@@ -3701,38 +3739,48 @@ export function FocusedSferaView({
         sunLoadComplete &&
         !isSunExpanded &&
         !hideMemoryBalanceToggleForAvatar && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t(
-            isMemoryBalanceMode
-              ? "spheres.memoryBalanceToggleShowOrbitA11y"
-              : "spheres.memoryBalanceToggleShowBalanceA11y",
-          )}
-          onPress={handleMemoryBalanceToggle}
-          hitSlop={12}
-          style={{
-            position: "absolute",
-            top: insets.top + scaleFocused(8),
-            right: scaleFocused(12) + insets.right,
-            zIndex: 50,
-            width: scaleFocused(44),
-            height: scaleFocused(44),
-            borderRadius: scaleFocused(22),
-            backgroundColor: "rgba(30, 50, 80, 0.55)",
-            borderWidth: 1,
-            borderColor: "rgba(255,255,255,0.22)",
-            justifyContent: "center",
-            alignItems: "center",
-            shadowOpacity: 0,
-            elevation: 0,
-          }}
-        >
-          <MaterialIcons
-            name={isMemoryBalanceMode ? "blur-circular" : "bubble-chart"}
-            size={scaleFocused(24)}
-            color="rgba(255,255,255,0.92)"
-          />
-        </Pressable>
+          <Animated.View
+            style={[
+              {
+                position: "absolute",
+                top: insets.top + scaleFocused(8),
+                right: scaleFocused(12) + insets.right,
+                zIndex: 50,
+              },
+              memoryBalanceToggleStyle,
+            ]}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t(
+                isMemoryBalanceMode
+                  ? "spheres.memoryBalanceToggleShowOrbitA11y"
+                  : "spheres.memoryBalanceToggleShowBalanceA11y",
+              )}
+              onPress={handleMemoryBalanceToggle}
+              onPressIn={memoryBalanceTogglePressIn}
+              onPressOut={memoryBalanceTogglePressOut}
+              hitSlop={12}
+              style={{
+                width: scaleFocused(44),
+                height: scaleFocused(44),
+                borderRadius: scaleFocused(22),
+                backgroundColor: "rgba(30, 50, 80, 0.55)",
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.22)",
+                justifyContent: "center",
+                alignItems: "center",
+                shadowOpacity: 0,
+                elevation: 0,
+              }}
+            >
+              <MaterialIcons
+                name={isMemoryBalanceMode ? "blur-circular" : "bubble-chart"}
+                size={scaleFocused(24)}
+                color="rgba(255,255,255,0.92)"
+              />
+            </Pressable>
+          </Animated.View>
       )}
 
       {/* ─── Sparkled dots scattered across screen ─── */}
@@ -3877,6 +3925,7 @@ export function FocusedSferaView({
           x={SUN_CENTER_X}
           y={SUN_CENTER_Y}
           sizeScale={individualCardScale}
+          isVisible={animationsEnabled && selectedSphere !== null}
         />
       ) : (
         <>
@@ -3898,6 +3947,9 @@ export function FocusedSferaView({
             screenWidth={SW}
             screenHeight={SH}
             layoutScale={IPAD_FOCUSED_SCALE}
+            pulseMode="onViewOpen"
+            pulseTrigger={animationsEnabled}
+            pulseTriggerKey={avatarPulseTriggerKey}
           />
           {!sunLoadComplete && (
             <>

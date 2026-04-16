@@ -14134,37 +14134,8 @@ export default function HomeScreen() {
     />
   );
 
-  // Avatar pulse animation - continuously pulses every 3 seconds
+  // Avatar pulse animation for Classic overview center avatar
   const avatarPulseScale = useSharedValue(1);
-
-  // Continuous pulse animation - pulses every 3 seconds
-  useFocusEffect(
-    useCallback(() => {
-      // Start continuous pulse animation - pulse to 1.1 then back to 1, repeat with 3 second intervals
-      avatarPulseScale.value = 1;
-      avatarPulseScale.value = withRepeat(
-        withSequence(
-          withSpring(1.1, {
-            damping: 8,
-            stiffness: 100,
-          }),
-          withSpring(1, {
-            damping: 10,
-            stiffness: 150,
-          }),
-          withDelay(3000, withTiming(1, { duration: 0 })), // 3 second delay before next pulse
-        ),
-        -1, // Repeat infinitely
-        false, // Don't reverse
-      );
-
-      // Cleanup: cancel animation when leaving the screen
-      return () => {
-        cancelAnimation(avatarPulseScale);
-        avatarPulseScale.value = 1;
-      };
-    }, [avatarPulseScale]),
-  );
 
   // Reload all data from AsyncStorage when screen comes into focus
   // This ensures data is always fresh and not stale from React state
@@ -14234,6 +14205,39 @@ export default function HomeScreen() {
   );
   const previousSelectedSphereRef = useRef<LifeSphere | null>(null);
   const sphereRenderKeyRef = useRef<number>(0);
+
+  // Classic overview visibility gate (main wheel + center avatar are actually visible).
+  const shouldRunClassicOverviewAnimations =
+    isScreenActive && homeViewMode === "classic" && selectedSphere === null;
+  useEffect(() => {
+    if (!shouldRunClassicOverviewAnimations) {
+      cancelAnimation(avatarPulseScale);
+      avatarPulseScale.value = 1;
+      return;
+    }
+
+    avatarPulseScale.value = 1;
+    avatarPulseScale.value = withRepeat(
+      withSequence(
+        withSpring(1.1, {
+          damping: 8,
+          stiffness: 100,
+        }),
+        withSpring(1, {
+          damping: 10,
+          stiffness: 150,
+        }),
+        withDelay(3000, withTiming(1, { duration: 0 })),
+      ),
+      -1,
+      false,
+    );
+
+    return () => {
+      cancelAnimation(avatarPulseScale);
+      avatarPulseScale.value = 1;
+    };
+  }, [avatarPulseScale, shouldRunClassicOverviewAnimations]);
 
   // Home view mode: "Classic" = Classic view (wheel of life); "focused" = FocusedSferas view (one sphere in focus, swipe to change).
   // When FocusedSferas view is active, only FocusedSferaView is mounted — Classic view components are not in the tree.
@@ -16354,8 +16358,8 @@ export default function HomeScreen() {
 
   // Gentle continuous rotation hint animation (suppressed during initial spin hint)
   useEffect(() => {
-    // Don't run interval when app is backgrounded
-    if (!isScreenActive) {
+    // Only run when the Classic overview wheel is actually visible.
+    if (!shouldRunClassicOverviewAnimations) {
       return;
     }
 
@@ -16403,7 +16407,7 @@ export default function HomeScreen() {
       isHintAnimating.value = false;
     };
   }, [
-    isScreenActive,
+    shouldRunClassicOverviewAnimations,
     appUsabilityHints,
     showMomentTypeSelector,
     momentTypeSelectorDismissed,
@@ -16415,7 +16419,7 @@ export default function HomeScreen() {
       !appUsabilityHints ||
       !showMomentTypeSelector ||
       momentTypeSelectorDismissed ||
-      !isScreenActive
+      !shouldRunClassicOverviewAnimations
     ) {
       cancelAnimation(hintRotation);
       hintRotation.value = withTiming(0, { duration: 200 });
@@ -16462,7 +16466,7 @@ export default function HomeScreen() {
     appUsabilityHints,
     showMomentTypeSelector,
     momentTypeSelectorDismissed,
-    isScreenActive,
+    shouldRunClassicOverviewAnimations,
   ]);
 
   // Wheel rotation animation with deceleration
@@ -16473,8 +16477,8 @@ export default function HomeScreen() {
   }, [onWheelSpinComplete]);
 
   useEffect(() => {
-    // Don't run interval when app is backgrounded
-    if (!isScreenActive) {
+    // Only run wheel physics when the Classic overview wheel is actually visible.
+    if (!shouldRunClassicOverviewAnimations) {
       return;
     }
 
@@ -16505,7 +16509,7 @@ export default function HomeScreen() {
       clearInterval(interval);
       if (completionTimer) clearTimeout(completionTimer);
     };
-  }, [isScreenActive]); // Only depend on active-screen state; shared values and callback don't need to trigger re-creation
+  }, [shouldRunClassicOverviewAnimations]); // Shared values/callback don't need to trigger re-creation
 
   // Pan gesture handling for wheel rotation
   const lastAngle = useSharedValue(0);

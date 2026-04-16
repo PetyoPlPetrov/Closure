@@ -4,7 +4,7 @@ import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import Animated, {
   cancelAnimation,
@@ -145,6 +145,16 @@ export interface SunnyLifeAvatarProps {
    * Use e.g. focused-view iPad scale so the % ring matches orbiting spheres.
    */
   layoutScale?: number;
+  /**
+   * Controls avatar pulsing behavior.
+   * - "periodic": repeating pulse (legacy behavior)
+   * - "onViewOpen": one-shot pulse when `pulseTrigger` flips false -> true
+   */
+  pulseMode?: "periodic" | "onViewOpen";
+  /** Used with `pulseMode="onViewOpen"` to trigger one pulse on open/focus transitions. */
+  pulseTrigger?: boolean;
+  /** Optional monotonically increasing key that forces one pulse when changed. */
+  pulseTriggerKey?: number;
 }
 
 export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
@@ -165,6 +175,9 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
   screenWidth,
   screenHeight,
   layoutScale = 1,
+  pulseMode = "periodic",
+  pulseTrigger = false,
+  pulseTriggerKey = 0,
 }: SunnyLifeAvatarProps) {
   const { momentColors } = useMomentColors();
   const t = useTranslate();
@@ -237,7 +250,25 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
 
   // ── Periodic pulse ─────────────────────────────────────────────────────────
   const avatarPulseScale = useSharedValue(1);
+  const previousPulseTriggerRef = useRef(false);
+  const previousPulseTriggerKeyRef = useRef(pulseTriggerKey);
+
+  const runSinglePulse = useCallback(() => {
+    cancelAnimation(avatarPulseScale);
+    avatarPulseScale.value = 1;
+    avatarPulseScale.value = withSequence(
+      withSpring(1.1, { damping: 8, stiffness: 100 }),
+      withSpring(1, { damping: 10, stiffness: 150 }),
+    );
+  }, [avatarPulseScale]);
+
   useEffect(() => {
+    if (pulseMode !== "periodic") {
+      cancelAnimation(avatarPulseScale);
+      avatarPulseScale.value = 1;
+      return;
+    }
+
     avatarPulseScale.value = 1;
     avatarPulseScale.value = withDelay(
       12000,
@@ -255,7 +286,26 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
       cancelAnimation(avatarPulseScale);
       avatarPulseScale.value = 1;
     };
-  }, [avatarPulseScale]);
+  }, [avatarPulseScale, pulseMode]);
+
+  useEffect(() => {
+    if (pulseMode !== "onViewOpen") return;
+
+    const trigger = !!pulseTrigger;
+    const shouldPulse = trigger && !previousPulseTriggerRef.current;
+    const keyChanged = pulseTriggerKey !== previousPulseTriggerKeyRef.current;
+    previousPulseTriggerRef.current = trigger;
+    previousPulseTriggerKeyRef.current = pulseTriggerKey;
+
+    if (shouldPulse || keyChanged) {
+      runSinglePulse();
+    }
+
+    if (!trigger) {
+      cancelAnimation(avatarPulseScale);
+      avatarPulseScale.value = 1;
+    }
+  }, [avatarPulseScale, pulseMode, pulseTrigger, pulseTriggerKey, runSinglePulse]);
 
   // ── Press feedback ─────────────────────────────────────────────────────────
   const pressScale = useSharedValue(1);
