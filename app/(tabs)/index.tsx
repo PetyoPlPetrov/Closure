@@ -534,6 +534,10 @@ const FloatingAvatar = React.memo(
     onShowAIConsentModal?: () => void;
     isScreenActive?: boolean;
   }) {
+    /** Latest prop for AppState foreground resync (parent may update one frame after native active). */
+    const isScreenActivePropRef = useRef(isScreenActive);
+    isScreenActivePropRef.current = isScreenActive;
+
     const { showLoader: startTransitionLoader } = useHomeTransitionLoader() ?? {
       showLoader: () => {},
     };
@@ -588,6 +592,8 @@ const FloatingAvatar = React.memo(
     const [showWheelFireworks, setShowWheelFireworks] = React.useState(false);
     const [entityWheelSpinLabelDismissed, setEntityWheelSpinLabelDismissed] =
       React.useState(false);
+    /** Only reset spin-hint when the wheel opens (false→true), not on tab/bg resume (avoids waiting_spin_hint blocking bubbles). */
+    const spinHintWheelPrevOpenRef = useRef(showEntityWheel);
     const [avatarClickHintDismissed, setAvatarClickHintDismissed] =
       React.useState(false);
     const [examAnswerInput, setExamAnswerInput] = React.useState("");
@@ -648,6 +654,10 @@ const FloatingAvatar = React.memo(
     const remainingBeforeRestartRef = useRef<number>(0);
     const currentBatchSizeRef = useRef<number>(3);
     const nextSlotRef = useRef<number>(0);
+    /** Dedupe __DEV__ `[wheel-moments]` spawn-gate logs (floating bubbles, not spin). */
+    const lastWheelMomentsGateLogRef = useRef<string>("");
+    const prevIsScreenActiveForWheelMomentsLogRef =
+      React.useRef<boolean>(isScreenActive);
 
     // Create refs
     const viewShotRef = useRef<View>(null);
@@ -1653,14 +1663,31 @@ const FloatingAvatar = React.memo(
       showEntityWheelShared.value = showEntityWheel;
     }, [showEntityWheel, showEntityWheelShared]);
 
-    // Keep active-screen state available inside worklets.
-    React.useEffect(() => {
+    // Keep active-screen state available inside worklets — useLayoutEffect so shared matches
+    // the prop before child useEffects (spawn timeouts) run; avoids stuck false after foreground.
+    useLayoutEffect(() => {
       isScreenActiveShared.value = isScreenActive;
-    }, [isScreenActive, isScreenActiveShared]);
+      if (
+        __DEV__ &&
+        prevIsScreenActiveForWheelMomentsLogRef.current !== isScreenActive
+      ) {
+        prevIsScreenActiveForWheelMomentsLogRef.current = isScreenActive;
+        console.log("[wheel-moments] isScreenActive prop → shared (layout)", {
+          isScreenActive,
+          profile: profile.id,
+        });
+      }
+    }, [isScreenActive, isScreenActiveShared, profile.id]);
 
     // Hard-stop entity wheel activity when leaving Home (even if React tree is frozen).
     React.useEffect(() => {
       const pauseEntityWheelOffscreen = (reason: string) => {
+        if (__DEV__) {
+          console.log("[wheel-moments] hard pause (shared=false)", {
+            reason,
+            profile: profile.id,
+          });
+        }
         isScreenActiveShared.value = false;
         cancelAnimation(orbitAngle);
         isWheelSpinning.value = false;
@@ -1672,13 +1699,23 @@ const FloatingAvatar = React.memo(
         setFloatingMoments([]);
       };
 
+      const resyncSharedFromProp = () => {
+        isScreenActiveShared.value = isScreenActivePropRef.current;
+      };
+
       const unsubscribeEventsTab = onEventsTabPress(() =>
         pauseEntityWheelOffscreen("events_tab_press"),
       );
       const appStateSub = AppState.addEventListener("change", (nextState) => {
-        if (nextState !== "active") {
-          pauseEntityWheelOffscreen("app_background");
+        if (nextState === "active") {
+          // Parent sets isAppActive on the same tick, but commit order can leave shared false
+          // for one frame; re-sync immediately and on the next microframe/frame.
+          resyncSharedFromProp();
+          queueMicrotask(resyncSharedFromProp);
+          requestAnimationFrame(resyncSharedFromProp);
+          return;
         }
+        pauseEntityWheelOffscreen("app_background");
       });
 
       return () => {
@@ -1789,12 +1826,19 @@ const FloatingAvatar = React.memo(
 
     // Entity wheel spin hint: finger + wiggle — dismiss when wiggle completes (no timer)
     React.useEffect(() => {
+      const wheelJustOpened =
+        !spinHintWheelPrevOpenRef.current && showEntityWheel;
+      spinHintWheelPrevOpenRef.current = showEntityWheel;
+
       if (!showEntityWheel || !isFocused || !isScreenActive) return;
       if (!appUsabilityHints) {
         setEntityWheelSpinLabelDismissed(true);
         entityHintRotation.value = withTiming(0, { duration: 200 });
         return;
       }
+      // Do not call setEntityWheelSpinLabelDismissed(false) on tab switch, background resume,
+      // or focus/isScreenActive churn — only when the user opens the wheel (closed → open).
+      if (!wheelJustOpened) return;
       setEntityWheelSpinLabelDismissed(false);
     }, [
       showEntityWheel,
@@ -1998,6 +2042,33 @@ const FloatingAvatar = React.memo(
                   ? "waiting_spin_hint"
                   : null;
 
+      if (__DEV__) {
+        const gateKey = `${blockedReason ?? "ok"}|${showEntityWheel}|${isFocused}|${isScreenActive}|${isWheelSpinningState}|${selectedWheelMoment ? "pop" : "-"}|${entityWheelSpinLabelDismissed}|${selectedMomentType}`;
+        if (lastWheelMomentsGateLogRef.current !== gateKey) {
+          lastWheelMomentsGateLogRef.current = gateKey;
+          if (blockedReason) {
+            console.log("[wheel-moments] spawn gate BLOCKED", {
+              profile: profile.id,
+              blockedReason,
+              showEntityWheel,
+              isFocused,
+              isScreenActive,
+              isWheelSpinningState,
+              hasSelectedWheelMoment: !!selectedWheelMoment,
+              entityWheelSpinLabelDismissed,
+              appUsabilityHints,
+              selectedMomentType,
+            });
+          } else {
+            console.log("[wheel-moments] spawn gate OK (will schedule bubbles)", {
+              profile: profile.id,
+              selectedMomentType,
+              entityWheelSpinLabelDismissed,
+            });
+          }
+        }
+      }
+
       if (blockedReason) {
         if (!showEntityWheel || !isFocused) {
           setFloatingMoments([]);
@@ -2072,6 +2143,12 @@ const FloatingAvatar = React.memo(
       });
 
       if (momentsWithPositions.length === 0) {
+        if (__DEV__) {
+          console.log("[wheel-moments] no moment candidates for type", {
+            profile: profile.id,
+            selectedMomentType,
+          });
+        }
         setFloatingMoments([]);
         return;
       }
@@ -2098,6 +2175,23 @@ const FloatingAvatar = React.memo(
       restartScheduledRef.current = false;
       remainingBeforeRestartRef.current = 0;
       nextSlotRef.current = 0;
+
+      if (__DEV__) {
+        console.log("[wheel-moments] spawn batch START", {
+          profile: profile.id,
+          cycleId: cycleIdRef.current,
+          momentType: selectedMomentType,
+          candidateCount: momentsWithPositions.length,
+          initialConcurrent: Math.min(
+            selectedMomentType === "lesson"
+              ? 3
+              : selectedMomentType === "sunny"
+                ? 4
+                : 2,
+            momentsWithPositions.length,
+          ),
+        });
+      }
 
       const timeouts: ReturnType<typeof setTimeout>[] = [];
       // Initial concurrent moments: 3 for lessons, 4 for sunny, 2 for cloudy
@@ -2129,7 +2223,20 @@ const FloatingAvatar = React.memo(
         if (selectedWheelMoment) return;
 
         const timeout = setTimeout(() => {
-          if (!isScreenActiveShared.value) return;
+          if (!isScreenActiveShared.value) {
+            if (__DEV__) {
+              console.log(
+                "[wheel-moments] spawn timeout SKIP (isScreenActiveShared false)",
+                {
+                  profile: profile.id,
+                  momentIndex,
+                  cycleId: cycleIdRef.current,
+                  delayMs: delay,
+                },
+              );
+            }
+            return;
+          }
           // Double-check selectedWheelMoment hasn't appeared during delay
           if (selectedWheelMoment) return;
 
@@ -2213,6 +2320,16 @@ const FloatingAvatar = React.memo(
               const delayAfterShrink = isCloudyMoment ? CLOUDY_SPAWN_DELAY : 0;
               const nextSpawnTimeout = setTimeout(() => {
                 if (!isScreenActiveShared.value) {
+                  if (__DEV__) {
+                    console.log(
+                      "[wheel-moments] chain timeout SKIP (isScreenActiveShared false)",
+                      {
+                        profile: profile.id,
+                        nextIndex,
+                        cycleId: currentCycleId,
+                      },
+                    );
+                  }
                   isSpawningNextRef.current = false;
                   return;
                 }
@@ -2256,6 +2373,11 @@ const FloatingAvatar = React.memo(
       }
 
       return () => {
+        if (__DEV__) {
+          console.log("[wheel-moments] spawn effect CLEANUP (clears timeouts + bubbles)", {
+            profile: profile.id,
+          });
+        }
         // Clear all timeouts to prevent moments from spawning after cleanup
         timeouts.forEach((timeout) => clearTimeout(timeout));
         floatingMomentsTimeoutsRef.current.forEach((timeout) =>
@@ -6126,12 +6248,14 @@ const FloatingAvatar = React.memo(
   },
   (prevProps, nextProps) => {
     // Custom comparison function to prevent unnecessary re-renders
+    // Keep isScreenActive in sync so wheel pause/resume logic reruns on app bg/fg.
     return (
       prevProps.profile.id === nextProps.profile.id &&
       prevProps.position.x === nextProps.position.x &&
       prevProps.position.y === nextProps.position.y &&
       prevProps.memories.length === nextProps.memories.length &&
       prevProps.isFocused === nextProps.isFocused &&
+      prevProps.isScreenActive === nextProps.isScreenActive &&
       prevProps.focusedMemory?.profileId ===
         nextProps.focusedMemory?.profileId &&
       prevProps.focusedMemory?.memoryId === nextProps.focusedMemory?.memoryId &&
