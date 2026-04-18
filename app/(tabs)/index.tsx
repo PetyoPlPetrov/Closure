@@ -21854,6 +21854,7 @@ export default function HomeScreen() {
 
           {/* Back button to return to sphere view */}
           <PulsingPressable
+            triggerPressOnPressIn
             onPress={() => {
               // Check if we came from a detail view (insights)
               const returnTo = params.returnTo as string | undefined;
@@ -21870,33 +21871,29 @@ export default function HomeScreen() {
                 startTransitionLoader();
               }
 
-              requestAnimationFrame(() => {
-                setTimeout(() => {
-                  // Default behavior - unfocus memory/profile
-                  if (focusedMemory) {
-                    setFocusedMemory(null);
-                    if (focusedMemory.profileId) {
-                      if (
-                        !focusedProfileId ||
-                        focusedProfileId !== focusedMemory.profileId
-                      ) {
-                        setFocusedProfileId(focusedMemory.profileId);
-                      }
-                    }
-                  } else if (focusedProfileId) {
-                    setFocusedProfileId(null);
-                    setFocusedMemory(null);
-                  } else {
-                    setFocusedMemory(null);
-                    setFocusedProfileId(null);
-                    setFocusedJobId(null);
-                    setSelectedSphere(null);
+              // Exit immediately; deferring by RAF+setTimeout makes back navigation feel laggy.
+              if (focusedMemory) {
+                setFocusedMemory(null);
+                if (focusedMemory.profileId) {
+                  if (
+                    !focusedProfileId ||
+                    focusedProfileId !== focusedMemory.profileId
+                  ) {
+                    setFocusedProfileId(focusedMemory.profileId);
                   }
-                  if (hadFocusedMemory) {
-                    hideLoader();
-                  }
-                }, 0);
-              });
+                }
+              } else if (focusedProfileId) {
+                setFocusedProfileId(null);
+                setFocusedMemory(null);
+              } else {
+                setFocusedMemory(null);
+                setFocusedProfileId(null);
+                setFocusedJobId(null);
+                setSelectedSphere(null);
+              }
+              if (hadFocusedMemory) {
+                hideLoader();
+              }
             }}
             style={{
               position: "absolute",
@@ -22196,6 +22193,7 @@ export default function HomeScreen() {
 
           {/* Back button to return to sphere view */}
           <PulsingPressable
+            triggerPressOnPressIn
             onPress={() => {
               // Check if we came from a detail view (insights)
               const returnTo = params.returnTo as string | undefined;
@@ -22211,27 +22209,24 @@ export default function HomeScreen() {
                 startTransitionLoader();
               }
 
-              requestAnimationFrame(() => {
-                setTimeout(() => {
-                  if (focusedMemory) {
-                    setFocusedMemory(null);
-                    if (
-                      !focusedJobId ||
-                      (focusedMemory.jobId &&
-                        focusedJobId !== focusedMemory.jobId)
-                    ) {
-                      setFocusedJobId(focusedMemory.jobId || null);
-                    }
-                  } else if (focusedJobId) {
-                    setFocusedJobId(null);
-                  } else {
-                    setSelectedSphere(null);
-                  }
-                  if (hadFocusedMemory) {
-                    hideLoader();
-                  }
-                }, 0);
-              });
+              // Exit immediately; deferring by RAF+setTimeout makes back navigation feel laggy.
+              if (focusedMemory) {
+                setFocusedMemory(null);
+                if (
+                  !focusedJobId ||
+                  (focusedMemory.jobId &&
+                    focusedJobId !== focusedMemory.jobId)
+                ) {
+                  setFocusedJobId(focusedMemory.jobId || null);
+                }
+              } else if (focusedJobId) {
+                setFocusedJobId(null);
+              } else {
+                setSelectedSphere(null);
+              }
+              if (hadFocusedMemory) {
+                hideLoader();
+              }
             }}
             style={{
               position: "absolute",
@@ -22540,6 +22535,7 @@ export default function HomeScreen() {
 
           {/* Back button to return to sphere view */}
           <PulsingPressable
+            triggerPressOnPressIn
             onPress={() => {
               // Check if we came from a detail view (insights)
               const returnTo = params.returnTo as string | undefined;
@@ -22555,34 +22551,31 @@ export default function HomeScreen() {
                 startTransitionLoader();
               }
 
-              requestAnimationFrame(() => {
-                setTimeout(() => {
-                  if (focusedMemory) {
-                    setFocusedMemory(null);
-                    if (
-                      !focusedFamilyMemberId ||
-                      (focusedMemory.familyMemberId &&
-                        focusedFamilyMemberId !== focusedMemory.familyMemberId)
-                    ) {
-                      setFocusedFamilyMemberId(
-                        focusedMemory.familyMemberId || null,
-                      );
-                    }
-                  } else if (focusedFamilyMemberId) {
-                    setFocusedFamilyMemberId(null);
-                    setFocusedMemory(null);
-                  } else {
-                    setFocusedMemory(null);
-                    setFocusedProfileId(null);
-                    setFocusedJobId(null);
-                    setFocusedFamilyMemberId(null);
-                    setSelectedSphere(null);
-                  }
-                  if (hadFocusedMemory) {
-                    hideLoader();
-                  }
-                }, 0);
-              });
+              // Exit immediately; deferring by RAF+setTimeout makes back navigation feel laggy.
+              if (focusedMemory) {
+                setFocusedMemory(null);
+                if (
+                  !focusedFamilyMemberId ||
+                  (focusedMemory.familyMemberId &&
+                    focusedFamilyMemberId !== focusedMemory.familyMemberId)
+                ) {
+                  setFocusedFamilyMemberId(
+                    focusedMemory.familyMemberId || null,
+                  );
+                }
+              } else if (focusedFamilyMemberId) {
+                setFocusedFamilyMemberId(null);
+                setFocusedMemory(null);
+              } else {
+                setFocusedMemory(null);
+                setFocusedProfileId(null);
+                setFocusedJobId(null);
+                setFocusedFamilyMemberId(null);
+                setSelectedSphere(null);
+              }
+              if (hadFocusedMemory) {
+                hideLoader();
+              }
             }}
             style={{
               position: "absolute",
@@ -22882,6 +22875,7 @@ export default function HomeScreen() {
 
           {/* Back button to return to sphere view */}
           <PulsingPressable
+            triggerPressOnPressIn
             onPress={() => {
               const returnTo = params.returnTo as string | undefined;
               const returnToId = params.returnToId as string | undefined;
@@ -22896,34 +22890,31 @@ export default function HomeScreen() {
                 startTransitionLoader();
               }
 
-              requestAnimationFrame(() => {
-                setTimeout(() => {
-                  if (focusedMemory) {
-                    setFocusedMemory(null);
-                    if (
-                      !focusedFriendId ||
-                      (focusedMemory.friendId &&
-                        focusedFriendId !== focusedMemory.friendId)
-                    ) {
-                      setFocusedFriendId(focusedMemory.friendId || null);
-                    }
-                  } else if (focusedFriendId) {
-                    setFocusedFriendId(null);
-                    setFocusedMemory(null);
-                  } else {
-                    setFocusedMemory(null);
-                    setFocusedProfileId(null);
-                    setFocusedJobId(null);
-                    setFocusedFamilyMemberId(null);
-                    setFocusedFriendId(null);
-                    setFocusedHobbyId(null);
-                    setSelectedSphere(null);
-                  }
-                  if (hadFocusedMemory) {
-                    hideLoader();
-                  }
-                }, 0);
-              });
+              // Exit immediately; deferring by RAF+setTimeout makes back navigation feel laggy.
+              if (focusedMemory) {
+                setFocusedMemory(null);
+                if (
+                  !focusedFriendId ||
+                  (focusedMemory.friendId &&
+                    focusedFriendId !== focusedMemory.friendId)
+                ) {
+                  setFocusedFriendId(focusedMemory.friendId || null);
+                }
+              } else if (focusedFriendId) {
+                setFocusedFriendId(null);
+                setFocusedMemory(null);
+              } else {
+                setFocusedMemory(null);
+                setFocusedProfileId(null);
+                setFocusedJobId(null);
+                setFocusedFamilyMemberId(null);
+                setFocusedFriendId(null);
+                setFocusedHobbyId(null);
+                setSelectedSphere(null);
+              }
+              if (hadFocusedMemory) {
+                hideLoader();
+              }
             }}
             style={{
               position: "absolute",
@@ -23225,6 +23216,7 @@ export default function HomeScreen() {
 
           {/* Back button to return to sphere view */}
           <PulsingPressable
+            triggerPressOnPressIn
             onPress={() => {
               const returnTo = params.returnTo as string | undefined;
               const returnToId = params.returnToId as string | undefined;
@@ -23239,34 +23231,31 @@ export default function HomeScreen() {
                 startTransitionLoader();
               }
 
-              requestAnimationFrame(() => {
-                setTimeout(() => {
-                  if (focusedMemory) {
-                    setFocusedMemory(null);
-                    if (
-                      !focusedHobbyId ||
-                      (focusedMemory.hobbyId &&
-                        focusedHobbyId !== focusedMemory.hobbyId)
-                    ) {
-                      setFocusedHobbyId(focusedMemory.hobbyId || null);
-                    }
-                  } else if (focusedHobbyId) {
-                    setFocusedHobbyId(null);
-                    setFocusedMemory(null);
-                  } else {
-                    setFocusedMemory(null);
-                    setFocusedProfileId(null);
-                    setFocusedJobId(null);
-                    setFocusedFamilyMemberId(null);
-                    setFocusedFriendId(null);
-                    setFocusedHobbyId(null);
-                    setSelectedSphere(null);
-                  }
-                  if (hadFocusedMemory) {
-                    hideLoader();
-                  }
-                }, 0);
-              });
+              // Exit immediately; deferring by RAF+setTimeout makes back navigation feel laggy.
+              if (focusedMemory) {
+                setFocusedMemory(null);
+                if (
+                  !focusedHobbyId ||
+                  (focusedMemory.hobbyId &&
+                    focusedHobbyId !== focusedMemory.hobbyId)
+                ) {
+                  setFocusedHobbyId(focusedMemory.hobbyId || null);
+                }
+              } else if (focusedHobbyId) {
+                setFocusedHobbyId(null);
+                setFocusedMemory(null);
+              } else {
+                setFocusedMemory(null);
+                setFocusedProfileId(null);
+                setFocusedJobId(null);
+                setFocusedFamilyMemberId(null);
+                setFocusedFriendId(null);
+                setFocusedHobbyId(null);
+                setSelectedSphere(null);
+              }
+              if (hadFocusedMemory) {
+                hideLoader();
+              }
             }}
             style={{
               position: "absolute",

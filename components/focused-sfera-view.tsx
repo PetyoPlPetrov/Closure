@@ -32,7 +32,7 @@ import { Image } from "expo-image";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { useIsFocused } from "@react-navigation/native";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   AppState,
@@ -198,6 +198,25 @@ function getEntityDepthScale(slot: number): number {
   return 0.78; // slot 4, left below
 }
 
+function getEntityRingMetrics(
+  sphereSize: number,
+  focused: boolean,
+  slot: number,
+  entityAvatarScale: number,
+): { entityAvatarSize: number; orbitRadius: number } {
+  const depthScale = getEntityDepthScale(slot);
+  const baseEntityAvatarSize = focused
+    ? 40
+    : Math.max(22, Math.round(sphereSize * 0.3));
+  const rawEntityAvatarSize = focused
+    ? baseEntityAvatarSize
+    : Math.max(10, Math.round(baseEntityAvatarSize * depthScale));
+  const entityAvatarSize = rawEntityAvatarSize * entityAvatarScale;
+  const orbitRadius =
+    sphereSize / 2 + entityAvatarSize / 2 + (focused ? 8 : 6);
+  return { entityAvatarSize, orbitRadius };
+}
+
 // ───────────────────────────── types ─────────────────────────────
 
 export type FocusedSferaViewProps = {
@@ -352,20 +371,22 @@ function getMemorySunnyPercentage(memory: IdealizedMemory): number {
 }
 
 const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
-  entityCenterX,
-  entityCenterY,
   entityIndex,
   memories,
+  visibility,
   animationsEnabled,
 }: {
-  entityCenterX: number;
-  entityCenterY: number;
   entityIndex: number;
   memories: IdealizedMemory[];
+  visibility: SharedValue<number>;
   animationsEnabled: boolean;
 }) {
   const { momentColors } = useMomentColors();
   const floatY = useSharedValue(0);
+  const wrapperStyle = useAnimatedStyle(() => ({
+    // Keep clouds/suns visible a bit longer during fade-out for a gentler transition.
+    opacity: Math.sqrt(Math.max(0, Math.min(1, visibility.value))),
+  }));
 
   useEffect(() => {
     if (!animationsEnabled) {
@@ -409,50 +430,64 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
   if (memoryIcons.length === 0) return null;
 
   return (
-    <>
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        {
+          position: "absolute",
+          left: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
+        },
+        wrapperStyle,
+      ]}
+    >
       {memoryIcons.map((m, i) => {
         const angle = (i / memoryIcons.length) * 2 * Math.PI - Math.PI / 2;
-        const ix =
-          entityCenterX +
-          Math.cos(angle) * MOMENT_ORBIT_RADIUS -
-          MOMENT_ICON_SIZE / 2;
-        const iy =
-          entityCenterY +
-          Math.sin(angle) * MOMENT_ORBIT_RADIUS -
-          MOMENT_ICON_SIZE / 2;
+        const dx = Math.cos(angle) * MOMENT_ORBIT_RADIUS;
+        const dy = Math.sin(angle) * MOMENT_ORBIT_RADIUS;
         return (
           <SmallFloatingMomentIcon
             key={m.id}
-            left={ix}
-            top={iy}
+            dx={dx}
+            dy={dy}
             floatY={floatY}
+            visibility={visibility}
             color={m.color}
             name={m.name}
             glowColor={m.glowColor}
           />
         );
       })}
-    </>
+    </Animated.View>
   );
 });
 
 const SmallFloatingMomentIcon = React.memo(function SmallFloatingMomentIcon({
-  left,
-  top,
+  dx,
+  dy,
   floatY,
+  visibility,
   color,
   name,
   glowColor,
 }: {
-  left: number;
-  top: number;
+  dx: number;
+  dy: number;
   floatY: SharedValue<number>;
+  visibility: SharedValue<number>;
   color: string;
   name: "wb-sunny" | "cloud";
   glowColor: string;
 }) {
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: floatY.value * 3 }],
+    shadowOpacity: interpolate(visibility.value, [0, 1], [0.12, 0.8], Extrapolation.CLAMP),
+    shadowRadius: interpolate(visibility.value, [0, 1], [1.5, 4], Extrapolation.CLAMP),
+    transform: [
+      { translateX: dx - MOMENT_ICON_SIZE / 2 },
+      { translateY: dy - MOMENT_ICON_SIZE / 2 + floatY.value * 3 },
+    ],
   }));
 
   return (
@@ -461,8 +496,8 @@ const SmallFloatingMomentIcon = React.memo(function SmallFloatingMomentIcon({
       style={[
         {
           position: "absolute",
-          left,
-          top,
+          left: "50%",
+          top: "50%",
           width: MOMENT_ICON_SIZE,
           height: MOMENT_ICON_SIZE,
           borderRadius: MOMENT_ICON_SIZE / 2,
@@ -861,9 +896,10 @@ const EntityRing = React.memo(function EntityRing({
   centerY,
   orbitRadius,
   avatarSize,
+  avatarSizeFallback,
   glowColor,
   isFocused = false,
-  showFloatingMoments = false,
+  momentsVisibility,
   rotateOrbit = false,
   orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
   randomPulseIndex = null,
@@ -881,11 +917,12 @@ const EntityRing = React.memo(function EntityRing({
   sphere: LifeSphere;
   centerX: number;
   centerY: number;
-  orbitRadius: number;
-  avatarSize: number;
+  orbitRadius: SharedValue<number>;
+  avatarSize: SharedValue<number>;
+  avatarSizeFallback: number;
   glowColor: string;
   isFocused?: boolean;
-  showFloatingMoments?: boolean;
+  momentsVisibility: SharedValue<number>;
   rotateOrbit?: boolean;
   orbitDurationMs?: number;
   randomPulseIndex?: number | null;
@@ -897,12 +934,12 @@ const EntityRing = React.memo(function EntityRing({
   useEffect(() => {
     if (!animationsEnabled || !rotateOrbit) {
       cancelAnimation(orbitAngle);
-      orbitAngle.value = 0;
       return;
     }
-    orbitAngle.value = 0;
+    // Keep the current phase when focus changes so entities don't "pop" to a new ring position.
+    const start = orbitAngle.value;
     orbitAngle.value = withRepeat(
-      withTiming(2 * Math.PI, {
+      withTiming(start + 2 * Math.PI, {
         duration: orbitDurationMs,
         easing: Easing.linear,
       }),
@@ -955,11 +992,12 @@ const EntityRing = React.memo(function EntityRing({
             centerY={centerY}
             orbitRadius={orbitRadius}
             avatarSize={avatarSize}
+            avatarSizeFallback={avatarSizeFallback}
             borderWidth={borderWidth}
             glowColor={glowColor}
             isFocused={isFocused}
             isTablet={isTablet}
-            showFloatingMoments={showFloatingMoments}
+            momentsVisibility={momentsVisibility}
             entityMemories={memories}
             onOrbitingTap={handleOrbitingEntityTap}
             needMemoriesHintForEntity={needMemoriesHintEntityId === entityId}
@@ -985,11 +1023,12 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   centerY,
   orbitRadius,
   avatarSize,
+  avatarSizeFallback,
   borderWidth,
   glowColor,
   isFocused,
   isTablet,
-  showFloatingMoments,
+  momentsVisibility,
   entityMemories,
   onOrbitingTap,
   needMemoriesHintForEntity,
@@ -1006,13 +1045,14 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   baseAngle: number;
   centerX: number;
   centerY: number;
-  orbitRadius: number;
-  avatarSize: number;
+  orbitRadius: SharedValue<number>;
+  avatarSize: SharedValue<number>;
+  avatarSizeFallback: number;
   borderWidth: number;
   glowColor: string;
   isFocused: boolean;
   isTablet: boolean;
-  showFloatingMoments: boolean;
+  momentsVisibility: SharedValue<number>;
   entityMemories: IdealizedMemory[];
   onOrbitingTap: (
     entityId: string,
@@ -1043,15 +1083,29 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   const animatedStyle = useAnimatedStyle(() => {
     // Always use orbitAngle.value: when orbit stops, it retains last value so entity stays in place
     const angle = baseAngle + orbitAngle.value;
-    const x = centerX + Math.cos(angle) * orbitRadius - avatarSize / 2;
-    const y = centerY + Math.sin(angle) * orbitRadius - avatarSize / 2;
+    const dynamicAvatarSize = avatarSize.value;
+    const dynamicOrbitRadius = orbitRadius.value;
+    const x = centerX + Math.cos(angle) * dynamicOrbitRadius - dynamicAvatarSize / 2;
+    const y = centerY + Math.sin(angle) * dynamicOrbitRadius - dynamicAvatarSize / 2;
     return {
       position: "absolute",
       left: x,
       top: y,
-      width: avatarSize,
-      height: avatarSize,
+      width: dynamicAvatarSize,
+      height: dynamicAvatarSize,
       overflow: "visible" as const,
+      opacity: interpolate(
+        momentsVisibility.value,
+        [0, 1],
+        [0.55, 1],
+        Extrapolation.CLAMP,
+      ),
+      shadowOpacity: interpolate(
+        momentsVisibility.value,
+        [0, 1],
+        [0.2, 0.8],
+        Extrapolation.CLAMP,
+      ),
       transform: [{ scale: scale.value }],
     };
   });
@@ -1065,22 +1119,20 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
       style={[
         animatedStyle,
         {
-          borderRadius: avatarSize / 2,
+          borderRadius: 999,
           zIndex: 15,
           shadowColor: glowColor,
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: isFocused ? 0.8 : 0.2,
           shadowRadius: isTablet ? 12 : 8,
           elevation: 8,
-          opacity: isFocused ? 1 : 0.55,
         },
       ]}
     >
       <Pressable
         style={{
-          width: avatarSize,
-          height: avatarSize,
-          borderRadius: avatarSize / 2,
+          width: "100%",
+          height: "100%",
+          borderRadius: 999,
         }}
         onPress={() => {
           if (entityId) {
@@ -1109,9 +1161,9 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
           <Image
             source={{ uri }}
             style={{
-              width: avatarSize,
-              height: avatarSize,
-              borderRadius: avatarSize / 2,
+              width: "100%",
+              height: "100%",
+              borderRadius: 999,
               borderWidth,
               borderColor: "rgba(255,255,255,0.75)",
             }}
@@ -1120,9 +1172,9 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
         ) : (
           <View
             style={{
-              width: avatarSize,
-              height: avatarSize,
-              borderRadius: avatarSize / 2,
+              width: "100%",
+              height: "100%",
+              borderRadius: 999,
               borderWidth,
               borderColor: "rgba(255,255,255,0.75)",
               backgroundColor: "rgba(128,128,128,0.5)",
@@ -1131,28 +1183,25 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
             }}
           >
             <ThemedText
-              style={{ fontSize: avatarSize * 0.45, fontWeight: "600" }}
+              style={{ fontSize: avatarSizeFallback * 0.45, fontWeight: "600" }}
             >
               {initialLetter}
             </ThemedText>
           </View>
         )}
-        {showFloatingMoments && (
-          <SmallFloatingMoments
-            entityCenterX={avatarSize / 2}
-            entityCenterY={avatarSize / 2}
-            entityIndex={index}
-            memories={entityMemories}
-            animationsEnabled={animationsEnabled}
-          />
-        )}
+        <SmallFloatingMoments
+          entityIndex={index}
+          memories={entityMemories}
+          visibility={momentsVisibility}
+          animationsEnabled={animationsEnabled}
+        />
       </Pressable>
       {needMemoriesHintForEntity ? (
         <View
           style={{
             position: "absolute",
-            top: avatarSize + 6,
-            left: (avatarSize - NEED_MEMORIES_HINT_WIDTH_FS) / 2,
+            top: avatarSizeFallback + 6,
+            left: (avatarSizeFallback - NEED_MEMORIES_HINT_WIDTH_FS) / 2,
             width: NEED_MEMORIES_HINT_WIDTH_FS,
             zIndex: 50,
             ...needMemoriesHintBubbleStyleFs,
@@ -1297,7 +1346,8 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
 // ───────────────────── Animated sphere (orbital transition: spheres slide along orbit like beads on a string) ─────────────────────
 
 const SPHERE_CONTAINER_SIZE = scaleFocused(320); // Fits orbit extent
-const ORBIT_SPRING_CONFIG = { damping: 22, stiffness: 180 };
+// Debug tuning: eased timing gives gentler start and better visual sync between outgoing/incoming sferas.
+const ORBIT_TRANSITION_DURATION_MS = 650;
 
 const RANDOM_ENTITY_PULSE_INTERVAL_MS = 4200;
 
@@ -1362,6 +1412,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   const { isTablet } = useLargeDevice();
   const target = getSphereTarget(sphereIdx, focusedIdx);
   const isFocused = sphereIdx === focusedIdx;
+  const slot = (sphereIdx - focusedIdx + 5) % 5;
   const rotateOrbitGate = isFocused && animationsEnabled && isInitialView;
 
   const [randomPulseIndex, setRandomPulseIndex] = useState<number | null>(null);
@@ -1381,6 +1432,16 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
 
   const angle = useSharedValue(target.angle);
   const size = useSharedValue(target.size);
+  const focusProgress = useSharedValue(isFocused ? 1 : 0);
+  const momentsVisibilityProgress = useSharedValue(isFocused ? 1 : 0);
+  const initialEntityMetrics = getEntityRingMetrics(
+    target.size,
+    isFocused,
+    slot,
+    entityAvatarScale,
+  );
+  const entityAvatarSizeSv = useSharedValue(initialEntityMetrics.entityAvatarSize);
+  const orbitRadiusSv = useSharedValue(initialEntityMetrics.orbitRadius);
   const spherePulseScale = useSharedValue(1);
   const lastPressTimeRef = useRef<number>(0);
   const firstTapFeedbackScale = useSharedValue(1);
@@ -1464,8 +1525,20 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     [onEntitySelect],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const next = getSphereTarget(sphereIdx, focusedIdx);
+    const nextIsFocused = sphereIdx === focusedIdx;
+    const nextSlot = (sphereIdx - focusedIdx + 5) % 5;
+    const nextEntityMetrics = getEntityRingMetrics(
+      next.size,
+      nextIsFocused,
+      nextSlot,
+      entityAvatarScale,
+    );
+    cancelAnimation(angle);
+    cancelAnimation(size);
+    cancelAnimation(entityAvatarSizeSv);
+    cancelAnimation(orbitRadiusSv);
     // Normalize current angle to [0, 360) to avoid drift after many cycles
     const raw = angle.value;
     const normalized = ((raw % 360) + 360) % 360;
@@ -1473,21 +1546,71 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     if (delta > 180) delta -= 360;
     else if (delta < -180) delta += 360;
     const targetAngle = raw + delta;
-    angle.value = withSpring(targetAngle, ORBIT_SPRING_CONFIG, (finished) => {
+    angle.value = withTiming(targetAngle, {
+      duration: ORBIT_TRANSITION_DURATION_MS,
+      easing: Easing.inOut(Easing.cubic),
+    }, (finished) => {
       "worklet";
       if (finished) {
         const v = angle.value;
         angle.value = ((v % 360) + 360) % 360;
       }
     });
-    size.value = withSpring(next.size, ORBIT_SPRING_CONFIG);
-  }, [sphereIdx, focusedIdx, angle, size]);
+    size.value = withTiming(next.size, {
+      duration: ORBIT_TRANSITION_DURATION_MS,
+      easing: Easing.inOut(Easing.cubic),
+    });
+    entityAvatarSizeSv.value = withTiming(nextEntityMetrics.entityAvatarSize, {
+      duration: ORBIT_TRANSITION_DURATION_MS,
+      easing: Easing.inOut(Easing.cubic),
+    });
+    orbitRadiusSv.value = withTiming(nextEntityMetrics.orbitRadius, {
+      duration: ORBIT_TRANSITION_DURATION_MS,
+      easing: Easing.inOut(Easing.cubic),
+    });
+  }, [
+    sphereIdx,
+    focusedIdx,
+    angle,
+    size,
+    entityAvatarScale,
+    entityAvatarSizeSv,
+    orbitRadiusSv,
+  ]);
+
+  useLayoutEffect(() => {
+    cancelAnimation(focusProgress);
+    if (isFocused) {
+      focusProgress.value = withTiming(1, {
+        duration: 480,
+        easing: Easing.inOut(Easing.quad),
+      });
+    } else {
+      // Start dimming shortly after movement begins so outgoing focused sphere does not "drop" immediately.
+      focusProgress.value = withDelay(
+        120,
+        withTiming(0, {
+          duration: 620,
+          easing: Easing.inOut(Easing.quad),
+        }),
+      );
+    }
+  }, [isFocused, focusProgress]);
+
+  useLayoutEffect(() => {
+    // Keep clouds/suns fade synced with motion start (no extra delay).
+    cancelAnimation(momentsVisibilityProgress);
+    momentsVisibilityProgress.value = withTiming(isFocused ? 1 : 0, {
+      duration: 520,
+      easing: Easing.inOut(Easing.quad),
+    });
+  }, [isFocused, momentsVisibilityProgress]);
 
   const CONTAINER_HALF = SPHERE_CONTAINER_SIZE / 2;
-  const slot = (sphereIdx - focusedIdx + 5) % 5;
 
   const containerStyle = useAnimatedStyle(() => {
     const totalAngle = angle.value;
+    const normalizedAngle = ((totalAngle % 360) + 360) % 360;
     const rad = (totalAngle * Math.PI) / 180;
     const centerX = ORBIT_CX + ORBIT_R * Math.sin(rad);
     const centerY = ORBIT_CY + ORBIT_R * Math.cos(rad);
@@ -1495,18 +1618,21 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     // cos(rad)=1 at bottom (front), -1 at top (back). Smooth scale as spheres slide along orbit.
     const x = (1 + Math.cos(rad)) / 2;
     const depthScale = 0.38 + 0.62 * Math.sqrt(Math.max(0, x));
-    // Shift back-half spheres up so they feel further away (behind circle avatar)
-    const backOffsetY = slot === 0 ? 0 : Math.cos(rad) < 0 ? -48 : 0;
-    // Unfocused spheres: shift up; focused stays put
-    const unfocusedOffsetY = slot === 0 ? 0 : -28;
-    // Right-side spheres (slots 1 & 2) sit higher so they don't align in a flat row
-    const rightSideOffsetY = slot === 1 || slot === 2 ? -22 : 0;
-    // Extra lift for the sphere below-right of the avatar (slot 1) so it sits slightly higher
-    const rightBelowExtraOffsetY = slot === 1 ? -8 : 0;
-    // Top pair above the Sunny Life circle (slots 2 & 3) sit a bit lower so they are closer to the avatar
-    const topPairOffsetY = slot === 2 || slot === 3 ? 10 : 0;
-    // Top-left (slot 3) sfera specifically — lower so it sits better above the circle avatar
-    const topLeftExtraOffsetY = slot === 3 ? 18 : 0;
+    // Shift back-half spheres up continuously so depth transition doesn't snap.
+    const backOffsetY = -48 * Math.max(0, -Math.cos(rad));
+    // Continuous slot-style offset across orbit, inlined to avoid any non-worklet call.
+    let orbitStyleOffsetY = 0;
+    if (normalizedAngle < 72) {
+      orbitStyleOffsetY = (normalizedAngle / 72) * -58;
+    } else if (normalizedAngle < 144) {
+      orbitStyleOffsetY = -58 + ((normalizedAngle - 72) / 72) * 18;
+    } else if (normalizedAngle < 216) {
+      orbitStyleOffsetY = -40 + ((normalizedAngle - 144) / 72) * 40;
+    } else if (normalizedAngle < 288) {
+      orbitStyleOffsetY = ((normalizedAngle - 216) / 72) * -28;
+    } else {
+      orbitStyleOffsetY = -28 + ((normalizedAngle - 288) / 72) * 28;
+    }
     // When sun menu is open: scale to 0 and fully hide (0.94 left ~6% visible — too noticeable)
     const sunShrink = 1 - sunExpanded.value;
     // Sphere + entity reveal during SunLoadAnimation: scale 0→1 and fade in together
@@ -1528,11 +1654,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             centerY -
             CONTAINER_HALF +
             backOffsetY +
-            unfocusedOffsetY +
-            rightSideOffsetY +
-            rightBelowExtraOffsetY +
-            topPairOffsetY +
-            topLeftExtraOffsetY,
+            orbitStyleOffsetY,
         },
         { scale: depthScale * sunShrink * introScale * individualModeScale },
       ],
@@ -1550,17 +1672,6 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     sunnyPercentage,
   );
   const shadowColor = getSphereShadowColor(sphere.type, colorScheme);
-  const depthScale = getEntityDepthScale(slot);
-  const baseEntityAvatarSize = isFocused
-    ? 40
-    : Math.max(22, Math.round(target.size * 0.3));
-  const rawEntityAvatarSize = isFocused
-    ? baseEntityAvatarSize
-    : Math.max(10, Math.round(baseEntityAvatarSize * depthScale));
-  const entityAvatarSize = rawEntityAvatarSize * entityAvatarScale;
-  // Keep orbit radius unscaled by depth so entities stay in a ring *around* the sfera, not on top of it
-  const orbitRadius =
-    target.size / 2 + entityAvatarSize / 2 + (isFocused ? 8 : 6);
 
   const sphereStyle = useAnimatedStyle(() => ({
     position: "absolute",
@@ -1568,8 +1679,32 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     top: CONTAINER_HALF - size.value / 2,
     width: size.value,
     height: size.value,
+    opacity: interpolate(
+      focusProgress.value,
+      [0, 1],
+      [isInitialView ? 0.55 : 0.8, 1],
+      Extrapolation.CLAMP,
+    ),
     transform: [{ scale: spherePulseScale.value * firstTapFeedbackScale.value }],
   }));
+
+  const sphereVisualStyle = useAnimatedStyle(() => {
+    const darkFocus = colorScheme === "dark" ? focusProgress.value : 0;
+    return {
+      shadowOpacity:
+        colorScheme === "dark"
+          ? 0.5 + 0.25 * darkFocus
+          : 0.25,
+      shadowRadius:
+        colorScheme === "dark"
+          ? (isTablet ? 16 : 12) + (isTablet ? 12 : 10) * darkFocus
+          : isTablet ? 16 : 12,
+      shadowOffset: {
+        width: 0,
+        height: colorScheme === "dark" ? (1 - darkFocus) * (isTablet ? 4 : 3) : isTablet ? 4 : 3,
+      },
+    };
+  });
 
   const entityRingStyle = useAnimatedStyle(() => {
     const introProgress = sunLoadProgress
@@ -1578,9 +1713,40 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     return { opacity: introProgress * (1 - sunExpanded.value) };
   });
 
-  const iconSize = isFocused
-    ? FOCUSED_ICON_SIZE
-    : Math.round(target.size * 0.5);
+  const iconWrapStyle = useAnimatedStyle(() => ({
+    position: "absolute",
+    zIndex: 1,
+    opacity: interpolate(focusProgress.value, [0, 1], [0.62, 1], Extrapolation.CLAMP),
+    transform: [
+      {
+        scale: Math.max(0.42, size.value / FOCUSED_SIZE),
+      },
+    ],
+  }));
+
+  const desaturationOverlayStyle = useAnimatedStyle(() => ({
+    opacity: (1 - focusProgress.value) * 0.65,
+  }));
+
+  const neonLayerStyle = useAnimatedStyle(() => ({
+    opacity: colorScheme === "dark" ? focusProgress.value : 0,
+  }));
+
+  const classicLayerStyle = useAnimatedStyle(() => ({
+    opacity: colorScheme === "dark" ? 1 - focusProgress.value : 1,
+  }));
+
+  const specularStyle = useAnimatedStyle(() => ({
+    opacity: colorScheme === "dark" ? 1 - focusProgress.value : 1,
+  }));
+
+  const iconBaseStyle = useAnimatedStyle(() => ({
+    opacity: colorScheme === "dark" ? 1 - focusProgress.value : 1,
+  }));
+
+  const iconFocusedStyle = useAnimatedStyle(() => ({
+    opacity: colorScheme === "dark" ? focusProgress.value : 0,
+  }));
 
   return (
     <Animated.View
@@ -1611,7 +1777,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
           width: SPHERE_CONTAINER_SIZE,
           height: SPHERE_CONTAINER_SIZE,
           zIndex: isFocused ? 12 : 10,
-          opacity: isFocused ? 1 : isInitialView ? 0.55 : 0.8,
+          // Keep this constant; visual fade is handled by animated focusProgress.
+          opacity: 1,
           justifyContent: "center",
           alignItems: "center",
         }}
@@ -1625,70 +1792,16 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
               overflow: "visible",
               justifyContent: "center",
               alignItems: "center",
-              shadowColor: isFocused && colorScheme === "dark"
-                ? SPHERE_NEON[sphere.type].glow
-                : colorScheme === "dark" ? shadowColor : "#000",
-              shadowOffset: isFocused && colorScheme === "dark"
-                ? { width: 0, height: 0 }
-                : { width: 0, height: isTablet ? 4 : 3 },
-              shadowOpacity: isFocused && colorScheme === "dark" ? 0.75 : colorScheme === "dark" ? 0.5 : 0.25,
-              shadowRadius: isFocused && colorScheme === "dark"
-                ? (isTablet ? 28 : 22)
-                : isTablet ? 16 : 12,
+              shadowColor: colorScheme === "dark" ? SPHERE_NEON[sphere.type].glow : "#000",
               elevation: 10,
             },
+            sphereVisualStyle,
           ]}
         >
-          {isFocused && colorScheme === "dark" ? (
-            <Svg
-              width="100%"
-              height="100%"
-              viewBox="0 0 100 100"
-              style={{ position: "absolute" }}
-              pointerEvents="none"
-            >
-              <Defs>
-                {/* Atmospheric rim: transparent center → neon color at rim */}
-                <RadialGradient
-                  id={`neon-atmo-${sphere.type}-${sphereIdx}`}
-                  cx="50" cy="50" r="50"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <Stop offset="0%"   stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0" />
-                  <Stop offset="55%"  stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0" />
-                  <Stop offset="76%"  stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0.12" />
-                  <Stop offset="90%"  stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0.50" />
-                  <Stop offset="100%" stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0.80" />
-                </RadialGradient>
-                {/* Inner deep-space shadow */}
-                <RadialGradient
-                  id={`neon-inner-${sphere.type}-${sphereIdx}`}
-                  cx="50" cy="50" r="44"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <Stop offset="0%"   stopColor="#080C14" stopOpacity="0.65" />
-                  <Stop offset="65%"  stopColor="#080C14" stopOpacity="0.30" />
-                  <Stop offset="100%" stopColor="#080C14" stopOpacity="0" />
-                </RadialGradient>
-                {/* White rim sparkle */}
-                <RadialGradient
-                  id={`neon-rim-${sphere.type}-${sphereIdx}`}
-                  cx="50" cy="50" r="50"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <Stop offset="0%"   stopColor="#FFFFFF" stopOpacity="0" />
-                  <Stop offset="84%"  stopColor="#FFFFFF" stopOpacity="0" />
-                  <Stop offset="94%"  stopColor="#FFFFFF" stopOpacity="0.18" />
-                  <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.45" />
-                </RadialGradient>
-              </Defs>
-              {/* Faint tinted fill so the center isn't fully black */}
-              <SvgCircle cx="50" cy="50" r="50" fill={SPHERE_NEON[sphere.type].core} fillOpacity={0.05} />
-              <SvgCircle cx="50" cy="50" r="50" fill={`url(#neon-atmo-${sphere.type}-${sphereIdx})`} />
-              <SvgCircle cx="50" cy="50" r="50" fill={`url(#neon-inner-${sphere.type}-${sphereIdx})`} />
-              <SvgCircle cx="50" cy="50" r="50" fill={`url(#neon-rim-${sphere.type}-${sphereIdx})`} />
-            </Svg>
-          ) : (
+          <Animated.View
+            pointerEvents="none"
+            style={[{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }, classicLayerStyle]}
+          >
             <Svg
               width="100%"
               height="100%"
@@ -1730,11 +1843,67 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
                 fill={`url(#sphere3d-${sphere.type}-${sphereIdx})`}
               />
             </Svg>
+          </Animated.View>
+          {colorScheme === "dark" && (
+            <Animated.View
+              pointerEvents="none"
+              style={[{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }, neonLayerStyle]}
+            >
+              <Svg
+                width="100%"
+                height="100%"
+                viewBox="0 0 100 100"
+                style={{ position: "absolute" }}
+                pointerEvents="none"
+              >
+                <Defs>
+                  {/* Atmospheric rim: transparent center → neon color at rim */}
+                  <RadialGradient
+                    id={`neon-atmo-${sphere.type}-${sphereIdx}`}
+                    cx="50" cy="50" r="50"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <Stop offset="0%"   stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0" />
+                    <Stop offset="55%"  stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0" />
+                    <Stop offset="76%"  stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0.12" />
+                    <Stop offset="90%"  stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0.50" />
+                    <Stop offset="100%" stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0.80" />
+                  </RadialGradient>
+                  {/* Inner deep-space shadow */}
+                  <RadialGradient
+                    id={`neon-inner-${sphere.type}-${sphereIdx}`}
+                    cx="50" cy="50" r="44"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <Stop offset="0%"   stopColor="#080C14" stopOpacity="0.65" />
+                    <Stop offset="65%"  stopColor="#080C14" stopOpacity="0.30" />
+                    <Stop offset="100%" stopColor="#080C14" stopOpacity="0" />
+                  </RadialGradient>
+                  {/* White rim sparkle */}
+                  <RadialGradient
+                    id={`neon-rim-${sphere.type}-${sphereIdx}`}
+                    cx="50" cy="50" r="50"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <Stop offset="0%"   stopColor="#FFFFFF" stopOpacity="0" />
+                    <Stop offset="84%"  stopColor="#FFFFFF" stopOpacity="0" />
+                    <Stop offset="94%"  stopColor="#FFFFFF" stopOpacity="0.18" />
+                    <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.45" />
+                  </RadialGradient>
+                </Defs>
+                {/* Faint tinted fill so the center isn't fully black */}
+                <SvgCircle cx="50" cy="50" r="50" fill={SPHERE_NEON[sphere.type].core} fillOpacity={0.05} />
+                <SvgCircle cx="50" cy="50" r="50" fill={`url(#neon-atmo-${sphere.type}-${sphereIdx})`} />
+                <SvgCircle cx="50" cy="50" r="50" fill={`url(#neon-inner-${sphere.type}-${sphereIdx})`} />
+                <SvgCircle cx="50" cy="50" r="50" fill={`url(#neon-rim-${sphere.type}-${sphereIdx})`} />
+              </Svg>
+            </Animated.View>
           )}
           {/* Specular highlight - bright ellipse top-left for glossy 3D effect */}
-          {!(isFocused && colorScheme === "dark") && (
-            <View
-              style={{
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              {
                 position: "absolute",
                 left: "18%",
                 top: "18%",
@@ -1742,13 +1911,15 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
                 height: "28%",
                 borderRadius: 100,
                 backgroundColor: "rgba(255,255,255,0.45)",
-              }}
-            />
-          )}
+              },
+              specularStyle,
+            ]}
+          />
           {/* Desaturation overlay for unfocused spheres — washes out color to grey */}
-          {!isFocused && (
-            <View
-              style={{
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              {
                 position: "absolute",
                 left: 0,
                 top: 0,
@@ -1756,15 +1927,43 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
                 bottom: 0,
                 borderRadius: 1000,
                 backgroundColor: "rgba(20,26,46,0.65)",
-              }}
-            />
-          )}
-          <MaterialIcons
-            name={sphere.icon as any}
-            size={iconSize}
-            color={isFocused && colorScheme === "dark" ? SPHERE_NEON[sphere.type].core : iconColor}
-            style={{ position: "absolute", zIndex: 1, pointerEvents: "none", opacity: isFocused ? 1 : 0.6 }}
+              },
+              desaturationOverlayStyle,
+            ]}
           />
+          <Animated.View pointerEvents="none" style={iconWrapStyle}>
+            {colorScheme !== "dark" && (
+              <MaterialIcons
+                name={sphere.icon as any}
+                size={FOCUSED_ICON_SIZE}
+                color={iconColor}
+                style={{ pointerEvents: "none" }}
+              />
+            )}
+            {colorScheme === "dark" && (
+              <Animated.View pointerEvents="none" style={iconFocusedStyle}>
+                <MaterialIcons
+                  name={sphere.icon as any}
+                  size={FOCUSED_ICON_SIZE}
+                  color={SPHERE_NEON[sphere.type].core}
+                  style={{ pointerEvents: "none" }}
+                />
+              </Animated.View>
+            )}
+            {colorScheme === "dark" && (
+              <Animated.View
+                pointerEvents="none"
+                style={[{ position: "absolute" }, iconBaseStyle]}
+              >
+                <MaterialIcons
+                  name={sphere.icon as any}
+                  size={FOCUSED_ICON_SIZE}
+                  color={iconColor}
+                  style={{ pointerEvents: "none" }}
+                />
+              </Animated.View>
+            )}
+          </Animated.View>
         </Animated.View>
         <Animated.View
           style={[
@@ -1791,11 +1990,12 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             sphere={sphere.type}
             centerX={CONTAINER_HALF}
             centerY={CONTAINER_HALF}
-            orbitRadius={orbitRadius}
-            avatarSize={entityAvatarSize}
+            orbitRadius={orbitRadiusSv}
+            avatarSize={entityAvatarSizeSv}
+            avatarSizeFallback={initialEntityMetrics.entityAvatarSize}
             glowColor={shadowColor}
             isFocused={isFocused}
-            showFloatingMoments={isFocused}
+            momentsVisibility={momentsVisibilityProgress}
             rotateOrbit={rotateOrbitGate}
             orbitDurationMs={orbitDurationMs}
             randomPulseIndex={randomPulseIndex}
@@ -2657,6 +2857,7 @@ export function FocusedSferaView({
   }, []);
 
   const animationsEnabled = isScreenFocused && !hidden && isAppActive;
+  const overviewAnimationsEnabled = animationsEnabled && selectedSphere === null;
 
   const insets = useSafeAreaInsets();
   const { ensureSubscriptionResolved, refreshCustomerInfo } = useSubscription();
@@ -3497,7 +3698,7 @@ export function FocusedSferaView({
         avatarCenterY={avatarCenterY}
         colorScheme={colorScheme}
         sunnyBackground={momentColors.sunny.background}
-        animationsEnabled={animationsEnabled}
+        animationsEnabled={overviewAnimationsEnabled}
       />
 
       {/* ─── Cosmic pulse rings for focused sphere — rendered at root level to avoid container clipping on real iOS devices ─── */}
@@ -3511,7 +3712,7 @@ export function FocusedSferaView({
         offsetY={ORBIT_CY + ORBIT_R}
         sphereSize={FOCUSED_SIZE * individualModeScale}
         enabled={
-          animationsEnabled &&
+          overviewAnimationsEnabled &&
           pulsingAnimations &&
           !isMemoryBalanceMode &&
           !isSunExpanded &&
@@ -3572,7 +3773,7 @@ export function FocusedSferaView({
             isSunMenuOpen={isSunExpanded}
             individualModeScale={individualModeScale}
             entityAvatarScale={individualEntityAvatarScale}
-            animationsEnabled={animationsEnabled}
+            animationsEnabled={overviewAnimationsEnabled}
           />
         ))}
       {/* Same timing as orbit sferas: only after sun-load celebration finishes (avatar at final size/position). */}

@@ -31,20 +31,27 @@ export type PulsingPressableProps = Omit<PressableProps, "style"> & {
    * gap after the pulse ends.
    */
   deferPressUntilAnimationEnd?: boolean;
+  /**
+   * Fire `onPress` on press-in instead of waiting for press release.
+   * Useful for back/close actions where responsiveness matters more than waiting for pulse completion.
+   */
+  triggerPressOnPressIn?: boolean;
   /** Applied to the scaled wrapper (static styles only; matches tab pulse visuals). */
   style?: StyleProp<ViewStyle>;
 };
 
 export function PulsingPressable({
   onPress,
+  onPressIn,
   children,
   style,
   deferPressUntilAnimationEnd = false,
+  triggerPressOnPressIn = false,
   ...rest
 }: PulsingPressableProps) {
   const pressScale = useSharedValue(1);
 
-  const handlePress = (ev: Parameters<NonNullable<PressableProps["onPress"]>>[0]) => {
+  const startPulse = (runPressAfterPulse: boolean, ev: Parameters<NonNullable<PressableProps["onPress"]>>[0]) => {
     if (Platform.OS === "ios" && Device.isDevice) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
@@ -53,7 +60,7 @@ export function PulsingPressable({
       onPress?.(ev);
     };
 
-    if (deferPressUntilAnimationEnd) {
+    if (runPressAfterPulse && deferPressUntilAnimationEnd) {
       pressScale.value = withSequence(
         withTiming(0.88, {
           duration: DEFER_PULSE_MS.down,
@@ -78,8 +85,28 @@ export function PulsingPressable({
         withTiming(1.15, { duration: 250, easing: Easing.out(Easing.ease) }),
         withTiming(1, { duration: 200, easing: Easing.inOut(Easing.ease) })
       );
-      onPress?.(ev);
+      if (runPressAfterPulse) {
+        onPress?.(ev);
+      }
     }
+  };
+
+  const handlePressIn = (
+    ev: Parameters<NonNullable<PressableProps["onPressIn"]>>[0],
+  ) => {
+    if (triggerPressOnPressIn) {
+      // Start pulse and trigger action immediately for snappy navigation/back actions.
+      startPulse(false, ev as Parameters<NonNullable<PressableProps["onPress"]>>[0]);
+      onPress?.(ev as Parameters<NonNullable<PressableProps["onPress"]>>[0]);
+    }
+    onPressIn?.(ev);
+  };
+
+  const handlePress = (
+    ev: Parameters<NonNullable<PressableProps["onPress"]>>[0],
+  ) => {
+    if (triggerPressOnPressIn) return;
+    startPulse(true, ev);
   };
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -88,7 +115,12 @@ export function PulsingPressable({
 
   return (
     <Animated.View style={[style, animatedStyle]}>
-      <Pressable onPress={handlePress} style={{ flex: 1, justifyContent: "center", alignItems: "center" }} {...rest}>
+      <Pressable
+        onPressIn={handlePressIn}
+        onPress={handlePress}
+        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        {...rest}
+      >
         {children}
       </Pressable>
     </Animated.View>
