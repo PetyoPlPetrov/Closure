@@ -1725,7 +1725,6 @@ export default function SettingsScreen() {
 
       const totalMoments = totalSuns + totalClouds;
       const sunnyPct = totalMoments > 0 ? Math.round((totalSuns / totalMoments) * 100) : 0;
-      console.log(`[MockData] Sunny: ${totalSuns}, Cloudy: ${totalClouds}, Total: ${totalMoments}, Sunny%: ${sunnyPct}%`);
       Alert.alert(
         t("common.success"),
         `Created ${createdProfiles} profiles, ${createdJobs} jobs, ${createdFamilyMembers} family members, ${createdFriends} friends, ${createdHobbies} hobbies, and ${createdMemories} total memories\n\n☀️ ${totalSuns} sunny / ☁️ ${totalClouds} cloudy (${sunnyPct}% sunny)`,

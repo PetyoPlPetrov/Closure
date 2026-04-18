@@ -286,9 +286,6 @@ function PageContent({
   dimmed?: boolean;
   role?: string;
 }) {
-  const _pcRender = React.useRef(0);
-  _pcRender.current += 1;
-  console.log(`[JS:PageContent] role=${role ?? '?'} lessonIndex=${lessonIndex} render#=${_pcRender.current} dimmed=${dimmed} side=${side}`);
   const isLeft = side === "left";
   const alpha = dimmed ? "55" : "FF";
   const pageNumber = displayNumber ?? (lessonIndex >= 0 ? lessonIndex + 1 : null);
@@ -510,10 +507,6 @@ function BookView({
   isFlipping: SharedValue<number>;
   isBackward: boolean;
 }) {
-  const _bvRender = React.useRef(0);
-  _bvRender.current += 1;
-  console.log(`[JS:BookView] render#${_bvRender.current} rightIndex=${rightIndex} nextIndex=${nextIndex} leftIndex=${leftIndex} newLeftIndex=${newLeftIndex} isBackward=${isBackward} flipAnimNow=${flipAnim.value.toFixed(3)}`);
-
   const pageW = PAGE_W;
   // Forward (flipDir=0): right page pivots on left edge, sweeps 0deg to -180deg
   // Backward (flipDir=1): left page pivots on right edge, sweeps 0deg to +180deg
@@ -522,7 +515,6 @@ function BookView({
     "worklet";
     const t = flipAnim.value;
     const isBack = flipDir.value === 1;
-    console.log(`[worklet:turningStyle] t=${t.toFixed(3)} isBack=${isBack}`);
     // Projected width: cos curve collapses to 0 at t=0.5, opens back up on the other side.
     // This reveals the destination page as the turning page sweeps across it.
     const projectedW = Math.abs(Math.cos(t * Math.PI)) * pageW;
@@ -562,14 +554,12 @@ function BookView({
   const frontFaceStyle = useAnimatedStyle(() => {
     "worklet";
     const opacity = flipAnim.value < 0.5 ? 1 : 0;
-    console.log(`[worklet:frontFace] t=${flipAnim.value.toFixed(3)} opacity=${opacity}`);
     return { opacity };
   });
 
   const backFaceStyle = useAnimatedStyle(() => {
     "worklet";
     const opacity = flipAnim.value >= 0.5 ? 1 : 0;
-    console.log(`[worklet:backFace] t=${flipAnim.value.toFixed(3)} opacity=${opacity}`);
     return { opacity };
   });
 
@@ -579,7 +569,6 @@ function BookView({
     const t = flipAnim.value;
     // Max shadow at t=0.5 (edge-on), zero at t=0 and t=1
     const shadow = Math.sin(t * Math.PI) * 0.65;
-    console.log(`[worklet:pageShading] t=${t.toFixed(3)} shadow=${shadow.toFixed(3)}`);
     return { opacity: shadow };
   });
 
@@ -591,7 +580,6 @@ function BookView({
     const shadow = isBack
       ? (t < 0.5 ? Math.sin(t * Math.PI) * 0.4 : 0)
       : (t > 0.5 ? Math.sin(t * Math.PI) * 0.5 : 0);
-    console.log(`[worklet:leftShadow] t=${t.toFixed(3)} isBack=${isBack} shadow=${shadow.toFixed(3)}`);
     return { opacity: shadow };
   });
 
@@ -599,7 +587,6 @@ function BookView({
   const turningPageVisibility = useAnimatedStyle(() => {
     "worklet";
     const visible = isFlipping.value === 1;
-    console.log(`[worklet:turningVisibility] isFlipping=${isFlipping.value} visible=${visible}`);
     return { opacity: visible ? 1 : 0 };
   });
 
@@ -611,7 +598,6 @@ function BookView({
     const shadow = isBack
       ? (t > 0.5 ? Math.sin(t * Math.PI) * 0.5 : 0)
       : (t < 0.5 ? Math.sin(t * Math.PI) * 0.4 : 0);
-    console.log(`[worklet:rightShadow] t=${t.toFixed(3)} isBack=${isBack} shadow=${shadow.toFixed(3)}`);
     return { opacity: shadow };
   });
 
@@ -850,7 +836,6 @@ export function YourUniverseModal({
   const finishFlip = useCallback(() => {
     isFlipping.value = 0;
     const settled = pendingIndexRef.current;
-    console.log(`[JS:finishFlip] settled=${settled} flipAnimBeforeReset=${flipAnim.value.toFixed(3)} — NOT resetting flipAnim, stays at 1`);
     // Do NOT reset flipAnim here. At t=1: frontFace=opacity:0, backFace=opacity:1 —
     // the turning page is effectively hidden (backFace content matches static-left dimmed).
     // Resetting to 0 here would snap frontFace to opacity:1 causing a visible flash
@@ -865,7 +850,6 @@ export function YourUniverseModal({
     const next = (cur + 1) % total;
     const prev = (cur - 1 + total) % total;
     pendingIndexRef.current = next;
-    console.log(`[JS:goNext] cur=${cur} next=${next} prev=${prev} flipAnimNow=${flipAnim.value.toFixed(3)}`);
     // Reset flipAnim BEFORE setSnapshot so worklets see t=0 when BookView re-renders.
     flipDir.value = 0;
     flipAnim.value = 0;
@@ -880,13 +864,11 @@ export function YourUniverseModal({
       nextDisplayNum: next + 1,
       isBackward: false,
     });
-    console.log(`[JS:goNext] starting withTiming 0→1`);
     flipAnim.value = withTiming(
       1,
       { duration: 500, easing: Easing.inOut(Easing.ease) },
       () => {
         "worklet";
-        console.log(`[worklet:goNext] animation done, calling finishFlip`);
         runOnJS(finishFlip)();
       },
     );
@@ -898,7 +880,6 @@ export function YourUniverseModal({
     const prev = (cur - 1 + total) % total;
     const prevPrev = (cur - 2 + total) % total;
     pendingIndexRef.current = prev;
-    console.log(`[JS:goPrev] cur=${cur} prev=${prev} prevPrev=${prevPrev} flipAnimNow=${flipAnim.value.toFixed(3)}`);
     // Reset flipAnim BEFORE setSnapshot so worklets see t=0 when BookView re-renders.
     flipDir.value = 1;
     flipAnim.value = 0;
@@ -913,13 +894,11 @@ export function YourUniverseModal({
       nextDisplayNum: cur + 1,
       isBackward: true,
     });
-    console.log(`[JS:goPrev] starting withTiming 0→1`);
     flipAnim.value = withTiming(
       1,
       { duration: 500, easing: Easing.inOut(Easing.ease) },
       () => {
         "worklet";
-        console.log(`[worklet:goPrev] animation done, calling finishFlip`);
         runOnJS(finishFlip)();
       },
     );

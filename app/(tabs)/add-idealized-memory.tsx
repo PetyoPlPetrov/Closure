@@ -24,7 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams, useSegments } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -924,7 +924,6 @@ export default function AddIdealizedMemoryScreen() {
   const colors = Colors[colorScheme ?? 'dark'];
   const { momentColors } = useMomentColors();
   const loaderCtx = useHomeTransitionLoader();
-  console.log('[add-idealized-memory] loaderCtx:', loaderCtx);
   const { showLoader } = loaderCtx ?? { showLoader: () => {} };
   const fontScale = useFontScale();
   const { maxContentWidth, isLargeDevice } = useLargeDevice();
@@ -937,10 +936,6 @@ export default function AddIdealizedMemoryScreen() {
   const sunWidth = isLargeDevice ? 150 : 100;
   const sunHeight = isLargeDevice ? 150 : 100;
   const params = useLocalSearchParams();
-  const segments = useSegments();
-  console.log('[add-idealized-memory.tsx] 💭 ADD/EDIT MEMORY SCREEN RENDERED');
-  console.log('[add-idealized-memory.tsx] Raw params:', params);
-  console.log('[add-idealized-memory.tsx] Current segments:', segments);
   const { addIdealizedMemory, updateIdealizedMemory, getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId } = useJourney();
   const t = useTranslate();
   const { language } = useLanguage();
@@ -954,7 +949,6 @@ export default function AddIdealizedMemoryScreen() {
   const memoryId = Array.isArray(params.memoryId) ? params.memoryId[0] : (params.memoryId as string | undefined);
   const viewOnly = (Array.isArray(params.viewOnly) ? params.viewOnly[0] : params.viewOnly) === 'true';
   const isEditMode = memoryId !== undefined;
-  console.log('[add-idealized-memory.tsx] Parsed - entityId:', entityId, 'sphere:', sphere, 'memoryId:', memoryId, 'isEditMode:', isEditMode);
 
   // Determine which mode we're in: new (entityId + sphere) or old (profileId)
   const isNewMode = !!(entityId && sphere);
@@ -1201,9 +1195,6 @@ export default function AddIdealizedMemoryScreen() {
             text: t('common.discard'),
             style: 'destructive',
             onPress: () => {
-              console.log('[add-idealized-memory] 🔙 Back button discard pressed');
-              console.log('[add-idealized-memory] Params:', { entityId, profileId, sphere });
-
               // Reset via context
               resetScreen('add-idealized-memory');
 
@@ -1212,19 +1203,16 @@ export default function AddIdealizedMemoryScreen() {
 
               // Navigate back to idealized-memories list if we have entityId/profileId, otherwise go to home
               if (entityId && sphere) {
-                console.log('[add-idealized-memory] Navigating back to idealized-memories with entityId');
                 router.replace({
                   pathname: '/idealized-memories',
                   params: { entityId, sphere }
                 });
               } else if (profileId) {
-                console.log('[add-idealized-memory] Navigating back to idealized-memories with profileId');
                 router.replace({
                   pathname: '/idealized-memories',
                   params: { profileId }
                 });
               } else {
-                console.log('[add-idealized-memory] No entity/profile params, using router.back()');
                 router.back();
               }
             },
@@ -1260,8 +1248,6 @@ export default function AddIdealizedMemoryScreen() {
     };
 
     const unsubscribeFocus = navigation.addListener('focus', () => {
-      console.log('[add-idealized-memory] 🎯 Screen FOCUSED');
-      console.log('[add-idealized-memory] isNavigatingAway:', isNavigatingAway.current);
       resetState();
     });
 
@@ -1688,7 +1674,7 @@ export default function AddIdealizedMemoryScreen() {
         });
       } else {
         // Create new memory - support both old (profileId) and new (entityId + sphere) signatures
-        let newMemoryId: string | null;
+        let newMemoryId: string | null | undefined;
         if (isNewMode && entityId && sphere) {
           // New signature: (entityId, sphere, memoryData)
           newMemoryId = await addIdealizedMemory(entityId, sphere, {
@@ -2735,14 +2721,12 @@ export default function AddIdealizedMemoryScreen() {
           onPress={() => {
             // Don't check for changes in view-only mode
             if (viewOnly) {
-              console.log('[add-idealized-memory] back pressed viewOnly, calling showLoader');
               showLoader();
               isNavigatingAway.current = true;
               router.back();
               return;
             }
 
-            console.log('[add-idealized-memory] back pressed, calling showLoader');
             showLoader();
 
             // Check for unsaved changes before navigating
@@ -2759,26 +2743,21 @@ export default function AddIdealizedMemoryScreen() {
                     text: t('common.discard'),
                     style: 'destructive',
                     onPress: () => {
-                      console.log('[add-idealized-memory.tsx] 🔙 BACK ARROW PRESSED - Discard button clicked');
-                      console.log('[add-idealized-memory.tsx] 🔙 NAVIGATING back to idealized-memories');
                       resetScreen('add-idealized-memory');
                       isNavigatingAway.current = true;
 
                       // Navigate to idealized-memories list with params if available
                       if (entityId && sphere) {
-                        console.log('[add-idealized-memory.tsx] Using router.navigate with entityId:', entityId, 'sphere:', sphere);
                         router.navigate({
                           pathname: '/idealized-memories',
                           params: { entityId, sphere }
                         });
                       } else if (profileId) {
-                        console.log('[add-idealized-memory.tsx] Using router.navigate with profileId:', profileId);
                         router.navigate({
                           pathname: '/idealized-memories',
                           params: { profileId }
                         });
                       } else {
-                        console.log('[add-idealized-memory.tsx] Using router.navigate with no params');
                         router.navigate('/idealized-memories');
                       }
                     },
@@ -2786,25 +2765,20 @@ export default function AddIdealizedMemoryScreen() {
                 ]
               );
             } else {
-              console.log('[add-idealized-memory.tsx] 🔙 BACK ARROW PRESSED - No unsaved changes');
-              console.log('[add-idealized-memory.tsx] 🔙 NAVIGATING back to idealized-memories');
               isNavigatingAway.current = true;
 
               // Navigate to idealized-memories list with params if available
               if (entityId && sphere) {
-                console.log('[add-idealized-memory.tsx] Using router.navigate with entityId:', entityId, 'sphere:', sphere);
                 router.navigate({
                   pathname: '/idealized-memories',
                   params: { entityId, sphere }
                 });
               } else if (profileId) {
-                console.log('[add-idealized-memory.tsx] Using router.navigate with profileId:', profileId);
                 router.navigate({
                   pathname: '/idealized-memories',
                   params: { profileId }
                 });
               } else {
-                console.log('[add-idealized-memory.tsx] Using router.navigate with no params');
                 router.navigate('/idealized-memories');
               }
             }

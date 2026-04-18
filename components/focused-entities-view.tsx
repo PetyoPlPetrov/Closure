@@ -8,18 +8,15 @@
 import { ConstellationBackground } from "@/components/constellation-background";
 import { EventPreviewModal } from "@/components/event-preview-modal";
 import { ThemedText } from "@/components/themed-text";
-import { Colors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { BaseEntity, IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useSferaEventsBadge } from "@/utils/SferaEventsBadgeProvider";
 import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
 import { getEventImageUrls } from "@/utils/sfera-events";
-import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import {
   getSphereGradientColors,
-  getSphereIconColor,
   getSphereShadowColor,
 } from "@/utils/sphere-styles";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -45,22 +42,8 @@ import Animated, {
   withDelay,
   withRepeat,
   withSequence,
-  withSpring,
   withTiming,
 } from "react-native-reanimated";
-import Svg, {
-  Circle as SvgCircle,
-  Defs,
-  FeColorMatrix,
-  FeGaussianBlur,
-  FeMerge,
-  FeMergeNode,
-  Filter,
-  Line,
-  RadialGradient,
-  Stop,
-  LinearGradient as SvgLinearGradient,
-} from "react-native-svg";
 
 const { width: SW, height: SH } = Dimensions.get("window");
 const IS_IPAD =
@@ -69,42 +52,16 @@ const IPAD_ENTITIES_CARD_SCALE = IS_IPAD ? 1.6 : 1;
 const IPAD_ENTITIES_AVATAR_SCALE = IS_IPAD ? 1.5 : 1;
 
 // Avatar constants (from focused-sfera-view.tsx)
-const COSMIC_TRACK = "#0D1525";
 const COSMIC_INNER_DARK = ["rgba(10,14,26,0.55)", "rgba(15,20,34,0.6)", "rgba(21,28,46,0.65)", "rgba(26,36,64,0.6)", "rgba(30,42,74,0.55)"] as const;
 const COSMIC_INNER_LIGHT = ["rgba(42,42,58,0.55)", "rgba(58,58,78,0.6)", "rgba(74,74,98,0.65)", "rgba(90,90,118,0.6)", "rgba(106,106,138,0.55)"] as const;
 
-const AVATAR_STARS = [
-  { x: 0.82, y: 0.5 }, { x: 0.726, y: 0.726 }, { x: 0.5, y: 0.82 }, { x: 0.274, y: 0.726 },
-  { x: 0.18, y: 0.5 }, { x: 0.274, y: 0.274 }, { x: 0.5, y: 0.18 }, { x: 0.726, y: 0.274 },
-  { x: 0.62, y: 0.38 }, { x: 0.38, y: 0.62 }, { x: 0.38, y: 0.38 }, { x: 0.62, y: 0.62 },
-] as const;
-const AVATAR_CONSTELLATION_LINES: [number, number][] = [
-  [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 0], [8, 9], [10, 11],
-];
-const AVATAR_STAR_COLOR = "rgba(184, 232, 236, 0.35)";
-const AVATAR_LINE_COLOR = "rgba(184, 232, 236, 0.12)";
-
 /** Auto-advance interval for cycling sfera insight modes (ms). */
 const SFERA_INSIGHT_AUTO_MS = 5000;
-
-function hexToRgbNorm(hex: string): { r: number; g: number; b: number } {
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  return { r, g, b };
-}
 
 // Central avatar configuration
 const AVATAR_SIZE = 100;
 const AVATAR_CX = SW / 2;
 const AVATAR_CY = SH * 0.46;
-
-// Entity configuration
-const FOCUSED_ENTITY_SIZE = 120;
-
-// Orbit configuration for non-focused entities
-const ORBIT_RADIUS = 100;
-const NUM_ORBIT_SLOTS = 4; // 4 entities in orbit around focused entity
 
 // Memory icons around each entity
 const MOMENT_ICON_SIZE = 16;
@@ -138,30 +95,6 @@ function getMemorySunnyPercentage(memory: IdealizedMemory): number {
   const total = clouds + suns;
   if (total === 0) return 50;
   return (suns / total) * 100;
-}
-
-/** Get sphere icon name */
-function getSphereIcon(sphere: LifeSphere): string {
-  const icons: Record<LifeSphere, string> = {
-    relationships: "favorite",
-    career: "work",
-    family: "family-restroom",
-    friends: "people",
-    hobbies: "sports-esports",
-  };
-  return icons[sphere];
-}
-
-/** Get sphere name for display */
-function getSphereName(sphere: LifeSphere, t: (key: string) => string): string {
-  const keys: Record<LifeSphere, string> = {
-    relationships: "relationships",
-    career: "career",
-    family: "family",
-    friends: "friends",
-    hobbies: "hobbies",
-  };
-  return t(keys[sphere]);
 }
 
 // ───────────────────── Small floating memory icons around one entity ─────────────────────
@@ -775,22 +708,6 @@ const EntityRing = React.memo(function EntityRing({
     </>
   );
 });
-
-// ───────────────────── Central Sphere Avatar ─────────────────────
-
-function blendHex(hex1: string, hex2: string, t: number): string {
-  const parse = (h: string) => ({
-    r: parseInt(h.slice(1, 3), 16),
-    g: parseInt(h.slice(3, 5), 16),
-    b: parseInt(h.slice(5, 7), 16),
-  });
-  const a = parse(hex1);
-  const b = parse(hex2);
-  const r = Math.round(a.r * (1 - t) + b.r * t);
-  const g = Math.round(a.g * (1 - t) + b.g * t);
-  const b_ = Math.round(a.b * (1 - t) + b.b * t);
-  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b_.toString(16).padStart(2, "0")}`;
-}
 
 // ───────────────────── Sfera Insight Card ─────────────────────
 
@@ -1653,415 +1570,6 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   );
 });
 
-const SphereAvatar = React.memo(function SphereAvatar({
-  percentage,
-  colorScheme,
-  x,
-  y,
-  animationsEnabled,
-}: {
-  percentage: number;
-  colorScheme: "light" | "dark";
-  x: number;
-  y: number;
-  animationsEnabled: boolean;
-}) {
-  const { momentColors } = useMomentColors();
-  const colors = Colors[colorScheme] as { primary: string; primaryLight?: string; primaryDark?: string };
-  const primaryHex = colors.primary ?? "#64B5F6";
-  const glowMatrixValues = React.useMemo(() => {
-    const rgb = hexToRgbNorm(primaryHex);
-    const m = (a: number) =>
-      `${rgb.r} 0 0 0 0   0 ${rgb.g} 0 0 0   0 0 ${rgb.b} 0 0   0 0 0 ${a} 0`;
-    return { m05: m(0.5), m07: m(0.7), m085: m(0.85), m08: m(0.8), m09: m(0.9), m1: m(1) };
-  }, [primaryHex]);
-
-  const avatarSize = 100;
-  const borderWidth = 8;
-  const radius = (avatarSize + borderWidth) / 2 - borderWidth / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
-
-  const gradientColors =
-    colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
-
-  // Pulse animation for circle avatar (percentage) — every 12s, offset so not in sync with focused sphere
-  const avatarPulseScale = useSharedValue(1);
-  useEffect(() => {
-    if (!animationsEnabled) {
-      cancelAnimation(avatarPulseScale);
-      avatarPulseScale.value = 1;
-      return;
-    }
-    avatarPulseScale.value = 1;
-    avatarPulseScale.value = withDelay(
-      12000,
-      withRepeat(
-        withSequence(
-          withSpring(1.1, { damping: 8, stiffness: 100 }),
-          withSpring(1, { damping: 10, stiffness: 150 }),
-          withDelay(12000, withTiming(1, { duration: 0 })),
-        ),
-        -1,
-        false,
-      ),
-    );
-    return () => {
-      cancelAnimation(avatarPulseScale);
-      avatarPulseScale.value = 1;
-    };
-  }, [avatarPulseScale, animationsEnabled]);
-
-  const avatarPulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: avatarPulseScale.value }],
-  }));
-
-  const wrapperStyle = {
-    position: "absolute" as const,
-    left: x - avatarSize / 2,
-    top: y - avatarSize / 2,
-    width: avatarSize,
-    height: avatarSize,
-    zIndex: 25, // Above spheres (10-12) so taps always reach the avatar
-  };
-
-  return (
-    <View style={wrapperStyle} pointerEvents="none">
-      <Animated.View
-        style={[{ width: avatarSize, height: avatarSize }, avatarPulseStyle]}
-      >
-        <View
-          style={{
-            width: avatarSize,
-            height: avatarSize,
-            borderRadius: avatarSize / 2,
-            justifyContent: "center",
-            alignItems: "center",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          <LinearGradient
-            colors={gradientColors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={{
-              position: "absolute",
-              width: avatarSize,
-              height: avatarSize,
-              borderRadius: avatarSize / 2,
-            }}
-          />
-          <Svg
-            width={avatarSize}
-            height={avatarSize}
-            viewBox={`0 0 ${avatarSize} ${avatarSize}`}
-            style={{ position: "absolute", top: 0, left: 0 }}
-          >
-            <Defs>
-              <RadialGradient
-                id="nebulaHalo"
-                cx="50%"
-                cy="50%"
-                r="65%"
-                fx="50%"
-                fy="50%"
-              >
-                <Stop offset="0%" stopColor={colors.primary} stopOpacity="0" />
-                <Stop offset="50%" stopColor={colors.primaryLight ?? colors.primary} stopOpacity="0.08" />
-                <Stop offset="85%" stopColor={colors.primary} stopOpacity="0.2" />
-                <Stop offset="100%" stopColor={colors.primaryDark ?? colors.primary} stopOpacity="0.35" />
-              </RadialGradient>
-              <Filter id="nebulaBlur" x="-80%" y="-80%" width="260%" height="260%">
-                <FeGaussianBlur in="SourceGraphic" stdDeviation="12" result="nebulaBlurred" />
-                <FeMerge>
-                  <FeMergeNode in="nebulaBlurred" />
-                </FeMerge>
-              </Filter>
-              <SvgLinearGradient
-                id="focusedBorderGradient"
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
-                <Stop offset="0%" stopColor={colors.primary} stopOpacity="0.9" />
-                <Stop offset="50%" stopColor={colors.primaryLight ?? colors.primary} stopOpacity="1" />
-                <Stop offset="100%" stopColor={colors.primaryDark ?? colors.primary} stopOpacity="1" />
-              </SvgLinearGradient>
-              <Filter
-                id="focusedOuterGlow"
-                x="-200%"
-                y="-200%"
-                width="500%"
-                height="500%"
-              >
-                <FeGaussianBlur
-                  in="SourceGraphic"
-                  stdDeviation="20"
-                  result="outerBlurLarge"
-                />
-                <FeColorMatrix
-                  in="outerBlurLarge"
-                  type="matrix"
-                  values={glowMatrixValues.m05}
-                  result="outerGlowLarge"
-                />
-                <FeGaussianBlur
-                  in="SourceGraphic"
-                  stdDeviation="12"
-                  result="outerBlurMedium"
-                />
-                <FeColorMatrix
-                  in="outerBlurMedium"
-                  type="matrix"
-                  values={glowMatrixValues.m07}
-                  result="outerGlowMedium"
-                />
-                <FeGaussianBlur
-                  in="SourceGraphic"
-                  stdDeviation="6"
-                  result="outerBlurSmall"
-                />
-                <FeColorMatrix
-                  in="outerBlurSmall"
-                  type="matrix"
-                  values={glowMatrixValues.m09}
-                  result="outerGlowSmall"
-                />
-                <FeMerge>
-                  <FeMergeNode in="outerGlowLarge" />
-                  <FeMergeNode in="outerGlowMedium" />
-                  <FeMergeNode in="outerGlowSmall" />
-                </FeMerge>
-              </Filter>
-              <Filter
-                id="focusedYellowGlow"
-                x="-200%"
-                y="-200%"
-                width="500%"
-                height="500%"
-              >
-                <FeGaussianBlur
-                  in="SourceGraphic"
-                  stdDeviation="16"
-                  result="outerBlur"
-                />
-                <FeColorMatrix
-                  in="outerBlur"
-                  type="matrix"
-                  values={glowMatrixValues.m1}
-                  result="outerGlow"
-                />
-                <FeGaussianBlur
-                  in="SourceGraphic"
-                  stdDeviation="10"
-                  result="outerBlurMed"
-                />
-                <FeColorMatrix
-                  in="outerBlurMed"
-                  type="matrix"
-                  values={glowMatrixValues.m085}
-                  result="outerGlowMed"
-                />
-                <FeGaussianBlur
-                  in="SourceGraphic"
-                  stdDeviation="4"
-                  result="innerBlur"
-                />
-                <FeColorMatrix
-                  in="innerBlur"
-                  type="matrix"
-                  values={glowMatrixValues.m08}
-                  result="innerGlow"
-                />
-                <FeMerge>
-                  <FeMergeNode in="outerGlow" />
-                  <FeMergeNode in="outerGlowMed" />
-                  <FeMergeNode in="innerGlow" />
-                  <FeMergeNode in="SourceGraphic" />
-                </FeMerge>
-              </Filter>
-            </Defs>
-            {/* Nebula halo - soft glow around outer part of circle */}
-            <SvgCircle
-              cx={avatarSize / 2}
-              cy={avatarSize / 2}
-              r={radius + 18}
-              fill="url(#nebulaHalo)"
-              filter="url(#nebulaBlur)"
-            />
-            {/* Cosmic dark ring track */}
-            <SvgCircle
-              cx={avatarSize / 2}
-              cy={avatarSize / 2}
-              r={radius}
-              stroke={COSMIC_TRACK}
-              strokeWidth={borderWidth}
-              fill="none"
-            />
-            {/* Outer glow arc */}
-            <SvgCircle
-              cx={avatarSize / 2}
-              cy={avatarSize / 2}
-              r={radius}
-              stroke="url(#focusedBorderGradient)"
-              strokeWidth={borderWidth}
-              fill="none"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              filter="url(#focusedOuterGlow)"
-              transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
-            />
-            {/* Main glowing progress arc */}
-            <SvgCircle
-              cx={avatarSize / 2}
-              cy={avatarSize / 2}
-              r={radius}
-              stroke="url(#focusedBorderGradient)"
-              strokeWidth={borderWidth}
-              fill="none"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              filter="url(#focusedYellowGlow)"
-              transform={`rotate(-90 ${avatarSize / 2} ${avatarSize / 2})`}
-            />
-            {/* Constellation lines */}
-            {AVATAR_CONSTELLATION_LINES.map(([i, j], k) => (
-              <Line
-                key={`line-${k}`}
-                x1={AVATAR_STARS[i].x * avatarSize}
-                y1={AVATAR_STARS[i].y * avatarSize}
-                x2={AVATAR_STARS[j].x * avatarSize}
-                y2={AVATAR_STARS[j].y * avatarSize}
-                stroke={AVATAR_LINE_COLOR}
-                strokeWidth={1}
-                strokeLinecap="round"
-              />
-            ))}
-            {/* Constellation dots */}
-            {AVATAR_STARS.map((star, k) => (
-              <SvgCircle
-                key={`star-${k}`}
-                cx={star.x * avatarSize}
-                cy={star.y * avatarSize}
-                r={k < 8 ? 1.2 : 0.9}
-                fill={AVATAR_STAR_COLOR}
-              />
-            ))}
-          </Svg>
-
-          <View
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-            pointerEvents="box-none"
-          >
-            <ThemedText
-              size="xl"
-              weight="bold"
-              style={{ color: colors.primaryLight ?? colors.primary, fontSize: 24 }}
-            >
-              {Math.round(percentage)}%
-            </ThemedText>
-          </View>
-        </View>
-
-        {/* Sun icon on the sunny arc - darker shade of sunny color from settings */}
-        {percentage > 0 &&
-          (() => {
-            const sunnyArcAngle = -90 + ((percentage / 100) * 360) / 2;
-            const sunnyAngleRad = (sunnyArcAngle * Math.PI) / 180;
-            const iconRadius = avatarSize / 2;
-            const sunX =
-              avatarSize / 2 + iconRadius * Math.cos(sunnyAngleRad) - 12;
-            const sunY =
-              avatarSize / 2 + iconRadius * Math.sin(sunnyAngleRad) - 12;
-            const sunShade = blendHex(
-              momentColors.sunny.background,
-              COSMIC_TRACK,
-              0.22,
-            );
-            return (
-              <View
-                pointerEvents="none"
-                style={{
-                  position: "absolute",
-                  top: sunY,
-                  left: sunX,
-                  width: 24,
-                  height: 24,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: sunShade,
-                  borderRadius: 12,
-                  borderWidth: 2,
-                  borderColor: sunShade,
-                  zIndex: 999,
-                  elevation: 30,
-                  shadowColor: sunShade,
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 6,
-                }}
-              >
-                <MaterialIcons name="wb-sunny" size={14} color={momentColors.sunny.text} />
-              </View>
-            );
-          })()}
-
-        {/* Cloud icon on the dark arc */}
-        {percentage < 100 &&
-          percentage > 0 &&
-          (() => {
-            const cloudyStartAngle = -90 + (percentage / 100) * 360;
-            const cloudyArcLength = 360 - (percentage / 100) * 360;
-            const cloudyArcAngle = cloudyStartAngle + cloudyArcLength / 2;
-            const cloudyAngleRad = (cloudyArcAngle * Math.PI) / 180;
-            const iconRadius = avatarSize / 2;
-            const cloudX =
-              avatarSize / 2 + iconRadius * Math.cos(cloudyAngleRad) - 12;
-            const cloudY =
-              avatarSize / 2 + iconRadius * Math.sin(cloudyAngleRad) - 12;
-            return (
-              <View
-                pointerEvents="none"
-                style={{
-                  position: "absolute",
-                  top: cloudY,
-                  left: cloudX,
-                  width: 24,
-                  height: 24,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: momentColors.cloudy.background,
-                  borderRadius: 12,
-                  borderWidth: 2,
-                  borderColor: momentColors.cloudy.background,
-                  zIndex: 999,
-                  elevation: 30,
-                  shadowColor: momentColors.cloudy.background,
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 4,
-                }}
-              >
-                <MaterialIcons name="cloud" size={14} color={momentColors.cloudy.text} />
-              </View>
-            );
-          })()}
-      </Animated.View>
-    </View>
-  );
-});
 
 // ───────────────────── Main Component ─────────────────────
 

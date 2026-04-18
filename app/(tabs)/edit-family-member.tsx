@@ -13,13 +13,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function EditFamilyMemberScreen() {
-  console.log('[edit-family-member.tsx] 👨‍👩‍👧 EDIT FAMILY MEMBER SCREEN RENDERED');
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const { maxContentWidth } = useLargeDevice();
   const params = useLocalSearchParams();
-  console.log('[edit-family-member.tsx] Params:', params);
   const { getFamilyMember, deleteFamilyMember } = useJourney();
   const t = useTranslate();
   
@@ -90,7 +88,6 @@ export default function EditFamilyMemberScreen() {
   };
 
   const handleEditMemories = () => {
-    console.log('[edit-family-member.tsx] 🔄 NAVIGATING to idealized-memories');
     if (memberId) {
       router.push({
         pathname: '/idealized-memories',
@@ -136,13 +133,10 @@ export default function EditFamilyMemberScreen() {
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => {
-            console.log('[edit-family-member.tsx] 🔙 BACK ARROW PRESSED');
             const returnTo = params.returnTo as string | undefined;
             if (returnTo === 'spheres-overview') {
-              console.log('[edit-family-member.tsx] 🔙 NAVIGATING back to spheres overview');
               router.navigate({ pathname: '/(tabs)/spheres' });
             } else {
-              console.log('[edit-family-member.tsx] 🔙 NAVIGATING back to spheres (family sphere)');
               router.navigate({
                 pathname: '/(tabs)/spheres',
                 params: { selectedSphere: 'family' }

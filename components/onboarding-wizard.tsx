@@ -659,7 +659,6 @@ export function OnboardingWizard({
     let cancelled = false;
     getCachedOnboardingResponse().then((cached) => {
       if (cancelled || !cached) return;
-      if (__DEV__) console.log("[Onboarding] Restoring cached AI response, step 6 (review)");
       setAiResponse(cached);
       setStep(6);
     });
@@ -681,9 +680,6 @@ export function OnboardingWizard({
   const hasMinWords = wordCount >= MIN_WORDS;
   const exceedsMax = inputText.length > MAX_INPUT_LENGTH;
   const canSubmit = hasMinWords && !exceedsMax && !isProcessing;
-  if (__DEV__ && step === 5) {
-    console.log("[Onboarding] render step2: canSubmit", canSubmit, "hasMinWords", hasMinWords, "exceedsMax", exceedsMax, "isProcessing", isProcessing, "step", step);
-  }
 
   const setInputTextWithLimit = useCallback((text: string) => {
     if (text.length > MAX_INPUT_LENGTH)
@@ -699,17 +695,13 @@ export function OnboardingWizard({
   });
 
   const handleSubmit = useCallback(async () => {
-    if (__DEV__) console.log("[Onboarding] handleSubmit called, canSubmit", canSubmit);
     if (!canSubmit) {
-      if (__DEV__) console.log("[Onboarding] handleSubmit early return: !canSubmit");
       return;
     }
     setErrorMessage(null);
     Keyboard.dismiss();
-    if (__DEV__) console.log("[Onboarding] handleSubmit: setIsProcessing(true)");
     setIsProcessing(true);
     await new Promise((r) => setTimeout(r, 100));
-    if (__DEV__) console.log("[Onboarding] handleSubmit: after 100ms yield, about to call API");
     const startTime = Date.now();
     try {
       const response = await processOnboardingPrompt(
@@ -723,17 +715,14 @@ export function OnboardingWizard({
       }
       setAiResponse(response);
       await setCachedOnboardingResponse(response);
-      if (__DEV__) console.log("[Onboarding] handleSubmit: API success, cached, setStep(6)");
       setStep(6);
     } catch (err) {
-      if (__DEV__) console.log("[Onboarding] handleSubmit: API error", err);
       setErrorMessage(
         err instanceof Error
           ? err.message
           : (t("ai.error.send") ?? "Failed to process"),
       );
     } finally {
-      if (__DEV__) console.log("[Onboarding] handleSubmit: finally, setIsProcessing(false)");
       setIsProcessing(false);
     }
   }, [canSubmit, inputText, language, t]);
@@ -747,17 +736,6 @@ export function OnboardingWizard({
         "friends",
         "hobbies",
       ] as const;
-      const counts = Object.fromEntries(
-        spheres.map((s) => [
-          s,
-          Array.isArray(entitiesBySphere[s]) ? entitiesBySphere[s]!.length : 0,
-        ]),
-      ) as Record<(typeof spheres)[number], number>;
-      const totalToSave = Object.values(counts).reduce((a, b) => a + b, 0);
-      if (__DEV__) {
-        console.log("[OnboardingSave] persistEntities start", { counts, totalToSave });
-      }
-      let saved = 0;
       for (const sphere of spheres) {
         const entities = entitiesBySphere[sphere];
         if (!Array.isArray(entities) || entities.length === 0) continue;
@@ -773,7 +751,6 @@ export function OnboardingWizard({
               relationship: entity.relationship?.trim() ?? "",
               description: entity.description?.trim(),
               imageUri,
-              sphere: "family",
               setupProgress: 0,
               isCompleted: false,
             });
@@ -782,7 +759,6 @@ export function OnboardingWizard({
               name: entity.name.trim(),
               description: entity.description?.trim(),
               imageUri,
-              sphere: "friends",
               setupProgress: 0,
               isCompleted: false,
             });
@@ -791,7 +767,6 @@ export function OnboardingWizard({
               name: entity.name.trim(),
               description: entity.description?.trim(),
               imageUri,
-              sphere: "hobbies",
               setupProgress: 0,
               isCompleted: false,
             });
@@ -841,14 +816,7 @@ export function OnboardingWizard({
               isCompleted: false,
             });
           }
-          saved += 1;
-          if (__DEV__) {
-            console.log("[OnboardingSave] saved entity", { sphere, index: saved, name: entity.name?.slice(0, 80) });
-          }
         }
-      }
-      if (__DEV__) {
-        console.log("[OnboardingSave] persistEntities done", { saved, expected: totalToSave });
       }
     },
     [addProfile, addJob, addFamilyMember, addFriend, addHobby],
@@ -873,9 +841,6 @@ export function OnboardingWizard({
       try {
         await persistEntities(entitiesBySphere);
         await reloadAll();
-        if (__DEV__) {
-          console.log("[OnboardingSave] after reloadAll — navigating home");
-        }
         await clearCachedOnboardingResponse();
         await setOnboardingCompleted(true);
         await setShowWalkthroughAfterOnboarding(true);
@@ -1123,8 +1088,7 @@ export function OnboardingWizard({
               colors={["#4A90E2", "#357ABD", "#2E6DA4"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFill}
-              borderRadius={12 * fontScale}
+              style={[StyleSheet.absoluteFill, { borderRadius: 12 * fontScale }]}
             />
             <ThemedText size="l" weight="bold" style={{ color: "#FFFFFF" }}>
               {t("settings.language.english") ?? "English"}
@@ -1143,8 +1107,7 @@ export function OnboardingWizard({
               colors={["#4A90E2", "#357ABD", "#2E6DA4"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFill}
-              borderRadius={12 * fontScale}
+              style={[StyleSheet.absoluteFill, { borderRadius: 12 * fontScale }]}
             />
             <ThemedText size="l" weight="bold" style={{ color: "#FFFFFF" }}>
               {t("settings.language.bulgarian") ?? "Bulgarian"}
@@ -1343,8 +1306,7 @@ export function OnboardingWizard({
               colors={["#4A90E2", "#357ABD", "#2E6DA4"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFill}
-              borderRadius={12 * fontScale}
+              style={[StyleSheet.absoluteFill, { borderRadius: 12 * fontScale }]}
             />
             <ThemedText size="l" weight="bold" style={{ color: "#FFFFFF" }}>
               {t("onboarding.next") ?? "Next"}
@@ -1357,7 +1319,6 @@ export function OnboardingWizard({
 
   // Loading while AI processes — same stepper position as "tell your story" (not a separate step)
   if (isProcessing) {
-    if (__DEV__) console.log("[Onboarding] rendering LOADER: step", step, "isProcessing", isProcessing);
     const loadingMessages = [
       t("onboarding.sferaAnalyzing") ?? "Sfera AI is analyzing...",
       t("onboarding.analyzing") ?? "Analyzing your story...",
@@ -1509,7 +1470,7 @@ export function OnboardingWizard({
                   style={{ marginRight: 8 * fontScale }}
                 />
                 <ThemedText
-                  size="s"
+                  size="sm"
                   style={{
                     color:
                       colorScheme === "dark"
@@ -1594,7 +1555,7 @@ export function OnboardingWizard({
             </View>
           </View>
 
-          <ThemedText size="s" style={{ opacity: 0.6, marginBottom: 16 }}>
+          <ThemedText size="sm" style={{ opacity: 0.6, marginBottom: 16 }}>
             {MIN_WORDS}+ words • {inputText.length}/{MAX_INPUT_LENGTH} chars
           </ThemedText>
         </ScrollView>
@@ -1662,8 +1623,7 @@ export function OnboardingWizard({
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={StyleSheet.absoluteFill}
-                borderRadius={12 * fontScale}
+                style={[StyleSheet.absoluteFill, { borderRadius: 12 * fontScale }]}
               />
               <ThemedText size="l" weight="bold" style={{ color: "#FFFFFF" }}>
                 {t("onboarding.analyze") ?? "Analyze my story"}

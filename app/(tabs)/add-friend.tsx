@@ -240,8 +240,6 @@ export default function AddFriendScreen() {
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => {
-            console.log('[add-friend.tsx] 🔙 BACK ARROW PRESSED');
-            console.log('[add-friend.tsx] 🔙 NAVIGATING back to spheres (friends sphere)');
             router.navigate({
               pathname: '/(tabs)/spheres',
               params: { selectedSphere: 'friends' }

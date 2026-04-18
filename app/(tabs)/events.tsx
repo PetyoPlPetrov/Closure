@@ -116,7 +116,6 @@ const SMALL_EVENT_SIZE = 100;
 const SMALL_EVENT_SIZE_ABOVE = 72;
 /** Non-focused card above and to the right – even smaller */
 const SMALL_EVENT_SIZE_ABOVE_RIGHT = 58;
-const EVENT_SLIDE_OFFSET = SCREEN_WIDTH * 0.5;
 const FOCUSED_EVENT_BOTTOM_Y =
   CENTER_Y + FOCUSED_ORB_SIZE / 2 + EVENT_BELOW_ORB_GAP + FOCUSED_EVENT_SIZE;
 const CHEVRON_HEIGHT = 56;
@@ -124,31 +123,6 @@ const CHEVRON_TOP =
   FOCUSED_EVENT_BOTTOM_Y - FOCUSED_EVENT_SIZE / 2 - CHEVRON_HEIGHT / 2;
 
 const ORB_ANGLES = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3]; // 0°, 120°, 240°
-
-// UX Improvement: Hero card for featured events (larger, more prominent)
-const HERO_CARD_HEIGHT = 320;
-const CARD_SPACING = 12;
-const HORIZONTAL_CARD_WIDTH = SCREEN_WIDTH * 0.75;
-
-/** Log Sfera event orbit positions (angle°, screen x,y) for debugging. Uses same orbital formula as UI. */
-function logEventPositions(
-  events: SferaEvent[],
-  focusedIdx: number,
-  total: number,
-): void {
-  if (total <= 0) return;
-  const tag = "[Sfera events orbit]";
-  const step = (2 * Math.PI) / total;
-  const orbitAngle = focusedIdx * step;
-  events.forEach((event, eventIdx) => {
-    const angle = Math.PI / 2 - eventIdx * step + orbitAngle;
-    const angleDeg = (angle * 180) / Math.PI;
-    const isFocused = eventIdx === focusedIdx;
-    const size = isFocused ? FOCUSED_EVENT_SIZE : SMALL_EVENT_SIZE;
-    const x = CENTER_X + Math.cos(angle) * EVENT_ORBIT_RADIUS - size / 2;
-    const y = CENTER_Y + Math.sin(angle) * EVENT_ORBIT_RADIUS - size / 2;
-  });
-}
 
 const COMMUNITY_TYPES: SferaEventType[] = ["social", "private", "plus"];
 
@@ -1250,8 +1224,6 @@ const EXPANDED_BTN_MIN_WIDTH = 100;
 const JOIN_IMAGE_WIDTH = 240;
 const JOIN_IMAGE_HEIGHT = 80;
 const EXPANDED_CARD_RADIUS = 20;
-/** Space reserved at bottom of scroll content for absolutely positioned buttons (discount, link, actions). */
-const EXPANDED_BOTTOM_BUTTONS_HEIGHT = 60;
 
 export default function EventsTab() {
   const colorScheme = useColorScheme();
@@ -1273,7 +1245,7 @@ export default function EventsTab() {
   );
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
-  const [selectedType, setSelectedType] = useState<SferaEventType | null>(null);
+  const [, setSelectedType] = useState<SferaEventType | null>(null);
   const [focusedCommunityIndex, setFocusedCommunityIndex] = useState(0);
   const [focusedEventIndex, setFocusedEventIndex] = useState(0);
   const [codeModal, setCodeModal] = useState<{
@@ -1767,7 +1739,9 @@ export default function EventsTab() {
     if (nextFocus !== focusedEventIndex) setFocusedEventIndex(nextFocus);
     eventOrbitAngle.value = nextFocus * step;
     focusedEventIndexShared.value = nextFocus;
-  }, [phase, listForPhase.length]); // exclude focusedEventIndex so next/prev don't overwrite the running animation
+    // Only phase / list length should re-sync orbit; omit focusedEventIndex, eventOrbitAngle, focusedEventIndexShared so swipe next/prev does not reset the running animation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional narrow deps
+  }, [phase, listForPhase.length]);
 
   const openCodeModal = useCallback((forSection: "private" | "plus") => {
     setCodeModal({ visible: true, for: forSection });
@@ -2675,10 +2649,6 @@ export default function EventsTab() {
                   onLayout={(e) => {
                     const { width, height } = e.nativeEvent.layout;
                     setExpandedCardSize({ w: width, h: height });
-                    if (__DEV__) {
-                      const { x, y } = e.nativeEvent.layout;
-                      const right = x + width;
-                    }
                   }}
                   onPress={(e) => e.stopPropagation()}
                 >

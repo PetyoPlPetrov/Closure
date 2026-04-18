@@ -39,8 +39,6 @@ import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { cancelEventMemoryReminders } from "@/utils/event-memory-reminders";
 import {
   clearEventReminderInAppForEvent,
-  getEventReminderInAppSchedule,
-  getEventGoldenMemoryUsedIds,
   markEventGoldenMemoryUsed,
 } from "@/utils/sfera-events";
 import { showPaywallForUpgradeAccess } from "@/utils/premium-access";
@@ -599,7 +597,6 @@ export function AIModal({
           setInputText("");
           setIsProcessing(false);
           setCurrentView("input");
-          setSelectedImage(null);
           setAiResponse(null);
           setMemoryItems([]);
           setSelectedSphere(null);
@@ -660,7 +657,6 @@ export function AIModal({
       setInputText("");
       void speechToText.stop();
       setCurrentView("input");
-      setSelectedImage(null);
       setAiResponse(null);
       setMemoryItems([]);
       setErrorMessage(null);
@@ -917,7 +913,6 @@ export function AIModal({
   const handleBackToInput = () => {
     setCurrentView("input");
     setInputText("");
-    setSelectedImage(null);
     setAiResponse(null);
     setMemoryItems([]);
     setSelectedSphere(null);
@@ -1324,16 +1319,8 @@ export function AIModal({
       // Golden event AI access: mark one-time use as consumed and clear all reminders for this event
       if (goldenEventId) {
         await markEventGoldenMemoryUsed(goldenEventId);
-        console.log("[Event memory] Marked event as linked with memory (golden used):", goldenEventId);
         await cancelEventMemoryReminders(goldenEventId);
-        console.log("[Event memory] Cancelled any system reminders for event:", goldenEventId);
         await clearEventReminderInAppForEvent(goldenEventId);
-        console.log("[Event memory] Cleared in-app reminder schedule for event:", goldenEventId);
-        const [goldenUsedIds, scheduleAfter] = await Promise.all([
-          getEventGoldenMemoryUsedIds(),
-          getEventReminderInAppSchedule(goldenEventId),
-        ]);
-        console.log("[Event memory] Verify – event linked (in golden used):", goldenUsedIds.has(goldenEventId), "| remaining in-app reminders for this event:", scheduleAfter == null ? "none (schedule removed – no more notifications)" : `${scheduleAfter.shownCount}/3 left`);
         hideNotification(); // dismiss the event memory reminder toast now that a memory was created
       }
 

@@ -651,10 +651,6 @@ const FloatingAvatar = React.memo(
     const remainingBeforeRestartRef = useRef<number>(0);
     const currentBatchSizeRef = useRef<number>(3);
     const nextSlotRef = useRef<number>(0);
-    /** Dedupe __DEV__ `[wheel-moments]` spawn-gate logs (floating bubbles, not spin). */
-    const lastWheelMomentsGateLogRef = useRef<string>("");
-    const prevIsScreenActiveForWheelMomentsLogRef =
-      React.useRef<boolean>(isScreenActive);
 
     // Create refs
     const viewShotRef = useRef<View>(null);
@@ -1666,27 +1662,11 @@ const FloatingAvatar = React.memo(
     // the prop before child useEffects (spawn timeouts) run; avoids stuck false after foreground.
     useLayoutEffect(() => {
       isScreenActiveShared.value = isScreenActive;
-      if (
-        __DEV__ &&
-        prevIsScreenActiveForWheelMomentsLogRef.current !== isScreenActive
-      ) {
-        prevIsScreenActiveForWheelMomentsLogRef.current = isScreenActive;
-        console.log("[wheel-moments] isScreenActive prop → shared (layout)", {
-          isScreenActive,
-          profile: profile.id,
-        });
-      }
     }, [isScreenActive, isScreenActiveShared, profile.id]);
 
     // Hard-stop entity wheel activity when leaving Home (even if React tree is frozen).
     React.useEffect(() => {
-      const pauseEntityWheelOffscreen = (reason: string) => {
-        if (__DEV__) {
-          console.log("[wheel-moments] hard pause (shared=false)", {
-            reason,
-            profile: profile.id,
-          });
-        }
+      const pauseEntityWheelOffscreen = (_reason: string) => {
         isScreenActiveShared.value = false;
         cancelAnimation(orbitAngle);
         isWheelSpinning.value = false;
@@ -2040,36 +2020,6 @@ const FloatingAvatar = React.memo(
                   ? "waiting_spin_hint"
                   : null;
 
-      if (__DEV__) {
-        const gateKey = `${blockedReason ?? "ok"}|${showEntityWheel}|${isFocused}|${isScreenActive}|${isWheelSpinningState}|${selectedWheelMoment ? "pop" : "-"}|${entityWheelSpinLabelDismissed}|${selectedMomentType}`;
-        if (lastWheelMomentsGateLogRef.current !== gateKey) {
-          lastWheelMomentsGateLogRef.current = gateKey;
-          if (blockedReason) {
-            console.log("[wheel-moments] spawn gate BLOCKED", {
-              profile: profile.id,
-              blockedReason,
-              showEntityWheel,
-              isFocused,
-              isScreenActive,
-              isWheelSpinningState,
-              hasSelectedWheelMoment: !!selectedWheelMoment,
-              entityWheelSpinLabelDismissed,
-              appUsabilityHints,
-              selectedMomentType,
-            });
-          } else {
-            console.log(
-              "[wheel-moments] spawn gate OK (will schedule bubbles)",
-              {
-                profile: profile.id,
-                selectedMomentType,
-                entityWheelSpinLabelDismissed,
-              },
-            );
-          }
-        }
-      }
-
       if (blockedReason) {
         if (!showEntityWheel || !isFocused) {
           setFloatingMoments([]);
@@ -2144,12 +2094,6 @@ const FloatingAvatar = React.memo(
       });
 
       if (momentsWithPositions.length === 0) {
-        if (__DEV__) {
-          console.log("[wheel-moments] no moment candidates for type", {
-            profile: profile.id,
-            selectedMomentType,
-          });
-        }
         setFloatingMoments([]);
         return;
       }
@@ -2176,23 +2120,6 @@ const FloatingAvatar = React.memo(
       restartScheduledRef.current = false;
       remainingBeforeRestartRef.current = 0;
       nextSlotRef.current = 0;
-
-      if (__DEV__) {
-        console.log("[wheel-moments] spawn batch START", {
-          profile: profile.id,
-          cycleId: cycleIdRef.current,
-          momentType: selectedMomentType,
-          candidateCount: momentsWithPositions.length,
-          initialConcurrent: Math.min(
-            selectedMomentType === "lesson"
-              ? 3
-              : selectedMomentType === "sunny"
-                ? 4
-                : 2,
-            momentsWithPositions.length,
-          ),
-        });
-      }
 
       const timeouts: ReturnType<typeof setTimeout>[] = [];
       // Initial concurrent moments: 3 for lessons, 4 for sunny, 2 for cloudy
@@ -2225,17 +2152,6 @@ const FloatingAvatar = React.memo(
 
         const timeout = setTimeout(() => {
           if (!isScreenActiveShared.value) {
-            if (__DEV__) {
-              console.log(
-                "[wheel-moments] spawn timeout SKIP (isScreenActiveShared false)",
-                {
-                  profile: profile.id,
-                  momentIndex,
-                  cycleId: cycleIdRef.current,
-                  delayMs: delay,
-                },
-              );
-            }
             return;
           }
           // Double-check selectedWheelMoment hasn't appeared during delay
@@ -2321,16 +2237,6 @@ const FloatingAvatar = React.memo(
               const delayAfterShrink = isCloudyMoment ? CLOUDY_SPAWN_DELAY : 0;
               const nextSpawnTimeout = setTimeout(() => {
                 if (!isScreenActiveShared.value) {
-                  if (__DEV__) {
-                    console.log(
-                      "[wheel-moments] chain timeout SKIP (isScreenActiveShared false)",
-                      {
-                        profile: profile.id,
-                        nextIndex,
-                        cycleId: currentCycleId,
-                      },
-                    );
-                  }
                   isSpawningNextRef.current = false;
                   return;
                 }
@@ -2374,14 +2280,6 @@ const FloatingAvatar = React.memo(
       }
 
       return () => {
-        if (__DEV__) {
-          console.log(
-            "[wheel-moments] spawn effect CLEANUP (clears timeouts + bubbles)",
-            {
-              profile: profile.id,
-            },
-          );
-        }
         // Clear all timeouts to prevent moments from spawning after cleanup
         timeouts.forEach((timeout) => clearTimeout(timeout));
         floatingMomentsTimeoutsRef.current.forEach((timeout) =>
@@ -3933,7 +3831,7 @@ const FloatingAvatar = React.memo(
                             numberOfLines={2}
                             ellipsizeMode="tail"
                           >
-                            View {profile.name}'s Story
+                            {`View ${profile.name}'s Story`}
                           </ThemedText>
                         </View>
                       </Pressable>
@@ -7235,6 +7133,23 @@ const MemoryActionButtons = React.memo(
       [allLessons, visibleMomentIds],
     );
 
+    // Pulse animation scales (must run before any early return — rules of hooks)
+    const lessonButtonScale = useSharedValue(1);
+    const cloudButtonScale = useSharedValue(1);
+    const sunButtonScale = useSharedValue(1);
+
+    const lessonButtonAnimatedStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: lessonButtonScale.value }],
+    }));
+
+    const cloudButtonAnimatedStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: cloudButtonScale.value }],
+    }));
+
+    const sunButtonAnimatedStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: sunButtonScale.value }],
+    }));
+
     // Always render buttons when memory is focused, even if all moments are visible
     if (!isMemoryFocused) return null;
     const totalCloudsCount = allClouds.length;
@@ -7258,24 +7173,6 @@ const MemoryActionButtons = React.memo(
     const bottomPadding = 60; // Padding from bottom - increased to move buttons up
     const containerBottom = bottomNavBarHeight + bottomPadding; // Position above navigation bar
     const colors = Colors[colorScheme ?? "dark"];
-
-    // Pulse animation scales
-    const lessonButtonScale = useSharedValue(1);
-    const cloudButtonScale = useSharedValue(1);
-    const sunButtonScale = useSharedValue(1);
-
-    // Animated styles for pulse effect
-    const lessonButtonAnimatedStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: lessonButtonScale.value }],
-    }));
-
-    const cloudButtonAnimatedStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: cloudButtonScale.value }],
-    }));
-
-    const sunButtonAnimatedStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: sunButtonScale.value }],
-    }));
 
     // Pulse animation handlers
     const handleLessonPress = () => {

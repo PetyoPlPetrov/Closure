@@ -693,7 +693,7 @@ const RisingSunBubble = React.memo(function RisingSunBubble({
       delay,
       withTiming(-(SH + sunSize), { duration, easing: Easing.linear }),
     );
-  }, []);
+  }, [delay, duration, sunSize, translateY]);
 
   const animatedStyle = useAnimatedStyle(() => {
     // Progress 0 = at bottom (top: SH), 1 = past top. translateY ranges 0 → -(SH + sunSize)
@@ -1481,7 +1481,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       }
     });
     size.value = withSpring(next.size, ORBIT_SPRING_CONFIG);
-  }, [sphereIdx, focusedIdx]);
+  }, [sphereIdx, focusedIdx, angle, size]);
 
   const CONTAINER_HALF = SPHERE_CONTAINER_SIZE / 2;
   const slot = (sphereIdx - focusedIdx + 5) % 5;

@@ -170,12 +170,16 @@ function getConstellationData(width: number, height: number) {
   return { allConstellationStars, allConstellationLines, scatteredDots };
 }
 
-function getConstellationDataWithAmount(
-  width: number,
-  height: number,
+type FullConstellationData = ReturnType<typeof getConstellationData>;
+
+type LineSeg = { x1: number; y1: number; x2: number; y2: number };
+
+/** Slice precomputed full geometry by amount — cheap; pair with getConstellationData memoized on width/height only. */
+function applyConstellationAmount(
+  full: FullConstellationData,
   amount: number,
-): { allStars: Star[]; allLines: { x1: number; y1: number; x2: number; y2: number }[]; scatteredDots: Star[] } {
-  const { allConstellationStars, allConstellationLines, scatteredDots } = getConstellationData(width, height);
+): { allStars: Star[]; allLines: LineSeg[]; scatteredDots: Star[] } {
+  const { allConstellationStars, allConstellationLines, scatteredDots } = full;
   if (amount <= 0) {
     return { allStars: [], allLines: [], scatteredDots: [] };
   }
@@ -211,18 +215,31 @@ export const ConstellationBackground = React.memo(function ConstellationBackgrou
   /** Multiply star field dot count (more scattered stars). Default 1. */
   starFieldMultiplier?: number;
 }) {
-  const { allStars, allLines, scatteredDots } = getConstellationDataWithAmount(width, height, constellationAmount);
   // Slider 0–10: max visibility (10) = former level 2. Linear distribution.
   const opacityMult = (constellationOpacity / 10) * 0.1;
 
-  const nebulaCount =
-    constellationAmount <= 0
-      ? 0
-      : Math.max(2, Math.ceil((constellationAmount / 10) * NEBULA_CLOUDS.length));
-  const starFieldCount =
-    constellationAmount <= 0
-      ? 0
-      : Math.max(10, Math.round((constellationAmount / 10) * TOTAL_STARS * starFieldMultiplier));
+  const fullConstellation = useMemo(
+    () => getConstellationData(width, height),
+    [width, height],
+  );
+
+  const { allStars, allLines, scatteredDots } = useMemo(
+    () => applyConstellationAmount(fullConstellation, constellationAmount),
+    [fullConstellation, constellationAmount],
+  );
+
+  const nebulaCount = useMemo(() => {
+    if (constellationAmount <= 0) return 0;
+    return Math.max(2, Math.ceil((constellationAmount / 10) * NEBULA_CLOUDS.length));
+  }, [constellationAmount]);
+
+  const starFieldCount = useMemo(() => {
+    if (constellationAmount <= 0) return 0;
+    return Math.max(
+      10,
+      Math.round((constellationAmount / 10) * TOTAL_STARS * starFieldMultiplier),
+    );
+  }, [constellationAmount, starFieldMultiplier]);
 
   const starField = useMemo(
     () => generateStarField(width, height, starFieldCount),
@@ -234,9 +251,12 @@ export const ConstellationBackground = React.memo(function ConstellationBackgrou
     [starField],
   );
 
-  if (constellationAmount <= 0 || width === 0 || height === 0) return null;
+  const nebulae = useMemo(
+    () => NEBULA_CLOUDS.slice(0, nebulaCount),
+    [nebulaCount],
+  );
 
-  const nebulae = NEBULA_CLOUDS.slice(0, nebulaCount);
+  if (constellationAmount <= 0 || width === 0 || height === 0) return null;
 
   return (
     <View

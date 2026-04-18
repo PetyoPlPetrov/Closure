@@ -267,8 +267,6 @@ export default function AddFamilyMemberScreen() {
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => {
-            console.log('[add-family-member.tsx] 🔙 BACK ARROW PRESSED');
-            console.log('[add-family-member.tsx] 🔙 NAVIGATING back to spheres (family sphere)');
             router.navigate({
               pathname: '/(tabs)/spheres',
               params: { selectedSphere: 'family' }

@@ -502,8 +502,6 @@ export default function AddJobScreen() {
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => {
-            console.log('[add-job.tsx] 🔙 BACK ARROW PRESSED');
-            console.log('[add-job.tsx] 🔙 NAVIGATING back to spheres (career sphere)');
             router.navigate({
               pathname: '/(tabs)/spheres',
               params: { selectedSphere: 'career' }

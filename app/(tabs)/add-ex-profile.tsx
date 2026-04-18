@@ -578,7 +578,6 @@ export default function AddExProfileScreen() {
                     text: t("common.discard"),
                     style: "destructive",
                     onPress: () => {
-                      console.log('[add-ex-profile.tsx] 🔙 BACK ARROW PRESSED - Discard clicked');
                       resetScreen("add-ex-profile");
                       isNavigatingAway.current = true;
                       router.navigate({
@@ -590,7 +589,6 @@ export default function AddExProfileScreen() {
                 ],
               );
             } else {
-              console.log('[add-ex-profile.tsx] 🔙 BACK ARROW PRESSED - No unsaved changes');
               router.navigate({
                 pathname: '/(tabs)/spheres',
                 params: { selectedSphere: 'relationships' }

@@ -19,7 +19,7 @@ import * as FileSystemLegacy from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Sharing from 'expo-sharing';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Dimensions, Image as RNImage, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -30,6 +30,7 @@ import Animated, {
   withRepeat,
   withSequence,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Path, RadialGradient, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 import { captureRef } from 'react-native-view-shot';
@@ -72,7 +73,7 @@ function FloatingMoment({
   moment: Moment;
   momentIndex: number;
   totalMomentsForMemory: number;
-  momentRotation: Animated.SharedValue<number>;
+  momentRotation: SharedValue<number>;
   memorySize: number;
   momentSize: number;
   isCurrentlyPoppedUp: boolean;
@@ -147,8 +148,8 @@ function FloatingMemory({
   position: { x: number; y: number; angle: number };
   allMomentsForMemory: Moment[];
   currentPopupMomentId: string | null;
-  memoryRotation: Animated.SharedValue<number>;
-  momentRotation: Animated.SharedValue<number>;
+  memoryRotation: SharedValue<number>;
+  momentRotation: SharedValue<number>;
   memorySize: number;
   momentSize: number;
   backgroundOpacity: number;
@@ -326,6 +327,21 @@ function SpeedSlider({
   );
 }
 
+function useOrbitSphereStyle(
+  orbitValue: SharedValue<number>,
+  baseAngleDeg: number,
+  orbitRadius: number,
+) {
+  return useAnimatedStyle(() => {
+    const angle = (baseAngleDeg + orbitValue.value) * (Math.PI / 180);
+    const x = Math.sin(angle) * orbitRadius;
+    const y = -Math.cos(angle) * orbitRadius;
+    return {
+      transform: [{ translateX: x }, { translateY: y }],
+    };
+  });
+}
+
 // Loading overlay with splash animation during video export
 function LoadingOverlay({ progress, colorScheme }: { progress: number; colorScheme: 'light' | 'dark' }) {
   const { momentColors } = useMomentColors();
@@ -350,22 +366,11 @@ function LoadingOverlay({ progress, colorScheme }: { progress: number; colorSche
     orbit5.value = withRepeat(withTiming(360, { duration: 3000, easing: Easing.linear }), -1, false);
   }, []);
 
-  const createOrbitStyle = (orbitValue: Animated.SharedValue<number>, baseAngle: number) => {
-    return useAnimatedStyle(() => {
-      const angle = (baseAngle + orbitValue.value) * (Math.PI / 180);
-      const x = Math.sin(angle) * orbitRadius;
-      const y = -Math.cos(angle) * orbitRadius;
-      return {
-        transform: [{ translateX: x }, { translateY: y }],
-      };
-    });
-  };
-
-  const sphere1Style = createOrbitStyle(orbit1, 0);
-  const sphere2Style = createOrbitStyle(orbit2, 72);
-  const sphere3Style = createOrbitStyle(orbit3, 144);
-  const sphere4Style = createOrbitStyle(orbit4, 216);
-  const sphere5Style = createOrbitStyle(orbit5, 288);
+  const sphere1Style = useOrbitSphereStyle(orbit1, 0, orbitRadius);
+  const sphere2Style = useOrbitSphereStyle(orbit2, 72, orbitRadius);
+  const sphere3Style = useOrbitSphereStyle(orbit3, 144, orbitRadius);
+  const sphere4Style = useOrbitSphereStyle(orbit4, 216, orbitRadius);
+  const sphere5Style = useOrbitSphereStyle(orbit5, 288, orbitRadius);
 
   return (
     <View
@@ -477,8 +482,8 @@ function PopUpMoment({
   targetPosition: { x: number; y: number };
   memoryPositions: { x: number; y: number; angle: number }[];
   momentsByMemory: { [key: number]: Moment[] };
-  memoryRotation: Animated.SharedValue<number>;
-  momentRotation: Animated.SharedValue<number>;
+  memoryRotation: SharedValue<number>;
+  momentRotation: SharedValue<number>;
   onComplete?: () => void;
   disappearSpeed?: number; // 0-10 scale
   timeScaleFactor?: number; // Animation slowdown factor during capture
@@ -960,6 +965,16 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
   const [backgroundBlur, setBackgroundBlur] = React.useState(2); // 0-10 scale, default 2 (slight dimming)
   const [isSettingsExpanded, setIsSettingsExpanded] = React.useState(false);
 
+  const storySparkleDots = useMemo(() => {
+    const n = Math.max(0, Math.round(70 * (constellationAmount / 10)));
+    return Array.from({ length: n }, (_, i) => ({
+      x: (Math.sin(i * 1.3) * 0.5 + 0.5) * SCREEN_WIDTH,
+      y: (Math.cos(i * 1.7) * 0.5 + 0.5) * SCREEN_HEIGHT,
+      radius: 1 + (i % 3) * 0.5,
+      baseOpacity: 0.28 + (i % 5) * 0.1,
+    }));
+  }, [constellationAmount]);
+
   // Moment type filters
   const [showLessons, setShowLessons] = React.useState(true);
   const [showSunnyMoments, setShowSunnyMoments] = React.useState(true);
@@ -968,45 +983,27 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
   const memorySize = 50;
   const momentSize = 24;
 
-  // Safety check - don't render if no memories
-  if (!memories || memories.length === 0) {
-    return (
-      <View style={styles.container}>
-        <ThemedText style={{ color: '#fff', fontSize: 18 }}>No memories to display</ThemedText>
-        <Pressable
-          onPress={onClose}
-          style={{
-            marginTop: 20,
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            paddingHorizontal: 20,
-            paddingVertical: 10,
-            borderRadius: 20,
-          }}
-        >
-          <ThemedText style={{ color: '#fff' }}>Close</ThemedText>
-        </Pressable>
-      </View>
-    );
-  }
-
   // Calculate memory positions in a circle around avatar
   const memoryPositions = React.useMemo(() => {
+    const memList = memories ?? [];
+    if (memList.length === 0) return [];
     const radius = 180;
-    return memories.map((_, index) => {
-      const angle = (index / memories.length) * Math.PI * 2 - Math.PI / 2;
+    return memList.map((_, index) => {
+      const angle = (index / memList.length) * Math.PI * 2 - Math.PI / 2;
       return {
         x: SCREEN_WIDTH / 2 + Math.cos(angle) * radius,
         y: SCREEN_HEIGHT / 2 + Math.sin(angle) * radius,
         angle,
       };
     });
-  }, [memories.length]);
+  }, [memories]);
 
   // Get ALL moments from ALL memories, filtered by selected types
   const allMoments = React.useMemo(() => {
     const moments: Moment[] = [];
+    const memList = memories ?? [];
 
-    memories.forEach((memory, memoryIndex) => {
+    memList.forEach((memory, memoryIndex) => {
       if (showLessons) {
         (memory.lessonsLearned || []).forEach((lesson, i) => {
           const text = typeof lesson === 'string' ? lesson : lesson.text || '';
@@ -1221,11 +1218,6 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
       const scaledMemoryDuration = actualMemoryAnimDuration * timeScaleFactor;
       const scaledMomentDuration = actualMomentAnimDuration * timeScaleFactor;
 
-      console.log(`[GifAnimationPreview] Starting capture with memoryRotationSpeed=${memoryRotationSpeed}, memoryDuration=${actualMemoryAnimDuration}ms`);
-      console.log(`[GifAnimationPreview] popupDisappearSpeed=${popupDisappearSpeed}, backgroundBlur=${backgroundBlur}`);
-      console.log(`[GifAnimationPreview] Time scale factor: ${timeScaleFactor.toFixed(1)}x (slowing animations for capture)`);
-      console.log(`[GifAnimationPreview] Scaled memory duration: ${scaledMemoryDuration}ms, scaled moment duration: ${scaledMomentDuration}ms`);
-
       memoryRotation.value = withRepeat(
         withTiming(360, {
           duration: scaledMemoryDuration,
@@ -1293,13 +1285,6 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
       const frameCount = Math.floor(captureTime / frameDuration);
       const frames: string[] = [];
 
-      console.log(`[GifAnimationPreview] Capture plan: ${allMoments.length} moments`);
-      console.log(`[GifAnimationPreview] Popup interval: ${popupInterval}ms (based on rotation speed ${memoryRotationSpeed})`);
-      console.log(`[GifAnimationPreview] Moments complete in: ${timeForAllMomentsComplete}ms (${(timeForAllMomentsComplete/1000).toFixed(1)}s)`);
-      console.log(`[GifAnimationPreview] Memory full rotation: ${actualMemoryAnimDuration}ms (${(actualMemoryAnimDuration/1000).toFixed(1)}s)`);
-      console.log(`[GifAnimationPreview] Capturing ${frameCount} frames over ${(captureTime/1000).toFixed(1)}s in real-time`);
-      console.log(`[GifAnimationPreview] Capture fps: ${captureFps}, Export fps: ${exportFps}`);
-
       const captureStartTime = Date.now();
       for (let i = 0; i < frameCount; i++) {
         // Check for cancellation
@@ -1333,9 +1318,6 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
           console.error(`[GifAnimationPreview] Failed to capture frame ${i}:`, error);
         }
       }
-
-      const totalCaptureTime = Date.now() - captureStartTime;
-      console.log(`[GifAnimationPreview] Actual capture time: ${(totalCaptureTime/1000).toFixed(1)}s for ${frames.length} frames`);
 
       if (frames.length === 0) {
         throw new Error('Failed to capture any frames');
@@ -1384,11 +1366,6 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
       // e.g. [f1,f2] at 15fps -> [f1,f1,f2,f2] at 30fps (same duration, smoother playback)
       const duplicationFactor = Math.max(1, Math.round(exportFps / captureFps));
       const exportFramePaths = absoluteFramePaths.flatMap((p) => Array.from({ length: duplicationFactor }, () => p));
-
-      console.log(`[GifAnimationPreview] Creating video with ${exportFramePaths.length} frames at ${exportFps} fps (duplicationFactor=${duplicationFactor})`);
-      console.log(`[GifAnimationPreview] Video will show all ${allMoments.length} moments appearing once`);
-      console.log(`[GifAnimationPreview] Expected video duration: ${(exportFramePaths.length / exportFps).toFixed(1)}s`);
-      console.log(`[GifAnimationPreview] Each moment lifecycle: ${totalMomentDuration}ms (appear + visible + disappear)`);
 
       const videoPath = await createVideoFromFrames({
         framePaths: exportFramePaths,
@@ -1461,6 +1438,26 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
     timeScaleFactorRef.current = 1;
   }, []);
 
+  if (!memories?.length) {
+    return (
+      <View style={styles.container}>
+        <ThemedText style={{ color: '#fff', fontSize: 18 }}>No memories to display</ThemedText>
+        <Pressable
+          onPress={onClose}
+          style={{
+            marginTop: 20,
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: 20,
+          }}
+        >
+          <ThemedText style={{ color: '#fff' }}>Close</ThemedText>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View style={StyleSheet.absoluteFill}>
       {/* Video capture view - this is what gets captured (buttons are outside) */}
@@ -1471,12 +1468,13 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
       >
         {/* Same cosmic background image as other screens (dark mode), respects user opacity setting */}
         {colorScheme === 'dark' && (
-          <RNImage
-            source={cosmicBackground}
-            style={[StyleSheet.absoluteFill, { opacity: cosmicBackgroundOpacity / 10 }]}
-            resizeMode="cover"
-            pointerEvents="none"
-          />
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <RNImage
+              source={cosmicBackground}
+              style={[StyleSheet.absoluteFill, { opacity: cosmicBackgroundOpacity / 10 }]}
+              resizeMode="cover"
+            />
+          </View>
         )}
 
         {/* Constellation layer driven by cosmic look settings (amount & visibility) */}
@@ -1505,23 +1503,16 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
                 <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
               </RadialGradient>
             </Defs>
-            {Array.from({ length: Math.max(0, Math.round(70 * (constellationAmount / 10))) }).map((_, i) => {
-              const x = (Math.sin(i * 1.3) * 0.5 + 0.5) * SCREEN_WIDTH;
-              const y = (Math.cos(i * 1.7) * 0.5 + 0.5) * SCREEN_HEIGHT;
-              const radius = 1 + (i % 3) * 0.5;
-              const baseOpacity = 0.28 + (i % 5) * 0.1;
-              const opacity = baseOpacity * (constellationOpacity / 10);
-              return (
-                <Circle
-                  key={i}
-                  cx={x}
-                  cy={y}
-                  r={radius}
-                  fill="url(#storyDotGradient)"
-                  opacity={opacity}
-                />
-              );
-            })}
+            {storySparkleDots.map((d, i) => (
+              <Circle
+                key={i}
+                cx={d.x}
+                cy={d.y}
+                r={d.radius}
+                fill="url(#storyDotGradient)"
+                opacity={d.baseOpacity * (constellationOpacity / 10)}
+              />
+            ))}
           </Svg>
         )}
 

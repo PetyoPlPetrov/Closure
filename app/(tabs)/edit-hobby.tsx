@@ -10,6 +10,7 @@ import { useTranslate } from '@/utils/languages/use-translate';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
+import type { DimensionValue } from 'react-native';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function EditHobbyScreen() {
@@ -51,7 +52,7 @@ export default function EditHobbyScreen() {
           padding: 16 * fontScale,
           paddingBottom: 32 * fontScale,
           gap: 24 * fontScale,
-          maxWidth: maxContentWidth,
+          maxWidth: maxContentWidth as DimensionValue,
           alignSelf: 'center',
           width: '100%',
         },
@@ -133,13 +134,10 @@ export default function EditHobbyScreen() {
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => {
-            console.log('[edit-hobby.tsx] 🔙 BACK ARROW PRESSED');
             const returnTo = params.returnTo as string | undefined;
             if (returnTo === 'spheres-overview') {
-              console.log('[edit-hobby.tsx] 🔙 NAVIGATING back to spheres overview');
               router.navigate({ pathname: '/(tabs)/spheres' });
             } else {
-              console.log('[edit-hobby.tsx] 🔙 NAVIGATING back to spheres (hobbies sphere)');
               router.navigate({
                 pathname: '/(tabs)/spheres',
                 params: { selectedSphere: 'hobbies' }

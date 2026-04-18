@@ -382,7 +382,6 @@ export default function SpheresScreen() {
 
   // Function to clear selected sphere and params
   const clearSelectedSphere = React.useCallback(() => {
-    console.log('[spheres] clearSelectedSphere called — setting selectedSphere to null, should render edit view');
     ignoringParamSyncRef.current = true;
     prevParamsRef.current = undefined;
     setSelectedSphere(null);
@@ -440,7 +439,7 @@ export default function SpheresScreen() {
         setSelectedSphere(null);
         router.replace('/(tabs)/spheres');
       } else {
-        router.navigate('/(tabs)/');
+        router.navigate("/");
       }
     });
   }, []);
@@ -1738,7 +1737,6 @@ export default function SpheresScreen() {
 
   // Show relationships profiles view (ex-profiles content) when relationships sphere is selected
   if (selectedSphere === "relationships") {
-    console.log('[spheres] rendering: relationships sphere detail view');
     return (
       <TabScreenContainer>
         <ConstellationBackground
@@ -1750,7 +1748,6 @@ export default function SpheresScreen() {
         <View style={styles.header}>
           <Pressable
             onPress={() => {
-              console.log('[spheres] arrow-back pressed — current view: relationships, calling clearSelectedSphere() to return to edit view');
               clearSelectedSphere();
             }}
             style={styles.headerButton}
@@ -1853,7 +1850,6 @@ export default function SpheresScreen() {
 
   // Show career jobs view when career sphere is selected
   if (selectedSphere === "career") {
-    console.log('[spheres] rendering: career sphere detail view');
     return (
       <TabScreenContainer>
         <ConstellationBackground
@@ -1865,7 +1861,6 @@ export default function SpheresScreen() {
         <View style={styles.header}>
           <Pressable
             onPress={() => {
-              console.log('[spheres] arrow-back pressed — current view: career, calling clearSelectedSphere() to return to edit view');
               clearSelectedSphere();
             }}
             style={styles.headerButton}
@@ -1968,7 +1963,6 @@ export default function SpheresScreen() {
 
   // Show family members view when family sphere is selected
   if (selectedSphere === "family") {
-    console.log('[spheres] rendering: family sphere detail view');
     const handleFamilyMemberMorePress = (member: FamilyMember) => {
       router.push({
         pathname: "/edit-family-member",
@@ -1987,7 +1981,6 @@ export default function SpheresScreen() {
         <View style={styles.header}>
           <Pressable
             onPress={() => {
-              console.log('[spheres] arrow-back pressed — current view: family, calling clearSelectedSphere() to return to edit view');
               clearSelectedSphere();
             }}
             style={styles.headerButton}
@@ -2140,7 +2133,6 @@ export default function SpheresScreen() {
   }
 
   if (selectedSphere === "friends") {
-    console.log('[spheres] rendering: friends sphere detail view');
     const handleFriendMorePress = (friend: Friend) => {
       router.push({
         pathname: "/edit-friend",
@@ -2159,7 +2151,6 @@ export default function SpheresScreen() {
         <View style={styles.header}>
           <Pressable
             onPress={() => {
-              console.log('[spheres] arrow-back pressed — current view: friends, calling clearSelectedSphere() to return to edit view');
               clearSelectedSphere();
             }}
             style={styles.headerButton}
@@ -2307,7 +2298,6 @@ export default function SpheresScreen() {
   }
 
   if (selectedSphere === "hobbies") {
-    console.log('[spheres] rendering: hobbies sphere detail view');
     const handleHobbyMorePress = (hobby: Hobby) => {
       router.push({
         pathname: "/edit-hobby",
@@ -2326,7 +2316,6 @@ export default function SpheresScreen() {
         <View style={styles.header}>
           <Pressable
             onPress={() => {
-              console.log('[spheres] arrow-back pressed — current view: hobbies, calling clearSelectedSphere() to return to edit view');
               clearSelectedSphere();
             }}
             style={styles.headerButton}
@@ -2473,7 +2462,6 @@ export default function SpheresScreen() {
     );
   }
 
-  console.log('[spheres] rendering: edit view (no sphere selected)');
   return (
     <TabScreenContainer>
       <ConstellationBackground
@@ -2493,10 +2481,7 @@ export default function SpheresScreen() {
             >
               <Pressable
                 onPress={() => {
-                  console.log(
-                    "[spheres] exit manual edit — navigating home to leave edit mode",
-                  );
-                  router.navigate("/(tabs)/");
+                  router.navigate("/");
                 }}
                 style={styles.manualEditExitButton}
                 accessibilityRole="button"

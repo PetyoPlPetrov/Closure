@@ -316,7 +316,7 @@ type JourneyContextType = {
     sphereOrMemoryData: LifeSphere | Omit<IdealizedMemory, 'id' | 'entityId' | 'profileId' | 'sphere' | 'createdAt' | 'updatedAt'>,
     memoryData?: Omit<IdealizedMemory, 'id' | 'entityId' | 'profileId' | 'sphere' | 'createdAt' | 'updatedAt'>,
     options?: { bypassMemoryLimit?: boolean }
-  ) => Promise<string | null>; // Returns the new memory ID, or null if limit reached and paywall dismissed
+  ) => Promise<string | null | undefined>; // Returns the new memory ID; null if paywall dismissed; undefined if duplicate id (internal)
   updateIdealizedMemory: (id: string, updates: Partial<IdealizedMemory>) => Promise<void>;
   /** Toggle favorite on a lesson within a memory (persists via lessonsLearned). */
   setLessonFavorite: (memoryId: string, lessonId: string, isFavorite: boolean) => Promise<void>;
@@ -1725,10 +1725,6 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     // Ensure percentage is a valid number between 0 and 100
     const result = Math.max(0, Math.min(100, isNaN(percentage) ? 0 : percentage));
 
-    if (validMemories.length < idealizedMemories.length) {
-    }
-
-    console.log(`[SunnyPct] ☀️ ${totalSuns} suns / ☁️ ${totalClouds} clouds / total ${total} → ${Math.round(result)}%`);
     return result;
   }, [idealizedMemories, profiles, jobs, familyMembers, friends, hobbies]);
 

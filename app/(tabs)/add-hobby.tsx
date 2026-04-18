@@ -240,8 +240,6 @@ export default function AddHobbyScreen() {
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => {
-            console.log('[add-hobby.tsx] 🔙 BACK ARROW PRESSED');
-            console.log('[add-hobby.tsx] 🔙 NAVIGATING back to spheres (hobbies sphere)');
             router.navigate({
               pathname: '/(tabs)/spheres',
               params: { selectedSphere: 'hobbies' }

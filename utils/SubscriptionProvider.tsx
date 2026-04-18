@@ -78,42 +78,6 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   // Helper function to update state from customerInfo
   // RevenueCat best practice: Trust the isActive flag from RevenueCat
   const updateSubscriptionState = useCallback((info: CustomerInfo) => {
-    if (__DEV__) {
-      try {
-        console.log(
-          "[RevenueCat] CustomerInfo:",
-          JSON.stringify(
-            {
-              activeSubscriptions: info.activeSubscriptions,
-              allPurchasedProductIdentifiers: info.allPurchasedProductIdentifiers,
-              entitlements: Object.fromEntries(
-                Object.entries(info.entitlements.active).map(([k, v]) => [
-                  k,
-                  v
-                    ? {
-                        identifier: v.identifier,
-                        isActive: v.isActive,
-                        willRenew: v.willRenew,
-                        expirationDate: v.expirationDate,
-                      }
-                    : null,
-                  ],
-                ),
-              ),
-              firstSeen: info.firstSeen,
-              managementURL: info.managementURL,
-              originalAppUserId: info.originalAppUserId,
-              requestDate: info.requestDate,
-            },
-            null,
-            2,
-          ),
-        );
-      } catch (e) {
-        console.log("[RevenueCat] CustomerInfo (raw):", info);
-      }
-    }
-
     const plus = info.entitlements.active[SFERA_PLUS_ENTITLEMENT];
     const ai = info.entitlements.active[SFERA_AI_ENTITLEMENT];
     const hasPlus = plus !== undefined && plus.isActive === true;
