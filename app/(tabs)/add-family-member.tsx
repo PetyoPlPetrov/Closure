@@ -2,7 +2,6 @@ import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
-import { useLargeDevice } from "@/hooks/use-large-device";
 import { Input } from "@/library/components/input";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { TextArea } from "@/library/components/text-area";
@@ -38,7 +37,6 @@ export default function AddFamilyMemberScreen() {
   } = useJourney();
   const { ensureSubscriptionResolved } = useSubscription();
   const params = useLocalSearchParams();
-  const { isLargeDevice, maxContentWidth } = useLargeDevice();
   const t = useTranslate();
   const { registerScreen, resetScreen } = useUnsavedChanges();
   const navigation = useNavigation();
@@ -111,7 +109,7 @@ export default function AddFamilyMemberScreen() {
       if (!result.canceled && result.assets && result.assets[0]) {
         setSelectedImage(result.assets[0].uri);
       }
-    } catch (error) {
+    } catch {
       setIsLoadingImage(false);
       alert(t("error.imagePickFailed"));
     }
@@ -230,6 +228,13 @@ export default function AddFamilyMemberScreen() {
             ? await ensureImageInAppDocuments(selectedImage)
             : undefined,
         });
+        const saved = getFamilyMember(memberId);
+        if (saved) {
+          initialName.current = saved.name || "";
+          initialDescription.current = saved.description || "";
+          initialRelationship.current = saved.relationship || "";
+          initialImage.current = saved.imageUri || null;
+        }
       } else {
         const newMemberId = await addFamilyMember({
           name: name.trim(),
@@ -248,10 +253,7 @@ export default function AddFamilyMemberScreen() {
         });
         return; // Exit early to avoid the router.replace below
       }
-
-      // For edit mode, navigate back to tabs
-      router.replace("/(tabs)/" as any);
-    } catch (error) {
+    } catch {
       Alert.alert(t("common.error"), t("error.saveFailed"));
     } finally {
       setIsSaving(false);

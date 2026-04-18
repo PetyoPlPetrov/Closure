@@ -11,7 +11,6 @@ import { useJourney, type LifeSphere } from '@/utils/JourneyProvider';
 import { useLanguage } from '@/utils/languages/language-context';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useHomeTransitionLoader } from '@/utils/home-transition-loader-context';
-import { getLifeLessonPlaceholder } from '@/utils/life-lessons';
 import {
   getHardTruthSuggestion,
   getGoodFactSuggestion,
@@ -959,7 +958,6 @@ export default function AddIdealizedMemoryScreen() {
 
   // Determine which mode we're in: new (entityId + sphere) or old (profileId)
   const isNewMode = !!(entityId && sphere);
-  const finalEntityId = entityId || profileId;
   const finalSphere = sphere || 'relationships';
   
   // Get existing memory if editing - use new API if entityId and sphere are provided
@@ -1579,7 +1577,7 @@ export default function AddIdealizedMemoryScreen() {
       if (!result.canceled && result.assets && result.assets[0]) {
         setSelectedImage(result.assets[0].uri);
       }
-    } catch (error) {
+    } catch {
       setIsLoadingImage(false);
       alert(t('error.imagePickFailed'));
     }
@@ -1643,6 +1641,8 @@ export default function AddIdealizedMemoryScreen() {
 
     setIsSaving(true);
     try {
+      let createdMemoryId: string | null = null;
+
       const hardTruths = clouds
         .filter(cloud => cloud.text.trim().length > 0)
         .map(cloud => ({
@@ -1719,6 +1719,8 @@ export default function AddIdealizedMemoryScreen() {
           return;
         }
 
+        createdMemoryId = newMemoryId;
+
         // Trigger streak update for new memory creation
         try {
           const streakResult = await updateStreakOnMemoryCreation();
@@ -1770,7 +1772,7 @@ export default function AddIdealizedMemoryScreen() {
               duration: 3000,
             });
           }
-        } catch (error) {
+        } catch {
           // Don't block memory creation if streak update fails
         }
       }
@@ -1782,10 +1784,12 @@ export default function AddIdealizedMemoryScreen() {
       initialSuns.current = suns.map(s => ({ ...s }));
       initialLessons.current = lessons.map(l => ({ ...l }));
 
-      // Navigate back after saving
-      isNavigatingAway.current = true;
-      router.back();
-    } catch (error) {
+      // First-time save: stay on this screen and switch to edit mode for the new memory
+      if (createdMemoryId) {
+        loadedMemoryIdRef.current = createdMemoryId;
+        router.setParams({ memoryId: createdMemoryId });
+      }
+    } catch {
       alert(t('memory.error.saveFailed'));
     } finally {
       setIsSaving(false);

@@ -398,7 +398,7 @@ export default function AddJobScreen() {
       if (!result.canceled && result.assets && result.assets[0]) {
         setSelectedImage(result.assets[0].uri);
       }
-    } catch (error) {
+    } catch {
       setIsLoadingImage(false);
       alert(t("error.imagePickFailed"));
     }
@@ -441,7 +441,28 @@ export default function AddJobScreen() {
               ? endDate.toISOString().split("T")[0]
               : undefined,
         });
-        router.replace("/(tabs)/spheres");
+        const updated = getJob(jobId);
+        if (updated) {
+          const jobName = updated.name || "";
+          const jobDescription = updated.description || "";
+          const jobImage = updated.imageUri || null;
+          const start = updated.startDate ? new Date(updated.startDate) : null;
+          const end = updated.endDate ? new Date(updated.endDate) : null;
+          const current = updated.endDate === null;
+          setOriginalName(jobName);
+          setOriginalDescription(jobDescription);
+          setOriginalImage(jobImage);
+          setOriginalStartDate(updated.startDate || "");
+          setOriginalEndDate(updated.endDate || "");
+          setOriginalIsCurrent(current);
+          initialName.current = jobName;
+          initialDescription.current = jobDescription;
+          initialImage.current = jobImage;
+          initialStartDate.current = start;
+          initialEndDate.current = end;
+          initialIsCurrent.current = current;
+        }
+        isSaving.current = false;
       } else {
         const newJobId = await addJob({
           name: name.trim(),
@@ -469,7 +490,7 @@ export default function AddJobScreen() {
         });
         return; // Exit early to prevent any further execution
       }
-    } catch (error) {
+    } catch {
       // Error saving job
       isSaving.current = false;
     }

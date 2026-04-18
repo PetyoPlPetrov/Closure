@@ -11,7 +11,7 @@ import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney, type ExProfile } from "@/utils/JourneyProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { UnsavedChangesProvider, useUnsavedChanges } from "@/utils/UnsavedChangesContext";
+import { useUnsavedChanges } from "@/utils/UnsavedChangesContext";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -37,7 +37,7 @@ export default function AddExProfileScreen() {
     useJourney();
   const { ensureSubscriptionResolved } = useSubscription();
   const params = useLocalSearchParams();
-  const { isLargeDevice, maxContentWidth } = useLargeDevice();
+  const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
 
   const isEditMode = params.edit === "true" && params.profileId;
@@ -427,7 +427,7 @@ export default function AddExProfileScreen() {
       if (!result.canceled && result.assets && result.assets[0]) {
         setSelectedImage(result.assets[0].uri);
       }
-    } catch (error) {
+    } catch {
       setIsLoadingImage(false);
       alert(t("error.imagePickFailed"));
     }
@@ -496,11 +496,32 @@ export default function AddExProfileScreen() {
         }
 
         await updateProfile(profileId, updateData);
-        // Mark as navigating away to prevent unsaved changes dialog
-        isNavigatingAway.current = true;
+        const updated = getProfile(profileId);
+        if (updated) {
+          const profileName = updated.name || "";
+          const profileDescription = updated.description || "";
+          const profileImage = updated.imageUri || null;
+          const startDate = updated.relationshipStartDate
+            ? new Date(updated.relationshipStartDate)
+            : null;
+          const endDate = updated.relationshipEndDate
+            ? new Date(updated.relationshipEndDate)
+            : null;
+          const ongoing = updated.relationshipEndDate === null;
+          setOriginalName(profileName);
+          setOriginalDescription(profileDescription);
+          setOriginalImage(profileImage);
+          setOriginalStartDate(updated.relationshipStartDate || "");
+          setOriginalEndDate(updated.relationshipEndDate || "");
+          setOriginalIsOngoing(ongoing);
+          initialName.current = profileName;
+          initialDescription.current = profileDescription;
+          initialStartDate.current = startDate;
+          initialEndDate.current = endDate;
+          initialIsOngoing.current = ongoing;
+          initialImage.current = profileImage;
+        }
         isSaving.current = false;
-        // Navigate back to spheres screen after edit
-        router.replace("/(tabs)/spheres");
       } else {
         // Save new profile to local storage
         const newProfileId = await addProfile({
@@ -531,7 +552,7 @@ export default function AddExProfileScreen() {
           params: { profileId: newProfileId },
         });
       }
-    } catch (error) {
+    } catch {
       isSaving.current = false;
       // TODO: Show error message to user
     }
