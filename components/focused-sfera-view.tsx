@@ -12,7 +12,6 @@ import { SunnyLifeAvatar } from "@/components/SunnyLifeAvatar";
 import { ThemedText } from "@/components/themed-text";
 import { UniverseLessonsScreen } from "@/components/universe-lessons-screen";
 import { UniverseExamScreen } from "@/components/universe-exam-screen";
-import { Colors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
 import { SUN_CONGRATS_LAST_SHOWN_KEY, useVisualSettings } from "@/utils/VisualSettingsProvider";
@@ -25,7 +24,6 @@ import { hasPendingUniverseExam } from "@/utils/universe-exam-pending";
 import { canUseExam } from "@/utils/universe-exam-rate-limiter";
 import {
   getSphere3DGradientColors,
-  getSphereGradientColors,
   getSphereIconColor,
   getSphereShadowColor,
 } from "@/utils/sphere-styles";
@@ -53,7 +51,6 @@ import Animated, {
   interpolate,
   runOnJS,
   SharedValue,
-  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -65,17 +62,11 @@ import Animated, {
 import Svg, {
   Defs,
   Ellipse as SvgEllipse,
-  FeColorMatrix,
-  FeGaussianBlur,
-  FeMerge,
-  FeMergeNode,
-  Filter,
   Line,
   Path,
   RadialGradient,
   Stop,
   Circle as SvgCircle,
-  LinearGradient as SvgLinearGradient,
 } from "react-native-svg";
 
 
@@ -152,9 +143,6 @@ const MEMORY_BALANCE_STATS_BELOW = scaleFocused(26);
 const FOCUSED_LABEL_GAP = SH * 0.03 * IPAD_FOCUSED_SCALE;
 /** Gap between label text and pagination dots (0.8% of screen height) */
 const LABEL_TO_DOTS_GAP = SH * 0.008 * IPAD_FOCUSED_SCALE;
-/** Entity orbit radius when this sphere is focused (sphere radius + entity radius + padding) */
-const FOCUSED_ENTITY_ORBIT_R = FOCUSED_SIZE / 2 + scaleFocused(20) + scaleFocused(8);
-
 const NEED_MEMORIES_HINT_WIDTH_FS = scaleFocused(220);
 const needMemoriesHintBubbleStyleFs = {
   paddingVertical: 8,
@@ -1819,37 +1807,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   );
 });
 
-// ───────────────── Overall Percentage Avatar (same as classic view) ──────────────────
-
-const BADGE_GRADIENT_DARK = [
-  "#080C14",
-  "#0D121A",
-  "#121820",
-  "#1A2332",
-  "#1F2A3A",
-  "#243041",
-  "#2A3545",
-  "#2F3A4A",
-  "#344050",
-] as const;
-const BADGE_GRADIENT_LIGHT = [
-  "#858585",
-  "#909090",
-  "#9B9B9B",
-  "#B0B0B0",
-  "#C5C5C5",
-  "#D0D0D0",
-  "#DBDBDB",
-  "#E5E5E5",
-  "#F0F0F0",
-] as const;
-
-// Cosmic avatar palette: nebula-inspired cyan → purple
-const COSMIC_RING_START = "#5CE1E6"; // soft cyan
-const COSMIC_RING_MID = "#9D7BDB"; // lavender
-const COSMIC_RING_END = "#7B68EE"; // medium slate blue
+// Cosmic chrome (Sfera insight empty state, overall avatar labels, etc.)
 const COSMIC_TEXT = "#B8E8EC"; // soft cyan-white for percentage & label
-const COSMIC_TRACK = "#0D1525"; // dark cosmic blue (progress track)
 const COSMIC_INNER_DARK = [
   "#0A0E1A",
   "#0F1422",
@@ -1865,246 +1824,7 @@ const COSMIC_INNER_LIGHT = [
   "#6A6A8A",
 ] as const; // light theme cosmic
 
-// Constellation: star positions (normalized 0–1) and line pairs (indices into AVATAR_STARS)
-const AVATAR_STARS = [
-  { x: 0.82, y: 0.5 },
-  { x: 0.726, y: 0.726 },
-  { x: 0.5, y: 0.82 },
-  { x: 0.274, y: 0.726 },
-  { x: 0.18, y: 0.5 },
-  { x: 0.274, y: 0.274 },
-  { x: 0.5, y: 0.18 },
-  { x: 0.726, y: 0.274 },
-  { x: 0.62, y: 0.38 },
-  { x: 0.38, y: 0.62 },
-  { x: 0.38, y: 0.38 },
-  { x: 0.62, y: 0.62 },
-] as const;
-const AVATAR_CONSTELLATION_LINES: [number, number][] = [
-  [0, 1],
-  [1, 2],
-  [2, 3],
-  [3, 4],
-  [4, 5],
-  [5, 6],
-  [6, 7],
-  [7, 0],
-  [8, 9],
-  [10, 11],
-];
-const AVATAR_STAR_COLOR = "rgba(184, 232, 236, 0.35)";
-const AVATAR_LINE_COLOR = "rgba(184, 232, 236, 0.12)";
-
-function blendHex(hex1: string, hex2: string, t: number): string {
-  const parse = (h: string) => ({
-    r: parseInt(h.slice(1, 3), 16),
-    g: parseInt(h.slice(3, 5), 16),
-    b: parseInt(h.slice(5, 7), 16),
-  });
-  const a = parse(hex1);
-  const b = parse(hex2);
-  const r = Math.round(a.r * (1 - t) + b.r * t);
-  const g = Math.round(a.g * (1 - t) + b.g * t);
-  const b_ = Math.round(a.b * (1 - t) + b.b * t);
-  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b_.toString(16).padStart(2, "0")}`;
-}
-
-/** Hex to RGB 0–1 for FeColorMatrix (glow uses theme primary from personalization) */
-function hexToRgbNorm(hex: string): { r: number; g: number; b: number } {
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  return { r, g, b };
-}
-
-// ─── Cosmic universe icon: nebula core + two tilted elliptical orbits + 3 glowing orbs ───
-const WheelOfLifeIcon = React.memo(function WheelOfLifeIcon({
-  size,
-  enabled = true,
-}: {
-  size: number;
-  enabled?: boolean;
-}) {
-  const { momentColors } = useMomentColors();
-
-  // Four orbs orbit at different speeds and on different axes
-  const angle0 = useSharedValue(0);
-  const angle1 = useSharedValue((2 * Math.PI) / 3);
-  const angle2 = useSharedValue((4 * Math.PI) / 3);
-  const angle3 = useSharedValue(Math.PI / 4);
-
-  useEffect(() => {
-    if (!enabled) {
-      cancelAnimation(angle0);
-      cancelAnimation(angle1);
-      cancelAnimation(angle2);
-      cancelAnimation(angle3);
-      return;
-    }
-    const dur = 3200;
-    angle0.value = withRepeat(withTiming(angle0.value + 2 * Math.PI, { duration: dur, easing: Easing.linear }), -1, false);
-    angle1.value = withRepeat(withTiming(angle1.value + 2 * Math.PI, { duration: dur * 1.35, easing: Easing.linear }), -1, false);
-    angle2.value = withRepeat(withTiming(angle2.value + 2 * Math.PI, { duration: dur * 0.8, easing: Easing.linear }), -1, false);
-    angle3.value = withRepeat(withTiming(angle3.value + 2 * Math.PI, { duration: dur * 1.7, easing: Easing.linear }), -1, false);
-    return () => {
-      cancelAnimation(angle0);
-      cancelAnimation(angle1);
-      cancelAnimation(angle2);
-      cancelAnimation(angle3);
-    };
-  }, [angle0, angle1, angle2, angle3, enabled]);
-
-  const C = size / 2;
-  // Elliptical orbit radii — orbit 0 is wider/flat, orbit 1 is tilted
-  const RX0 = size * 0.41;
-  const RY0 = size * 0.18;
-  const RX1 = size * 0.32;
-  const RY1 = size * 0.41;
-  const TILT1 = Math.PI / 5; // 36° tilt for second orbit
-  // Orbit 3: smaller tilted ellipse at ~-60° tilt
-  const RX3 = size * 0.38;
-  const RY3 = size * 0.14;
-  const TILT3 = -Math.PI / 3;
-  const DOT_R = size * 0.09;
-
-  const sunColor = momentColors.sunny.background;
-  const cloudColor = momentColors.cloudy.background;
-  const lessonColor = momentColors.lesson.background;
-
-  // Orb 0 on flat ellipse
-  const orb0Style = useAnimatedStyle(() => {
-    const a = angle0.value;
-    return {
-      position: "absolute" as const,
-      left: C + Math.cos(a) * RX0 - DOT_R,
-      top: C + Math.sin(a) * RY0 - DOT_R,
-      width: DOT_R * 2,
-      height: DOT_R * 2,
-      borderRadius: DOT_R,
-    };
-  });
-
-  // Orb 1 on tilted ellipse
-  const orb1Style = useAnimatedStyle(() => {
-    const a = angle1.value;
-    const ex = Math.cos(a) * RX1;
-    const ey = Math.sin(a) * RY1;
-    // Apply tilt rotation
-    return {
-      position: "absolute" as const,
-      left: C + ex * Math.cos(TILT1) - ey * Math.sin(TILT1) - DOT_R,
-      top: C + ex * Math.sin(TILT1) + ey * Math.cos(TILT1) - DOT_R,
-      width: DOT_R * 2,
-      height: DOT_R * 2,
-      borderRadius: DOT_R,
-    };
-  });
-
-  // Orb 2 on second tilted ellipse (opposite tilt)
-  const orb2Style = useAnimatedStyle(() => {
-    const a = angle2.value;
-    const ex = Math.cos(a) * RX1;
-    const ey = Math.sin(a) * RY1;
-    const tilt = -TILT1;
-    return {
-      position: "absolute" as const,
-      left: C + ex * Math.cos(tilt) - ey * Math.sin(tilt) - DOT_R,
-      top: C + ex * Math.sin(tilt) + ey * Math.cos(tilt) - DOT_R,
-      width: DOT_R * 2,
-      height: DOT_R * 2,
-      borderRadius: DOT_R,
-    };
-  });
-
-  // Orb 3 on a shallow tilted ellipse
-  const orb3Style = useAnimatedStyle(() => {
-    const a = angle3.value;
-    const ex = Math.cos(a) * RX3;
-    const ey = Math.sin(a) * RY3;
-    return {
-      position: "absolute" as const,
-      left: C + ex * Math.cos(TILT3) - ey * Math.sin(TILT3) - DOT_R,
-      top: C + ex * Math.sin(TILT3) + ey * Math.cos(TILT3) - DOT_R,
-      width: DOT_R * 2,
-      height: DOT_R * 2,
-      borderRadius: DOT_R,
-    };
-  });
-
-  // Fixed star positions inside the disc
-  const STARS = useMemo(() => [
-    { x: C * 0.55, y: C * 0.60 }, { x: C * 1.45, y: C * 0.72 },
-    { x: C * 0.70, y: C * 1.38 }, { x: C * 1.30, y: C * 1.42 },
-    { x: C * 1.10, y: C * 0.50 }, { x: C * 0.48, y: C * 1.05 },
-  ], [C]);
-
-  return (
-    <View style={{ width: size, height: size }}>
-      {/* Static SVG: nebula core + orbit rings + star dots */}
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "absolute" }}>
-        <Defs>
-          <RadialGradient id="nebulaCore" cx={`${C}`} cy={`${C}`} r={`${size * 0.22}`} fx={`${C}`} fy={`${C}`} gradientUnits="userSpaceOnUse">
-            <Stop offset="0%" stopColor="#7B68EE" stopOpacity="1" />
-            <Stop offset="50%" stopColor="#5CE1E6" stopOpacity="0.7" />
-            <Stop offset="100%" stopColor="#0D1525" stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-
-        {/* Outer boundary glow */}
-        <SvgCircle cx={C} cy={C} r={C - 0.5} fill="none" stroke="rgba(92,225,230,0.18)" strokeWidth={0.8} />
-
-        {/* Flat elliptical orbit ring */}
-        <SvgCircle cx={C} cy={C} r={0} fill="none" />
-        <Path
-          d={`M ${C - RX0} ${C} A ${RX0} ${RY0} 0 1 1 ${C + RX0} ${C} A ${RX0} ${RY0} 0 1 1 ${C - RX0} ${C} Z`}
-          fill="none"
-          stroke="rgba(92,225,230,0.2)"
-          strokeWidth={0.7}
-          strokeDasharray="1.5 2.5"
-        />
-
-        {/* Tilted ellipse 1 */}
-        <Path
-          d={`M ${C + RX1 * Math.cos(TILT1)} ${C + RX1 * Math.sin(TILT1)} A ${RX1} ${RY1} ${(TILT1 * 180) / Math.PI} 1 1 ${C - RX1 * Math.cos(TILT1)} ${C - RX1 * Math.sin(TILT1)} A ${RX1} ${RY1} ${(TILT1 * 180) / Math.PI} 1 1 ${C + RX1 * Math.cos(TILT1)} ${C + RX1 * Math.sin(TILT1)} Z`}
-          fill="none"
-          stroke="rgba(157,123,219,0.2)"
-          strokeWidth={0.7}
-          strokeDasharray="1.5 2.5"
-        />
-
-        {/* Tilted ellipse 3 (shallow, -60°) */}
-        <Path
-          d={`M ${C + RX3 * Math.cos(TILT3)} ${C + RX3 * Math.sin(TILT3)} A ${RX3} ${RY3} ${(TILT3 * 180) / Math.PI} 1 1 ${C - RX3 * Math.cos(TILT3)} ${C - RX3 * Math.sin(TILT3)} A ${RX3} ${RY3} ${(TILT3 * 180) / Math.PI} 1 1 ${C + RX3 * Math.cos(TILT3)} ${C + RX3 * Math.sin(TILT3)} Z`}
-          fill="none"
-          stroke="rgba(92,225,180,0.2)"
-          strokeWidth={0.7}
-          strokeDasharray="1.5 2.5"
-        />
-
-        {/* Nebula core glow */}
-        <SvgCircle cx={C} cy={C} r={size * 0.22} fill="url(#nebulaCore)" />
-
-        {/* Bright core */}
-        <SvgCircle cx={C} cy={C} r={size * 0.045} fill="#B8E8EC" opacity={0.9} />
-        <SvgCircle cx={C} cy={C} r={size * 0.022} fill="#FFFFFF" opacity={1} />
-
-        {/* Star dust */}
-        {STARS.map((s, i) => (
-          <SvgCircle key={i} cx={s.x} cy={s.y} r={0.8} fill="rgba(255,255,255,0.5)" />
-        ))}
-      </Svg>
-
-      {/* Animated orbs */}
-      <Animated.View pointerEvents="none" style={[orb0Style, { backgroundColor: sunColor, shadowColor: sunColor, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 3, elevation: 5 }]} />
-      <Animated.View pointerEvents="none" style={[orb1Style, { backgroundColor: cloudColor, shadowColor: cloudColor, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 3, elevation: 5 }]} />
-      <Animated.View pointerEvents="none" style={[orb2Style, { backgroundColor: lessonColor, shadowColor: lessonColor, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 3, elevation: 5 }]} />
-      <Animated.View pointerEvents="none" style={[orb3Style, { backgroundColor: sunColor, shadowColor: sunColor, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.7, shadowRadius: 3, elevation: 5 }]} />
-    </View>
-  );
-});
-
-// ─── Universe Scroll Icon: vertical stack of sfera orbs + upward swipe arrow ───
-// Distinct from WheelOfLifeIcon (orbital orrery). Communicates "scroll through lessons".
+// ─── Universe Scroll Icon: stacked orbs + upward swipe arrow (universe lessons affordance) ───
 const UniverseScrollIcon = React.memo(function UniverseScrollIcon({
   size,
   enabled = true,
@@ -2645,7 +2365,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
         {/* Mode pagination dots */}
         {numModes > 1 && (
           <Pressable
-            onPress={cycleMode}
+            onPress={() => cycleMode()}
             hitSlop={8}
             style={{ flexDirection: "row", gap: 4, paddingTop: 4 }}
           >
@@ -2925,7 +2645,6 @@ export function FocusedSferaView({
   sferaSizeHint,
   onFocusedDisplayModeForHint,
 }: FocusedSferaViewProps) {
-  const { isTablet } = useLargeDevice();
   const isScreenFocused = useIsFocused();
   const [isAppActive, setIsAppActive] = useState(
     AppState.currentState === "active",
@@ -3191,10 +2910,10 @@ export function FocusedSferaView({
       }, 3500);
 
       // Phase 4 (4200ms): sferas + entities stagger in together (scale + fade), each from 0→normal size
-      // sunLoadProgress goes 0→1400 over 1200ms; each sphere triggers at i*150, reveals over 400ms
+      // sunLoadProgress goes 0→1400 over 1650ms; each sphere triggers at i*150, reveals over 400ms
       sunLoadProgress.value = withDelay(
         4200,
-        withTiming(1400, { duration: 1200, easing: Easing.out(Easing.quad) }, (done) => {
+        withTiming(1400, { duration: 1650, easing: Easing.out(Easing.quad) }, (done) => {
           "worklet";
           if (done) {
             runOnJS(markIntroComplete)();
@@ -3313,16 +3032,6 @@ export function FocusedSferaView({
     );
   }, [selectedSphere, isMemoryBalanceMode, focusedLabelTop]);
   const focusedSunnyPct = getSphereSunnyPercentage(focusedSphere.type);
-  const focusedGradientColors = getSphereGradientColors(
-    focusedSphere.type,
-    focusedSunnyPct,
-    colorScheme,
-  );
-  const focusedIconColor = getSphereIconColor(
-    focusedSphere.type,
-    colorScheme,
-    focusedSunnyPct,
-  );
   const focusedShadowColor = getSphereShadowColor(
     focusedSphere.type,
     colorScheme,
@@ -3397,9 +3106,7 @@ export function FocusedSferaView({
   }, [memoriesPerEntityBySphere]);
 
   const sunnyFacts = useMemo(() => {
-    const allMems = (
-      Object.values(memoriesPerEntityBySphere) as IdealizedMemory[][]
-    ).flat(2);
+    const allMems = Object.values(memoriesPerEntityBySphere).flat(2);
     return allMems
       .filter((m) => getMemorySunnyPercentage(m) >= 50)
       .flatMap((m) => m.goodFacts ?? [])

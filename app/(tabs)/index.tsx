@@ -1,12 +1,12 @@
 import { AIInsightsConsentModal } from "@/components/ai-insights-consent-modal";
-import { ExpandableMenuButton } from "@/components/expandable-menu-button";
 import { ConstellationBackground } from "@/components/constellation-background";
+import { ExpandableMenuButton } from "@/components/expandable-menu-button";
 import { Fireworks } from "@/components/fireworks";
 import { FocusedEntitiesView } from "@/components/focused-entities-view";
 import { FocusedSferaView } from "@/components/focused-sfera-view";
 import { PulsingPressable } from "@/components/pulsing-pressable";
-import ShareModal from "@/components/ShareModal";
 import { SferaSizeHintBanner } from "@/components/sfera-size-hint-banner";
+import ShareModal from "@/components/ShareModal";
 import { StreakBadgeComponent } from "@/components/streak-badge";
 import { StreakModal } from "@/components/streak-modal";
 import { StreakRulesModal } from "@/components/streak-rules-modal";
@@ -16,14 +16,17 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import { GifAnimationPreview } from "@/library/components/gif-animation-preview";
-import { WalkthroughModal } from "@/library/components/walkthrough-modal";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
-import {
-  analyzeLessonExamAnswer,
-} from "@/utils/ai-service";
+import { WalkthroughModal } from "@/library/components/walkthrough-modal";
+import { analyzeLessonExamAnswer } from "@/utils/ai-service";
 import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
 import { logError } from "@/utils/error-logger";
 import { onEventsTabPress } from "@/utils/events-tab-press";
+import {
+  getGuideDismissedForever,
+  getReadSections,
+  setGuideDismissedForever,
+} from "@/utils/guide-storage";
 import { onHomeTabPress } from "@/utils/home-tab-press";
 import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
@@ -35,17 +38,11 @@ import {
   getShowWalkthroughAfterOnboarding,
   setShowWalkthroughAfterOnboarding,
 } from "@/utils/onboarding-storage";
-import {
-  getGuideDismissedForever,
-  getReadSections,
-  setGuideDismissedForever,
-} from "@/utils/guide-storage";
+import { showPaywallForAIAccess } from "@/utils/premium-access";
 import {
   getSferaSizeHintDismissedForever,
   setSferaSizeHintDismissedForever,
 } from "@/utils/sfera-size-hint-storage";
-import { SECTIONS } from "../guide/_data";
-import { showPaywallForAIAccess } from "@/utils/premium-access";
 import {
   getSphereGradientColors,
   getSphereIconColor,
@@ -60,19 +57,19 @@ import {
 import { refreshStreakNotifications } from "@/utils/streak-notifications";
 import type { StreakBadge, StreakData } from "@/utils/streak-types";
 import { useSubscription } from "@/utils/SubscriptionProvider";
+import { consumeUniverseExamIfAvailable } from "@/utils/universe-exam-rate-limiter";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import {
   pickAndConsumePreloadedQuestion,
   preloadEntityWheelQuestions,
   preloadMainWheelQuestions,
 } from "@/utils/wheel-exam-preload";
-import { consumeUniverseExamIfAvailable } from "@/utils/universe-exam-rate-limiter";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useIsFocused } from "@react-navigation/native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useIsFocused } from "@react-navigation/native";
 import * as Sharing from "expo-sharing";
 import React, {
   useCallback,
@@ -87,17 +84,16 @@ import {
   AppState,
   BackHandler,
   Dimensions,
-  Platform,
-  type GestureResponderEvent,
   InteractionManager,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
   View,
+  type GestureResponderEvent
 } from "react-native";
 import Animated, {
   cancelAnimation,
@@ -114,6 +110,7 @@ import Animated, {
   withSequence,
   withSpring,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, {
@@ -130,6 +127,7 @@ import Svg, {
   Stop,
   LinearGradient as SvgLinearGradient,
 } from "react-native-svg";
+import { SECTIONS } from "../guide/_data";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -137,15 +135,14 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 // Clock mapping: angle = -π/2 + (hour/12)*2π
 // 16:00 (4 o'clock) = -π/2 + (4/12)*2π = π/6  (~30°, right side slightly below center)
 // 19:00 (7 o'clock) = -π/2 + (7/12)*2π = 2π/3 (~120°, bottom-left)
-const HINT_ARC_START_RAD = Math.PI / 6;  // 16:00 / 4 o'clock
-const HINT_ARC_SWEEP_RAD = Math.PI / 2;  // 90° clockwise → 19:00 / 7 o'clock
+const HINT_ARC_START_RAD = Math.PI / 6; // 16:00 / 4 o'clock
+const HINT_ARC_SWEEP_RAD = Math.PI / 2; // 90° clockwise → 19:00 / 7 o'clock
 
 // Create animated Pressable component for shadow animations
 const AnimatedPressable = createAnimatedComponent(Pressable);
 
 // Create animated Circle component for loading progress
 const AnimatedCircle = createAnimatedComponent(Circle);
-
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const h = hex.replace("#", "");
@@ -559,13 +556,13 @@ const FloatingAvatar = React.memo(
       message: "",
     });
     const [showShareMenu, setShowShareMenu] = React.useState(false);
-    const [isCapturingImage, setIsCapturingImage] = React.useState(false);
-    const [captureTransform, setCaptureTransform] = React.useState({
+    const [isCapturingImage] = React.useState(false);
+    const [captureTransform] = React.useState({
       scale: 1,
       translateX: 0,
       translateY: 0,
     });
-    const [captureWrapperBounds, setCaptureWrapperBounds] = React.useState({
+    const [captureWrapperBounds] = React.useState({
       left: 0,
       top: 0,
       width: SCREEN_WIDTH,
@@ -714,8 +711,10 @@ const FloatingAvatar = React.memo(
     const wheelMomentHintPointerOpacity = useSharedValue(0);
     const wheelMomentHintPointerBounce = useSharedValue(0);
     const wheelMomentAppearCountRef = React.useRef(0);
-    const [wheelMomentAppearCount, setWheelMomentAppearCount] = React.useState(0);
-    const [wheelMomentHintDismissed, setWheelMomentHintDismissed] = React.useState(false);
+    const [wheelMomentAppearCount, setWheelMomentAppearCount] =
+      React.useState(0);
+    const [wheelMomentHintDismissed, setWheelMomentHintDismissed] =
+      React.useState(false);
 
     // Avatar pulse animation for indicating clickability when entering focused view
     const avatarPulseScale = useSharedValue(1);
@@ -1785,7 +1784,7 @@ const FloatingAvatar = React.memo(
         cancelAnimation(wheelSpinRotation);
         wheelSpinRotation.value = 0; // Reset rotation
 
-        setSelectedMomentType(null); // Reset selected icon
+        setSelectedMomentType("lesson"); // Reset selected icon
         // Return to normal focused position
         if (isFocused) {
           focusedY.value = withSpring(normalTargetY, {
@@ -1981,14 +1980,10 @@ const FloatingAvatar = React.memo(
       // Finger: appear quickly, then fade out — total ~3450ms
       entitySpinHintPointerOpacity.value = withSequence(
         withTiming(0.9, { duration: 150, easing: Easing.out(Easing.ease) }),
-        withTiming(
-          0,
-          { duration: 3300, easing: Easing.linear },
-          (finished) => {
-            "worklet";
-            if (finished) runOnJS(setEntityWheelSpinLabelDismissed)(true);
-          },
-        ),
+        withTiming(0, { duration: 3300, easing: Easing.linear }, (finished) => {
+          "worklet";
+          if (finished) runOnJS(setEntityWheelSpinLabelDismissed)(true);
+        }),
       );
 
       // Arc: drag clockwise 90° (16:00 → 19:00), then snap back
@@ -1999,7 +1994,10 @@ const FloatingAvatar = React.memo(
 
       // Wheel rotates clockwise 90° in sync, then eases back
       entityHintRotation.value = withSequence(
-        withTiming(Math.PI / 2, { duration: 2400, easing: Easing.inOut(Easing.ease) }),
+        withTiming(Math.PI / 2, {
+          duration: 2400,
+          easing: Easing.inOut(Easing.ease),
+        }),
         withTiming(0, { duration: 1000, easing: Easing.out(Easing.cubic) }),
       );
 
@@ -2060,11 +2058,14 @@ const FloatingAvatar = React.memo(
               selectedMomentType,
             });
           } else {
-            console.log("[wheel-moments] spawn gate OK (will schedule bubbles)", {
-              profile: profile.id,
-              selectedMomentType,
-              entityWheelSpinLabelDismissed,
-            });
+            console.log(
+              "[wheel-moments] spawn gate OK (will schedule bubbles)",
+              {
+                profile: profile.id,
+                selectedMomentType,
+                entityWheelSpinLabelDismissed,
+              },
+            );
           }
         }
       }
@@ -2374,9 +2375,12 @@ const FloatingAvatar = React.memo(
 
       return () => {
         if (__DEV__) {
-          console.log("[wheel-moments] spawn effect CLEANUP (clears timeouts + bubbles)", {
-            profile: profile.id,
-          });
+          console.log(
+            "[wheel-moments] spawn effect CLEANUP (clears timeouts + bubbles)",
+            {
+              profile: profile.id,
+            },
+          );
         }
         // Clear all timeouts to prevent moments from spawning after cleanup
         timeouts.forEach((timeout) => clearTimeout(timeout));
@@ -2468,7 +2472,12 @@ const FloatingAvatar = React.memo(
 
       // Update ref for next render
       previousIsFocused.current = isFocused;
-    }, [isFocused, canEnterEntityWheel, avatarPulseScale, setAvatarClickHintDismissed]);
+    }, [
+      isFocused,
+      canEnterEntityWheel,
+      avatarPulseScale,
+      setAvatarClickHintDismissed,
+    ]);
 
     // Use a ref to track previous isFocused state to detect transitions
     // CRITICAL: Don't initialize with current value - track the actual previous value from last effect run
@@ -2812,7 +2821,8 @@ const FloatingAvatar = React.memo(
         if (entityWheelReleaseInProgressRef.current) return;
         entityWheelReleaseInProgressRef.current = true;
         try {
-          const consumed = await consumeUniverseExamIfAvailable(hasAIEntitlement);
+          const consumed =
+            await consumeUniverseExamIfAvailable(hasAIEntitlement);
           if (!consumed) {
             const purchased = await showPaywallForAIAccess();
             if (!purchased) {
@@ -2917,7 +2927,7 @@ const FloatingAvatar = React.memo(
             }, 1000);
           }
         } catch (err) {
-          logError(err as Error, "wheel-exam-analyze");
+          logError("wheel-exam-analyze", err);
           setSelectedWheelExam((p) =>
             p
               ? {
@@ -3173,7 +3183,10 @@ const FloatingAvatar = React.memo(
         return;
       }
       wheelMomentHintPointerBounce.value = 0;
-      wheelMomentHintPointerOpacity.value = withTiming(0.9, { duration: 300, easing: Easing.out(Easing.ease) });
+      wheelMomentHintPointerOpacity.value = withTiming(0.9, {
+        duration: 300,
+        easing: Easing.out(Easing.ease),
+      });
       wheelMomentHintPointerBounce.value = withDelay(
         400,
         withRepeat(
@@ -4556,7 +4569,8 @@ const FloatingAvatar = React.memo(
                   {/* Entity wheel spin hint: arc-following finger on orbit ring */}
                   {!isWheelSpinningState &&
                     appUsabilityHints &&
-                    !entityWheelSpinLabelDismissed && (() => {
+                    !entityWheelSpinLabelDismissed &&
+                    (() => {
                       const pointerSize = isTablet ? 56 : 52;
                       const centerX = SCREEN_WIDTH / 2;
                       const centerY = SCREEN_HEIGHT * 0.58;
@@ -4621,12 +4635,7 @@ const FloatingAvatar = React.memo(
                           <View style={StyleSheet.absoluteFillObject}>
                             <LinearGradient
                               colors={
-                                selectedMomentType ===
-                                (item.type === "lesson"
-                                  ? "lessons"
-                                  : item.type === "sunny"
-                                    ? "sunnyMoments"
-                                    : "hardTruths")
+                                selectedMomentType === item.type
                                   ? [
                                       "rgba(92, 225, 230, 0.12)",
                                       "rgba(92, 225, 230, 0.04)",
@@ -5119,13 +5128,6 @@ const FloatingAvatar = React.memo(
                     : selectedWheelMoment.type === "cloudy"
                       ? dynamicCloudWidth
                       : dynamicLessonSize;
-                const momentHeight =
-                  selectedWheelMoment.type === "sunny"
-                    ? dynamicSunSize
-                    : selectedWheelMoment.type === "cloudy"
-                      ? dynamicCloudHeight
-                      : dynamicLessonSize;
-                const messageTop = 180; // Final position below entity name (avoid overlap with name at top)
 
                 // Get visual properties based on moment type
                 const momentVisuals = {
@@ -5683,8 +5685,6 @@ const FloatingAvatar = React.memo(
                             size="large"
                             color={COSMIC_RING_START}
                           />
-                        ) : selectedWheelExam.step === "result" ? (
-                          null
                         ) : (
                           <>
                             <MaterialIcons
@@ -5979,32 +5979,46 @@ const FloatingAvatar = React.memo(
                 );
               })()}
             {/* Lesson bulb tap hint: bouncing pointer, shown from 2nd lesson appearance */}
-            {appUsabilityHints && selectedWheelMoment?.type === "lesson" && !selectedWheelExam && !wheelMomentHintDismissed && wheelMomentAppearCount >= 2 && (() => {
-              const pointerSize = isTablet ? 72 : 64;
-              const baseLessonSize = isTablet ? 200 : 145;
-              const messageTop = 180;
-              return (
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    {
-                      position: "absolute",
-                      top: messageTop + baseLessonSize + 8,
-                      left: SCREEN_WIDTH / 2 - pointerSize / 2,
-                      width: pointerSize,
-                      height: pointerSize,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      zIndex: 350,
-                    },
-                    wheelMomentHintPointerAnimatedStyle,
-                  ]}
-                >
-                  <MaterialIcons name="touch-app" size={pointerSize} color="rgba(0,0,0,0.4)" style={{ position: "absolute", left: 2, top: 2 }} />
-                  <MaterialIcons name="touch-app" size={pointerSize} color="#FFFFFF" />
-                </Animated.View>
-              );
-            })()}
+            {appUsabilityHints &&
+              selectedWheelMoment?.type === "lesson" &&
+              !selectedWheelExam &&
+              !wheelMomentHintDismissed &&
+              wheelMomentAppearCount >= 2 &&
+              (() => {
+                const pointerSize = isTablet ? 72 : 64;
+                const baseLessonSize = isTablet ? 200 : 145;
+                const messageTop = 180;
+                return (
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      {
+                        position: "absolute",
+                        top: messageTop + baseLessonSize + 8,
+                        left: SCREEN_WIDTH / 2 - pointerSize / 2,
+                        width: pointerSize,
+                        height: pointerSize,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        zIndex: 350,
+                      },
+                      wheelMomentHintPointerAnimatedStyle,
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="touch-app"
+                      size={pointerSize}
+                      color="rgba(0,0,0,0.4)"
+                      style={{ position: "absolute", left: 2, top: 2 }}
+                    />
+                    <MaterialIcons
+                      name="touch-app"
+                      size={pointerSize}
+                      color="#FFFFFF"
+                    />
+                  </Animated.View>
+                );
+              })()}
             {/* Exam result card overlay - shown as full card after answering */}
             {selectedWheelExam?.step === "result" &&
               selectedWheelExam.analysis &&
@@ -6179,7 +6193,9 @@ const FloatingAvatar = React.memo(
                             }}
                           >
                             <Image
-                              source={{ uri: selectedWheelMoment.memoryImageUri }}
+                              source={{
+                                uri: selectedWheelMoment.memoryImageUri,
+                              }}
                               style={{ width: "100%", height: "100%" }}
                               contentFit="cover"
                             />
@@ -7928,15 +7944,11 @@ const FloatingMemory = React.memo(
         memorySize: number,
         momentType: "cloud" | "sun" = "sun",
       ) => {
-        const memoryCenterX = position.x;
-        const memoryCenterY = position.y;
-
         const padding = 20; // Padding from edges
         const headerSafeZone = 120; // Safe zone from top to avoid header and back button
         const minX = padding + momentWidth / 2;
         const maxX = SCREEN_WIDTH - padding - momentWidth / 2;
         const minY = headerSafeZone + momentHeight / 2; // Ensure moments don't overlap header
-        const maxY = SCREEN_HEIGHT - padding - momentHeight / 2;
         const availableWidth = maxX - minX;
 
         let momentX: number | undefined = undefined;
@@ -8962,7 +8974,6 @@ const FloatingMemory = React.memo(
         {(() => {
           const cloudCount = clouds.length;
           const sunCount = suns.length;
-          const lessonCount = lessons.length;
           const cloudsOnTop = cloudCount > sunCount;
           // Moments should be on top of memories
           // When memory is focused, use much higher z-index to be above the memory (which has zIndex 1000)
@@ -11288,13 +11299,13 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   text?: string;
   isTablet: boolean;
   isLargeDevice?: boolean;
-  orbitAngle: Animated.SharedValue<number>;
-  starCenterX: Animated.SharedValue<number>;
-  starCenterY: Animated.SharedValue<number>;
-  focusedX: Animated.SharedValue<number>;
-  focusedY: Animated.SharedValue<number>;
-  panX: Animated.SharedValue<number>;
-  panY: Animated.SharedValue<number>;
+  orbitAngle: SharedValue<number>;
+  starCenterX: SharedValue<number>;
+  starCenterY: SharedValue<number>;
+  focusedX: SharedValue<number>;
+  focusedY: SharedValue<number>;
+  panX: SharedValue<number>;
+  panY: SharedValue<number>;
   memoriesCount: number;
   memoryOffsetX: number;
   memoryOffsetY: number;
@@ -11492,9 +11503,9 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
     growPulseScale.value = 1;
     animationInitializedRef.current = true;
 
-    let growTimeout: NodeJS.Timeout;
-    let pulseTimeout: NodeJS.Timeout;
-    let shrinkTimeout: NodeJS.Timeout;
+    let growTimeout: ReturnType<typeof setTimeout>;
+    let pulseTimeout: ReturnType<typeof setTimeout>;
+    let shrinkTimeout: ReturnType<typeof setTimeout>;
 
     growTimeout = setTimeout(() => {
       if (
@@ -11740,14 +11751,12 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
       if (Math.abs(cosA) > 1e-9) {
         const t1 = (minX - avatarX) / cosA;
         const t2 = (maxX - avatarX) / cosA;
-        const txLo = Math.min(t1, t2);
         const txHi = Math.max(t1, t2);
         tMax = Math.min(tMax, txHi);
       }
       if (Math.abs(sinA) > 1e-9) {
         const t1 = (minY - avatarY) / sinA;
         const t2 = (maxY - avatarY) / sinA;
-        const tyLo = Math.min(t1, t2);
         const tyHi = Math.max(t1, t2);
         tMax = Math.min(tMax, tyHi);
       }
@@ -12323,8 +12332,6 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
   const expandProgress = useSharedValue(0); // 0 = collapsed, 1 = expanded (smooth tap-to-grow)
   const hasExpandHandlers = useSharedValue(!!(onExpand || onCollapse));
   const fadeOutTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const textRef = useRef(text); // Store text in ref to avoid re-renders
-  const hasStartedGrowAnimation = useRef(false); // Track if grow animation has started
   const tapHintOpacity = useSharedValue(0);
   const tapHintBounce = useSharedValue(0);
   const onTapHintDismissRef = useRef(onTapHintDismiss);
@@ -12443,7 +12450,10 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
       return;
     }
     tapHintBounce.value = 0;
-    tapHintOpacity.value = withTiming(0.9, { duration: 300, easing: Easing.out(Easing.ease) });
+    tapHintOpacity.value = withTiming(0.9, {
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+    });
     tapHintBounce.value = withDelay(
       400,
       withRepeat(
@@ -12461,7 +12471,13 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
       cancelAnimation(tapHintOpacity);
       cancelAnimation(tapHintBounce);
     };
-  }, [showTapHint, momentType, shouldGrowToFull, tapHintOpacity, tapHintBounce]);
+  }, [
+    showTapHint,
+    momentType,
+    shouldGrowToFull,
+    tapHintOpacity,
+    tapHintBounce,
+  ]);
 
   // Animation effect for shouldGrowToFull moments - runs once on mount (skip if already expanded)
   React.useEffect(() => {
@@ -13123,8 +13139,17 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
                   tapHintAnimatedStyle,
                 ]}
               >
-                <MaterialIcons name="touch-app" size={isTablet ? 68 : 60} color="rgba(0,0,0,0.4)" style={{ position: "absolute", left: 2, top: 2 }} />
-                <MaterialIcons name="touch-app" size={isTablet ? 68 : 60} color="#FFFFFF" />
+                <MaterialIcons
+                  name="touch-app"
+                  size={isTablet ? 68 : 60}
+                  color="rgba(0,0,0,0.4)"
+                  style={{ position: "absolute", left: 2, top: 2 }}
+                />
+                <MaterialIcons
+                  name="touch-app"
+                  size={isTablet ? 68 : 60}
+                  color="#FFFFFF"
+                />
               </Animated.View>
             )}
             {/* Text overlay - sits below bulb; when expanded, pushed up to make room for image */}
@@ -13860,8 +13885,7 @@ export default function HomeScreen() {
   const sphereHeaderBackTop = 70;
   const iPadIndividualHeaderScale =
     Platform.OS === "ios" && Platform.isPad ? 1.3 : 1;
-  const sphereHeaderBackSize =
-    (isTablet ? 70 : 50) * iPadIndividualHeaderScale;
+  const sphereHeaderBackSize = (isTablet ? 70 : 50) * iPadIndividualHeaderScale;
   const sphereHeaderTitleRowStyle = {
     position: "absolute" as const,
     top: sphereHeaderBackTop,
@@ -13895,30 +13919,8 @@ export default function HomeScreen() {
     updateIdealizedMemory,
     getOverallSunnyPercentage,
     getHasRealMomentDataForSunCelebration,
-    reloadIdealizedMemories,
-    reloadProfiles,
-    reloadJobs,
-    reloadFamilyMembers,
-    reloadFriends,
-    reloadHobbies,
     reloadAll,
   } = useJourney();
-  useEffect(() => {
-    if (!__DEV__) return;
-    const total =
-      profiles.length +
-      jobs.length +
-      familyMembers.length +
-      friends.length +
-      hobbies.length;
-  }, [
-    isLoading,
-    profiles.length,
-    jobs.length,
-    familyMembers.length,
-    friends.length,
-    hobbies.length,
-  ]);
   const { hasAIEntitlement } = useSubscription();
   const t = useTranslate();
   const { language: appLanguage } = useLanguage();
@@ -13941,7 +13943,13 @@ export default function HomeScreen() {
       language: appLang,
       hasAIEntitlement,
     });
-  }, [isLoading, idealizedMemories, appLang, hasAIEntitlement, aiConsent.isEnabled]);
+  }, [
+    isLoading,
+    idealizedMemories,
+    appLang,
+    hasAIEntitlement,
+    aiConsent.isEnabled,
+  ]);
   // Streak feature state
   const [streakState, setStreakState] = useState<{
     data: StreakData | null;
@@ -13955,24 +13963,26 @@ export default function HomeScreen() {
   const [streakRulesModalVisible, setStreakRulesModalVisible] = useState(false);
   const handleStreakBadgePress = useCallback(
     () => setStreakRulesModalVisible(true),
-    []
+    [],
   );
   const handleStreakBadgeLongPress = useCallback(
     () => setStreakModalVisible(true),
-    []
+    [],
   );
   const handleStreakRulesModalClose = useCallback(
     () => setStreakRulesModalVisible(false),
-    []
+    [],
   );
   const handleStreakModalClose = useCallback(
     () => setStreakModalVisible(false),
-    []
+    [],
   );
 
   // Guide prompt modal state
   const [walkthroughVisible, setWalkthroughVisible] = useState(false);
-  const [guideReadSections, setGuideReadSections] = useState<Set<string>>(new Set());
+  const [guideReadSections, setGuideReadSections] = useState<Set<string>>(
+    new Set(),
+  );
   const walkthroughCheckedRef = useRef(false);
   /** Last known onboarding flag from storage — used to clear a premature walkthroughCheckedRef when onboarding completes. */
   const prevOnboardingCompletedRef = useRef<boolean | null>(null);
@@ -13980,6 +13990,13 @@ export default function HomeScreen() {
   // Tracks whether the FocusedSferaView sunny moments intro animation has finished.
   // The walkthrough modal must not appear until this is true.
   const [focusedIntroComplete, setFocusedIntroComplete] = useState(false);
+  /** Wall time when `focusedIntroComplete` became true (sun celebration + sfera stagger done). Used to show the guide 2s after that moment, not after AsyncStorage. */
+  const focusedIntroCompleteAtRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (focusedIntroComplete) {
+      focusedIntroCompleteAtRef.current = Date.now();
+    }
+  }, [focusedIntroComplete]);
   const { isAnimationComplete, isVisible: isSplashVisible } = useSplash();
 
   // Home view mode — declared before guide walkthrough effect (that effect reads homeViewMode).
@@ -14033,8 +14050,13 @@ export default function HomeScreen() {
   // Track if this is the first app launch (splash screen shown)
   const isFirstLaunchRef = useRef(true);
 
+  // After the focused sun + sferas intro finishes, wait this long before showing the guide (remaining time after storage work still counts toward this).
+  const GUIDE_WALKTHROUGH_AFTER_INTRO_MS = 2000;
+
   // Check once on app open and show walkthrough if guide not fully read
   useEffect(() => {
+    let cancelled = false;
+
     const checkWalkthrough = async () => {
       // Wait for splash to complete and data to load
       if (isLoading || isSplashVisible || !isAnimationComplete) {
@@ -14048,12 +14070,10 @@ export default function HomeScreen() {
       }
 
       const onboardingCompleted = await getOnboardingCompleted();
+      if (cancelled) return;
       // Home mounts under the onboarding overlay; an earlier run could set
       // walkthroughCheckedRef before storage says onboarding is done — clear it on transition.
-      if (
-        prevOnboardingCompletedRef.current === false &&
-        onboardingCompleted
-      ) {
+      if (prevOnboardingCompletedRef.current === false && onboardingCompleted) {
         walkthroughCheckedRef.current = false;
       }
       prevOnboardingCompletedRef.current = onboardingCompleted;
@@ -14071,24 +14091,57 @@ export default function HomeScreen() {
 
       // Check if coming from onboarding - show guide prompt and clear flag
       const showAfterOnboarding = await getShowWalkthroughAfterOnboarding();
+      if (cancelled) {
+        walkthroughCheckedRef.current = false;
+        return;
+      }
       if (showAfterOnboarding) {
         await setShowWalkthroughAfterOnboarding(false);
         walkthroughAfterOnboardingRef.current = true;
       }
+      if (cancelled) {
+        walkthroughCheckedRef.current = false;
+        return;
+      }
 
       // Check guide prompt conditions
       const dismissedForever = await getGuideDismissedForever();
+      if (cancelled) {
+        walkthroughCheckedRef.current = false;
+        return;
+      }
       if (!dismissedForever) {
         const readSections = await getReadSections();
+        if (cancelled) {
+          walkthroughCheckedRef.current = false;
+          return;
+        }
         setGuideReadSections(readSections);
         const allRead = SECTIONS.every((s) => readSections.has(s.id));
         if (!allRead) {
+          const introEndedAt = focusedIntroCompleteAtRef.current;
+          const waitMs =
+            homeViewMode === "focused" && introEndedAt != null
+              ? Math.max(
+                  0,
+                  GUIDE_WALKTHROUGH_AFTER_INTRO_MS - (Date.now() - introEndedAt),
+                )
+              : GUIDE_WALKTHROUGH_AFTER_INTRO_MS;
+          await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
+          if (cancelled) {
+            walkthroughCheckedRef.current = false;
+            return;
+          }
           setWalkthroughVisible(true);
         }
       }
     };
 
     void checkWalkthrough();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     isLoading,
     isAnimationComplete,
@@ -14158,10 +14211,7 @@ export default function HomeScreen() {
       hasReloadedRef.current = true;
 
       InteractionManager.runAfterInteractions(() => {
-        Promise.all([
-          reloadAll(),
-          loadStreakData(),
-        ]).catch(() => {
+        Promise.all([reloadAll(), loadStreakData()]).catch(() => {
           hasReloadedRef.current = false;
         });
       });
@@ -14169,18 +14219,8 @@ export default function HomeScreen() {
       return () => {
         hasReloadedRef.current = false;
       };
-    }, [
-      reloadAll,
-      loadStreakData,
-    ]),
+    }, [reloadAll, loadStreakData]),
   );
-
-  // Animated style for avatar pulse
-  const avatarPulseStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: avatarPulseScale.value }],
-    };
-  });
 
   // Press feedback for Classic view circle avatar (scale down on press, spring back on release)
   const classicAvatarPressScale = useSharedValue(1);
@@ -14248,10 +14288,13 @@ export default function HomeScreen() {
   const focusedSunMenuExpandedRef = useRef(false);
   const [focusedSunMenuExpanded, setFocusedSunMenuExpanded] = useState(false);
   const focusedSunMenuCollapseRef = useRef<(() => void) | null>(null);
-  const handleFocusedSunMenuExpandedChange = useCallback((expanded: boolean) => {
-    focusedSunMenuExpandedRef.current = expanded;
-    setFocusedSunMenuExpanded(expanded);
-  }, []);
+  const handleFocusedSunMenuExpandedChange = useCallback(
+    (expanded: boolean) => {
+      focusedSunMenuExpandedRef.current = expanded;
+      setFocusedSunMenuExpanded(expanded);
+    },
+    [],
+  );
   const { showLoader: startTransitionLoader, hideLoader } =
     useHomeTransitionLoader() ?? {
       showLoader: () => {},
@@ -14356,7 +14399,11 @@ export default function HomeScreen() {
           shadowRadius: 8,
         }}
       >
-        <MaterialIcons name="arrow-back" size={20 * fontScale} color="#64B5F6" />
+        <MaterialIcons
+          name="arrow-back"
+          size={20 * fontScale}
+          color="#64B5F6"
+        />
       </Pressable>
     ) : (
       <ExpandableMenuButton top={insets.top + 12} />
@@ -14588,9 +14635,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const onFocusedOverviewSurface =
-      isHomeTabFocused &&
-      homeViewMode === "focused" &&
-      !selectedSphere;
+      isHomeTabFocused && homeViewMode === "focused" && !selectedSphere;
 
     const leavingFocusedOverviewSurface =
       !isHomeTabFocused ||
@@ -14919,16 +14964,14 @@ export default function HomeScreen() {
       homeViewMode === "focused" && !showMomentTypeSelector;
   }, [homeViewMode, showMomentTypeSelector]);
 
-  // Viewport glow effect for moment type selection
-  const viewportGlowOpacity = useSharedValue(0);
-  const [cornerGlowOpacity, setCornerGlowOpacity] = useState(0);
-
   // Track wheel spinning state for disabling icon buttons
   const [isSpinning, setIsSpinning] = useState(false);
   // Prevent double fire of release handler (e.g. duplicate events) so we don't consume free spin then show paywall
   const mainWheelReleaseInProgressRef = useRef(false);
   // In-flight question fetch started when spin begins, awaited when spin ends
-  const pendingWheelQuestionRef = useRef<ReturnType<typeof pickAndConsumePreloadedQuestion> | null>(null);
+  const pendingWheelQuestionRef = useRef<ReturnType<
+    typeof pickAndConsumePreloadedQuestion
+  > | null>(null);
 
   // Trigger glow effect when moment type changes - DISABLED
   // React.useEffect(() => {
@@ -14979,7 +15022,8 @@ export default function HomeScreen() {
   const [lessonHintDismissed, setLessonHintDismissed] = useState(false);
   // Track pulsing lesson bulb appearances for tap hint
   const pulsingLessonAppearCountRef = useRef(0);
-  const [pulsingLessonHintDismissed, setPulsingLessonHintDismissed] = useState(false);
+  const [pulsingLessonHintDismissed, setPulsingLessonHintDismissed] =
+    useState(false);
   // The specific moment ID that should show the tap hint (set when 2nd+ lesson appears)
   const [tapHintMomentId, setTapHintMomentId] = useState<number | null>(null);
 
@@ -15264,36 +15308,6 @@ export default function HomeScreen() {
     ],
   );
 
-  // Keep the old function for backward compatibility (now uses the new function)
-  const getAllLessons = useCallback(() => {
-    return getAllMomentsByType("lessons");
-  }, [getAllMomentsByType]);
-
-  // Get count of moments for a specific entity
-  const getMomentCountForEntity = useCallback(
-    (entityId: string, sphere: LifeSphere, momentType: MomentType) => {
-      const memories =
-        sphere === "relationships"
-          ? getIdealizedMemoriesByProfileId(entityId)
-          : getIdealizedMemoriesByEntityId(entityId, sphere);
-
-      const propertyName =
-        momentType === "lessons"
-          ? "lessonsLearned"
-          : momentType === "hardTruths"
-            ? "hardTruths"
-            : "goodFacts";
-
-      let count = 0;
-      memories.forEach((memory) => {
-        count += (memory[propertyName] || []).length;
-      });
-
-      return count;
-    },
-    [getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId],
-  );
-
   // Get counts for all moment types for a specific entity
   const getAllMomentCountsForEntity = useCallback(
     (entityId: string, sphere: LifeSphere) => {
@@ -15328,6 +15342,7 @@ export default function HomeScreen() {
       text: string;
       entityId: string;
       memoryId: string;
+      memoryImageUri?: string;
       sphere: LifeSphere;
       isMock?: boolean;
       momentType: MomentType;
@@ -15846,33 +15861,6 @@ export default function HomeScreen() {
     setRandomMoments((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
-  // Function to programmatically spin the wheel (called when avatar is pressed)
-  const spinWheel = useCallback(() => {
-    // Stop hint animation if active
-    if (isHintAnimating.value) {
-      isHintAnimating.value = false;
-      hintRotation.value = hintRotation.value; // Cancel animation
-    }
-
-    // Stop any current spinning
-    isWheelSpinning.value = false;
-    wheelVelocity.value = 0;
-
-    // Set initial velocity for a nice spin (clockwise)
-    // Random velocity between 0.15 and 0.25 radians per frame (at 60fps, negative for clockwise)
-    const randomSpeed = 0.15 + Math.random() * 0.1; // 0.15 to 0.25
-    wheelVelocity.value = -randomSpeed; // Negative for clockwise rotation
-
-    // Start spinning
-    isWheelSpinning.value = true;
-
-    // Log analytics event
-    const { logWheelMainSpin } = require("@/utils/analytics");
-    logWheelMainSpin().catch(() => {
-      // Failed to log event
-    });
-  }, [isHintAnimating, hintRotation, isWheelSpinning, wheelVelocity]);
-
   // Challenge Me: run rate-limit/paywall checks then show exam modal in-place (no view switch)
   const handleChallengeMePress = useCallback(() => {
     if (!aiConsent.isEnabled) {
@@ -15948,7 +15936,10 @@ export default function HomeScreen() {
     }
     // Fade in, then gently bounce to draw attention to the bulb
     lessonHintPointerBounce.value = 0;
-    lessonHintPointerOpacity.value = withTiming(0.9, { duration: 300, easing: Easing.out(Easing.ease) });
+    lessonHintPointerOpacity.value = withTiming(0.9, {
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+    });
     lessonHintPointerBounce.value = withDelay(
       400,
       withRepeat(
@@ -15966,7 +15957,13 @@ export default function HomeScreen() {
       cancelAnimation(lessonHintPointerOpacity);
       cancelAnimation(lessonHintPointerBounce);
     };
-  }, [showLesson, appUsabilityHints, lessonHintDismissed, lessonHintPointerOpacity, lessonHintPointerBounce]);
+  }, [
+    showLesson,
+    appUsabilityHints,
+    lessonHintDismissed,
+    lessonHintPointerOpacity,
+    lessonHintPointerBounce,
+  ]);
   // Note: the above effect handles the main wheel lesson (HomeScreen). The entity wheel lesson hint
   // is handled inside FloatingAvatar with wheelMomentHintPointer* values.
 
@@ -16239,7 +16236,12 @@ export default function HomeScreen() {
         withSpring(1, { damping: 12, stiffness: 400 }),
       );
     }
-  }, [mainWheelExamAnswerInput, handleMainWheelExamSubmit, mainWheelExamSubmitPressScale, mainWheelExamInputPulseScale]);
+  }, [
+    mainWheelExamAnswerInput,
+    handleMainWheelExamSubmit,
+    mainWheelExamSubmitPressScale,
+    mainWheelExamInputPulseScale,
+  ]);
 
   const handleDismissLesson = useCallback((e: GestureResponderEvent) => {
     e.stopPropagation();
@@ -16250,16 +16252,12 @@ export default function HomeScreen() {
 
   const handleAIConsentEnable = useCallback(() => {
     setAiInsightsConsentVisible(false);
-    setAiEncouragementText(null);
-    setEncouragementCacheBust((x) => x + 1);
     void aiConsent.setChoice("enabled");
   }, [aiConsent]);
 
   const handleAIConsentMaybeLater = useCallback(() => {
     void aiConsent.setChoice("maybe_later").then(() => {
       setAiInsightsConsentVisible(false);
-      setAiEncouragementText(null);
-      setAiEncouragementLoading(false);
     });
   }, [aiConsent]);
 
@@ -16284,13 +16282,6 @@ export default function HomeScreen() {
     };
   });
 
-  // Specular highlight overlay for lessons button (liquid glass shine)
-  const lessonsHighlightStyle = useAnimatedStyle(() => {
-    return {
-      opacity: lessonsButtonHighlight.value * 0.4, // Max 40% opacity
-    };
-  });
-
   const hardTruthsButtonAnimatedStyle = useAnimatedStyle(() => {
     const backgroundColor = interpolateColor(
       hardTruthsButtonSelection.value,
@@ -16311,13 +16302,6 @@ export default function HomeScreen() {
     };
   });
 
-  // Specular highlight overlay for hard truths button (liquid glass shine)
-  const hardTruthsHighlightStyle = useAnimatedStyle(() => {
-    return {
-      opacity: hardTruthsButtonHighlight.value * 0.4, // Max 40% opacity
-    };
-  });
-
   const sunnyMomentsButtonAnimatedStyle = useAnimatedStyle(() => {
     const backgroundColor = interpolateColor(
       sunnyMomentsButtonSelection.value,
@@ -16335,13 +16319,6 @@ export default function HomeScreen() {
       width: 60,
       height: 60,
       overflow: "hidden", // For blur effect
-    };
-  });
-
-  // Specular highlight overlay for sunny moments button (liquid glass shine)
-  const sunnyMomentsHighlightStyle = useAnimatedStyle(() => {
-    return {
-      opacity: sunnyMomentsButtonHighlight.value * 0.4, // Max 40% opacity
     };
   });
 
@@ -16435,14 +16412,10 @@ export default function HomeScreen() {
     // Total: 150ms fade-in, 2400ms drag forward, 900ms snap back = ~3450ms
     spinHintPointerOpacity.value = withSequence(
       withTiming(0.9, { duration: 150, easing: Easing.out(Easing.ease) }),
-      withTiming(
-        0,
-        { duration: 3300, easing: Easing.linear },
-        (finished) => {
-          "worklet";
-          if (finished) runOnJS(setMomentTypeSelectorDismissed)(true);
-        },
-      ),
+      withTiming(0, { duration: 3300, easing: Easing.linear }, (finished) => {
+        "worklet";
+        if (finished) runOnJS(setMomentTypeSelectorDismissed)(true);
+      }),
     );
 
     // Arc progress: drag counter-clockwise 90°, then snap back to 12 o'clock
@@ -16453,7 +16426,10 @@ export default function HomeScreen() {
 
     // Wheel rotates clockwise 90° in sync with the finger, then eases back
     hintRotation.value = withSequence(
-      withTiming(Math.PI / 2, { duration: 2400, easing: Easing.inOut(Easing.ease) }),
+      withTiming(Math.PI / 2, {
+        duration: 2400,
+        easing: Easing.inOut(Easing.ease),
+      }),
       withTiming(0, { duration: 1000, easing: Easing.out(Easing.cubic) }),
     );
 
@@ -16612,16 +16588,18 @@ export default function HomeScreen() {
               const { logWheelMainSpin } = require("@/utils/analytics");
               logWheelMainSpin().catch(() => {});
               // Kick off question fetch immediately so it's ready when the wheel stops
-              pendingWheelQuestionRef.current = pickAndConsumePreloadedQuestion({
-                type: "main",
-                onRefetchMain: () =>
-                  preloadMainWheelQuestions({
-                    memories: idealizedMemories,
-                    language: appLang,
-                    hasAIEntitlement,
-                    appendOnly: true,
-                  }),
-              });
+              pendingWheelQuestionRef.current = pickAndConsumePreloadedQuestion(
+                {
+                  type: "main",
+                  onRefetchMain: () =>
+                    preloadMainWheelQuestions({
+                      memories: idealizedMemories,
+                      language: appLang,
+                      hasAIEntitlement,
+                      appendOnly: true,
+                    }),
+                },
+              );
             };
             // Always check rate limit (lesson exam flow)
             const velocityAtRelease = wheelVelocity.value;
@@ -17131,73 +17109,6 @@ export default function HomeScreen() {
     return normalized * range;
   };
 
-  // Helper function to check if two positions overlap
-  const checkPositionOverlap = (
-    pos1: { x: number; y: number },
-    pos2: { x: number; y: number },
-    minDistance: number,
-  ) => {
-    const dx = pos1.x - pos2.x;
-    const dy = pos1.y - pos2.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    return distance < minDistance;
-  };
-
-  // Helper function to find non-overlapping position using spiral search
-  const findNonOverlappingPosition = (
-    initialPos: { x: number; y: number },
-    existingPositions: { x: number; y: number }[],
-    minDistance: number,
-    bounds: { minX: number; maxX: number; minY: number; maxY: number },
-  ): { x: number; y: number } => {
-    // First check if initial position is valid
-    const hasOverlap = existingPositions.some((pos) =>
-      checkPositionOverlap(initialPos, pos, minDistance),
-    );
-    if (!hasOverlap) {
-      return initialPos;
-    }
-
-    // If there's overlap, search in a spiral pattern for a free spot
-    const maxAttempts = 100;
-    const angleStep = Math.PI / 6; // 30 degrees
-    const radiusStep = minDistance * 0.5;
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const spiralIndex = Math.floor(attempt / 12); // 12 angles per spiral
-      const angleIndex = attempt % 12;
-      const angle = angleIndex * angleStep;
-      const radius = radiusStep * (spiralIndex + 1);
-
-      const newPos = {
-        x: initialPos.x + Math.cos(angle) * radius,
-        y: initialPos.y + Math.sin(angle) * radius,
-      };
-
-      // Check if position is within bounds
-      if (
-        newPos.x < bounds.minX ||
-        newPos.x > bounds.maxX ||
-        newPos.y < bounds.minY ||
-        newPos.y > bounds.maxY
-      ) {
-        continue;
-      }
-
-      // Check if this position overlaps with any existing position
-      const overlaps = existingPositions.some((pos) =>
-        checkPositionOverlap(newPos, pos, minDistance),
-      );
-      if (!overlaps) {
-        return newPos;
-      }
-    }
-
-    // If we couldn't find a non-overlapping position, return the initial position
-    // (this means we're out of space)
-    return initialPos;
-  };
-
   const initialAvatarPositions = useMemo(() => {
     if (!positionsLoaded) return []; // Wait for saved positions to load
 
@@ -17283,7 +17194,6 @@ export default function HomeScreen() {
         const minMargin = 20; // Minimum margin from section edges
         const centerAreaMinX = SCREEN_WIDTH * 0.2; // 20% from left
         const centerAreaMaxX = SCREEN_WIDTH * 0.8; // 80% from left
-        const beforeClamp = { ...position };
         position.x = Math.max(
           Math.max(avatarHalfSize + minMargin, centerAreaMinX),
           Math.min(
@@ -17341,7 +17251,6 @@ export default function HomeScreen() {
           const margin = 20;
           const minY = yearSection.top + avatarHalfSize + margin;
           const maxY = yearSection.bottom - avatarHalfSize - margin;
-          const sectionCenterY = yearSection.top + yearSection.height / 2;
 
           if (statePosition.y >= minY && statePosition.y <= maxY) {
             positions.set(profile.id, statePosition);
@@ -17422,7 +17331,6 @@ export default function HomeScreen() {
         Math.max(12, insets.bottom + 12 - 20 * fontScale);
       const visibleAreaTop = insets.top;
       const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight; // Account for tab bar, not just safe area
-      const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
 
       const minX = padding;
       const maxX = SCREEN_WIDTH - padding;
@@ -17441,38 +17349,6 @@ export default function HomeScreen() {
       return clamped;
     },
     [insets.top, insets.bottom, fontScale],
-  );
-
-  // Update position for a profile and save to storage
-  const updateAvatarPosition = React.useCallback(
-    async (profileId: string, newPosition: { x: number; y: number }) => {
-      // Clamp position to ensure avatar is fully visible (use base avatar size for clamping)
-      const baseAvatarSize = isTablet ? 120 : 100;
-      const clampedPosition = clampPositionToViewport(
-        newPosition,
-        baseAvatarSize,
-      );
-
-      setAvatarPositionsState((prev) => {
-        const next = new Map(prev);
-        next.set(profileId, clampedPosition);
-
-        // Save to AsyncStorage asynchronously
-        const positionsObj: Record<string, { x: number; y: number }> = {};
-        next.forEach((pos, id) => {
-          positionsObj[id] = pos;
-        });
-        AsyncStorage.setItem(
-          AVATAR_POSITIONS_KEY,
-          JSON.stringify(positionsObj),
-        ).catch((error) => {
-          logError("HomeScreen:SaveAvatarPositions", error);
-        });
-
-        return next;
-      });
-    },
-    [isTablet, clampPositionToViewport],
   );
 
   // Update position for a family member and save to storage
@@ -17601,23 +17477,6 @@ export default function HomeScreen() {
   const focusedHobbyPositionX = useSharedValue(SCREEN_WIDTH / 2);
   const focusedHobbyPositionY = useSharedValue(SCREEN_HEIGHT / 2 + 80);
 
-  // Helper: Get focusedMemory only if it matches the current selectedSphere
-  // This ensures cross-sphere focusedMemory is ignored everywhere
-  const getFocusedMemoryForSphere = useCallback(
-    (
-      sphere: LifeSphere | null,
-    ): {
-      profileId?: string;
-      jobId?: string;
-      familyMemberId?: string;
-      memoryId: string;
-      sphere: LifeSphere;
-    } | null => {
-      if (!focusedMemory || !sphere) return null;
-      return focusedMemory.sphere === sphere ? focusedMemory : null;
-    },
-    [focusedMemory],
-  );
   // Track previous focused profile to handle shrink animation
   const previousFocusedIdRef = useRef<string | null>(null);
   // Track previous focused job to handle shrink animation
@@ -17629,7 +17488,7 @@ export default function HomeScreen() {
   // Track previous focused hobby to handle shrink animation
   const previousFocusedHobbyIdRef = useRef<string | null>(null);
   // Track if animations are complete - used to skip rendering unfocused partners
-  const [animationsComplete, setAnimationsComplete] = useState(false);
+  const [, setAnimationsComplete] = useState(false);
 
   // Update previous focused ID when focus changes
   React.useEffect(() => {
@@ -18017,59 +17876,6 @@ export default function HomeScreen() {
 
     return grouped;
   }, [sortedJobs, getJobSectionKey, jobYearSections]);
-
-  // Group visible profiles by their year sections, preserving their index in sortedProfiles
-  const profilesBySection = React.useMemo(() => {
-    const grouped = new Map<string, { profile: any; index: number }[]>();
-
-    visibleProfiles.forEach((profile) => {
-      const sectionKey = getProfileSectionKey(profile);
-      if (sectionKey) {
-        // Find the index in sortedProfiles
-        const indexInSorted = sortedProfiles.findIndex(
-          (p) => p.id === profile.id,
-        );
-
-        if (indexInSorted >= 0) {
-          // Always add profile to group, even if section doesn't exist in yearSections yet
-          // The section will be created or we'll handle it during rendering
-          if (!grouped.has(sectionKey)) {
-            grouped.set(sectionKey, []);
-          }
-          grouped.get(sectionKey)!.push({ profile, index: indexInSorted });
-        }
-      }
-    });
-
-    // Sort profiles within each section to ensure ongoing items are first
-    grouped.forEach((profiles, sectionKey) => {
-      profiles.sort((a, b) => {
-        // First, ensure ongoing items come first within each section
-        const aIsOngoing =
-          a.profile.relationshipEndDate === null ||
-          a.profile.relationshipEndDate === undefined;
-        const bIsOngoing =
-          b.profile.relationshipEndDate === null ||
-          b.profile.relationshipEndDate === undefined;
-
-        if (aIsOngoing && !bIsOngoing) return -1; // a is ongoing, b is not - a comes first
-        if (!aIsOngoing && bIsOngoing) return 1; // b is ongoing, a is not - b comes first
-
-        // Both are ongoing or both are ended - sort by index (which preserves sortedProfiles order)
-        return a.index - b.index;
-      });
-    });
-
-    return grouped;
-  }, [
-    visibleProfiles,
-    sortedProfiles,
-    getProfileSectionKey,
-    yearSections,
-    focusedProfileId,
-    focusedMemory,
-    selectedSphere,
-  ]);
 
   // Memoize focused profiles render - must be called unconditionally
   // Renders the focused profile (FloatingAvatar) when user selects one from FocusedEntitiesView.
@@ -18563,234 +18369,6 @@ export default function HomeScreen() {
     isScreenActive,
   ]);
 
-  // Memoize calculated positions for family members with collision detection
-  const familyMemberPositions = useMemo(() => {
-    const baseAvatarSize = isTablet ? 120 : 100;
-    const minDistance = baseAvatarSize * 1.3;
-    const calculatedPositions: { x: number; y: number }[] = [];
-
-    const tabBarHeight =
-      Math.round(78 * fontScale) +
-      Math.max(12, insets.bottom + 12 - 20 * fontScale);
-    const visibleAreaTop = insets.top;
-    const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight;
-    const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
-    const visibleAreaCenterY = visibleAreaTop + visibleAreaHeight / 2;
-
-    const centerAreaTop = visibleAreaTop + visibleAreaHeight * 0.2;
-    const centerAreaBottom = visibleAreaBottom - visibleAreaHeight * 0.2;
-    const centerAreaMinX = SCREEN_WIDTH * 0.15;
-    const centerAreaMaxX = SCREEN_WIDTH * 0.85;
-
-    const bounds = {
-      minX: centerAreaMinX,
-      maxX: centerAreaMaxX,
-      minY: centerAreaTop + 50,
-      maxY: centerAreaBottom - 50,
-    };
-
-    const getMemberHash = (memberId: string, seed: string = "") => {
-      let hash = 0;
-      const str = memberId + seed;
-      for (let i = 0; i < str.length; i++) {
-        hash = (hash << 5) - hash + str.charCodeAt(i);
-        hash = hash & hash;
-      }
-      return Math.abs(hash % 10000) / 10000;
-    };
-
-    familyMembers.forEach((member) => {
-      const angle = getMemberHash(member.id, "angle") * 2 * Math.PI;
-      const maxRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.35;
-      const minRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.1;
-      const radiusFactor = getMemberHash(member.id, "radius");
-      const radius = minRadius + radiusFactor * (maxRadius - minRadius);
-
-      const initialPosition = {
-        x: SCREEN_WIDTH / 2 + Math.cos(angle) * radius,
-        y: visibleAreaCenterY + Math.sin(angle) * radius,
-      };
-
-      initialPosition.x = Math.max(
-        bounds.minX,
-        Math.min(bounds.maxX, initialPosition.x),
-      );
-      initialPosition.y = Math.max(
-        bounds.minY,
-        Math.min(bounds.maxY, initialPosition.y),
-      );
-
-      const finalPosition = findNonOverlappingPosition(
-        initialPosition,
-        calculatedPositions,
-        minDistance,
-        bounds,
-      );
-      calculatedPositions.push(finalPosition);
-    });
-
-    return calculatedPositions;
-  }, [
-    familyMembers,
-    isTablet,
-    fontScale,
-    insets.top,
-    insets.bottom,
-    findNonOverlappingPosition,
-  ]);
-
-  // Memoize calculated positions for friends with collision detection
-  const friendPositions = useMemo(() => {
-    const baseAvatarSize = isTablet ? 120 : 100;
-    const minDistance = baseAvatarSize * 1.3;
-    const calculatedPositions: { x: number; y: number }[] = [];
-
-    const tabBarHeight =
-      Math.round(78 * fontScale) +
-      Math.max(12, insets.bottom + 12 - 20 * fontScale);
-    const visibleAreaTop = insets.top;
-    const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight;
-    const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
-    const visibleAreaCenterY = visibleAreaTop + visibleAreaHeight / 2;
-
-    const centerAreaTop = visibleAreaTop + visibleAreaHeight * 0.2;
-    const centerAreaBottom = visibleAreaBottom - visibleAreaHeight * 0.2;
-    const centerAreaMinX = SCREEN_WIDTH * 0.15;
-    const centerAreaMaxX = SCREEN_WIDTH * 0.85;
-
-    const bounds = {
-      minX: centerAreaMinX,
-      maxX: centerAreaMaxX,
-      minY: centerAreaTop + 50,
-      maxY: centerAreaBottom - 50,
-    };
-
-    const getFriendHash = (friendId: string, seed: string = "") => {
-      let hash = 0;
-      const str = friendId + seed;
-      for (let i = 0; i < str.length; i++) {
-        hash = (hash << 5) - hash + str.charCodeAt(i);
-        hash = hash & hash;
-      }
-      return Math.abs(hash % 10000) / 10000;
-    };
-
-    friends.forEach((friend) => {
-      const angle = getFriendHash(friend.id, "angle") * 2 * Math.PI;
-      const maxRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.35;
-      const minRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.1;
-      const radiusFactor = getFriendHash(friend.id, "radius");
-      const radius = minRadius + radiusFactor * (maxRadius - minRadius);
-
-      const initialPosition = {
-        x: SCREEN_WIDTH / 2 + Math.cos(angle) * radius,
-        y: visibleAreaCenterY + Math.sin(angle) * radius,
-      };
-
-      initialPosition.x = Math.max(
-        bounds.minX,
-        Math.min(bounds.maxX, initialPosition.x),
-      );
-      initialPosition.y = Math.max(
-        bounds.minY,
-        Math.min(bounds.maxY, initialPosition.y),
-      );
-
-      const finalPosition = findNonOverlappingPosition(
-        initialPosition,
-        calculatedPositions,
-        minDistance,
-        bounds,
-      );
-      calculatedPositions.push(finalPosition);
-    });
-
-    return calculatedPositions;
-  }, [
-    friends,
-    isTablet,
-    fontScale,
-    insets.top,
-    insets.bottom,
-    findNonOverlappingPosition,
-  ]);
-
-  // Memoize calculated positions for hobbies with collision detection
-  const hobbyPositions = useMemo(() => {
-    const baseAvatarSize = isTablet ? 120 : 100;
-    const minDistance = baseAvatarSize * 1.3;
-    const calculatedPositions: { x: number; y: number }[] = [];
-
-    const tabBarHeight =
-      Math.round(78 * fontScale) +
-      Math.max(12, insets.bottom + 12 - 20 * fontScale);
-    const visibleAreaTop = insets.top;
-    const visibleAreaBottom = SCREEN_HEIGHT - tabBarHeight;
-    const visibleAreaHeight = visibleAreaBottom - visibleAreaTop;
-    const visibleAreaCenterY = visibleAreaTop + visibleAreaHeight / 2;
-
-    const centerAreaTop = visibleAreaTop + visibleAreaHeight * 0.2;
-    const centerAreaBottom = visibleAreaBottom - visibleAreaHeight * 0.2;
-    const centerAreaMinX = SCREEN_WIDTH * 0.15;
-    const centerAreaMaxX = SCREEN_WIDTH * 0.85;
-
-    const bounds = {
-      minX: centerAreaMinX,
-      maxX: centerAreaMaxX,
-      minY: centerAreaTop + 50,
-      maxY: centerAreaBottom - 50,
-    };
-
-    const getHobbyHash = (hobbyId: string, seed: string = "") => {
-      let hash = 0;
-      const str = hobbyId + seed;
-      for (let i = 0; i < str.length; i++) {
-        hash = (hash << 5) - hash + str.charCodeAt(i);
-        hash = hash & hash;
-      }
-      return Math.abs(hash % 10000) / 10000;
-    };
-
-    hobbies.forEach((hobby) => {
-      const angle = getHobbyHash(hobby.id, "angle") * 2 * Math.PI;
-      const maxRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.35;
-      const minRadius = Math.min(SCREEN_WIDTH, visibleAreaHeight) * 0.1;
-      const radiusFactor = getHobbyHash(hobby.id, "radius");
-      const radius = minRadius + radiusFactor * (maxRadius - minRadius);
-
-      const initialPosition = {
-        x: SCREEN_WIDTH / 2 + Math.cos(angle) * radius,
-        y: visibleAreaCenterY + Math.sin(angle) * radius,
-      };
-
-      initialPosition.x = Math.max(
-        bounds.minX,
-        Math.min(bounds.maxX, initialPosition.x),
-      );
-      initialPosition.y = Math.max(
-        bounds.minY,
-        Math.min(bounds.maxY, initialPosition.y),
-      );
-
-      const finalPosition = findNonOverlappingPosition(
-        initialPosition,
-        calculatedPositions,
-        minDistance,
-        bounds,
-      );
-      calculatedPositions.push(finalPosition);
-    });
-
-    return calculatedPositions;
-  }, [
-    hobbies,
-    isTablet,
-    fontScale,
-    insets.top,
-    insets.bottom,
-    findNonOverlappingPosition,
-  ]);
-
   // Render sphere view - show all 3 spheres with memories floating around, center shows overall percentage
   // When a sphere is selected, show the entities for that sphere (like year sections for relationships)
 
@@ -18934,15 +18512,11 @@ export default function HomeScreen() {
               visible={aiInsightsConsentVisible}
               onEnable={() => {
                 setAiInsightsConsentVisible(false);
-                setAiEncouragementText(null);
-                setEncouragementCacheBust((x) => x + 1);
                 void aiConsent.setChoice("enabled");
               }}
               onMaybeLater={() => {
                 void aiConsent.setChoice("maybe_later").then(() => {
                   setAiInsightsConsentVisible(false);
-                  setAiEncouragementText(null);
-                  setAiEncouragementLoading(false);
                 });
               }}
             />
@@ -19076,469 +18650,502 @@ export default function HomeScreen() {
 
           {/* Random Moment from Wheel of Life Spin + exam result — wrapped in Modal so it also shows over focused view */}
           <Modal
-            visible={!!(showLesson && selectedLesson) || !!(selectedLesson?.examStep === "result" && selectedLesson.examAnalysis)}
+            visible={
+              !!(showLesson && selectedLesson) ||
+              !!(
+                selectedLesson?.examStep === "result" &&
+                selectedLesson.examAnalysis
+              )
+            }
             transparent
             animationType="none"
             statusBarTranslucent
           >
-          <View style={{ flex: 1 }}>
-          {showLesson &&
-            selectedLesson &&
-            (() => {
-              const momentType = selectedLesson.momentType || "lessons";
+            <View style={{ flex: 1 }}>
+              {showLesson &&
+                selectedLesson &&
+                (() => {
+                  const momentType = selectedLesson.momentType || "lessons";
 
-              // Calculate dimensions - all moment types use dynamic size based on text length
-              const textLength = selectedLesson.text?.length || 0;
+                  // Calculate dimensions - all moment types use dynamic size based on text length
+                  const textLength = selectedLesson.text?.length || 0;
 
-              // Base sizes
-              const baseSunSize = isTablet ? 280 : isLargeDevice ? 240 : 200;
-              const baseCircleSize = isTablet ? 220 : isLargeDevice ? 190 : 165;
-              const baseCloudWidth = isTablet ? 280 : isLargeDevice ? 240 : 220;
+                  // Base sizes
+                  const baseSunSize = isTablet
+                    ? 280
+                    : isLargeDevice
+                      ? 240
+                      : 200;
+                  const baseCircleSize = isTablet
+                    ? 220
+                    : isLargeDevice
+                      ? 190
+                      : 165;
+                  const baseCloudWidth = isTablet
+                    ? 280
+                    : isLargeDevice
+                      ? 240
+                      : 220;
 
-              // Dynamic sizing based on text length
-              let momentWidth: number;
-              let momentHeight: number;
+                  // Dynamic sizing based on text length
+                  let momentWidth: number;
+                  let momentHeight: number;
 
-              if (momentType === "sunnyMoments") {
-                const dynamicSunSize = Math.min(
-                  SCREEN_WIDTH * 0.85,
-                  Math.max(
-                    baseSunSize,
-                    baseSunSize + Math.floor(textLength * 1.8),
-                  ),
-                );
-                momentWidth = dynamicSunSize;
-                momentHeight = dynamicSunSize;
-              } else if (momentType === "hardTruths") {
-                // Cloud grows wider and taller with text length
-                const dynamicCloudWidth = Math.min(
-                  SCREEN_WIDTH * 0.9,
-                  Math.max(
-                    baseCloudWidth * 1.6,
-                    baseCloudWidth * 1.6 + Math.floor(textLength * 1.2),
-                  ),
-                );
-                const dynamicCloudHeight = Math.min(
-                  250,
-                  Math.max(
-                    baseCloudWidth * 0.6,
-                    baseCloudWidth * 0.6 + Math.floor(textLength * 0.5),
-                  ),
-                );
-                momentWidth = dynamicCloudWidth;
-                momentHeight = dynamicCloudHeight;
-              } else {
-                // Lessons (lightbulb) - circle grows with text length (reduced growth rate)
-                const lessonSizeMultiplier = Math.min(
-                  1.4,
-                  Math.max(1.0, 1.0 + textLength / 150),
-                );
-                const dynamicCircleSize = baseCircleSize * lessonSizeMultiplier;
-                momentWidth = dynamicCircleSize;
-                momentHeight = dynamicCircleSize;
-              }
-
-              // Get visual properties based on moment type
-              const momentVisuals = {
-                lessons: {
-                  icon: "lightbulb" as const,
-                  backgroundColor: `${momentColors.lesson.background}73`,
-                  shadowColor: momentColors.lesson.background,
-                  iconColor: momentColors.lesson.background,
-                },
-                hardTruths: {
-                  icon: "cloud" as const,
-                  backgroundColor: `${momentColors.cloudy.background}59`,
-                  shadowColor: momentColors.cloudy.background,
-                  iconColor: momentColors.cloudy.background,
-                },
-                sunnyMoments: {
-                  icon: "wb-sunny" as const,
-                  backgroundColor: `${momentColors.sunny.background}8C`,
-                  shadowColor: momentColors.sunny.background,
-                  iconColor: momentColors.sunny.background,
-                },
-              };
-
-              const visuals = momentVisuals[momentType];
-
-              const handlePress = () => {
-                setLessonHintDismissed(true);
-                // Wait for press animation to complete before navigating
-                setTimeout(() => {
-                  // If it's a mock lesson, just close it (don't navigate)
-                  if (selectedLesson.isMock) {
-                    setShowLesson(false);
-                    return;
+                  if (momentType === "sunnyMoments") {
+                    const dynamicSunSize = Math.min(
+                      SCREEN_WIDTH * 0.85,
+                      Math.max(
+                        baseSunSize,
+                        baseSunSize + Math.floor(textLength * 1.8),
+                      ),
+                    );
+                    momentWidth = dynamicSunSize;
+                    momentHeight = dynamicSunSize;
+                  } else if (momentType === "hardTruths") {
+                    // Cloud grows wider and taller with text length
+                    const dynamicCloudWidth = Math.min(
+                      SCREEN_WIDTH * 0.9,
+                      Math.max(
+                        baseCloudWidth * 1.6,
+                        baseCloudWidth * 1.6 + Math.floor(textLength * 1.2),
+                      ),
+                    );
+                    const dynamicCloudHeight = Math.min(
+                      250,
+                      Math.max(
+                        baseCloudWidth * 0.6,
+                        baseCloudWidth * 0.6 + Math.floor(textLength * 0.5),
+                      ),
+                    );
+                    momentWidth = dynamicCloudWidth;
+                    momentHeight = dynamicCloudHeight;
+                  } else {
+                    // Lessons (lightbulb) - circle grows with text length (reduced growth rate)
+                    const lessonSizeMultiplier = Math.min(
+                      1.4,
+                      Math.max(1.0, 1.0 + textLength / 150),
+                    );
+                    const dynamicCircleSize =
+                      baseCircleSize * lessonSizeMultiplier;
+                    momentWidth = dynamicCircleSize;
+                    momentHeight = dynamicCircleSize;
                   }
 
-                  // Navigate to the memory this lesson belongs to
-                  const sphere = selectedLesson.sphere;
-                  const entityId = selectedLesson.entityId;
-                  const memoryId = selectedLesson.memoryId;
-
-                  // Set focused memory, focused entity, and selected sphere based on sphere type
-                  // We need to set the entity focus first, then the memory focus after a slight delay
-                  // to ensure the entity's FloatingAvatar component has rendered
-                  if (sphere === "relationships") {
-                    const memoryData = {
-                      profileId: entityId,
-                      memoryId,
-                      sphere,
-                    };
-                    setFocusedProfileId(entityId);
-                    setSelectedSphere("relationships");
-                    // Delay memory focus to ensure entity is rendered first
-                    setTimeout(() => {
-                      setFocusedMemory(memoryData);
-                    }, 100);
-                  } else if (sphere === "career") {
-                    const memoryData = { jobId: entityId, memoryId, sphere };
-                    setFocusedJobId(entityId);
-                    setSelectedSphere("career");
-                    setTimeout(() => {
-                      setFocusedMemory(memoryData);
-                    }, 100);
-                  } else if (sphere === "family") {
-                    const memoryData = {
-                      familyMemberId: entityId,
-                      memoryId,
-                      sphere,
-                    };
-                    setFocusedFamilyMemberId(entityId);
-                    setSelectedSphere("family");
-                    setTimeout(() => {
-                      setFocusedMemory(memoryData);
-                    }, 100);
-                  } else if (sphere === "friends") {
-                    const memoryData = { friendId: entityId, memoryId, sphere };
-                    setFocusedFriendId(entityId);
-                    setSelectedSphere("friends");
-                    setTimeout(() => {
-                      setFocusedMemory(memoryData);
-                    }, 100);
-                  } else if (sphere === "hobbies") {
-                    const memoryData = { hobbyId: entityId, memoryId, sphere };
-                    setFocusedHobbyId(entityId);
-                    setSelectedSphere("hobbies");
-                    setTimeout(() => {
-                      setFocusedMemory(memoryData);
-                    }, 100);
-                  }
-
-                  // Close the lesson display
-                  setShowLesson(false);
-                  setSelectedLesson(null);
-                }, 75);
-              };
-
-              return (
-                <Animated.View
-                  style={[
-                    {
-                      position: "absolute",
-                      top: messageTop,
-                      left: SCREEN_WIDTH / 2 - momentWidth / 2, // Center horizontally
-                      zIndex: 300,
+                  // Get visual properties based on moment type
+                  const momentVisuals = {
+                    lessons: {
+                      icon: "lightbulb" as const,
+                      backgroundColor: `${momentColors.lesson.background}73`,
+                      shadowColor: momentColors.lesson.background,
+                      iconColor: momentColors.lesson.background,
                     },
-                    lessonAnimatedStyle,
-                  ]}
-                >
-                  {momentType === "sunnyMoments" ? (
-                    // SVG sun with rays (matching video preview component)
-                    <AnimatedPressable
-                      onPressIn={() => {
-                        lessonPressScale.value = withSpring(0.95, {
-                          damping: 15,
-                          stiffness: 300,
-                        });
-                      }}
-                      onPressOut={() => {
-                        lessonPressScale.value = withSpring(1, {
-                          damping: 15,
-                          stiffness: 300,
-                        });
-                      }}
-                      onPress={handlePress}
+                    hardTruths: {
+                      icon: "cloud" as const,
+                      backgroundColor: `${momentColors.cloudy.background}59`,
+                      shadowColor: momentColors.cloudy.background,
+                      iconColor: momentColors.cloudy.background,
+                    },
+                    sunnyMoments: {
+                      icon: "wb-sunny" as const,
+                      backgroundColor: `${momentColors.sunny.background}8C`,
+                      shadowColor: momentColors.sunny.background,
+                      iconColor: momentColors.sunny.background,
+                    },
+                  };
+
+                  const visuals = momentVisuals[momentType];
+
+                  const handlePress = () => {
+                    setLessonHintDismissed(true);
+                    // Wait for press animation to complete before navigating
+                    setTimeout(() => {
+                      // If it's a mock lesson, just close it (don't navigate)
+                      if (selectedLesson.isMock) {
+                        setShowLesson(false);
+                        return;
+                      }
+
+                      // Navigate to the memory this lesson belongs to
+                      const sphere = selectedLesson.sphere;
+                      const entityId = selectedLesson.entityId;
+                      const memoryId = selectedLesson.memoryId;
+
+                      // Set focused memory, focused entity, and selected sphere based on sphere type
+                      // We need to set the entity focus first, then the memory focus after a slight delay
+                      // to ensure the entity's FloatingAvatar component has rendered
+                      if (sphere === "relationships") {
+                        const memoryData = {
+                          profileId: entityId,
+                          memoryId,
+                          sphere,
+                        };
+                        setFocusedProfileId(entityId);
+                        setSelectedSphere("relationships");
+                        // Delay memory focus to ensure entity is rendered first
+                        setTimeout(() => {
+                          setFocusedMemory(memoryData);
+                        }, 100);
+                      } else if (sphere === "career") {
+                        const memoryData = {
+                          jobId: entityId,
+                          memoryId,
+                          sphere,
+                        };
+                        setFocusedJobId(entityId);
+                        setSelectedSphere("career");
+                        setTimeout(() => {
+                          setFocusedMemory(memoryData);
+                        }, 100);
+                      } else if (sphere === "family") {
+                        const memoryData = {
+                          familyMemberId: entityId,
+                          memoryId,
+                          sphere,
+                        };
+                        setFocusedFamilyMemberId(entityId);
+                        setSelectedSphere("family");
+                        setTimeout(() => {
+                          setFocusedMemory(memoryData);
+                        }, 100);
+                      } else if (sphere === "friends") {
+                        const memoryData = {
+                          friendId: entityId,
+                          memoryId,
+                          sphere,
+                        };
+                        setFocusedFriendId(entityId);
+                        setSelectedSphere("friends");
+                        setTimeout(() => {
+                          setFocusedMemory(memoryData);
+                        }, 100);
+                      } else if (sphere === "hobbies") {
+                        const memoryData = {
+                          hobbyId: entityId,
+                          memoryId,
+                          sphere,
+                        };
+                        setFocusedHobbyId(entityId);
+                        setSelectedSphere("hobbies");
+                        setTimeout(() => {
+                          setFocusedMemory(memoryData);
+                        }, 100);
+                      }
+
+                      // Close the lesson display
+                      setShowLesson(false);
+                      setSelectedLesson(null);
+                    }, 75);
+                  };
+
+                  return (
+                    <Animated.View
                       style={[
                         {
-                          width: momentWidth,
-                          height: momentHeight,
-                          justifyContent: "center",
-                          alignItems: "center",
-                          position: "relative",
+                          position: "absolute",
+                          top: messageTop,
+                          left: SCREEN_WIDTH / 2 - momentWidth / 2, // Center horizontally
+                          zIndex: 300,
                         },
-                        lessonShadowAnimatedStyle,
+                        lessonAnimatedStyle,
                       ]}
                     >
-                      <View
-                        style={{
-                          width: momentWidth,
-                          height: momentHeight,
-                          shadowColor: momentColors.sunny.background,
-                          shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.8,
-                          shadowRadius: 12,
-                          elevation: 10,
-                        }}
-                      >
-                        <Svg
-                          width={momentWidth}
-                          height={momentHeight}
-                          viewBox="0 0 160 160"
-                          preserveAspectRatio="xMidYMid meet"
-                          style={{ position: "absolute", top: 0, left: 0 }}
-                        >
-                          <Defs>
-                            <RadialGradient
-                              id={`mainSunGradient-${selectedLesson.entityId || "default"}`}
-                              cx="80"
-                              cy="80"
-                              rx="48"
-                              ry="48"
-                              fx="80"
-                              fy="80"
-                              gradientUnits="userSpaceOnUse"
-                            >
-                              <Stop
-                                offset="0%"
-                                stopColor={momentColors.sunny.background}
-                                stopOpacity="0.9"
-                              />
-                              <Stop
-                                offset="60%"
-                                stopColor={momentColors.sunny.background}
-                                stopOpacity="1"
-                              />
-                              <Stop
-                                offset="100%"
-                                stopColor={momentColors.sunny.background}
-                                stopOpacity="1"
-                              />
-                            </RadialGradient>
-                          </Defs>
-                          {/* Sun rays */}
-                          {Array.from({ length: 12 }).map((_, i) => {
-                            const angle = (i * 360) / 12;
-                            const radian = (angle * Math.PI) / 180;
-                            const centerX = 80;
-                            const centerY = 80;
-                            const innerRadius = 48;
-                            const outerRadius = 72;
-                            const rayWidth = 3;
-
-                            const innerX =
-                              centerX + Math.cos(radian) * innerRadius;
-                            const innerY =
-                              centerY + Math.sin(radian) * innerRadius;
-                            const outerX =
-                              centerX + Math.cos(radian) * outerRadius;
-                            const outerY =
-                              centerY + Math.sin(radian) * outerRadius;
-
-                            const perpAngle = radian + Math.PI / 2;
-                            const halfWidth = rayWidth / 2;
-                            const leftX =
-                              outerX + Math.cos(perpAngle) * halfWidth;
-                            const leftY =
-                              outerY + Math.sin(perpAngle) * halfWidth;
-                            const rightX =
-                              outerX +
-                              Math.cos(perpAngle + Math.PI) * halfWidth;
-                            const rightY =
-                              outerY +
-                              Math.sin(perpAngle + Math.PI) * halfWidth;
-
-                            return (
-                              <Path
-                                key={`mainRay-${i}`}
-                                d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
-                                fill={momentColors.sunny.background}
-                              />
-                            );
-                          })}
-                          {/* Central circle */}
-                          <Circle
-                            cx="80"
-                            cy="80"
-                            r="48"
-                            fill={`url(#mainSunGradient-${selectedLesson.entityId || "default"})`}
-                          />
-                        </Svg>
-                        <View
-                          style={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            width: momentWidth,
-                            height: momentHeight,
-                            justifyContent: "center",
-                            alignItems: "center",
-                            paddingHorizontal: momentWidth * 0.25,
-                            paddingVertical: momentHeight * 0.2,
+                      {momentType === "sunnyMoments" ? (
+                        // SVG sun with rays (matching video preview component)
+                        <AnimatedPressable
+                          onPressIn={() => {
+                            lessonPressScale.value = withSpring(0.95, {
+                              damping: 15,
+                              stiffness: 300,
+                            });
                           }}
+                          onPressOut={() => {
+                            lessonPressScale.value = withSpring(1, {
+                              damping: 15,
+                              stiffness: 300,
+                            });
+                          }}
+                          onPress={handlePress}
+                          style={[
+                            {
+                              width: momentWidth,
+                              height: momentHeight,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              position: "relative",
+                            },
+                            lessonShadowAnimatedStyle,
+                          ]}
                         >
-                          <ThemedText
+                          <View
                             style={{
-                              color: momentColors.sunny.text,
-                              fontSize: 13 * fontScale,
-                              textAlign: "center",
-                              fontWeight: "700",
-                              lineHeight: 18 * fontScale,
+                              width: momentWidth,
+                              height: momentHeight,
+                              shadowColor: momentColors.sunny.background,
+                              shadowOffset: { width: 0, height: 0 },
+                              shadowOpacity: 0.8,
+                              shadowRadius: 12,
+                              elevation: 10,
                             }}
                           >
-                            {selectedLesson.text}
-                          </ThemedText>
-                          {/* Entity image circle below text */}
-                          {(() => {
-                            const entityId = selectedLesson.entityId;
-                            const sphere = selectedLesson.sphere;
-                            let entityImage: string | undefined;
-
-                            if (sphere === "relationships") {
-                              entityImage = profiles.find(
-                                (p) => p.id === entityId,
-                              )?.imageUri;
-                            } else if (sphere === "career") {
-                              entityImage = jobs.find(
-                                (j) => j.id === entityId,
-                              )?.imageUri;
-                            } else if (sphere === "family") {
-                              entityImage = familyMembers.find(
-                                (f) => f.id === entityId,
-                              )?.imageUri;
-                            } else if (sphere === "friends") {
-                              entityImage = friends.find(
-                                (f) => f.id === entityId,
-                              )?.imageUri;
-                            } else if (sphere === "hobbies") {
-                              entityImage = hobbies.find(
-                                (h) => h.id === entityId,
-                              )?.imageUri;
-                            }
-
-                            if (!entityImage) return null;
-
-                            return (
-                              <Image
-                                source={{ uri: entityImage }}
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  borderRadius: 16,
-                                  marginTop: 8,
-                                  borderWidth: 2,
-                                  borderColor: "rgba(0,0,0,0.2)",
-                                }}
-                              />
-                            );
-                          })()}
-                        </View>
-                      </View>
-                      {/* Close button - positioned at top right */}
-                      <Pressable
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setShowLesson(false);
-                          setSelectedLesson(null);
-                        }}
-                        style={{
-                          position: "absolute",
-                          top: 12,
-                          right: 12,
-                          width: 24,
-                          height: 24,
-                          borderRadius: 12,
-                          backgroundColor:
-                            colorScheme === "dark"
-                              ? "rgba(0, 0, 0, 0.4)"
-                              : "rgba(255, 255, 255, 0.9)",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          zIndex: 10,
-                        }}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <MaterialIcons
-                          name="close"
-                          size={16}
-                          color={colorScheme === "dark" ? "#FFFFFF" : "#000000"}
-                          style={{ opacity: 0.8 }}
-                        />
-                      </Pressable>
-                    </AnimatedPressable>
-                  ) : momentType === "hardTruths" ? (
-                    // SVG cloud (matching video preview component)
-                    <AnimatedPressable
-                      onPressIn={() => {
-                        lessonPressScale.value = withSpring(0.95, {
-                          damping: 15,
-                          stiffness: 300,
-                        });
-                      }}
-                      onPressOut={() => {
-                        lessonPressScale.value = withSpring(1, {
-                          damping: 15,
-                          stiffness: 300,
-                        });
-                      }}
-                      onPress={handlePress}
-                      style={[
-                        {
-                          width: momentWidth,
-                          height: momentHeight,
-                          justifyContent: "center",
-                          alignItems: "center",
-                          position: "relative",
-                        },
-                        lessonShadowAnimatedStyle,
-                      ]}
-                    >
-                      <View
-                        style={{
-                          width: momentWidth,
-                          height: momentHeight,
-                          shadowColor: "#4A5568",
-                          shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.7,
-                          shadowRadius: 10,
-                          elevation: 8,
-                        }}
-                      >
-                        <Svg
-                          width={momentWidth}
-                          height={momentHeight}
-                          viewBox="0 0 320 100"
-                          preserveAspectRatio="xMidYMid meet"
-                          style={{ position: "absolute", top: 0, left: 0 }}
-                        >
-                          <Defs>
-                            <SvgLinearGradient
-                              id={`mainCloudGradient-${selectedLesson.entityId || "default"}`}
-                              x1="0%"
-                              y1="0%"
-                              x2="0%"
-                              y2="100%"
+                            <Svg
+                              width={momentWidth}
+                              height={momentHeight}
+                              viewBox="0 0 160 160"
+                              preserveAspectRatio="xMidYMid meet"
+                              style={{ position: "absolute", top: 0, left: 0 }}
                             >
-                              <Stop
-                                offset="0%"
-                                stopColor={momentColors.cloudy.background}
-                                stopOpacity="0.95"
+                              <Defs>
+                                <RadialGradient
+                                  id={`mainSunGradient-${selectedLesson.entityId || "default"}`}
+                                  cx="80"
+                                  cy="80"
+                                  rx="48"
+                                  ry="48"
+                                  fx="80"
+                                  fy="80"
+                                  gradientUnits="userSpaceOnUse"
+                                >
+                                  <Stop
+                                    offset="0%"
+                                    stopColor={momentColors.sunny.background}
+                                    stopOpacity="0.9"
+                                  />
+                                  <Stop
+                                    offset="60%"
+                                    stopColor={momentColors.sunny.background}
+                                    stopOpacity="1"
+                                  />
+                                  <Stop
+                                    offset="100%"
+                                    stopColor={momentColors.sunny.background}
+                                    stopOpacity="1"
+                                  />
+                                </RadialGradient>
+                              </Defs>
+                              {/* Sun rays */}
+                              {Array.from({ length: 12 }).map((_, i) => {
+                                const angle = (i * 360) / 12;
+                                const radian = (angle * Math.PI) / 180;
+                                const centerX = 80;
+                                const centerY = 80;
+                                const innerRadius = 48;
+                                const outerRadius = 72;
+                                const rayWidth = 3;
+
+                                const innerX =
+                                  centerX + Math.cos(radian) * innerRadius;
+                                const innerY =
+                                  centerY + Math.sin(radian) * innerRadius;
+                                const outerX =
+                                  centerX + Math.cos(radian) * outerRadius;
+                                const outerY =
+                                  centerY + Math.sin(radian) * outerRadius;
+
+                                const perpAngle = radian + Math.PI / 2;
+                                const halfWidth = rayWidth / 2;
+                                const leftX =
+                                  outerX + Math.cos(perpAngle) * halfWidth;
+                                const leftY =
+                                  outerY + Math.sin(perpAngle) * halfWidth;
+                                const rightX =
+                                  outerX +
+                                  Math.cos(perpAngle + Math.PI) * halfWidth;
+                                const rightY =
+                                  outerY +
+                                  Math.sin(perpAngle + Math.PI) * halfWidth;
+
+                                return (
+                                  <Path
+                                    key={`mainRay-${i}`}
+                                    d={`M ${innerX} ${innerY} L ${leftX} ${leftY} L ${rightX} ${rightY} Z`}
+                                    fill={momentColors.sunny.background}
+                                  />
+                                );
+                              })}
+                              {/* Central circle */}
+                              <Circle
+                                cx="80"
+                                cy="80"
+                                r="48"
+                                fill={`url(#mainSunGradient-${selectedLesson.entityId || "default"})`}
                               />
-                              <Stop
-                                offset="50%"
-                                stopColor={momentColors.cloudy.background}
-                                stopOpacity="0.98"
-                              />
-                              <Stop
-                                offset="100%"
-                                stopColor={momentColors.cloudy.background}
-                                stopOpacity="1"
-                              />
-                            </SvgLinearGradient>
-                          </Defs>
-                          <Path
-                            d="M50,50
+                            </Svg>
+                            <View
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: momentWidth,
+                                height: momentHeight,
+                                justifyContent: "center",
+                                alignItems: "center",
+                                paddingHorizontal: momentWidth * 0.25,
+                                paddingVertical: momentHeight * 0.2,
+                              }}
+                            >
+                              <ThemedText
+                                style={{
+                                  color: momentColors.sunny.text,
+                                  fontSize: 13 * fontScale,
+                                  textAlign: "center",
+                                  fontWeight: "700",
+                                  lineHeight: 18 * fontScale,
+                                }}
+                              >
+                                {selectedLesson.text}
+                              </ThemedText>
+                              {/* Entity image circle below text */}
+                              {(() => {
+                                const entityId = selectedLesson.entityId;
+                                const sphere = selectedLesson.sphere;
+                                let entityImage: string | undefined;
+
+                                if (sphere === "relationships") {
+                                  entityImage = profiles.find(
+                                    (p) => p.id === entityId,
+                                  )?.imageUri;
+                                } else if (sphere === "career") {
+                                  entityImage = jobs.find(
+                                    (j) => j.id === entityId,
+                                  )?.imageUri;
+                                } else if (sphere === "family") {
+                                  entityImage = familyMembers.find(
+                                    (f) => f.id === entityId,
+                                  )?.imageUri;
+                                } else if (sphere === "friends") {
+                                  entityImage = friends.find(
+                                    (f) => f.id === entityId,
+                                  )?.imageUri;
+                                } else if (sphere === "hobbies") {
+                                  entityImage = hobbies.find(
+                                    (h) => h.id === entityId,
+                                  )?.imageUri;
+                                }
+
+                                if (!entityImage) return null;
+
+                                return (
+                                  <Image
+                                    source={{ uri: entityImage }}
+                                    style={{
+                                      width: 32,
+                                      height: 32,
+                                      borderRadius: 16,
+                                      marginTop: 8,
+                                      borderWidth: 2,
+                                      borderColor: "rgba(0,0,0,0.2)",
+                                    }}
+                                  />
+                                );
+                              })()}
+                            </View>
+                          </View>
+                          {/* Close button - positioned at top right */}
+                          <Pressable
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              setShowLesson(false);
+                              setSelectedLesson(null);
+                            }}
+                            style={{
+                              position: "absolute",
+                              top: 12,
+                              right: 12,
+                              width: 24,
+                              height: 24,
+                              borderRadius: 12,
+                              backgroundColor:
+                                colorScheme === "dark"
+                                  ? "rgba(0, 0, 0, 0.4)"
+                                  : "rgba(255, 255, 255, 0.9)",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              zIndex: 10,
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <MaterialIcons
+                              name="close"
+                              size={16}
+                              color={
+                                colorScheme === "dark" ? "#FFFFFF" : "#000000"
+                              }
+                              style={{ opacity: 0.8 }}
+                            />
+                          </Pressable>
+                        </AnimatedPressable>
+                      ) : momentType === "hardTruths" ? (
+                        // SVG cloud (matching video preview component)
+                        <AnimatedPressable
+                          onPressIn={() => {
+                            lessonPressScale.value = withSpring(0.95, {
+                              damping: 15,
+                              stiffness: 300,
+                            });
+                          }}
+                          onPressOut={() => {
+                            lessonPressScale.value = withSpring(1, {
+                              damping: 15,
+                              stiffness: 300,
+                            });
+                          }}
+                          onPress={handlePress}
+                          style={[
+                            {
+                              width: momentWidth,
+                              height: momentHeight,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              position: "relative",
+                            },
+                            lessonShadowAnimatedStyle,
+                          ]}
+                        >
+                          <View
+                            style={{
+                              width: momentWidth,
+                              height: momentHeight,
+                              shadowColor: "#4A5568",
+                              shadowOffset: { width: 0, height: 0 },
+                              shadowOpacity: 0.7,
+                              shadowRadius: 10,
+                              elevation: 8,
+                            }}
+                          >
+                            <Svg
+                              width={momentWidth}
+                              height={momentHeight}
+                              viewBox="0 0 320 100"
+                              preserveAspectRatio="xMidYMid meet"
+                              style={{ position: "absolute", top: 0, left: 0 }}
+                            >
+                              <Defs>
+                                <SvgLinearGradient
+                                  id={`mainCloudGradient-${selectedLesson.entityId || "default"}`}
+                                  x1="0%"
+                                  y1="0%"
+                                  x2="0%"
+                                  y2="100%"
+                                >
+                                  <Stop
+                                    offset="0%"
+                                    stopColor={momentColors.cloudy.background}
+                                    stopOpacity="0.95"
+                                  />
+                                  <Stop
+                                    offset="50%"
+                                    stopColor={momentColors.cloudy.background}
+                                    stopOpacity="0.98"
+                                  />
+                                  <Stop
+                                    offset="100%"
+                                    stopColor={momentColors.cloudy.background}
+                                    stopOpacity="1"
+                                  />
+                                </SvgLinearGradient>
+                              </Defs>
+                              <Path
+                                d="M50,50
                              Q40,35 50,25
                              Q60,15 75,20
                              Q85,10 100,20
@@ -19559,33 +19166,436 @@ export default function HomeScreen() {
                              Q85,90 75,80
                              Q60,85 50,75
                              Q40,65 50,50 Z"
-                            fill={`url(#mainCloudGradient-${selectedLesson.entityId || "default"})`}
-                            stroke="rgba(0,0,0,0.7)"
-                            strokeWidth={1.5}
-                          />
-                        </Svg>
+                                fill={`url(#mainCloudGradient-${selectedLesson.entityId || "default"})`}
+                                stroke="rgba(0,0,0,0.7)"
+                                strokeWidth={1.5}
+                              />
+                            </Svg>
+                            <View
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: momentWidth,
+                                height: momentHeight,
+                                justifyContent: "center",
+                                alignItems: "center",
+                                paddingHorizontal: 20,
+                              }}
+                            >
+                              <ThemedText
+                                style={{
+                                  color: "rgba(255,255,255,0.9)",
+                                  fontSize: 14 * fontScale,
+                                  textAlign: "center",
+                                  fontWeight: "500",
+                                }}
+                              >
+                                {selectedLesson.text}
+                              </ThemedText>
+                              {/* Entity image circle below text */}
+                              {(() => {
+                                const entityId = selectedLesson.entityId;
+                                const sphere = selectedLesson.sphere;
+                                let entityImage: string | undefined;
+
+                                if (sphere === "relationships") {
+                                  entityImage = profiles.find(
+                                    (p) => p.id === entityId,
+                                  )?.imageUri;
+                                } else if (sphere === "career") {
+                                  entityImage = jobs.find(
+                                    (j) => j.id === entityId,
+                                  )?.imageUri;
+                                } else if (sphere === "family") {
+                                  entityImage = familyMembers.find(
+                                    (f) => f.id === entityId,
+                                  )?.imageUri;
+                                } else if (sphere === "friends") {
+                                  entityImage = friends.find(
+                                    (f) => f.id === entityId,
+                                  )?.imageUri;
+                                } else if (sphere === "hobbies") {
+                                  entityImage = hobbies.find(
+                                    (h) => h.id === entityId,
+                                  )?.imageUri;
+                                }
+
+                                if (!entityImage) return null;
+
+                                return (
+                                  <Image
+                                    source={{ uri: entityImage }}
+                                    style={{
+                                      width: 32,
+                                      height: 32,
+                                      borderRadius: 16,
+                                      marginTop: 8,
+                                      borderWidth: 2,
+                                      borderColor: "rgba(255,255,255,0.3)",
+                                    }}
+                                  />
+                                );
+                              })()}
+                            </View>
+                          </View>
+                          {/* Close button - positioned at top right */}
+                          <Pressable
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              setShowLesson(false);
+                              setSelectedLesson(null);
+                            }}
+                            style={{
+                              position: "absolute",
+                              top: 12,
+                              right: 12,
+                              width: 24,
+                              height: 24,
+                              borderRadius: 12,
+                              backgroundColor:
+                                colorScheme === "dark"
+                                  ? "rgba(0, 0, 0, 0.4)"
+                                  : "rgba(255, 255, 255, 0.9)",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              zIndex: 10,
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <MaterialIcons
+                              name="close"
+                              size={16}
+                              color={
+                                colorScheme === "dark" ? "#FFFFFF" : "#000000"
+                              }
+                              style={{ opacity: 0.8 }}
+                            />
+                          </Pressable>
+                        </AnimatedPressable>
+                      ) : selectedLesson.examStep === "question" &&
+                        !selectedLesson.examQuestion ? (
+                        // Loading: cosmic exam UI
                         <View
-                          style={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            width: momentWidth,
-                            height: momentHeight,
-                            justifyContent: "center",
-                            alignItems: "center",
-                            paddingHorizontal: 20,
-                          }}
+                          style={[
+                            {
+                              width: Math.max(momentWidth, 280),
+                              minWidth: 200,
+                              padding: 20,
+                              borderRadius: 24,
+                              overflow: "hidden",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              minHeight: 120,
+                              position: "relative",
+                              borderWidth: 1,
+                              borderColor: "rgba(92, 225, 230, 0.25)",
+                              shadowColor: COSMIC_RING_START,
+                              shadowOffset: { width: 0, height: 0 },
+                              shadowOpacity: 0.4,
+                              shadowRadius: 20,
+                              elevation: 24,
+                            },
+                          ]}
                         >
+                          <LinearGradient
+                            colors={[
+                              "#0A0E1A",
+                              "#0F1422",
+                              "#151C2E",
+                              "#1A2440",
+                            ]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={StyleSheet.absoluteFillObject}
+                          />
+                          <ActivityIndicator
+                            size="large"
+                            color={COSMIC_RING_START}
+                          />
+                          <Pressable
+                            onPress={handleDismissLesson}
+                            style={{
+                              position: "absolute",
+                              top: 12,
+                              right: 12,
+                              width: 28,
+                              height: 28,
+                              borderRadius: 14,
+                              backgroundColor: "rgba(92, 225, 230, 0.15)",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              zIndex: 10,
+                              borderWidth: 1,
+                              borderColor: "rgba(92, 225, 230, 0.3)",
+                            }}
+                          >
+                            <MaterialIcons
+                              name="close"
+                              size={16}
+                              color={COSMIC_TEXT}
+                              style={{ opacity: 0.9 }}
+                            />
+                          </Pressable>
+                        </View>
+                      ) : selectedLesson.examQuestion &&
+                        selectedLesson.examStep === "question" ? (
+                        // Main wheel exam: cosmic question + answer UI
+                        <View
+                          style={[
+                            {
+                              width: Math.max(momentWidth, 280),
+                              minWidth: 200,
+                              padding: 24,
+                              borderRadius: 24,
+                              overflow: "hidden",
+                              shadowColor: COSMIC_RING_START,
+                              shadowOffset: { width: 0, height: 0 },
+                              shadowOpacity: 0.5,
+                              shadowRadius: isTablet ? 24 : 20,
+                              elevation: 24,
+                              alignItems: "center",
+                              position: "relative",
+                              borderWidth: 1,
+                              borderColor: "rgba(92, 225, 230, 0.2)",
+                            },
+                          ]}
+                        >
+                          <LinearGradient
+                            colors={[
+                              "#0A0E1A",
+                              "#0F1422",
+                              "#151C2E",
+                              "#1A2440",
+                            ]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={StyleSheet.absoluteFillObject}
+                          />
+                          <MaterialIcons
+                            name="emoji-objects"
+                            size={36}
+                            color={momentColors.lesson.background}
+                            style={{ marginBottom: 14, opacity: 0.95 }}
+                          />
+                          <ThemedText
+                            size="sm"
+                            weight="semibold"
+                            style={{
+                              marginBottom: 16,
+                              textAlign: "center",
+                              paddingHorizontal: 8,
+                              color: COSMIC_TEXT,
+                              lineHeight: 22,
+                            }}
+                          >
+                            {selectedLesson.examQuestion}
+                          </ThemedText>
+                          <Animated.View
+                            style={[
+                              { width: "100%" },
+                              mainWheelExamInputPulseStyle,
+                            ]}
+                          >
+                            <TextInput
+                              value={mainWheelExamAnswerInput}
+                              onChangeText={setMainWheelExamAnswerInput}
+                              placeholder={t("wheel.exam.questionPrompt")}
+                              placeholderTextColor="rgba(184, 232, 236, 0.5)"
+                              style={{
+                                width: "100%",
+                                minHeight: 48,
+                                backgroundColor: "rgba(13, 21, 37, 0.8)",
+                                borderRadius: 14,
+                                paddingHorizontal: 14,
+                                paddingVertical: 12,
+                                color: COSMIC_TEXT,
+                                fontSize: 14 * fontScale,
+                                borderWidth: 1,
+                                borderColor: "rgba(92, 225, 230, 0.2)",
+                              }}
+                              multiline
+                            />
+                          </Animated.View>
+                          <Animated.View
+                            style={[
+                              mainWheelExamSubmitButtonStyle,
+                              { width: "100%", marginTop: 16 },
+                            ]}
+                          >
+                            <Pressable
+                              onPressIn={handleMainWheelExamSubmitPressIn}
+                              onPressOut={handleMainWheelExamSubmitPressOut}
+                              onPress={handleMainWheelExamSubmitPress}
+                              style={{
+                                width: "100%",
+                                borderRadius: 14,
+                                overflow: "hidden",
+                              }}
+                            >
+                              <LinearGradient
+                                colors={[COSMIC_RING_START, COSMIC_RING_MID]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={{
+                                  paddingVertical: 14,
+                                  paddingHorizontal: 24,
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <ThemedText
+                                  size="sm"
+                                  weight="semibold"
+                                  style={{ color: "#0A0E1A" }}
+                                >
+                                  {t("wheel.exam.submitAnswer")}
+                                </ThemedText>
+                              </LinearGradient>
+                            </Pressable>
+                          </Animated.View>
+                          <Pressable
+                            onPress={handleDismissLesson}
+                            style={{
+                              position: "absolute",
+                              top: 12,
+                              right: 12,
+                              width: 28,
+                              height: 28,
+                              borderRadius: 14,
+                              backgroundColor: "rgba(92, 225, 230, 0.15)",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              zIndex: 10,
+                              borderWidth: 1,
+                              borderColor: "rgba(92, 225, 230, 0.3)",
+                            }}
+                          >
+                            <MaterialIcons
+                              name="close"
+                              size={16}
+                              color={COSMIC_TEXT}
+                              style={{ opacity: 0.9 }}
+                            />
+                          </Pressable>
+                        </View>
+                      ) : selectedLesson.examQuestion &&
+                        selectedLesson.examStep === "analyzing" ? (
+                        <Animated.View
+                          style={[
+                            {
+                              width: Math.max(momentWidth, 200),
+                              height: Math.max(momentHeight, 200),
+                              justifyContent: "center",
+                              alignItems: "center",
+                              borderRadius: Math.max(momentWidth, 200) / 2,
+                              overflow: "hidden",
+                              shadowColor: COSMIC_RING_START,
+                              shadowOffset: { width: 0, height: 0 },
+                              shadowOpacity: 0.45,
+                              shadowRadius: isTablet ? 28 : 24,
+                              elevation: 24,
+                              padding: 8,
+                              position: "relative",
+                              borderWidth: 1,
+                              borderColor: "rgba(92, 225, 230, 0.25)",
+                            },
+                            lessonShadowAnimatedStyle,
+                          ]}
+                        >
+                          <LinearGradient
+                            colors={[
+                              "#0A0E1A",
+                              "#0F1422",
+                              "#151C2E",
+                              "#1A2440",
+                            ]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={StyleSheet.absoluteFillObject}
+                          />
+                          <ActivityIndicator
+                            size="large"
+                            color={COSMIC_RING_START}
+                          />
+                          <ThemedText
+                            size="sm"
+                            style={{
+                              marginTop: 12,
+                              color: COSMIC_TEXT,
+                              textAlign: "center",
+                              opacity: 0.9,
+                            }}
+                          >
+                            {t("wheel.exam.analyzing")}
+                          </ThemedText>
+                        </Animated.View>
+                      ) : selectedLesson.examStep ===
+                        "result" ? // Result shown as separate overlay — renders null here, overlay card is below
+                      null : (
+                        // For lessons without exam, use the original circle design
+                        <AnimatedPressable
+                          onPressIn={() => {
+                            lessonPressScale.value = withSpring(0.95, {
+                              damping: 15,
+                              stiffness: 300,
+                            });
+                          }}
+                          onPressOut={() => {
+                            lessonPressScale.value = withSpring(1, {
+                              damping: 15,
+                              stiffness: 300,
+                            });
+                          }}
+                          onPress={handlePress}
+                          style={[
+                            {
+                              width: momentWidth,
+                              height: momentHeight,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              backgroundColor: visuals.backgroundColor,
+                              borderRadius: momentWidth / 2,
+                              shadowColor: visuals.shadowColor,
+                              shadowOffset: { width: 0, height: 0 },
+                              shadowOpacity: 0.95,
+                              shadowRadius: isTablet ? 40 : 30,
+                              elevation: 24,
+                              padding: 8,
+                              position: "relative",
+                            },
+                            lessonShadowAnimatedStyle,
+                          ]}
+                        >
+                          <MaterialIcons
+                            name={visuals.icon}
+                            size={momentWidth * 0.25}
+                            color={visuals.iconColor}
+                            style={{ marginBottom: 8 }}
+                          />
                           <ThemedText
                             style={{
-                              color: "rgba(255,255,255,0.9)",
-                              fontSize: 14 * fontScale,
+                              color:
+                                colorScheme === "dark" ? "#1A1A1A" : "#000000",
+                              fontSize:
+                                Math.max(
+                                  13,
+                                  Math.min(16, 13 + textLength / 60),
+                                ) * fontScale,
                               textAlign: "center",
-                              fontWeight: "500",
+                              fontWeight: "700",
+                              maxWidth: momentWidth * 0.85,
+                              lineHeight:
+                                Math.max(
+                                  17,
+                                  Math.min(20, 17 + textLength / 60),
+                                ) * fontScale,
                             }}
+                            numberOfLines={10}
                           >
                             {selectedLesson.text}
                           </ThemedText>
+
                           {/* Entity image circle below text */}
                           {(() => {
                             const entityId = selectedLesson.entityId;
@@ -19625,662 +19635,336 @@ export default function HomeScreen() {
                                   borderRadius: 16,
                                   marginTop: 8,
                                   borderWidth: 2,
-                                  borderColor: "rgba(255,255,255,0.3)",
+                                  borderColor:
+                                    colorScheme === "dark"
+                                      ? "rgba(0,0,0,0.3)"
+                                      : "rgba(255,255,255,0.5)",
                                 }}
                               />
                             );
                           })()}
-                        </View>
-                      </View>
-                      {/* Close button - positioned at top right */}
-                      <Pressable
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setShowLesson(false);
-                          setSelectedLesson(null);
-                        }}
-                        style={{
-                          position: "absolute",
-                          top: 12,
-                          right: 12,
-                          width: 24,
-                          height: 24,
-                          borderRadius: 12,
-                          backgroundColor:
-                            colorScheme === "dark"
-                              ? "rgba(0, 0, 0, 0.4)"
-                              : "rgba(255, 255, 255, 0.9)",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          zIndex: 10,
-                        }}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <MaterialIcons
-                          name="close"
-                          size={16}
-                          color={colorScheme === "dark" ? "#FFFFFF" : "#000000"}
-                          style={{ opacity: 0.8 }}
-                        />
-                      </Pressable>
-                    </AnimatedPressable>
-                  ) : selectedLesson.examStep === "question" &&
-                    !selectedLesson.examQuestion ? (
-                    // Loading: cosmic exam UI
-                    <View
-                      style={[
-                        {
-                          width: Math.max(momentWidth, 280),
-                          minWidth: 200,
-                          padding: 20,
-                          borderRadius: 24,
-                          overflow: "hidden",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          minHeight: 120,
-                          position: "relative",
-                          borderWidth: 1,
-                          borderColor: "rgba(92, 225, 230, 0.25)",
-                          shadowColor: COSMIC_RING_START,
-                          shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.4,
-                          shadowRadius: 20,
-                          elevation: 24,
-                        },
-                      ]}
-                    >
-                      <LinearGradient
-                        colors={["#0A0E1A", "#0F1422", "#151C2E", "#1A2440"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFillObject}
-                      />
-                      <ActivityIndicator
-                        size="large"
-                        color={COSMIC_RING_START}
-                      />
-                      <Pressable
-                        onPress={handleDismissLesson}
-                        style={{
-                          position: "absolute",
-                          top: 12,
-                          right: 12,
-                          width: 28,
-                          height: 28,
-                          borderRadius: 14,
-                          backgroundColor: "rgba(92, 225, 230, 0.15)",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          zIndex: 10,
-                          borderWidth: 1,
-                          borderColor: "rgba(92, 225, 230, 0.3)",
-                        }}
-                      >
-                        <MaterialIcons
-                          name="close"
-                          size={16}
-                          color={COSMIC_TEXT}
-                          style={{ opacity: 0.9 }}
-                        />
-                      </Pressable>
-                    </View>
-                  ) : selectedLesson.examQuestion &&
-                    selectedLesson.examStep === "question" ? (
-                    // Main wheel exam: cosmic question + answer UI
-                    <View
-                      style={[
-                        {
-                          width: Math.max(momentWidth, 280),
-                          minWidth: 200,
-                          padding: 24,
-                          borderRadius: 24,
-                          overflow: "hidden",
-                          shadowColor: COSMIC_RING_START,
-                          shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.5,
-                          shadowRadius: isTablet ? 24 : 20,
-                          elevation: 24,
-                          alignItems: "center",
-                          position: "relative",
-                          borderWidth: 1,
-                          borderColor: "rgba(92, 225, 230, 0.2)",
-                        },
-                      ]}
-                    >
-                      <LinearGradient
-                        colors={["#0A0E1A", "#0F1422", "#151C2E", "#1A2440"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFillObject}
-                      />
-                      <MaterialIcons
-                        name="emoji-objects"
-                        size={36}
-                        color={momentColors.lesson.background}
-                        style={{ marginBottom: 14, opacity: 0.95 }}
-                      />
-                      <ThemedText
-                        size="sm"
-                        weight="semibold"
-                        style={{
-                          marginBottom: 16,
-                          textAlign: "center",
-                          paddingHorizontal: 8,
-                          color: COSMIC_TEXT,
-                          lineHeight: 22,
-                        }}
-                      >
-                        {selectedLesson.examQuestion}
-                      </ThemedText>
-                      <Animated.View
-                        style={[
-                          { width: "100%" },
-                          mainWheelExamInputPulseStyle,
-                        ]}
-                      >
-                        <TextInput
-                          value={mainWheelExamAnswerInput}
-                          onChangeText={setMainWheelExamAnswerInput}
-                          placeholder={t("wheel.exam.questionPrompt")}
-                          placeholderTextColor="rgba(184, 232, 236, 0.5)"
-                          style={{
-                            width: "100%",
-                            minHeight: 48,
-                            backgroundColor: "rgba(13, 21, 37, 0.8)",
-                            borderRadius: 14,
-                            paddingHorizontal: 14,
-                            paddingVertical: 12,
-                            color: COSMIC_TEXT,
-                            fontSize: 14 * fontScale,
-                            borderWidth: 1,
-                            borderColor: "rgba(92, 225, 230, 0.2)",
-                          }}
-                          multiline
-                        />
-                      </Animated.View>
-                      <Animated.View
-                        style={[
-                          mainWheelExamSubmitButtonStyle,
-                          { width: "100%", marginTop: 16 },
-                        ]}
-                      >
-                        <Pressable
-                          onPressIn={handleMainWheelExamSubmitPressIn}
-                          onPressOut={handleMainWheelExamSubmitPressOut}
-                          onPress={handleMainWheelExamSubmitPress}
-                          style={{
-                            width: "100%",
-                            borderRadius: 14,
-                            overflow: "hidden",
-                          }}
-                        >
-                          <LinearGradient
-                            colors={[COSMIC_RING_START, COSMIC_RING_MID]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={{
-                              paddingVertical: 14,
-                              paddingHorizontal: 24,
-                              alignItems: "center",
-                              justifyContent: "center",
+
+                          {/* Close button - positioned at top right */}
+                          <Pressable
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              setShowLesson(false);
+                              setSelectedLesson(null);
                             }}
-                          >
-                            <ThemedText
-                              size="sm"
-                              weight="semibold"
-                              style={{ color: "#0A0E1A" }}
-                            >
-                              {t("wheel.exam.submitAnswer")}
-                            </ThemedText>
-                          </LinearGradient>
-                        </Pressable>
-                      </Animated.View>
-                      <Pressable
-                        onPress={handleDismissLesson}
-                        style={{
-                          position: "absolute",
-                          top: 12,
-                          right: 12,
-                          width: 28,
-                          height: 28,
-                          borderRadius: 14,
-                          backgroundColor: "rgba(92, 225, 230, 0.15)",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          zIndex: 10,
-                          borderWidth: 1,
-                          borderColor: "rgba(92, 225, 230, 0.3)",
-                        }}
-                      >
-                        <MaterialIcons
-                          name="close"
-                          size={16}
-                          color={COSMIC_TEXT}
-                          style={{ opacity: 0.9 }}
-                        />
-                      </Pressable>
-                    </View>
-                  ) : selectedLesson.examQuestion &&
-                    selectedLesson.examStep === "analyzing" ? (
-                    <Animated.View
-                      style={[
-                        {
-                          width: Math.max(momentWidth, 200),
-                          height: Math.max(momentHeight, 200),
-                          justifyContent: "center",
-                          alignItems: "center",
-                          borderRadius: Math.max(momentWidth, 200) / 2,
-                          overflow: "hidden",
-                          shadowColor: COSMIC_RING_START,
-                          shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.45,
-                          shadowRadius: isTablet ? 28 : 24,
-                          elevation: 24,
-                          padding: 8,
-                          position: "relative",
-                          borderWidth: 1,
-                          borderColor: "rgba(92, 225, 230, 0.25)",
-                        },
-                        lessonShadowAnimatedStyle,
-                      ]}
-                    >
-                      <LinearGradient
-                        colors={["#0A0E1A", "#0F1422", "#151C2E", "#1A2440"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFillObject}
-                      />
-                      <ActivityIndicator
-                        size="large"
-                        color={COSMIC_RING_START}
-                      />
-                      <ThemedText
-                        size="sm"
-                        style={{
-                          marginTop: 12,
-                          color: COSMIC_TEXT,
-                          textAlign: "center",
-                          opacity: 0.9,
-                        }}
-                      >
-                        {t("wheel.exam.analyzing")}
-                      </ThemedText>
-                    </Animated.View>
-                  ) : selectedLesson.examStep === "result" ? (
-                    // Result shown as separate overlay — renders null here, overlay card is below
-                    null
-                  ) : (
-                    // For lessons without exam, use the original circle design
-                    <AnimatedPressable
-                      onPressIn={() => {
-                        lessonPressScale.value = withSpring(0.95, {
-                          damping: 15,
-                          stiffness: 300,
-                        });
-                      }}
-                      onPressOut={() => {
-                        lessonPressScale.value = withSpring(1, {
-                          damping: 15,
-                          stiffness: 300,
-                        });
-                      }}
-                      onPress={handlePress}
-                      style={[
-                        {
-                          width: momentWidth,
-                          height: momentHeight,
-                          justifyContent: "center",
-                          alignItems: "center",
-                          backgroundColor: visuals.backgroundColor,
-                          borderRadius: momentWidth / 2,
-                          shadowColor: visuals.shadowColor,
-                          shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.95,
-                          shadowRadius: isTablet ? 40 : 30,
-                          elevation: 24,
-                          padding: 8,
-                          position: "relative",
-                        },
-                        lessonShadowAnimatedStyle,
-                      ]}
-                    >
-                      <MaterialIcons
-                        name={visuals.icon}
-                        size={momentWidth * 0.25}
-                        color={visuals.iconColor}
-                        style={{ marginBottom: 8 }}
-                      />
-                      <ThemedText
-                        style={{
-                          color: colorScheme === "dark" ? "#1A1A1A" : "#000000",
-                          fontSize:
-                            Math.max(13, Math.min(16, 13 + textLength / 60)) *
-                            fontScale,
-                          textAlign: "center",
-                          fontWeight: "700",
-                          maxWidth: momentWidth * 0.85,
-                          lineHeight:
-                            Math.max(17, Math.min(20, 17 + textLength / 60)) *
-                            fontScale,
-                        }}
-                        numberOfLines={10}
-                      >
-                        {selectedLesson.text}
-                      </ThemedText>
-
-                      {/* Entity image circle below text */}
-                      {(() => {
-                        const entityId = selectedLesson.entityId;
-                        const sphere = selectedLesson.sphere;
-                        let entityImage: string | undefined;
-
-                        if (sphere === "relationships") {
-                          entityImage = profiles.find(
-                            (p) => p.id === entityId,
-                          )?.imageUri;
-                        } else if (sphere === "career") {
-                          entityImage = jobs.find(
-                            (j) => j.id === entityId,
-                          )?.imageUri;
-                        } else if (sphere === "family") {
-                          entityImage = familyMembers.find(
-                            (f) => f.id === entityId,
-                          )?.imageUri;
-                        } else if (sphere === "friends") {
-                          entityImage = friends.find(
-                            (f) => f.id === entityId,
-                          )?.imageUri;
-                        } else if (sphere === "hobbies") {
-                          entityImage = hobbies.find(
-                            (h) => h.id === entityId,
-                          )?.imageUri;
-                        }
-
-                        if (!entityImage) return null;
-
-                        return (
-                          <Image
-                            source={{ uri: entityImage }}
                             style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: 16,
-                              marginTop: 8,
-                              borderWidth: 2,
-                              borderColor:
+                              position: "absolute",
+                              top: 12,
+                              right: 12,
+                              width: 24,
+                              height: 24,
+                              borderRadius: 12,
+                              backgroundColor:
                                 colorScheme === "dark"
-                                  ? "rgba(0,0,0,0.3)"
-                                  : "rgba(255,255,255,0.5)",
+                                  ? "rgba(0, 0, 0, 0.4)"
+                                  : "rgba(255, 255, 255, 0.9)",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              zIndex: 10,
                             }}
-                          />
-                        );
-                      })()}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <MaterialIcons
+                              name="close"
+                              size={16}
+                              color={
+                                colorScheme === "dark" ? "#FFFFFF" : "#000000"
+                              }
+                              style={{ opacity: 0.8 }}
+                            />
+                          </Pressable>
+                        </AnimatedPressable>
+                      )}
+                    </Animated.View>
+                  );
+                })()}
 
-                      {/* Close button - positioned at top right */}
-                      <Pressable
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setShowLesson(false);
-                          setSelectedLesson(null);
-                        }}
-                        style={{
-                          position: "absolute",
-                          top: 12,
-                          right: 12,
-                          width: 24,
-                          height: 24,
-                          borderRadius: 12,
-                          backgroundColor:
-                            colorScheme === "dark"
-                              ? "rgba(0, 0, 0, 0.4)"
-                              : "rgba(255, 255, 255, 0.9)",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          zIndex: 10,
-                        }}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <MaterialIcons
-                          name="close"
-                          size={16}
-                          color={colorScheme === "dark" ? "#FFFFFF" : "#000000"}
-                          style={{ opacity: 0.8 }}
-                        />
-                      </Pressable>
-                    </AnimatedPressable>
-                  )}
-                </Animated.View>
-              );
-            })()}
-
-          {/* MAIN WHEEL OF LIFE — exam result card overlay (shown after user submits answer) */}
-          {selectedLesson?.examStep === "result" &&
-            selectedLesson.examAnalysis &&
-            (() => {
-              const resultAccentColor = selectedLesson.examAnalysis.isCorrect ? "#4CAF50" : "#FFA726";
-              const RESULT_CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
-              const dismiss = () => {
-                setShowLesson(false);
-                setSelectedLesson(null);
-                setShowMainWheelFireworks(false);
-              };
-              const openMemory = () => {
-                if (selectedLesson.isMock) { dismiss(); return; }
-                const { sphere, entityId, memoryId } = selectedLesson;
-                dismiss();
-                if (sphere === "relationships") {
-                  setFocusedProfileId(entityId);
-                  setSelectedSphere("relationships");
-                  setTimeout(() => setFocusedMemory({ profileId: entityId, memoryId, sphere }), 100);
-                } else if (sphere === "career") {
-                  setFocusedJobId(entityId);
-                  setSelectedSphere("career");
-                  setTimeout(() => setFocusedMemory({ jobId: entityId, memoryId, sphere }), 100);
-                } else if (sphere === "family") {
-                  setFocusedFamilyMemberId(entityId);
-                  setSelectedSphere("family");
-                  setTimeout(() => setFocusedMemory({ familyMemberId: entityId, memoryId, sphere }), 100);
-                } else if (sphere === "friends") {
-                  setFocusedFriendId(entityId);
-                  setSelectedSphere("friends");
-                  setTimeout(() => setFocusedMemory({ friendId: entityId, memoryId, sphere }), 100);
-                } else if (sphere === "hobbies") {
-                  setFocusedHobbyId(entityId);
-                  setSelectedSphere("hobbies");
-                  setTimeout(() => setFocusedMemory({ hobbyId: entityId, memoryId, sphere }), 100);
-                }
-              };
-              return (
-                <Pressable
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    zIndex: 1200,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    backgroundColor: "rgba(0,0,0,0.85)",
-                  }}
-                  onPress={dismiss}
-                >
-                  <Pressable
-                    onPress={(e) => e.stopPropagation()}
-                    style={{
-                      width: RESULT_CARD_WIDTH,
-                      borderRadius: 24,
-                      overflow: "hidden",
-                      backgroundColor:
-                        colorScheme === "dark"
-                          ? "rgba(26, 35, 50, 0.98)"
-                          : "rgba(255, 255, 255, 0.98)",
-                      borderWidth: 1,
-                      borderColor: `${resultAccentColor}40`,
-                      shadowColor: resultAccentColor,
-                      shadowOffset: { width: 0, height: 8 },
-                      shadowOpacity: 0.35,
-                      shadowRadius: 24,
-                      elevation: 12,
-                    }}
-                  >
-                    {/* Close button */}
+              {/* MAIN WHEEL OF LIFE — exam result card overlay (shown after user submits answer) */}
+              {selectedLesson?.examStep === "result" &&
+                selectedLesson.examAnalysis &&
+                (() => {
+                  const resultAccentColor = selectedLesson.examAnalysis
+                    .isCorrect
+                    ? "#4CAF50"
+                    : "#FFA726";
+                  const RESULT_CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
+                  const dismiss = () => {
+                    setShowLesson(false);
+                    setSelectedLesson(null);
+                    setShowMainWheelFireworks(false);
+                  };
+                  const openMemory = () => {
+                    if (selectedLesson.isMock) {
+                      dismiss();
+                      return;
+                    }
+                    const { sphere, entityId, memoryId } = selectedLesson;
+                    dismiss();
+                    if (sphere === "relationships") {
+                      setFocusedProfileId(entityId);
+                      setSelectedSphere("relationships");
+                      setTimeout(
+                        () =>
+                          setFocusedMemory({
+                            profileId: entityId,
+                            memoryId,
+                            sphere,
+                          }),
+                        100,
+                      );
+                    } else if (sphere === "career") {
+                      setFocusedJobId(entityId);
+                      setSelectedSphere("career");
+                      setTimeout(
+                        () =>
+                          setFocusedMemory({
+                            jobId: entityId,
+                            memoryId,
+                            sphere,
+                          }),
+                        100,
+                      );
+                    } else if (sphere === "family") {
+                      setFocusedFamilyMemberId(entityId);
+                      setSelectedSphere("family");
+                      setTimeout(
+                        () =>
+                          setFocusedMemory({
+                            familyMemberId: entityId,
+                            memoryId,
+                            sphere,
+                          }),
+                        100,
+                      );
+                    } else if (sphere === "friends") {
+                      setFocusedFriendId(entityId);
+                      setSelectedSphere("friends");
+                      setTimeout(
+                        () =>
+                          setFocusedMemory({
+                            friendId: entityId,
+                            memoryId,
+                            sphere,
+                          }),
+                        100,
+                      );
+                    } else if (sphere === "hobbies") {
+                      setFocusedHobbyId(entityId);
+                      setSelectedSphere("hobbies");
+                      setTimeout(
+                        () =>
+                          setFocusedMemory({
+                            hobbyId: entityId,
+                            memoryId,
+                            sphere,
+                          }),
+                        100,
+                      );
+                    }
+                  };
+                  return (
                     <Pressable
-                      onPress={dismiss}
-                      hitSlop={12}
                       style={{
                         position: "absolute",
-                        top: 12,
-                        right: 12,
-                        zIndex: 10,
-                        width: 36,
-                        height: 36,
-                        borderRadius: 18,
-                        backgroundColor:
-                          colorScheme === "dark"
-                            ? "rgba(255,255,255,0.12)"
-                            : "rgba(0,0,0,0.08)",
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        zIndex: 1200,
                         justifyContent: "center",
                         alignItems: "center",
+                        backgroundColor: "rgba(0,0,0,0.85)",
                       }}
+                      onPress={dismiss}
                     >
-                      <MaterialIcons
-                        name="close"
-                        size={22}
-                        color={colorScheme === "dark" ? "#fff" : "#333"}
-                      />
-                    </Pressable>
-                    {/* Card content — tap to open memory */}
-                    <Pressable
-                      onPress={openMemory}
-                      style={{
-                        paddingTop: 24,
-                        paddingHorizontal: 20,
-                        paddingBottom: 20,
-                        alignItems: "center",
-                      }}
-                    >
-                      {/* Result icon */}
-                      <View
+                      <Pressable
+                        onPress={(e) => e.stopPropagation()}
                         style={{
-                          width: 56,
-                          height: 56,
-                          borderRadius: 28,
-                          backgroundColor: `${resultAccentColor}28`,
-                          justifyContent: "center",
-                          alignItems: "center",
-                          marginBottom: 12,
+                          width: RESULT_CARD_WIDTH,
+                          borderRadius: 24,
+                          overflow: "hidden",
+                          backgroundColor:
+                            colorScheme === "dark"
+                              ? "rgba(26, 35, 50, 0.98)"
+                              : "rgba(255, 255, 255, 0.98)",
+                          borderWidth: 1,
+                          borderColor: `${resultAccentColor}40`,
+                          shadowColor: resultAccentColor,
+                          shadowOffset: { width: 0, height: 8 },
+                          shadowOpacity: 0.35,
+                          shadowRadius: 24,
+                          elevation: 12,
                         }}
                       >
-                        <MaterialIcons
-                          name={selectedLesson.examAnalysis.isCorrect ? "check-circle" : "warning"}
-                          size={32}
-                          color={resultAccentColor}
-                        />
-                      </View>
-                      {/* Celebration / keep practicing */}
-                      <ThemedText
-                        size="l"
-                        weight="bold"
-                        style={{ marginBottom: 8, textAlign: "center" }}
-                      >
-                        {selectedLesson.examAnalysis.isCorrect
-                          ? t("wheel.exam.correctCelebration")
-                          : t("wheel.exam.keepPracticing")}
-                      </ThemedText>
-                      {/* AI feedback */}
-                      <ThemedText
-                        size="xs"
-                        style={{ marginBottom: 16, textAlign: "center", opacity: 0.75 }}
-                      >
-                        {selectedLesson.examAnalysis.feedback}
-                      </ThemedText>
-                      {/* Lesson text */}
-                      <ThemedText
-                        size="sm"
-                        style={{
-                          textAlign: "center",
-                          fontStyle: "italic",
-                          marginBottom: 16,
-                          paddingHorizontal: 4,
-                          lineHeight: 22 * fontScale,
-                        }}
-                        numberOfLines={4}
-                      >
-                        {selectedLesson.text}
-                      </ThemedText>
-                      {/* Memory image */}
-                      {selectedLesson.memoryImageUri ? (
-                        <View
+                        {/* Close button */}
+                        <Pressable
+                          onPress={dismiss}
+                          hitSlop={12}
                           style={{
-                            width: RESULT_CARD_WIDTH - 40,
-                            height: 160,
-                            borderRadius: 16,
-                            overflow: "hidden",
+                            position: "absolute",
+                            top: 12,
+                            right: 12,
+                            zIndex: 10,
+                            width: 36,
+                            height: 36,
+                            borderRadius: 18,
                             backgroundColor:
                               colorScheme === "dark"
-                                ? "rgba(255,255,255,0.06)"
-                                : "rgba(0,0,0,0.06)",
-                          }}
-                        >
-                          <Image
-                            source={{ uri: selectedLesson.memoryImageUri }}
-                            style={{ width: "100%", height: "100%" }}
-                            contentFit="cover"
-                          />
-                        </View>
-                      ) : (
-                        <View
-                          style={{
-                            width: RESULT_CARD_WIDTH - 40,
-                            height: 100,
-                            borderRadius: 16,
-                            backgroundColor:
-                              colorScheme === "dark"
-                                ? "rgba(255,255,255,0.06)"
-                                : "rgba(0,0,0,0.06)",
+                                ? "rgba(255,255,255,0.12)"
+                                : "rgba(0,0,0,0.08)",
                             justifyContent: "center",
                             alignItems: "center",
                           }}
                         >
                           <MaterialIcons
-                            name="photo-library"
-                            size={36}
-                            color={
-                              colorScheme === "dark"
-                                ? "rgba(255,255,255,0.3)"
-                                : "rgba(0,0,0,0.2)"
-                            }
+                            name="close"
+                            size={22}
+                            color={colorScheme === "dark" ? "#fff" : "#333"}
                           />
-                        </View>
-                      )}
-                      {/* Open memory button */}
-                      <View
-                        style={{
-                          marginTop: 14,
-                          width: 44,
-                          height: 44,
-                          borderRadius: 22,
-                          backgroundColor:
-                            colorScheme === "dark"
-                              ? "rgba(255,255,255,0.12)"
-                              : "rgba(0,0,0,0.08)",
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                      >
-                        <MaterialIcons
-                          name="open-in-full"
-                          size={22}
-                          color={colors.primary}
-                        />
-                      </View>
+                        </Pressable>
+                        {/* Card content — tap to open memory */}
+                        <Pressable
+                          onPress={openMemory}
+                          style={{
+                            paddingTop: 24,
+                            paddingHorizontal: 20,
+                            paddingBottom: 20,
+                            alignItems: "center",
+                          }}
+                        >
+                          {/* Result icon */}
+                          <View
+                            style={{
+                              width: 56,
+                              height: 56,
+                              borderRadius: 28,
+                              backgroundColor: `${resultAccentColor}28`,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              marginBottom: 12,
+                            }}
+                          >
+                            <MaterialIcons
+                              name={
+                                selectedLesson.examAnalysis.isCorrect
+                                  ? "check-circle"
+                                  : "warning"
+                              }
+                              size={32}
+                              color={resultAccentColor}
+                            />
+                          </View>
+                          {/* Celebration / keep practicing */}
+                          <ThemedText
+                            size="l"
+                            weight="bold"
+                            style={{ marginBottom: 8, textAlign: "center" }}
+                          >
+                            {selectedLesson.examAnalysis.isCorrect
+                              ? t("wheel.exam.correctCelebration")
+                              : t("wheel.exam.keepPracticing")}
+                          </ThemedText>
+                          {/* AI feedback */}
+                          <ThemedText
+                            size="xs"
+                            style={{
+                              marginBottom: 16,
+                              textAlign: "center",
+                              opacity: 0.75,
+                            }}
+                          >
+                            {selectedLesson.examAnalysis.feedback}
+                          </ThemedText>
+                          {/* Lesson text */}
+                          <ThemedText
+                            size="sm"
+                            style={{
+                              textAlign: "center",
+                              fontStyle: "italic",
+                              marginBottom: 16,
+                              paddingHorizontal: 4,
+                              lineHeight: 22 * fontScale,
+                            }}
+                            numberOfLines={4}
+                          >
+                            {selectedLesson.text}
+                          </ThemedText>
+                          {/* Memory image */}
+                          {selectedLesson.memoryImageUri ? (
+                            <View
+                              style={{
+                                width: RESULT_CARD_WIDTH - 40,
+                                height: 160,
+                                borderRadius: 16,
+                                overflow: "hidden",
+                                backgroundColor:
+                                  colorScheme === "dark"
+                                    ? "rgba(255,255,255,0.06)"
+                                    : "rgba(0,0,0,0.06)",
+                              }}
+                            >
+                              <Image
+                                source={{ uri: selectedLesson.memoryImageUri }}
+                                style={{ width: "100%", height: "100%" }}
+                                contentFit="cover"
+                              />
+                            </View>
+                          ) : (
+                            <View
+                              style={{
+                                width: RESULT_CARD_WIDTH - 40,
+                                height: 100,
+                                borderRadius: 16,
+                                backgroundColor:
+                                  colorScheme === "dark"
+                                    ? "rgba(255,255,255,0.06)"
+                                    : "rgba(0,0,0,0.06)",
+                                justifyContent: "center",
+                                alignItems: "center",
+                              }}
+                            >
+                              <MaterialIcons
+                                name="photo-library"
+                                size={36}
+                                color={
+                                  colorScheme === "dark"
+                                    ? "rgba(255,255,255,0.3)"
+                                    : "rgba(0,0,0,0.2)"
+                                }
+                              />
+                            </View>
+                          )}
+                          {/* Open memory button */}
+                          <View
+                            style={{
+                              marginTop: 14,
+                              width: 44,
+                              height: 44,
+                              borderRadius: 22,
+                              backgroundColor:
+                                colorScheme === "dark"
+                                  ? "rgba(255,255,255,0.12)"
+                                  : "rgba(0,0,0,0.08)",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <MaterialIcons
+                              name="open-in-full"
+                              size={22}
+                              color={colors.primary}
+                            />
+                          </View>
+                        </Pressable>
+                      </Pressable>
                     </Pressable>
-                  </Pressable>
-                </Pressable>
-              );
-            })()}
-          </View>
+                  );
+                })()}
+            </View>
           </Modal>
 
           {/* MAIN Wheel of Life — center circle with sunny/cloudy % and five spheres */}
@@ -20361,36 +20045,44 @@ export default function HomeScreen() {
           })()}
 
           {/* Lesson bulb tap hint: bouncing pointer, shown from 1st lesson appearance */}
-          {appUsabilityHints && showLesson && !lessonHintDismissed && lessonAppearCount >= 1 && (() => {
-            const pointerSize = isTablet ? 72 : 64;
-            const baseCircleSize = isTablet ? 220 : isLargeDevice ? 190 : 165;
-            return (
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  {
-                    position: "absolute",
-                    top: messageTop + baseCircleSize + 8,
-                    left: SCREEN_WIDTH / 2 - pointerSize / 2,
-                    width: pointerSize,
-                    height: pointerSize,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    zIndex: 350,
-                  },
-                  lessonHintPointerAnimatedStyle,
-                ]}
-              >
-                <MaterialIcons
-                  name="touch-app"
-                  size={pointerSize}
-                  color="rgba(0,0,0,0.4)"
-                  style={{ position: "absolute", left: 2, top: 2 }}
-                />
-                <MaterialIcons name="touch-app" size={pointerSize} color="#FFFFFF" />
-              </Animated.View>
-            );
-          })()}
+          {appUsabilityHints &&
+            showLesson &&
+            !lessonHintDismissed &&
+            lessonAppearCount >= 1 &&
+            (() => {
+              const pointerSize = isTablet ? 72 : 64;
+              const baseCircleSize = isTablet ? 220 : isLargeDevice ? 190 : 165;
+              return (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    {
+                      position: "absolute",
+                      top: messageTop + baseCircleSize + 8,
+                      left: SCREEN_WIDTH / 2 - pointerSize / 2,
+                      width: pointerSize,
+                      height: pointerSize,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      zIndex: 350,
+                    },
+                    lessonHintPointerAnimatedStyle,
+                  ]}
+                >
+                  <MaterialIcons
+                    name="touch-app"
+                    size={pointerSize}
+                    color="rgba(0,0,0,0.4)"
+                    style={{ position: "absolute", left: 2, top: 2 }}
+                  />
+                  <MaterialIcons
+                    name="touch-app"
+                    size={pointerSize}
+                    color="#FFFFFF"
+                  />
+                </Animated.View>
+              );
+            })()}
 
           {/* Spiraling Icons - appears during wheel spin and on correct exam answer (1s) */}
           <SpiralingStars
@@ -21889,11 +21581,6 @@ export default function HomeScreen() {
             showMomentTypeSelector &&
             !isSpinning &&
             (() => {
-              // Calculate fixed position below the wheel
-              const wheelCenterY = SCREEN_HEIGHT / 2 + 20;
-              const avatarSize = isTablet ? 180 : 140;
-              const avatarRadius = avatarSize / 2;
-
               // Position buttons at fixed distance from bottom of screen
               const bottomGap = 20; // Fixed gap from bottom
 
@@ -22221,14 +21908,12 @@ export default function HomeScreen() {
             visible={aiInsightsConsentVisible}
             onEnable={() => {
               setAiInsightsConsentVisible(false);
-              setAiEncouragementText(null);
-              setEncouragementCacheBust((x) => x + 1);
               void aiConsent.setChoice("enabled");
             }}
             onMaybeLater={() => {
-              setAiInsightsConsentVisible(false);
-              setAiEncouragementText(null);
-              setAiEncouragementLoading(false);
+              void aiConsent.setChoice("maybe_later").then(() => {
+                setAiInsightsConsentVisible(false);
+              });
             }}
           />
         )}
