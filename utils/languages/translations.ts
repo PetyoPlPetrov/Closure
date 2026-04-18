@@ -1015,6 +1015,8 @@ export interface Translations {
   "universe.lessons.filters.title": string;
   "universe.lessons.filters.sphereSection": string;
   "universe.lessons.filters.allSpheres": string;
+  "universe.lessons.filters.entitySection": string;
+  "universe.lessons.filters.allEntities": string;
   "universe.lessons.filters.yearSection": string;
   "universe.lessons.filters.allYears": string;
   "universe.lessons.filters.favoritesOnly": string;
@@ -5121,6 +5123,8 @@ const translations: Record<Language, Translations> = {
     "universe.lessons.filters.title": "Filters",
     "universe.lessons.filters.sphereSection": "Sphere",
     "universe.lessons.filters.allSpheres": "All",
+    "universe.lessons.filters.entitySection": "Entity",
+    "universe.lessons.filters.allEntities": "All",
     "universe.lessons.filters.yearSection": "Year",
     "universe.lessons.filters.allYears": "All",
     "universe.lessons.filters.favoritesOnly": "Favorite",
@@ -9879,6 +9883,8 @@ const translations: Record<Language, Translations> = {
     "universe.lessons.filters.title": "Филтри",
     "universe.lessons.filters.sphereSection": "Сфера",
     "universe.lessons.filters.allSpheres": "Всички",
+    "universe.lessons.filters.entitySection": "Обект",
+    "universe.lessons.filters.allEntities": "Всички",
     "universe.lessons.filters.yearSection": "Година",
     "universe.lessons.filters.allYears": "Всички",
     "universe.lessons.filters.favoritesOnly": "Любими",

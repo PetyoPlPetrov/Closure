@@ -103,6 +103,7 @@ function normalizeMoonImageUri(uri: string | undefined): string | null {
 
 type SphereFilter = "all" | Set<LifeSphere>;
 type YearFilter = "all" | Set<number>;
+type EntityFilter = "all" | Set<string>;
 
 const SPHERE_LIST: LifeSphere[] = [
   "relationships", "career", "family", "friends", "hobbies",
@@ -113,10 +114,15 @@ function filterLessonCards(
   sphereFilter: SphereFilter,
   yearFilter: YearFilter,
   favoritesOnly: boolean,
+  entityFilter: EntityFilter,
 ): LessonCard[] {
   return cards.filter((card) => {
     if (favoritesOnly && !card.isFavorite) return false;
     if (sphereFilter !== "all" && !sphereFilter.has(card.sphere)) return false;
+    if (entityFilter !== "all") {
+      const eid = card.entityId;
+      if (!eid || !entityFilter.has(eid)) return false;
+    }
     if (yearFilter !== "all") {
       const y = new Date(card.memoryCreatedAt).getFullYear();
       if (!yearFilter.has(y)) return false;
@@ -884,13 +890,14 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
   const colors = Colors[colorScheme ?? "dark"];
   const insets = useSafeAreaInsets();
   const { appUsabilityHints } = useVisualSettings();
-  const { idealizedMemories, setLessonFavorite } = useJourney();
+  const { idealizedMemories, setLessonFavorite, getEntitiesBySphere } = useJourney();
   const [activeIndex, setActiveIndex] = useState(0);
   const [bgSeed, setBgSeed] = useState(0);
   const listRef = useRef<FlatList>(null);
 
   const [sphereSelection, setSphereSelection] = useState<SphereFilter>("all");
   const [yearSelection, setYearSelection] = useState<YearFilter>("all");
+  const [entitySelection, setEntitySelection] = useState<EntityFilter>("all");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
@@ -909,10 +916,24 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
         : [...yearSelection].sort().join(","),
     [yearSelection],
   );
+  const entityFilterKey = useMemo(
+    () =>
+      entitySelection === "all"
+        ? "all"
+        : [...entitySelection].sort().join(","),
+    [entitySelection],
+  );
+
+  const singleSelectedSphere = useMemo((): LifeSphere | null => {
+    if (sphereSelection === "all") return null;
+    if (sphereSelection.size !== 1) return null;
+    return sphereSelection.values().next().value as LifeSphere;
+  }, [sphereSelection]);
 
   const filtersActive =
     sphereSelection !== "all" ||
     yearSelection !== "all" ||
+    entitySelection !== "all" ||
     favoritesOnly;
 
   const twinkles = useMemo(
@@ -966,9 +987,27 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
   }, [idealizedMemories]);
 
   const filteredCards = useMemo(
-    () => filterLessonCards(cards, sphereSelection, yearSelection, favoritesOnly),
-    [cards, sphereSelection, yearSelection, favoritesOnly],
+    () =>
+      filterLessonCards(
+        cards,
+        sphereSelection,
+        yearSelection,
+        favoritesOnly,
+        entitySelection,
+      ),
+    [cards, sphereSelection, yearSelection, favoritesOnly, entitySelection],
   );
+
+  const entitiesForFilter = useMemo(() => {
+    if (!singleSelectedSphere) return [];
+    const list = getEntitiesBySphere(singleSelectedSphere);
+    return [...list]
+      .map((e) => ({
+        id: e.id,
+        name: (e.name && e.name.trim()) ? e.name.trim() : e.id,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  }, [singleSelectedSphere, getEntitiesBySphere]);
 
   const availableYears = useMemo(() => {
     const s = new Set<number>();
@@ -988,7 +1027,7 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
       }
     });
     return () => cancelAnimationFrame(id);
-  }, [visible, sphereFilterKey, yearFilterKey, favoritesOnly, filteredCards.length]);
+  }, [visible, sphereFilterKey, yearFilterKey, entityFilterKey, favoritesOnly, filteredCards.length]);
 
   useEffect(() => {
     if (!visible || filteredCards.length === 0) return;
@@ -1011,8 +1050,13 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
   const clearAllFilters = useCallback(() => {
     setSphereSelection("all");
     setYearSelection("all");
+    setEntitySelection("all");
     setFavoritesOnly(false);
   }, []);
+
+  useEffect(() => {
+    setEntitySelection("all");
+  }, [singleSelectedSphere]);
 
   const toggleSphereSelection = useCallback((s: LifeSphere) => {
     setSphereSelection((prev) => {
@@ -1036,6 +1080,19 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
         return next.size === 0 ? "all" : next;
       }
       next.add(y);
+      return next;
+    });
+  }, []);
+
+  const toggleEntitySelection = useCallback((entityId: string) => {
+    setEntitySelection((prev) => {
+      if (prev === "all") return new Set([entityId]);
+      const next = new Set(prev);
+      if (next.has(entityId)) {
+        next.delete(entityId);
+        return next.size === 0 ? "all" : next;
+      }
+      next.add(entityId);
       return next;
     });
   }, []);
@@ -1377,6 +1434,72 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
                     );
                   })}
                 </ScrollView>
+
+                {singleSelectedSphere ? (
+                  <>
+                    <ThemedText
+                      size="sm"
+                      style={[styles.filterModalSectionLabel, { color: colors.text, marginTop: 14 }]}
+                    >
+                      {t("universe.lessons.filters.entitySection")}
+                    </ThemedText>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      nestedScrollEnabled
+                      style={styles.filterModalChipRow}
+                      contentContainerStyle={styles.filterModalChipRowContent}
+                    >
+                      <Pressable
+                        onPress={() => setEntitySelection("all")}
+                        style={[
+                          styles.filterModalChip,
+                          entitySelection === "all" && [
+                            styles.filterModalChipSelected,
+                            { borderColor: colors.primary + "AA" },
+                          ],
+                        ]}
+                      >
+                        <ThemedText
+                          size="sm"
+                          style={{
+                            color: entitySelection === "all" ? colors.primary : colors.text,
+                            fontWeight: entitySelection === "all" ? "600" : "500",
+                          }}
+                        >
+                          {t("universe.lessons.filters.allEntities")}
+                        </ThemedText>
+                      </Pressable>
+                      {entitiesForFilter.map((ent) => {
+                        const selected =
+                          entitySelection !== "all" && entitySelection.has(ent.id);
+                        const c = getSphereSferaColor(singleSelectedSphere, "dark");
+                        return (
+                          <Pressable
+                            key={ent.id}
+                            onPress={() => toggleEntitySelection(ent.id)}
+                            style={[
+                              styles.filterModalChip,
+                              selected && { borderColor: c + "CC" },
+                            ]}
+                          >
+                            <ThemedText
+                              size="sm"
+                              numberOfLines={1}
+                              style={{
+                                color: selected ? c : colors.text,
+                                fontWeight: selected ? "600" : "500",
+                                maxWidth: SW * 0.36,
+                              }}
+                            >
+                              {ent.name}
+                            </ThemedText>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </>
+                ) : null}
 
                 <ThemedText
                   size="sm"
