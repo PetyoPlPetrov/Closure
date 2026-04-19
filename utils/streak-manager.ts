@@ -19,6 +19,17 @@ export function getLocalDateString(date: Date = new Date()): string {
 }
 
 /**
+ * Parse YYYY-MM-DD as a local date (never UTC).
+ */
+function parseLocalDateString(dateString: string): Date {
+  const [yearString, monthString, dayString] = dateString.split('-');
+  const year = Number(yearString);
+  const month = Number(monthString);
+  const day = Number(dayString);
+  return new Date(year, month - 1, day);
+}
+
+/**
  * Subtract days from a date
  */
 export function subtractDays(date: Date, days: number): Date {
@@ -35,13 +46,56 @@ export async function getStreakData(): Promise<StreakData> {
     const data = await AsyncStorage.getItem(STORAGE_KEY);
     if (data) {
       const parsedData = JSON.parse(data) as StreakData;
-      // Migrate old data: compute earnedBadges if missing
-      if (!parsedData.earnedBadges) {
-        parsedData.earnedBadges = checkNewBadges(parsedData.longestStreak || 0, []);
-        // Save migrated data
-        await saveStreakData(parsedData);
+      const recentLogDates = filterRecentDays(
+        parsedData.memoryLogDates || [],
+        STREAK_LOG_LOOKBACK_DAYS,
+      );
+      const liveCurrentStreak = calculateConsecutiveDays(recentLogDates);
+      const normalizedLongestStreak = Math.max(
+        parsedData.longestStreak || 0,
+        liveCurrentStreak,
+      );
+      const normalizedCurrentBadge =
+        getBadgeForStreak(liveCurrentStreak)?.id || null;
+      const normalizedEarnedBadges = checkNewBadges(
+        normalizedLongestStreak,
+        parsedData.earnedBadges || [],
+      );
+      const hadEarnedBadges = Array.isArray(parsedData.earnedBadges);
+      const normalizedData: StreakData = {
+        ...parsedData,
+        currentStreak: liveCurrentStreak,
+        longestStreak: normalizedLongestStreak,
+        memoryLogDates: recentLogDates,
+        currentBadge: normalizedCurrentBadge,
+        earnedBadges: normalizedEarnedBadges,
+      };
+
+      const shouldPersistNormalizedData =
+        !hadEarnedBadges ||
+        normalizedData.currentStreak !== (parsedData.currentStreak || 0) ||
+        normalizedData.longestStreak !== (parsedData.longestStreak || 0) ||
+        normalizedData.currentBadge !== (parsedData.currentBadge || null) ||
+        normalizedData.memoryLogDates.length !==
+          (parsedData.memoryLogDates || []).length ||
+        normalizedData.earnedBadges.length !==
+          (parsedData.earnedBadges || []).length;
+
+      if (shouldPersistNormalizedData) {
+        await saveStreakData(normalizedData);
+        // Reconciliation just happened (day rollover, retroactive badge unlock
+        // after a new STREAK_BADGES tier shipped, missing earnedBadges, etc.).
+        // Notify subscribers so already-mounted reward consumers (moment colors,
+        // AI/exam limits, notifications) refresh — without this, normalization
+        // would happen silently and listeners would stay on stale state until
+        // their next mount or a fresh memory save. Safe vs recursion: any
+        // listener that re-reads via getStreakData() will see normalized data
+        // already persisted, so shouldPersistNormalizedData will be false on
+        // the second pass and no further notify fires.
+        notifyBadgeRewardsChanged();
       }
-      return parsedData;
+
+      return normalizedData;
     }
   } catch (error) {
     // Error reading streak data
@@ -109,9 +163,8 @@ export function calculateConsecutiveDays(memoryLogDates: string[]): number {
   for (const currentDate of sortedDates) {
     if (currentDate === expectedDate) {
       consecutiveDays++;
-      const date = new Date(expectedDate);
-      date.setDate(date.getDate() - 1);
-      expectedDate = getLocalDateString(date);
+      const previousDate = subtractDays(parseLocalDateString(expectedDate), 1);
+      expectedDate = getLocalDateString(previousDate);
     } else if (currentDate < expectedDate) {
       // Gap found - stop counting
       break;
@@ -300,16 +353,23 @@ export async function recalculateStreak(): Promise<StreakData> {
   // Recalculate consecutive days
   const newStreak = calculateConsecutiveDays(recentLogDates);
   const currentBadge = getBadgeForStreak(newStreak);
+  const previousEarnedBadges = streakData.earnedBadges || [];
+  const updatedEarnedBadges = checkNewBadges(
+    streakData.longestStreak || 0,
+    previousEarnedBadges,
+  );
+  const shouldUpdateEarnedBadges =
+    updatedEarnedBadges.length !== previousEarnedBadges.length;
+  const shouldUpdateCurrentBadge =
+    (currentBadge?.id || null) !== (streakData.currentBadge || null);
 
   // Update streak data if changed
   if (
     newStreak !== streakData.currentStreak ||
-    recentLogDates.length !== streakData.memoryLogDates?.length
+    recentLogDates.length !== streakData.memoryLogDates?.length ||
+    shouldUpdateCurrentBadge ||
+    shouldUpdateEarnedBadges
   ) {
-    // Ensure earnedBadges is computed based on longestStreak
-    const previousEarnedBadges = streakData.earnedBadges || [];
-    const updatedEarnedBadges = checkNewBadges(streakData.longestStreak || 0, previousEarnedBadges);
-    
     const updatedData: StreakData = {
       ...streakData,
       currentStreak: newStreak,

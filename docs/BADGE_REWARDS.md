@@ -79,13 +79,63 @@ save, then writes `currentStreak`, `currentBadge`, `earnedBadges` back to
 storage. Storage retention is 30 days (`STREAK_LOG_LOOKBACK_DAYS`) so 14-day
 Sferas progression has room to be tracked.
 
+## Backward compatibility (stale storage + new badges)
+
+When badge rules evolve (for example, adding new badge tiers later), existing
+users keep their streak progress and automatically receive any newly eligible
+badges. The same machinery also reconciles state across day rollovers without
+requiring a memory save.
+
+This is handled by normalization inside `getStreakData()` in
+`utils/streak-manager.ts`:
+
+- Recomputes live `currentStreak` from `memoryLogDates` (instead of trusting
+  the stale stored `currentStreak` value).
+- Bumps `longestStreak` to `max(stored, liveCurrentStreak)` so it never
+  shrinks but does grow when a fresh recompute exceeds the stored value.
+- Recomputes live `currentBadge` from that streak using the **current**
+  `STREAK_BADGES` list.
+- Prunes `memoryLogDates` to the 30-day retention window.
+- Recomputes `earnedBadges` from `longestStreak` using the **current**
+  `STREAK_BADGES` list. `checkNewBadges` only ever appends, so previously
+  earned badges that have since been removed/renamed in code are not revoked.
+- Persists the normalized result if any field is stale/missing **and** emits
+  `notifyBadgeRewardsChanged()` so already-mounted reward consumers refresh
+  immediately (see next section).
+
+This means the first call to `getStreakData()` after one of these events
+reconciles storage and notifies subscribers in a single pass:
+
+| Trigger                                                    | What gets normalized                          | Notify fires? |
+| ---------------------------------------------------------- | --------------------------------------------- | ------------- |
+| Day rolled over since last open (badge demotion)           | `currentStreak`, `currentBadge`               | Yes           |
+| App update introduced a new `STREAK_BADGES` tier           | `earnedBadges` (and `currentBadge` if active) | Yes           |
+| Logs older than 30 days exist                              | `memoryLogDates` pruning                      | Yes           |
+| Migration from pre-`earnedBadges` storage                  | `earnedBadges` populated from `longestStreak` | Yes           |
+| Storage already in sync (steady state, repeat reads)       | Nothing                                       | No            |
+
+Recursion is avoided because any listener that re-enters via `getStreakData()`
+sees the now-normalized data, `shouldPersistNormalizedData` evaluates to
+`false`, and no further notification fires.
+
+`recalculateStreak()` is kept as a thin convenience wrapper that re-reads via
+`getStreakData()` and still emits a notify if its own diff check ever sees a
+change. In practice that diff is `false` (because `getStreakData()` already
+normalized the storage), so the notify path inside `recalculateStreak()` is a
+defensive no-op — the real reconciliation now happens on read.
+
 ## Live reward refresh (in-process event bus)
 
 Reward unlocks/downgrades are recomputed every time the streak changes, even
 mid-session. The mechanism lives in `utils/badge-rewards-events.ts`:
 
-- `notifyBadgeRewardsChanged()` is called from `streak-manager.ts` after
-  `updateStreakOnMemoryCreation` and after `recalculateStreak` writes a change.
+- `notifyBadgeRewardsChanged()` is called from `streak-manager.ts`:
+  - After every `updateStreakOnMemoryCreation` save.
+  - From `getStreakData()` whenever it persists a normalized change (day
+    rollover demotion, retroactive new-badge unlock after an app update,
+    initial migration, log pruning).
+  - From `recalculateStreak()` if its own diff check ever triggers (defensive
+    — typically a no-op now that `getStreakData` reconciles on read).
 - `subscribeBadgeRewardsChanged(listener)` is consumed by:
   - `utils/MomentColorsProvider.tsx` — refreshes `hasBadgeAccess` so custom
     moment colors render across the app the moment the user crosses Pulse.

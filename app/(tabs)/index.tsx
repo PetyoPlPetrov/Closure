@@ -21882,14 +21882,6 @@ export default function HomeScreen() {
             }}
           />
         )}
-        {streakData && streakData.currentStreak > 0 && (
-          <StreakBadgeComponent
-            currentStreak={streakData.currentStreak}
-            currentBadge={currentBadge}
-            onPress={handleStreakBadgePress}
-            onLongPress={handleStreakBadgeLongPress}
-          />
-        )}
         <StreakRulesModal
           visible={streakRulesModalVisible}
           onClose={handleStreakRulesModalClose}
