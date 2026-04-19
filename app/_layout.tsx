@@ -107,6 +107,10 @@ function AppContent() {
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const [onboardingRequestTrigger, setOnboardingRequestTrigger] = useState(0);
   const responseListener = useRef<Notifications.Subscription | null>(null);
+  const lastHandledNotificationResponseRef = useRef<{
+    key: string;
+    handledAt: number;
+  } | null>(null);
   const [aiMemoryModalVisible, setAiMemoryModalVisible] = useState(false);
   const [aiConsentModalForAIButton, setAiConsentModalForAIButton] = useState(false);
   const [pendingAIResponseForButton, setPendingAIResponseForButton] =
@@ -403,6 +407,21 @@ function AppContent() {
     const handleNotificationResponse = (
       response: Notifications.NotificationResponse,
     ) => {
+      const responseKey = `${response.notification.request.identifier}:${response.actionIdentifier}`;
+      const now = Date.now();
+      const last = lastHandledNotificationResponseRef.current;
+      const DUPLICATE_WINDOW_MS = 3000;
+      if (
+        last &&
+        last.key === responseKey &&
+        now - last.handledAt < DUPLICATE_WINDOW_MS
+      ) {
+        return;
+      }
+      lastHandledNotificationResponseRef.current = {
+        key: responseKey,
+        handledAt: now,
+      };
       const content = response.notification.request.content;
       const data = content.data as {
         type?: string;
@@ -474,6 +493,7 @@ function AppContent() {
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
         handleNotificationResponse(response);
+        void Notifications.clearLastNotificationResponseAsync();
       });
 
     return () => {

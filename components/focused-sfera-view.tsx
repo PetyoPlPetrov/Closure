@@ -297,6 +297,8 @@ export type FocusedSferaViewProps = {
   } | null;
   /** Called after notification target is consumed to avoid reopening on rerender. */
   onNotificationLessonTargetHandled?: (key: string) => void;
+  /** When true, suppresses the sunny-moments celebration intro for this route transition. */
+  disableSunCelebrationIntro?: boolean;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -2857,6 +2859,7 @@ export function FocusedSferaView({
   onFocusedDisplayModeForHint,
   notificationLessonTarget = null,
   onNotificationLessonTargetHandled,
+  disableSunCelebrationIntro = false,
 }: FocusedSferaViewProps) {
   const isScreenFocused = useIsFocused();
   const [isAppActive, setIsAppActive] = useState(
@@ -3111,7 +3114,8 @@ export function FocusedSferaView({
         sunCelebrationEligible &&
         selectedSphere === null &&
         overallSunnyPercentage >= 50 &&
-        !shownToday;
+        !shownToday &&
+        !disableSunCelebrationIntro;
 
       if (!shouldPlayIntro) {
         markIntroComplete();
@@ -3171,7 +3175,13 @@ export function FocusedSferaView({
     };
 
     run();
-  }, [splashDone, overallSunnyPercentage, sunCelebrationEligible, sferaDataReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    disableSunCelebrationIntro,
+    splashDone,
+    overallSunnyPercentage,
+    sunCelebrationEligible,
+    sferaDataReady,
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset sun centering when leaving initial view
   useEffect(() => {

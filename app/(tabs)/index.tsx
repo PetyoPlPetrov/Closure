@@ -13804,6 +13804,11 @@ export default function HomeScreen() {
     sphere: LifeSphere;
     text: string;
   } | null>(null);
+  const skipFocusedIntroParamRaw = params.skipFocusedIntro;
+  const skipFocusedIntroParam = Array.isArray(skipFocusedIntroParamRaw)
+    ? skipFocusedIntroParamRaw[0]
+    : skipFocusedIntroParamRaw;
+  const shouldSkipFocusedIntroForRoute = skipFocusedIntroParam === "1";
   const { momentColors } = useMomentColors();
   const {
     orbitDurationMs,
@@ -18482,6 +18487,7 @@ export default function HomeScreen() {
               prev?.key === key ? null : prev,
             );
           }}
+          disableSunCelebrationIntro={shouldSkipFocusedIntroForRoute}
           sferaSizeHint={
             sferaSizeHintVisible ? (
               <SferaSizeHintBanner

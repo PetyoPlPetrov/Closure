@@ -1293,6 +1293,8 @@ export function UniverseLessonsScreen({
       sphere: LifeSphere;
       entityId: string;
       focusedMemoryId: string;
+      skipFocusedIntro?: string;
+      source?: string;
       profileId?: string;
       jobId?: string;
       familyMemberId?: string;
@@ -1302,6 +1304,8 @@ export function UniverseLessonsScreen({
       sphere: card.sphere,
       entityId: card.entityId,
       focusedMemoryId: card.memoryId,
+      skipFocusedIntro: "1",
+      source: "universe_lessons_modal",
     };
 
     if (card.sphere === "relationships") detailParams.profileId = card.entityId;
@@ -1319,7 +1323,7 @@ export function UniverseLessonsScreen({
     }
 
     onClose();
-    router.push({
+    router.replace({
       pathname: "/(tabs)" as const,
       params: detailParams,
     });
