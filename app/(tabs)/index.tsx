@@ -14189,6 +14189,9 @@ export default function HomeScreen() {
     (expanded: boolean) => {
       focusedSunMenuExpandedRef.current = expanded;
       setFocusedSunMenuExpanded(expanded);
+      if (expanded) {
+        setSferaSizeHintVisible(false);
+      }
     },
     [],
   );
@@ -14543,7 +14546,8 @@ export default function HomeScreen() {
       onFocusedOverviewSurface &&
       !isLoading &&
       focusedIntroComplete &&
-      hasAnyMoments;
+      hasAnyMoments &&
+      !focusedSunMenuExpanded;
 
     if (sferaSizeHintNeverShow !== false) {
       if (leavingFocusedOverviewSurface) {
@@ -14595,6 +14599,7 @@ export default function HomeScreen() {
     isHomeTabFocused,
     homeViewMode,
     selectedSphere,
+    focusedSunMenuExpanded,
     isLoading,
     focusedIntroComplete,
     hasAnyMoments,

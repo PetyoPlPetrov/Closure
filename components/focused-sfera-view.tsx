@@ -3936,6 +3936,7 @@ export function FocusedSferaView({
             {/* Universe Lessons scroll button */}
             <View style={{ alignItems: "center", gap: scaleFocused(8) }}>
               <PulsingPressable
+                triggerPressOnPressIn
                 onPress={() => {
                   if (!hasUserLessons) {
                     showNoLessonsToast();

@@ -134,6 +134,7 @@ export function SferaEventsBadgeProvider({
 
   const tRef = useRef(t);
   tRef.current = t;
+  const refreshInFlightRef = useRef<Promise<SferaEvent[]> | null>(null);
 
   const computeUnseenCount = useCallback(
     (evts: SferaEvent[], seen: Set<string>) =>
@@ -145,6 +146,11 @@ export function SferaEventsBadgeProvider({
 
   const checkAndNotify = useCallback(
     async (fromForeground = false, silent = false) => {
+      if (refreshInFlightRef.current) {
+        return refreshInFlightRef.current;
+      }
+
+      const task = (async () => {
       if (!silent) dispatch({ type: "FETCH_START" });
       else dispatch({ type: "REFRESH_START" });
       try {
@@ -185,6 +191,16 @@ export function SferaEventsBadgeProvider({
         const s = stateRef.current;
         dispatch({ type: "FETCH_DONE", events: s.events, seenIds: s.seenIds, unseenCount: s.unseenCount, hasNewEvents: s.hasNewEvents });
         throw e;
+      }
+      })();
+
+      refreshInFlightRef.current = task;
+      try {
+        return await task;
+      } finally {
+        if (refreshInFlightRef.current === task) {
+          refreshInFlightRef.current = null;
+        }
       }
     },
     [computeUnseenCount],

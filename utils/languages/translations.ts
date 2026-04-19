@@ -1024,6 +1024,8 @@ export interface Translations {
   "universe.exam.title": string;
   "universe.exam.next": string;
   "universe.exam.done": string;
+  "universe.exam.triesRemainingFree": string;
+  "universe.exam.triesRemainingUnlimited": string;
   "universe.lessons.noneAvailable": string;
   "universe.lessons.filters.title": string;
   "universe.lessons.filters.sphereSection": string;
@@ -5148,6 +5150,8 @@ const translations: Record<Language, Translations> = {
     "universe.exam.title": "Lesson Check",
     "universe.exam.next": "Next Question",
     "universe.exam.done": "Done",
+    "universe.exam.triesRemainingFree": "{count} free tries left today",
+    "universe.exam.triesRemainingUnlimited": "Unlimited tries left today",
     "universe.lessons.noneAvailable": "No lessons available",
     "universe.lessons.filters.title": "Filters",
     "universe.lessons.filters.sphereSection": "Sphere",
@@ -9924,6 +9928,8 @@ const translations: Record<Language, Translations> = {
     "universe.exam.title": "Преговор",
     "universe.exam.next": "Следващ въпрос",
     "universe.exam.done": "Готово",
+    "universe.exam.triesRemainingFree": "Остават {count} безплатни опита за днес",
+    "universe.exam.triesRemainingUnlimited": "Неограничени опити за днес",
     "universe.lessons.noneAvailable": "Няма налични уроци",
     "universe.lessons.filters.title": "Филтри",
     "universe.lessons.filters.sphereSection": "Сфера",

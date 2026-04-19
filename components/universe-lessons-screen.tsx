@@ -899,6 +899,7 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
   const [yearSelection, setYearSelection] = useState<YearFilter>("all");
   const [entitySelection, setEntitySelection] = useState<EntityFilter>("all");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [showDecorLayers, setShowDecorLayers] = useState(false);
 
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
 
@@ -1033,6 +1034,16 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
     if (!visible || filteredCards.length === 0) return;
     setActiveIndex((i) => Math.min(i, filteredCards.length - 1));
   }, [visible, filteredCards.length]);
+
+  useEffect(() => {
+    if (!visible) {
+      setShowDecorLayers(false);
+      return;
+    }
+    // Defer heavy visual layers slightly so modal content can appear immediately.
+    const timer = setTimeout(() => setShowDecorLayers(true), 80);
+    return () => clearTimeout(timer);
+  }, [visible]);
 
   const openFilters = useCallback(() => {
     setFilterSheetVisible(true);
@@ -1175,7 +1186,7 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
   const screenOpacity = useSharedValue(0);
   useEffect(() => {
     if (visible) {
-      screenOpacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.ease) });
+      screenOpacity.value = withTiming(1, { duration: 120, easing: Easing.out(Easing.ease) });
     } else {
       screenOpacity.value = 0;
     }
@@ -1215,13 +1226,17 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
       statusBarTranslucent
     >
       <Animated.View style={[styles.root, screenStyle]}>
-        <StarField nebulaColor={SPHERE_RINGS[activeCard?.sphere ?? "career"].glow} />
-        {twinkles.map((tw, i) => (
-          <TwinkleDot key={i} x={tw.x} y={tw.y} r={tw.r} delay={tw.delay} />
-        ))}
-        {shootingStars.map((ss, i) => (
-          <ShootingStar key={i} x={ss.x} y={ss.y} angle={ss.angle} delay={ss.delay} color={accentColor} />
-        ))}
+        {showDecorLayers ? (
+          <>
+            <StarField nebulaColor={SPHERE_RINGS[activeCard?.sphere ?? "career"].glow} />
+            {twinkles.map((tw, i) => (
+              <TwinkleDot key={i} x={tw.x} y={tw.y} r={tw.r} delay={tw.delay} />
+            ))}
+            {shootingStars.map((ss, i) => (
+              <ShootingStar key={i} x={ss.x} y={ss.y} angle={ss.angle} delay={ss.delay} color={accentColor} />
+            ))}
+          </>
+        ) : null}
 
         {/* Swipe hint — finger + up/down arrows, centered on screen */}
         {appUsabilityHints && filteredCards.length > 1 && (
@@ -1245,7 +1260,7 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
         )}
 
 
-        <BackgroundSferas seed={bgSeed} fadeOut={bgFadeOut} />
+        {showDecorLayers ? <BackgroundSferas seed={bgSeed} fadeOut={bgFadeOut} /> : null}
         {cards.length === 0 ? (
           <View style={styles.emptyLessonsWrap} pointerEvents="none">
             <ThemedText style={styles.emptyLessonsText}>

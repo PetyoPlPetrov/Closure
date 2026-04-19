@@ -31,6 +31,7 @@ import {
   getAttendingEventIds,
   getEventGoldenMemoryUsedIds,
   getEventImageUrls,
+  getLocationPermissionStatus,
   getPastAttendedEvents,
   getSeatsLeft,
   getSeenEventIds,
@@ -1292,6 +1293,7 @@ export default function EventsTab() {
     setEventsCommunitiesRotationStarted,
   ] = useState(false);
   const fingerHintShownRef = useRef(false);
+  const loadEventsInFlightRef = useRef<Promise<void> | null>(null);
 
   const params = useLocalSearchParams<{ eventIdForMemory?: string; expandEventId?: string }>();
   const insets = useSafeAreaInsets();
@@ -1331,8 +1333,24 @@ export default function EventsTab() {
 
   // Fetch events from network and sync local state
   const loadEvents = useCallback(async (silent = false) => {
-    const list = await refreshEvents(silent);
-    await syncLocalState(list);
+    if (loadEventsInFlightRef.current) {
+      await loadEventsInFlightRef.current;
+      return;
+    }
+
+    const task = (async () => {
+      const list = await refreshEvents(silent);
+      await syncLocalState(list);
+    })();
+
+    loadEventsInFlightRef.current = task;
+    try {
+      await task;
+    } finally {
+      if (loadEventsInFlightRef.current === task) {
+        loadEventsInFlightRef.current = null;
+      }
+    }
   }, [refreshEvents, syncLocalState]);
 
   // Load unlocked codes on mount
@@ -1341,26 +1359,14 @@ export default function EventsTab() {
   }, [loadUnlocked]);
 
   // When provider finishes loading (or refreshing), sync local state
-  const initialSyncDone = useRef(false);
   useEffect(() => {
     if (!isLoadingEvents && !isRefreshing) {
       const cached = getCachedEvents();
       if (cached.length > 0) {
         void syncLocalState(cached);
-        initialSyncDone.current = true;
       }
     }
   }, [isLoadingEvents, isRefreshing, getCachedEvents, syncLocalState]);
-
-  // Silently refresh events when tab becomes focused (after initial load)
-  useFocusEffect(
-    useCallback(() => {
-      // Only refresh if we've already done the initial sync
-      if (initialSyncDone.current) {
-        void loadEvents(true);
-      }
-    }, [loadEvents])
-  );
 
   // Orbit rotation: very slow while finger hint is visible, normal speed after finger fades.
   // If usability hints off, start normal rotation immediately.
@@ -1941,21 +1947,33 @@ export default function EventsTab() {
       (async () => {
         // Check if user previously declined location permission
         const declined = await isLocationDeclinedByUser();
+        const currentStatus = await getLocationPermissionStatus();
 
+        if (currentStatus === "granted") {
+          await clearLocationDeclinedByUser();
+          setLocationPermissionDenied(false);
+          return;
+        }
+
+        if (currentStatus === "denied") {
+          setLocationPermissionDenied(true);
+          if (!declined) {
+            setTimeout(() => setLocationModalVisible(true), 400);
+          }
+          return;
+        }
+
+        // Undetermined: only request when user hasn't previously dismissed the modal.
         if (!declined) {
-          // Only request permission if user hasn't declined before
-          const status = await requestLocationPermission();
-          if (status === "denied") {
+          const requestedStatus = await requestLocationPermission();
+          if (requestedStatus === "denied") {
             setTimeout(() => setLocationModalVisible(true), 400);
             setLocationPermissionDenied(true);
-          } else if (status === "granted") {
-            // Clear decline flag if it was set and user has now granted permission
+          } else if (requestedStatus === "granted") {
             await clearLocationDeclinedByUser();
             setLocationPermissionDenied(false);
-            void loadEvents();
           }
         } else {
-          // User declined before, just update state to show indicator
           setLocationPermissionDenied(true);
         }
       })();
@@ -2057,6 +2075,9 @@ export default function EventsTab() {
         ? t("events.section.private")
         : t("events.section.plus");
   const focusedCommunityType = COMMUNITY_TYPES[focusedCommunityIndex];
+  const tabBarGestureExclusionHeight =
+    Math.round(78 * fontScale) +
+    Math.max(12, insets.bottom + 12 - 20 * fontScale);
 
   return (
     <TabScreenContainer>
@@ -2215,7 +2236,13 @@ export default function EventsTab() {
 
         {/* ─── Phase: selected Sfera Community has moved to center (same orb, no duplicate); events appear after ─── */}
         {phase !== "orbs" && (
-          <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { bottom: tabBarGestureExclusionHeight },
+            ]}
+            {...panResponder.panHandlers}
+          >
             <Animated.View
               style={[StyleSheet.absoluteFill, eventsRevealStyle]}
               pointerEvents="box-none"

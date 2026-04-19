@@ -22,6 +22,7 @@ import { useSubscription } from "@/utils/SubscriptionProvider";
 import {
   canUseExam,
   consumeUniverseExamIfAvailable,
+  getRemainingUniverseExams,
 } from "@/utils/universe-exam-rate-limiter";
 import {
   clearPendingUniverseExam,
@@ -241,6 +242,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
     isCorrect: boolean;
     feedback: string;
   } | null>(null);
+  const [remainingExamTries, setRemainingExamTries] = useState<number | null>(null);
   const inputRef = useRef<TextInput>(null);
 
   const answerInputRef = useRef(answerInput);
@@ -304,6 +306,11 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
 
   /** Prevents duplicate loadQuestion runs (e.g. Strict Mode) from consuming two free slots. */
   const loadQuestionInFlightRef = useRef(false);
+
+  const refreshRemainingExamTries = useCallback(async () => {
+    const remaining = await getRemainingUniverseExams(hasAIEntitlement);
+    setRemainingExamTries(remaining);
+  }, [hasAIEntitlement]);
 
   /**
    * Restore saved unanswered question if any; else build a question, then consume a free slot
@@ -383,13 +390,14 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
       await showPaywallForAIAccess();
       return;
     }
+    await refreshRemainingExamTries();
 
     setQuestion(nextQuestion);
     setStep("question");
     } finally {
       loadQuestionInFlightRef.current = false;
     }
-  }, [cards, language, hasAIEntitlement, onClose]);
+  }, [cards, language, hasAIEntitlement, onClose, refreshRemainingExamTries]);
 
   const loadQuestionRef = useRef(loadQuestion);
   loadQuestionRef.current = loadQuestion;
@@ -398,6 +406,14 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
       loadQuestionRef.current();
     }
   }, [visible, hasLessons]);
+
+  useEffect(() => {
+    if (visible && hasLessons) {
+      void refreshRemainingExamTries();
+    } else if (!visible) {
+      setRemainingExamTries(null);
+    }
+  }, [visible, hasLessons, refreshRemainingExamTries]);
 
   const handleSubmit = useCallback(async () => {
     const trimmed = answerInputRef.current.trim();
@@ -497,6 +513,15 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
 
   const resultAccentColor = analysis?.isCorrect ? "#4CAF50" : "#FFA726";
   const CARD_WIDTH = Math.min(320, SW - 48);
+  const triesLeftLabel =
+    remainingExamTries === null
+      ? null
+      : Number.isFinite(remainingExamTries)
+        ? (t("universe.exam.triesRemainingFree") || "{count} free tries left today").replace(
+            "{count}",
+            String(remainingExamTries),
+          )
+        : t("universe.exam.triesRemainingUnlimited") || "Unlimited tries left today";
 
   return (
     <Modal
@@ -716,6 +741,11 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                       </LinearGradient>
                     </Pressable>
                   </Animated.View>
+                  {triesLeftLabel ? (
+                    <ThemedText size="xs" style={styles.triesLeftLabel}>
+                      {triesLeftLabel}
+                    </ThemedText>
+                  ) : null}
                 </>
               )}
             </Pressable>
@@ -1015,6 +1045,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  triesLeftLabel: {
+    marginTop: 8,
+    textAlign: "center",
+    color: "rgba(184, 232, 236, 0.65)",
+    fontSize: 11,
   },
   resultOverlay: {
     position: "absolute",
