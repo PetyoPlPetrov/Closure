@@ -506,7 +506,15 @@ export function MomentNotificationProvider({ children }: { children: React.React
       const aiEnabled = await isAIInsightsEnabled();
       const canUseAI = hasAIEntitlement && aiEnabled;
       for (const schedule of enabled) {
-        const messages: string[] = [];
+        const candidates: Array<{
+          body: string;
+          memoryId: string;
+          entityId: string;
+          sphere: LifeSphere;
+          momentType: MomentType;
+          momentId: string;
+          momentText: string;
+        }> = [];
         const effectiveSource =
           (schedule.source === 'ai' || schedule.source === 'both') && !canUseAI ? 'moments' : schedule.source;
         if (effectiveSource === 'moments' || effectiveSource === 'both') {
@@ -514,11 +522,31 @@ export function MomentNotificationProvider({ children }: { children: React.React
             if (mem.sphere !== schedule.sphere) continue;
             if (schedule.momentType === 'lesson') {
               for (const l of mem.lessonsLearned ?? []) {
-                if (l.text?.trim()) messages.push(l.text.trim());
+                const text = l.text?.trim();
+                if (!text) continue;
+                candidates.push({
+                  body: text,
+                  memoryId: mem.id,
+                  entityId: mem.entityId,
+                  sphere: mem.sphere,
+                  momentType: 'lesson',
+                  momentId: l.id,
+                  momentText: text,
+                });
               }
             } else {
               for (const g of mem.goodFacts ?? []) {
-                if (g.text?.trim()) messages.push(g.text.trim());
+                const text = g.text?.trim();
+                if (!text) continue;
+                candidates.push({
+                  body: text,
+                  memoryId: mem.id,
+                  entityId: mem.entityId,
+                  sphere: mem.sphere,
+                  momentType: 'sunny',
+                  momentId: g.id,
+                  momentText: text,
+                });
               }
             }
           }
@@ -527,9 +555,21 @@ export function MomentNotificationProvider({ children }: { children: React.React
           const list = summariesToUse.filter(
             (s) => s.sphere === schedule.sphere && s.momentType === schedule.momentType
           );
-          messages.push(...list.map((s) => s.notificationMessage));
+          for (const summary of list) {
+            const body = summary.notificationMessage?.trim();
+            if (!body) continue;
+            candidates.push({
+              body,
+              memoryId: summary.memoryId,
+              entityId: summary.entityId,
+              sphere: summary.sphere,
+              momentType: summary.momentType,
+              momentId: summary.momentId,
+              momentText: summary.momentText,
+            });
+          }
         }
-        if (messages.length === 0) {
+        if (candidates.length === 0) {
           // Auto-disable the schedule so the user can re-enable it once moments are available again.
           const disabledList = schedulesToUse.map((s) => s.id === schedule.id ? { ...s, enabled: false } : s);
           schedulesToUse = disabledList;
@@ -546,22 +586,33 @@ export function MomentNotificationProvider({ children }: { children: React.React
 
         // Pick random body for each notification to avoid sending the same nudge twice.
         // When 2+ messages exist, exclude the previous pick to avoid back-to-back repeats.
-        const pickRandom = (exclude?: string) => {
-          const pool = exclude && messages.length > 1 ? messages.filter((m) => m !== exclude) : [...messages];
+        const pickRandom = (excludeMomentId?: string) => {
+          const pool = excludeMomentId && candidates.length > 1
+            ? candidates.filter((candidate) => candidate.momentId !== excludeMomentId)
+            : [...candidates];
           return pool[Math.floor(Math.random() * pool.length)];
         };
 
-        let prevBody: string | undefined;
+        let previousMomentId: string | undefined;
         for (let i = 0; i < triggerDates.length; i++) {
-          const body = pickRandom(prevBody);
-          prevBody = body;
+          const candidate = pickRandom(previousMomentId);
+          previousMomentId = candidate.momentId;
           const triggerDate = triggerDates[i];
           await Notifications.scheduleNotificationAsync({
             identifier: `${MOMENT_NUDGE_PREFIX}${schedule.id}_${i}`,
             content: {
               title: 'Sferas',
-              body,
-              data: { type: 'moment_nudge', scheduleId: schedule.id },
+              body: candidate.body,
+              data: {
+                type: 'moment_nudge',
+                scheduleId: schedule.id,
+                momentType: candidate.momentType,
+                momentId: candidate.momentId,
+                momentText: candidate.momentText,
+                memoryId: candidate.memoryId,
+                entityId: candidate.entityId,
+                sphere: candidate.sphere,
+              },
               sound: schedule.soundEnabled === false ? undefined : 'default',
             },
             trigger: {

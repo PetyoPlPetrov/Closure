@@ -13795,6 +13795,7 @@ export default function HomeScreen() {
   };
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  const handledLessonNudgeKeyRef = useRef<string | null>(null);
   const { momentColors } = useMomentColors();
   const {
     orbitDurationMs,
@@ -17601,28 +17602,54 @@ export default function HomeScreen() {
     const hobbyId = params.hobbyId as string | undefined;
     const entityId = params.entityId as string | undefined;
     const sphere = params.sphere as LifeSphere | undefined;
+    const momentId = params.momentId as string | undefined;
 
     if (focusedMemoryId && sphere) {
       if (profileId && sphere === "relationships") {
-        setFocusedMemory({ profileId, memoryId: focusedMemoryId, sphere });
+        setFocusedMemory({
+          profileId,
+          memoryId: focusedMemoryId,
+          sphere,
+          momentToShowId: momentId,
+        });
         setFocusedProfileId(profileId);
         setSelectedSphere("relationships");
       } else if (jobId && sphere === "career") {
-        setFocusedMemory({ jobId, memoryId: focusedMemoryId, sphere });
+        setFocusedMemory({
+          jobId,
+          memoryId: focusedMemoryId,
+          sphere,
+          momentToShowId: momentId,
+        });
         setFocusedJobId(jobId);
         setSelectedSphere("career");
       } else if (familyMemberId && sphere === "family") {
-        setFocusedMemory({ familyMemberId, memoryId: focusedMemoryId, sphere });
+        setFocusedMemory({
+          familyMemberId,
+          memoryId: focusedMemoryId,
+          sphere,
+          momentToShowId: momentId,
+        });
         setFocusedFamilyMemberId(familyMemberId);
         setSelectedSphere("family");
       } else if ((friendId || entityId) && sphere === "friends") {
         const id = friendId || entityId;
-        setFocusedMemory({ friendId: id, memoryId: focusedMemoryId, sphere });
+        setFocusedMemory({
+          friendId: id,
+          memoryId: focusedMemoryId,
+          sphere,
+          momentToShowId: momentId,
+        });
         setFocusedFriendId(id!);
         setSelectedSphere("friends");
       } else if ((hobbyId || entityId) && sphere === "hobbies") {
         const id = hobbyId || entityId;
-        setFocusedMemory({ hobbyId: id, memoryId: focusedMemoryId, sphere });
+        setFocusedMemory({
+          hobbyId: id,
+          memoryId: focusedMemoryId,
+          sphere,
+          momentToShowId: momentId,
+        });
         setFocusedHobbyId(id!);
         setSelectedSphere("hobbies");
       }
@@ -17654,6 +17681,42 @@ export default function HomeScreen() {
     params.hobbyId,
     params.entityId,
     params.sphere,
+    params.momentId,
+  ]);
+
+  React.useEffect(() => {
+    const nudgeMomentType = params.nudgeMomentType as string | undefined;
+    if (nudgeMomentType !== "lesson") return;
+
+    const text = params.nudgeMomentText as string | undefined;
+    const entityId = params.nudgeEntityId as string | undefined;
+    const memoryId = params.nudgeMemoryId as string | undefined;
+    const sphere = params.nudgeSphere as LifeSphere | undefined;
+    const momentId = params.nudgeMomentId as string | undefined;
+    const nonce = params.nudgeNonce as string | undefined;
+
+    if (!text || !entityId || !memoryId || !sphere) return;
+    const key = `${nonce ?? "no-nonce"}:${momentId ?? "no-moment"}:${memoryId}`;
+    if (handledLessonNudgeKeyRef.current === key) return;
+    handledLessonNudgeKeyRef.current = key;
+
+    setSelectedMomentType("lessons");
+    setSelectedLesson({
+      text,
+      entityId,
+      memoryId,
+      sphere,
+      momentType: "lessons",
+    });
+    setShowLesson(true);
+  }, [
+    params.nudgeMomentType,
+    params.nudgeMomentText,
+    params.nudgeMomentId,
+    params.nudgeNonce,
+    params.nudgeEntityId,
+    params.nudgeMemoryId,
+    params.nudgeSphere,
   ]);
 
   // Ensure entity is focused when memory is focused (for state consistency after tab switches)

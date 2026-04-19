@@ -369,10 +369,49 @@ function AppContent() {
         type?: string;
         entityId?: string;
         sphere?: string;
+        memoryId?: string;
+        momentId?: string;
+        momentText?: string;
+        momentType?: "lesson" | "sunny";
       };
       if (data.type === "entity_reminder" && data.entityId && data.sphere) {
         InteractionManager.runAfterInteractions(() => {
           router.replace(`/notifications/${data.sphere}/${data.entityId}`);
+        });
+      } else if (
+        data.type === "moment_nudge" &&
+        data.entityId &&
+        data.sphere &&
+        data.memoryId &&
+        data.momentType
+      ) {
+        InteractionManager.runAfterInteractions(() => {
+          if (data.momentType === "lesson") {
+            router.replace({
+              pathname: "/(tabs)",
+              params: {
+                nudgeMomentType: "lesson",
+                nudgeMomentId: data.momentId ?? "",
+                nudgeMomentText: data.momentText ?? content.body ?? "",
+                nudgeMemoryId: data.memoryId,
+                nudgeEntityId: data.entityId,
+                nudgeSphere: data.sphere,
+                nudgeNonce: `${Date.now()}`,
+              },
+            });
+            return;
+          }
+          router.replace({
+            pathname: "/(tabs)",
+            params: {
+              nudgeMomentType: "sunny",
+              focusedMemoryId: data.memoryId,
+              entityId: data.entityId,
+              sphere: data.sphere,
+              momentId: data.momentId ?? "",
+              nudgeNonce: `${Date.now()}`,
+            },
+          });
         });
       }
     };
