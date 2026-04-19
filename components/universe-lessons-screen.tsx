@@ -882,6 +882,7 @@ function ScrollRail({ total, active, color }: { total: number; active: number; c
 interface Props {
   visible: boolean;
   onClose: () => void;
+  standaloneRoute?: boolean;
   initialTarget?: {
     key: string;
     lessonId?: string;
@@ -896,6 +897,7 @@ interface Props {
 export function UniverseLessonsScreen({
   visible,
   onClose,
+  standaloneRoute = false,
   initialTarget,
   onInitialTargetHandled,
 }: Props) {
@@ -1285,13 +1287,43 @@ export function UniverseLessonsScreen({
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
 
   const handleAvatarPress = useCallback((card: LessonCard) => {
-    if (!card.entityId) return;
+    if (!card.entityId || !card.memoryId) return;
+
+    const detailParams: {
+      sphere: LifeSphere;
+      entityId: string;
+      focusedMemoryId: string;
+      profileId?: string;
+      jobId?: string;
+      familyMemberId?: string;
+      friendId?: string;
+      hobbyId?: string;
+    } = {
+      sphere: card.sphere,
+      entityId: card.entityId,
+      focusedMemoryId: card.memoryId,
+    };
+
+    if (card.sphere === "relationships") detailParams.profileId = card.entityId;
+    else if (card.sphere === "career") detailParams.jobId = card.entityId;
+    else if (card.sphere === "family") detailParams.familyMemberId = card.entityId;
+    else if (card.sphere === "friends") detailParams.friendId = card.entityId;
+    else if (card.sphere === "hobbies") detailParams.hobbyId = card.entityId;
+
+    if (standaloneRoute) {
+      router.replace({
+        pathname: "/(tabs)" as const,
+        params: detailParams,
+      });
+      return;
+    }
+
     onClose();
     router.push({
       pathname: "/(tabs)" as const,
-      params: { sphere: card.sphere, entityId: card.entityId },
+      params: detailParams,
     });
-  }, [onClose]);
+  }, [onClose, standaloneRoute]);
 
   const renderItem = useCallback(
     ({ item, index }: { item: LessonCard; index: number }) => (

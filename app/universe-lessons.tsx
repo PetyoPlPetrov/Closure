@@ -35,6 +35,7 @@ export default function UniverseLessonsRoute() {
     <UniverseLessonsScreen
       visible
       onClose={() => router.replace("/(tabs)")}
+      standaloneRoute
       initialTarget={initialTarget}
       onInitialTargetHandled={() => {}}
     />

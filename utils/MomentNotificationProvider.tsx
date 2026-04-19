@@ -77,6 +77,17 @@ function formatMinutesToTime(totalMinutes: number): string {
   return `${hours}:${minutes}`;
 }
 
+function formatMomentNudgeNotification(
+  momentType: MomentType,
+  message: string
+): { title: string; body: string } {
+  const label = momentType === 'lesson' ? 'Lesson' : 'Sunny moment';
+  return {
+    title: `Sferas - ${label}`,
+    body: `${label}: ${message}`,
+  };
+}
+
 function normalizeSchedule(
   schedule: MomentNotificationSchedule
 ): MomentNotificationSchedule {
@@ -596,11 +607,15 @@ export function MomentNotificationProvider({ children }: { children: React.React
           const candidate = pickRandom(previousMomentId);
           previousMomentId = candidate.momentId;
           const triggerDate = triggerDates[i];
+          const notificationContent = formatMomentNudgeNotification(
+            candidate.momentType,
+            candidate.body
+          );
           await Notifications.scheduleNotificationAsync({
             identifier: `${MOMENT_NUDGE_PREFIX}${schedule.id}_${i}`,
             content: {
-              title: 'Sferas',
-              body: candidate.body,
+              title: notificationContent.title,
+              body: notificationContent.body,
               data: {
                 type: 'moment_nudge',
                 scheduleId: schedule.id,

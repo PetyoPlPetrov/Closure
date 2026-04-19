@@ -14487,7 +14487,13 @@ export default function HomeScreen() {
   React.useEffect(() => {
     const sphereChanged = selectedSphere !== previousSphereForCleanup.current;
     if (sphereChanged) {
-      setFocusedMemory(null);
+      setFocusedMemory((prev) => {
+        if (!prev) return null;
+        // Preserve focused memory when navigation sets both sphere + focusedMemory
+        // for the same sphere in the same transition.
+        if (prev.sphere === selectedSphere) return prev;
+        return null;
+      });
       // Clear only the focused entity of spheres we're NOT switching to
       if (selectedSphere !== "relationships") setFocusedProfileId(null);
       if (selectedSphere !== "career") setFocusedJobId(null);
