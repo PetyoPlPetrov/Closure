@@ -126,6 +126,8 @@ export function InAppNotification({
     }
   };
 
+  const hasMessageRow = Boolean(message.trim().length > 0 || trailingIcon);
+
   return (
     <Animated.View
       style={[
@@ -160,20 +162,22 @@ export function InAppNotification({
           <ThemedText size="l" weight="bold" style={[styles.title, { color: titleColor }]}>
             {title}
           </ThemedText>
-          <View style={styles.messageRow}>
-            <ThemedText size="sm" style={[styles.message, { color: messageColor }]}>
-              {message}
-              {trailingIcon === 'auto-awesome' ? ' ✨' : ''}
-            </ThemedText>
-            {trailingIcon && trailingIcon !== 'auto-awesome' ? (
-              <MaterialIcons
-                name={trailingIcon as keyof typeof MaterialIcons.glyphMap}
-                size={16}
-                color={messageColor}
-                style={styles.messageTrailingIcon}
-              />
-            ) : null}
-          </View>
+          {hasMessageRow ? (
+            <View style={styles.messageRow}>
+              <ThemedText size="sm" style={[styles.message, { color: messageColor }]}>
+                {message}
+                {trailingIcon === 'auto-awesome' ? ' ✨' : ''}
+              </ThemedText>
+              {trailingIcon && trailingIcon !== 'auto-awesome' ? (
+                <MaterialIcons
+                  name={trailingIcon as keyof typeof MaterialIcons.glyphMap}
+                  size={16}
+                  color={messageColor}
+                  style={styles.messageTrailingIcon}
+                />
+              ) : null}
+            </View>
+          ) : null}
         </Animated.View>
       </Pressable>
       <Pressable
@@ -259,7 +263,8 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: 12,
+    top: '50%',
+    marginTop: -16,
     right: 12,
     width: 32,
     height: 32,

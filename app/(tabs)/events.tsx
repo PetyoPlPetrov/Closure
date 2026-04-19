@@ -1512,13 +1512,78 @@ export default function EventsTab() {
 
   // Open event detail card when deep-linked from another screen (e.g. insight card thumbnail)
   useEffect(() => {
-    const eventId = params.expandEventId;
+    const eventIdParam = params.expandEventId;
+    const eventId = Array.isArray(eventIdParam) ? eventIdParam[0] : eventIdParam;
     if (!eventId) return;
-    const found = events.find((e) => e.id === eventId);
+    const found = events.find((e) => e.id === eventId) ?? pastEvents.find((e) => e.id === eventId);
     if (!found) return;
+
+    const communityIndex =
+      found.type === "social" ? 0 : found.type === "private" ? 1 : 2;
+    const communityType = found.type;
+
+    setFocusedCommunityIndex(communityIndex);
+    setPhase(communityType);
+    setSelectedType(communityType);
+
+    // Mirror the settled visual state after a user manually selects a community orb.
+    selectedOrbIndex.value = communityIndex;
+    orbExitProgress.value = 1;
+    hideCenteredOrb.value = 1;
+    eventsRevealProgress.value = 1;
+    locationBannerOpacity.value = 0;
+
+    // Ensure event is visible and focused in the orbit before expanding.
+    if (isEventFilled(found)) setHideFilledEvents(false);
+    if (pastEvents.some((e) => e.id === eventId)) setShowPastEvents(true);
+
+    const baseUpcoming =
+      communityIndex === 0
+        ? socialEvents
+        : communityIndex === 1
+          ? privateEvents.filter(
+              (e) =>
+                e.vipCode &&
+                unlockedCodes.has((e.vipCode || "").trim().toLowerCase()),
+            )
+          : plusEvents;
+    const visibleUpcoming = hideFilledEvents
+      ? baseUpcoming.filter((e) => !isEventFilled(e))
+      : baseUpcoming;
+    const pastForCommunity = showPastEvents
+      ? pastEvents.filter((e) => e.type === communityType)
+      : [];
+    const visibleList = [...visibleUpcoming, ...pastForCommunity];
+    const targetIndex = Math.max(
+      0,
+      visibleList.findIndex((e) => e.id === eventId),
+    );
+    setFocusedEventIndex(targetIndex);
+    focusedEventIndexShared.value = targetIndex;
+    if (visibleList.length > 0) {
+      eventOrbitAngle.value = targetIndex * ((2 * Math.PI) / visibleList.length);
+    }
+
     setExpandedEventId(eventId);
     router.setParams({ expandEventId: undefined });
-  }, [params.expandEventId, events]);
+  }, [
+    params.expandEventId,
+    events,
+    pastEvents,
+    socialEvents,
+    privateEvents,
+    plusEvents,
+    unlockedCodes,
+    hideFilledEvents,
+    showPastEvents,
+    selectedOrbIndex,
+    orbExitProgress,
+    hideCenteredOrb,
+    eventsRevealProgress,
+    locationBannerOpacity,
+    focusedEventIndexShared,
+    eventOrbitAngle,
+  ]);
 
   // Open Create memory modal when navigated from event memory reminder notification
   useEffect(() => {
@@ -2398,9 +2463,10 @@ export default function EventsTab() {
           onShow={() => setExpandedImageError(false)}
         >
           {(() => {
-            const expandedEvent = listForPhase.find(
-              (e) => e.id === expandedEventId,
-            );
+            const expandedEvent =
+              listForPhase.find((e) => e.id === expandedEventId) ??
+              events.find((e) => e.id === expandedEventId) ??
+              pastEvents.find((e) => e.id === expandedEventId);
             if (!expandedEvent) return null;
             const expandedImageUrls = getEventImageUrls(expandedEvent);
             const hasImages =

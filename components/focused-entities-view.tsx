@@ -1484,7 +1484,10 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                     hitSlop={8}
                     onPress={(e) => {
                       e.stopPropagation();
-                      router.push("/(tabs)/events");
+                      router.push({
+                        pathname: "/(tabs)/events",
+                        params: { expandEventId: currentEvent.id },
+                      });
                     }}
                     accessibilityRole="link"
                     accessibilityLabel="See all events"

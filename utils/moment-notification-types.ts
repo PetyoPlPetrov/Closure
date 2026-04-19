@@ -20,8 +20,13 @@ export interface MomentNotificationSchedule {
   sphere: LifeSphere;
   momentType: MomentType;
   frequencyHours: number;
+  frequencyMode?: 'interval' | 'specific_times';
+  activeStartTime?: string; // HH:mm
+  activeEndTime?: string; // HH:mm
+  specificTimes?: string[]; // HH:mm list
   source: 'moments' | 'ai' | 'both'; // 'moments' = raw from memories, 'ai' = AI summaries, 'both' = both combined
   userMessages: string[]; // Deprecated for 'moments'; kept for migration
+  soundEnabled?: boolean;
   enabled: boolean;
   createdAt: string;
 }

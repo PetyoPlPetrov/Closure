@@ -11,10 +11,28 @@ import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useNotificationsManager } from '@/utils/NotificationsProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { getSphereSferaColor } from '@/utils/sphere-styles';
+
+function hexToRgba(hex: string, alpha: number): string {
+  const normalized = hex.replace('#', '');
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split('')
+          .map((char) => `${char}${char}`)
+          .join('')
+      : normalized;
+  const intVal = Number.parseInt(expanded, 16);
+  const r = (intVal >> 16) & 255;
+  const g = (intVal >> 8) & 255;
+  const b = intVal & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 export default function EntityRemindersScreen() {
   const t = useTranslate();
   const colorScheme = useColorScheme();
+  const resolvedColorScheme: "dark" = colorScheme;
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const palette = useMemo(
@@ -25,6 +43,7 @@ export default function EntityRemindersScreen() {
       border: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.12)',
       card: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
       muted: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.6)' : '#4a4a4a',
+      surfaceElevated: colorScheme === 'dark' ? '#2D3A4F' : 'rgba(0, 0, 0, 0.08)',
     }),
     [colorScheme, colors]
   );
@@ -40,16 +59,35 @@ export default function EntityRemindersScreen() {
   ) => {
     if (entityNames.length === 0) return null;
     const assignment = assignments[sphere];
+    const sphereAccent = getSphereSferaColor(sphere, resolvedColorScheme);
+    const sectionBorderColor = hexToRgba(sphereAccent, 0.24);
+    const sectionBackgroundColor = hexToRgba(sphereAccent, 0.06);
+    const sectionLabelColor = hexToRgba(sphereAccent, 0.95);
+    const rowAccentColor = hexToRgba(sphereAccent, 0.72);
     return (
-      <View key={sphere}>
+      <View
+        key={sphere}
+        style={[
+          styles.sphereSection,
+          {
+            borderColor: sectionBorderColor,
+            backgroundColor: sectionBackgroundColor,
+          },
+        ]}
+      >
         <ThemedText
           size="xs"
           weight="semibold"
-          style={{ color: palette.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}
+          style={{
+            color: sectionLabelColor,
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+            marginBottom: 10,
+          }}
         >
           {title}
         </ThemedText>
-        <View style={{ gap: 10 }}>
+        <View style={styles.rowsStack}>
           {entityNames.map((entity) => {
             const override = assignment?.overrides?.[entity.id];
             const notifOn = override?.kind === 'custom';
@@ -62,7 +100,8 @@ export default function EntityRemindersScreen() {
                 activeOpacity={0.8}
               >
                 <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <ThemedText size="sm" weight="medium">
+                  <View style={[styles.rowSphereAccent, { backgroundColor: rowAccentColor }]} />
+                  <ThemedText size="m" weight="medium">
                     {entity.name}
                   </ThemedText>
                 </View>
@@ -110,7 +149,7 @@ export default function EntityRemindersScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <ThemedText size="sm" style={{ color: palette.muted, marginBottom: 8 }}>
+        <ThemedText size="sm" style={{ color: palette.muted, marginBottom: 4 }}>
           {t('notifications.entityReminders.description')}
         </ThemedText>
 
@@ -119,12 +158,9 @@ export default function EntityRemindersScreen() {
             {t('notifications.entityReminders.empty')}
           </ThemedText>
         ) : (
-          <View style={[styles.card, { gap: 16 * fontScale }]}>
+          <View style={styles.sectionsStack}>
             {sphereBlocks.map((block, i) => (
-              <View key={i}>
-                {block}
-                {i < sphereBlocks.length - 1 && <View style={styles.divider} />}
-              </View>
+              <View key={i}>{block}</View>
             ))}
           </View>
         )}
@@ -141,6 +177,7 @@ const createStyles = (
     border: string;
     card: string;
     muted: string;
+    surfaceElevated: string;
   },
   fontScale: number
 ) =>
@@ -165,6 +202,7 @@ const createStyles = (
     content: {
       padding: 16 * fontScale,
       paddingBottom: 32 * fontScale,
+      gap: 12 * fontScale,
     },
     card: {
       padding: 14 * fontScale,
@@ -173,11 +211,36 @@ const createStyles = (
       borderWidth: 1,
       borderColor: palette.border,
     },
+    sectionsStack: {
+      gap: 12 * fontScale,
+    },
+    sphereSection: {
+      borderRadius: 16 * fontScale,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.card,
+      paddingHorizontal: 12 * fontScale,
+      paddingVertical: 12 * fontScale,
+    },
+    rowsStack: {
+      gap: 8 * fontScale,
+    },
     entityRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 8,
+      borderRadius: 12 * fontScale,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surfaceElevated,
+      paddingHorizontal: 10 * fontScale,
+      paddingVertical: 10 * fontScale,
+    },
+    rowSphereAccent: {
+      width: 3 * fontScale,
+      height: 18 * fontScale,
+      borderRadius: 999,
     },
     rowActionsCompact: {
       flexDirection: 'row',
@@ -193,6 +256,8 @@ const createStyles = (
       borderRadius: 999,
       borderWidth: 1,
       borderColor: palette.border,
+      minWidth: 84 * fontScale,
+      justifyContent: 'center',
     },
     badgeOn: {
       backgroundColor: palette.primary,
@@ -201,10 +266,5 @@ const createStyles = (
     badgeOff: {
       backgroundColor: palette.card,
       borderColor: palette.border,
-    },
-    divider: {
-      height: 1,
-      backgroundColor: palette.border,
-      marginTop: 16 * fontScale,
     },
   });

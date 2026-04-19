@@ -67,6 +67,8 @@ export default function NotificationDetailScreen() {
       error: colors.error || "#e05555",
       inputBg:
         colorScheme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+      surfaceElevated:
+        colorScheme === "dark" ? "#2D3A4F" : "rgba(0,0,0,0.08)",
     }),
     [colorScheme, colors],
   );
@@ -443,7 +445,7 @@ export default function NotificationDetailScreen() {
             </TouchableOpacity>
           )}
         </View>
-        <ThemedText size="s" style={{ color: palette.muted }}>
+        <ThemedText size="sm" style={{ color: palette.muted }}>
           {t("notifications.settings.sphere")}: {sphere}
         </ThemedText>
 
@@ -476,15 +478,12 @@ export default function NotificationDetailScreen() {
             </TouchableOpacity>
           </View>
           {currentOverride?.kind !== "custom" && (
-            <ThemedText
-              size="xs"
-              style={{ color: palette.muted, marginTop: -4 }}
-            >
+            <ThemedText size="xs" style={styles.cardSubtext}>
               {t("notifications.settings.turnOnDescription")}
             </ThemedText>
           )}
           <View style={styles.fieldGroup}>
-            <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
+            <ThemedText size="sm" weight="medium" style={styles.fieldLabel}>
               {t("notifications.settings.message")}
             </ThemedText>
             <TextInput
@@ -506,7 +505,7 @@ export default function NotificationDetailScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
+            <ThemedText size="sm" weight="medium" style={styles.fieldLabel}>
               {t("notifications.settings.frequency")}
             </ThemedText>
             <View style={styles.chipRow}>
@@ -546,7 +545,7 @@ export default function NotificationDetailScreen() {
 
           {customDraft.frequencyDays === 7 && (
             <View style={styles.fieldGroup}>
-              <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
+              <ThemedText size="sm" weight="medium" style={styles.fieldLabel}>
                 {t("notifications.settings.dayOfWeek")}
               </ThemedText>
               <View style={styles.chipRow}>
@@ -608,14 +607,14 @@ export default function NotificationDetailScreen() {
           )}
 
           <View style={styles.fieldGroup}>
-            <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
+            <ThemedText size="sm" weight="medium" style={styles.fieldLabel}>
               {t("notifications.settings.time")}
             </ThemedText>
             <TouchableOpacity
               style={[styles.input, styles.inputBox, styles.timePickerButton]}
               onPress={() => setShowTimePicker(true)}
             >
-              <ThemedText size="s" style={{ color: palette.text }}>
+              <ThemedText size="sm" style={{ color: palette.text }}>
                 {customDraft.timeOfDay}
               </ThemedText>
               <MaterialIcons
@@ -647,6 +646,9 @@ export default function NotificationDetailScreen() {
                         style={styles.timePickerModal}
                         onPress={(e) => e.stopPropagation()}
                       >
+                        <View style={styles.timePickerHandleWrap}>
+                          <View style={styles.timePickerHandle} />
+                        </View>
                         <View style={styles.timePickerHeader}>
                           <TouchableOpacity
                             onPress={() => {
@@ -655,7 +657,7 @@ export default function NotificationDetailScreen() {
                             }}
                           >
                             <ThemedText
-                              size="s"
+                              size="sm"
                               weight="medium"
                               style={{ color: palette.primary }}
                             >
@@ -706,7 +708,7 @@ export default function NotificationDetailScreen() {
 
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabelRow}>
-              <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
+              <ThemedText size="sm" weight="medium" style={styles.fieldLabel}>
                 {t("notifications.settings.sound")}
               </ThemedText>
               <TouchableOpacity
@@ -745,7 +747,7 @@ export default function NotificationDetailScreen() {
 
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabelRow}>
-              <ThemedText size="s" weight="medium" style={styles.fieldLabel}>
+              <ThemedText size="sm" weight="medium" style={styles.fieldLabel}>
                 {t("notifications.settings.condition")}
               </ThemedText>
               {currentOverride?.kind === "custom" &&
@@ -938,7 +940,7 @@ export default function NotificationDetailScreen() {
               <ThemedText size="m" weight="bold" style={{ marginBottom: 6 }}>
                 {infoModal?.title}
               </ThemedText>
-              <ThemedText size="s" style={{ color: palette.muted }}>
+              <ThemedText size="sm" style={{ color: palette.muted }}>
                 {infoModal?.body}
               </ThemedText>
             </View>
@@ -959,6 +961,7 @@ const createStyles = (
     muted: string;
     error: string;
     inputBg: string;
+    surfaceElevated: string;
   },
   fontScale: number,
   insetTop: number,
@@ -983,21 +986,31 @@ const createStyles = (
       padding: 4 * fontScale,
     },
     card: {
-      padding: 16 * fontScale,
-      borderRadius: 12 * fontScale,
+      padding: 14 * fontScale,
+      borderRadius: 16 * fontScale,
       backgroundColor: palette.card,
       borderWidth: 1,
       borderColor: palette.border,
-      gap: 16 * fontScale,
+      gap: 12 * fontScale,
     },
     cardHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: 4 * fontScale,
+      marginBottom: 2 * fontScale,
+    },
+    cardSubtext: {
+      color: palette.muted,
+      marginBottom: 2 * fontScale,
     },
     fieldGroup: {
-      gap: 8 * fontScale,
+      gap: 10 * fontScale,
+      borderRadius: 14 * fontScale,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surfaceElevated,
+      paddingHorizontal: 12 * fontScale,
+      paddingVertical: 12 * fontScale,
     },
     fieldLabelRow: {
       flexDirection: "row",
@@ -1015,7 +1028,7 @@ const createStyles = (
     input: {
       borderWidth: 1,
       borderColor: palette.border,
-      borderRadius: 8 * fontScale,
+      borderRadius: 12 * fontScale,
       paddingHorizontal: 12 * fontScale,
       paddingVertical: 10 * fontScale,
       color: palette.text,
@@ -1041,11 +1054,12 @@ const createStyles = (
       flexDirection: "row",
       alignItems: "center",
       gap: 4 * fontScale,
-      paddingHorizontal: 12 * fontScale,
-      paddingVertical: 8 * fontScale,
-      borderRadius: 20 * fontScale,
+      paddingHorizontal: 14 * fontScale,
+      paddingVertical: 9 * fontScale,
+      borderRadius: 999 * fontScale,
       borderWidth: 1,
       borderColor: palette.border,
+      backgroundColor: palette.card,
     },
     chipActive: {
       backgroundColor: palette.primary,
@@ -1057,10 +1071,11 @@ const createStyles = (
       justifyContent: "center",
       paddingHorizontal: 20 * fontScale,
       paddingVertical: 12 * fontScale,
-      borderRadius: 24 * fontScale,
-      borderWidth: 2,
+      borderRadius: 14 * fontScale,
+      borderWidth: 1,
       borderColor: palette.border,
       minWidth: 80 * fontScale,
+      backgroundColor: palette.card,
     },
     toggleButtonActive: {
       backgroundColor: palette.primary,
@@ -1083,7 +1098,7 @@ const createStyles = (
     },
     timePickerOverlay: {
       flex: 1,
-      backgroundColor: "rgba(0,0,0,0.5)",
+      backgroundColor: "rgba(0,0,0,0.58)",
       justifyContent: "flex-end",
     },
     modalCard: {
@@ -1095,13 +1110,24 @@ const createStyles = (
     },
     timePickerModal: {
       backgroundColor: palette.card,
-      borderTopLeftRadius: 20 * fontScale,
-      borderTopRightRadius: 20 * fontScale,
-      paddingTop: 8 * fontScale,
+      borderTopLeftRadius: 24 * fontScale,
+      borderTopRightRadius: 24 * fontScale,
+      paddingTop: 6 * fontScale,
       paddingBottom: 20 * fontScale,
       borderWidth: 1,
       borderColor: palette.border,
       borderBottomWidth: 0,
+    },
+    timePickerHandleWrap: {
+      alignItems: "center",
+      paddingTop: 4 * fontScale,
+      paddingBottom: 4 * fontScale,
+    },
+    timePickerHandle: {
+      width: 40 * fontScale,
+      height: 5 * fontScale,
+      borderRadius: 999,
+      backgroundColor: palette.border,
     },
     timePickerHeader: {
       flexDirection: "row",

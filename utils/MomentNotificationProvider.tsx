@@ -26,6 +26,8 @@ import type {
 const MOMENT_NUDGE_PREFIX = 'moment_nudge_';
 /** Max one-time notifications per schedule (iOS allows ~64 total; we may have multiple schedules) */
 const NOTIFICATIONS_PER_SCHEDULE = 20;
+const DEFAULT_ACTIVE_START_TIME = '10:00';
+const DEFAULT_ACTIVE_END_TIME = '19:00';
 
 const STORAGE_KEY_SUMMARIES = '@sferas:moment_notification_summaries';
 const STORAGE_KEY_SCHEDULES = '@sferas:moment_notification_schedules';
@@ -58,6 +60,123 @@ function generateId(): string {
   return `mn_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }
 
+function parseTimeToMinutes(time: string, fallbackMinutes: number): number {
+  const [hourRaw, minuteRaw] = time.split(':');
+  const hours = Number.parseInt(hourRaw ?? '', 10);
+  const minutes = Number.parseInt(minuteRaw ?? '', 10);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return fallbackMinutes;
+  const boundedHours = Math.max(0, Math.min(23, hours));
+  const boundedMinutes = Math.max(0, Math.min(59, minutes));
+  return boundedHours * 60 + boundedMinutes;
+}
+
+function formatMinutesToTime(totalMinutes: number): string {
+  const normalized = ((totalMinutes % 1440) + 1440) % 1440;
+  const hours = Math.floor(normalized / 60).toString().padStart(2, '0');
+  const minutes = (normalized % 60).toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+function normalizeSchedule(
+  schedule: MomentNotificationSchedule
+): MomentNotificationSchedule {
+  const migratedSource = schedule.source === 'user' ? 'moments' : schedule.source;
+  const frequencyMode = schedule.frequencyMode === 'specific_times' ? 'specific_times' : 'interval';
+  const activeStart = schedule.activeStartTime ?? DEFAULT_ACTIVE_START_TIME;
+  const activeEnd = schedule.activeEndTime ?? DEFAULT_ACTIVE_END_TIME;
+  const uniqueSpecificTimes = Array.from(
+    new Set((schedule.specificTimes ?? []).map((time) => formatMinutesToTime(parseTimeToMinutes(time, 600))))
+  );
+  uniqueSpecificTimes.sort((a, b) => parseTimeToMinutes(a, 0) - parseTimeToMinutes(b, 0));
+  return {
+    ...schedule,
+    source: migratedSource,
+    frequencyMode,
+    activeStartTime: formatMinutesToTime(parseTimeToMinutes(activeStart, 600)),
+    activeEndTime: formatMinutesToTime(parseTimeToMinutes(activeEnd, 1140)),
+    specificTimes: uniqueSpecificTimes,
+    soundEnabled: schedule.soundEnabled !== false,
+  };
+}
+
+function generateIntervalTriggerDates(
+  schedule: MomentNotificationSchedule,
+  now: Date,
+  count: number
+): Date[] {
+  const startMinutes = parseTimeToMinutes(schedule.activeStartTime ?? DEFAULT_ACTIVE_START_TIME, 600);
+  const endMinutes = parseTimeToMinutes(schedule.activeEndTime ?? DEFAULT_ACTIVE_END_TIME, 1140);
+  const stepMinutes = Math.max(1, (schedule.frequencyHours || 1) * (__DEV__ ? 1 : 60));
+  const dates: Date[] = [];
+  const cursor = new Date(now);
+  cursor.setSeconds(0, 0);
+
+  for (let dayOffset = 0; dayOffset < 120 && dates.length < count; dayOffset++) {
+    const day = new Date(cursor);
+    day.setDate(cursor.getDate() + dayOffset);
+
+    const start = new Date(day);
+    start.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+    const end = new Date(day);
+    end.setHours(Math.floor(endMinutes / 60), endMinutes % 60, 0, 0);
+
+    if (end < start) {
+      end.setDate(end.getDate() + 1);
+    }
+
+    const slots: Date[] = [];
+    for (
+      const slot = new Date(start);
+      slot <= end;
+      slot.setMinutes(slot.getMinutes() + stepMinutes)
+    ) {
+      slots.push(new Date(slot));
+      if (slots.length > 64) break;
+    }
+
+    // If interval is longer than the active window, still schedule one nudge at start.
+    if (slots.length === 0) {
+      slots.push(start);
+    }
+
+    for (const slot of slots) {
+      if (slot > now) dates.push(slot);
+      if (dates.length >= count) break;
+    }
+  }
+
+  return dates;
+}
+
+function generateSpecificTimeTriggerDates(
+  schedule: MomentNotificationSchedule,
+  now: Date,
+  count: number
+): Date[] {
+  const specificTimes = (schedule.specificTimes ?? [])
+    .map((time) => formatMinutesToTime(parseTimeToMinutes(time, 600)))
+    .sort((a, b) => parseTimeToMinutes(a, 0) - parseTimeToMinutes(b, 0));
+  if (specificTimes.length === 0) return [];
+
+  const dates: Date[] = [];
+  const cursor = new Date(now);
+  cursor.setSeconds(0, 0);
+
+  for (let dayOffset = 0; dayOffset < 120 && dates.length < count; dayOffset++) {
+    const day = new Date(cursor);
+    day.setDate(cursor.getDate() + dayOffset);
+    for (const time of specificTimes) {
+      const minutes = parseTimeToMinutes(time, 600);
+      const slot = new Date(day);
+      slot.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+      if (slot > now) dates.push(slot);
+      if (dates.length >= count) break;
+    }
+  }
+
+  return dates;
+}
+
 export function MomentNotificationProvider({ children }: { children: React.ReactNode }) {
   const [summaries, setSummaries] = useState<MomentNotificationSummary[]>([]);
   const [schedules, setSchedules] = useState<MomentNotificationSchedule[]>([]);
@@ -77,13 +196,10 @@ export function MomentNotificationProvider({ children }: { children: React.React
         }
         if (schedulesRaw) {
           const parsed = JSON.parse(schedulesRaw) as MomentNotificationSchedule[];
-          const migrated = parsed.map((s) => {
-            if (s.source === 'user') return { ...s, source: 'moments' as const };
-            return s;
-          });
+          const migrated = parsed.map(normalizeSchedule);
           setSchedules(migrated);
         }
-      } catch (_) {
+      } catch {
         // ignore
       } finally {
         setIsLoaded(true);
@@ -171,11 +287,11 @@ export function MomentNotificationProvider({ children }: { children: React.React
 
   const addSchedule = useCallback(
     async (schedule: Omit<MomentNotificationSchedule, 'id' | 'createdAt'>): Promise<MomentNotificationSchedule> => {
-      const created: MomentNotificationSchedule = {
+      const created = normalizeSchedule({
         ...schedule,
         id: generateId(),
         createdAt: new Date().toISOString(),
-      };
+      });
       const next = [...schedules, created];
       await persistSchedules(next);
       return created;
@@ -185,7 +301,8 @@ export function MomentNotificationProvider({ children }: { children: React.React
 
   const updateSchedule = useCallback(
     async (schedule: MomentNotificationSchedule) => {
-      const next = schedules.map((s) => (s.id === schedule.id ? { ...schedule } : s));
+      const normalized = normalizeSchedule(schedule);
+      const next = schedules.map((s) => (s.id === schedule.id ? normalized : s));
       await persistSchedules(next);
     },
     [schedules, persistSchedules]
@@ -377,10 +494,7 @@ export function MomentNotificationProvider({ children }: { children: React.React
         ]);
         if (schedulesRaw) {
           const parsed = JSON.parse(schedulesRaw) as MomentNotificationSchedule[];
-          const migrated = parsed.map((s) => {
-            if (s.source === 'user') return { ...s, source: 'moments' as const };
-            return s;
-          });
+          const migrated = parsed.map(normalizeSchedule);
           schedulesToUse = migrated;
         }
         if (summariesRaw) summariesToUse = JSON.parse(summariesRaw) as MomentNotificationSummary[];
@@ -389,7 +503,6 @@ export function MomentNotificationProvider({ children }: { children: React.React
       const enabled = schedulesToUse.filter((s) => s.enabled);
       const { status } = await Notifications.getPermissionsAsync();
       if (status !== 'granted') return;
-      const minSeconds = __DEV__ ? 60 : 3600;
       const aiEnabled = await isAIInsightsEnabled();
       const canUseAI = hasAIEntitlement && aiEnabled;
       for (const schedule of enabled) {
@@ -423,9 +536,13 @@ export function MomentNotificationProvider({ children }: { children: React.React
           await persistSchedules(disabledList);
           continue;
         }
-        const seconds = __DEV__
-          ? 60 * Math.max(1, schedule.frequencyHours)
-          : Math.max(minSeconds, 3600 * schedule.frequencyHours);
+        const triggerDates =
+          schedule.frequencyMode === 'specific_times'
+            ? generateSpecificTimeTriggerDates(schedule, new Date(), NOTIFICATIONS_PER_SCHEDULE)
+            : generateIntervalTriggerDates(schedule, new Date(), NOTIFICATIONS_PER_SCHEDULE);
+        if (triggerDates.length === 0) {
+          continue;
+        }
 
         // Pick random body for each notification to avoid sending the same nudge twice.
         // When 2+ messages exist, exclude the previous pick to avoid back-to-back repeats.
@@ -435,17 +552,17 @@ export function MomentNotificationProvider({ children }: { children: React.React
         };
 
         let prevBody: string | undefined;
-        for (let i = 0; i < NOTIFICATIONS_PER_SCHEDULE; i++) {
+        for (let i = 0; i < triggerDates.length; i++) {
           const body = pickRandom(prevBody);
           prevBody = body;
-          const triggerDate = new Date(Date.now() + (i + 1) * seconds * 1000);
+          const triggerDate = triggerDates[i];
           await Notifications.scheduleNotificationAsync({
             identifier: `${MOMENT_NUDGE_PREFIX}${schedule.id}_${i}`,
             content: {
               title: 'Sferas',
               body,
               data: { type: 'moment_nudge', scheduleId: schedule.id },
-              sound: true,
+              sound: schedule.soundEnabled === false ? undefined : 'default',
             },
             trigger: {
               type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -454,7 +571,7 @@ export function MomentNotificationProvider({ children }: { children: React.React
           });
         }
       }
-    } catch (_) {
+    } catch {
       // ignore
     }
   }, [schedules, summaries, idealizedMemories, hasAIEntitlement, persistSchedules]);

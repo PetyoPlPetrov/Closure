@@ -927,6 +927,8 @@ export interface Translations {
   "momentNotifications.sphere.hobbies": string;
   "momentNotifications.momentType.lesson": string;
   "momentNotifications.momentType.sunny": string;
+  "momentNotifications.momentType.lessonPlural": string;
+  "momentNotifications.momentType.sunnyPlural": string;
   "momentNotifications.source.moments": string;
   "momentNotifications.source.momentsHint": string;
   "momentNotifications.source.myLessons": string;
@@ -945,8 +947,18 @@ export interface Translations {
   "momentNotifications.sphereLabel": string;
   "momentNotifications.momentTypeLabel": string;
   "momentNotifications.frequencyLabel": string;
+  "momentNotifications.frequencyMode.interval": string;
+  "momentNotifications.frequencyMode.specificHours": string;
   "momentNotifications.frequencyCustom": string;
   "momentNotifications.frequencyCustomPlaceholder": string;
+  "momentNotifications.startHour": string;
+  "momentNotifications.endHour": string;
+  "momentNotifications.intervalRangeHint": string;
+  "momentNotifications.atHours": string;
+  "momentNotifications.addHour": string;
+  "momentNotifications.specificHoursHint": string;
+  "momentNotifications.specificHoursRequired": string;
+  "momentNotifications.specificHoursEmpty": string;
   "momentNotifications.sourceLabel": string;
   "momentNotifications.userMessagesLabel": string;
   "momentNotifications.userMessagePlaceholder": string;
@@ -959,6 +971,7 @@ export interface Translations {
   "momentNotifications.generateEmpty": string;
   "momentNotifications.generateEmptyMessage": string;
   "momentNotifications.scheduleCreated": string;
+  "momentNotifications.scheduleUpdated": string;
   "momentNotifications.noMomentsWarning": string;
 
   // Onboarding
@@ -5010,6 +5023,8 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.sphere.hobbies": "Hobbies",
     "momentNotifications.momentType.lesson": "Lesson",
     "momentNotifications.momentType.sunny": "Sunny moment",
+    "momentNotifications.momentType.lessonPlural": "Lessons",
+    "momentNotifications.momentType.sunnyPlural": "Sunny moments",
     "momentNotifications.source.moments": "My moments",
     "momentNotifications.source.momentsHint":
       "Notifications will use your lesson or sunny moment text from memories in this sphere.",
@@ -5035,8 +5050,21 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.sphereLabel": "Sphere",
     "momentNotifications.momentTypeLabel": "Moment type",
     "momentNotifications.frequencyLabel": "Frequency (hours)",
+    "momentNotifications.frequencyMode.interval": "Interval",
+    "momentNotifications.frequencyMode.specificHours": "Specific hours",
     "momentNotifications.frequencyCustom": "Custom",
     "momentNotifications.frequencyCustomPlaceholder": "Hours (1–168)",
+    "momentNotifications.startHour": "Start",
+    "momentNotifications.endHour": "End",
+    "momentNotifications.intervalRangeHint":
+      "Notifications are sent only inside this time range.",
+    "momentNotifications.atHours": "At",
+    "momentNotifications.addHour": "Add hour",
+    "momentNotifications.specificHoursHint":
+      "Add one or more exact hours. Nudges will be sent at these times every day.",
+    "momentNotifications.specificHoursRequired":
+      "Add at least one hour to save this schedule.",
+    "momentNotifications.specificHoursEmpty": "No specific hours selected",
     "momentNotifications.sourceLabel": "Notification message source",
     "momentNotifications.userMessagesLabel": "Your messages",
     "momentNotifications.userMessagePlaceholder":
@@ -5054,6 +5082,7 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.generateEmptyMessage":
       "No manual lessons without AI suggestions found.",
     "momentNotifications.scheduleCreated": "Schedule created successfully!",
+    "momentNotifications.scheduleUpdated": "Schedule updated successfully!",
     "momentNotifications.noMomentsWarning": "No moments available · notifications paused",
 
     // Onboarding
@@ -9770,6 +9799,8 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.sphere.hobbies": "Хобита",
     "momentNotifications.momentType.lesson": "Урок",
     "momentNotifications.momentType.sunny": "Слънчев момент",
+    "momentNotifications.momentType.lessonPlural": "Уроци",
+    "momentNotifications.momentType.sunnyPlural": "Слънчеви моменти",
     "momentNotifications.source.moments": "Моите моменти",
     "momentNotifications.source.momentsHint":
       "Известията ще използват текста на вашите уроци или слънчеви моменти от спомените в тази сфера.",
@@ -9795,8 +9826,21 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.sphereLabel": "Сфера",
     "momentNotifications.momentTypeLabel": "Тип момент",
     "momentNotifications.frequencyLabel": "Честота (часове)",
+    "momentNotifications.frequencyMode.interval": "Интервал",
+    "momentNotifications.frequencyMode.specificHours": "Конкретни часове",
     "momentNotifications.frequencyCustom": "Друго",
     "momentNotifications.frequencyCustomPlaceholder": "Часове (1–168)",
+    "momentNotifications.startHour": "Начало",
+    "momentNotifications.endHour": "Край",
+    "momentNotifications.intervalRangeHint":
+      "Известията се изпращат само в този часови диапазон.",
+    "momentNotifications.atHours": "В",
+    "momentNotifications.addHour": "Добави час",
+    "momentNotifications.specificHoursHint":
+      "Добавете един или повече точни часове. Напомнянията ще се изпращат по това време всеки ден.",
+    "momentNotifications.specificHoursRequired":
+      "Добавете поне един час, за да запазите това разписание.",
+    "momentNotifications.specificHoursEmpty": "Няма избрани конкретни часове",
     "momentNotifications.sourceLabel": "Източник на съдържание за известия",
     "momentNotifications.userMessagesLabel": "Ваши съобщения",
     "momentNotifications.userMessagePlaceholder":
@@ -9814,6 +9858,7 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.generateEmptyMessage":
       "Няма ръчни уроци без AI предложения.",
     "momentNotifications.scheduleCreated": "Разписанието е създадено успешно!",
+    "momentNotifications.scheduleUpdated": "Разписанието е обновено успешно!",
     "momentNotifications.noMomentsWarning": "Няма налични моменти · известията са спрени",
 
     // Onboarding
