@@ -215,6 +215,20 @@ export interface Translations {
   "streakRules.badge.titan.description": string;
   "streakRules.badge.immortal.name": string;
   "streakRules.badge.immortal.description": string;
+  "streakRules.badge.ignite.name": string;
+  "streakRules.badge.ignite.description": string;
+  "streakRules.badge.ignite.reward": string;
+  "streakRules.badge.pulse.name": string;
+  "streakRules.badge.pulse.description": string;
+  "streakRules.badge.pulse.reward": string;
+  "streakRules.badge.nova.name": string;
+  "streakRules.badge.nova.description": string;
+  "streakRules.badge.nova.reward": string;
+  "streakRules.badge.sferas.name": string;
+  "streakRules.badge.sferas.description": string;
+  "streakRules.badge.sferas.reward": string;
+  "streakRules.reminder.toggleTitle": string;
+  "streakRules.reminder.toggleDescription": string;
   "streak.badge.day": string;
   "streak.badge.days": string;
   "streak.modal.title": string;
@@ -4082,6 +4096,25 @@ const translations: Record<Language, Translations> = {
     "streakRules.badge.titan.description": "100-day milestone",
     "streakRules.badge.immortal.name": "Immortal",
     "streakRules.badge.immortal.description": "1 year champion",
+    "streakRules.badge.ignite.name": "Ignite",
+    "streakRules.badge.ignite.description": "Your first spark in the cosmos",
+    "streakRules.badge.ignite.reward": "Reward: starts your streak progression.",
+    "streakRules.badge.pulse.name": "Pulse",
+    "streakRules.badge.pulse.description": "Your rhythm is steady and alive",
+    "streakRules.badge.pulse.reward":
+      "Reward: unlocks Moment Colors editing without subscription.",
+    "streakRules.badge.nova.name": "Nova",
+    "streakRules.badge.nova.description": "A full week of radiant momentum",
+    "streakRules.badge.nova.reward":
+      "Reward: increases free entity limit per sfera from 2 to 5.",
+    "streakRules.badge.sferas.name": "Sferas",
+    "streakRules.badge.sferas.description":
+      "Earn 5 free AI requests and receive a special ticket for Sferas Plus/private events.",
+    "streakRules.badge.sferas.reward":
+      "Reward: increases free AI requests and free wheel/lesson checks from 3 to 5 per day.",
+    "streakRules.reminder.toggleTitle": "Mid-day badge reminder",
+    "streakRules.reminder.toggleDescription":
+      "When enabled, we remind you during the day to log a memory and keep your current badge benefits.",
     "streak.badge.day": "day",
     "streak.badge.days": "days",
     "streak.modal.title": "Your Streak 🔥",
@@ -5274,7 +5307,7 @@ const translations: Record<Language, Translations> = {
     "ai.closeConfirm.discard": "Discard",
     "ai.rateLimit.title": "AI Request Limit Reached",
     "ai.rateLimit.message":
-      "You've used your 3 free AI requests today. Upgrade to Premium for more.",
+      "You've used your free AI requests for today. Upgrade to Premium for more.",
     "ai.rateLimit.premiumMessage":
       "You've reached the daily limit. Try again tomorrow.",
     "ai.rateLimit.upgrade": "Upgrade to Premium",
@@ -8855,6 +8888,26 @@ const translations: Record<Language, Translations> = {
     "streakRules.badge.titan.description": "100-дневна постижение",
     "streakRules.badge.immortal.name": "Безсмъртен",
     "streakRules.badge.immortal.description": "1 година шампион",
+    "streakRules.badge.ignite.name": "Искра",
+    "streakRules.badge.ignite.description": "Първата ти космическа искра",
+    "streakRules.badge.ignite.reward":
+      "Награда: стартира прогреса на поредицата ти.",
+    "streakRules.badge.pulse.name": "Пулс",
+    "streakRules.badge.pulse.description": "Ритъмът ти е постоянен и жив",
+    "streakRules.badge.pulse.reward":
+      "Награда: отключва редакция на Цветовете на моменти без абонамент.",
+    "streakRules.badge.nova.name": "Нова",
+    "streakRules.badge.nova.description": "Цяла седмица сияен напредък",
+    "streakRules.badge.nova.reward":
+      "Награда: увеличава безплатния лимит за обекти в сфера от 2 на 5.",
+    "streakRules.badge.sferas.name": "Сферас",
+    "streakRules.badge.sferas.description":
+      "Печелиш 5 безплатни AI заявки и специален билет за Sferas Plus/частни събития.",
+    "streakRules.badge.sferas.reward":
+      "Награда: увеличава безплатните AI заявки и безплатните wheel/lesson проверки от 3 на 5 за ден.",
+    "streakRules.reminder.toggleTitle": "Напомняне по средата на деня",
+    "streakRules.reminder.toggleDescription":
+      "Когато е включено, ще получаваш дневно напомняне да запишеш спомен и да запазиш ползите от текущата значка.",
     "streak.badge.day": "ден",
     "streak.badge.days": "дни",
     "streak.modal.title": "Вашата Поредица 🔥",
@@ -10056,7 +10109,7 @@ const translations: Record<Language, Translations> = {
       "Необходимо е разрешение за достъп до галерията, за да добавите снимки.",
     "ai.rateLimit.title": "Достигнат лимит за AI заявки",
     "ai.rateLimit.message":
-      "Използвахте 3-те си безплатни AI заявки за днес. Надградете до Premium за повече.",
+      "Използвахте безплатните си AI заявки за днес. Надградете до Premium за повече.",
     "ai.rateLimit.premiumMessage":
       "Достигнахте дневния лимит. Опитайте отново утре.",
     "ai.rateLimit.upgrade": "Надграждане до Premium",

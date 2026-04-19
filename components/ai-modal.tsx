@@ -19,7 +19,6 @@ import {
 import {
   consumeAIRequestIfAvailable,
   getRemainingAIRequests,
-  REQUESTS_PER_DAY_FREE,
   REQUESTS_PER_DAY_PREMIUM,
 } from "@/utils/ai-rate-limiter";
 import { processMemoryPrompt, type AIMemoryResponse } from "@/utils/ai-service";
@@ -36,6 +35,8 @@ import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useMomentNotifications } from "@/utils/MomentNotificationProvider";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
+import { getFreeAIDailyLimit } from "@/utils/badge-rewards";
+import { subscribeBadgeRewardsChanged } from "@/utils/badge-rewards-events";
 import { cancelEventMemoryReminders } from "@/utils/event-memory-reminders";
 import {
   clearEventReminderInAppForEvent,
@@ -183,6 +184,7 @@ export function AIModal({
   const [remainingAIRequests, setRemainingAIRequests] = useState<number | null>(
     null,
   );
+  const [freeAIDailyLimit, setFreeAIDailyLimit] = useState(3);
 
   // Wrapper for setText that enforces max length limit
   const setInputTextWithLimit = (text: string) => {
@@ -357,10 +359,20 @@ export function AIModal({
     }
   }, [visible, pendingResponse]);
 
-  // Fetch remaining free AI memory creations when modal is open on input view (not golden event)
+  // Fetch remaining free AI memory creations when modal is open on input view (not golden event).
+  // Also subscribe to badge changes so the displayed limit/remaining updates the moment a memory
+  // pushes the user across the Sferas threshold while the modal is still open.
   useEffect(() => {
     if (visible && currentView === "input" && !goldenEventId) {
-      getRemainingAIRequests(hasAIEntitlement).then(setRemainingAIRequests);
+      const refresh = () => {
+        getRemainingAIRequests(hasAIEntitlement).then(setRemainingAIRequests);
+        if (!hasAIEntitlement) {
+          getFreeAIDailyLimit().then(setFreeAIDailyLimit);
+        }
+      };
+      refresh();
+      const unsubscribe = subscribeBadgeRewardsChanged(refresh);
+      return unsubscribe;
     } else if (!visible) {
       setRemainingAIRequests(null);
     }
@@ -787,7 +799,8 @@ export function AIModal({
     const isGoldenEventAccess = Boolean(goldenEventId);
 
     if (!isGoldenEventAccess) {
-      // Enforce 3/day for free, 30/day for Sfera AI (memory + entity creation share pool). Atomic consume to avoid race.
+      // Enforce free-tier daily limit (3 by default, 5 with Sferas badge) and 30/day for Sfera AI.
+      // Memory + entity creation share one pool. Atomic consume avoids race conditions.
       const consumed = await consumeAIRequestIfAvailable(hasAIEntitlement);
       if (!consumed) {
         if (!hasAIEntitlement) {
@@ -1234,6 +1247,7 @@ export function AIModal({
       await logAIMemorySaved(finalSphere, false, memoryItems.length);
 
       // Count AI-created memories toward streak/badges (same as manual creation).
+      // This is what keeps/earns badges for AI modal saves too.
       // Don't block the save flow if streak update fails.
       try {
         const streakResult = await updateStreakOnMemoryCreation();
@@ -1243,13 +1257,13 @@ export function AIModal({
         if (streakResult.newBadges.length > 0) {
           const badge = streakResult.newBadges[0];
           const emoji =
-            badge.daysRequired >= 100
-              ? "👑"
-              : badge.daysRequired >= 30
-                ? "🏆"
-                : badge.daysRequired >= 7
-                  ? "🌟"
-                  : "🔥";
+            badge.daysRequired >= 14
+              ? "🏆"
+              : badge.daysRequired >= 7
+                ? "🌟"
+                : badge.daysRequired >= 3
+                  ? "🔥"
+                  : "✨";
 
           showNotification({
             title: "New Badge Unlocked!",
@@ -1260,13 +1274,13 @@ export function AIModal({
         } else if (streakResult.newMilestones.length > 0) {
           const milestone = streakResult.newMilestones[0];
           const emoji =
-            milestone >= 100
-              ? "👑"
-              : milestone >= 30
-                ? "🏆"
-                : milestone >= 7
-                  ? "🌟"
-                  : "🔥";
+            milestone >= 14
+              ? "🏆"
+              : milestone >= 7
+                ? "🌟"
+                : milestone >= 3
+                  ? "🔥"
+                  : "✨";
 
           showNotification({
             title: `${milestone}-day streak!`,
@@ -1276,9 +1290,7 @@ export function AIModal({
           });
         } else if (streakResult.streakIncreased || streakResult.isFirstMemory) {
           const emoji =
-            currentStreak >= 30
-              ? "👑"
-              : currentStreak >= 14
+            currentStreak >= 14
                 ? "🏆"
                 : currentStreak >= 7
                   ? "⭐"
@@ -1294,7 +1306,7 @@ export function AIModal({
               "You're on day 1! Keep creating memories daily to build your streak.";
           } else if (currentStreak === 2) {
             title = "Great start!";
-            message = "2 days in a row! One more day until your Flame badge.";
+            message = "2 days in a row! One more day until your Pulse badge.";
           } else {
             title = `${currentStreak}-day streak!`;
             message = `Amazing! You've created memories for ${currentStreak} days in a row. Keep it up!`;
@@ -2078,7 +2090,7 @@ export function AIModal({
                               String(
                                 hasAIEntitlement
                                   ? REQUESTS_PER_DAY_PREMIUM
-                                  : REQUESTS_PER_DAY_FREE,
+                                  : freeAIDailyLimit,
                               ),
                             )}
                         </ThemedText>
@@ -2332,7 +2344,7 @@ export function AIModal({
                             String(
                               hasAIEntitlement
                                 ? REQUESTS_PER_DAY_PREMIUM
-                                : REQUESTS_PER_DAY_FREE,
+                                : freeAIDailyLimit,
                             ),
                           )}
                       </ThemedText>

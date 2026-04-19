@@ -453,7 +453,8 @@ export function AIEntityCreationModal({
         selectedSphere,
       )
     ) {
-      // Enforce 3/day for free, 30/day for Sfera AI (memory + entity creation share pool). Atomic consume to avoid race.
+      // Enforce free-tier daily limit (3 by default, 5 with Sferas badge) and 30/day for Sfera AI.
+      // Memory + entity creation share one pool. Atomic consume avoids race conditions.
       const consumed = await consumeAIRequestIfAvailable(hasAIEntitlement);
       if (!consumed) {
         if (!hasAIEntitlement) {

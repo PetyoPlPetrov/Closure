@@ -3,13 +3,19 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { notifyBadgeRewardsChanged } from './badge-rewards-events';
 import { STORAGE_KEY, STREAK_BADGES, STREAK_MILESTONES, type StreakBadge, type StreakData } from './streak-types';
+
+const STREAK_LOG_LOOKBACK_DAYS = 30;
 
 /**
  * Get local date string in YYYY-MM-DD format
  */
 export function getLocalDateString(date: Date = new Date()): string {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -67,8 +73,15 @@ export async function saveStreakData(data: StreakData): Promise<void> {
 }
 
 /**
- * Calculate consecutive days from the end of the log dates array
- * Counts backwards from today/last logged date to find longest consecutive streak
+ * Calculate consecutive days from the end of the log dates array.
+ *
+ * Lenient rule (grace period of one day):
+ * - If today is logged → chain starts at today.
+ * - Else if yesterday is logged → chain starts at yesterday. The user still has
+ *   the rest of today to log a memory and grow the chain. They only lose the
+ *   streak when the day after the last log has fully passed without a log
+ *   (i.e. when neither today nor yesterday is in the log).
+ * - Else → chain is broken, returns 0.
  */
 export function calculateConsecutiveDays(memoryLogDates: string[]): number {
   if (!memoryLogDates || memoryLogDates.length === 0) {
@@ -77,38 +90,47 @@ export function calculateConsecutiveDays(memoryLogDates: string[]): number {
 
   // Sort dates in descending order (most recent first)
   const sortedDates = [...memoryLogDates].sort((a, b) => b.localeCompare(a));
+  const datesSet = new Set(sortedDates);
 
   const today = getLocalDateString();
+  const yesterday = getLocalDateString(subtractDays(new Date(), 1));
+
+  let expectedDate: string;
+  if (datesSet.has(today)) {
+    expectedDate = today;
+  } else if (datesSet.has(yesterday)) {
+    // Grace period: today not yet logged but yesterday was — keep the streak alive.
+    expectedDate = yesterday;
+  } else {
+    return 0;
+  }
+
   let consecutiveDays = 0;
-  let expectedDate = today;
-
-  // Start from today and count backwards
-  for (let i = 0; i < sortedDates.length; i++) {
-    const currentDate = sortedDates[i];
-
+  for (const currentDate of sortedDates) {
     if (currentDate === expectedDate) {
       consecutiveDays++;
-      // Move expected date back by one day
       const date = new Date(expectedDate);
       date.setDate(date.getDate() - 1);
       expectedDate = getLocalDateString(date);
-    } else {
+    } else if (currentDate < expectedDate) {
       // Gap found - stop counting
       break;
     }
+    // currentDate > expectedDate is unreachable given the start logic above
+    // (we always start at the most recent valid anchor), but skip silently if it ever happens.
   }
 
   return consecutiveDays;
 }
 
 /**
- * Get dates from last 7 days (including today)
+ * Get dates from the last N days (including today)
  */
-export function getLast7Days(): string[] {
+export function getRecentDays(days: number): string[] {
   const dates: string[] = [];
   const today = new Date();
 
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < days; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
     dates.push(getLocalDateString(date));
@@ -118,11 +140,11 @@ export function getLast7Days(): string[] {
 }
 
 /**
- * Filter memory log dates to only include last 7 days
+ * Filter memory log dates to only include the last N days
  */
-export function filterLast7Days(memoryLogDates: string[]): string[] {
-  const last7Days = getLast7Days();
-  return memoryLogDates.filter(date => last7Days.includes(date));
+export function filterRecentDays(memoryLogDates: string[], days: number): string[] {
+  const recentDays = new Set(getRecentDays(days));
+  return memoryLogDates.filter(date => recentDays.has(date));
 }
 
 /**
@@ -172,8 +194,8 @@ function checkNewBadges(newStreak: number, existingBadges: string[]): string[] {
 }
 
 /**
- * Update streak when a new memory is created
- * Uses rolling 7-day window: badge reflects consecutive days in last 7 days
+ * Update streak when a new memory is created.
+ * Active badge always reflects the current consecutive streak ending today.
  */
 export async function updateStreakOnMemoryCreation(): Promise<{
   data: StreakData;
@@ -198,16 +220,20 @@ export async function updateStreakOnMemoryCreation(): Promise<{
   }
 
   const isFirstMemory = !streakData.memoryLogDates || streakData.memoryLogDates.length === 0;
+  const previousRecentLogDates = filterRecentDays(
+    streakData.memoryLogDates || [],
+    STREAK_LOG_LOOKBACK_DAYS,
+  );
+  const previousStreak = calculateConsecutiveDays(previousRecentLogDates);
 
   // Add today to memory log dates
   const updatedLogDates = [...(streakData.memoryLogDates || []), today];
 
-  // Keep only last 7 days of data (rolling window)
-  const last7DaysData = filterLast7Days(updatedLogDates);
+  // Keep only recent dates to avoid unbounded growth while still allowing 14+ day streak tracking.
+  const recentLogDates = filterRecentDays(updatedLogDates, STREAK_LOG_LOOKBACK_DAYS);
 
-  // Calculate consecutive days from the filtered data
-  const previousStreak = streakData.currentStreak;
-  const newStreak = calculateConsecutiveDays(last7DaysData);
+  // Calculate consecutive days from recent data
+  const newStreak = calculateConsecutiveDays(recentLogDates);
   const streakIncreased = newStreak > previousStreak;
 
   // Determine current badge based on new streak
@@ -237,15 +263,17 @@ export async function updateStreakOnMemoryCreation(): Promise<{
     currentStreak: newStreak,
     longestStreak: newLongestStreak,
     lastLoggedDate: today,
-    streakStartDate: streakData.streakStartDate || today,
+    streakStartDate: newStreak <= 1 ? today : (streakData.streakStartDate || today),
     totalDaysLogged: (streakData.totalDaysLogged || 0) + 1,
-    memoryLogDates: last7DaysData, // Store only last 7 days
+    memoryLogDates: recentLogDates,
     currentBadge: currentBadge?.id || null,
     milestones: newMilestonesArray,
     earnedBadges: newEarnedBadges,
   };
 
   await saveStreakData(newStreakData);
+  // Streak just changed → notify reward consumers (moment colors, AI/exam limits, etc.) so they refresh immediately.
+  notifyBadgeRewardsChanged();
 
   return {
     data: newStreakData,
@@ -257,21 +285,27 @@ export async function updateStreakOnMemoryCreation(): Promise<{
 }
 
 /**
- * Recalculate streak based on current rolling 7-day window
+ * Recalculate streak based on recent stored logs
  * Call this when app opens to update badge if days have passed
  */
 export async function recalculateStreak(): Promise<StreakData> {
   const streakData = await getStreakData();
 
-  // Filter to only last 7 days
-  const last7DaysData = filterLast7Days(streakData.memoryLogDates || []);
+  // Filter to only recent days
+  const recentLogDates = filterRecentDays(
+    streakData.memoryLogDates || [],
+    STREAK_LOG_LOOKBACK_DAYS,
+  );
 
   // Recalculate consecutive days
-  const newStreak = calculateConsecutiveDays(last7DaysData);
+  const newStreak = calculateConsecutiveDays(recentLogDates);
   const currentBadge = getBadgeForStreak(newStreak);
 
   // Update streak data if changed
-  if (newStreak !== streakData.currentStreak || last7DaysData.length !== streakData.memoryLogDates?.length) {
+  if (
+    newStreak !== streakData.currentStreak ||
+    recentLogDates.length !== streakData.memoryLogDates?.length
+  ) {
     // Ensure earnedBadges is computed based on longestStreak
     const previousEarnedBadges = streakData.earnedBadges || [];
     const updatedEarnedBadges = checkNewBadges(streakData.longestStreak || 0, previousEarnedBadges);
@@ -279,12 +313,14 @@ export async function recalculateStreak(): Promise<StreakData> {
     const updatedData: StreakData = {
       ...streakData,
       currentStreak: newStreak,
-      memoryLogDates: last7DaysData,
+      memoryLogDates: recentLogDates,
       currentBadge: currentBadge?.id || null,
       earnedBadges: updatedEarnedBadges,
     };
 
     await saveStreakData(updatedData);
+    // Day rolled over or pruning happened → reward state may have changed.
+    notifyBadgeRewardsChanged();
 
     return updatedData;
   }
@@ -293,16 +329,19 @@ export async function recalculateStreak(): Promise<StreakData> {
 }
 
 /**
- * Check if streak is at risk (no log today)
+ * Check if streak is at risk (alive via grace, but today not yet logged).
+ * Uses a fresh recompute so it stays correct even if stored `currentStreak`
+ * has not been refreshed since midnight.
  */
 export async function isStreakAtRisk(): Promise<boolean> {
   const today = getLocalDateString();
   const streakData = await getStreakData();
-
-  // Streak is at risk if:
-  // 1. Current streak is > 0
-  // 2. Haven't logged today
-  return streakData.currentStreak > 0 && streakData.lastLoggedDate !== today;
+  const recentLogDates = filterRecentDays(
+    streakData.memoryLogDates || [],
+    STREAK_LOG_LOOKBACK_DAYS,
+  );
+  const liveStreak = calculateConsecutiveDays(recentLogDates);
+  return liveStreak > 0 && !recentLogDates.includes(today);
 }
 
 /**

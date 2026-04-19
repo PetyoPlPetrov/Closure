@@ -11,6 +11,7 @@ import {
   type MomentColorSet,
 } from "@/utils/MomentColorsProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
+import { canUseMomentColorEditingWithoutSubscription } from "@/utils/badge-rewards";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -676,8 +677,9 @@ export default function MomentColorsScreen() {
 
   const handleSave = useCallback(
     async (key: keyof MomentColors) => {
-      // Show paywall only if no subscription (Plus or AI both allow saving)
-      if (!isSubscribed) {
+      // Allow saves for subscribers or users with active Pulse+ streak badge.
+      const hasBadgeAccess = await canUseMomentColorEditingWithoutSubscription();
+      if (!isSubscribed && !hasBadgeAccess) {
         const purchased = await showPaywallForAnySubscriptionAccess();
         if (!purchased) return;
       }

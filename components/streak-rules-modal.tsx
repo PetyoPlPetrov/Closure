@@ -1,16 +1,22 @@
 /**
  * Streak Rules Modal
- * Explains how the rolling 7-day streak system works
+ * Explains how active streak badges and rewards work
  */
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTranslate } from '@/utils/languages/use-translate';
+import {
+  getStreakBadgeBenefitReminderEnabled,
+  setStreakBadgeBenefitReminderEnabled,
+} from '@/utils/streak-badge-reminder-preference';
+import { refreshStreakNotifications } from '@/utils/streak-notifications';
+import { recalculateStreak } from '@/utils/streak-manager';
 import { STREAK_BADGES } from '@/utils/streak-types';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 interface StreakRulesModalProps {
@@ -22,10 +28,31 @@ export const StreakRulesModal = React.memo(function StreakRulesModal({ visible, 
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const t = useTranslate();
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [badgeReminderEnabled, setBadgeReminderEnabled] = useState(true);
   
   // Helper function to get badge translation key
   const getBadgeNameKey = (badgeId: string) => `streakRules.badge.${badgeId}.name` as const;
   const getBadgeDescriptionKey = (badgeId: string) => `streakRules.badge.${badgeId}.description` as const;
+  const getBadgeRewardKey = (badgeId: string) => `streakRules.badge.${badgeId}.reward` as const;
+
+  useEffect(() => {
+    if (!visible) return;
+    let mounted = true;
+
+    void Promise.all([
+      recalculateStreak(),
+      getStreakBadgeBenefitReminderEnabled(),
+    ]).then(([streakData, reminderEnabled]) => {
+      if (!mounted) return;
+      setCurrentStreak(streakData.currentStreak || 0);
+      setBadgeReminderEnabled(reminderEnabled);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [visible]);
 
   return (
     <Modal
@@ -56,42 +83,92 @@ export const StreakRulesModal = React.memo(function StreakRulesModal({ visible, 
               {t('streakRules.badges.subtitle')}
             </ThemedText>
 
-            {STREAK_BADGES.map((badge) => (
-              <View key={badge.id} style={[styles.badgeRow, { borderBottomColor: colors.border }]}>
-                <LinearGradient
-                  colors={badge.colorGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.badgeIcon}
+            {STREAK_BADGES.map((badge) => {
+              const isEarned = currentStreak >= badge.daysRequired;
+              return (
+                <View
+                  key={badge.id}
+                  style={[
+                    styles.badgeRow,
+                    {
+                      borderBottomColor: colors.border,
+                      opacity: isEarned ? 1 : 0.45,
+                    },
+                  ]}
                 >
-                  <ThemedText size="lg" style={styles.badgeRowEmoji}>
-                    {badge.emoji}
-                  </ThemedText>
-                </LinearGradient>
-                <View style={styles.badgeInfo}>
-                  <View style={styles.badgeHeader}>
-                    <ThemedText size="md" weight="bold">
-                      {t(getBadgeNameKey(badge.id))}
-                    </ThemedText>
-                    <View style={[styles.rarityBadge, {
-                      backgroundColor: badge.rarity === 'legendary' ? '#9C27B0' :
-                                       badge.rarity === 'epic' ? '#FF6B6B' :
-                                       badge.rarity === 'rare' ? '#4CAF50' : '#64B5F6'
-                    }]}>
-                      <ThemedText size="xs" style={styles.rarityText}>
-                        {t(`streakRules.rarity.${badge.rarity}` as const)}
+                  <View style={styles.badgeIconWrap}>
+                    <LinearGradient
+                      colors={badge.colorGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.badgeIcon}
+                    >
+                      <ThemedText size="lg" style={styles.badgeRowEmoji}>
+                        {badge.emoji}
                       </ThemedText>
+                    </LinearGradient>
+                    <View style={styles.badgeStatusIcon}>
+                      <MaterialIcons
+                        name={isEarned ? "check-circle" : "lock-outline"}
+                        size={15}
+                        color={isEarned ? colors.primary : colors.textSecondary}
+                      />
                     </View>
                   </View>
-                  <ThemedText size="sm" style={{ color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary, marginTop: 2 }}>
-                    {t(getBadgeDescriptionKey(badge.id))}
-                  </ThemedText>
-                  <ThemedText size="xs" weight="semibold" style={{ marginTop: 4, color: colors.primary }}>
-                    {t('streakRules.badge.requires')} {badge.daysRequired} {badge.daysRequired === 1 ? t('streakRules.badge.requires.day') : t('streakRules.badge.requires.days')}
-                  </ThemedText>
+                  <View style={styles.badgeInfo}>
+                    <View style={styles.badgeHeader}>
+                      <ThemedText size="md" weight="bold">
+                        {t(getBadgeNameKey(badge.id))}
+                      </ThemedText>
+                    </View>
+                    <ThemedText size="sm" style={{ color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary, marginTop: 2 }}>
+                      {t(getBadgeDescriptionKey(badge.id))}
+                    </ThemedText>
+                    <ThemedText size="xs" style={{ color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.82)' : colors.text, marginTop: 4 }}>
+                      {t(getBadgeRewardKey(badge.id))}
+                    </ThemedText>
+                    <ThemedText size="xs" weight="semibold" style={{ marginTop: 4, color: colors.primary }}>
+                      {t('streakRules.badge.requires')} {badge.daysRequired} {badge.daysRequired === 1 ? t('streakRules.badge.requires.day') : t('streakRules.badge.requires.days')}
+                    </ThemedText>
+                  </View>
                 </View>
+              );
+            })}
+            <Pressable
+              style={[
+                styles.reminderToggleRow,
+                { borderColor: colors.border },
+              ]}
+              onPress={async () => {
+                const next = !badgeReminderEnabled;
+                setBadgeReminderEnabled(next);
+                await setStreakBadgeBenefitReminderEnabled(next);
+                await refreshStreakNotifications();
+              }}
+            >
+              <MaterialIcons
+                name={badgeReminderEnabled ? "check-box" : "check-box-outline-blank"}
+                size={22}
+                color={badgeReminderEnabled ? colors.primary : colors.textSecondary}
+              />
+              <View style={styles.reminderToggleTextWrap}>
+                <ThemedText size="sm" weight="semibold">
+                  {t('streakRules.reminder.toggleTitle')}
+                </ThemedText>
+                <ThemedText
+                  size="xs"
+                  style={{
+                    color:
+                      colorScheme === "dark"
+                        ? "rgba(255, 255, 255, 0.72)"
+                        : colors.textSecondary,
+                    marginTop: 2,
+                  }}
+                >
+                  {t('streakRules.reminder.toggleDescription')}
+                </ThemedText>
               </View>
-            ))}
+            </Pressable>
           </View>
 
           {/* Bottom spacing */}
@@ -138,11 +215,27 @@ const styles = StyleSheet.create({
   subtitle: {
     marginBottom: 16,
   },
+  reminderToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  reminderToggleTextWrap: {
+    flex: 1,
+  },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
+  },
+  badgeIconWrap: {
+    marginRight: 12,
   },
   badgeIcon: {
     width: 50,
@@ -150,7 +243,17 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+  },
+  badgeStatusIcon: {
+    position: 'absolute',
+    right: -4,
+    bottom: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badgeRowEmoji: {
     fontSize: 24,
@@ -162,17 +265,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  rarityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  rarityText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
   },
   bottomSpacer: {
     height: 40,

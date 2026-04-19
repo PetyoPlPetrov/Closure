@@ -9,6 +9,7 @@ import { UploadPicture } from "@/library/components/upload-picture";
 import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
+import { getFreeEntityLimitPerSfera } from "@/utils/badge-rewards";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 import { useUnsavedChanges } from "@/utils/UnsavedChangesContext";
@@ -184,7 +185,8 @@ export default function AddHobbyScreen() {
     }
 
     // Check subscription limit for new hobbies (not edits) - show paywall on Save
-    if (!isEditMode && hobbies.length >= 2) {
+    const freeEntityLimit = await getFreeEntityLimitPerSfera();
+    if (!isEditMode && hobbies.length >= freeEntityLimit) {
       const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
       if (!hasEntityLimitEntitlement) {

@@ -1,4 +1,6 @@
 import { useSubscription } from "@/utils/SubscriptionProvider";
+import { canUseMomentColorEditingWithoutSubscription } from "@/utils/badge-rewards";
+import { subscribeBadgeRewardsChanged } from "@/utils/badge-rewards-events";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
@@ -8,6 +10,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { AppState } from "react-native";
 
 const STORAGE_KEY = "@sferas:moment_colors";
 
@@ -130,13 +133,45 @@ export function MomentColorsProvider({
 export function useMomentColors() {
   const ctx = useContext(MomentColorsContext);
   const { isSubscribed } = useSubscription(); // true for Sfera Plus OR Sfera AI
+  const [hasBadgeAccess, setHasBadgeAccess] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const refreshBadgeAccess = async () => {
+      const allowed = await canUseMomentColorEditingWithoutSubscription();
+      if (mounted) {
+        setHasBadgeAccess(allowed);
+      }
+    };
+
+    void refreshBadgeAccess();
+
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        void refreshBadgeAccess();
+      }
+    });
+
+    // Refresh immediately when a memory is logged (or when the streak is recomputed)
+    // so the user gets/loses Pulse-unlocked moment colors without backgrounding the app.
+    const unsubscribe = subscribeBadgeRewardsChanged(() => {
+      void refreshBadgeAccess();
+    });
+
+    return () => {
+      mounted = false;
+      sub.remove();
+      unsubscribe();
+    };
+  }, []);
 
   return useMemo(
     () =>
-      isSubscribed
+      isSubscribed || hasBadgeAccess
         ? ctx
         : { ...ctx, momentColors: DEFAULT_MOMENT_COLORS },
-    [ctx, isSubscribed],
+    [ctx, isSubscribed, hasBadgeAccess],
   );
 }
 

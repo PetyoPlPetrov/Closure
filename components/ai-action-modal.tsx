@@ -4,9 +4,10 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import {
   getRemainingAIRequests,
-  REQUESTS_PER_DAY_FREE,
   REQUESTS_PER_DAY_PREMIUM,
 } from '@/utils/ai-rate-limiter';
+import { getFreeAIDailyLimit } from '@/utils/badge-rewards';
+import { subscribeBadgeRewardsChanged } from '@/utils/badge-rewards-events';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -47,10 +48,22 @@ export function AIActionModal({
   const t = useTranslate();
   const { hasAIEntitlement } = useSubscription();
   const [remainingAIRequests, setRemainingAIRequests] = useState<number | null>(null);
+  // Free-tier daily limit is dynamic: 3 by default, 5 with active Sferas badge.
+  const [freeAIDailyLimit, setFreeAIDailyLimit] = useState(3);
 
   useEffect(() => {
     if (visible) {
-      getRemainingAIRequests(hasAIEntitlement).then(setRemainingAIRequests);
+      const refresh = () => {
+        getRemainingAIRequests(hasAIEntitlement).then(setRemainingAIRequests);
+        if (!hasAIEntitlement) {
+          getFreeAIDailyLimit().then(setFreeAIDailyLimit);
+        }
+      };
+      refresh();
+      // Subscribe so the displayed limit/remaining updates the moment the user crosses
+      // the Sferas threshold (or loses the badge) while this modal is open.
+      const unsubscribe = subscribeBadgeRewardsChanged(refresh);
+      return unsubscribe;
     } else {
       setRemainingAIRequests(null);
     }
@@ -337,7 +350,7 @@ export function AIActionModal({
                         .replace('{count}', String(remainingAIRequests))
                         .replace(
                           '{limit}',
-                          String(hasAIEntitlement ? REQUESTS_PER_DAY_PREMIUM : REQUESTS_PER_DAY_FREE),
+                          String(hasAIEntitlement ? REQUESTS_PER_DAY_PREMIUM : freeAIDailyLimit),
                         )}
                     </ThemedText>
                   ))}

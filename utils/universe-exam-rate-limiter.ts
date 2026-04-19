@@ -1,15 +1,14 @@
 /**
  * Exam Rate Limiter — shared across all exam entry points (wheel spin, entity wheel spin,
- * Sun exam icon). 3 free exam uses per day for users without Sfera AI.
+ * Sun exam icon). Free users get 3 uses/day by default or 5/day with active Sferas badge.
  * Resets at midnight in user's timezone.
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getLocalDateString } from "./ai-rate-limiter";
+import { getFreeExamDailyLimit } from "@/utils/badge-rewards";
 
 const UNIVERSE_EXAM_KEY = "@sferas:universe_exam_usage";
-const FREE_DAILY_LIMIT = 3;
-
 interface UsageRecord {
   date: string;
   count: number;
@@ -47,10 +46,11 @@ export async function consumeUniverseExamIfAvailable(
   hasAIEntitlement: boolean,
 ): Promise<boolean> {
   if (hasAIEntitlement) return true;
+  const freeDailyLimit = await getFreeExamDailyLimit();
   const prev = consumeChain;
   consumeChain = prev.then(async () => {
     const record = await getUsageRecord();
-    if (record.count >= FREE_DAILY_LIMIT) return false;
+    if (record.count >= freeDailyLimit) return false;
     await saveUsageRecord({ date: record.date, count: record.count + 1 });
     return true;
   });
@@ -63,8 +63,9 @@ export async function consumeUniverseExamIfAvailable(
  */
 export async function canUseExam(hasAIEntitlement: boolean): Promise<boolean> {
   if (hasAIEntitlement) return true;
+  const freeDailyLimit = await getFreeExamDailyLimit();
   const record = await getUsageRecord();
-  return record.count < FREE_DAILY_LIMIT;
+  return record.count < freeDailyLimit;
 }
 
 /**
@@ -74,6 +75,7 @@ export async function getRemainingUniverseExams(
   hasAIEntitlement: boolean,
 ): Promise<number> {
   if (hasAIEntitlement) return Infinity;
+  const freeDailyLimit = await getFreeExamDailyLimit();
   const record = await getUsageRecord();
-  return Math.max(0, FREE_DAILY_LIMIT - record.count);
+  return Math.max(0, freeDailyLimit - record.count);
 }

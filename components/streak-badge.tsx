@@ -144,7 +144,8 @@ export const StreakBadgeComponent = React.memo(function StreakBadgeComponent({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    right: 16,
+    // Keep space for the top-right floating action icon so the badge sits to its left.
+    right: 68,
     zIndex: 1000,
   },
   pressable: {

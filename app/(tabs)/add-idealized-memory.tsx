@@ -962,6 +962,28 @@ export default function AddIdealizedMemoryScreen() {
     : [];
   const existingMemory = memoryId ? existingMemories.find(m => m.id === memoryId) : null;
 
+  const navigateToMemoriesList = useCallback(() => {
+    isNavigatingAway.current = true;
+
+    if (entityId && sphere) {
+      router.replace({
+        pathname: '/idealized-memories',
+        params: { entityId, sphere },
+      });
+      return;
+    }
+
+    if (profileId) {
+      router.replace({
+        pathname: '/idealized-memories',
+        params: { profileId },
+      });
+      return;
+    }
+
+    router.replace('/idealized-memories');
+  }, [entityId, sphere, profileId]);
+
   // Redirect if we don't have either profileId or (entityId + sphere)
   useEffect(() => {
     const hasOldMode = !!profileId;
@@ -1582,6 +1604,7 @@ export default function AddIdealizedMemoryScreen() {
 
     // In edit mode, do nothing if there are no changes (avoids redundant save)
     if (isEditMode && !hasUnsavedChanges()) {
+      navigateToMemoriesList();
       return;
     }
 
@@ -1707,7 +1730,8 @@ export default function AddIdealizedMemoryScreen() {
 
         createdMemoryId = newMemoryId;
 
-        // Trigger streak update for new memory creation
+        // Trigger streak update for new memory creation.
+        // Manual and AI modal saves both count as memory records for badge keeping.
         try {
           const streakResult = await updateStreakOnMemoryCreation();
           const currentStreak = streakResult.data.currentStreak;
@@ -1715,7 +1739,7 @@ export default function AddIdealizedMemoryScreen() {
           // Show in-app notification for new badges or milestones
           if (streakResult.newBadges.length > 0) {
             const badge = streakResult.newBadges[0]; // Show first badge if multiple
-            const emoji = badge.daysRequired >= 100 ? '👑' : badge.daysRequired >= 30 ? '🏆' : badge.daysRequired >= 7 ? '🌟' : '🔥';
+            const emoji = badge.daysRequired >= 14 ? '🏆' : badge.daysRequired >= 7 ? '🌟' : badge.daysRequired >= 3 ? '🔥' : '✨';
             
             showNotification({
               title: 'New Badge Unlocked!',
@@ -1725,7 +1749,7 @@ export default function AddIdealizedMemoryScreen() {
             });
           } else if (streakResult.newMilestones.length > 0) {
             const milestone = streakResult.newMilestones[0];
-            const emoji = milestone >= 100 ? '👑' : milestone >= 30 ? '🏆' : milestone >= 7 ? '🌟' : '🔥';
+            const emoji = milestone >= 14 ? '🏆' : milestone >= 7 ? '🌟' : milestone >= 3 ? '🔥' : '✨';
             
             showNotification({
               title: `${milestone}-day streak!`,
@@ -1735,7 +1759,7 @@ export default function AddIdealizedMemoryScreen() {
             });
           } else if (streakResult.streakIncreased || streakResult.isFirstMemory) {
             // Show notification for regular streak increment (no badge/milestone) or first memory
-            const emoji = currentStreak >= 30 ? '👑' : currentStreak >= 14 ? '🏆' : currentStreak >= 7 ? '⭐' : currentStreak >= 3 ? '🔥' : '✨';
+            const emoji = currentStreak >= 14 ? '🏆' : currentStreak >= 7 ? '⭐' : currentStreak >= 3 ? '🔥' : '✨';
 
             let title = '';
             let message = '';
@@ -1745,7 +1769,7 @@ export default function AddIdealizedMemoryScreen() {
               message = 'You\'re on day 1! Keep creating memories daily to build your streak.';
             } else if (currentStreak === 2) {
               title = 'Great start!';
-              message = '2 days in a row! One more day until your Flame badge.';
+              message = '2 days in a row! One more day until your Pulse badge.';
             } else {
               title = `${currentStreak}-day streak!`;
               message = `Amazing! You've created memories for ${currentStreak} days in a row. Keep it up!`;
@@ -1770,11 +1794,11 @@ export default function AddIdealizedMemoryScreen() {
       initialSuns.current = suns.map(s => ({ ...s }));
       initialLessons.current = lessons.map(l => ({ ...l }));
 
-      // First-time save: stay on this screen and switch to edit mode for the new memory
       if (createdMemoryId) {
         loadedMemoryIdRef.current = createdMemoryId;
-        router.setParams({ memoryId: createdMemoryId });
       }
+
+      navigateToMemoriesList();
     } catch {
       alert(t('memory.error.saveFailed'));
     } finally {

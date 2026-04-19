@@ -2,11 +2,12 @@
  * AI Request Rate Limiter
  * Tracks AI requests per calendar day (timezone-based).
  * Counts submits for memory creation and entity creation (shared pool).
- * Limits: 3/day for free users, 30/day for premium.
+ * Limits: 30/day for premium; free users get 3/day by default or 5/day with active Sferas badge.
  * Resets at midnight in user's timezone.
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getFreeAIDailyLimit } from "@/utils/badge-rewards";
 
 const AI_REQUESTS_KEY = "@sferas:ai_requests";
 export const REQUESTS_PER_DAY_FREE = 3;
@@ -118,7 +119,9 @@ export async function consumeAIRequestIfAvailable(
 ): Promise<boolean> {
   const records = await getAIRequestRecords();
   const today = getLocalDateString();
-  const limit = isSubscribed ? REQUESTS_PER_DAY_PREMIUM : REQUESTS_PER_DAY_FREE;
+  const limit = isSubscribed
+    ? REQUESTS_PER_DAY_PREMIUM
+    : await getFreeAIDailyLimit();
 
   const todayRecordIndex = records.findIndex((record) => record.date === today);
   const currentCount =
@@ -148,7 +151,9 @@ export async function getRemainingAIRequests(
   isSubscribed: boolean,
 ): Promise<number> {
   const used = await getTodayRequestCount();
-  const limit = isSubscribed ? REQUESTS_PER_DAY_PREMIUM : REQUESTS_PER_DAY_FREE;
+  const limit = isSubscribed
+    ? REQUESTS_PER_DAY_PREMIUM
+    : await getFreeAIDailyLimit();
   return Math.max(0, limit - used);
 }
 
@@ -173,7 +178,9 @@ export async function getTimeUntilNextRequest(
   isSubscribed: boolean,
 ): Promise<number> {
   const used = await getTodayRequestCount();
-  const limit = isSubscribed ? REQUESTS_PER_DAY_PREMIUM : REQUESTS_PER_DAY_FREE;
+  const limit = isSubscribed
+    ? REQUESTS_PER_DAY_PREMIUM
+    : await getFreeAIDailyLimit();
 
   if (used < limit) {
     return 0;

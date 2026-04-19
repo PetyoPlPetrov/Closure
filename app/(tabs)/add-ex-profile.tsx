@@ -10,6 +10,7 @@ import { UploadPicture } from "@/library/components/upload-picture";
 import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { useJourney, type ExProfile } from "@/utils/JourneyProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
+import { getFreeEntityLimitPerSfera } from "@/utils/badge-rewards";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useUnsavedChanges } from "@/utils/UnsavedChangesContext";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
@@ -445,7 +446,8 @@ export default function AddExProfileScreen() {
 
     // Check subscription limit for new profiles (not edits)
     // Only check if profiles have loaded (to avoid false positives)
-    if (!isEditMode && !isLoading && profiles.length >= 2) {
+    const freeEntityLimit = await getFreeEntityLimitPerSfera();
+    if (!isEditMode && !isLoading && profiles.length >= freeEntityLimit) {
       const { hasEntityLimitEntitlement } =
         await ensureSubscriptionResolved();
       if (!hasEntityLimitEntitlement) {
