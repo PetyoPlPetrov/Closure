@@ -286,6 +286,17 @@ export type FocusedSferaViewProps = {
   sferaSizeHint?: React.ReactNode;
   /** Reports Memory Balance vs orbit so the home tab can gate the sfera-size hint (hint only applies to Memory Balance rings). */
   onFocusedDisplayModeForHint?: (isMemoryBalanceRings: boolean) => void;
+  /** Optional lesson target from a notification; opens Universe Lessons and jumps to that lesson. */
+  notificationLessonTarget?: {
+    key: string;
+    lessonId?: string;
+    memoryId: string;
+    entityId: string;
+    sphere: LifeSphere;
+    text: string;
+  } | null;
+  /** Called after notification target is consumed to avoid reopening on rerender. */
+  onNotificationLessonTargetHandled?: (key: string) => void;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
@@ -2844,6 +2855,8 @@ export function FocusedSferaView({
   bottomTabBarInset = 0,
   sferaSizeHint,
   onFocusedDisplayModeForHint,
+  notificationLessonTarget = null,
+  onNotificationLessonTargetHandled,
 }: FocusedSferaViewProps) {
   const isScreenFocused = useIsFocused();
   const [isAppActive, setIsAppActive] = useState(
@@ -2961,6 +2974,35 @@ export function FocusedSferaView({
   const sunMenuTranslateY = useSharedValue(startSunExpanded ? 0 : 20);
   const [universeLessonsVisible, setUniverseLessonsVisible] = useState(false);
   const [universeExamVisible, setUniverseExamVisible] = useState(false);
+  const [initialUniverseLessonTarget, setInitialUniverseLessonTarget] = useState<{
+    key: string;
+    lessonId?: string;
+    memoryId?: string;
+    entityId?: string;
+    sphere?: LifeSphere;
+    text?: string;
+  } | null>(null);
+  const handledNotificationLessonTargetKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!notificationLessonTarget?.key) return;
+    if (
+      handledNotificationLessonTargetKeyRef.current === notificationLessonTarget.key
+    ) {
+      return;
+    }
+    handledNotificationLessonTargetKeyRef.current = notificationLessonTarget.key;
+    setInitialUniverseLessonTarget({
+      key: notificationLessonTarget.key,
+      lessonId: notificationLessonTarget.lessonId,
+      memoryId: notificationLessonTarget.memoryId,
+      entityId: notificationLessonTarget.entityId,
+      sphere: notificationLessonTarget.sphere,
+      text: notificationLessonTarget.text,
+    });
+    setUniverseLessonsVisible(true);
+    onNotificationLessonTargetHandled?.(notificationLessonTarget.key);
+  }, [notificationLessonTarget, onNotificationLessonTargetHandled]);
 
   // Sun centered state (initial view only): true = floated to screen center
   const [isSunCentered, setIsSunCentered] = useState(
@@ -4188,6 +4230,12 @@ export function FocusedSferaView({
       <UniverseLessonsScreen
         visible={universeLessonsVisible}
         onClose={() => setUniverseLessonsVisible(false)}
+        initialTarget={initialUniverseLessonTarget}
+        onInitialTargetHandled={(key) => {
+          setInitialUniverseLessonTarget((prev) =>
+            prev?.key === key ? null : prev,
+          );
+        }}
       />
       <UniverseExamScreen
         visible={universeExamVisible}

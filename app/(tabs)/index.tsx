@@ -13796,6 +13796,14 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const handledLessonNudgeKeyRef = useRef<string | null>(null);
+  const [notificationLessonTarget, setNotificationLessonTarget] = useState<{
+    key: string;
+    lessonId?: string;
+    memoryId: string;
+    entityId: string;
+    sphere: LifeSphere;
+    text: string;
+  } | null>(null);
   const { momentColors } = useMomentColors();
   const {
     orbitDurationMs,
@@ -17605,32 +17613,35 @@ export default function HomeScreen() {
     const momentId = params.momentId as string | undefined;
 
     if (focusedMemoryId && sphere) {
-      if (profileId && sphere === "relationships") {
+      if ((profileId || entityId) && sphere === "relationships") {
+        const id = profileId || entityId;
         setFocusedMemory({
-          profileId,
+          profileId: id,
           memoryId: focusedMemoryId,
           sphere,
           momentToShowId: momentId,
         });
-        setFocusedProfileId(profileId);
+        setFocusedProfileId(id!);
         setSelectedSphere("relationships");
-      } else if (jobId && sphere === "career") {
+      } else if ((jobId || entityId) && sphere === "career") {
+        const id = jobId || entityId;
         setFocusedMemory({
-          jobId,
+          jobId: id,
           memoryId: focusedMemoryId,
           sphere,
           momentToShowId: momentId,
         });
-        setFocusedJobId(jobId);
+        setFocusedJobId(id!);
         setSelectedSphere("career");
-      } else if (familyMemberId && sphere === "family") {
+      } else if ((familyMemberId || entityId) && sphere === "family") {
+        const id = familyMemberId || entityId;
         setFocusedMemory({
-          familyMemberId,
+          familyMemberId: id,
           memoryId: focusedMemoryId,
           sphere,
           momentToShowId: momentId,
         });
-        setFocusedFamilyMemberId(familyMemberId);
+        setFocusedFamilyMemberId(id!);
         setSelectedSphere("family");
       } else if ((friendId || entityId) && sphere === "friends") {
         const id = friendId || entityId;
@@ -17700,15 +17711,23 @@ export default function HomeScreen() {
     if (handledLessonNudgeKeyRef.current === key) return;
     handledLessonNudgeKeyRef.current = key;
 
-    setSelectedMomentType("lessons");
-    setSelectedLesson({
-      text,
-      entityId,
+    // Lesson nudges open the focused Home "Sferas Lessons" modal, then jump to the specific lesson.
+    setFocusedMemory(null);
+    setFocusedProfileId(null);
+    setFocusedJobId(null);
+    setFocusedFamilyMemberId(null);
+    setFocusedFriendId(null);
+    setFocusedHobbyId(null);
+    setSelectedSphere(null);
+    setHomeViewMode("focused");
+    setNotificationLessonTarget({
+      key,
+      lessonId: momentId,
       memoryId,
+      entityId,
       sphere,
-      momentType: "lessons",
+      text,
     });
-    setShowLesson(true);
   }, [
     params.nudgeMomentType,
     params.nudgeMomentText,
@@ -18451,6 +18470,12 @@ export default function HomeScreen() {
           sunMenuCollapseActionRef={focusedSunMenuCollapseRef}
           bottomTabBarInset={sferaSizeHintTabBarHeight}
           onFocusedDisplayModeForHint={setFocusedHomeMemoryBalance}
+          notificationLessonTarget={notificationLessonTarget}
+          onNotificationLessonTargetHandled={(key) => {
+            setNotificationLessonTarget((prev) =>
+              prev?.key === key ? null : prev,
+            );
+          }}
           sferaSizeHint={
             sferaSizeHintVisible ? (
               <SferaSizeHintBanner
@@ -21865,6 +21890,100 @@ export default function HomeScreen() {
   // When a sphere is focused, show entities for that sphere
   // For relationships: circle avatar + orbiting ex-partners (same as other spheres)
   // For career: circle avatar + orbiting jobs
+  const getEntityIdFromFocusedMemory = (
+    memory: NonNullable<typeof focusedMemory>,
+  ) =>
+    memory.profileId ||
+    memory.jobId ||
+    memory.familyMemberId ||
+    memory.friendId ||
+    memory.hobbyId ||
+    null;
+
+  const handleOpenFocusedMemoryManualView = () => {
+    if (!focusedMemory) return;
+    const entityId = getEntityIdFromFocusedMemory(focusedMemory);
+    if (!entityId) return;
+
+    router.push({
+      pathname: "/add-idealized-memory",
+      params: {
+        entityId,
+        sphere: focusedMemory.sphere,
+        memoryId: focusedMemory.memoryId,
+      },
+    });
+  };
+
+  const focusedMemoryTitleHeader = (() => {
+    if (!focusedMemory) return null;
+
+    const entityId = getEntityIdFromFocusedMemory(focusedMemory);
+    const sphere = focusedMemory.sphere;
+    if (!entityId) return null;
+
+    const memories =
+      sphere === "relationships" && focusedMemory.profileId
+        ? getIdealizedMemoriesByProfileId(focusedMemory.profileId)
+        : getIdealizedMemoriesByEntityId(entityId, sphere);
+
+    const memoryData = memories.find((m) => m.id === focusedMemory.memoryId);
+    if (!memoryData) return null;
+
+    return (
+      <View
+        style={[
+          sphereHeaderTitleRowStyle,
+          {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "flex-end",
+          },
+        ]}
+      >
+        <ThemedText
+          size="l"
+          weight="semibold"
+          numberOfLines={2}
+          ellipsizeMode="tail"
+          style={{
+            color: colors.text,
+            textAlign: "right",
+            flexShrink: 1,
+            maxWidth: "88%",
+          }}
+        >
+          {memoryData.title || "Memory"}
+        </ThemedText>
+        <Pressable
+          onPress={handleOpenFocusedMemoryManualView}
+          accessibilityRole="button"
+          accessibilityLabel={t("memory.edit")}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            marginLeft: 8,
+            backgroundColor:
+              colorScheme === "dark"
+                ? "rgba(255, 255, 255, 0.12)"
+                : "rgba(0, 0, 0, 0.12)",
+            justifyContent: "center",
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor:
+              colorScheme === "dark"
+                ? "rgba(255, 255, 255, 0.25)"
+                : "rgba(0, 0, 0, 0.2)",
+          }}
+        >
+          <MaterialIcons name="edit" size={18} color={colors.text} />
+        </Pressable>
+      </View>
+    );
+  })();
+
   if (selectedSphere === "relationships") {
     return (
       <TabScreenContainer>
@@ -22135,38 +22254,7 @@ export default function HomeScreen() {
             })()}
 
           {/* Memory title header - shown when memory is focused */}
-          {focusedMemory &&
-            (() => {
-              const entityId = focusedMemory.profileId || focusedMemory.jobId;
-              const sphere = focusedMemory.sphere;
-              if (!entityId) return null;
-
-              const memories =
-                sphere === "relationships" && focusedMemory.profileId
-                  ? getIdealizedMemoriesByProfileId(focusedMemory.profileId)
-                  : getIdealizedMemoriesByEntityId(entityId, sphere);
-
-              const memoryData = memories.find(
-                (m) => m.id === focusedMemory.memoryId,
-              );
-              if (!memoryData) return null;
-
-              return (
-                <View style={sphereHeaderTitleRowStyle}>
-                  <ThemedText
-                    size="l"
-                    weight="semibold"
-                    numberOfLines={2}
-                    style={{
-                      color: colors.text,
-                      textAlign: "right",
-                    }}
-                  >
-                    {memoryData.title || "Memory"}
-                  </ThemedText>
-                </View>
-              );
-            })()}
+          {focusedMemoryTitleHeader}
 
           <ScrollView
             scrollEnabled={scrollEnabledForSphere}
@@ -22468,38 +22556,7 @@ export default function HomeScreen() {
             })()}
 
           {/* Memory title header - shown when memory is focused */}
-          {focusedMemory &&
-            (() => {
-              const entityId = focusedMemory.profileId || focusedMemory.jobId;
-              const sphere = focusedMemory.sphere;
-              if (!entityId) return null;
-
-              const memories =
-                sphere === "relationships" && focusedMemory.profileId
-                  ? getIdealizedMemoriesByProfileId(focusedMemory.profileId)
-                  : getIdealizedMemoriesByEntityId(entityId, sphere);
-
-              const memoryData = memories.find(
-                (m) => m.id === focusedMemory.memoryId,
-              );
-              if (!memoryData) return null;
-
-              return (
-                <View style={sphereHeaderTitleRowStyle}>
-                  <ThemedText
-                    size="l"
-                    weight="semibold"
-                    numberOfLines={2}
-                    style={{
-                      color: colors.text,
-                      textAlign: "right",
-                    }}
-                  >
-                    {memoryData.title || "Memory"}
-                  </ThemedText>
-                </View>
-              );
-            })()}
+          {focusedMemoryTitleHeader}
 
           <ScrollView
             scrollEnabled={scrollEnabledForSphere}
@@ -22817,38 +22874,7 @@ export default function HomeScreen() {
             })()}
 
           {/* Memory title header - shown when memory is focused */}
-          {focusedMemory &&
-            (() => {
-              const entityId =
-                focusedMemory.profileId ||
-                focusedMemory.jobId ||
-                focusedMemory.familyMemberId;
-              const sphere = focusedMemory.sphere;
-              if (!entityId) return null;
-
-              const memories = getIdealizedMemoriesByEntityId(entityId, sphere);
-
-              const memoryData = memories.find(
-                (m) => m.id === focusedMemory.memoryId,
-              );
-              if (!memoryData) return null;
-
-              return (
-                <View style={sphereHeaderTitleRowStyle}>
-                  <ThemedText
-                    size="l"
-                    weight="semibold"
-                    numberOfLines={2}
-                    style={{
-                      color: colors.text,
-                      textAlign: "right",
-                    }}
-                  >
-                    {memoryData.title}
-                  </ThemedText>
-                </View>
-              );
-            })()}
+          {focusedMemoryTitleHeader}
 
           <View
             style={[
@@ -23156,40 +23182,7 @@ export default function HomeScreen() {
             })()}
 
           {/* Memory title header - shown when memory is focused */}
-          {focusedMemory &&
-            (() => {
-              const entityId =
-                focusedMemory.profileId ||
-                focusedMemory.jobId ||
-                focusedMemory.familyMemberId ||
-                focusedMemory.friendId ||
-                focusedMemory.hobbyId;
-              const sphere = focusedMemory.sphere;
-              if (!entityId) return null;
-
-              const memories = getIdealizedMemoriesByEntityId(entityId, sphere);
-
-              const memoryData = memories.find(
-                (m) => m.id === focusedMemory.memoryId,
-              );
-              if (!memoryData) return null;
-
-              return (
-                <View style={sphereHeaderTitleRowStyle}>
-                  <ThemedText
-                    size="l"
-                    weight="semibold"
-                    numberOfLines={2}
-                    style={{
-                      color: colors.text,
-                      textAlign: "right",
-                    }}
-                  >
-                    {memoryData.title}
-                  </ThemedText>
-                </View>
-              );
-            })()}
+          {focusedMemoryTitleHeader}
 
           <View
             style={[
@@ -23497,40 +23490,7 @@ export default function HomeScreen() {
             })()}
 
           {/* Memory title header - shown when memory is focused */}
-          {focusedMemory &&
-            (() => {
-              const entityId =
-                focusedMemory.profileId ||
-                focusedMemory.jobId ||
-                focusedMemory.familyMemberId ||
-                focusedMemory.friendId ||
-                focusedMemory.hobbyId;
-              const sphere = focusedMemory.sphere;
-              if (!entityId) return null;
-
-              const memories = getIdealizedMemoriesByEntityId(entityId, sphere);
-
-              const memoryData = memories.find(
-                (m) => m.id === focusedMemory.memoryId,
-              );
-              if (!memoryData) return null;
-
-              return (
-                <View style={sphereHeaderTitleRowStyle}>
-                  <ThemedText
-                    size="l"
-                    weight="semibold"
-                    numberOfLines={2}
-                    style={{
-                      color: colors.text,
-                      textAlign: "right",
-                    }}
-                  >
-                    {memoryData.title}
-                  </ThemedText>
-                </View>
-              );
-            })()}
+          {focusedMemoryTitleHeader}
 
           <View
             style={[

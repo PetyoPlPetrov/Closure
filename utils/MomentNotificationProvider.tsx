@@ -570,10 +570,8 @@ export function MomentNotificationProvider({ children }: { children: React.React
           }
         }
         if (candidates.length === 0) {
-          // Auto-disable the schedule so the user can re-enable it once moments are available again.
-          const disabledList = schedulesToUse.map((s) => s.id === schedule.id ? { ...s, enabled: false } : s);
-          schedulesToUse = disabledList;
-          await persistSchedules(disabledList);
+          // Keep the schedule enabled even when there are no candidates right now.
+          // This avoids flipping new schedules OFF immediately and preserves user intent.
           continue;
         }
         const triggerDates =

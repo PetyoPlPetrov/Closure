@@ -882,9 +882,23 @@ function ScrollRail({ total, active, color }: { total: number; active: number; c
 interface Props {
   visible: boolean;
   onClose: () => void;
+  initialTarget?: {
+    key: string;
+    lessonId?: string;
+    memoryId?: string;
+    entityId?: string;
+    sphere?: LifeSphere;
+    text?: string;
+  } | null;
+  onInitialTargetHandled?: (key: string) => void;
 }
 
-export function UniverseLessonsScreen({ visible, onClose }: Props) {
+export function UniverseLessonsScreen({
+  visible,
+  onClose,
+  initialTarget,
+  onInitialTargetHandled,
+}: Props) {
   const t = useTranslate();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
@@ -902,6 +916,7 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
   const [showDecorLayers, setShowDecorLayers] = useState(false);
 
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
+  const handledInitialTargetKeyRef = useRef<string | null>(null);
 
   const sphereFilterKey = useMemo(
     () =>
@@ -1021,6 +1036,12 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
 
   useEffect(() => {
     if (!visible) return;
+    if (
+      initialTarget?.key &&
+      handledInitialTargetKeyRef.current !== initialTarget.key
+    ) {
+      return;
+    }
     setActiveIndex(0);
     const id = requestAnimationFrame(() => {
       if (filteredCards.length > 0) {
@@ -1028,7 +1049,77 @@ export function UniverseLessonsScreen({ visible, onClose }: Props) {
       }
     });
     return () => cancelAnimationFrame(id);
-  }, [visible, sphereFilterKey, yearFilterKey, entityFilterKey, favoritesOnly, filteredCards.length]);
+  }, [
+    visible,
+    sphereFilterKey,
+    yearFilterKey,
+    entityFilterKey,
+    favoritesOnly,
+    filteredCards.length,
+    initialTarget?.key,
+  ]);
+
+  useEffect(() => {
+    if (!visible || !initialTarget?.key) return;
+    if (handledInitialTargetKeyRef.current === initialTarget.key) return;
+
+    const matchCard = (card: LessonCard) => {
+      if (
+        initialTarget.lessonId &&
+        initialTarget.memoryId &&
+        card.lessonId === initialTarget.lessonId &&
+        card.memoryId === initialTarget.memoryId
+      ) {
+        return true;
+      }
+      if (initialTarget.lessonId && card.lessonId === initialTarget.lessonId) {
+        return true;
+      }
+      if (
+        initialTarget.memoryId &&
+        initialTarget.text &&
+        card.memoryId === initialTarget.memoryId &&
+        card.text === initialTarget.text
+      ) {
+        return true;
+      }
+      if (
+        initialTarget.memoryId &&
+        initialTarget.entityId &&
+        card.memoryId === initialTarget.memoryId &&
+        card.entityId === initialTarget.entityId
+      ) {
+        return true;
+      }
+      if (
+        initialTarget.memoryId &&
+        initialTarget.sphere &&
+        card.memoryId === initialTarget.memoryId &&
+        card.sphere === initialTarget.sphere
+      ) {
+        return true;
+      }
+      return false;
+    };
+
+    const targetIndex = cards.findIndex(matchCard);
+    handledInitialTargetKeyRef.current = initialTarget.key;
+    onInitialTargetHandled?.(initialTarget.key);
+
+    if (targetIndex < 0) return;
+
+    // Ensure the target lesson is visible even if the user had active filters.
+    setSphereSelection("all");
+    setYearSelection("all");
+    setEntitySelection("all");
+    setFavoritesOnly(false);
+    setActiveIndex(targetIndex);
+
+    const id = requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({ index: targetIndex, animated: false });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [cards, initialTarget, onInitialTargetHandled, visible]);
 
   useEffect(() => {
     if (!visible || filteredCards.length === 0) return;

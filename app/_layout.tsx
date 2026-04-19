@@ -361,6 +361,45 @@ function AppContent() {
 
   // Handle notification deep linking (tap when app in background) and cold start (entity reminders only; event memory is in-app only).
   useEffect(() => {
+    const inferMomentTypeFromMemory = (
+      memoryId?: string,
+      momentId?: string,
+      momentText?: string,
+    ): "lesson" | "sunny" | null => {
+      if (!memoryId) return null;
+      const memory = idealizedMemories.find((m) => m.id === memoryId);
+      if (!memory) return null;
+
+      if (momentId) {
+        const isLesson = (memory.lessonsLearned ?? []).some(
+          (lesson: any) => lesson?.id === momentId,
+        );
+        if (isLesson) return "lesson";
+
+        const isSunny = (memory.goodFacts ?? []).some(
+          (fact: any) => fact?.id === momentId,
+        );
+        if (isSunny) return "sunny";
+      }
+
+      if (momentText) {
+        const normalized = momentText.trim();
+        if (normalized.length > 0) {
+          const isLesson = (memory.lessonsLearned ?? []).some(
+            (lesson: any) => (lesson?.text ?? "").trim() === normalized,
+          );
+          if (isLesson) return "lesson";
+
+          const isSunny = (memory.goodFacts ?? []).some(
+            (fact: any) => (fact?.text ?? "").trim() === normalized,
+          );
+          if (isSunny) return "sunny";
+        }
+      }
+
+      return null;
+    };
+
     const handleNotificationResponse = (
       response: Notifications.NotificationResponse,
     ) => {
@@ -379,28 +418,37 @@ function AppContent() {
           router.replace(`/notifications/${data.sphere}/${data.entityId}`);
         });
       } else if (
-        data.type === "moment_nudge" &&
+        (data.type === "moment_nudge" ||
+          (!data.type && data.entityId && data.sphere && data.memoryId)) &&
         data.entityId &&
         data.sphere &&
-        data.memoryId &&
-        data.momentType
+        data.memoryId
       ) {
         InteractionManager.runAfterInteractions(() => {
-          if (data.momentType === "lesson") {
+          const resolvedMomentType =
+            data.momentType === "lesson" || data.momentType === "sunny"
+              ? data.momentType
+              : inferMomentTypeFromMemory(
+                  data.memoryId,
+                  data.momentId,
+                  data.momentText ?? content.body ?? "",
+                ) ?? "lesson";
+
+          if (resolvedMomentType === "lesson") {
             router.replace({
-              pathname: "/(tabs)",
+              pathname: "/universe-lessons",
               params: {
-                nudgeMomentType: "lesson",
-                nudgeMomentId: data.momentId ?? "",
-                nudgeMomentText: data.momentText ?? content.body ?? "",
-                nudgeMemoryId: data.memoryId,
-                nudgeEntityId: data.entityId,
-                nudgeSphere: data.sphere,
-                nudgeNonce: `${Date.now()}`,
+                nudgeKey: `${Date.now()}`,
+                lessonId: data.momentId ?? "",
+                text: data.momentText ?? content.body ?? "",
+                memoryId: data.memoryId,
+                entityId: data.entityId,
+                sphere: data.sphere,
               },
             });
             return;
           }
+
           router.replace({
             pathname: "/(tabs)",
             params: {
@@ -431,7 +479,7 @@ function AppContent() {
     return () => {
       responseListener.current?.remove();
     };
-  }, []);
+  }, [idealizedMemories]);
 
   const isReRun = onboardingRequestTrigger > 0;
 
@@ -475,6 +523,10 @@ function AppContent() {
           />
           <Stack.Screen
             name="moment-notifications"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="universe-lessons"
             options={{ headerShown: false }}
           />
           <Stack.Screen
