@@ -17,7 +17,7 @@ import {
   getLessonSuggestion
 } from '@/utils/moment-suggestions';
 import { useMomentColors } from '@/utils/MomentColorsProvider';
-import { updateStreakOnMemoryCreation } from '@/utils/streak-manager';
+import { getBadgeForStreak, updateStreakOnMemoryCreation } from '@/utils/streak-manager';
 import { useUnsavedChanges } from '@/utils/UnsavedChangesContext';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -1736,9 +1736,16 @@ export default function AddIdealizedMemoryScreen() {
           const streakResult = await updateStreakOnMemoryCreation();
           const currentStreak = streakResult.data.currentStreak;
 
-          // Show in-app notification for new badges or milestones
-          if (streakResult.newBadges.length > 0) {
-            const badge = streakResult.newBadges[0]; // Show first badge if multiple
+          // Show in-app notification for new badges or milestones.
+          // Milestone days (1/3/7/14) are badge thresholds, so prioritize badge unlock messaging.
+          const milestoneBadge =
+            streakResult.newMilestones
+              .map((milestone) => getBadgeForStreak(milestone))
+              .find((badge): badge is NonNullable<typeof badge> => badge !== null) || null;
+          const unlockedBadge = streakResult.newBadges[0] || milestoneBadge;
+
+          if (unlockedBadge) {
+            const badge = unlockedBadge; // Show first badge if multiple
             const emoji = badge.daysRequired >= 14 ? '🏆' : badge.daysRequired >= 7 ? '🌟' : badge.daysRequired >= 3 ? '🔥' : '✨';
             
             showNotification({

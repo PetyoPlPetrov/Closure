@@ -43,7 +43,7 @@ import {
   markEventGoldenMemoryUsed,
 } from "@/utils/sfera-events";
 import { showPaywallForUpgradeAccess } from "@/utils/premium-access";
-import { updateStreakOnMemoryCreation } from "@/utils/streak-manager";
+import { getBadgeForStreak, updateStreakOnMemoryCreation } from "@/utils/streak-manager";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -1254,8 +1254,15 @@ export function AIModal({
         const currentStreak = streakResult.data.currentStreak;
 
         // Mirror the same notification behavior as manual creation (AddIdealizedMemoryScreen)
-        if (streakResult.newBadges.length > 0) {
-          const badge = streakResult.newBadges[0];
+        // Milestone days (1/3/7/14) are badge thresholds, so prioritize badge unlock messaging.
+        const milestoneBadge =
+          streakResult.newMilestones
+            .map((milestone) => getBadgeForStreak(milestone))
+            .find((badge): badge is NonNullable<typeof badge> => badge !== null) || null;
+        const unlockedBadge = streakResult.newBadges[0] || milestoneBadge;
+
+        if (unlockedBadge) {
+          const badge = unlockedBadge;
           const emoji =
             badge.daysRequired >= 14
               ? "🏆"
@@ -1378,7 +1385,7 @@ export function AIModal({
               else if (finalSphere === "hobbies") detailParams.hobbyId = finalEntityId;
 
               router.replace({
-                pathname: "/(tabs)" as const,
+                pathname: "/" as const,
                 params: detailParams,
               });
             },
