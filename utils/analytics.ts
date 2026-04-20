@@ -142,6 +142,25 @@ export const logNotificationTurnedOn = async (sphere: string, entityType: string
 };
 
 /**
+ * Log when user earns a streak badge
+ */
+export const logBadgeEarned = async (
+  badgeId: string,
+  badgeName: string,
+  daysRequired: number,
+  rarity: string,
+  streakDays: number,
+) => {
+  await logEvent('badge_earned', {
+    badge_id: badgeId,
+    badge_name: badgeName,
+    days_required: daysRequired,
+    rarity,
+    streak_days: streakDays,
+  });
+};
+
+/**
  * Log when user submits AI modal (presses submit button)
  */
 export const logAIModalSubmit = async () => {
@@ -201,6 +220,7 @@ export default {
   logWheelEntitySpin,
   logInsightsSphereOpened,
   logNotificationTurnedOn,
+  logBadgeEarned,
   logAIModalSubmit,
   logAIMemorySaved,
   logAIMemoryDiscarded,

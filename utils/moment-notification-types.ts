@@ -24,7 +24,8 @@ export interface MomentNotificationSchedule {
   activeStartTime?: string; // HH:mm
   activeEndTime?: string; // HH:mm
   specificTimes?: string[]; // HH:mm list
-  source: 'moments' | 'ai' | 'both'; // 'moments' = raw from memories, 'ai' = AI summaries, 'both' = both combined
+  source: 'moments' | 'ai'; // 'moments' = raw from memories, 'ai' = AI summaries
+  freeAiGranted?: boolean; // True when schedule uses the 1/day free AI slot for non-entitled users
   userMessages: string[]; // Deprecated for 'moments'; kept for migration
   soundEnabled?: boolean;
   enabled: boolean;

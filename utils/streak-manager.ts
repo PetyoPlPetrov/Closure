@@ -3,6 +3,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logBadgeEarned } from './analytics';
 import { notifyBadgeRewardsChanged } from './badge-rewards-events';
 import { STORAGE_KEY, STREAK_BADGES, STREAK_MILESTONES, type StreakBadge, type StreakData } from './streak-types';
 
@@ -327,6 +328,22 @@ export async function updateStreakOnMemoryCreation(): Promise<{
   await saveStreakData(newStreakData);
   // Streak just changed → notify reward consumers (moment colors, AI/exam limits, etc.) so they refresh immediately.
   notifyBadgeRewardsChanged();
+
+  if (newBadges.length > 0) {
+    for (const badge of newBadges) {
+      try {
+        await logBadgeEarned(
+          badge.id,
+          badge.name,
+          badge.daysRequired,
+          badge.rarity,
+          newStreakData.currentStreak,
+        );
+      } catch {
+        // Don't block streak updates if analytics fails
+      }
+    }
+  }
 
   return {
     data: newStreakData,

@@ -91,7 +91,9 @@ function formatMomentNudgeNotification(
 function normalizeSchedule(
   schedule: MomentNotificationSchedule
 ): MomentNotificationSchedule {
-  const migratedSource = schedule.source === 'user' ? 'moments' : schedule.source;
+  const rawSource = (schedule as { source?: string }).source;
+  const migratedSource: MomentNotificationSchedule['source'] =
+    rawSource === 'moments' || rawSource === 'user' ? 'moments' : 'ai';
   const frequencyMode = schedule.frequencyMode === 'specific_times' ? 'specific_times' : 'interval';
   const activeStart = schedule.activeStartTime ?? DEFAULT_ACTIVE_START_TIME;
   const activeEnd = schedule.activeEndTime ?? DEFAULT_ACTIVE_END_TIME;
@@ -107,6 +109,7 @@ function normalizeSchedule(
     activeEndTime: formatMinutesToTime(parseTimeToMinutes(activeEnd, 1140)),
     specificTimes: uniqueSpecificTimes,
     soundEnabled: schedule.soundEnabled !== false,
+    freeAiGranted: schedule.freeAiGranted === true,
   };
 }
 
@@ -526,9 +529,9 @@ export function MomentNotificationProvider({ children }: { children: React.React
           momentId: string;
           momentText: string;
         }> = [];
-        const effectiveSource =
-          (schedule.source === 'ai' || schedule.source === 'both') && !canUseAI ? 'moments' : schedule.source;
-        if (effectiveSource === 'moments' || effectiveSource === 'both') {
+        const canUseAIForSchedule = canUseAI || schedule.freeAiGranted === true;
+        const effectiveSource = schedule.source === 'ai' && !canUseAIForSchedule ? 'moments' : schedule.source;
+        if (effectiveSource === 'moments') {
           for (const mem of idealizedMemories) {
             if (mem.sphere !== schedule.sphere) continue;
             if (schedule.momentType === 'lesson') {
@@ -562,7 +565,7 @@ export function MomentNotificationProvider({ children }: { children: React.React
             }
           }
         }
-        if (effectiveSource === 'ai' || effectiveSource === 'both') {
+        if (effectiveSource === 'ai') {
           const list = summariesToUse.filter(
             (s) => s.sphere === schedule.sphere && s.momentType === schedule.momentType
           );
