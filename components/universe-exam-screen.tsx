@@ -53,6 +53,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { router } from "expo-router";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -501,6 +502,41 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
     loadQuestion();
   }, [loadQuestion]);
 
+  const handleOpenMemory = useCallback(() => {
+    if (!currentCard?.entityId || !currentCard.memoryId) return;
+
+    const detailParams: {
+      sphere: LifeSphere;
+      entityId: string;
+      focusedMemoryId: string;
+      skipFocusedIntro?: string;
+      source?: string;
+      profileId?: string;
+      jobId?: string;
+      familyMemberId?: string;
+      friendId?: string;
+      hobbyId?: string;
+    } = {
+      sphere: currentCard.sphere,
+      entityId: currentCard.entityId,
+      focusedMemoryId: currentCard.memoryId,
+      skipFocusedIntro: "1",
+      source: "universe_exam_result",
+    };
+
+    if (currentCard.sphere === "relationships") detailParams.profileId = currentCard.entityId;
+    else if (currentCard.sphere === "career") detailParams.jobId = currentCard.entityId;
+    else if (currentCard.sphere === "family") detailParams.familyMemberId = currentCard.entityId;
+    else if (currentCard.sphere === "friends") detailParams.friendId = currentCard.entityId;
+    else if (currentCard.sphere === "hobbies") detailParams.hobbyId = currentCard.entityId;
+
+    handleClose();
+    router.replace({
+      pathname: "/(tabs)" as const,
+      params: detailParams,
+    });
+  }, [currentCard, handleClose]);
+
   useEffect(() => {
     if (!visible && (isRecording || isListening)) {
       void speechToText.stop();
@@ -842,22 +878,59 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
 
                   {/* Memory image */}
                   {currentCard.memoryImageUri ? (
-                    <View
-                      style={{
+                    <Pressable
+                      onPress={handleOpenMemory}
+                      disabled={!currentCard.memoryId || !currentCard.entityId}
+                      accessibilityRole="button"
+                      accessibilityLabel={language === "bg" ? "Отвори спомена" : "Open memory"}
+                      style={({ pressed }) => ({
                         width: CARD_WIDTH - 40,
                         height: 160,
                         borderRadius: 16,
                         overflow: "hidden",
                         backgroundColor: "rgba(255,255,255,0.06)",
                         marginBottom: 20,
-                      }}
+                        borderWidth: 1.5,
+                        borderColor: accentColor + "99",
+                        opacity: pressed ? 0.9 : 1,
+                        transform: [{ scale: pressed ? 0.985 : 1 }],
+                      })}
                     >
                       <Image
                         source={{ uri: currentCard.memoryImageUri }}
                         style={{ width: "100%", height: "100%" }}
                         contentFit="cover"
                       />
-                    </View>
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: "absolute",
+                          right: 8,
+                          bottom: 8,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 999,
+                          backgroundColor: "rgba(8,14,26,0.72)",
+                          borderWidth: 1,
+                          borderColor: "rgba(255,255,255,0.22)",
+                        }}
+                      >
+                        <MaterialIcons
+                          name="open-in-new"
+                          size={14}
+                          color="rgba(255,255,255,0.9)"
+                        />
+                        <ThemedText
+                          size="xs"
+                          style={{ color: "rgba(255,255,255,0.9)" }}
+                        >
+                          {language === "bg" ? "Отвори" : "Open"}
+                        </ThemedText>
+                      </View>
+                    </Pressable>
                   ) : (
                     <View
                       style={{

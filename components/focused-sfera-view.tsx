@@ -3567,7 +3567,7 @@ export function FocusedSferaView({
   ]);
 
   const resolveEntitySelectForSphere = useCallback(
-    (sphereIndex: number, sphereType: LifeSphere) => {
+    (sphereIndex: number) => {
       return (entityId: string, s: LifeSphere) => {
         if (hintTimerRef.current) {
           clearTimeout(hintTimerRef.current);
@@ -3582,8 +3582,12 @@ export function FocusedSferaView({
             ? (memoriesPerEntityBySphere[s]?.[entityIdx] ?? [])
             : [];
 
-        if (selectedSphere === null && sphereIndex === focusedIdx) {
-          onSphereSelect(sphereType);
+        if (
+          selectedSphere === null &&
+          sphereIndex === focusedIdx &&
+          memoriesForEntity.length === 0
+        ) {
+          showOrbitNeedMemoriesHint(entityId);
         } else if (
           selectedSphere !== null &&
           memoriesForEntity.length === 0
@@ -3597,7 +3601,6 @@ export function FocusedSferaView({
     [
       selectedSphere,
       focusedIdx,
-      onSphereSelect,
       onEntitySelect,
       showOrbitNeedMemoriesHint,
       entityIdsBySphere,
@@ -3800,7 +3803,7 @@ export function FocusedSferaView({
               }
               onSphereSelect(sphere.type);
             }}
-            onEntitySelect={resolveEntitySelectForSphere(i, sphere.type)}
+            onEntitySelect={resolveEntitySelectForSphere(i)}
             onSingleTapSameAsFocusedSphere={
               i === focusedIdx ? handleFocusedSphereTapOverlay : undefined
             }

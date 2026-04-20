@@ -14371,22 +14371,26 @@ export default function HomeScreen() {
       );
 
       if (hasFocusedView) {
-        // Skip loader: React Native Modal can leave an invisible blocking layer on iOS
-        // when rapidly shown then hidden (e.g. entity wheel -> Home). See:
-        // https://github.com/facebook/react-native/issues/50152
-        setFocusedMemory(null);
-        setSelectedSphere(null);
-        setFocusedProfileId(null);
-        setFocusedJobId(null);
-        setFocusedFamilyMemberId(null);
-        setFocusedFriendId(null);
-        setFocusedHobbyId(null);
-        setExpandedMomentId(null);
-        setIsAnyEntityWheelActive(false);
-        setAnimationsComplete(false);
-        setShowMomentTypeSelector(false);
-        setHomeViewMode("focused");
-        router.replace("/");
+        startTransitionLoader();
+        // Yield one frame so the top loader paints before focused state resets.
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            setFocusedMemory(null);
+            setSelectedSphere(null);
+            setFocusedProfileId(null);
+            setFocusedJobId(null);
+            setFocusedFamilyMemberId(null);
+            setFocusedFriendId(null);
+            setFocusedHobbyId(null);
+            setExpandedMomentId(null);
+            setIsAnyEntityWheelActive(false);
+            setAnimationsComplete(false);
+            setShowMomentTypeSelector(false);
+            setHomeViewMode("focused");
+            router.replace("/");
+            hideLoader();
+          }, 0);
+        });
       } else {
         if (tabPressNoOpRef.current) return;
         // Skip loader to avoid Modal touch-blocking bug on iOS
