@@ -1352,13 +1352,34 @@ export function AIModal({
           {
             text: t("ai.openMemory") || "Open memory",
             onPress: () => {
-              router.push({
-                pathname: "/add-idealized-memory",
-                params: {
-                  entityId: finalEntityId,
-                  sphere: finalSphere,
-                  memoryId: memoryId,
-                },
+              const detailParams: {
+                sphere: LifeSphere;
+                entityId: string;
+                focusedMemoryId: string;
+                skipFocusedIntro?: string;
+                source?: string;
+                profileId?: string;
+                jobId?: string;
+                familyMemberId?: string;
+                friendId?: string;
+                hobbyId?: string;
+              } = {
+                sphere: finalSphere,
+                entityId: finalEntityId,
+                focusedMemoryId: memoryId,
+                skipFocusedIntro: "1",
+                source: "ai_modal_save",
+              };
+
+              if (finalSphere === "relationships") detailParams.profileId = finalEntityId;
+              else if (finalSphere === "career") detailParams.jobId = finalEntityId;
+              else if (finalSphere === "family") detailParams.familyMemberId = finalEntityId;
+              else if (finalSphere === "friends") detailParams.friendId = finalEntityId;
+              else if (finalSphere === "hobbies") detailParams.hobbyId = finalEntityId;
+
+              router.replace({
+                pathname: "/(tabs)" as const,
+                params: detailParams,
               });
             },
           },

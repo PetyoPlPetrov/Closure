@@ -305,8 +305,10 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
     [],
   );
 
-  /** Prevents duplicate loadQuestion runs (e.g. Strict Mode) from consuming two free slots. */
+  /** Prevents duplicate loadQuestion runs (e.g. Strict Mode) from building duplicate questions. */
   const loadQuestionInFlightRef = useRef(false);
+  /** Prevents duplicate submit taps from consuming multiple tries. */
+  const submitInFlightRef = useRef(false);
 
   const refreshRemainingExamTries = useCallback(async () => {
     const remaining = await getRemainingUniverseExams(hasAIEntitlement);
@@ -314,8 +316,8 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
   }, [hasAIEntitlement]);
 
   /**
-   * Restore saved unanswered question if any; else build a question, then consume a free slot
-   * (so closing during AI load does not burn a daily exam).
+   * Restore saved unanswered question if any; else build a question.
+   * Free slot consumption happens on submit, not on load.
    */
   const loadQuestion = useCallback(async () => {
     if (cards.length === 0) return;
@@ -385,12 +387,6 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
       }
     }
 
-    const allowed = await consumeUniverseExamIfAvailable(hasAIEntitlement);
-    if (!allowed) {
-      onClose();
-      await showPaywallForAIAccess();
-      return;
-    }
     await refreshRemainingExamTries();
 
     setQuestion(nextQuestion);
@@ -417,32 +413,47 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
   }, [visible, hasLessons, refreshRemainingExamTries]);
 
   const handleSubmit = useCallback(async () => {
+    if (submitInFlightRef.current) return;
     const trimmed = answerInputRef.current.trim();
     if (!currentCard || trimmed.length < 2) return;
-    if (isRecording || isListening) {
-      await speechToText.stop();
-    }
-    await clearPendingUniverseExam();
-    Keyboard.dismiss();
-    setStep("analyzing");
+    submitInFlightRef.current = true;
     try {
-      const result = await analyzeLessonExamAnswer(
-        currentCard.text,
-        question,
-        trimmed,
-        language,
-      );
-      setAnalysis(result);
-    } catch {
-      setAnalysis({
-        isCorrect: false,
-        feedback:
-          language === "bg"
-            ? "Не можахме да анализираме отговора ви."
-            : "Could not analyze your answer.",
-      });
+      if (isRecording || isListening) {
+        await speechToText.stop();
+      }
+
+      const allowed = await consumeUniverseExamIfAvailable(hasAIEntitlement);
+      if (!allowed) {
+        onClose();
+        await showPaywallForAIAccess();
+        return;
+      }
+
+      await refreshRemainingExamTries();
+      await clearPendingUniverseExam();
+      Keyboard.dismiss();
+      setStep("analyzing");
+      try {
+        const result = await analyzeLessonExamAnswer(
+          currentCard.text,
+          question,
+          trimmed,
+          language,
+        );
+        setAnalysis(result);
+      } catch {
+        setAnalysis({
+          isCorrect: false,
+          feedback:
+            language === "bg"
+              ? "Не можахме да анализираме отговора ви."
+              : "Could not analyze your answer.",
+        });
+      }
+      setStep("result");
+    } finally {
+      submitInFlightRef.current = false;
     }
-    setStep("result");
   }, [currentCard, question, language, isRecording, isListening, speechToText]);
 
   const handleToggleRecording = useCallback(async () => {
@@ -549,13 +560,17 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
 
   const resultAccentColor = analysis?.isCorrect ? "#4CAF50" : "#FFA726";
   const CARD_WIDTH = Math.min(320, SW - 48);
+  const displayedTriesLeft =
+    remainingExamTries !== null && Number.isFinite(remainingExamTries)
+      ? Math.max(1, remainingExamTries + 1)
+      : remainingExamTries;
   const triesLeftLabel =
-    remainingExamTries === null
+    displayedTriesLeft === null
       ? null
-      : Number.isFinite(remainingExamTries)
+      : Number.isFinite(displayedTriesLeft)
         ? (t("universe.exam.triesRemainingFree") || "{count} free tries left today").replace(
             "{count}",
-            String(remainingExamTries),
+            String(displayedTriesLeft),
           )
         : t("universe.exam.triesRemainingUnlimited") || "Unlimited tries left today";
 

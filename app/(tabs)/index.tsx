@@ -39,6 +39,7 @@ import {
   setShowWalkthroughAfterOnboarding,
 } from "@/utils/onboarding-storage";
 import { showPaywallForAIAccess } from "@/utils/premium-access";
+import { subscribeBadgeRewardsChanged } from "@/utils/badge-rewards-events";
 import {
   getSferaSizeHintDismissedForever,
   setSferaSizeHintDismissedForever,
@@ -13935,6 +13936,16 @@ export default function HomeScreen() {
   // Load streak data on mount
   useEffect(() => {
     loadStreakData();
+  }, [loadStreakData]);
+
+  // Keep streak badge UI in sync when memory saves happen within the same screen
+  // (e.g. AI modal), where navigation focus does not change.
+  useEffect(() => {
+    const unsubscribe = subscribeBadgeRewardsChanged(() => {
+      void loadStreakData();
+    });
+
+    return unsubscribe;
   }, [loadStreakData]);
 
   // Track app state to pause/resume intervals when app backgrounds/foregrounds
