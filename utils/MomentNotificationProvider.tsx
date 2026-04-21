@@ -266,7 +266,22 @@ export function MomentNotificationProvider({ children }: { children: React.React
         const raw = await AsyncStorage.getItem(STORAGE_KEY_SUMMARIES);
         if (raw) current = JSON.parse(raw);
       } catch { /* use state */ }
-      const next = [...current, ...created];
+      // Dedupe by (memoryId, momentId, momentType): the new entries replace any
+      // existing rows with the same key. This collapses legacy duplicates and
+      // prevents accumulation on repeated refreshes.
+      const incomingKeys = new Set(
+        created.map((s) => `${s.memoryId}::${s.momentType}::${s.momentId}`)
+      );
+      const deduped = current.filter(
+        (s) => !incomingKeys.has(`${s.memoryId}::${s.momentType}::${s.momentId}`)
+      );
+      const removed = current.length - deduped.length;
+      if (__DEV__ && removed > 0) {
+        console.log(
+          `[MomentNotificationProvider] addSummariesBatch: replacing ${removed} existing summary row(s) with same (memoryId, momentType, momentId)`
+        );
+      }
+      const next = [...deduped, ...created];
       setSummaries(next);
       await AsyncStorage.setItem(STORAGE_KEY_SUMMARIES, JSON.stringify(next));
       return created;
@@ -334,51 +349,98 @@ export function MomentNotificationProvider({ children }: { children: React.React
 
   const generateBatchSuggestionsForManualLessons = useCallback(
     async (language: 'en' | 'bg'): Promise<{ generated: number; error?: string }> => {
-      const existingMomentIds = new Set(summaries.map((s) => s.momentId));
+      const existingMomentKeys = new Set(
+        summaries.map((s) => `${s.memoryId}:${s.momentId}`)
+      );
       const manualMemories = idealizedMemories.filter((m) => m.source === 'manual');
-      const lessons: { id: string; text: string; memoryTitle?: string; sphere: LifeSphere }[] = [];
+      // Compound AI id "<memoryId>::<lessonId>" keeps lessons disambiguated
+      // through the LLM call when raw lesson ids collide across memories
+      // (legacy "lesson-2" / index-based ids).
+      const lessonsForAI: { id: string; text: string; memoryTitle?: string; sphere: LifeSphere }[] = [];
+      const contextByAIId = new Map<
+        string,
+        { memoryId: string; entityId: string; originalMomentId: string; text: string; sphere: LifeSphere }
+      >();
       for (const mem of manualMemories) {
         const list = mem.lessonsLearned ?? [];
         for (const lesson of list) {
-          if (!lesson.text.trim() || existingMomentIds.has(lesson.id)) continue;
-          lessons.push({
-            id: lesson.id,
+          if (!lesson.text.trim() || existingMomentKeys.has(`${mem.id}:${lesson.id}`)) continue;
+          const aiId = `${mem.id}::${lesson.id}`;
+          lessonsForAI.push({
+            id: aiId,
             text: lesson.text,
             memoryTitle: mem.title,
             sphere: mem.sphere,
           });
+          contextByAIId.set(aiId, {
+            memoryId: mem.id,
+            entityId: mem.entityId,
+            originalMomentId: lesson.id,
+            text: lesson.text,
+            sphere: mem.sphere,
+          });
         }
       }
-      if (lessons.length === 0) {
+      if (lessonsForAI.length === 0) {
         return { generated: 0 };
       }
       const aiEnabled = await isAIInsightsEnabled();
       if (!aiEnabled) return { generated: 0 };
       try {
-        const map = await suggestNotificationMessagesForLessons(lessons, language);
+        if (__DEV__) {
+          console.log(
+            `[MomentNotificationProvider] generateBatchSuggestionsForManualLessons: lessons=${lessonsForAI.length}`
+          );
+        }
+        // Helper guarantees one message per input lesson or throws.
+        const map = await suggestNotificationMessagesForLessons(lessonsForAI, language);
         const toAdd: Omit<MomentNotificationSummary, 'id' | 'createdAt'>[] = [];
-        for (const lesson of lessons) {
+        const missing: string[] = [];
+        for (const lesson of lessonsForAI) {
           const msg = map[lesson.id];
-          if (!msg?.trim()) continue;
-          const mem = manualMemories.find((m) => (m.lessonsLearned ?? []).some((l) => l.id === lesson.id));
-          if (!mem) continue;
+          const ctx = contextByAIId.get(lesson.id);
+          if (!msg?.trim() || !ctx) {
+            missing.push(lesson.id);
+            continue;
+          }
           toAdd.push({
-            momentId: lesson.id,
-            memoryId: mem.id,
-            entityId: mem.entityId,
-            sphere: mem.sphere,
+            momentId: ctx.originalMomentId,
+            memoryId: ctx.memoryId,
+            entityId: ctx.entityId,
+            sphere: ctx.sphere,
             momentType: 'lesson',
-            momentText: lesson.text,
+            momentText: ctx.text,
             notificationMessage: msg.trim(),
             source: 'ai_batch',
           });
         }
+        if (missing.length > 0) {
+          // With the alias+retry helper this should never happen; if it does, fail loud
+          // rather than silently persisting a partial set.
+          console.error(
+            `[MomentNotificationProvider] generateBatchSuggestionsForManualLessons: coverage gap`,
+            { missing }
+          );
+          return {
+            generated: 0,
+            error: `AI returned messages for ${lessonsForAI.length - missing.length}/${lessonsForAI.length} lesson(s). Aborting to avoid partial state.`,
+          };
+        }
         if (toAdd.length > 0) {
           await addSummariesBatch(toAdd);
+        }
+        if (__DEV__) {
+          console.log(
+            `[MomentNotificationProvider] generateBatchSuggestionsForManualLessons: persisted ${toAdd.length}/${lessonsForAI.length}`
+          );
         }
         return { generated: toAdd.length };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to generate suggestions';
+        console.error(
+          `[MomentNotificationProvider] generateBatchSuggestionsForManualLessons: error`,
+          err
+        );
         return { generated: 0, error: message };
       }
     },
@@ -410,79 +472,227 @@ export function MomentNotificationProvider({ children }: { children: React.React
       const matchingSummaries = currentSummaries.filter(
         (s) => s.sphere === sphere && s.momentType === momentType
       );
-      const existingMomentIds = new Set(matchingSummaries.map((s) => s.momentId));
+      const existingMomentKeysArr = matchingSummaries.map((s) => `${s.memoryId}:${s.momentId}`);
+      const existingMomentKeys = new Set(existingMomentKeysArr);
       const memoriesInSphere = idealizedMemories.filter((m) => m.sphere === sphere);
 
+      if (__DEV__) {
+        console.log(
+          `[MomentNotificationProvider] ensureSummariesForSphereAndType(${momentType}, ${sphere}) snapshot: totalSummaries=${currentSummaries.length} matching=${matchingSummaries.length} memoriesInSphere=${memoriesInSphere.length}`,
+          {
+            existingMomentKeys: existingMomentKeysArr,
+            memoriesInSphere: memoriesInSphere.map((m) => ({
+              id: m.id,
+              title: m.title,
+              lessonIds: (m.lessonsLearned ?? []).map((l) => l.id),
+              goodFactIds: (m.goodFacts ?? []).map((g) => g.id),
+            })),
+          }
+        );
+      }
+
       if (momentType === 'lesson') {
-        const lessons: { id: string; text: string; memoryTitle?: string; sphere: LifeSphere }[] = [];
+        // Use a compound AI id of "<memoryId>::<lessonId>" so that lessons
+        // with colliding raw ids across memories (legacy "lesson-2" format)
+        // stay disambiguated through the AI call and are persisted against
+        // the correct memory.
+        const lessonsForAI: { id: string; text: string; memoryTitle?: string; sphere: LifeSphere }[] = [];
+        const contextByAIId = new Map<
+          string,
+          { memoryId: string; entityId: string; originalMomentId: string; text: string; sphere: LifeSphere }
+        >();
         for (const mem of memoriesInSphere) {
           for (const l of mem.lessonsLearned ?? []) {
-            if (!l.text.trim() || existingMomentIds.has(l.id)) continue;
-            lessons.push({ id: l.id, text: l.text, memoryTitle: mem.title, sphere: mem.sphere });
-          }
-        }
-        if (lessons.length === 0) return { generated: 0 };
-        const aiEnabled = await isAIInsightsEnabled();
-        if (!aiEnabled) return { generated: 0 };
-        try {
-          const map = await suggestNotificationMessagesForLessons(lessons, language);
-          const toAdd: Omit<MomentNotificationSummary, 'id' | 'createdAt'>[] = [];
-          for (const lesson of lessons) {
-            const msg = map[lesson.id];
-            if (!msg?.trim()) continue;
-            const mem = memoriesInSphere.find((m) => (m.lessonsLearned ?? []).some((l) => l.id === lesson.id));
-            if (!mem) continue;
-            toAdd.push({
-              momentId: lesson.id,
+            if (!l.text.trim() || existingMomentKeys.has(`${mem.id}:${l.id}`)) continue;
+            const aiId = `${mem.id}::${l.id}`;
+            lessonsForAI.push({ id: aiId, text: l.text, memoryTitle: mem.title, sphere: mem.sphere });
+            contextByAIId.set(aiId, {
               memoryId: mem.id,
               entityId: mem.entityId,
+              originalMomentId: l.id,
+              text: l.text,
               sphere: mem.sphere,
+            });
+          }
+        }
+        if (lessonsForAI.length === 0) {
+          if (__DEV__) {
+            console.log(
+              `[MomentNotificationProvider] ensureSummariesForSphereAndType(lesson, ${sphere}): nothing to generate`
+            );
+          }
+          return { generated: 0 };
+        }
+        const aiEnabled = await isAIInsightsEnabled();
+        if (!aiEnabled) {
+          console.warn(
+            `[MomentNotificationProvider] ensureSummariesForSphereAndType: AI insights disabled; skipping`
+          );
+          return { generated: 0 };
+        }
+        try {
+          if (__DEV__) {
+            console.log(
+              `[MomentNotificationProvider] ensureSummariesForSphereAndType(lesson, ${sphere}): requesting ${lessonsForAI.length} message(s)`,
+              {
+                compoundIds: lessonsForAI.map((l) => l.id),
+              }
+            );
+          }
+          const map = await suggestNotificationMessagesForLessons(lessonsForAI, language);
+          if (__DEV__) {
+            console.log(
+              `[MomentNotificationProvider] ensureSummariesForSphereAndType(lesson, ${sphere}): LLM returned ${Object.keys(map).length} message(s)`,
+              { returnedIds: Object.keys(map) }
+            );
+          }
+          const toAdd: Omit<MomentNotificationSummary, 'id' | 'createdAt'>[] = [];
+          const missing: string[] = [];
+          for (const lesson of lessonsForAI) {
+            const msg = map[lesson.id];
+            const ctx = contextByAIId.get(lesson.id);
+            if (!msg?.trim() || !ctx) {
+              missing.push(lesson.id);
+              continue;
+            }
+            toAdd.push({
+              momentId: ctx.originalMomentId,
+              memoryId: ctx.memoryId,
+              entityId: ctx.entityId,
+              sphere: ctx.sphere,
               momentType: 'lesson',
-              momentText: lesson.text,
+              momentText: ctx.text,
               notificationMessage: msg.trim(),
               source: 'ai_batch',
             });
           }
+          if (missing.length > 0) {
+            console.error(
+              `[MomentNotificationProvider] ensureSummariesForSphereAndType(lesson, ${sphere}): coverage gap — ${missing.length}/${lessonsForAI.length} unresolved`,
+              { missingCompoundIds: missing }
+            );
+            return {
+              generated: 0,
+              error: `AI returned messages for ${lessonsForAI.length - missing.length}/${lessonsForAI.length} lesson(s). Please try again.`,
+            };
+          }
           if (toAdd.length > 0) await addSummariesBatch(toAdd);
+          if (__DEV__) {
+            console.log(
+              `[MomentNotificationProvider] ensureSummariesForSphereAndType(lesson, ${sphere}): persisted ${toAdd.length}/${lessonsForAI.length}`,
+              {
+                persistedKeys: toAdd.map((s) => `${s.memoryId}:${s.momentId}`),
+              }
+            );
+          }
           return { generated: toAdd.length };
         } catch (err) {
+          console.error(
+            `[MomentNotificationProvider] ensureSummariesForSphereAndType(lesson, ${sphere}): error`,
+            err
+          );
           return { generated: 0, error: err instanceof Error ? err.message : 'Failed to generate' };
         }
       }
 
       // momentType === 'sunny'
-      const sunnyMoments: { id: string; text: string; memoryTitle?: string; sphere: LifeSphere }[] = [];
+      // Same compound-id strategy as the lesson branch to disambiguate
+      // good-fact ids that collide across memories.
+      const sunnyForAI: { id: string; text: string; memoryTitle?: string; sphere: LifeSphere }[] = [];
+      const sunnyContextByAIId = new Map<
+        string,
+        { memoryId: string; entityId: string; originalMomentId: string; text: string; sphere: LifeSphere }
+      >();
       for (const mem of memoriesInSphere) {
         for (const g of mem.goodFacts ?? []) {
-          if (!g.text.trim() || existingMomentIds.has(g.id)) continue;
-          sunnyMoments.push({ id: g.id, text: g.text, memoryTitle: mem.title, sphere: mem.sphere });
-        }
-      }
-      if (sunnyMoments.length === 0) return { generated: 0 };
-      const aiEnabledForSunny = await isAIInsightsEnabled();
-      if (!aiEnabledForSunny) return { generated: 0 };
-      try {
-        const map = await suggestNotificationMessagesForSunnyMoments(sunnyMoments, language);
-        const toAdd: Omit<MomentNotificationSummary, 'id' | 'createdAt'>[] = [];
-        for (const m of sunnyMoments) {
-          const msg = map[m.id];
-          if (!msg?.trim()) continue;
-          const mem = memoriesInSphere.find((mem) => (mem.goodFacts ?? []).some((g) => g.id === m.id));
-          if (!mem) continue;
-          toAdd.push({
-            momentId: m.id,
+          if (!g.text.trim() || existingMomentKeys.has(`${mem.id}:${g.id}`)) continue;
+          const aiId = `${mem.id}::${g.id}`;
+          sunnyForAI.push({ id: aiId, text: g.text, memoryTitle: mem.title, sphere: mem.sphere });
+          sunnyContextByAIId.set(aiId, {
             memoryId: mem.id,
             entityId: mem.entityId,
+            originalMomentId: g.id,
+            text: g.text,
             sphere: mem.sphere,
+          });
+        }
+      }
+      if (sunnyForAI.length === 0) {
+        if (__DEV__) {
+          console.log(
+            `[MomentNotificationProvider] ensureSummariesForSphereAndType(sunny, ${sphere}): nothing to generate`
+          );
+        }
+        return { generated: 0 };
+      }
+      const aiEnabledForSunny = await isAIInsightsEnabled();
+      if (!aiEnabledForSunny) {
+        console.warn(
+          `[MomentNotificationProvider] ensureSummariesForSphereAndType: AI insights disabled; skipping`
+        );
+        return { generated: 0 };
+      }
+      try {
+        if (__DEV__) {
+          console.log(
+            `[MomentNotificationProvider] ensureSummariesForSphereAndType(sunny, ${sphere}): requesting ${sunnyForAI.length} message(s)`,
+            {
+              compoundIds: sunnyForAI.map((m) => m.id),
+            }
+          );
+        }
+        const map = await suggestNotificationMessagesForSunnyMoments(sunnyForAI, language);
+        if (__DEV__) {
+          console.log(
+            `[MomentNotificationProvider] ensureSummariesForSphereAndType(sunny, ${sphere}): LLM returned ${Object.keys(map).length} message(s)`,
+            { returnedIds: Object.keys(map) }
+          );
+        }
+        const toAdd: Omit<MomentNotificationSummary, 'id' | 'createdAt'>[] = [];
+        const missing: string[] = [];
+        for (const m of sunnyForAI) {
+          const msg = map[m.id];
+          const ctx = sunnyContextByAIId.get(m.id);
+          if (!msg?.trim() || !ctx) {
+            missing.push(m.id);
+            continue;
+          }
+          toAdd.push({
+            momentId: ctx.originalMomentId,
+            memoryId: ctx.memoryId,
+            entityId: ctx.entityId,
+            sphere: ctx.sphere,
             momentType: 'sunny',
-            momentText: m.text,
+            momentText: ctx.text,
             notificationMessage: msg.trim(),
             source: 'ai_batch',
           });
         }
+        if (missing.length > 0) {
+          console.error(
+            `[MomentNotificationProvider] ensureSummariesForSphereAndType(sunny, ${sphere}): coverage gap — ${missing.length}/${sunnyForAI.length} unresolved`,
+            { missingCompoundIds: missing }
+          );
+          return {
+            generated: 0,
+            error: `AI returned messages for ${sunnyForAI.length - missing.length}/${sunnyForAI.length} sunny moment(s). Please try again.`,
+          };
+        }
         if (toAdd.length > 0) await addSummariesBatch(toAdd);
+        if (__DEV__) {
+          console.log(
+            `[MomentNotificationProvider] ensureSummariesForSphereAndType(sunny, ${sphere}): persisted ${toAdd.length}/${sunnyForAI.length}`,
+            {
+              persistedKeys: toAdd.map((s) => `${s.memoryId}:${s.momentId}`),
+            }
+          );
+        }
         return { generated: toAdd.length };
       } catch (err) {
+        console.error(
+          `[MomentNotificationProvider] ensureSummariesForSphereAndType(sunny, ${sphere}): error`,
+          err
+        );
         return { generated: 0, error: err instanceof Error ? err.message : 'Failed to generate' };
       }
     },

@@ -987,6 +987,13 @@ export interface Translations {
   "momentNotifications.scheduleCreated": string;
   "momentNotifications.scheduleUpdated": string;
   "momentNotifications.noMomentsWarning": string;
+  "momentNotifications.refresh.button": string;
+  "momentNotifications.refresh.infoButton": string;
+  "momentNotifications.refresh.requiresSubscription": string;
+  "momentNotifications.refresh.caughtUpTitle": string;
+  "momentNotifications.refresh.caughtUpMessage": string;
+  "momentNotifications.refresh.howItWorksTitle": string;
+  "momentNotifications.refresh.howItWorksMessage": string;
 
   // Onboarding
   "onboarding.skip": string;
@@ -5119,6 +5126,16 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.scheduleCreated": "Schedule created successfully!",
     "momentNotifications.scheduleUpdated": "Schedule updated successfully!",
     "momentNotifications.noMomentsWarning": "No moments available · notifications paused",
+    "momentNotifications.refresh.button": "Refresh",
+    "momentNotifications.refresh.infoButton": "Refresh info",
+    "momentNotifications.refresh.requiresSubscription":
+      "Refresh requires Sfera AI subscription.",
+    "momentNotifications.refresh.caughtUpTitle": "AI summaries are caught up",
+    "momentNotifications.refresh.caughtUpMessage":
+      "All available items for this nudge already have AI summaries.",
+    "momentNotifications.refresh.howItWorksTitle": "How AI refresh works",
+    "momentNotifications.refresh.howItWorksMessage":
+      "{count} item(s) still need summaries. Refresh generates summaries only for newly added lessons or sunny moments. Existing summaries are reused.",
 
     // Onboarding
     "onboarding.skip": "Skip",
@@ -9917,6 +9934,16 @@ const translations: Record<Language, Translations> = {
     "momentNotifications.scheduleCreated": "Разписанието е създадено успешно!",
     "momentNotifications.scheduleUpdated": "Разписанието е обновено успешно!",
     "momentNotifications.noMomentsWarning": "Няма налични моменти · известията са спрени",
+    "momentNotifications.refresh.button": "Обнови",
+    "momentNotifications.refresh.infoButton": "Информация за обновяване",
+    "momentNotifications.refresh.requiresSubscription":
+      "Обновяването изисква абонамент Sfera AI.",
+    "momentNotifications.refresh.caughtUpTitle": "AI обобщенията са актуални",
+    "momentNotifications.refresh.caughtUpMessage":
+      "Всички налични елементи за това напомняне вече имат AI обобщения.",
+    "momentNotifications.refresh.howItWorksTitle": "Как работи AI обновяването",
+    "momentNotifications.refresh.howItWorksMessage":
+      "{count} елемент(а) все още нуждаят от обобщения. Обновяването генерира обобщения само за новодобавени уроци или слънчеви моменти. Съществуващите обобщения се използват повторно.",
 
     // Onboarding
     "onboarding.skip": "Пропусни",

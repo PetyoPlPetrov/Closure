@@ -251,22 +251,27 @@ REQUIRED: For EVERY sunnyMoments and lessonsLearned moment you MUST provide noti
  * Suggest notification messages for manual-lesson moments (batch).
  * One AI request for all lessons; returns map of momentId -> notificationMessage.
  */
-export async function suggestNotificationMessagesForLessons(
-  lessons: {
-    id: string;
-    text: string;
-    memoryTitle?: string;
-    sphere: LifeSphere;
-  }[],
-  language: "en" | "bg" = "en"
-): Promise<{ [momentId: string]: string }> {
-  if (lessons.length === 0) return {};
+// Max attempts to get a complete response from Gemini.
+// Gemini can occasionally drop/truncate one item per call for long batches;
+// we retry only the missing aliases to guarantee full coverage.
+const MAX_AI_MESSAGE_RETRY_ATTEMPTS = 3;
+
+/**
+ * Low-level Gemini call for lessons. Input/output is keyed by SHORT ALIASES
+ * (e.g. "m0", "m1"). The caller is responsible for mapping aliases to real ids.
+ * Using aliases avoids the "Gemini drops a long momentId" class of bugs.
+ */
+async function requestLessonMessagesByAlias(
+  aliased: { alias: string; text: string; memoryTitle?: string }[],
+  language: "en" | "bg"
+): Promise<{ [alias: string]: string }> {
+  if (aliased.length === 0) return {};
 
   if (USE_MOCK_AI_REQUEST) {
     await new Promise((r) => setTimeout(r, 1000));
-    const out: { [momentId: string]: string } = {};
-    for (const l of lessons) {
-      out[l.id] = "You learned something valuable from that experience.";
+    const out: { [alias: string]: string } = {};
+    for (const l of aliased) {
+      out[l.alias] = "You learned something valuable from that experience.";
     }
     return out;
   }
@@ -279,7 +284,10 @@ export async function suggestNotificationMessagesForLessons(
       momentNotificationMessages: Schema.array({
         items: Schema.object({
           properties: {
-            momentId: Schema.string({ description: "Same id as in the input lesson" }),
+            momentId: Schema.string({
+              description:
+                "Short alias copied EXACTLY from input (e.g. m0, m1, m2). Must be one of the aliases provided.",
+            }),
             notificationMessage: Schema.string({
               description:
                 "As Sfera addressing the user. Use second person and REFLECT what they learned (e.g. 'You learned that...'). Max 15-20 words. No imperatives.",
@@ -303,12 +311,15 @@ export async function suggestNotificationMessagesForLessons(
 
 ${strictRules}
 
-Return one object per lesson with momentId (same as input) and notificationMessage.`;
+CRITICAL OUTPUT CONTRACT:
+- Return EXACTLY one object for EVERY input lesson. Do not skip any. Do not merge.
+- Copy the momentId alias VERBATIM from the input (e.g. "m0" -> "m0"). Never invent, truncate, or reformat aliases.
+- If you cannot produce a message for a lesson, still return the alias with a best-effort reflection.`;
 
-  const userPrompt = `Lessons:\n${lessons
+  const userPrompt = `Lessons (${aliased.length}):\n${aliased
     .map(
       (l) =>
-        `- momentId: "${l.id}", text: "${l.text.replace(/"/g, '\\"')}"${l.memoryTitle ? `, memoryTitle: "${l.memoryTitle}"` : ""}`
+        `- momentId: "${l.alias}", text: "${l.text.replace(/"/g, '\\"')}"${l.memoryTitle ? `, memoryTitle: "${l.memoryTitle}"` : ""}`
     )
     .join("\n")}`;
 
@@ -332,7 +343,7 @@ Return one object per lesson with momentId (same as input) and notificationMessa
     momentNotificationMessages: { momentId: string; notificationMessage: string }[];
   };
 
-  const map: { [momentId: string]: string } = {};
+  const map: { [alias: string]: string } = {};
   for (const item of parsed.momentNotificationMessages ?? []) {
     if (item.momentId && item.notificationMessage?.trim()) {
       map[item.momentId] = item.notificationMessage.trim();
@@ -342,12 +353,8 @@ Return one object per lesson with momentId (same as input) and notificationMessa
   return map;
 }
 
-/**
- * Suggest notification messages for sunny-moment (goodFacts) moments (batch).
- * One AI request for all sunny moments; returns map of momentId -> notificationMessage.
- */
-export async function suggestNotificationMessagesForSunnyMoments(
-  moments: {
+export async function suggestNotificationMessagesForLessons(
+  lessons: {
     id: string;
     text: string;
     memoryTitle?: string;
@@ -355,13 +362,84 @@ export async function suggestNotificationMessagesForSunnyMoments(
   }[],
   language: "en" | "bg" = "en"
 ): Promise<{ [momentId: string]: string }> {
-  if (moments.length === 0) return {};
+  if (lessons.length === 0) return {};
+
+  // Build alias <-> real id maps. Aliases are short (m0, m1, ...) so Gemini
+  // echoes them reliably and cannot truncate them mid-token.
+  const realById = new Map<string, { id: string; text: string; memoryTitle?: string }>();
+  const aliasByRealId = new Map<string, string>();
+  lessons.forEach((l, i) => {
+    const alias = `m${i}`;
+    realById.set(alias, { id: l.id, text: l.text, memoryTitle: l.memoryTitle });
+    aliasByRealId.set(l.id, alias);
+  });
+
+  console.log(
+    `[ai-service] suggestNotificationMessagesForLessons: requesting ${lessons.length} message(s)`
+  );
+
+  const resolved: { [realId: string]: string } = {};
+  const pending = new Set<string>(realById.keys());
+
+  for (let attempt = 1; attempt <= MAX_AI_MESSAGE_RETRY_ATTEMPTS; attempt++) {
+    if (pending.size === 0) break;
+
+    const batch = Array.from(pending).map((alias) => {
+      const real = realById.get(alias)!;
+      return { alias, text: real.text, memoryTitle: real.memoryTitle };
+    });
+
+    const batchMap = await requestLessonMessagesByAlias(batch, language);
+
+    for (const alias of Array.from(pending)) {
+      const msg = batchMap[alias];
+      if (msg?.trim()) {
+        const real = realById.get(alias)!;
+        resolved[real.id] = msg.trim();
+        pending.delete(alias);
+      }
+    }
+
+    if (pending.size > 0) {
+      console.warn(
+        `[ai-service] suggestNotificationMessagesForLessons: attempt ${attempt}/${MAX_AI_MESSAGE_RETRY_ATTEMPTS} missed ${pending.size}/${batch.length} message(s); retrying missing only`,
+        { missingAliases: Array.from(pending) }
+      );
+    }
+  }
+
+  if (pending.size > 0) {
+    const missingRealIds = Array.from(pending).map((a) => realById.get(a)!.id);
+    console.error(
+      `[ai-service] suggestNotificationMessagesForLessons: FAILED — ${missingRealIds.length} lesson(s) still missing after ${MAX_AI_MESSAGE_RETRY_ATTEMPTS} attempt(s)`,
+      { missingRealIds }
+    );
+    throw new Error(
+      `AI could not generate notification messages for ${missingRealIds.length} lesson(s) after ${MAX_AI_MESSAGE_RETRY_ATTEMPTS} attempts. Please try again.`
+    );
+  }
+
+  console.log(
+    `[ai-service] suggestNotificationMessagesForLessons: OK ${Object.keys(resolved).length}/${lessons.length}`
+  );
+  return resolved;
+}
+
+/**
+ * Suggest notification messages for sunny-moment (goodFacts) moments (batch).
+ * One AI request for all sunny moments; returns map of momentId -> notificationMessage.
+ */
+async function requestSunnyMomentMessagesByAlias(
+  aliased: { alias: string; text: string; memoryTitle?: string }[],
+  language: "en" | "bg"
+): Promise<{ [alias: string]: string }> {
+  if (aliased.length === 0) return {};
 
   if (USE_MOCK_AI_REQUEST) {
     await new Promise((r) => setTimeout(r, 1000));
-    const out: { [momentId: string]: string } = {};
-    for (const m of moments) {
-      out[m.id] = "You experienced something positive from that moment.";
+    const out: { [alias: string]: string } = {};
+    for (const m of aliased) {
+      out[m.alias] = "You experienced something positive from that moment.";
     }
     return out;
   }
@@ -374,7 +452,10 @@ export async function suggestNotificationMessagesForSunnyMoments(
       momentNotificationMessages: Schema.array({
         items: Schema.object({
           properties: {
-            momentId: Schema.string({ description: "Same id as in the input moment" }),
+            momentId: Schema.string({
+              description:
+                "Short alias copied EXACTLY from input (e.g. m0, m1, m2). Must be one of the aliases provided.",
+            }),
             notificationMessage: Schema.string({
               description:
                 "As Sfera addressing the user. Use second person and REFLECT what they felt/experienced (e.g. 'You felt...'). Max 15-20 words. No imperatives.",
@@ -398,12 +479,15 @@ export async function suggestNotificationMessagesForSunnyMoments(
 
 ${strictRules}
 
-Return one object per moment with momentId (same as input) and notificationMessage.`;
+CRITICAL OUTPUT CONTRACT:
+- Return EXACTLY one object for EVERY input moment. Do not skip any. Do not merge.
+- Copy the momentId alias VERBATIM from the input (e.g. "m0" -> "m0"). Never invent, truncate, or reformat aliases.
+- If you cannot produce a message for a moment, still return the alias with a best-effort reflection.`;
 
-  const userPrompt = `Sunny moments:\n${moments
+  const userPrompt = `Sunny moments (${aliased.length}):\n${aliased
     .map(
       (m) =>
-        `- momentId: "${m.id}", text: "${m.text.replace(/"/g, '\\"')}"${m.memoryTitle ? `, memoryTitle: "${m.memoryTitle}"` : ""}`
+        `- momentId: "${m.alias}", text: "${m.text.replace(/"/g, '\\"')}"${m.memoryTitle ? `, memoryTitle: "${m.memoryTitle}"` : ""}`
     )
     .join("\n")}`;
 
@@ -427,7 +511,7 @@ Return one object per moment with momentId (same as input) and notificationMessa
     momentNotificationMessages: { momentId: string; notificationMessage: string }[];
   };
 
-  const map: { [momentId: string]: string } = {};
+  const map: { [alias: string]: string } = {};
   for (const item of parsed.momentNotificationMessages ?? []) {
     if (item.momentId && item.notificationMessage?.trim()) {
       map[item.momentId] = item.notificationMessage.trim();
@@ -435,6 +519,76 @@ Return one object per moment with momentId (same as input) and notificationMessa
   }
 
   return map;
+}
+
+export async function suggestNotificationMessagesForSunnyMoments(
+  moments: {
+    id: string;
+    text: string;
+    memoryTitle?: string;
+    sphere: LifeSphere;
+  }[],
+  language: "en" | "bg" = "en"
+): Promise<{ [momentId: string]: string }> {
+  if (moments.length === 0) return {};
+
+  const realById = new Map<string, { id: string; text: string; memoryTitle?: string }>();
+  const aliasByRealId = new Map<string, string>();
+  moments.forEach((m, i) => {
+    const alias = `m${i}`;
+    realById.set(alias, { id: m.id, text: m.text, memoryTitle: m.memoryTitle });
+    aliasByRealId.set(m.id, alias);
+  });
+
+  console.log(
+    `[ai-service] suggestNotificationMessagesForSunnyMoments: requesting ${moments.length} message(s)`
+  );
+
+  const resolved: { [realId: string]: string } = {};
+  const pending = new Set<string>(realById.keys());
+
+  for (let attempt = 1; attempt <= MAX_AI_MESSAGE_RETRY_ATTEMPTS; attempt++) {
+    if (pending.size === 0) break;
+
+    const batch = Array.from(pending).map((alias) => {
+      const real = realById.get(alias)!;
+      return { alias, text: real.text, memoryTitle: real.memoryTitle };
+    });
+
+    const batchMap = await requestSunnyMomentMessagesByAlias(batch, language);
+
+    for (const alias of Array.from(pending)) {
+      const msg = batchMap[alias];
+      if (msg?.trim()) {
+        const real = realById.get(alias)!;
+        resolved[real.id] = msg.trim();
+        pending.delete(alias);
+      }
+    }
+
+    if (pending.size > 0) {
+      console.warn(
+        `[ai-service] suggestNotificationMessagesForSunnyMoments: attempt ${attempt}/${MAX_AI_MESSAGE_RETRY_ATTEMPTS} missed ${pending.size}/${batch.length} message(s); retrying missing only`,
+        { missingAliases: Array.from(pending) }
+      );
+    }
+  }
+
+  if (pending.size > 0) {
+    const missingRealIds = Array.from(pending).map((a) => realById.get(a)!.id);
+    console.error(
+      `[ai-service] suggestNotificationMessagesForSunnyMoments: FAILED — ${missingRealIds.length} moment(s) still missing after ${MAX_AI_MESSAGE_RETRY_ATTEMPTS} attempt(s)`,
+      { missingRealIds }
+    );
+    throw new Error(
+      `AI could not generate notification messages for ${missingRealIds.length} sunny moment(s) after ${MAX_AI_MESSAGE_RETRY_ATTEMPTS} attempts. Please try again.`
+    );
+  }
+
+  console.log(
+    `[ai-service] suggestNotificationMessagesForSunnyMoments: OK ${Object.keys(resolved).length}/${moments.length}`
+  );
+  return resolved;
 }
 
 /**

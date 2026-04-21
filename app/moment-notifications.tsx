@@ -597,7 +597,10 @@ export default function MomentNotificationsScreen() {
   const handleRefreshAISummaries = useCallback(async () => {
     if (!editingSchedule) return;
     if (!aiConsent.isEnabled) return;
-    if (!hasAIEntitlement && editingSchedule.freeAiGranted !== true) return;
+    if (!hasAIEntitlement) {
+      const purchased = await showPaywallForUpgradeAccess();
+      if (!purchased) return;
+    }
     setIsSaving(true);
     try {
       const result = await ensureSummariesForSphereAndType(
@@ -632,6 +635,82 @@ export default function MomentNotificationsScreen() {
     showNotification,
     t,
   ]);
+
+  const pendingAISummaryCount = useMemo(() => {
+    if (!editingSchedule || formSource !== "ai") return 0;
+    const existingSummaryKeysArr = getSummariesBySphereAndType(formSphere, formMomentType).map(
+      (summary) => `${summary.memoryId}:${summary.momentId}`
+    );
+    const existingSummaryKeys = new Set(existingSummaryKeysArr);
+    const memoriesInSphere = idealizedMemories.filter((memory) => memory.sphere === formSphere);
+    const missingKeys: string[] = [];
+    const missingDetails: { memoryId: string; memoryTitle?: string; lessonId: string; textPreview: string }[] = [];
+    if (formMomentType === "lesson") {
+      for (const memory of memoriesInSphere) {
+        for (const lesson of memory.lessonsLearned ?? []) {
+          if (!lesson.text?.trim()) continue;
+          const key = `${memory.id}:${lesson.id}`;
+          if (existingSummaryKeys.has(key)) continue;
+          missingKeys.push(key);
+          missingDetails.push({
+            memoryId: memory.id,
+            memoryTitle: memory.title,
+            lessonId: lesson.id,
+            textPreview: lesson.text.slice(0, 40),
+          });
+        }
+      }
+    } else {
+      for (const memory of memoriesInSphere) {
+        for (const sunnyMoment of memory.goodFacts ?? []) {
+          if (!sunnyMoment.text?.trim()) continue;
+          const key = `${memory.id}:${sunnyMoment.id}`;
+          if (existingSummaryKeys.has(key)) continue;
+          missingKeys.push(key);
+          missingDetails.push({
+            memoryId: memory.id,
+            memoryTitle: memory.title,
+            lessonId: sunnyMoment.id,
+            textPreview: sunnyMoment.text.slice(0, 40),
+          });
+        }
+      }
+    }
+    if (__DEV__ && missingKeys.length > 0) {
+      console.log(
+        `[moment-notifications][pendingAISummaryCount] sphere=${formSphere} type=${formMomentType} missing=${missingKeys.length} existingSummaries=${existingSummaryKeysArr.length}`,
+        {
+          missing: missingDetails,
+          existingSummaryKeys: existingSummaryKeysArr,
+        }
+      );
+    }
+    return missingKeys.length;
+  }, [
+    editingSchedule,
+    formSource,
+    formSphere,
+    formMomentType,
+    getSummariesBySphereAndType,
+    idealizedMemories,
+  ]);
+
+  const handleRefreshAIInfoPress = useCallback(() => {
+    if (pendingAISummaryCount === 0) {
+      Alert.alert(
+        t("momentNotifications.refresh.caughtUpTitle"),
+        t("momentNotifications.refresh.caughtUpMessage")
+      );
+      return;
+    }
+    Alert.alert(
+      t("momentNotifications.refresh.howItWorksTitle"),
+      t("momentNotifications.refresh.howItWorksMessage").replace(
+        "{count}",
+        String(pendingAISummaryCount)
+      )
+    );
+  }, [pendingAISummaryCount, t]);
 
   const handleDelete = useCallback(
     (schedule: MomentNotificationSchedule) => {
@@ -1223,9 +1302,6 @@ export default function MomentNotificationsScreen() {
                           ? t("momentNotifications.source.aiHintSunnyMoments")
                           : t("momentNotifications.source.aiHintLessons")}
                       </ThemedText>
-                      <ThemedText size="sm" style={{ color: palette.muted }}>
-                        Applies to current items. Later, use refresh to generate summaries only for newly added items.
-                      </ThemedText>
                       {!hasAIEntitlement && canClaimFreeAI && (
                         <ThemedText size="sm" style={{ color: palette.muted }}>
                           You have 1 free AI nudge available today.
@@ -1236,15 +1312,52 @@ export default function MomentNotificationsScreen() {
                 )}
                 {editingSchedule && formSource === "ai" && (
                   <View style={styles.hintRow}>
-                    <TouchableOpacity
-                      style={[styles.optionChip, { alignSelf: "flex-start" }]}
-                      onPress={() => void handleRefreshAISummaries()}
-                      disabled={isSaving}
-                    >
-                      <ThemedText size="sm">
-                        Refresh AI source (new only)
+                    <View style={styles.refreshActionsRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.optionChip,
+                          styles.refreshActionButton,
+                          (isSaving || pendingAISummaryCount === 0) && styles.refreshActionButtonDisabled,
+                        ]}
+                        onPress={() => void handleRefreshAISummaries()}
+                        disabled={isSaving || pendingAISummaryCount === 0}
+                      >
+                        <View style={styles.refreshIconWrap}>
+                          <MaterialIcons
+                            name={pendingAISummaryCount === 0 ? "check-circle" : "refresh"}
+                            size={16 * fontScale}
+                            color={pendingAISummaryCount === 0 ? "#22C55E" : palette.text}
+                          />
+                          {pendingAISummaryCount > 0 && (
+                            <View style={styles.refreshBadge}>
+                              <ThemedText
+                                size="sm"
+                                weight="bold"
+                                style={styles.refreshBadgeText}
+                              >
+                                {pendingAISummaryCount > 99 ? "99+" : String(pendingAISummaryCount)}
+                              </ThemedText>
+                            </View>
+                          )}
+                        </View>
+                        <ThemedText size="sm">
+                          {t("momentNotifications.refresh.button")}
+                        </ThemedText>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.refreshInfoButton}
+                        onPress={handleRefreshAIInfoPress}
+                        hitSlop={8}
+                        accessibilityLabel={t("momentNotifications.refresh.infoButton")}
+                      >
+                        <MaterialIcons name="info-outline" size={18 * fontScale} color={palette.muted} />
+                      </TouchableOpacity>
+                    </View>
+                    {!hasAIEntitlement && (
+                      <ThemedText size="sm" style={{ color: palette.muted, marginTop: 6 }}>
+                        {t("momentNotifications.refresh.requiresSubscription")}
                       </ThemedText>
-                    </TouchableOpacity>
+                    )}
                   </View>
                 )}
               </View>
@@ -1668,6 +1781,54 @@ function createStyles(
     },
     hintRow: {
       marginTop: 8 * fontScale,
+    },
+    refreshActionsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "flex-end",
+      gap: 8 * fontScale,
+    },
+    refreshActionButton: {
+      alignSelf: "flex-start",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6 * fontScale,
+    },
+    refreshActionButtonDisabled: {
+      opacity: 0.6,
+    },
+    refreshIconWrap: {
+      minWidth: 18 * fontScale,
+      minHeight: 18 * fontScale,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    refreshBadge: {
+      position: "absolute",
+      top: -7 * fontScale,
+      right: -9 * fontScale,
+      minWidth: 16 * fontScale,
+      height: 16 * fontScale,
+      borderRadius: 8 * fontScale,
+      paddingHorizontal: 3 * fontScale,
+      backgroundColor: "#EF4444",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    refreshBadgeText: {
+      color: "#FFFFFF",
+      fontSize: 9 * fontScale,
+      lineHeight: 11 * fontScale,
+    },
+    refreshInfoButton: {
+      width: 34 * fontScale,
+      height: 34 * fontScale,
+      borderRadius: 17 * fontScale,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surfaceElevated,
+      alignItems: "center",
+      justifyContent: "center",
     },
     soundRow: {
       flexDirection: "row",

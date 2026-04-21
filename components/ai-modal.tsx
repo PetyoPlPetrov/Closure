@@ -506,7 +506,7 @@ export function AIModal({
 
       const items: AIMemoryItem[] = (response.moments || []).map(
         (moment, index) => ({
-          id: `${momentTypeMap[moment.type] || "goodFact"}-${index}`,
+          id: `${momentTypeMap[moment.type] || "goodFact"}_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 8)}`,
           type: momentTypeMap[moment.type] || "goodFact",
           text: moment.text,
           notificationMessage:
@@ -1198,50 +1198,92 @@ export function AIModal({
         return;
       }
 
-      // Persist moment notification summaries for lesson and goodFact items (batch to avoid stale state)
+      // Persist moment notification summaries for lesson and goodFact items (batch to avoid stale state).
+      // Every persisted summary must carry an AI-specific message. If the initial memory-creation call
+      // did not attach `notificationMessage` to an item, we fill it via a dedicated batch AI request
+      // (which itself guarantees one message per input or throws).
       const itemsNeedingSummary = memoryItems.filter(
         (item) => item.type === "lesson" || item.type === "goodFact"
       );
       const lessonsWithoutMessage = itemsNeedingSummary.filter(
         (item) => item.type === "lesson" && !item.notificationMessage?.trim()
       );
-      let fallbackMessages: Record<string, string> = {};
-      if (lessonsWithoutMessage.length > 0) {
-        const { suggestNotificationMessagesForLessons } = await import("@/utils/ai-service");
-        fallbackMessages = await suggestNotificationMessagesForLessons(
-          lessonsWithoutMessage.map((l) => ({
-            id: l.id,
-            text: l.text,
-            memoryTitle: aiResponse?.memory?.title,
-            sphere: finalSphere,
-          })),
-          language === "bg" ? "bg" : "en"
+      const sunnyWithoutMessage = itemsNeedingSummary.filter(
+        (item) => item.type === "goodFact" && !item.notificationMessage?.trim()
+      );
+      const resolvedMessages: Record<string, string> = {};
+      if (lessonsWithoutMessage.length > 0 || sunnyWithoutMessage.length > 0) {
+        console.log(
+          `[AI Modal] Backfilling missing notificationMessages — lessons: ${lessonsWithoutMessage.length}, sunny: ${sunnyWithoutMessage.length}`
         );
+        const {
+          suggestNotificationMessagesForLessons,
+          suggestNotificationMessagesForSunnyMoments,
+        } = await import("@/utils/ai-service");
+        const lang = language === "bg" ? "bg" : "en";
+        const [lessonMap, sunnyMap] = await Promise.all([
+          lessonsWithoutMessage.length > 0
+            ? suggestNotificationMessagesForLessons(
+                lessonsWithoutMessage.map((l) => ({
+                  id: l.id,
+                  text: l.text,
+                  memoryTitle: aiResponse?.memory?.title,
+                  sphere: finalSphere,
+                })),
+                lang
+              )
+            : Promise.resolve({} as Record<string, string>),
+          sunnyWithoutMessage.length > 0
+            ? suggestNotificationMessagesForSunnyMoments(
+                sunnyWithoutMessage.map((s) => ({
+                  id: s.id,
+                  text: s.text,
+                  memoryTitle: aiResponse?.memory?.title,
+                  sphere: finalSphere,
+                })),
+                lang
+              )
+            : Promise.resolve({} as Record<string, string>),
+        ]);
+        Object.assign(resolvedMessages, lessonMap, sunnyMap);
       }
       const toPersist: Parameters<typeof addSummariesBatch>[0] = [];
+      const unresolvedItems: { id: string; type: AIMemoryItem["type"] }[] = [];
       for (const item of itemsNeedingSummary) {
         const message =
-          item.notificationMessage?.trim() ||
-          (item.type === "lesson" ? fallbackMessages[item.id] : null) ||
-          (item.type === "lesson"
-            ? "You learned something valuable from that experience."
-            : "You experienced something positive from that moment.");
-        if (message) {
-          toPersist.push({
-            momentId: item.id,
-            memoryId,
-            entityId: finalEntityId,
-            sphere: finalSphere,
-            momentType: item.type === "lesson" ? "lesson" : "sunny",
-            momentText: item.text,
-            notificationMessage: message,
-            source: "ai_suggested",
-          });
+          item.notificationMessage?.trim() || resolvedMessages[item.id]?.trim();
+        if (!message) {
+          unresolvedItems.push({ id: item.id, type: item.type });
+          continue;
         }
+        toPersist.push({
+          momentId: item.id,
+          memoryId,
+          entityId: finalEntityId,
+          sphere: finalSphere,
+          momentType: item.type === "lesson" ? "lesson" : "sunny",
+          momentText: item.text,
+          notificationMessage: message,
+          source: "ai_suggested",
+        });
+      }
+      if (unresolvedItems.length > 0) {
+        // Should be unreachable: the helper guarantees coverage or throws.
+        // Log loudly instead of silently persisting partial state.
+        console.error(
+          `[AI Modal] Coverage gap after backfill — ${unresolvedItems.length} item(s) without notificationMessage`,
+          { unresolvedItems }
+        );
+        throw new Error(
+          `AI could not generate notification messages for ${unresolvedItems.length} item(s). Please try again.`
+        );
       }
       if (toPersist.length > 0) {
         await addSummariesBatch(toPersist);
       }
+      console.log(
+        `[AI Modal] Persisted ${toPersist.length}/${itemsNeedingSummary.length} moment notification summaries`
+      );
 
       // Log analytics event for AI memory saved
       await logAIMemorySaved(finalSphere, false, memoryItems.length);
