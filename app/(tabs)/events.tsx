@@ -875,8 +875,28 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
       if (above && right) w = scaled.smallAboveRight;
       else if (above) w = scaled.smallAbove;
       else w = scaled.small;
+
+      // Perspective depth: cards in the top/back arc appear smaller.
+      const backDepth = Math.max(0, Math.min(1, (-sinA - 0.15) / 0.85));
+      const perspectiveScale = 1 - backDepth * 0.18;
+      w *= perspectiveScale;
     }
     const h = w;
+
+    if (focused) {
+      // Keep the focused event card anchored in the primary slot.
+      const x = CENTER_X - w / 2;
+      const y =
+        CENTER_Y + scaled.orbitRadius * 1.2 + scaled.yOffsetBelow - h / 2;
+      return {
+        position: "absolute" as const,
+        left: x,
+        top: y,
+        width: w,
+        height: h,
+        opacity: 1,
+      };
+    }
 
     // Different levels: vary radius by angle (top = smaller radius = closer/higher), and nudge top cards up
     const radiusMultiplier = 0.8 + 0.2 * (1 + sinA);
@@ -898,33 +918,15 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
     const x = CENTER_X + cosA * r - w / 2;
     const y = CENTER_Y + sinA * r + yOffset - h / 2;
 
-    // Opacity: hide cards that appear behind the focused card
-    let opacity: number;
-    if (focused) {
-      opacity = 1.0;
-    } else {
-      // Calculate distance from focused card (in terms of event positions)
-      const focusedIdx = focusedEventIndexShared.value;
-      const distance = Math.abs(eventIndex - focusedIdx);
-      const minDistance = Math.min(distance, n - distance); // Handle wrap-around
-
-      // Hide cards that are in the "behind zone" - near the focused card's vertical position
-      // The focused card is at angle π/2 (bottom), so we check if background cards are close to that zone
-      const focusedAngle = Math.PI / 2;
-      let angleFromFocused = Math.abs(angle - focusedAngle);
-      // Normalize angle difference to [0, π]
-      if (angleFromFocused > Math.PI) angleFromFocused = 2 * Math.PI - angleFromFocused;
-
-      // Hide cards within 45 degrees of the focused position (behind it)
-      const hideBehindThreshold = Math.PI / 4; // 45 degrees
-      if (angleFromFocused < hideBehindThreshold && minDistance > 0) {
-        opacity = 0; // Hide cards directly behind focused card
-      } else if (minDistance === 1) {
-        opacity = 0.6; // Adjacent cards
-      } else {
-        opacity = 0.4; // Distant cards
-      }
-    }
+    // Opacity: hide only cards directly behind the focused slot, keep the rest visible.
+    const focusedIdx = focusedEventIndexShared.value;
+    const distance = Math.abs(eventIndex - focusedIdx);
+    const minDistance = Math.min(distance, n - distance); // Handle wrap-around
+    const focusedAngle = Math.PI / 2;
+    let angleFromFocused = Math.abs(angle - focusedAngle);
+    if (angleFromFocused > Math.PI) angleFromFocused = 2 * Math.PI - angleFromFocused;
+    const inBehindFocusedZone = sinA > 0.2 && angleFromFocused < Math.PI / 6;
+    const opacity = inBehindFocusedZone ? 0 : minDistance === 1 ? 0.6 : 0.4;
 
     return {
       position: "absolute" as const,
@@ -1988,29 +1990,30 @@ export default function EventsTab() {
     }, [loadEvents, goBackToOrbs]),
   );
 
+  const moveOrbitFocus = useCallback(
+    (delta: 1 | -1) => {
+      if (eventCount <= 1) return;
+      const step = (2 * Math.PI) / eventCount;
+      const current = focusedEventIndexShared.value % eventCount;
+      const normalizedCurrent = current < 0 ? current + eventCount : current;
+      const newIdx = (normalizedCurrent + delta + eventCount) % eventCount;
+      setFocusedEventIndex(newIdx);
+      focusedEventIndexShared.value = newIdx;
+      eventOrbitAngle.value = withTiming(eventOrbitAngle.value + delta * step, {
+        duration: EVENT_ORBIT_DURATION,
+        easing: Easing.out(Easing.cubic),
+      });
+    },
+    [eventCount, eventOrbitAngle, focusedEventIndexShared],
+  );
+
   const goToPrevEvent = useCallback(() => {
-    if (eventCount <= 1) return;
-    const newIdx = (focusedEventIndex - 1 + eventCount) % eventCount;
-    const step = (2 * Math.PI) / eventCount;
-    setFocusedEventIndex(newIdx);
-    focusedEventIndexShared.value = newIdx;
-    eventOrbitAngle.value = withTiming(eventOrbitAngle.value - step, {
-      duration: EVENT_ORBIT_DURATION,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [eventCount, focusedEventIndex, eventOrbitAngle, focusedEventIndexShared]);
+    moveOrbitFocus(-1);
+  }, [moveOrbitFocus]);
 
   const goToNextEvent = useCallback(() => {
-    if (eventCount <= 1) return;
-    const newIdx = (focusedEventIndex + 1) % eventCount;
-    const step = (2 * Math.PI) / eventCount;
-    setFocusedEventIndex(newIdx);
-    focusedEventIndexShared.value = newIdx;
-    eventOrbitAngle.value = withTiming(eventOrbitAngle.value + step, {
-      duration: EVENT_ORBIT_DURATION,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [eventCount, focusedEventIndex, eventOrbitAngle, focusedEventIndexShared]);
+    moveOrbitFocus(1);
+  }, [moveOrbitFocus]);
 
   // Left/right card regions: vertical drag (up = prev, down = next). Center: horizontal swipe (left = next, right = prev).
   const SIDE_REGION_WIDTH = 0.35;
