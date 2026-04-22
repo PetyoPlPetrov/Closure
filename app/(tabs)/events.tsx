@@ -85,6 +85,7 @@ import Animated, {
   cancelAnimation,
   Easing,
   runOnJS,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -111,12 +112,59 @@ const FOCUSED_ORB_SIZE = Math.round(170 / 1.4 * 0.8); // Reduced by 20% for less
 const EVENT_ORBIT_RADIUS =
   Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * (IS_IPAD ? 0.26 : 0.36);
 const EVENT_BELOW_ORB_GAP = 16;
-const FOCUSED_EVENT_SIZE = 228;
+const FOCUSED_EVENT_SIZE = 220;
+/**
+ * Upper bound for the focused details stack (title, date, actions) when animating to unfocused:
+ * we drive `maxHeight` with swipe p (not opacity). Slightly over typical content to avoid clipping
+ * before p === 1 on the incoming hero.
+ */
+const ORBIT_FOCUSED_DETAILS_MAX_HEIGHT = 168;
+const ORBIT_FOCUSED_LOCK_BADGE_MAX_HEIGHT = 32;
+/**
+ * Extra horizontal offset for the two ring neighbors (minD===1). Large values push them away from
+ * the hero **and** from each other together; prefer `FOCUSED_NEIGHBOR_ANGLE_CLEARANCE` to open space
+ * *between* the pair on the arc while keeping this moderate so they stay nearer the hero.
+ */
+const FOCUSED_EVENT_SIDE_CLEARANCE = 40;
+/**
+ * Neighbors of focus: rotate along the ring (rad). Primary lever for “don’t stick together” without
+ * shoving the pair as far from the hero as raw side clearance does.
+ * (Too large can trip `sideAfter !== sideBefore` in `eventOrbitNeighborSplayedTrig`.)
+ */
+const FOCUSED_NEIGHBOR_ANGLE_CLEARANCE = 0.5;
+const FOCUSED_NEIGHBOR_RADIAL_SCALE = 1.2;
+/**
+ * Ring neighbors (minD===1) beside the hero: subtract from yOffsetBelow so they sit higher,
+ * left & right ~above the focus card instead of hidden under its corners.
+ */
+const FOCUSED_NEIGHBOR_SIDE_Y_ABOVE_RIGHT = 102;
+const FOCUSED_NEIGHBOR_SIDE_Y_ABOVE_LEFT = 94;
+/**
+ * Pushes the ring card that would sit in the “back” (bottom) slot further from the big focus so it
+ * does not stay 2D-under the hero; paired with a lateral nudge in `applyEventOrbitBackSlotNudge`.
+ */
+const FOCUSED_BACK_ORBIT_CLEARANCE = 92;
 const SMALL_EVENT_SIZE = 100;
 /** Non-focused cards above the orb (top half of orbit) */
-const SMALL_EVENT_SIZE_ABOVE = 72;
-/** Non-focused card above and to the right – even smaller */
-const SMALL_EVENT_SIZE_ABOVE_RIGHT = 58;
+const SMALL_EVENT_SIZE_ABOVE = Math.round(SMALL_EVENT_SIZE * 0.68);
+/** Non-focused card above and to the right – even smaller (further “into” the arc) */
+const SMALL_EVENT_SIZE_ABOVE_RIGHT = Math.round(SMALL_EVENT_SIZE * 0.54);
+/**
+ * Unfocused width scale at orbit back/top: `1 - backDepth * this` (backDepth 0 at bottom of ring → 1 at top).
+ * Larger ⇒ smaller cards above the hub / deeper in the ellipse.
+ */
+const EVENT_ORBIT_BACK_DEPTH_SHRINK = 0.34;
+/**
+ * Extra shrink from shortest ring distance to focus (minD). Back/top of orbit uses `BACK_DEPTH_SHRINK`;
+ * this covers the lower “front” arc where sinA was not reducing size before.
+ */
+const EVENT_ORBIT_RING_DISTANCE_SHRINK = 0.36;
+const EVENT_ORBIT_RING_DISTANCE_MIN_SCALE = 0.52;
+/** minD≥2: gentler radius swing than 0.8+0.2 so cards sit on one near-circular path. */
+const EVENT_ORBIT_RING_RADIUS_MIN = 0.88;
+const EVENT_ORBIT_RING_RADIUS_RANGE = 0.12;
+/** Vertical scale on sin term for minD≥2 (ellipse, <1 tightens the orbit around the hub). */
+const EVENT_ORBIT_RING_Y_SCALE = 0.9;
 const FOCUSED_EVENT_BOTTOM_Y =
   CENTER_Y + FOCUSED_ORB_SIZE / 2 + EVENT_BELOW_ORB_GAP + FOCUSED_EVENT_SIZE;
 const CHEVRON_HEIGHT = 56;
@@ -703,7 +751,84 @@ const CenterOrbPlaceholder = React.memo(function CenterOrbPlaceholder({
   );
 });
 
-const EVENT_ORBIT_DURATION = 320;
+/**
+ * Orbit angle + `orbitFocusSwipeProgress` share this timing. Ease-out (not in-out) so the **outgoing**
+ * focused event card moves off the bottom immediately — in-out had near-zero velocity at t=0 and read
+ * as a pause, then a second motion (Events tab only; Sfera home orbits are separate).
+ */
+const EVENT_ORBIT_DURATION = 1100;
+const EVENT_ORBIT_EASING = Easing.bezier(0.33, 0, 0.2, 1);
+/**
+ * When focus swipe p passes this, blend incoming z toward the final hero layer. Too late (0.88) left
+ * the growing incoming card under the outgoing (z~24 vs z~42) while they overlapped — looked “missing”.
+ */
+const EVENT_ORBIT_Z_CROSS_START = 0.78;
+/** Stop forcing outgoing-on-top after this p so the settled hero can win the last frames. */
+const EVENT_ORBIT_Z_OUT_FORCE_UNTIL_P = 0.98;
+/**
+ * pIn = max(0, 2p - 1). Only after this do we stack incoming **above** outgoing. Until then we force
+ * outgoing ≥ incoming+1 so there is **no gap** where blended z puts the old card under the new one.
+ */
+const EVENT_ORBIT_Z_IN_OVER_AFTER_PIN = 0.88;
+
+/** Dev: Metro logs for orbit focus swipe (angle vs progress, ~10% buckets). */
+function eventsOrbitLogSwipe(
+  label: string,
+  payload: Record<string, string | number | boolean | null | undefined>,
+) {
+  if (!__DEV__) return;
+  console.log(`[EventsOrbit SWIPE] ${label}`, payload);
+}
+
+function eventsOrbitLogSwipeTrack(payload: {
+  approxPct: number;
+  pAngle: number;
+  pOrbitProgressSV: number;
+  angle: number;
+  a0: number;
+  a1: number;
+  from: number;
+  to: number;
+}) {
+  if (!__DEV__) return;
+  console.log("[EventsOrbit SWIPE] track", payload);
+}
+
+function eventsOrbitLogSwipeTrackEnd() {
+  if (!__DEV__) return;
+  console.log(
+    "[EventsOrbit SWIPE] track:end (orbit idle: fromIdx === toIdx on shared values)",
+  );
+}
+
+function eventsOrbitLogSwipeWorkletComplete(payload: {
+  idx: number;
+  aSettled: number;
+  angleTarget: number;
+  stepRad: number;
+}) {
+  if (!__DEV__) return;
+  console.log("[EventsOrbit SWIPE] worklet:withTiming(finished)", {
+    ...payload,
+    absDiffSettledVsTarget: Math.abs(payload.aSettled - payload.angleTarget),
+  });
+}
+
+/** Dev: worklet-size/position for outgoing/incoming cards (~10% buckets) to spot layout vs chrome jumps. */
+function eventsOrbitLogSwipeLayout(payload: {
+  role: "out" | "in";
+  eventIndex: number;
+  p: number;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  opacity: number;
+  zIndex: number;
+}) {
+  if (!__DEV__) return;
+  console.log("[EventsOrbit SWIPE] layout", payload);
+}
 
 /** Left/right chevron with tiny pulse and color feedback on press */
 const ChevronNavButton = React.memo(function ChevronNavButton({
@@ -775,6 +900,607 @@ function formatEventDate(dateString: string): string {
   }
 }
 
+/**
+ * Unfocused ring layout for event index `i` at a **fixed** orbit phase `orbitA` (not live-animated).
+ * Used during focus swipe so the outgoing/incoming card lerps in screen space to a stable endpoint.
+ */
+type EventOrbitLayoutScaled = {
+  focused: number;
+  small: number;
+  smallAbove: number;
+  smallAboveRight: number;
+  orbitRadius: number;
+  yOffsetAboveRight: number;
+  yOffsetAbove: number;
+  yOffsetBelow: number;
+  focusNeighborSideGap: number;
+  focusBackOrbitClearance: number;
+};
+
+/**
+ * The “inBackSlot” index otherwise lands under the large focus (same x band). Nudge it up and, if
+ * still overlapping the hero’s width, shove it sideways so it reads beside the focus in one step.
+ * Declared **above** `eventUnfLayoutAtOrbit` so the Reanimated worklet plugin resolves the call
+ * (calling a worklet defined later in the file can crash on swipe).
+ */
+function applyEventOrbitBackSlotNudge(
+  xS: number,
+  yS: number,
+  wS: number,
+  s: EventOrbitLayoutScaled,
+  focusBlend: number,
+) {
+  "worklet";
+  let nx = xS;
+  let ny = yS;
+  ny -= s.focusBackOrbitClearance * (1 - focusBlend);
+  const cardCx = nx + wS / 2;
+  const focusHalfW = s.focused * 0.5;
+  const selfHalfW = wS * 0.5;
+  const pad = 4 + 4 * (s.focused / FOCUSED_EVENT_SIZE);
+  if (
+    cardCx + selfHalfW > CENTER_X - focusHalfW - pad &&
+    cardCx - selfHalfW < CENTER_X + focusHalfW + pad
+  ) {
+    const push = s.focused * 0.46;
+    nx += cardCx < CENTER_X ? -push : push;
+  }
+  return { xS: nx, yS: ny };
+}
+
+/**
+ * Neighbor “splay” along the ring: `FOCUSED_NEIGHBOR_ANGLE_CLEARANCE` spreads cards from the hero.
+ * While `eventOrbitAngle` animates, a slot can sit almost under the hero (|cos| tiny); adding the
+ * full clearance then rotates it past the vertical and dumps it on the **wrong** side (e.g. right
+ * neighbor jumps to the left, behind the big card). Skip or drop splay when that would happen.
+ */
+function eventOrbitNeighborSplayedTrig(
+  angle: number,
+  sinA: number,
+  cosA: number,
+): { posSin: number; posCos: number } {
+  "worklet";
+  if (Math.abs(cosA) < 0.28) {
+    return { posSin: sinA, posCos: cosA };
+  }
+  const sideBefore = cosA >= 0 ? 1 : -1;
+  const angP = angle + sideBefore * FOCUSED_NEIGHBOR_ANGLE_CLEARANCE;
+  const cP = Math.cos(angP);
+  const sP = Math.sin(angP);
+  const sideAfter = cP >= 0 ? 1 : -1;
+  if (sideAfter !== sideBefore) {
+    return { posSin: sinA, posCos: cosA };
+  }
+  return { posSin: sP, posCos: cP };
+}
+
+function eventOrbitRingDistanceWidthScale(
+  wS: number,
+  n: number,
+  minD: number,
+): number {
+  "worklet";
+  if (n <= 1) return wS;
+  const maxRing = Math.floor(n / 2);
+  if (maxRing < 1 || minD < 1) return wS;
+  const distT = Math.min(1, minD / maxRing);
+  const ringScale = 1 - EVENT_ORBIT_RING_DISTANCE_SHRINK * distT;
+  return wS * Math.max(EVENT_ORBIT_RING_DISTANCE_MIN_SCALE, ringScale);
+}
+
+function eventUnfLayoutAtOrbit(
+  i: number,
+  n: number,
+  orbitA: number,
+  fIdx: number,
+  focusBlend: number,
+  s: EventOrbitLayoutScaled,
+) {
+  "worklet";
+  const angle =
+    Math.PI / 2 - i * ((2 * Math.PI) / n) + orbitA;
+  const sinA = Math.sin(angle);
+  const cosA = Math.cos(angle);
+  const gating = (i !== fIdx) || focusBlend < 0.5;
+  const distFromFocus = Math.abs(i - fIdx);
+  const minD = Math.min(distFromFocus, n - distFromFocus);
+
+  let wS: number;
+  if (gating) {
+    const aboveG = sinA < -0.15;
+    const rightG = cosA > 0.25;
+    if (aboveG && rightG) wS = s.smallAboveRight;
+    else if (aboveG) wS = s.smallAbove;
+    else wS = s.small;
+    const backDepth = Math.max(0, Math.min(1, (-sinA - 0.15) / 0.85));
+    const perspectiveScale = 1 - backDepth * EVENT_ORBIT_BACK_DEPTH_SHRINK;
+    wS *= perspectiveScale;
+    wS = eventOrbitRingDistanceWidthScale(wS, n, minD);
+  } else {
+    wS = s.focused;
+  }
+  const wF = s.focused;
+
+  const radiusMultiplier = 0.8 + 0.2 * (1 + sinA);
+  let r = s.orbitRadius * radiusMultiplier;
+  let posSin = sinA;
+  let posCos = cosA;
+  let yRadialScale = 1;
+  const above = sinA < -0.15;
+  const right = cosA > 0.25;
+  const atSideRight = !above && cosA > 0.5 && gating;
+  const atSideLeft = !above && cosA < -0.5 && gating;
+  let yOff =
+    above && right
+      ? s.yOffsetAboveRight
+      : sinA < 0
+        ? s.yOffsetAbove
+        : atSideRight
+          ? s.yOffsetBelow - FOCUSED_NEIGHBOR_SIDE_Y_ABOVE_RIGHT
+          : atSideLeft
+            ? s.yOffsetBelow - FOCUSED_NEIGHBOR_SIDE_Y_ABOVE_LEFT
+            : s.yOffsetBelow;
+  if (minD === 1 && n > 1 && gating) {
+    const splayed = eventOrbitNeighborSplayedTrig(angle, sinA, cosA);
+    posSin = splayed.posSin;
+    posCos = splayed.posCos;
+    const aboveP = posSin < -0.15;
+    const rightP = posCos > 0.25;
+    // |cos θ| for flanking neighbors is sin(π/n) (e.g. ~0.43 for n=14) — never reaches 0.5, so the
+    // old atSideRightP/atSideLeftP gates never fired and neighbors kept plain yOffsetBelow (tucked
+    // under the hero). Always lift left/right by sign(posCos) after splay.
+    yOff =
+      aboveP && rightP
+        ? s.yOffsetAboveRight
+        : posSin < 0
+          ? s.yOffsetAbove
+          : posCos >= 0
+            ? s.yOffsetBelow - FOCUSED_NEIGHBOR_SIDE_Y_ABOVE_RIGHT
+            : s.yOffsetBelow - FOCUSED_NEIGHBOR_SIDE_Y_ABOVE_LEFT;
+    r =
+      s.orbitRadius *
+      (0.8 + 0.2 * (1 + posSin)) *
+      FOCUSED_NEIGHBOR_RADIAL_SCALE;
+  } else if (gating && n > 1 && minD >= 2) {
+    // One continuous ellipse: avoid per-sector y jumps that looked like stacked rows, not an orbit.
+    r =
+      s.orbitRadius *
+      (EVENT_ORBIT_RING_RADIUS_MIN +
+        EVENT_ORBIT_RING_RADIUS_RANGE * (1 + sinA));
+    posSin = sinA;
+    posCos = cosA;
+    yRadialScale = EVENT_ORBIT_RING_Y_SCALE;
+    yOff =
+      sinA < -0.2
+        ? s.yOffsetAbove * 0.35 + s.yOffsetBelow * 0.65
+        : s.yOffsetBelow * 0.82;
+  }
+  let xS = CENTER_X + posCos * r - wS / 2;
+  if (minD === 1 && n > 1) {
+    xS += (posCos >= 0 ? 1 : -1) * s.focusNeighborSideGap;
+  }
+  let yS = CENTER_Y + posSin * r * yRadialScale + yOff - wS / 2;
+  const stepAng = n > 0 ? (2 * Math.PI) / n : 2 * Math.PI;
+  const angleFromBottom = Math.abs(
+    Math.atan2(
+      Math.sin(angle - Math.PI / 2),
+      Math.cos(angle - Math.PI / 2),
+    ),
+  );
+  const inBackSlot =
+    n > 1 &&
+    gating &&
+    i !== fIdx &&
+    sinA > 0.12 &&
+    angleFromBottom < stepAng * 0.5;
+  if (inBackSlot && minD <= 2) {
+    const nudged = applyEventOrbitBackSlotNudge(xS, yS, wS, s, focusBlend);
+    xS = nudged.xS;
+    yS = nudged.yS;
+  }
+  const xF = CENTER_X - wF / 2;
+  const yF =
+    CENTER_Y + s.orbitRadius * 1.2 + s.yOffsetBelow - wF / 2;
+  return {
+    wS,
+    xS,
+    yS,
+    wF,
+    xF,
+    yF,
+    oS: minD === 1 ? 0.6 : 0.4,
+  };
+}
+
+/** Shortest step distance on the event ring between index i and focus index f. */
+function eventOrbitMinCircularD(i: number, f: number, n: number) {
+  "worklet";
+  if (n <= 0) return 0;
+  const d = Math.abs(i - f);
+  return Math.min(d, n - d);
+}
+
+/** “Back of the ring” slot (occluded by the large focus card) — same geometry as `inBackSlot` in `eventUnfLayoutAtOrbit` for non-focus gating. */
+function isEventOrbitBackSlot(i: number, n: number, orbitA: number) {
+  "worklet";
+  if (n <= 1) return false;
+  const stepAng = (2 * Math.PI) / n;
+  const angle = Math.PI / 2 - i * stepAng + orbitA;
+  const sinA = Math.sin(angle);
+  const angleFromBottom = Math.abs(
+    Math.atan2(
+      Math.sin(angle - Math.PI / 2),
+      Math.cos(angle - Math.PI / 2),
+    ),
+  );
+  return sinA > 0.12 && angleFromBottom < stepAng * 0.5;
+}
+
+/**
+ * Linear a→b in screen space often cuts through the hub. Interpolates the **card center** in
+ * polar form around the screen center (shortest angle step). Used for: “other” cards when
+ * blending unfocused anchors, and **outgoing** hero → end slot (avoids piecewise f(angle) kinks
+ * from lerping to f(aCur)). Incoming “to” still uses linear x/y/w for grow+move as one motion.
+ */
+function lerpEventOrbitUnfUnfocusedPolar(
+  a: { wS: number; xS: number; yS: number; oS: number },
+  b: { wS: number; xS: number; yS: number; oS: number },
+  p: number,
+) {
+  "worklet";
+  const lerp = (u: number, v: number, t: number) => u + (v - u) * t;
+  const aCx = a.xS + a.wS / 2;
+  const aCy = a.yS + a.wS / 2;
+  const bCx = b.xS + b.wS / 2;
+  const bCy = b.yS + b.wS / 2;
+  const rA = Math.hypot(aCx - CENTER_X, aCy - CENTER_Y);
+  const rB = Math.hypot(bCx - CENTER_X, bCy - CENTER_Y);
+  const angA = Math.atan2(aCy - CENTER_Y, aCx - CENTER_X);
+  const angB = Math.atan2(bCy - CENTER_Y, bCx - CENTER_X);
+  let dAng = angB - angA;
+  if (dAng > Math.PI) dAng -= 2 * Math.PI;
+  if (dAng < -Math.PI) dAng += 2 * Math.PI;
+  const r = lerp(rA, rB, p);
+  const ang = angA + p * dAng;
+  const cCx = CENTER_X + r * Math.cos(ang);
+  const cCy = CENTER_Y + r * Math.sin(ang);
+  const w = lerp(a.wS, b.wS, p);
+  return {
+    w,
+    x: cCx - w / 2,
+    y: cCy - w / 2,
+    o: lerp(a.oS, b.oS, p),
+  };
+}
+
+/** Incoming card z during `from !== to` swipe (must match the `to` branch). */
+function eventOrbitSwipeZIn(p: number, pIn: number) {
+  "worklet";
+  const zCrossT =
+    p < EVENT_ORBIT_Z_CROSS_START
+      ? 0
+      : (p - EVENT_ORBIT_Z_CROSS_START) / (1 - EVENT_ORBIT_Z_CROSS_START);
+  // Rise with pIn in the 2nd half so z stays competitive while the card grows (not stuck at ~24 until p≈0.88).
+  const zInLowPlateau = 24 + Math.round(22 * pIn);
+  const zInHigh = 50 + Math.round(5 * pIn);
+  if (p < 0.5) {
+    return 12 + Math.round(4 * 2 * p);
+  }
+  return Math.round(zInLowPlateau * (1 - zCrossT) + zInHigh * zCrossT);
+}
+
+function getEventOrbitLayoutScaledForFontScale(fontScale: number) {
+  return {
+    focused: FOCUSED_EVENT_SIZE * fontScale,
+    small: SMALL_EVENT_SIZE * fontScale,
+    smallAbove: SMALL_EVENT_SIZE_ABOVE * fontScale,
+    smallAboveRight: SMALL_EVENT_SIZE_ABOVE_RIGHT * fontScale,
+    orbitRadius: EVENT_ORBIT_RADIUS * fontScale,
+    yOffsetAboveRight: -26 * fontScale,
+    yOffsetAbove: -14 * fontScale,
+    yOffsetBelow: 4 * fontScale,
+    carouselPadding: 12 * fontScale,
+    focusNeighborSideGap: FOCUSED_EVENT_SIDE_CLEARANCE * fontScale,
+    focusBackOrbitClearance: FOCUSED_BACK_ORBIT_CLEARANCE * fontScale,
+  };
+}
+
+type OrbitalEventCardLayoutStyle = {
+  position: "absolute";
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  opacity: number;
+  zIndex: number;
+};
+
+/**
+ * Worklet: same layout as `OrbitalEventCard` `useAnimatedStyle` (single source of truth for card layout).
+ */
+function computeOrbitalEventCardLayout(
+  i: number,
+  n: number,
+  scaled: ReturnType<typeof getEventOrbitLayoutScaledForFontScale>,
+  aCur: number,
+  from: number,
+  to: number,
+  p: number,
+  fIdx: number,
+  swipeAngleStart: number,
+  swipeAngleEnd: number,
+): OrbitalEventCardLayoutStyle {
+  "worklet";
+  if (n <= 0) {
+    return {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      width: scaled.small,
+      height: scaled.small,
+      opacity: 0.4,
+      zIndex: 1,
+    };
+  }
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+  let focusBlend = 0;
+  if (from === to) {
+    focusBlend = i === to ? 1 : 0;
+  } else {
+    if (i === from) {
+      focusBlend = 1 - p;
+    } else if (i === to) {
+      focusBlend = p;
+    }
+  }
+  const layoutFIdx = from !== to ? from : fIdx;
+  if (from !== to) {
+    const s: EventOrbitLayoutScaled = {
+      focused: scaled.focused,
+      small: scaled.small,
+      smallAbove: scaled.smallAbove,
+      smallAboveRight: scaled.smallAboveRight,
+      orbitRadius: scaled.orbitRadius,
+      yOffsetAboveRight: scaled.yOffsetAboveRight,
+      yOffsetAbove: scaled.yOffsetAbove,
+      yOffsetBelow: scaled.yOffsetBelow,
+      focusNeighborSideGap: scaled.focusNeighborSideGap,
+      focusBackOrbitClearance: scaled.focusBackOrbitClearance,
+    };
+    const pIn = Math.max(0, 2 * p - 1);
+    if (i === from) {
+      const focusAt = eventUnfLayoutAtOrbit(i, n, swipeAngleStart, layoutFIdx, 1, s);
+      // `eventUnfLayoutAtOrbit` is **piecewise** in the orbit angle (splay, back nudge, w-tier). Using
+      // a live `smallAt = f(aCur)` with linear x/y/w made `f(aCur)` jump mid-swipe (e.g. 40%→50%: left
+      // 40→77 in logs) while p moved smoothly — visible bounce. Lerp in polar space to the **end** slot
+      // `f(angleEnd)` only; p already tracks the orbit, so the path is smooth and ends on the true tile.
+      const smallAtEnd = eventUnfLayoutAtOrbit(i, n, swipeAngleEnd, to, 0, s);
+      const u = lerpEventOrbitUnfUnfocusedPolar(
+        { wS: focusAt.wF, xS: focusAt.xF, yS: focusAt.yF, oS: 1 },
+        {
+          wS: smallAtEnd.wS,
+          xS: smallAtEnd.xS,
+          yS: smallAtEnd.yS,
+          oS: smallAtEnd.oS,
+        },
+        p,
+      );
+      const w = u.w;
+      const x = u.x;
+      const y = u.y;
+      const opacity = u.o;
+      // Out stays above in until EVENT_ORBIT_Z_CROSS_START: an immediate flip at p===0.5 put the new hero
+      // (z~50) over the old one while it was still large, so the previous title looked “sucked behind”.
+      const zCrossT =
+        p < EVENT_ORBIT_Z_CROSS_START
+          ? 0
+          : (p - EVENT_ORBIT_Z_CROSS_START) / (1 - EVENT_ORBIT_Z_CROSS_START);
+      const zOutHigh = p < 0.5 ? 34 + Math.round(6 * (1 - 2 * p)) : 42;
+      const zOutLowEnd = 16 + Math.round(10 * (1 - pIn));
+      let zOut =
+        p < 0.5
+          ? zOutHigh
+          : Math.round(zOutHigh * (1 - zCrossT) + zOutLowEnd * zCrossT);
+      const zInPeer = eventOrbitSwipeZIn(p, pIn);
+      // One crossover only: until pIn passes IN_OVER, keep outgoing strictly above incoming whenever
+      // we’re still animating (no hysteresis gap; width-based cutoff was dropping out-on-top too soon).
+      if (pIn > EVENT_ORBIT_Z_IN_OVER_AFTER_PIN) {
+        zOut = Math.min(zOut, zInPeer - 1);
+      } else if (p < EVENT_ORBIT_Z_OUT_FORCE_UNTIL_P) {
+        zOut = Math.max(zOut, zInPeer + 1);
+      }
+      return {
+        position: "absolute",
+        left: x,
+        top: y,
+        width: w,
+        height: w,
+        opacity,
+        zIndex: zOut,
+      };
+    }
+    if (i === to) {
+      const smallAtFrom = eventUnfLayoutAtOrbit(i, n, aCur, from, 0, s);
+      const focusAtTo = eventUnfLayoutAtOrbit(i, n, aCur, to, 1, s);
+      // Grow/move over the full swipe (`p`). Using only `pIn` (2p−1) froze size/position until p>½,
+      // which read as a jump then a sudden grow; z-order still uses pIn via `eventOrbitSwipeZIn`.
+      const w = lerp(smallAtFrom.wS, focusAtTo.wF, p);
+      const x = lerp(smallAtFrom.xS, focusAtTo.xF, p);
+      const y = lerp(smallAtFrom.yS, focusAtTo.yF, p);
+      const opacity = lerp(smallAtFrom.oS, 1, p);
+      const zIn = eventOrbitSwipeZIn(p, pIn);
+      return {
+        position: "absolute",
+        left: x,
+        top: y,
+        width: w,
+        height: w,
+        opacity,
+        zIndex: zIn,
+      };
+    }
+    const pOrbitAnchor = p < 0.5 ? 0 : pIn;
+    const a = eventUnfLayoutAtOrbit(i, n, aCur, from, 0, s);
+    const b = eventUnfLayoutAtOrbit(i, n, aCur, to, 0, s);
+    const dFrom = eventOrbitMinCircularD(i, from, n);
+    const dTo = eventOrbitMinCircularD(i, to, n);
+    const neighborSplayFlip = (dFrom === 1) !== (dTo === 1);
+    const isBack = isEventOrbitBackSlot(i, n, aCur);
+    const usePolar = isBack || neighborSplayFlip;
+    const u = usePolar
+      ? lerpEventOrbitUnfUnfocusedPolar(a, b, pOrbitAnchor)
+      : {
+          w: lerp(a.wS, b.wS, pOrbitAnchor),
+          x: lerp(a.xS, b.xS, pOrbitAnchor),
+          y: lerp(a.yS, b.yS, pOrbitAnchor),
+          o: lerp(a.oS, b.oS, pOrbitAnchor),
+        };
+    const zOrbitOther = dFrom === 1 || dTo === 1 ? 10 : 1;
+    return {
+      position: "absolute",
+      left: u.x,
+      top: u.y,
+      width: u.w,
+      height: u.w,
+      opacity: u.o,
+      zIndex: zOrbitOther,
+    };
+  }
+
+  const angle = Math.PI / 2 - i * ((2 * Math.PI) / n) + aCur;
+  const sinA = Math.sin(angle);
+  const cosA = Math.cos(angle);
+  const gating = (i !== layoutFIdx) || focusBlend < 0.5;
+  const distFromFocus = Math.abs(i - layoutFIdx);
+  const minD = Math.min(distFromFocus, n - distFromFocus);
+
+  let wS: number;
+  if (gating) {
+    const aboveG = sinA < -0.15;
+    const rightG = cosA > 0.25;
+    if (aboveG && rightG) wS = scaled.smallAboveRight;
+    else if (aboveG) wS = scaled.smallAbove;
+    else wS = scaled.small;
+    const backDepth = Math.max(0, Math.min(1, (-sinA - 0.15) / 0.85));
+    const perspectiveScale = 1 - backDepth * EVENT_ORBIT_BACK_DEPTH_SHRINK;
+    wS *= perspectiveScale;
+    wS = eventOrbitRingDistanceWidthScale(wS, n, minD);
+  } else {
+    wS = scaled.focused;
+  }
+  const wF = scaled.focused;
+  const w = lerp(wS, wF, focusBlend);
+  const h = w;
+
+  const radiusMultiplier = 0.8 + 0.2 * (1 + sinA);
+  let r = scaled.orbitRadius * radiusMultiplier;
+  let posSin = sinA;
+  let posCos = cosA;
+  let yRadialScale = 1;
+  const above = sinA < -0.15;
+  const right = cosA > 0.25;
+  const atSideRight = !above && cosA > 0.5 && gating;
+  const atSideLeft = !above && cosA < -0.5 && gating;
+  let yOff =
+    above && right
+      ? scaled.yOffsetAboveRight
+      : sinA < 0
+        ? scaled.yOffsetAbove
+        : atSideRight
+          ? scaled.yOffsetBelow - FOCUSED_NEIGHBOR_SIDE_Y_ABOVE_RIGHT
+          : atSideLeft
+            ? scaled.yOffsetBelow - FOCUSED_NEIGHBOR_SIDE_Y_ABOVE_LEFT
+            : scaled.yOffsetBelow;
+  if (minD === 1 && n > 1 && gating) {
+    const splayed = eventOrbitNeighborSplayedTrig(angle, sinA, cosA);
+    posSin = splayed.posSin;
+    posCos = splayed.posCos;
+    const aboveP = posSin < -0.15;
+    const rightP = posCos > 0.25;
+    yOff =
+      aboveP && rightP
+        ? scaled.yOffsetAboveRight
+        : posSin < 0
+          ? scaled.yOffsetAbove
+          : posCos >= 0
+            ? scaled.yOffsetBelow - FOCUSED_NEIGHBOR_SIDE_Y_ABOVE_RIGHT
+            : scaled.yOffsetBelow - FOCUSED_NEIGHBOR_SIDE_Y_ABOVE_LEFT;
+    r =
+      scaled.orbitRadius *
+      (0.8 + 0.2 * (1 + posSin)) *
+      FOCUSED_NEIGHBOR_RADIAL_SCALE;
+  } else if (gating && n > 1 && minD >= 2) {
+    r =
+      scaled.orbitRadius *
+      (EVENT_ORBIT_RING_RADIUS_MIN +
+        EVENT_ORBIT_RING_RADIUS_RANGE * (1 + sinA));
+    posSin = sinA;
+    posCos = cosA;
+    yRadialScale = EVENT_ORBIT_RING_Y_SCALE;
+    yOff =
+      sinA < -0.2
+        ? scaled.yOffsetAbove * 0.35 + scaled.yOffsetBelow * 0.65
+        : scaled.yOffsetBelow * 0.82;
+  }
+  let xS = CENTER_X + posCos * r - wS / 2;
+  if (minD === 1 && n > 1) {
+    xS += (posCos >= 0 ? 1 : -1) * scaled.focusNeighborSideGap;
+  }
+  let yS = CENTER_Y + posSin * r * yRadialScale + yOff - wS / 2;
+  const stepAng = n > 0 ? (2 * Math.PI) / n : 2 * Math.PI;
+  const angleFromBottom = Math.abs(
+    Math.atan2(
+      Math.sin(angle - Math.PI / 2),
+      Math.cos(angle - Math.PI / 2),
+    ),
+  );
+  const inBackSlot =
+    n > 1 &&
+    gating &&
+    i !== layoutFIdx &&
+    sinA > 0.12 &&
+    angleFromBottom < stepAng * 0.5;
+  if (inBackSlot && minD <= 2) {
+    const sOrbit: EventOrbitLayoutScaled = {
+      focused: scaled.focused,
+      small: scaled.small,
+      smallAbove: scaled.smallAbove,
+      smallAboveRight: scaled.smallAboveRight,
+      orbitRadius: scaled.orbitRadius,
+      yOffsetAboveRight: scaled.yOffsetAboveRight,
+      yOffsetAbove: scaled.yOffsetAbove,
+      yOffsetBelow: scaled.yOffsetBelow,
+      focusNeighborSideGap: scaled.focusNeighborSideGap,
+      focusBackOrbitClearance: scaled.focusBackOrbitClearance,
+    };
+    const nudged = applyEventOrbitBackSlotNudge(xS, yS, wS, sOrbit, focusBlend);
+    xS = nudged.xS;
+    yS = nudged.yS;
+  }
+  const xF = CENTER_X - wF / 2;
+  const yF =
+    CENTER_Y + scaled.orbitRadius * 1.2 + scaled.yOffsetBelow - wF / 2;
+
+  const x = lerp(xS, xF, focusBlend);
+  const y = lerp(yS, yF, focusBlend);
+  const oS = minD === 1 ? 0.6 : 0.4;
+  const oF = 1;
+  const opacity = lerp(oS, oF, focusBlend);
+  const zBase = 1 + Math.round(24 * focusBlend);
+  const zBonus = from !== to && i === to ? 1 : 0;
+  const zNeighborBoost =
+    from === to && minD === 1 && gating ? 8 : 0;
+  return {
+    position: "absolute",
+    left: x,
+    top: y,
+    width: w,
+    height: h,
+    opacity,
+    zIndex: zBase + zBonus + zNeighborBoost,
+  };
+}
+
 /** Event card positioned by shared orbit angle so all events move smoothly along the circle (no jumping). */
 const OrbitalEventCard = React.memo(function OrbitalEventCard({
   event,
@@ -783,6 +1509,12 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
   focusedEventIndex,
   eventOrbitAngle,
   focusedEventIndexShared,
+  orbitSwipeFromIdx,
+  orbitSwipeToIdx,
+  orbitFocusSwipeProgress,
+  orbitSwipeAngleStart,
+  orbitSwipeAngleEnd,
+  showFocusedChrome,
   colorScheme,
   colors,
   onFocusPress,
@@ -799,6 +1531,13 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
   focusedEventIndex: number;
   eventOrbitAngle: SharedNum;
   focusedEventIndexShared: ReanimatedSharedValue<number>;
+  orbitSwipeFromIdx: ReanimatedSharedValue<number>;
+  orbitSwipeToIdx: ReanimatedSharedValue<number>;
+  orbitFocusSwipeProgress: ReanimatedSharedValue<number>;
+  orbitSwipeAngleStart: SharedNum;
+  orbitSwipeAngleEnd: SharedNum;
+  /** True when this card should show the focused frame + details (incl. both endpoints while swiping). */
+  showFocusedChrome: boolean;
   colorScheme: "light" | "dark";
   colors: Record<string, string>;
   onFocusPress?: (event: SferaEvent) => void;
@@ -827,126 +1566,236 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
   };
 
   const scaled = useMemo(
-    () => ({
-      focused: FOCUSED_EVENT_SIZE * fontScale,
-      small: SMALL_EVENT_SIZE * fontScale,
-      smallAbove: SMALL_EVENT_SIZE_ABOVE * fontScale,
-      smallAboveRight: SMALL_EVENT_SIZE_ABOVE_RIGHT * fontScale,
-      orbitRadius: EVENT_ORBIT_RADIUS * fontScale,
-      yOffsetAboveRight: -26 * fontScale,
-      yOffsetAbove: -14 * fontScale,
-      yOffsetBelow: 4 * fontScale,
-      carouselPadding: 12 * fontScale,
-    }),
+    () => getEventOrbitLayoutScaledForFontScale(fontScale),
     [fontScale],
   );
 
-  // Nominal angle when focused event is at bottom: event is "above" orb when in top half
-  const nominalAngle =
-    Math.PI / 2 +
-    (focusedEventIndex - eventIndex) *
-      ((2 * Math.PI) / Math.max(1, totalCount));
-  const isAboveOrb = Math.sin(nominalAngle) < -0.15;
+  /** Kept false: we always show orbit tile titles so events don’t look “lost” after swipe. */
+  const isAboveOrb = false;
 
   const animatedStyle = useAnimatedStyle(() => {
     const n = totalCount;
-    if (n <= 0)
+    if (n <= 0) {
       return {
         position: "absolute" as const,
         left: 0,
         top: 0,
         width: scaled.small,
         height: scaled.small,
-      };
-    // Orbit: event i at angle = π/2 (bottom) - i*(2π/n) + orbitAngle. Different levels via radius + vertical offset.
-    const angle =
-      Math.PI / 2 - eventIndex * ((2 * Math.PI) / n) + eventOrbitAngle.value;
-    const focused = focusedEventIndexShared.value === eventIndex;
-    const sinA = Math.sin(angle);
-    const cosA = Math.cos(angle);
-
-    // Size: focused = big; above orb = smaller; above and right = even smaller
-    let w: number;
-    if (focused) {
-      w = scaled.focused;
-    } else {
-      const above = sinA < -0.15;
-      const right = cosA > 0.25;
-      if (above && right) w = scaled.smallAboveRight;
-      else if (above) w = scaled.smallAbove;
-      else w = scaled.small;
-
-      // Perspective depth: cards in the top/back arc appear smaller.
-      const backDepth = Math.max(0, Math.min(1, (-sinA - 0.15) / 0.85));
-      const perspectiveScale = 1 - backDepth * 0.18;
-      w *= perspectiveScale;
-    }
-    const h = w;
-
-    if (focused) {
-      // Keep the focused event card anchored in the primary slot.
-      const x = CENTER_X - w / 2;
-      const y =
-        CENTER_Y + scaled.orbitRadius * 1.2 + scaled.yOffsetBelow - h / 2;
-      return {
-        position: "absolute" as const,
-        left: x,
-        top: y,
-        width: w,
-        height: h,
-        opacity: 1,
+        opacity: 0.4,
+        zIndex: 1,
       };
     }
-
-    // Different levels: vary radius by angle (top = smaller radius = closer/higher), and nudge top cards up
-    const radiusMultiplier = 0.8 + 0.2 * (1 + sinA);
-    const r = scaled.orbitRadius * radiusMultiplier;
-    const above = sinA < -0.15;
-    const right = cosA > 0.25;
-    const atSideRight = !above && cosA > 0.5 && !focused;
-    const atSideLeft = !above && cosA < -0.5 && !focused;
-    const yOffset =
-      above && right
-        ? scaled.yOffsetAboveRight
-        : sinA < 0
-          ? scaled.yOffsetAbove
-          : atSideRight
-            ? scaled.yOffsetBelow - 35
-            : atSideLeft
-              ? scaled.yOffsetBelow - 10
-              : scaled.yOffsetBelow;
-    const x = CENTER_X + cosA * r - w / 2;
-    const y = CENTER_Y + sinA * r + yOffset - h / 2;
-
-    // Opacity: hide only cards directly behind the focused slot, keep the rest visible.
-    const focusedIdx = focusedEventIndexShared.value;
-    const distance = Math.abs(eventIndex - focusedIdx);
-    const minDistance = Math.min(distance, n - distance); // Handle wrap-around
-    const focusedAngle = Math.PI / 2;
-    let angleFromFocused = Math.abs(angle - focusedAngle);
-    if (angleFromFocused > Math.PI) angleFromFocused = 2 * Math.PI - angleFromFocused;
-    const inBehindFocusedZone = sinA > 0.2 && angleFromFocused < Math.PI / 6;
-    const opacity = inBehindFocusedZone ? 0 : minDistance === 1 ? 0.6 : 0.4;
-
-    return {
-      position: "absolute" as const,
-      left: x,
-      top: y,
-      width: w,
-      height: h,
-      opacity,
-    };
+    const from = Math.round(orbitSwipeFromIdx.value);
+    const to = Math.round(orbitSwipeToIdx.value);
+    const fIdx = Math.round(focusedEventIndexShared.value);
+    let p = Math.max(0, Math.min(1, orbitFocusSwipeProgress.value));
+    if (from !== to) {
+      const a0 = orbitSwipeAngleStart.value;
+      const a1 = orbitSwipeAngleEnd.value;
+      const ac = eventOrbitAngle.value;
+      const span = a1 - a0;
+      if (Math.abs(span) > 1e-7) {
+        p = Math.max(0, Math.min(1, (ac - a0) / span));
+      }
+    }
+    return computeOrbitalEventCardLayout(
+      eventIndex,
+      n,
+      scaled,
+      eventOrbitAngle.value,
+      from,
+      to,
+      p,
+      fIdx,
+      orbitSwipeAngleStart.value,
+      orbitSwipeAngleEnd.value,
+    );
   }, [fontScale, totalCount, eventIndex]);
+
+  /** Orbit focus swipe progress in [0,1] (angle-based when from≠to) — used for details height, not opacity. */
+  const orbitFocusedDetailsCollapseStyle = useAnimatedStyle(() => {
+    const from = Math.round(orbitSwipeFromIdx.value);
+    const to = Math.round(orbitSwipeToIdx.value);
+    if (from === to) {
+      return {};
+    }
+    let p = Math.max(0, Math.min(1, orbitFocusSwipeProgress.value));
+    {
+      const a0 = orbitSwipeAngleStart.value;
+      const a1 = orbitSwipeAngleEnd.value;
+      const ac = eventOrbitAngle.value;
+      const span = a1 - a0;
+      if (Math.abs(span) > 1e-7) {
+        p = Math.max(0, Math.min(1, (ac - a0) / span));
+      }
+    }
+    const H = ORBIT_FOCUSED_DETAILS_MAX_HEIGHT * (fontScale ?? 1);
+    if (eventIndex === from) {
+      const t = 1 - p;
+      return {
+        maxHeight: H * t,
+        paddingTop: 4 * t,
+        paddingBottom: 6 * t,
+        paddingLeft: 10 * t,
+        paddingRight: 10 * t,
+        overflow: "hidden" as const,
+      };
+    }
+    if (eventIndex === to) {
+      const unclipped = p >= 0.999;
+      if (unclipped) {
+        return {};
+      }
+      return {
+        maxHeight: H * p,
+        paddingTop: 4 * p,
+        paddingBottom: 6 * p,
+        paddingLeft: 10 * p,
+        paddingRight: 10 * p,
+        overflow: "hidden" as const,
+      };
+    }
+    return {};
+  }, [eventIndex, fontScale]);
+
+  const orbitFocusedLockBadgeCollapseStyle = useAnimatedStyle(() => {
+    const from = Math.round(orbitSwipeFromIdx.value);
+    const to = Math.round(orbitSwipeToIdx.value);
+    if (from === to) {
+      return {};
+    }
+    let p = Math.max(0, Math.min(1, orbitFocusSwipeProgress.value));
+    {
+      const a0 = orbitSwipeAngleStart.value;
+      const a1 = orbitSwipeAngleEnd.value;
+      const ac = eventOrbitAngle.value;
+      const span = a1 - a0;
+      if (Math.abs(span) > 1e-7) {
+        p = Math.max(0, Math.min(1, (ac - a0) / span));
+      }
+    }
+    const h = ORBIT_FOCUSED_LOCK_BADGE_MAX_HEIGHT * (fontScale ?? 1);
+    if (eventIndex === from) {
+      return {
+        maxHeight: h * (1 - p),
+        overflow: "hidden" as const,
+      };
+    }
+    if (eventIndex === to) {
+      const unclipped = p >= 0.999;
+      return {
+        maxHeight: unclipped ? 1e4 : h * p,
+        overflow: (unclipped ? "visible" : "hidden") as const,
+      };
+    }
+    return {};
+  }, [eventIndex, fontScale]);
+
+  /**
+   * Dev: log outer layout (Reanimated) for the two active swipe endpoints. (Animating padding/tilt on
+   * the frame was reverted: it fought the lerped width and increased the visible bounce.)
+   */
+  useAnimatedReaction(
+    () => {
+      "worklet";
+      if (!__DEV__) {
+        return -1;
+      }
+      const n = totalCount;
+      if (n <= 0) {
+        return -1;
+      }
+      const from = Math.round(orbitSwipeFromIdx.value);
+      const to = Math.round(orbitSwipeToIdx.value);
+      if (from === to) {
+        return -1;
+      }
+      if (eventIndex !== from && eventIndex !== to) {
+        return -999;
+      }
+      let p = Math.max(0, Math.min(1, orbitFocusSwipeProgress.value));
+      {
+        const a0 = orbitSwipeAngleStart.value;
+        const a1 = orbitSwipeAngleEnd.value;
+        const ac = eventOrbitAngle.value;
+        const span = a1 - a0;
+        if (Math.abs(span) > 1e-7) {
+          p = Math.max(0, Math.min(1, (ac - a0) / span));
+        }
+      }
+      const b = Math.min(9, Math.max(0, Math.floor(p * 10)));
+      return eventIndex * 1_000_000_000 + b;
+    },
+    (key, prev) => {
+      "worklet";
+      if (!__DEV__ || key < 0 || key === prev) {
+        return;
+      }
+      const n = totalCount;
+      if (n <= 0) {
+        return;
+      }
+      const from = Math.round(orbitSwipeFromIdx.value);
+      const to = Math.round(orbitSwipeToIdx.value);
+      if (from === to) {
+        return;
+      }
+      if (eventIndex !== from && eventIndex !== to) {
+        return;
+      }
+      let p = Math.max(0, Math.min(1, orbitFocusSwipeProgress.value));
+      {
+        const a0 = orbitSwipeAngleStart.value;
+        const a1 = orbitSwipeAngleEnd.value;
+        const ac = eventOrbitAngle.value;
+        const span = a1 - a0;
+        if (Math.abs(span) > 1e-7) {
+          p = Math.max(0, Math.min(1, (ac - a0) / span));
+        }
+      }
+      const fIdx = Math.round(focusedEventIndexShared.value);
+      const L = computeOrbitalEventCardLayout(
+        eventIndex,
+        n,
+        scaled,
+        eventOrbitAngle.value,
+        from,
+        to,
+        p,
+        fIdx,
+        orbitSwipeAngleStart.value,
+        orbitSwipeAngleEnd.value,
+      );
+      runOnJS(eventsOrbitLogSwipeLayout)({
+        role: eventIndex === from ? "out" : "in",
+        eventIndex,
+        p,
+        left: L.left,
+        top: L.top,
+        width: L.width,
+        height: L.height,
+        opacity: L.opacity,
+        zIndex: L.zIndex,
+      });
+    },
+    [eventIndex, totalCount, scaled],
+  );
 
   const dateDisplay = formatEventDate(event.startDate || event.date);
 
   const cardContent = (
-    <View style={[styles.eventCardGlowWrap, !isFocused && styles.eventCardGlowWrapNonFocused]}>
+    <View
+      style={[
+        styles.eventCardGlowWrap,
+        !showFocusedChrome && styles.eventCardGlowWrapNonFocused,
+      ]}
+    >
       <Pressable
         onPress={() => isFocused && triggerArrowPulse()}
         style={[
           styles.eventCard,
-          !isFocused && styles.eventCardNonFocused,
+          !showFocusedChrome && styles.eventCardNonFocused,
           {
             borderColor:
               colorScheme === "dark"
@@ -986,7 +1835,7 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
                 >
                   <MaterialIcons
                     name={isLocked ? "lock" : "event"}
-                    size={isFocused ? 40 * fontScale : 24 * fontScale}
+                    size={showFocusedChrome ? 40 * fontScale : 24 * fontScale}
                     color={colors.primary}
                   />
                 </View>
@@ -1001,7 +1850,7 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
                 />
               );
             }
-            if (!isFocused) {
+            if (!showFocusedChrome) {
               return (
                 <Image
                   source={{ uri: imageUrls[0]! }}
@@ -1030,8 +1879,13 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
               </ScrollView>
             );
           })()}
-          {isFocused ? (
-            <View style={styles.eventCardDetails}>
+          {showFocusedChrome ? (
+            <Animated.View
+              style={[
+                styles.eventCardDetails,
+                orbitFocusedDetailsCollapseStyle,
+              ]}
+            >
               <ThemedText
                 size="sm"
                 weight="bold"
@@ -1106,7 +1960,7 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
                   </Animated.View>
                 ) : null}
               </View>
-            </View>
+            </Animated.View>
           ) : !isAboveOrb ? (
             <ThemedText
               size="xxs"
@@ -1118,10 +1972,15 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
             </ThemedText>
           ) : null}
         </View>
-        {isFocused && isLocked ? (
-          <View style={styles.eventCardLockBadge}>
+        {showFocusedChrome && isLocked ? (
+          <Animated.View
+            style={[
+              styles.eventCardLockBadge,
+              orbitFocusedLockBadgeCollapseStyle,
+            ]}
+          >
             <MaterialIcons name="lock" size={14 * fontScale} color="#fff" />
-          </View>
+          </Animated.View>
         ) : null}
         {isFocused && isPastEvent && onDeletePress ? (
           <Pressable
@@ -1158,7 +2017,7 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
           <View
             style={[
               styles.eventCardUnseenBadge,
-              !isFocused && styles.eventCardUnseenBadgeSmall,
+              !showFocusedChrome && styles.eventCardUnseenBadgeSmall,
             ]}
           >
             <ThemedText
@@ -1166,7 +2025,7 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
               weight="bold"
               style={[
                 styles.eventCardUnseenText,
-                !isFocused && styles.eventCardUnseenTextSmall,
+                !showFocusedChrome && styles.eventCardUnseenTextSmall,
               ]}
               numberOfLines={1}
             >
@@ -1180,7 +2039,7 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
 
   return (
     <Animated.View style={animatedStyle}>
-      {isFocused ? (
+      {showFocusedChrome ? (
         <View
           style={[
             styles.eventCardOuterFrame,
@@ -1251,6 +2110,15 @@ export default function EventsTab() {
   const [, setSelectedType] = useState<SferaEventType | null>(null);
   const [focusedCommunityIndex, setFocusedCommunityIndex] = useState(0);
   const [focusedEventIndex, setFocusedEventIndex] = useState(0);
+  /** While swiping, both endpoints render focused chrome until the orbit animation ends. */
+  const [orbitCardTransition, setOrbitCardTransition] = useState<{
+    from: number;
+    to: number;
+  } | null>(null);
+  const focusedEventIndexRef = useRef(focusedEventIndex);
+  focusedEventIndexRef.current = focusedEventIndex;
+  const orbitCardTransitionRef = useRef(orbitCardTransition);
+  orbitCardTransitionRef.current = orbitCardTransition;
   const [codeModal, setCodeModal] = useState<{
     visible: boolean;
     for: "private" | "plus" | null;
@@ -1309,6 +2177,13 @@ export default function EventsTab() {
   const eventOrbitAngle = useSharedValue(0); // shared orbit angle so all event cards move smoothly along the circle
   const locationBannerOpacity = useSharedValue(1); // 1 on orbs view, fades to 0 when entering community
   const focusedEventIndexShared = useSharedValue(0); // synced with focusedEventIndex for worklets
+  /** 0 at swipe start → 1 at end, same timing as eventOrbitAngle. From/to identify outgoing/incoming. */
+  const orbitSwipeFromIdx = useSharedValue(0);
+  const orbitSwipeToIdx = useSharedValue(0);
+  const orbitFocusSwipeProgress = useSharedValue(1);
+  /** Swipe window for `eventOrbitAngle`; layout progress is derived from angle so it can’t desync from `orbitFocusSwipeProgress`. */
+  const orbitSwipeAngleStart = useSharedValue(0);
+  const orbitSwipeAngleEnd = useSharedValue(0);
   const loadUnlocked = useCallback(async () => {
     const set = await getUnlockedVipCodes();
     setUnlockedCodes(set);
@@ -1567,9 +2442,12 @@ export default function EventsTab() {
       visibleList.findIndex((e) => e.id === eventId),
     );
     setFocusedEventIndex(targetIndex);
+    focusedEventIndexRef.current = targetIndex;
     focusedEventIndexShared.value = targetIndex;
     if (visibleList.length > 0) {
-      eventOrbitAngle.value = targetIndex * ((2 * Math.PI) / visibleList.length);
+      const settledA =
+        targetIndex * ((2 * Math.PI) / visibleList.length);
+      eventOrbitAngle.value = settledA;
     }
 
     setExpandedEventId(eventId);
@@ -1671,6 +2549,9 @@ export default function EventsTab() {
     hideFilledEvents,
     pastEvents,
   ]);
+
+  const listForPhaseRef = useRef<SferaEvent[]>(listForPhase);
+  listForPhaseRef.current = listForPhase;
 
   const pastEventIds = useMemo(
     () => new Set(pastEvents.map((e) => e.id)),
@@ -1803,6 +2684,33 @@ export default function EventsTab() {
     await cancelEventMemoryReminders(eventId);
   }, []);
 
+  /**
+   * While `phase === "orbs"`, `listForPhase` is empty so the phase/list effect bails — Reanimated
+   * shared values would otherwise keep the last in-community orbit. That leaves e.g. shared focus 4
+   * while React `focusedEventIndex` is 0 after goBack, then a huge snap when re-entering social.
+   */
+  const zeroEventOrbitSharedForNavigation = useCallback(() => {
+    cancelAnimation(eventOrbitAngle);
+    cancelAnimation(orbitFocusSwipeProgress);
+    orbitFocusSwipeProgress.value = 1;
+    focusedEventIndexRef.current = 0;
+    focusedEventIndexShared.value = 0;
+    orbitSwipeFromIdx.value = 0;
+    orbitSwipeToIdx.value = 0;
+    eventOrbitAngle.value = 0;
+    orbitSwipeAngleStart.value = 0;
+    orbitSwipeAngleEnd.value = 0;
+    setOrbitCardTransition(null);
+  }, [
+    eventOrbitAngle,
+    orbitFocusSwipeProgress,
+    focusedEventIndexShared,
+    orbitSwipeFromIdx,
+    orbitSwipeToIdx,
+    orbitSwipeAngleStart,
+    orbitSwipeAngleEnd,
+  ]);
+
   // When entering community or list length changes: clamp focused index and set orbit angle (do not run when only focus changes so left/right can animate)
   useEffect(() => {
     if (phase === "orbs" || listForPhase.length === 0) return;
@@ -1810,8 +2718,15 @@ export default function EventsTab() {
     const step = (2 * Math.PI) / n;
     const nextFocus = Math.min(focusedEventIndex, n - 1);
     if (nextFocus !== focusedEventIndex) setFocusedEventIndex(nextFocus);
-    eventOrbitAngle.value = nextFocus * step;
+    const settled = nextFocus * step;
+    eventOrbitAngle.value = settled;
+    focusedEventIndexRef.current = nextFocus;
     focusedEventIndexShared.value = nextFocus;
+    orbitSwipeFromIdx.value = nextFocus;
+    orbitSwipeToIdx.value = nextFocus;
+    orbitFocusSwipeProgress.value = 1;
+    orbitSwipeAngleStart.value = settled;
+    orbitSwipeAngleEnd.value = settled;
     // Only phase / list length should re-sync orbit; omit focusedEventIndex, eventOrbitAngle, focusedEventIndexShared so swipe next/prev does not reset the running animation.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional narrow deps
   }, [phase, listForPhase.length]);
@@ -1847,7 +2762,9 @@ export default function EventsTab() {
     if (forSection === "plus") {
       const idx = 2;
       selectedOrbIndex.value = idx;
-      runOnJS(setFocusedCommunityIndex)(idx);
+      setFocusedCommunityIndex(idx);
+      setFocusedEventIndex(0);
+      zeroEventOrbitSharedForNavigation();
       orbExitProgress.value = withTiming(1, { duration: 320 }, () => {
         runOnJS(setPhase)(forSection);
         runOnJS(setSelectedType)(forSection);
@@ -1862,9 +2779,96 @@ export default function EventsTab() {
     closeCodeModal,
     selectedOrbIndex,
     orbExitProgress,
+    zeroEventOrbitSharedForNavigation,
   ]);
 
   const eventCount = listForPhase.length;
+
+  const clearOrbitCardTransition = useCallback(() => {
+    setOrbitCardTransition(null);
+  }, []);
+
+  /** Worklets cannot capture `useCallback` closures; use a stable runOnJS + ref to latest impl. */
+  const onOrbitSwipeNativeCompleteRef = useRef<(settledIdx: number) => void>(
+    () => {},
+  );
+  onOrbitSwipeNativeCompleteRef.current = (settledIdx: number) => {
+    eventsOrbitLogSwipe("runOnJS:afterNativeSwipe", {
+      settledIdx,
+      reactFocusRef: focusedEventIndexRef.current,
+    });
+    clearOrbitCardTransition();
+    eventsOrbitLogSwipe("js:afterClearOrbitCardTransition", {
+      settledIdx,
+      ts: Date.now(),
+    });
+  };
+  const onOrbitSwipeNativeComplete = useCallback(
+    (settledIdx: number) => {
+      onOrbitSwipeNativeCompleteRef.current(settledIdx);
+    },
+    [],
+  );
+
+  useAnimatedReaction(
+    () => {
+      "worklet";
+      if (!__DEV__) {
+        return -2;
+      }
+      const from = Math.round(orbitSwipeFromIdx.value);
+      const to = Math.round(orbitSwipeToIdx.value);
+      if (from === to) {
+        return -1;
+      }
+      const a0 = orbitSwipeAngleStart.value;
+      const a1 = orbitSwipeAngleEnd.value;
+      const ac = eventOrbitAngle.value;
+      const span = a1 - a0;
+      if (Math.abs(span) < 1e-7) {
+        return 0;
+      }
+      const p = Math.max(0, Math.min(1, (ac - a0) / span));
+      return Math.min(9, Math.max(0, Math.floor(p * 10)));
+    },
+    (bucket, prev) => {
+      "worklet";
+      if (!__DEV__) {
+        return;
+      }
+      if (bucket === -1) {
+        if (typeof prev === "number" && prev >= 0) {
+          runOnJS(eventsOrbitLogSwipeTrackEnd)();
+        }
+        return;
+      }
+      if (bucket < 0) {
+        return;
+      }
+      if (bucket !== prev) {
+        const from = Math.round(orbitSwipeFromIdx.value);
+        const to = Math.round(orbitSwipeToIdx.value);
+        const a0 = orbitSwipeAngleStart.value;
+        const a1 = orbitSwipeAngleEnd.value;
+        const ac = eventOrbitAngle.value;
+        const span = a1 - a0;
+        const pAngle =
+          Math.abs(span) < 1e-7
+            ? 0
+            : Math.max(0, Math.min(1, (ac - a0) / span));
+        runOnJS(eventsOrbitLogSwipeTrack)({
+          approxPct: bucket * 10,
+          pAngle,
+          pOrbitProgressSV: orbitFocusSwipeProgress.value,
+          angle: ac,
+          a0,
+          a1,
+          from,
+          to,
+        });
+      }
+    },
+  );
 
   const selectOrb = useCallback(
     (index: number) => {
@@ -1878,8 +2882,9 @@ export default function EventsTab() {
       const type: SferaEventType =
         index === 0 ? "social" : index === 1 ? "private" : "plus";
       selectedOrbIndex.value = index;
-      runOnJS(setFocusedCommunityIndex)(index);
-      runOnJS(setFocusedEventIndex)(0);
+      setFocusedCommunityIndex(index);
+      setFocusedEventIndex(0);
+      zeroEventOrbitSharedForNavigation();
       orbExitProgress.value = withTiming(1, { duration: 320 }, () => {
         runOnJS(setPhase)(type);
         runOnJS(setSelectedType)(type);
@@ -1898,6 +2903,7 @@ export default function EventsTab() {
       eventsCommunitiesRotationStarted,
       eventsFingerOpacity,
       eventsFingerScale,
+      zeroEventOrbitSharedForNavigation,
     ],
   );
 
@@ -1907,10 +2913,11 @@ export default function EventsTab() {
     setSelectedType(null);
     setFocusedCommunityIndex(0);
     setFocusedEventIndex(0);
+    zeroEventOrbitSharedForNavigation();
     orbExitProgress.value = withTiming(0, { duration: 280 });
     // Fade in location banner when returning to orbs view
     locationBannerOpacity.value = withTiming(1, { duration: 400 });
-  }, [orbExitProgress, locationBannerOpacity]);
+  }, [orbExitProgress, locationBannerOpacity, zeroEventOrbitSharedForNavigation]);
 
   const handleLocationIndicatorPress = useCallback(async () => {
     const status = await requestLocationPermission();
@@ -1994,17 +3001,79 @@ export default function EventsTab() {
     (delta: 1 | -1) => {
       if (eventCount <= 1) return;
       const step = (2 * Math.PI) / eventCount;
-      const current = focusedEventIndexShared.value % eventCount;
-      const normalizedCurrent = current < 0 ? current + eventCount : current;
+      // SharedValue `.value` read on the JS thread can lag writes in the same turn; use a ref we
+      // bump synchronously so next/prev never "misses" a step (cards stuck / need multiple swipes).
+      const normalizedCurrent =
+        ((focusedEventIndexRef.current % eventCount) + eventCount) % eventCount;
       const newIdx = (normalizedCurrent + delta + eventCount) % eventCount;
-      setFocusedEventIndex(newIdx);
+      // Layout assumes eventOrbitAngle ≡ focusIndex * step (mod 2π). Snap start to the current
+      // index each swipe; animate by exactly one slot (`delta * step`) so wraps (last→first / first→last)
+      // rotate one step instead of taking the long way (`newIdx * step` − start was e.g. −13·step).
+      const angleCanonicalStart = normalizedCurrent * step;
+      const angleDelta = delta * step;
+      const angleTarget = angleCanonicalStart + angleDelta;
+      setOrbitCardTransition({ from: normalizedCurrent, to: newIdx });
+      orbitSwipeFromIdx.value = normalizedCurrent;
+      orbitSwipeToIdx.value = newIdx;
+      cancelAnimation(eventOrbitAngle);
+      cancelAnimation(orbitFocusSwipeProgress);
+      orbitFocusSwipeProgress.value = 0;
+      orbitSwipeAngleStart.value = angleCanonicalStart;
+      orbitSwipeAngleEnd.value = angleTarget;
+      eventOrbitAngle.value = angleCanonicalStart;
+      // Shared first so UI worklets see the new focus before React re-renders; avoids one-frame chrome/layout mismatch.
       focusedEventIndexShared.value = newIdx;
-      eventOrbitAngle.value = withTiming(eventOrbitAngle.value + delta * step, {
+      focusedEventIndexRef.current = newIdx;
+      setFocusedEventIndex(newIdx);
+      const ec = {
         duration: EVENT_ORBIT_DURATION,
-        easing: Easing.out(Easing.cubic),
+        easing: EVENT_ORBIT_EASING,
+      };
+      eventsOrbitLogSwipe("moveOrbitFocus:start", {
+        delta,
+        fromIdx: normalizedCurrent,
+        toIdx: newIdx,
+        angleStartRad: angleCanonicalStart,
+        angleTargetRad: angleTarget,
+        stepRad: step,
+        durationMs: EVENT_ORBIT_DURATION,
       });
+      eventOrbitAngle.value = withTiming(
+        angleTarget,
+        ec,
+        (finished) => {
+          "worklet";
+          if (finished) {
+            const idx = Math.round(focusedEventIndexShared.value);
+            const aSettled = idx * step;
+            eventOrbitAngle.value = aSettled;
+            orbitSwipeAngleStart.value = aSettled;
+            orbitSwipeAngleEnd.value = aSettled;
+            orbitSwipeFromIdx.value = idx;
+            orbitSwipeToIdx.value = idx;
+            runOnJS(eventsOrbitLogSwipeWorkletComplete)({
+              idx,
+              aSettled,
+              angleTarget,
+              stepRad: step,
+            });
+            runOnJS(onOrbitSwipeNativeComplete)(idx);
+          }
+        },
+      );
+      orbitFocusSwipeProgress.value = withTiming(1, ec);
     },
-    [eventCount, eventOrbitAngle, focusedEventIndexShared],
+    [
+      eventCount,
+      eventOrbitAngle,
+      focusedEventIndexShared,
+      orbitFocusSwipeProgress,
+      orbitSwipeFromIdx,
+      orbitSwipeToIdx,
+      orbitSwipeAngleStart,
+      orbitSwipeAngleEnd,
+      onOrbitSwipeNativeComplete,
+    ],
   );
 
   const goToPrevEvent = useCallback(() => {
@@ -2015,7 +3084,7 @@ export default function EventsTab() {
     moveOrbitFocus(1);
   }, [moveOrbitFocus]);
 
-  // Left/right card regions: vertical drag (up = prev, down = next). Center: horizontal swipe (left = next, right = prev).
+  // Side strips: vertical drag (up = prev, down = next). Center: horizontal matches chevrons (left = next, right = prev).
   const SIDE_REGION_WIDTH = 0.35;
   const panResponder = useMemo(
     () =>
@@ -2050,11 +3119,21 @@ export default function EventsTab() {
             startX < SCREEN_WIDTH * SIDE_REGION_WIDTH ||
             startX > SCREEN_WIDTH * (1 - SIDE_REGION_WIDTH);
           if (inSideRegion) {
-            if (g.dy < -50) goToPrevEvent();
-            else if (g.dy > 50) goToNextEvent();
+            if (g.dy < -50) {
+              eventsOrbitLogSwipe("pan:side", { go: "prev", dy: g.dy, dx: g.dx });
+              goToPrevEvent();
+            } else if (g.dy > 50) {
+              eventsOrbitLogSwipe("pan:side", { go: "next", dy: g.dy, dx: g.dx });
+              goToNextEvent();
+            }
           } else {
-            if (g.dx < -50) goToNextEvent();
-            else if (g.dx > 50) goToPrevEvent();
+            if (g.dx < -50) {
+              eventsOrbitLogSwipe("pan:center", { go: "next", dx: g.dx, dy: g.dy });
+              goToNextEvent();
+            } else if (g.dx > 50) {
+              eventsOrbitLogSwipe("pan:center", { go: "prev", dx: g.dx, dy: g.dy });
+              goToPrevEvent();
+            }
           }
         },
       }),
@@ -2250,35 +3329,50 @@ export default function EventsTab() {
               style={[StyleSheet.absoluteFill, eventsRevealStyle]}
               pointerEvents="box-none"
             >
-              {/* Orbit events behind the orb (zIndex 0) – all cards on orbit, non-focused only here */}
-              <View style={styles.orbitEventsLayer} pointerEvents="box-none">
-                {listForPhase.map((event, idx) => {
-                  const isFocused =
-                    (idx - focusedEventIndex + listForPhase.length) %
-                      Math.max(1, listForPhase.length) ===
-                    0;
-                  if (isFocused) return null;
-                  return (
-                    <OrbitalEventCard
-                      key={event.id}
-                      event={event}
-                      eventIndex={idx}
-                      totalCount={Math.max(1, listForPhase.length)}
-                      focusedEventIndex={focusedEventIndex}
-                      eventOrbitAngle={eventOrbitAngle}
-                      focusedEventIndexShared={focusedEventIndexShared}
-                      colorScheme={colorScheme ?? "dark"}
-                      colors={colors}
-                      isLocked={false}
-                      isUnseen={!seenIds.has(event.id)}
-                      isAttending={attendingIds.has(event.id)}
-                      isPastEvent={pastEventIds.has(event.id)}
-                      onDeletePress={(ev) => removePastEventFromOrbit(ev.id)}
-                      fontScale={fontScale}
-                    />
-                  );
-                })}
-              </View>
+              {/* One card per event as siblings of the orb; zIndex in worklet keeps back arc under orb, growing/focused above. */}
+              {listForPhase.map((event, idx) => {
+                const showFocusedChrome =
+                  (idx - focusedEventIndex + listForPhase.length) %
+                    Math.max(1, listForPhase.length) ===
+                    0 ||
+                  (!!orbitCardTransition &&
+                    (idx === orbitCardTransition.from ||
+                      idx === orbitCardTransition.to));
+                return (
+                  <OrbitalEventCard
+                    key={event.id}
+                    event={event}
+                    eventIndex={idx}
+                    totalCount={Math.max(1, listForPhase.length)}
+                    focusedEventIndex={focusedEventIndex}
+                    eventOrbitAngle={eventOrbitAngle}
+                    focusedEventIndexShared={focusedEventIndexShared}
+                    orbitSwipeFromIdx={orbitSwipeFromIdx}
+                    orbitSwipeToIdx={orbitSwipeToIdx}
+                    orbitFocusSwipeProgress={orbitFocusSwipeProgress}
+                    orbitSwipeAngleStart={orbitSwipeAngleStart}
+                    orbitSwipeAngleEnd={orbitSwipeAngleEnd}
+                    showFocusedChrome={showFocusedChrome}
+                    colorScheme={colorScheme ?? "dark"}
+                    colors={colors}
+                    isLocked={false}
+                    isUnseen={!seenIds.has(event.id)}
+                    isAttending={attendingIds.has(event.id)}
+                    isPastEvent={pastEventIds.has(event.id)}
+                    onDeletePress={(ev) => removePastEventFromOrbit(ev.id)}
+                    onFocusPress={(e) => {
+                      if (phase === "private" && !privateUnlocked)
+                        openCodeModal("private");
+                      else {
+                        setExpandedEventId(e.id);
+                        markEventAsSeen(e.id);
+                        setSeenIds((prev) => new Set(prev).add(e.id));
+                      }
+                    }}
+                    fontScale={fontScale}
+                  />
+                );
+              })}
 
               {/* Centered Sfera Community orb – tap to go back to all communities; pulses every 5s */}
               <CenterOrbPlaceholder
@@ -2308,45 +3402,6 @@ export default function EventsTab() {
                   </ThemedText>
                 </View>
               ) : null}
-
-              {/* Focused event in front of orb (zIndex 20) – same orbit motion, drawn on top for tap */}
-              <View style={styles.focusedEventLayer} pointerEvents="box-none">
-                {listForPhase.map((event, idx) => {
-                  const isFocused =
-                    (idx - focusedEventIndex + listForPhase.length) %
-                      Math.max(1, listForPhase.length) ===
-                    0;
-                  if (!isFocused) return null;
-                  return (
-                    <OrbitalEventCard
-                      key={event.id}
-                      event={event}
-                      eventIndex={idx}
-                      totalCount={Math.max(1, listForPhase.length)}
-                      focusedEventIndex={focusedEventIndex}
-                      eventOrbitAngle={eventOrbitAngle}
-                      focusedEventIndexShared={focusedEventIndexShared}
-                      colorScheme={colorScheme ?? "dark"}
-                      colors={colors}
-                      isLocked={false}
-                      isUnseen={!seenIds.has(event.id)}
-                      isAttending={attendingIds.has(event.id)}
-                      isPastEvent={pastEventIds.has(event.id)}
-                      onDeletePress={(ev) => removePastEventFromOrbit(ev.id)}
-                      onFocusPress={(e) => {
-                        if (phase === "private" && !privateUnlocked)
-                          openCodeModal("private");
-                        else {
-                          setExpandedEventId(e.id);
-                          markEventAsSeen(e.id);
-                          setSeenIds((prev) => new Set(prev).add(e.id));
-                        }
-                      }}
-                      fontScale={fontScale}
-                    />
-                  );
-                })}
-              </View>
 
               {/* Left/right to focus prev/next Sfera Event – positioned lower on screen */}
               {listForPhase.length > 1 ? (
@@ -3495,7 +4550,9 @@ const styles = StyleSheet.create({
   },
   centerOrbPlaceholder: {
     position: "absolute",
-    zIndex: 10,
+    // Below side ring tiles (z~9–11) so neighbors aren’t painted “under” the hub after a swipe.
+    // Back-arc cards stay z=1 and remain behind the orb.
+    zIndex: 3,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -3509,14 +4566,6 @@ const styles = StyleSheet.create({
   },
   noUpcomingEventsText: {
     opacity: 0.9,
-  },
-  orbitEventsLayer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 0,
-  },
-  focusedEventLayer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 20,
   },
   chevron: {
     position: "absolute",
