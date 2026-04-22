@@ -451,7 +451,12 @@ const DraggableMoment = React.memo(function DraggableMoment({
   );
 });
 
-/** Entity wheel of life: ≥3 memories and ≥9 moments total (lessons + sunny + cloudy) across the entity. */
+/** Minimum memories on the entity to open entity wheel of life (see docs/entity-wheel-individual-view/README.md). */
+export const ENTITY_WHEEL_MIN_MEMORIES = 3;
+/** Minimum total moments (lessons + sunny + cloudy) summed across all memories. */
+export const ENTITY_WHEEL_MIN_TOTAL_MOMENTS = 9;
+
+/** Entity wheel of life: `ENTITY_WHEEL_MIN_MEMORIES` memories and `ENTITY_WHEEL_MIN_TOTAL_MOMENTS` moments total. */
 function canEnterEntityWheelOfLife(
   memories: {
     hardTruths?: unknown[];
@@ -459,7 +464,7 @@ function canEnterEntityWheelOfLife(
     lessonsLearned?: unknown[];
   }[],
 ): boolean {
-  if (memories.length < 3) return false;
+  if (memories.length < ENTITY_WHEEL_MIN_MEMORIES) return false;
   let total = 0;
   for (const m of memories) {
     total +=
@@ -467,7 +472,7 @@ function canEnterEntityWheelOfLife(
       (m.goodFacts?.length ?? 0) +
       (m.lessonsLearned?.length ?? 0);
   }
-  return total >= 9;
+  return total >= ENTITY_WHEEL_MIN_TOTAL_MOMENTS;
 }
 
 // Floating Avatar Component
@@ -603,6 +608,35 @@ const FloatingAvatar = React.memo(
     >("lesson");
     const [isWheelSpinningState, setIsWheelSpinningState] =
       React.useState(false);
+    const [entityWheelGateToastVisible, setEntityWheelGateToastVisible] =
+      React.useState(false);
+    const entityWheelGateToastTimerRef = useRef<ReturnType<
+      typeof setTimeout
+    > | null>(null);
+    const showEntityWheelGateToast = useCallback(() => {
+      if (entityWheelGateToastTimerRef.current) {
+        clearTimeout(entityWheelGateToastTimerRef.current);
+      }
+      setEntityWheelGateToastVisible(true);
+      entityWheelGateToastTimerRef.current = setTimeout(() => {
+        setEntityWheelGateToastVisible(false);
+        entityWheelGateToastTimerRef.current = null;
+      }, 5000);
+    }, []);
+    const dismissEntityWheelGateToast = useCallback(() => {
+      if (entityWheelGateToastTimerRef.current) {
+        clearTimeout(entityWheelGateToastTimerRef.current);
+        entityWheelGateToastTimerRef.current = null;
+      }
+      setEntityWheelGateToastVisible(false);
+    }, []);
+    React.useEffect(() => {
+      return () => {
+        if (entityWheelGateToastTimerRef.current) {
+          clearTimeout(entityWheelGateToastTimerRef.current);
+        }
+      };
+    }, []);
 
     // State for floating moments that grow from memories in entity wheel
     const [floatingMoments, setFloatingMoments] = React.useState<
@@ -749,7 +783,7 @@ const FloatingAvatar = React.memo(
       isTablet && isFocused ? baseMemoryRadius * 3 : baseMemoryRadius;
 
     // Calculate sunny moments percentage for progress bar and moment counts
-    const { sunnyPercentage, momentCounts } = useMemo(() => {
+    const { sunnyPercentage, momentCounts, totalMoments } = useMemo(() => {
       let totalClouds = 0;
       let totalSuns = 0;
       let totalLessons = 0;
@@ -766,6 +800,7 @@ const FloatingAvatar = React.memo(
 
       return {
         sunnyPercentage: percentage,
+        totalMoments: total,
         momentCounts: {
           lesson: totalLessons,
           sunny: totalSuns,
@@ -778,6 +813,12 @@ const FloatingAvatar = React.memo(
       () => canEnterEntityWheelOfLife(memories),
       [memories],
     );
+
+    React.useEffect(() => {
+      if (!isFocused || canEnterEntityWheel || showEntityWheel) {
+        dismissEntityWheelGateToast();
+      }
+    }, [isFocused, canEnterEntityWheel, showEntityWheel, dismissEntityWheelGateToast]);
 
     /** Which memory the usability finger points at when wheel mode is gated off */
     const usabilityHintMemoryIndex = useMemo(() => {
@@ -3423,6 +3464,7 @@ const FloatingAvatar = React.memo(
                     // If entity is focused, toggle entity wheel mode
                     if (isFocused) {
                       if (!canEnterEntityWheel) {
+                        showEntityWheelGateToast();
                         if (memories.length > 0) {
                           const idx = Math.floor(
                             Math.random() * memories.length,
@@ -4197,6 +4239,96 @@ const FloatingAvatar = React.memo(
           title={shareModalContent.title}
           content={shareModalContent.message}
         />
+
+        {/* Entity wheel gating: in-app notice when the wheel is not unlocked yet */}
+        {entityWheelGateToastVisible && isFocused && (
+          <View
+            pointerEvents="box-none"
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 20000,
+              paddingHorizontal: 16,
+              paddingBottom: insets.bottom + 10,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "flex-start",
+                gap: 10,
+                borderRadius: 12,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderColor:
+                  colorScheme === "dark"
+                    ? "rgba(255, 255, 255, 0.12)"
+                    : "rgba(0, 0, 0, 0.08)",
+                backgroundColor:
+                  colorScheme === "dark"
+                    ? "rgba(18, 24, 36, 0.96)"
+                    : "rgba(248, 249, 252, 0.96)",
+                paddingVertical: 12,
+                paddingLeft: 14,
+                paddingRight: 8,
+                ...Platform.select({
+                  android: { elevation: 4 },
+                  default: {
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 8,
+                  },
+                }),
+              }}
+            >
+              <MaterialIcons
+                name="info-outline"
+                size={22}
+                color={
+                  colorScheme === "dark"
+                    ? "rgba(100, 181, 246, 0.95)"
+                    : "rgba(25, 118, 210, 0.9)"
+                }
+                style={{ marginTop: 2 }}
+              />
+              <View style={{ flex: 1, paddingRight: 4 }}>
+                <ThemedText
+                  type="defaultSemiBold"
+                  size="sm"
+                  style={{ marginBottom: 4 }}
+                >
+                  {t("home.entityWheel.gateTitle")}
+                </ThemedText>
+                <ThemedText size="sm" emphasis="high">
+                  {t("home.entityWheel.gateMessage", {
+                    minMemories: ENTITY_WHEEL_MIN_MEMORIES,
+                    minMoments: ENTITY_WHEEL_MIN_TOTAL_MOMENTS,
+                    currentMemories: memories.length,
+                    currentMoments: totalMoments,
+                  })}
+                </ThemedText>
+              </View>
+              <Pressable
+                onPress={dismissEntityWheelGateToast}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={t("common.close")}
+              >
+                <MaterialIcons
+                  name="close"
+                  size={20}
+                  color={
+                    colorScheme === "dark"
+                      ? "rgba(255, 255, 255, 0.45)"
+                      : "rgba(0, 0, 0, 0.4)"
+                  }
+                />
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* Image Preview Modal */}
         <Modal

@@ -14,7 +14,13 @@ Opening **entity wheel of life** (tapping the central entity avatar) is allowed 
 
 Moments are summed over **all** memories for the entity (not “nine per memory”).
 
-The check is implemented in `canEnterEntityWheelOfLife()` next to `FloatingAvatar`.
+The check is implemented in `canEnterEntityWheelOfLife()` next to `FloatingAvatar`, using exported constants `ENTITY_WHEEL_MIN_MEMORIES` and `ENTITY_WHEEL_MIN_TOTAL_MOMENTS` in `app/(tabs)/index.tsx` (so product copy, the in-app notice, and the gate stay aligned).
+
+## In-app notice (gating)
+
+When the user is in **individual entity** focus and taps the **entity avatar** while the wheel is still locked, the app shows a **short, dismissible notice** at the bottom of the screen. It restates the same rules (minimum memories and total moments) and **live counts** for the current entity (memories and moments so far). The notice also **auto-hides** after a few seconds; the user can close it with the **X** control.
+
+Strings live under `home.entityWheel.gateTitle` and `home.entityWheel.gateMessage` in `utils/languages/translations.ts` (English and Bulgarian). Tapping the avatar still **nudges a random memory** (when there is at least one memory) as described below.
 
 ## When the wheel is not available
 
@@ -46,6 +52,7 @@ If entity wheel mode is active and stored data later falls below the threshold (
 
 ## Files touched
 
-- **`app/(tabs)/index.tsx`** — gating helper, hint placement, nudge animation, `FloatingMemory` props, and `memoryPositions` order.
+- **`app/(tabs)/index.tsx`** — gating helper and exported thresholds (`ENTITY_WHEEL_MIN_*`), bottom gating **toast** in `FloatingAvatar`, hint placement, nudge animation, `FloatingMemory` props, and `memoryPositions` order.
+- **`utils/languages/translations.ts`** — `home.entityWheel.gateTitle` / `home.entityWheel.gateMessage` for the gating notice.
 
 No new environment variables or API contracts.

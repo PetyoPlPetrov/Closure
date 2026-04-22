@@ -14,6 +14,9 @@ export interface Translations {
   "tab.events": string;
   "home.emptyState": string;
   "home.sferaSizeHint": string;
+  /** In-app notice when entity wheel of life is locked (gating rules) */
+  "home.entityWheel.gateTitle": string;
+  "home.entityWheel.gateMessage": string;
   // Events tab (Sferas Community / Events)
   "events.section.social": string;
   "events.section.private": string;
@@ -3873,6 +3876,9 @@ const translations: Record<Language, Translations> = {
       "No profiles yet. Add your first ex-profile to get started.",
     "home.sferaSizeHint":
       "Each sfera is sized by its share of moments compared to the other sferas.",
+    "home.entityWheel.gateTitle": "Entity wheel of life",
+    "home.entityWheel.gateMessage":
+      "Unlocked with at least {minMemories} memories and {minMoments} moments in total (lessons, sunny, and cloudy—summed across all memories). You have {currentMemories} memories and {currentMoments} moments.",
     "avatar.sunnyLife": "Sunny",
     "avatar.sunnyCongrats": "{pct}% Sunny!",
     "avatar.addMemories": "Add memories",
@@ -8674,6 +8680,9 @@ const translations: Record<Language, Translations> = {
       "Няма профили все още. Добавете първи партньор, за да започнете.",
     "home.sferaSizeHint":
       "Всяка сфера е с размер според относителния дял моменти спрямо другите сфери.",
+    "home.entityWheel.gateTitle": "Колелото на живота",
+    "home.entityWheel.gateMessage":
+      "Отключва се при поне {minMemories} спомена и {minMoments} момента общо (уроци, слънчеви и облачни — сумират се по всички спомени). В момента имаш {currentMemories} спомена и {currentMoments} момента.",
     "avatar.sunnyLife": "Слънчево",
     "avatar.sunnyCongrats": "{pct}% Слънчево!",
     "avatar.addMemories": "Добави спомени",
