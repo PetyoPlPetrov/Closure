@@ -6,7 +6,6 @@
  */
 import { AILoadingView } from "@/components/ai-loading-view";
 import { OnboardingEntityResultsView } from "@/components/onboarding-entity-results-view";
-import { SunnyLifeAvatar } from "@/components/SunnyLifeAvatar";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -214,6 +213,35 @@ const StaticSunPreview = React.memo(function StaticSunPreview({ size = 120, perc
           Sunny Life
         </ThemedText>
       </View>
+    </View>
+  );
+});
+
+const StaticInsightsHub = React.memo(function StaticInsightsHub({ size }: { size: number }) {
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: "rgba(186,104,200,0.22)",
+        borderWidth: Math.max(2, Math.round(size * 0.045)),
+        borderColor: "rgba(186,104,200,0.65)",
+        justifyContent: "center",
+        alignItems: "center",
+        shadowColor: "#BA68C8",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.55,
+        shadowRadius: 10,
+        elevation: 10,
+      }}
+      pointerEvents="none"
+    >
+      <MaterialIcons
+        name="insights"
+        size={Math.round(size * 0.58)}
+        color="#CE93D8"
+      />
     </View>
   );
 });
@@ -600,17 +628,9 @@ const MiniOrbitDiagram = React.memo(function MiniOrbitDiagram({ colorScheme }: {
           orbitAngle={orbitAngle} colorScheme={colorScheme}
         />
       ))}
-      {/* Sun always on top */}
+      {/* Insights hub always on top */}
       <View style={{ position: "absolute", left: MINI_C - MINI_SUN_SIZE / 2, top: MINI_C - MINI_SUN_SIZE / 2, zIndex: 20, width: MINI_SUN_SIZE, height: MINI_SUN_SIZE, alignItems: "center", justifyContent: "center", overflow: "visible" }}>
-        <View style={{ width: 100, height: 100, transform: [{ scale: MINI_SUN_SIZE / 100 }] }}>
-          <SunnyLifeAvatar
-            percentage={72}
-            hasMemories={true}
-            colorScheme={colorScheme}
-            x={50}
-            y={50}
-          />
-        </View>
+        <StaticInsightsHub size={MINI_SUN_SIZE} />
       </View>
     </View>
   );
@@ -1129,18 +1149,12 @@ export function OnboardingWizard({
       },
       {
         illustration: (
-          <View style={{ width: 110 * fontScale, height: 110 * fontScale }}>
-            <SunnyLifeAvatar
-              percentage={72}
-              hasMemories={true}
-              colorScheme={(colorScheme ?? "dark") as "light" | "dark"}
-              x={55 * fontScale}
-              y={55 * fontScale}
-            />
+          <View style={{ width: 110 * fontScale, height: 110 * fontScale, alignItems: "center", justifyContent: "center" }}>
+            <StaticInsightsHub size={110 * fontScale} />
           </View>
         ),
         title: t("onboarding.hierarchy.universe.title") ?? "Your Universe",
-        body: t("onboarding.hierarchy.universe.body") ?? "At the center is your Sun — a reflection of your balance between sunny and cloudy moments in life. Sferas are the main areas of your life, orbiting around it.",
+        body: t("onboarding.hierarchy.universe.body") ?? "At the center is your Insights button — it gives you quick insights about your balance between sunny and cloudy moments in life. Sferas are the main areas of your life, orbiting around it.",
         extras: (
           <MiniOrbitDiagram colorScheme={(colorScheme ?? "dark") as "light" | "dark"} />
         ),

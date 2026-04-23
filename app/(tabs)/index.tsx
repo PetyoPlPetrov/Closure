@@ -4248,67 +4248,102 @@ const FloatingAvatar = React.memo(
         />
 
         {/* Entity wheel gating: in-app notice when the wheel is not unlocked yet */}
-        {entityWheelGateToastVisible && isFocused && (
+        <Modal
+          visible={entityWheelGateToastVisible && isFocused}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={dismissEntityWheelGateToast}
+        >
           <View
             pointerEvents="box-none"
             style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 20000,
+              flex: 1,
+              paddingTop: insets.top + 12,
               paddingHorizontal: 16,
-              paddingBottom: insets.bottom + 10,
             }}
           >
             <View
               style={{
                 flexDirection: "row",
                 alignItems: "flex-start",
-                gap: 10,
-                borderRadius: 12,
-                borderWidth: StyleSheet.hairlineWidth,
+                gap: 12,
+                borderRadius: 14,
+                borderWidth: 1,
                 borderColor:
                   colorScheme === "dark"
-                    ? "rgba(255, 255, 255, 0.12)"
-                    : "rgba(0, 0, 0, 0.08)",
+                    ? "rgba(90, 170, 255, 0.55)"
+                    : "rgba(33, 150, 243, 0.34)",
+                borderLeftWidth: 4,
+                borderLeftColor:
+                  colorScheme === "dark"
+                    ? "rgba(125, 195, 255, 1)"
+                    : "rgba(30, 136, 229, 0.98)",
                 backgroundColor:
                   colorScheme === "dark"
-                    ? "rgba(18, 24, 36, 0.96)"
-                    : "rgba(248, 249, 252, 0.96)",
+                    ? "rgba(10, 35, 66, 0.97)"
+                    : "rgba(227, 242, 253, 0.98)",
                 paddingVertical: 12,
                 paddingLeft: 14,
                 paddingRight: 8,
                 ...Platform.select({
                   android: { elevation: 4 },
                   default: {
-                    shadowColor: "#000",
+                    shadowColor:
+                      colorScheme === "dark" ? "#64B5F6" : "rgba(25, 118, 210, 0.7)",
                     shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 8,
+                    shadowOpacity: colorScheme === "dark" ? 0.18 : 0.1,
+                    shadowRadius: 10,
                   },
                 }),
               }}
             >
-              <MaterialIcons
-                name="info-outline"
-                size={22}
-                color={
-                  colorScheme === "dark"
-                    ? "rgba(100, 181, 246, 0.95)"
-                    : "rgba(25, 118, 210, 0.9)"
-                }
-                style={{ marginTop: 2 }}
-              />
+              <View
+                style={{
+                  width: 28,
+                  height: 28,
+                  marginTop: 1,
+                  borderRadius: 14,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor:
+                    colorScheme === "dark"
+                      ? "rgba(120, 193, 255, 0.24)"
+                      : "rgba(33, 150, 243, 0.2)",
+                }}
+              >
+                <MaterialIcons
+                  name="info-outline"
+                  size={18}
+                  color={
+                    colorScheme === "dark"
+                      ? "rgba(191, 227, 255, 1)"
+                      : "rgba(13, 71, 161, 0.95)"
+                  }
+                />
+              </View>
               <View style={{ flex: 1, paddingRight: 4 }}>
                 <ThemedText
                   type="defaultSemiBold"
                   size="sm"
-                  style={{ marginBottom: 4 }}
+                  style={{
+                    marginBottom: 4,
+                    color:
+                      colorScheme === "dark"
+                        ? "rgba(222, 240, 255, 0.99)"
+                        : "rgba(10, 79, 157, 0.98)",
+                  }}
                 >
                   {t("home.entityWheel.gateTitle")}
                 </ThemedText>
-                <ThemedText size="sm" emphasis="high">
+                <ThemedText
+                  size="sm"
+                  style={{
+                    color:
+                      colorScheme === "dark"
+                        ? "rgba(215, 234, 252, 0.92)"
+                        : "rgba(27, 94, 170, 0.92)",
+                  }}
+                >
                   {t("home.entityWheel.gateMessage", {
                     minMemories: ENTITY_WHEEL_MIN_MEMORIES,
                     minMoments: ENTITY_WHEEL_MIN_TOTAL_MOMENTS,
@@ -4322,20 +4357,31 @@ const FloatingAvatar = React.memo(
                 hitSlop={10}
                 accessibilityRole="button"
                 accessibilityLabel={t("common.close")}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor:
+                    colorScheme === "dark"
+                      ? "rgba(120, 193, 255, 0.2)"
+                      : "rgba(33, 150, 243, 0.16)",
+                }}
               >
                 <MaterialIcons
                   name="close"
-                  size={20}
+                  size={18}
                   color={
                     colorScheme === "dark"
-                      ? "rgba(255, 255, 255, 0.45)"
-                      : "rgba(0, 0, 0, 0.4)"
+                      ? "rgba(220, 240, 255, 0.95)"
+                      : "rgba(15, 88, 165, 0.78)"
                   }
                 />
               </Pressable>
             </View>
           </View>
-        )}
+        </Modal>
 
         {/* Image Preview Modal */}
         <Modal

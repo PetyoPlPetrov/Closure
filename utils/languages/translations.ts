@@ -4324,7 +4324,7 @@ const translations: Record<Language, Translations> = {
     "onboarding.encouragement": "You're doing great! Take your time.",
     "onboarding.hierarchy.universe.title": "Your Universe",
     "onboarding.hierarchy.universe.body":
-      "At the center is your Sun — a reflection of your balance between sunny and cloudy moments in life. Sferas are the main areas of your life, orbiting around it.",
+      "At the center is your Insights button — it gives you quick insights about your balance between sunny and cloudy moments in life. Sferas are the main areas of your life, orbiting around it.",
     "onboarding.hierarchy.entities.title": "Sferas & Entities",
     "onboarding.hierarchy.entities.body":
       "Each Sfera holds its own Entities. The Family Sfera holds your family members, Friends holds your close friends, Career holds your jobs, and so on.",
@@ -9127,7 +9127,7 @@ const translations: Record<Language, Translations> = {
     "onboarding.encouragement": "Справяте се чудесно! Не бързайте.",
     "onboarding.hierarchy.universe.title": "Вашата Вселена",
     "onboarding.hierarchy.universe.body":
-      "В центъра е вашето Слънце — отражение на баланса между слънчеви и облачни моменти в живота ви. Сферите са основните области от живота ви, обикалящи около него.",
+      "В центъра е бутонът Прозрения — той ви дава бързи прозрения за баланса между слънчеви и облачни моменти в живота ви. Сферите са основните области от живота ви, обикалящи около него.",
     "onboarding.hierarchy.entities.title": "Сфери и Обекти",
     "onboarding.hierarchy.entities.body":
       "Всяка Сфера съдържа свои Обекти. Сферата Семейство — членовете на семейството ви, Приятели — близките ви приятели, Кариера — работните ви места, и т.н.",
