@@ -4,7 +4,14 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 const ORBIT_DURATION_KEY = "@sferas:orbit_duration_ms";
 const CONSTELLATION_AMOUNT_KEY = "@sferas:constellation_amount";
@@ -26,7 +33,7 @@ const DEFAULT_CONSTELLATION_OPACITY = 5;
 const MIN_CONSTELLATION_OPACITY = 0;
 const MAX_CONSTELLATION_OPACITY = 10;
 
-const DEFAULT_COSMIC_BACKGROUND_OPACITY = 3;
+const DEFAULT_COSMIC_BACKGROUND_OPACITY = 2;
 const MIN_COSMIC_BACKGROUND_OPACITY = 0;
 const MAX_COSMIC_BACKGROUND_OPACITY = 10;
 
@@ -47,13 +54,25 @@ type VisualSettingsContextValue = {
   setSplashAnimation: (value: boolean) => void;
 };
 
-const VisualSettingsContext = createContext<VisualSettingsContextValue | null>(null);
+const VisualSettingsContext = createContext<VisualSettingsContextValue | null>(
+  null,
+);
 
-export function VisualSettingsProvider({ children }: { children: React.ReactNode }) {
+export function VisualSettingsProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [orbitDurationMs, setOrbitState] = useState(DEFAULT_ORBIT_DURATION_MS);
-  const [constellationAmount, setConstellationState] = useState(DEFAULT_CONSTELLATION_AMOUNT);
-  const [constellationOpacity, setConstellationOpacityState] = useState(DEFAULT_CONSTELLATION_OPACITY);
-  const [cosmicBackgroundOpacity, setCosmicOpacityState] = useState(DEFAULT_COSMIC_BACKGROUND_OPACITY);
+  const [constellationAmount, setConstellationState] = useState(
+    DEFAULT_CONSTELLATION_AMOUNT,
+  );
+  const [constellationOpacity, setConstellationOpacityState] = useState(
+    DEFAULT_CONSTELLATION_OPACITY,
+  );
+  const [cosmicBackgroundOpacity, setCosmicOpacityState] = useState(
+    DEFAULT_COSMIC_BACKGROUND_OPACITY,
+  );
   const [appUsabilityHints, setAppUsabilityHintsState] = useState(true);
   const [pulsingAnimations, setPulsingAnimationsState] = useState(true);
   const [splashAnimation, setSplashAnimationState] = useState(true);
@@ -68,28 +87,53 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       APP_USABILITY_HINTS_KEY,
       STOP_PULSING_ANIMATIONS_KEY,
       SPLASH_ANIMATION_KEY,
-    ]).then(([[, orbit], [, constellation], [, constellationOp], [, cosmic], [, hints], [, stopPulsing], [, splash]]) => {
+    ]).then(
+      ([
+        [, orbit],
+        [, constellation],
+        [, constellationOp],
+        [, cosmic],
+        [, hints],
+        [, stopPulsing],
+        [, splash],
+      ]) => {
         if (orbit != null) {
           const n = parseInt(orbit, 10);
-          if (Number.isFinite(n) && n >= MIN_ORBIT_DURATION_MS && n <= MAX_ORBIT_DURATION_MS) {
+          if (
+            Number.isFinite(n) &&
+            n >= MIN_ORBIT_DURATION_MS &&
+            n <= MAX_ORBIT_DURATION_MS
+          ) {
             setOrbitState(n);
           }
         }
         if (constellation != null) {
           const n = parseInt(constellation, 10);
-          if (Number.isFinite(n) && n >= MIN_CONSTELLATION_AMOUNT && n <= MAX_CONSTELLATION_AMOUNT) {
+          if (
+            Number.isFinite(n) &&
+            n >= MIN_CONSTELLATION_AMOUNT &&
+            n <= MAX_CONSTELLATION_AMOUNT
+          ) {
             setConstellationState(n);
           }
         }
         if (constellationOp != null) {
           const n = parseInt(constellationOp, 10);
-          if (Number.isFinite(n) && n >= MIN_CONSTELLATION_OPACITY && n <= MAX_CONSTELLATION_OPACITY) {
+          if (
+            Number.isFinite(n) &&
+            n >= MIN_CONSTELLATION_OPACITY &&
+            n <= MAX_CONSTELLATION_OPACITY
+          ) {
             setConstellationOpacityState(n);
           }
         }
         if (cosmic != null) {
           const n = parseInt(cosmic, 10);
-          if (Number.isFinite(n) && n >= MIN_COSMIC_BACKGROUND_OPACITY && n <= MAX_COSMIC_BACKGROUND_OPACITY) {
+          if (
+            Number.isFinite(n) &&
+            n >= MIN_COSMIC_BACKGROUND_OPACITY &&
+            n <= MAX_COSMIC_BACKGROUND_OPACITY
+          ) {
             setCosmicOpacityState(n);
           }
         }
@@ -113,20 +157,30 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
   }, []);
 
   const setOrbitDurationMs = useCallback((value: number) => {
-    const clamped = Math.round(Math.max(MIN_ORBIT_DURATION_MS, Math.min(MAX_ORBIT_DURATION_MS, value)));
+    const clamped = Math.round(
+      Math.max(MIN_ORBIT_DURATION_MS, Math.min(MAX_ORBIT_DURATION_MS, value)),
+    );
     setOrbitState(clamped);
     AsyncStorage.setItem(ORBIT_DURATION_KEY, String(clamped));
   }, []);
 
   const setConstellationAmount = useCallback((value: number) => {
-    const clamped = Math.round(Math.max(MIN_CONSTELLATION_AMOUNT, Math.min(MAX_CONSTELLATION_AMOUNT, value)));
+    const clamped = Math.round(
+      Math.max(
+        MIN_CONSTELLATION_AMOUNT,
+        Math.min(MAX_CONSTELLATION_AMOUNT, value),
+      ),
+    );
     setConstellationState(clamped);
     AsyncStorage.setItem(CONSTELLATION_AMOUNT_KEY, String(clamped));
   }, []);
 
   const setConstellationOpacity = useCallback((value: number) => {
     const clamped = Math.round(
-      Math.max(MIN_CONSTELLATION_OPACITY, Math.min(MAX_CONSTELLATION_OPACITY, value)),
+      Math.max(
+        MIN_CONSTELLATION_OPACITY,
+        Math.min(MAX_CONSTELLATION_OPACITY, value),
+      ),
     );
     setConstellationOpacityState(clamped);
     AsyncStorage.setItem(CONSTELLATION_OPACITY_KEY, String(clamped));
@@ -134,7 +188,10 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
 
   const setCosmicBackgroundOpacity = useCallback((value: number) => {
     const clamped = Math.round(
-      Math.max(MIN_COSMIC_BACKGROUND_OPACITY, Math.min(MAX_COSMIC_BACKGROUND_OPACITY, value)),
+      Math.max(
+        MIN_COSMIC_BACKGROUND_OPACITY,
+        Math.min(MAX_COSMIC_BACKGROUND_OPACITY, value),
+      ),
     );
     setCosmicOpacityState(clamped);
     AsyncStorage.setItem(COSMIC_BACKGROUND_OPACITY_KEY, String(clamped));
@@ -222,12 +279,7 @@ export function useVisualSettings(): VisualSettingsContextValue {
 }
 
 export {
-  MIN_ORBIT_DURATION_MS,
-  MAX_ORBIT_DURATION_MS,
-  MIN_CONSTELLATION_AMOUNT,
-  MAX_CONSTELLATION_AMOUNT,
-  MIN_CONSTELLATION_OPACITY,
-  MAX_CONSTELLATION_OPACITY,
-  MIN_COSMIC_BACKGROUND_OPACITY,
-  MAX_COSMIC_BACKGROUND_OPACITY,
+  MAX_CONSTELLATION_AMOUNT, MAX_CONSTELLATION_OPACITY, MAX_COSMIC_BACKGROUND_OPACITY, MAX_ORBIT_DURATION_MS,
+  MIN_CONSTELLATION_AMOUNT, MIN_CONSTELLATION_OPACITY, MIN_COSMIC_BACKGROUND_OPACITY, MIN_ORBIT_DURATION_MS
 };
+

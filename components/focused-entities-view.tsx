@@ -755,6 +755,7 @@ function getInteractionIndices(memoriesPerEntity: IdealizedMemory[][]) {
     oldestIdx,
     oldestTime: oldestTime === Infinity ? null : oldestTime,
     newestTime: newestTime === -1 ? null : newestTime,
+    oldestMemTime: oldestMemTime === Infinity ? null : oldestMemTime,
     mostMemsIdx,
     leastMemsIdx,
     oldestMemIdx,
@@ -805,7 +806,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     [sphere],
   );
 
-  const { newestIdx, oldestIdx, oldestTime, newestTime, mostMemsIdx, leastMemsIdx, mostCloudyIdx, mostSunnyIdx, maxCloudyScore, maxSunnyScore } = useMemo(
+  const { newestIdx, newestTime, oldestMemTime, mostMemsIdx, leastMemsIdx, oldestMemIdx, mostCloudyIdx, mostSunnyIdx, maxCloudyScore, maxSunnyScore } = useMemo(
     () => getInteractionIndices(memoriesPerEntity),
     [memoriesPerEntity],
   );
@@ -832,11 +833,11 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     () => memoriesPerEntity.reduce((sum, arr) => sum + arr.length, 0),
     [memoriesPerEntity],
   );
-  // Whether this sphere shows the lessons shortcut row (family/friends, modes 0/1)
-  const hasLessonsShortcutRow = sphere === "family" || sphere === "friends";
+  // Family/friends keep reminder affordance in interaction-focused modes.
+  const hasReminderSupport = sphere === "family" || sphere === "friends";
 
-  // Urgency: oldest interaction > 30 days ago
-  const isUrgent = hasLessonsShortcutRow && oldestTime !== null && (Date.now() - oldestTime) > 30 * 24 * 60 * 60 * 1000;
+  // Urgency: oldest memory > 30 days ago
+  const isUrgent = hasReminderSupport && oldestMemTime !== null && (Date.now() - oldestMemTime) > 30 * 24 * 60 * 60 * 1000;
 
   const numModes = numEntities === 0 ? 1 : Math.max(1, allowedModes.length);
 
@@ -952,11 +953,11 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     alignItems: "center" as const,
   };
 
-  // 6 modes: 0=least memories, 1=oldest interaction, 2=most recent, 3=most memories, 4=most cloudy, 5=most sunny
-  const entityIdx = [leastMemsIdx, oldestIdx, newestIdx, mostMemsIdx, mostCloudyIdx, mostSunnyIdx][mode] ?? 0;
+  // 6 modes: 0=least memories, 1=oldest memory, 2=most recent, 3=most memories, 4=most cloudy, 5=most sunny
+  const entityIdx = [leastMemsIdx, oldestMemIdx, newestIdx, mostMemsIdx, mostCloudyIdx, mostSunnyIdx][mode] ?? 0;
   const entity = entities[entityIdx];
   const entityName = entity?.name ?? "";
-  const showLessonsShortcut = hasLessonsShortcutRow && (mode === 0 || mode === 1) && entity != null;
+  const showReminderBell = hasReminderSupport && (mode === 0 || mode === 1) && entity != null;
 
   // Urgency border: amber tint when oldest interaction > 30 days
   const isMoodCard = mode === 4 || mode === 5;
@@ -966,7 +967,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
   // Human-readable time since interaction (must be before early return)
   const timeAgoLabel = useMemo(() => {
-    const ts = mode === 1 ? oldestTime : newestTime;
+    const ts = mode === 1 ? oldestMemTime : newestTime;
     if (!ts || (mode !== 0 && mode !== 1 && mode !== 2)) return null;
     const diff = Date.now() - ts;
     const days = Math.floor(diff / (24 * 60 * 60 * 1000));
@@ -974,12 +975,12 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     if (days < 31) return `${days}${t("sferaInsight.timeAgo.days")}`;
     const months = Math.floor(days / 30);
     return `${months}${t("sferaInsight.timeAgo.months")}`;
-  }, [oldestTime, newestTime, mode, t]);
+  }, [oldestMemTime, newestTime, mode, t]);
 
   // Label for top of card — some labels are sphere-specific
   const cardLabels = [
     sphere === "hobbies" ? t("sferaInsight.leastPracticed") : t("sferaInsight.leastMemories"),
-    sphere === "hobbies" ? t("sferaInsight.lastPracticed") : t("sferaInsight.lastInteractedWith"),
+    sphere === "hobbies" ? t("sferaInsight.lastPracticed") : t("sferaInsight.oldestMemory"),
     sphere === "hobbies" ? t("sferaInsight.mostRecentHobby") : t("sferaInsight.mostRecent"),
     t("sferaInsight.mostMemories2"),
     t("sferaInsight.mostCloudy"),
@@ -1205,10 +1206,10 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                 return <ThemedText style={{ color: momentColors.sunny.background, fontSize: 10 }}>{label}</ThemedText>;
               })() : null}
               {/* Bell for modes 0/1 */}
-              {showLessonsShortcut && timeAgoLabel ? (
+              {showReminderBell && timeAgoLabel ? (
                 <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 10 }}>·</ThemedText>
               ) : null}
-              {showLessonsShortcut && (
+              {showReminderBell && (
                 <Pressable
                   onPress={(e) => {
                     e.stopPropagation();
@@ -1237,11 +1238,13 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             </View>
           </Animated.View>
 
-          {/* Modes 0/1: show most recent memory image, or add-memories CTA (suppressed when lessons shortcut row is shown) */}
-          {(mode === 0 || mode === 1) && !showLessonsShortcut && (() => {
+          {/* Modes 0/1: show memory preview, or add-memories CTA */}
+          {(mode === 0 || mode === 1) && (() => {
             const mems = memoriesPerEntity[entityIdx] ?? [];
             const mem = mems.length > 0
-              ? mems.reduce((a, b) => new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b)
+              ? (mode === 1
+                ? mems.reduce((a, b) => new Date(a.createdAt) < new Date(b.createdAt) ? a : b)
+                : mems.reduce((a, b) => new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b))
               : null;
             if (mem?.imageUri) {
               const moodSunny = mem.goodFacts?.length ?? 0;
@@ -1262,7 +1265,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
               <Pressable
                 onPress={(e) => { e.stopPropagation(); entity && onEntitySelect?.(entity.id); }}
                 accessibilityRole="button"
-                accessibilityLabel={`Add memories for ${entityName}`}
+                accessibilityLabel={`${entityName}: ${t("sferaInsight.zeroMemoriesAvailable")}`}
                 style={{
                   flex: 1,
                   alignSelf: "stretch",
@@ -1277,7 +1280,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
               >
                 <MaterialIcons name="add-photo-alternate" size={24} color={shadowColor + "99"} />
                 <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 11 }}>
-                  {t("sferaInsight.addMemories")}
+                  {t("sferaInsight.zeroMemoriesAvailable")}
                 </ThemedText>
               </Pressable>
             );
@@ -1405,60 +1408,25 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             );
           })()}
 
-          {/* Lessons shortcut — fills remaining space (family & friends, modes 0/1) */}
-          {showLessonsShortcut ? (
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                router.push("/(tabs)/lessons");
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={t("sferaInsight.lessonsCardTitle")}
-              style={{
-                flex: 1,
-                alignSelf: "stretch",
-                backgroundColor: "rgba(80,20,130,0.22)",
-                borderRadius: 10,
-                borderWidth: 1.5,
-                borderColor: "rgba(190,100,255,0.45)",
-                overflow: "hidden",
-                justifyContent: "center",
-                alignItems: "center",
-                paddingHorizontal: 12,
-                gap: 8,
-              }}
-            >
-              <MaterialIcons name="menu-book" size={28} color="rgba(190,100,255,0.95)" />
-              <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 12, fontWeight: "700", textAlign: "center" }}>
-                {t("sferaInsight.lessonsCardTitle")}
-              </ThemedText>
-              <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 10, textAlign: "center", lineHeight: 14 }}>
-                {t("sferaInsight.lessonsCardSubtitle")}
-              </ThemedText>
-            </Pressable>
-          ) : null}
-
-          {/* Pagination dots — shown when not in lessons shortcut row */}
-          {!showLessonsShortcut && (
-            <View style={{ flexDirection: "row", gap: 5, alignSelf: "center" }} accessibilityRole="tablist">
-              {Array.from({ length: numModes }).map((_, i) => (
-                <Pressable
-                  key={i}
-                  onPress={() => animateAndSet(i)}
-                  hitSlop={8}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: i === modeIdx }}
-                  accessibilityLabel={cardLabels[allowedModes[i] ?? i]}
-                  style={{
-                    width: i === modeIdx ? 14 : 6,
-                    height: 6,
-                    borderRadius: 3,
-                    backgroundColor: i === modeIdx ? shadowColor : shadowColor + "88",
-                  }}
-                />
-              ))}
-            </View>
-          )}
+          {/* Pagination dots */}
+          <View style={{ flexDirection: "row", gap: 5, alignSelf: "center" }} accessibilityRole="tablist">
+            {Array.from({ length: numModes }).map((_, i) => (
+              <Pressable
+                key={i}
+                onPress={() => animateAndSet(i)}
+                hitSlop={8}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: i === modeIdx }}
+                accessibilityLabel={cardLabels[allowedModes[i] ?? i]}
+                style={{
+                  width: i === modeIdx ? 14 : 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: i === modeIdx ? shadowColor : shadowColor + "88",
+                }}
+              />
+            ))}
+          </View>
         </LinearGradient>
       </View>
 

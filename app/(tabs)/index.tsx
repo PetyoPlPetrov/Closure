@@ -4264,9 +4264,7 @@ const FloatingAvatar = React.memo(
           >
             <View
               style={{
-                flexDirection: "row",
-                alignItems: "flex-start",
-                gap: 12,
+                gap: 10,
                 borderRadius: 14,
                 borderWidth: 1,
                 borderColor:
@@ -4299,86 +4297,167 @@ const FloatingAvatar = React.memo(
             >
               <View
                 style={{
-                  width: 28,
-                  height: 28,
-                  marginTop: 1,
-                  borderRadius: 14,
+                  flexDirection: "row",
                   alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor:
-                    colorScheme === "dark"
-                      ? "rgba(120, 193, 255, 0.24)"
-                      : "rgba(33, 150, 243, 0.2)",
+                  justifyContent: "space-between",
                 }}
               >
-                <MaterialIcons
-                  name="info-outline"
-                  size={18}
-                  color={
-                    colorScheme === "dark"
-                      ? "rgba(191, 227, 255, 1)"
-                      : "rgba(13, 71, 161, 0.95)"
-                  }
-                />
-              </View>
-              <View style={{ flex: 1, paddingRight: 4 }}>
-                <ThemedText
-                  type="defaultSemiBold"
-                  size="sm"
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <View
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor:
+                        colorScheme === "dark"
+                          ? "rgba(120, 193, 255, 0.24)"
+                          : "rgba(33, 150, 243, 0.2)",
+                    }}
+                  >
+                    <MaterialIcons
+                      name="info-outline"
+                      size={18}
+                      color={
+                        colorScheme === "dark"
+                          ? "rgba(191, 227, 255, 1)"
+                          : "rgba(13, 71, 161, 0.95)"
+                      }
+                    />
+                  </View>
+                  <ThemedText
+                    type="defaultSemiBold"
+                    size="sm"
+                    style={{
+                      color:
+                        colorScheme === "dark"
+                          ? "rgba(222, 240, 255, 0.99)"
+                          : "rgba(10, 79, 157, 0.98)",
+                    }}
+                  >
+                    {t("home.entityWheel.gateTitle")}
+                  </ThemedText>
+                </View>
+                <Pressable
+                  onPress={dismissEntityWheelGateToast}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.close")}
                   style={{
-                    marginBottom: 4,
-                    color:
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor:
                       colorScheme === "dark"
-                        ? "rgba(222, 240, 255, 0.99)"
-                        : "rgba(10, 79, 157, 0.98)",
+                        ? "rgba(120, 193, 255, 0.2)"
+                        : "rgba(33, 150, 243, 0.16)",
                   }}
                 >
-                  {t("home.entityWheel.gateTitle")}
-                </ThemedText>
-                <ThemedText
-                  size="sm"
-                  style={{
-                    color:
+                  <MaterialIcons
+                    name="close"
+                    size={18}
+                    color={
                       colorScheme === "dark"
-                        ? "rgba(215, 234, 252, 0.92)"
-                        : "rgba(27, 94, 170, 0.92)",
-                  }}
-                >
-                  {t("home.entityWheel.gateMessage", {
-                    minMemories: ENTITY_WHEEL_MIN_MEMORIES,
-                    minMoments: ENTITY_WHEEL_MIN_TOTAL_MOMENTS,
-                    currentMemories: memories.length,
-                    currentMoments: totalMoments,
-                  })}
-                </ThemedText>
+                        ? "rgba(220, 240, 255, 0.95)"
+                        : "rgba(15, 88, 165, 0.78)"
+                    }
+                  />
+                </Pressable>
               </View>
-              <Pressable
-                onPress={dismissEntityWheelGateToast}
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel={t("common.close")}
+
+              <ThemedText
+                size="sm"
                 style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 14,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor:
+                  lineHeight: 24,
+                  color:
                     colorScheme === "dark"
-                      ? "rgba(120, 193, 255, 0.2)"
-                      : "rgba(33, 150, 243, 0.16)",
+                      ? "rgba(215, 234, 252, 0.92)"
+                      : "rgba(27, 94, 170, 0.92)",
                 }}
               >
-                <MaterialIcons
-                  name="close"
-                  size={18}
-                  color={
-                    colorScheme === "dark"
-                      ? "rgba(220, 240, 255, 0.95)"
-                      : "rgba(15, 88, 165, 0.78)"
-                  }
-                />
-              </Pressable>
+                {t("home.entityWheel.gateMessage", {
+                  minMemories: ENTITY_WHEEL_MIN_MEMORIES,
+                  minMoments: ENTITY_WHEEL_MIN_TOTAL_MOMENTS,
+                  currentMemories: memories.length,
+                  currentMoments: totalMoments,
+                })}
+              </ThemedText>
+
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    borderRadius: 999,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    backgroundColor:
+                      colorScheme === "dark"
+                        ? "rgba(120, 193, 255, 0.14)"
+                        : "rgba(33, 150, 243, 0.12)",
+                  }}
+                >
+                  <MaterialIcons
+                    name="auto-stories"
+                    size={14}
+                    color={
+                      colorScheme === "dark"
+                        ? "rgba(200, 232, 255, 0.95)"
+                        : "rgba(15, 88, 165, 0.85)"
+                    }
+                  />
+                  <ThemedText
+                    size="xs"
+                    style={{
+                      color:
+                        colorScheme === "dark"
+                          ? "rgba(222, 241, 255, 0.95)"
+                          : "rgba(15, 88, 165, 0.85)",
+                    }}
+                  >
+                    {`${Math.min(memories.length, ENTITY_WHEEL_MIN_MEMORIES)}/${ENTITY_WHEEL_MIN_MEMORIES}`}
+                  </ThemedText>
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    borderRadius: 999,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    backgroundColor:
+                      colorScheme === "dark"
+                        ? "rgba(120, 193, 255, 0.14)"
+                        : "rgba(33, 150, 243, 0.12)",
+                  }}
+                >
+                  <MaterialIcons
+                    name="flare"
+                    size={14}
+                    color={
+                      colorScheme === "dark"
+                        ? "rgba(200, 232, 255, 0.95)"
+                        : "rgba(15, 88, 165, 0.85)"
+                    }
+                  />
+                  <ThemedText
+                    size="xs"
+                    style={{
+                      color:
+                        colorScheme === "dark"
+                          ? "rgba(222, 241, 255, 0.95)"
+                          : "rgba(15, 88, 165, 0.85)",
+                    }}
+                  >
+                    {`${Math.min(totalMoments, ENTITY_WHEEL_MIN_TOTAL_MOMENTS)}/${ENTITY_WHEEL_MIN_TOTAL_MOMENTS}`}
+                  </ThemedText>
+                </View>
+              </View>
             </View>
           </View>
         </Modal>

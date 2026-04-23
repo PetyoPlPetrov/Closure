@@ -655,10 +655,6 @@ export function AIModal({
         );
       }
 
-      // Focus input after animation
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 400);
     } else {
       // If we were never visible, don't run close cleanup (prevents hidden modal from aborting STT)
       if (!wasVisibleRef.current) return;

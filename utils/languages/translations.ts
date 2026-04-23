@@ -95,6 +95,7 @@ export interface Translations {
   "sferaInsight.mostSunny": string;
   "sferaInsight.mostEnjoyable": string;
   "sferaInsight.noMemories": string;
+  "sferaInsight.zeroMemoriesAvailable": string;
   "sferaInsight.memories": string;
   "sferaInsight.leastInteracted": string;
   "sferaInsight.addMemories": string;
@@ -3881,9 +3882,9 @@ const translations: Record<Language, Translations> = {
       "No profiles yet. Add your first ex-profile to get started.",
     "home.sferaSizeHint":
       "Each sfera is sized by its share of moments compared to the other sferas.",
-    "home.entityWheel.gateTitle": "Entity wheel of life",
+    "home.entityWheel.gateTitle": "The view is locked",
     "home.entityWheel.gateMessage":
-      "Unlocked with at least {minMemories} memories and {minMoments} moments in total (lessons, sunny, and cloudy—summed across all memories). You have {currentMemories} memories and {currentMoments} moments.",
+      "Add at least {minMemories} memories and {minMoments} total moments to unlock this new experience.\n\nYou currently have {currentMemories} memories and {currentMoments} moments.",
     "avatar.sunnyLife": "Sunny",
     "avatar.sunnyCongrats": "{pct}% Sunny!",
     "avatar.addMemories": "Add memories",
@@ -3906,6 +3907,7 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.mostSunny": "Most sunny",
     "sferaInsight.mostEnjoyable": "Most enjoyable",
     "sferaInsight.noMemories": "No memories yet",
+    "sferaInsight.zeroMemoriesAvailable": "0 memories available",
     "sferaInsight.memories": "memories",
     "sferaInsight.leastInteracted": "Least interacted",
     "sferaInsight.addMemories": "Add memories",
@@ -8688,9 +8690,9 @@ const translations: Record<Language, Translations> = {
       "Няма профили все още. Добавете първи партньор, за да започнете.",
     "home.sferaSizeHint":
       "Всяка сфера е с размер според относителния дял моменти спрямо другите сфери.",
-    "home.entityWheel.gateTitle": "Колелото на живота",
+    "home.entityWheel.gateTitle": "Тази визуализация е заключена",
     "home.entityWheel.gateMessage":
-      "Отключва се при поне {minMemories} спомена и {minMoments} момента общо (уроци, слънчеви и облачни — сумират се по всички спомени). В момента имаш {currentMemories} спомена и {currentMoments} момента.",
+      "Добави поне {minMemories} спомена и {minMoments} момента общо, за да отключиш това ново преживяване.\n\nВ момента имаш {currentMemories} спомена и {currentMoments} момента.",
     "avatar.sunnyLife": "Слънчево",
     "avatar.sunnyCongrats": "{pct}% Слънчево!",
     "avatar.addMemories": "Добави спомени",
@@ -8713,6 +8715,7 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.mostSunny": "Най-слънчев",
     "sferaInsight.mostEnjoyable": "Най-приятно",
     "sferaInsight.noMemories": "Няма спомени",
+    "sferaInsight.zeroMemoriesAvailable": "0 налични спомена",
     "sferaInsight.memories": "спомена",
     "sferaInsight.leastInteracted": "Най-малко взаимодействие",
     "sferaInsight.addMemories": "Добави спомени",
