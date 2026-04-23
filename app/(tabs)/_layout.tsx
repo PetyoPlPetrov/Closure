@@ -5,12 +5,11 @@ import React, { useCallback, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AITabButton, EventsTabButton, HapticTab, HomeTabButton } from '@/components/haptic-tab';
+import { AITabButton, HapticTab, HomeTabButton } from '@/components/haptic-tab';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
-import { useSferaEventsBadge } from '@/utils/SferaEventsBadgeProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 
 function TabBarBackground() {
@@ -41,7 +40,6 @@ export default function TabLayout() {
   const fontScale = useFontScale();
   const t = useTranslate();
   const insets = useSafeAreaInsets();
-  const { hasNewEvents, unseenCount } = useSferaEventsBadge();
 
   const iconSize = Math.round(28 * fontScale);
   const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
@@ -93,18 +91,16 @@ export default function TabLayout() {
     </ThemedText>
   ), [inactiveColor, fontScale, t]);
 
-  const eventsIcon = useCallback(({ color }: { color: string }) =>
-    <MaterialIcons name="event" size={iconSize} color={color} />,
+  const lessonsIcon = useCallback(({ color }: { color: string }) =>
+    <MaterialIcons name="menu-book" size={iconSize} color={color} />,
   [iconSize]);
 
-  const eventsLabel = useCallback(({ focused, color }: { focused: boolean; color: string }) => (
+  const lessonsLabel = useCallback(({ focused, color }: { focused: boolean; color: string }) => (
     <ThemedText size="xs" weight={focused ? 'bold' : 'medium'} letterSpacing="l"
       style={{ color: focused ? color : inactiveColor, marginTop: 6 * fontScale, lineHeight: 18 * fontScale }}>
-      {t('tab.events')}
+      {t('tab.lessons')}
     </ThemedText>
   ), [inactiveColor, fontScale, t]);
-
-  const eventsTabBadge = hasNewEvents ? unseenCount : undefined;
 
   return (
     <View style={styles.container}>
@@ -122,15 +118,15 @@ export default function TabLayout() {
       />
       <Tabs.Screen name="spheres" options={{ href: null, headerShown: false }} />
       <Tabs.Screen
-        name="events"
+        name="lessons"
         options={{
-          title: 'Events',
-          tabBarBadge: eventsTabBadge,
-          tabBarButton: EventsTabButton,
-          tabBarIcon: eventsIcon,
-          tabBarLabel: eventsLabel,
+          title: 'Lessons',
+          tabBarButton: HapticTab,
+          tabBarIcon: lessonsIcon,
+          tabBarLabel: lessonsLabel,
         }}
       />
+      <Tabs.Screen name="events" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="settings" options={{ href: null, headerShown: false }} />
 
       {/* Entity detail and edit screens - hidden from tab bar but keep tabs visible */}
@@ -152,7 +148,7 @@ export default function TabLayout() {
       <Tabs.Screen name="friend-detail" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="hobby-detail" options={{ href: null, headerShown: false }} />
     </Tabs>
-    {/* Central AI button floating above the tab bar between Spheres and Events */}
+    {/* Central AI button floating above the tab bar between Home and Lessons */}
     <View
       style={{
         position: 'absolute',

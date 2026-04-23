@@ -42,7 +42,7 @@ function BulletCard({
   return (
     <View style={{ width: CARD_WIDTH, marginHorizontal: CARD_H_PADDING }}>
       {/* Image / GIF placeholder */}
-      {bullet.videoSource ? (
+      {!bullet.hideMedia && bullet.videoSource ? (
         <View
           style={{
             width: "100%",
@@ -66,7 +66,7 @@ function BulletCard({
             isMuted
           />
         </View>
-      ) : bullet.imageSource ? (
+      ) : !bullet.hideMedia && bullet.imageSource ? (
         <View
           style={{
             width: "100%",
@@ -92,7 +92,7 @@ function BulletCard({
             resizeMode={bullet.imageScale !== undefined ? "contain" : "cover"}
           />
         </View>
-      ) : (
+      ) : !bullet.hideMedia ? (
         <View
           style={{
             width: "100%",
@@ -123,7 +123,7 @@ function BulletCard({
             Video coming soon
           </ThemedText>
         </View>
-      )}
+      ) : null}
 
       {/* Icon + Title */}
       <View

@@ -1,27 +1,22 @@
 /**
  * FocusedSferas view — one sphere in focus (large, center-bottom), the rest on orbit.
- * Swipe left/right or use chevrons to change focus. Overview: tap avatar for the sun menu; in a sfera, tap avatar to leave.
+ * Swipe left/right or use chevrons to change focus. Overview: tap center avatar to open Sfera Insights; in a sfera, tap avatar to leave.
  *
  * All interaction state lives here so the parent home tab does NOT re-render on swipes/interactions.
  */
 
 import { ConstellationBackground } from "@/components/constellation-background";
-import { Fireworks } from "@/components/fireworks";
-import { PulsingPressable } from "@/components/pulsing-pressable";
-import { SunnyLifeAvatar } from "@/components/SunnyLifeAvatar";
 import { ThemedText } from "@/components/themed-text";
-import { UniverseLessonsScreen } from "@/components/universe-lessons-screen";
-import { UniverseExamScreen } from "@/components/universe-exam-screen";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
-import { SUN_CONGRATS_LAST_SHOWN_KEY, useVisualSettings } from "@/utils/VisualSettingsProvider";
+import {
+  ORBIT_MAX_FLOATING_ENTITIES,
+  pickOrbitEntitiesBySunnyScore,
+} from "@/utils/orbit-entity-pick";
+import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
-import { useLanguage } from "@/utils/languages/language-context";
+import type { Translations } from "@/utils/languages/translations";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { showPaywallForAIAccess } from "@/utils/premium-access";
-import { useSubscription } from "@/utils/SubscriptionProvider";
-import { hasPendingUniverseExam } from "@/utils/universe-exam-pending";
-import { canUseExam } from "@/utils/universe-exam-rate-limiter";
 import {
   getSphere3DGradientColors,
   getSphereIconColor,
@@ -30,6 +25,7 @@ import {
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useIsFocused } from "@react-navigation/native";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -62,13 +58,10 @@ import Animated, {
 import Svg, {
   Defs,
   Ellipse as SvgEllipse,
-  Line,
-  Path,
   RadialGradient,
   Stop,
   Circle as SvgCircle,
 } from "react-native-svg";
-
 
 const { width: SW, height: SH } = Dimensions.get("window");
 const IS_IPAD = Platform.OS === "ios" && Platform.isPad;
@@ -86,6 +79,14 @@ const SPHERE_LIST: { type: LifeSphere; icon: string }[] = [
   { type: "friends", icon: "people" },
   { type: "hobbies", icon: "sports-esports" },
 ];
+
+const SPHERE_DISPLAY_NAME_KEY: Record<LifeSphere, keyof Translations> = {
+  relationships: "spheres.relationships",
+  career: "spheres.career",
+  family: "spheres.family",
+  friends: "spheres.friends",
+  hobbies: "spheres.hobbies",
+};
 
 /** Neon rim colors per sphere — matches universe-lessons-screen palette */
 const SPHERE_NEON: Record<LifeSphere, { core: string; glow: string }> = {
@@ -116,7 +117,7 @@ const ORBIT_CY = SH * 0.46;
 const ORBIT_R = scaleFocused(135);
 const SUN_CENTER_X = SW / 2;
 const SUN_CENTER_Y = SH * 0.38;
-const MEMORY_BALANCE_MIN_SIZE = scaleFocused(52);
+const MEMORY_BALANCE_MIN_SIZE = scaleFocused(70);
 const MEMORY_BALANCE_MAX_SIZE = scaleFocused(136);
 const MEMORY_BALANCE_RING_LAYOUT: readonly { angleDeg: number; radius: number }[] = [
   { angleDeg: -90, radius: scaleFocused(148) },
@@ -130,14 +131,18 @@ const MEMORY_BALANCE_RING_LAYOUT: readonly { angleDeg: number; radius: number }[
 const FOCUSED_DISPLAY_MODE_STORAGE_KEY = "@sferas:focused_display_mode";
 /** Vertical drift when hiding Memory Balance sferas (sun menu open) — worklet-safe constant. */
 const MEMORY_BALANCE_MENU_HIDE_DRIFT_Y = scaleFocused(10);
-/** Sunny / cloud / lesson stats under Memory Balance sferas — same size for every sphere. */
+/** Sunny / cloud stats under Memory Balance sferas. */
 const MEMORY_BALANCE_STATS_ICON_SIZE = scaleFocused(13);
 const MEMORY_BALANCE_STATS_TEXT_SIZE = scaleFocused(11);
 const MEMORY_BALANCE_STATS_MARGIN_TOP = scaleFocused(6);
 const MEMORY_BALANCE_STATS_ROW_GAP = scaleFocused(4);
 const MEMORY_BALANCE_STATS_ICON_TEXT_GAP = scaleFocused(3);
-/** Vertical space reserved below the sphere for the stats row. */
-const MEMORY_BALANCE_STATS_BELOW = scaleFocused(26);
+const MEMORY_BALANCE_STATS_BELOW = scaleFocused(22);
+const MEMORY_BALANCE_NAME_GAP = scaleFocused(3);
+const MEMORY_BALANCE_NAME_BELOW = scaleFocused(30);
+/** Soft cyan-white for orbit sfera names, avatar labels, and insights chrome. */
+const COSMIC_TEXT = "#B8E8EC";
+const INSIGHTS_HUB_SIZE = scaleFocused(100);
 
 /** Scalable gap between rotating entities and the label block (3% of screen height) */
 const FOCUSED_LABEL_GAP = SH * 0.03 * IPAD_FOCUSED_SCALE;
@@ -158,8 +163,8 @@ const needMemoriesHintBubbleStyleFs = {
 const BG_SPHERE_SIZE_LEFT_BELOW = scaleFocused(76);
 /** Right just above / below-right of the circle avatar (slot 1) — a bit bigger */
 const BG_SPHERE_SIZE_RIGHT_BELOW = scaleFocused(82);
-/** Sfera above the Sunny Life circle on the right (slot 2) — slightly smaller */
-const BG_SPHERE_SIZE_TOP_RIGHT = scaleFocused(46);
+/** Sfera above the Sunny Life circle on the right (slot 2) — back of orbit; min large enough for name label. */
+const BG_SPHERE_SIZE_TOP_RIGHT = scaleFocused(64);
 /** Sfera above the Sunny Life circle on the left (slot 3) — a bit bigger */
 const BG_SPHERE_SIZE_TOP_LEFT = scaleFocused(82);
 const SLOT_ANGLE = 72; // 360 / 5
@@ -221,10 +226,6 @@ function getEntityRingMetrics(
 
 export type FocusedSferaViewProps = {
   overallSunnyPercentage: number;
-  /**
-   * When false, the sunny-moments celebration intro (50% threshold) does not run — e.g. neutral 50% with entities but no saved moments yet.
-   */
-  sunCelebrationEligible: boolean;
   /**
    * When false, center sun shows the empty "+" and tap goes to `onAddMemoriesPress`.
    * Parent should pass true if the user has any memories **or** any entities — otherwise post-onboarding users see "+" despite having saved entities.
@@ -297,17 +298,12 @@ export type FocusedSferaViewProps = {
   } | null;
   /** Called after notification target is consumed to avoid reopening on rerender. */
   onNotificationLessonTargetHandled?: (key: string) => void;
-  /** When true, suppresses the sunny-moments celebration intro for this route transition. */
-  disableSunCelebrationIntro?: boolean;
 };
 
 // ───────────────────── Small floating memory icons around one entity (one per memory, sunny/cloudy color) ─────────────────────
 
 const MOMENT_ICON_SIZE = scaleFocused(16);
 const MOMENT_ORBIT_RADIUS = scaleFocused(32); // outside entity avatar (entity radius ~20 for focused; +12 gap so memories sit clearly away)
-
-/** Fewer, lighter bubbles — 18× heavy SVG suns was a main source of congrats intro jank. */
-const RISING_SUN_COUNT = 8;
 
 // ─── Background decorative sferas (rings, orbs, arcs) ───────────────────────
 // Lesson card occupies roughly the horizontal center and y: 180–420.
@@ -711,188 +707,6 @@ const SparkledDot = React.memo(function SparkledDot({
   );
 });
 
-// ───────────────────── Rising sun bubbles (background decoration during congrats intro) ─────────────────────
-// Timeline: sun fills 0–3500ms, then shrinks. Suns rise once (bottom→top) during fill phase, fade out on shrink.
-
-const RisingSunBubble = React.memo(function RisingSunBubble({
-  left,
-  sunSize,
-  maxOpacity,
-  delay,
-  duration,
-  text,
-  color,
-  fadeOut,
-}: {
-  left: number;
-  sunSize: number;
-  maxOpacity: number;
-  delay: number;
-  duration: number;
-  text: string;
-  color: string;
-  fadeOut: SharedValue<number>;
-}) {
-  // translateY goes from 0 (at SH, off-screen bottom) to -(SH + sunSize) (past top)
-  const translateY = useSharedValue(0);
-
-  useEffect(() => {
-    translateY.value = withDelay(
-      delay,
-      withTiming(-(SH + sunSize), { duration, easing: Easing.linear }),
-    );
-  }, [delay, duration, sunSize, translateY]);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    // Progress 0 = at bottom (top: SH), 1 = past top. translateY ranges 0 → -(SH + sunSize)
-    const progress = -translateY.value / (SH + sunSize);
-    // Fade as it nears the top: full opacity in bottom 60%, fade to 0 in top 40%
-    const posOpacity = progress < 0.6 ? 1 : (1 - progress) / 0.4;
-    const finalOpacity = maxOpacity * Math.max(0, posOpacity) * fadeOut.value;
-    return {
-      opacity: finalOpacity,
-      transform: [{ translateY: translateY.value }],
-    };
-  });
-
-  const paddingH = (sunSize / 160) * 48 * 0.6;
-  const paddingV = (sunSize / 160) * 48 * 0.4;
-  const fontSize = 12 * (sunSize / 160);
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        {
-          position: "absolute",
-          left,
-          top: SH,
-          width: sunSize,
-          height: sunSize,
-          zIndex: 5,
-          shadowColor: color,
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.28,
-          shadowRadius: 4,
-        },
-        animatedStyle,
-      ]}
-    >
-      <View
-        style={{
-          width: sunSize,
-          height: sunSize,
-          borderRadius: sunSize / 2,
-          overflow: "hidden",
-        }}
-      >
-        <LinearGradient
-          colors={[color, `${color}ee`]}
-          start={{ x: 0.15, y: 0 }}
-          end={{ x: 0.85, y: 1 }}
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            paddingHorizontal: paddingH,
-            paddingVertical: paddingV,
-          }}
-        >
-          <ThemedText
-            style={{
-              color: "black",
-              fontSize,
-              textAlign: "center",
-              fontWeight: "700",
-            }}
-            numberOfLines={3}
-          >
-            {text.split("\n")[0] || text}
-          </ThemedText>
-          {text.includes("\n") && (
-            <ThemedText
-              style={{
-                color: "black",
-                fontSize: fontSize * 0.6,
-                textAlign: "center",
-                fontWeight: "600",
-                maxWidth: (sunSize / 160) * 48 * 1.6,
-              }}
-              numberOfLines={2}
-            >
-              {text.split("\n")[1]}
-            </ThemedText>
-          )}
-        </LinearGradient>
-      </View>
-    </Animated.View>
-  );
-});
-
-const RisingSunsBackground = React.memo(function RisingSunsBackground({
-  sunnyFacts,
-  fadeOut,
-}: {
-  sunnyFacts: { id: string; text: string }[];
-  fadeOut: SharedValue<number>;
-}) {
-  const { momentColors } = useMomentColors();
-  const color = momentColors.sunny.background;
-
-  const suns = useMemo(() => {
-    if (sunnyFacts.length === 0) return [];
-
-    const shuffled = [...sunnyFacts].sort(() => Math.random() - 0.5);
-    const minSize = 70;
-    const maxSize = 160;
-    const gap = 12;
-    // Use the max size for column layout so large suns don't overflow into adjacent columns
-    const colWidth = maxSize + gap;
-    const cols = Math.floor(SW / colWidth);
-    // Shuffle column indices so assignment order is random
-    const colIndices = Array.from({ length: cols }, (_, i) => i).sort(() => Math.random() - 0.5);
-
-    return Array.from({ length: RISING_SUN_COUNT }, (_, i) => {
-      const fact = shuffled[i % shuffled.length];
-      const sunSize = Math.round(minSize + Math.random() * (maxSize - minSize));
-      // Assign a column, wrapping if RISING_SUN_COUNT > cols
-      const col = colIndices[i % colIndices.length];
-      // Jitter within the column so suns don't form a rigid grid
-      const jitter = Math.random() * (colWidth - sunSize);
-      const left = col * colWidth + jitter;
-      const delay = Math.round(Math.random() * 2500);
-      const duration = 3500 - delay;
-      return {
-        id: `${fact.id}-${i}`,
-        text: fact.text,
-        left,
-        sunSize,
-        maxOpacity: 0.25 + Math.random() * 0.2,
-        delay,
-        duration,
-      };
-    });
-  }, [sunnyFacts]);
-
-  return (
-    <>
-      {suns.map((s) => (
-        <RisingSunBubble
-          key={s.id}
-          left={s.left}
-          sunSize={s.sunSize}
-          maxOpacity={s.maxOpacity}
-          delay={s.delay}
-          duration={s.duration}
-          text={s.text}
-          color={color}
-          fadeOut={fadeOut}
-        />
-      ))}
-    </>
-  );
-});
-
 // ───────────────────── Entity avatar ring (same glow blur as classic FloatingEntity) ─────────────────────
 
 const EntityRing = React.memo(function EntityRing({
@@ -981,7 +795,7 @@ const EntityRing = React.memo(function EntityRing({
   );
 
   if (entityIds.length === 0) return null;
-  const count = Math.min(entityIds.length, 8);
+  const count = Math.min(entityIds.length, ORBIT_MAX_FLOATING_ENTITIES);
   const borderWidth = isTablet ? 3 : 2;
 
   return (
@@ -1384,9 +1198,6 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   singleTapWhenFocused = false,
   sunExpanded,
   isInitialView = false,
-  sunLoadProgress,
-  sunLoadSweepOffset,
-  sphereIntroStaggerMs = 0,
   isSunMenuOpen = false,
   individualModeScale = 1,
   entityAvatarScale = 1,
@@ -1411,9 +1222,6 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   singleTapWhenFocused?: boolean;
   sunExpanded: SharedValue<number>;
   isInitialView?: boolean;
-  sunLoadProgress?: SharedValue<number>;
-  sunLoadSweepOffset?: SharedValue<number>;
-  sphereIntroStaggerMs?: number;
   /** When sun menu is expanded: hide spheres completely and block taps. */
   isSunMenuOpen?: boolean;
   /** Additional scale for selected-sfera mode (iPad only). */
@@ -1431,7 +1239,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   const [randomPulseIndex, setRandomPulseIndex] = useState<number | null>(null);
 
   // Periodically pick a random entity to pulse (only when focused)
-  const entityCount = Math.min(entityIds.length, 8);
+  const entityCount = Math.min(entityIds.length, ORBIT_MAX_FLOATING_ENTITIES);
   useEffect(() => {
     if (!animationsEnabled || !isFocused || entityCount === 0) {
       setRandomPulseIndex(null);
@@ -1648,18 +1456,13 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     }
     // When sun menu is open: scale to 0 and fully hide (0.94 left ~6% visible — too noticeable)
     const sunShrink = 1 - sunExpanded.value;
-    // Sphere + entity reveal during SunLoadAnimation: scale 0→1 and fade in together
-    const introProgress = sunLoadProgress
-      ? Math.min(1, Math.max(0, (sunLoadProgress.value - sphereIntroStaggerMs) / 400))
-      : 1;
-    const introScale = introProgress;
     return {
       position: "absolute",
       left: 0,
       top: 0,
       width: SPHERE_CONTAINER_SIZE,
       height: SPHERE_CONTAINER_SIZE,
-      opacity: introProgress * (1 - sunExpanded.value),
+      opacity: 1 - sunExpanded.value,
       transform: [
         { translateX: centerX - CONTAINER_HALF },
         {
@@ -1669,7 +1472,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             backOffsetY +
             orbitStyleOffsetY,
         },
-        { scale: depthScale * sunShrink * introScale * individualModeScale },
+        { scale: depthScale * sunShrink * individualModeScale },
       ],
     };
   });
@@ -1720,15 +1523,18 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   });
 
   const entityRingStyle = useAnimatedStyle(() => {
-    const introProgress = sunLoadProgress
-      ? Math.min(1, Math.max(0, (sunLoadProgress.value - sphereIntroStaggerMs) / 400))
-      : 1;
-    return { opacity: introProgress * (1 - sunExpanded.value) };
+    return { opacity: 1 - sunExpanded.value };
   });
 
   const iconWrapStyle = useAnimatedStyle(() => ({
     position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     zIndex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     opacity: interpolate(focusProgress.value, [0, 1], [0.62, 1], Extrapolation.CLAMP),
     transform: [
       {
@@ -1766,7 +1572,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       style={containerStyle}
       pointerEvents={isSunMenuOpen ? "none" : "auto"}
     >
-      {/* Tight tap target for unfocused spheres — sits over the visual only, avoids stomping on focused sphere taps */}
+      {/* Tight tap target for unfocused spheres — sits over the visual only. */}
       {!isFocused && (
         <Pressable
           onPress={handleSpherePress}
@@ -2021,7 +1827,6 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
 });
 
 // Cosmic chrome (Sfera insight empty state, overall avatar labels, etc.)
-const COSMIC_TEXT = "#B8E8EC"; // soft cyan-white for percentage & label
 const COSMIC_INNER_DARK = [
   "#0A0E1A",
   "#0F1422",
@@ -2036,159 +1841,6 @@ const COSMIC_INNER_LIGHT = [
   "#5A5A76",
   "#6A6A8A",
 ] as const; // light theme cosmic
-
-// ─── Universe Scroll Icon: stacked orbs + upward swipe arrow (universe lessons affordance) ───
-const UniverseScrollIcon = React.memo(function UniverseScrollIcon({
-  size,
-  enabled = true,
-}: {
-  size: number;
-  enabled?: boolean;
-}) {
-  const C = size / 2;
-  // Three stacked orbs — relationships (red), career (blue), family (purple)
-  const ORB_COLORS = ["#FF8888", "#7BB8FF", "#C088FF"] as const;
-  const ORB_R = size * 0.13;
-  // Orb vertical positions: top, center, bottom — slightly offset left of center to leave room for arrow
-  const ORB_X = C - size * 0.08;
-  const ORB_POSITIONS = [C - size * 0.28, C, C + size * 0.28] as const;
-  // Connecting dashed line between orbs
-  const LINE_X = ORB_X;
-
-  // Floating animation: orbs gently drift up
-  const floatY = useSharedValue(0);
-  // Arrow pulse
-  const arrowOpacity = useSharedValue(0.4);
-  const arrowTranslateY = useSharedValue(0);
-
-  useEffect(() => {
-    if (!enabled) {
-      cancelAnimation(floatY);
-      cancelAnimation(arrowOpacity);
-      cancelAnimation(arrowTranslateY);
-      floatY.value = 0;
-      arrowOpacity.value = 0.4;
-      arrowTranslateY.value = 0;
-      return;
-    }
-    floatY.value = withRepeat(
-      withTiming(-size * 0.06, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true,
-    );
-    arrowOpacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 600, easing: Easing.out(Easing.ease) }),
-        withTiming(0.35, { duration: 700, easing: Easing.in(Easing.ease) }),
-      ),
-      -1,
-      false,
-    );
-    arrowTranslateY.value = withRepeat(
-      withSequence(
-        withTiming(-size * 0.08, { duration: 600, easing: Easing.out(Easing.ease) }),
-        withTiming(0, { duration: 700, easing: Easing.in(Easing.ease) }),
-      ),
-      -1,
-      false,
-    );
-    return () => {
-      cancelAnimation(floatY);
-      cancelAnimation(arrowOpacity);
-      cancelAnimation(arrowTranslateY);
-    };
-  }, [floatY, arrowOpacity, arrowTranslateY, size, enabled]);
-
-  const orbsStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: floatY.value }],
-  }));
-
-  const arrowStyle = useAnimatedStyle(() => ({
-    opacity: arrowOpacity.value,
-    transform: [{ translateY: arrowTranslateY.value }],
-  }));
-
-  // Arrow chevrons (×2 stacked, pointing up) — right side of orbs
-  const ARROW_X = C + size * 0.22;
-  const ARROW_Y1 = C + size * 0.06;
-  const ARROW_Y2 = C - size * 0.1;
-  const ARROW_W = size * 0.14;
-  const ARROW_H = size * 0.09;
-
-  return (
-    <View style={{ width: size, height: size }}>
-      {/* Static: connecting line + subtle outer glow disc */}
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "absolute" }}>
-        <Defs>
-          <RadialGradient id="usDiscGlow" cx={`${C}`} cy={`${C}`} r={`${C}`} gradientUnits="userSpaceOnUse">
-            <Stop offset="0%" stopColor="#5CE1E6" stopOpacity="0.06" />
-            <Stop offset="100%" stopColor="#5CE1E6" stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <SvgCircle cx={C} cy={C} r={C - 0.5} fill="url(#usDiscGlow)" />
-        {/* Dashed connecting line between orb centers */}
-        <Line
-          x1={LINE_X}
-          y1={ORB_POSITIONS[0] + ORB_R + 1}
-          x2={LINE_X}
-          y2={ORB_POSITIONS[2] - ORB_R - 1}
-          stroke="rgba(255,255,255,0.18)"
-          strokeWidth={1}
-          strokeDasharray="2 3"
-        />
-      </Svg>
-
-      {/* Animated: orbs floating */}
-      <Animated.View style={[{ position: "absolute", width: size, height: size }, orbsStyle]} pointerEvents="none">
-        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <Defs>
-            {ORB_COLORS.map((color, i) => (
-              <RadialGradient key={i} id={`usOrb${i}`} cx={`${ORB_X - ORB_R * 0.3}`} cy={`${ORB_POSITIONS[i] - ORB_R * 0.3}`} r={`${ORB_R * 1.6}`} gradientUnits="userSpaceOnUse">
-                <Stop offset="0%" stopColor={color} stopOpacity="1" />
-                <Stop offset="60%" stopColor={color} stopOpacity="0.8" />
-                <Stop offset="100%" stopColor={color} stopOpacity="0.3" />
-              </RadialGradient>
-            ))}
-          </Defs>
-          {ORB_COLORS.map((color, i) => (
-            <React.Fragment key={i}>
-              {/* Glow halo */}
-              <SvgCircle cx={ORB_X} cy={ORB_POSITIONS[i]} r={ORB_R * 1.55} fill={color} opacity={0.12} />
-              {/* Orb body */}
-              <SvgCircle cx={ORB_X} cy={ORB_POSITIONS[i]} r={ORB_R} fill={`url(#usOrb${i})`} />
-              {/* Specular highlight */}
-              <SvgCircle cx={ORB_X - ORB_R * 0.28} cy={ORB_POSITIONS[i] - ORB_R * 0.3} r={ORB_R * 0.28} fill="#FFFFFF" opacity={0.45} />
-            </React.Fragment>
-          ))}
-        </Svg>
-      </Animated.View>
-
-      {/* Animated: upward swipe arrow */}
-      <Animated.View style={[{ position: "absolute", width: size, height: size }, arrowStyle]} pointerEvents="none">
-        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          {/* Two chevron arrows pointing up */}
-          <Path
-            d={`M ${ARROW_X - ARROW_W} ${ARROW_Y1} L ${ARROW_X} ${ARROW_Y1 - ARROW_H} L ${ARROW_X + ARROW_W} ${ARROW_Y1}`}
-            fill="none"
-            stroke="rgba(92,225,230,0.9)"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d={`M ${ARROW_X - ARROW_W} ${ARROW_Y2} L ${ARROW_X} ${ARROW_Y2 - ARROW_H} L ${ARROW_X + ARROW_W} ${ARROW_Y2}`}
-            fill="none"
-            stroke="rgba(92,225,230,0.55)"
-            strokeWidth={1.4}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </Svg>
-      </Animated.View>
-    </View>
-  );
-});
-
 
 // ───────────────────── Sfera Insight Card ─────────────────────
 
@@ -2632,14 +2284,12 @@ function MemoryBalanceView({
   onSpherePress,
 }: {
   memoryBalanceSizeBySphere: Record<LifeSphere, number>;
-  momentStatsBySphere: Record<
-    LifeSphere,
-    { sunny: number; cloudy: number; lessons: number }
-  >;
+  momentStatsBySphere: Record<LifeSphere, { sunny: number; cloudy: number }>;
   getSphereSunnyPercentage: (sphere: LifeSphere) => number;
   colorScheme: "light" | "dark";
   onSpherePress: (sphereIndex: number, sphereType: LifeSphere) => void;
 }) {
+  const t = useTranslate();
   return (
     <>
       {SPHERE_LIST.map((sphere, i) => {
@@ -2675,6 +2325,8 @@ function MemoryBalanceView({
               width: size,
               height:
                 size +
+                MEMORY_BALANCE_NAME_GAP +
+                MEMORY_BALANCE_NAME_BELOW +
                 MEMORY_BALANCE_STATS_MARGIN_TOP +
                 MEMORY_BALANCE_STATS_BELOW,
               alignItems: "center",
@@ -2731,6 +2383,23 @@ function MemoryBalanceView({
                 color={iconColor}
               />
             </View>
+            <ThemedText
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              style={{
+                marginTop: MEMORY_BALANCE_NAME_GAP,
+                width: size + scaleFocused(8),
+                fontSize: scaleFocused(10),
+                lineHeight: scaleFocused(13),
+                fontWeight: "600",
+                textAlign: "center",
+                color: colorScheme === "dark" ? "#E8EEF4" : "#1E2830",
+                opacity: 0.95,
+              }}
+            >
+              {t(SPHERE_DISPLAY_NAME_KEY[sphere.type])}
+            </ThemedText>
             <View
               style={{
                 marginTop: MEMORY_BALANCE_STATS_MARGIN_TOP,
@@ -2790,28 +2459,6 @@ function MemoryBalanceView({
                     {stats.cloudy}
                   </ThemedText>
                 </View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: MEMORY_BALANCE_STATS_ICON_TEXT_GAP,
-                  }}
-                >
-                  <MaterialIcons
-                    name="school"
-                    size={MEMORY_BALANCE_STATS_ICON_SIZE}
-                    color="#CE93D8"
-                  />
-                  <ThemedText
-                    style={{
-                      fontSize: MEMORY_BALANCE_STATS_TEXT_SIZE,
-                      color: "#FFFFFF",
-                      opacity: 0.9,
-                    }}
-                  >
-                    {stats.lessons}
-                  </ThemedText>
-                </View>
               </View>
             </View>
           </Pressable>
@@ -2825,7 +2472,6 @@ function MemoryBalanceView({
 
 export function FocusedSferaView({
   overallSunnyPercentage,
-  sunCelebrationEligible,
   hasMemories,
   onAddMemoriesPress,
   onSphereSelect,
@@ -2859,7 +2505,6 @@ export function FocusedSferaView({
   onFocusedDisplayModeForHint,
   notificationLessonTarget = null,
   onNotificationLessonTargetHandled,
-  disableSunCelebrationIntro = false,
 }: FocusedSferaViewProps) {
   const isScreenFocused = useIsFocused();
   const [isAppActive, setIsAppActive] = useState(
@@ -2875,9 +2520,35 @@ export function FocusedSferaView({
   const animationsEnabled = isScreenFocused && !hidden && isAppActive;
   const overviewAnimationsEnabled = animationsEnabled && selectedSphere === null;
 
+  const orbitEntityDataBySphere = useMemo(() => {
+    const result = {} as Record<
+      LifeSphere,
+      {
+        entityIds: string[];
+        imageUris: string[];
+        entityNames: string[];
+        memoriesPerEntity: IdealizedMemory[][];
+      }
+    >;
+    for (const { type } of SPHERE_LIST) {
+      result[type] = pickOrbitEntitiesBySunnyScore(
+        entityIdsBySphere[type] ?? [],
+        entityImageUrisBySphere[type] ?? [],
+        entityNamesBySphere[type] ?? [],
+        memoriesPerEntityBySphere[type] ?? [],
+        ORBIT_MAX_FLOATING_ENTITIES,
+      );
+    }
+    return result;
+  }, [
+    entityIdsBySphere,
+    entityImageUrisBySphere,
+    entityNamesBySphere,
+    memoriesPerEntityBySphere,
+  ]);
+
   const insets = useSafeAreaInsets();
-  const { ensureSubscriptionResolved, refreshCustomerInfo } = useSubscription();
-  const { appUsabilityHints, sunnyMomentsCongratsAnimation } = useVisualSettings();
+  const { appUsabilityHints } = useVisualSettings();
   const focusedSpherePulseRef = useRef<(() => void) | null>(null);
   const focusedSphereTapTimeRef = useRef<number>(0);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2886,7 +2557,6 @@ export function FocusedSferaView({
     "defaultOrbit",
   );
   const [displayModeHydrated, setDisplayModeHydrated] = useState(false);
-  const [avatarPulseTriggerKey, setAvatarPulseTriggerKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -2973,18 +2643,6 @@ export function FocusedSferaView({
   const startSunExpanded = initialSunMenuExpanded;
   const sunExpanded = useSharedValue(startSunExpanded ? 1 : 0);
   const [isSunExpanded, setIsSunExpanded] = useState(startSunExpanded);
-  const sunMenuOpacity = useSharedValue(startSunExpanded ? 1 : 0);
-  const sunMenuTranslateY = useSharedValue(startSunExpanded ? 0 : 20);
-  const [universeLessonsVisible, setUniverseLessonsVisible] = useState(false);
-  const [universeExamVisible, setUniverseExamVisible] = useState(false);
-  const [initialUniverseLessonTarget, setInitialUniverseLessonTarget] = useState<{
-    key: string;
-    lessonId?: string;
-    memoryId?: string;
-    entityId?: string;
-    sphere?: LifeSphere;
-    text?: string;
-  } | null>(null);
   const handledNotificationLessonTargetKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -2995,22 +2653,17 @@ export function FocusedSferaView({
       return;
     }
     handledNotificationLessonTargetKeyRef.current = notificationLessonTarget.key;
-    setInitialUniverseLessonTarget({
-      key: notificationLessonTarget.key,
-      lessonId: notificationLessonTarget.lessonId,
-      memoryId: notificationLessonTarget.memoryId,
-      entityId: notificationLessonTarget.entityId,
-      sphere: notificationLessonTarget.sphere,
-      text: notificationLessonTarget.text,
-    });
-    setUniverseLessonsVisible(true);
+    const p: Record<string, string> = {
+      nudgeKey: notificationLessonTarget.key,
+    };
+    if (notificationLessonTarget.lessonId) p.lessonId = notificationLessonTarget.lessonId;
+    if (notificationLessonTarget.memoryId) p.memoryId = notificationLessonTarget.memoryId;
+    if (notificationLessonTarget.entityId) p.entityId = notificationLessonTarget.entityId;
+    if (notificationLessonTarget.sphere) p.sphere = notificationLessonTarget.sphere;
+    if (notificationLessonTarget.text) p.text = notificationLessonTarget.text;
+    router.push({ pathname: "/(tabs)/lessons", params: p });
     onNotificationLessonTargetHandled?.(notificationLessonTarget.key);
   }, [notificationLessonTarget, onNotificationLessonTargetHandled]);
-
-  // Sun centered state (initial view only): true = floated to screen center
-  const [isSunCentered, setIsSunCentered] = useState(
-    () => selectedSphere === null && startSunExpanded,
-  );
 
   /** Hide top-right memory-balance toggle as soon as central avatar press starts (before sun menu state updates). */
   const [hideMemoryBalanceToggleForAvatar, setHideMemoryBalanceToggleForAvatar] =
@@ -3027,17 +2680,8 @@ export function FocusedSferaView({
     onSunMenuExpandedChange?.(isSunExpanded);
   }, [isSunExpanded, onSunMenuExpandedChange]);
 
-  // SunLoadAnimation — plays on first app open when overall sunny % is ≥ 50 and selectedSphere is null.
-  // Initial state is "pending" (not complete) so we don't flash the normal view before deciding.
-  const sunLoadProgress      = useSharedValue(0);
-  const sunLoadSweepOffset   = useSharedValue(0);
-  const sunLoadScale         = useSharedValue(1);   // set to 1.5 inside effect if intro plays
-  const sunLoadDisplayPct    = useSharedValue(0);
-  const risingSunsFadeOut    = useSharedValue(1);   // 1 = visible, fades to 0 when sun starts shrinking
-  const congratsOpacity    = useSharedValue(0);
+  // Gated on splash + journey data: same as the old "skip intro" path (no sun celebration on cold start).
   const [sunLoadComplete, setIntroComplete] = useState(selectedSphere !== null);
-  const [sunLoadFireworks, setIntroFireworks] = useState(false);
-  const [sunLoadCentered, setIntroCentered] = useState(false); // set to true inside effect if intro plays
   const markIntroComplete = useCallback(() => {
     setIntroComplete(true);
     onIntroComplete?.();
@@ -3048,21 +2692,12 @@ export function FocusedSferaView({
     setIsSunExpanded(next);
     if (next) {
       sunExpanded.value = withSpring(1, { damping: 14, stiffness: 120 });
-      sunMenuOpacity.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.ease) });
-      sunMenuTranslateY.value = withSpring(0, { damping: 14, stiffness: 180 });
     } else {
       sunExpanded.value = withSpring(0, { damping: 14, stiffness: 120 });
-      sunMenuOpacity.value = withTiming(0, { duration: 200, easing: Easing.in(Easing.ease) });
-      sunMenuTranslateY.value = withTiming(20, { duration: 200 });
     }
-  }, [isSunExpanded, sunExpanded, sunMenuOpacity, sunMenuTranslateY]);
+  }, [isSunExpanded, sunExpanded]);
 
-  const sunMenuStyle = useAnimatedStyle(() => ({
-    opacity: sunMenuOpacity.value,
-    transform: [{ translateY: sunMenuTranslateY.value }],
-  }));
-
-  /** Fades / scales Memory Balance sferas with the sun menu (same `sunExpanded` spring as the 3 icons). */
+  /** Fades / scales Memory Balance sferas with the sun menu (same `sunExpanded` spring as orbit sferas). */
   const memoryBalanceLayerStyle = useAnimatedStyle(() => ({
     opacity: interpolate(sunExpanded.value, [0, 1], [1, 0], Extrapolation.CLAMP),
     transform: [
@@ -3084,112 +2719,18 @@ export function FocusedSferaView({
     setFocusedIdx(initialFocusedIdx);
   }, [initialFocusedIdx]);
 
-  // SunLoadAnimation sequence — waits for splash done AND real percentage data (> 0) before deciding.
   const sunLoadStartedRef = useRef(false);
   useEffect(() => {
     if (!splashDone || sunLoadStartedRef.current) return;
-    // While loading, overall can stay at 0 — don't start intro yet.
-    // After load, 0% with no sphere means no entities: skip sun intro and unblock parent (e.g. guide prompt).
     if (selectedSphere === null && overallSunnyPercentage === 0) {
       if (!sferaDataReady) return;
       sunLoadStartedRef.current = true;
       markIntroComplete();
-      setIntroCentered(false);
-      sunLoadScale.value = 1;
-      sunLoadDisplayPct.value = 0;
       return;
     }
     sunLoadStartedRef.current = true;
-
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-
-    const run = async () => {
-      let shownToday = false;
-      if (!__DEV__ && sunnyMomentsCongratsAnimation && selectedSphere === null && overallSunnyPercentage >= 50 && sunCelebrationEligible) {
-        const lastShown = await AsyncStorage.getItem(SUN_CONGRATS_LAST_SHOWN_KEY);
-        shownToday = lastShown === today;
-      }
-      const shouldPlayIntro =
-        sunnyMomentsCongratsAnimation &&
-        sunCelebrationEligible &&
-        selectedSphere === null &&
-        overallSunnyPercentage >= 50 &&
-        !shownToday &&
-        !disableSunCelebrationIntro;
-
-      if (!shouldPlayIntro) {
-        markIntroComplete();
-        setIntroCentered(false);
-        sunLoadScale.value = 1;
-        sunLoadDisplayPct.value = overallSunnyPercentage;
-        return;
-      }
-
-      // Record today so the animation won't replay again until tomorrow
-      await AsyncStorage.setItem(SUN_CONGRATS_LAST_SHOWN_KEY, today);
-
-      // Kick off intro: enlarge sun and center it
-      sunLoadScale.value = 1.5;
-      setIntroCentered(true);
-
-      // Phase 1 (0–2500ms): count percentage from 0 → actual
-      sunLoadDisplayPct.value = withTiming(overallSunnyPercentage, {
-        duration: 2500,
-        easing: Easing.out(Easing.quad),
-      });
-
-      // Phase 2 (2500ms): fireworks burst
-      const fireworksTimer = setTimeout(() => {
-        runOnJS(setIntroFireworks)(true);
-      }, 2500);
-
-      // Congrats text: fade in at 2500ms, fade out at 3400ms
-      congratsOpacity.value = withSequence(
-        withDelay(2500, withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) })),
-        withDelay(500, withTiming(0, { duration: 400, easing: Easing.in(Easing.ease) })),
-      );
-
-      // Phase 3 (3500ms): sun shrinks to 1×, un-center it; rising suns fade out simultaneously
-      sunLoadScale.value = withDelay(3500, withSpring(1.0, { damping: 18, stiffness: 90 }));
-      risingSunsFadeOut.value = withDelay(3500, withTiming(0, { duration: 600, easing: Easing.in(Easing.ease) }));
-      const uncenterTimer = setTimeout(() => {
-        runOnJS(setIntroCentered)(false);
-      }, 3500);
-
-      // Phase 4 (4200ms): sferas + entities stagger in together (scale + fade), each from 0→normal size
-      // sunLoadProgress goes 0→1400 over 1650ms; each sphere triggers at i*150, reveals over 400ms
-      sunLoadProgress.value = withDelay(
-        4200,
-        withTiming(1400, { duration: 1650, easing: Easing.out(Easing.quad) }, (done) => {
-          "worklet";
-          if (done) {
-            runOnJS(markIntroComplete)();
-          }
-        }),
-      );
-
-      return () => {
-        clearTimeout(fireworksTimer);
-        clearTimeout(uncenterTimer);
-      };
-    };
-
-    run();
-  }, [
-    disableSunCelebrationIntro,
-    splashDone,
-    overallSunnyPercentage,
-    sunCelebrationEligible,
-    sferaDataReady,
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Reset sun centering when leaving initial view
-  useEffect(() => {
-    if (selectedSphere !== null && sunLoadComplete) {
-      setIsSunCentered(false);
-      setIntroCentered(false);
-    }
-  }, [selectedSphere, sunLoadComplete]);
+    markIntroComplete();
+  }, [splashDone, sferaDataReady, selectedSphere, overallSunnyPercentage, markIntroComplete]);
 
   const goToSphere = useCallback(
     (newIdx: number) => {
@@ -3256,7 +2797,6 @@ export function FocusedSferaView({
   );
 
   const t = useTranslate();
-  const { language } = useLanguage();
   const focusedSphere = SPHERE_LIST[focusedIdx];
   const isMemoryBalanceMode =
     selectedSphere === null && displayMode === "memoryBalanceRings";
@@ -3284,17 +2824,10 @@ export function FocusedSferaView({
       SH * 0.76,
     );
   }, [selectedSphere, isMemoryBalanceMode, focusedLabelTop]);
-  const focusedSunnyPct = getSphereSunnyPercentage(focusedSphere.type);
   const focusedShadowColor = getSphereShadowColor(
     focusedSphere.type,
     colorScheme,
   );
-
-  // Check if the FOCUSED sfera has memories (not overall)
-  const focusedSferaHasMemories = useMemo(() => {
-    const focusedMemories = memoriesPerEntityBySphere[focusedSphere.type] ?? [];
-    return focusedMemories.some((entityMemories) => entityMemories.length > 0);
-  }, [memoriesPerEntityBySphere, focusedSphere.type]);
 
   const memoryCountBySphere = useMemo(() => {
     const result = {} as Record<LifeSphere, number>;
@@ -3333,96 +2866,29 @@ export function FocusedSferaView({
   }, [memoryCountBySphere]);
 
   const momentStatsBySphere = useMemo(() => {
-    const result = {} as Record<
-      LifeSphere,
-      { sunny: number; cloudy: number; lessons: number }
-    >;
+    const result = {} as Record<LifeSphere, { sunny: number; cloudy: number }>;
 
     SPHERE_LIST.forEach(({ type }) => {
       const entityMemories = memoriesPerEntityBySphere[type] ?? [];
       let sunny = 0;
       let cloudy = 0;
-      let lessons = 0;
 
       entityMemories.forEach((memories) => {
         memories.forEach((memory) => {
           sunny += (memory.goodFacts || []).length;
           cloudy += (memory.hardTruths || []).length;
-          lessons += (memory.lessonsLearned || []).length;
         });
       });
 
-      result[type] = { sunny, cloudy, lessons };
+      result[type] = { sunny, cloudy };
     });
 
     return result;
   }, [memoriesPerEntityBySphere]);
 
-  const sunnyFacts = useMemo(() => {
-    const allMems = Object.values(memoriesPerEntityBySphere).flat(2);
-    return allMems
-      .filter((m) => getMemorySunnyPercentage(m) >= 50)
-      .flatMap((m) => m.goodFacts ?? [])
-      .filter((f) => f.text?.trim());
-  }, [memoriesPerEntityBySphere]);
-
-  /** True when the user has saved at least one lesson on a memory (same source as Universe Lessons / Lesson Check). */
-  const hasUserLessons = useMemo(() => {
-    for (const entityArrays of Object.values(memoriesPerEntityBySphere)) {
-      for (const mems of entityArrays) {
-        for (const mem of mems) {
-          for (const l of mem.lessonsLearned ?? []) {
-            if (l.text?.trim()) return true;
-          }
-        }
-      }
-    }
-    return false;
-  }, [memoriesPerEntityBySphere]);
-
-  const [noLessonsToastVisible, setNoLessonsToastVisible] = useState(false);
-  const noLessonsToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showNoLessonsToast = useCallback(() => {
-    if (noLessonsToastTimerRef.current) {
-      clearTimeout(noLessonsToastTimerRef.current);
-      noLessonsToastTimerRef.current = null;
-    }
-    setNoLessonsToastVisible(true);
-    noLessonsToastTimerRef.current = setTimeout(() => {
-      setNoLessonsToastVisible(false);
-      noLessonsToastTimerRef.current = null;
-    }, 2600);
-  }, []);
-  useEffect(() => {
-    return () => {
-      if (noLessonsToastTimerRef.current) {
-        clearTimeout(noLessonsToastTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Circle avatar percentage logic:
-  // - Initial view (selectedSphere === null): Show overall percentage across all sferas
-  // - Individual sfera view (selectedSphere !== null): Show that sfera's percentage if it has memories, otherwise overall
-  const circleAvatarPercentage = useMemo(() => {
-    if (selectedSphere === null) {
-      // Initial view: always show overall percentage
-      return overallSunnyPercentage;
-    } else {
-      // Individual sfera view: show focused sfera % if it has memories, otherwise overall
-      return focusedSferaHasMemories ? focusedSunnyPct : overallSunnyPercentage;
-    }
-  }, [
-    selectedSphere,
-    focusedSferaHasMemories,
-    focusedSunnyPct,
-    overallSunnyPercentage,
-  ]);
-
   // Collapse sun expanded state and centering together
   const handleCollapseSun = useCallback(() => {
     setHideMemoryBalanceToggleForAvatar(false);
-    setIsSunCentered(false);
     if (isSunExpanded) handleSunPress();
   }, [isSunExpanded, handleSunPress]);
 
@@ -3452,43 +2918,16 @@ export function FocusedSferaView({
     };
   }, [handleCollapseSun, sunMenuCollapseActionRef]);
 
-  /** Lesson Check: show exam only if AI sub or free daily slot; otherwise paywall only (not both). */
-  const handleOpenUniverseExam = useCallback(async () => {
-    if (!hasUserLessons) {
-      showNoLessonsToast();
-      return;
-    }
-    const { hasAIEntitlement } = await ensureSubscriptionResolved();
-    const hasPending = await hasPendingUniverseExam();
-    const canTakeExam =
-      hasAIEntitlement || hasPending || (await canUseExam(hasAIEntitlement));
-    if (!canTakeExam) {
-      const purchased = await showPaywallForAIAccess();
-      if (purchased) {
-        await refreshCustomerInfo();
-        setUniverseExamVisible(true);
-      }
-      return;
-    }
-    setUniverseExamVisible(true);
-  }, [
-    ensureSubscriptionResolved,
-    refreshCustomerInfo,
-    hasUserLessons,
-    showNoLessonsToast,
-  ]);
-
   // When circle avatar is pressed:
-  // - Initial view (selectedSphere === null): single tap opens/closes the 3-icon sun menu (displayMode unchanged — Memory Balance vs orbit stays on the top-right toggle)
-  // - Individual sfera view (selectedSphere !== null): clear selection to return to initial view
+  // - Initial view: open Sfera Insights (wheel of life)
+  // - Individual sfera view: clear selection to return to initial view
   const handleCircleAvatarPress = useCallback(() => {
     if (!sunLoadComplete) return;
     if (selectedSphere === null) {
       if (isSunExpanded) {
         handleCollapseSun();
       } else {
-        setIsSunCentered(true);
-        handleSunPress();
+        onInsightsPress?.();
       }
     } else {
       if (onClearSelection) {
@@ -3502,7 +2941,7 @@ export function FocusedSferaView({
     isSunExpanded,
     onClearSelection,
     onSwitchToClassic,
-    handleSunPress,
+    onInsightsPress,
     sunLoadComplete,
     handleCollapseSun,
   ]);
@@ -3623,7 +3062,6 @@ export function FocusedSferaView({
   const handleMemoryBalanceToggle = useCallback(() => {
     if (!sunLoadComplete) return;
     if (isSunExpanded) handleCollapseSun();
-    setAvatarPulseTriggerKey((prev) => prev + 1);
     setDisplayMode((prev) =>
       prev === "memoryBalanceRings" ? "defaultOrbit" : "memoryBalanceRings",
     );
@@ -3676,9 +3114,6 @@ export function FocusedSferaView({
       stiffness: 360,
     });
   }, [memoryBalanceToggleScale]);
-
-  const congratsStyle = useAnimatedStyle(() => ({ opacity: congratsOpacity.value }));
-  const handleFireworksComplete = useCallback(() => setIntroFireworks(false), []);
 
   if (hidden) {
     return null;
@@ -3783,10 +3218,10 @@ export function FocusedSferaView({
             sphereIdx={i}
             sphere={sphere}
             focusedIdx={focusedIdx}
-            entityUris={entityImageUrisBySphere[sphere.type] ?? []}
-            entityIds={entityIdsBySphere[sphere.type] ?? []}
-            entityNames={entityNamesBySphere[sphere.type] ?? []}
-            entityMemories={memoriesPerEntityBySphere[sphere.type] ?? []}
+            entityUris={orbitEntityDataBySphere[sphere.type].imageUris}
+            entityIds={orbitEntityDataBySphere[sphere.type].entityIds}
+            entityNames={orbitEntityDataBySphere[sphere.type].entityNames}
+            entityMemories={orbitEntityDataBySphere[sphere.type].memoriesPerEntity}
             onPress={() => {
               if (!sunLoadComplete) return;
               if (isSunExpanded) {
@@ -3822,16 +3257,13 @@ export function FocusedSferaView({
             }
             sunExpanded={sunExpanded}
             isInitialView={selectedSphere === null}
-            sunLoadProgress={sunLoadComplete ? undefined : sunLoadProgress}
-            sunLoadSweepOffset={sunLoadComplete ? undefined : sunLoadSweepOffset}
-            sphereIntroStaggerMs={i * 150}
             isSunMenuOpen={isSunExpanded}
             individualModeScale={individualModeScale}
             entityAvatarScale={individualEntityAvatarScale}
             animationsEnabled={overviewAnimationsEnabled}
           />
         ))}
-      {/* Same timing as orbit sferas: only after sun-load celebration finishes (avatar at final size/position). */}
+      {/* Same timing as orbit sferas: only after initial load gate (splash + data). */}
       {isMemoryBalanceMode && sunLoadComplete && (
         <Animated.View
           pointerEvents={isSunExpanded ? "none" : "auto"}
@@ -3873,7 +3305,7 @@ export function FocusedSferaView({
         />
       )}
 
-      {/* ─── Center: Sfera Insight Card (individual sfera view) or Sun Avatar (overview) ─── */}
+      {/* ─── Center: entity insight card (per-sfera) or Sfera Insights hub (overview) ─── */}
       {selectedSphere !== null && (entityIdsBySphere[focusedSphere.type]?.length ?? 0) > 0 ? (
         <SferaInsightCard
           sphere={focusedSphere.type}
@@ -3891,232 +3323,46 @@ export function FocusedSferaView({
           isVisible={animationsEnabled && selectedSphere !== null}
         />
       ) : (
-        <>
-          <SunnyLifeAvatar
-            percentage={circleAvatarPercentage}
-            hasMemories={hasMemories}
-            showPercentageLabel={sunCelebrationEligible}
+        <View
+          style={{
+            position: "absolute",
+            left: SUN_CENTER_X - INSIGHTS_HUB_SIZE / 2,
+            top: SUN_CENTER_Y - INSIGHTS_HUB_SIZE / 2,
+            width: INSIGHTS_HUB_SIZE,
+            height: INSIGHTS_HUB_SIZE,
+            zIndex: 20,
+          }}
+          pointerEvents="box-none"
+        >
+          <Pressable
             onPress={handleCircleAvatarPress}
-            onAddMemoriesPress={onAddMemoriesPress}
-            onAvatarPressIn={handleAvatarPressInHideMemoryBalance}
-            onAvatarPressOut={handleAvatarPressOutRestoreMemoryBalance}
-            colorScheme={colorScheme}
-            x={SUN_CENTER_X}
-            y={SUN_CENTER_Y}
-            sunLoadScale={sunLoadComplete ? undefined : sunLoadScale}
-            sunLoadDisplayPct={sunLoadComplete ? undefined : sunLoadDisplayPct}
-            sunExpanded={sunExpanded}
-            isCentered={sunLoadCentered || isSunCentered}
-            screenWidth={SW}
-            screenHeight={SH}
-            layoutScale={IPAD_FOCUSED_SCALE}
-            pulseMode="onViewOpen"
-            pulseTrigger={animationsEnabled}
-            pulseTriggerKey={avatarPulseTriggerKey}
-          />
-          {!sunLoadComplete && (
-            <>
-              {/* Rising sunny moment bubbles — drift bottom to top in background */}
-              <RisingSunsBackground sunnyFacts={sunnyFacts} fadeOut={risingSunsFadeOut} />
-              {/* Fireworks burst at percentage reveal */}
-              <Fireworks
-                visible={sunLoadFireworks}
-                duration={2000}
-                onComplete={handleFireworksComplete}
-              />
-              {/* Congrats text — positioned below the centered sun */}
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.congratsContainer, congratsStyle]}
-              >
-                <ThemedText style={styles.congratsText}>
-                  {t("avatar.sunnyCongrats", { pct: Math.round(overallSunnyPercentage) })}
-                </ThemedText>
-              </Animated.View>
-            </>
-          )}
-          {/* ─── Sun action buttons: appear below sun when expanded ─── */}
-          <Animated.View
-            pointerEvents={isSunExpanded ? "auto" : "none"}
-            style={[
-              {
-                position: "absolute",
-                left: 20,
-                top: SH * 0.5 + scaleFocused(120),
-                width: SW - 40,
-                flexDirection: "row",
-                justifyContent: "space-evenly",
-                alignItems: "flex-start",
-                zIndex: 30,
-              },
-              sunMenuStyle,
-            ]}
+            onPressIn={handleAvatarPressInHideMemoryBalance}
+            onPressOut={handleAvatarPressOutRestoreMemoryBalance}
+            accessibilityRole="button"
+            accessibilityLabel={t("insights.wheelOfLife.title")}
+            accessibilityHint={t("insights.wheelOfLife.subtitle")}
+            style={{
+              flex: 1,
+              borderRadius: INSIGHTS_HUB_SIZE / 2,
+              backgroundColor: "rgba(186,104,200,0.22)",
+              borderWidth: 2,
+              borderColor: "rgba(186,104,200,0.65)",
+              justifyContent: "center",
+              alignItems: "center",
+              shadowColor: "#BA68C8",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.55,
+              shadowRadius: 10,
+              elevation: 10,
+            }}
           >
-            {/* Insights button */}
-            <View style={{ alignItems: "center", gap: scaleFocused(8) }}>
-              <PulsingPressable
-                deferPressUntilAnimationEnd
-                onPress={() => {
-                  onInsightsPress?.();
-                }}
-                style={{
-                  width: scaleFocused(80),
-                  height: scaleFocused(80),
-                  borderRadius: scaleFocused(40),
-                  backgroundColor: "rgba(186,104,200,0.22)",
-                  borderWidth: 2,
-                  borderColor: "rgba(186,104,200,0.65)",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  shadowColor: "#BA68C8",
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.55,
-                  shadowRadius: 10,
-                  elevation: 10,
-                }}
-              >
-                <MaterialIcons name="insights" size={scaleFocused(36)} color="#CE93D8" />
-              </PulsingPressable>
-              <ThemedText
-                style={{
-                  color: "rgba(255,255,255,0.8)",
-                  fontSize: scaleFocused(11),
-                  letterSpacing: 0.3,
-                }}
-              >
-                {t("insights.wheelOfLife.title")}
-              </ThemedText>
-            </View>
-
-            {/* Universe Lessons scroll button */}
-            <View style={{ alignItems: "center", gap: scaleFocused(8) }}>
-              <PulsingPressable
-                triggerPressOnPressIn
-                onPress={() => {
-                  if (!hasUserLessons) {
-                    showNoLessonsToast();
-                    return;
-                  }
-                  setUniverseLessonsVisible(true);
-                }}
-                style={{
-                  width: scaleFocused(80),
-                  height: scaleFocused(80),
-                  borderRadius: scaleFocused(40),
-                  backgroundColor: hasUserLessons
-                    ? "rgba(80,20,130,0.35)"
-                    : "rgba(38,38,48,0.55)",
-                  borderWidth: 2,
-                  borderColor: hasUserLessons
-                    ? "rgba(190,100,255,0.55)"
-                    : "rgba(255,255,255,0.10)",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  opacity: hasUserLessons ? 1 : 0.55,
-                  shadowColor: hasUserLessons ? "#BE64FF" : "#000000",
-                  shadowOffset: { width: 0, height: hasUserLessons ? 4 : 0 },
-                  shadowOpacity: hasUserLessons ? 0.55 : 0,
-                  shadowRadius: hasUserLessons ? 12 : 0,
-                  elevation: hasUserLessons ? 12 : 0,
-                }}
-              >
-                <UniverseScrollIcon
-                  size={scaleFocused(44)}
-                  enabled={animationsEnabled}
-                />
-              </PulsingPressable>
-              <ThemedText
-                style={{
-                  color: hasUserLessons ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.38)",
-                  fontSize: scaleFocused(11),
-                  letterSpacing: 0.3,
-                }}
-              >
-                {language === "bg" ? "Уроци" : "Universe Lessons"}
-              </ThemedText>
-            </View>
-
-            {/* Universe Exam button */}
-            <View style={{ alignItems: "center", gap: scaleFocused(8) }}>
-              <PulsingPressable
-                onPress={handleOpenUniverseExam}
-                style={{
-                  width: scaleFocused(80),
-                  height: scaleFocused(80),
-                  borderRadius: scaleFocused(40),
-                  backgroundColor: hasUserLessons
-                    ? "rgba(20,80,130,0.35)"
-                    : "rgba(38,38,48,0.55)",
-                  borderWidth: 2,
-                  borderColor: hasUserLessons
-                    ? "rgba(92,225,230,0.55)"
-                    : "rgba(255,255,255,0.10)",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  opacity: hasUserLessons ? 1 : 0.55,
-                  shadowColor: hasUserLessons ? "#5CE1E6" : "#000000",
-                  shadowOffset: { width: 0, height: hasUserLessons ? 4 : 0 },
-                  shadowOpacity: hasUserLessons ? 0.55 : 0,
-                  shadowRadius: hasUserLessons ? 12 : 0,
-                  elevation: hasUserLessons ? 12 : 0,
-                }}
-              >
-                <MaterialIcons
-                  name="fact-check"
-                  size={scaleFocused(36)}
-                  color={hasUserLessons ? "#5CE1E6" : "rgba(255,255,255,0.28)"}
-                />
-              </PulsingPressable>
-              <ThemedText
-                style={{
-                  color: hasUserLessons ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.38)",
-                  fontSize: scaleFocused(11),
-                  letterSpacing: 0.3,
-                }}
-              >
-                {t("universe.exam.title")}
-              </ThemedText>
-            </View>
-
-            {noLessonsToastVisible && (
-              <View
-                pointerEvents="none"
-                style={{
-                  position: "absolute",
-                  left: 20,
-                  right: 20,
-                  top: scaleFocused(112),
-                  alignItems: "center",
-                  zIndex: 40,
-                }}
-              >
-                <View
-                  style={{
-                    maxWidth: scaleFocused(320),
-                    backgroundColor: "rgba(18,22,34,0.94)",
-                    paddingVertical: scaleFocused(12),
-                    paddingHorizontal: scaleFocused(18),
-                    borderRadius: scaleFocused(14),
-                    borderWidth: 1,
-                    borderColor: "rgba(255,255,255,0.12)",
-                  }}
-                >
-                  <ThemedText
-                    style={{
-                      color: "rgba(255,255,255,0.88)",
-                      fontSize: scaleFocused(14),
-                      textAlign: "center",
-                      lineHeight: scaleFocused(20),
-                    }}
-                  >
-                    {t("universe.lessons.noneAvailable")}
-                  </ThemedText>
-                </View>
-              </View>
-            )}
-
-          </Animated.View>
-        </>
+            <MaterialIcons
+              name="insights"
+              size={scaleFocused(44)}
+              color="#CE93D8"
+            />
+          </Pressable>
+        </View>
       )}
 
       {/* ─── Focused sfera label + pagination dots (below rotating entities) ─── */}
@@ -4240,20 +3486,6 @@ export function FocusedSferaView({
         </>
       )}
 
-      <UniverseLessonsScreen
-        visible={universeLessonsVisible}
-        onClose={() => setUniverseLessonsVisible(false)}
-        initialTarget={initialUniverseLessonTarget}
-        onInitialTargetHandled={(key) => {
-          setInitialUniverseLessonTarget((prev) =>
-            prev?.key === key ? null : prev,
-          );
-        }}
-      />
-      <UniverseExamScreen
-        visible={universeExamVisible}
-        onClose={() => setUniverseExamVisible(false)}
-      />
     </View>
   );
 }
@@ -4311,22 +3543,5 @@ const styles = StyleSheet.create({
     padding: scaleFocused(20),
     justifyContent: "center",
     alignItems: "center",
-  },
-  congratsContainer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: SH / 2 + scaleFocused(90),
-    alignItems: "center",
-    zIndex: 30,
-  },
-  congratsText: {
-    fontSize: scaleFocused(18),
-    color: "#FFD700",
-    fontWeight: "700",
-    letterSpacing: scaleFocused(0.5),
-    textShadowColor: "rgba(0,0,0,0.9)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 8,
   },
 });

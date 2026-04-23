@@ -6,14 +6,15 @@
  */
 
 import { ConstellationBackground } from "@/components/constellation-background";
-import { EventPreviewModal } from "@/components/event-preview-modal";
 import { ThemedText } from "@/components/themed-text";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { BaseEntity, IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
+import {
+  ORBIT_MAX_FLOATING_ENTITIES,
+  pickOrbitEntitiesBySunnyScoreForEntities,
+} from "@/utils/orbit-entity-pick";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
-import { useSferaEventsBadge } from "@/utils/SferaEventsBadgeProvider";
 import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
-import { getEventImageUrls } from "@/utils/sfera-events";
 import { useTranslate } from "@/utils/languages/use-translate";
 import {
   getSphereGradientColors,
@@ -678,7 +679,7 @@ const EntityRing = React.memo(function EntityRing({
   }, [onEntitySelect]);
 
   if (entities.length === 0) return null;
-  const count = Math.min(entities.length, 8);
+  const count = Math.min(entities.length, ORBIT_MAX_FLOATING_ENTITIES);
 
   return (
     <>
@@ -831,30 +832,11 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     () => memoriesPerEntity.reduce((sum, arr) => sum + arr.length, 0),
     [memoriesPerEntity],
   );
-  // Whether this sphere supports social CTAs (bell + event thumbnails)
-  const hasSocialCTAs = sphere === "family" || sphere === "friends";
+  // Whether this sphere shows the lessons shortcut row (family/friends, modes 0/1)
+  const hasLessonsShortcutRow = sphere === "family" || sphere === "friends";
 
   // Urgency: oldest interaction > 30 days ago
-  const isUrgent = hasSocialCTAs && oldestTime !== null && (Date.now() - oldestTime) > 30 * 24 * 60 * 60 * 1000;
-
-  // Upcoming social events for the event row (family/friends only)
-  const { getCachedEvents } = useSferaEventsBadge();
-  const socialEvents = useMemo(() => {
-    if (!hasSocialCTAs) return [];
-    return getCachedEvents()
-      .filter((e) => e.type === "social" || e.type === "plus");
-  }, [hasSocialCTAs, getCachedEvents]);
-
-  // Which event index is shown in the single-event row; refresh cycles through
-  const [eventDisplayIdx, setEventDisplayIdx] = useState(0);
-  const currentEvent = socialEvents.length > 0 ? socialEvents[eventDisplayIdx % socialEvents.length] : null;
-
-  // Which event was tapped — shows EventPreviewModal
-  const [previewEventId, setPreviewEventId] = useState<string | null>(null);
-  const previewEvent = useMemo(
-    () => previewEventId ? socialEvents.find((e) => e.id === previewEventId) ?? null : null,
-    [previewEventId, socialEvents],
-  );
+  const isUrgent = hasLessonsShortcutRow && oldestTime !== null && (Date.now() - oldestTime) > 30 * 24 * 60 * 60 * 1000;
 
   const numModes = numEntities === 0 ? 1 : Math.max(1, allowedModes.length);
 
@@ -974,7 +956,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const entityIdx = [leastMemsIdx, oldestIdx, newestIdx, mostMemsIdx, mostCloudyIdx, mostSunnyIdx][mode] ?? 0;
   const entity = entities[entityIdx];
   const entityName = entity?.name ?? "";
-  const showSocialBottom = hasSocialCTAs && (mode === 0 || mode === 1) && entity != null;
+  const showLessonsShortcut = hasLessonsShortcutRow && (mode === 0 || mode === 1) && entity != null;
 
   // Urgency border: amber tint when oldest interaction > 30 days
   const isMoodCard = mode === 4 || mode === 5;
@@ -1223,10 +1205,10 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                 return <ThemedText style={{ color: momentColors.sunny.background, fontSize: 10 }}>{label}</ThemedText>;
               })() : null}
               {/* Bell for modes 0/1 */}
-              {showSocialBottom && timeAgoLabel ? (
+              {showLessonsShortcut && timeAgoLabel ? (
                 <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 10 }}>·</ThemedText>
               ) : null}
-              {showSocialBottom && (
+              {showLessonsShortcut && (
                 <Pressable
                   onPress={(e) => {
                     e.stopPropagation();
@@ -1255,8 +1237,8 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             </View>
           </Animated.View>
 
-          {/* Modes 0/1: show most recent memory image, or add-memories CTA (suppressed when social event card takes over) */}
-          {(mode === 0 || mode === 1) && !(showSocialBottom && currentEvent) && (() => {
+          {/* Modes 0/1: show most recent memory image, or add-memories CTA (suppressed when lessons shortcut row is shown) */}
+          {(mode === 0 || mode === 1) && !showLessonsShortcut && (() => {
             const mems = memoriesPerEntity[entityIdx] ?? [];
             const mem = mems.length > 0
               ? mems.reduce((a, b) => new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b)
@@ -1423,84 +1405,41 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             );
           })()}
 
-          {/* Event card — fills remaining space, image on top, text below */}
-          {showSocialBottom && currentEvent ? (
-            <View style={{ flex: 1, alignSelf: "stretch" }}>
-              {/* Card — tap to preview */}
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  setPreviewEventId(currentEvent.id);
-                }}
-                style={{
-                  flex: 1,
-                  backgroundColor: shadowColor + "1A",
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: shadowColor + "33",
-                  overflow: "hidden",
-                }}
-              >
-                {/* Event image — fills top portion */}
-                {(() => {
-                  const imgUrl = getEventImageUrls(currentEvent)[0];
-                  return imgUrl ? (
-                    <Image source={{ uri: imgUrl }} style={{ width: "100%", flex: 1 }} contentFit="cover" />
-                  ) : (
-                    <View style={{ flex: 1, backgroundColor: shadowColor + "33", justifyContent: "center", alignItems: "center" }}>
-                      <MaterialIcons name="event" size={24} color={shadowColor} />
-                    </View>
-                  );
-                })()}
-                {/* Refresh — absolutely positioned top-right of image */}
-                <Pressable
-                  hitSlop={10}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    if (socialEvents.length > 1) setEventDisplayIdx((i) => (i + 1) % socialEvents.length);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Show next event"
-                  style={{
-                    position: "absolute",
-                    top: 6,
-                    right: 6,
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: "#00000055",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <MaterialIcons name="refresh" size={20} color="#FFFFFFCC" />
-                </Pressable>
-                {/* Event name + see-more */}
-                <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 8, paddingVertical: 6, gap: 4 }}>
-                  <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10, flex: 1 }} numberOfLines={2}>
-                    {currentEvent.name}
-                  </ThemedText>
-                  <Pressable
-                    hitSlop={8}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      router.push({
-                        pathname: "/(tabs)/events",
-                        params: { expandEventId: currentEvent.id },
-                      });
-                    }}
-                    accessibilityRole="link"
-                    accessibilityLabel="See all events"
-                  >
-                    <MaterialIcons name="open-in-new" size={13} color={shadowColor} />
-                  </Pressable>
-                </View>
-              </Pressable>
-            </View>
+          {/* Lessons shortcut — fills remaining space (family & friends, modes 0/1) */}
+          {showLessonsShortcut ? (
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                router.push("/(tabs)/lessons");
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t("sferaInsight.lessonsCardTitle")}
+              style={{
+                flex: 1,
+                alignSelf: "stretch",
+                backgroundColor: "rgba(80,20,130,0.22)",
+                borderRadius: 10,
+                borderWidth: 1.5,
+                borderColor: "rgba(190,100,255,0.45)",
+                overflow: "hidden",
+                justifyContent: "center",
+                alignItems: "center",
+                paddingHorizontal: 12,
+                gap: 8,
+              }}
+            >
+              <MaterialIcons name="menu-book" size={28} color="rgba(190,100,255,0.95)" />
+              <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 12, fontWeight: "700", textAlign: "center" }}>
+                {t("sferaInsight.lessonsCardTitle")}
+              </ThemedText>
+              <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 10, textAlign: "center", lineHeight: 14 }}>
+                {t("sferaInsight.lessonsCardSubtitle")}
+              </ThemedText>
+            </Pressable>
           ) : null}
 
-          {/* Pagination dots — shown when not in social mode */}
-          {!showSocialBottom && (
+          {/* Pagination dots — shown when not in lessons shortcut row */}
+          {!showLessonsShortcut && (
             <View style={{ flexDirection: "row", gap: 5, alignSelf: "center" }} accessibilityRole="tablist">
               {Array.from({ length: numModes }).map((_, i) => (
                 <Pressable
@@ -1562,13 +1501,6 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         </View>
       ) : null}
 
-      {/* Event preview sheet — shown when event row is tapped */}
-      {previewEvent && (
-        <EventPreviewModal
-          event={previewEvent}
-          onClose={() => setPreviewEventId(null)}
-        />
-      )}
     </View>
   );
 });
@@ -1663,6 +1595,16 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
     };
   }, [rawEntities, rawMemoriesPerEntity]);
 
+  const { orbitEntities, orbitMemoriesPerEntity } = useMemo(() => {
+    const { entities: oEnt, memoriesPerEntity: oMem } =
+      pickOrbitEntitiesBySunnyScoreForEntities(
+        sortedEntities,
+        sortedMemoriesPerEntity,
+        ORBIT_MAX_FLOATING_ENTITIES,
+      );
+    return { orbitEntities: oEnt, orbitMemoriesPerEntity: oMem };
+  }, [sortedEntities, sortedMemoriesPerEntity]);
+
   const gradientColors = getSphereGradientColors(sphere, sphereSunnyPercentage, colorScheme);
   const sunnyBackground = gradientColors[0];
 
@@ -1750,8 +1692,8 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
 
       {/* Entities sliding clockwise around the card perimeter */}
       <EntityRing
-        entities={sortedEntities}
-        memoriesPerEntity={sortedMemoriesPerEntity}
+        entities={orbitEntities}
+        memoriesPerEntity={orbitMemoriesPerEntity}
         onEntitySelect={onEntitySelect}
         needMemoriesHintEntityId={orbitHintEntityId}
         onNeedMemoriesHint={showOrbitNeedMemoriesHint}

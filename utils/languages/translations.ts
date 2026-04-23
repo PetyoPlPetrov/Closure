@@ -12,6 +12,7 @@ export interface Translations {
   "tab.spheres": string;
   "tab.settings": string;
   "tab.events": string;
+  "tab.lessons": string;
   "home.emptyState": string;
   "home.sferaSizeHint": string;
   /** In-app notice when entity wheel of life is locked (gating rules) */
@@ -102,6 +103,8 @@ export interface Translations {
   "sferaInsight.cloudyMomentsMany": string;
   "sferaInsight.sunnyMomentsOne": string;
   "sferaInsight.sunnyMomentsMany": string;
+  "sferaInsight.lessonsCardTitle": string;
+  "sferaInsight.lessonsCardSubtitle": string;
 
   // Settings
   "settings.title": string;
@@ -141,8 +144,6 @@ export interface Translations {
   "settings.usability.stopPulsingAnimationsDescription": string;
   "settings.usability.splashAnimation": string;
   "settings.usability.splashAnimationDescription": string;
-  "settings.usability.sunnyMomentsCongratsAnimation": string;
-  "settings.usability.sunnyMomentsCongratsAnimationDescription": string;
   "settings.aiInsights.title": string;
   "settings.aiInsights.enable": string;
   "settings.aiInsights.description": string;
@@ -1051,6 +1052,8 @@ export interface Translations {
   "universe.exam.triesRemainingFree": string;
   "universe.exam.triesRemainingUnlimited": string;
   "universe.lessons.noneAvailable": string;
+  "universe.lessons.lessonCheckCta": string;
+  "universe.lessons.learnMore": string;
   "universe.lessons.filters.title": string;
   "universe.lessons.filters.sphereSection": string;
   "universe.lessons.filters.allSpheres": string;
@@ -1067,6 +1070,7 @@ export interface Translations {
   "universe.lessons.accessibility.openFilters": string;
   "universe.lessons.accessibility.filterActive": string;
   "universe.lessons.accessibility.toggleFavorite": string;
+  "universe.lessons.accessibility.learnMore": string;
   "universe.lessons.accessibility.dismissSheet": string;
 
   // Settings - Moments Colors
@@ -3872,6 +3876,7 @@ const translations: Record<Language, Translations> = {
     "tab.spheres": "Sferas",
     "tab.settings": "Settings",
     "tab.events": "Events",
+    "tab.lessons": "Lessons",
     "home.emptyState":
       "No profiles yet. Add your first ex-profile to get started.",
     "home.sferaSizeHint":
@@ -3909,6 +3914,8 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.cloudyMomentsMany": "{count} cloudy moments",
     "sferaInsight.sunnyMomentsOne": "1 sunny moment",
     "sferaInsight.sunnyMomentsMany": "{count} sunny moments",
+    "sferaInsight.lessonsCardTitle": "Your lessons",
+    "sferaInsight.lessonsCardSubtitle": "Open the Lessons tab to browse everything you've saved",
     "sferaInsight.addHobbies": "Add hobbies",
     "sferaInsight.mostRecentHobby": "Most recently done",
     "sferaInsight.lastPracticed": "Longest not done",
@@ -4019,9 +4026,6 @@ const translations: Record<Language, Translations> = {
     "settings.usability.splashAnimation": "Splash animation",
     "settings.usability.splashAnimationDescription":
       "When enabled, shows the animated intro screen on app launch.",
-    "settings.usability.sunnyMomentsCongratsAnimation": "Sunny moments celebration",
-    "settings.usability.sunnyMomentsCongratsAnimationDescription":
-      "When enabled, plays a celebration animation when your sunny moments reach 50%.",
     "settings.aiInsights.title": "AI Insights",
     "settings.aiInsights.enable": "Enable AI Insights",
     "settings.aiInsights.description":
@@ -4219,11 +4223,11 @@ const translations: Record<Language, Translations> = {
       "One bad day can drown out a hundred good ones. We fixate on what went wrong and lose sight of all the joy already present in our lives. Sferas gives you a quick glimpse of the big picture — all your sunny moments gathered across every sphere, showing you just how much there is to be grateful for. And when you need a reminder, Sferas can send your sunny moments back to you as daily nudges, so the good never stays invisible for long.",
     "guide.bullet.sunnyMoments.menuPath":
       "/ Sferas / Open an entity / Memory · sunny moments",
-    "guide.bullet.livingForward.title": "Live Forward",
+    "guide.bullet.livingForward.title": "Stay in Touch",
     "guide.bullet.livingForward.description":
-      "Sferas isn't just about looking back. The people and places that matter most deserve new memories too. That's why Sferas helps you look ahead — discover places to visit, experiences to share, and moments worth making with the people you care about. Because a good life isn't only understood in hindsight. It's built, intentionally, one shared moment at a time.",
+      "Relationships fade quietly when life gets busy. This mission is about staying connected on purpose: set notification reminders so Sferas nudges you to check in, reach out, and create new moments with the people who matter before distance becomes the default.",
     "guide.bullet.livingForward.menuPath":
-      "/ Sferas / Open an entity / Memory · live forward",
+      "/ Personalization / Manage notifications / People reminders",
     "guide.bullet.recordMemoryAi.title": "With the AI button",
     "guide.bullet.recordMemoryAi.description":
       "Tap the glowing AI button in the center of the tab bar. If prompted, enable AI insights once — then describe what you want to remember. Sfera AI helps you turn it into a proper memory tied to the right entity and memory type. You can refine the result before saving.",
@@ -4238,15 +4242,15 @@ const translations: Record<Language, Translations> = {
     "guide.bullet.universeLessons.description":
       "All the lessons you've recorded across your spheres live in one place — Universe Lessons. Scroll through them at any time to revisit your hard-earned wisdom, spot patterns, and make sure none of it gets forgotten.",
     "guide.bullet.universeLessons.menuPath":
-      "/ Sferas / Focus a sphere / Universe lessons",
+      "/ Tab bar / Lessons",
     "guide.bullet.dailyExam.title": "Daily Exam",
     "guide.bullet.dailyExam.description":
       "Each day, Sfera AI picks one of your past lessons and presents a real-life situation connected to it. You respond, and the AI assesses your answer — giving you honest feedback on whether you've truly internalized the lesson or still have work to do. Learning isn't just recording. It's being tested when it counts.",
-    "guide.bullet.dailyExam.menuPath": "/ Sferas / Focus a sphere / Daily exam",
+    "guide.bullet.dailyExam.menuPath": "/ Tab bar / Lessons · checklist icon (next to filters)",
     "guide.bullet.insightsWheel.title": "Sfera Insights",
     "guide.bullet.insightsWheel.description":
       "A visual snapshot of how your life is balanced right now. Sfera Insights shows you the distribution of moments across your spheres — revealing where you're investing your time and energy, and where the gaps are. Sometimes seeing it laid out is all it takes to understand what needs attention.",
-    "guide.bullet.insightsWheel.menuPath": "/ Sferas / Focus a sphere / Insights",
+    "guide.bullet.insightsWheel.menuPath": "/ Sferas / Tap center avatar (overview)",
     "guide.bullet.sferasBalance.title": "Sferas Balance",
     "guide.bullet.sferasBalance.description":
       "A quick overview of your total moments across all spheres. It helps you see when one sphere starts taking too much of your life and creating imbalance, so you can rebalance early.",
@@ -5209,6 +5213,8 @@ const translations: Record<Language, Translations> = {
     "universe.exam.triesRemainingFree": "{count} free tries left today",
     "universe.exam.triesRemainingUnlimited": "Unlimited tries left today",
     "universe.lessons.noneAvailable": "No lessons available",
+    "universe.lessons.lessonCheckCta": "Random lesson check",
+    "universe.lessons.learnMore": "Learn more",
     "universe.lessons.filters.title": "Filters",
     "universe.lessons.filters.sphereSection": "Sphere",
     "universe.lessons.filters.allSpheres": "All",
@@ -5225,6 +5231,7 @@ const translations: Record<Language, Translations> = {
     "universe.lessons.accessibility.openFilters": "Open filters",
     "universe.lessons.accessibility.filterActive": "Filters active",
     "universe.lessons.accessibility.toggleFavorite": "Toggle favorite lesson",
+    "universe.lessons.accessibility.learnMore": "Read full lesson text",
     "universe.lessons.accessibility.dismissSheet": "Close",
 
     // Settings - Moments Colors
@@ -8676,6 +8683,7 @@ const translations: Record<Language, Translations> = {
     "tab.spheres": "Sferas",
     "tab.settings": "Настройки",
     "tab.events": "Събития",
+    "tab.lessons": "Уроци",
     "home.emptyState":
       "Няма профили все още. Добавете първи партньор, за да започнете.",
     "home.sferaSizeHint":
@@ -8713,6 +8721,8 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.cloudyMomentsMany": "{count} облачни момента",
     "sferaInsight.sunnyMomentsOne": "1 слънчев момент",
     "sferaInsight.sunnyMomentsMany": "{count} слънчеви момента",
+    "sferaInsight.lessonsCardTitle": "Вашите уроци",
+    "sferaInsight.lessonsCardSubtitle": "Отвори раздел Уроци, за да прегледаш всичко записано",
     "sferaInsight.addHobbies": "Добави хобита",
     "sferaInsight.mostRecentHobby": "Последно практикувано",
     "sferaInsight.lastPracticed": "Най-дълго непрактикувано",
@@ -8824,9 +8834,6 @@ const translations: Record<Language, Translations> = {
     "settings.usability.splashAnimation": "Splash анимация",
     "settings.usability.splashAnimationDescription":
       "Когато е включено, показва анимирания начален екран при стартиране на приложението.",
-    "settings.usability.sunnyMomentsCongratsAnimation": "Празнуване на слънчеви моменти",
-    "settings.usability.sunnyMomentsCongratsAnimationDescription":
-      "Когато е включено, показва анимация за поздравление, когато слънчевите ти моменти достигнат 50%.",
     "settings.aiInsights.title": "AI Инсайти",
     "settings.aiInsights.enable": "Включи AI Инсайти",
     "settings.aiInsights.description":
@@ -9018,11 +9025,11 @@ const translations: Record<Language, Translations> = {
       "Един лош ден може да засенчи стотици добри. Фокусираме се върху това, което е тръгнало наопаки, и губим от поглед цялата радост, която вече присъства в живота ни. Sferas ви дава бърз поглед върху голямата картина — всички ваши слънчеви моменти събрани в сферите, показвайки колко много неща има за което да сте благодарни. А когато имате нужда от напомняне, Sferas може да ви изпраща слънчевите моменти като ежедневни напомняния, за да не остава доброто невидимо.",
     "guide.bullet.sunnyMoments.menuPath":
       "/ Sferas / Отвори обект / Спомен · слънчеви моменти",
-    "guide.bullet.livingForward.title": "Живейте напред",
+    "guide.bullet.livingForward.title": "Поддържай връзка",
     "guide.bullet.livingForward.description":
-      "Sferas не е само за поглед назад. Хората и местата, които имат значение, заслужават нови спомени. Затова Sferas ви помага да гледате напред — да откривате места за посещение, преживявания за споделяне и моменти, които си струва да създадете с хората, за които ви е грижа. Защото добрият живот не се разбира само в ретроспекция. Той се гради — съзнателно, един споделен момент наведнъж.",
+      "Връзките избледняват тихо, когато ежедневието стане натоварено. Тази мисия е да поддържате контакт съзнателно: настройте известия за напомняне, за да ви подсеща Sferas да се свържете, да пишете и да създавате нови моменти с хората, които са важни, преди дистанцията да стане нормата.",
     "guide.bullet.livingForward.menuPath":
-      "/ Sferas / Отвори обект / Спомен · живей напред",
+      "/ Персонализация / Управление на известия / Напомняния за хора",
     "guide.bullet.recordMemoryAi.title": "С AI бутона",
     "guide.bullet.recordMemoryAi.description":
       "Докоснете светещия AI бутон в центъра на лентата с раздели. Ако се появи подкана, активирайте AI прозренията веднъж — след това опишете какво искате да запомните. Sfera AI помага да го превърне в подходящ спомен, вързан за правилния обект и тип спомен. Можете да доизчистите резултата преди запазване.",
@@ -9037,15 +9044,15 @@ const translations: Record<Language, Translations> = {
     "guide.bullet.universeLessons.description":
       "Всички уроци, които сте записали в сферите си, живеят на едно място — Уроци от вселената. Превъртете ги по всяко време, за да преговорите трудно извоюваната си мъдрост, да забележите модели и да се уверите, че нищо не е забравено.",
     "guide.bullet.universeLessons.menuPath":
-      "/ Sferas / Фокусирай сфера / Уроци от вселената",
+      "/ Лента с раздели / Уроци",
     "guide.bullet.dailyExam.title": "Дневен изпит",
     "guide.bullet.dailyExam.description":
       "Всеки ден Sfera AI избира един от миналите ви уроци и представя реална житейска ситуация, свързана с него. Вие отговаряте, а AI оценява отговора ви — давайки ви честна обратна връзка дали наистина сте усвоили урока или все още имате работа. Ученето не е само записване. То е да бъдеш изпитан когато има значение.",
-    "guide.bullet.dailyExam.menuPath": "/ Sferas / Фокусирай сфера / Дневен изпит",
+    "guide.bullet.dailyExam.menuPath": "/ Лента с раздели / Уроци · икона преговор (до филтрите)",
     "guide.bullet.insightsWheel.title": "Sfera Прозрения",
     "guide.bullet.insightsWheel.description":
       "Визуална снимка на баланса в живота ви в момента. Sfera Прозрения показва разпределението на моментите в сферите ви — разкривайки къде инвестирате времето и енергията си и къде има празнини. Понякога е достатъчно да го видите нагледно, за да разберете какво изисква внимание.",
-    "guide.bullet.insightsWheel.menuPath": "/ Sferas / Фокусирай сфера / Прозрения",
+    "guide.bullet.insightsWheel.menuPath": "/ Sferas / Докосни централния аватар (преглед)",
     "guide.bullet.sferasBalance.title": "Баланс на сферите",
     "guide.bullet.sferasBalance.description":
       "Бърз преглед на общия брой моменти във всички ваши сфери. Помага ви да видите кога една сфера започва да заема твърде голяма част от живота ви и създава дисбаланс, за да върнете баланса навреме.",
@@ -10020,6 +10027,8 @@ const translations: Record<Language, Translations> = {
     "universe.exam.triesRemainingFree": "Остават {count} безплатни опита за днес",
     "universe.exam.triesRemainingUnlimited": "Неограничени опити за днес",
     "universe.lessons.noneAvailable": "Няма налични уроци",
+    "universe.lessons.lessonCheckCta": "Случаен преговор",
+    "universe.lessons.learnMore": "Виж още",
     "universe.lessons.filters.title": "Филтри",
     "universe.lessons.filters.sphereSection": "Сфера",
     "universe.lessons.filters.allSpheres": "Всички",
@@ -10036,6 +10045,7 @@ const translations: Record<Language, Translations> = {
     "universe.lessons.accessibility.openFilters": "Отвори филтри",
     "universe.lessons.accessibility.filterActive": "Активни филтри",
     "universe.lessons.accessibility.toggleFavorite": "Превключи любим урок",
+    "universe.lessons.accessibility.learnMore": "Прочети целия текст на урока",
     "universe.lessons.accessibility.dismissSheet": "Затвори",
 
     // Settings - Moments Colors

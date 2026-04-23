@@ -13,8 +13,6 @@ const COSMIC_BACKGROUND_OPACITY_KEY = "@sferas:cosmic_background_opacity";
 const APP_USABILITY_HINTS_KEY = "@sferas:app_usability_hints";
 const STOP_PULSING_ANIMATIONS_KEY = "@sferas:stop_pulsing_animations";
 export const SPLASH_ANIMATION_KEY = "@sferas:splash_animation";
-export const SUNNY_MOMENTS_CONGRATS_ANIMATION_KEY = "@sferas:sunny_moments_congrats_animation";
-export const SUN_CONGRATS_LAST_SHOWN_KEY = "@sferas:sun_congrats_last_shown";
 
 const DEFAULT_ORBIT_DURATION_MS = 60000;
 const MIN_ORBIT_DURATION_MS = 20000;
@@ -28,7 +26,7 @@ const DEFAULT_CONSTELLATION_OPACITY = 5;
 const MIN_CONSTELLATION_OPACITY = 0;
 const MAX_CONSTELLATION_OPACITY = 10;
 
-const DEFAULT_COSMIC_BACKGROUND_OPACITY = 10;
+const DEFAULT_COSMIC_BACKGROUND_OPACITY = 3;
 const MIN_COSMIC_BACKGROUND_OPACITY = 0;
 const MAX_COSMIC_BACKGROUND_OPACITY = 10;
 
@@ -47,8 +45,6 @@ type VisualSettingsContextValue = {
   setPulsingAnimations: (value: boolean) => void;
   splashAnimation: boolean;
   setSplashAnimation: (value: boolean) => void;
-  sunnyMomentsCongratsAnimation: boolean;
-  setSunnyMomentsCongratsAnimation: (value: boolean) => void;
 };
 
 const VisualSettingsContext = createContext<VisualSettingsContextValue | null>(null);
@@ -61,7 +57,6 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
   const [appUsabilityHints, setAppUsabilityHintsState] = useState(true);
   const [pulsingAnimations, setPulsingAnimationsState] = useState(true);
   const [splashAnimation, setSplashAnimationState] = useState(true);
-  const [sunnyMomentsCongratsAnimation, setSunnyMomentsCongratsAnimationState] = useState(true);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -73,8 +68,7 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       APP_USABILITY_HINTS_KEY,
       STOP_PULSING_ANIMATIONS_KEY,
       SPLASH_ANIMATION_KEY,
-      SUNNY_MOMENTS_CONGRATS_ANIMATION_KEY,
-    ]).then(([[, orbit], [, constellation], [, constellationOp], [, cosmic], [, hints], [, stopPulsing], [, splash], [, sunnyMomentsCongrats]]) => {
+    ]).then(([[, orbit], [, constellation], [, constellationOp], [, cosmic], [, hints], [, stopPulsing], [, splash]]) => {
         if (orbit != null) {
           const n = parseInt(orbit, 10);
           if (Number.isFinite(n) && n >= MIN_ORBIT_DURATION_MS && n <= MAX_ORBIT_DURATION_MS) {
@@ -112,9 +106,6 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
         }
         if (splash === "false") {
           setSplashAnimationState(false);
-        }
-        if (sunnyMomentsCongrats === "false") {
-          setSunnyMomentsCongratsAnimationState(false);
         }
         setLoaded(true);
       },
@@ -165,14 +156,6 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
     AsyncStorage.setItem(SPLASH_ANIMATION_KEY, String(value));
   }, []);
 
-  const setSunnyMomentsCongratsAnimation = useCallback((value: boolean) => {
-    setSunnyMomentsCongratsAnimationState(value);
-    AsyncStorage.setItem(SUNNY_MOMENTS_CONGRATS_ANIMATION_KEY, String(value));
-    if (value) {
-      AsyncStorage.removeItem(SUN_CONGRATS_LAST_SHOWN_KEY);
-    }
-  }, []);
-
   const value = useMemo<VisualSettingsContextValue>(
     () => ({
       orbitDurationMs,
@@ -189,8 +172,6 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       setPulsingAnimations,
       splashAnimation,
       setSplashAnimation,
-      sunnyMomentsCongratsAnimation,
-      setSunnyMomentsCongratsAnimation,
     }),
     [
       orbitDurationMs,
@@ -207,8 +188,6 @@ export function VisualSettingsProvider({ children }: { children: React.ReactNode
       setPulsingAnimations,
       splashAnimation,
       setSplashAnimation,
-      sunnyMomentsCongratsAnimation,
-      setSunnyMomentsCongratsAnimation,
     ],
   );
 
@@ -237,8 +216,6 @@ export function useVisualSettings(): VisualSettingsContextValue {
       setPulsingAnimations: () => {},
       splashAnimation: true,
       setSplashAnimation: () => {},
-      sunnyMomentsCongratsAnimation: true,
-      setSunnyMomentsCongratsAnimation: () => {},
     };
   }
   return ctx;

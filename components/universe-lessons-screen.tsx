@@ -5,11 +5,16 @@
  */
 
 import { ThemedText } from "@/components/themed-text";
+import { UniverseExamScreen } from "@/components/universe-exam-screen";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useJourney } from "@/utils/JourneyProvider";
 import type { LifeSphere } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { showPaywallForAIAccess } from "@/utils/premium-access";
+import { useSubscription } from "@/utils/SubscriptionProvider";
+import { hasPendingUniverseExam } from "@/utils/universe-exam-pending";
+import { canUseExam } from "@/utils/universe-exam-rate-limiter";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,6 +29,7 @@ import React, {
   useState,
 } from "react";
 import {
+  Alert,
   BackHandler,
   Dimensions,
   FlatList,
@@ -69,12 +75,26 @@ const PLANET_C = PLANET_CANVAS / 2;
 // Moon avatar size (memory image orbiting the planet top)
 const MOON_SIZE = 72;
 
-const HEADER_H = 94;
-// Full-screen cards so each planet is perfectly centred. Peek is a separate overlay.
-const CARD_HEIGHT = SH;
-// How many px of the next planet's rim peek from the bottom
-const PEEK_VISIBLE = 72;
+/** Words shown in the sphere before "Learn more" (one short sentence). */
+const LESSON_TEXT_PREVIEW_MAX_WORDS = 8;
 
+function lessonTextPreviewParts(
+  text: string,
+  maxWords: number,
+): { preview: string; needsLearnMore: boolean } {
+  const trimmed = text.trim();
+  if (!trimmed) return { preview: "", needsLearnMore: false };
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) {
+    return { preview: trimmed, needsLearnMore: false };
+  }
+  return {
+    preview: `${words.slice(0, maxWords).join(" ")}…`,
+    needsLearnMore: true,
+  };
+}
+
+// Full-screen cards so each planet is perfectly centred.
 // App background
 const BG = "#1A2332";
 
@@ -137,6 +157,19 @@ const SPHERE_ICONS: Record<LifeSphere, string> = {
   family: "family-restroom",
   friends: "people",
   hobbies: "sports-esports",
+};
+
+/**
+ * Memory title sits on the bright inner glow of the ring-planet. Light sphere tints
+ * (e.g. family lavender) fail WCAG AA; near-white fill + deep hue-matched shadow
+ * keeps legibility on both bright core and darker rim.
+ */
+const SPHERE_MOON_TITLE_SHADOW: Record<LifeSphere, string> = {
+  relationships: "rgba(56, 14, 14, 0.96)",
+  career: "rgba(10, 28, 52, 0.96)",
+  family: "rgba(38, 16, 58, 0.96)",
+  friends: "rgba(28, 14, 62, 0.96)",
+  hobbies: "rgba(58, 26, 6, 0.96)",
 };
 
 // Per-sphere: colors derived from getSphereSferaColor/getSphereShadowColor (dark mode)
@@ -588,15 +621,31 @@ const LessonSfera = React.memo(function LessonSfera({
   isVisible,
   onAvatarPress,
   onToggleFavorite,
+  pageHeight = SH,
 }: {
   card: LessonCard;
   isVisible: boolean;
   onAvatarPress?: () => void;
   onToggleFavorite?: () => void;
+  /** Pager page height (full screen or tab content area). */
+  pageHeight?: number;
 }) {
   const t = useTranslate();
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? "dark"];
   const colors = SPHERE_RINGS[card.sphere] ?? SPHERE_RINGS.career;
   const accentColor = getSphereSferaColor(card.sphere, "dark");
+
+  const [fullLessonModalVisible, setFullLessonModalVisible] = useState(false);
+
+  const { preview: lessonPreviewText, needsLearnMore } = useMemo(
+    () => lessonTextPreviewParts(card.text, LESSON_TEXT_PREVIEW_MAX_WORDS),
+    [card.text],
+  );
+
+  useEffect(() => {
+    setFullLessonModalVisible(false);
+  }, [card.id]);
 
   // Entry spring + glow pulse (scale only, no opacity fade on the planet itself)
   const entryScale = useSharedValue(0.92);
@@ -714,7 +763,7 @@ const LessonSfera = React.memo(function LessonSfera({
   }, [card.id, card.memoryImageUri]);
 
   return (
-    <View style={[styles.cardContainer, { height: CARD_HEIGHT }]}>
+    <View style={[styles.cardContainer, { height: pageHeight }]}>
       <Animated.View style={[styles.planetWrapper, cardStyle]}>
         {/* Outer diffuse glow shadow — pulses with glowStyle */}
         <Animated.View
@@ -774,8 +823,21 @@ const LessonSfera = React.memo(function LessonSfera({
           {/* Full width so text wraps to multiple lines (center parent would otherwise shrink to one line) */}
           <View style={styles.lessonTextWrap}>
             <ThemedText style={styles.lessonText}>
-              {card.text}
+              {lessonPreviewText}
             </ThemedText>
+            {needsLearnMore ? (
+              <Pressable
+                onPress={() => setFullLessonModalVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel={t("universe.lessons.accessibility.learnMore")}
+                hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
+                style={styles.learnMorePressable}
+              >
+                <ThemedText style={[styles.learnMoreText, { color: accentColor }]}>
+                  {t("universe.lessons.learnMore")}
+                </ThemedText>
+              </Pressable>
+            ) : null}
           </View>
         </View>
 
@@ -823,8 +885,14 @@ const LessonSfera = React.memo(function LessonSfera({
               </Animated.View>
             </View>
           </Pressable>
-          {/* Memory title below the moon */}
-          <ThemedText style={[styles.moonLabel, { color: accentColor }]} numberOfLines={1}>
+          {/* Memory title below the moon — high contrast on bright orb core */}
+          <ThemedText
+            style={[
+              styles.moonLabel,
+              { textShadowColor: SPHERE_MOON_TITLE_SHADOW[card.sphere] },
+            ]}
+            numberOfLines={1}
+          >
             {card.memoryTitle}
           </ThemedText>
         </View>
@@ -849,6 +917,56 @@ const LessonSfera = React.memo(function LessonSfera({
           </View>
         </View>
       </Animated.View>
+
+      <Modal
+        visible={fullLessonModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFullLessonModalVisible(false)}
+        statusBarTranslucent
+      >
+        <Pressable
+          style={styles.lessonFullModalBackdrop}
+          onPress={() => setFullLessonModalVisible(false)}
+          accessibilityRole="button"
+          accessibilityLabel={t("universe.lessons.accessibility.dismissSheet")}
+        >
+          <Pressable
+            style={[styles.lessonFullModalCard, { backgroundColor: themeColors.background }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.lessonFullModalHeader}>
+              <ThemedText
+                size="sm"
+                weight="bold"
+                numberOfLines={2}
+                style={[styles.lessonFullModalMemoryTitle, { color: themeColors.text }]}
+              >
+                {card.memoryTitle}
+              </ThemedText>
+              <Pressable
+                onPress={() => setFullLessonModalVisible(false)}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel={t("common.close")}
+                style={styles.lessonFullModalCloseBtn}
+              >
+                <MaterialIcons name="close" size={22} color="rgba(255,255,255,0.85)" />
+              </Pressable>
+            </View>
+            <ScrollView
+              style={[styles.lessonFullModalScroll, { maxHeight: SH * 0.62 }]}
+              contentContainerStyle={styles.lessonFullModalScrollContent}
+              showsVerticalScrollIndicator
+              keyboardShouldPersistTaps="handled"
+            >
+              <ThemedText style={[styles.lessonFullModalBody, { color: themeColors.text }]}>
+                {card.text}
+              </ThemedText>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
     </View>
   );
@@ -883,6 +1001,10 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   standaloneRoute?: boolean;
+  /** Render as tab content (no Modal; tab bar remains visible). */
+  embeddedInTab?: boolean;
+  /** Pixels to subtract from screen height so the pager clears the bottom tab bar. */
+  tabBarOverlapHeight?: number;
   initialTarget?: {
     key: string;
     lessonId?: string;
@@ -898,6 +1020,8 @@ export function UniverseLessonsScreen({
   visible,
   onClose,
   standaloneRoute = false,
+  embeddedInTab = false,
+  tabBarOverlapHeight = 0,
   initialTarget,
   onInitialTargetHandled,
 }: Props) {
@@ -905,8 +1029,16 @@ export function UniverseLessonsScreen({
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const insets = useSafeAreaInsets();
+  const { ensureSubscriptionResolved, refreshCustomerInfo } = useSubscription();
   const { appUsabilityHints } = useVisualSettings();
   const { idealizedMemories, setLessonFavorite, getEntitiesBySphere } = useJourney();
+  const [universeExamVisible, setUniverseExamVisible] = useState(false);
+
+  const listPageHeight = useMemo(() => {
+    if (!embeddedInTab || tabBarOverlapHeight <= 0) return SH;
+    return Math.max(Math.round(SH * 0.45), SH - tabBarOverlapHeight);
+  }, [embeddedInTab, tabBarOverlapHeight]);
+
   const [activeIndex, setActiveIndex] = useState(0);
   const [bgSeed, setBgSeed] = useState(0);
   const listRef = useRef<FlatList>(null);
@@ -1003,6 +1135,33 @@ export function UniverseLessonsScreen({
     }
     return [];
   }, [idealizedMemories]);
+
+  const hasUserLessons = cards.length > 0;
+
+  const handleOpenUniverseExam = useCallback(async () => {
+    if (!hasUserLessons) {
+      Alert.alert("", t("universe.lessons.noneAvailable"));
+      return;
+    }
+    const { hasAIEntitlement } = await ensureSubscriptionResolved();
+    const hasPending = await hasPendingUniverseExam();
+    const canTakeExam =
+      hasAIEntitlement || hasPending || (await canUseExam(hasAIEntitlement));
+    if (!canTakeExam) {
+      const purchased = await showPaywallForAIAccess();
+      if (purchased) {
+        await refreshCustomerInfo();
+        setUniverseExamVisible(true);
+      }
+      return;
+    }
+    setUniverseExamVisible(true);
+  }, [
+    ensureSubscriptionResolved,
+    hasUserLessons,
+    refreshCustomerInfo,
+    t,
+  ]);
 
   const filteredCards = useMemo(
     () =>
@@ -1293,7 +1452,6 @@ export function UniverseLessonsScreen({
       sphere: LifeSphere;
       entityId: string;
       focusedMemoryId: string;
-      skipFocusedIntro?: string;
       source?: string;
       profileId?: string;
       jobId?: string;
@@ -1304,7 +1462,6 @@ export function UniverseLessonsScreen({
       sphere: card.sphere,
       entityId: card.entityId,
       focusedMemoryId: card.memoryId,
-      skipFocusedIntro: "1",
       source: "universe_lessons_modal",
     };
 
@@ -1338,20 +1495,14 @@ export function UniverseLessonsScreen({
         onToggleFavorite={
           item.memoryId ? () => handleToggleFavorite(item) : undefined
         }
+        pageHeight={listPageHeight}
       />
     ),
-    [activeIndex, handleAvatarPress, handleToggleFavorite],
+    [activeIndex, handleAvatarPress, handleToggleFavorite, listPageHeight],
   );
   const keyExtractor = useCallback((item: LessonCard) => item.id, []);
 
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
+  const screenBody = (
       <Animated.View style={[styles.root, screenStyle]}>
         {showDecorLayers ? (
           <>
@@ -1371,7 +1522,7 @@ export function UniverseLessonsScreen({
             pointerEvents="none"
             style={[swipeHintStyle, {
               position: "absolute",
-              top: SH / 2 - 26,
+              top: listPageHeight / 2 - 26,
               left: 0, right: 0,
               alignItems: "center",
               zIndex: 30,
@@ -1418,15 +1569,15 @@ export function UniverseLessonsScreen({
               renderItem={renderItem}
               keyExtractor={keyExtractor}
               pagingEnabled
-              snapToInterval={CARD_HEIGHT}
+              snapToInterval={listPageHeight}
               snapToAlignment="start"
               decelerationRate="fast"
               showsVerticalScrollIndicator={false}
               onViewableItemsChanged={onViewableItemsChanged}
               viewabilityConfig={viewabilityConfig}
               getItemLayout={(_, index) => ({
-                length: CARD_HEIGHT,
-                offset: CARD_HEIGHT * index,
+                length: listPageHeight,
+                offset: listPageHeight * index,
                 index,
               })}
               style={{ flex: 1 }}
@@ -1460,22 +1611,47 @@ export function UniverseLessonsScreen({
           >
             {t("universe.modal.title")}
           </ThemedText>
-          <Pressable
-            onPress={openFilters}
-            hitSlop={16}
-            accessibilityRole="button"
-            accessibilityLabel={
-              filtersActive
-                ? `${t("universe.lessons.accessibility.openFilters")}, ${t("universe.lessons.accessibility.filterActive")}`
-                : t("universe.lessons.accessibility.openFilters")
-            }
-            style={styles.headerIconSlot}
+          <View
+            style={[styles.headerIconSlot, { width: 92, flexDirection: "row", justifyContent: "flex-end", gap: 6 }]}
           >
-            <View style={styles.closeBg}>
-              <MaterialIcons name="tune" size={20} color="rgba(255,255,255,0.90)" />
-              {filtersActive ? <View style={styles.filterActiveDot} /> : null}
-            </View>
-          </Pressable>
+            <Pressable
+              onPress={handleOpenUniverseExam}
+              disabled={!hasUserLessons}
+              hitSlop={16}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !hasUserLessons }}
+              accessibilityLabel={t("universe.lessons.lessonCheckCta")}
+              style={{ alignItems: "center", justifyContent: "center" }}
+            >
+              <View style={styles.closeBg}>
+                <MaterialIcons
+                  name="fact-check"
+                  size={20}
+                  color={
+                    hasUserLessons
+                      ? colors.primary
+                      : "rgba(255,255,255,0.35)"
+                  }
+                />
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={openFilters}
+              hitSlop={16}
+              accessibilityRole="button"
+              accessibilityLabel={
+                filtersActive
+                  ? `${t("universe.lessons.accessibility.openFilters")}, ${t("universe.lessons.accessibility.filterActive")}`
+                  : t("universe.lessons.accessibility.openFilters")
+              }
+              style={{ alignItems: "center", justifyContent: "center" }}
+            >
+              <View style={styles.closeBg}>
+                <MaterialIcons name="tune" size={20} color="rgba(255,255,255,0.90)" />
+                {filtersActive ? <View style={styles.filterActiveDot} /> : null}
+              </View>
+            </Pressable>
+          </View>
         </View>
 
         {/* Centered card like Events; filters apply live — dismiss by tapping outside */}
@@ -1723,7 +1899,28 @@ export function UniverseLessonsScreen({
         ) : null}
 
       </Animated.View>
-    </Modal>
+  );
+
+  return (
+    <>
+      {embeddedInTab ? (
+        screenBody
+      ) : (
+        <Modal
+          visible={visible}
+          transparent
+          animationType="none"
+          onRequestClose={onClose}
+          statusBarTranslucent
+        >
+          {screenBody}
+        </Modal>
+      )}
+      <UniverseExamScreen
+        visible={universeExamVisible}
+        onClose={() => setUniverseExamVisible(false)}
+      />
+    </>
   );
 }
 
@@ -1929,12 +2126,14 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   moonLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    letterSpacing: 0.3,
-    opacity: 0.8,
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.35,
     maxWidth: ATMO_R * 1.6,
     textAlign: "center",
+    color: "rgba(255,255,255,0.97)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 10,
   },
   divRow: {
     flexDirection: "row",
@@ -1955,6 +2154,65 @@ const styles = StyleSheet.create({
   lessonTextWrap: {
     alignSelf: "stretch",
     width: "100%",
+  },
+  learnMorePressable: {
+    alignSelf: "center",
+    marginTop: 6,
+    paddingVertical: 4,
+  },
+  learnMoreText: {
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.35,
+    textDecorationLine: "underline",
+    textDecorationColor: "rgba(255,255,255,0.35)",
+  },
+  lessonFullModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  lessonFullModalCard: {
+    width: "100%",
+    maxWidth: 360,
+    maxHeight: SH * 0.78,
+    borderRadius: 18,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 18,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  lessonFullModalHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 12,
+  },
+  lessonFullModalMemoryTitle: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  lessonFullModalCloseBtn: {
+    padding: 4,
+    marginTop: -4,
+    marginRight: -4,
+  },
+  lessonFullModalScroll: {
+    flexGrow: 0,
+  },
+  lessonFullModalScrollContent: {
+    paddingBottom: 8,
+  },
+  lessonFullModalBody: {
+    fontSize: 17,
+    lineHeight: 26,
+    fontWeight: "500",
+    letterSpacing: 0.15,
   },
   lessonText: {
     fontSize: 17,

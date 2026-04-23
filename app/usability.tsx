@@ -38,8 +38,6 @@ export default function UsabilityScreen() {
     setPulsingAnimations,
     splashAnimation,
     setSplashAnimation,
-    sunnyMomentsCongratsAnimation,
-    setSunnyMomentsCongratsAnimation,
   } = useVisualSettings();
 
   const styles = useMemo(
@@ -199,29 +197,6 @@ export default function UsabilityScreen() {
               <Switch
                 value={splashAnimation}
                 onValueChange={setSplashAnimation}
-                trackColor={{
-                  false: "rgba(150,150,150,0.35)",
-                  true: colors.primary,
-                }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleTextWrap}>
-                <ThemedText size="l" weight="medium" style={{ flex: 1 }}>
-                  {t("settings.usability.sunnyMomentsCongratsAnimation")}
-                </ThemedText>
-                <ThemedText
-                  size="s"
-                  style={{ opacity: 0.75, marginTop: 4 }}
-                >
-                  {t("settings.usability.sunnyMomentsCongratsAnimationDescription")}
-                </ThemedText>
-              </View>
-              <Switch
-                value={sunnyMomentsCongratsAnimation}
-                onValueChange={setSunnyMomentsCongratsAnimation}
                 trackColor={{
                   false: "rgba(150,150,150,0.35)",
                   true: colors.primary,

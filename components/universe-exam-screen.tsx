@@ -520,7 +520,6 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
       sphere: LifeSphere;
       entityId: string;
       focusedMemoryId: string;
-      skipFocusedIntro?: string;
       source?: string;
       profileId?: string;
       jobId?: string;
@@ -531,7 +530,6 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
       sphere: currentCard.sphere,
       entityId: currentCard.entityId,
       focusedMemoryId: currentCard.memoryId,
-      skipFocusedIntro: "1",
       source: "universe_exam_result",
     };
 
@@ -562,7 +560,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
   const CARD_WIDTH = Math.min(320, SW - 48);
   const displayedTriesLeft =
     remainingExamTries !== null && Number.isFinite(remainingExamTries)
-      ? Math.max(1, remainingExamTries + 1)
+      ? Math.max(0, remainingExamTries)
       : remainingExamTries;
   const triesLeftLabel =
     displayedTriesLeft === null

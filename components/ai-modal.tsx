@@ -1405,7 +1405,6 @@ export function AIModal({
                 sphere: LifeSphere;
                 entityId: string;
                 focusedMemoryId: string;
-                skipFocusedIntro?: string;
                 source?: string;
                 profileId?: string;
                 jobId?: string;
@@ -1416,7 +1415,6 @@ export function AIModal({
                 sphere: finalSphere,
                 entityId: finalEntityId,
                 focusedMemoryId: memoryId,
-                skipFocusedIntro: "1",
                 source: "ai_modal_save",
               };
 

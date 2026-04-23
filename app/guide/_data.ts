@@ -7,6 +7,7 @@ export type GuideBullet = {
   descriptionKey: keyof Translations;
   /** Where to tap in the app to reach this feature (shown under the title). */
   menuPathKey: keyof Translations;
+  hideMedia?: boolean;
   imageSource?: ReturnType<typeof require>;
   imageAlignment?: "top" | "center" | "bottom";
   imageOffsetY?: number;
@@ -57,7 +58,7 @@ export const SECTIONS: GuideSection[] = [
         titleKey: "guide.bullet.livingForward.title",
         descriptionKey: "guide.bullet.livingForward.description",
         menuPathKey: "guide.bullet.livingForward.menuPath",
-        imageSource: require("@/LiveForward.png"),
+        hideMedia: true,
       },
     ],
   },

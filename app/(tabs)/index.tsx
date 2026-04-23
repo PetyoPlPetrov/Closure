@@ -131,6 +131,13 @@ import Svg, {
 import { SECTIONS } from "../guide/_data";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const FOCUSED_SPHERES_ORDER: LifeSphere[] = [
+  "relationships",
+  "career",
+  "family",
+  "friends",
+  "hobbies",
+];
 
 // Worklet-safe constants for the spin hint arc animation
 // Clock mapping: angle = -π/2 + (hour/12)*2π
@@ -13937,11 +13944,6 @@ export default function HomeScreen() {
     sphere: LifeSphere;
     text: string;
   } | null>(null);
-  const skipFocusedIntroParamRaw = params.skipFocusedIntro;
-  const skipFocusedIntroParam = Array.isArray(skipFocusedIntroParamRaw)
-    ? skipFocusedIntroParamRaw[0]
-    : skipFocusedIntroParamRaw;
-  const shouldSkipFocusedIntroForRoute = skipFocusedIntroParam === "1";
   const { momentColors } = useMomentColors();
   const {
     orbitDurationMs,
@@ -14031,10 +14033,10 @@ export default function HomeScreen() {
   /** Last known onboarding flag from storage — used to clear a premature walkthroughCheckedRef when onboarding completes. */
   const prevOnboardingCompletedRef = useRef<boolean | null>(null);
   const walkthroughAfterOnboardingRef = useRef(false);
-  // Tracks whether the FocusedSferaView sunny moments intro animation has finished.
+  // Tracks whether the FocusedSferaView initial load gate (splash + data) has finished.
   // The walkthrough modal must not appear until this is true.
   const [focusedIntroComplete, setFocusedIntroComplete] = useState(false);
-  /** Wall time when `focusedIntroComplete` became true (sun celebration + sfera stagger done). Used to show the guide 2s after that moment, not after AsyncStorage. */
+  /** Wall time when `focusedIntroComplete` became true. Used to show the guide 2s after that moment, not after AsyncStorage. */
   const focusedIntroCompleteAtRef = useRef<number | null>(null);
   useEffect(() => {
     if (focusedIntroComplete) {
@@ -14335,8 +14337,8 @@ export default function HomeScreen() {
 
   // Home view mode: "Classic" = Classic view (wheel of life); "focused" = FocusedSferas view (one sphere in focus, swipe to change).
   // When FocusedSferas view is active, only FocusedSferaView is mounted — Classic view components are not in the tree.
-  const FOCUSED_SPHERE_INDEX_KEY = "@sferas:focused_sphere_index";
   const [focusedSphereIndex, setFocusedSphereIndex] = useState(0);
+  const hasAppliedDefaultFocusedSphereRef = useRef(false);
   const cameFromFocusedSferaForEntityRef = useRef(false);
   /** Persists FocusedSferaView sun menu (3 icons) across remounts when opening Insights / modals. */
   const focusedSunMenuExpandedRef = useRef(false);
@@ -14365,17 +14367,8 @@ export default function HomeScreen() {
     }
   }, [homeViewMode]);
 
-  useEffect(() => {
-    AsyncStorage.getItem(FOCUSED_SPHERE_INDEX_KEY).then((v) => {
-      const idx = v != null ? parseInt(v, 10) : NaN;
-      if (Number.isFinite(idx) && idx >= 0 && idx <= 4)
-        setFocusedSphereIndex(idx);
-    });
-  }, []);
-
   const handleFocusedSphereChange = useCallback((index: number) => {
     setFocusedSphereIndex(index);
-    AsyncStorage.setItem(FOCUSED_SPHERE_INDEX_KEY, String(index));
   }, []);
 
   // Focused state management - must be at top level (moved before useFocusEffect)
@@ -14964,6 +14957,37 @@ export default function HomeScreen() {
       getIdealizedMemoriesByEntityId,
     ],
   );
+
+  const focusedDefaultIndexBySunnyMemories = useMemo(() => {
+    let bestIndex = 0;
+    let highestSunnyMemoryCount = -1;
+
+    FOCUSED_SPHERES_ORDER.forEach((sphere, index) => {
+      const sunnyMemoryCount = (memoriesPerEntityBySphere[sphere] ?? []).reduce(
+        (count, entityMemories) =>
+          count +
+          entityMemories.reduce((entityCount, memory) => {
+            const sunnyFacts = (memory.goodFacts ?? []).length;
+            const cloudyFacts = (memory.hardTruths ?? []).length;
+            return entityCount + (sunnyFacts >= cloudyFacts ? 1 : 0);
+          }, 0),
+        0,
+      );
+
+      if (sunnyMemoryCount > highestSunnyMemoryCount) {
+        highestSunnyMemoryCount = sunnyMemoryCount;
+        bestIndex = index;
+      }
+    });
+
+    return bestIndex;
+  }, [memoriesPerEntityBySphere]);
+
+  useEffect(() => {
+    if (isLoading || hasAppliedDefaultFocusedSphereRef.current) return;
+    hasAppliedDefaultFocusedSphereRef.current = true;
+    setFocusedSphereIndex(focusedDefaultIndexBySunnyMemories);
+  }, [focusedDefaultIndexBySunnyMemories, isLoading]);
 
   /** Center sun: filled % vs "empty" + — true if user has memories OR at least one entity (onboarding save creates entities before any memory). */
   const centerSunHasLifeContent = useMemo(
@@ -18545,7 +18569,6 @@ export default function HomeScreen() {
       <View style={{ flex: 1 }}>
         <FocusedSferaView
           overallSunnyPercentage={overallSunnyPercentage}
-          sunCelebrationEligible={sunCelebrationEligible}
           hasMemories={centerSunHasLifeContent}
           selectedSphere={selectedSphere}
           splashDone={!isSplashVisible || isAnimationComplete}
@@ -18621,7 +18644,7 @@ export default function HomeScreen() {
           hidden={showEntityDetail}
           onInsightsPress={() => router.push("/insights")}
           onChallengeMePress={handleChallengeMePress}
-          initialSunMenuExpanded={focusedSunMenuExpandedRef.current}
+          initialSunMenuExpanded={false}
           onSunMenuExpandedChange={handleFocusedSunMenuExpandedChange}
           onIntroComplete={() => setFocusedIntroComplete(true)}
           sferaDataReady={!isLoading}
@@ -18634,7 +18657,6 @@ export default function HomeScreen() {
               prev?.key === key ? null : prev,
             );
           }}
-          disableSunCelebrationIntro={shouldSkipFocusedIntroForRoute}
           sferaSizeHint={
             sferaSizeHintVisible ? (
               <SferaSizeHintBanner
